@@ -28,3 +28,11 @@ Created by Drefvelin, with inspiration from Paradox Interactive. The original pr
 [Project documentation](https://github.com/TF-Minecraft/Docs/blob/main/projects/SimpleFactions/README.md)
 
 Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/TF-Minecraft/Docs).
+
+## License
+
+Copyright (c) 2026 TF-Minecraft contributors.
+
+TF-Minecraft-authored material in this repository is licensed under the
+[Artistic License 2.0](LICENSE). Third-party dependencies and bundled material
+retain their own licenses.
