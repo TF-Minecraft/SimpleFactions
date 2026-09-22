@@ -50,6 +50,8 @@ public class MercenaryMarketView {
         marketList(p, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void marketList(Player p, Inventory inventory) {
         currentPage.putIfAbsent(p, 0);
         boolean open = inventory == null;
@@ -85,6 +87,8 @@ public class MercenaryMarketView {
         }
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createListItem(Player viewer, MercenaryCompany company) {
         Guild guild = company.getGuild();
         ItemStack banner = guild == null ? null : guild.getBanner();

@@ -21,6 +21,8 @@ public final class PlayerLedgerView {
         open(player, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void open(Player player, Inventory inventory) {
         boolean openInv = inventory == null;
         if(openInv) {

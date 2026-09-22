@@ -59,6 +59,8 @@ public class DeclareCodePrompt implements Listener {
 		}.runTaskLater(SimpleFactions.getInstance(), PROMPT_TIMEOUT_TICKS);
 	}
 
+	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void onPlayerChat(AsyncPlayerChatEvent event) {
 		Player player = event.getPlayer();

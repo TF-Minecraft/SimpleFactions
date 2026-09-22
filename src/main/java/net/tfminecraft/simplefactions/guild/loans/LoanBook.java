@@ -21,6 +21,8 @@ import net.md_5.bungee.api.chat.TextComponent;
 
 public class LoanBook {
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ItemStack getLoanBook(Loan loan) {
         ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -78,6 +80,8 @@ public class LoanBook {
         return book;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ItemStack getBaseBook(Guild issuer) {
         ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -104,6 +108,8 @@ public class LoanBook {
         return book;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ItemStack getEstimatedBook(Loan loan) {
         ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -133,6 +139,8 @@ public class LoanBook {
         return book;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static Loan createLoanFromBook(BookMeta meta, Guild borrower) {
         String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
         Guild issuer = FactionManager.getGuildByString(id);

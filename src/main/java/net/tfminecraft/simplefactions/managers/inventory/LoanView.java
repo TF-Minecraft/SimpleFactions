@@ -36,6 +36,8 @@ public class LoanView {
         loanMainView(player, guild, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void loanMainView(Player player, Guild guild, Inventory i) {
         boolean open = i == null;
         if(open) i = SimpleFactions.plugin.getServer().createInventory(
@@ -55,6 +57,8 @@ public class LoanView {
         loansGivenView(player, guild, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void loansGivenView(Player player, Guild guild, Inventory i) {
         boolean open = i == null;
         if(open) i = SimpleFactions.plugin.getServer().createInventory(
@@ -78,6 +82,8 @@ public class LoanView {
         loansTakenView(player, guild, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void loansTakenView(Player player, Guild guild, Inventory i) {
         boolean open = i == null;
         if(open) i = SimpleFactions.plugin.getServer().createInventory(
@@ -101,6 +107,8 @@ public class LoanView {
         loanDetailView(player, guild, loan, isTaken, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void loanDetailView(Player player, Guild guild, Loan loan, boolean isTaken, Inventory i) {
         boolean open = i == null;
         if(open) i = SimpleFactions.plugin.getServer().createInventory(
@@ -126,6 +134,8 @@ public class LoanView {
         if(open) player.openInventory(i);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
         if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
         SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();

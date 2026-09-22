@@ -18,6 +18,8 @@ public class SessionHologram {
         this.lantern = lanternBlock;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void create() {
         if (lantern == null) return;
         
@@ -42,12 +44,16 @@ public class SessionHologram {
         line3.setBillboard(org.bukkit.entity.TextDisplay.Billboard.CENTER);
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void updateProposalInfo(int current, int total) {
         if (line1 != null) {
             line1.setText(StringFormatter.formatHex("#57c274Proposal #c7b89d" + current + "/" + total));
         }
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void updateVotes(int yay, int nay, int abstain) {
         if (line3 != null) {
             line3.setText("§a" + yay + " Yay  §c" + nay + " Nay  §e" + abstain + " Abstain");

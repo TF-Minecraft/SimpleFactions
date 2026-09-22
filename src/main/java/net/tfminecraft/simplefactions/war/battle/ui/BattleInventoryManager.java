@@ -67,11 +67,15 @@ public class BattleInventoryManager {
 		return new NamespacedKey(SimpleFactions.plugin, "battle_point_id");
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void battleView(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Battle View");
 		populateBattleView(i, b);
 		player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void battleList(Player player) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Battle List");
 		populateBattleList(i);
@@ -84,6 +88,8 @@ public class BattleInventoryManager {
 			i.setItem(y, createBattleItem(BattleManager.get().get(y)));
 		}
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void spawnList(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Respawn Points");
 		for(int y = 0; y<b.getPointManager().getPoints().size();y++) {
@@ -93,6 +99,8 @@ public class BattleInventoryManager {
 	}
 	public static final String WARBAND_LIST_TITLE = "§7Warband List";
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void warbandList(Player player) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, WARBAND_LIST_TITLE);
 		populateWarbandList(i, player);
@@ -183,6 +191,8 @@ public class BattleInventoryManager {
 		}
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createDeleteBattleButton(Battle b) {
 		ItemStack i = new ItemStack(Material.TNT, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -194,6 +204,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createCampaignBattleResetHintItem(Battle b) {
 		ItemStack i = new ItemStack(Material.BARRIER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -209,6 +221,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createCampaignRaidResetHintItem(Battle b) {
 		ItemStack i = new ItemStack(Material.BARRIER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -222,6 +236,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createBattleInfoItem(Battle b) {
 		ItemStack i = new ItemStack(Material.NAME_TAG, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -233,6 +249,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void contestView(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Contest View");
 		i.setItem(0, createContestCornerItem("Min", b.getContestArea() != null ? b.getContestArea().getMin() : null));
@@ -245,6 +263,8 @@ public class BattleInventoryManager {
 		player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void raidTargetView(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Raid Target View");
 		i.setItem(0, createRaidTargetLocationItem(b));
@@ -254,6 +274,8 @@ public class BattleInventoryManager {
 		i.setItem(26, createBackButton());
 		player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void sideSelection(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Side Selection");
 		for(int y = 0; y<b.getSides().size();y++) {
@@ -262,6 +284,8 @@ public class BattleInventoryManager {
 		i.setItem(26, createBackButton());
 		player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void sideView(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Side View");
 		for(int y = 0; y<b.getSides().size();y++) {
@@ -271,6 +295,8 @@ public class BattleInventoryManager {
 		player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void sideEditView(Player player, Battle b, BattleSide side) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, SIDE_EDIT_TITLE);
 		populateSideEditView(i, b, side);
@@ -296,6 +322,8 @@ public class BattleInventoryManager {
 	public void updateSideEditView(Player player, Battle b, BattleSide side, Inventory inventory) {
 		populateSideEditView(inventory, b, side);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void pointView(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Point View");
 		List<CapturePoint> sorted = new ArrayList<>(b.getPoints());
@@ -306,6 +334,8 @@ public class BattleInventoryManager {
 		i.setItem(26, createBackButton());
 		player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void templateView(Player player, Battle b) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Template Selection");
 		i.setItem(0, createNoneTemplateItem());
@@ -328,6 +358,8 @@ public class BattleInventoryManager {
 		return createGameRuleButton("Sequential capture", b.isSequentialCapture());
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTemplateButton(Battle b) {
 		ItemStack i = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -339,6 +371,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createNoneTemplateItem() {
 		ItemStack i = new ItemStack(Material.BARRIER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -350,6 +384,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTemplateItem(String templateId) {
 		ItemStack i = new ItemStack(Material.BOOK, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -369,6 +405,8 @@ public class BattleInventoryManager {
 		}
 		return item.getItemMeta().getPersistentDataContainer().get(templateKey(), PersistentDataType.STRING);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createBackButton() {
 		ItemStack i = new ItemStack(Material.BARRIER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -376,6 +414,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons. This path mutates the existing ItemStack; replacing it would change aliases held by callers.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSpawnPointItem(CapturePoint point, BattleSide s) {
 		ItemStack i = new ItemStack(Material.YELLOW_CONCRETE, 1);
 		List<String> lore = new ArrayList<String>();
@@ -407,6 +447,8 @@ public class BattleInventoryManager {
 		}
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createWarbandItem(Warband w) {
 		ItemStack i = new ItemStack(Material.SHIELD, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -474,6 +516,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createBattleItem(Battle b) {
 		ItemStack i = new ItemStack(Material.IRON_SWORD, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -495,6 +539,8 @@ public class BattleInventoryManager {
 		return createSideItem(null, s);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSideItem(Battle battle, BattleSide s) {
 		ItemStack i = new ItemStack(Material.EMERALD, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -535,6 +581,8 @@ public class BattleInventoryManager {
 		return item.getItemMeta().getPersistentDataContainer().get(sideKey(), PersistentDataType.STRING);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSetSpawnButton(BattleSide side) {
 		ItemStack i = new ItemStack(Material.RED_BED, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -551,6 +599,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSetJailButton(BattleSide side) {
 		ItemStack i = new ItemStack(Material.IRON_BARS, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -567,6 +617,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createAddPointButton(BattleSide side) {
 		ItemStack i = new ItemStack(Material.GRAY_BANNER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -591,6 +643,8 @@ public class BattleInventoryManager {
 		return createPointItem(p, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createPointItem(CapturePoint p, Battle b) {
 		ItemStack i = new ItemStack(Material.RED_BANNER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -614,6 +668,8 @@ public class BattleInventoryManager {
 		}
 		return item.getItemMeta().getPersistentDataContainer().get(pointKey(), PersistentDataType.STRING);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createStartButton(Battle b) {
 		ItemStack i = new ItemStack(Material.IRON_SWORD, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -625,6 +681,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createStopButton(Battle b) {
 		ItemStack i = new ItemStack(Material.BARRIER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -635,6 +693,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLifeCount(Battle b) {
 		ItemStack i = new ItemStack(Material.RED_DYE, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -646,6 +706,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createCampaignLivesSummaryItem(Battle b) {
 		ItemStack i = new ItemStack(Material.RED_DYE, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -665,6 +727,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createManualSideLivesHintItem(Battle b) {
 		ItemStack i = new ItemStack(Material.RED_DYE, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -681,6 +745,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSetSideLivesButton(BattleSide side) {
 		ItemStack i = new ItemStack(Material.APPLE, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -737,6 +803,8 @@ public class BattleInventoryManager {
 		BattleType type = battle.getBattleType();
 		return type == BattleType.FIELD || type == BattleType.SIEGE;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLifeButton(Battle b) {
 		ItemStack i = new ItemStack(Material.GOLDEN_APPLE, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -747,6 +815,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSideButton(Battle b) {
 		ItemStack i = new ItemStack(Material.NETHER_STAR, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -754,6 +824,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createContestButton(Battle b) {
 		ItemStack i = new ItemStack(Material.IRON_BLOCK, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -770,6 +842,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createContestDurationButton(Battle b) {
 		ItemStack i = new ItemStack(Material.CLOCK, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -786,6 +860,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createContestHoldItem(Battle b) {
 		ItemStack i = new ItemStack(Material.GOLD_BLOCK, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -794,6 +870,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createContestCornerItem(String label, BattleLocation corner) {
 		ItemStack i = new ItemStack(Material.STONE_BRICKS, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -830,6 +908,8 @@ public class BattleInventoryManager {
 		return 25;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createDefenderRespawnModeButton(Battle b) {
 		DefenderRespawnMode mode = BattleRaidSetup.getEffectiveDefenderRespawnMode(b);
 		ItemStack i = new ItemStack(Material.RESPAWN_ANCHOR, 1);
@@ -842,6 +922,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createDefenderLivesButton(Battle b) {
 		ItemStack i = new ItemStack(Material.APPLE, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -853,6 +935,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRaidTargetButton(Battle b) {
 		ItemStack i = new ItemStack(Material.TARGET, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -867,6 +951,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRaidTargetLocationItem(Battle b) {
 		ItemStack i = new ItemStack(Material.ENDER_PEARL, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -884,6 +970,8 @@ public class BattleInventoryManager {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createPointButton(Battle b) {
 		ItemStack i = new ItemStack(Material.RED_BANNER, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -891,6 +979,8 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createGameRuleButton(String s, boolean b) {
 		if(b) {
 			ItemStack i = new ItemStack(Material.LIME_DYE, 1);
@@ -907,6 +997,8 @@ public class BattleInventoryManager {
 		}
 		
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	ItemStack createLockButton(Battle b) {
 		ItemAPI api = TLibs.getItemAPI();
 		ItemStack i = api.getCreator().getItemsAdderItem("mcicons:icon_unlock");;

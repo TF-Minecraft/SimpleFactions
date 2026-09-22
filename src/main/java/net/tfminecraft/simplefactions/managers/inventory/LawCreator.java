@@ -42,6 +42,8 @@ public class LawCreator {
 	private static final String GRAY  = "#6f776a";
 	private static final String LIGHT_GRAY  = "#9cb68c";
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createLawGroupItem(Player p, Faction f, LawGroup group) {
         Law current = group.getCurrent();
 		ItemStack i = current.getIcon();
@@ -82,6 +84,8 @@ public class LawCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLawItem(Player p, Faction f, LawGroup group, Law law, boolean forProposal) {
 		ItemStack i = law.getIcon();
 		ItemMeta meta = i.getItemMeta();

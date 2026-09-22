@@ -25,6 +25,8 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.tlibs.utils.TimeFormatter;
 
 public class MilitaryCreator {
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createMilitarySummary(Faction f) {
 		Military m = f.getMilitary();
 		ItemStack i = new ItemStack(Material.IRON_SWORD, 1);
@@ -38,6 +40,8 @@ public class MilitaryCreator {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createQueueItem(MilitaryExpansion e, int x, Faction f) {
 		ItemStack i = e.getRegiment().getIcon().clone();
 		ItemMeta meta = i.getItemMeta();
@@ -57,6 +61,8 @@ public class MilitaryCreator {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRegimentIcon(Faction f, Regiment r) {
 		ItemStack i = r.getIcon().clone();
 		ItemMeta meta = i.getItemMeta();
@@ -114,6 +120,8 @@ public class MilitaryCreator {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRegimentIncreaseButton(Faction f, Regiment r) {
 		ItemAPI api = TLibs.getItemAPI();
 		ExpandResult expand = f.getMilitary().canExpand(r);
@@ -137,6 +145,8 @@ public class MilitaryCreator {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRegimentDecreaseButton(Faction f, Regiment r) {
 		ItemAPI api = TLibs.getItemAPI();
 		ItemStack i = api.getCreator().getItemsAdderItem("mcicons:icon_down_blue");

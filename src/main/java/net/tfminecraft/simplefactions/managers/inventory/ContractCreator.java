@@ -25,6 +25,8 @@ public class ContractCreator {
     public static final String BOTH_PRICES_NOTE =
             "#857e59§oA battle day costs the day price AND the battle price";
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createContractsButton(MercenaryCompany company) {
         ItemStack item = new ItemStack(Material.PAPER, 1);
         ItemMeta meta = item.getItemMeta();
@@ -47,6 +49,8 @@ public class ContractCreator {
         return lore;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createContractItem(MercenaryContract contract) {
         ItemStack item = new ItemStack(material(contract.getStatus()), 1);
         ItemMeta meta = item.getItemMeta();
@@ -79,6 +83,8 @@ public class ContractCreator {
         return lore;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDetailItem(MercenaryContract contract) {
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK, 1);
         ItemMeta meta = item.getItemMeta();
@@ -120,6 +126,8 @@ public class ContractCreator {
     }
 
     /** The offer's two answers, shown only to the hiring faction's government. */
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createAcceptButton(MercenaryContract contract) {
         ItemStack item = new ItemStack(Material.LIME_DYE, 1);
         ItemMeta meta = item.getItemMeta();
@@ -134,6 +142,8 @@ public class ContractCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDeclineButton() {
         ItemStack item = new ItemStack(Material.GRAY_DYE, 1);
         ItemMeta meta = item.getItemMeta();
@@ -145,6 +155,8 @@ public class ContractCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDraftButton(MercenaryCompany company) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK, 1);
         ItemMeta meta = item.getItemMeta();

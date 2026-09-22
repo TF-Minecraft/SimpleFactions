@@ -85,6 +85,8 @@ public class DeclareWarCreator {
 				"§7subjects as your own."));
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private ItemStack createGoalItem(WarGoalType goal, String name, List<String> description) {
 		ItemStack item = IconGetter.getIcon("war");
 		ItemMeta meta = item.getItemMeta();
@@ -99,6 +101,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRelationTypeItem(RelationType type, Faction attacker) {
 		ItemStack item = IconGetter.getIcon("war");
 		ItemMeta meta = item.getItemMeta();
@@ -118,6 +122,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTitleItem(DeJureTitleOption option) {
 		Title title = option.title();
 		ItemStack item = new ItemStack(Material.PAPER, 1);
@@ -142,6 +148,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSettlementItem(PillageEligibility.PillageSettlementOption option) {
 		Settlement settlement = option.settlement();
 		ItemStack item = new ItemStack(Material.PAPER, 1);
@@ -164,6 +172,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSubjectItem(Faction subject) {
 		ItemStack item = subject.getBanner();
 		ItemMeta meta = item.getItemMeta();
@@ -179,6 +189,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createGovernmentAxisItem(LawGroup group, Law selected) {
 		ItemStack item = IconGetter.getIcon("war");
 		ItemMeta meta = item.getItemMeta();
@@ -197,6 +209,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createGovernmentLawItem(Law law, boolean selected) {
 		ItemStack item = new ItemStack(Material.PAPER, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -215,6 +229,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createGovernmentConfirmItem() {
 		ItemStack item = IconGetter.getIcon("war");
 		ItemMeta meta = item.getItemMeta();
@@ -226,6 +242,8 @@ public class DeclareWarCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createConfirmSummaryItem(WarDeclareRequest request) {
 		ItemStack item = IconGetter.getIcon("war");
 		ItemMeta meta = item.getItemMeta();

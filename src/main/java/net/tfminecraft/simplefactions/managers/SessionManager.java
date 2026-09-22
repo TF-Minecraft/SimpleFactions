@@ -115,6 +115,8 @@ public class SessionManager implements Listener{
         }
     }
     
+    // Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+    @SuppressWarnings("deprecation")
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         String message = event.getMessage().trim();

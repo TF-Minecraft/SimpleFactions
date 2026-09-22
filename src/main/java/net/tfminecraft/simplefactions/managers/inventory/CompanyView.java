@@ -40,6 +40,8 @@ public class CompanyView {
 	 * Company
 	 * ===================================================== */
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void companyView(Player player, Guild guild) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(
 				new SFInventoryHolder(guild.getId(), SFGUI.COMPANY_VIEW), 27, "§7Company View");
@@ -66,6 +68,8 @@ public class CompanyView {
 	 * Slots
 	 * ===================================================== */
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void slotsView(Player player, Guild guild) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(
 				new SFInventoryHolder(guild.getId(), SFGUI.COMPANY_SLOTS_VIEW), 54, "§7Company Slots");
@@ -94,6 +98,8 @@ public class CompanyView {
 	 * Roster
 	 * ===================================================== */
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void rosterView(Player player, Guild guild) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(
 				new SFInventoryHolder(guild.getId(), SFGUI.COMPANY_ROSTER_VIEW), 54, "§7Company Roster");
@@ -116,6 +122,8 @@ public class CompanyView {
 	 * Upgrades
 	 * ===================================================== */
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void companyUpgradeView(Player player, Guild guild) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(
 				new SFInventoryHolder(guild.getId(), SFGUI.COMPANY_UPGRADE_VIEW), 54,

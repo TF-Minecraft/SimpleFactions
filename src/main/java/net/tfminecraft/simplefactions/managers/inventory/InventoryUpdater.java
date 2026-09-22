@@ -62,6 +62,8 @@ public class InventoryUpdater {
 		return type != null && SKIP_PERIODIC_REFRESH.contains(type);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void updateInventory() {
 		for (Player p : Bukkit.getOnlinePlayers()) {
 			if (p.getOpenInventory().getTopInventory() == null) continue;

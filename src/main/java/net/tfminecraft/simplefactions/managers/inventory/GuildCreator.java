@@ -56,6 +56,8 @@ public class GuildCreator {
 
 	FactionRanker r = new FactionRanker();
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createListItem(Player p, Guild guild) {
 		ItemStack i = new ItemStack(guild.getBanner());
 		ItemMeta meta = i.getItemMeta();
@@ -82,6 +84,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createHostFactionItem(Guild guild) {
 		Faction faction = guild.getFaction();
 		ItemStack i = new ItemStack(faction.getBanner());
@@ -203,6 +207,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradesItem(Player p, Guild guild) {
 		ItemStack i = new ItemStack(Material.GOLD_INGOT);
 		ItemMeta meta = i.getItemMeta();
@@ -221,6 +227,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createBranchItem(Player p, Guild guild, Branch branch) {
 		ItemStack i = branch.getIconItem();
 		ItemMeta meta = i.getItemMeta();
@@ -259,6 +267,8 @@ public class GuildCreator {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createBranchUpgradeItem(Player p, Guild guild, Branch branch) {
 		ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_up_gray");
 		ItemMeta meta = i.getItemMeta();
@@ -299,6 +309,8 @@ public class GuildCreator {
 		i.setItemMeta(meta);
 		return i;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createBranchDowngradeItem(Player p, Guild guild, Branch branch) {
 		ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_down_gray");
 		ItemMeta meta = i.getItemMeta();
@@ -352,6 +364,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLedgerItem(Player p, Guild g) {
 		Ledger ledger = g.getLedger();
 		ItemStack i = new ItemStack(Material.WRITABLE_BOOK, 1);
@@ -421,6 +435,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createDividendItem(Player p, Guild g) {
 		ItemStack i = new ItemStack(Material.GOLD_INGOT, 1);
 		ItemMeta meta = i.getItemMeta();
@@ -455,6 +471,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+	@SuppressWarnings({"deprecation"})
 	public ItemStack createLedgerCitizensItem(Guild g) {
 		Ledger ledger = g.getLedger();
 
@@ -485,6 +503,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLedgerGuildsItem(Guild g) {
 		ItemStack i = new ItemStack(Material.BARREL);
 		ItemMeta m = i.getItemMeta();
@@ -518,6 +538,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLedgerVassalsItem(Guild g) {
 		ItemStack i = new ItemStack(Material.IRON_INGOT);
 		ItemMeta m = i.getItemMeta();
@@ -550,6 +572,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLedgerTributesItem(Guild g) {
 		Faction receiver = g.getFaction();
 
@@ -612,6 +636,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLedgerTariffsItem(Guild g) {
 		ItemStack i = new ItemStack(Material.EMERALD);
 		ItemMeta m = i.getItemMeta();
@@ -643,6 +669,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradeItem(Player p, Guild guild, Upgrade upgrade) {
 		ItemStack i = upgrade.getIconItem();
 		ItemMeta meta = i.getItemMeta();
@@ -681,6 +709,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradeUpgradeItem(Player p, Guild guild, Upgrade upgrade) {
 		ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_up_gray");
 		ItemMeta meta = i.getItemMeta();
@@ -703,6 +733,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradeDowngradeItem(Player p, Guild guild, Upgrade upgrade) {
 		ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_down_gray");
 		ItemMeta meta = i.getItemMeta();
@@ -726,6 +758,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradeQueueItem(UpgradeExpansion expansion, int index, Guild guild) {
 		ItemStack i = expansion.getUpgrade().getIconItem().clone();
 		ItemMeta meta = i.getItemMeta();
@@ -748,6 +782,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRelocateItem(Player p, Faction target, Guild guild) {
 		boolean factionChange = !guild.getFaction().getId().equalsIgnoreCase(target.getId());
 		int province = RestServer.getProvince(p);
@@ -779,6 +815,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createElevationItem(Player p, Guild guild) {
 		ItemStack i = IconGetter.getIconOrDefault("guild_elevate", Material.BLACK_DYE);
 		ItemMeta meta = i.getItemMeta();
@@ -802,6 +840,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createEvictionItem(Player p, Guild guild) {
 		ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_cancel");
 		ItemMeta meta = i.getItemMeta();
@@ -825,6 +865,8 @@ public class GuildCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLoansItem(Player p, Guild guild) {
 		ItemStack i = IconGetter.getIconOrDefault("guild_loans", Material.BLACK_DYE);
 		ItemMeta meta = i.getItemMeta();

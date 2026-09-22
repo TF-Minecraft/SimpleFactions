@@ -33,6 +33,8 @@ public class LawView {
         this.inv = inv;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void lawView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_VIEW), 54, "§7Laws");
@@ -45,6 +47,8 @@ public class LawView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void lawSelect(Player player, Faction f, LawGroup group, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_SELECT, group.getId()), 27, "§7Law View");

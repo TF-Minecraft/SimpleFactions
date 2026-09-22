@@ -82,6 +82,8 @@ public class CampaignCreator {
 		return new NamespacedKey(SimpleFactions.plugin, "campaign_raid_launch_installation_id");
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRouteEntryItem(War war, Faction viewer, CampaignRouteEntry entry) {
 		Optional<ScheduledCampaignBattle> slot = CampaignScheduleService.slotAt(
 				war,
@@ -123,6 +125,8 @@ public class CampaignCreator {
 				entry.provinceId());
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createFirstBattleMarkerItem() {
 		ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_up_gray");
 		ItemMeta meta = item.getItemMeta();
@@ -136,6 +140,8 @@ public class CampaignCreator {
 		return createInfoItem(war, viewerFaction, viewerUuid, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createInfoItem(
 			War war,
 			Faction viewerFaction,
@@ -239,6 +245,8 @@ public class CampaignCreator {
 		return lines;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createHourToggleItem(
 			War war,
 			int hour,
@@ -324,6 +332,8 @@ public class CampaignCreator {
 		return lines;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createEnemyInstallationIntelItem(War war, Faction viewerFaction) {
 		ItemStack item = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -333,6 +343,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createVotingHelpItem() {
 		ItemStack item = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -346,6 +358,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUnusedHourSlotItem() {
 		ItemStack item = new ItemStack(Material.BLACK_STAINED_GLASS_PANE, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -355,6 +369,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createAutoresolveProposeButton(War war, BelligerentRole side) {
 		ItemStack item = new ItemStack(Material.GRAY_BANNER, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -372,6 +388,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRetreatButton(War war) {
 		ItemStack item = new ItemStack(Material.ORANGE_BANNER, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -386,6 +404,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSurrenderButton(War war) {
 		ItemStack item = new ItemStack(Material.RED_BANNER, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -399,6 +419,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createAcceptPeaceButton(War war) {
 		ItemStack item = new ItemStack(Material.WHITE_BANNER, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -412,6 +434,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createPushButton(War war) {
 		boolean navyBlocked = !CampaignNavyGate.winnerCanContestNextNaval(
 				war,
@@ -434,6 +458,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createHoldButton(War war) {
 		ItemStack item = new ItemStack(Material.YELLOW_CONCRETE, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -447,6 +473,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLoserAttackButton(War war) {
 		ItemStack item = new ItemStack(Material.RED_CONCRETE, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -458,6 +486,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLoserAcceptPeaceButton(War war) {
 		ItemStack item = new ItemStack(Material.WHITE_CONCRETE, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -469,6 +499,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createInstallationsEntryButton(War war, Faction viewerFaction) {
 		ItemStack item = IconGetter.getIconOrDefault("march", Material.GREEN_CONCRETE);
 		ItemMeta meta = item.getItemMeta();
@@ -492,6 +524,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createInstallationPickSummaryItem(War war, Faction faction, boolean locked) {
 		ItemStack item = new ItemStack(Material.GREEN_CONCRETE, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -512,6 +546,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createInstallationPickToggleItem(
 			War war,
 			Installation installation,
@@ -546,6 +582,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createStartRaidEntryButton(War war, Faction viewerFaction, Instant now) {
 		LaunchAvailability availability = CampaignRaidLaunchAvailability.describe(war, viewerFaction, now);
 		ItemStack item = availability.enabled()
@@ -564,6 +602,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRaidLaunchSummaryItem(
 			War war,
 			Faction faction,
@@ -596,6 +636,8 @@ public class CampaignCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRaidLaunchInstallationItem(
 			War war,
 			Installation installation,

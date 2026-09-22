@@ -69,6 +69,8 @@ public class WarView {
 		warList(player, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void warList(Player player, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(
@@ -85,6 +87,8 @@ public class WarView {
 		}
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void warView(Inventory i, Player player, War w, boolean open) {
 		w.update();
 		if(open) {
@@ -150,6 +154,8 @@ public class WarView {
 		engagementList(player, w, sideId, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void engagementList(Player player, War w, String sideId, Inventory inventory) {
 		engagementPage.putIfAbsent(player, 0);
 		boolean open = inventory == null;
@@ -190,6 +196,8 @@ public class WarView {
 		}
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void participantView(Inventory i, Player player, War w, Participant p, boolean open) {
 		w.update();
 		if(open) {
@@ -226,6 +234,8 @@ public class WarView {
 		if(open) player.openInventory(i);
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		if(e.getView().getTitle().equalsIgnoreCase("§7War List")) {
 			e.setCancelled(true);

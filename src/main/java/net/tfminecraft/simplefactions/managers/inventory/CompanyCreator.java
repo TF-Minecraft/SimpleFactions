@@ -26,6 +26,8 @@ public class CompanyCreator {
 	public static final String BUFF_SCOPE_WARNING =
 			"#857e59§oOnly while fighting as a hired mercenary";
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createCompanyEntryItem(Guild guild) {
 		MercenaryCompany company = guild.getCompany();
 		ItemStack item = new ItemStack(Material.IRON_SWORD, 1);
@@ -116,6 +118,8 @@ public class CompanyCreator {
 	 * Header of the company screen. A company flies its guild's cloth, so the
 	 * guild banner item is the standard rather than a second pattern build.
 	 */
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createStandardItem(Guild guild, MercenaryCompany company) {
 		ItemStack banner = guild.getBanner();
 		ItemStack item = banner == null ? new ItemStack(Material.WHITE_BANNER, 1) : banner.clone();
@@ -126,6 +130,8 @@ public class CompanyCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSlotsButton(Guild guild) {
 		MercenaryCompany company = guild.getCompany();
 		ItemStack item = new ItemStack(Material.IRON_HELMET, 1);
@@ -139,6 +145,8 @@ public class CompanyCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRosterButton(Guild guild) {
 		MercenaryCompany company = guild.getCompany();
 		ItemStack item = new ItemStack(Material.PAPER, 1);
@@ -152,6 +160,8 @@ public class CompanyCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradesButton(Guild guild) {
 		MercenaryCompany company = guild.getCompany();
 		ItemStack item = new ItemStack(Material.WRITABLE_BOOK, 1);
@@ -165,6 +175,8 @@ public class CompanyCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSlotItem(MercenaryCompany company, int index) {
 		String occupant = index < company.getEnlisted().size()
 				? company.getEnlisted().get(index) : null;
@@ -189,6 +201,8 @@ public class CompanyCreator {
 		return lore;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSlotQueueItem(MilitaryExpansion expansion, int index, Guild guild) {
 		ItemStack item = new ItemStack(Material.IRON_HELMET, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -209,6 +223,8 @@ public class CompanyCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createExpandButton(MercenaryCompany company) {
 		String blocked = company.getExpansionBlockedReason();
 		ItemStack item = new ItemStack(
@@ -229,6 +245,8 @@ public class CompanyCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRosterItem(MercenaryCompany company, String member, boolean leader) {
 		ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -245,6 +263,8 @@ public class CompanyCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradeItem(Upgrade upgrade) {
 		ItemStack item = upgrade.getIconItem();
 		ItemMeta meta = item.getItemMeta();
@@ -277,6 +297,8 @@ public class CompanyCreator {
 		return lore;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createUpgradeQueueItem(UpgradeExpansion expansion, int index, Guild guild) {
 		ItemStack item = expansion.getUpgrade().getIconItem();
 		ItemMeta meta = item.getItemMeta();

@@ -46,6 +46,8 @@ import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class GovernmentCreator {
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createGovernmentItem(Faction f) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta m = item.getItemMeta();
@@ -66,6 +68,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createCouncilItem(Faction f) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta m = item.getItemMeta();
@@ -87,6 +91,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createElectionItem(Player p, Faction f) {
         ItemStack item = TLibs.getItemAPI().getCreator().getItemFromPath("ia.iasurvival:letter");
         ItemMeta m = item.getItemMeta();
@@ -175,6 +181,8 @@ public class GovernmentCreator {
     }
 
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createStabilityItem(Faction f) {
         ItemStack item = IconGetter.getIconOrDefault("stability", Material.BLACK_DYE);
         ItemMeta m = item.getItemMeta();
@@ -245,6 +253,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createStanceItem(Faction f, Guild guild) {
         Stance stance = guild.getStance(f);
         ItemStack item = new ItemStack(Material.YELLOW_CONCRETE);
@@ -263,6 +273,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createToggleRefuseButton(Player p, Faction f) {
         boolean refuse = f.getGovernment().getCouncil().refuses(p.getName());
         ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem(refuse ? "mcicons:icon_cancel" : "mcicons:icon_confirm");
@@ -282,6 +294,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createTaxTypeItem(Player p, Faction f, TaxTarget target, boolean proposalView) {
         ItemStack item = new ItemStack(Material.GOLD_INGOT);
         ItemMeta m = item.getItemMeta();
@@ -309,6 +323,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createSpecificTaxItem(Player p, Faction f, String id, TaxTarget target) {
         String name = "";
         ItemStack item = new ItemStack(Material.GOLD_INGOT);
@@ -352,6 +368,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createProposalItem(Player p, Faction f) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta m = item.getItemMeta();
@@ -376,6 +394,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createProposalListItem(Player p, Faction f) {
         ItemStack item = new ItemStack(Material.BOOKSHELF);
         ItemMeta m = item.getItemMeta();
@@ -391,6 +411,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createMovementListItem(Player p, Faction f) {
         ItemStack item = new ItemStack(Material.BLAZE_POWDER);
         ItemMeta m = item.getItemMeta();
@@ -539,6 +561,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createStartCouncilButton(Player p, Faction f) {
         ItemStack item = new ItemStack(Material.EMERALD);
         ItemMeta m = item.getItemMeta();
@@ -550,6 +574,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createCurrentProposalItem(Player p, Faction f, Proposal proposal) {
         ItemStack item = new ItemStack(Material.BOOK);
         ItemMeta m = item.getItemMeta();
@@ -562,6 +588,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createProposalTypeItem(String type) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta m = item.getItemMeta();
@@ -588,6 +616,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createPoliticalProposalTypeItem(Player p, Faction f, Action action) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta m = item.getItemMeta();
@@ -603,6 +633,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createWarPeaceSelectItem(War war, Action action) {
         ItemStack item = new ItemStack(Material.IRON_SWORD, 1);
         ItemMeta m = item.getItemMeta();
@@ -616,6 +648,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+    @SuppressWarnings({"deprecation"})
     public ItemStack createFavourRepressEntryButton() {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta m = item.getItemMeta();
@@ -631,6 +665,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createFavourButton() {
         ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_confirm");
         ItemMeta m = item.getItemMeta();
@@ -644,6 +680,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createRepressButton() {
         ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_cancel");
         ItemMeta m = item.getItemMeta();
@@ -657,6 +695,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createGuildsTypeButton(boolean favour) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta m = item.getItemMeta();
@@ -673,6 +713,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createVassalsTypeButton(boolean favour) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta m = item.getItemMeta();
@@ -689,6 +731,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createFavourRepressGuildItem(Player p, Faction f, Guild guild, boolean isFavourMode) {
         ItemStack item = guild.getBanner().clone();
         ItemMeta m = item.getItemMeta();
@@ -755,6 +799,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createFavourRepressVassalItem(Player p, Faction f, Faction vassal, boolean isFavourMode) {
         Guild mainGuild = vassal.getOrCreateMainGuild();
         ItemStack item = vassal.getBanner().clone();

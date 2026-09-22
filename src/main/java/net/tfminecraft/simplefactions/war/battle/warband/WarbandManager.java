@@ -99,6 +99,8 @@ public class WarbandManager implements Listener {
 		}.runTaskTimer(SimpleFactions.plugin, 0L, 20L);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private void refreshOpenWarbandLists() {
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			Inventory top = player.getOpenInventory().getTopInventory();
@@ -140,6 +142,8 @@ public class WarbandManager implements Listener {
 		}
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void invenClick(InventoryClickEvent e) {
 		Player p = (Player) e.getWhoClicked();

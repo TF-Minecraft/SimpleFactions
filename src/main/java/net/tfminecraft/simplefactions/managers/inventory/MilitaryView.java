@@ -28,6 +28,8 @@ public class MilitaryView {
 		this.inv = inv;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void militaryView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.MILITARY_VIEW), 54, "§7Military View");

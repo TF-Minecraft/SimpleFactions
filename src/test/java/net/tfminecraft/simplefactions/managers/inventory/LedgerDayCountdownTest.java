@@ -11,6 +11,8 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.player.income.PlayerLedger;
 
 class LedgerDayCountdownTest {
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     @ParameterizedTest
     @CsvSource({
         "0, 86400, 24h 0m",

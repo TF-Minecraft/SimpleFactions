@@ -27,6 +27,8 @@ public class TitleManager implements Listener{
 		return f.getPrestige() <  Math.max(0, f.getProvinces().size()-1)*Cache.provinceCost;
 	}
 	
+	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void formTitle(AsyncPlayerChatEvent e) {
 		Player p = e.getPlayer();

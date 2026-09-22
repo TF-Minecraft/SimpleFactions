@@ -101,6 +101,8 @@ public final class SiegeContestService {
 		battle.setContestHoldRemainingSeconds(remaining);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private static void updateFeedback(Battle battle, ControlState state) {
 		int remaining = battle.getContestHoldRemainingSeconds();
 		String stateLabel = switch (state) {

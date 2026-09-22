@@ -28,6 +28,8 @@ import net.tfminecraft.simplefactions.war.core.WarGoal;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class WarCreator {
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createCampaignButton(War w) {
 		ItemStack i = new ItemStack(Material.COMPASS, 1);
 		ItemMeta m = i.getItemMeta();
@@ -46,6 +48,8 @@ public class WarCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createWarItem(War w, boolean button) {
 		ItemStack i = IconGetter.getIconOrDefault("war", Material.BLAZE_POWDER);
 		ItemMeta m = i.getItemMeta();
@@ -110,6 +114,8 @@ public class WarCreator {
 		return createSecondaryItem(p, par, w, f, subject, called, false);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createSecondaryItem(
 			Player p,
 			Participant par,
@@ -167,6 +173,8 @@ public class WarCreator {
 		return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createParticipantItem(Player p, Participant par, String type, War w, boolean full, boolean warGoal) {
 		Faction pf = FactionManager.getByLeader(p.getName());
 		Faction f = par.getLeader();
@@ -284,6 +292,8 @@ public class WarCreator {
 		return lore;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createMercenaryItem(
 			net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements.Engagement engagement,
 			String marker) {
@@ -305,6 +315,8 @@ public class WarCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createOverflowOpener(String sideId, int hiddenCount) {
 		ItemStack i = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta m = i.getItemMeta();

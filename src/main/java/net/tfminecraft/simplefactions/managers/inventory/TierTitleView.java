@@ -33,6 +33,8 @@ public class TierTitleView {
 		this.inv = inv;                   
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void tierView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TIER_VIEW), 54, "§7Tier View");
@@ -52,6 +54,8 @@ public class TierTitleView {
 		i.setItem(53, inv.createBackButton(SFGUI.TIER_VIEW));
 		if(open) player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void titleView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TITLE_VIEW), 54, "§7Title View");
@@ -85,6 +89,8 @@ public class TierTitleView {
 		i.setItem(53, inv.createBackButton(SFGUI.TITLE_VIEW));
 		if(open) player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void titleTypeView(Inventory i, Player player, Faction f, Tier tier, boolean open, int page) {
 		if (page < 0) {
 			page = 0;
@@ -127,6 +133,8 @@ public class TierTitleView {
 		if(open) player.openInventory(i);
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		if(e.getView().getTitle().equalsIgnoreCase("§7Tier View")) {
 			e.setCancelled(true);

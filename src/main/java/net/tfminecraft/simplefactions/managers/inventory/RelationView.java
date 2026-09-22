@@ -53,6 +53,8 @@ public class RelationView {
 		diplomacyListView(i, player, f, open, page);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void diplomacyListView(Inventory i, Player player, Faction f, boolean open, int page) {
 		if (page < 0) {
 			page = 0;
@@ -140,6 +142,8 @@ public class RelationView {
 		diplomacyView(null, p, target, true);
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void diplomacyView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.DIPLOMACY_VIEW), 54, "§7Diplomacy View");
@@ -169,6 +173,8 @@ public class RelationView {
 		i.setItem(53, inv.createBackButton(SFGUI.DIPLOMACY_VIEW));
 		if(open) player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void attitudeView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.ATTITUDE_VIEW), 27, "§7Change Attitude");
@@ -181,6 +187,8 @@ public class RelationView {
 		i.setItem(26, inv.createBackButton(SFGUI.ATTITUDE_VIEW));
 		if(open) player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void relationView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.RELATION_VIEW), 27, "§7Change Relation");
@@ -198,6 +206,8 @@ public class RelationView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void tradeAgreementView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TRADE_AGREEMENT_VIEW), 27, "§7Change Trade Agreement");
@@ -214,6 +224,8 @@ public class RelationView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void treatyView(Inventory i, Player player, Faction f, boolean open) {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TREATY_VIEW), 27, "§7Change Treaty");
@@ -230,6 +242,8 @@ public class RelationView {
 		if(open) player.openInventory(i);
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		ItemStack item = e.getCurrentItem();
         if (item == null) return;
