@@ -112,6 +112,8 @@ class BattleJoinServiceTest {
 		assertNull(BattleJoinService.campaignPlayerJoinRedirect(null));
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void join_pendingLeaderShell_enrollsOnBattleSide() {
 		Faction attacker = mock(Faction.class);

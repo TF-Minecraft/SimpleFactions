@@ -90,6 +90,8 @@ class CampaignScheduleTrimmerTest {
 		assertTrue(trimmed.stream().noneMatch(slot -> slot.kind() == CampaignBattleKind.NAVAL));
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void maxBattlesForGoal_readsCache() {
 		assertEquals(4, CampaignScheduleTrimmer.maxBattlesForGoal(WarGoalType.SUBJUGATE));

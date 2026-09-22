@@ -81,6 +81,8 @@ class WarbandMembershipServiceTest {
 		assertFalse(service.evaluateRejoin(warband, memberId, otherFaction, state));
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void pendingLeaderDisplayName() {
 		Faction attacker = mock(Faction.class);

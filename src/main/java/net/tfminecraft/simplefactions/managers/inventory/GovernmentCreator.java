@@ -409,6 +409,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     public ItemStack createCouncilMemberItem(Player player, Faction f, int slot) {
         Council council = f.getGovernment().getCouncil();
         List<String> members = council.getMembers();
@@ -498,6 +500,8 @@ public class GovernmentCreator {
         return item;
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     public ItemStack createPotentialMemberItem(Player player, Faction f, String member, int slot) {
         
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);

@@ -164,6 +164,8 @@ class WarDevModeTest {
 		assertEquals(10, warband.getDummyMemberCount());
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void seedCampaignSideIfEnabled_skipsWhenOff() {
 		Faction attacker = mock(Faction.class);
@@ -180,6 +182,8 @@ class WarDevModeTest {
 		assertTrue(warband.isPendingLeader());
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void seedCampaignSideIfEnabled_setsDummyLeaderWithDisplayNameWhenOn() {
 		WarDevMode.setEnabled(true);
@@ -202,6 +206,8 @@ class WarDevModeTest {
 		assertNotEquals("Test Dummy", warband.getLeaderDisplayName());
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void sideRosterCount_matchesMemberCountWithDummies() {
 		WarDevMode.setEnabled(true);

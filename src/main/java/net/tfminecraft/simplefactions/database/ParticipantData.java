@@ -11,6 +11,7 @@ public class ParticipantData {
     public Map<String, Boolean> allies = new HashMap<>();
     public List<String> backers = new ArrayList<>();
     /** @deprecated v1 per-participant goals; omitted on v2 write when war has top-level goal. */
+    @Deprecated
     public Map<String, String> warGoals = new HashMap<>();
     public boolean civilWar;
 }

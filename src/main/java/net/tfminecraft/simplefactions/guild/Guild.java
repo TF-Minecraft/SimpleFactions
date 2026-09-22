@@ -523,6 +523,8 @@ public class Guild {
 		this.bannerPatterns.clear();
 		this.bannerPatterns.add(banner.getType().toString().replace("_BANNER", ".BASE"));
 		for(Pattern p : b.getPatterns()) {
+			// getKey is shared by the supported Paper/Spigot API snapshots.
+			@SuppressWarnings("deprecation")
 			NamespacedKey key = p.getPattern().getKey();
 			if (key == null) continue;
 			this.bannerPatterns.add(p.getColor().name() + "." + key.getKey().toUpperCase());

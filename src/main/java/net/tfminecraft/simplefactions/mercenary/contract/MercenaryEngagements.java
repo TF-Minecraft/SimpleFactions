@@ -47,6 +47,8 @@ public final class MercenaryEngagements {
         return uuids;
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     public static PlayerUuidLookup bukkitUuids() {
         return name -> {
             if (name == null || Bukkit.getServer() == null) return null;

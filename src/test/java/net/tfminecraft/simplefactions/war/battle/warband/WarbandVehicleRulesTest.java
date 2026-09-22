@@ -49,6 +49,8 @@ class WarbandVehicleRulesTest {
 		WarManager.get().clear();
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void campaignAutoWarband_detectsCampaignShell() {
 		Faction attacker = mock(Faction.class);
@@ -80,6 +82,8 @@ class WarbandVehicleRulesTest {
 		assertTrue(WarbandVehicleRules.isCampaignAutoWarband(warband));
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void blocksVehicleEntry_whenCampaignBattleNotStarted() {
 		Faction attacker = mock(Faction.class);

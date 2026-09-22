@@ -265,6 +265,8 @@ public class PlayerManager implements Listener{
         return i;
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     @EventHandler
     public void earnMoney(PlayerEarnMoneyEvent e) {
         String playerName = e.getPlayer();

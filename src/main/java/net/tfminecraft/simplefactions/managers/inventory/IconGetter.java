@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.util.LegacyModelData;
+
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -19,7 +21,7 @@ public class IconGetter {
 		int model = Integer.parseInt(data.split("\\.")[1]);
 		ItemStack i = new ItemStack(Material.valueOf(material.toUpperCase()), 1);
 		ItemMeta m = i.getItemMeta();
-		m.setCustomModelData(model);
+		LegacyModelData.set(m, model);
 		i.setItemMeta(m);
 		return i;
 	}

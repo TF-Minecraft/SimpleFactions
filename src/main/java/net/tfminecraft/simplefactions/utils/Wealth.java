@@ -17,6 +17,8 @@ import net.tfminecraft.denareconomy.enums.Accounts;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 
 public class Wealth {
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     public static double wealth(String player) {
         double wealth = 0;
         OfflinePlayer op = Bukkit.getOfflinePlayer(player);

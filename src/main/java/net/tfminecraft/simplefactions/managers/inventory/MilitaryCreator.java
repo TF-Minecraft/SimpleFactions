@@ -20,7 +20,6 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.tlibs.TLibs;
-import net.tfminecraft.tlibs.enums.APIType;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.tlibs.utils.TimeFormatter;
@@ -116,7 +115,7 @@ public class MilitaryCreator {
 		return i;
 	}
 	public ItemStack createRegimentIncreaseButton(Faction f, Regiment r) {
-		ItemAPI api = (ItemAPI) TLibs.getApiInstance(APIType.ITEM_API);
+		ItemAPI api = TLibs.getItemAPI();
 		ExpandResult expand = f.getMilitary().canExpand(r);
 		ItemStack i = api.getCreator().getItemsAdderItem("mcicons:icon_up_blue");
 		ItemMeta meta = i.getItemMeta();
@@ -139,7 +138,7 @@ public class MilitaryCreator {
 		return i;
 	}
 	public ItemStack createRegimentDecreaseButton(Faction f, Regiment r) {
-		ItemAPI api = (ItemAPI) TLibs.getApiInstance(APIType.ITEM_API);
+		ItemAPI api = TLibs.getItemAPI();
 		ItemStack i = api.getCreator().getItemsAdderItem("mcicons:icon_down_blue");
 		ItemMeta meta = i.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex("#b83232Decrease "+r.getName()));

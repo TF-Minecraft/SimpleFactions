@@ -192,6 +192,8 @@ class BattleWarbandRetreatServiceTest {
 				BattleWarbandRetreatService.retreatRejection(member, fixture.now())));
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void rejection_pendingLeader() {
 		War war = new War(1, attacker, defender);

@@ -65,6 +65,8 @@ public class ElectionCreator {
         return item;
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     public ItemStack createCandidateItem(Faction f, Candidate candidateType, String candidateName) {
         ItemStack item = new ItemStack(org.bukkit.Material.PLAYER_HEAD);
         SkullMeta skull = (SkullMeta) item.getItemMeta();
