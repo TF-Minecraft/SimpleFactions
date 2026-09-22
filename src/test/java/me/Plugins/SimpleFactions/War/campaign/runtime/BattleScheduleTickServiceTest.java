@@ -25,8 +25,8 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.plugin.PluginManager;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
@@ -57,8 +57,11 @@ class BattleScheduleTickServiceTest {
 	private Faction attacker;
 	private Faction defender;
 
+	private SimpleFactions pluginBackup;
+
 	@BeforeEach
 	void setUp() {
+		pluginBackup = SimpleFactions.plugin;
 		CampaignClock.resetForTests();
 		BattleScheduleTickService.resetHourGateForTests();
 		BattleManager.resetForTests();
@@ -89,6 +92,11 @@ class BattleScheduleTickServiceTest {
 		CampaignClock.resetForTests();
 		BattleScheduleTickService.resetHourGateForTests();
 		WarManager.get().clear();
+	}
+
+	@AfterEach
+	void restorePlugin() {
+		SimpleFactions.plugin = pluginBackup;
 	}
 
 	@Test

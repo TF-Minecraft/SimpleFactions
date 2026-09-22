@@ -21,6 +21,7 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
@@ -62,8 +63,11 @@ class CampaignBattleLaunchServiceTest {
 	private Faction attacker;
 	private Faction defender;
 
+	private SimpleFactions pluginBackup;
+
 	@BeforeEach
 	void setUp() {
+		pluginBackup = SimpleFactions.plugin;
 		BattleManager.resetForTests();
 		WarbandManager.resetForTests();
 		Cache.warFirstBattleAtBorder = true;
@@ -97,6 +101,11 @@ class CampaignBattleLaunchServiceTest {
 		when(faction.getMilitary()).thenReturn(military);
 		when(faction.getMembers()).thenReturn(java.util.List.of());
 		when(faction.getName()).thenReturn("faction");
+	}
+
+	@AfterEach
+	void restorePlugin() {
+		SimpleFactions.plugin = pluginBackup;
 	}
 
 	@Test

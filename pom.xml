@@ -12,13 +12,6 @@
         <tlibs.version>1.1.0</tlibs.version>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <tfmc.refs>D:/Dokumenter/My Plugins/Reference Libs</tfmc.refs>
-        <tfmc.builds>D:/Dokumenter/My Plugins/TFMC/SimpleFactions</tfmc.builds>
-
-        <tfmc.plugins>D:/Dokumenter/My Plugins/TFMC/DenarEconomy</tfmc.plugins>
-        <tfmc.rpcharacters>D:/Dokumenter/My Plugins/TFMC/RPCharacters</tfmc.rpcharacters>
-        <tfmc.vehicleframework>D:/Dokumenter/My Plugins/TFMC/VehicleFramework</tfmc.vehicleframework>
-        <tfmc.vfbuilders>D:/Dokumenter/My Plugins/TFMC/VFBuilders</tfmc.vfbuilders>
     </properties>
 
     <dependencies>
@@ -27,7 +20,7 @@
             <artifactId>json-simple</artifactId>
             <version>1.1</version>
             <scope>system</scope>
-            <systemPath>${tfmc.refs}/json-simple-1.1.jar</systemPath>
+            <systemPath>${project.basedir}/libs/json-simple-1.1.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -39,35 +32,35 @@
             <artifactId>BungeeCord</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <systemPath>${tfmc.refs}/BungeeCord.jar</systemPath>
+            <systemPath>${project.basedir}/libs/BungeeCord.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>MMOItems</artifactId>
             <version>6.10</version>
             <scope>system</scope>
-            <systemPath>${tfmc.refs}/MMOItems-6.10.jar</systemPath>
+            <systemPath>${project.basedir}/libs/MMOItems-6.10.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>MythicLib</artifactId>
             <version>1.7</version>
             <scope>system</scope>
-            <systemPath>${tfmc.refs}/MythicLib-1.7.jar</systemPath>
+            <systemPath>${project.basedir}/libs/MythicLib-1.7.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>MMOCore</artifactId>
             <version>1.13.1</version>
             <scope>system</scope>
-            <systemPath>${tfmc.refs}/MMOCore-1.13.1.jar</systemPath>
+            <systemPath>${project.basedir}/libs/MMOCore-1.13.1.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>spigot-api</artifactId>
             <version>1.21.10</version>
             <scope>system</scope>
-            <systemPath>${tfmc.refs}/spigot-api-1.21.10.jar</systemPath>
+            <systemPath>${project.basedir}/libs/spigot-api-1.21.10.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>me.plugins</groupId>
@@ -84,28 +77,28 @@
             <artifactId>RPCharacters</artifactId>
             <version>1.1.7</version>
             <scope>system</scope>
-            <systemPath>${tfmc.rpcharacters}/rpcharacters-1.1.7.jar</systemPath>
+            <systemPath>${project.basedir}/libs/rpcharacters-1.1.7.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>DenarEconomy</artifactId>
-            <version>0.1.7</version>
+            <version>0.1.8</version>
             <scope>system</scope>
-            <systemPath>${tfmc.plugins}/denareconomy-0.1.7.jar</systemPath>
+            <systemPath>${project.basedir}/libs/denareconomy-0.1.8.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>VehicleFramework</artifactId>
-            <version>1.1.11</version>
+            <version>1.1.12</version>
             <scope>system</scope>
-            <systemPath>${tfmc.vehicleframework}/vehicleframework-1.1.11.jar</systemPath>
+            <systemPath>${project.basedir}/libs/vehicleframework-1.1.12.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>local</groupId>
             <artifactId>VFBuilders</artifactId>
             <version>1.0.0</version>
             <scope>system</scope>
-            <systemPath>${tfmc.vfbuilders}/vfbuilders-1.0.0.jar</systemPath>
+            <systemPath>${project.basedir}/libs/vfbuilders-1.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>commons-lang</groupId>
@@ -139,6 +132,18 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes><include>plugin.yml</include></includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes><exclude>plugin.yml</exclude></excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -155,24 +160,6 @@
                 <configuration>
                     <argLine>-Dnet.bytebuddy.experimental=true -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals><goal>run</goal></goals>
-                        <configuration>
-                            <target>
-                                <mkdir dir="${tfmc.builds}"/>
-                                <copy file="${project.build.directory}/${project.build.finalName}.jar"
-                                    tofile="${tfmc.builds}/${project.build.finalName}.jar"/>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
