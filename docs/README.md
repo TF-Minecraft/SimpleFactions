@@ -6,7 +6,7 @@ This `docs/` folder is the product and technical reference for the **SimpleFacti
 
 ## Reading order
 
-1. [roadmap.md](./roadmap.md) - shipped vs planned (next: Phase 9 / [TODO.md](../TODO.md))
+1. [roadmap.md](./roadmap.md) - current systems and follow-up work
 2. [map-export.md](./map-export.md) - HTTP upload, regen, JSON contract
 3. [province-grid.md](./province-grid.md) - local province lookup
 4. Product areas:
