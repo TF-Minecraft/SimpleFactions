@@ -4,4 +4,6 @@ public enum RankType {
 	WEALTH,
 	PRESTIGE,
 	MEMBERS,
+	TRADE_POWER,
+	INCOME,
 }

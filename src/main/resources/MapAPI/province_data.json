@@ -1,0 +1,4793 @@
+[
+  {
+    "id": 1,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.73,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 2,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 3,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 4,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 5,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 6,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 7,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 8,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 9,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 10,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 11,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 12,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 13,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 14,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 15,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 16,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 17,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 18,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 19,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 20,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 21,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 22,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 23,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 24,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 25,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.63,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 26,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 27,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 28,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 29,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 30,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 31,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 32,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 33,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 34,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 35,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 36,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 37,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 38,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 39,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 40,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 41,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 42,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 43,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 44,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 45,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 46,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 47,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 48,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 49,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 50,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 51,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 52,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 53,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 54,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 55,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 56,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 57,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 58,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 59,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 60,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 61,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 62,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 63,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 64,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 65,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 66,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 67,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 68,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 69,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 70,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 71,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 72,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 73,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 74,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 75,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 76,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 77,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 78,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 79,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 80,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 81,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 82,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 83,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 84,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 85,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 86,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 87,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 88,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 89,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 90,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 91,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 92,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 93,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 94,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 95,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 96,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 97,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 98,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 99,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 100,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 101,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 102,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 103,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 104,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 105,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 106,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 107,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 108,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 109,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 110,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 111,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 112,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 113,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 114,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 115,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 116,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 117,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 118,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 119,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 120,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 121,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 122,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 123,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 124,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 125,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 126,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 127,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 128,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 129,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 130,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 131,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 132,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 133,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 134,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 135,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 136,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 137,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 138,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 139,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 140,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 141,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 142,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 143,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 144,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 145,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 146,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 147,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 148,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 149,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 150,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 151,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 152,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 153,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 154,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 155,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 156,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 157,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 158,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 159,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 160,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 161,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 162,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 163,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 164,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 165,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 166,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 167,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 168,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 169,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 170,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 171,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 172,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 173,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 174,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 175,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 176,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 177,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 178,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 179,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 180,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 181,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 182,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 183,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 184,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 185,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 186,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 187,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 188,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 189,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 190,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 191,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 192,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 193,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 194,
+    "prosperity": 0.12,
+    "trade": {
+      "Lantan": {
+        "trade": 0.68,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 195,
+    "prosperity": 0.56,
+    "trade": {
+      "Lantan": {
+        "trade": 1.08,
+        "production": 0.51
+      }
+    }
+  },
+  {
+    "id": 196,
+    "prosperity": 0.23,
+    "trade": {
+      "Lantan": {
+        "trade": 0.74,
+        "production": 0.21
+      }
+    }
+  },
+  {
+    "id": 197,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 198,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 199,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 200,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 201,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 202,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 203,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 204,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 205,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 206,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 207,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 208,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 209,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 210,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 211,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 212,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 213,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 214,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 215,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 216,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 217,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 218,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 219,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 220,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 221,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 222,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 223,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 224,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 225,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 226,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 227,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 228,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 229,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 230,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 231,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 232,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 233,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 234,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 235,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 236,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 237,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 238,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 239,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 240,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 241,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 242,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 243,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 244,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 245,
+    "prosperity": 0.12,
+    "trade": {
+      "Lantan": {
+        "trade": 0.68,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 246,
+    "prosperity": 0.12,
+    "trade": {
+      "Lantan": {
+        "trade": 0.68,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 247,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 248,
+    "prosperity": 0.12,
+    "trade": {
+      "Lantan": {
+        "trade": 0.68,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 249,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 250,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.57,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 251,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 252,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 253,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 254,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 255,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 256,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 257,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 258,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 259,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.57,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 260,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 261,
+    "prosperity": 0.27,
+    "trade": {
+      "Lantan": {
+        "trade": 1.29,
+        "production": 0.27
+      }
+    }
+  },
+  {
+    "id": 262,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 263,
+    "prosperity": 0.27,
+    "trade": {
+      "Lantan": {
+        "trade": 1.29,
+        "production": 0.27
+      }
+    }
+  },
+  {
+    "id": 264,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.89,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 265,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.56,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 266,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 267,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 268,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 269,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.56,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 270,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 271,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 272,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 273,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 274,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 275,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 276,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 277,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 278,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 279,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 280,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 281,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 282,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 283,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 284,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 285,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 286,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 287,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 288,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 289,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 290,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 291,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 292,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 293,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 294,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 295,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 296,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 297,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 298,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 299,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 300,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 301,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 302,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 303,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 304,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 305,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 306,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 307,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 308,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 309,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 310,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 311,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 312,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 313,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 314,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 315,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 316,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 317,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 318,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 319,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 320,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 321,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 322,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 323,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 324,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 325,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 326,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 327,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 328,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 329,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 330,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 331,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 332,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 333,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 334,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 335,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 336,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 337,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 338,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 339,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 340,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 341,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 342,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 343,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 344,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 345,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 346,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 347,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 348,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 349,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 350,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 351,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 352,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 353,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 354,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 355,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 356,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 357,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 358,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 359,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 360,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 361,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 362,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 363,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 364,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 365,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 366,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 367,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 368,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 369,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 370,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 371,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 372,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 373,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 374,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 375,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 376,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 377,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 378,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 379,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 380,
+    "prosperity": 0.1,
+    "trade": {
+      "Lantan": {
+        "trade": 0.8,
+        "production": 0.1
+      }
+    }
+  },
+  {
+    "id": 381,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 382,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 383,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 384,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 385,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 386,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 387,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 388,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 389,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 390,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 391,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 392,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 393,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 394,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 395,
+    "prosperity": 0.31,
+    "trade": {
+      "Lantan": {
+        "trade": 0.72,
+        "production": 0.28
+      }
+    }
+  },
+  {
+    "id": 396,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 397,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.73,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 398,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 399,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 400,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.73,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 401,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.73,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 402,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 403,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 404,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 405,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 406,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 407,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 408,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 409,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 410,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 411,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 412,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 413,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 414,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 415,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 416,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 417,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 418,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 419,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 420,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 421,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 422,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 423,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 424,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 425,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 426,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 427,
+    "prosperity": 1.83,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.5
+      }
+    }
+  },
+  {
+    "id": 428,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 429,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 430,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 431,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 432,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 433,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 434,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 435,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 436,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 437,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 438,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 439,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 440,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 441,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 442,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 443,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 444,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 445,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 446,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 447,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 448,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 449,
+    "prosperity": 1.83,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.5
+      }
+    }
+  },
+  {
+    "id": 450,
+    "prosperity": 1.83,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.5
+      }
+    }
+  },
+  {
+    "id": 451,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 452,
+    "prosperity": 9.98,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.55
+      },
+      "Brume": {
+        "trade": 1.0,
+        "production": 7.0
+      }
+    }
+  },
+  {
+    "id": 453,
+    "prosperity": 2.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.5
+      }
+    }
+  },
+  {
+    "id": 454,
+    "prosperity": 0.23,
+    "trade": {}
+  },
+  {
+    "id": 455,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 456,
+    "prosperity": 0.62,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 457,
+    "prosperity": 1.83,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.5
+      }
+    }
+  },
+  {
+    "id": 458,
+    "prosperity": 1.83,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.5
+      }
+    }
+  },
+  {
+    "id": 459,
+    "prosperity": 1.83,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 1.5
+      }
+    }
+  },
+  {
+    "id": 460,
+    "prosperity": 0.5,
+    "trade": {
+      "Lantan": {
+        "trade": 0.85,
+        "production": 0.45
+      }
+    }
+  },
+  {
+    "id": 461,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 462,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 463,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 464,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 465,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 466,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 467,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.75,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 468,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 469,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 470,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 471,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 472,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 473,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 474,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 475,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 476,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 477,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 478,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 479,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 480,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 481,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 482,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 483,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 484,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 485,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 486,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 487,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 488,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 489,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 490,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 491,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 492,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 493,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 494,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 495,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 496,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 497,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 498,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 499,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 500,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 501,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 502,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 503,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 504,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 505,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 506,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 507,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 508,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 509,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 510,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 511,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 512,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 513,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 514,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 515,
+    "prosperity": 2.02,
+    "trade": {
+      "Lantan": {
+        "trade": 2.43,
+        "production": 1.8
+      }
+    }
+  },
+  {
+    "id": 516,
+    "prosperity": 0.1,
+    "trade": {
+      "Lantan": {
+        "trade": 0.97,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 517,
+    "prosperity": 0.1,
+    "trade": {
+      "Lantan": {
+        "trade": 0.97,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 518,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.62,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 519,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 520,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 521,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 522,
+    "prosperity": 5.34,
+    "trade": {
+      "Lantan": {
+        "trade": 3.05,
+        "production": 4.24
+      }
+    }
+  },
+  {
+    "id": 523,
+    "prosperity": 0.79,
+    "trade": {
+      "Lantan": {
+        "trade": 1.15,
+        "production": 0.71
+      }
+    }
+  },
+  {
+    "id": 524,
+    "prosperity": 0.24,
+    "trade": {
+      "Lantan": {
+        "trade": 0.8,
+        "production": 0.24
+      }
+    }
+  },
+  {
+    "id": 525,
+    "prosperity": 0.19,
+    "trade": {
+      "Lantan": {
+        "trade": 0.65,
+        "production": 0.18
+      }
+    }
+  },
+  {
+    "id": 526,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 527,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 528,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 529,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 530,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 531,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 532,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 533,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 534,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 535,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 536,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 537,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 538,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 539,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 540,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 541,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 542,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 543,
+    "prosperity": 0.24,
+    "trade": {
+      "Lantan": {
+        "trade": 0.74,
+        "production": 0.22
+      }
+    }
+  },
+  {
+    "id": 544,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 545,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 546,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 547,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 548,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 549,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 550,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 551,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 552,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 553,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 554,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 555,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 556,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 557,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 558,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 559,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 560,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 561,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 562,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 563,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 564,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 565,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 566,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 567,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 568,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 569,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 570,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 571,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 572,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 573,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 574,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 575,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 576,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 577,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 578,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 579,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 580,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 581,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 582,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 583,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 584,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 585,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 586,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 587,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 588,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 589,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 590,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 591,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 592,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 593,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 594,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 595,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 596,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 597,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 598,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 599,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 600,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 601,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 602,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 603,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 604,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 605,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 606,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 607,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 608,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 609,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 610,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 611,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 612,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 613,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 614,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 615,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 616,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 617,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 618,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 619,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 620,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 621,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 622,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 623,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 624,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 625,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 626,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 627,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 628,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 629,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 630,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 631,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 632,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 633,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 634,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 635,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 636,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 637,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 638,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 639,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 640,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 641,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 642,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 643,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 644,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 645,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 646,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 647,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 648,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 649,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 650,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 651,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 652,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 653,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 654,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 655,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 656,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 657,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 658,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 659,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 660,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 661,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 662,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 663,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 664,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 665,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 666,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 667,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 668,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 669,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 670,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 671,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 672,
+    "prosperity": 0.28,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.26
+      }
+    }
+  },
+  {
+    "id": 673,
+    "prosperity": 0.24,
+    "trade": {
+      "Lantan": {
+        "trade": 0.74,
+        "production": 0.22
+      }
+    }
+  },
+  {
+    "id": 674,
+    "prosperity": 0.24,
+    "trade": {
+      "Lantan": {
+        "trade": 0.74,
+        "production": 0.22
+      }
+    }
+  },
+  {
+    "id": 675,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 676,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 677,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 678,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.57,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 679,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 680,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 681,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.57,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 682,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 683,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 684,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 685,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 686,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 687,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 688,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 689,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.57,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 690,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.57,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 691,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 692,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 693,
+    "prosperity": 2.18,
+    "trade": {
+      "Lantan": {
+        "trade": 2.43,
+        "production": 1.8
+      },
+      "Lantel_Shipping": {
+        "trade": 0.53,
+        "production": 0.18
+      }
+    }
+  },
+  {
+    "id": 694,
+    "prosperity": 6.63,
+    "trade": {
+      "Lantan": {
+        "trade": 3.05,
+        "production": 4.24
+      },
+      "Lantel_Shipping": {
+        "trade": 2.37,
+        "production": 1.25
+      }
+    }
+  },
+  {
+    "id": 695,
+    "prosperity": 8.87,
+    "trade": {
+      "Lantan": {
+        "trade": 3.05,
+        "production": 4.34
+      },
+      "Lantel_Shipping": {
+        "trade": 5.0,
+        "production": 3.0
+      }
+    }
+  },
+  {
+    "id": 696,
+    "prosperity": 0.12,
+    "trade": {
+      "Lantan": {
+        "trade": 0.68,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 697,
+    "prosperity": 0.5,
+    "trade": {
+      "Lantan": {
+        "trade": 1.03,
+        "production": 0.45
+      }
+    }
+  },
+  {
+    "id": 698,
+    "prosperity": 3.08,
+    "trade": {
+      "Lantan": {
+        "trade": 2.11,
+        "production": 2.49
+      }
+    }
+  },
+  {
+    "id": 699,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 700,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 701,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 702,
+    "prosperity": 2.72,
+    "trade": {
+      "Lantan": {
+        "trade": 1.95,
+        "production": 2.2
+      }
+    }
+  },
+  {
+    "id": 703,
+    "prosperity": 2.84,
+    "trade": {
+      "Lantan": {
+        "trade": 1.95,
+        "production": 2.2
+      }
+    }
+  },
+  {
+    "id": 704,
+    "prosperity": 12.08,
+    "trade": {
+      "Lantan": {
+        "trade": 3.4,
+        "production": 8.38
+      }
+    }
+  },
+  {
+    "id": 705,
+    "prosperity": 39.3,
+    "trade": {
+      "Lantan": {
+        "trade": 4.5,
+        "production": 22.5
+      }
+    }
+  },
+  {
+    "id": 706,
+    "prosperity": 10.49,
+    "trade": {
+      "Lantan": {
+        "trade": 3.26,
+        "production": 7.42
+      }
+    }
+  },
+  {
+    "id": 707,
+    "prosperity": 2.58,
+    "trade": {
+      "Lantan": {
+        "trade": 1.86,
+        "production": 2.1
+      }
+    }
+  },
+  {
+    "id": 708,
+    "prosperity": 0.34,
+    "trade": {
+      "Lantan": {
+        "trade": 0.8,
+        "production": 0.31
+      }
+    }
+  },
+  {
+    "id": 709,
+    "prosperity": 2.08,
+    "trade": {
+      "Lantan": {
+        "trade": 1.71,
+        "production": 1.7
+      }
+    }
+  },
+  {
+    "id": 710,
+    "prosperity": 0.19,
+    "trade": {
+      "Lantan": {
+        "trade": 0.65,
+        "production": 0.18
+      }
+    }
+  },
+  {
+    "id": 711,
+    "prosperity": 2.08,
+    "trade": {
+      "Lantan": {
+        "trade": 1.71,
+        "production": 1.7
+      }
+    }
+  },
+  {
+    "id": 712,
+    "prosperity": 2.08,
+    "trade": {
+      "Lantan": {
+        "trade": 1.71,
+        "production": 1.7
+      }
+    }
+  },
+  {
+    "id": 713,
+    "prosperity": 10.8,
+    "trade": {
+      "Lantan": {
+        "trade": 3.26,
+        "production": 7.63
+      }
+    }
+  },
+  {
+    "id": 714,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 715,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 716,
+    "prosperity": 2.58,
+    "trade": {
+      "Lantan": {
+        "trade": 1.86,
+        "production": 2.1
+      }
+    }
+  },
+  {
+    "id": 717,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 718,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 719,
+    "prosperity": 0.56,
+    "trade": {
+      "Lantan": {
+        "trade": 1.08,
+        "production": 0.51
+      }
+    }
+  },
+  {
+    "id": 720,
+    "prosperity": 2.58,
+    "trade": {
+      "Lantan": {
+        "trade": 1.86,
+        "production": 2.1
+      }
+    }
+  },
+  {
+    "id": 721,
+    "prosperity": 5.34,
+    "trade": {
+      "Lantan": {
+        "trade": 3.05,
+        "production": 4.24
+      }
+    }
+  },
+  {
+    "id": 722,
+    "prosperity": 5.34,
+    "trade": {
+      "Lantan": {
+        "trade": 3.05,
+        "production": 4.24
+      }
+    }
+  },
+  {
+    "id": 723,
+    "prosperity": 0.56,
+    "trade": {
+      "Lantan": {
+        "trade": 1.08,
+        "production": 0.51
+      }
+    }
+  },
+  {
+    "id": 724,
+    "prosperity": 0.47,
+    "trade": {
+      "Lantan": {
+        "trade": 0.95,
+        "production": 0.43
+      }
+    }
+  },
+  {
+    "id": 725,
+    "prosperity": 0.47,
+    "trade": {
+      "Lantan": {
+        "trade": 0.95,
+        "production": 0.43
+      }
+    }
+  },
+  {
+    "id": 726,
+    "prosperity": 0.47,
+    "trade": {
+      "Lantan": {
+        "trade": 0.95,
+        "production": 0.43
+      }
+    }
+  },
+  {
+    "id": 727,
+    "prosperity": 0.27,
+    "trade": {
+      "Lantan": {
+        "trade": 1.29,
+        "production": 0.27
+      }
+    }
+  },
+  {
+    "id": 728,
+    "prosperity": 0.1,
+    "trade": {
+      "Lantan": {
+        "trade": 0.8,
+        "production": 0.1
+      }
+    }
+  },
+  {
+    "id": 729,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 730,
+    "prosperity": 1.27,
+    "trade": {
+      "Lantan": {
+        "trade": 2.05,
+        "production": 1.14
+      }
+    }
+  },
+  {
+    "id": 731,
+    "prosperity": 0.36,
+    "trade": {
+      "Lantan": {
+        "trade": 1.51,
+        "production": 0.36
+      }
+    }
+  },
+  {
+    "id": 732,
+    "prosperity": 1.06,
+    "trade": {
+      "Lantan": {
+        "trade": 1.75,
+        "production": 0.95
+      }
+    }
+  },
+  {
+    "id": 733,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 734,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 735,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 736,
+    "prosperity": 0.56,
+    "trade": {
+      "Lantan": {
+        "trade": 1.08,
+        "production": 0.51
+      }
+    }
+  },
+  {
+    "id": 737,
+    "prosperity": 2.58,
+    "trade": {
+      "Lantan": {
+        "trade": 1.86,
+        "production": 2.1
+      }
+    }
+  },
+  {
+    "id": 738,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 739,
+    "prosperity": 0.39,
+    "trade": {
+      "Lantan": {
+        "trade": 0.83,
+        "production": 0.35
+      }
+    }
+  },
+  {
+    "id": 740,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 741,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 742,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 743,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 744,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 745,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 746,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 747,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 748,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 749,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 750,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 751,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 752,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 753,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 754,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 755,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 756,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 757,
+    "prosperity": 0.5,
+    "trade": {
+      "Lantan": {
+        "trade": 1.42,
+        "production": 0.49
+      }
+    }
+  },
+  {
+    "id": 758,
+    "prosperity": 1.31,
+    "trade": {
+      "Lantan": {
+        "trade": 1.81,
+        "production": 1.18
+      }
+    }
+  },
+  {
+    "id": 759,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 760,
+    "prosperity": 0.26,
+    "trade": {
+      "Lantan": {
+        "trade": 1.06,
+        "production": 0.26
+      }
+    }
+  },
+  {
+    "id": 761,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 762,
+    "prosperity": 0.26,
+    "trade": {
+      "Lantan": {
+        "trade": 1.06,
+        "production": 0.26
+      }
+    }
+  },
+  {
+    "id": 763,
+    "prosperity": 0.0,
+    "trade": {
+      "Lantan": {
+        "trade": 0.54,
+        "production": 0.0
+      }
+    }
+  },
+  {
+    "id": 764,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 765,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 766,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 767,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 768,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 769,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 770,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 771,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 772,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 773,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 774,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 775,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 776,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 777,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 778,
+    "prosperity": 0.26,
+    "trade": {
+      "Lantan": {
+        "trade": 1.06,
+        "production": 0.26
+      }
+    }
+  },
+  {
+    "id": 779,
+    "prosperity": 1.31,
+    "trade": {
+      "Lantan": {
+        "trade": 1.81,
+        "production": 1.18
+      }
+    }
+  },
+  {
+    "id": 780,
+    "prosperity": 4.55,
+    "trade": {
+      "Lantan": {
+        "trade": 2.71,
+        "production": 3.63
+      }
+    }
+  },
+  {
+    "id": 781,
+    "prosperity": 1.31,
+    "trade": {
+      "Lantan": {
+        "trade": 1.81,
+        "production": 1.18
+      }
+    }
+  },
+  {
+    "id": 782,
+    "prosperity": 4.88,
+    "trade": {
+      "Lantan": {
+        "trade": 2.71,
+        "production": 3.63
+      }
+    }
+  },
+  {
+    "id": 783,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 784,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 785,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 786,
+    "prosperity": 0.15,
+    "trade": {
+      "Lantan": {
+        "trade": 0.86,
+        "production": 0.15
+      }
+    }
+  },
+  {
+    "id": 787,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 788,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 789,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 790,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 791,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 792,
+    "prosperity": 0.85,
+    "trade": {
+      "Lantan": {
+        "trade": 1.47,
+        "production": 0.77
+      }
+    }
+  },
+  {
+    "id": 793,
+    "prosperity": 0.15,
+    "trade": {
+      "Lantan": {
+        "trade": 0.86,
+        "production": 0.15
+      }
+    }
+  },
+  {
+    "id": 794,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 795,
+    "prosperity": 13.05,
+    "trade": {
+      "Lantan": {
+        "trade": 3.55,
+        "production": 8.9
+      }
+    }
+  },
+  {
+    "id": 796,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 797,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 798,
+    "prosperity": 0.12,
+    "trade": {
+      "Lantan": {
+        "trade": 0.68,
+        "production": 0.12
+      }
+    }
+  },
+  {
+    "id": 799,
+    "prosperity": 0.56,
+    "trade": {
+      "Lantan": {
+        "trade": 1.08,
+        "production": 0.51
+      }
+    }
+  },
+  {
+    "id": 800,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 801,
+    "prosperity": 12.89,
+    "trade": {
+      "Lantan": {
+        "trade": 3.55,
+        "production": 8.9
+      }
+    }
+  },
+  {
+    "id": 802,
+    "prosperity": 3.36,
+    "trade": {
+      "Lantan": {
+        "trade": 2.2,
+        "production": 2.71
+      }
+    }
+  },
+  {
+    "id": 803,
+    "prosperity": 0.56,
+    "trade": {
+      "Lantan": {
+        "trade": 1.08,
+        "production": 0.51
+      }
+    }
+  },
+  {
+    "id": 804,
+    "prosperity": 0.56,
+    "trade": {
+      "Lantan": {
+        "trade": 1.08,
+        "production": 0.51
+      }
+    }
+  },
+  {
+    "id": 805,
+    "prosperity": 0.0,
+    "trade": {}
+  },
+  {
+    "id": 806,
+    "prosperity": 0.85,
+    "trade": {
+      "Lantan": {
+        "trade": 1.47,
+        "production": 0.77
+      }
+    }
+  }
+]

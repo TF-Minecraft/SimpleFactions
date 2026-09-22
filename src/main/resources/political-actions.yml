@@ -1,0 +1,53 @@
+change_leader:
+    name: "#62ccd1Change Leader"
+    description:
+        - "#c4c0a1Change the leader of a faction to another member."
+    pools:
+      - citizens
+      - guilds
+      - vassals
+nationhood:
+    name: "#62ccd1Nationhood"
+    description:
+        - "#c4c0a1Elevate members to nationhood."
+    pools:
+      - guilds
+independence:
+    name: "#62ccd1Independence"
+    description:
+        - "#c4c0a1Members are granted independence."
+    pools:
+      - guilds
+      - vassals
+snap_elections:
+    name: "#62ccd1Snap Elections"
+    description:
+        - "#c4c0a1Elections will be held immediately."
+    pools:
+      - citizens
+      - guilds
+      - vassals
+dissolve:
+    name: "#62ccd1Dissolve"
+    description:
+        - "#c4c0a1Target faction is dissolved"
+    pools:
+      - citizens
+      - guilds
+      - vassals
+white_peace:
+    name: "#62ccd1White Peace"
+    description:
+        - "#c4c0a1Force this side to keep offering white peace in a chosen war."
+    pools:
+      - citizens
+      - guilds
+      - vassals
+surrender:
+    name: "#62ccd1Surrender"
+    description:
+        - "#c4c0a1Surrender a chosen war immediately."
+    pools:
+      - citizens
+      - guilds
+      - vassals

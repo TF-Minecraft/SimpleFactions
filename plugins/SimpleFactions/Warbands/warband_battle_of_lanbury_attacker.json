@@ -1,0 +1,10 @@
+{
+  "id": "battle_of_lanbury_attacker",
+  "name": "The Attacker Host",
+  "leaderId": "1a1c4c25-1558-3e4c-83b4-ebb20189ae1e",
+  "memberIds": [],
+  "invitedIds": [],
+  "locked": true,
+  "faction": true,
+  "campaignSideId": "attacker"
+}

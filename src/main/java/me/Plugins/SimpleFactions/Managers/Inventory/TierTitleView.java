@@ -86,16 +86,19 @@ public class TierTitleView {
 		if(open) player.openInventory(i);
 	}
 	public void titleTypeView(Inventory i, Player player, Faction f, Tier tier, boolean open, int page) {
+		if (page < 0) {
+			page = 0;
+		}
 		if(open) {
-			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TITLE_TYPE_VIEW, page), 54, tier.getName()+"§7 View");
+			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TITLE_TYPE_VIEW, page, false, tier.getId()), 54, tier.getName()+"§7 View");
+		} else if (i != null && i.getHolder() instanceof SFInventoryHolder holder) {
+			holder.setPage(page);
 		}
 		Faction pf = FactionManager.getByLeader(player.getName());
 		String overlord = RelationManager.getOverlord(f);
 		int slot = 0;
-		//Simple clearing, didnt make it good
-		for (int x = 0; x < 45; x++) {
-			if(i.getItem(x) == null) continue;
-			i.getItem(x).setAmount(0);
+		for (int x = 0; x < 53; x++) {
+			i.setItem(x, null);
 		}
 		if(f.getLeader().equalsIgnoreCase(player.getName())) {
 			int maxPerPage = 45;

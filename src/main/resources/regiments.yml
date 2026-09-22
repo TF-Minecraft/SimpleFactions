@@ -1,27 +1,63 @@
-torpedo:
-    type: torpedo
-    input: v.iron_ingot
-    yield: 2.5
-    radius: 10
-    damage: 20
-    fuse: 80
-    sounds:
-        splash:
-            sound: minecraft:entity.axolotl.splash
-            pitch: 1.5
-            volume: 3.0
-    particles:
-        bubble:
-            particle: WATER_BUBBLE
-            amount: 40
-            spread: 0.2
-            speed: 0.1
-        spark:
-            particle: FIREWORKS_SPARK
-            amount: 20
-            spread: 0.1
-            speed: 0.1
-    model:
-        type: meg
-        model: torpedo
-        animation: active
+professional:
+    name: "#73c9aaProfessional Army"
+    professional: true
+    upkeep: 6.0
+    expansion-time: 21600
+    offense: true
+    item:
+        material: BLACK_DYE
+        model-data: 11
+    description:
+        - "#73c9aaProfessional Army #a89977are professional soldiers"
+        - "#a89977which can be used both in offensive and defensive wars"
+militia:
+    name: "#b2d485Militia"
+    default-slots: 6
+    upkeep: 2.0
+    expansion-time: 43200
+    item:
+        material: BLACK_DYE
+        model-data: 10
+    description:
+        - "#b2d485Militia #a89977consists of farmhands, citizens"
+        - "#a89977and other people who are not neccesarily"
+        - "#a89977soldiers, but can be called upon to"
+        - "#a89977defend their home"
+# Prototype for mercenary company slots. The mercenary: true flag keeps this
+# type out of every faction military; only a company clones it. Full reference:
+# docs/mercenaries.md
+mercenary:
+    name: "#b7aae3Mercenary Company"
+    mercenary: true
+    default-slots: 0
+    # Charged per slot per day to the host guild. Kept in step with
+    # mercenary-slot-upkeep in config.yml, which is what the ledger reads.
+    upkeep: 8.0
+    # Slot expansion time in real seconds (24 h). A company cannot start a new
+    # expansion while it already has one unfilled slot.
+    expansion-time: 86400
+    levy: false
+    offense: true
+    item:
+        material: BLACK_DYE
+        model-data: 11
+    description:
+        - "#b7aae3Mercenaries #a89977are guild soldiers for hire"
+        - "#a89977they answer to their company, not to a realm"
+        - "#a89977and only fight where their contract sends them"
+levy:
+    name: "#ba6450Levies"
+    levy: true
+    default-slots: 0
+    upkeep: 0.0
+    expansion-time: 43200
+    offense: true
+    item:
+        material: BLACK_DYE
+        model-data: 10
+    description:
+        - "#ba6450Levies #a89977are soldiers supplied by"
+        - "#a89977a vassal state to its overlord"
+        - "#a89977these soldiers vary in quality, some are"
+        - "#a89977professional troops, others are farmers or"
+        - "#a89977otherwise conscripted troops"

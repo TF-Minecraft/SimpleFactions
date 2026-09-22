@@ -2,7 +2,9 @@ package me.Plugins.SimpleFactions.Utils;
 
 import java.util.Random;
 
+import me.Plugins.SimpleFactions.Guild.Guild;
 import me.Plugins.SimpleFactions.Managers.FactionManager;
+import me.Plugins.SimpleFactions.Objects.Faction;
 
 public class RandomRGB {
     private static final Random random = new Random();
@@ -101,6 +103,16 @@ public class RandomRGB {
         if (t < 1f / 2f) return q;
         if (t < 2f / 3f) return p + (q - p) * (2f / 3f - t) * 6f;
         return p;
+    }
+
+    public static boolean isFree(String rgb) {
+        for(Faction f : FactionManager.factions) {
+            if(f.getRGB().equalsIgnoreCase(rgb)) return false;
+            for(Guild g : f.getGuildHandler().getGuilds()) {
+                if(g.getRGB().equalsIgnoreCase(rgb)) return false;
+            }
+        }
+        return true;
     }
 
 }

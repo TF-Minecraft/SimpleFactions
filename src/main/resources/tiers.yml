@@ -1,0 +1,42 @@
+landless:
+    name: "#946538Landless"
+    tier: 0
+    aliases:
+        - "#63533dVillage"
+        - "#d1cf5aNomads"
+        - "#376b2aClan"
+province:
+    name: "#646a6bProvince"
+    prestige: 10
+    tier: 1
+    aliases:
+        - "#c25248Barony"
+        - "#a89660Tribe"
+        - "#64b57fTown"
+county:
+    name: "#66ab4bCounty"
+    prestige: 100
+    tier: 2
+    aliases:
+        - "#aba780Chiefdom"
+        - "#b05378City"
+        - "#ad3956Republic"
+duchy:
+    name: "#32b88fDuchy"
+    prestige: 400
+    tier: 3
+    aliases:
+        - "#bec76dHigh Chiefdom"
+        - "#a1c9bfPetty Kingdom"
+        - "#3ca0cfGrand City"
+        - "#9e203fGreat Republic"
+kingdom:
+    name: "#c9b332Kingdom"
+    prestige: 1000
+    tier: 4
+    aliases:
+        - "#b83d80Grand Republic"
+empire:
+    name: "#de40d6Empire"
+    prestige: 2500
+    tier: 5

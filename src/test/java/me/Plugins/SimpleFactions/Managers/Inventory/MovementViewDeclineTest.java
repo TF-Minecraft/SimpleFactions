@@ -1,0 +1,90 @@
+package me.Plugins.SimpleFactions.Managers.Inventory;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import me.Plugins.SimpleFactions.Managers.FactionManager;
+import me.Plugins.SimpleFactions.Managers.Holder.SFInventoryHolder;
+import me.Plugins.SimpleFactions.Managers.InventoryManager;
+import me.Plugins.SimpleFactions.Objects.Faction;
+import me.Plugins.SimpleFactions.War.civilwar.CivilWarCopy;
+import me.Plugins.SimpleFactions.War.civilwar.CivilWarStartService;
+import me.Plugins.SimpleFactions.enums.SFGUI;
+import me.Plugins.SimpleFactions.government.Government;
+import me.Plugins.SimpleFactions.government.movement.Movement;
+import me.Plugins.TLibs.Objects.API.SubAPI.StringFormatter;
+
+class MovementViewDeclineTest {
+
+	@Test
+	void decline_successfulStart_doesNotEndMovement() {
+		clickDecline(null);
+	}
+
+	@Test
+	void decline_failedStart_doesNotEndMovement() {
+		clickDecline(CivilWarCopy.COULD_NOT_START);
+	}
+
+	private static void clickDecline(String startError) {
+		InventoryManager inventoryManager = mock(InventoryManager.class);
+		MovementView view = new MovementView(inventoryManager);
+		Movement movement = mock(Movement.class);
+		Faction faction = mock(Faction.class);
+		Government government = mock(Government.class);
+		when(movement.getId()).thenReturn("mov-1");
+		when(movement.getFaction()).thenReturn(faction);
+		when(movement.hasLeader()).thenReturn(false);
+		when(faction.getLeader()).thenReturn("Alice");
+		when(faction.getGovernment()).thenReturn(government);
+
+		Player player = mock(Player.class);
+		when(player.getName()).thenReturn("Alice");
+		when(player.getLocation()).thenReturn(mock(Location.class));
+
+		Inventory inventory = mock(Inventory.class);
+		when(inventory.getHolder()).thenReturn(new SFInventoryHolder("mov-1", SFGUI.MOVEMENT_DEMANDS));
+
+		ItemStack item = mock(ItemStack.class);
+		ItemMeta meta = mock(ItemMeta.class);
+		when(item.getItemMeta()).thenReturn(meta);
+
+		InventoryClickEvent event = mock(InventoryClickEvent.class);
+		when(event.getCurrentItem()).thenReturn(item);
+		when(event.getSlot()).thenReturn(33);
+
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<CivilWarStartService> start = mockStatic(CivilWarStartService.class);
+				MockedStatic<StringFormatter> hex = mockStatic(StringFormatter.class);
+				MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			factions.when(() -> FactionManager.getMovementById("mov-1")).thenReturn(movement);
+			start.when(() -> CivilWarStartService.start(movement)).thenReturn(startError);
+			hex.when(() -> StringFormatter.formatHex(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+
+			view.click(event, inventory, player);
+
+			verify(government, never()).endMovement(any());
+			if (startError != null) {
+				verify(player).sendMessage(startError);
+				verify(player, never()).closeInventory();
+			} else {
+				verify(player).closeInventory();
+			}
+		}
+	}
+}

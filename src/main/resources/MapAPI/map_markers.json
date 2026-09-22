@@ -1,0 +1,170 @@
+{
+  "map_id": "main",
+  "exported_at": "2026-08-23T12:06:52.178058501Z",
+  "settlement_large_population_threshold": 8,
+  "settlements": [
+    {
+      "id": "New_Rembran",
+      "name": "§x§a§3§a§1§8§4New Rembran",
+      "faction_id": "Brume",
+      "province_id": 452,
+      "center_x": 2969,
+      "center_z": 2476,
+      "population": 1,
+      "marker_size": "small",
+      "kind": "faction_capital",
+      "provinces": [
+        452
+      ]
+    },
+    {
+      "id": "Cape_Wells",
+      "name": "§x§a§3§a§1§8§4Cape Wells",
+      "faction_id": "Lantan",
+      "province_id": 695,
+      "center_x": 1513,
+      "center_z": 2941,
+      "population": 1,
+      "marker_size": "small",
+      "kind": "settlement",
+      "provinces": [
+        695
+      ]
+    },
+    {
+      "id": "Lanbury",
+      "name": "§x§a§3§a§1§8§4Lanbury",
+      "faction_id": "Lantan",
+      "province_id": 705,
+      "center_x": 1748,
+      "center_z": 2739,
+      "population": 1,
+      "marker_size": "small",
+      "kind": "faction_capital",
+      "provinces": [
+        705
+      ]
+    }
+  ],
+  "installations": [
+    {
+      "id": "Greenfort",
+      "name": "§x§a§3§a§1§8§4Greenfort",
+      "kind": "fort",
+      "faction_id": "Lantan",
+      "province_id": 713,
+      "center_x": 1565,
+      "center_z": 2466
+    },
+    {
+      "id": "Lan_Harbour",
+      "name": "§x§a§3§a§1§8§4Lan Harbour",
+      "kind": "port",
+      "faction_id": "Lantan",
+      "province_id": 695,
+      "center_x": 1498,
+      "center_z": 2865
+    },
+    {
+      "id": "Lan_Airfield",
+      "name": "§x§a§3§a§1§8§4Lan Airfield",
+      "kind": "fort",
+      "faction_id": "Lantan",
+      "province_id": 704,
+      "center_x": 1363,
+      "center_z": 2567
+    }
+  ],
+  "forts": [
+    {
+      "id": "Greenfort",
+      "name": "§x§a§3§a§1§8§4Greenfort",
+      "faction_id": "Lantan",
+      "province_id": 713,
+      "center_x": 1565,
+      "center_z": 2466,
+      "zoc_provinces": [
+        704,
+        705,
+        713
+      ]
+    },
+    {
+      "id": "Lan_Airfield",
+      "name": "§x§a§3§a§1§8§4Lan Airfield",
+      "faction_id": "Lantan",
+      "province_id": 704,
+      "center_x": 1363,
+      "center_z": 2567,
+      "zoc_provinces": [
+        695,
+        704,
+        705,
+        713
+      ]
+    }
+  ],
+  "wars": [
+    {
+      "id": "0",
+      "name": "§x§a§3§a§1§8§4Brume §x§a§8§3§1§1§6vs. §cLantan",
+      "war_type": "subjugate",
+      "goal": "subjugate",
+      "status": "active",
+      "attacker_leader_id": "Brume",
+      "defender_leader_id": "Lantan",
+      "belligerents": [
+        "Brume",
+        "Lantan"
+      ],
+      "campaign_provinces": [
+        452,
+        782,
+        758,
+        757,
+        672,
+        709,
+        713,
+        705
+      ],
+      "cursor_index": 7,
+      "objective_province_id": 705,
+      "push_target": "toward_objective",
+      "campaign_schedule_index": 0,
+      "campaign_counter_schedule_index": 0,
+      "campaign_battle_schedule": [
+        {
+          "schedule_index": 0,
+          "leg": "invasion",
+          "province_id": 705,
+          "kind": "siege",
+          "kind_label": "Siege",
+          "battle_type": "SIEGE",
+          "required": false,
+          "status": "next",
+          "fort_installation_id": "Greenfort"
+        },
+        {
+          "schedule_index": 1,
+          "leg": "invasion",
+          "province_id": 705,
+          "kind": "field",
+          "kind_label": "Field Battle",
+          "battle_type": "FIELD",
+          "required": true,
+          "status": "upcoming"
+        }
+      ],
+      "attacker_capital": {
+        "province_id": 452,
+        "center_x": 2969,
+        "center_z": 2476
+      },
+      "defender_capital": {
+        "province_id": 705,
+        "center_x": 1748,
+        "center_z": 2739
+      }
+    }
+  ]
+}

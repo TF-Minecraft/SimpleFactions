@@ -8,6 +8,7 @@ import me.Plugins.SimpleFactions.Managers.RelationManager;
 import me.Plugins.SimpleFactions.Objects.Faction;
 import me.Plugins.SimpleFactions.Utils.Formatter;
 import me.Plugins.SimpleFactions.enums.FactionModifiers;
+import me.Plugins.SimpleFactions.enums.Rules;
 import me.Plugins.SimpleFactions.enums.SFGUI;
 
 public class Military {
@@ -19,6 +20,7 @@ public class Military {
 	public Military(Faction f) {
 		this.f = f;
 		for(Regiment r : RegimentLoader.getRegiments()) {
+			if(r.isMercenary()) continue;
 			regiments.add(new Regiment(r));
 		}
 	}
@@ -72,15 +74,70 @@ public class Military {
 	public List<MilitaryExpansion> getQueue(){
 		return queue;
 	}
+
+	public ExpandResult canExpand(Regiment r) {
+		if (r == null) {
+			return ExpandResult.deny("Unknown regiment.");
+		}
+		if (!r.isProfessional()) {
+			return ExpandResult.ok();
+		}
+		if (f != null && f.hasFactionRule(Rules.CAN_RECRUIT_PROFESSIONAL_ARMY)) {
+			return ExpandResult.ok();
+		}
+		return ExpandResult.deny("Your laws do not allow recruiting a professional army.");
+	}
 	
-	public void enqueue(Regiment r) {
-		if(queue.size() == 3) return;
+	public boolean enqueue(Regiment r) {
+		if(queue.size() == 3) return false;
+		if (!canExpand(r).allowed()) {
+			return false;
+		}
 		queue.add(new MilitaryExpansion(r));
+		return true;
 	}
 
 	public void addQueueItem(Regiment r, int time){
 		if(queue.size() == 3) return;
 		queue.add(new MilitaryExpansion(r, time));
+	}
+
+	public boolean cancelQueue(int index) {
+		if (index < 0 || index >= queue.size()) {
+			return false;
+		}
+		queue.remove(index);
+		return true;
+	}
+
+	public ExpandResult adminAdjustSlots(String regimentId, int delta) {
+		if (delta == 0) {
+			return ExpandResult.deny("Amount must be non-zero.");
+		}
+		Regiment regiment = getRegiment(regimentId);
+		if (regiment == null) {
+			return ExpandResult.deny("Unknown regiment.");
+		}
+		if (regiment.isLevy()) {
+			return ExpandResult.deny("Levies cannot be adjusted by admins.");
+		}
+		if (regiment.isMercenary()) {
+			return ExpandResult.deny("Mercenary regiments belong to companies, not factions.");
+		}
+		if (delta > 0) {
+			for (int i = 0; i < delta; i++) {
+				regiment.sizeIncrease();
+			}
+			return ExpandResult.ok();
+		}
+		int remove = -delta;
+		if (regiment.getCurrentSlots() < remove) {
+			return ExpandResult.deny("Not enough slots to remove.");
+		}
+		for (int i = 0; i < remove; i++) {
+			regiment.sizeDecrease();
+		}
+		return ExpandResult.ok();
 	}
 	
 	public int getManpower(boolean offense) {

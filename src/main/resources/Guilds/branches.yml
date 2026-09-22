@@ -1,0 +1,61 @@
+bureaucracy:
+  name: "#6fa6adBureaucracy"
+  icon: "writable_book.0"
+  description:
+    - "#d4c9aeThe Government of a faction"
+    - "#d4c9aefocuses mainly on diplomacy,"
+    - "#d4c9aehowever, expanding #6fa6adBureaucracy"
+    - "#d4c9aealso offers small bonuses"
+    - "#d4c9aeto trade and production."
+  group: 0
+  allowed-types:
+    - realm
+  modifiers:
+    - diplomatic_capacity 5
+    - admin_power 5
+    - admin_power_gain 0 0.5
+    - trade_power 1 0.5
+    - production 4 0.5
+    - trade_upkeep 0 0.03
+guild_halls:
+  name: "#ccaa66Guild Halls"
+  icon: "gold_ingot.0"
+  group: 0
+  description:
+    - "#ccaa66Guild Halls #d4c9aeare the source of"
+    - "#d4c9aea guild's trade power, trade flows from"
+    - "#d4c9aethe guild capital and out based on"
+    - "#d4c9aetrade carry and terrain."
+  allowed-types:
+    - guild
+  modifiers:
+    - trade_power 5 2.5
+workshops:
+  name: "#cf9980Workshops"
+  icon: "iron_ingot.0"
+  group: 1
+  description:
+    - "#cf9980Workshops #d4c9aeimprove the"
+    - "#d4c9aeprosperity of a province by"
+    - "#d4c9aeconverting a guild's trade power"
+    - "#d4c9aebased on the production."
+  allowed-types:
+    - guild
+    - realm
+  modifiers:
+    - production 3 1
+storehouses:
+  name: "#bf8a45Storehouses"
+  icon: "barrel.0"
+  group: 2
+  description:
+    - "#bf8a45Storehouses #d4c9aeincrease the"
+    - "#d4c9aeease of trade for your existing"
+    - "#d4c9aenetwork, resulting in notable gains in"
+    - "#d4c9aetrade reach"
+  allowed-types:
+    - guild
+    - realm
+  modifiers:
+    - trade_carry 0.25
+    - trade_upkeep 0 0.02

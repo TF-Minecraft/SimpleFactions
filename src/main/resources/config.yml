@@ -1,1 +1,171 @@
-max-prestige-from-wealth: 800 #shared between factions based on the % of global wealth they own
+# SimpleFactions — map-reference: main (world: TFMC_Map)
+# world-name must match the loaded Bukkit overworld (server.properties level-name).
+
+world-name: TFMC_Map
+
+# When true, debug sessions are appended to plugins/SimpleFactions/logs/log.txt
+# and relation events are appended to plugins/SimpleFactions/logs/relations.log
+# Movement / civil war / war events go to movement.log, civilwar.log, war.log
+logging: true
+# When true, all files in plugins/SimpleFactions/logs/ are deleted on every plugin start/reload
+wipe-log: true
+
+max-prestige-from-wealth: 800 # shared between factions based on % of global wealth
+# Prestige from the faction's own guilds' trade power (not vassals).
+# 0.1 means 10 trade power is 1 prestige. 0 disables the Trade line.
+prestige-per-trade-power: 0.1
+# Linear until this much Trade prestige, then the next points keep paying
+# but the rate decays toward prestige-from-trade-falloff over each further
+# cap-sized band. 0.1 means very slow growth past ~2000. 1.0 is no falloff.
+prestige-from-trade-soft-cap: 2000
+prestige-from-trade-falloff: 0.1
+# Each member adds 2^(online hours / 100) to the Members prestige term, so 100 h
+# doubles their share and this cap ends the curve. 5 means a member is worth at
+# most 32, reached at 500 h. Needs RPCharacters; without it the term is 0.
+max-prestige-playtime-exponent: 5
+max-members: 64
+max-untitled-provinces: 5
+max-free-titles: 3
+province-cost: 50
+# Anti payday-joining: a member only receives a dividend share if they were
+# already in the guild at the previous daily tick. The percentage itself is not
+# a config key; each guild leader sets it, starting at 0%.
+dividend-require-previous-tick-membership: true
+
+# Mercenary companies. Full reference: docs/mercenaries.md
+# One-off charge taken from the host guild when the charter is requested.
+mercenary-formation-cost: 100.0
+# Founding time. The faction timer ticks once per real second, so 86400 is 24 h
+# of real time, not a campaign day. The company arrives with 1 slot.
+mercenary-formation-seconds: 86400
+# Denars per slot per day, paid by the host guild, not by or to the soldier.
+# Charged for every slot the company owns, filled or not, contracted or not.
+mercenary-slot-upkeep: 8.0
+# Contract floors. A company sets its own prices but may not go below these.
+# A battle day costs the day price AND the battle price, not either/or.
+mercenary-min-price-per-battle: 50.0
+mercenary-min-price-per-day: 10.0
+mercenary-max-contract-days: 14
+# Pre-filled into a new contract; the real figure lives on the contract itself.
+mercenary-default-breach-refund: 500.0
+# Not configurable: the absence refund per slot per battle must be at least
+# mercenary-min-price-per-battle, validated when the contract is created. A
+# smaller refund would make no-showing more profitable per head than fighting.
+
+bank-block: iaf(tfmc:bank)
+voting-block: v(chiseled_bookshelf)
+starting-year: "372 AE"
+
+max-extra-node-capacity: 0
+de-jure-requirement: 75.0
+
+# Map platform (step 42) — requires TFMCWeb softdepend + api.base-url configured
+enable-map: true
+# When false, skip Input/ province grid load; land, war, and map systems are off.
+# Also forces enable-map to false.
+enable-provinces: true
+# Daily wealth/prestige snapshot uploaded to ProvinceSystem for season graphs.
+# Independent of enable-map so a broken chronicle never blocks a map regen.
+enable-chronicle: true
+# Live upload socket (URL folder). Season archive uses map-id / map-name, not this.
+map-reference: main
+# Chapter slug (alphanumeric). Prefills a future Archive; not the live folder.
+map-id: unknown
+# Display name for that chapter. Blank becomes Unknown; not derived from map-id.
+map-name: Unknown
+settlement-large-population-threshold: 8
+port-sea-proximity-blocks: 20
+
+battle:
+  province_poll_interval_ticks: 20
+  province_leave_countdown_seconds: 10
+  province_block_protection_enabled: false
+  capture_min_players: 1
+  item_durability_multiplier: 0.2
+  retreat_min_elapsed_seconds: 1200
+  signup_reminder_seconds_before:
+    - 1800
+    - 600
+    - 300
+    - 60
+  siege:
+    contest_duration_seconds: 180
+  raid:
+    defender_respawn_mode_default: INFINITE
+  campaign_template:
+    field: field_default
+    siege: siege_default
+    raid: campaign_raid_template
+
+branch-upgrade-cost: 100.0
+branch-upgrade-exponent: 1.07
+
+terrain-modifiers:
+    - FARMLAND 0.95
+    - PLAINS 0.85
+    - HILLS 0.5
+    - FOREST 0.6
+    - HIGHLANDS 0.55
+    - JUNGLE 0.45
+    - WATER 0.75
+    - SEA 0.6
+    - BOG 0.4
+    - MOUNTAIN 0.3
+    - DRYLANDS 0.6
+
+icons:
+    - diplomacy(black_dye.5)
+    - overlord(black_dye.3)
+    - subject(black_dye.4)
+    - integrated_subject(black_dye.4)
+    - rival(black_dye.6)
+    - tributary(black_dye.7)
+    - suzerain(black_dye.8)
+    - ally(black_dye.9)
+    - war(black_dye.10)
+    - friendly(black_dye.11)
+    - neutral(black_dye.2)
+    - unfriendly(black_dye.13)
+    - hostile(black_dye.14)
+    - march(black_dye.15)
+    - installations(black_dye.15)
+    - palatinate(black_dye.16)
+    - mercantile(black_dye.17)
+    - tier(black_dye.18)
+    - titles(black_dye.19)
+    - county(black_dye.20)
+    - duchy(black_dye.21)
+    - kingdom(black_dye.22)
+    - empire(black_dye.23)
+    - independence(black_dye.5)
+    - usurp(black_dye.3)
+    - stability(black_dye.2)
+    - loans_given(black_dye.7)
+    - loans_taken(black_dye.8)
+    - guild_elevate(black_dye.4)
+    - guild_loans(black_dye.17)
+    - muster(black_dye.11)
+
+base-effects:
+  favoured_guilds:
+    modifiers:
+      - stability_influence(10)
+    our_territory:
+      - trade_power(20)
+  repressed_guilds:
+    modifiers:
+      - stability_influence(-25)
+    our_territory:
+      - trade_power(-15)
+  favoured_vassals:
+    modifiers:
+      - stability_influence(10)
+      - tax_multiplier(-5)
+    our_territory:
+      - trade_power(15)
+  repressed_vassals:
+    modifiers:
+      - stability_influence(-15)
+      - tax_multiplier(5)
+    our_territory:
+      - trade_power(-10)

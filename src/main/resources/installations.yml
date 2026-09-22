@@ -1,0 +1,22 @@
+consent-proximity-blocks: 20
+transfer-request-timeout-seconds: 60
+
+fort:
+  radius: 80
+  daily-upkeep: 50
+  construction-time: 432000
+  slots:
+    static_emplacements: 8
+    land_vehicles: 2
+port:
+  radius: 80
+  daily-upkeep: 20
+  construction-time: 259200
+  slots:
+    ships: 8
+airport:
+  radius: 80
+  daily-upkeep: 35
+  construction-time: 259200
+  slots:
+    aircraft: 10

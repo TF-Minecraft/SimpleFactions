@@ -1,27 +1,212 @@
-torpedo:
-    type: torpedo
-    input: v.iron_ingot
-    yield: 2.5
-    radius: 10
-    damage: 20
-    fuse: 80
-    sounds:
-        splash:
-            sound: minecraft:entity.axolotl.splash
-            pitch: 1.5
-            volume: 3.0
-    particles:
-        bubble:
-            particle: WATER_BUBBLE
+types:
+    none:
+        name: "#617a6fNone"
+        target: 0
+        visible: false
+        default: true
+    overlord:
+        name: "#d45811Overlord"
+        target: 0
+        link: subject #Only if something breaks will this be used
+        settable: false #Can you set this from the gui
+        overlord: true
+        lock: true #Factions with this relation are blocked from changing it
+    subject:
+        name: "#768fccSubject"
+        target: 20
+        cost: 1
+        link: overlord #when you set someone as a subject you become their overlord
+        mutual: true
+        vassal: true #A faction can only have one overlord, this is a hardcoded flag, do no use unless you know what you are doing!
+        give-modifiers:
+            - levy(25.0)
+            - prestige(5.0)
+    integrated_subject:
+        name: "#de6749Integrated Subject"
+        target: 20
+        cost: 0.5
+        link: overlord #when you set someone as a subject you become their overlord
+        mutual: true
+        vassal: true #A faction can only have one overlord, this is a hardcoded flag, do no use unless you know what you are doing!
+        elevation-target: true
+        can-pick-for-war: false
+        give-modifiers:
+            - tax_multiplier(25.0)
+            - levy(50.0)
+            - military_upkeep(-25.0)
+            - node_speed(2.5)
+            - prestige(5.0)
+    march:
+        name: "#694936March #768fcc(Subject)"
+        target: 20
+        limit: 1
+        cost: 2
+        link: overlord #when you set someone as a subject you become their overlord
+        mutual: true
+        vassal: true #A faction can only have one overlord, this is a hardcoded flag, do no use unless you know what you are doing!
+        give-modifiers:
+            - tax_multiplier(-50.0)
+            - levy(50.0)
+            - military_upkeep(-50.0)
+            - prestige(5.0)
+    mercantile:
+        name: "#1ec9a1Mercantile #768fcc(Subject)"
+        target: 20
+        cost: 1.5
+        link: overlord #when you set someone as a subject you become their overlord
+        mutual: true
+        vassal: true #A faction can only have one overlord, this is a hardcoded flag, do no use unless you know what you are doing!
+        give-modifiers:
+            - tax_multiplier(50.0)
+            - node_speed(5.0)
+            - levy(5.0)
+            - prestige(5.0)
+    palatinate:
+        name: "#3076d1Palatinate #768fcc(Subject)"
+        target: 20
+        limit: 1
+        cost: 2
+        link: overlord #when you set someone as a subject you become their overlord
+        mutual: true
+        vassal: true #A faction can only have one overlord, this is a hardcoded flag, do no use unless you know what you are doing!
+        recieve-modifiers:
+            - de_jure(-5.0)
+            - diplomatic_capacity_multiplier(10)
+        give-modifiers:
+            - tax_multiplier(-10.0)
+            - diplomatic_capacity_multiplier(10)
+            - levy(10.0)
+            - prestige(20.0)
+            - prestige_bonus(10.0)
+            - de_jure(-25.0)
+    ally:
+        name: "#975bbdAlly"
+        target: 30
+        cost: 3.5
+        mutual: true #Do both parties need to agree to this relationship?
+        threshold:
+            mode: higher_than_or_equal_to
             amount: 40
-            spread: 0.2
-            speed: 0.1
-        spark:
-            particle: FIREWORKS_SPARK
-            amount: 20
-            spread: 0.1
-            speed: 0.1
-    model:
-        type: meg
-        model: torpedo
-        animation: active
+            mutual: true
+    rival:
+        name: "#8c1919Rival"
+        target: -20
+        threshold:
+            mode: lower_than_or_equal_to
+            amount: -10
+        recieve-modifiers:
+            - type: diplomatic_capacity_multiplier
+              scale: relative_prestige
+              at_weaker: -4
+              at_equal: 10
+              at_stronger: 20
+    suzerain:
+        name: "#cfc97cSuzerain"
+        target: -10
+        settable: false
+        lock: true
+    tributary:
+        name: "#cfc97cTributary"
+        prefix: "#cfc97cThey are our "
+        target: 10
+        cost: 0.3
+        link: suzerain
+        mutual: true
+        give-modifiers:
+            - tribute(3.0)
+    war:
+        name: "#d42300War"
+        target: -80
+        mutual: true #Do both parties need to agree to this relationship?
+        visible: false
+        settable: false
+        threshold:
+            mode: lower_than_or_equal_to
+            amount: -50
+    trade_agreement:
+      name: "#f5b942Trade Agreement"
+      description: "A trade agreement between two factions."
+      target: 15
+      cost: 1.5
+      trade-agreement: true
+      mutual: true
+      trade-effects-us:
+        - trade_power(15.0)
+        - production(5.0)
+    unequal_treaty_leader:
+      name: "#75d15eUnequal Treaty"
+      description: "An unequal treaty favoring us."
+      cost: 1
+      trade-agreement: true
+      mutual: true
+      link: unequal_treaty_subject
+      trade-effects-us:
+        - trade_power(20.0)
+        - production(7.5)
+    unequal_treaty_subject:
+      name: "#d15e5eUnequal Treaty"
+      description: "An unequal treaty favoring them."
+      target: -20
+      cost: 0
+      trade-agreement: true
+      visible: false
+      settable: false
+      lock: true
+      trade-effects-us:
+        - trade_power(5.0)
+        - production(2.5)
+    embargo:
+      name: "#b33212Embargo"
+      description: "A complete Trade Embargo against them."
+      target: -20
+      cost: 2
+      trade-agreement: true
+      blocks-shops: true
+      trade-effects-them:
+        - trade_power(-95.0)
+        - production(-95.0)
+    nap:
+      name: "#8fb8d4Non-Aggression Pact"
+      description: "A treaty not to declare war on each other."
+      target: 10
+      cost: 1
+      treaty: true
+      mutual: true
+      blocks-war: true
+    none_treaty:
+      name: "#b6aa90No Treaty"
+      description: "Clear any political treaty overlay."
+      cost: 0
+      treaty: true
+      clear: true
+attitudes:
+    friendly:
+        name: "#5cc953Friendly"
+        target: 50
+        cost: 0.25
+    neutral:
+        name: "#d4b82fNeutral"
+        target: 0
+        default: true
+    unfriendly:
+        name: "#bf723fUnfriendly"
+        target: -20
+        recieve-modifiers:
+            - type: diplomatic_capacity_multiplier
+              scale: relative_prestige
+              at_weaker: -1
+              at_equal: 2
+              at_stronger: 4
+    hostile:
+        name: "#961900Hostile"
+        target: -50
+        recieve-modifiers:
+            - type: diplomatic_capacity_multiplier
+              scale: relative_prestige
+              at_weaker: -2
+              at_equal: 4
+              at_stronger: 8
+
+thresholds:
+    war: -50
+    ally: 50

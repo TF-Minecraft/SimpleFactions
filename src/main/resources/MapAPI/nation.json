@@ -1,0 +1,512 @@
+{
+  "TEST": {
+    "id": "TEST",
+    "name": "§x§a§3§a§1§8§4TEST",
+    "rgb": "229,60,112",
+    "leader": "ShayminPlays",
+    "ruler title": "Leader",
+    "government": "Community",
+    "culture": "Multicultural",
+    "religion": "Religious Diversity",
+    "citizen tax": 0.0,
+    "guild tax": 0.0,
+    "vassal tax": 0.0,
+    "dividend tax": 0.0,
+    "tariffs": 0.0,
+    "specific taxes": {},
+    "capital": -1,
+    "extra node capacity": 0.0,
+    "banner": [
+      "LIGHT_BLUE.BASE",
+      "LIGHT_BLUE.SQUARE_TOP_LEFT",
+      "BROWN.PIGLIN",
+      "YELLOW.CRESCENT"
+    ],
+    "provinces": [],
+    "titles": [],
+    "relations": [],
+    "trade relation": [],
+    "tier index": -1.0,
+    "military": [
+      "professional.0",
+      "militia.6"
+    ],
+    "military queue": [],
+    "prestige modifiers": [],
+    "guilds": [
+      {
+        "id": "TEST",
+        "name": "§x§a§3§a§1§8§4TEST",
+        "leader": "ShayminPlays",
+        "rgb": "229,60,112",
+        "type": "realm",
+        "capital": -1,
+        "bank": "true",
+        "world": "TFMC_Map",
+        "stance": "SUPPORT",
+        "xPos": 0.0,
+        "zPos": 0.0,
+        "balance": 0.0,
+        "banner": [
+          "LIGHT_BLUE.BASE",
+          "LIGHT_BLUE.SQUARE_TOP_LEFT",
+          "BROWN.PIGLIN",
+          "YELLOW.CRESCENT"
+        ],
+        "members": [
+          "ShayminPlays"
+        ],
+        "branches": [
+          {
+            "id": "bureaucracy",
+            "level": 0
+          },
+          {
+            "id": "workshops",
+            "level": 0
+          },
+          {
+            "id": "storehouses",
+            "level": 0
+          }
+        ],
+        "upgrades": [
+          {
+            "id": "max_admin_power",
+            "level": 0
+          },
+          {
+            "id": "max_diplomatic_capacity",
+            "level": 0
+          },
+          {
+            "id": "admin_power_gain",
+            "level": 0
+          }
+        ],
+        "upgrade queue": [],
+        "wealth modifiers": [],
+        "loans": [],
+        "creditScore": 50,
+        "favoured": false,
+        "repressed": false
+      }
+    ],
+    "settlements": [],
+    "installations": [],
+    "governmentData": {
+      "power": 116.74999999999999,
+      "last election date": 0,
+      "council members": [],
+      "proposals": [],
+      "eligible voters": [],
+      "election candidates": {
+        "LEADER": [],
+        "COUNCIL": []
+      },
+      "election votes": {
+        "LEADER": {},
+        "COUNCIL": {}
+      },
+      "previous votes": {
+        "LEADER": {},
+        "COUNCIL": {}
+      },
+      "stability modifiers": [],
+      "movements": []
+    },
+    "faction modifiers": [],
+    "laws": [
+      "citizen_tax:none",
+      "vassal_tax:none",
+      "guild_tax:none",
+      "leadership:fixed",
+      "government:community",
+      "council:none",
+      "military:decentralized",
+      "vassalage:none",
+      "economy:decentralized",
+      "borders:closed_borders",
+      "repression:no_repression",
+      "favouring:no_favouring"
+    ]
+  },
+  "Brume": {
+    "id": "Brume",
+    "name": "§x§a§3§a§1§8§4Brume",
+    "rgb": "95,50,217",
+    "leader": "drefvelin",
+    "ruler title": "Leader",
+    "government": "Community",
+    "culture": "Multicultural",
+    "religion": "Religious Diversity",
+    "citizen tax": 0.0,
+    "guild tax": 0.0,
+    "vassal tax": 0.0,
+    "dividend tax": 0.0,
+    "tariffs": 0.0,
+    "specific taxes": {},
+    "capital": 452,
+    "extra node capacity": 0.0,
+    "banner": [
+      "LIGHT_BLUE.BASE",
+      "CYAN.HALF_HORIZONTAL_BOTTOM",
+      "BLUE.SMALL_STRIPE_LEFT",
+      "RED.BLAM"
+    ],
+    "provinces": [
+      452
+    ],
+    "titles": [],
+    "relations": [],
+    "trade relation": [],
+    "tier index": -1.0,
+    "military": [
+      "professional.2",
+      "militia.6"
+    ],
+    "military queue": [],
+    "prestige modifiers": [
+      "debug(1000.0)"
+    ],
+    "guilds": [
+      {
+        "id": "Brume",
+        "name": "§x§a§3§a§1§8§4Brume",
+        "leader": "drefvelin",
+        "rgb": "95,50,217",
+        "type": "realm",
+        "capital": 452,
+        "bank": "true",
+        "world": "TFMC_Map",
+        "stance": "SUPPORT",
+        "xPos": 0.0,
+        "zPos": 0.0,
+        "balance": 39.14,
+        "banner": [
+          "LIGHT_BLUE.BASE",
+          "CYAN.HALF_HORIZONTAL_BOTTOM",
+          "BLUE.SMALL_STRIPE_LEFT",
+          "RED.BLAM"
+        ],
+        "members": [
+          "dummy_2",
+          "drefvelin"
+        ],
+        "branches": [
+          {
+            "id": "bureaucracy",
+            "level": 0
+          },
+          {
+            "id": "workshops",
+            "level": 0
+          },
+          {
+            "id": "storehouses",
+            "level": 0
+          }
+        ],
+        "upgrades": [
+          {
+            "id": "max_admin_power",
+            "level": 0
+          },
+          {
+            "id": "max_diplomatic_capacity",
+            "level": 0
+          },
+          {
+            "id": "admin_power_gain",
+            "level": 0
+          }
+        ],
+        "upgrade queue": [],
+        "wealth modifiers": [],
+        "loans": [],
+        "creditScore": 50,
+        "favoured": false,
+        "repressed": false
+      }
+    ],
+    "settlements": [
+      {
+        "id": "New_Rembran",
+        "name": "§x§a§3§a§1§8§4New Rembran",
+        "centerProvince": 452,
+        "centerX": 2969,
+        "centerZ": 2476,
+        "provinces": [
+          452
+        ]
+      }
+    ],
+    "installations": [],
+    "governmentData": {
+      "power": 116.74999999999999,
+      "last election date": 0,
+      "council members": [],
+      "proposals": [],
+      "eligible voters": [],
+      "election candidates": {
+        "LEADER": [],
+        "COUNCIL": []
+      },
+      "election votes": {
+        "LEADER": {},
+        "COUNCIL": {}
+      },
+      "previous votes": {
+        "LEADER": {},
+        "COUNCIL": {}
+      },
+      "stability modifiers": [],
+      "movements": []
+    },
+    "faction modifiers": [],
+    "laws": [
+      "citizen_tax:none",
+      "vassal_tax:none",
+      "guild_tax:none",
+      "leadership:fixed",
+      "government:community",
+      "council:none",
+      "military:decentralized",
+      "vassalage:none",
+      "economy:decentralized",
+      "borders:closed_borders",
+      "repression:no_repression",
+      "favouring:no_favouring"
+    ]
+  },
+  "Lantan": {
+    "id": "Lantan",
+    "name": "§cLantan",
+    "rgb": "51,200,210",
+    "leader": "ukindaickyngl",
+    "ruler title": "Leader",
+    "government": "Community",
+    "culture": "Multicultural",
+    "religion": "Religious Diversity",
+    "citizen tax": 0.0,
+    "guild tax": 0.0,
+    "vassal tax": 0.0,
+    "dividend tax": 0.0,
+    "tariffs": 0.0,
+    "specific taxes": {},
+    "capital": 705,
+    "extra node capacity": 0.0,
+    "banner": [
+      "BROWN.BASE",
+      "GREEN.SQUARE_TOP_RIGHT",
+      "YELLOW.ARROWS_DOWN"
+    ],
+    "provinces": [
+      705,
+      704,
+      713,
+      695
+    ],
+    "titles": [],
+    "relations": [],
+    "trade relation": [],
+    "tier index": -1.0,
+    "military": [
+      "professional.2",
+      "militia.6"
+    ],
+    "military queue": [],
+    "prestige modifiers": [
+      "debug(1000.0)"
+    ],
+    "guilds": [
+      {
+        "id": "Lantan",
+        "name": "§cLantan",
+        "leader": "ukindaickyngl",
+        "rgb": "51,200,210",
+        "type": "realm",
+        "capital": 705,
+        "bank": "true",
+        "world": "TFMC_Map",
+        "stance": "SUPPORT",
+        "xPos": 289.0,
+        "zPos": 359.0,
+        "balance": 3164.69,
+        "banner": [
+          "BROWN.BASE",
+          "GREEN.SQUARE_TOP_RIGHT",
+          "YELLOW.ARROWS_DOWN"
+        ],
+        "members": [
+          "ukindaickyngl"
+        ],
+        "branches": [
+          {
+            "id": "bureaucracy",
+            "level": 7
+          },
+          {
+            "id": "workshops",
+            "level": 12
+          },
+          {
+            "id": "storehouses",
+            "level": 7
+          }
+        ],
+        "upgrades": [
+          {
+            "id": "max_admin_power",
+            "level": 0
+          },
+          {
+            "id": "max_diplomatic_capacity",
+            "level": 0
+          },
+          {
+            "id": "admin_power_gain",
+            "level": 0
+          }
+        ],
+        "upgrade queue": [],
+        "wealth modifiers": [],
+        "loans": [],
+        "creditScore": 50,
+        "favoured": false,
+        "repressed": false
+      },
+      {
+        "id": "Lantel_Shipping",
+        "name": "§x§a§3§a§1§8§4Lantel Shipping",
+        "leader": "dummy_1",
+        "rgb": "107,90,230",
+        "type": "guild",
+        "capital": 695,
+        "bank": "true",
+        "world": "TFMC_Map",
+        "stance": "NEUTRAL",
+        "xPos": 0.0,
+        "zPos": 0.0,
+        "balance": 45.5,
+        "banner": [
+          "LIME.BASE",
+          "LIME.TRIANGLE_TOP",
+          "RED.PEACE",
+          "YELLOW.CLUB"
+        ],
+        "members": [
+          "dummy_1"
+        ],
+        "branches": [
+          {
+            "id": "guild_halls",
+            "level": 0
+          },
+          {
+            "id": "workshops",
+            "level": 0
+          },
+          {
+            "id": "storehouses",
+            "level": 0
+          }
+        ],
+        "upgrades": [],
+        "upgrade queue": [],
+        "wealth modifiers": [],
+        "loans": [],
+        "creditScore": 50,
+        "favoured": false,
+        "repressed": false
+      }
+    ],
+    "settlements": [
+      {
+        "id": "Cape_Wells",
+        "name": "§x§a§3§a§1§8§4Cape Wells",
+        "centerProvince": 695,
+        "centerX": 1513,
+        "centerZ": 2941,
+        "provinces": [
+          695
+        ]
+      },
+      {
+        "id": "Lanbury",
+        "name": "§x§a§3§a§1§8§4Lanbury",
+        "centerProvince": 705,
+        "centerX": 1748,
+        "centerZ": 2739,
+        "provinces": [
+          705
+        ]
+      }
+    ],
+    "installations": [
+      {
+        "id": "Greenfort",
+        "name": "§x§a§3§a§1§8§4Greenfort",
+        "kind": "fort",
+        "province": 713,
+        "centerX": 1565,
+        "centerZ": 2466,
+        "completedAt": 1787472176192
+      },
+      {
+        "id": "Lan_Harbour",
+        "name": "§x§a§3§a§1§8§4Lan Harbour",
+        "kind": "port",
+        "province": 695,
+        "centerX": 1498,
+        "centerZ": 2865,
+        "completedAt": 0
+      },
+      {
+        "id": "Lan_Airfield",
+        "name": "§x§a§3§a§1§8§4Lan Airfield",
+        "kind": "fort",
+        "province": 704,
+        "centerX": 1363,
+        "centerZ": 2567,
+        "completedAt": 1787472195192
+      }
+    ],
+    "governmentData": {
+      "power": 157.0,
+      "last election date": 0,
+      "council members": [],
+      "proposals": [],
+      "eligible voters": [],
+      "election candidates": {
+        "LEADER": [],
+        "COUNCIL": []
+      },
+      "election votes": {
+        "LEADER": {},
+        "COUNCIL": {}
+      },
+      "previous votes": {
+        "LEADER": {},
+        "COUNCIL": {}
+      },
+      "stability modifiers": [],
+      "movements": []
+    },
+    "faction modifiers": [],
+    "laws": [
+      "citizen_tax:none",
+      "vassal_tax:none",
+      "guild_tax:none",
+      "leadership:fixed",
+      "government:community",
+      "council:none",
+      "military:decentralized",
+      "vassalage:none",
+      "economy:decentralized",
+      "borders:closed_borders",
+      "repression:no_repression",
+      "favouring:no_favouring"
+    ]
+  }
+}

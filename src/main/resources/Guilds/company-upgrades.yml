@@ -1,0 +1,40 @@
+# Mercenary company upgrades. These are NOT guild upgrades: they live on the
+# company and only apply while a member is fighting as a hired mercenary.
+#
+# Per entry:
+#   upkeep         denars per day per purchased level, paid by the host guild
+#   expansion-time purchase time in real seconds (24 h)
+#   max-level      hard cap; guild upgrades omit this and stay uncapped
+#   modifiers      GuildModifier, flat then per-level: "<stat> <flat> <perLevel>"
+#
+# Full reference: docs/mercenaries.md
+company_health:
+  name: "#e06c75Hardened Bodies"
+  icon: "writable_book.0"
+  upkeep: 10
+  expansion-time: 86400
+  max-level: 10
+  modifiers:
+    - max_health 0 0.5
+  description:
+    - "#a89977Half a heart of extra health per level"
+company_mana:
+  name: "#61afefWarding Sigils"
+  icon: "writable_book.0"
+  upkeep: 10
+  expansion-time: 86400
+  max-level: 10
+  modifiers:
+    - max_mana 0 1
+  description:
+    - "#a89977One extra point of maximum mana per level"
+company_mana_regen:
+  name: "#56b6c2Steady Focus"
+  icon: "writable_book.0"
+  upkeep: 10
+  expansion-time: 86400
+  max-level: 10
+  modifiers:
+    - mana_regen 0 0.1
+  description:
+    - "#a89977Faster mana regeneration per level"

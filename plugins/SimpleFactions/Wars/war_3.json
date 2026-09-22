@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 2,
+  "id": 3,
+  "status": "active",
+  "attackerLeaderId": "o",
+  "defenderLeaderId": "def",
+  "campaignProvinces": [
+    42,
+    43,
+    44
+  ],
+  "cursorIndex": 0,
+  "initiativeAttacker": 0,
+  "initiativeDefender": 0,
+  "occupiedByAttacker": [],
+  "occupiedByDefender": [],
+  "lastBattleOccupied": [],
+  "campaignPhase": "invasion",
+  "objectiveHeldBy": "defender",
+  "whitePeaceProposedByAttacker": false,
+  "whitePeaceProposedByDefender": false,
+  "campaignBattlesFought": 0,
+  "battleSchedulePhase": "idle",
+  "battleVotes": {},
+  "autoresolveProposedByAttacker": false,
+  "autoresolveProposedByDefender": false,
+  "postponementsThisCycle": 0,
+  "defenderChoiceResolved": false,
+  "forceQuorumNextClose": false,
+  "startedAt": "2026-08-21T07:35:04.184971200Z",
+  "attackers": {
+    "leader": "o",
+    "participants": [
+      {
+        "leader": "o",
+        "subjects": [
+          "v"
+        ],
+        "allies": {},
+        "warGoals": {},
+        "civilWar": false
+      }
+    ]
+  },
+  "defenders": {
+    "leader": "def",
+    "participants": [
+      {
+        "leader": "def",
+        "subjects": [],
+        "allies": {},
+        "warGoals": {},
+        "civilWar": false
+      }
+    ]
+  },
+  "commitments": [
+    {
+      "factionId": "o",
+      "regimentId": "militia",
+      "count": 9,
+      "committedAt": "2026-08-21T07:35:04.184971200Z"
+    },
+    {
+      "factionId": "v",
+      "regimentId": "militia",
+      "count": 4,
+      "committedAt": "2026-08-21T07:35:04.184971200Z"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ package me.Plugins.SimpleFactions.Objects;
 public class Modifier {
 	String type;
 	Double amount;
+	private boolean persistent = false;
 	public String getType() {
 		return type;
 	}
@@ -15,8 +16,10 @@ public class Modifier {
 	public void setAmount(Double amount) {
 		this.amount = amount;
 	}
-	public Modifier(String t, Double a) {
+	public boolean isPersistent() { return persistent; }
+	public Modifier(String t, Double a, boolean persistent) {
 		this.type = t;
 		this.amount = a;
+		this.persistent = persistent;
 	}
 }

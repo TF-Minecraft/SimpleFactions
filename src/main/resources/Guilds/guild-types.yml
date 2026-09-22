@@ -1,0 +1,6 @@
+guild:
+  name: "#bda464Guild"
+  default: true
+realm:
+  name: "#5eabc4Realm"
+  base: true

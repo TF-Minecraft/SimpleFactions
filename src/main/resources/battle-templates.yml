@@ -1,0 +1,28 @@
+raid_template:
+  type: raid
+  defender_respawn_mode: infinite
+  friendly_fire: true
+  keep_inventory: true
+
+campaign_raid_template:
+  type: raid
+  defender_respawn_mode: infinite
+  friendly_fire: true
+  keep_inventory: true
+  campaign_raid: true
+  # Campaign raids are the one battle kind that pays no loot.
+  loot_enabled: false
+
+field_default:
+  type: field
+  capture_points_enabled: true
+  lives: 25
+  life_type: COLLECTIVE
+  friendly_fire: true
+  keep_inventory: true
+
+siege_default:
+  type: siege
+  contest_duration_seconds: 180
+  friendly_fire: true
+  keep_inventory: true

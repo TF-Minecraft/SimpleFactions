@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "id": 4,
+  "status": "active",
+  "attackerLeaderId": "atk",
+  "defenderLeaderId": "def",
+  "campaignProvinces": [
+    42,
+    43,
+    44
+  ],
+  "cursorIndex": 0,
+  "initiativeAttacker": 0,
+  "initiativeDefender": 0,
+  "occupiedByAttacker": [],
+  "occupiedByDefender": [],
+  "lastBattleOccupied": [],
+  "campaignPhase": "invasion",
+  "objectiveHeldBy": "defender",
+  "whitePeaceProposedByAttacker": false,
+  "whitePeaceProposedByDefender": false,
+  "campaignBattlesFought": 0,
+  "battleSchedulePhase": "idle",
+  "battleVotes": {},
+  "autoresolveProposedByAttacker": false,
+  "autoresolveProposedByDefender": false,
+  "postponementsThisCycle": 0,
+  "defenderChoiceResolved": false,
+  "forceQuorumNextClose": false,
+  "startedAt": "2026-08-21T07:35:04.116971800Z",
+  "attackers": {
+    "leader": "atk",
+    "participants": [
+      {
+        "leader": "atk",
+        "subjects": [],
+        "allies": {},
+        "warGoals": {},
+        "civilWar": false
+      }
+    ]
+  },
+  "defenders": {
+    "leader": "def",
+    "participants": [
+      {
+        "leader": "def",
+        "subjects": [],
+        "allies": {},
+        "warGoals": {},
+        "civilWar": false
+      }
+    ]
+  },
+  "commitments": [
+    {
+      "factionId": "atk",
+      "regimentId": "professional",
+      "count": 3,
+      "committedAt": "2026-08-21T07:35:04.116971800Z"
+    },
+    {
+      "factionId": "def",
+      "regimentId": "professional",
+      "count": 4,
+      "committedAt": "2026-08-21T07:35:04.116971800Z"
+    }
+  ]
+}

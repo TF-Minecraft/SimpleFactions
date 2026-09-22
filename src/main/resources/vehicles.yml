@@ -1,0 +1,90 @@
+personal-slot-limit: 3
+
+maintenance-hourly-damage-percent: 20
+maintenance-min-health-percent: 3
+maintenance-interval-ticks: 72000
+
+default-upkeep: 4
+default-per-person: 1
+
+categories:
+  land_vehicles:
+    show-on-upcoming-battle-icon: true
+    horse_cart:
+      upkeep: 5
+      size: 1
+      per-person: 3
+    wooden_cart:
+      upkeep: 1
+      size: 1
+      per-person: 3
+    small_car:
+      upkeep: 8
+      size: 1
+      per-person: 3
+  train:
+    simple_locomotive:
+      upkeep: 4
+      size: 1
+      ignore-limit: true
+      per-person: 1 #default
+    coal_car:
+      upkeep: 1
+      size: 1
+      ignore-limit: true
+      per-person: 3
+    passenger_car:
+      upkeep: 2
+      size: 1
+      ignore-limit: true
+      per-person: 3
+  ships:
+    show-on-upcoming-battle-icon: true
+    gunboat:
+      upkeep: 3
+      size: 1
+    sloop:
+      upkeep: 8
+      size: 1
+    torpedoboat:
+      upkeep: 14
+      size: 1
+    ironclad:
+      upkeep: 20
+      size: 1
+    cruiser:
+      upkeep: 40
+      size: 2
+  static_emplacements:
+    fixed_artillery:
+      upkeep: 12
+      size: 1
+    field_artillery:
+      upkeep: 4
+      size: 1
+    anti_air:
+      upkeep: 12
+      size: 1
+    aa_turret:
+      upkeep: 3
+      size: 1
+  aircraft:
+    show-on-upcoming-battle-icon: true
+    biplane:
+      upkeep: 12
+      size: 1
+    monoplane:
+      upkeep: 8
+      size: 1
+    bomber:
+      upkeep: 20
+      size: 2
+    gyrobomber:
+      upkeep: 32
+      size: 2
+    behemoth:
+      upkeep: 50
+      size: 4
+    cloudskimmer:
+      upkeep: 20
+      size: 1
