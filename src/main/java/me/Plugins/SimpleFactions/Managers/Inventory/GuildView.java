@@ -425,6 +425,11 @@ public class GuildView {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					guild.getBank().withdraw(cost);
 				}
+				// Downgrade refunds before the level drops, so the wealth pass still
+				// sees the old branch prestige. Refresh once the level is final.
+				if (!upgrade && guild.getFaction() != null) {
+					guild.getFaction().updatePrestige();
+				}
 				manager.recalculateForSingleGuild(guild, true);
 				guildView(p, guild, inventory);
 			}

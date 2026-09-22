@@ -17,6 +17,8 @@ bureaucracy:
     - trade_power 1 0.5
     - production 4 0.5
     - trade_upkeep 0 0.03
+    - prestige 0 5
+    - prestige_bonus 0 0.5
 guild_halls:
   name: "#ccaa66Guild Halls"
   icon: "gold_ingot.0"
@@ -30,6 +32,7 @@ guild_halls:
     - guild
   modifiers:
     - trade_power 5 2.5
+    - prestige 0 5
 workshops:
   name: "#cf9980Workshops"
   icon: "iron_ingot.0"
@@ -44,6 +47,7 @@ workshops:
     - realm
   modifiers:
     - production 3 1
+    - prestige 0 5
 storehouses:
   name: "#bf8a45Storehouses"
   icon: "barrel.0"
@@ -59,3 +63,4 @@ storehouses:
   modifiers:
     - trade_carry 0.25
     - trade_upkeep 0 0.02
+    - prestige 0 5

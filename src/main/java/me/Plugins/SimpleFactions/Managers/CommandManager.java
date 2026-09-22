@@ -43,6 +43,7 @@ import me.Plugins.SimpleFactions.Utils.DisplayNameGate;
 import me.Plugins.SimpleFactions.Utils.DisplayNameGate.NameOperation;
 import me.Plugins.SimpleFactions.Utils.Formatter;
 import me.Plugins.SimpleFactions.Utils.Permissions;
+import me.Plugins.SimpleFactions.Utils.RandomRGB;
 import me.Plugins.SimpleFactions.laws.Law;
 import me.Plugins.SimpleFactions.laws.LawGroup;
 import me.Plugins.SimpleFactions.enums.Rules;
@@ -430,6 +431,32 @@ public class CommandManager implements Listener, CommandExecutor{
 				i.setAmount(1);
 				g.setBanner(i);
 				p.sendMessage("§aGuild banner changed!");
+				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("setcolour") && args.length == 2) {
+				Guild g = FactionManager.getGuildByLeader(p.getName());
+				if(g == null) {
+					p.sendMessage("§cYou must be the leader of a guild to change the colour!");
+					return true;
+				}
+				if(g.isBase()) {
+					p.sendMessage("§cYou cannot change the colour of the base guild!");
+					p.sendMessage("§cUse §e/faction setcolour §cto change the faction colour");
+					return true;
+				}
+				String rgb = args[1];
+				int result = FactionManager.validateRGB(rgb);
+				if(result == 1) {
+					p.sendMessage("§cInvalid format. Use: R,G,B (e.g. 255,0,0)");
+				} else if(result == 2) {
+					p.sendMessage("§cRGB values must be numbers (e.g. 128,128,128)");
+				} else if(result == 3) {
+					p.sendMessage("§cEach RGB value must be between 0 and 255");
+				} else if(!rgb.equalsIgnoreCase(g.getRGB()) && !RandomRGB.isFree(rgb)) {
+					p.sendMessage("§cThat colour is already used");
+				} else {
+					g.setRGB(rgb);
+					p.sendMessage("§aGuild colour updated to §f" + rgb);
+				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("setleader") && args.length == 2) {
 				Guild g = FactionManager.getGuildByMember(p.getName());

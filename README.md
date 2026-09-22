@@ -1,5 +1,7 @@
 # SimpleFactions
 
+Organisation documentation: [TF-Minecraft/docs](https://github.com/TF-Minecraft/docs/tree/main/projects/simplefactions).
+
 The name stems from its original concept of a simple nation system, but it has since grown far beyond that.
 
 This plugin adds factions (nations) to the game that can interact with each other through a complex diplomacy and economy system.

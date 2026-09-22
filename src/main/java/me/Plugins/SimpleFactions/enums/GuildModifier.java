@@ -12,7 +12,9 @@ public enum GuildModifier {
     AUTO_DEALER_TABLES("#76ad9dAuto Dealer Tables", true),
     MAX_HEALTH("#e06c75Max Health", true),
     MAX_MANA("#61afefMax Mana", true),
-    MANA_REGEN("#56b6c2Mana Regen", true);
+    MANA_REGEN("#56b6c2Mana Regen", true),
+    PRESTIGE("#4793bfPrestige", true),
+    PRESTIGE_BONUS("#409dc2Prestige Bonus", true);
 
     private final String name;
     private final boolean positive;

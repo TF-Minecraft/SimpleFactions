@@ -190,6 +190,7 @@ public class TabCompletion implements TabCompleter{
 					completions.add("setleader");
 					completions.add("rename");
 					completions.add("setbanner");
+					completions.add("setcolour");
 				}
 				if(Permissions.isAdmin(sender)) {
 					completions.add("dummify");
@@ -480,7 +481,8 @@ public class TabCompletion implements TabCompleter{
 				
 				return completions;
 			}
-		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("setcolour")){
+		} else if((cmd.getName().equalsIgnoreCase("faction") || cmd.getName().equalsIgnoreCase("guild"))
+				&& args.length == 2 && args[0].equalsIgnoreCase("setcolour")){
 			if(sender instanceof Player){
 				List<String> completions = new ArrayList<String>();
 				completions.add("R,G,B");

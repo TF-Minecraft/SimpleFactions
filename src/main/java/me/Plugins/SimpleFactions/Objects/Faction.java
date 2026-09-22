@@ -54,6 +54,7 @@ import me.Plugins.SimpleFactions.Utils.Formatter;
 import me.Plugins.SimpleFactions.Utils.RandomRGB;
 import me.Plugins.SimpleFactions.enums.Brackets;
 import me.Plugins.SimpleFactions.enums.FactionModifiers;
+import me.Plugins.SimpleFactions.enums.GuildModifier;
 import me.Plugins.SimpleFactions.enums.Member;
 import me.Plugins.SimpleFactions.enums.Region;
 import me.Plugins.SimpleFactions.enums.Rules;
@@ -741,6 +742,15 @@ public class Faction {
 		return guildHandler.getGuildByMember(player);
 	}
 	public void updatePrestige() {
+		double branchPrestige = 0.0;
+		if (guildHandler != null) {
+			for (Guild guild : guildHandler.getGuilds()) {
+				if (guild == null) continue;
+				branchPrestige += guild.getModifier(GuildModifier.PRESTIGE);
+			}
+		}
+		setPersistentPrestigeModifier("Branches", branchPrestige);
+
 		// Two halves: headcount, plus what each member's online time is worth.
 		List<String> roster = guildHandler.getAllMembers();
 		double members = Math.pow(roster.size()+4, 1.8)+5
@@ -1210,6 +1220,16 @@ public class Faction {
 		}
 		if(rank.hasModifiers()) {
 			all.addAll(rank.getModifiers());
+		}
+		double branchPrestigeBonus = 0.0;
+		if (guildHandler != null) {
+			for (Guild guild : guildHandler.getGuilds()) {
+				if (guild == null) continue;
+				branchPrestigeBonus += guild.getModifier(GuildModifier.PRESTIGE_BONUS);
+			}
+		}
+		if (branchPrestigeBonus != 0.0) {
+			all.add(new FactionModifier(FactionModifiers.PRESTIGE_BONUS, branchPrestigeBonus));
 		}
 	    return all;
 	}
