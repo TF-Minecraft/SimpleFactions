@@ -224,8 +224,6 @@ Prerequisites: same as **Campaign UX** (`dev_min_players: 1`, optional `/war adm
 9. Counter-push (`toward_aggressor_capital`): **attacker** (pushed) may retreat; counter schedule index advances.
 10. `retake_objective` phase: retreat hidden / rejected.
 
-See [planning/campaign-retreat/05-docs-verify.md](./planning/campaign-retreat/05-docs-verify.md) for the full manual matrix.
-
 ### Battle retreat (test server E2E)
 
 Prerequisites: campaign battle running; set `battle.retreat_min_elapsed_seconds: 0` in config for fast testing (restore `1200` after).
@@ -238,8 +236,6 @@ Prerequisites: campaign battle running; set `battle.retreat_min_elapsed_seconds:
 6. Restore cooldown to `1200`; retry within 20 min - rejected with remaining-time message (no GUI).
 7. Non-leader or non-warband player - rejected on command.
 8. Campaign raid battle - rejected.
-
-See [planning/battle-retreat/04-docs-verify.md](./planning/battle-retreat/04-docs-verify.md) for the full manual matrix.
 
 ### Mercenary companies (test server E2E)
 
@@ -256,8 +252,6 @@ Commands: `/company <found|invite|accept|decline|kick|expand|draft|offer|contrac
 7. Restore the timer keys.
 
 The money and reputation checks need a faction daily tick, which is real time (`timer >= 86400`) and is **not** moved by `war admin time`.
-
-See [planning/war-companies/08-verify.md](./planning/war-companies/08-verify.md) for the full 21-step matrix.
 
 ---
 

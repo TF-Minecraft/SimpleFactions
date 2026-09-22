@@ -57,8 +57,6 @@ Codes live in ProvinceSystem (`war_declare_codes`), realm-scoped, hashed with no
 
 Generic **conquest** is **not** a goal. The goal defines the political outcome. **One war = one goal**, chosen at declare.
 
-Implementation lock: [planning/war-goals-apply/00-index.md](./planning/war-goals-apply/00-index.md). Phase sequence: [planning/war-goals-apply/01-phases.md](./planning/war-goals-apply/01-phases.md).
-
 **Do not** add a second diplomacy/law/tax engine. Apply calls `RelationManager`, `FactionManager.usurp`, `Faction.applyLaw`, tax handlers, and one movement apply gate.
 
 **War defender** is the **top liege** of the clicked faction. The goal payload may still be a nested vassal, title, or settlement.
@@ -194,7 +192,7 @@ Keep from legacy system (repurpose):
 - **Mercenary companies** hired by contract on one side, listed with their promised slots. A third kind, neither main nor secondary, and never a belligerent: see [Mercenaries (locked)](#mercenaries-locked) below.
 - **No switch sides in war GUI.** Subject independence / rebellion uses the **movement system**, not a war-view button (legacy switch removed 2026-08-20).
 
-**Internal (inter-vassal) wars:** two factions that share a top liege and are **not** on each other's overlord path. Defender is the clicked faction, not the king. The liege is not a participant and is not callable. Lock: [planning/inter-vassal-wars/00-index.md](./planning/inter-vassal-wars/00-index.md).
+**Internal (inter-vassal) wars:** two factions that share a top liege and are **not** on each other's overlord path. Defender is the clicked faction, not the king. The liege is not a participant and is not callable.
 
 **Call to arms (all wars):** the caller must be a **main**. The target must be an unjoined ally on that main's ally snapshot (match by faction id). The target must not already be participating, must not be the overlord of a main, must not be nested under an enemy participant, and must not have a top liege who is already a main on either side. Same-realm allies are callable only when those rules hold.
 
@@ -214,7 +212,7 @@ Keep from legacy system (repurpose):
 
 ### Mercenaries (locked)
 
-A **mercenary company** is a guild-owned band of soldiers for hire. It fights where its contract sends it and is the third kind of thing that can be on a war side, alongside belligerents and their allies. Gameplay lock: [planning/war-companies/00-index.md](./planning/war-companies/00-index.md) - reference doc: [mercenaries.md](./mercenaries.md).
+A **mercenary company** is a guild-owned band of soldiers for hire. It fights where its contract sends it and is the third kind of thing that can be on a war side, alongside belligerents and their allies. Reference: [mercenaries.md](./mercenaries.md).
 
 | Rule | Detail |
 |------|--------|
@@ -303,7 +301,7 @@ Shipped **`B → objective`** only. A **full axis** is built at declare / `warpa
 
 ### Pillage war type route (shipped)
 
-`WarGoalType.PILLAGE`. Shortest path: attacker border (or connected-sea landing) → **one settlement**. One battle at the settlement, empty counter. Navy gate still applies if the natural path has a naval slot. Distinct from [campaign raids](./campaign-raids.md). Apply and campaign populate: [planning/war-goals-apply/06-phase-5.md](./planning/war-goals-apply/06-phase-5.md).
+`WarGoalType.PILLAGE`. Shortest path: attacker border (or connected-sea landing) → **one settlement**. One battle at the settlement, empty counter. Navy gate still applies if the natural path has a naval slot. Distinct from [campaign raids](./campaign-raids.md).
 
 ---
 
@@ -954,7 +952,7 @@ Config under `war.battle_military`:
 | `lives_per_regiment` | `5` |
 | `min_side_lives` | `1` |
 
-Mercenary slot, price and contract keys are documented in [mercenaries.md](./mercenaries.md); the gameplay lock is [planning/war-companies/00-index.md](./planning/war-companies/00-index.md).
+Mercenary slot, price and contract keys are documented in [mercenaries.md](./mercenaries.md).
 
 ### Casualties (locked )
 
@@ -1112,16 +1110,13 @@ Re-upload `map_markers` or wait for the next regen after deploy so active wars p
 | [mercenaries.md](./mercenaries.md) | Companies, contracts, wages, reputation, config keys |
 | [map-export.md](./map-export.md) | War route slice in `map_markers.json` |
 | [roadmap.md](./roadmap.md) | Shipped vs planned features |
-| [war-goals-apply lock](./planning/war-goals-apply/00-index.md) | Navy gate, goal apply, movement gate |
-| [inter-vassal-wars lock](./planning/inter-vassal-wars/00-index.md) | Internal peer wars, CTA, liege transit |
-| [war-companies lock](./planning/war-companies/00-index.md) | Mercenary gameplay lock, dividends, recruitment rule |
 | [ProvinceSystem map wars overlay](../../ProvinceSystem/docs/map/wars-on-map.md) | Website overlay |
 
 ---
 
 ## Open items
 
-- Inter-vassal wars **shipped** (Participants, campaign pathfinder, apply): [planning/inter-vassal-wars/00-index.md](./planning/inter-vassal-wars/00-index.md)
+- Inter-vassal wars **shipped** (Participants, campaign pathfinder, apply)
 - NAP treaty overlay **shipped** (stacks with tributary; blocks all declares until cleared)
 - Occupation overlay **shipped** (occupier fill)
 - Council-forced peace **shipped** (white peace offer or surrender on a chosen war)
@@ -1129,8 +1124,8 @@ Re-upload `map_markers` or wait for the next regen after deploy so active wars p
 - Production declare codes / Discord ticket gate: last
 - When to **recalculate** white peace auto-proposal flags after cursor / phase change
 
-Civil wars: [planning/naval-installations/02-phase-2.md](./planning/naval-installations/02-phase-2.md) (done).
+Civil wars (done).
 
-War-goal apply and navy gate: [planning/war-goals-apply/00-index.md](./planning/war-goals-apply/00-index.md) (Phases 0-7 done).
+War-goal apply and navy gate (Phases 0-7 done).
 
 `provinces_between_battles` (default **3**), `max_battles_per_leg`, and `initiative_factor` are locked in config (see `war.yml`).

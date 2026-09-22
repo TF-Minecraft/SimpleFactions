@@ -2,7 +2,6 @@
 
 A **mercenary company** is a band of soldiers for hire, hosted and owned by a guild but with its own membership. A company is hired by contract onto one side of a war, fights only where its contract sends it, and is never a belligerent.
 
-**Gameplay lock:** [planning/war-companies/00-index.md](./planning/war-companies/00-index.md) - that file is the decision record and wins over anything here.
 **War-side rules** (participants, lives, attendance, loyalty): [wars.md](./wars.md).
 
 ---
@@ -95,7 +94,5 @@ At the config minimums with a 20% active wage base, a soldier earns **2 denars p
 | Doc | Topic |
 |-----|--------|
 | [wars.md](./wars.md) | Participants, shared lives, attendance, loyalty |
-| [planning/war-companies/00-index.md](./planning/war-companies/00-index.md) | Gameplay lock (decision record) |
-| [planning/war-companies/08-verify.md](./planning/war-companies/08-verify.md) | In-game verification matrix |
 | [dev-config.md](./dev-config.md) | Dev-only timings and bypasses |
 | [roadmap.md](./roadmap.md) | Shipped vs planned |
