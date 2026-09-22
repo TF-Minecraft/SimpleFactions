@@ -1,6 +1,42 @@
-one_denar:
-  item: v.gold_ingot
-  value: 1.0
-point_one_denar:
-  item: v.iron_ingot
-  value: 0.1
+obscure_faction:
+    name: "#666249§oObscure Faction"
+    level: 1
+    minimum-prestige: 0
+    percentage-of-highest: 0.0
+    an: true
+    modifiers:
+        - de_jure(90.0)
+        - diplomatic_capacity_multiplier(-20)
+influential_faction:
+    name: "#bfb565Influential Faction"
+    level: 2
+    minimum-prestige: 200
+    percentage-of-highest: 40.0
+    an: true
+    modifiers:
+        - de_jure(85.0)
+        - diplomatic_capacity_multiplier(-10)
+powerful_faction:
+    name: "#78bbbfPowerful Faction"
+    level: 3
+    minimum-prestige: 500
+    percentage-of-highest: 55.0
+    modifiers:
+        - de_jure(80.0)
+glorious_faction:
+    name: "#c76734§lGlorious Faction"
+    level: 4
+    minimum-prestige: 600
+    percentage-of-highest: 75.0
+    modifiers:
+        - de_jure(75.0)
+        - diplomatic_capacity_multiplier(5)
+legendary_faction:
+    name: "#974bd1§lLegendary Faction"
+    level: 5
+    minimum-prestige: 3000
+    percentage-of-highest: 85.0
+    modifiers:
+        - de_jure(60.0)
+        - node_speed(5.0)
+        - diplomatic_capacity_multiplier(10)

@@ -1,0 +1,852 @@
+citizen_tax:
+  name: "#c9c99bCitizen Tax"
+  description:
+    - "#c9c99bCitizen taxes #d4c9aeare collected"
+    - "#d4c9aefrom the general population and"
+    - "#d4c9aeprovide the core income of the"
+    - "#d4c9aefaction treasury."
+  laws:
+    none:
+      name: "#bdaea8None"
+      description:
+        - "#bdaea8No citizen taxes #d4c9aeare"
+        - "#d4c9aecollected, relying on other"
+        - "#d4c9aesources of income."
+      cost: 10
+      upkeep: 0
+      compatibility:
+        - low 1
+        - medium 2
+        - high 3
+      effects:
+        faction:
+          rules:
+            - citizen_tax false
+    low:
+      name: "#7bc767Low"
+      description:
+        - "#7bc767Low taxes #d4c9aereduce burden"
+        - "#d4c9aeon citizens while generating"
+        - "#d4c9aea modest income."
+      cost: 15
+      upkeep: 2
+      compatibility:
+        - none 1
+        - medium 1
+        - high 2
+      effects:
+        faction:
+          brackets:
+            citizen_tax: "5-10"
+    medium:
+      name: "#bfc267Medium"
+      description:
+        - "#bfc267Moderate taxes #d4c9aestrike"
+        - "#d4c9aea balance between income and"
+        - "#d4c9aecitizen satisfaction."
+      cost: 20
+      upkeep: 4
+      compatibility:
+        - none 2
+        - low 1
+        - high 1
+      effects:
+        faction:
+          brackets:
+            citizen_tax: "10-25"
+    high:
+      name: "#d1775eHigh"
+      description:
+        - "#d1775eHeavy taxation #d4c9aegenerates"
+        - "#d4c9aesubstantial income at the cost"
+        - "#d4c9aeof public support."
+      cost: 30
+      upkeep: 6
+      compatibility:
+        - none 3
+        - low 2
+        - medium 1
+      effects:
+        faction:
+          brackets:
+            citizen_tax: "25-60"
+
+vassal_tax:
+  name: "#c9c99bVassal Tax"
+  description:
+    - "#c9c99bVassal taxes #d4c9aedefine the"
+    - "#d4c9aetribute demanded from subject"
+    - "#d4c9aefactions under your rule."
+  laws:
+    none:
+      name: "#bdaea8None"
+      description:
+        - "#bdaea8No tribute #d4c9aeis demanded"
+        - "#d4c9aefrom vassals, granting them"
+        - "#d4c9aegreater autonomy."
+      cost: 10
+      upkeep: 0
+      compatibility:
+        - low 1
+        - medium 2
+        - high 3
+      effects:
+        faction:
+          rules:
+            - vassal_tax false
+    low:
+      name: "#7bc767Low"
+      description:
+        - "#7bc767Light tribute #d4c9aemaintains"
+        - "#d4c9aeloose control over vassals."
+      cost: 12
+      upkeep: 1
+      compatibility:
+        - none 1
+        - medium 1
+        - high 2
+      effects:
+        faction:
+          brackets:
+            vassal_tax: "5-10"
+    medium:
+      name: "#bfc267Medium"
+      description:
+        - "#bfc267Standard tribute #d4c9aeensures"
+        - "#d4c9aesteady income and authority."
+      cost: 18
+      upkeep: 3
+      compatibility:
+        - none 2
+        - low 1
+        - high 1
+      effects:
+        faction:
+          brackets:
+            vassal_tax: "10-20"
+    high:
+      name: "#d1775eHigh"
+      description:
+        - "#d1775eHeavy tribute #d4c9aeenforces"
+        - "#d4c9aestrict control over vassals."
+      cost: 25
+      upkeep: 5
+      compatibility:
+        - none 3
+        - low 2
+        - medium 1
+      effects:
+        faction:
+          brackets:
+            vassal_tax: "20-35"
+
+guild_tax:
+  name: "#c9c99bGuild Tax"
+  description:
+    - "#c9c99bGuild taxes #d4c9aeregulate the"
+    - "#d4c9aecontributions of trade guilds"
+    - "#d4c9aeto the faction."
+  laws:
+    none:
+      name: "#bdaea8None"
+      description:
+        - "#bdaea8No guild taxes #d4c9aeallow"
+        - "#d4c9aetrade to flourish freely."
+      cost: 15
+      upkeep: 0
+      compatibility:
+        - low 1
+        - medium 2
+        - high 3
+      effects:
+        faction:
+          rules:
+            - guild_tax false
+            - dividend_tax false
+    low:
+      name: "#7bc767Low"
+      description:
+        - "#7bc767Light taxes #d4c9aehave minimal"
+        - "#d4c9aeimpact on commerce."
+      cost: 20
+      upkeep: 2
+      compatibility:
+        - none 1
+        - medium 1
+        - high 2
+      effects:
+        faction:
+          brackets:
+            guild_tax: "5-10"
+            dividend_tax: "5-20"
+    medium:
+      name: "#bfc267Medium"
+      description:
+        - "#bfc267Moderate taxes #d4c9aebalance"
+        - "#d4c9aeincome and trade freedom."
+      cost: 30
+      upkeep: 4
+      compatibility:
+        - none 2
+        - low 1
+        - high 1
+      effects:
+        faction:
+          brackets:
+            guild_tax: "10-25"
+            dividend_tax: "20-45"
+    high:
+      name: "#d1775eHigh"
+      description:
+        - "#d1775eHeavy taxes #d4c9aestrictly"
+        - "#d4c9aecontrol guild activity."
+      cost: 45
+      upkeep: 7
+      compatibility:
+        - none 3
+        - low 2
+        - medium 1
+      effects:
+        faction:
+          brackets:
+            guild_tax: "25-60"
+            dividend_tax: "45-80"
+
+leadership:
+  name: "#c9c99bLeadership"
+  description:
+    - "#c9c99bLeadership laws #d4c9aedefine"
+    - "#d4c9aehow the faction ruler is chosen"
+    - "#d4c9aeand legitimized."
+  laws:
+    fixed:
+      name: "#bdaea8Fixed"
+      description:
+        - "#bdaea8Fixed leadership #d4c9aeplaces"
+        - "#d4c9aepower outside public choice."
+      cost: 40
+      upkeep: 2
+      compatibility:
+        - elected 3
+      effects:
+        faction:
+          rules:
+            - leader_elections false
+          modifiers:
+            - admin_power_multiplier(10)
+    elected:
+      name: "#bbb0d9Elected"
+      description:
+        - "#bbb0d9Elected leaders #d4c9aederive"
+        - "#d4c9aeauthority from public support."
+      cost: 45
+      upkeep: 3
+      compatibility:
+        - fixed 3
+      effects:
+        faction:
+          rules:
+            - leader_elections true
+          modifiers:
+            - diplomatic_capacity_multiplier(10)
+
+government:
+  name: "#c9c99bGovernment"
+  description:
+    - "#c9c99bGovernment laws #d4c9aeshape"
+    - "#d4c9aehow power is distributed and"
+    - "#d4c9aeexercised within the faction."
+  laws:
+    community:
+      name: "#bdaea8Community"
+      description:
+        - "#bdaea8Community rule #d4c9aerelies"
+        - "#d4c9aeon local authority and trust."
+        - "#d4c9aeNo council or government is needed"
+      cost: 20
+      upkeep: 0
+      compatibility:
+        - autocracy 2
+        - oligarchy 2
+        - plutocracy 3
+        - democracy 3
+      effects:
+        faction:
+          rules:
+            - has_council false
+    autocracy:
+      name: "#85828fAutocracy"
+      description:
+        - "#85828fAutocratic rule #d4c9aecentralizes"
+        - "#d4c9aepower in a single leader. No council"
+        - "#d4c9aeexists, and all decisions rest entirely"
+        - "#d4c9aewith the leader."
+      cost: 35
+      upkeep: 4
+      compatibility:
+        - community 2
+        - oligarchy 1
+        - plutocracy 2
+        - democracy 3
+      effects:
+        faction:
+          rules:
+            - has_council false
+    oligarchy:
+      name: "#bccf67Oligarchy"
+      description:
+        - "#bccf67Oligarchic rule #d4c9aegives"
+        - "#d4c9aepower to a ruling elite."
+        - "#d4c9aeCouncil members are"
+        - "#d4c9aeappointed by the leader"
+      cost: 40
+      upkeep: 6
+      compatibility:
+        - autocracy 1
+        - plutocracy 1
+        - democracy 2
+        - community 2
+      effects:
+        faction:
+          rules:
+            - has_council true
+            - appointed_council true
+    plutocracy:
+      name: "#cf67b5Plutocracy"
+      description:
+        - "#cf67b5Plutocratic rule #d4c9aefavors"
+        - "#d4c9aewealth and economic influence."
+        - "#d4c9aeThe richest guilds/vassals will be"
+        - "#d4c9aegranted representation on the council."
+      cost: 45
+      upkeep: 7
+      compatibility:
+        - oligarchy 1
+        - democracy 2
+        - autocracy 2
+        - community 3
+      effects:
+        faction:
+          rules:
+            - has_council true
+            - wealth_based_council true
+    democracy:
+      name: "#677ecfDemocracy"
+      description:
+        - "#677ecfDemocratic rule #d4c9aegives"
+        - "#d4c9aepower to the populace. The council"
+        - "#d4c9aeis populated by elections."
+      cost: 50
+      upkeep: 8
+      compatibility:
+        - oligarchy 2
+        - plutocracy 2
+        - autocracy 3
+        - community 3
+      effects:
+        faction:
+          rules:
+            - has_council true
+            - elected_council true
+
+council:
+  name: "#c9c99bCouncil Size"
+  description:
+    - "#c9c99bCouncil laws #d4c9aedecide"
+    - "#d4c9aehow many seats there are on"
+    - "#d4c9aethe government council."
+  laws:
+    none:
+      name: "#bdaea8None"
+      description:
+        - "#d4c9aeThe government has no council."
+      cost: 0
+      upkeep: 0
+      compatibility:
+        - small_council 1
+        - medium_council 2
+        - large_council 3
+      effects:
+        faction:
+          council-size: 4
+    small_council:
+      name: "#6aa874Small Council"
+      description:
+        - "#d4c9aeA small council, cheap to maintain"
+      cost: 10
+      upkeep: 2
+      compatibility:
+        - none 1
+        - medium_council 1
+        - large_council 2
+      effects:
+        faction:
+          council-size: 4
+    medium_council:
+      name: "#55b565Medium Council"
+      description:
+        - "#d4c9aeA medium sized council, costs"
+        - "#d4c9aemore, but can propose more"
+      cost: 15
+      upkeep: 4
+      compatibility:
+        - small_council 1
+        - large_council 1
+        - none 2
+      effects:
+        faction:
+          council-size: 6
+    large_council:
+      name: "#765dbaLarge Council"
+      description:
+        - "#d4c9aeA large council, expensive,"
+        - "#d4c9aebut effective at sweeping reforms"
+      cost: 25
+      upkeep: 6
+      compatibility:
+        - medium_council 1
+        - small_council 2
+        - none 3
+      effects:
+        faction:
+          council-size: 8
+
+military:
+  name: "#c9c99bMilitary"
+  description:
+    - "#c9c99bMilitary laws #d4c9aedefine"
+    - "#d4c9aecommand structure and control"
+    - "#d4c9aeof armed forces."
+  laws:
+    decentralized:
+      name: "#bdaea8Decentralized"
+      description:
+        - "#bdaea8Decentralized command #d4c9aerelies"
+        - "#d4c9aeon local militias and has little"
+        - "#d4c9aeofficial organisation"
+      cost: 20
+      upkeep: 2
+      compatibility:
+        - levy_focus 1
+        - centralized 3
+      effects:
+        faction:
+          rules:
+            - can_recruit_professional_army false
+          modifiers:
+            - military_upkeep(-20.0)
+          regiments:
+            - militia 6
+    levy_focus:
+      name: "#bdaea8Levy Focus"
+      description:
+        - "#bdaea8Levy Focused command #d4c9aerelies"
+        - "#d4c9aeon the bulk of their army being"
+        - "#d4c9aesupplied by subjects"
+      cost: 30
+      upkeep: 4
+      compatibility:
+        - decentralized 1
+        - centralized 2
+      effects:
+        faction:
+          modifiers:
+            - military_upkeep(20.0)
+        vassals:
+          modifiers:
+            - military_upkeep(-10.0)
+            - levy(15.0)
+          regiments:
+            - professional 2
+    centralized:
+      name: "#bd8271Centralized"
+      description:
+        - "#bd8271Centralized command #d4c9aeplaces"
+        - "#d4c9aethe military under central control."
+        - "#d4c9aeOften as a counter-balance to"
+        - "#d4c9aevassal militaries."
+      cost: 40
+      upkeep: 6
+      compatibility:
+        - levy_focus 2
+        - decentralized 3
+      effects:
+        faction:
+          modifiers:
+            - military_upkeep(-10.0)
+          regiments:
+            - professional 2
+        vassals:
+          modifiers:
+            - levy(-10.0)
+
+vassalage:
+  name: "#c9c99bVassalage"
+  description:
+    - "#c9c99bVassalage laws #d4c9aedetermine"
+    - "#d4c9aethe treatment of subject factions."
+  laws:
+    none:
+      name: "#bdaea8None"
+      description:
+        - "#bdaea8No vassal system #d4c9aemeans"
+        - "#d4c9aethe faction cannot have subjects."
+      cost: 15
+      upkeep: 0
+      compatibility:
+        - inclusive 2
+        - extractive 3
+      effects:
+        faction:
+          rules:
+            - can_have_vassals false
+    inclusive:
+      name: "#bdaea8Inclusive"
+      description:
+        - "#bdaea8Inclusive vassalage #d4c9aeallows"
+        - "#d4c9aegreater autonomy for subjects."
+      cost: 30
+      upkeep: 3
+      compatibility:
+        - none 2
+        - extractive 1
+      effects:
+        faction:
+          rules:
+            - can_have_vassals true
+            - vassal_voting_rights true
+        foreign_guilds:
+          vassal_territory:
+            - trade_power(-5.0)
+        vassal_guilds:
+          our_territory:
+            - trade_power(5.0)
+        domestic_guilds:
+          vassal_territory:
+            - trade_power(5.0)
+    extractive:
+      name: "#bd8271Extractive"
+      description:
+        - "#bd8271Extractive vassalage #d4c9aefocuses"
+        - "#d4c9aeon heavy obligations."
+      cost: 40
+      upkeep: 5
+      compatibility:
+        - inclusive 1
+        - none 3
+      effects:
+        faction:
+          rules:
+            - can_have_vassals true
+            - vassal_voting_rights false
+          modifiers:
+            - diplomatic_capacity_multiplier(15)
+        vassals:
+          modifiers:
+            - stability_influence(-10)
+            - diplomatic_capacity_multiplier(-20)
+            - tax_multiplier(5.0)
+        foreign_guilds:
+          vassal_territory:
+            - trade_power(-5.0)
+        vassal_guilds:
+          our_territory:
+            - trade_power(-15.0)
+            - production(5.0)
+        domestic_guilds:
+          vassal_territory:
+            - trade_power(20.0)
+            - production(10.0)
+
+economy:
+  name: "#c9c99bEconomy"
+  description:
+    - "#c9c99bEconomic laws #d4c9aeshape"
+    - "#d4c9aetrade policy and market access"
+    - "#d4c9aewithin the faction."
+  laws:
+    decentralized:
+      name: "#bdaea8Decentralized"
+      description:
+        - "#d4c9aeA #bdaea8Decentralized economy #d4c9aehas a"
+        - "#d4c9aeharder time expanding outwards while the lack"
+        - "#d4c9aeof oversight lets foreign powers extract more"
+      cost: 15
+      upkeep: 0
+      compatibility:
+        - free_trade 1
+        - mercantilism 1
+        - protectionism 2
+        - isolationism 3
+      effects:
+        faction:
+          rules:
+            - tariffs false
+        foreign_guilds:
+          our_territory:
+            - trade_power(5.0)
+        domestic_guilds:
+          foreign_territory:
+            - trade_power(-5.0)
+          wilderness:
+            - trade_power(-5.0)
+    isolationism:
+      name: "#bd8271Isolationism"
+      description:
+        - "#bd8271Isolationist economy #d4c9aelimits"
+        - "#d4c9aeexternal trade influence."
+      cost: 50
+      upkeep: 6
+      compatibility:
+        - protectionism 1
+        - mercantilism 2
+        - free_trade 3
+        - decentralized 3
+      effects:
+        faction:
+          brackets:
+            tariffs: "0-75"
+        foreign_guilds:
+          our_territory:
+            - trade_power(-80.0)
+            - production(-50.0)
+        domestic_guilds:
+          our_territory:
+            - production(30.0)
+          foreign_territory:
+            - trade_power(-60.0)
+            - production(-80.0)
+          wilderness:
+            - trade_power(-60.0)
+            - production(-50.0)
+    protectionism:
+      name: "#a3867eProtectionism"
+      description:
+        - "#a3867eProtectionist economy #d4c9aedefends"
+        - "#d4c9aedomestic markets."
+      cost: 35
+      upkeep: 4
+      compatibility:
+        - isolationism 1
+        - mercantilism 1
+        - free_trade 2
+        - decentralized 2
+      effects:
+        faction:
+          brackets:
+            tariffs: "0-50"
+        foreign_guilds:
+          our_territory:
+            - trade_power(-25.0)
+            - production(-15.0)
+        domestic_guilds:
+          our_territory:
+            - production(20.0)
+            - trade_power(10.0)
+          foreign_territory:
+            - trade_power(-20.0)
+            - production(-20.0)
+          wilderness:
+            - trade_power(-15.0)
+            - production(-10.0)
+    mercantilism:
+      name: "#bfb162Mercantilism"
+      description:
+        - "#bfb162Mercantilist economy #d4c9aefocuses"
+        - "#d4c9aeon exports and control."
+      cost: 30
+      upkeep: 3
+      compatibility:
+        - protectionism 1
+        - free_trade 1
+        - isolationism 2
+        - decentralized 1
+      effects:
+        faction:
+          brackets:
+            tariffs: "0-25"
+        domestic_guilds:
+          foreign_territory:
+            - trade_power(10.0)
+          wilderness:
+            - trade_power(10.0)
+    free_trade:
+      name: "#de9337Free Trade"
+      description:
+        - "#de9337Free trade economy #d4c9aeopens"
+        - "#d4c9aemarkets to all partners."
+      cost: 40
+      upkeep: 3
+      compatibility:
+        - mercantilism 1
+        - protectionism 2
+        - isolationism 3
+        - decentralized 1
+      effects:
+        faction:
+          rules:
+            - tariffs false
+        foreign_guilds:
+          our_territory:
+            - trade_power(15.0)
+        domestic_guilds:
+          foreign_territory:
+            - trade_power(15.0)
+          wilderness:
+            - trade_power(15.0)
+
+borders:
+  name: "#c9c99bBorders"
+  description:
+    - "#c9c99bBorder laws #d4c9aedetermine"
+    - "#d4c9aewho can invite new citizens."
+  laws:
+    closed_borders:
+      name: "#bdaea8Closed Borders"
+      description:
+        - "#bdaea8Closed Borders #d4c9aemeans"
+        - "#d4c9aethe faction leader invites new"
+        - "#d4c9aemembers, guilds must then invite"
+        - "#d4c9aefrom members already in the faction."
+      cost: 15
+      upkeep: 0
+      compatibility:
+        - open_borders 2
+      effects:
+        faction:
+          rules:
+            - closed_borders true
+          modifiers:
+            - admin_power_multiplier(5)
+    open_borders:
+      name: "#bdaea8Open Borders"
+      description:
+        - "#bdaea8Open Borders #d4c9aemeans"
+        - "#d4c9aethe guilds may invite their own"
+        - "#d4c9aemembers from outside the faction."
+      cost: 20
+      upkeep: 4
+      compatibility:
+        - closed_borders 2
+      effects:
+        faction:
+          rules:
+            - open_borders true
+        domestic_guilds:
+          our_territory:
+            - production(2.5)
+
+repression:
+  name: "#c9c99bRepression"
+  description:
+    - "#c9c99bRepression laws #d4c9aedetermine"
+    - "#d4c9aeif the government can repress entities"
+    - "#d4c9aein the faction."
+  laws:
+    no_repression:
+      name: "#bdaea8No Repression"
+      description:
+        - "#bdaea8No Repression #d4c9aemeans"
+        - "#d4c9aethe government can not repress"
+        - "#d4c9aetspecific entities in the faction."
+      cost: 15
+      upkeep: 0
+      compatibility:
+        - repression_allowed 3
+      effects:
+        faction:
+          rules:
+            - can_repress false
+    repression_allowed:
+      name: "#bdaea8Repression Allowed"
+      description:
+        - "#bdaea8Repression Allowed #d4c9aemeans"
+        - "#d4c9aethe government may repress specific"
+        - "#d4c9aetentities within the faction."
+      cost: 20
+      upkeep: 4
+      compatibility:
+        - no_repression 3
+      effects:
+        faction:
+          rules:
+            - can_repress true
+          modifiers:
+            - admin_power_gain_multiplier(5)
+
+favouring:
+  name: "#c9c99bFavouring"
+  description:
+    - "#c9c99bFavouring laws #d4c9aedetermine"
+    - "#d4c9aeif the government can favour entities"
+    - "#d4c9aein the faction."
+  laws:
+    no_favouring:
+      name: "#bdaea8No Favouring"
+      description:
+        - "#bdaea8No Favouring #d4c9aemeans"
+        - "#d4c9aethe government can not favour"
+        - "#d4c9aetspecific entities in the faction."
+      cost: 15
+      upkeep: 0
+      compatibility:
+        - favouring_allowed 3
+      effects:
+        faction:
+          rules:
+            - can_favour false
+    favouring_allowed:
+      name: "#bdaea8Favouring Allowed"
+      description:
+        - "#bdaea8Favouring Allowed #d4c9aemeans"
+        - "#d4c9aethe government may favour specific"
+        - "#d4c9aetentities within the faction."
+      cost: 20
+      upkeep: 4
+      compatibility:
+        - no_favouring 3
+      effects:
+        faction:
+          rules:
+            - can_favour true
+
+assembly:
+  name: "#c9c99bAssembly"
+  description:
+    - "#c9c99bAssembly laws #d4c9aedetermine"
+    - "#d4c9aewhen the government may demand"
+    - "#d4c9aea movement disband."
+  laws:
+    none:
+      name: "#bdaea8None"
+      description:
+        - "#bdaea8None #d4c9aemeans the government"
+        - "#d4c9aemay demand a disband when a"
+        - "#d4c9aemovement is agitated or rebellious."
+      cost: 15
+      upkeep: 0
+      compatibility:
+        - right_to_assembly 3
+        - state_crackdowns 3
+    right_to_assembly:
+      name: "#7bc767Right to Assembly"
+      description:
+        - "#7bc767Right to Assembly #d4c9aemeans"
+        - "#d4c9aethe government may demand a"
+        - "#d4c9aedisband only when rebellious."
+      cost: 20
+      upkeep: 2
+      compatibility:
+        - none 3
+        - state_crackdowns 3
+    state_crackdowns:
+      name: "#d1775eState Crackdowns"
+      description:
+        - "#d1775eState Crackdowns #d4c9aemeans"
+        - "#d4c9aethe government may demand a"
+        - "#d4c9aedisband at any movement phase."
+      cost: 25
+      upkeep: 4
+      compatibility:
+        - none 3
+        - right_to_assembly 3

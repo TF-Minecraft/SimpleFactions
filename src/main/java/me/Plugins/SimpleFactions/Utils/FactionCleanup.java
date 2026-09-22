@@ -1,17 +1,20 @@
 package me.Plugins.SimpleFactions.Utils;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import me.Plugins.SimpleFactions.Managers.FactionManager;
 import me.Plugins.SimpleFactions.Objects.Faction;
-
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.File;
-import java.lang.reflect.Type;
-import java.util.*;
 
 public class FactionCleanup {
 
@@ -29,6 +32,7 @@ public class FactionCleanup {
             for (Faction faction : factions) {
                 for (String member : faction.getMembers()) {
                     String name = member.toLowerCase();
+                    if(name.startsWith("dummy_")) continue;
                     offlineDays.putIfAbsent(name, 0); // If not tracked yet, start at 0
                 }
             }
@@ -42,6 +46,7 @@ public class FactionCleanup {
                 List<String> members = new ArrayList<>(faction.getMembers()); // Avoid ConcurrentModificationException
 
                 for (String member : members) {
+                    if(member.startsWith("dummy_")) continue;
                     int daysOffline = offlineDays.getOrDefault(member.toLowerCase(), 0);
                     if(!faction.getMembers().contains(member)) continue;
                     if (daysOffline >= MAX_DAYS_OFFLINE) {
@@ -51,7 +56,8 @@ public class FactionCleanup {
                             }
                             continue;
                         }
-                        faction.removeMember(member);
+                        if(!faction.canBeCleanKicked(member)) continue;
+                        faction.forceRemoveMember(member);
                         System.out.println("Kicked " + member + " from faction " + faction.getName() + " (offline for " + daysOffline + " days)");
                     }
                 }

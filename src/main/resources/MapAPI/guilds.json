@@ -1,0 +1,57 @@
+[
+  {
+    "id": "TEST",
+    "name": "§x§a§3§a§1§8§4TEST",
+    "type": "§x§5§e§a§b§c§4Realm",
+    "size": 0,
+    "rgb": "229,60,112",
+    "trade_power": 0.0,
+    "banner": [
+      "LIGHT_BLUE.BASE",
+      "LIGHT_BLUE.SQUARE_TOP_LEFT",
+      "BROWN.PIGLIN",
+      "YELLOW.CRESCENT"
+    ]
+  },
+  {
+    "id": "Brume",
+    "name": "§x§a§3§a§1§8§4Brume",
+    "type": "§x§5§e§a§b§c§4Realm",
+    "size": 0,
+    "rgb": "95,50,217",
+    "trade_power": 1.0,
+    "banner": [
+      "LIGHT_BLUE.BASE",
+      "CYAN.HALF_HORIZONTAL_BOTTOM",
+      "BLUE.SMALL_STRIPE_LEFT",
+      "RED.BLAM"
+    ]
+  },
+  {
+    "id": "Lantan",
+    "name": "§cLantan",
+    "type": "§x§5§e§a§b§c§4Realm",
+    "size": 26,
+    "rgb": "51,200,210",
+    "trade_power": 988.98,
+    "banner": [
+      "BROWN.BASE",
+      "GREEN.SQUARE_TOP_RIGHT",
+      "YELLOW.ARROWS_DOWN"
+    ]
+  },
+  {
+    "id": "Lantel_Shipping",
+    "name": "§x§a§3§a§1§8§4Lantel Shipping",
+    "type": "§x§b§d§a§4§6§4Guild",
+    "size": 0,
+    "rgb": "107,90,230",
+    "trade_power": 7.76,
+    "banner": [
+      "LIME.BASE",
+      "LIME.TRIANGLE_TOP",
+      "RED.PEACE",
+      "YELLOW.CLUB"
+    ]
+  }
+]

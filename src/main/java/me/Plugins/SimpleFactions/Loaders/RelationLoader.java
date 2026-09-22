@@ -29,6 +29,65 @@ public class RelationLoader {
 		}
 		return types.get(0);
 	}
+
+	public static RelationType getElevationTarget() {
+		for(RelationType r : types) {
+			if(r.isElevationTarget()) return r;
+		}
+		return null;
+	}
+
+	public static List<RelationType> getWarPickableVassalTypes() {
+		List<RelationType> pickable = new ArrayList<>();
+		for (RelationType r : types) {
+			if (r.isVassalage() && r.canPickForWar()) {
+				pickable.add(r);
+			}
+		}
+		return pickable;
+	}
+
+	public static List<RelationType> getDiplomaticTypes() {
+		List<RelationType> diplomatic = new ArrayList<>();
+		for (RelationType r : types) {
+			if (!r.isTradeAgreement() && !r.isTreaty()) {
+				diplomatic.add(r);
+			}
+		}
+		return diplomatic;
+	}
+
+	public static List<RelationType> getTreatyTypes() {
+		List<RelationType> treaties = new ArrayList<>();
+		for (RelationType r : types) {
+			if (r.isTradeAgreement()) {
+				treaties.add(r);
+			}
+		}
+		return treaties;
+	}
+
+	public static List<RelationType> getPoliticalTreatyTypes() {
+		List<RelationType> treaties = new ArrayList<>();
+		for (RelationType r : types) {
+			if (r.isTreaty()) {
+				treaties.add(r);
+			}
+		}
+		return treaties;
+	}
+
+	public static boolean isWarPickableVassal(RelationType type) {
+		if (type == null || type.getId() == null) {
+			return false;
+		}
+		for (RelationType pickable : getWarPickableVassalTypes()) {
+			if (type.getId().equalsIgnoreCase(pickable.getId())) {
+				return true;
+			}
+		}
+		return false;
+	}
 	
 	public static Attitude getDefaultAttitude() {
 		for(Attitude a : attitudes) {
@@ -59,7 +118,7 @@ public class RelationLoader {
 		Set<String> set = config.getConfigurationSection("types").getKeys(false);
 
 		List<String> list = new ArrayList<String>(set);
-		
+		types.clear();
 		for(String key : list) {
 			RelationType r = new RelationType(key, config.getConfigurationSection("types."+key));
 			System.out.println("loaded relationtype "+r.getId());
@@ -76,7 +135,7 @@ public class RelationLoader {
 		Set<String> set = config.getConfigurationSection("attitudes").getKeys(false);
 
 		List<String> list = new ArrayList<String>(set);
-		
+		attitudes.clear();
 		for(String key : list) {
 			Attitude a = new Attitude(key, config.getConfigurationSection("attitudes."+key));
 			attitudes.add(a);

@@ -1,0 +1,106 @@
+# Campaign declare, schedule, raids, and war-goal tunables.
+# Live battle engine (province poll, templates) stays in config.yml under battle:.
+# Hours under battle_schedule are Europe/Paris (CET/CEST), not UTC.
+
+war:
+  # Production gate: an attacking leader must type a staff-minted Discord code before
+  # the goal picker opens, and the code pins the goal. simplefactions.admin bypasses it.
+  require_declare_code: true
+  # How long to wait for ProvinceSystem to answer a code check before giving up. The
+  # gate fails closed, so a slow backend blocks the declare rather than allowing it.
+  declare_code_timeout_seconds: 10
+  declare_opinion_threshold: -50
+  initiative_factor: 1.5
+  port_sea_zoc_radius: 2
+  reparations:
+    income_percent: 25
+    days: 10
+  goals:
+    DE_JURE_ANNEX:
+      max_battles_per_leg: 4
+    SUBJUGATE:
+      max_battles_per_leg: 4
+    TRANSFER_SUBJECT:
+      max_battles_per_leg: 4
+    WAR:
+      max_battles_per_leg: 4
+    TRIBUTARY:
+      max_battles_per_leg: 4
+    USURP:
+      max_battles_per_leg: 4
+    OPEN_MARKET:
+      max_battles_per_leg: 4
+      defender_must_not_have: [free_trade]
+      attacker_must_not_have: [isolationism]
+      apply_defender_law: free_trade
+    CHANGE_GOVERNMENT:
+      max_battles_per_leg: 4
+    PILLAGE:
+      range_provinces: 3
+      max_battles_per_leg: 1
+      loot_days: 10
+      trade_hit_percent: -100
+      trade_hit_days: 10
+    OVERTHROW:
+      max_battles_per_leg: 4
+    CHANGE_LAW:
+      max_battles_per_leg: 4
+    CHANGE_TAX:
+      max_battles_per_leg: 4
+    FORCE_PEACE:
+      max_battles_per_leg: 4
+  civil_war:
+    vassalage_group: vassalage
+    vassalage_law: inclusive
+  declined_ally_stability_penalty: -30
+  battle_cadence:
+    first_battle_at_border: true
+    provinces_between_battles: 3
+  occupation:
+    include_enemy_neighbors: true
+  pathfinder:
+    neutral_penalty: 8.0
+    sea_pass_enabled: true
+    # water_cost: 0  # 0 = derive from terrain-modifiers WATER via 1/carry
+  battle_schedule:
+    vote_close_hour: 16
+    raid_window_start_hour: 19
+    raid_window_end_hour: 20
+    window_start_hour: 21
+    window_end_hour: 24
+    defender_choice_deadline_hour: 12
+    one_battle_per_day: true
+    first_battle_day_after_declare: true
+  battle_voting:
+    min_players: 4
+    require_smallest_side_full: true
+    pass_if_either: true
+  devmode:
+    phantom_count: 10
+  battle_military:
+    lives_per_regiment: 5
+    min_side_lives: 1
+  # One reward per player for every fighter who was still in the battle when it
+  # ended, both sides, and only when the battle produced a winner. The per-battle
+  # toggle lives in the battle editor; campaign raids ship with it off.
+  battle_loot:
+    # COMMAND dispatches every line below from console once per player.
+    # ITEM gives a TLibs item instead.
+    mode: COMMAND
+    # Both %player% and #player# are replaced with the player name.
+    commands:
+      - "crates key give %player% battle_key 1"
+    # Used when mode is ITEM. TLibs path: v.diamond, ia.namespace:id, m.type.id
+    item: v.diamond
+    item_amount: 1
+  campaign_raid:
+    muster_seconds: 60
+    muster_reminder_seconds_before:
+      - 45
+      - 30
+      - 15
+      - 10
+    duration_seconds: 600
+    repair_lock_hours: 48
+    intruder_damage_interval_ticks: 10
+    intruder_damage_amount: 4

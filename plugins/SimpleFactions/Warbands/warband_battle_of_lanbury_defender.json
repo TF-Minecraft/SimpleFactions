@@ -1,0 +1,10 @@
+{
+  "id": "battle_of_lanbury_defender",
+  "name": "The Defender Host",
+  "leaderId": "7f6e8843-b8a1-3bff-9c29-a0da1cf77bcb",
+  "memberIds": [],
+  "invitedIds": [],
+  "locked": true,
+  "faction": true,
+  "campaignSideId": "defender"
+}

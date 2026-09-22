@@ -1,12 +1,12 @@
 package me.Plugins.SimpleFactions.Objects.Request;
 
-import me.Plugins.SimpleFactions.Objects.Faction;
-import me.Plugins.SimpleFactions.War.War;
+import me.Plugins.SimpleFactions.Guild.Guild;
+import me.Plugins.SimpleFactions.War.core.War;
 
 public class WarRequest extends Request{
 	private War war;
 	
-	public WarRequest(Faction sender, War w) {
+	public WarRequest(Guild sender, War w) {
 		super(sender);
 		this.war = w;
 	}

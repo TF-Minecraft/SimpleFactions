@@ -50,7 +50,7 @@ public class RankLoader {
 		Set<String> set = config.getKeys(false);
 
 		List<String> list = new ArrayList<String>(set);
-		
+		ranks.clear();
 		for(String key : list) {
 			PrestigeRank r = new PrestigeRank(key, config.getConfigurationSection(key));
 			ranks.add(r);

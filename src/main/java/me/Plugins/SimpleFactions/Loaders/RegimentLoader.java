@@ -23,6 +23,13 @@ public class RegimentLoader {
 		}
 		return null;
 	}
+	/** Prototype for mercenary company regiments; callers clone it rather than share it. */
+	public static Regiment getMercenaryRegiment() {
+		for(Regiment r : oList) {
+			if(r.isMercenary()) return r;
+		}
+		return null;
+	}
 	public void loadRegiments(File configFile) {
 		FileConfiguration config = new YamlConfiguration();
         try {

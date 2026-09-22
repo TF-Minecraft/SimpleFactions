@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 3,
+  "id": 0,
+  "status": "active",
+  "goal": "overthrow",
+  "warType": "overthrow",
+  "attackerLeaderId": "rebels",
+  "defenderLeaderId": "host",
+  "internalWar": false,
+  "movementId": "movement-1",
+  "cursorIndex": 0,
+  "initiativeAttacker": 0,
+  "initiativeDefender": 0,
+  "initiativeHolder": "ATTACKER",
+  "occupiedByAttacker": [],
+  "occupiedByDefender": [],
+  "lastBattleOccupied": [],
+  "campaignPhase": "invasion",
+  "objectiveHeldBy": "defender",
+  "whitePeaceProposedByAttacker": false,
+  "whitePeaceProposedByDefender": false,
+  "forcedWhitePeaceByAttacker": false,
+  "forcedWhitePeaceByDefender": false,
+  "campaignBattlesFought": 0,
+  "campaignBattleSchedule": [],
+  "campaignScheduleIndex": 0,
+  "campaignCounterSchedule": [],
+  "campaignCounterScheduleIndex": 0,
+  "fortControllers": {},
+  "wartimeInstallationOwners": {},
+  "concededScheduleSlots": [],
+  "locationBattleCounts": {},
+  "battleSchedulePhase": "idle",
+  "battleVotes": {},
+  "battleInstallationPicks": {},
+  "campaignRaidsUsed": {},
+  "raidRepairLockUntil": {},
+  "autoresolveProposedByAttacker": false,
+  "autoresolveProposedByDefender": false,
+  "postponementsThisCycle": 0,
+  "defenderChoiceResolved": false,
+  "initiativeHolderCoalition": "aggressor",
+  "pushTarget": "toward_objective",
+  "postBattleChoicePhase": "none",
+  "postBattleChoiceResolved": true,
+  "holdPeaceProposalActive": false,
+  "forceQuorumNextClose": false,
+  "startedAt": "2026-09-22T13:50:21.057524100Z",
+  "attackers": {
+    "leader": "rebels",
+    "participants": [
+      {
+        "leader": "rebels",
+        "subjects": [],
+        "allies": {},
+        "backers": [],
+        "warGoals": {},
+        "civilWar": true
+      }
+    ]
+  },
+  "defenders": {
+    "leader": "host",
+    "participants": [
+      {
+        "leader": "host",
+        "subjects": [],
+        "allies": {},
+        "backers": [],
+        "warGoals": {},
+        "civilWar": true
+      }
+    ]
+  }
+}

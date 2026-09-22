@@ -1,0 +1,10 @@
+{
+  "id": "battle_of_wilderness_attacker",
+  "name": "The faction Host",
+  "leaderId": "3e493326-51b6-3e90-a4cd-68a1e76f7590",
+  "memberIds": [],
+  "invitedIds": [],
+  "locked": true,
+  "faction": true,
+  "campaignSideId": "attacker"
+}

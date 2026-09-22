@@ -24,7 +24,7 @@ public class TitleManager implements Listener{
 	public static HashMap<Player, Tier> isFormingTitle = new HashMap<>();
 
 	public static boolean overProvinceCap(Faction f) {
-		return f.getPrestige() <  Math.max(0, f.getProvinces().size()-1)*Cache.provinceCost+Cache.provinceCost;
+		return f.getPrestige() <  Math.max(0, f.getProvinces().size()-1)*Cache.provinceCost;
 	}
 	
 	@EventHandler
@@ -67,7 +67,7 @@ public class TitleManager implements Listener{
 	}
 	
 	public static double getClaimCost(Faction f) {
-	    return f.getProvinces().size()*Cache.provinceCost+Cache.provinceCost;
+	    return f.getProvinces().size()*Cache.provinceCost;
 	}
 
 	

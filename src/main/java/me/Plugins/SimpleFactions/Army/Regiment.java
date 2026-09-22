@@ -23,7 +23,9 @@ public class Regiment {
 	private int expansionTime;
 	
 	private boolean levy;
+	private boolean professional;
 	private boolean offense;
+	private boolean mercenary;
 	
 	private ItemStack icon;
 	
@@ -51,7 +53,9 @@ public class Regiment {
 			}
 		}
 		levy = config.getBoolean("levy", false);
+		professional = config.getBoolean("professional", false);
 		offense = config.getBoolean("offense", false);
+		mercenary = config.getBoolean("mercenary", false);
 		toOverlord = 0;
 	}
 	
@@ -65,8 +69,10 @@ public class Regiment {
 		icon = another.getIcon().clone();
 		description = another.getDescription();
 		levy = another.isLevy();
+		professional = another.isProfessional();
 		toOverlord = another.sentToOverlord();
 		offense = another.isOffensive();
+		mercenary = another.isMercenary();
 	}
 	
 	public void setLevyEntries(List<LevyEntry> entries) {
@@ -104,6 +110,15 @@ public class Regiment {
 		return levy;
 	}
 
+	public boolean isProfessional() {
+		return professional;
+	}
+
+	/** Mercenary regiments belong to a company, never to a faction military. */
+	public boolean isMercenary() {
+		return mercenary;
+	}
+
 	public String getId() {
 		return id;
 	}
@@ -130,6 +145,14 @@ public class Regiment {
 
 	public int getFreeSlots() {
 		return freeSlots;
+	}
+
+	public void setFreeSlots(int i) {
+		freeSlots = Math.max(0, i);
+	}
+
+	public int getPaidSlots() {
+		return Math.max(0, currentSlots - freeSlots);
 	}
 
 	public double getUpkeep() {

@@ -1,5 +1,7 @@
 package me.Plugins.SimpleFactions.Diplomacy;
 
+import org.bukkit.Bukkit;
+
 import me.Plugins.SimpleFactions.Loaders.RelationLoader;
 import me.Plugins.SimpleFactions.Objects.FactionModifier;
 import me.Plugins.SimpleFactions.enums.FactionModifiers;
@@ -14,7 +16,7 @@ public class Relation {
 	public Relation(RelationType type, Attitude a) {
 		this.type = type;
 		this.attitude = a;
-		this.opinion = calculate();
+		this.opinion = 0;
 	}
 	
 	public Relation(RelationType type, Attitude a, int opinion) {
@@ -33,7 +35,7 @@ public class Relation {
 		base = true;
 		this.type = RelationLoader.getDefaultType();
 		this.attitude = RelationLoader.getDefaultAttitude();
-		this.opinion = calculate();
+		this.opinion = 0;
 	}
 	
 	public boolean isDefault() {
@@ -56,8 +58,18 @@ public class Relation {
 		this.attitude = attitude;
 	}
 	
-	private int calculate() {
-		return attitude.getTarget()+type.getTarget();
+	private int calculate(String id, DiplomacyHandler handler) {
+		int tradeOpinion = 0;
+		if(handler.hasTradeRelation(id)) {
+			RelationType trade = handler.getTradeRelation(id);
+			tradeOpinion = trade.getTarget();
+		}
+		int treatyOpinion = 0;
+		if(handler.hasTreatyRelation(id)) {
+			RelationType treaty = handler.getTreatyRelation(id);
+			treatyOpinion = treaty.getTarget();
+		}
+		return attitude.getTarget()+type.getTarget()+tradeOpinion+treatyOpinion;
 	}
 	
 	public int getOpinion() {
@@ -77,8 +89,8 @@ public class Relation {
 		return 0.0;
 	}
 	
-	public void tick() {
-		int target = calculate();
+	public void tick(String id, DiplomacyHandler handler) {
+		int target = calculate(id, handler);
 		if(opinion == target) return;
 		if(opinion < target) {
 			opinion++;

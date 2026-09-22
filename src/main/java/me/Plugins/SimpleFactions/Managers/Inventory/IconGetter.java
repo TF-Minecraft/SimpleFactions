@@ -23,4 +23,9 @@ public class IconGetter {
 		i.setItemMeta(m);
 		return i;
 	}
+
+	public static ItemStack getIconOrDefault(String id, Material fallback) {
+		ItemStack icon = getIcon(id);
+		return icon != null ? icon.clone() : new ItemStack(fallback, 1);
+	}
 }
