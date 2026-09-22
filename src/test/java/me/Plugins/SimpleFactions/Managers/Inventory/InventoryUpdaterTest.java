@@ -30,8 +30,13 @@ class InventoryUpdaterTest {
 	}
 
 	@ParameterizedTest
+	@EnumSource(value = SFGUI.class, names = {"FACTION_VIEW", "PLAYER_LEDGER_VIEW"})
+	void ledgerScreensSkipPeriodicRefresh(SFGUI type) {
+		assertTrue(InventoryUpdater.skipsPeriodicRefresh(type));
+	}
+
+	@ParameterizedTest
 	@EnumSource(value = SFGUI.class, names = {
-			"FACTION_VIEW",
 			"FACTION_LIST",
 			"UPGRADE_VIEW",
 			"WAR_LIST",

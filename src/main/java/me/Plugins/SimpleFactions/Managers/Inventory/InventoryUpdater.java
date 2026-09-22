@@ -43,6 +43,9 @@ public class InventoryUpdater {
 	private static final String BATTLE_LIST_TITLE = "§7Battle List";
 
 	private static final Set<SFGUI> SKIP_PERIODIC_REFRESH = EnumSet.of(
+			// Ledger projections and countdowns are snapshots refreshed on opening.
+			SFGUI.FACTION_VIEW,
+			SFGUI.PLAYER_LEDGER_VIEW,
 			SFGUI.GUILD_VIEW,
 			SFGUI.GUILD_LIST,
 			SFGUI.FACTION_GUILDS,
