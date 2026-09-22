@@ -55,3 +55,8 @@ Desktop.ini
 
 # Repository-specific generated or local files
 /plugins/
+
+# Removed runtime snapshots or generated archives
+/src/main/resources/Cache/
+/src/main/resources/Data/
+/src/main/resources/MapAPI/
