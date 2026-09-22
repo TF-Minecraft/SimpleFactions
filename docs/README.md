@@ -21,10 +21,6 @@ This `docs/` folder is the product and technical reference for the **SimpleFacti
    - [vehicles.md](./vehicles.md) - berths, slots, VehicleFramework integration
 5. [dev-config.md](./dev-config.md) - dev-only config and bypasses
 
-## Agent / contributor guide
-
-Code layout and naming rules: [../AGENTS.md](../AGENTS.md)
-
 ## Verify (tests)
 
 ```bash
