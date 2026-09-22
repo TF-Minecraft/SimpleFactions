@@ -57,6 +57,7 @@ import net.tfminecraft.DenarEconomy.DenarEconomy;
 import net.tfminecraft.DenarEconomy.Enum.Accounts;
 
 public class FactionManager implements Listener{
+	private static final int DAY_LENGTH_SECONDS = 86400;
 	public static int timer = 0;
 	/** Completed day rollovers. Counts server uptime, not calendar days. */
 	public static int day = 0;
@@ -77,6 +78,10 @@ public class FactionManager implements Listener{
 
 	public static int getTimer(){
 		return timer;
+	}
+
+	public static int getSecondsUntilNewDay() {
+		return DAY_LENGTH_SECONDS - Math.clamp(timer, 0, DAY_LENGTH_SECONDS);
 	}
 
 	public static int getDay(){
@@ -477,7 +482,7 @@ public class FactionManager implements Listener{
 				}
 			}
 		}
-		if (timer >= 86400) {
+		if (timer >= DAY_LENGTH_SECONDS) {
 			PlayerEconomyManager.get().clearAllDaily();
 			for(Faction f : factions){
 				f.newDay();

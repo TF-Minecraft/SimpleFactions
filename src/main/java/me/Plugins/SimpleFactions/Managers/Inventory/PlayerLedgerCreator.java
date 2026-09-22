@@ -40,6 +40,7 @@ public final class PlayerLedgerCreator {
         List<String> lore = new ArrayList<>();
         lore.add(StringFormatter.formatHex("#4c5250§oToday's cashflow"));
         lore.add(StringFormatter.formatHex("#4c5250§oResets at the next daily tick"));
+        lore.add(LedgerDayCountdown.loreLine());
         lore.add("");
         lore.add(StringFormatter.formatHex("#4fd945Income"));
         lore.add(StringFormatter.formatHex("#2f3b2f────────────"));
