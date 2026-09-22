@@ -1,121 +1,30 @@
 # SimpleFactions
 
-Organisation documentation: [TF-Minecraft/Docs](https://github.com/TF-Minecraft/Docs/blob/main/projects/SimpleFactions/README.md).
+> Nations, diplomacy, and political strategy for TF-Minecraft.
 
-The name stems from its original concept of a simple nation system, but it has since grown far beyond that.
+SimpleFactions turns groups of players into nations with territory, rulers, economies, and relationships. Its name comes from an early, simpler nation system; the project has grown into a broad political simulation inspired by Paradox Interactive's strategy games.
 
-This plugin adds factions (nations) to the game that can interact with each other through a complex diplomacy and economy system.
-
-**Full docs:** [docs/README.md](docs/README.md) - wars, installations, settlements, map export, vehicles, and dev config.
-
-You will not be able to run this as a standalone program, as it depends on other plugins and the Spigot server environment.
-
-## Why This Project Is Interesting
-This plugin implements strategy-game-style diplomacy between nations and a fully original map/border system using a REST connection to a Python program I wrote myself:  
-[ProvinceSystem](https://github.com/Drefvelin/ProvinceSystem)
-
-Highlights include:
-
-- **Nested Relationships** -- Factions can have subjects, and those subjects can have their own subjects.
-- **Tax Simulation** -- When a player (or faction) earns money, their faction (or overlord) can automatically tax their income.
-
-I drew heavy inspiration from strategy games by Paradox Interactive and leveraged my experience with object-oriented programming to implement parts of their systems. The project contains many interconnected classes that must remain consistent to avoid desynchronization.
-
-This project also demonstrates cross-language integration through **ProvinceSystem**, requiring careful planning to keep server state synchronized between the Java plugin and the Python backend.
+Players shape a world of provinces and titles, organise settlements and guilds, and navigate alliances, subjects, taxation, and war. Their nations also appear on the connected web map, making changes to the political landscape visible beyond the game.
 
 ## Features
-- Faction objects that function as nations in-game  
-  ([Faction.java](src/main/java/me/Plugins/SimpleFactions/Objects/Faction.java))
-- Faction relationships  
-  ([RelationManager.java](src/main/java/me/Plugins/SimpleFactions/Managers/RelationManager.java))
-- **Automated campaign wars**, installations (forts/ports/airports), settlements, and map export to tfminecraft.net  
-  ([docs/wars.md](docs/wars.md), [docs/installations.md](docs/installations.md), [docs/map-export.md](docs/map-export.md))
-- Titles (Kingdom, Duchy, etc.) connected with the REST server and the TitleManager  
-  ([ProvinceSystem](https://github.com/Drefvelin/ProvinceSystem),  
-  [TitleManager.java](src/main/java/me/Plugins/SimpleFactions/Managers/TitleManager.java))
 
-## Technical Overview
-- Java 17, Spigot API 1.20  
-- Built using Maven
+- **Provinces and titles** — govern territories with natural-shaped borders and titles such as duchies and kingdoms.
+- **Layered diplomacy** — form alliances, establish subject and overlord relationships, negotiate treaties, and impose trade embargoes.
+- **National economies** — manage wealth and taxation, including income moving through relationships between members, nations, and overlords.
+- **Settlements and guilds** — establish named cities and capitals and organise groups within a nation.
+- **Military infrastructure** — construct forts, ports, and airports that support the nation's military presence.
+- **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
 
-### Architecture
-- The main class initializes managers and overall plugin setup  
-  ([SimpleFactions.java](src/main/java/me/Plugins/SimpleFactions/SimpleFactions.java))
-- Configuration files (and titles from JSON) are loaded and stored via the Loader classes  
-  ([Loaders](src/main/java/me/Plugins/SimpleFactions/Loaders/))
-- `FactionManager` handles faction creation, lookups, member/leader queries, and database calls  
-  ([FactionManager.java](src/main/java/me/Plugins/SimpleFactions/Managers/FactionManager.java))
-- The `Inventory` package contains the extensive GUI classes players interact with  
-  ([Inventory](src/main/java/me/Plugins/SimpleFactions/Managers/Inventory/))
-- `MapSystem` is the primary interface for REST communication, while `RestServer` manages the actual requests and responses  
-  ([MapSystem.java](src/main/java/me/Plugins/SimpleFactions/Map/MapSystem.java),  
-  [RestServer.java](src/main/java/me/Plugins/SimpleFactions/REST/RestServer.java))
+## A shared political world
 
-## Key Challenges Solved
+[ProvinceSystem](https://github.com/TF-Minecraft/ProvinceSystem) presents the world map, borders, settlements, and military activity on the website.
 
-### Map System
-Most Minecraft plugins that work with territory rely on the game's built-in region system (chunks). Chunks are small, perfectly square units, which makes borders look artificial. Since our world uses a fixed 4096×4096 coordinate grid, I realized I could generate an image of the same resolution and map each world coordinate directly to a pixel.
+## Project background
 
-By drawing irregular “blobs” of unique RGB colors on this image, I created natural-looking provinces where:
+Created by Drefvelin, with inspiration from Paradox Interactive. The original project notes credit ChatGPT for troubleshooting, some code assistance, and README editing.
 
-> **province = the color of the pixel at your current coordinate**
+## Documentation
 
-The Minecraft plugin handles the coordinate and faction logic, while the external Python service (**ProvinceSystem**) processes the image and exposes province/border data on our website:  
-https://www.tfminecraft.net/
+[Project documentation](https://github.com/TF-Minecraft/Docs/blob/main/projects/SimpleFactions/README.md)
 
-A major challenge was keeping both systems synchronized efficiently. The Python service can take several minutes to redraw the full map, so regenerating unchanged regions was wasteful. To solve this, I implemented a queued update system that tracks exactly which provinces or borders changed in the Minecraft server state, and sends only incremental updates to the Python service. This dramatically reduced processing time and ensured consistent, near-real-time synchronization between the two systems.
-
----
-
-### Money Flow and Taxation
-Introducing a virtual economy requires strong guarantees against exploits (e.g., infinite money loops). One of the biggest challenges was implementing **nested taxation**:
-
-- A faction can tax its members.
-- A faction can be a subject to an overlord, which may also have its own overlord.
-- Foreign income can be taxed depending on diplomatic relations.
-
-The system needed to propagate tax values through these nested relationships without ever allowing the combined tax rate to exceed 100% - otherwise it would generate money that never existed. I solved this by implementing a clamped, hierarchical taxation model that guarantees consistency and prevents exploitable edge cases.
-
-## AI Tools
-I used **ChatGPT** primarily for troubleshooting and generating small amounts of code, such as the logic for loading titles from JSON.
-
-For architecture, class design, and the overall structure of the plugin, I relied on my own judgment. In my experience, AI struggles to maintain coherent object-oriented structure in larger projects, so all high-level design, class relationships, and system architecture were created and implemented manually.
-
-Most of the plugin was written without AI assistance to maintain control over the design and ensure consistency. **ChatGPT** was also used to help format and refine this README.
-
-
-## TLibs build dependency
-
-TLibs is a versioned Maven `provided` dependency. From this repository, prepare
-it once with the shared installer, then build as usual:
-
-```sh
-python3 ../tlibs/tools/install-dependency.py --pom pom.xml
-mvn clean verify
-```
-
-See [TLibs dependency setup](https://github.com/TF-Minecraft/TLibs/blob/5da8e77d0e0696bbff7d7064a2644072da9c6428/DEPENDENCIES.md)
-for public release installation, offline builds and rollback.
-Other declared build dependencies still need their usual preparation.
-Use JDK 25 for this TLibs binary; the server must also run Java 25.
-
-Builds and server runtime require Java 25. Local builds default to [TLibs 1.1.0](https://github.com/TF-Minecraft/TLibs/releases/tag/v1.1.0); CI resolves the latest published stable TLibs release for each build, verifies its checksum, and uses its exact version throughout that job.
-
-## Shared plugin dependencies
-
-Build and release workflows install checksum-verified plugin releases through
-[TLibs' shared installer](https://github.com/TF-Minecraft/TLibs/blob/main/DEPENDENCIES.md).
-CI selects the latest published versions; local builds use the explicit Maven
-version properties. Shared plugins use `provided` scope and remain separate
-server plugins. Each build records exact versions and checksums in
-`.build/plugin-dependencies.json` alongside its JAR.
-
-From this checkout, with the TLibs repository next to it:
-
-```sh
-python3 ../tlibs/tools/install-plugins.py --pom pom.xml
-```
-
-Prepare any remaining third-party inputs with `.github/scripts/prepare-release.sh`
-before running Maven. Any source-unavailable inputs remain private and checksum-pinned wherever declared; see the installer
-documentation for authentication and reproducible rebuilds.
+Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/TF-Minecraft/Docs).
