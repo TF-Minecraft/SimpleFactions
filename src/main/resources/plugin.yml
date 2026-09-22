@@ -1,4 +1,4 @@
-main: me.Plugins.SimpleFactions.SimpleFactions
+main: net.tfminecraft.simplefactions.SimpleFactions
 api-version: '1.21.10'
 name: SimpleFactions
 version: ${project.version}

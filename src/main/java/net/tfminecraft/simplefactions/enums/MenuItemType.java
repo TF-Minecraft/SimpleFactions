@@ -1,0 +1,23 @@
+package net.tfminecraft.simplefactions.enums;
+
+public enum MenuItemType {
+	BANNER,
+	BANNER_GET,
+	BANNER_RANDOM,
+	WEALTH,
+	MEMBERS,
+	GUILDS,
+	PRESTIGE,
+	LEADER,
+	MILITARY,
+	DIPLOMACY,
+	TIER,
+	TITLES,
+	MODIFIERS,
+	TAX,
+	TRADE_BREAKDOWN,
+	DIVIDENDS,
+	LAWS,
+	GOVERNMENT,
+	INSTALLATIONS
+}

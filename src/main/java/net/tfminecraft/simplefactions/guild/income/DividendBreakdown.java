@@ -1,0 +1,14 @@
+package net.tfminecraft.simplefactions.guild.income;
+
+public record DividendBreakdown(
+		double base,
+		double pool,
+		double tax,
+		double payout,
+		int eligibleCount,
+		double perMember) {
+
+	public static DividendBreakdown none() {
+		return new DividendBreakdown(0.0, 0.0, 0.0, 0.0, 0, 0.0);
+	}
+}

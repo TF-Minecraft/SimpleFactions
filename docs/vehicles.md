@@ -118,7 +118,7 @@ A war attacker contests a naval slot only if some attacker-side participating fa
 ## Tests
 
 ```bash
-cd simplefactions && mvn test -Dtest="me.Plugins.SimpleFactions.vehicles.**"
+cd simplefactions && mvn test -Dtest="net.tfminecraft.simplefactions.vehicles.**"
 ```
 
 Key tests: `VehicleSlotGuard`, `BattleVehicleEligibilityService`, `VehicleInstallationLockService`, `VehicleOwnershipQueries`.

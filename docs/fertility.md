@@ -42,7 +42,7 @@ Mapgen writes the fertility layer; the web map viewer fertility mode reads the s
 ## Tests
 
 ```bash
-cd simplefactions && mvn test -Dtest="me.Plugins.SimpleFactions.Map.fertility.FertilityProvinceResolverTest"
+cd simplefactions && mvn test -Dtest="net.tfminecraft.simplefactions.map.fertility.FertilityProvinceResolverTest"
 ```
 
 Growth formula, vanilla cancel, and CustomCrops `province-fertility` tests are in the Cooking plugin.

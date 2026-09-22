@@ -4,7 +4,7 @@
 sf_province_enter:
   type: custom
   custom_event_data:
-    event: me.Plugins.SimpleFactions.Events.PlayerProvinceEnterEvent
+    event: net.tfminecraft.simplefactions.events.PlayerProvinceEnterEvent
     player_variable: getPlayer()
     variables_to_capture:
     - '%province_id%;getProvinceId()'
@@ -18,7 +18,7 @@ sf_province_enter:
 sf_title_enter:
   type: custom
   custom_event_data:
-    event: me.Plugins.SimpleFactions.Events.PlayerTitleEnterEvent
+    event: net.tfminecraft.simplefactions.events.PlayerTitleEnterEvent
     player_variable: getPlayer()
     variables_to_capture:
     - '%tier%;getTierId()'
@@ -35,7 +35,7 @@ sf_title_enter:
 sf_title_leave:
   type: custom
   custom_event_data:
-    event: me.Plugins.SimpleFactions.Events.PlayerTitleLeaveEvent
+    event: net.tfminecraft.simplefactions.events.PlayerTitleLeaveEvent
     player_variable: getPlayer()
     variables_to_capture:
     - '%tier%;getTierId()'
@@ -55,7 +55,7 @@ sf_title_leave:
 sf_region_enter:
   type: custom
   custom_event_data:
-    event: me.Plugins.SimpleFactions.Events.PlayerEnterRegionEvent
+    event: net.tfminecraft.simplefactions.events.PlayerEnterRegionEvent
     player_variable: getPlayer()
     variables_to_capture:
     - '%region_id%;getRegionId()'
@@ -70,7 +70,7 @@ sf_region_enter:
 sf_region_leave:
   type: custom
   custom_event_data:
-    event: me.Plugins.SimpleFactions.Events.PlayerLeaveRegionEvent
+    event: net.tfminecraft.simplefactions.events.PlayerLeaveRegionEvent
     player_variable: getPlayer()
     variables_to_capture:
     - '%region_id%;getRegionId()'
