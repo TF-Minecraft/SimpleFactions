@@ -75,7 +75,7 @@
   "postBattleChoiceResolved": true,
   "holdPeaceProposalActive": false,
   "forceQuorumNextClose": false,
-  "startedAt": "2026-09-22T15:26:12.423084901Z",
+  "startedAt": "2026-09-22T13:50:20.764493300Z",
   "attackers": {
     "leader": "atk",
     "participants": [
@@ -101,32 +101,5 @@
         "civilWar": false
       }
     ]
-  },
-  "commitments": [
-    {
-      "factionId": "atk",
-      "sourceFactionId": "subject",
-      "regimentId": "levy",
-      "count": 12,
-      "committedAt": "2026-09-22T15:26:00.395706318Z"
-    },
-    {
-      "factionId": "atk",
-      "regimentId": "professional",
-      "count": 5,
-      "committedAt": "2026-09-22T15:26:00.943121336Z"
-    },
-    {
-      "factionId": "attacker",
-      "regimentId": "professional",
-      "count": 7,
-      "committedAt": "2026-09-22T15:26:06.994733728Z"
-    },
-    {
-      "factionId": "attacker",
-      "regimentId": "militia",
-      "count": 3,
-      "committedAt": "2026-09-22T15:26:06.994733728Z"
-    }
-  ]
+  }
 }
