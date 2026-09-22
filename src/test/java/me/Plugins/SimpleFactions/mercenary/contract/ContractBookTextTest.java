@@ -10,8 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * The book's wording and its parser, tested as plain strings per the GUI testing
- * convention in AGENTS.md. What the page says is a game rule, not decoration.
+ * The book's wording and its parser, tested as plain strings without a live server.
+ * What the page says is a game rule, not decoration.
  */
 class ContractBookTextTest {
     private ContractFixture fixture;

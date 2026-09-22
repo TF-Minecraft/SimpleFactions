@@ -454,7 +454,7 @@ Loaded at enable by `InstallationConfigLoader` (fail loud if missing or unknown 
 
 **`config.yml`** still holds `port-sea-proximity-blocks`. **`war.yml`** holds `war.port_sea_zoc_radius`. Installation upkeep/construction/slots live in `installations.yml`.
 
-**Live servers:** copy `installations.yml` from the jar default; remove the old `installations:` block from `config.yml`. Add `land_vehicles: 2` under `fort.slots` when merging an existing file. Vehicle categories live in `vehicles.yml` (see [`AGENTS.md`](../AGENTS.md) for package layout).
+**Live servers:** copy `installations.yml` from the jar default; remove the old `installations:` block from `config.yml`. Add `land_vehicles: 2` under `fort.slots` when merging an existing file. Vehicle categories live in `vehicles.yml`.
 
 ### `vehicles.yml` personal-limit keys
 
