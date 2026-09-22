@@ -41,6 +41,8 @@ public class RelationCreator {
 		}
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createWarButton(Faction target, Faction origin) {
 		RelationType r = RelationLoader.getType("war");
 		if(r == null) return new ItemStack(Material.AIR, 1);
@@ -65,6 +67,8 @@ public class RelationCreator {
 		return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRelationItem(Faction target, Faction origin) {
 		ItemStack i = target.getBanner();
 		Relation r = origin.getRelation(target.getId());
@@ -102,6 +106,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createDiplomacyListFactionItem(Faction viewed, Faction other, boolean clickable) {
 		ItemStack i = other.getBanner();
 		if (i == null || i.getType() == Material.AIR) {
@@ -133,6 +139,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createDiplomacySeparatorItem() {
 		ItemStack i = new ItemStack(Material.GRAY_STAINED_GLASS_PANE, 1);
 		ItemMeta m = i.getItemMeta();
@@ -142,6 +150,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createNoOfficialRelationsItem() {
 		ItemStack i = new ItemStack(Material.MAP, 1);
 		ItemMeta m = i.getItemMeta();
@@ -151,6 +161,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createWarReparationsItem(Faction origin, Faction target) {
 		ItemStack i = new ItemStack(Material.GOLD_INGOT, 1);
 		ItemMeta m = i.getItemMeta();
@@ -186,6 +198,8 @@ public class RelationCreator {
 		return createAttitudeItem(a, null, null, false);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createAttitudeItem(Attitude a, Faction origin, Faction target, boolean picker) {
 		ItemStack i = new ItemStack(Material.EMERALD, 1);
 		if(IconGetter.hasIcon(a.getId())) {
@@ -239,6 +253,8 @@ public class RelationCreator {
 		return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createRelationTypeItem(RelationType t, Faction target, Faction origin, boolean full) {
 		ItemStack i = new ItemStack(Material.PAPER, 1);
 		if(IconGetter.hasIcon(t.getId())) {
@@ -345,6 +361,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createNoTradeAgreementItem() {
 		ItemStack i = new ItemStack(Material.PAPER, 1);
 		ItemMeta m = i.getItemMeta();
@@ -358,6 +376,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTradeAgreementTypeItem(Player p, RelationType t, Faction target, Faction origin, boolean full) {
 		ItemStack i = new ItemStack(Material.PAPER, 1);
 		if(IconGetter.hasIcon(t.getId())) {
@@ -454,6 +474,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createNoTreatyItem() {
 		ItemStack i = new ItemStack(Material.PAPER, 1);
 		ItemMeta m = i.getItemMeta();
@@ -467,6 +489,8 @@ public class RelationCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTreatyTypeItem(Player p, RelationType t, Faction target, Faction origin, boolean full) {
 		ItemStack i = new ItemStack(Material.PAPER, 1);
 		if(IconGetter.hasIcon(t.getId())) {

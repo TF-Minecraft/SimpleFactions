@@ -33,6 +33,8 @@ public class Session {
     private Map<String, Vote> currentVotes = new HashMap<>(); // Player name -> Vote
     private Set<String> eligibleVoters = new HashSet<>(); // Council members + leader
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public Session(Player leader, Faction f) {
         this.leader = leader;
         this.f = f;
@@ -177,6 +179,8 @@ public class Session {
         return null;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void start() {
         if (!c.hasEnoughValidVoters()) {
             leader.sendMessage("§cNot enough council members online! At least 75% must be present.");
@@ -198,6 +202,8 @@ public class Session {
         }
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void end() {
         // Create session report
         SessionReport report = new SessionReport(leader.getName(), f);

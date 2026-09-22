@@ -57,6 +57,8 @@ public class CampaignRaidLaunchView {
 		openSourcePage(player, war, viewerFaction, openInventory, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openSourcePage(Player player, War war, Faction viewerFaction, boolean openInventory, Inventory existingInventory) {
 		if (!validateParticipation(player, war, viewerFaction)) {
 			return;
@@ -105,6 +107,8 @@ public class CampaignRaidLaunchView {
 		openTargetPage(player, war, viewerFaction, sourceInstallationId, openInventory, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openTargetPage(
 			Player player,
 			War war,

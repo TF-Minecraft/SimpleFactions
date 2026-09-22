@@ -55,11 +55,13 @@ public class PointManager {
 		}
 		markers.tick(b, this);
 	}
+	// Preserve legacy scoreboard entry names and their formatting.
+	@SuppressWarnings({"deprecation"})
 	private void scoreboard(Player p) {
 		ScoreboardManager manager = Bukkit.getScoreboardManager();
 		Scoreboard board = manager.getNewScoreboard();
 		
-		Objective obj = board.registerNewObjective("pointDummy", Criteria.DUMMY, "§e§lCapture Points");
+		Objective obj = board.registerNewObjective("pointDummy", Criteria.DUMMY, net.kyori.adventure.text.Component.text("Capture Points", net.kyori.adventure.text.format.NamedTextColor.YELLOW).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
 		obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 		int i = 0;
 		for(CapturePoint point : points) {
@@ -102,6 +104,8 @@ public class PointManager {
 			}
 		}
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void subtitle(CapturePoint p) {
 		for(Entity en : p.getNearbyEntities()) {
 			if(en instanceof Player) {

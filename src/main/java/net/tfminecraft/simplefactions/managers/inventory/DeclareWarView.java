@@ -48,6 +48,8 @@ public class DeclareWarView {
 		openGoalPicker(player, attacker, defender, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openGoalPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
 		if (!Cache.requireProvinces(player)) {
 			return;
@@ -84,6 +86,8 @@ public class DeclareWarView {
 		openRelationTypePicker(player, attacker, defender, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openRelationTypePicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
 		boolean open = inventory == null;
 		if(open) {
@@ -104,6 +108,8 @@ public class DeclareWarView {
 		openTitlePicker(player, attacker, defender, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openTitlePicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
 		boolean open = inventory == null;
 		if(open) {
@@ -124,6 +130,8 @@ public class DeclareWarView {
 		openSubjectPicker(player, attacker, defender, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openSubjectPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
 		boolean open = inventory == null;
 		if(open) {
@@ -144,6 +152,8 @@ public class DeclareWarView {
 		openSettlementPicker(player, attacker, defender, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openSettlementPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
 		boolean open = inventory == null;
 		if(open) {
@@ -169,6 +179,8 @@ public class DeclareWarView {
 		openGovernmentPicker(player, attacker, defender, governmentLawId, leadershipLawId, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openGovernmentPicker(
 			Player player,
 			Faction attacker,
@@ -443,6 +455,8 @@ public class DeclareWarView {
 		});
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private void openGovernmentLawPicker(
 			Player player,
 			Faction attacker,

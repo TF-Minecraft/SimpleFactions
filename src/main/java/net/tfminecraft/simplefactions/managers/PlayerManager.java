@@ -146,6 +146,8 @@ public class PlayerManager implements Listener{
                 lender.playSound(lender, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
             }
             new BukkitRunnable() {
+                // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+                @SuppressWarnings("deprecation")
                 @Override
                 public void run() {
                     ItemStack i = new ItemStack(Material.WRITTEN_BOOK);
@@ -251,6 +253,8 @@ public class PlayerManager implements Listener{
         }.runTaskLater(SimpleFactions.plugin, 1L);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     private ItemStack signedAgreement(
             MercenaryCompany company, MercenaryContract contract, String signer) {
         ItemStack i = new ItemStack(Material.WRITTEN_BOOK);

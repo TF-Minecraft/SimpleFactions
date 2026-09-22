@@ -47,6 +47,8 @@ public class SessionReport {
         results.add(new ProposalResult(proposal, result, yay, nay, abstain));
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack generateReportBook() {
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) item.getItemMeta();

@@ -24,6 +24,8 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.tlibs.utils.TimeFormatter;
 
 public class InstallationCreator {
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createSummary(Faction f) {
         InstallationHandler handler = f.getInstallationHandler();
         int forts = 0;
@@ -59,6 +61,8 @@ public class InstallationCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createInstallationIcon(Installation installation) {
         ItemStack item = new ItemStack(Material.GREEN_CONCRETE, 1);
         ItemMeta meta = item.getItemMeta();
@@ -70,6 +74,8 @@ public class InstallationCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createConstructionIcon(InstallationConstruction construction, Faction faction) {
         ItemStack item = new ItemStack(Material.YELLOW_CONCRETE, 1);
         ItemMeta meta = item.getItemMeta();
@@ -90,6 +96,8 @@ public class InstallationCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDetailItem(Installation installation) {
         ItemStack item = new ItemStack(Material.GREEN_CONCRETE, 1);
         ItemMeta meta = item.getItemMeta();
@@ -101,6 +109,8 @@ public class InstallationCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createConstructionDetailItem(InstallationConstruction construction) {
         ItemStack item = new ItemStack(Material.YELLOW_CONCRETE, 1);
         ItemMeta meta = item.getItemMeta();
@@ -118,6 +128,8 @@ public class InstallationCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDeconstructButton(String id, boolean pending) {
         ItemStack item = new ItemStack(Material.RED_CONCRETE, 1);
         ItemMeta meta = item.getItemMeta();
@@ -147,6 +159,8 @@ public class InstallationCreator {
         return lore;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createBerthedVehicleIcon(
             PlayerVehicleRecord record, Optional<Location> location, boolean leader) {
         ItemStack item = new ItemStack(Material.MINECART, 1);

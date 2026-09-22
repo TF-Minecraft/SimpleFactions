@@ -72,6 +72,8 @@ public class GuildView {
 		guildList(p, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void guildList(Player p, Inventory inv) {
 		currentRanking.putIfAbsent(p, RankType.WEALTH);
 		currentPage.putIfAbsent(p, 0);
@@ -113,6 +115,8 @@ public class GuildView {
 		if (end < guilds.size()) inv.setItem(NEXT_PAGE_SLOT, DefaultCreator.createNextPageButton());
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void ledgerView(Player player, Guild guild, Inventory i) {
 		boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW), 27, "§7Ledger for "+guild.getName());
@@ -133,6 +137,8 @@ public class GuildView {
 		guildView(player, guild, false);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void guildView(Player player, Guild guild, boolean fromFaction) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(
 				new SFInventoryHolder(guild.getId(), SFGUI.GUILD_VIEW, 0, fromFaction),
@@ -190,6 +196,8 @@ public class GuildView {
 		i.setItem(53, inv.createBackButton(SFGUI.GUILD_VIEW));
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void upgradeView(Player player, Guild guild) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.UPGRADE_VIEW), 54, "§7Upgrade View");
 		upgradeView(player, guild, i);
@@ -224,6 +232,8 @@ public class GuildView {
 		i.setItem(53, inv.createBackButton(SFGUI.UPGRADE_VIEW));
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();

@@ -37,6 +37,8 @@ public class InstallationView {
         this.inv = inv;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void installationsView(Inventory inventory, Player player, Faction f, boolean open) {
         if (open) {
             inventory =
@@ -84,6 +86,8 @@ public class InstallationView {
         installationDetailView(player, f, installationId, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void installationDetailView(Player player, Faction f, String installationId, Inventory inventory) {
         InstallationHandler handler = f.getInstallationHandler();
         InstallationConstruction pending = handler.getPendingConstruction();

@@ -306,6 +306,8 @@ public class WarManager {
 		WarCommitmentService.clearCommitments(warId);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public static War addWar(War w) {
 		wars.add(w);
 		for(String m : w.getAttackers().getLeader().getMembers()){

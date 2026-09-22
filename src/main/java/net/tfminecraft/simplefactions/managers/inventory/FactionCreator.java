@@ -53,6 +53,8 @@ public class FactionCreator {
 	Formatter format = new Formatter();
 	FactionRanker r = new FactionRanker();
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createListItem(Player p, Faction f) {
 		ItemStack i = new ItemStack(f.getBanner());
 		ItemMeta meta = i.getItemMeta();
@@ -125,6 +127,8 @@ public class FactionCreator {
 		return i;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createDissolveItem(Faction f) {
 		ItemStack item = new ItemStack(Material.PRISMARINE_CRYSTALS);
 		ItemMeta meta = item.getItemMeta();

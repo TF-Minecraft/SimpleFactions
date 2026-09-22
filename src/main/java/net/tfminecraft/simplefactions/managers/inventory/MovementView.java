@@ -46,6 +46,8 @@ public class MovementView {
         this.inv = inv;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void movementView(Player player, Faction f, Movement movement, Inventory i) {
         boolean open = i == null;
         if (i == null) {
@@ -90,6 +92,8 @@ public class MovementView {
         }
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void causesView(Player player, Faction f, Movement movement, Inventory i) {
         boolean open = i == null;
         if (i == null) {
@@ -124,6 +128,8 @@ public class MovementView {
         }
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void causeView(Player player, Faction f, Movement movement, Cause cause, Inventory i) {
         boolean open = i == null;
         if (i == null) {
@@ -154,6 +160,8 @@ public class MovementView {
         }
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void targetSelectionView(Player player, Faction f, Movement movement, Cause cause, Inventory i) {
         boolean open = i == null;
         if (i == null) {
@@ -178,6 +186,8 @@ public class MovementView {
         }
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void movementListView(Player player, Faction f, Inventory i) {
         boolean open = i == null;
         if (i == null) {
@@ -201,6 +211,8 @@ public class MovementView {
         }
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void demandsView(Player player, Faction f, Movement movement, Inventory i) {
         boolean open = i == null;
         if (i == null) {
@@ -232,6 +244,8 @@ public class MovementView {
         }
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void crackdownView(Player player, Faction f, Movement movement, Inventory i) {
         boolean open = i == null;
         if (i == null) {

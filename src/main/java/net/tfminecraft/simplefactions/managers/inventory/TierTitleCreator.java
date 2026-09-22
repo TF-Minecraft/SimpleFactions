@@ -37,6 +37,8 @@ public class TierTitleCreator {
 		return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createNoTitleItem() {
 		ItemStack i = new ItemStack(Material.RED_CONCRETE);
 		ItemMeta m = i.getItemMeta();
@@ -45,6 +47,8 @@ public class TierTitleCreator {
 		return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTierViewItem(Faction f, Tier t, int amount) {
 		ItemStack i = new ItemStack(Material.SHIELD, 1);
 		if(IconGetter.hasIcon(t.getId())) {
@@ -83,6 +87,8 @@ public class TierTitleCreator {
 	    return (double) current / needed;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createGrantTitleItem(Player p, Faction f, Title t) {
 	    ItemStack i = new ItemStack(Material.GREEN_CONCRETE, 1);
 
@@ -103,6 +109,8 @@ public class TierTitleCreator {
 	    return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons. This path mutates the existing ItemStack; replacing it would change aliases held by callers.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTitleItem(Player p, Faction f, Title t, List<Integer> provinces, List<Title> titles) {
 	    ItemStack i = new ItemStack(Material.RED_CONCRETE, 1);
 	    if (f.hasTitle(t)) i.setType(Material.GREEN_CONCRETE);
@@ -165,6 +173,8 @@ public class TierTitleCreator {
 		return amount;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createNewTitleItem(Faction f, Tier t) {
 		ItemStack i = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta m = i.getItemMeta();
@@ -197,6 +207,8 @@ public class TierTitleCreator {
 	}
 
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons. This path mutates the existing ItemStack; replacing it would change aliases held by callers.
+	@SuppressWarnings("deprecation")
 	public ItemStack createTierItem(Faction f, Tier t, int index) {
 		ItemStack i = new ItemStack(Material.RED_CONCRETE, 1);
 		if(t.getTier() == f.getTier().getTier()) {

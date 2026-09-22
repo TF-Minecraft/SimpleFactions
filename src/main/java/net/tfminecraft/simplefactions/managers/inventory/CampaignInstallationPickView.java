@@ -51,6 +51,8 @@ public class CampaignInstallationPickView {
 		open(player, war, viewerFaction, openInventory, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void open(Player player, War war, Faction viewerFaction, boolean openInventory, Inventory existingInventory) {
 		if (war == null || !war.isActive() || viewerFaction == null) {
 			player.sendMessage("§cWar not found.");

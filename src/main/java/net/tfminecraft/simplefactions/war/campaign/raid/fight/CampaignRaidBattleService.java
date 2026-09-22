@@ -209,6 +209,8 @@ public final class CampaignRaidBattleService {
 		}
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private static void alertDefenders(War war, CampaignRaid raid, Installation target) {
 		CampaignCoalition defendingCoalition = raid.getAttackerCoalition() != null
 				? raid.getAttackerCoalition().opposing()

@@ -28,6 +28,8 @@ import net.Indyuce.mmoitems.stat.data.MaterialData;
 
 public class MovementCreator {
     
+    // Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+    @SuppressWarnings({"deprecation"})
     public ItemStack createMovementLeaderItem(Player p, Movement movement) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         if(!movement.hasLeader() && movement.canBeLeader(p.getName())) {
@@ -59,6 +61,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createOrganizationItem(Movement movement) {
         ItemStack item = new ItemStack(Material.BOOK);
         ItemMeta m = item.getItemMeta();
@@ -76,6 +80,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createJoinAsSupporterButton(Player player, Movement movement) {
         boolean isSupporter = movement.getSupporters().getAllMembers().contains(player.getName());
         ItemStack item = new ItemStack(isSupporter ? Material.RED_BANNER : Material.GREEN_BANNER);
@@ -101,6 +107,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createJoinAsForeignBackerButton(Player player, Movement movement) {
         Faction playerFaction = FactionManager.getByMember(player.getName());
         boolean isBacker = playerFaction != null && movement.getForeignBackers().contains(playerFaction);
@@ -127,6 +135,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createCausesButton(Movement movement) {
         ItemStack item = new ItemStack(Material.RED_BANNER);
         ItemMeta m = item.getItemMeta();
@@ -142,6 +152,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createCauseItem(Cause cause, Player p, Faction f) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta m = item.getItemMeta();
@@ -170,6 +182,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+    @SuppressWarnings({"deprecation"})
     public ItemStack createCauseLeaderItem(Player p, Cause cause) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         if(!cause.hasLeader() && cause.canBeLeader(p.getName())) {
@@ -203,6 +217,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createCauseProposalItem(Cause cause, Player p, Faction f) {
         ItemStack item = cause.getProposal().getPoliticalAction().getIcon();
         ItemMeta m = item.getItemMeta();
@@ -224,6 +240,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createJoinCauseButton(Player player, Cause cause) {
         boolean isMember = cause.getFullMemberList().contains(player.getName());
         ItemStack item = new ItemStack(isMember ? Material.RED_WOOL : Material.GREEN_WOOL);
@@ -247,6 +265,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createEndMovmentItem(Movement movement) {
         ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_cancel");
         ItemMeta m = item.getItemMeta();
@@ -261,6 +281,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createEndMovementConfirmItem(Movement movement) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta m = item.getItemMeta();
@@ -275,6 +297,8 @@ public class MovementCreator {
         return item;
     }
     
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createMovementListItem(Movement movement) {
         ItemStack item = new ItemStack(Material.BLAZE_POWDER);
         ItemMeta m = item.getItemMeta();
@@ -301,6 +325,8 @@ public class MovementCreator {
         lore.add(StringFormatter.formatHex("#9c9775Foreign Backers: #c2bea7" + movement.getForeignBackers().size()));
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createPhaseItem(Player p, Phase phase, Movement movement) {
         ItemStack item = new ItemStack(Material.RED_CONCRETE);
         if(phase == movement.getPhase()) {
@@ -340,6 +366,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createSendDemandsItem(Movement movement) {
         ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem("iasurvival:letter");
         ItemMeta m = item.getItemMeta();
@@ -363,6 +391,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDemandDisbandItem(Faction f, Movement movement) {
         ItemStack item = new ItemStack(Material.IRON_AXE, 1);
         ItemMeta m = item.getItemMeta();
@@ -383,6 +413,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createRefuseDisbandWarningItem() {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta m = item.getItemMeta();
@@ -398,6 +430,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createAcceptDisbandButton(Movement movement) {
         ItemStack item = new ItemStack(Material.GREEN_CONCRETE);
         ItemMeta m = item.getItemMeta();
@@ -413,6 +447,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createRefuseDisbandButton(Movement movement) {
         ItemStack item = new ItemStack(Material.RED_CONCRETE);
         ItemMeta m = item.getItemMeta();
@@ -428,6 +464,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createEmptyCauseSlot(int index) {
         ItemStack item = new ItemStack(Material.GRAY_CONCRETE);
         ItemMeta m = item.getItemMeta();
@@ -440,6 +478,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createAvailableCauseSlot(Movement movement, int index) {
         ItemStack item = new ItemStack(Material.YELLOW_CONCRETE);
         ItemMeta m = item.getItemMeta();
@@ -460,6 +500,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDemandItem(Cause cause, Movement movement) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta m = item.getItemMeta();
@@ -482,6 +524,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createMovementPowerItem(Movement movement) {
         ItemStack item = new ItemStack(Material.NETHER_STAR);
         ItemMeta m = item.getItemMeta();
@@ -498,6 +542,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDecliningWarningItem() {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta m = item.getItemMeta();
@@ -513,6 +559,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createAcceptDemandsButton(Movement movement) {
         ItemStack item = new ItemStack(Material.GREEN_CONCRETE);
         ItemMeta m = item.getItemMeta();
@@ -530,6 +578,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDeclineDemandsButton(Movement movement) {
         ItemStack item = new ItemStack(Material.RED_CONCRETE);
         ItemMeta m = item.getItemMeta();
@@ -545,6 +595,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+    @SuppressWarnings({"deprecation"})
     public ItemStack createTargetButton(Player p, Cause cause) {
         Proposal proposal = cause.getProposal();
         ItemStack item;
@@ -595,6 +647,8 @@ public class MovementCreator {
         return item;
     }
 
+    // Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+    @SuppressWarnings({"deprecation"})
     public ItemStack createPotentialTargetItem(Player player, Faction f, String member, int causeIndex) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta m = item.getItemMeta();

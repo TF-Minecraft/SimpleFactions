@@ -144,6 +144,8 @@ public class Proposal {
         return getAsBook(null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack getAsBook(Player p) {
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) item.getItemMeta();

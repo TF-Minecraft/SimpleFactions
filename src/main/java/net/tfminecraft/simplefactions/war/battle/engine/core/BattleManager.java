@@ -159,6 +159,8 @@ public class BattleManager implements Listener{
 		}
 		return null;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private Battle getBattleByItem(ItemStack item) {
 		ItemMeta m = item.getItemMeta();
 		for(Battle b : battles) {
@@ -166,6 +168,8 @@ public class BattleManager implements Listener{
 		}
 		return null;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private CapturePoint getPointByItem(Battle b, ItemStack item) {
 		ItemMeta m = item.getItemMeta();
 		for(CapturePoint p : b.getPointManager().getPoints()) {
@@ -173,6 +177,8 @@ public class BattleManager implements Listener{
 		}
 		return null;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	private BattleSide getBattleSideByItem(ItemStack item, Battle b) {
 		if (item == null || !item.hasItemMeta() || b == null) {
 			return null;
@@ -212,6 +218,8 @@ public class BattleManager implements Listener{
 		new BukkitRunnable()
 		{
 			int i = 15;
+			// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+			@SuppressWarnings("deprecation")
 			public void run()
 			{
 				if(i == 0) {
@@ -281,6 +289,8 @@ public class BattleManager implements Listener{
 		}
 	}
 
+	// DenarEconomy reads this one-tick Bukkit metadata contract; persistent data is not interchangeable.
+	@SuppressWarnings({"deprecation"})
 	private static void markKeepPouch(Player player) {
 		SimpleFactions plugin = SimpleFactions.plugin;
 		if (plugin == null) {
@@ -371,6 +381,8 @@ public class BattleManager implements Listener{
 		if(s.hasPlayer(target)) e.setCancelled(true);
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void invenClick(InventoryClickEvent e) {
 		Player p = (Player) e.getWhoClicked();

@@ -403,6 +403,8 @@ public class InventoryManager implements Listener{
 				+ "%#d6cf69). Type #c74d32cancel #d6cf69to abort."));
 	}
 
+	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void setRate(AsyncPlayerChatEvent e) {
 		Player p = e.getPlayer();
@@ -418,6 +420,8 @@ public class InventoryManager implements Listener{
 		}.runTask(SimpleFactions.plugin);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons. Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
 	public void taxChat(Player p, AsyncPlayerChatEvent e) {
 		Faction f = taxChange.get(p).getFaction();
 		if(f == null) {
@@ -505,6 +509,8 @@ public class InventoryManager implements Listener{
 		governmentView.governmentView(p, f, null);
 	}
 
+	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
 	public void loanPaymentChat(Player p, AsyncPlayerChatEvent e) {
 		Guild g = loanPayments.get(p).getGuild();
 		Guild compare = FactionManager.getGuildByLeader(p.getName());
@@ -559,6 +565,8 @@ public class InventoryManager implements Listener{
 		loanPayments.remove(p);
 	}
 
+	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
 	public void dividendChat(Player p, AsyncPlayerChatEvent e) {
 		DividendChange change = dividendChange.get(p);
 		Guild guild = change == null ? null : change.getGuild();
@@ -600,6 +608,8 @@ public class InventoryManager implements Listener{
 	}
 	
 	//Confirm
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void confirmView(Player player, Faction f, String key, String data) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
 		i.setItem(11, createButton("confirm", key, data));
@@ -607,6 +617,8 @@ public class InventoryManager implements Listener{
 		player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void openQueueCancelConfirm(Player player, Faction f, String payload, String title) {
 		confirming.put(player, f);
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
@@ -686,6 +698,8 @@ public class InventoryManager implements Listener{
 		};
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void confirmCapitalMoveView(Player player, int provincesLost) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
 		ItemStack info = new ItemStack(Material.PAPER);
@@ -700,6 +714,8 @@ public class InventoryManager implements Listener{
 		player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void confirmEndMovementView(Player player, Movement movement) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
 		i.setItem(13, movementView.creator.createEndMovementConfirmItem(movement));
@@ -708,6 +724,8 @@ public class InventoryManager implements Listener{
 		player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void confirmBattleRetreatView(Player player, String battleId) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
 		ItemStack info = new ItemStack(Material.PAPER);
@@ -723,6 +741,8 @@ public class InventoryManager implements Listener{
 		player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void confirmWarDeclareView(Player player, WarDeclareRequest request) {
 		pendingWarDeclares.put(player, request);
 		confirming.put(player, request.getAttacker());
@@ -734,6 +754,8 @@ public class InventoryManager implements Listener{
 	}
 	
 	//Basic Items
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack getFiller(Material mat) {
 		ItemStack i = new ItemStack(mat, 1);
 		ItemMeta m = i.getItemMeta();
@@ -742,6 +764,8 @@ public class InventoryManager implements Listener{
 		return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons. This path mutates the existing ItemStack; replacing it would change aliases held by callers.
+	@SuppressWarnings("deprecation")
 	public ItemStack createButton(String type, String key, String data) {
 		ItemStack i = new ItemStack(Material.GREEN_CONCRETE);
 		if(type.equalsIgnoreCase("cancel")) {
@@ -759,6 +783,8 @@ public class InventoryManager implements Listener{
 		return i;
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createBackButton(SFGUI gui) {
 		ItemStack i = new ItemStack(Material.BARRIER, 1);
 		ItemMeta m = i.getItemMeta();
@@ -785,6 +811,8 @@ public class InventoryManager implements Listener{
 		}
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void clickButton(InventoryClickEvent e) {
 		Player p = (Player) e.getWhoClicked();

@@ -30,6 +30,8 @@ public class LoanCreator {
 	private static final String GRAY  = "#6f776a";
 	private static final String LIGHT_GRAY  = "#9cb68c";
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createLoansGivenButton(Guild guild) {
         ItemStack i = IconGetter.getIconOrDefault("loans_given", Material.BLACK_DYE);
         ItemMeta meta = i.getItemMeta();
@@ -48,6 +50,8 @@ public class LoanCreator {
         return i;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createLoansTakenButton(Guild guild) {
         ItemStack i = IconGetter.getIconOrDefault("loans_taken", Material.BLACK_DYE);
         ItemMeta meta = i.getItemMeta();
@@ -68,6 +72,8 @@ public class LoanCreator {
         return i;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createIssueNewLoanButton() {
         ItemStack i = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta meta = i.getItemMeta();
@@ -81,6 +87,8 @@ public class LoanCreator {
         return i;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createLoanItem(Loan loan, boolean asIssuerView) {
 
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
@@ -191,6 +199,8 @@ public class LoanCreator {
                 + "/" + Cache.getFantasyYear(timestamp);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createPayOffLoanButton(Loan loan) {
         ItemStack i = TLibs.getItemAPI().getCreator().getItemFromPath("m.currency.pouch_of_coins");
         ItemMeta meta = i.getItemMeta();
@@ -225,6 +235,8 @@ public class LoanCreator {
         return i;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createToggleAutoPayButton(Loan loan, boolean button) {
         ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem(loan.isAutoPay() ? "mcicons:icon_confirm" : "mcicons:icon_cancel");
         ItemMeta meta = i.getItemMeta();
@@ -244,6 +256,8 @@ public class LoanCreator {
         return i;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createDefaultItem(Loan loan) {
         ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem("iasurvival:sword_skin_bloodnite");
         ItemMeta meta = i.getItemMeta();
@@ -297,6 +311,8 @@ public class LoanCreator {
         return i;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createPauseInterestItem(Loan loan) {
         ItemStack i = TLibs.getItemAPI().getCreator().getItemFromPath("m.currency.handful_of_coins");
         ItemMeta meta = i.getItemMeta();
@@ -313,6 +329,8 @@ public class LoanCreator {
         return i;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createForgiveLoanItem(Loan loan) {
         ItemStack i = TLibs.getItemAPI().getCreator().getItemsAdderItem("iasurvival:sword_skin_vyderlight");
         ItemMeta meta = i.getItemMeta();

@@ -23,6 +23,8 @@ public final class PlayerLedgerCreator {
             player.getUniqueId());
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createLedgerBook(PlayerLedger ledger, UUID playerUuid) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK, 1);
         ItemMeta meta = item.getItemMeta();

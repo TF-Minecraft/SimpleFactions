@@ -468,6 +468,8 @@ public class Guild {
         this.rgb = rgb;
     }
 
+    // Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+    @SuppressWarnings({"deprecation"})
     private void createBanner() {
 		ItemStack item = new ItemStack(
 			Material.valueOf(bannerPatterns.get(0).split("\\.")[0].toUpperCase() + "_BANNER"),
@@ -497,12 +499,12 @@ public class Guild {
 
 			// 1️⃣ Try vanilla (minecraft namespace)
 			NamespacedKey vanillaKey = NamespacedKey.minecraft(patternName);
-			patternType = Registry.BANNER_PATTERN.get(vanillaKey);
+			patternType = io.papermc.paper.registry.RegistryAccess.registryAccess().getRegistry(io.papermc.paper.registry.RegistryKey.BANNER_PATTERN).get(vanillaKey);
 
 			// 2️⃣ Try custom namespace (tfmc)
 			if (patternType == null) {
 				NamespacedKey customKey = new NamespacedKey("tfmc", patternName);
-				patternType = Registry.BANNER_PATTERN.get(customKey);
+				patternType = io.papermc.paper.registry.RegistryAccess.registryAccess().getRegistry(io.papermc.paper.registry.RegistryKey.BANNER_PATTERN).get(customKey);
 			}
 
 			if (patternType == null) {
@@ -523,9 +525,8 @@ public class Guild {
 		this.bannerPatterns.clear();
 		this.bannerPatterns.add(banner.getType().toString().replace("_BANNER", ".BASE"));
 		for(Pattern p : b.getPatterns()) {
-			// getKey is shared by the supported Paper/Spigot API snapshots.
-			@SuppressWarnings("deprecation")
-			NamespacedKey key = p.getPattern().getKey();
+			NamespacedKey key = io.papermc.paper.registry.RegistryAccess.registryAccess()
+				.getRegistry(io.papermc.paper.registry.RegistryKey.BANNER_PATTERN).getKey(p.getPattern());
 			if (key == null) continue;
 			this.bannerPatterns.add(p.getColor().name() + "." + key.getKey().toUpperCase());
 		}

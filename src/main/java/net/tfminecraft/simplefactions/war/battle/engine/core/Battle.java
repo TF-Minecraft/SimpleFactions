@@ -320,12 +320,16 @@ public class Battle {
 		}
 		return list;
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void endTitle() {
 		for(Player p : getAllParticipants()) {
 			p.sendTitle("§aBATTLE OVER", " ", 5, 40, 5);	
 			p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
 		}
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void startTitle() {
 		for(Player p : getAllParticipants()) {
 			p.sendTitle("§aBATTLE STARTED", " ", 5, 40, 5);

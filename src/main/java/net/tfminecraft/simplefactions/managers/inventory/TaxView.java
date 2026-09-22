@@ -27,6 +27,8 @@ public class TaxView {
         this.inv = inv;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void taxView(Player player, Faction f, Inventory i) {
         if(f == null) return;
 		boolean open = i == null;
@@ -46,6 +48,8 @@ public class TaxView {
 		taxView(player, f, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void specificTaxView(Player player, Faction f, TaxTarget target, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_VIEW_SPECIFIC, target.name()), 54, "§7"+target.getDisplayName());

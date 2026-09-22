@@ -36,6 +36,8 @@ public class ElectionView {
         electionView(p, f, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void electionView(Player p, Faction f, Inventory i) {
         boolean open = i == null;
         if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.ELECTION_VIEW), 9, "§7Election View");
@@ -55,6 +57,8 @@ public class ElectionView {
         votingView(p, f, candidateType, null);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void votingView(Player p, Faction f, Candidate candidateType, Inventory i) {
         boolean open = i == null;
         if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.ELECTION_VOTING_VIEW, candidateType.name()), 54, "§7Vote for " + candidateType.getName());

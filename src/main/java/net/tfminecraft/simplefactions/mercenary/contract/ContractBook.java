@@ -187,6 +187,8 @@ public final class ContractBook {
         return new ContractTerms(slots, perBattle, perDay, duration, absenceRefund, breachRefund);
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ContractTerms parseTerms(BookMeta meta) {
         if (meta == null || meta.getPageCount() < 2) return null;
         return parseTerms(meta.getPage(2));
@@ -245,6 +247,8 @@ public final class ContractBook {
      * Books
      * ===================================================== */
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ItemStack draftBook(MercenaryCompany company) {
         ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -256,6 +260,8 @@ public final class ContractBook {
         return book;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ItemStack reviewBook(MercenaryCompany company, ContractTerms terms) {
         ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
         BookMeta meta = (BookMeta) book.getItemMeta();
@@ -268,6 +274,8 @@ public final class ContractBook {
     }
 
     /** The agreement, tied to the offered contract it will activate. */
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ItemStack agreementBook(MercenaryContract contract) {
         MercenaryCompany company = contract.getCompany();
         ItemStack book = new ItemStack(Material.WRITABLE_BOOK);

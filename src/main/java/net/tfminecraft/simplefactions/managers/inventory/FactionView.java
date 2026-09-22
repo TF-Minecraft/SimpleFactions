@@ -58,6 +58,8 @@ public class FactionView {
 		factionList(player, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void factionList(Player player, Inventory inv) {
 		currentRanking.putIfAbsent(player, RankType.PRESTIGE);
 		currentPage.putIfAbsent(player, 0);
@@ -109,6 +111,8 @@ public class FactionView {
 		factionView(player, f, null);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void factionView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.FACTION_VIEW), 54, "§7Faction View");
@@ -135,6 +139,8 @@ public class FactionView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void factionGuildsView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		int page = 0;
@@ -153,6 +159,8 @@ public class FactionView {
 		}
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void factionGuildsView(Player player, Faction f, int page) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(
 				new SFInventoryHolder(f.getId(), SFGUI.FACTION_GUILDS, page),
@@ -204,6 +212,8 @@ public class FactionView {
 			e.setCancelled(true);
 		}
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		clickPreventions(e, inventory, p);
 		if(e.getView().getTitle().equalsIgnoreCase("§7Faction List")) {

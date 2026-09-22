@@ -12,6 +12,8 @@ import net.tfminecraft.simplefactions.enums.RankType;
 import net.tfminecraft.tlibs.TLibs;
 
 public class DefaultCreator {
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public static ItemStack createNextPageButton() {
 		ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem("mcicons:icon_next_orange");
 		ItemMeta meta = item.getItemMeta();
@@ -20,6 +22,8 @@ public class DefaultCreator {
 		return item;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public static ItemStack createPreviousPageButton() {
 		ItemStack item = TLibs.getItemAPI()
 				.getCreator()
@@ -30,6 +34,8 @@ public class DefaultCreator {
 
 		return item;
 	}
+    // Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
+    @SuppressWarnings({"deprecation"})
     public static ItemStack createRankButton(RankType t) {
 		ItemStack i = new ItemStack(Material.BLAZE_POWDER, 1);
         switch (t) {

@@ -78,6 +78,8 @@ public class CampaignView {
 		return holder.getType() == SFGUI.CAMPAIGN_VIEW && holder.getWarId() == warId;
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void campaignView(Player player, War war, boolean open) {
 		if (war == null || !war.isActive() || war.getWarType() == WarType.RAID) {
 			if (open) {

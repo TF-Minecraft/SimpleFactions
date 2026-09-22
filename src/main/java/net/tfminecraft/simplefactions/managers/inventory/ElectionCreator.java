@@ -20,6 +20,8 @@ import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class ElectionCreator {
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public ItemStack createCandidateTypeItem(Player p, Faction f, Candidate c) {
         Election e = f.getGovernment().getElection();
         ItemStack item = TLibs.getItemAPI().getCreator().getItemFromPath("ia.iasurvival:letter");

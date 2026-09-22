@@ -43,6 +43,8 @@ public class ContractView {
      * List
      * ===================================================== */
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void listView(Player player, Guild guild) {
         Inventory i = SimpleFactions.plugin.getServer().createInventory(
                 new SFInventoryHolder(guild.getId(), SFGUI.CONTRACT_LIST_VIEW), 54,
@@ -71,6 +73,8 @@ public class ContractView {
      * Detail
      * ===================================================== */
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void detailView(Player player, Guild guild, String contractId) {
         Inventory i = SimpleFactions.plugin.getServer().createInventory(
                 new SFInventoryHolder(guild.getId(), SFGUI.CONTRACT_DETAIL_VIEW, contractId), 27,

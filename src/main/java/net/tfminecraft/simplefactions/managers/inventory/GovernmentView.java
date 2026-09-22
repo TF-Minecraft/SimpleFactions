@@ -51,6 +51,8 @@ public class GovernmentView {
         this.inv = inv;
     }
 
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
     public void governmentView(Player player, Faction f, Inventory i) {
         boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.GOVERNMENT_VIEW), 54, "§7Government View");
@@ -77,6 +79,8 @@ public class GovernmentView {
         if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void councilView(Player player, Faction f, Inventory i) {
         boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.COUNCIL_VIEW), 54, "§7Council");
@@ -90,6 +94,8 @@ public class GovernmentView {
 		i.setItem(53, inv.createBackButton(SFGUI.COUNCIL_VIEW));
         if(open) player.openInventory(i);
 	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void councilSelect(Player player, Faction f, Inventory i, int slot) {
         boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.COUNCIL_SELECT), 54, "§7Select Member");
@@ -108,6 +114,8 @@ public class GovernmentView {
         if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void proposalList(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.PROPOSALS), 27, "§7Proposals");
@@ -119,6 +127,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void proposalView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.PROPOSAL_VIEW), 9, "§7Select Proposal Type");
@@ -132,6 +142,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void politicalProposalView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.POLITICAL_PROPOSAL_VIEW), 27, "§7Select Political Change");
@@ -147,6 +159,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void warPeaceSelectView(Player player, Faction f, Action action, boolean fromCause, int causeIndex, Inventory i) {
 		boolean open = i == null;
 		if (i == null) {
@@ -170,6 +184,8 @@ public class GovernmentView {
 		}
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void taxProposalView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_PROPOSAL_VIEW), 9, "§7Select Tax Type");
@@ -184,6 +200,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void specificTaxProposalView(Player player, Faction f, Inventory i, TaxTarget target) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.SPECIFIC_TAX_PROPOSAL_VIEW, target.name()), 54, "§7Select Target");
@@ -215,6 +233,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void lawProposalView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_PROPOSAL_VIEW), 54, "§7Select Law Group");
@@ -227,6 +247,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void lawProposalSelect(Player player, Faction f, LawGroup group, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_PROPOSAL_SELECT, group.getId()), 27, "§7Select Law");
@@ -240,6 +262,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void favourRepressMainView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.FAVOUR_REPRESS_MAIN), 9, "§7Favour & Repress");
@@ -250,6 +274,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void favourRepressTypeView(Player player, Faction f, boolean isFavourMode, Inventory i) {
 		boolean open = i == null;
 		String title = isFavourMode ? "§7Favour - Select Type" : "§7Repress - Select Type";
@@ -261,6 +287,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void favourRepressSelectView(Player player, Faction f, boolean isFavourMode, boolean isGuilds, Inventory i) {
 		boolean open = i == null;
 		String title = isFavourMode ? "§7Favour - " : "§7Repress - ";
@@ -288,6 +316,8 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 		if (h.getType() == SFGUI.GOVERNMENT_VIEW) {
