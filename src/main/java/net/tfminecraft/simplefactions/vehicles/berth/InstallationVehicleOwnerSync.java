@@ -1,0 +1,94 @@
+package net.tfminecraft.simplefactions.vehicles.berth;
+
+
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
+import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
+import java.util.Optional;
+
+import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
+import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
+
+public final class InstallationVehicleOwnerSync {
+    private final PlayerVehicleRegistry registry;
+
+    public InstallationVehicleOwnerSync(PlayerVehicleRegistry registry) {
+        this.registry = registry;
+    }
+
+    public static String expectedOwner(Faction faction) {
+        if (faction == null || faction.getLeader() == null) {
+            return "player_none";
+        }
+        return "player_" + faction.getLeader();
+    }
+
+    public void applyLeaderOwner(ActiveVehicle vehicle, Faction faction) {
+        if (vehicle == null || faction == null) {
+            return;
+        }
+        applyLeaderOwner(vehicle.getOwnerData(), faction);
+    }
+
+    public void applyLeaderOwner(net.tfminecraft.vehicleframework.data.OwnerData ownerData, Faction faction) {
+        if (ownerData == null || faction == null) {
+            return;
+        }
+        ownerData.setOwner(expectedOwner(faction));
+    }
+
+    public void syncIfBerthed(ActiveVehicle vehicle) {
+        if (vehicle == null || vehicle.getUUID() == null) {
+            return;
+        }
+        syncIfBerthed(vehicle.getUUID(), vehicle.getOwnerData());
+    }
+
+    void syncIfBerthed(String vehicleUuid, net.tfminecraft.vehicleframework.data.OwnerData ownerData) {
+        if (vehicleUuid == null || ownerData == null) {
+            return;
+        }
+
+        Optional<PlayerVehicleRecord> recordOpt = registry.getByVehicleUuid(vehicleUuid);
+        if (recordOpt.isEmpty() || recordOpt.get().getMode() != OwnershipMode.INSTALLATION) {
+            return;
+        }
+
+        String installationId = recordOpt.get().getInstallationId();
+        if (installationId == null) {
+            return;
+        }
+
+        Faction faction = findFactionForInstallation(installationId);
+        if (faction == null) {
+            return;
+        }
+
+        String expected = expectedOwner(faction);
+        String current = ownerData.getOwner();
+        if (!expected.equalsIgnoreCase(current) || isLegacyFactionOwner(current)) {
+            ownerData.setOwner(expected);
+        }
+    }
+
+    private static boolean isLegacyFactionOwner(String owner) {
+        return owner != null && owner.startsWith("faction_");
+    }
+
+    private static Faction findFactionForInstallation(String installationId) {
+        for (Faction faction : FactionManager.factions) {
+            InstallationHandler handler = faction.getInstallationHandler();
+            if (handler == null) {
+                continue;
+            }
+            Installation installation = handler.getById(installationId);
+            if (installation != null) {
+                return faction;
+            }
+        }
+        return null;
+    }
+}

@@ -24,8 +24,8 @@ This `docs/` folder is the product and technical reference for the **SimpleFacti
 ## Verify (tests)
 
 ```bash
-cd simplefactions && mvn test -Dtest="me.Plugins.SimpleFactions.War.**"   # war changes
-cd simplefactions && mvn test -Dtest="me.Plugins.SimpleFactions.vehicles.**"  # vehicle berth changes
+cd simplefactions && mvn test -Dtest="net.tfminecraft.simplefactions.War.**"   # war changes
+cd simplefactions && mvn test -Dtest="net.tfminecraft.simplefactions.vehicles.**"  # vehicle berth changes
 cd simplefactions && mvn test                                              # broad changes
 ```
 

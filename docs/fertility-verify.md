@@ -29,7 +29,7 @@ Bone meal is TFMCCore, not SimpleFactions.
 ## Regression sweep
 
 ```bash
-cd simplefactions && mvn test -Dtest="me.Plugins.SimpleFactions.Map.fertility.FertilityProvinceResolverTest"
+cd simplefactions && mvn test -Dtest="net.tfminecraft.simplefactions.map.fertility.FertilityProvinceResolverTest"
 ```
 
 Cooking: `mvn test` (includes `CropGrowthChanceTest`, `CropGrowthGateTest`).
