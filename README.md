@@ -1,6 +1,6 @@
 # SimpleFactions
 
-Organisation documentation: [TF-Minecraft/docs](https://github.com/TF-Minecraft/docs/tree/main/projects/simplefactions).
+Organisation documentation: [TF-Minecraft/Docs](https://github.com/TF-Minecraft/Docs/blob/main/projects/SimpleFactions/README.md).
 
 The name stems from its original concept of a simple nation system, but it has since grown far beyond that.
 
