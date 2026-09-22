@@ -44,7 +44,6 @@
   "concededScheduleSlots": [],
   "locationBattleCounts": {},
   "battleSchedulePhase": "voting",
-  "battleDay": "2026-08-21",
   "battleVotes": {},
   "battleInstallationPicks": {},
   "campaignRaidsUsed": {},
@@ -59,7 +58,7 @@
   "postBattleChoiceResolved": true,
   "holdPeaceProposalActive": false,
   "forceQuorumNextClose": false,
-  "startedAt": "2026-09-22T13:50:24.863107400Z",
+  "startedAt": "2026-09-22T15:26:13.745406434Z",
   "attackers": {
     "leader": "atk",
     "participants": [
@@ -85,5 +84,19 @@
         "civilWar": false
       }
     ]
-  }
+  },
+  "commitments": [
+    {
+      "factionId": "atk",
+      "regimentId": "professional",
+      "count": 8,
+      "committedAt": "2026-09-22T15:26:01.005944849Z"
+    },
+    {
+      "factionId": "ally",
+      "regimentId": "professional",
+      "count": 4,
+      "committedAt": "2026-09-22T15:26:01.006480336Z"
+    }
+  ]
 }
