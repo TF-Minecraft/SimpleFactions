@@ -164,6 +164,8 @@ class VehicleUpkeepServiceTest {
         assertFalse(store.isUnpaid("vehicle-1"));
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     private static MockedStatic<Bukkit> mockBukkit(String playerName, UUID playerUuid) {
         MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
         Server server = mock(Server.class);

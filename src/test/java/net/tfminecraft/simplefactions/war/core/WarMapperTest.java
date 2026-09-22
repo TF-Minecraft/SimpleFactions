@@ -54,6 +54,8 @@ class WarMapperTest {
 		Cache.warInitiativeFactor = 1.5;
 	}
 
+	// Read the retained legacy field when migrating existing participant records.
+	@SuppressWarnings("deprecation")
 	@Test
 	void toData_v2FieldsWhenGoalSetOnWar() {
 		Faction attacker = mock(Faction.class);

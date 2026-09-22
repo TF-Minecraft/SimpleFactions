@@ -523,7 +523,7 @@ public class Guild {
 		this.bannerPatterns.clear();
 		this.bannerPatterns.add(banner.getType().toString().replace("_BANNER", ".BASE"));
 		for(Pattern p : b.getPatterns()) {
-			NamespacedKey key = p.getPattern().getKey();
+			NamespacedKey key = p.getPattern().getKeyOrThrow();
 			if (key == null) continue;
 			this.bannerPatterns.add(p.getColor().name() + "." + key.getKey().toUpperCase());
 		}

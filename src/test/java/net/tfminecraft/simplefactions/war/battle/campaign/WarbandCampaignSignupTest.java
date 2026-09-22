@@ -65,6 +65,8 @@ class WarbandCampaignSignupTest {
 		when(defender.getLeader()).thenReturn("Carol");
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void shellCreate_hasZeroMembersAndPendingLeader() {
 		War war = new War(1, attacker, defender);
@@ -176,6 +178,8 @@ class WarbandCampaignSignupTest {
 		}
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	@Test
 	void isWarSideMainLeader_matchesMainFactionLeaderName() {
 		War war = campaignWar();
@@ -195,6 +199,8 @@ class WarbandCampaignSignupTest {
 		return BattleWindowService.atScheduleHour(BATTLE_DAY, 20);
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	private Warband createShellOnBattle(War war) {
 		Warband shell = Warband.createCampaignSideShell(war, war.getAttackers(), BattleTemplate.ATTACKER_SIDE);
 		BossBar bossBar = mock(BossBar.class);

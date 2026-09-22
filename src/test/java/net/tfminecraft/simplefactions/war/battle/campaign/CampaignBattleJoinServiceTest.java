@@ -258,6 +258,8 @@ class CampaignBattleJoinServiceTest {
 		}
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	private Warband campaignSideWarband(War war, String sideId) {
 		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(sideId)) {
 			return Warband.createCampaignSideShell(war, war.getAttackers(), sideId);

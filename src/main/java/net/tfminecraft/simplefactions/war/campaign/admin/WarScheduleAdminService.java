@@ -536,6 +536,7 @@ public final class WarScheduleAdminService {
 	}
 
 	/** @deprecated use {@link #battleChoice(War, String)} */
+	@Deprecated
 	public static WarScheduleAdminResult defenderChoice(War war, String choice) {
 		if (choice == null || choice.isBlank()) {
 			return WarScheduleAdminResult.error("Usage: /war admin schedule <id> choice push|hold|attack|accept");

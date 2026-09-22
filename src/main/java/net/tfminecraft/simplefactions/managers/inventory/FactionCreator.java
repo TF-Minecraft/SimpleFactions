@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.util.LegacyModelData;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -44,7 +46,6 @@ import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 import net.tfminecraft.tlibs.TLibs;
-import net.tfminecraft.tlibs.enums.APIType;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
@@ -235,7 +236,7 @@ public class FactionCreator {
 			m.setLore(lore);
 			i.setItemMeta(m);
 		} else if(t.equals(MenuItemType.BANNER_RANDOM)) {
-			ItemAPI api = (ItemAPI) TLibs.getApiInstance(APIType.ITEM_API);
+			ItemAPI api = TLibs.getItemAPI();
 			i = api.getCreator().getItemsAdderItem("mcicons:icon_refresh");
 			ItemMeta m = i.getItemMeta();
 			m.setDisplayName(StringFormatter.formatHex("#9161d4Randomise Banner"));
@@ -531,7 +532,7 @@ public class FactionCreator {
 			ItemStack icon = IconGetter.getIcon(t.toString());
 			i.setType(icon.getType());
 			ItemMeta m = i.getItemMeta();
-			m.setCustomModelData(icon.getItemMeta().getCustomModelData());
+			LegacyModelData.set(m, LegacyModelData.get(icon.getItemMeta()));
 			if (i.getType() == Material.PLAYER_HEAD) {
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 			}

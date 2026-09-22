@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.army;
 
+import net.tfminecraft.simplefactions.util.LegacyModelData;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +46,7 @@ public class Regiment {
 		icon = new ItemStack(Material.valueOf(item.getString("material").toUpperCase()), 1);
 		ItemMeta m = icon.getItemMeta();
 		if(item.contains("model-data")) {
-			m.setCustomModelData(item.getInt("model-data"));
+			LegacyModelData.set(m, item.getInt("model-data"));
 		}
 		icon.setItemMeta(m);
 		if(config.contains("description")) {

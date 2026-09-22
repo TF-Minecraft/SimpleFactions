@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.ui;
 
+import net.tfminecraft.simplefactions.util.LegacyModelData;
+
 
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
 import java.time.Instant;
@@ -20,7 +22,6 @@ import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.tlibs.TLibs;
-import net.tfminecraft.tlibs.enums.APIType;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.simplefactions.SimpleFactions;
@@ -409,8 +410,8 @@ public class BattleInventoryManager {
 	public ItemStack createWarbandItem(Warband w) {
 		ItemStack i = new ItemStack(Material.SHIELD, 1);
 		ItemMeta meta = i.getItemMeta();
-		if(w.isFaction()) meta.setCustomModelData(2);
-		else meta.setCustomModelData(1);
+		if(w.isFaction()) LegacyModelData.set(meta, 2);
+		else LegacyModelData.set(meta, 1);
 		meta.setDisplayName("§e"+w.getName());
 		List<String> lore = new ArrayList<String>();
 		if(w.isFaction()) {
@@ -907,7 +908,7 @@ public class BattleInventoryManager {
 		
 	}
 	ItemStack createLockButton(Battle b) {
-		ItemAPI api = (ItemAPI) TLibs.getApiInstance(APIType.ITEM_API);
+		ItemAPI api = TLibs.getItemAPI();
 		ItemStack i = api.getCreator().getItemsAdderItem("mcicons:icon_unlock");;
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName("§aUnlocked");

@@ -97,6 +97,8 @@ class MercenaryRosterTest {
         }
     }
 
+    // Exercise the retained compatibility entry point so legacy behavior stays covered.
+    @SuppressWarnings("deprecation")
     @Test
     void aMercenaryJoinsTheContractedSideAgainstTheirOwnFaction() {
         hire();
@@ -122,6 +124,8 @@ class MercenaryRosterTest {
         }
     }
 
+    // Exercise the retained compatibility entry point so legacy behavior stays covered.
+    @SuppressWarnings("deprecation")
     @Test
     void aCouncilMemberIsRefusedAndACitizenIsAllowed() {
         MercenaryContract contract =
@@ -165,6 +169,8 @@ class MercenaryRosterTest {
         }
     }
 
+    // Exercise the retained compatibility entry point so legacy behavior stays covered.
+    @SuppressWarnings("deprecation")
     @Test
     void theSlotCapRefusesTheSurplusPlayer() {
         hire();
@@ -192,6 +198,8 @@ class MercenaryRosterTest {
         }
     }
 
+    // Exercise the retained compatibility entry point so legacy behavior stays covered.
+    @SuppressWarnings("deprecation")
     @Test
     void aNonMercenaryIsStillGovernedByFactionSide() {
         War war = new War(1, fixture.hirer, enemy);

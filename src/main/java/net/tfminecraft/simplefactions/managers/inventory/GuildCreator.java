@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.util.LegacyModelData;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,7 +47,6 @@ import net.tfminecraft.simplefactions.guild.income.DividendBreakdown;
 import net.tfminecraft.simplefactions.enums.MenuItemType;
 import net.tfminecraft.simplefactions.enums.RankType;
 import net.tfminecraft.simplefactions.keys.Keys;
-import net.tfminecraft.tlibs.enums.APIType;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.tlibs.utils.TimeFormatter;
@@ -117,7 +118,7 @@ public class GuildCreator {
 			m.setLore(lore);
 			i.setItemMeta(m);
 		} else if(t.equals(MenuItemType.BANNER_RANDOM)) {
-			ItemAPI api = (ItemAPI) TLibs.getApiInstance(APIType.ITEM_API);
+			ItemAPI api = TLibs.getItemAPI();
 			i = api.getCreator().getItemsAdderItem("mcicons:icon_refresh");
 			ItemMeta m = i.getItemMeta();
 			m.setDisplayName(StringFormatter.formatHex("#9161d4Randomise Banner"));
@@ -193,7 +194,7 @@ public class GuildCreator {
 			ItemStack icon = IconGetter.getIcon(t.toString());
 			i.setType(icon.getType());
 			ItemMeta m = i.getItemMeta();
-			m.setCustomModelData(icon.getItemMeta().getCustomModelData());
+			LegacyModelData.set(m, LegacyModelData.get(icon.getItemMeta()));
 			if (i.getType() == Material.PLAYER_HEAD) {
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 			}

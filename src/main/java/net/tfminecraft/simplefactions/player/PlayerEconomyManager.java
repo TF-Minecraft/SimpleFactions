@@ -24,6 +24,8 @@ public final class PlayerEconomyManager {
         return ledgers.computeIfAbsent(playerUuid, ignored -> new PlayerLedger());
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     public PlayerLedger getLedger(String playerName) {
         if (playerName == null || playerName.isBlank()) {
             return new PlayerLedger();

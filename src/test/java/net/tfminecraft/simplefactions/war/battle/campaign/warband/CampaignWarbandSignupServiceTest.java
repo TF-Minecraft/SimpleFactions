@@ -192,6 +192,8 @@ class CampaignWarbandSignupServiceTest {
 		return war;
 	}
 
+	// Exercise the retained compatibility entry point so legacy behavior stays covered.
+	@SuppressWarnings("deprecation")
 	private Warband createShellOnBattle(War war) {
 		Warband shell = Warband.createCampaignSideShell(war, war.getAttackers(), BattleTemplate.ATTACKER_SIDE);
 		addWarbandToBattle(war, shell);

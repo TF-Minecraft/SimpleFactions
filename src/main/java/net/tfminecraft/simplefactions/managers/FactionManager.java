@@ -494,6 +494,8 @@ public class FactionManager implements Listener{
 		}
 	}
 
+	// Existing configuration identifies offline profiles by player name, not UUID.
+	@SuppressWarnings("deprecation")
 	public void settleIncome() {
 		DailyGuildTransfers buffer = new DailyGuildTransfers();
 

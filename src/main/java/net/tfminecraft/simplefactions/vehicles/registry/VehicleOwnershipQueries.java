@@ -91,6 +91,8 @@ public final class VehicleOwnershipQueries {
         return count;
     }
 
+    // Existing configuration identifies offline profiles by player name, not UUID.
+    @SuppressWarnings("deprecation")
     public static UUID resolvePlayerUuid(String playerName) {
         if (playerName == null || playerName.isBlank() || Bukkit.getServer() == null) {
             return null;

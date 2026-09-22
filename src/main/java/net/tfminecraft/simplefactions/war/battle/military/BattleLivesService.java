@@ -102,6 +102,7 @@ public final class BattleLivesService {
 	}
 
 	/** @deprecated use {@link #countRosterFighters(BattleSide)} */
+	@Deprecated
 	public static int countPlayersAtStart(BattleSide side) {
 		return countRosterFighters(side);
 	}

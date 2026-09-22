@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.guild.branch;
 
+import net.tfminecraft.simplefactions.util.LegacyModelData;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -93,7 +95,7 @@ public class Branch {
         try {
             item = new ItemStack(Material.valueOf(args[0].toUpperCase()), 1);
             ItemMeta m = item.getItemMeta();
-            m.setCustomModelData(Integer.parseInt(args[1]));
+            LegacyModelData.set(m, Integer.parseInt(args[1]));
             item.setItemMeta(m);
         } catch (Exception e) {
             e.printStackTrace();

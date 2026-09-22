@@ -45,6 +45,8 @@ public final class BattleScheduleLookups {
 		};
 	}
 
+	// Existing configuration identifies offline profiles by player name, not UUID.
+	@SuppressWarnings("deprecation")
 	public static Function<String, UUID> memberNameToUuid() {
 		return name -> {
 			if (name == null || name.isBlank()) {
