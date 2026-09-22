@@ -83,3 +83,18 @@ For architecture, class design, and the overall structure of the plugin, I relie
 
 Most of the plugin was written without AI assistance to maintain control over the design and ensure consistency. **ChatGPT** was also used to help format and refine this README.
 
+
+## TLibs build dependency
+
+TLibs is a versioned Maven `provided` dependency. From this repository, prepare
+it once with the shared installer, then build as usual:
+
+```sh
+python3 ../tlibs/tools/install-dependency.py --pom pom.xml
+mvn clean verify
+```
+
+See [TLibs dependency setup](https://github.com/TF-Minecraft/TLibs/blob/804728d2c0d62d64e3194bcdeffc3708acfbc514/DEPENDENCIES.md)
+for private-source access, offline installation and the pinned binary versions.
+Other declared build dependencies still need their usual preparation.
+Use JDK 25 for this TLibs binary; the server must also run Java 25.
