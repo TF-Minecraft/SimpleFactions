@@ -186,6 +186,8 @@ public class FactionView {
 		inv.setItem(8, this.inv.createBackButton(SFGUI.FACTION_GUILDS));
 	}
 
+	// Keep blocking the legacy hotbar action when integrations or older API snapshots emit it.
+	@SuppressWarnings("removal")
 	public void clickPreventions(InventoryClickEvent e, Inventory inventory, Player p) {
 		if(!(inventory != null && inventory.getHolder() instanceof SFInventoryHolder)) return;
 		if (e.getClickedInventory() == null) return;
