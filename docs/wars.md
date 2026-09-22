@@ -184,13 +184,13 @@ Config (`war.campaign_raid`): `muster_seconds` (60), `duration_seconds` (600), `
 
 ## Participants
 
-Keep from legacy system (repurpose):
+War participants:
 
 - **Attacker / defender** sides with **main participants**
 - **Subjects** auto-included on participant side (direct subjects of each main)
 - **Allies** via call-to-arms (`/faction accept`, 60s timeout)
 - **Mercenary companies** hired by contract on one side, listed with their promised slots. A third kind, neither main nor secondary, and never a belligerent: see [Mercenaries (locked)](#mercenaries-locked) below.
-- **No switch sides in war GUI.** Subject independence / rebellion uses the **movement system**, not a war-view button (legacy switch removed 2026-08-20).
+- **No switch sides in war GUI.** Subject independence / rebellion uses the **movement system**, not a war-view button.
 
 **Internal (inter-vassal) wars:** two factions that share a top liege and are **not** on each other's overlord path. Defender is the clicked faction, not the king. The liege is not a participant and is not callable.
 
@@ -1123,9 +1123,5 @@ Re-upload `map_markers` or wait for the next regen after deploy so active wars p
 - Map chronicle events: other member (`war_declared`, `battle_scheduled`, `battle_result`, `province_occupied`, `war_ended`)
 - Production declare codes / Discord ticket gate: last
 - When to **recalculate** white peace auto-proposal flags after cursor / phase change
-
-Civil wars (done).
-
-War-goal apply and navy gate (Phases 0-7 done).
 
 `provinces_between_battles` (default **3**), `max_battles_per_leg`, and `initiative_factor` are locked in config (see `war.yml`).

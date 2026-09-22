@@ -23,7 +23,7 @@ Rebuilt from scratch on every recompute, in this order. The order matters becaus
 | **Subjects** | `sum(subject.getPrestige() * givePercent / 100)` over vassals |
 | **`<pct>% Bonus`** | `sum(everything above) * pct / 100` |
 
-`prestige` is the sum of all lines. Rebuilding is idempotent: a recompute never sees its own previous bonus line, which is what the old code got wrong.
+`prestige` is the sum of all lines. Rebuilding is idempotent: a recompute never sees its own previous bonus line.
 
 ## The Members term
 
