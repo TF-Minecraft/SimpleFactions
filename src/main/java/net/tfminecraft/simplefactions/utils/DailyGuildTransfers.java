@@ -21,14 +21,14 @@ public class DailyGuildTransfers {
     private final Map<Guild, Double> pendingDividendPools = new HashMap<>();
 
     public void add(Guild from, Guild to, double amount) {
-        if (amount <= 0) return;
+        if (from == null || to == null || amount <= 0) return;
         transfers.computeIfAbsent(from, k -> new HashMap<>())
                  .merge(to, amount, Double::sum);
     }
 
     // Positive = deposit to guild, Negative = withdraw from guild
     public void addExternalDelta(Guild guild, double delta) {
-        if (delta == 0) return;
+        if (guild == null || delta == 0) return;
         externalDeltas.merge(guild, delta, Double::sum);
     }
 

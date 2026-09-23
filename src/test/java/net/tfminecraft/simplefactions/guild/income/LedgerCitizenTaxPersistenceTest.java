@@ -56,6 +56,28 @@ class LedgerCitizenTaxPersistenceTest {
 	}
 
 	@Test
+	void nullBankSettle_movesNothingAndKeepsCitizenTaxes() {
+		Guild guild = mock(Guild.class);
+		LoanHandler loans = mock(LoanHandler.class);
+		when(loans.getLoansTaken()).thenReturn(Collections.emptyList());
+		when(guild.getLoanHandler()).thenReturn(loans);
+		when(guild.isBankrupt()).thenReturn(false);
+		when(guild.getBank()).thenReturn(null);
+		when(guild.isBase()).thenReturn(false);
+
+		Ledger ledger = new Ledger(guild);
+		ledger.addCitizenTaxEntry("Alice", 0.20);
+		DailyGuildTransfers buffer = new DailyGuildTransfers();
+		ledger.populateDailyTransfers(buffer);
+
+		assertEquals(0.20, ledger.getCitizenTaxesCopy().get("Alice"), 1e-9);
+		assertTrue(buffer.getTransfers().isEmpty());
+		assertTrue(buffer.getExternalDeltas().isEmpty());
+		assertTrue(buffer.getPendingDividendPools().isEmpty());
+		assertEquals(0.0, ledger.getIncome(net.tfminecraft.simplefactions.guild.income.Cashflow.TRADE), 1e-9);
+	}
+
+	@Test
 	void bankruptSettle_keepsCitizenTaxes() {
 		Guild guild = mock(Guild.class);
 		LoanHandler loans = mock(LoanHandler.class);

@@ -131,6 +131,7 @@ class WarReparationsLedgerTest {
 	private static Guild mockGuild(Faction faction, boolean base, double tradeIncome) {
 		Guild guild = mock(Guild.class);
 		when(guild.isBankrupt()).thenReturn(false);
+		when(guild.getBank()).thenReturn(mock(net.tfminecraft.simplefactions.objects.Bank.class));
 		when(guild.isBase()).thenReturn(base);
 		when(guild.getFaction()).thenReturn(faction);
 		TradeBreakdown breakdown = new TradeBreakdown();

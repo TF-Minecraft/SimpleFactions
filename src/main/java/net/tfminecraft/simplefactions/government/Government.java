@@ -296,7 +296,7 @@ public class Government {
 
     public void applyDailyOrganizationGain() {
         for (Movement movement : new ArrayList<>(movements)) {
-            if (movement.isFrozen()) {
+            if (movement == null || movement.isFrozen()) {
                 continue;
             }
             movement.changeOrganization(movement.getOrganizationGain());

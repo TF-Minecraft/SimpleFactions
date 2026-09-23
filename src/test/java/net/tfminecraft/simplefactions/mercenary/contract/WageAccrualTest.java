@@ -46,6 +46,7 @@ class WageAccrualTest {
         Guild capital = mock(Guild.class);
         when(capital.getId()).thenReturn("brume_capital");
         when(capital.isBankrupt()).thenReturn(false);
+        when(capital.getBank()).thenReturn(mock(net.tfminecraft.simplefactions.objects.Bank.class));
         when(capital.getLedger()).thenReturn(new Ledger(capital));
         when(fixture.hirer.getOrCreateMainGuild()).thenReturn(capital);
 

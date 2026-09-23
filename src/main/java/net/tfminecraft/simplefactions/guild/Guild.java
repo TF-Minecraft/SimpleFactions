@@ -670,7 +670,7 @@ public class Guild {
     public void setTradeBreakdown(TradeBreakdown breakdown) { this.breakdown = breakdown; }
 
     public void newDay() {
-        if(bank != null) {
+        if (bank != null && breakdown != null) {
             bank.deposit(breakdown.getIncome());
         }
     }
@@ -946,7 +946,11 @@ public class Guild {
     }
 
     public boolean isBankrupt() {
-        return bank.getWealth() < 0;
+        if (bank == null) {
+            return false;
+        }
+        Double wealth = bank.getWealth();
+        return wealth != null && wealth < 0;
     }
 
     public double getDividendPercent() {
@@ -997,7 +1001,7 @@ public class Guild {
     }
 
     public void liquidateRandom() {
-        if(!canLiquidate()) return;
+        if (!canLiquidate() || bank == null) return;
         int target = (int) Math.floor(Math.random()*branches.size());
         Branch b = branches.values().stream().filter(br -> br.getGroup() == target && br.getLevel() > 0).findFirst().orElse(null);
         if(b == null) return;

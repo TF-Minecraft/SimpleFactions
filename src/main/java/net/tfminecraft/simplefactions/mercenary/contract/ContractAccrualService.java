@@ -98,6 +98,11 @@ public final class ContractAccrualService {
      * Daily leg
      * ===================================================== */
 
+    /** Bankruptcy and a missing bank both mean this guild cannot pay or be paid. */
+    private static boolean canMoveMoney(Guild guild) {
+        return guild != null && !guild.isBankrupt() && guild.getBank() != null;
+    }
+
     /**
      * Runs once at the top of the daily settlement, before any guild populates its
      * transfers. Accrues the day price and a day of payroll, then pushes the whole
@@ -109,15 +114,16 @@ public final class ContractAccrualService {
      */
     public static void accrueDailyAndPush() {
         for (Guild host : FactionManager.getAllGuilds()) {
-            if (host == null || host.isBankrupt()) continue;
+            if (!canMoveMoney(host)) continue;
             MercenaryCompany company = host.getCompany();
             if (company == null || !company.isFormed()) continue;
 
             accruePeacetimeWages(company);
             for (MercenaryContract contract : company.getContractHandler().getActive()) {
+                if (contract == null) continue;
                 Faction hirer = contract.getHirer();
                 Guild capital = hirer == null ? null : hirer.getOrCreateMainGuild();
-                if (capital == null || capital.isBankrupt()) continue;
+                if (!canMoveMoney(capital)) continue;
                 contract.accrueDayPrice();
                 accrueDayWages(company, contract);
             }
