@@ -205,18 +205,6 @@ public class Participant {
 		return null;
 	}
 
-	/** @deprecated Per-participant goals replaced by single war-level goal in v2. Read-only for v1 migration. */
-	@Deprecated
-	public HashMap<Faction, WarGoal> getWarGoals() {
-		return warGoals;
-	}
-
-	/** @deprecated Use war-level {@link net.tfminecraft.simplefactions.war.enums.WarGoalType} instead. */
-	@Deprecated
-	public void addWarGoal(Faction f, WarGoal goal) {
-		warGoals.put(f, goal);
-	}
-
 	public List<Faction> getAllParticipatingFactions(){
 		List<Faction> list = new ArrayList<>();
 		list.add(leader);

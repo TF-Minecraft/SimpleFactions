@@ -101,12 +101,6 @@ public final class BattleLivesService {
 		return uniqueMembers.size();
 	}
 
-	/** @deprecated use {@link #countRosterFighters(BattleSide)} */
-	@Deprecated
-	public static int countPlayersAtStart(BattleSide side) {
-		return countRosterFighters(side);
-	}
-
 	private static boolean shouldApply(Battle battle) {
 		if (battle == null || battle.getWarId() == null) {
 			return false;
