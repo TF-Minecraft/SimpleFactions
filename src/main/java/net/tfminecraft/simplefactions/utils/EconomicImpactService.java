@@ -9,6 +9,7 @@ import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
@@ -115,7 +116,13 @@ public final class EconomicImpactService {
             }
             applyImpact(meta, pending, deltas);
             pending.bookItem.setItemMeta(meta);
-            player.openBook(pending.bookItem);
+            // The council book is not stored in an inventory. The client only sees the
+            // finished pages if we send the book again. Skip that when a server inventory
+            // is open so a chest or menu is not closed out from under the player.
+            InventoryType open = player.getOpenInventory().getType();
+            if (open == InventoryType.CRAFTING || open == InventoryType.CREATIVE) {
+                player.openBook(pending.bookItem);
+            }
             return;
         }
         Located located = find(player, token);
