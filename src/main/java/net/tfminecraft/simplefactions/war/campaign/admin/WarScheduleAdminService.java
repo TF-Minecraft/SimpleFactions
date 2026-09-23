@@ -535,19 +535,6 @@ public final class WarScheduleAdminService {
 		};
 	}
 
-	/** @deprecated use {@link #battleChoice(War, String)} */
-	@Deprecated
-	public static WarScheduleAdminResult defenderChoice(War war, String choice) {
-		if (choice == null || choice.isBlank()) {
-			return WarScheduleAdminResult.error("Usage: /war admin schedule <id> choice push|hold|attack|accept");
-		}
-		return switch (choice.toLowerCase()) {
-			case "hold" -> battleChoice(war, "hold");
-			case "counter", "counterpush", "counter-push" -> battleChoice(war, "push");
-			default -> battleChoice(war, choice);
-		};
-	}
-
 	private static WarScheduleAdminResult createFreshCampaignBattle(War war, String successPrefix) {
 		Integer provinceId = BattleScheduleService.resolveScheduledProvinceId(war);
 		if (provinceId == null) {

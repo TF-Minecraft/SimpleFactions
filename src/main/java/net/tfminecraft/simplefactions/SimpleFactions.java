@@ -103,7 +103,6 @@ public class SimpleFactions extends JavaPlugin{
 	public static SimpleFactions plugin;
 	//Loaders
 	private final ConfigLoader configLoader = new ConfigLoader();
-	//private final CoinLoader coinLoader = new CoinLoader(); No longer in use
 	private final RankLoader rankLoader = new RankLoader();
 	private final RegimentLoader regimentLoader = new RegimentLoader();
 	private final RelationLoader relationLoader = new RelationLoader();
@@ -346,7 +345,6 @@ public class SimpleFactions extends JavaPlugin{
 				Cache.loggingEnabled,
 				Cache.wipeLog,
 				getDataFolder());
-		//coinLoader.loadCoins(new File(getDataFolder(), "coins.yml"));
 		rankLoader.loadRanks(new File(getDataFolder(), "ranks.yml"));
 		regimentLoader.loadRegiments(new File(getDataFolder(), "regiments.yml"));
 		relationLoader.loadRelationTypes(new File(getDataFolder(), "diplomacy.yml"));

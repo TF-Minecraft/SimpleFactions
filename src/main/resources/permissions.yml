@@ -1,3 +1,0 @@
-simplefactions.admin:
-       description: Admin Perms for factions plugin.
-       default: false

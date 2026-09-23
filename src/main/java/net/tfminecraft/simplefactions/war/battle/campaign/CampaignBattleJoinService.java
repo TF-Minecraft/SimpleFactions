@@ -227,10 +227,4 @@ public final class CampaignBattleJoinService {
 	public static int previewSidePoolLives(War war, Battle battle, String sideId) {
 		return BattleLivesService.previewCampaignSideLives(war, battle, sideId).poolLives();
 	}
-
-	/** @deprecated use {@link #previewSidePoolLives(War, Battle, String)} */
-	@Deprecated
-	public static int previewSideLivesCap(War war, Battle battle, String sideId) {
-		return previewSidePoolLives(war, battle, sideId);
-	}
 }

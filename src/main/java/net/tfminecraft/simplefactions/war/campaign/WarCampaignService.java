@@ -272,11 +272,6 @@ public class WarCampaignService {
 		return (int) Math.ceil(slotCount * Cache.warInitiativeFactor);
 	}
 
-	@Deprecated
-	static void applyInitiativeFromSchedule(War war, List<ScheduledCampaignBattle> schedule) {
-		applyInitiativeFromLegs(war, schedule, schedule);
-	}
-
 	static void initProgressionState(War war) {
 		CampaignCoalitionService.setInitiativeHolderCoalition(war, CampaignCoalition.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
