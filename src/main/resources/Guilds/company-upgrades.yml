@@ -6,8 +6,6 @@
 #   expansion-time purchase time in real seconds (24 h)
 #   max-level      hard cap; guild upgrades omit this and stay uncapped
 #   modifiers      GuildModifier, flat then per-level: "<stat> <flat> <perLevel>"
-#
-# Full reference: docs/mercenaries.md
 company_health:
   name: "#e06c75Hardened Bodies"
   icon: "writable_book.0"
