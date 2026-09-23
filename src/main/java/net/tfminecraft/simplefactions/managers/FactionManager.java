@@ -483,12 +483,13 @@ public class FactionManager implements Listener{
 			}
 		}
 		if (timer >= DAY_LENGTH_SECONDS) {
-			PlayerEconomyManager.get().clearAllDaily();
-			for(Faction f : factions){
-				f.newDay();
+			runDailyStep("player ledgers", () -> PlayerEconomyManager.get().clearAllDaily());
+			for(Faction f : new ArrayList<>(factions)){
+				if(f == null) continue;
+				runDailyStep("faction " + f.getId(), f::newDay);
 			}
-			FactionCleanup.kickInactiveMembers(factions);
-			settleIncome();
+			runDailyStep("inactive members", () -> FactionCleanup.kickInactiveMembers(factions));
+			runDailyStep("income", this::settleIncome);
 			timer = 0;
 			day++;
 		}
@@ -501,11 +502,13 @@ public class FactionManager implements Listener{
 
 		// Phase 0: contracts accrue the day and hand the hiring capital its bill, which
 		// it cannot compute itself because it owns no contract object.
-		net.tfminecraft.simplefactions.mercenary.contract.ContractAccrualService.accrueDailyAndPush();
+		runDailyStep("mercenary accrual", () ->
+				net.tfminecraft.simplefactions.mercenary.contract.ContractAccrualService.accrueDailyAndPush());
 
 		// Phase 1: collect transfers & external deltas
 		for (Guild g : getAllGuilds()) {
-			g.getLedger().populateDailyTransfers(buffer);
+			if (g == null || g.getLedger() == null) continue;
+			runDailyStep("ledger " + g.getId(), () -> g.getLedger().populateDailyTransfers(buffer));
 		}
 
 		// Phase 2: compute net deltas
@@ -534,13 +537,18 @@ public class FactionManager implements Listener{
 		// Phase 3: apply atomically
 		for (var entry : deltas.entrySet()) {
 			Guild guild = entry.getKey();
-			double amount = Formatter.formatDouble(entry.getValue());
+			if (guild == null || guild.getBank() == null) continue;
+			double amount = entry.getValue() == null ? 0.0 : Formatter.formatDouble(entry.getValue());
 			if (amount == 0.0) continue;
-			if(guild.getBank() == null) continue;
-			guild.getBank().deposit(amount);
-			while(guild.isBankrupt() && guild.canLiquidate()) {
-				guild.liquidateRandom();
-			} 
+			runDailyStep("deposit " + guild.getId(), () -> {
+				guild.getBank().deposit(amount);
+				int liquidations = 0;
+				while(guild.isBankrupt() && guild.canLiquidate() && liquidations++ < 1000) {
+					int before = guild.getSize();
+					guild.liquidateRandom();
+					if(guild.getSize() >= before) break;
+				}
+			});
 		}
 
 		PostSettlementPayouts.apply(
@@ -553,8 +561,10 @@ public class FactionManager implements Listener{
 		}
 
 		for(Guild g : getAllGuilds()) {
+			if (g == null || g.getLoanHandler() == null || g.getLoanHandler().getLoansGiven() == null) continue;
 			for(Loan loan : g.getLoanHandler().getLoansGiven()) {
-				loan.tickDay();
+				if (loan == null) continue;
+				runDailyStep("loan " + loan.getId(), loan::tickDay);
 			}
 		}
 
@@ -636,9 +646,26 @@ public class FactionManager implements Listener{
 	public static List<Guild> getAllGuilds() {
 		List<Guild> guilds = new ArrayList<>();
 		for(Faction f : factions) {
+			if (f == null || f.getGuildHandler() == null || f.getGuildHandler().getGuilds() == null) continue;
 			guilds.addAll(f.getGuildHandler().getGuilds());
 		}
 		return guilds;
+	}
+
+	/** One bad faction or guild must not abort the day, or the next second would pay everyone again. */
+	private static void runDailyStep(String step, Runnable action) {
+		try {
+			action.run();
+		} catch (RuntimeException ex) {
+			SimpleFactions plugin = SimpleFactions.getInstance();
+			String message = "Daily tick failed during " + step;
+			if (plugin != null && plugin.getLogger() != null) {
+				plugin.getLogger().log(java.util.logging.Level.SEVERE, message, ex);
+			} else {
+				System.err.println(message);
+				ex.printStackTrace();
+			}
+		}
 	}
 	
 	public void start(List<Faction> l) {

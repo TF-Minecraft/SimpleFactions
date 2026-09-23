@@ -217,6 +217,7 @@ class LedgerMercenaryTest {
 		when(f.faction.getTaxRate(eq(TaxTarget.GUILDS), anyString(), anyBoolean())).thenReturn(10.0);
 		when(f.faction.getTaxRate(eq(TaxTarget.DIVIDENDS), anyString(), anyBoolean())).thenReturn(0.0);
 		when(f.guild.isBankrupt()).thenReturn(false);
+		when(f.guild.getBank()).thenReturn(mock(net.tfminecraft.simplefactions.objects.Bank.class));
 		when(f.guild.isBase()).thenReturn(base);
 		when(f.guild.getFaction()).thenReturn(f.faction);
 		when(f.guild.getId()).thenReturn("company");

@@ -1265,32 +1265,46 @@ public class Faction {
 	}
 
     public void newDay() {
-        double armyCost = military.getTotalUpkeep();
-		if(armyCost > 0 && getBank() == null){
+        double armyCost = military == null ? 0.0 : military.getTotalUpkeep();
+		Bank bank = getBank();
+		if(armyCost > 0 && bank == null && military != null && military.getRegiments() != null){
 			for(Regiment r : military.getRegiments()){
-				if(r.isLevy()) continue;
+				if(r == null || r.isLevy()) continue;
 				while(r.getCurrentSlots() > r.getFreeSlots()){
+					int before = r.getCurrentSlots();
 					r.sizeDecrease();
+					if(r.getCurrentSlots() >= before) break;
 				}
 			}
+			armyCost = 0.0;
 		}
-		while(armyCost > 0 && getBank().getWealth() < armyCost) {
-			for(Regiment r : military.getRegiments()) {
-				if(r.isLevy()) continue;
-				if(r.getCurrentSlots() > r.getFreeSlots()) {
-					r.sizeDecrease();
-					break;
+		Double wealth = bank == null ? null : bank.getWealth();
+		int guard = 0;
+		while(armyCost > 0 && wealth != null && wealth < armyCost && guard++ < 100000) {
+			boolean shrank = false;
+			if(military != null && military.getRegiments() != null) {
+				for(Regiment r : military.getRegiments()) {
+					if(r == null || r.isLevy()) continue;
+					if(r.getCurrentSlots() > r.getFreeSlots()) {
+						int before = r.getCurrentSlots();
+						r.sizeDecrease();
+						if(r.getCurrentSlots() < before) shrank = true;
+						break;
+					}
 				}
 			}
+			if(!shrank) break;
 			armyCost = military.getTotalUpkeep();
 		}
-		if(armyCost > 0) {
-			getBank().withdraw(armyCost);
+		if(armyCost > 0 && bank != null && wealth != null) {
+			bank.withdraw(armyCost);
 		}
 		installationHandler.payDailyUpkeep();
 		provinceCap();
-		for(Guild guild : guildHandler.getGuilds()) {
-			guild.newDay();
+		if(guildHandler != null && guildHandler.getGuilds() != null) {
+			for(Guild guild : guildHandler.getGuilds()) {
+				if(guild != null) guild.newDay();
+			}
 		}
 		if (government != null) {
 			government.applyDailyOrganizationGain();

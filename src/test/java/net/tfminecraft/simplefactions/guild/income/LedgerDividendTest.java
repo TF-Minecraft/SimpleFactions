@@ -140,6 +140,7 @@ class LedgerDividendTest {
 		when(faction.getPenalty()).thenReturn(penalty);
 		when(faction.getTaxRate(eq(TaxTarget.DIVIDENDS), eq("traders"), anyBoolean())).thenReturn(taxRate);
 		when(guild.isBankrupt()).thenReturn(false);
+		when(guild.getBank()).thenReturn(mock(net.tfminecraft.simplefactions.objects.Bank.class));
 		when(guild.isBase()).thenReturn(baseGuild);
 		when(guild.getFaction()).thenReturn(faction);
 		when(guild.getId()).thenReturn("traders");

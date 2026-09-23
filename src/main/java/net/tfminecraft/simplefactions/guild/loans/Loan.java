@@ -140,7 +140,8 @@ public class Loan {
 
     public void tickDay() {
         double dailyInterest = getDailyInterestChange();
-        if (isOverdue() && status == LoanStatus.ACTIVE) {
+        if (isOverdue() && status == LoanStatus.ACTIVE
+                && borrower != null && borrower.getLoanHandler() != null) {
             int penalty = CreditCalculator.calculateDailyOverduePenalty(this);
             borrower.getLoanHandler().changeCreditScore(penalty);
         }
@@ -187,8 +188,10 @@ public class Loan {
     }
 
     public double getDailyOverdueFee() {
-        if(isPaidOff()) return 0.0;
-        return isOverdue() ? getTotalOwed() * getDailyInterest() / 100.0 : 0.0;
+        if (isPaidOff() || !isOverdue()) return 0.0;
+        // The agreement states this percent of the remaining balance, charged each overdue day.
+        // It must not call getDailyInterest(): that includes this fee and would recurse forever.
+        return getTotalOwed() * overdueFee / 100.0;
     }
 
     public double getDailyInterest() {

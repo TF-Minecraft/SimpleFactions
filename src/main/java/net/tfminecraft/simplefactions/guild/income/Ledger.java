@@ -141,13 +141,15 @@ public class Ledger {
 
     public double getIncome(Cashflow cashflow) {
         double amount = 0;
-        if(guild.isBankrupt()) return 0.0; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
+        if(skipsMoneyMovement()) return 0.0; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
         Faction f = guild.getFaction();
+        if (f == null) return 0.0;
         switch (cashflow) {
             case GUILDS:
                 if(!guild.isBase()) return 0;
-                for(Guild g : guild.getFaction().getGuildHandler().getGuilds()) {
-                    if(g.isBase()) continue;
+                if (f.getGuildHandler() == null || f.getGuildHandler().getGuilds() == null) break;
+                for(Guild g : f.getGuildHandler().getGuilds()) {
+                    if(g == null || g.isBase() || g.getLedger() == null) continue;
                     amount += Math.abs(g.getLedger().getIncome(Cashflow.GUILD_PAYMENTS));
                 }
                 break;
@@ -182,9 +184,11 @@ public class Ledger {
                 if(!guild.isBase()) return 0;
                 amount = getTotalTariffsEarned();
                 break;
-            case TARIFF_PAYMENTS:
-                amount = -guild.getTradeBreakdown().getTariffs();
+            case TARIFF_PAYMENTS: {
+                TradeBreakdown tariffs = guild.getTradeBreakdown();
+                amount = tariffs == null ? 0 : -tariffs.getTariffs();
                 break;
+            }
             case TRIBUTE_PAYMENTS:
                 if(!guild.isBase()) return 0;
                 amount = -getTributeTax();
@@ -200,8 +204,9 @@ public class Ledger {
                 break;
             //Loans
             case LOAN_PAYMENTS: {
+                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) break;
                 for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
-                    if(!loan.isAutoPay()) continue;
+                    if(loan == null || !loan.isAutoPay()) continue;
                     if(loan.isPaidOff()) continue;
                     amount -= loan.getDailyPayment(true);
                 }
@@ -209,16 +214,18 @@ public class Ledger {
             }
             case LOANS:
                 amount += getAggregatedLoanPayments();
+                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansGiven() == null) break;
                 for(Loan loan : guild.getLoanHandler().getLoansGiven()) {
-                    if(!loan.isAutoPay()) continue;
+                    if(loan == null || !loan.isAutoPay()) continue;
                     if(loan.isPaidOff()) continue;
                     amount += loan.getDailyPayment(true);
                 }
                 break;
             //Interest
             case INTEREST_PAYMENTS: {
+                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) break;
                 for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
-                    if(!loan.isAutoPay()) continue;
+                    if(loan == null || !loan.isAutoPay()) continue;
                     if(loan.isPaidOff()) continue;
                     amount -= loan.getDailyInterest();
                 }
@@ -226,8 +233,9 @@ public class Ledger {
             }
             case INTEREST:
                 amount += getAggregatedInterestPayments();
+                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansGiven() == null) break;
                 for(Loan loan : guild.getLoanHandler().getLoansGiven()) {
-                    if(!loan.isAutoPay()) continue;
+                    if(loan == null || !loan.isAutoPay()) continue;
                     if(loan.isPaidOff()) continue;
                     amount += loan.getDailyInterest();
                 }
@@ -249,29 +257,40 @@ public class Ledger {
             case GAMBLING:
                 amount = casinoProfit;
                 break;
-            case TRADE:
-                amount = guild.getTradeBreakdown().getIncome();
+            case TRADE: {
+                TradeBreakdown trade = guild.getTradeBreakdown();
+                amount = trade == null ? 0 : trade.getIncome();
                 break;
-            case TRADE_UPKEEP:
-                amount = -guild.getTradeBreakdown().getUpkeep();
+            }
+            case TRADE_UPKEEP: {
+                TradeBreakdown tradeUpkeep = guild.getTradeBreakdown();
+                amount = tradeUpkeep == null ? 0 : -tradeUpkeep.getUpkeep();
                 break;
+            }
             case INSTALLATIONS:
                 if (!guild.isBase()) {
                     return 0;
                 }
+                if (f.getInstallationHandler() == null || f.getInstallationHandler().getAll() == null) {
+                    break;
+                }
                 for (Installation installation : f.getInstallationHandler().getAll()) {
+                    if (installation == null) continue;
                     amount -= InstallationConfigLoader.getDailyUpkeep(installation.getKind());
                 }
                 break;
             case MILITARY_UPKEEP:
-                if (guild.isBase()) {
+                if (guild.isBase() && f.getMilitary() != null) {
                     amount = -f.getMilitary().getTotalUpkeep();
                 }
                 amount -= getCompanySlotUpkeep();
                 break;
             case UPGRADES_UPKEEP:
-                for(Upgrade u : guild.getUpgrades()) {
-                    amount -= u.getTotalUpkeep();
+                if (guild.getUpgrades() != null) {
+                    for(Upgrade u : guild.getUpgrades()) {
+                        if (u == null) continue;
+                        amount -= u.getTotalUpkeep();
+                    }
                 }
                 if (guild.getCompany() != null && guild.getCompany().isFormed()) {
                     amount -= guild.getCompany().getUpgradeUpkeep();
@@ -401,7 +420,7 @@ public class Ledger {
 
     public double getNetIncome() {
         double net = 0.0;
-        if(guild.isBankrupt()) return 0.0; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
+        if(skipsMoneyMovement()) return 0.0; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
 
         for (Cashflow cf : Cashflow.values()) {
             switch (cf) {
@@ -472,7 +491,7 @@ public class Ledger {
      * inside this number as {@link Cashflow#GUILD_PAYMENTS}.
      */
     public double getDividendBase() {
-        if (guild.isBankrupt()) {
+        if (skipsMoneyMovement()) {
             return 0.0;
         }
         double net = 0.0;
@@ -521,14 +540,14 @@ public class Ledger {
     }
 
     public DividendBreakdown getDividendBreakdown() {
-        if (guild.isBankrupt() || guild.isBase()) {
+        if (skipsMoneyMovement() || guild.isBase()) {
             return DividendBreakdown.none();
         }
         return breakdownForPool(unclampedPool(getDividendBase()));
     }
 
     public DividendBreakdown breakdownForPool(double pool) {
-        if (guild.isBankrupt() || guild.isBase() || pool <= 0) {
+        if (skipsMoneyMovement() || guild.isBase() || pool <= 0) {
             return DividendBreakdown.none();
         }
         double base = getDividendBase();
@@ -668,7 +687,7 @@ public class Ledger {
      * reparations so ledger queries cannot recurse between factions.
      */
     double getInternalTaxableIncome() {
-        if (guild.isBankrupt()) {
+        if (skipsMoneyMovement()) {
             return 0.0;
         }
         double total = 0.0;
@@ -693,7 +712,7 @@ public class Ledger {
     }
 
     public double getGrossTaxableIncome() {
-        if(guild.isBankrupt()) return 0.0; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
+        if(skipsMoneyMovement()) return 0.0; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
         double total = 0.0;
         for (Cashflow cf : Cashflow.values()) {
             if(!cf.isGrossCounted()) continue;
@@ -708,15 +727,26 @@ public class Ledger {
         citizenTaxes.clear();
     }
 
+    /**
+     * Bankruptcy freezes a guild. A missing bank is not bankruptcy, but it also
+     * cannot pay or receive, so settlement must skip it instead of throwing.
+     */
+    private boolean skipsMoneyMovement() {
+        if (guild.isBankrupt()) {
+            return true;
+        }
+        return guild.getBank() == null;
+    }
+
     public void populateDailyTransfers(DailyGuildTransfers buffer) {
-        if(guild.isBankrupt()) {
+        if(guild.isBankrupt() && guild.getLoanHandler() != null && guild.getLoanHandler().getLoansTaken() != null) {
             for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
-                if(!loan.isAutoPay()) continue;
+                if(loan == null || !loan.isAutoPay()) continue;
                 if(loan.isPaidOff()) continue;
                 loan.setAutoPay(false);
             }
         }
-        if (!guild.isBankrupt() && !guild.isBase()) {
+        if (!skipsMoneyMovement() && !guild.isBase()) {
             double pool = getDividendBreakdown().pool();
             if (pool > 0) {
                 buffer.setPendingDividendPool(guild, pool);
@@ -725,7 +755,7 @@ public class Ledger {
         for (Cashflow cf : Cashflow.values()) {
             applySettlementFor(cf, buffer);
         }
-        if (!guild.isBankrupt()) {
+        if (!skipsMoneyMovement()) {
             citizenTaxes.clear();
         }
         loanPayments.clear();
@@ -745,7 +775,7 @@ public class Ledger {
      * its buckets, because its debts survive the bankruptcy that froze them.
      */
     private void clearSettledContractBuckets() {
-        if (guild.isBankrupt()) return;
+        if (skipsMoneyMovement()) return;
         MercenaryCompany company = getFormedCompany();
         if (company == null) return;
         for (MercenaryContract c : company.getContractHandler().getAll()) {
@@ -755,7 +785,7 @@ public class Ledger {
     }
 
     private void applySettlementFor(Cashflow cf, DailyGuildTransfers buffer) {
-        if(guild.isBankrupt()) return; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
+        if(skipsMoneyMovement()) return; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
         switch (cf) {
             // --------- INTERNAL (single guild) ----------
             // These should NOT be computed by reading getIncome() from some other guild.
@@ -787,7 +817,9 @@ public class Ledger {
             // --------- TRANSFERS (guild -> guild) ----------
             case GUILD_PAYMENTS: {
                 if (guild.isBase()) return; // base doesn't pay guild tax
-                Guild capital = guild.getFaction().getOrCreateMainGuild();
+                Faction faction = guild.getFaction();
+                if (faction == null) return;
+                Guild capital = faction.getOrCreateMainGuild();
                 double amount = Math.abs(getIncome(Cashflow.GUILD_PAYMENTS));
                 buffer.add(guild, capital, amount);
                 return;
@@ -806,6 +838,7 @@ public class Ledger {
             case TRIBUTE_PAYMENTS: {
                 if(!guild.isBase()) return; //only base pays
                 Faction f = guild.getFaction();
+                if (f == null || f.getModifiers() == null) return;
                 double base = getInternalTaxableIncome();
 
                 for (FactionModifier mod : f.getModifiers()) {
@@ -813,6 +846,7 @@ public class Ledger {
                     if (!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
 
                     Faction receiverFaction = mod.getFrom();
+                    if (receiverFaction == null) continue;
                     Guild receiverGuild = receiverFaction.getOrCreateMainGuild();
 
                     double amount = base * (mod.getAmount() / 100.0);
@@ -828,8 +862,10 @@ public class Ledger {
                     return;
                 }
                 Faction f = guild.getFaction();
+                if (f == null) return;
                 double base = getReparationsTaxableIncome();
                 for (WarReparationsObligation obligation : WarReparationsService.activeObligations(f)) {
+                    if (obligation == null) continue;
                     Faction receiverFaction = FactionManager.getByString(obligation.getPayeeFactionId());
                     if (receiverFaction == null) {
                         continue;
@@ -846,7 +882,10 @@ public class Ledger {
 
             //Taxes and Tariffs
             case TARIFF_PAYMENTS: {
-                for(Map.Entry<Faction, Double> entry : guild.getTradeBreakdown().getTariffsByFactionMap().entrySet()) {
+                TradeBreakdown tariffs = guild.getTradeBreakdown();
+                if (tariffs == null || tariffs.getTariffsByFactionMap() == null) return;
+                for(Map.Entry<Faction, Double> entry : tariffs.getTariffsByFactionMap().entrySet()) {
+                    if (entry.getKey() == null || entry.getValue() == null) continue;
                     Faction receiverFaction = entry.getKey();
                     Guild receiverGuild = receiverFaction.getOrCreateMainGuild();
                     double amount = entry.getValue();
@@ -858,9 +897,10 @@ public class Ledger {
 
             //Loans
             case LOAN_PAYMENTS: {
+                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) return;
                 for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
                     double amount = 0;
-                    if(!loan.isAutoPay()) continue;
+                    if(loan == null || !loan.isAutoPay()) continue;
                     if(loan.isPaidOff()) continue;
                     amount += loan.getDailyPayment(true);
                     if(amount <= 0) continue;
@@ -872,9 +912,10 @@ public class Ledger {
 
             //Interest
             case INTEREST_PAYMENTS: {
+                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) return;
                 for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
                     double amount = 0;
-                    if(!loan.isAutoPay()) continue;
+                    if(loan == null || !loan.isAutoPay()) continue;
                     if(loan.isPaidOff()) continue;
                     amount += loan.getDailyInterest();
                     if(amount <= 0) continue;
