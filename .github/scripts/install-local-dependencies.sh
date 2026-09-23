@@ -5,17 +5,17 @@ set -euo pipefail
 sha256sum --check .github/dependencies.sha256
 
 mvn -B --no-transfer-progress org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file \
-    -Dfile="libs/json-simple-1.1.jar" -DgroupId="local" -DartifactId="json-simple" \
-    -Dversion="1.1-tfmc-2d9484f4c649" -Dpackaging=jar -DgeneratePom=true "$@"
+    -Dfile="libs/json-simple-1.1.1.jar" -DgroupId="local" -DartifactId="json-simple" \
+    -Dversion="1.1.1-tfmc-4e69696892b8" -Dpackaging=jar -DgeneratePom=true "$@"
 mvn -B --no-transfer-progress org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file \
-    -Dfile="libs/BungeeCord.jar" -DgroupId="local" -DartifactId="BungeeCord" \
-    -Dversion="1.0-tfmc-3bc6fa2477eb" -Dpackaging=jar -DgeneratePom=true "$@"
+    -Dfile="libs/BungeeCord-26.1-R0.1-SNAPSHOT-build2096.jar" -DgroupId="local" -DartifactId="BungeeCord" \
+    -Dversion="26.1-R0.1-SNAPSHOT-build2096-tfmc-822e034c64c8" -Dpackaging=jar -DgeneratePom=true "$@"
 mvn -B --no-transfer-progress org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file \
-    -Dfile="libs/MMOItems-6.10.jar" -DgroupId="local" -DartifactId="MMOItems" \
-    -Dversion="6.10-tfmc-c84700df5942" -Dpackaging=jar -DgeneratePom=true "$@"
+    -Dfile="libs/MMOItems-6.10.1-SNAPSHOT.jar" -DgroupId="local" -DartifactId="MMOItems" \
+    -Dversion="6.10.1-SNAPSHOT-tfmc-a37f7789fcdc" -Dpackaging=jar -DgeneratePom=true "$@"
 mvn -B --no-transfer-progress org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file \
-    -Dfile="libs/MythicLib-1.7.jar" -DgroupId="local" -DartifactId="MythicLib" \
-    -Dversion="1.7-tfmc-660ff2a6ec86" -Dpackaging=jar -DgeneratePom=true "$@"
+    -Dfile="libs/MythicLib-1.7.1-SNAPSHOT.jar" -DgroupId="local" -DartifactId="MythicLib" \
+    -Dversion="1.7.1-SNAPSHOT-tfmc-225aa7f75d4e" -Dpackaging=jar -DgeneratePom=true "$@"
 mvn -B --no-transfer-progress org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file \
-    -Dfile="libs/MMOCore-1.13.1.jar" -DgroupId="local" -DartifactId="MMOCore" \
-    -Dversion="1.13.1-tfmc-14850d745437" -Dpackaging=jar -DgeneratePom=true "$@"
+    -Dfile="libs/MMOCore-1.13.1-SNAPSHOT.jar" -DgroupId="local" -DartifactId="MMOCore" \
+    -Dversion="1.13.1-SNAPSHOT-tfmc-81d511d08309" -Dpackaging=jar -DgeneratePom=true "$@"
