@@ -60,3 +60,6 @@ Desktop.ini
 /src/main/resources/Cache/
 /src/main/resources/Data/
 /src/main/resources/MapAPI/
+
+# Technical documentation is maintained in TF-Minecraft/Docs
+/docs/
