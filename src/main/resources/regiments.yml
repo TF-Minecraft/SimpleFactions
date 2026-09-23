@@ -24,8 +24,7 @@ militia:
         - "#a89977soldiers, but can be called upon to"
         - "#a89977defend their home"
 # Prototype for mercenary company slots. The mercenary: true flag keeps this
-# type out of every faction military; only a company clones it. Full reference:
-# docs/mercenaries.md
+# type out of every faction military; only a company clones it.
 mercenary:
     name: "#b7aae3Mercenary Company"
     mercenary: true

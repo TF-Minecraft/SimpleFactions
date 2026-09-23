@@ -1,9 +1,8 @@
 package net.tfminecraft.simplefactions.mercenary.contract;
 
 /**
- * The ways a contract can end, each carrying the outcome locked in
- * docs/planning/war-companies/00-index.md section 5. Days already served are paid
- * in every one of them, so that is not a per-reason flag.
+ * The ways a contract can end, each carrying its outcome. Days already served
+ * are paid in every one of them, so that is not a per-reason flag.
  */
 public enum TerminationReason {
     /** Ran its course. Reputation rises only if attendance was clean throughout. */

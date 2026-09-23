@@ -32,7 +32,7 @@ province-cost: 50
 # a config key; each guild leader sets it, starting at 0%.
 dividend-require-previous-tick-membership: true
 
-# Mercenary companies. Full reference: docs/mercenaries.md
+# Mercenary companies.
 # One-off charge taken from the host guild when the charter is requested.
 mercenary-formation-cost: 100.0
 # Founding time. The faction timer ticks once per real second, so 86400 is 24 h
