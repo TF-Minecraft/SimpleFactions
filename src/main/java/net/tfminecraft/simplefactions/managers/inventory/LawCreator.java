@@ -221,7 +221,7 @@ public class LawCreator {
 
 		// ---- Economic preview ----
 		if (!isCurrent && affectsEconomy) {
-			EconomicImpact.applyEconomicChange(lore, p, f, group, law);
+			EconomicImpact.applyEconomicChange(lore, p, f, group, law, false, meta, false);
 		}
 		Government gov = f.getGovernment();
 		Proposal proposal = new Proposal("console", gov);

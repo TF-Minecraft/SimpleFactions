@@ -12,6 +12,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 
 public class DiplomacyHandler {
     private Faction f;
@@ -107,6 +108,9 @@ public class DiplomacyHandler {
     }
 
     public boolean hasTradeRelation(String s) {
+        if (IncomePreviewContext.overridesTrade(this, s)) {
+            return IncomePreviewContext.overlayTrade(this, s) != null;
+        }
         return tradeRelations.containsKey(s);
     }
 
@@ -115,6 +119,9 @@ public class DiplomacyHandler {
     }
 
     public RelationType getTradeRelation(String s) {
+        if (IncomePreviewContext.overridesTrade(this, s)) {
+            return IncomePreviewContext.overlayTrade(this, s);
+        }
         if(tradeRelations.containsKey(s)) return tradeRelations.get(s);
         return null;
     }

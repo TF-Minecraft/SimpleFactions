@@ -166,7 +166,7 @@ public class MovementCreator {
             lore.add(StringFormatter.formatHex("#c74d32No Leader"));
         }
         lore.add(" ");
-        LoreWriter.applyProposalLore(cause.getProposal(), lore, p, f);
+        LoreWriter.applyProposalLore(cause.getProposal(), lore, p, f, m);
         lore.add(" ");
         int memberCount = cause.getFullMemberList().size();
         lore.add(StringFormatter.formatHex("#9c9775Members: #c2bea7" + memberCount));
@@ -229,7 +229,7 @@ public class MovementCreator {
         List<String> lore = new ArrayList<>();
         lore.add(StringFormatter.formatHex("#9c9775Action: #c2bea7" + cause.getAction().getDisplay()));
         lore.add(" ");
-        LoreWriter.applyProposalLore(cause.getProposal(), lore, p, f);
+        LoreWriter.applyProposalLore(cause.getProposal(), lore, p, f, m);
         lore.add(" ");
         lore.add(StringFormatter.formatHex("#7a7a7aThe political action this"));
         lore.add(StringFormatter.formatHex("#7a7a7acause is working towards."));

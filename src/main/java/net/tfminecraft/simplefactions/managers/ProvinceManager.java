@@ -8,13 +8,15 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
+import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
 import net.tfminecraft.simplefactions.objects.Bracket;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
@@ -146,7 +148,7 @@ public class ProvinceManager {
         double income = 0;
         double upkeep = 0;
         double trade = 0;
-        double upkeepFactor = guild.getModifier(GuildModifier.TRADE_UPKEEP);
+        double upkeepFactor = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_UPKEEP);
         double tariffs = 0;
 
         for (Province province : provinces.values()) {
@@ -198,190 +200,23 @@ public class ProvinceManager {
     }
 
     public Map<Guild, Double> previewLawIncomeExact(Faction f, LawGroup group, Law law) {
-        ProvinceManager live = this;
-        ProvinceManager snap = SimpleFactions.getInstance().getProvinceSnapshot();
-        
-        // Save original ledger states before preview
-        Map<String, Double> originalNetIncomes = new HashMap<>();
-        for(Guild guild : FactionManager.getAllGuilds()) {
-            if (guild.hasCapital()) {
-                originalNetIncomes.put(guild.getId(), guild.getLedger().getNetIncome());
-            }
-        }
-        
-        // Apply law change to snapshot
-        snap.copyAllDataFrom(live);
-        Law old = group.getCurrent();
-        TaxHandler tax = f.getTaxHandler();
-        tax.saveState();
-        f.applyLaw(law, group);
-        // Full recalculation - resolves all interdependencies
-        snap.recalculate();
-        
-        // Collect deltas
-        Map<Guild, Double> map = new HashMap<>();
-        for(Guild guild : FactionManager.getAllGuilds()) {
-            if (!guild.hasCapital()) continue;
-            double delta = guild.getLedger().getNetIncome() - originalNetIncomes.get(guild.getId());
-            map.put(guild, Math.round(delta * 100.0) / 100.0);
-        }
-        // Restore original state
-        group.setCurrent(old);
-        tax.restoreState();
-        snap.recalculate(); // Recalculate snapshot back to live state
-        
-        return map;
+        return EconomicPreview.law(this, f, group, law);
     }
 
     public Map<Guild, Double> previewFavourRepressIncomeExact(Faction f, Guild g, boolean favour) {
-        ProvinceManager live = this;
-        ProvinceManager snap = SimpleFactions.getInstance().getProvinceSnapshot();
-        
-        // Save original ledger states before preview
-        Map<String, Double> originalNetIncomes = new HashMap<>();
-        for(Guild guild : FactionManager.getAllGuilds()) {
-            if (guild.hasCapital()) {
-                originalNetIncomes.put(guild.getId(), guild.getLedger().getNetIncome());
-            }
-        }
-        
-        // Apply favour/repress change to snapshot
-        snap.copyAllDataFrom(live);
-        if(favour) {
-            f.getGovernment().toggleFavour(g);
-        } else {
-            f.getGovernment().toggleRepress(g);
-        }
-        TaxHandler tax = f.getTaxHandler();
-        tax.saveState();
-        // Full recalculation - resolves all interdependencies
-        snap.recalculate();
-
-        // Full recalculation - resolves all interdependencies
-        snap.recalculate();
-        
-        // Collect deltas
-        Map<Guild, Double> map = new HashMap<>();
-        for(Guild guild : FactionManager.getAllGuilds()) {
-            if (!guild.hasCapital()) continue;
-            double delta = guild.getLedger().getNetIncome() - originalNetIncomes.get(guild.getId());
-            map.put(guild, Math.round(delta * 100.0) / 100.0);
-        }
-        // Restore original state
-        if(favour) {
-            f.getGovernment().toggleFavour(g);
-        } else {
-            f.getGovernment().toggleRepress(g);
-        }
-        tax.restoreState();
-        snap.recalculate(); // Recalculate snapshot back to live state
-        
-        return map;
+        return EconomicPreview.favour(this, g, favour);
     }
 
     public Map<Guild, Double> previewTradeAgreementIncomeExact(Faction origin, Faction target, RelationType agreement) {
-        ProvinceManager live = this;
-        ProvinceManager snap = SimpleFactions.getInstance().getProvinceSnapshot();
-        
-        // Save original ledger states before preview
-        Map<String, Double> originalNetIncomes = new HashMap<>();
-        for(Guild guild : FactionManager.getAllGuilds()) {
-            if (guild.hasCapital()) {
-                originalNetIncomes.put(guild.getId(), guild.getLedger().getNetIncome());
-            }
-        }
-        
-        // Apply favour/repress change to snapshot
-        snap.copyAllDataFrom(live);
-        RelationType current = origin.getDiplomacyHandler().getTradeRelation(target.getId());
-        RelationType targetCurrent = target.getDiplomacyHandler().getTradeRelation(origin.getId());
-        if(agreement != null) {
-            origin.getDiplomacyHandler().setTradeRelation(target, agreement);
-            if(agreement.hasLink()) {
-                target.getDiplomacyHandler().setTradeRelation(origin, agreement.getLink());
-            }
-        } else {
-            origin.getDiplomacyHandler().removeTradeRelation(target.getId());
-            if(current.isMutual()) {
-                target.getDiplomacyHandler().removeTradeRelation(origin.getId());
-            }
-        }
-        // Full recalculation - resolves all interdependencies
-        snap.recalculate();
-
-        // Full recalculation - resolves all interdependencies
-        snap.recalculate();
-        
-        // Collect deltas
-        Map<Guild, Double> map = new HashMap<>();
-        for(Guild guild : FactionManager.getAllGuilds()) {
-            if (!guild.hasCapital()) continue;
-            double delta = guild.getLedger().getNetIncome() - originalNetIncomes.get(guild.getId());
-            map.put(guild, Math.round(delta * 100.0) / 100.0);
-        }
-        // Restore original state
-        if(current != null) {
-            origin.getDiplomacyHandler().setTradeRelation(target, current);
-        } else {
-            origin.getDiplomacyHandler().removeTradeRelation(target.getId());
-        }
-        if(targetCurrent != null) {
-            target.getDiplomacyHandler().setTradeRelation(origin, targetCurrent);
-        } else {
-            target.getDiplomacyHandler().removeTradeRelation(origin.getId());
-        }
-        snap.recalculate(); // Recalculate snapshot back to live state
-        
-        return map;
+        return EconomicPreview.trade(this, origin, target, agreement);
     }
 
     public double previewUpgradeIncomeExact(Guild guild, Branch branch) {
-        ProvinceManager live = this;
-        ProvinceManager snap = SimpleFactions.getInstance().getProvinceSnapshot();
-
-        double liveIncomeBefore = live.getIncome(guild, false);
-
-        snap.copyAllDataFrom(live);
-        branch.levelUp();
-        snap.recalculateForSingleGuild(guild, false);
-        
-        double snapTradeAfter = snap.getIncome(guild, false);
-        double tradeIncomeChange = snapTradeAfter - liveIncomeBefore;
-        
-        // Apply the same tax rate to the income change to estimate net impact
-        Faction f = guild.getFaction();
-        double guildTaxRate = f.getTaxRate(TaxTarget.GUILDS, guild.getId(), true) / 100.0;
-        double estimatedNetChange = tradeIncomeChange * (1.0 - guildTaxRate);
-
-        branch.levelDown();
-        
-        return Math.round(estimatedNetChange * 100.0) / 100.0;
+        return BranchIncomePreview.estimate(this, guild, branch, 1);
     }
 
     public double previewDowngradeIncomeExact(Guild guild, Branch branch) {
-        ProvinceManager live = this;
-        ProvinceManager snap = SimpleFactions.getInstance().getProvinceSnapshot();
-
-        double liveIncomeBefore = live.getIncome(guild);
-
-        // Sync snapshot to live state
-        snap.copyAllDataFrom(live);
-
-        // Apply upgrade in snapshot context
-        branch.levelDown();
-        snap.recalculateForSingleGuild(guild, false);
-        double snapIncomeAfter = snap.getIncome(guild, false);
-        double tradeIncomeChange = snapIncomeAfter - liveIncomeBefore;
-        
-        // Apply the same tax rate to the income change to estimate net impact
-        Faction f = guild.getFaction();
-        double guildTaxRate = f.getTaxRate(TaxTarget.GUILDS, guild.getId(), true) / 100.0;
-        double estimatedNetChange = tradeIncomeChange * (1.0 - guildTaxRate);
-
-        // Revert upgrade
-        branch.levelUp();
-
-        return Math.round(estimatedNetChange * 100.0) / 100.0;
+        return BranchIncomePreview.estimate(this, guild, branch, -1);
     }
 
     //Simulation

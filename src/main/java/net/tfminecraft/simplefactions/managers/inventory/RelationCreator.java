@@ -448,14 +448,14 @@ public class RelationCreator {
 					lore.add(StringFormatter.formatHex("#28ed70Click to end agreement"));
 					m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 					m.addEnchant(Enchantment.UNBREAKING, 1, true);
-					if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, null);
+					if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, null, false, m, false);
 				} else if(origin.getDiplomacyHandler().getAvailableCapacity() > ourCost && target.getDiplomacyHandler().getAvailableCapacity() > theirCost) {
 					if(t.isMutual()) {
 						lore.add(StringFormatter.formatHex("#28ed70Click to request agreement"));
-						if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t);
+						if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t, false, m, false);
 					} else {
 						lore.add(StringFormatter.formatHex("#28ed70Click to set"));
-						if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t);
+						if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t, false, m, false);
 					}
 				} else {
 					if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost) 

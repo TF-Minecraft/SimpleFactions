@@ -582,7 +582,7 @@ public class GovernmentCreator {
         m.setDisplayName(StringFormatter.formatHex(proposal.isLawProposal() ? "#93c9a7Law Proposal" : "#93c9a7Tax Proposal"));
         List<String> lore = new ArrayList<String>();
         lore.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7"+proposal.getProposer()));
-        LoreWriter.applyProposalLore(proposal, lore, p, f);
+        LoreWriter.applyProposalLore(proposal, lore, p, f, m);
         m.setLore(lore);
         item.setItemMeta(m);
         return item;
@@ -750,7 +750,7 @@ public class GovernmentCreator {
             
             if(gov.canFavour(guild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
-                EconomicImpact.applyFavourRepressChange(lore, p, f, guild, isFavourMode);
+                EconomicImpact.applyFavourRepressChange(lore, p, f, guild, isFavourMode, false, m, false);
                 if(f.isLeader(p.getName())) {
                     if(!guild.isFavoured()) {
                         lore.add(StringFormatter.formatHex("#eddda8Upkeep: §e" + guild.getRepressFavourCost()+" Administrative Power"));
@@ -775,7 +775,7 @@ public class GovernmentCreator {
             
             if(gov.canRepress(guild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
-                EconomicImpact.applyFavourRepressChange(lore, p, f, guild, isFavourMode);
+                EconomicImpact.applyFavourRepressChange(lore, p, f, guild, isFavourMode, false, m, false);
                 if(f.isLeader(p.getName())) {
                     if(!guild.isRepressed()) {
                         lore.add(StringFormatter.formatHex("#eddda8Upkeep: §e" + guild.getRepressFavourCost()+" Administrative Power"));
@@ -819,7 +819,7 @@ public class GovernmentCreator {
             
             if(gov.canFavour(mainGuild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
-                EconomicImpact.applyFavourRepressChange(lore, p, f, mainGuild, isFavourMode);
+                EconomicImpact.applyFavourRepressChange(lore, p, f, mainGuild, isFavourMode, false, m, false);
                 if(f.isLeader(p.getName())) {
                     if(!mainGuild.isFavoured()) {
                         lore.add(StringFormatter.formatHex("#eddda8Upkeep: §e" + mainGuild.getRepressFavourCost()+" Administrative Power"));
@@ -844,7 +844,7 @@ public class GovernmentCreator {
             
             if(gov.canRepress(mainGuild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
-                EconomicImpact.applyFavourRepressChange(lore, p, f, mainGuild, isFavourMode);
+                EconomicImpact.applyFavourRepressChange(lore, p, f, mainGuild, isFavourMode, false, m, false);
                 if(f.isLeader(p.getName())) {
                     lore.add("");
                     if(!mainGuild.isRepressed()) {

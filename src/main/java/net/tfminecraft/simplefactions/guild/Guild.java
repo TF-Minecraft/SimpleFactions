@@ -22,6 +22,7 @@ import org.bukkit.inventory.meta.BannerMeta;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
@@ -666,7 +667,10 @@ public class Guild {
         return amount;
     }
 
-    public TradeBreakdown getTradeBreakdown() { return breakdown; }
+    public TradeBreakdown getTradeBreakdown() {
+        TradeBreakdown scratch = IncomePreviewContext.scratchBreakdown(this);
+        return scratch != null ? scratch : breakdown;
+    }
     public void setTradeBreakdown(TradeBreakdown breakdown) { this.breakdown = breakdown; }
 
     public void newDay() {
@@ -1011,7 +1015,8 @@ public class Guild {
     }
 
     public boolean isFavoured() {
-        return favoured;
+        Boolean overlay = IncomePreviewContext.overlayFavoured(this);
+        return overlay != null ? overlay : favoured;
     }
 
     public void setFavoured(boolean favoured) {
@@ -1019,7 +1024,8 @@ public class Guild {
     }
 
     public boolean isRepressed() {
-        return repressed;
+        Boolean overlay = IncomePreviewContext.overlayRepressed(this);
+        return overlay != null ? overlay : repressed;
     }
 
     public void setRepressed(boolean repressed) {

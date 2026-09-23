@@ -10,6 +10,7 @@ import java.util.Set;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
@@ -85,12 +86,12 @@ public class Province {
             int distance
     ) {
         double amount;
-        double carry = guild.getModifier(GuildModifier.TRADE_CARRY);
+        double carry = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_CARRY);
         double effectiveDistance = distance / Math.pow(carry, 1.1);
         double factor = Math.pow(getTradeCarry(), effectiveDistance);
         if (prev == -1) {
             // Capital province
-            amount = guild.getModifier(GuildModifier.TRADE_POWER);
+            amount = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_POWER);
         } else {
             amount = prev *factor;
         }
@@ -132,7 +133,7 @@ public class Province {
 
         if (prev == null) {
             // Capital province
-            amount = guild.getModifier(GuildModifier.PRODUCTION);
+            amount = GuildModifierOverride.resolve(guild, GuildModifier.PRODUCTION);
         } else {
             amount = prev.getProduction()*factor;
         }
@@ -190,7 +191,7 @@ public class Province {
         int participants = 0;
         for(ProvinceDataEntry entry : data.values()) {
             List<FactionModifier> modifiers = getModifiersForGuild(entry.getGuild());
-            double carry = entry.getGuild().getModifier(GuildModifier.TRADE_CARRY);
+            double carry = GuildModifierOverride.resolve(entry.getGuild(), GuildModifier.TRADE_CARRY);
             double distance = entry.getDistance(); // ensure double
 
             double weight =
