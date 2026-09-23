@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
+import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Bracket;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
@@ -35,6 +37,10 @@ public class TaxHandler {
     }
 
     public boolean hasTariffs() {
+        IncomePreviewContext context = IncomePreviewContext.current();
+        if (context != null && context.affects(f)) {
+            return context.adjustTax(f, this, TaxTarget.TARIFFS, null, tariffs) > 0;
+        }
         return tariffs > 0;
     }
 
@@ -141,6 +147,10 @@ public class TaxHandler {
 
             default -> 0.0;
         };
+        IncomePreviewContext context = IncomePreviewContext.current();
+        if (context != null) {
+            rate = context.adjustTax(f, this, target, id, rate);
+        }
         return effective ? Formatter.formatDouble(rate * f.getGovernment().getTaxEfficiency()) : rate;
     }
 
@@ -328,17 +338,6 @@ public class TaxHandler {
     }
 
     public Map<Guild, Double> getTaxChangeEffects(TaxTarget target, String id, double newRate) {
-        Map<Guild, Double> effects = new HashMap<>();
-        for(Guild g : FactionManager.getAllGuilds()) {
-            effects.put(g, g.getLedger().getNetIncome());
-        }
-        saveState();
-        setTaxRate(target, id, newRate);
-        for(Guild g : FactionManager.getAllGuilds()) {
-            double newIncome = g.getLedger().getNetIncome();
-            effects.put(g, newIncome - effects.get(g));
-        }
-        restoreState();
-        return effects;
+        return EconomicPreview.tax(f, target, id, newRate);
     }
 }

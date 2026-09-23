@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.bukkit.configuration.ConfigurationSection;
 
+import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
 import net.tfminecraft.simplefactions.enums.Scope;
@@ -56,7 +57,10 @@ public class LawGroup {
 
     public String getId() { return id; }
     public String getName() { return name; }
-    public Law getCurrent() { return current; }
+    public Law getCurrent() {
+        Law overlay = IncomePreviewContext.overlayLaw(this);
+        return overlay != null ? overlay : current;
+    }
     public Map<String, Law> getLaws() { return laws; }
     public List<String> getDescription() { return description; }
     public boolean hasDescription() { return !description.isEmpty(); }

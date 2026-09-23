@@ -16,6 +16,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
@@ -174,14 +175,26 @@ public class GuildView {
 			}
 			i.setItem(34, creator.createEvictionItem(player, guild));
 		}
+		BranchIncomePreview.Prepared tradePreview = null;
+		if (guild.hasCapital() && guild.isLeader(player)) {
+			tradePreview = BranchIncomePreview.prepare(manager);
+		}
 		int group = 0;
 		while(guild.getBranch(group) != null || group > 10) {
 			Branch b = guild.getBranch(group);
 			group++;
 			i.setItem(group+28, creator.createBranchItem(player, guild, b));
 			if(guild.isLeader(player)) {
-				i.setItem(group+19, creator.createBranchUpgradeItem(player, guild, b));
-				i.setItem(group+37, creator.createBranchDowngradeItem(player, guild, b));
+				int upgradeSlot = group + 19;
+				int downgradeSlot = group + 37;
+				i.setItem(upgradeSlot, creator.createBranchUpgradeItem(player, guild, b));
+				i.setItem(downgradeSlot, creator.createBranchDowngradeItem(player, guild, b));
+				if (tradePreview != null) {
+					BranchIncomePreviewService.schedule(player, i, upgradeSlot, tradePreview, guild, b, 1);
+					if (b.getLevel() > 0) {
+						BranchIncomePreviewService.schedule(player, i, downgradeSlot, tradePreview, guild, b, -1);
+					}
+				}
 			}
 		}
 		i.setItem(13, creator.createMenuItem(player, guild, MenuItemType.TRADE_BREAKDOWN));

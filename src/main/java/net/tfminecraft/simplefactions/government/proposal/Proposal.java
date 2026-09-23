@@ -11,6 +11,7 @@ import java.util.List;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.EconomicImpact;
+import net.tfminecraft.simplefactions.utils.EconomicImpactService;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 
 import net.tfminecraft.simplefactions.war.core.War;
@@ -240,13 +241,13 @@ public class Proposal {
         if (affectsEconomy() && p != null && f != null) {
             if (isLawProposal() && law != null) {
                 LawGroup group = f.getLawHandler().getGroup(law.getGroup());
-                EconomicImpact.applyEconomicChange(econ, p, f, group, law, true);
+                EconomicImpact.applyEconomicChange(econ, p, f, group, law, true, meta, true);
             } else if (isTaxProposal() && tax != null) {
                 TaxTarget target = tax.getTarget();
                 if (target == TaxTarget.TARIFFS || target == TaxTarget.TARIFF_ID) {
-                    EconomicImpact.applyTariffImpact(econ, p, f, tax.getNewTax(), true);
+                    EconomicImpact.applyTariffImpact(econ, p, f, tax.getNewTax(), true, meta, true);
                 } else {
-                    EconomicImpact.applyTaxImpact(econ, p, f, target, tax.getId(), tax.getNewTax(), true);
+                    EconomicImpact.applyTaxImpact(econ, p, f, target, tax.getId(), tax.getNewTax(), true, meta, true);
                 }
             }
         } else if (affectsEconomy()) {
@@ -260,6 +261,7 @@ public class Proposal {
 
         meta.setPages(pages);
         item.setItemMeta(meta);
+        EconomicImpactService.bindBook(item.getItemMeta(), item);
         return item;
     }
 

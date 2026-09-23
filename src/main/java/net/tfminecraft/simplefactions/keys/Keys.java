@@ -6,6 +6,10 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 
 public class Keys {
     public static final NamespacedKey BRANCH_ID = new NamespacedKey(SimpleFactions.plugin, "branch_id");
+    /** Latest async branch income preview written onto an upgrade or downgrade button. */
+    public static final NamespacedKey BRANCH_PREVIEW = new NamespacedKey(SimpleFactions.plugin, "branch_preview");
+    /** Latest async law, tax, favour, or treaty income preview. */
+    public static final NamespacedKey ECONOMY_PREVIEW = new NamespacedKey(SimpleFactions.plugin, "economy_preview");
     public static final NamespacedKey BOOLEAN_FLAG = new NamespacedKey(SimpleFactions.plugin, "boolean_flag");
     public static final NamespacedKey STRING_KEY = new NamespacedKey(SimpleFactions.plugin, "string_key");
     public static final NamespacedKey SECONDARY_STRING_KEY = new NamespacedKey(SimpleFactions.plugin, "secondary_string_key");

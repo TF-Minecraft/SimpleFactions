@@ -35,7 +35,7 @@ public class LoreWriter {
 	private static final String GRAY  = "#6f776a";
 	private static final String LIGHT_GRAY  = "#9cb68c";
 
-    public static void applyProposalLore(Proposal proposal, List<String> lore, Player p, Faction f) {
+    public static void applyProposalLore(Proposal proposal, List<String> lore, Player p, Faction f, ItemMeta meta) {
         if(proposal.isLawProposal()) {
             Law law = proposal.getLaw();
             LawGroup group = f.getLawHandler().getGroup(law.getGroup());
@@ -43,7 +43,7 @@ public class LoreWriter {
             lore.add(StringFormatter.formatHex(group.getCurrent().getName()+" §7-> "+law.getName()));
             // ---- Economic preview ----
             if (law.affectsEconomy()) {
-                EconomicImpact.applyEconomicChange(lore, p, f, group, law);
+                EconomicImpact.applyEconomicChange(lore, p, f, group, law, false, meta, false);
             }
         } else if(proposal.isTaxProposal()) {
             TaxLawChange taxChange = proposal.getTaxChange();
@@ -82,9 +82,9 @@ public class LoreWriter {
                 lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+baseRate+"%#3f4040)"));
             }
             if(target == TaxTarget.TARIFFS || target == TaxTarget.TARIFF_ID) {
-                EconomicImpact.applyTariffImpact(lore, p, f, taxChange.getNewTax());
+                EconomicImpact.applyTariffImpact(lore, p, f, taxChange.getNewTax(), false, meta, false);
             } else {
-                EconomicImpact.applyTaxImpact(lore, p, f, target, taxChange.getId(), taxChange.getNewTax());
+                EconomicImpact.applyTaxImpact(lore, p, f, target, taxChange.getId(), taxChange.getNewTax(), false, meta, false);
             }
         } else if(proposal.isPoliticalActionProposal()) {
             Action action = proposal.getPoliticalAction().getAction();
