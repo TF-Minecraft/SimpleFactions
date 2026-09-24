@@ -91,7 +91,14 @@ public final class MercenaryCommandManager implements CommandExecutor {
                 == DisplayNameGate.Result.NEEDS_CONFIRM) {
             return;
         }
-        report(p, MercenaryCompanyService.requestFormation(leaderGuild(p), p.getName(), name));
+        Guild guild = leaderGuild(p);
+        MercenaryResult check = MercenaryCompanyService.canFound(guild, p.getName(), name);
+        if (!check.ok()) {
+            report(p, check);
+            return;
+        }
+        // Founding spends guild money, so the charge happens on the confirm button.
+        FactionManager.getInv().confirmCompanyFoundView(p, guild, name);
     }
 
     /** {@code /mercenaries} opens the hiring hall; {@code list} prints it in chat. */

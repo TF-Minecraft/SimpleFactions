@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -57,6 +58,8 @@ import net.tfminecraft.simplefactions.managers.inventory.TaxChange;
 import net.tfminecraft.simplefactions.managers.inventory.TaxView;
 import net.tfminecraft.simplefactions.managers.inventory.TierTitleView;
 import net.tfminecraft.simplefactions.managers.inventory.WarView;
+import net.tfminecraft.simplefactions.mercenary.MercenaryResult;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.BattleWarbandRetreatService.ConfirmHandler;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
@@ -80,6 +83,8 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 public class InventoryManager implements Listener{
 	public HashMap<Player, Faction> confirming = new HashMap<>();
 	public HashMap<Player, WarDeclareRequest> pendingWarDeclares = new HashMap<>();
+	/** Raw company name awaiting the founding confirmation, keyed by the guild leader. */
+	public HashMap<Player, String> pendingCompanyFounds = new HashMap<>();
 	public HashMap<Player, Integer> campaignConfirmWar = new HashMap<>();
 	public HashMap<Player, Boolean> installationConfirmFromCommand = new HashMap<>();
 	public HashMap<Player, TaxChange> taxChange = new HashMap<>();
@@ -753,6 +758,19 @@ public class InventoryManager implements Listener{
 		player.openInventory(i);
 	}
 	
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public void confirmCompanyFoundView(Player player, Guild guild, String name) {
+		pendingCompanyFounds.put(player, name);
+		confirming.put(player, guild.getFaction());
+		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
+		i.setItem(13, companyView.creator.createFoundConfirmItem(
+				guild, MercenaryCompanyService.displayName(name)));
+		i.setItem(11, createButton("confirm", "company_found", guild.getId()));
+		i.setItem(15, createButton("cancel", "company_found", guild.getId()));
+		player.openInventory(i);
+	}
+
 	//Basic Items
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
@@ -808,6 +826,18 @@ public class InventoryManager implements Listener{
 		if (inv.getHolder() instanceof SFInventoryHolder
 				&& ((SFInventoryHolder) inv.getHolder()).getType() == SFGUI.PLAYER_LEDGER_VIEW) {
 			e.setCancelled(true);
+		}
+		// Confirm screens have no holder; an item dragged into one is lost when it closes.
+		if (e.getView().getTitle().equalsIgnoreCase("§7Confirm Action")
+				&& e.getRawSlots().stream().anyMatch(slot -> slot < inv.getSize())) {
+			e.setCancelled(true);
+		}
+	}
+
+	@EventHandler
+	public void clearPendingOnQuit(PlayerQuitEvent e) {
+		if (pendingCompanyFounds.remove(e.getPlayer()) != null) {
+			confirming.remove(e.getPlayer());
 		}
 	}
 
@@ -1301,6 +1331,33 @@ public class InventoryManager implements Listener{
 			if (data != null) {
 				boolean confirmed = item.getType().equals(Material.GREEN_CONCRETE);
 				movementView.handleEndConfirm(p, data, confirmed);
+				return;
+			}
+			key = new NamespacedKey(SimpleFactions.plugin, "company_found");
+			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			if (data != null) {
+				String name = pendingCompanyFounds.remove(p);
+				confirming.remove(p);
+				Guild guild = FactionManager.getGuildByString(data);
+				if (name == null || guild == null) {
+					p.closeInventory();
+					return;
+				}
+				if (!item.getType().equals(Material.GREEN_CONCRETE)) {
+					p.sendMessage("§7Company founding cancelled. Nothing was charged.");
+					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+					p.closeInventory();
+					return;
+				}
+				MercenaryResult result = MercenaryCompanyService.requestFormation(guild, p.getName(), name);
+				p.sendMessage((result.ok() ? "§a" : "§c") + result.message());
+				if (!result.ok()) {
+					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
+					p.closeInventory();
+					return;
+				}
+				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+				companyView(p, guild);
 				return;
 			}
 			key = new NamespacedKey(SimpleFactions.plugin, "war_declare");

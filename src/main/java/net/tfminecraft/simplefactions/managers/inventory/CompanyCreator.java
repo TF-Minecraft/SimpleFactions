@@ -58,8 +58,42 @@ public class CompanyCreator {
 
 	public List<String> buildFormingLore(MercenaryCompany company) {
 		List<String> lore = new ArrayList<>();
-		lore.add(StringFormatter.formatHex("#baa875Founding"));
+		lore.add(StringFormatter.formatHex("#baa875Being founded"));
 		lore.add("§7Ready in: §e" + TimeFormatter.formatTime(company.getFormationRemaining()));
+		lore.add("§7Leader: §e" + company.getLeader());
+		lore.add(" ");
+		lore.add(StringFormatter.formatHex("#877e7cOpens with one slot, costing "
+				+ Formatter.formatMoney(Cache.mercenarySlotUpkeep) + "d a day"));
+		lore.add(StringFormatter.formatHex("#877e7cSlots, roster and contracts open when it is ready"));
+		return lore;
+	}
+
+	/** Summary shown between the two buttons of the founding confirmation. */
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createFoundConfirmItem(Guild guild, String companyName) {
+		ItemStack item = new ItemStack(Material.IRON_SWORD, 1);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(StringFormatter.formatHex("#b7aae3Found " + companyName + "?"));
+		meta.setLore(buildFoundConfirmLore(guild));
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	public List<String> buildFoundConfirmLore(Guild guild) {
+		List<String> lore = new ArrayList<>();
+		lore.add("§7Cost: §e" + Formatter.formatMoney(Cache.mercenaryFormationCost)
+				+ "d §7from the guild bank");
+		Double wealth = guild.getBank() == null ? null : guild.getBank().getWealth();
+		if (wealth != null) {
+			lore.add("§7Guild bank: §e" + Formatter.formatMoney(wealth) + "d");
+		}
+		lore.add("§7Charter time: §e" + TimeFormatter.formatTime(Cache.mercenaryFormationSeconds));
+		lore.add("§7Slot upkeep: §e" + Formatter.formatMoney(Cache.mercenarySlotUpkeep)
+				+ "d §7per slot per day");
+		lore.add(" ");
+		lore.add(StringFormatter.formatHex("#877e7cThe company opens with one slot"));
+		lore.add(StringFormatter.formatHex("#c74d32The founding cost is not refunded"));
 		return lore;
 	}
 
@@ -125,7 +159,8 @@ public class CompanyCreator {
 		ItemStack item = banner == null ? new ItemStack(Material.WHITE_BANNER, 1) : banner.clone();
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex("#b7aae3" + company.getName()));
-		meta.setLore(buildCompanyLore(guild, company));
+		meta.setLore(company.isForming()
+				? buildFormingLore(company) : buildCompanyLore(guild, company));
 		item.setItemMeta(meta);
 		return item;
 	}

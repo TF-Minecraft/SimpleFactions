@@ -41,6 +41,9 @@ class MercenaryCompanyFormationTest {
                 .requestFormation(fixture.guild, "Ivar", "Hired Blades");
 
         assertTrue(result.ok());
+        assertTrue(result.message().startsWith("Founding "), result.message());
+        assertTrue(result.message().contains("Hired Blades"), result.message());
+        assertTrue(result.message().contains("100.00d"), result.message());
         assertEquals(400.0, fixture.balance());
         MercenaryCompany company = fixture.company();
         assertNotNull(company);
@@ -53,6 +56,27 @@ class MercenaryCompanyFormationTest {
         assertTrue(company.isFormed());
         assertEquals(1, company.getSlots());
         assertEquals(400.0, fixture.balance());
+    }
+
+    @Test
+    void canFoundChecksWithoutCharging() {
+        CompanyFixture fixture = new CompanyFixture(500.0);
+
+        MercenaryResult check = MercenaryCompanyService.canFound(fixture.guild, "Ivar", "Hired Blades");
+
+        assertTrue(check.ok());
+        assertEquals(500.0, fixture.balance());
+        assertNull(fixture.company());
+    }
+
+    @Test
+    void canFoundRefusesAPoorGuild() {
+        CompanyFixture fixture = new CompanyFixture(99.0);
+
+        MercenaryResult check = MercenaryCompanyService.canFound(fixture.guild, "Ivar", "Hired Blades");
+
+        assertFalse(check.ok());
+        assertEquals("Your guild bank needs 100.00d to found a company.", check.message());
     }
 
     @Test
