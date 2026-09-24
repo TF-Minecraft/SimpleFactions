@@ -612,7 +612,8 @@ public class CommandManager implements Listener, CommandExecutor{
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("vehicle")) {
 				if(VehicleCommandRoute.isMaintenancePay(args)) {
-					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armMaintenancePay(p);
+					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armMaintenancePay(
+							p, VehicleCommandRoute.maintenancePaymentSource(args));
 					return true;
 				}
 				String transferId = net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleCommandRoute.transferInstallationId(args);

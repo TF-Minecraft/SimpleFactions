@@ -41,4 +41,14 @@ class VehicleCommandRouteTest {
         assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance"}));
         assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "transfer", "harbour-1"}));
     }
+    @Test
+    void bankPaymentRouteIsExplicitAndRejectsInvalidSources() {
+        assertTrue(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance", "pay", "bank"}));
+        assertEquals(
+                net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource.BANK,
+                VehicleCommandRoute.maintenancePaymentSource(new String[] {"VEHICLE", "MAINTENANCE", "PAY", "BANK"}));
+        assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance", "pay", "bnak"}));
+        assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance", "pay", "bank", "extra"}));
+    }
+
 }

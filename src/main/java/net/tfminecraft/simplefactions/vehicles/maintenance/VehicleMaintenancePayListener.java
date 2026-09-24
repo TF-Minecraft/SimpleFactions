@@ -42,7 +42,8 @@ public final class VehicleMaintenancePayListener implements Listener {
         VehicleMaintenancePayResult result = payService.tryPay(
                 leader.getUniqueId(),
                 vehicle.getUUID(),
-                vehicle.getId());
+                vehicle.getId(),
+                session.getPaymentSource());
         switch (result) {
             case SUCCESS -> {
                 sessionManager.clear(leader.getUniqueId());
@@ -54,6 +55,7 @@ public final class VehicleMaintenancePayListener implements Listener {
             }
             case NOT_UNPAID -> leader.sendMessage(VehicleMaintenanceMessages.notUnpaid());
             case INSUFFICIENT_POUCH -> leader.sendMessage(VehicleMaintenanceMessages.insufficientPouch());
+            case INSUFFICIENT_BANK -> leader.sendMessage(VehicleMaintenanceMessages.insufficientBank());
             case UNKNOWN_TYPE -> leader.sendMessage(VehicleMaintenanceMessages.unknownType());
         }
     }

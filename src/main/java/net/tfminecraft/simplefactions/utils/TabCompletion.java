@@ -238,6 +238,9 @@ public class TabCompletion implements TabCompleter{
 				if(args.length == 3 && args[1].equalsIgnoreCase("transfer")) {
 					return completeInstallationIds(p, args[2], false);
 				}
+				if(args.length == 4 && args[1].equalsIgnoreCase("maintenance") && args[2].equalsIgnoreCase("pay")) {
+					return VehicleTabCompletions.filter(List.of("bank"), args[3]);
+				}
 				if(args.length == 3 && args[1].equalsIgnoreCase("maintenance")) {
 					return net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions.maintenanceActions(args[2]);
 				}
@@ -270,6 +273,7 @@ public class TabCompletion implements TabCompleter{
 				completions.add("create");
 				completions.add("accept");
 				completions.add("join");
+				completions.add("vehicle");
 				
 				if(FactionManager.getByLeader(p.getName()) != null) {
 					if(Cache.provincesEnabled) {
@@ -279,7 +283,6 @@ public class TabCompletion implements TabCompleter{
 						completions.add("unclaim");
 						completions.add("setcapital");
 					}
-					completions.add("vehicle");
 					completions.add("transfervehicle");
 					completions.add("findvehicles");
 					completions.add("withdraw");

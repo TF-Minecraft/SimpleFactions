@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
+
 public final class VehicleMaintenancePaySessionManager {
     private final Map<UUID, VehicleMaintenancePaySession> byLeaderUuid = new HashMap<>();
 
@@ -38,9 +40,19 @@ public final class VehicleMaintenancePaySessionManager {
 
     public static final class VehicleMaintenancePaySession {
         private final long expiresAtMillis;
+        private final PaymentSource paymentSource;
 
         public VehicleMaintenancePaySession(long expiresAtMillis) {
+            this(expiresAtMillis, PaymentSource.POUCH);
+        }
+
+        public VehicleMaintenancePaySession(long expiresAtMillis, PaymentSource paymentSource) {
             this.expiresAtMillis = expiresAtMillis;
+            this.paymentSource = paymentSource;
+        }
+
+        public PaymentSource getPaymentSource() {
+            return paymentSource;
         }
 
         public long getExpiresAtMillis() {

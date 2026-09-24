@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
+
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager.VehicleTransferSession;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleInstallationLockService;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferMessages;
@@ -55,8 +57,11 @@ public final class VehicleFactionCommands {
     }
 
     public static void armMaintenancePay(Player player) {
-        Faction faction = FactionManager.getByLeader(player.getName());
-        if (faction == null) {
+        armMaintenancePay(player, PaymentSource.POUCH);
+    }
+
+    public static void armMaintenancePay(Player player, PaymentSource source) {
+        if (source == PaymentSource.POUCH && FactionManager.getByLeader(player.getName()) == null) {
             player.sendMessage(VehicleMaintenanceMessages.notLeader());
             return;
         }
@@ -65,8 +70,8 @@ public final class VehicleFactionCommands {
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().put(
                 player.getUniqueId(),
-                new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis));
-        player.sendMessage(VehicleMaintenanceMessages.payArmed());
+                new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source));
+        player.sendMessage(VehicleMaintenanceMessages.payArmed(source));
     }
 
     public static final class VehicleCommandRoute {
@@ -93,10 +98,14 @@ public final class VehicleFactionCommands {
 
         public static boolean isMaintenancePay(String[] args) {
             return args != null
-                    && args.length >= 3
+                    && (args.length == 3 || (args.length == 4 && args[3].equalsIgnoreCase("bank")))
                     && args[0].equalsIgnoreCase("vehicle")
                     && args[1].equalsIgnoreCase("maintenance")
                     && args[2].equalsIgnoreCase("pay");
+        }
+
+        public static PaymentSource maintenancePaymentSource(String[] args) {
+            return isMaintenancePay(args) && args.length == 4 ? PaymentSource.BANK : PaymentSource.POUCH;
         }
 
         public static boolean isVehicleRoot(String[] args) {
