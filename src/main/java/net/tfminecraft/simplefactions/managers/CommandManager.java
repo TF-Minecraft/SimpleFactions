@@ -255,6 +255,32 @@ public class CommandManager implements Listener, CommandExecutor{
 				g.kick(p.getName());
 				p.sendMessage("§aLeft "+g.getName());
 				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("kick") && args.length == 2) {
+				Guild guild = FactionManager.getGuildByLeader(p.getName());
+				if(guild == null) {
+					p.sendMessage("§cYou are not the leader of a guild");
+					return true;
+				}
+				if(guild.isBase()) {
+					p.sendMessage("§cThis is the base guild, use /faction kick instead");
+					return true;
+				}
+				if(!guild.isMember(args[1])) {
+					p.sendMessage("§cPlayer is not a member");
+					return true;
+				}
+				if(args[1].equalsIgnoreCase(guild.getLeader())) {
+					p.sendMessage("§cCant kick the leader!");
+					return true;
+				}
+				guild.kick(args[1]);
+				p.sendMessage("§aKicked "+args[1]);
+				for(Player pl : Bukkit.getOnlinePlayers()) {
+					if(pl.getName().equalsIgnoreCase(args[1])) {
+						pl.sendMessage("§a"+p.getName()+ " kicked you from "+guild.getName());
+					}
+				}
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("delete") && args.length == 2) {
 				Guild g = FactionManager.getGuildByString(args[1]);
 				if(g == null) {
