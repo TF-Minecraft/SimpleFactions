@@ -25,7 +25,12 @@ public final class MercenaryCompanyService {
      * Formation
      * ===================================================== */
 
-    public static MercenaryResult requestFormation(Guild guild, String actor, String name) {
+    /**
+     * Every formation rule except the debit, so the command can refuse before it
+     * shows the cost confirmation. {@link #requestFormation} checks again because
+     * the bank or the guild may change while the confirmation is open.
+     */
+    public static MercenaryResult canFound(Guild guild, String actor, String name) {
         if (guild == null) {
             return MercenaryResult.deny("You are not in a guild.");
         }
@@ -44,8 +49,7 @@ public final class MercenaryCompanyService {
         if (name == null || name.isBlank()) {
             return MercenaryResult.deny("Give the company a name.");
         }
-        Regiment regiment = MercenaryCompany.cloneMercenaryRegiment();
-        if (regiment == null) {
+        if (MercenaryCompany.cloneMercenaryRegiment() == null) {
             return MercenaryResult.deny("Mercenary companies are not configured on this server.");
         }
         double cost = Cache.mercenaryFormationCost;
@@ -56,14 +60,28 @@ public final class MercenaryCompanyService {
         if (bank.getWealth() == null || bank.getWealth() < cost) {
             return MercenaryResult.deny("Your guild bank needs " + money(cost) + " to found a company.");
         }
-        bank.withdraw(cost);
-        guild.setCompany(new MercenaryCompany(
-                guild,
-                StringFormatter.formatHex(Formatter.formatName(name.trim())),
-                regiment,
-                Cache.mercenaryFormationSeconds));
-        return MercenaryResult.ok("Your company will be ready in "
+        return MercenaryResult.ok("");
+    }
+
+    public static MercenaryResult requestFormation(Guild guild, String actor, String name) {
+        MercenaryResult check = canFound(guild, actor, name);
+        if (!check.ok()) {
+            return check;
+        }
+        Regiment regiment = MercenaryCompany.cloneMercenaryRegiment();
+        double cost = Cache.mercenaryFormationCost;
+        guild.getBank().withdraw(cost);
+        MercenaryCompany company = new MercenaryCompany(
+                guild, displayName(name), regiment, Cache.mercenaryFormationSeconds);
+        guild.setCompany(company);
+        return MercenaryResult.ok("Founding " + company.getName() + "§a for " + money(cost)
+                + " from the guild bank. It will be ready in "
                 + hours(Cache.mercenaryFormationSeconds) + ".");
+    }
+
+    /** The name as the company will carry it, so the confirmation shows it the same way. */
+    public static String displayName(String raw) {
+        return StringFormatter.formatHex(Formatter.formatName(raw.trim()));
     }
 
     /* =====================================================

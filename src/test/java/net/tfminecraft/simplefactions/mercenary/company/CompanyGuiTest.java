@@ -194,8 +194,19 @@ class CompanyGuiTest {
 
         MercenaryCompanyService.requestFormation(fixture.guild, fixture.leader(), "Hired Blades");
         List<String> forming = creator.buildFormingLore(fixture.company());
-        assertTrue(forming.stream().anyMatch(line -> line.contains("Founding")));
+        assertTrue(forming.stream().anyMatch(line -> line.contains("Being founded")));
         assertTrue(forming.stream().anyMatch(line -> line.contains("Ready in")));
+    }
+
+    @Test
+    void foundingConfirmationQuotesCostAndBank() {
+        List<String> lore = creator.buildFoundConfirmLore(fixture.guild);
+        assertTrue(lore.stream().anyMatch(line ->
+                line.contains("Cost") && line.contains(Formatter.formatMoney(100.0))
+                        && line.contains("guild bank")));
+        assertTrue(lore.stream().anyMatch(line ->
+                line.contains("Guild bank") && line.contains(Formatter.formatMoney(1000.0))));
+        assertTrue(lore.stream().anyMatch(line -> line.contains("not refunded")));
     }
 
     @Test
@@ -203,6 +214,7 @@ class CompanyGuiTest {
         MercenaryCompany company = formedCompany();
         List<String> lines = new java.util.ArrayList<>();
         lines.addAll(creator.buildFoundingLore());
+        lines.addAll(creator.buildFoundConfirmLore(fixture.guild));
         lines.addAll(creator.buildFormingLore(company));
         lines.addAll(creator.buildCompanyLore(fixture.guild, company));
         lines.addAll(creator.buildSlotLore(null));

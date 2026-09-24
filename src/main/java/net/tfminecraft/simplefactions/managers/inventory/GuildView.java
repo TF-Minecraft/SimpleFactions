@@ -404,7 +404,8 @@ public class GuildView {
 				return;
 			} else if(e.getSlot() == COMPANY_SLOT) {
 				if(guild.isBase()) return;
-				if(guild.getCompany() == null || guild.getCompany().isForming()) {
+				if(guild.getCompany() == null) {
+					p.sendMessage("§7Use §e/company found <name> §7to found a mercenary company.");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 					return;
 				}

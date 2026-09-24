@@ -58,6 +58,9 @@ public class CompanyView {
 			i.setItem(ROSTER_BUTTON, creator.createRosterButton(guild));
 			i.setItem(UPGRADES_BUTTON, creator.createUpgradesButton(guild));
 			i.setItem(CONTRACTS_BUTTON, inv.contractView.creator.createContractsButton(company));
+		} else if (company != null) {
+			// Still being founded: the standard carries the countdown, nothing else opens yet.
+			i.setItem(4, creator.createStandardItem(guild, company));
 		} else {
 			i.setItem(4, creator.createCompanyEntryItem(guild));
 		}
