@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -825,6 +826,18 @@ public class InventoryManager implements Listener{
 		if (inv.getHolder() instanceof SFInventoryHolder
 				&& ((SFInventoryHolder) inv.getHolder()).getType() == SFGUI.PLAYER_LEDGER_VIEW) {
 			e.setCancelled(true);
+		}
+		// Confirm screens have no holder; an item dragged into one is lost when it closes.
+		if (e.getView().getTitle().equalsIgnoreCase("§7Confirm Action")
+				&& e.getRawSlots().stream().anyMatch(slot -> slot < inv.getSize())) {
+			e.setCancelled(true);
+		}
+	}
+
+	@EventHandler
+	public void clearPendingOnQuit(PlayerQuitEvent e) {
+		if (pendingCompanyFounds.remove(e.getPlayer()) != null) {
+			confirming.remove(e.getPlayer());
 		}
 	}
 
