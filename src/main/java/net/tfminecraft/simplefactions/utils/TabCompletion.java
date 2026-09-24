@@ -187,6 +187,7 @@ public class TabCompletion implements TabCompleter{
 				}
 				if(FactionManager.getGuildByLeader(p.getName()) != null) {
 					completions.add("invite");
+					completions.add("kick");
 					completions.add("setleader");
 					completions.add("rename");
 					completions.add("setbanner");
@@ -393,6 +394,18 @@ public class TabCompletion implements TabCompleter{
 				List<String> completions = new ArrayList<String>();
 				for(Player p : Bukkit.getOnlinePlayers()) {
 					completions.add(p.getName());
+				}
+				return completions;
+			}
+		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("kick")){
+			if(sender instanceof Player){
+				Player p = (Player) sender;
+				Guild g = FactionManager.getGuildByLeader(p.getName());
+				List<String> completions = new ArrayList<String>();
+				if(g != null && !g.isBase()) {
+					for(String member : g.getMembers()) {
+						if(!member.equalsIgnoreCase(g.getLeader())) completions.add(member);
+					}
 				}
 				return completions;
 			}
