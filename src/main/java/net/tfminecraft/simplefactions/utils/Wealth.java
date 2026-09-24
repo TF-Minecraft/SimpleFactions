@@ -4,29 +4,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.denareconomy.DenarEconomy;
+import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.denareconomy.enums.Accounts;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 
 public class Wealth {
-    // Existing configuration identifies offline profiles by player name, not UUID.
-    @SuppressWarnings("deprecation")
     public static double wealth(String player) {
-        double wealth = 0;
-        OfflinePlayer op = Bukkit.getOfflinePlayer(player);
-        if(op.hasPlayedBefore()) {
-            UUID uuid = op.getUniqueId();
-            wealth += DenarEconomy.getMoneyManager().getBalance(Accounts.POUCH, uuid);
-            wealth += DenarEconomy.getMoneyManager().getBalance(Accounts.BANK, uuid);
-        }
+        double wealth = OfflineModifier.balance(player, Accounts.POUCH);
+        wealth += OfflineModifier.balance(player, Accounts.BANK);
         Guild guild = FactionManager.getGuildByMember(player);
         if(guild != null) {
             if(guild.getLeader().equalsIgnoreCase(player) && guild.isBase()) {

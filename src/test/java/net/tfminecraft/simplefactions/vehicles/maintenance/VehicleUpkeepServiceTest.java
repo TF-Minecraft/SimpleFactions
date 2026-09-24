@@ -88,6 +88,7 @@ class VehicleUpkeepServiceTest {
     void successfulUpkeepWithdrawsBankAndRecordsLedger() {
         UUID playerUuid = UUID.randomUUID();
         bank.setBalance(playerUuid, 100.0);
+        bank.remember("Alice", playerUuid);
         VehicleOwnershipQueries.setSourceForTests(
                 new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
 
@@ -101,9 +102,44 @@ class VehicleUpkeepServiceTest {
     }
 
     @Test
+    void offlineOwnerIsChargedOnTheResolvedAccount() {
+        UUID playerUuid = UUID.randomUUID();
+        UUID standIn = UUID.randomUUID();
+        bank.setBalance(playerUuid, 100.0);
+        bank.remember("Alice", playerUuid);
+        VehicleOwnershipQueries.setSourceForTests(
+                new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
+
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", standIn)) {
+            service.processDailyUpkeep();
+        }
+
+        assertEquals(80.0, bank.getBankBalance(playerUuid));
+        assertEquals(0.0, bank.getBankBalance(standIn));
+        assertEquals(-20.0, economyManager.getLedger(playerUuid).getAmount(PlayerCashflow.VEHICLE_UPKEEP));
+        assertFalse(store.isUnpaid("vehicle-1"));
+    }
+
+    @Test
+    void unknownOwnerIsUnpaidInsteadOfChargedToAStandIn() {
+        UUID standIn = UUID.randomUUID();
+        bank.setBalance(standIn, 100.0);
+        VehicleOwnershipQueries.setSourceForTests(
+                new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
+
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", standIn)) {
+            service.processDailyUpkeep();
+        }
+
+        assertEquals(100.0, bank.getBankBalance(standIn));
+        assertTrue(store.isUnpaid("vehicle-1"));
+    }
+
+    @Test
     void insufficientBalanceSkipsCharge() {
         UUID playerUuid = UUID.randomUUID();
         bank.setBalance(playerUuid, 10.0);
+        bank.remember("Alice", playerUuid);
         VehicleOwnershipQueries.setSourceForTests(
                 new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
 
@@ -120,6 +156,7 @@ class VehicleUpkeepServiceTest {
     void successfulUpkeepClearsExistingUnpaid() {
         UUID playerUuid = UUID.randomUUID();
         bank.setBalance(playerUuid, 100.0);
+        bank.remember("Alice", playerUuid);
         store.markUnpaid("vehicle-1", 1L);
         VehicleOwnershipQueries.setSourceForTests(
                 new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
@@ -145,6 +182,7 @@ class VehicleUpkeepServiceTest {
     void skipsBerthedVehicles() {
         UUID playerUuid = UUID.randomUUID();
         bank.setBalance(playerUuid, 100.0);
+        bank.remember("Alice", playerUuid);
         registry.register(new PlayerVehicleRecord(
             playerUuid,
             "vehicle-1",
@@ -203,8 +241,22 @@ class VehicleUpkeepServiceTest {
     private static final class TestPlayerBank implements PlayerBank {
         private final Map<UUID, Double> balances = new HashMap<>();
 
+        private final Map<String, UUID> names = new HashMap<>();
+
         void setBalance(UUID playerUuid, double balance) {
             balances.put(playerUuid, balance);
+        }
+
+        void remember(String playerName, UUID playerUuid) {
+            names.put(playerName.toLowerCase(java.util.Locale.ROOT), playerUuid);
+        }
+
+        @Override
+        public UUID resolve(String playerName) {
+            if (playerName == null) {
+                return null;
+            }
+            return names.get(playerName.toLowerCase(java.util.Locale.ROOT));
         }
 
         @Override

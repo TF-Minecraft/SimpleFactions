@@ -54,6 +54,7 @@ import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.denareconomy.DenarEconomy;
+import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.denareconomy.enums.Accounts;
 
 public class FactionManager implements Listener{
@@ -495,8 +496,6 @@ public class FactionManager implements Listener{
 		}
 	}
 
-	// Existing configuration identifies offline profiles by player name, not UUID.
-	@SuppressWarnings("deprecation")
 	public void settleIncome() {
 		DailyGuildTransfers buffer = new DailyGuildTransfers();
 
@@ -555,7 +554,7 @@ public class FactionManager implements Listener{
 				buffer,
 				DenarEconomyPlayerBank.INSTANCE,
 				PlayerEconomyManager.get(),
-				name -> Bukkit.getOfflinePlayer(name).getUniqueId());
+				OfflineModifier::playerId);
 		for (Guild g : getAllGuilds()) {
 			g.refreshDividendEligibility();
 		}

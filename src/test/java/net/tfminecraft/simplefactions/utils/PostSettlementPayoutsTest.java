@@ -189,5 +189,10 @@ class PostSettlementPayoutsTest {
 			balances.put(playerUuid, balance(playerUuid) + amount);
 			return true;
 		}
+
+		@Override
+		public UUID resolve(String playerName) {
+			return null;
+		}
 	}
 }
