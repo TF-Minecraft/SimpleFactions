@@ -5,9 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-
+import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -47,15 +45,8 @@ public final class MercenaryEngagements {
         return uuids;
     }
 
-    // Existing configuration identifies offline profiles by player name, not UUID.
-    @SuppressWarnings("deprecation")
     public static PlayerUuidLookup bukkitUuids() {
-        return name -> {
-            if (name == null || Bukkit.getServer() == null) return null;
-            Player online = Bukkit.getPlayerExact(name);
-            if (online != null) return online.getUniqueId();
-            return Bukkit.getOfflinePlayer(name).getUniqueId();
-        };
+        return OfflineModifier::playerId;
     }
 
     public static List<Engagement> on(War war, Side side) {

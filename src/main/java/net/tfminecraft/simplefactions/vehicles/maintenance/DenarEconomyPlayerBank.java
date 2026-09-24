@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 import java.util.UUID;
 
-import net.tfminecraft.denareconomy.DenarEconomy;
+import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.denareconomy.enums.Accounts;
 
 public final class DenarEconomyPlayerBank {
@@ -12,6 +12,9 @@ public final class DenarEconomyPlayerBank {
         boolean withdrawFromBank(UUID playerUuid, double amount);
 
         boolean depositToBank(UUID playerUuid, double amount);
+
+        /** Account id for this name, whether or not they are logged in. */
+        UUID resolve(String playerName);
     }
 
     public interface PlayerPouch {
@@ -28,53 +31,33 @@ public final class DenarEconomyPlayerBank {
         private Impl() {}
 
         @Override
+        public UUID resolve(String playerName) {
+            return OfflineModifier.playerId(playerName);
+        }
+
+        @Override
         public double getBankBalance(UUID playerUuid) {
-            if (playerUuid == null) {
-                return 0.0;
-            }
-            DenarEconomy.getPlayerManager().get(playerUuid);
-            return DenarEconomy.getMoneyManager().getBalance(Accounts.BANK, playerUuid);
+            return OfflineModifier.balance(playerUuid, Accounts.BANK);
         }
 
         @Override
         public boolean withdrawFromBank(UUID playerUuid, double amount) {
-            return withdraw(playerUuid, amount, Accounts.BANK);
+            return amount > 0.0 && OfflineModifier.apply(playerUuid, Accounts.BANK, -amount);
         }
 
         @Override
         public boolean depositToBank(UUID playerUuid, double amount) {
-            if (playerUuid == null || amount <= 0.0) {
-                return false;
-            }
-            DenarEconomy.getPlayerManager().get(playerUuid);
-            DenarEconomy.getMoneyManager().changeBal(playerUuid.toString(), amount, Accounts.BANK);
-            return true;
+            return amount > 0.0 && OfflineModifier.apply(playerUuid, Accounts.BANK, amount);
         }
 
         @Override
         public double getPouchBalance(UUID playerUuid) {
-            if (playerUuid == null) {
-                return 0.0;
-            }
-            DenarEconomy.getPlayerManager().get(playerUuid);
-            return DenarEconomy.getMoneyManager().getBalance(Accounts.POUCH, playerUuid);
+            return OfflineModifier.balance(playerUuid, Accounts.POUCH);
         }
 
         @Override
         public boolean withdrawFromPouch(UUID playerUuid, double amount) {
-            return withdraw(playerUuid, amount, Accounts.POUCH);
-        }
-
-        private boolean withdraw(UUID playerUuid, double amount, Accounts account) {
-            if (playerUuid == null || amount <= 0.0) {
-                return false;
-            }
-            double balance = DenarEconomy.getMoneyManager().getBalance(account, playerUuid);
-            if (balance < amount) {
-                return false;
-            }
-            DenarEconomy.getMoneyManager().changeBal(playerUuid.toString(), -amount, account);
-            return true;
+            return amount > 0.0 && OfflineModifier.apply(playerUuid, Accounts.POUCH, -amount);
         }
     }
 }

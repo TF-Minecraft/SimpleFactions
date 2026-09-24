@@ -4,9 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
-
+import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.player.income.PlayerLedger;
 
@@ -24,14 +22,8 @@ public final class PlayerEconomyManager {
         return ledgers.computeIfAbsent(playerUuid, ignored -> new PlayerLedger());
     }
 
-    // Existing configuration identifies offline profiles by player name, not UUID.
-    @SuppressWarnings("deprecation")
     public PlayerLedger getLedger(String playerName) {
-        if (playerName == null || playerName.isBlank()) {
-            return new PlayerLedger();
-        }
-        OfflinePlayer offline = Bukkit.getOfflinePlayer(playerName);
-        UUID uuid = offline.getUniqueId();
+        UUID uuid = OfflineModifier.playerId(playerName);
         if (uuid == null) {
             return new PlayerLedger();
         }

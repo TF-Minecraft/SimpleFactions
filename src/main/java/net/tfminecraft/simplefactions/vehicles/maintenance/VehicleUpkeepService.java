@@ -54,8 +54,9 @@ public final class VehicleUpkeepService {
                 continue;
             }
             String playerName = VehicleOwnershipQueries.playerNameFromOwner(vehicle.getOwner());
-            UUID playerUuid = VehicleOwnershipQueries.resolvePlayerUuid(playerName);
+            UUID playerUuid = playerBank.resolve(playerName);
             if (playerUuid == null) {
+                markUnpaid(vehicle.getUuid(), vehicle.getTypeId(), null, upkeep, now);
                 continue;
             }
             chargePlayer(playerUuid, upkeep, vehicle.getTypeId(), vehicle.getUuid(), now);
@@ -80,35 +81,44 @@ public final class VehicleUpkeepService {
             return;
         }
         if (!playerBank.withdrawFromBank(playerUuid, upkeep)) {
-            maintenanceStore.markUnpaid(vehicleUuid, nowMillis);
-            persistMaintenance();
-            SimpleFactions plugin = SimpleFactions.getInstance();
-            if (plugin != null) {
-                plugin.getLogger().info(
-                    "Vehicle upkeep unpaid for player "
-                    + playerUuid
-                    + " vehicle "
-                    + vehicleTypeId
-                    + " amount "
-                    + upkeep
-                );
-            }
-            Player online = null;
-            if (Bukkit.getServer() != null) {
-                online = Bukkit.getPlayer(playerUuid);
-            }
-            if (online != null && online.isOnline()) {
-                online.sendMessage(
-                    "§cCould not pay vehicle upkeep ("
-                    + vehicleTypeId
-                    + "): insufficient bank balance."
-                );
-            }
+            markUnpaid(vehicleUuid, vehicleTypeId, playerUuid, upkeep, nowMillis);
             return;
         }
         economyManager.getLedger(playerUuid).add(PlayerCashflow.VEHICLE_UPKEEP, -upkeep);
         maintenanceStore.clearUnpaid(vehicleUuid);
         persistMaintenance();
+    }
+
+    private void markUnpaid(
+            String vehicleUuid,
+            String vehicleTypeId,
+            UUID playerUuid,
+            double upkeep,
+            long nowMillis) {
+        maintenanceStore.markUnpaid(vehicleUuid, nowMillis);
+        persistMaintenance();
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin != null) {
+            plugin.getLogger().info(
+                "Vehicle upkeep unpaid for player "
+                + playerUuid
+                + " vehicle "
+                + vehicleTypeId
+                + " amount "
+                + upkeep
+            );
+        }
+        if (playerUuid == null || Bukkit.getServer() == null) {
+            return;
+        }
+        Player online = Bukkit.getPlayer(playerUuid);
+        if (online != null && online.isOnline()) {
+            online.sendMessage(
+                "§cCould not pay vehicle upkeep ("
+                + vehicleTypeId
+                + "): insufficient bank balance."
+            );
+        }
     }
 
     private void persistMaintenance() {

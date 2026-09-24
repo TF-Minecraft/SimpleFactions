@@ -1,7 +1,5 @@
 package net.tfminecraft.simplefactions.managers;
 
-import java.util.UUID;
-
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
@@ -269,8 +267,6 @@ public class PlayerManager implements Listener{
         return i;
     }
 
-    // Existing configuration identifies offline profiles by player name, not UUID.
-    @SuppressWarnings("deprecation")
     @EventHandler
     public void earnMoney(PlayerEarnMoneyEvent e) {
         String playerName = e.getPlayer();
@@ -285,11 +281,7 @@ public class PlayerManager implements Listener{
 				}
 			}
 		}
-        Player online = Bukkit.getPlayerExact(playerName);
-        UUID playerUuid = online != null
-            ? online.getUniqueId()
-            : Bukkit.getOfflinePlayer(playerName).getUniqueId();
-        PlayerLedger ledger = PlayerEconomyManager.get().getLedger(playerUuid);
+        PlayerLedger ledger = PlayerEconomyManager.get().getLedger(playerName);
         if (gross > 0) {
             ledger.add(PlayerCashflow.EARNINGS, gross);
         }

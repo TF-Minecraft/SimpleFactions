@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
+import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 import net.tfminecraft.vehicleframework.VehicleFramework;
@@ -91,18 +92,8 @@ public final class VehicleOwnershipQueries {
         return count;
     }
 
-    // Existing configuration identifies offline profiles by player name, not UUID.
-    @SuppressWarnings("deprecation")
     public static UUID resolvePlayerUuid(String playerName) {
-        if (playerName == null || playerName.isBlank() || Bukkit.getServer() == null) {
-            return null;
-        }
-        Player online = Bukkit.getPlayerExact(playerName);
-        if (online != null) {
-            return online.getUniqueId();
-        }
-        OfflinePlayer offline = Bukkit.getOfflinePlayer(playerName);
-        return offline.getUniqueId();
+        return OfflineModifier.playerId(playerName);
     }
 
     public static String resolvePlayerName(UUID playerUuid) {
