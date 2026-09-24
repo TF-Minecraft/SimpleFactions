@@ -8,6 +8,10 @@ import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceRep
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerPouch;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.*;
+
+import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
+import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,6 +31,7 @@ class VehicleMaintenancePayAndRepairTest {
     private VehicleMaintenanceStore store;
     private TestPlayerPouch pouch;
     private VehicleMaintenancePayService payService;
+    private PlayerBank bank;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -46,7 +51,8 @@ class VehicleMaintenancePayAndRepairTest {
         VehiclesConfigLoader.load(vehiclesYaml.toFile());
         store = new VehicleMaintenanceStore();
         pouch = new TestPlayerPouch();
-        payService = new VehicleMaintenancePayService(store, pouch);
+        bank = mock(PlayerBank.class);
+        payService = new VehicleMaintenancePayService(store, pouch, bank);
     }
 
     @AfterEach
@@ -74,6 +80,7 @@ class VehicleMaintenancePayAndRepairTest {
                 payService.tryPay(playerUuid, "vehicle-1", "ironclad"));
         assertEquals(30.0, pouch.getPouchBalance(playerUuid));
         assertFalse(store.isUnpaid("vehicle-1"));
+        verifyNoInteractions(bank);
     }
 
     @Test
@@ -87,6 +94,47 @@ class VehicleMaintenancePayAndRepairTest {
                 payService.tryPay(playerUuid, "vehicle-1", "ironclad"));
         assertEquals(5.0, pouch.getPouchBalance(playerUuid));
         assertEquals(true, store.isUnpaid("vehicle-1"));
+    }
+
+    @Test
+    void bankPaymentChargesOnlyPayersBankAndAllowsRepair() {
+        UUID payer = UUID.randomUUID();
+        pouch.setBalance(payer, 50.0);
+        store.markUnpaid("vehicle-1", 1L);
+        when(bank.withdrawFromBank(payer, 20.0)).thenReturn(true);
+
+        assertEquals(VehicleMaintenancePayResult.SUCCESS,
+                payService.tryPay(payer, "vehicle-1", "ironclad", PaymentSource.BANK));
+        verify(bank).withdrawFromBank(payer, 20.0);
+        verifyNoMoreInteractions(bank);
+        assertEquals(50.0, pouch.getPouchBalance(payer));
+        assertFalse(VehicleMaintenanceRepairListener.shouldCancelRepair(store, "vehicle-1"));
+
+        assertEquals(VehicleMaintenancePayResult.NOT_UNPAID,
+                payService.tryPay(payer, "vehicle-1", "ironclad", PaymentSource.BANK));
+        verifyNoMoreInteractions(bank);
+    }
+
+    @Test
+    void failedBankPaymentLeavesUnpaidWithoutFallingBackToPouch() {
+        UUID payer = UUID.randomUUID();
+        pouch.setBalance(payer, 50.0);
+        store.markUnpaid("vehicle-1", 1L);
+
+        assertEquals(VehicleMaintenancePayResult.INSUFFICIENT_BANK,
+                payService.tryPay(payer, "vehicle-1", "ironclad", PaymentSource.BANK));
+        assertEquals(50.0, pouch.getPouchBalance(payer));
+        assertEquals(true, VehicleMaintenanceRepairListener.shouldCancelRepair(store, "vehicle-1"));
+        verify(bank).withdrawFromBank(payer, 20.0);
+    }
+
+    @Test
+    void unknownVehicleTypeDoesNotChargeBankOrClearUnpaid() {
+        store.markUnpaid("vehicle-1", 1L);
+        assertEquals(VehicleMaintenancePayResult.UNKNOWN_TYPE,
+                payService.tryPay(UUID.randomUUID(), "vehicle-1", "unknown", PaymentSource.BANK));
+        assertEquals(true, store.isUnpaid("vehicle-1"));
+        verifyNoInteractions(bank);
     }
 
     @Test

@@ -238,6 +238,9 @@ public class TabCompletion implements TabCompleter{
 				if(args.length == 3 && args[1].equalsIgnoreCase("transfer")) {
 					return completeInstallationIds(p, args[2], false);
 				}
+				if(args.length == 4 && args[1].equalsIgnoreCase("maintenance") && args[2].equalsIgnoreCase("pay")) {
+					return VehicleTabCompletions.filter(List.of("bank"), args[3]);
+				}
 				if(args.length == 3 && args[1].equalsIgnoreCase("maintenance")) {
 					return net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions.maintenanceActions(args[2]);
 				}
