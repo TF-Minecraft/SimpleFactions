@@ -64,8 +64,14 @@ class VehicleMaintenanceBankCommandTest {
         Player player = mock(Player.class);
         Command command = mock(Command.class);
         when(command.getName()).thenReturn("faction");
-        assertEquals(List.of("bank"), new TabCompletion().onTabComplete(player, command, "faction",
-                new String[] {"vehicle", "maintenance", "pay", "b"}));
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            List<String> rootCompletions = new TabCompletion().onTabComplete(
+                    player, command, "faction", new String[] {"v"});
+            assertTrue(rootCompletions.contains("vehicle"));
+            assertFalse(rootCompletions.contains("transfervehicle"));
+            assertEquals(List.of("bank"), new TabCompletion().onTabComplete(player, command, "faction",
+                    new String[] {"vehicle", "maintenance", "pay", "b"}));
+        }
     }
 
     @Test

@@ -273,6 +273,7 @@ public class TabCompletion implements TabCompleter{
 				completions.add("create");
 				completions.add("accept");
 				completions.add("join");
+				completions.add("vehicle");
 				
 				if(FactionManager.getByLeader(p.getName()) != null) {
 					if(Cache.provincesEnabled) {
@@ -282,7 +283,6 @@ public class TabCompletion implements TabCompleter{
 						completions.add("unclaim");
 						completions.add("setcapital");
 					}
-					completions.add("vehicle");
 					completions.add("transfervehicle");
 					completions.add("findvehicles");
 					completions.add("withdraw");
