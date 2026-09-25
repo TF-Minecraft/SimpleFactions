@@ -56,6 +56,43 @@ class MercenaryCompanyFormationTest {
         assertTrue(company.isFormed());
         assertEquals(1, company.getSlots());
         assertEquals(400.0, fixture.balance());
+        assertEquals(java.util.List.of("Ivar"), company.getEnlisted());
+        assertEquals(1, company.getFilledSlots());
+        assertFalse(company.hasFreeSlot());
+    }
+
+    @Test
+    void instantFormationEnlistsTheLeader() {
+        Cache.mercenaryFormationSeconds = 0;
+        CompanyFixture fixture = new CompanyFixture(500.0);
+
+        MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+
+        MercenaryCompany company = fixture.company();
+        assertTrue(company.isFormed());
+        assertTrue(company.isEnlisted("Ivar"));
+        assertEquals(1, company.getFilledSlots());
+    }
+
+    @Test
+    void leaderServingElsewhereLeavesTheFoundingSlotOpen() {
+        CompanyFixture other = new CompanyFixture(500.0);
+        MercenaryCompanyService.requestFormation(other.guild, "Ivar", "Other Blades");
+        other.company().tick();
+        other.company().tick();
+        CompanyFixture fixture = new CompanyFixture(500.0);
+        CompanyFixture.registerGlobally(other.guild, fixture.guild);
+        try {
+            MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+            fixture.company().tick();
+            fixture.company().tick();
+
+            assertTrue(fixture.company().isFormed());
+            assertTrue(fixture.company().getEnlisted().isEmpty());
+            assertTrue(fixture.company().hasFreeSlot());
+        } finally {
+            CompanyFixture.clearGlobalGuilds();
+        }
     }
 
     @Test

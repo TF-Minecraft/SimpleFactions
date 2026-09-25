@@ -2,9 +2,12 @@ package net.tfminecraft.simplefactions.army;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.loaders.RegimentLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
+import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
@@ -140,8 +143,29 @@ public class Military {
 		return ExpandResult.ok();
 	}
 	
+	/**
+	 * The main guild's company, once it has finished founding and has a regiment.
+	 * Only this company fights for the faction; companies of other guilds are
+	 * hired by contract.
+	 */
+	public MercenaryCompany getHomeCompany() {
+		if(f == null) return null;
+		GuildHandler handler = f.getGuildHandler();
+		if(handler == null) return null;
+		Guild main = handler.getGuild(f.getId());
+		if(main == null) return null;
+		MercenaryCompany company = main.getCompany();
+		return company != null && company.isFormed() && company.getRegiment() != null ? company : null;
+	}
+
+	/** Filled slots of the home company. Empty slots add nothing. */
+	public int getMercenaryManpower() {
+		MercenaryCompany company = getHomeCompany();
+		return company == null ? 0 : company.getFilledSlots();
+	}
+
 	public int getManpower(boolean offense) {
-		int manpower = 0;
+		int manpower = getMercenaryManpower();
 		for(Regiment r : getRegiments()) {
 			if(offense && !r.isOffensive()) continue;
 			if(r.isLevy()) {
@@ -156,7 +180,7 @@ public class Military {
 	}
 	
 	public int getManpowerNoLevy(boolean offense) {
-		int manpower = 0;
+		int manpower = getMercenaryManpower();
 		for(Regiment r : regiments) {
 			if(offense && !r.isOffensive()) continue;
 			if(r.isLevy()) continue;

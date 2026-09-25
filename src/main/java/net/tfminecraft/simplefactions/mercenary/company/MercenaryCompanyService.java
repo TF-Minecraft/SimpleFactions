@@ -74,6 +74,7 @@ public final class MercenaryCompanyService {
         MercenaryCompany company = new MercenaryCompany(
                 guild, displayName(name), regiment, Cache.mercenaryFormationSeconds);
         guild.setCompany(company);
+        if (company.isFormed()) company.enlistLeader();
         return MercenaryResult.ok("Founding " + company.getName() + "§a for " + money(cost)
                 + " from the guild bank. It will be ready in "
                 + hours(Cache.mercenaryFormationSeconds) + ".");

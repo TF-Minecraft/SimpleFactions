@@ -15,6 +15,7 @@ import net.tfminecraft.simplefactions.army.LevyEntry;
 import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.army.MilitaryExpansion;
 import net.tfminecraft.simplefactions.army.Regiment;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
@@ -116,6 +117,23 @@ public class MilitaryCreator {
 			lore.add(StringFormatter.formatHex("#c74d32Blocked"));
 			lore.add(StringFormatter.formatHex("#877e7c" + expand.reason()));
 		}
+		meta.setLore(lore);
+		i.setItemMeta(meta);
+		return i;
+	}
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createCompanyRegimentIcon(MercenaryCompany company) {
+		Regiment r = company.getRegiment();
+		ItemStack i = r.getIcon().clone();
+		ItemMeta meta = i.getItemMeta();
+		meta.setDisplayName(company.getName());
+		List<String> lore = new ArrayList<String>();
+		lore.add("§7Soldiers: §e"+company.getFilledSlots()+" §7("+company.getSlots()+" slots)");
+		lore.add(StringFormatter.formatHex("#877e7cOnly filled slots count toward offense"));
+		lore.add(" ");
+		lore.add(StringFormatter.formatHex("#a89977The main guild's mercenary company."));
+		lore.add(StringFormatter.formatHex("#a89977Slots and upkeep are managed by the company."));
 		meta.setLore(lore);
 		i.setItemMeta(meta);
 		return i;
