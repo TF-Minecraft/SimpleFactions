@@ -61,7 +61,7 @@ public class Compiler {
 
 		try (FileWriter writer = new FileWriter(outputFile, StandardCharsets.UTF_8)) {
 			gson.toJson(root, writer);
-			System.out.println("Successfully exported nations to: " + outputFile.getPath());
+			SimpleFactions.getInstance().getLogger().info("Successfully exported nations to: " + outputFile.getPath());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

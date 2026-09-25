@@ -661,8 +661,8 @@ public class FactionManager implements Listener{
 			if (plugin != null && plugin.getLogger() != null) {
 				plugin.getLogger().log(java.util.logging.Level.SEVERE, message, ex);
 			} else {
-				System.err.println(message);
-				ex.printStackTrace();
+				java.util.logging.Logger.getLogger(FactionManager.class.getName())
+						.log(java.util.logging.Level.SEVERE, message, ex);
 			}
 		}
 	}

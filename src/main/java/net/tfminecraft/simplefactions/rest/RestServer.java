@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
 
@@ -28,14 +29,14 @@ public class RestServer {
 		try {
 			GatewayClient.Result result = GatewayClient.request("GET", "/generator/banner", null);
 			if (!result.ok) {
-				System.out.println("[SimpleFactions] fetchBannerList failed: " + result.error);
+				SimpleFactions.getInstance().getLogger().warning("fetchBannerList failed: " + result.error);
 				return null;
 			}
 
 			Type listType = new TypeToken<ArrayList<String>>() {}.getType();
 			return gson.fromJson(result.body, listType);
 		} catch (Exception e) {
-			e.printStackTrace();
+			SimpleFactions.getInstance().getLogger().log(Level.WARNING, "Failed to fetch banner list", e);
 			return null;
 		}
 	}
@@ -66,12 +67,12 @@ public class RestServer {
 			);
 
 			if (result.ok) {
-				System.out.println(mode + " data uploaded");
+				SimpleFactions.getInstance().getLogger().info(mode + " data uploaded");
 			} else {
-				System.out.println("Upload failed for " + mode + ": " + result.error);
+				SimpleFactions.getInstance().getLogger().warning("Upload failed for " + mode + ": " + result.error);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			SimpleFactions.getInstance().getLogger().log(Level.WARNING, "Upload failed for " + mode, e);
 		}
 	}
 
@@ -115,15 +116,15 @@ public class RestServer {
 		try {
 			String path = "/" + Cache.mapRef + "/" + REGEN_HASH + "/api/regenerate/" + regenType;
 			GatewayClient.Result result = GatewayClient.request("GET", path, null);
-			System.out.println("Regeneration request response: " + (result.ok ? "OK" : result.error));
+			SimpleFactions.getInstance().getLogger().info("Regeneration request response: " + (result.ok ? "OK" : result.error));
 
 			if (result.ok) {
-				System.out.println("Regeneration triggered successfully.");
+				SimpleFactions.getInstance().getLogger().info("Regeneration triggered successfully.");
 			} else {
-				System.out.println("Regeneration failed: " + result.error);
+				SimpleFactions.getInstance().getLogger().warning("Regeneration failed: " + result.error);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			SimpleFactions.getInstance().getLogger().log(Level.WARNING, "Failed to request regeneration", e);
 		}
 	}
 }
