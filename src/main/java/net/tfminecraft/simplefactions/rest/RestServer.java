@@ -6,6 +6,8 @@ import java.io.FileReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.entity.Player;
 
@@ -24,18 +26,23 @@ public class RestServer {
 	private static final Gson gson = new Gson();
 	private static final String REGEN_HASH = "47a4921f7506514aec2d1471b424d8ae";
 
+	private static Logger logger() {
+		SimpleFactions plugin = SimpleFactions.getInstance();
+		return plugin != null ? plugin.getLogger() : Logger.getLogger(RestServer.class.getName());
+	}
+
 	public static List<String> fetchBannerList() {
 		try {
 			GatewayClient.Result result = GatewayClient.request("GET", "/generator/banner", null);
 			if (!result.ok) {
-				System.out.println("[SimpleFactions] fetchBannerList failed: " + result.error);
+				logger().warning("fetchBannerList failed: " + result.error);
 				return null;
 			}
 
 			Type listType = new TypeToken<ArrayList<String>>() {}.getType();
 			return gson.fromJson(result.body, listType);
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger().log(Level.WARNING, "Failed to fetch banner list", e);
 			return null;
 		}
 	}
@@ -66,12 +73,12 @@ public class RestServer {
 			);
 
 			if (result.ok) {
-				System.out.println(mode + " data uploaded");
+				logger().info(mode + " data uploaded");
 			} else {
-				System.out.println("Upload failed for " + mode + ": " + result.error);
+				logger().warning("Upload failed for " + mode + ": " + result.error);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger().log(Level.WARNING, "Upload failed for " + mode, e);
 		}
 	}
 
@@ -115,15 +122,15 @@ public class RestServer {
 		try {
 			String path = "/" + Cache.mapRef + "/" + REGEN_HASH + "/api/regenerate/" + regenType;
 			GatewayClient.Result result = GatewayClient.request("GET", path, null);
-			System.out.println("Regeneration request response: " + (result.ok ? "OK" : result.error));
+			logger().info("Regeneration request response: " + (result.ok ? "OK" : result.error));
 
 			if (result.ok) {
-				System.out.println("Regeneration triggered successfully.");
+				logger().info("Regeneration triggered successfully.");
 			} else {
-				System.out.println("Regeneration failed: " + result.error);
+				logger().warning("Regeneration failed: " + result.error);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger().log(Level.WARNING, "Failed to request regeneration", e);
 		}
 	}
 }

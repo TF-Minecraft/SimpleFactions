@@ -13,11 +13,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.map.MapRegion;
 
 public final class RegionLoader {
@@ -27,6 +29,11 @@ public final class RegionLoader {
 	private static List<MapRegion> regions = new ArrayList<>();
 	private static Map<String, MapRegion> byId = new HashMap<>();
 	private static Map<Integer, MapRegion> byProvince = new HashMap<>();
+
+	private static Logger logger() {
+		SimpleFactions plugin = SimpleFactions.getInstance();
+		return plugin != null ? plugin.getLogger() : Logger.getLogger(RegionLoader.class.getName());
+	}
 
 	private RegionLoader() {
 	}
@@ -47,7 +54,7 @@ public final class RegionLoader {
 		try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
 			JsonElement parsed = JsonParser.parseReader(reader);
 			if (!parsed.isJsonObject()) {
-				System.err.println("[SimpleFactions] regions.json must be a JSON object");
+				logger().warning("regions.json must be a JSON object");
 				return;
 			}
 			loadFrom(parsed.getAsJsonObject());
@@ -94,8 +101,8 @@ public final class RegionLoader {
 			for (int provinceId : provinces) {
 				if (byProvince.containsKey(provinceId)) {
 					MapRegion existing = byProvince.get(provinceId);
-					System.err.println(
-							"[SimpleFactions] Province "
+					logger().warning(
+							"Province "
 									+ provinceId
 									+ " is in both '"
 									+ existing.getId()

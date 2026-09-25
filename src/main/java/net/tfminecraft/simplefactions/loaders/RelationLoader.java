@@ -5,11 +5,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.diplomacy.Attitude;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 
@@ -109,6 +111,8 @@ public class RelationLoader {
 		return null;
 	}
 	public void loadRelationTypes(File configFile) {
+		SimpleFactions plugin = SimpleFactions.getInstance();
+		Logger logger = plugin != null ? plugin.getLogger() : Logger.getLogger(RelationLoader.class.getName());
 		FileConfiguration config = new YamlConfiguration();
         try {
         	config.load(configFile);
@@ -121,7 +125,7 @@ public class RelationLoader {
 		types.clear();
 		for(String key : list) {
 			RelationType r = new RelationType(key, config.getConfigurationSection("types."+key));
-			System.out.println("loaded relationtype "+r.getId());
+			logger.info("loaded relationtype "+r.getId());
 			types.add(r);
 		}
 	}

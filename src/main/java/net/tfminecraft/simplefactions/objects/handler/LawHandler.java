@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -98,7 +99,7 @@ public class LawHandler {
                 if (SimpleFactions.plugin != null) {
                     SimpleFactions.plugin.getLogger().warning(message);
                 } else {
-                    System.out.println(message);
+                    Logger.getLogger(LawHandler.class.getName()).warning(message);
                 }
             } else {
                 switch (scope) {

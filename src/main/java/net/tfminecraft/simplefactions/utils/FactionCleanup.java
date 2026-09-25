@@ -13,6 +13,7 @@ import java.util.Map;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 
@@ -58,7 +59,7 @@ public class FactionCleanup {
                         }
                         if(!faction.canBeCleanKicked(member)) continue;
                         faction.forceRemoveMember(member);
-                        System.out.println("Kicked " + member + " from faction " + faction.getName() + " (offline for " + daysOffline + " days)");
+                        SimpleFactions.getInstance().getLogger().info("Kicked " + member + " from faction " + faction.getName() + " (offline for " + daysOffline + " days)");
                     }
                 }
             }
