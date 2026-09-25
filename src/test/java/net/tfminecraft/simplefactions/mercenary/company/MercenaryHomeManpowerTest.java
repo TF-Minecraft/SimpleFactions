@@ -86,4 +86,15 @@ class MercenaryHomeManpowerTest {
         assertNull(military.getHomeCompany());
         assertEquals(6, military.getManpower(true));
     }
+
+    @Test
+    void companyWithoutARegimentDoesNotCount() {
+        MercenaryCompany company = new MercenaryCompany(fixture.guild, "Hired Blades", null, 0);
+        fixture.guild.setCompany(company);
+        when(handler.getGuild("hired_blades")).thenReturn(fixture.guild);
+        Military military = new Military(faction);
+
+        assertNull(military.getHomeCompany());
+        assertEquals(6, military.getManpower(true));
+    }
 }

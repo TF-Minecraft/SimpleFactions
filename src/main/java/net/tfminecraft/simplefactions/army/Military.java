@@ -144,8 +144,9 @@ public class Military {
 	}
 	
 	/**
-	 * The main guild's company, when it has finished founding. Only this company
-	 * fights for the faction; companies of other guilds are hired by contract.
+	 * The main guild's company, once it has finished founding and has a regiment.
+	 * Only this company fights for the faction; companies of other guilds are
+	 * hired by contract.
 	 */
 	public MercenaryCompany getHomeCompany() {
 		if(f == null) return null;
@@ -154,7 +155,7 @@ public class Military {
 		Guild main = handler.getGuild(f.getId());
 		if(main == null) return null;
 		MercenaryCompany company = main.getCompany();
-		return company != null && company.isFormed() ? company : null;
+		return company != null && company.isFormed() && company.getRegiment() != null ? company : null;
 	}
 
 	/** Filled slots of the home company. Empty slots add nothing. */
