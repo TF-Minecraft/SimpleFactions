@@ -376,7 +376,8 @@ public class FactionView {
 						return;
 					}
 					f.setBannerPatterns(patterns);
-					inventory.setItem(10, creator.createMenuItem(p, f, MenuItemType.BANNER));
+					BannerFetcher.refreshOpenView(p, SFGUI.FACTION_VIEW, f.getId(),
+							() -> creator.createMenuItem(p, f, MenuItemType.BANNER));
 					if (p.isOnline()) p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				});
 			} else if(e.getSlot() == 1) {

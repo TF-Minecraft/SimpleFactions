@@ -327,7 +327,8 @@ public class GuildView {
 						return;
 					}
 					guild.setBannerPatterns(patterns);
-					inventory.setItem(10, creator.createMenuItem(p, guild, MenuItemType.BANNER));
+					BannerFetcher.refreshOpenView(p, SFGUI.GUILD_VIEW, guild.getId(),
+							() -> creator.createMenuItem(p, guild, MenuItemType.BANNER));
 					if (p.isOnline()) p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				});
 			} else if(e.getSlot() == 1) {

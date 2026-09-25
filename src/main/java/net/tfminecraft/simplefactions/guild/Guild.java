@@ -163,8 +163,11 @@ public class Guild {
         this.dividendEligible = new ArrayList<>(members);
         createBanner();
         // Keyed per object, like the fetch in Faction's constructor.
+        List<String> placeholder = this.bannerPatterns;
         BannerFetcher.fetch("new-guild:" + System.identityHashCode(this), patterns -> {
-            if (patterns != null) setBannerPatterns(patterns);
+            // A banner the leader picked while the API was slow wins over the generated one.
+            if (patterns == null || bannerPatterns != placeholder || !BannerFetcher.isPlaceholder(placeholder)) return;
+            setBannerPatterns(patterns);
         });
     }
 

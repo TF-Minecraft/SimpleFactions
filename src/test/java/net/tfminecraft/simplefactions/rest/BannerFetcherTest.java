@@ -71,6 +71,16 @@ class BannerFetcherTest {
 	}
 
 	@Test
+	void keyIsHeldUntilTheMainThreadCallbackRan() {
+		Queue main = new Queue();
+		assertTrue(BannerFetcher.fetch("t:held", p -> {}, () -> List.of("RED.BASE"), DIRECT, main));
+		assertFalse(BannerFetcher.fetch("t:held", p -> {}, () -> List.of("RED.BASE"), DIRECT, DIRECT));
+
+		main.run();
+		assertTrue(BannerFetcher.fetch("t:held", p -> {}, () -> List.of("RED.BASE"), DIRECT, DIRECT));
+	}
+
+	@Test
 	void failedOrEmptyResultDeliversNull() {
 		AtomicReference<List<String>> delivered = new AtomicReference<>(List.of("x"));
 		BannerFetcher.fetch("t:null", delivered::set, () -> null, DIRECT, DIRECT);
@@ -99,5 +109,8 @@ class BannerFetcherTest {
 		assertEquals(List.of("WHITE.BASE"), patterns);
 		patterns.clear();
 		assertEquals(List.of("WHITE.BASE"), BannerFetcher.placeholder());
+		assertTrue(BannerFetcher.isPlaceholder(BannerFetcher.placeholder()));
+		assertFalse(BannerFetcher.isPlaceholder(List.of("WHITE.BASE", "RED.CROSS")));
+		assertFalse(BannerFetcher.isPlaceholder(null));
 	}
 }

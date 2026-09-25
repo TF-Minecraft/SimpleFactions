@@ -9,14 +9,22 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.enums.SFGUI;
+import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 
 /**
  * Generates banners off the server thread. The banner API can hang for the whole gateway
  * timeout, and one click on the server thread used to freeze the server for that long.
  */
 public final class BannerFetcher {
+
+	/** Where the faction and guild views show the banner. */
+	public static final int BANNER_SLOT = 10;
 
 	private static final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
@@ -27,6 +35,23 @@ public final class BannerFetcher {
 		List<String> patterns = new ArrayList<>();
 		patterns.add("WHITE.BASE");
 		return patterns;
+	}
+
+	/** True while {@code patterns} still holds the untouched placeholder. */
+	public static boolean isPlaceholder(List<String> patterns) {
+		return placeholder().equals(patterns);
+	}
+
+	/**
+	 * Puts {@code item} in the banner slot of the view the player has open now, if it is the
+	 * {@code type} view for {@code id}. The player may have reopened it since clicking.
+	 */
+	public static void refreshOpenView(Player player, SFGUI type, String id, Supplier<ItemStack> item) {
+		if (player == null || !player.isOnline()) return;
+		Inventory top = player.getOpenInventory().getTopInventory();
+		if (!(top.getHolder() instanceof SFInventoryHolder holder)) return;
+		if (holder.getType() != type || id == null || !id.equals(holder.getId())) return;
+		top.setItem(BANNER_SLOT, item.get());
 	}
 
 	/**
@@ -56,14 +81,21 @@ public final class BannerFetcher {
 		if (!inFlight.add(key)) return false;
 		try {
 			async.execute(() -> {
-				List<String> patterns = null;
+				// Held until the callback has run, so a click just before it cannot start a second fetch.
 				try {
-					patterns = source.get();
-				} finally {
+					List<String> patterns = source.get();
+					List<String> result = patterns == null || patterns.isEmpty() ? null : patterns;
+					main.execute(() -> {
+						try {
+							onMainThread.accept(result);
+						} finally {
+							inFlight.remove(key);
+						}
+					});
+				} catch (RuntimeException e) {
 					inFlight.remove(key);
+					throw e;
 				}
-				List<String> result = patterns == null || patterns.isEmpty() ? null : patterns;
-				main.execute(() -> onMainThread.accept(result));
 			});
 		} catch (RuntimeException e) {
 			inFlight.remove(key);

@@ -162,8 +162,11 @@ public class Faction {
 		guildHandler.addGuild(new Guild(this));
 		createBanner(bannerPatterns);
 		// Keyed per object: FactionCreateEvent can cancel this one, and the retry needs its own fetch.
+		List<String> placeholder = this.bannerPatterns;
 		BannerFetcher.fetch("new-faction:" + System.identityHashCode(this), patterns -> {
-			if (patterns != null) setBannerPatterns(patterns);
+			// A banner the leader picked while the API was slow wins over the generated one.
+			if (patterns == null || bannerPatterns != placeholder || !BannerFetcher.isPlaceholder(placeholder)) return;
+			setBannerPatterns(patterns);
 		});
 		updatePrestige();
 		updateTier();
