@@ -39,6 +39,7 @@ public class Cache {
 	public static int maxUntitledProvinces;
 	public static int maxFreeTitles;
 	public static double deJureRequirement;
+	public static double lawSwitchLockDays = 3.0;
 	public static boolean mapEnabled;
 	public static boolean provincesEnabled = true;
 	public static boolean chronicleEnabled = true;

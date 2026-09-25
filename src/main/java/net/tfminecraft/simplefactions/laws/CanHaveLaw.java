@@ -18,11 +18,41 @@ public final class CanHaveLaw {
 		if (isCurrentInGroup(faction, law)) {
 			return null;
 		}
+		String lockReason = lockReason(faction, law, System.currentTimeMillis());
+		if (lockReason != null) {
+			return lockReason;
+		}
 		String requirementReason = requirementsReason(faction, law);
 		if (requirementReason != null) {
 			return requirementReason;
 		}
 		return compatibilityReason(faction, law);
+	}
+
+	/** Why the law's group cannot be switched yet, or null if it can. */
+	public static String lockReason(Faction faction, Law law, long now) {
+		if (faction == null || faction.getLawHandler() == null || law == null || law.getGroup() == null) {
+			return null;
+		}
+		LawGroup group = faction.getLawHandler().getGroup(law.getGroup());
+		if (group == null) {
+			return null;
+		}
+		long remaining = group.lockRemaining(now);
+		if (remaining <= 0) {
+			return null;
+		}
+		return "§cThis law was changed recently. It can change again in " + formatRemaining(remaining) + ".";
+	}
+
+	static String formatRemaining(long millis) {
+		long minutes = Math.max(1, (millis + 59_999) / 60_000);
+		long days = minutes / 1440;
+		long hours = minutes % 1440 / 60;
+		long mins = minutes % 60;
+		if (days > 0) return days + "d " + hours + "h";
+		if (hours > 0) return hours + "h " + mins + "m";
+		return mins + "m";
 	}
 
 	private static boolean isCurrentInGroup(Faction faction, Law law) {

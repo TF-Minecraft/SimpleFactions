@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.bukkit.configuration.ConfigurationSection;
 
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
@@ -17,6 +18,7 @@ public class LawGroup {
     private String id;
     private String name;
     private Law current;
+    private long changedAt; // epoch millis of the last switch, 0 if never
     private Map<String, Law> laws = new LinkedHashMap<>();
     private List<String> description = new ArrayList<>();
 
@@ -67,5 +69,22 @@ public class LawGroup {
     public void setCurrent(Law law) {
         if(!laws.containsValue(law)) return;
         current = law;
+    }
+
+    /** Sets the law and, if it differs from the current one, starts the switch lock. */
+    public void switchTo(Law law, long now) {
+        if(!laws.containsValue(law)) return;
+        if(law != current) changedAt = now;
+        current = law;
+    }
+
+    public long getChangedAt() { return changedAt; }
+    public void setChangedAt(long changedAt) { this.changedAt = changedAt; }
+
+    /** Millis left before this group may be switched again, 0 if it may be now. */
+    public long lockRemaining(long now) {
+        if(changedAt <= 0 || Cache.lawSwitchLockDays <= 0) return 0;
+        long until = changedAt + (long) (Cache.lawSwitchLockDays * 86_400_000L);
+        return Math.max(0, until - now);
     }
 }

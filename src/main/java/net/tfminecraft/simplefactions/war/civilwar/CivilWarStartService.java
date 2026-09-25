@@ -543,7 +543,7 @@ public final class CivilWarStartService {
 		if (law.getScopedEffects() != null && law.getScopedEffects().get(Scope.FACTION) != null) {
 			rebels.applyLaw(law, group);
 		} else {
-			group.setCurrent(law);
+			group.switchTo(law, System.currentTimeMillis());
 		}
 		return null;
 	}

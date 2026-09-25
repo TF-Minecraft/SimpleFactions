@@ -12,6 +12,7 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.EconomicImpact;
 import net.tfminecraft.simplefactions.utils.EconomicImpactService;
+import net.tfminecraft.simplefactions.laws.CanHaveLaw;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 
 import net.tfminecraft.simplefactions.war.core.War;
@@ -42,6 +43,11 @@ public class Proposal {
 
     public void apply(Cause cause) {
         if (isLawProposal()) {
+            // The group may have been switched by a coup, war or movement since this was proposed.
+            // Movements (cause != null) override the lock.
+            if (cause == null && CanHaveLaw.lockReason(gov.getFaction(), law, System.currentTimeMillis()) != null) {
+                return;
+            }
             LawGroup group = gov.getFaction().getLawHandler().getGroup(law.getGroup());
             gov.getFaction().applyLaw(law, group);
         } else if (isTaxProposal()) {

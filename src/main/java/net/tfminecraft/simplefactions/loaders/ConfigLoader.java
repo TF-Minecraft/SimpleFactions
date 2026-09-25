@@ -39,6 +39,7 @@ public class ConfigLoader {
 		Cache.maxExtraNodeCapacity = config.getInt("max-extra-node-capacity", 0);
 		
 		Cache.deJureRequirement = config.getDouble("de-jure-requirement", 100.0);
+		Cache.lawSwitchLockDays = config.getDouble("law-switch-lock-days", 3.0);
 		Cache.maxUntitledProvinces = config.getInt("max-untitled-provinces", 5);
 		Cache.maxFreeTitles = config.getInt("max-free-titles", 3);
 		Cache.mapEnabled = config.getBoolean("enable-map", false);

@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.database;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.HashMap;
 
 import com.google.gson.annotations.SerializedName;
@@ -83,6 +84,9 @@ public class FactionData {
     public List<String> factionModifiers = new ArrayList<>();
 
     public List<String> laws = new ArrayList<>();
+
+    @SerializedName("law changed at")
+    public Map<String, Long> lawChangedAt = new HashMap<>();
 
     @SerializedName("war reparations")
     public List<WarReparationsObligationData> warReparationsObligations = new ArrayList<>();
