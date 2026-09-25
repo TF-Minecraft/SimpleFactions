@@ -42,6 +42,8 @@ public final class ContractFixture {
         for (int i = 0; i < Cache.mercenaryFormationSeconds; i++) {
             company.tick();
         }
+        // Formation enlists the leader; release them so each test names its own roster.
+        company.kick(host.leader());
         // Formation grants one slot; the rest are filled and grown so expansion is legal.
         while (company.getSlots() < slots) {
             for (int i = 0; i < company.getSlots(); i++) {

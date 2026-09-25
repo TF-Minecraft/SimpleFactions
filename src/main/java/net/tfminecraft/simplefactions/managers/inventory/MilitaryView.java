@@ -15,6 +15,7 @@ import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.enums.SFGUI;
 import net.tfminecraft.simplefactions.keys.Keys;
@@ -55,7 +56,13 @@ public class MilitaryView {
 				}
 			}
 		}
-		for (int slot = 12 + m.getRegiments().size(); slot <= 44; slot++) {
+		int next = 12 + m.getRegiments().size();
+		MercenaryCompany company = m.getHomeCompany();
+		if(company != null) {
+			i.setItem(next, creator.createCompanyRegimentIcon(company));
+			next++;
+		}
+		for (int slot = next; slot <= 44; slot++) {
 			i.setItem(slot, new ItemStack(Material.AIR, 1));
 		}
 		for(int x = 0; x<3; x++) {

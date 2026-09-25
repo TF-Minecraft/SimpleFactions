@@ -363,6 +363,17 @@ public class MercenaryCompany {
         return true;
     }
 
+    /**
+     * The founding slot goes to the guild leader, so a new company opens with its
+     * first soldier. A leader already serving in another company keeps that post
+     * and the slot stays open.
+     */
+    public void enlistLeader() {
+        String leader = getLeader();
+        if (leader == null || MercenaryCompanies.findByMember(leader) != null) return;
+        enlist(leader);
+    }
+
     /** Frees the slot, which in turn freezes expansion until it is filled again. */
     public boolean kick(String player) {
         for (int i = 0; i < enlisted.size(); i++) {
@@ -522,6 +533,7 @@ public class MercenaryCompany {
             formationRemaining--;
             if (formationRemaining == 0 && regiment != null) {
                 regiment.setCurrentSlots(1);
+                enlistLeader();
                 chime(SFGUI.COMPANY_VIEW);
             }
             return;

@@ -168,6 +168,7 @@ class CompanyGuiTest {
     @Test
     void emptySlotLoreExplainsWhyExpansionIsFrozen() {
         MercenaryCompany company = formedCompany();
+        company.kick(fixture.leader());
 
         List<String> empty = creator.buildSlotLore(null);
         assertTrue(empty.stream().anyMatch(line -> line.contains("Empty")));
