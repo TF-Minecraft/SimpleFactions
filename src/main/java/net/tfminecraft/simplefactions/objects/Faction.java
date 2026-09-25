@@ -43,7 +43,7 @@ import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 import net.tfminecraft.simplefactions.objects.handler.LawHandler;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
-import net.tfminecraft.simplefactions.rest.RestServer;
+import net.tfminecraft.simplefactions.rest.BannerFetcher;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
@@ -137,7 +137,7 @@ public class Faction {
 		this.diplomacyHandler = new DiplomacyHandler(this);
 		this.leader = leader;
 		this.rulerTitle = "Leader";
-		this.bannerPatterns = RestServer.fetchBannerList();
+		this.bannerPatterns = BannerFetcher.placeholder();
 		this.rank = RankLoader.getLowest();
 		this.foundedAt = System.currentTimeMillis()/1000L;
 		this.governmentType = "Community";
@@ -161,6 +161,13 @@ public class Faction {
 		this.guildHandler = new GuildHandler(this);
 		guildHandler.addGuild(new Guild(this));
 		createBanner(bannerPatterns);
+		// Keyed per object: FactionCreateEvent can cancel this one, and the retry needs its own fetch.
+		List<String> placeholder = this.bannerPatterns;
+		BannerFetcher.fetch("new-faction:" + System.identityHashCode(this), patterns -> {
+			// A banner the leader picked while the API was slow wins over the generated one.
+			if (patterns == null || bannerPatterns != placeholder || !BannerFetcher.isPlaceholder(placeholder)) return;
+			setBannerPatterns(patterns);
+		});
 		updatePrestige();
 		updateTier();
 	}
