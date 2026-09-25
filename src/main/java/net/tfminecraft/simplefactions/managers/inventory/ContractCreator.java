@@ -79,6 +79,10 @@ public class ContractCreator {
         } else if (contract.isActive()) {
             lore.add("§7Days left: §e" + Math.max(0, contract.getDaysRemaining()));
             lore.add("§7Days served: §e" + contract.getDaysServed());
+            Integer pending = contract.getPendingSlots(System.currentTimeMillis());
+            if (pending != null) {
+                lore.add("§7Slot change waiting: §e" + pending);
+            }
         }
         return lore;
     }
@@ -119,6 +123,17 @@ public class ContractCreator {
         lore.add("§7Signed at reputation: §e" + contract.getReputationAtSigning());
         lore.add("§7Opened: §e" + Cache.getFantasyDate(contract.getIssueDate()));
         lore.add("§7Ends: §e" + Cache.getFantasyDate(contract.getDueDate()));
+        Integer pending = contract.getPendingSlots(System.currentTimeMillis());
+        if (pending != null) {
+            lore.add(" ");
+            lore.add("§7Slot change waiting: §e" + contract.getSlots() + " §7→ §e" + pending);
+            lore.add("§7Per day if accepted: §e"
+                    + Formatter.formatMoney(contract.getPricePerSlotPerDay() * pending) + "d");
+            lore.add("§7Per battle if accepted: §e"
+                    + Formatter.formatMoney(contract.getPricePerSlotPerBattle() * pending) + "d");
+            lore.add("§7Lapses in: §e" + TimeFormatter.formatTime(
+                    (int) Math.max(0, (contract.getPendingExpiry() - System.currentTimeMillis()) / 1000)));
+        }
         lore.add(" ");
         lore.add(StringFormatter.formatHex(
                 "#877e7cNames no war: the company serves in all of them"));
@@ -150,6 +165,71 @@ public class ContractCreator {
         meta.setDisplayName(StringFormatter.formatHex("#c74d32Decline the offer"));
         List<String> lore = new ArrayList<>();
         lore.add(StringFormatter.formatHex("#877e7cReleases the slots the offer holds"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /** Shown to the company leader on an active contract with no change waiting. */
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
+    public ItemStack createChangeSlotsButton() {
+        ItemStack item = new ItemStack(Material.LIME_DYE, 1);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(StringFormatter.formatHex("#baa875Change slots"));
+        List<String> lore = new ArrayList<>();
+        lore.add(StringFormatter.formatHex("#877e7cType the new number of slots in chat"));
+        lore.add(StringFormatter.formatHex("#877e7cThe hiring government must accept"));
+        lore.add(StringFormatter.formatHex("#877e7cPrices and the end date stay the same"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
+    public ItemStack createWithdrawSlotsButton() {
+        ItemStack item = new ItemStack(Material.ORANGE_DYE, 1);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(StringFormatter.formatHex("#c74d32Withdraw the slot change"));
+        List<String> lore = new ArrayList<>();
+        lore.add(StringFormatter.formatHex("#877e7cThe signed slot count stays"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /** Shown to the hiring government while a slot change is waiting. */
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
+    public ItemStack createAcceptSlotsButton(MercenaryContract contract) {
+        Integer pending = contract.getPendingSlots(System.currentTimeMillis());
+        int slots = pending == null ? contract.getSlots() : pending;
+        ItemStack item = new ItemStack(Material.LIME_DYE, 1);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(StringFormatter.formatHex("#7ba85fAccept the slot change"));
+        List<String> lore = new ArrayList<>();
+        lore.add("§7Slots: §e" + contract.getSlots() + " §7→ §e" + slots);
+        lore.add("§7Per day: §e"
+                + Formatter.formatMoney(contract.getPricePerSlotPerDay() * slots) + "d");
+        lore.add("§7Per battle: §e"
+                + Formatter.formatMoney(contract.getPricePerSlotPerBattle() * slots) + "d");
+        lore.add(StringFormatter.formatHex(BOTH_PRICES_NOTE));
+        lore.add(" ");
+        lore.add(StringFormatter.formatHex("#877e7cAny government member may accept"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
+    public ItemStack createDeclineSlotsButton() {
+        ItemStack item = new ItemStack(Material.GRAY_DYE, 1);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(StringFormatter.formatHex("#c74d32Decline the slot change"));
+        List<String> lore = new ArrayList<>();
+        lore.add(StringFormatter.formatHex("#877e7cThe signed slot count stays"));
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;

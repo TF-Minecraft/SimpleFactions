@@ -339,6 +339,7 @@ public class MercenaryCompany {
             enlisted.remove(enlisted.size() - 1);
         }
         ContractTerminationService.checkSlotCommitments(this);
+        contractHandler.lapseAmendmentsThatNoLongerFit(System.currentTimeMillis());
         return true;
     }
 
@@ -540,7 +541,9 @@ public class MercenaryCompany {
         }
         tickSlotQueue();
         tickUpgradeQueue();
-        if (!contractHandler.tickExpiry().isEmpty()) {
+        long now = System.currentTimeMillis();
+        if (!contractHandler.tickExpiry().isEmpty()
+                || !contractHandler.tickAmendments(now).isEmpty()) {
             chime(SFGUI.CONTRACT_LIST_VIEW);
         }
     }

@@ -21,4 +21,9 @@ public class MercenaryContractData {
     public Double accruedToHirer;
     public java.util.List<String> battleIdsCharged = new java.util.ArrayList<>();
     public java.util.List<String> battleIdsRefunded = new java.util.ArrayList<>();
+    /** Set once a slot change freezes days already served at the old daily price. */
+    public Double servedDaysValue;
+    /** Null when no slot change is waiting on the hirer. */
+    public Integer pendingSlots;
+    public Long pendingSlotExpiry;
 }
