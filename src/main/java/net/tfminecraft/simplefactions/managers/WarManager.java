@@ -347,6 +347,18 @@ public class WarManager {
 		return null;
 	}
 
+	public static boolean isAtWar(Faction f) {
+		if (f == null) {
+			return false;
+		}
+		for (War war : wars) {
+			if (war.isActive() && war.isParticipating(f)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static boolean exists(Faction attacker, Faction defender) {
 		return findSharedActiveWar(attacker, defender) != null;
 	}

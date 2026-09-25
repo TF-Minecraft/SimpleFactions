@@ -356,6 +356,12 @@ public class RelationView {
 				return;
 			}
 
+			String wartime = RelationManager.wartimeBlock(r, f, origin);
+			if(wartime != null) {
+				p.sendMessage(wartime);
+				return;
+			}
+
 			double ourCost = RelationManager.getDiplomaticCost(origin, f, r);
 			double theirCost = r.hasLink() ? RelationManager.getDiplomaticCost(f, origin, r.getLink()) : 0;
 			if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !origin.getRelation(f.getId()).getType().equals(r) || f.getDiplomacyHandler().getAvailableCapacity() < theirCost && !f.getRelation(origin.getId()).getType().equals(r.getLink())) {

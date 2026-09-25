@@ -37,6 +37,7 @@ import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
@@ -1388,7 +1389,8 @@ public class Faction {
 			}
 		}
 		for(Faction vassal : vassals) {
-			if(overlord != null) {
+			// A vassal at war cannot be handed to a new overlord, so it goes independent
+			if(overlord != null && !WarManager.isAtWar(vassal)) {
 				RelationManager.transferSubject(vassal, overlord);
 			} else {
 				RelationManager.endVassalage(vassal, this, false);
