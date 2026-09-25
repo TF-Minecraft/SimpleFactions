@@ -482,6 +482,8 @@ public class FactionManager implements Listener{
 					leader.sendMessage("§cGet more prestige or unclaim provinces to counteract this!");
 				}
 			}
+			SimpleFactions.getInstance().getVehicleUpkeepService()
+					.warnBankShortfalls(Bukkit.getOnlinePlayers(), getSecondsUntilNewDay());
 		}
 		if (timer >= DAY_LENGTH_SECONDS) {
 			runDailyStep("player ledgers", () -> PlayerEconomyManager.get().clearAllDaily());

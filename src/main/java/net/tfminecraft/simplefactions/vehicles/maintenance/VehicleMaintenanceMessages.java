@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.vehicles.maintenance;
 
+import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
 
 public final class VehicleMaintenanceMessages {
@@ -16,6 +17,15 @@ public final class VehicleMaintenanceMessages {
     public static String payArmed(PaymentSource source) {
         return "§aRight-click the vehicle to pay one day of maintenance from your "
                 + (source == PaymentSource.BANK ? "bank" : "pouch") + ".";
+    }
+
+    public static String bankShortfall(double shortfall, int secondsUntilCharge) {
+        // Round up so the final partial minute does not read as already due.
+        int minutes = (secondsUntilCharge + 59) / 60;
+        return "§cYou lack " + Formatter.formatMoney(shortfall)
+                + " denars in your personal bank to pay vehicle maintenance in "
+                + minutes / 60 + "h " + minutes % 60 + "m"
+                + " §7(/deco deposit for the bank, it does not count the pouch)";
     }
 
     public static String paySuccess() {
