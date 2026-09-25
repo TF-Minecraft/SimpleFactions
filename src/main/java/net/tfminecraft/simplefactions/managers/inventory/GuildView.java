@@ -58,7 +58,8 @@ public class GuildView {
 	private static final int NEXT_PAGE_SLOT = 53;
 
 	/** Mercenary company entry. Slot 13 of the guild view already holds the trade breakdown. */
-	public static final int COMPANY_SLOT = 18;
+	public static final int COMPANY_SLOT = 19;
+	public static final int BANNER_RANDOM_SLOT = 28;
 	public static final int HOST_FACTION_SLOT = 37;
 
 	
@@ -160,7 +161,7 @@ public class GuildView {
 		i.clear();
 		if(guild.isMember(player)) i.setItem(1, creator.createMenuItem(player, guild, MenuItemType.BANNER_GET));
 		i.setItem(10, creator.createMenuItem(player, guild, MenuItemType.BANNER));
-		if(guild.isLeader(player) && !guild.isBase()) i.setItem(19, creator.createMenuItem(player, guild, MenuItemType.BANNER_RANDOM));
+		if(guild.isLeader(player) && !guild.isBase()) i.setItem(BANNER_RANDOM_SLOT, creator.createMenuItem(player, guild, MenuItemType.BANNER_RANDOM));
 		i.setItem(11, creator.createMenuItem(player, guild, MenuItemType.LEADER));
 		i.setItem(12, creator.createMenuItem(player, guild, MenuItemType.WEALTH));
 		i.setItem(15, creator.createMenuItem(player, guild, MenuItemType.MEMBERS));
@@ -204,9 +205,7 @@ public class GuildView {
 			i.setItem(17, creator.createDividendItem(player, guild));
 		}
 		i.setItem(HOST_FACTION_SLOT, creator.createHostFactionItem(guild));
-		if (!guild.isBase()) {
-			i.setItem(COMPANY_SLOT, inv.companyView.creator.createCompanyEntryItem(guild));
-		}
+		i.setItem(COMPANY_SLOT, inv.companyView.creator.createCompanyEntryItem(guild));
 		i.setItem(53, inv.createBackButton(SFGUI.GUILD_VIEW));
 	}
 
@@ -316,7 +315,7 @@ public class GuildView {
 				}
 				return;
 			}
-			if(e.getSlot() == 19) {
+			if(e.getSlot() == BANNER_RANDOM_SLOT) {
 				if(!guild.isLeader(p) || guild.isBase()) {
 					p.sendMessage("§cYou must be the leader of a guild to change the banner!");
 					return;
@@ -411,7 +410,6 @@ public class GuildView {
 				p.closeInventory();
 				return;
 			} else if(e.getSlot() == COMPANY_SLOT) {
-				if(guild.isBase()) return;
 				if(guild.getCompany() == null) {
 					p.sendMessage("§7Use §e/company found <name> §7to found a mercenary company.");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
