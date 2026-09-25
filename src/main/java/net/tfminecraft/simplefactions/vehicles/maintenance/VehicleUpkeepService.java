@@ -14,6 +14,7 @@ import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
 import net.tfminecraft.simplefactions.player.income.PlayerCashflow;
+import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 
 public final class VehicleUpkeepService {
@@ -78,7 +79,8 @@ public final class VehicleUpkeepService {
             if (playerUuid == null) {
                 continue;
             }
-            double shortfall = upkeep - playerBank.getBankBalance(playerUuid);
+            // Round to cents so a float residue never reads as "lack 0.00".
+            double shortfall = Formatter.formatDouble(upkeep - playerBank.getBankBalance(playerUuid));
             if (shortfall > 0.0) {
                 player.sendMessage(VehicleMaintenanceMessages.bankShortfall(shortfall, secondsUntilCharge));
             }
