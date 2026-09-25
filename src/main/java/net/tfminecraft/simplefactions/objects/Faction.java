@@ -1308,11 +1308,6 @@ public class Faction {
 		}
 		installationHandler.payDailyUpkeep();
 		provinceCap();
-		if(guildHandler != null && guildHandler.getGuilds() != null) {
-			for(Guild guild : guildHandler.getGuilds()) {
-				if(guild != null) guild.newDay();
-			}
-		}
 		if (government != null) {
 			government.applyDailyOrganizationGain();
 		}

@@ -680,12 +680,6 @@ public class Guild {
     }
     public void setTradeBreakdown(TradeBreakdown breakdown) { this.breakdown = breakdown; }
 
-    public void newDay() {
-        if (bank != null && breakdown != null) {
-            bank.deposit(breakdown.getIncome());
-        }
-    }
-
     public double getRepressFavourCost() {
         return Formatter.formatDouble(getStabilityEffect()*0.5);
     }
