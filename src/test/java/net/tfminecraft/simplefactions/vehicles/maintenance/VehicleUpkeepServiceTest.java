@@ -16,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -30,6 +32,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -166,6 +169,53 @@ class VehicleUpkeepServiceTest {
         }
 
         assertFalse(store.isUnpaid("vehicle-1"));
+    }
+
+    @Test
+    void warnsPlayerWhoseBankCannotCoverUpkeep() {
+        UUID playerUuid = UUID.randomUUID();
+        bank.setBalance(playerUuid, 5.0);
+        bank.remember("Alice", playerUuid);
+        VehicleOwnershipQueries.setSourceForTests(
+                new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
+        Player alice = onlinePlayer("Alice", playerUuid);
+
+        service.warnBankShortfalls(List.of(alice), 3 * 3600 + 12 * 60);
+
+        verify(alice).sendMessage("§cYou lack 15.00 denars in your personal bank to pay vehicle maintenance"
+                + " in 3h 12m §7(/deco deposit for the bank, it does not count the pouch)");
+    }
+
+    @Test
+    void doesNotWarnWhenBankCoversUpkeep() {
+        UUID playerUuid = UUID.randomUUID();
+        bank.setBalance(playerUuid, 20.0);
+        bank.remember("Alice", playerUuid);
+        VehicleOwnershipQueries.setSourceForTests(
+                new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
+        Player alice = onlinePlayer("Alice", playerUuid);
+
+        service.warnBankShortfalls(List.of(alice), 600);
+
+        verify(alice, never()).sendMessage(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void doesNotWarnPlayersWithoutVehicles() {
+        UUID playerUuid = UUID.randomUUID();
+        bank.remember("Alice", playerUuid);
+        Player alice = onlinePlayer("Alice", playerUuid);
+
+        service.warnBankShortfalls(List.of(alice), 600);
+
+        verify(alice, never()).sendMessage(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    private static Player onlinePlayer(String name, UUID uuid) {
+        Player player = mock(Player.class);
+        when(player.getName()).thenReturn(name);
+        when(player.getUniqueId()).thenReturn(uuid);
+        return player;
     }
 
     @Test
