@@ -20,7 +20,7 @@ import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.rest.RestServer;
+import net.tfminecraft.simplefactions.rest.BannerFetcher;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
@@ -370,9 +370,15 @@ public class FactionView {
 				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 				Faction f = FactionManager.getByString(h.getId());
 				if(!f.isLeader(p.getName())) return;
-				f.setBannerPatterns(RestServer.fetchBannerList());
-				inventory.setItem(10, creator.createMenuItem(p, f, MenuItemType.BANNER));
-				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				BannerFetcher.fetch("faction:" + f.getId(), patterns -> {
+					if (patterns == null) {
+						if (p.isOnline()) p.sendMessage("§cCould not generate a banner right now. Try again later.");
+						return;
+					}
+					f.setBannerPatterns(patterns);
+					inventory.setItem(10, creator.createMenuItem(p, f, MenuItemType.BANNER));
+					if (p.isOnline()) p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				});
 			} else if(e.getSlot() == 1) {
 				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();

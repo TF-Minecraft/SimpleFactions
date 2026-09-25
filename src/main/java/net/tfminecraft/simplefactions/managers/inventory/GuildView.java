@@ -27,6 +27,7 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
+import net.tfminecraft.simplefactions.rest.BannerFetcher;
 import net.tfminecraft.simplefactions.rest.RestServer;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
@@ -320,9 +321,15 @@ public class GuildView {
 					p.sendMessage("§cYou must be the leader of a guild to change the banner!");
 					return;
 				}
-				guild.setBannerPatterns(RestServer.fetchBannerList());
-				inventory.setItem(10, creator.createMenuItem(p, guild, MenuItemType.BANNER));
-				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				BannerFetcher.fetch("guild:" + guild.getId(), patterns -> {
+					if (patterns == null) {
+						if (p.isOnline()) p.sendMessage("§cCould not generate a banner right now. Try again later.");
+						return;
+					}
+					guild.setBannerPatterns(patterns);
+					inventory.setItem(10, creator.createMenuItem(p, guild, MenuItemType.BANNER));
+					if (p.isOnline()) p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				});
 			} else if(e.getSlot() == 1) {
 				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 				ItemStack i = new ItemStack(guild.getBanner());

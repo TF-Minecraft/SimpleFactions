@@ -41,7 +41,7 @@ import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.objects.Modifier;
-import net.tfminecraft.simplefactions.rest.RestServer;
+import net.tfminecraft.simplefactions.rest.BannerFetcher;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.settlement.handler.CapitalResult;
 import net.tfminecraft.simplefactions.army.MilitaryExpansion;
@@ -144,7 +144,7 @@ public class Guild {
             rgb = RandomRGB.random();
         }
         this.bank = new Bank(this);
-        this.bannerPatterns = RestServer.fetchBannerList();
+        this.bannerPatterns = BannerFetcher.placeholder();
         this.members.add(leader);
         this.type = GuildLoader.getDefaultType();
         this.capital = province;
@@ -162,6 +162,10 @@ public class Guild {
         this.loanHandler = new LoanHandler(this);
         this.dividendEligible = new ArrayList<>(members);
         createBanner();
+        // Keyed per object, like the fetch in Faction's constructor.
+        BannerFetcher.fetch("new-guild:" + System.identityHashCode(this), patterns -> {
+            if (patterns != null) setBannerPatterns(patterns);
+        });
     }
 
     public Guild(GuildData data, Faction host) {
