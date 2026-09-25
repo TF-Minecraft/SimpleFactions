@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.guild.income;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -27,6 +28,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
+import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
@@ -178,6 +180,27 @@ class LedgerNetIncomeTest {
 		Ledger ledger = baseLedger(faction, guild, true, breakdown);
 
 		assertEquals(50.0, ledger.getNetIncome());
+	}
+
+	@Test
+	void settlement_movesExactlyTheLedgerNet_forTradeAndNodes() {
+		Faction faction = mock(Faction.class);
+		Guild guild = mock(Guild.class);
+		Guild capital = mock(Guild.class);
+		when(faction.getOrCreateMainGuild()).thenReturn(capital);
+
+		TradeBreakdown breakdown = new TradeBreakdown();
+		breakdown.setIncome(700.0);
+		Ledger.setNodeUpkeepLookup(g -> 40.0);
+		Ledger ledger = baseLedger(faction, guild, false, breakdown);
+		double shown = ledger.getNetIncome();
+
+		DailyGuildTransfers buffer = new DailyGuildTransfers();
+		ledger.populateDailyTransfers(buffer);
+
+		assertEquals(660.0, shown);
+		assertEquals(shown, buffer.getExternalDeltas().get(guild));
+		assertTrue(buffer.getTransfers().isEmpty());
 	}
 
 	private void loadInstallationFixtures() throws IOException {

@@ -48,7 +48,8 @@ public class Ledger {
     // so a restart cannot quietly wipe a day of gambling income before it is taxed.
     private double casinoProfit;
 
-    // Dowsing registers this; unset means no nodes plugin, so the line is 0.
+    // Dowsing registers this as the daily upkeep of the guild's active nodes; unset means no
+    // nodes plugin, so the line is 0. Settlement charges exactly what this reports.
     private static ToDoubleFunction<Guild> nodeUpkeepLookup = guild -> 0.0;
 
     public static void setNodeUpkeepLookup(ToDoubleFunction<Guild> lookup) {
@@ -790,13 +791,15 @@ public class Ledger {
             // --------- INTERNAL (single guild) ----------
             // These should NOT be computed by reading getIncome() from some other guild.
             // They are simply added to this guild's daily delta.
+            // TRADE is paid here and nowhere else, so the bank moves by what the ledger shows.
             case TRADE:
             case TRADE_UPKEEP:
             // INSTALLATIONS: withdrawn in Faction.newDay(), so getIncome() is ledger GUI display only
-            // NODES: withdrawn when a Dowsing cycle starts, so getIncome() is ledger GUI display only
             case UPGRADES_UPKEEP:
             case PENALTIES:
             case CITIZENS:
+            // Dowsing reports the nodes active right now, so a node is charged for each day it runs.
+            case NODES:
                 buffer.addExternalDelta(guild, getIncome(cf));
                 return;
 
@@ -978,7 +981,6 @@ public class Ledger {
 
             // Display only - dividends settle in PostSettlementPayouts after other movements,
             // and the mercenary receiving halves are moved by the paying side above.
-            case NODES:
             case DIVIDEND_PAYOUT:
             case DIVIDEND_PAYMENT:
             case GUILDS:
