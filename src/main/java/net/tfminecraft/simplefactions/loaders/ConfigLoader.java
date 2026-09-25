@@ -34,6 +34,8 @@ public class ConfigLoader {
 		Cache.prestigePerTradePower = config.getDouble("prestige-per-trade-power", 0.1);
 		Cache.prestigeFromTradeSoftCap = config.getDouble("prestige-from-trade-soft-cap", 2000);
 		Cache.prestigeFromTradeFalloff = config.getDouble("prestige-from-trade-falloff", 0.1);
+		Cache.prosperitySoftCap = config.getDouble("prosperity-soft-cap", 80);
+		Cache.prosperitySoftCapScale = config.getDouble("prosperity-soft-cap-scale", 20);
 		Cache.maxPlaytimePrestigeExponent = config.getDouble("max-prestige-playtime-exponent", 5);
 		Cache.bankBlock = config.getString("bank-block", "v.lodestone");
 		Cache.maxExtraNodeCapacity = config.getInt("max-extra-node-capacity", 0);
