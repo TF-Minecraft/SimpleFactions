@@ -35,4 +35,15 @@ public record ContractTerms(
     public double maxDailyCostPerSlot() {
         return pricePerSlotPerDay + pricePerSlotPerBattle;
     }
+
+    /** Slot count is the only figure an accepted amendment may replace. */
+    public ContractTerms withSlots(int slots) {
+        return new ContractTerms(
+                slots,
+                pricePerSlotPerBattle,
+                pricePerSlotPerDay,
+                durationDays,
+                absenceRefundPerSlotPerBattle,
+                breachRefund);
+    }
 }

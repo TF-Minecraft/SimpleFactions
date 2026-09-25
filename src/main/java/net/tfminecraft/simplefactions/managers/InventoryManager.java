@@ -54,12 +54,16 @@ import net.tfminecraft.simplefactions.managers.inventory.MilitaryView;
 import net.tfminecraft.simplefactions.managers.inventory.MovementView;
 import net.tfminecraft.simplefactions.managers.inventory.PlayerLedgerView;
 import net.tfminecraft.simplefactions.managers.inventory.RelationView;
+import net.tfminecraft.simplefactions.managers.inventory.SlotChangePrompt;
 import net.tfminecraft.simplefactions.managers.inventory.TaxChange;
 import net.tfminecraft.simplefactions.managers.inventory.TaxView;
 import net.tfminecraft.simplefactions.managers.inventory.TierTitleView;
 import net.tfminecraft.simplefactions.managers.inventory.WarView;
 import net.tfminecraft.simplefactions.mercenary.MercenaryResult;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
+import net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract;
+import net.tfminecraft.simplefactions.mercenary.contract.SlotReservations;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.BattleWarbandRetreatService.ConfirmHandler;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
@@ -90,6 +94,7 @@ public class InventoryManager implements Listener{
 	public HashMap<Player, TaxChange> taxChange = new HashMap<>();
 	public HashMap<Player, LoanPayment> loanPayments = new HashMap<>();
 	public HashMap<Player, DividendChange> dividendChange = new HashMap<>();
+	public HashMap<Player, SlotChangePrompt> slotChanges = new HashMap<>();
 	
 	InventoryUpdater updater = new InventoryUpdater(this);
 	
@@ -121,6 +126,12 @@ public class InventoryManager implements Listener{
 					if(entry.getValue().tick()) {
 						dividendChange.remove(entry.getKey());
 						entry.getKey().sendMessage("§cDividend change timed out.");
+					}
+				}
+				for(Map.Entry<Player, SlotChangePrompt> entry : ((HashMap<Player, SlotChangePrompt>) slotChanges.clone()).entrySet()) {
+					if(entry.getValue().tick()) {
+						slotChanges.remove(entry.getKey());
+						entry.getKey().sendMessage("§cSlot change cancelled.");
 					}
 				}
 			}
@@ -375,7 +386,8 @@ public class InventoryManager implements Listener{
 	}
 
 	public boolean chatTrigger(Player p) {
-		return taxChange.containsKey(p) || loanPayments.containsKey(p) || dividendChange.containsKey(p);
+		return taxChange.containsKey(p) || loanPayments.containsKey(p) || dividendChange.containsKey(p)
+				|| slotChanges.containsKey(p);
 	}
 
 	public void setChanging(Faction faction, Player p, TaxTarget target, String id) {
@@ -421,6 +433,7 @@ public class InventoryManager implements Listener{
 				if(taxChange.containsKey(p)) taxChat(p, e);;
 				if(loanPayments.containsKey(p)) loanPaymentChat(p, e);
 				if(dividendChange.containsKey(p)) dividendChat(p, e);
+				if(slotChanges.containsKey(p)) slotChat(p, e);
 			}
 		}.runTask(SimpleFactions.plugin);
 	}
@@ -610,6 +623,64 @@ public class InventoryManager implements Listener{
 		p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 		dividendChange.remove(p);
 		guildView(p, guild);
+	}
+
+	public void beginSlotChange(Player p, Guild guild, MercenaryContract contract) {
+		if (p == null || guild == null || contract == null || guild.getCompany() == null) return;
+		slotChanges.put(p, new SlotChangePrompt(guild.getId(), contract.getId()));
+		p.closeInventory();
+		long now = System.currentTimeMillis();
+		int current = contract.getSlots();
+		int max = SlotReservations.maxForAmendment(guild.getCompany(), contract, now);
+		int more = Math.max(0, max - current);
+		int ceiling = Math.max(current, max);
+		p.sendMessage(StringFormatter.formatHex(
+				"#d6cf69This contract hires #87d65c" + current
+				+ " #d6cf69slots. #87d65c" + more
+				+ " #d6cf69more are free until it ends, so you can offer #87d65c1 #d6cf69to #87d65c"
+				+ ceiling
+				+ "#d6cf69. Type the new number, or #c74d32cancel#d6cf69."));
+	}
+
+	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
+	public void slotChat(Player p, AsyncPlayerChatEvent e) {
+		SlotChangePrompt prompt = slotChanges.get(p);
+		if (prompt == null) return;
+		Guild guild = FactionManager.getGuildByString(prompt.getGuildId());
+		MercenaryCompany company = guild == null ? null : guild.getCompany();
+		MercenaryContract contract = company == null
+				? null : company.getContractHandler().getById(prompt.getContractId());
+		if (guild == null || company == null || contract == null) {
+			slotChanges.remove(p);
+			p.sendMessage("§cThat contract no longer exists.");
+			return;
+		}
+		if (e.getMessage().equalsIgnoreCase("cancel")) {
+			slotChanges.remove(p);
+			p.sendMessage("§cSlot change cancelled.");
+			contractView.detailView(p, guild, contract.getId());
+			return;
+		}
+		if (!company.isLeader(p.getName())) {
+			slotChanges.remove(p);
+			p.sendMessage("§cOnly the guild leader can change a contract's slots.");
+			return;
+		}
+		int slots;
+		try {
+			slots = Integer.parseInt(e.getMessage().trim());
+		} catch (NumberFormatException ex) {
+			p.sendMessage("§cEnter a whole number of slots, such as §e4§c.");
+			p.sendMessage("§4Type 'cancel' to cancel.");
+			return;
+		}
+		MercenaryResult result = company.getContractHandler()
+				.proposeSlots(contract.getId(), p.getName(), slots, System.currentTimeMillis());
+		slotChanges.remove(p);
+		p.sendMessage((result.ok() ? "§a" : "§c") + result.message());
+		p.playSound(p, result.ok() ? Sound.ENTITY_PLAYER_LEVELUP : Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
+		contractView.detailView(p, guild, contract.getId());
 	}
 	
 	//Confirm
@@ -839,6 +910,7 @@ public class InventoryManager implements Listener{
 		if (pendingCompanyFounds.remove(e.getPlayer()) != null) {
 			confirming.remove(e.getPlayer());
 		}
+		slotChanges.remove(e.getPlayer());
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.

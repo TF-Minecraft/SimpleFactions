@@ -31,6 +31,10 @@ public class ContractView {
     private static final int ACCEPT_BUTTON = 11;
     private static final int DECLINE_BUTTON = 15;
     private static final int DRAFT_BUTTON = 4;
+    /** Same slot as accept: an active contract never shows the offer buttons. */
+    private static final int CHANGE_SLOTS_BUTTON = 11;
+    private static final int ACCEPT_SLOTS_BUTTON = 15;
+    private static final int DECLINE_SLOTS_BUTTON = 16;
 
     public InventoryManager inv;
     public ContractCreator creator = new ContractCreator();
@@ -94,6 +98,19 @@ public class ContractView {
             i.setItem(ACCEPT_BUTTON, creator.createAcceptButton(contract));
             i.setItem(DECLINE_BUTTON, creator.createDeclineButton());
         }
+        if (contract.isActive()) {
+            long now = System.currentTimeMillis();
+            boolean pending = contract.hasPendingSlots(now);
+            if (company.isLeader(player.getName())) {
+                i.setItem(CHANGE_SLOTS_BUTTON, pending
+                        ? creator.createWithdrawSlotsButton()
+                        : creator.createChangeSlotsButton());
+            }
+            if (pending && canSign(player, contract)) {
+                i.setItem(ACCEPT_SLOTS_BUTTON, creator.createAcceptSlotsButton(contract));
+                i.setItem(DECLINE_SLOTS_BUTTON, creator.createDeclineSlotsButton());
+            }
+        }
         i.setItem(26, inv.createBackButton(SFGUI.CONTRACT_DETAIL_VIEW));
     }
 
@@ -140,12 +157,37 @@ public class ContractView {
             InventoryClickEvent e, Inventory inventory, Player p, Guild guild,
             MercenaryCompany company, String contractId) {
         MercenaryContract contract = company.getContractHandler().getById(contractId);
-        if (contract == null || !contract.isOffered()) return;
-        if (!canSign(p, contract)) return;
+        if (contract == null) return;
+        if (contract.isOffered()) {
+            if (!canSign(p, contract)) return;
+            switch (e.getSlot()) {
+                case ACCEPT_BUTTON -> report(p, company.getContractHandler()
+                        .accept(contractId, contract.getHirer(), p.getName()));
+                case DECLINE_BUTTON -> report(p, company.getContractHandler().decline(contractId));
+                default -> {
+                    return;
+                }
+            }
+            detailView(p, guild, inventory, contractId);
+            return;
+        }
+        if (!contract.isActive()) return;
+        long now = System.currentTimeMillis();
+        if (e.getSlot() == CHANGE_SLOTS_BUTTON && company.isLeader(p.getName())) {
+            if (contract.hasPendingSlots(now)) {
+                report(p, company.getContractHandler().withdrawSlots(contractId, p.getName(), now));
+                detailView(p, guild, inventory, contractId);
+            } else {
+                inv.beginSlotChange(p, guild, contract);
+            }
+            return;
+        }
+        if (!contract.hasPendingSlots(now) || !canSign(p, contract)) return;
         switch (e.getSlot()) {
-            case ACCEPT_BUTTON -> report(p, company.getContractHandler()
-                    .accept(contractId, contract.getHirer(), p.getName()));
-            case DECLINE_BUTTON -> report(p, company.getContractHandler().decline(contractId));
+            case ACCEPT_SLOTS_BUTTON -> report(p, company.getContractHandler()
+                    .acceptSlots(contractId, contract.getHirer(), p.getName(), now));
+            case DECLINE_SLOTS_BUTTON -> report(p, company.getContractHandler()
+                    .declineSlots(contractId, contract.getHirer(), p.getName(), now));
             default -> {
                 return;
             }

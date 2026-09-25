@@ -15,16 +15,46 @@ public final class SlotReservations {
 
     /**
      * Slots already promised across the given window. Offered contracts count,
-     * which is what stops a company selling the same slots to two prospects at
-     * once; declining or expiring an offer releases the hold on its own.
+     * and so does a pending increase, which is what stops a company selling the
+     * same slots twice. Declining, withdrawing, or letting the day lapse releases
+     * the hold. A pending decrease does not free slots until it is accepted.
      */
     public static int promised(MercenaryCompany company, long from, long to) {
+        return promised(company, from, to, null);
+    }
+
+    /**
+     * @param except a contract whose own hold is left out, so an amendment can ask
+     *               how much room it would have if its current promise were replaced
+     */
+    public static int promised(
+            MercenaryCompany company, long from, long to, MercenaryContract except) {
         if (company == null) return 0;
+        long now = System.currentTimeMillis();
         int total = 0;
         for (MercenaryContract c : company.getContractHandler().getReserving()) {
-            if (c.overlaps(from, to)) total += c.getSlots();
+            if (same(c, except) || !c.overlaps(from, to)) continue;
+            total += c.heldSlots(now);
         }
         return total;
+    }
+
+    /**
+     * Largest slot count an amendment may offer for the rest of this contract.
+     * The contract's own hold is replaceable, so a decrease always fits when the
+     * company still covers what it already promised.
+     */
+    public static int maxForAmendment(MercenaryCompany company, MercenaryContract contract, long now) {
+        if (company == null || contract == null) return 0;
+        if (now >= contract.getDueDate()) return contract.getSlots();
+        int others = promised(company, now, contract.getDueDate(), contract);
+        return Math.max(0, company.getSlots() - others);
+    }
+
+    private static boolean same(MercenaryContract a, MercenaryContract b) {
+        if (a == null || b == null) return false;
+        String id = a.getId();
+        return id != null && id.equalsIgnoreCase(b.getId());
     }
 
     /** What the market screen may honestly advertise for a window. */
