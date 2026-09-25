@@ -48,6 +48,7 @@ workshops:
   modifiers:
     - production 3 1
     - prestige 0 5
+    - trade_upkeep 0 0.01
 storehouses:
   name: "#bf8a45Storehouses"
   icon: "barrel.0"
