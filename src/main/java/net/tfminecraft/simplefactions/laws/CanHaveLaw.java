@@ -34,6 +34,9 @@ public final class CanHaveLaw {
 		if (faction == null || faction.getLawHandler() == null || law == null || law.getGroup() == null) {
 			return null;
 		}
+		if (isCurrentInGroup(faction, law)) {
+			return null;
+		}
 		LawGroup group = faction.getLawHandler().getGroup(law.getGroup());
 		if (group == null) {
 			return null;

@@ -88,6 +88,15 @@ class LawSwitchLockTest {
 	}
 
 	@Test
+	void lockReason_exemptsCurrentLaw() {
+		Cache.lawSwitchLockDays = 3;
+		LawGroup group = lawGroup();
+		group.switchTo(group.getLaw("high"), NOW);
+
+		assertNull(CanHaveLaw.lockReason(factionWith(group), group.getLaw("high"), NOW + DAY));
+	}
+
+	@Test
 	void blockReason_currentLawStillAvailableWhileLocked() {
 		Cache.lawSwitchLockDays = 3;
 		LawGroup group = lawGroup();
