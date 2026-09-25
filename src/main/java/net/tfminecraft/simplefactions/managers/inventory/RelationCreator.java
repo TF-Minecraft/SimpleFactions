@@ -315,8 +315,13 @@ public class RelationCreator {
 		lore.add(" ");
 		if(full) {
 			RelationType current = origin.getRelation(target.getId()).getType();
+			String wartime = RelationManager.wartimeBlock(t, target, origin);
 			if(current.hasLock()) {
 				lore.add(StringFormatter.formatHex("#d4bb98You have the relation "+current.getName()+" #d4bb98which you cannot change freely!"));
+				lore.add(" ");
+				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
+			} else if(wartime != null) {
+				lore.add(StringFormatter.formatHex(wartime));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
 			} else if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t) || target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink())) {

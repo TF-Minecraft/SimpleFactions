@@ -25,6 +25,7 @@ import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
@@ -169,6 +170,13 @@ public class FactionCreator {
 
 			// Vassals
 			for (Faction vassal : f.getSubjects()) {
+				if (WarManager.isAtWar(vassal)) {
+					lore.add(StringFormatter.formatHex(
+						"#b8a58a• " + vassal.getName() +" §7(#4269a8Vassal§7)"+
+						" #d4c9aebecomes independent #e15757(at war)"
+					));
+					continue;
+				}
 				lore.add(StringFormatter.formatHex(
 					"#b8a58a• " + vassal.getName() +" §7(#4269a8Vassal§7)"+
 					" #d4c9aeis transferred to #e0cfa6" + overlord.getName()

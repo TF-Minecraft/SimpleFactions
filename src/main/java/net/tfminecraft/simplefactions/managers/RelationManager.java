@@ -216,6 +216,33 @@ public class RelationManager {
 		return true;
 	}
 
+	/**
+	 * Why a player may not set this relation during a war, or null if they may.
+	 * Neither side of a new alliance may be at war, and a faction at war may not
+	 * become someone's subject or tributary. Taking a subject while at war is fine.
+	 */
+	public static String wartimeBlock(RelationType r, Faction target, Faction origin) {
+		if (r == null || target == null || origin == null) {
+			return null;
+		}
+		if (r.getId().equalsIgnoreCase("ally")) {
+			if (origin.getRelation(target.getId()).getType().getId().equalsIgnoreCase("ally")) return null;
+			if (WarManager.isAtWar(origin)) return "§cYou cannot make new allies while at war";
+			if (WarManager.isAtWar(target)) return target.getName() + " §cis at war and cannot make new allies";
+			return null;
+		}
+		if (r.isVassalage()) {
+			// Changing the kind of subject an existing vassal is does not bind anyone new
+			if (isOverlord(target, origin)) return null;
+		} else if (r.getId().equalsIgnoreCase("tributary")) {
+			if (isTributaryOf(origin, target)) return null;
+		} else {
+			return null;
+		}
+		if (WarManager.isAtWar(target)) return target.getName() + " §cis at war and cannot become a subject";
+		return null;
+	}
+
 	public static void setTradeRelation(Player p, RelationType r, Faction target, Faction origin, boolean check) {
 		if(r.hasThreshold()) {
 			Threshold h = r.getThreshold();
@@ -509,6 +536,13 @@ public class RelationManager {
 		}
 		Faction sender = req.getFaction();
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		// The war may have started after the request was sent
+		String blocked = wartimeBlock(req.getType(), reciever, sender);
+		if(blocked != null) {
+			p.sendMessage(blocked);
+			if(sp != null && sp.isOnline()) sp.sendMessage(blocked);
+			return;
+		}
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request and became your "+req.getType().getName());
 		setRelation(p, req.getType(), reciever, sender, false);
 	}
