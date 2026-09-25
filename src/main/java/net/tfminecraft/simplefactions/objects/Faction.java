@@ -975,7 +975,7 @@ public class Faction {
 	public LawHandler getLawHandler() { return lawHandler; }
 
 	public void applyLaw(Law law, LawGroup group) {
-		group.setCurrent(law);
+		group.switchTo(law, System.currentTimeMillis());
 
 		LawEffect effect = law.getScopedEffects().get(Scope.FACTION);
 		if (effect == null) {

@@ -163,6 +163,12 @@ public class Database {
                         data.laws,
                         data.governmentData
                 );
+                if (data.lawChangedAt != null) {
+                    for (Map.Entry<String, Long> entry : data.lawChangedAt.entrySet()) {
+                        LawGroup group = f.getLawHandler().getGroup(entry.getKey());
+                        if (group != null && entry.getValue() != null) group.setChangedAt(entry.getValue());
+                    }
+                }
 
                 // --- Rank / founding ---
                 // Rank is derived state that only climbs one level per updatePrestige, so it
@@ -451,6 +457,9 @@ public class Database {
                 Law current = group.getCurrent();
                 if (current != null) {
                     data.laws.add(group.getId() + ":" + current.getId());
+                }
+                if (group.getChangedAt() > 0) {
+                    data.lawChangedAt.put(group.getId(), group.getChangedAt());
                 }
             }
 

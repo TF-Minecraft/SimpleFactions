@@ -411,7 +411,7 @@ class CivilWarStartServiceTest {
 		Faction rebels = mock(Faction.class);
 		stubRebelVassalage(rebels);
 		assertNull(CivilWarStartService.applyConfiguredVassalage(rebels));
-		verify(rebels.getLawHandler().getGroup("vassalage")).setCurrent(org.mockito.ArgumentMatchers.any());
+		verify(rebels.getLawHandler().getGroup("vassalage")).switchTo(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong());
 	}
 
 	private static Movement baseMovement(Action action, Member leaderRelation) {

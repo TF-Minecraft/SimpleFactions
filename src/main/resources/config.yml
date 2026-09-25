@@ -58,6 +58,9 @@ starting-year: "372 AE"
 
 max-extra-node-capacity: 0
 de-jure-requirement: 75.0
+# Days after a law group changes before the faction can switch it again.
+# Coups, movements, war outcomes and admin commands ignore it. 0 disables it.
+law-switch-lock-days: 3
 
 # Map platform (step 42) — requires TFMCWeb softdepend + api.base-url configured
 enable-map: true
