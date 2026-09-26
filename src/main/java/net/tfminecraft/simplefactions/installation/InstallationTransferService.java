@@ -69,8 +69,11 @@ public final class InstallationTransferService {
 					if (vehicle != null) {
 						sync.applyLeaderOwner(vehicle, to);
 					}
-				} catch (Exception ignored) {
-					// An unloaded vehicle picks up the new leader when it next loads.
+				} catch (RuntimeException e) {
+					// Kept per vehicle so the rest still transfer. The owner is corrected on its next spawn.
+					SimpleFactions.getInstance().getLogger().warning(
+							"Could not move vehicle " + record.getVehicleUuid() + " to faction " + to.getId()
+									+ " leader after installation transfer; it updates on next spawn: " + e);
 				}
 			}
 			SimpleFactions.getInstance().saveVehicleRegistry();
