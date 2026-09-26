@@ -30,6 +30,7 @@ public class Cache {
 	public static double prestigeFromTradeFalloff = 0.1;
 	public static double prosperitySoftCap = 80;
 	public static double prosperitySoftCapScale = 20;
+	public static double maxTradeUpkeep = 0.75;
 	public static double maxPlaytimePrestigeExponent = 5;
 	public static String baseYear;
 	public static int baseIrlYear = java.time.Year.now().getValue();

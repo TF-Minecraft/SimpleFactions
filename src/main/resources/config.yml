@@ -105,6 +105,9 @@ battle:
 # cap + 3 x scale, a third at cap + 8 x scale. No ceiling. 0 disables it.
 prosperity-soft-cap: 80
 prosperity-soft-cap-scale: 20
+# Most of a province's trade income a guild can pay as trade upkeep, so it
+# always keeps the rest. 0.75 keeps at least a quarter. 0 disables the limit.
+max-trade-upkeep: 0.75
 
 branch-upgrade-cost: 100.0
 branch-upgrade-exponent: 1.07

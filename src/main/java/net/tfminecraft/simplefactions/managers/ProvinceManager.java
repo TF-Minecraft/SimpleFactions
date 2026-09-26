@@ -11,6 +11,7 @@ import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
+import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.map.provinces.Province;
@@ -156,7 +157,7 @@ public class ProvinceManager {
             double provinceIncome = province.getIncome(guild);
             if(provinceIncome == 0) continue;
             //if(provinceIncome > guildTrade) provinceIncome = guildTrade;
-            upkeep += provinceIncome*province.getTradeFactor(guild)*upkeepFactor;
+            upkeep += provinceIncome*TradeUpkeep.rate(province.getTradeFactor(guild), upkeepFactor);
             Faction owner = TitleManager.getByProvince(province.getId());
             if(owner != null) {
                 if(save) guild.getTradeBreakdown().registerIncome(owner, provinceIncome);
