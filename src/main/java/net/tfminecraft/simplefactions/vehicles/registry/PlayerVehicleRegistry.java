@@ -94,13 +94,30 @@ public final class PlayerVehicleRegistry {
         return out;
     }
 
-    public int usedCategorySize(String installationId, String categoryId) {
+    /**
+     * Vehicles at one faction's installation. Installation ids are only unique within a
+     * faction, so records naming another faction are skipped. Older records with no
+     * faction id are included.
+     */
+    public List<PlayerVehicleRecord> getByInstallation(String factionId, String installationId) {
+        List<PlayerVehicleRecord> out = new ArrayList<>();
+        for (PlayerVehicleRecord record : getByInstallationId(installationId)) {
+            if (record.getFactionId() == null
+                    || factionId == null
+                    || record.getFactionId().equalsIgnoreCase(factionId)) {
+                out.add(record);
+            }
+        }
+        return out;
+    }
+
+    public int usedCategorySize(String factionId, String installationId, String categoryId) {
         if (installationId == null || categoryId == null || categoryId.isEmpty()) {
             return 0;
         }
         String normalizedCategoryId = categoryId.toLowerCase();
         int used = 0;
-        for (PlayerVehicleRecord record : getByInstallationId(installationId)) {
+        for (PlayerVehicleRecord record : getByInstallation(factionId, installationId)) {
             Optional<String> recordCategory =
                     VehiclesConfigLoader.getCategoryId(record.getVehicleTypeId());
             if (recordCategory.isPresent()

@@ -127,6 +127,7 @@ public final class VehicleTransferMessages {
                 installation.getKind(),
                 category);
         int used = SimpleFactions.getVehicleRegistry().usedCategorySize(
+                net.tfminecraft.simplefactions.installation.InstallationOwners.ownerIdOf(installation),
                 installation.getId(),
                 category);
         return "§c" + installation.getName() + " has no space for " + category

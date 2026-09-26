@@ -57,8 +57,8 @@ final class CampaignBattleIconLore {
 		for (String category : VEHICLE_CATEGORY_ORDER) {
 			counts.put(category, new TreeMap<>());
 		}
-		for (String installationId : inPlayInstallationIds(war)) {
-			for (PlayerVehicleRecord record : registry.getByInstallationId(installationId)) {
+		for (Map.Entry<String, String> picked : inPlayInstallations(war)) {
+			for (PlayerVehicleRecord record : registry.getByInstallation(picked.getKey(), picked.getValue())) {
 				if (record == null || record.getVehicleTypeId() == null) {
 					continue;
 				}
@@ -132,18 +132,22 @@ final class CampaignBattleIconLore {
 		return total;
 	}
 
-	private static Set<String> inPlayInstallationIds(War war) {
-		Set<String> ids = new LinkedHashSet<>();
+	/** Faction id and installation id pairs. The siege fort has no faction key, so it is not filtered. */
+	private static Set<Map.Entry<String, String>> inPlayInstallations(War war) {
+		Set<Map.Entry<String, String>> picked = new LinkedHashSet<>();
 		if (war.getBattleInstallationPicks() != null) {
-			for (Set<String> factionPicks : war.getBattleInstallationPicks().values()) {
-				if (factionPicks == null) {
+			for (Map.Entry<String, ? extends Set<String>> factionPicks : war.getBattleInstallationPicks().entrySet()) {
+				if (factionPicks.getValue() == null) {
 					continue;
 				}
-				ids.addAll(factionPicks);
+				for (String installationId : factionPicks.getValue()) {
+					picked.add(new java.util.AbstractMap.SimpleImmutableEntry<>(factionPicks.getKey(), installationId));
+				}
 			}
 		}
-		BattleSiegeFortService.currentSiegeFortInstallationId(war).ifPresent(ids::add);
-		return ids;
+		BattleSiegeFortService.currentSiegeFortInstallationId(war)
+				.ifPresent(id -> picked.add(new java.util.AbstractMap.SimpleImmutableEntry<>(null, id)));
+		return picked;
 	}
 
 	private static String categoryLabel(String categoryId) {
