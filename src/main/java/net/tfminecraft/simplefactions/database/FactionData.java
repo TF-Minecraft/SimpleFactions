@@ -67,6 +67,9 @@ public class FactionData {
     @SerializedName("founded at")
     public Long foundedAt;
 
+    @SerializedName("capital moves")
+    public Integer capitalMoves;
+
     public String overlord;
 
     public List<GuildData> guilds = new ArrayList<>();

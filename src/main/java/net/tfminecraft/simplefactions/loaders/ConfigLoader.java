@@ -61,6 +61,8 @@ public class ConfigLoader {
 		Cache.dividendRequirePreviousTickMembership =
 				config.getBoolean("dividend-require-previous-tick-membership", true);
 
+		Cache.capitalMoveCost = config.getDouble("capital-move-cost", 100.0);
+
 		Cache.mercenaryFormationCost = config.getDouble("mercenary-formation-cost", 100.0);
 		Cache.mercenaryFormationSeconds = config.getInt("mercenary-formation-seconds", 86400);
 		Cache.mercenarySlotUpkeep = config.getDouble("mercenary-slot-upkeep", 8.0);

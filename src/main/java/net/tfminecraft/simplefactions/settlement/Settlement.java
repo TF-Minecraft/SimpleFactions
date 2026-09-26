@@ -9,7 +9,7 @@ import net.tfminecraft.simplefactions.database.SettlementData;
 
 public class Settlement {
     private final String id;
-    private final String name;
+    private String name;
     private final int centerProvince;
     private final int centerX;
     private final int centerZ;
@@ -49,6 +49,11 @@ public class Settlement {
 
     public String getName() {
         return name;
+    }
+
+    /** Changes the display name only; the id stays so war targets keep resolving. */
+    public void setName(String name) {
+        this.name = name;
     }
 
     public int getCenterProvince() {

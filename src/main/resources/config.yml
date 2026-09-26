@@ -27,6 +27,9 @@ max-members: 64
 max-untitled-provinces: 5
 max-free-titles: 3
 province-cost: 50
+# Charged to the faction bank when a leader moves or renames the capital with
+# /faction setcapital. A faction's first move or rename is free.
+capital-move-cost: 100.0
 # Anti payday-joining: a member only receives a dividend share if they were
 # already in the guild at the previous daily tick. The percentage itself is not
 # a config key; each guild leader sets it, starting at 0%.
