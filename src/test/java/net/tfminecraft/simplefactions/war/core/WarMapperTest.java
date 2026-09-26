@@ -781,6 +781,31 @@ class WarMapperTest {
 	}
 
 	@Test
+	void roundTrip_preparationFreeze() {
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("faction_a");
+		when(defender.getId()).thenReturn("faction_b");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		try {
+			War war = new War(43, attacker, defender);
+			Instant until = Instant.parse("2026-08-22T14:00:00Z");
+			war.setPreparationFrozenUntil(until);
+
+			WarData data = WarMapper.toData(war);
+			assertEquals(until.toString(), data.preparationFrozenUntil);
+			assertEquals(until, WarMapper.fromData(data).getPreparationFrozenUntil());
+
+			data.preparationFrozenUntil = null;
+			assertNull(WarMapper.fromData(data).getPreparationFrozenUntil());
+		} finally {
+			FactionManager.factions.remove(attacker);
+			FactionManager.factions.remove(defender);
+		}
+	}
+
+	@Test
 	void fromData_omittedInstallationPicksDefaultsEmpty() {
 		Faction attacker = mock(Faction.class);
 		Faction defender = mock(Faction.class);

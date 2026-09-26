@@ -77,6 +77,10 @@ war:
     pass_if_either: true
     # A stalled vote postpones this many times, then the battle is autoresolved.
     max_postponements: 1
+    # Each postponement freezes both sides' build timers (regiments, installations,
+    # war-related guild upgrades, mercenary companies, VFBuilders projects) and
+    # pushes raid repair locks back by this many hours. Hiring mercenaries is blocked meanwhile.
+    postpone_freeze_hours: 24
   # Simulated battle when both leaders agree, or when a vote has stalled too often.
   autoresolve:
     # Each side's strength is multiplied by a uniform factor in [1 - luck, 1 + luck].

@@ -216,6 +216,9 @@ public class ConfigLoader {
 		Cache.warBattleVotingMaxPostponements = Math.max(
 				0,
 				config.getInt("war.battle_voting.max_postponements", 1));
+		Cache.warPostponeFreezeHours = Math.max(
+				0,
+				config.getInt("war.battle_voting.postpone_freeze_hours", 24));
 		double autoresolveLuck = config.getDouble("war.autoresolve.luck", 0.15);
 		if (autoresolveLuck < 0) {
 			autoresolveLuck = 0;

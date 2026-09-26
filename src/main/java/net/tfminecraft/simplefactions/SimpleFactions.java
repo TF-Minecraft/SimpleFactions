@@ -220,6 +220,7 @@ public class SimpleFactions extends JavaPlugin{
 					vehicleMaintenancePaySessionManager,
 					vehicleMaintenancePayService);
 	private boolean vehicleIntegrationRegistered = false;
+	private boolean constructionFreezeRegistered;
 	private final PlayerEconomyManager playerEconomyManager = new PlayerEconomyManager();
 	private final VehicleUpkeepService vehicleUpkeepService = new VehicleUpkeepService(
 		vehicleRegistry,
@@ -582,10 +583,20 @@ public class SimpleFactions extends JavaPlugin{
 				if ("VFBuilders".equalsIgnoreCase(event.getPlugin().getName())
 						|| "VehicleFramework".equalsIgnoreCase(event.getPlugin().getName())) {
 					registerVehicleIntegration();
+					registerConstructionFreeze();
 				}
 			}
 		}, this);
 		registerVehicleIntegration();
+		registerConstructionFreeze();
+	}
+
+	private void registerConstructionFreeze() {
+		if (constructionFreezeRegistered || !getServer().getPluginManager().isPluginEnabled("VFBuilders")) {
+			return;
+		}
+		net.tfminecraft.simplefactions.war.freeze.VfBuildersConstructionFreeze.register(this);
+		constructionFreezeRegistered = true;
 	}
 
 	private void registerVehicleIntegration() {

@@ -314,13 +314,19 @@ public class Guild {
     }
 
     public void tick() {
-		tickUpgradeQueue();
+		tick(false);
+	}
+
+	/** @param factionFrozen the host faction's battle was postponed; war-related upgrades hold */
+	public void tick(boolean factionFrozen) {
+		tickUpgradeQueue(factionFrozen);
 		if(company != null) company.tick();
 	}
 
-	private void tickUpgradeQueue() {
+	private void tickUpgradeQueue(boolean factionFrozen) {
 		if(upgradeQueue.size() == 0) return;
 		UpgradeExpansion e = upgradeQueue.get(0);
+		if(factionFrozen && e.getUpgrade().isWarRelated()) return;
 		e.tick();
 		if(e.getTimeLeft() != 0) return;
 		upgradeQueue.remove(0);

@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
 
 import java.util.ArrayList;
@@ -777,6 +778,10 @@ public class GuildCreator {
 		List<String> lore = new ArrayList<>();
 		if(index == 0) {
 			lore.add("§7Time Left: §e" + TimeFormatter.formatTime(expansion.getTimeLeft()));
+			if(expansion.getUpgrade().isWarRelated()) {
+				String frozen = PreparationFreeze.frozenLore(PreparationFreeze.frozenUntil(guild.getFaction(), java.time.Instant.now()));
+				if(frozen != null) lore.add(frozen);
+			}
 		} else {
 			lore.add(StringFormatter.formatHex("#857e59Queued..."));
 		}

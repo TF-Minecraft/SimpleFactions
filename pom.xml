@@ -16,7 +16,7 @@
         <rpcharacters.version>2.0.1</rpcharacters.version>
         <tlibs.version>2.0.0</tlibs.version>
         <vehicleframework.version>2.0.1</vehicleframework.version>
-        <vfbuilders.version>2.0.0</vfbuilders.version>
+        <vfbuilders.version>2.0.4</vfbuilders.version>
     </properties>
 
     <dependencies>

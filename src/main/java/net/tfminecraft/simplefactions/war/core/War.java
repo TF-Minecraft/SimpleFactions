@@ -96,6 +96,7 @@ public class War {
 	private boolean autoresolveProposedByAttacker;
 	private boolean autoresolveProposedByDefender;
 	private int postponementsThisCycle;
+	private Instant preparationFrozenUntil;
 	private boolean defenderChoiceResolved;
 	private CampaignCoalition initiativeHolderCoalition = CampaignCoalition.AGGRESSOR;
 	private CampaignPushTarget pushTarget = CampaignPushTarget.TOWARD_OBJECTIVE;
@@ -744,6 +745,19 @@ public class War {
 
 	public void setPostponementsThisCycle(int postponementsThisCycle) {
 		this.postponementsThisCycle = postponementsThisCycle;
+	}
+
+	/** End of the build freeze a postponed battle puts on both sides; null when none was set. */
+	public Instant getPreparationFrozenUntil() {
+		return preparationFrozenUntil;
+	}
+
+	public void setPreparationFrozenUntil(Instant preparationFrozenUntil) {
+		this.preparationFrozenUntil = preparationFrozenUntil;
+	}
+
+	public boolean isPreparationFrozen(Instant now) {
+		return isActive() && preparationFrozenUntil != null && now != null && now.isBefore(preparationFrozenUntil);
 	}
 
 	public boolean isDefenderChoiceResolved() {

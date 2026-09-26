@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -56,6 +57,8 @@ public class MilitaryCreator {
 		List<String> lore = new ArrayList<String>();
 		if(x == 0) {
 			lore.add("§7Time Left: §e"+TimeFormatter.formatTime(e.getTimeLeft()));
+			String frozen = PreparationFreeze.frozenLore(PreparationFreeze.frozenUntil(f, java.time.Instant.now()));
+			if(frozen != null) lore.add(frozen);
 		} else {
 			lore.add(StringFormatter.formatHex("#857e59Queued..."));
 		}
