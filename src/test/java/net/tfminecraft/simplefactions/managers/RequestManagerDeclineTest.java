@@ -259,6 +259,42 @@ class RequestManagerDeclineTest {
 		verify(government).addStabilityModifier(org.mockito.ArgumentMatchers.any(StabilityModifier.class));
 	}
 
+	@Test
+	void factionDecline_endedWar_stillConfirmsToPlayer() {
+		Player calledPlayer = player("AllyLead");
+		when(calledPlayer.isOnline()).thenReturn(true);
+		Player caller = player("AtkLead");
+		Faction origin = faction("atk", "AtkLead", "Attackers");
+		Guild guild = mock(Guild.class);
+		when(guild.getFaction()).thenReturn(origin);
+		RequestManager.addRequest(caller, calledPlayer, new WarRequest(guild, mock(War.class), "ally"));
+
+		RequestManager.decline(calledPlayer);
+
+		verify(calledPlayer).sendMessage("§7You declined the call to arms.");
+	}
+
+	@Test
+	void factionDecline_missingStoredTarget_penalisesNobody() {
+		Player calledPlayer = player("AllyLead");
+		Player caller = player("AtkLead");
+		// The called leader now leads a different faction; the stored target is gone.
+		Faction other = faction("other", "AllyLead", "Other");
+		Government government = mock(Government.class);
+		when(other.getGovernment()).thenReturn(government);
+		FactionManager.factions.add(other);
+		Faction origin = faction("atk", "AtkLead", "Attackers");
+		Guild guild = mock(Guild.class);
+		when(guild.getFaction()).thenReturn(origin);
+		RequestManager.addRequest(caller, calledPlayer, new WarRequest(guild, activeWar(), "disbanded"));
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			RequestManager.decline(calledPlayer);
+		}
+
+		verify(government, never()).addStabilityModifier(org.mockito.ArgumentMatchers.any());
+	}
+
 	private static War activeWar() {
 		War war = mock(War.class);
 		when(war.isActive()).thenReturn(true);

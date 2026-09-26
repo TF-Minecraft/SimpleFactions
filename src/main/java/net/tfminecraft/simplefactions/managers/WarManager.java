@@ -523,14 +523,16 @@ public class WarManager {
 	// Refused or expired call to arms. Decay matches the war-end hits in WarOutcomeService.
 	public static void declineCallToArms(Player called, WarRequest req, boolean explicit) {
 		if (req == null) return;
+		if (explicit && called != null && called.isOnline()) {
+			called.sendMessage("§7You declined the call to arms.");
+		}
 		// No penalty for refusing a war that has already ended.
 		if (req.getWar() == null || !req.getWar().isActive()) return;
+		// Requests made before the target was stored fall back to the called leader's faction.
+		// A stored target that no longer exists penalises nobody.
 		Faction receiver = req.getTargetFactionId() != null
 				? FactionManager.getByString(req.getTargetFactionId())
-				: null;
-		if (receiver == null && called != null) {
-			receiver = FactionManager.getByLeader(called.getName());
-		}
+				: called != null ? FactionManager.getByLeader(called.getName()) : null;
 		if (receiver != null && receiver.getGovernment() != null) {
 			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
 					"Declined Call to Arms",
@@ -544,9 +546,6 @@ public class WarManager {
 				String who = receiver != null ? receiver.getName() : "They";
 				caller.sendMessage(who + " §cdeclined your call to arms");
 			}
-		}
-		if (explicit && called != null && called.isOnline()) {
-			called.sendMessage("§7You declined the call to arms.");
 		}
 	}
 }
