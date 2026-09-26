@@ -1,78 +1,88 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
-
-import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
-import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
-import java.time.Instant;
-import java.util.Optional;
-import java.util.function.Consumer;
-
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.vehicleframework.VehicleFramework;
+import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Outcome;
+import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Status;
+import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard.CanBuildResult;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 
 public final class InstallationVehicleUnberthService {
-    private final PlayerVehicleRegistry registry;
-    private final Consumer<String> ownershipClearer;
+    private final FactionVehicleReleaseService releaseService;
 
     public InstallationVehicleUnberthService(PlayerVehicleRegistry registry) {
-        this(registry, uuid -> VehicleFramework.getVehicleManager().clearOwnership(uuid));
+        this(new FactionVehicleReleaseService(registry));
+    }
+
+    public InstallationVehicleUnberthService(FactionVehicleReleaseService releaseService) {
+        this.releaseService = releaseService;
     }
 
     InstallationVehicleUnberthService(
-            PlayerVehicleRegistry registry, Consumer<String> ownershipClearer) {
-        this.registry = registry;
-        this.ownershipClearer = ownershipClearer;
+            PlayerVehicleRegistry registry,
+            FactionVehicleReleaseService.PersonalOwner personalOwner) {
+        this(new FactionVehicleReleaseService(registry, personalOwner));
     }
 
     public enum UnberthResult {
         OK,
         NOT_LEADER,
         NOT_BERTHED,
-        EMBARGO
+        EMBARGO,
+        IN_BATTLE,
+        NO_PERSONAL_ROOM,
+        UNKNOWN_TYPE,
+        OWNERSHIP_UNAVAILABLE
     }
 
-    public UnberthResult unberth(
+    public record UnberthOutcome(UnberthResult result, CanBuildResult slotFailure, String vehicleTypeId) {}
+
+    public UnberthOutcome unberth(
             Faction faction,
             String leaderName,
             Installation installation,
             String vehicleUuid) {
-        if (faction == null
-                || leaderName == null
-                || installation == null
-                || vehicleUuid == null
-                || vehicleUuid.isBlank()) {
-            return UnberthResult.NOT_BERTHED;
-        }
-        if (faction.getLeader() == null || !faction.getLeader().equalsIgnoreCase(leaderName)) {
-            return UnberthResult.NOT_LEADER;
-        }
-
-        Optional<PlayerVehicleRecord> recordOpt = registry.getByVehicleUuid(vehicleUuid);
-        if (recordOpt.isEmpty()
-                || recordOpt.get().getMode() != OwnershipMode.INSTALLATION
-                || !installation.getId().equals(recordOpt.get().getInstallationId())) {
-            return UnberthResult.NOT_BERTHED;
-        }
-
-        if (VehicleInstallationLockService.isVehicleLocked(installation.getId(), Instant.now())) {
-            return UnberthResult.EMBARGO;
-        }
-
-        ownershipClearer.accept(vehicleUuid);
-        registry.unregister(vehicleUuid);
-        SimpleFactions.getInstance().saveVehicleRegistry();
-        return UnberthResult.OK;
+        String installationId = installation == null ? "" : installation.getId();
+        Outcome outcome = releaseService.takeFromInstallation(
+                faction, leaderName, installationId, vehicleUuid);
+        return new UnberthOutcome(map(outcome.status()), outcome.slotFailure(), outcome.vehicleTypeId());
     }
 
-    public static String messageFor(UnberthResult result) {
-        return switch (result) {
-            case OK -> "§aVehicle unberthed and released as unclaimed.";
-            case NOT_LEADER -> VehicleTransferMessages.notLeader();
+    private static UnberthResult map(Status status) {
+        if (status == null) {
+            return UnberthResult.NOT_BERTHED;
+        }
+        return switch (status) {
+            case OK -> UnberthResult.OK;
+            case NOT_LEADER -> UnberthResult.NOT_LEADER;
+            case NOT_FACTION_VEHICLE -> UnberthResult.NOT_BERTHED;
+            case INSTALLATION_LOCKED -> UnberthResult.EMBARGO;
+            case IN_BATTLE -> UnberthResult.IN_BATTLE;
+            case NO_PERSONAL_ROOM -> UnberthResult.NO_PERSONAL_ROOM;
+            case UNKNOWN_TYPE -> UnberthResult.UNKNOWN_TYPE;
+            case OWNERSHIP_UNAVAILABLE -> UnberthResult.OWNERSHIP_UNAVAILABLE;
+        };
+    }
+
+    public static String messageFor(UnberthOutcome outcome) {
+        if (outcome == null) {
+            return "§cThat vehicle is not berthed at this installation.";
+        }
+        return switch (outcome.result()) {
+            case OK -> FactionVehicleReleaseMessages.takenOut();
+            case NOT_LEADER -> FactionVehicleReleaseMessages.notLeader();
             case NOT_BERTHED -> "§cThat vehicle is not berthed at this installation.";
             case EMBARGO -> VehicleInstallationLockService.UNBERTH_BLOCKED;
+            case IN_BATTLE -> FactionCampaignBattleLock.BLOCKED;
+            case NO_PERSONAL_ROOM, UNKNOWN_TYPE -> FactionVehicleReleaseMessages.personalRoom(
+                    outcome.slotFailure() == null
+                            ? (outcome.result() == UnberthResult.UNKNOWN_TYPE
+                                    ? CanBuildResult.UNKNOWN_TYPE
+                                    : CanBuildResult.TOTAL_LIMIT)
+                            : outcome.slotFailure(),
+                    outcome.vehicleTypeId(),
+                    null);
+            case OWNERSHIP_UNAVAILABLE -> FactionVehicleReleaseMessages.ownershipUnavailable();
         };
     }
 }

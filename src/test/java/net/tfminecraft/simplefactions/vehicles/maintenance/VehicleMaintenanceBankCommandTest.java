@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.managers.CommandManager;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.utils.TabCompletion;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager;
+import net.tfminecraft.simplefactions.vehicles.berth.VehicleReleaseSessionManager;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager.VehicleTransferSession;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
@@ -35,6 +36,7 @@ class VehicleMaintenanceBankCommandTest {
         transfers.put(payer, new VehicleTransferSession("port", System.currentTimeMillis() + 60_000));
         when(plugin.getVehicleMaintenancePaySessionManager()).thenReturn(sessions);
         when(plugin.getVehicleTransferSessionManager()).thenReturn(transfers);
+        when(plugin.getVehicleReleaseSessionManager()).thenReturn(new VehicleReleaseSessionManager());
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class);
                 MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {

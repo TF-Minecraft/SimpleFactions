@@ -20,6 +20,7 @@ import net.tfminecraft.simplefactions.objects.request.MovementLeaderTargetReques
 import net.tfminecraft.simplefactions.objects.request.RelationRequest;
 import net.tfminecraft.simplefactions.objects.request.RelocateRequest;
 import net.tfminecraft.simplefactions.objects.request.Request;
+import net.tfminecraft.simplefactions.objects.request.VehicleGiveConsentRequest;
 import net.tfminecraft.simplefactions.objects.request.VehicleTransferConsentRequest;
 import net.tfminecraft.simplefactions.objects.request.WarRequest;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService;
@@ -93,6 +94,12 @@ public class RequestManager {
 					plugin.getVehicleTransferConsentService()
 							.notifyExpired(consentRequest, entry.getKey());
 				}
+			} else if (request instanceof VehicleGiveConsentRequest giveRequest) {
+				SimpleFactions plugin = SimpleFactions.getInstance();
+				if (plugin != null) {
+					plugin.getFactionVehicleGiveService()
+							.notifyExpired(giveRequest, entry.getKey());
+				}
 			} else if (request instanceof WarRequest warRequest) {
 				WarManager.declineCallToArms(entry.getKey(), warRequest, false);
 			}
@@ -139,6 +146,11 @@ public class RequestManager {
 			SimpleFactions plugin = SimpleFactions.getInstance();
 			if (plugin != null) {
 				plugin.getVehicleTransferConsentService().acceptRequest(p);
+			}
+		} else if(req instanceof VehicleGiveConsentRequest) {
+			SimpleFactions plugin = SimpleFactions.getInstance();
+			if (plugin != null) {
+				plugin.getFactionVehicleGiveService().acceptRequest(p);
 			}
 		}
 		requests.remove(p);

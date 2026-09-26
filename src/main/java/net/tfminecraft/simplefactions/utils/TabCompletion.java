@@ -236,6 +236,13 @@ public class TabCompletion implements TabCompleter{
 					return net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions.subcommands(
 							args.length >= 2 ? args[1] : "");
 				}
+				if(args.length == 3 && args[1].equalsIgnoreCase("give")) {
+					List<String> names = new ArrayList<>();
+					for(Player online : Bukkit.getOnlinePlayers()) {
+						names.add(online.getName());
+					}
+					return VehicleTabCompletions.filter(names, args[2]);
+				}
 				if(args.length == 3 && args[1].equalsIgnoreCase("transfer")) {
 					List<String> ids = completeInstallationIds(p, args[2], false);
 					String prefix = args[2] == null ? "" : args[2];

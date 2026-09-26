@@ -7,10 +7,14 @@ import java.util.Locale;
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
 
+import net.tfminecraft.simplefactions.vehicles.berth.VehicleReleaseSessionManager.Kind;
+import net.tfminecraft.simplefactions.vehicles.berth.VehicleReleaseSessionManager.VehicleReleaseSession;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager.VehicleTransferSession;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
+import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseMessages;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleInstallationLockService;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferMessages;
+import org.bukkit.Bukkit;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePaySessionManager.VehicleMaintenancePaySession;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceMessages;
 import org.bukkit.entity.Player;
@@ -52,7 +56,7 @@ public final class VehicleFactionCommands {
         }
         SimpleFactions plugin = SimpleFactions.getInstance();
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
-        plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        clearOtherVehicleSessions(plugin, player);
         plugin.getVehicleTransferSessionManager().put(
                 player.getUniqueId(),
                 new VehicleTransferSession(
@@ -61,10 +65,64 @@ public final class VehicleFactionCommands {
         player.sendMessage(VehicleTransferMessages.commandArmed(installation));
     }
 
+    public static void armTake(Player player) {
+        Faction faction = FactionManager.getByLeader(player.getName());
+        if (faction == null) {
+            player.sendMessage(FactionVehicleReleaseMessages.notLeader());
+            return;
+        }
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
+        plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        plugin.getVehicleReleaseSessionManager().put(
+                player.getUniqueId(),
+                new VehicleReleaseSession(Kind.TAKE, System.currentTimeMillis() + timeoutMillis));
+        player.sendMessage(FactionVehicleReleaseMessages.takeArmed());
+    }
+
+    public static void armGive(Player player, String targetName) {
+        Faction faction = FactionManager.getByLeader(player.getName());
+        if (faction == null) {
+            player.sendMessage(FactionVehicleReleaseMessages.notLeader());
+            return;
+        }
+        if (targetName == null || targetName.isBlank()) {
+            player.sendMessage(FactionVehicleReleaseMessages.giveUsage());
+            return;
+        }
+        if (targetName.equalsIgnoreCase(player.getName())) {
+            player.sendMessage(FactionVehicleReleaseMessages.giveSelf());
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(targetName);
+        if (target == null || !target.isOnline()) {
+            player.sendMessage(FactionVehicleReleaseMessages.recipientOffline(targetName));
+            return;
+        }
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
+        plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        plugin.getVehicleReleaseSessionManager().put(
+                player.getUniqueId(),
+                new VehicleReleaseSession(
+                        Kind.GIVE,
+                        target.getName(),
+                        target.getUniqueId(),
+                        System.currentTimeMillis() + timeoutMillis));
+        player.sendMessage(FactionVehicleReleaseMessages.giveArmed(target.getName()));
+    }
+
+    private static void clearOtherVehicleSessions(SimpleFactions plugin, Player player) {
+        plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
+    }
+
     private static void armPoolTransfer(Player player) {
         SimpleFactions plugin = SimpleFactions.getInstance();
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
-        plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        clearOtherVehicleSessions(plugin, player);
         plugin.getVehicleTransferSessionManager().put(
                 player.getUniqueId(),
                 new VehicleTransferSession(null, System.currentTimeMillis() + timeoutMillis, true));
@@ -83,6 +141,7 @@ public final class VehicleFactionCommands {
         SimpleFactions plugin = SimpleFactions.getInstance();
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().put(
                 player.getUniqueId(),
                 new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source));
@@ -153,13 +212,34 @@ public final class VehicleFactionCommands {
         public static boolean isVehicleRoot(String[] args) {
             return args != null && args.length >= 1 && args[0].equalsIgnoreCase("vehicle");
         }
+
+        public static boolean isTake(String[] args) {
+            return args != null
+                    && args.length >= 2
+                    && args[0].equalsIgnoreCase("vehicle")
+                    && args[1].equalsIgnoreCase("take");
+        }
+
+        /**
+         * Target name for a give command, empty string if the name is missing,
+         * or null if args are not a give command.
+         */
+        public static String giveTarget(String[] args) {
+            if (args == null
+                    || args.length < 2
+                    || !args[0].equalsIgnoreCase("vehicle")
+                    || !args[1].equalsIgnoreCase("give")) {
+                return null;
+            }
+            return args.length >= 3 ? args[2] : "";
+        }
     }
 
     public static final class VehicleTabCompletions {
         private VehicleTabCompletions() {}
 
         public static List<String> subcommands(String prefix) {
-            return filter(List.of("transfer", "maintenance"), prefix);
+            return filter(List.of("transfer", "take", "give", "maintenance"), prefix);
         }
 
         public static List<String> maintenanceActions(String prefix) {

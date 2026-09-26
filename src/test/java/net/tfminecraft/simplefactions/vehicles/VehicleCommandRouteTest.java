@@ -82,4 +82,15 @@ class VehicleCommandRouteTest {
                 VehicleCommandRoute.maintenancePaymentSource(args));
     }
 
+    @Test
+    void takeAndGiveRoutes() {
+        assertTrue(VehicleCommandRoute.isTake(new String[] {"vehicle", "take"}));
+        assertFalse(VehicleCommandRoute.isTake(new String[] {"vehicle", "give", "Bob"}));
+        assertEquals("Bob", VehicleCommandRoute.giveTarget(new String[] {"vehicle", "give", "Bob"}));
+        assertEquals("", VehicleCommandRoute.giveTarget(new String[] {"vehicle", "give"}));
+        assertNull(VehicleCommandRoute.giveTarget(new String[] {"vehicle", "take"}));
+        assertNull(VehicleCommandRoute.transferInstallationId(new String[] {"vehicle", "take"}));
+        assertNull(VehicleCommandRoute.transferInstallationId(new String[] {"vehicle", "give", "Bob"}));
+    }
+
 }

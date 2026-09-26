@@ -239,10 +239,10 @@ public class InstallationView {
 
         InstallationVehicleUnberthService service =
                 SimpleFactions.getInstance().getInstallationVehicleUnberthService();
-        InstallationVehicleUnberthService.UnberthResult result =
+        InstallationVehicleUnberthService.UnberthOutcome outcome =
                 service.unberth(faction, player.getName(), installation, vehicleUuid);
-        player.sendMessage(InstallationVehicleUnberthService.messageFor(result));
-        if (result == InstallationVehicleUnberthService.UnberthResult.OK) {
+        player.sendMessage(InstallationVehicleUnberthService.messageFor(outcome));
+        if (outcome.result() == InstallationVehicleUnberthService.UnberthResult.OK) {
             installationDetailView(player, faction, installationId);
             player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
         }
