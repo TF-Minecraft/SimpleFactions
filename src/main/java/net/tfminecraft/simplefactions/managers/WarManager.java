@@ -375,6 +375,16 @@ public class WarManager {
 
 	public static void start() {
 		wars = (new Database()).loadWars();
+		// Factions loaded before the wars, so civil war rebels were just given their law slots.
+		for (War war : getActive()) {
+			refreshTempRebelSlots(war);
+		}
+	}
+
+	private static void refreshTempRebelSlots(War war) {
+		if (war.getCivilWarSnapshot() == null) return;
+		Faction rebels = FactionManager.getByString(war.getCivilWarSnapshot().getTempRebelFactionId());
+		if (rebels != null && rebels.getMilitary() != null) rebels.getMilitary().refreshLawSlots();
 	}
 
 	public static void endWar(War w) {
@@ -401,6 +411,7 @@ public class WarManager {
 				break;
 			}
 		}
+		refreshTempRebelSlots(w);
 		notifyWarEnded(w, reason);
 	}
 

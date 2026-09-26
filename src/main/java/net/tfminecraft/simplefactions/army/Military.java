@@ -1,11 +1,17 @@
 package net.tfminecraft.simplefactions.army;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.laws.Law;
+import net.tfminecraft.simplefactions.laws.LawEffect;
 import net.tfminecraft.simplefactions.loaders.RegimentLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -13,6 +19,8 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.SFGUI;
+import net.tfminecraft.simplefactions.enums.Scope;
+import net.tfminecraft.simplefactions.war.core.War;
 
 public class Military {
 	Faction f;
@@ -74,6 +82,62 @@ public class Military {
 		return regiments;
 	}
 	
+	/**
+	 * Sets each regiment's free slots to what the faction's laws (and its overlord's
+	 * vassal-scope laws) grant. Paid slots are kept, so granted slots come and go with the laws.
+	 */
+	public void refreshLawSlots() {
+		if (f == null) return;
+		// Civil war rebels fight with only the slots split off the host; their laws grant nothing until it ends.
+		Map<String, Integer> granted = isCivilWarTempRebels() ? Map.of() : grantedSlots(ownLaws(), overlordLaws());
+		for (Regiment r : regiments) {
+			if (r.isLevy()) continue;
+			r.setGrantedSlots(granted.getOrDefault(r.getId().toLowerCase(Locale.ROOT), 0));
+		}
+	}
+
+	private List<Law> ownLaws() {
+		return f.getLawHandler() == null ? List.of() : f.getLawHandler().getCurrentLaws();
+	}
+
+	private List<Law> overlordLaws() {
+		String overlordId = RelationManager.getOverlord(f);
+		Faction overlord = overlordId == null ? null : FactionManager.getByString(overlordId);
+		if (overlord == null || overlord.getLawHandler() == null) return List.of();
+		return overlord.getLawHandler().getCurrentLaws();
+	}
+
+	/** Free slots per regiment id: faction-scope grants from own laws plus vassal-scope grants from the overlord's. */
+	static Map<String, Integer> grantedSlots(List<Law> ownLaws, List<Law> overlordLaws) {
+		Map<String, Integer> granted = new HashMap<>();
+		addGrants(granted, ownLaws, Scope.FACTION);
+		addGrants(granted, overlordLaws, Scope.VASSALS);
+		return granted;
+	}
+
+	private static void addGrants(Map<String, Integer> granted, List<Law> laws, Scope scope) {
+		if (laws == null) return;
+		for (Law law : laws) {
+			if (law == null || law.getScopedEffects() == null) continue;
+			LawEffect effect = law.getScopedEffects().get(scope);
+			if (effect == null || !effect.hasRegiments()) continue;
+			for (Map.Entry<Regiment, Integer> entry : effect.getRegiments().entrySet()) {
+				if (entry.getKey() == null || entry.getValue() == null) continue;
+				granted.merge(entry.getKey().getId().toLowerCase(Locale.ROOT), entry.getValue(), Integer::sum);
+			}
+		}
+	}
+
+	private boolean isCivilWarTempRebels() {
+		for (War war : WarManager.getActive()) {
+			if (war.getCivilWarSnapshot() == null) continue;
+			if (f.getId() != null && f.getId().equalsIgnoreCase(war.getCivilWarSnapshot().getTempRebelFactionId())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public List<MilitaryExpansion> getQueue(){
 		return queue;
 	}

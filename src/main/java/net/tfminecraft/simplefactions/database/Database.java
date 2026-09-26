@@ -15,6 +15,7 @@ import org.bukkit.Chunk;
 import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.army.MilitaryExpansion;
 import net.tfminecraft.simplefactions.army.Regiment;
+import net.tfminecraft.simplefactions.loaders.RegimentLoader;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
@@ -222,8 +223,16 @@ public class Database {
                 Military m = f.getMilitary();
                 for (String s : data.military) {
                     String[] split = s.split("\\.");
-                    m.getRegiment(split[0]).setCurrentSlots(Integer.parseInt(split[1]));
+                    Regiment r = m.getRegiment(split[0]);
+                    if (r == null) continue;
+                    r.setCurrentSlots(Integer.parseInt(split[1]));
+                    // "id.current.free"; older "id.current" saves always had the regiments.yml default free.
+                    Regiment prototype = RegimentLoader.getByString(split[0]);
+                    r.setFreeSlots(split.length > 2 ? Integer.parseInt(split[2])
+                            : prototype == null ? 0 : prototype.getFreeSlots());
                 }
+                // Laws are already applied; overlord grants are re-derived once relations load.
+                m.refreshLawSlots();
 
                 for (String s : data.militaryQueue) {
                     String[] split = s.split("\\.");
@@ -333,7 +342,7 @@ public class Database {
             // --- Military ---
             for (Regiment r : f.getMilitary().getRegiments()) {
                 if (!r.isLevy()) {
-                    data.military.add(r.getId() + "." + r.getCurrentSlots());
+                    data.military.add(r.getId() + "." + r.getCurrentSlots() + "." + r.getFreeSlots());
                 }
             }
 

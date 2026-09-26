@@ -12,6 +12,8 @@ professional:
         - "#a89977which can be used both in offensive and defensive wars"
 militia:
     name: "#b2d485Militia"
+    # Free slots now come from military laws (e.g. Decentralized grants militia 6).
+    # default-slots is only the free count assumed for saves written before that.
     default-slots: 6
     upkeep: 2.0
     expansion-time: 43200
