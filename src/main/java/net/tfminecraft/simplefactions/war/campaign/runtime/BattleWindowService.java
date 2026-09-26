@@ -17,18 +17,23 @@ public final class BattleWindowService {
 
 	private BattleWindowService() {}
 
+	/**
+	 * Hours a battle may start. {@code window_end_hour} closes the window and is not a start time
+	 * (21, 22, 23 when the window ends at 24). Whether the window is currently open still uses the
+	 * end hour as its end.
+	 */
 	public static List<Integer> listValidHours() {
 		int start = Cache.warBattleWindowStartHour;
 		int end = Cache.warBattleWindowEndHour;
 		List<Integer> hours = new ArrayList<>();
-		for (int hour = start; hour <= end; hour++) {
+		for (int hour = start; hour < end; hour++) {
 			hours.add(hour);
 		}
 		return Collections.unmodifiableList(hours);
 	}
 
 	public static boolean isValidHour(int hour) {
-		return hour >= Cache.warBattleWindowStartHour && hour <= Cache.warBattleWindowEndHour;
+		return hour >= Cache.warBattleWindowStartHour && hour < Cache.warBattleWindowEndHour;
 	}
 
 	public static Instant atScheduleHour(LocalDate battleDay, int hour) {

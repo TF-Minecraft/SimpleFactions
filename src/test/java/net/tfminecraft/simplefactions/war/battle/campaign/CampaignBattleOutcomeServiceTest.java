@@ -424,6 +424,17 @@ class CampaignBattleOutcomeServiceTest {
 		assertTrue(CampaignPostBattleChoiceService.needsWinnerChoice(war));
 	}
 
+	@Test
+	void applyCampaignBattleOutcome_resetsPostponements() {
+		War war = baseWar();
+		war.setPostponementsThisCycle(2);
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+
+		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.ATTACKER, 20);
+
+		assertEquals(0, war.getPostponementsThisCycle());
+	}
+
 	private War baseWar() {
 		War war = new War(1, attacker, defender);
 		war.setGoal(WarGoalType.SUBJUGATE);

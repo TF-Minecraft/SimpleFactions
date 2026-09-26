@@ -65,6 +65,16 @@ class BattleVoteServiceTest {
 	}
 
 	@Test
+	void toggleVote_rejectsWindowEndHour() {
+		assertEquals(
+				BattleVoteToggleResult.REJECTED_INVALID_HOUR,
+				BattleVoteService.toggleVote(war, attackerVoter, 24, attacker, true));
+		assertEquals(
+				BattleVoteToggleResult.ADDED,
+				BattleVoteService.toggleVote(war, attackerVoter, 23, attacker, true));
+	}
+
+	@Test
 	void toggleVote_allowsBeforeVoteClose() {
 		votingWar();
 		Instant beforeClose = BattleWindowService.atScheduleHour(BATTLE_DAY, 12);

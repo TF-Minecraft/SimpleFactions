@@ -88,6 +88,9 @@ public final class BattleScheduleTickService {
 		if (war == null || !war.isActive()) {
 			return false;
 		}
+		if (war.getBattleSchedulePhase() == BattleSchedulePhase.AUTORESOLVE_PENDING) {
+			return BattleAutoresolveService.resolve(war);
+		}
 		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
 			return false;
 		}
@@ -105,7 +108,8 @@ public final class BattleScheduleTickService {
 				CloseVoteOptions.scheduled());
 		if (result == BattleScheduleCloseResult.SCHEDULED
 				|| result == BattleScheduleCloseResult.POSTPONED
-				|| result == BattleScheduleCloseResult.AUTORESOLVE_PENDING) {
+				|| result == BattleScheduleCloseResult.AUTORESOLVE_PENDING
+				|| result == BattleScheduleCloseResult.AUTORESOLVED) {
 			changed = true;
 		}
 		return changed;

@@ -75,6 +75,14 @@ war:
     min_players: 4
     require_smallest_side_full: true
     pass_if_either: true
+    # A stalled vote postpones this many times, then the battle is autoresolved.
+    max_postponements: 1
+  # Simulated battle when both leaders agree, or when a vote has stalled too often.
+  autoresolve:
+    # Each side's strength is multiplied by a uniform factor in [1 - luck, 1 + luck].
+    luck: 0.15
+    # Share of the losing side's lives removed. The beaten army retreats rather than being wiped out.
+    loser_loss_fraction: 0.5
   devmode:
     phantom_count: 10
   battle_military:

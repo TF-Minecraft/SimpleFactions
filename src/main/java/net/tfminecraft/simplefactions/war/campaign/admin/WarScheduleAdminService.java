@@ -147,6 +147,8 @@ public final class WarScheduleAdminService {
 
 			case AUTORESOLVE_PENDING -> WarScheduleAdminResult.ok("Vote close set AUTORESOLVE_PENDING.");
 
+			case AUTORESOLVED -> WarScheduleAdminResult.ok("Vote close autoresolved the battle.");
+
 			case BLOCKED_DEFENDER_CHOICE -> WarScheduleAdminResult.error(
 
 					"Vote close blocked: defender choice unresolved.");

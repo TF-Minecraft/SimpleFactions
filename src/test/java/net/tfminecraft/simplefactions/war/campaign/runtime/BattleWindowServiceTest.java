@@ -22,14 +22,15 @@ class BattleWindowServiceTest {
 	}
 
 	@Test
-	void listValidHours_defaultWindow() {
-		assertEquals(List.of(21, 22, 23, 24), BattleWindowService.listValidHours());
+	void listValidHours_excludesWindowEnd() {
+		assertEquals(List.of(21, 22, 23), BattleWindowService.listValidHours());
 	}
 
 	@Test
-	void isValidHour_acceptsWindowBounds() {
+	void isValidHour_excludesWindowEnd() {
 		assertTrue(BattleWindowService.isValidHour(21));
-		assertTrue(BattleWindowService.isValidHour(24));
+		assertTrue(BattleWindowService.isValidHour(23));
+		assertFalse(BattleWindowService.isValidHour(24));
 		assertFalse(BattleWindowService.isValidHour(20));
 		assertFalse(BattleWindowService.isValidHour(25));
 	}
@@ -42,18 +43,14 @@ class BattleWindowServiceTest {
 	}
 
 	@Test
-	void computeScheduledBattleAt_hour24_usesNextDayMidnightInScheduleZone() {
-		LocalDate battleDay = LocalDate.of(2026, 8, 21);
-		Instant instant = BattleWindowService.computeScheduledBattleAt(battleDay, 24);
-		assertEquals(
-				battleDay.plusDays(1).atStartOfDay(BattleWindowService.SCHEDULE_ZONE).toInstant(),
-				instant);
+	void computeScheduledBattleAt_hour24_isNotAStartTime() {
+		assertNull(BattleWindowService.computeScheduledBattleAt(LocalDate.of(2026, 8, 21), 24));
 	}
 
 	@Test
 	void resolveScheduleHour_mapsMidnightNextDayToHour24() {
 		LocalDate battleDay = LocalDate.of(2026, 8, 21);
-		Instant instant = BattleWindowService.computeScheduledBattleAt(battleDay, 24);
+		Instant instant = BattleWindowService.atScheduleHour(battleDay, 24);
 		assertEquals(24, BattleWindowService.resolveScheduleHour(battleDay, instant));
 	}
 

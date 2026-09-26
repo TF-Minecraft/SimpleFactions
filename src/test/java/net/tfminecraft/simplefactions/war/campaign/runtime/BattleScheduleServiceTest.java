@@ -182,6 +182,7 @@ class BattleScheduleServiceTest {
 				war, BattleWindowService.atScheduleHour(BATTLE_DAY, 21)));
 		assertTrue(BattleScheduleService.isBattleWindowOpen(
 				war, BattleWindowService.atScheduleHour(BATTLE_DAY, 23)));
+		assertFalse(BattleWindowService.isValidHour(24));
 	}
 
 	@Test
@@ -190,6 +191,66 @@ class BattleScheduleServiceTest {
 		war.setBattleDay(BATTLE_DAY.plusDays(1));
 		assertFalse(BattleScheduleService.isBattleWindowOpen(
 				war, BattleWindowService.atScheduleHour(BATTLE_DAY, 21)));
+	}
+
+	@Test
+	void closeVote_resetsPostponementsWhenScheduled() {
+		War war = votingWar();
+		war.setPostponementsThisCycle(2);
+		addCrossSideVotes(war, 21);
+
+		withMockBossBar(() -> {
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					voteCloseInstant(),
+					uuidToFaction(),
+					name -> null);
+
+			assertEquals(BattleScheduleCloseResult.SCHEDULED, result);
+			assertEquals(0, war.getPostponementsThisCycle());
+		});
+	}
+
+	@Test
+	void closeVote_autoresolvesWhenPostponementsExhausted() {
+		Cache.warBattleVotingMaxPostponements = 1;
+		War war = votingWar();
+		war.setPostponementsThisCycle(1);
+
+		try (MockedStatic<BattleAutoresolveService> autoresolve = mockStatic(BattleAutoresolveService.class)) {
+			autoresolve.when(() -> BattleAutoresolveService.resolve(war)).thenReturn(true);
+
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					voteCloseInstant(),
+					uuidToFaction(),
+					name -> null);
+
+			assertEquals(BattleScheduleCloseResult.AUTORESOLVED, result);
+			assertEquals(BATTLE_DAY, war.getBattleDay());
+			autoresolve.verify(() -> BattleAutoresolveService.resolve(war));
+		}
+	}
+
+	@Test
+	void closeVote_postponesAgainWhenAutoresolveHasNoProvince() {
+		Cache.warBattleVotingMaxPostponements = 1;
+		War war = votingWar();
+		war.setPostponementsThisCycle(1);
+
+		try (MockedStatic<BattleAutoresolveService> autoresolve = mockStatic(BattleAutoresolveService.class)) {
+			autoresolve.when(() -> BattleAutoresolveService.resolve(war)).thenReturn(false);
+
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					voteCloseInstant(),
+					uuidToFaction(),
+					name -> null);
+
+			assertEquals(BattleScheduleCloseResult.POSTPONED, result);
+			assertEquals(BATTLE_DAY.plusDays(1), war.getBattleDay());
+			assertEquals(2, war.getPostponementsThisCycle());
+		}
 	}
 
 	@Test

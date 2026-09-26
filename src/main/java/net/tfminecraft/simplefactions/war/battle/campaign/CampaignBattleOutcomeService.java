@@ -126,6 +126,8 @@ public class CampaignBattleOutcomeService implements Listener {
 			return new CampaignBattleApplyResult(false, false, Optional.empty());
 		}
 
+		war.setPostponementsThisCycle(0);
+
 		CampaignPushTarget preBattlePushTarget = war.getPushTarget();
 		ObjectiveHolder preBattleObjectiveHeldBy = war.getObjectiveHeldBy();
 
