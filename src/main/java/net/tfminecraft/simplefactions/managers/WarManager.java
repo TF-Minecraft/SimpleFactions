@@ -2,7 +2,9 @@ package net.tfminecraft.simplefactions.managers;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -19,6 +21,7 @@ import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.combat.WarCombatTeardownService;
@@ -34,6 +37,7 @@ import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarUntangleService;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.resolution.WarOutcomeService;
+import net.tfminecraft.simplefactions.government.StabilityModifier;
 import net.tfminecraft.simplefactions.installation.WartimeInstallationService;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
@@ -42,6 +46,8 @@ import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
 public class WarManager {
 	private static List<War> wars = new ArrayList<>();
 	private static String lastDeclareError;
+	// The goat-horn enum needs a live registry, so tests can substitute this.
+	static Consumer<Player> declaredHorn = WarManager::playDeclaredHorn;
 	
 	public static String getLastDeclareError() {
 		return lastDeclareError;
@@ -309,25 +315,29 @@ public class WarManager {
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
-	@SuppressWarnings("deprecation")
 	public static War addWar(War w) {
 		wars.add(w);
-		for(String m : w.getAttackers().getLeader().getMembers()){
-			Player p = Bukkit.getPlayerExact(m);
-			if(p != null && p.isOnline()){
-				p.sendTitle("§cWar Declared!", "§e/war list §7to view", 10, 120, 10);
-				p.playSound(p, Sound.ITEM_GOAT_HORN_SOUND_2, SoundCategory.MASTER, 10f, 0.6f);
-			}
-		}
-		for(String m : w.getDefenders().getLeader().getMembers()){
-			Player p = Bukkit.getPlayerExact(m);
-			if(p != null && p.isOnline()){
-				p.sendTitle("§cWar Declared!", "§e/war list §7to view", 10, 120, 10);
-				p.playSound(p, Sound.ITEM_GOAT_HORN_SOUND_2, SoundCategory.MASTER, 10f, 0.6f);
-			}
-		}
+		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getAttackers()));
+		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getDefenders()));
 		persist(w);
 		return w;
+	}
+
+	@SuppressWarnings("deprecation")
+	private static void notifyWarDeclared(Iterable<String> members) {
+		if (members == null) return;
+		for (String member : members) {
+			if (member == null || member.isBlank()) continue;
+			Player p = Bukkit.getPlayerExact(member);
+			if (p != null && p.isOnline()) {
+				p.sendTitle("§cWar Declared!", "§e/war list §7to view", 10, 120, 10);
+				declaredHorn.accept(p);
+			}
+		}
+	}
+
+	private static void playDeclaredHorn(Player player) {
+		player.playSound(player, Sound.ITEM_GOAT_HORN_SOUND_2, SoundCategory.MASTER, 10f, 0.6f);
 	}
 
 	public static void persist(War war) {
@@ -424,13 +434,10 @@ public class WarManager {
 			case DEFENDER_VICTORY -> "§7The war has ended. The defender coalition wins.";
 			default -> "§7The war has ended.";
 		};
-		for (String member : w.getAttackers().getLeader().getMembers()) {
-			Player p = Bukkit.getPlayerExact(member);
-			if (p != null && p.isOnline()) {
-				p.sendMessage(message);
-			}
-		}
-		for (String member : w.getDefenders().getLeader().getMembers()) {
+		LinkedHashSet<String> members = new LinkedHashSet<>();
+		members.addAll(BattleSideMembers.collectEligibleMemberNames(w.getAttackers()));
+		members.addAll(BattleSideMembers.collectEligibleMemberNames(w.getDefenders()));
+		for (String member : members) {
 			Player p = Bukkit.getPlayerExact(member);
 			if (p != null && p.isOnline()) {
 				p.sendMessage(message);
@@ -484,6 +491,7 @@ public class WarManager {
 		sender.sendMessage("§aSent a call to arms to "+target.getName());
 		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
+		p.sendMessage("§7Type §c/faction decline §7to decline");
 		p.sendMessage("§7Request will time out in 60 seconds");
 		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), w));
 	}
@@ -508,6 +516,32 @@ public class WarManager {
 		Player sp = Bukkit.getPlayerExact(origin.getLeader());
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your call to arms");
 		p.sendMessage("§aYour faction has joined the "+war.getName());
+		notifyWarDeclared(reciever.getMembers());
 		persist(war);
+	}
+
+	// Refused or expired call to arms. Decay matches the war-end hits in WarOutcomeService.
+	public static void declineCallToArms(Player called, WarRequest req, boolean explicit) {
+		if (req == null) return;
+		// No penalty for refusing a war that has already ended.
+		if (req.getWar() == null || !req.getWar().isActive()) return;
+		Faction receiver = called == null ? null : FactionManager.getByLeader(called.getName());
+		if (receiver != null && receiver.getGovernment() != null) {
+			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
+					"Declined Call to Arms",
+					Cache.warDeclinedAllyStabilityPenalty,
+					1));
+		}
+		Faction origin = req.getFaction();
+		if (origin != null && origin.getLeader() != null) {
+			Player caller = Bukkit.getPlayerExact(origin.getLeader());
+			if (caller != null && caller.isOnline()) {
+				String who = receiver != null ? receiver.getName() : "They";
+				caller.sendMessage(who + " §cdeclined your call to arms");
+			}
+		}
+		if (explicit && called != null && called.isOnline()) {
+			called.sendMessage("§7You declined the call to arms.");
+		}
 	}
 }

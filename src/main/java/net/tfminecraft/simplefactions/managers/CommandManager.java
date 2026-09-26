@@ -718,6 +718,13 @@ public class CommandManager implements Listener, CommandExecutor{
 				}
 				RequestManager.accept(p);
 				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("decline") && args.length == 1) {
+				if(!RequestManager.hasRequest(p)) {
+					p.sendMessage("§cYou have no requests to decline");
+					return true;
+				}
+				RequestManager.decline(p);
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("setcolour") && args.length == 2) {
 			    if(FactionManager.getByLeader(p.getName()) != null) {
 			        String rgb = args[1];

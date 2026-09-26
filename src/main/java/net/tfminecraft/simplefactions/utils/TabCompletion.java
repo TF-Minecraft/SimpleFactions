@@ -273,6 +273,7 @@ public class TabCompletion implements TabCompleter{
 				if(FactionManager.getByMember(p.getName()) != null) completions.add("menu");
 				completions.add("create");
 				completions.add("accept");
+				completions.add("decline");
 				completions.add("join");
 				completions.add("vehicle");
 				
