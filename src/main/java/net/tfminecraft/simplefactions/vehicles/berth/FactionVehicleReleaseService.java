@@ -10,6 +10,7 @@ import org.json.simple.parser.JSONParser;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard.CanBuildResult;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
@@ -164,20 +165,20 @@ public final class FactionVehicleReleaseService {
             Faction faction,
             PlayerVehicleRecord record,
             String requiredInstallationId) {
-        if (requiredInstallationId != null) {
-            return record.getMode() == OwnershipMode.INSTALLATION
-                    && requiredInstallationId.equals(record.getInstallationId());
-        }
         if (record.getMode() == OwnershipMode.POOL) {
-            return faction.getId() != null && faction.getId().equalsIgnoreCase(record.getFactionId());
+            return requiredInstallationId == null
+                    && faction.getId() != null
+                    && faction.getId().equalsIgnoreCase(record.getFactionId());
         }
-        if (record.getMode() == OwnershipMode.INSTALLATION) {
-            if (faction.getInstallationHandler() == null || record.getInstallationId() == null) {
-                return false;
-            }
-            return faction.getInstallationHandler().getById(record.getInstallationId()) != null;
+        if (record.getMode() != OwnershipMode.INSTALLATION) {
+            return false;
         }
-        return false;
+        if (requiredInstallationId != null && !requiredInstallationId.equals(record.getInstallationId())) {
+            return false;
+        }
+        // Installation ids are only unique within a faction, so match the record's own faction.
+        Faction holder = FactionVehiclePoolService.payingFaction(record);
+        return holder != null && holder.getId() != null && holder.getId().equalsIgnoreCase(faction.getId());
     }
 
     private static Outcome outcome(Status status, CanBuildResult slotFailure, String vehicleTypeId) {

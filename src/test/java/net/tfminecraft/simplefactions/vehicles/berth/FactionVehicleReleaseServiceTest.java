@@ -49,6 +49,7 @@ class FactionVehicleReleaseServiceTest {
     private InstallationHandler handler;
     private List<War> savedWars;
     private List<Battle> savedBattles;
+    private List<Faction> previousFactions;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -92,6 +93,8 @@ class FactionVehicleReleaseServiceTest {
         handler = mock(InstallationHandler.class);
         when(faction.getInstallationHandler()).thenReturn(handler);
 
+        previousFactions = net.tfminecraft.simplefactions.managers.FactionManager.factions;
+        net.tfminecraft.simplefactions.managers.FactionManager.factions = new ArrayList<>(List.of(faction, enemy));
         savedWars = new ArrayList<>(WarManager.get());
         savedBattles = new ArrayList<>(BattleManager.get());
         WarManager.get().clear();
@@ -100,6 +103,7 @@ class FactionVehicleReleaseServiceTest {
 
     @AfterEach
     void tearDown() throws IOException {
+        net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
         VehicleOwnershipQueries.setSourceForTests(null);
         BattleManager.resetForTests();
         WarManager.get().clear();
@@ -171,6 +175,23 @@ class FactionVehicleReleaseServiceTest {
         assertEquals(Status.SAVE_FAILED, outcome.status());
         assertEquals(2, saves.get());
         assertTrue(registry.getByVehicleUuid("gun-1").isPresent());
+    }
+
+    @Test
+    void take_refusesAnotherFactionsVehicleAtASameNamedInstallation() {
+        Installation port = new Installation("port-1", "Harbour", InstallationKind.PORT, 1, 0, 0, 0L);
+        when(handler.getById("port-1")).thenReturn(port);
+        InstallationHandler enemyHandler = mock(InstallationHandler.class);
+        when(enemyHandler.getById("port-1")).thenReturn(port);
+        when(enemy.getInstallationHandler()).thenReturn(enemyHandler);
+        registry.register(new PlayerVehicleRecord(
+                UUID.randomUUID(), "ship-1", "ironclad", OwnershipMode.INSTALLATION, "port-1", "blue"));
+
+        Outcome outcome = service.take(faction, "Leader", "ship-1");
+
+        assertEquals(Status.NOT_FACTION_VEHICLE, outcome.status());
+        assertTrue(registry.getByVehicleUuid("ship-1").isPresent());
+        assertTrue(assigned.isEmpty());
     }
 
     @Test
@@ -331,7 +352,7 @@ class FactionVehicleReleaseServiceTest {
 
     private static PlayerVehicleRecord berthed(String uuid, String typeId, String installationId) {
         return new PlayerVehicleRecord(
-                UUID.randomUUID(), uuid, typeId, OwnershipMode.INSTALLATION, installationId);
+                UUID.randomUUID(), uuid, typeId, OwnershipMode.INSTALLATION, installationId, "red");
     }
 
     /** A plugin mock whose registry saves succeed. */

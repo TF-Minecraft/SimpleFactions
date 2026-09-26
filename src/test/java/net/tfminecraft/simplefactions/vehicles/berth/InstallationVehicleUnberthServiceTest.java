@@ -43,6 +43,7 @@ class InstallationVehicleUnberthServiceTest {
     private InstallationVehicleUnberthService service;
     private Faction faction;
     private Installation port;
+    private List<Faction> previousFactions;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -73,11 +74,19 @@ class InstallationVehicleUnberthServiceTest {
                 });
         faction = mock(Faction.class);
         when(faction.getLeader()).thenReturn("Leader");
+        when(faction.getId()).thenReturn("red");
         port = new Installation("port-1", "Harbour", InstallationKind.PORT, 1, 0, 0, 0L);
+        net.tfminecraft.simplefactions.installation.handler.InstallationHandler handler =
+                mock(net.tfminecraft.simplefactions.installation.handler.InstallationHandler.class);
+        when(handler.getById("port-1")).thenReturn(port);
+        when(faction.getInstallationHandler()).thenReturn(handler);
+        previousFactions = net.tfminecraft.simplefactions.managers.FactionManager.factions;
+        net.tfminecraft.simplefactions.managers.FactionManager.factions = new ArrayList<>(List.of(faction));
     }
 
     @AfterEach
     void tearDown() throws IOException {
+        net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
         VehicleOwnershipQueries.setSourceForTests(null);
         if (tempDir != null) {
             Files.walk(tempDir)
@@ -95,7 +104,8 @@ class InstallationVehicleUnberthServiceTest {
                         vehicleUuid,
                         "cloudskimmer",
                         OwnershipMode.INSTALLATION,
-                        port.getId()));
+                        port.getId(),
+                        "red"));
 
         SimpleFactions plugin = savingPlugin();
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
@@ -120,7 +130,8 @@ class InstallationVehicleUnberthServiceTest {
                         vehicleUuid,
                         "cloudskimmer",
                         OwnershipMode.INSTALLATION,
-                        port.getId()));
+                        port.getId(),
+                        "red"));
 
         InstallationVehicleUnberthService.UnberthOutcome outcome =
                 service.unberth(faction, "Other", port, vehicleUuid);
@@ -156,7 +167,8 @@ class InstallationVehicleUnberthServiceTest {
                         vehicleUuid,
                         "cloudskimmer",
                         OwnershipMode.INSTALLATION,
-                        port.getId()));
+                        port.getId(),
+                        "red"));
 
         try (MockedStatic<VehicleInstallationLockService> lock = mockStatic(VehicleInstallationLockService.class)) {
             lock.when(() -> VehicleInstallationLockService.isVehicleLocked(eq(port.getId()), any()))
@@ -180,7 +192,8 @@ class InstallationVehicleUnberthServiceTest {
                         vehicleUuid,
                         "cloudskimmer",
                         OwnershipMode.INSTALLATION,
-                        port.getId()));
+                        port.getId(),
+                        "red"));
         VehicleOwnershipQueries.setSourceForTests(
                 new FakeOwnedInventory().add("other", "cloudskimmer", "player_Leader"));
 
