@@ -158,6 +158,74 @@ class VehicleTransferConsentServiceTest {
     }
 
     @Test
+    void acceptRequest_refusesWhenTheVehicleChangedOwner() {
+        UUID ownerUuid = UUID.randomUUID();
+        UUID leaderUuid = UUID.randomUUID();
+        List<String> ownerMessages = new ArrayList<>();
+
+        Installation installation = new Installation(
+                "port-1",
+                "Harbour",
+                InstallationKind.PORT,
+                42,
+                0,
+                0,
+                0L);
+        InstallationHandler handler = mock(InstallationHandler.class);
+        when(handler.getById("port-1")).thenReturn(installation);
+
+        Faction faction = mock(Faction.class);
+        Guild guild = mock(Guild.class);
+        when(faction.getOrCreateMainGuild()).thenReturn(guild);
+        when(faction.getLeader()).thenReturn("Leader");
+        when(faction.getInstallationHandler()).thenReturn(handler);
+        FactionManager.factions.add(faction);
+
+        Player owner = playerStub(ownerUuid, "Owner", ownerMessages);
+        Player leader = playerStub(leaderUuid, "Leader", new ArrayList<>());
+
+        VehicleTransferConsentRequest request = new VehicleTransferConsentRequest(
+                guild,
+                "port-1",
+                "Harbour",
+                "vehicle-1",
+                "ironclad",
+                ownerUuid,
+                leaderUuid);
+
+        OwnerData ownerData = new OwnerData();
+        ownerData.setOwner("player_Owner");
+        InstallationVehicleService.VehicleBerthTarget vehicle =
+                berthTarget("vehicle-1", "ironclad", locationAt(0, 64, 0), ownerData);
+
+        VehicleTransferConsentService spiedService = spy(consentService);
+        doReturn(vehicle).when(spiedService).resolveBerthTarget("vehicle-1");
+        doReturn("player_Buyer").when(spiedService).currentOwnerEntry("vehicle-1");
+
+        try (MockedStatic<RequestManager> requestManager = mockStatic(RequestManager.class);
+                MockedStatic<FactionManager> factionManager = mockStatic(FactionManager.class);
+                MockedStatic<InstallationBounds> bounds = mockStatic(InstallationBounds.class);
+                MockedStatic<org.bukkit.Bukkit> bukkit = mockStatic(org.bukkit.Bukkit.class);
+                MockedStatic<net.tfminecraft.simplefactions.SimpleFactions> sf =
+                        mockStatic(net.tfminecraft.simplefactions.SimpleFactions.class)) {
+            requestManager.when(() -> RequestManager.getRequest(owner)).thenReturn(request);
+            bukkit.when(() -> org.bukkit.Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
+            factionManager.when(() -> FactionManager.getByLeader("Leader")).thenReturn(faction);
+            bounds.when(() -> InstallationBounds.isWithinRadius(eq(installation), any())).thenReturn(true);
+            bounds.when(() -> InstallationBounds.isCorrectProvince(eq(installation), any())).thenReturn(true);
+            net.tfminecraft.simplefactions.SimpleFactions plugin =
+                    mock(net.tfminecraft.simplefactions.SimpleFactions.class);
+            sf.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(plugin);
+
+            spiedService.acceptRequest(owner);
+
+            assertEquals(java.util.Optional.empty(), registry.getByVehicleUuid("vehicle-1"));
+            assertEquals("player_Owner", ownerData.getOwner());
+            assertEquals(List.of(VehicleTransferMessages.ownerChanged()), ownerMessages);
+        }
+    }
+
+    @Test
     void acceptRequest_rejectsWrongAcceptor() {
         UUID acceptorUuid = UUID.randomUUID();
         List<String> messages = new ArrayList<>();

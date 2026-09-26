@@ -50,4 +50,24 @@ class VehicleOwnershipQueriesTest {
         assertEquals(1, personal.size());
         assertEquals("v-personal", personal.get(0).getUuid());
     }
+
+    @Test
+    void personalVehicles_excludesPoolUuids() {
+        PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
+        registry.register(new PlayerVehicleRecord(
+                UUID.randomUUID(),
+                "v-pool",
+                "coal_car",
+                OwnershipMode.POOL,
+                null,
+                "red"));
+        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory()
+                .add("v-personal", "ironclad", "player_Alice")
+                .add("v-pool", "coal_car", "player_Alice"));
+
+        List<OwnedVehicleSummary> personal =
+                VehicleOwnershipQueries.personalVehicles("Alice", registry);
+        assertEquals(1, personal.size());
+        assertEquals("v-personal", personal.get(0).getUuid());
+    }
 }

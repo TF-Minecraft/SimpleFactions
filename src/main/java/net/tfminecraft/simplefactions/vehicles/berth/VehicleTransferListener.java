@@ -4,6 +4,8 @@ package net.tfminecraft.simplefactions.vehicles.berth;
 
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.CanRegisterResult;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager.VehicleTransferSession;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import org.bukkit.Bukkit;
@@ -23,15 +25,18 @@ public final class VehicleTransferListener implements Listener {
     private final VehicleTransferSessionManager sessionManager;
     private final InstallationVehicleService installationVehicleService;
     private final VehicleTransferConsentService consentService;
+    private final FactionVehiclePoolService poolService;
 
     public VehicleTransferListener(
             VehicleTransferSessionManager sessionManager,
             PlayerVehicleRegistry registry,
             InstallationVehicleService installationVehicleService,
-            VehicleTransferConsentService consentService) {
+            VehicleTransferConsentService consentService,
+            FactionVehiclePoolService poolService) {
         this.sessionManager = sessionManager;
         this.installationVehicleService = installationVehicleService;
         this.consentService = consentService;
+        this.poolService = poolService;
     }
 
     @EventHandler
@@ -51,6 +56,11 @@ public final class VehicleTransferListener implements Listener {
             sessionManager.clear(leader.getUniqueId());
             leader.sendMessage(VehicleTransferMessages.notLeader());
             event.setCancelled(true);
+            return;
+        }
+
+        if (session.isPool()) {
+            handlePoolTransfer(leader, faction, event.getVehicle(), event);
             return;
         }
 
@@ -128,6 +138,77 @@ public final class VehicleTransferListener implements Listener {
         }
 
         consentService.sendConsentRequest(leader, owner, faction, installation, vehicle);
+        sessionManager.clear(leader.getUniqueId());
+        event.setCancelled(true);
+    }
+
+    private void handlePoolTransfer(
+            Player leader,
+            Faction faction,
+            ActiveVehicle vehicle,
+            VehiclePreInteractEvent event) {
+        if (vehicle == null || vehicle.getUUID() == null) {
+            return;
+        }
+
+        String ownerName = VehicleOwnershipQueries.playerNameFromOwner(
+                vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner());
+        if (ownerName != null && !ownerName.equalsIgnoreCase(leader.getName())) {
+            handleOtherOwnerPoolTransfer(leader, faction, vehicle, ownerName, event);
+            return;
+        }
+
+        CanAddResult result = poolService.canAdd(faction, vehicle);
+        if (result != CanAddResult.OK) {
+            String message = VehicleTransferMessages.forPoolResult(result, vehicle.getId(), faction);
+            if (message != null) {
+                leader.sendMessage(message);
+            }
+            event.setCancelled(true);
+            return;
+        }
+
+        poolService.register(faction, vehicle, leader.getUniqueId());
+        sessionManager.clear(leader.getUniqueId());
+        leader.sendMessage(VehicleTransferMessages.poolSuccess());
+        event.setCancelled(true);
+    }
+
+    private void handleOtherOwnerPoolTransfer(
+            Player leader,
+            Faction faction,
+            ActiveVehicle vehicle,
+            String ownerName,
+            VehiclePreInteractEvent event) {
+        Player owner = Bukkit.getPlayerExact(ownerName);
+        if (owner == null || !owner.isOnline()) {
+            leader.sendMessage(VehicleTransferMessages.ownerOffline());
+            event.setCancelled(true);
+            return;
+        }
+
+        int proximityBlocks = InstallationConfigLoader.getConsentProximityBlocks();
+        double distance = InstallationBounds.horizontalDistanceBlocks(
+                owner.getLocation().getBlockX(),
+                owner.getLocation().getBlockZ(),
+                vehicle.getLocation());
+        if (distance > proximityBlocks) {
+            leader.sendMessage(VehicleTransferMessages.ownerTooFar(proximityBlocks));
+            event.setCancelled(true);
+            return;
+        }
+
+        CanAddResult result = poolService.canAdd(faction, vehicle);
+        if (result != CanAddResult.OK) {
+            String message = VehicleTransferMessages.forPoolResult(result, vehicle.getId(), faction);
+            if (message != null) {
+                leader.sendMessage(message);
+            }
+            event.setCancelled(true);
+            return;
+        }
+
+        consentService.sendPoolConsentRequest(leader, owner, faction, vehicle);
         sessionManager.clear(leader.getUniqueId());
         event.setCancelled(true);
     }

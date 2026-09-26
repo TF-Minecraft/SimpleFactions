@@ -118,7 +118,7 @@ public final class VehicleOwnershipQueries {
             if (vehicle == null || vehicle.getUuid() == null) {
                 continue;
             }
-            if (registry != null && registry.isBerthed(vehicle.getUuid())) {
+            if (registry != null && registry.isFactionOwned(vehicle.getUuid())) {
                 continue;
             }
             out.add(vehicle);

@@ -160,6 +160,21 @@ class InstallationVehicleServiceTest {
     }
 
     @Test
+    void canRegister_poolVehicle_returnsAlreadyInPool() {
+        registry.register(new PlayerVehicleRecord(
+                UUID.randomUUID(),
+                "vehicle-1",
+                "ironclad",
+                OwnershipMode.POOL,
+                null,
+                "red"));
+
+        assertEquals(
+                CanRegisterResult.ALREADY_IN_POOL,
+                service.canRegister(port, ownedTarget("vehicle-1", "ironclad")));
+    }
+
+    @Test
     void canRegister_allChecksPass_returnsOk() {
         VehicleBerthTarget vehicle = ownedTarget("vehicle-1", "ironclad");
 

@@ -2,8 +2,13 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
+import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.objects.Bank;
+import net.tfminecraft.simplefactions.objects.Faction;
 import java.util.Collection;
 import java.util.UUID;
 
@@ -62,6 +67,38 @@ public final class VehicleUpkeepService {
                 continue;
             }
             chargePlayer(playerUuid, upkeep, vehicle.getTypeId(), vehicle.getUuid(), now);
+        }
+        chargePoolVehicles(now);
+    }
+
+    /**
+     * Pool vehicles are owned by the faction leader in VehicleFramework, the same way
+     * installation vehicles are, but the faction bank pays their upkeep.
+     */
+    private void chargePoolVehicles(long nowMillis) {
+        if (registry == null || FactionManager.factions == null) {
+            return;
+        }
+        for (PlayerVehicleRecord record : registry.getAll()) {
+            if (record.getMode() != OwnershipMode.POOL) {
+                continue;
+            }
+            double upkeep = VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId());
+            if (upkeep <= 0.0) {
+                maintenanceStore.clearUnpaid(record.getVehicleUuid());
+                persistMaintenance();
+                continue;
+            }
+            Faction faction = FactionManager.getByString(record.getFactionId());
+            Bank bank = faction == null ? null : faction.getBank();
+            Double wealth = bank == null ? null : bank.getWealth();
+            if (wealth == null || wealth < upkeep) {
+                markPoolUnpaid(record, faction, upkeep, nowMillis);
+                continue;
+            }
+            bank.withdraw(upkeep);
+            maintenanceStore.clearUnpaid(record.getVehicleUuid());
+            persistMaintenance();
         }
     }
 
@@ -141,6 +178,37 @@ public final class VehicleUpkeepService {
                 "§cCould not pay vehicle upkeep ("
                 + vehicleTypeId
                 + "): insufficient bank balance."
+            );
+        }
+    }
+
+    private void markPoolUnpaid(
+            PlayerVehicleRecord record,
+            Faction faction,
+            double upkeep,
+            long nowMillis) {
+        maintenanceStore.markUnpaid(record.getVehicleUuid(), nowMillis);
+        persistMaintenance();
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin != null) {
+            plugin.getLogger().info(
+                "Faction vehicle pool upkeep unpaid for faction "
+                + record.getFactionId()
+                + " vehicle "
+                + record.getVehicleTypeId()
+                + " amount "
+                + upkeep
+            );
+        }
+        if (faction == null || faction.getLeader() == null || Bukkit.getServer() == null) {
+            return;
+        }
+        Player leader = Bukkit.getPlayerExact(faction.getLeader());
+        if (leader != null && leader.isOnline()) {
+            leader.sendMessage(
+                "§cCould not pay faction vehicle upkeep ("
+                + record.getVehicleTypeId()
+                + "): insufficient faction bank."
             );
         }
     }

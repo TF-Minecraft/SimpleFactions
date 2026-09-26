@@ -1,6 +1,9 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.CanRegisterResult;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.SimpleFactions;
@@ -24,6 +27,7 @@ public final class VehicleTransferMessages {
             case OK -> berthSuccess(installation);
             case NOT_IN_REGISTRY -> "§cThis vehicle must be owned by a player before it can be berthed.";
             case ALREADY_BERTHED -> "§cThis vehicle is already berthed at an installation.";
+            case ALREADY_IN_POOL -> "§cThis vehicle is already in a faction vehicle pool.";
             case UNKNOWN_TYPE -> "§cThis vehicle is not registered for faction upkeep.";
             case UNSUPPORTED_CATEGORY -> unsupportedCategory(installation, vehicleTypeId);
             case NO_CAPACITY -> noCapacity(installation, vehicleTypeId);
@@ -33,8 +37,36 @@ public final class VehicleTransferMessages {
         };
     }
 
+    public static String forPoolResult(CanAddResult result, String vehicleTypeId, Faction faction) {
+        if (result == null) {
+            return null;
+        }
+        return switch (result) {
+            case OK -> poolSuccess();
+            case NOT_OWNED -> "§cThis vehicle must be owned by a player before it can join the faction pool.";
+            case ALREADY_IN_POOL -> "§cThis vehicle is already in a faction vehicle pool.";
+            case ALREADY_BERTHED -> "§cThis vehicle is already berthed at an installation.";
+            case UNKNOWN_TYPE -> "§cThis vehicle is not registered for faction upkeep.";
+            case MUST_BERTH -> "§cThis vehicle belongs at an installation, not in the faction pool.";
+            case NO_ARTILLERY_CAPACITY -> noArtilleryCapacity(faction);
+        };
+    }
+
     public static String commandArmed(Installation installation) {
         return "§aRight-click the vehicle to transfer it to " + installation.getName() + ".";
+    }
+
+    public static String poolCommandArmed() {
+        return "§aRight-click the vehicle to transfer it to the faction vehicle pool.";
+    }
+
+    public static String poolSuccess() {
+        return "§aVehicle added to the faction vehicle pool.";
+    }
+
+    public static String poolConsentPrompt(String leaderName, String typeId) {
+        return "§e" + leaderName + " wants to add your " + typeId
+                + " to the faction vehicle pool. It will become a faction vehicle. §7/faction accept";
     }
 
     public static String notLeader() {
@@ -74,6 +106,16 @@ public final class VehicleTransferMessages {
         return "§aSent vehicle transfer request to " + ownerName + ".";
     }
 
+    private static String noArtilleryCapacity(Faction faction) {
+        int slots = FactionVehiclePoolService.artillerySlots(faction);
+        int used = 0;
+        if (faction != null && SimpleFactions.plugin != null) {
+            used = SimpleFactions.getVehicleRegistry()
+                    .countPoolCategory(faction.getId(), FactionVehiclePoolService.ARTILLERY_CATEGORY);
+        }
+        return "§cThe faction pool has no free artillery slot (" + used + "/" + slots + " used).";
+    }
+
     private static String unsupportedCategory(Installation installation, String vehicleTypeId) {
         String category = VehiclesConfigLoader.getCategoryId(vehicleTypeId).orElse("vehicle");
         return "§cThis installation does not support " + category + " vehicles.";
@@ -106,5 +148,9 @@ public final class VehicleTransferMessages {
         int required = installation.getProvince();
         int actual = InstallationBounds.provinceAt(vehicle == null ? null : vehicle.getLocation());
         return "§cVehicle must be in province " + required + " (currently " + actual + ").";
+    }
+
+    public static String ownerChanged() {
+        return "§cThis vehicle changed owner after the request was sent. Ask again.";
     }
 }

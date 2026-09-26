@@ -165,6 +165,9 @@ public class SimpleFactions extends JavaPlugin{
 			new InstallationVehicleOwnerSync(vehicleRegistry);
 	private final InstallationVehicleService installationVehicleService =
 			new InstallationVehicleService(vehicleRegistry, installationVehicleOwnerSync);
+	private final net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService factionVehiclePoolService =
+			new net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService(
+					vehicleRegistry, installationVehicleOwnerSync);
 	private final InstallationVehicleUnberthService installationVehicleUnberthService =
 			new InstallationVehicleUnberthService(vehicleRegistry);
 	private final VehicleTransferSessionManager vehicleTransferSessionManager =
@@ -176,8 +179,8 @@ public class SimpleFactions extends JavaPlugin{
 	private final VehicleTransferConsentService vehicleTransferConsentService =
 			new VehicleTransferConsentService(
 					installationVehicleService,
-					vehicleRegistry,
-					vehicleTransferSessionManager);
+					vehicleTransferSessionManager,
+					factionVehiclePoolService);
 	private final VehicleRegistryClaimService vehicleRegistryClaimService =
 			new VehicleRegistryClaimService(vehicleRegistry);
 	private final VehicleRegistryClaimListener vehicleRegistryClaimListener =
@@ -187,7 +190,8 @@ public class SimpleFactions extends JavaPlugin{
 			vehicleTransferSessionManager,
 			vehicleRegistry,
 			installationVehicleService,
-			vehicleTransferConsentService);
+			vehicleTransferConsentService,
+			factionVehiclePoolService);
 	private final VehicleSpawnListener vehicleSpawnListener =
 			new VehicleSpawnListener(installationVehicleOwnerSync);
 	private final BattleVehicleEligibilityService.Listener battleVehicleEligibilityListener =

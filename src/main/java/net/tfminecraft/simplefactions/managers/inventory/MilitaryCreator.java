@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.managers.inventory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -18,6 +19,11 @@ import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
+import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceStore;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolLore;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.tlibs.TLibs;
@@ -181,5 +187,32 @@ public class MilitaryCreator {
 		meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, "decrease");
 		i.setItemMeta(meta);
 		return i;
+	}
+
+	@SuppressWarnings("deprecation")
+	public ItemStack createVehiclePoolIcon(Faction f) {
+		ItemStack item = new ItemStack(Material.MINECART, 1);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§eVehicle Pool");
+		PlayerVehicleRegistry registry = SimpleFactions.plugin == null
+				? null
+				: SimpleFactions.getVehicleRegistry();
+		List<PlayerVehicleRecord> pool = registry == null || f == null
+				? List.of()
+				: registry.getPoolVehicles(f.getId());
+		Set<String> unpaid = Set.of();
+		SimpleFactions plugin = SimpleFactions.getInstance();
+		if (plugin != null) {
+			VehicleMaintenanceStore store = plugin.getVehicleMaintenanceStore();
+			if (store != null) {
+				unpaid = store.unpaidUuids();
+			}
+		}
+		meta.setLore(FactionVehiclePoolLore.lines(
+				pool,
+				FactionVehiclePoolService.artillerySlots(f),
+				unpaid));
+		item.setItemMeta(meta);
+		return item;
 	}
 }

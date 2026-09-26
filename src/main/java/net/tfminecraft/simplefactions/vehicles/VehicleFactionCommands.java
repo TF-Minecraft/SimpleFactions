@@ -8,6 +8,7 @@ import java.util.Locale;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
 
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager.VehicleTransferSession;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleInstallationLockService;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferMessages;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePaySessionManager.VehicleMaintenancePaySession;
@@ -34,6 +35,10 @@ public final class VehicleFactionCommands {
             player.sendMessage(VehicleMaintenanceMessages.transferUsage());
             return;
         }
+        if (FactionVehiclePoolService.isPoolTarget(installationId)) {
+            armPoolTransfer(player);
+            return;
+        }
         Installation installation = faction.getInstallationHandler().getById(installationId);
         if (installation == null) {
             player.sendMessage(VehicleTransferMessages.unknownInstallation());
@@ -54,6 +59,16 @@ public final class VehicleFactionCommands {
                         installation.getId(),
                         System.currentTimeMillis() + timeoutMillis));
         player.sendMessage(VehicleTransferMessages.commandArmed(installation));
+    }
+
+    private static void armPoolTransfer(Player player) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
+        plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        plugin.getVehicleTransferSessionManager().put(
+                player.getUniqueId(),
+                new VehicleTransferSession(null, System.currentTimeMillis() + timeoutMillis, true));
+        player.sendMessage(VehicleTransferMessages.poolCommandArmed());
     }
 
     public static void armMaintenancePay(Player player) {

@@ -39,14 +39,24 @@ public final class VehicleTransferSessionManager {
     public static final class VehicleTransferSession {
         private final String installationId;
         private final long expiresAtMillis;
+        private final boolean pool;
 
         public VehicleTransferSession(String installationId, long expiresAtMillis) {
+            this(installationId, expiresAtMillis, false);
+        }
+
+        public VehicleTransferSession(String installationId, long expiresAtMillis, boolean pool) {
             this.installationId = installationId;
             this.expiresAtMillis = expiresAtMillis;
+            this.pool = pool;
         }
 
         public String getInstallationId() {
             return installationId;
+        }
+
+        public boolean isPool() {
+            return pool;
         }
 
         public long getExpiresAtMillis() {

@@ -57,7 +57,7 @@ public final class VehicleRegistryClaimService {
             return ClaimRegisterResult.skip();
         }
 
-        if (registry.isBerthed(vehicleUuid)) {
+        if (registry.isFactionOwned(vehicleUuid)) {
             return ClaimRegisterResult.skip();
         }
 

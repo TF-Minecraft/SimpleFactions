@@ -95,6 +95,29 @@ class InstallationVehicleOwnerSyncTest {
     }
 
     @Test
+    void syncIfBerthed_updatesStaleOwnerForPoolRecord() {
+        Faction faction = mock(Faction.class);
+        when(faction.getId()).thenReturn("red");
+        when(faction.getLeader()).thenReturn("Dana");
+        FactionManager.factions.add(faction);
+
+        registry.register(new PlayerVehicleRecord(
+                UUID.randomUUID(),
+                "vehicle-pool",
+                "field_artillery",
+                OwnershipMode.POOL,
+                null,
+                "red"));
+
+        OwnerData ownerData = new OwnerData();
+        ownerData.setOwner("player_Alice");
+
+        ownerSync.syncIfBerthed("vehicle-pool", ownerData);
+
+        assertEquals("player_Dana", ownerData.getOwner());
+    }
+
+    @Test
     void syncIfBerthed_migratesLegacyFactionOwner() {
         Installation installation = new Installation(
                 "port-1",

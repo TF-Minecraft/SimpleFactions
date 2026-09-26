@@ -12,6 +12,7 @@ public final class VehicleTransferConsentRequest extends Request {
     private final String vehicleTypeId;
     private final UUID ownerUuid;
     private final UUID proposerLeaderUuid;
+    private final boolean pool;
 
     public VehicleTransferConsentRequest(
             Guild sender,
@@ -21,6 +22,19 @@ public final class VehicleTransferConsentRequest extends Request {
             String vehicleTypeId,
             UUID ownerUuid,
             UUID proposerLeaderUuid) {
+        this(sender, installationId, installationName, vehicleUuid, vehicleTypeId,
+                ownerUuid, proposerLeaderUuid, false);
+    }
+
+    public VehicleTransferConsentRequest(
+            Guild sender,
+            String installationId,
+            String installationName,
+            String vehicleUuid,
+            String vehicleTypeId,
+            UUID ownerUuid,
+            UUID proposerLeaderUuid,
+            boolean pool) {
         super(sender);
         this.installationId = installationId;
         this.installationName = installationName;
@@ -28,6 +42,7 @@ public final class VehicleTransferConsentRequest extends Request {
         this.vehicleTypeId = vehicleTypeId;
         this.ownerUuid = ownerUuid;
         this.proposerLeaderUuid = proposerLeaderUuid;
+        this.pool = pool;
         this.time = System.currentTimeMillis()
                 + InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
     }
@@ -54,5 +69,9 @@ public final class VehicleTransferConsentRequest extends Request {
 
     public UUID getProposerLeaderUuid() {
         return proposerLeaderUuid;
+    }
+
+    public boolean isPool() {
+        return pool;
     }
 }

@@ -40,6 +40,12 @@ public final class InstallationVehicleService {
             return CanRegisterResult.NOT_IN_REGISTRY;
         }
 
+        if (registry.getByVehicleUuid(vehicle.getVehicleUuid())
+                .filter(record -> record.getMode() == OwnershipMode.POOL)
+                .isPresent()) {
+            return CanRegisterResult.ALREADY_IN_POOL;
+        }
+
         if (registry.isBerthed(vehicle.getVehicleUuid())) {
             return CanRegisterResult.ALREADY_BERTHED;
         }
@@ -149,6 +155,7 @@ public final class InstallationVehicleService {
         OK,
         NOT_IN_REGISTRY,
         ALREADY_BERTHED,
+        ALREADY_IN_POOL,
         UNKNOWN_TYPE,
         UNSUPPORTED_CATEGORY,
         NO_CAPACITY,
