@@ -451,6 +451,12 @@ class CampaignBattleLaunchServiceTest {
 				verify(alice, times(1)).sendMessage(contains("could not start"));
 				verify(admin, times(2)).sendMessage(contains("could not start"));
 				assertFalse(battle.hasStarted());
+
+				// A replacement battle keeps the id but is a new occurrence, so it alerts again.
+				BattleManager.deleteBattle(battle);
+				CampaignBattleLaunchService.prepareScheduledBattle(war);
+				assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
+				verify(alice, times(2)).sendMessage(contains("could not start"));
 			}
 		});
 	}

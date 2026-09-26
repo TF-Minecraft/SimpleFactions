@@ -157,6 +157,8 @@ public final class CampaignBattleLaunchService {
 				.orElse(null);
 		BattleType type = CampaignBattleTypeResolver.resolve(war, slot);
 		String battleId = campaignBattleId(war.getId(), provinceId);
+		// A replacement battle reuses the id, so its first failure must alert again.
+		clearStartFailureAlerts(war, battleId);
 
 		Battle battle = BattleFactory.createBlank(type, battleId);
 		battle.setWarId(war.getId());
@@ -191,6 +193,15 @@ public final class CampaignBattleLaunchService {
 		if (!error.equals(previousAdmin)) {
 			sendToOnlineAdmins(message);
 		}
+	}
+
+	private static void clearStartFailureAlerts(War war, String battleId) {
+		String key = battleId.toLowerCase(Locale.ROOT);
+		belligerentStartFailure.remove(key);
+		adminStartFailure.remove(key);
+		String warKey = failureKey(war, null);
+		belligerentStartFailure.remove(warKey);
+		adminStartFailure.remove(warKey);
 	}
 
 	private static String failureKey(War war, Battle battle) {

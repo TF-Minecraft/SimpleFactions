@@ -21,6 +21,8 @@ public final class FieldWinService {
 	private static final double JAIL_RADIUS_SQ = JAIL_RADIUS_BLOCKS * JAIL_RADIUS_BLOCKS;
 	private static final ConcurrentHashMap<String, Instant> emptySince = new ConcurrentHashMap<>();
 	private static final Set<String> seenOnline = ConcurrentHashMap.newKeySet();
+	// Battles restored after a restart get a fresh grace, so players have time to reconnect.
+	private static volatile Instant trackingSince = Instant.now();
 
 	private FieldWinService() {
 	}
@@ -37,6 +39,11 @@ public final class FieldWinService {
 	static void clearEmptySideTrackingForTests() {
 		emptySince.clear();
 		seenOnline.clear();
+		trackingSince = Instant.EPOCH;
+	}
+
+	static void setTrackingSinceForTests(Instant since) {
+		trackingSince = since;
 	}
 
 	public static void checkFieldWin(Battle battle) {
@@ -121,7 +128,8 @@ public final class FieldWinService {
 	}
 
 	private static Instant anchor(Battle battle, String key, Instant now) {
-		if (!seenOnline.contains(key) && battle != null && battle.getStartedAt() != null) {
+		if (!seenOnline.contains(key) && battle != null && battle.getStartedAt() != null
+				&& !battle.getStartedAt().isBefore(trackingSince)) {
 			return battle.getStartedAt();
 		}
 		return now;

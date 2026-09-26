@@ -16,6 +16,7 @@ import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -32,6 +33,11 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 
 class FieldWinServiceTest {
+	@BeforeEach
+	void resetTracking() {
+		FieldWinService.clearEmptySideTrackingForTests();
+	}
+
 	@AfterEach
 	void restoreGrace() {
 		Cache.battleEmptySideGraceSeconds = 300;
@@ -139,6 +145,23 @@ class FieldWinServiceTest {
 
 			assertFalse(FieldWinService.isSideEliminated(battle, defender, start.plusSeconds(200)));
 			assertTrue(FieldWinService.isSideEliminated(battle, defender, start.plusSeconds(600)));
+		}
+	}
+
+	@Test
+	void emptySide_restoredAfterRestart_getsAFreshGrace() {
+		try (MockedStatic<org.bukkit.Bukkit> bukkit = mockBossBar()) {
+			Cache.battleEmptySideGraceSeconds = 300;
+			Instant start = Instant.parse("2026-09-26T10:00:00Z");
+			Instant restart = start.plusSeconds(3600);
+			FieldWinService.setTrackingSinceForTests(restart);
+			Battle battle = startedField("restored_field", start);
+			BattleSide defender = battle.getSideById(BattleTemplate.DEFENDER_SIDE);
+			defender.setLives(4);
+
+			assertFalse(FieldWinService.isSideEliminated(battle, defender, restart.plusSeconds(10)));
+			assertFalse(FieldWinService.isSideEliminated(battle, defender, restart.plusSeconds(309)));
+			assertTrue(FieldWinService.isSideEliminated(battle, defender, restart.plusSeconds(310)));
 		}
 	}
 
