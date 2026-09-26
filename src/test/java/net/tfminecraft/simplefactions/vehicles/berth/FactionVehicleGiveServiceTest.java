@@ -132,6 +132,21 @@ class FactionVehicleGiveServiceTest {
     }
 
     @Test
+    void offer_isNotAnnouncedWhenTheRecipientAlreadyHasARequest() {
+        List<String> leaderMessages = messagesOf(leader);
+        List<String> recipientMessages = messagesOf(recipient);
+        VehicleGiveConsentRequest pending = new VehicleGiveConsentRequest(
+                null, "red", "car-1", "coal_car", recipient.getUniqueId(), leaderUuid, "Leader");
+        RequestManager.addRequest(leader, recipient, pending);
+
+        giveService.offer(leader, recipient, faction, "car-1", "coal_car");
+
+        assertTrue(RequestManager.getRequest(recipient) == pending);
+        assertTrue(recipientMessages.isEmpty());
+        assertTrue(leaderMessages.stream().noneMatch(line -> line.contains("Sent")));
+    }
+
+    @Test
     void accept_refusesAnExpiredRequest() {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(), "car-1", "coal_car", OwnershipMode.POOL, null, "red"));

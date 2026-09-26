@@ -160,6 +160,20 @@ class FactionVehicleReleaseServiceTest {
     }
 
     @Test
+    void take_failedRollbackSaveReportsSaveFailed() {
+        registry.register(pool("gun-1", "coal_car"));
+        java.util.concurrent.atomic.AtomicInteger saves = new java.util.concurrent.atomic.AtomicInteger();
+        FactionVehicleReleaseService service = new FactionVehicleReleaseService(
+                registry, (uuid, name) -> false, () -> saves.incrementAndGet() == 1);
+
+        Outcome outcome = service.take(faction, "Leader", "gun-1");
+
+        assertEquals(Status.SAVE_FAILED, outcome.status());
+        assertEquals(2, saves.get());
+        assertTrue(registry.getByVehicleUuid("gun-1").isPresent());
+    }
+
+    @Test
     void take_installationVehicleBecomesLeadersPersonalVehicle() {
         when(handler.getById("port-1")).thenReturn(
                 new Installation("port-1", "Harbour", InstallationKind.PORT, 1, 0, 0, 0L));

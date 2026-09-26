@@ -21,19 +21,17 @@ public final class FactionVehicleGiveService {
         if (leader == null || recipient == null || faction == null || vehicleUuid == null) {
             return;
         }
-        RequestManager.addRequest(
-                leader,
-                recipient,
-                new VehicleGiveConsentRequest(
-                        faction.getOrCreateMainGuild(),
-                        faction.getId(),
-                        vehicleUuid,
-                        vehicleTypeId,
-                        recipient.getUniqueId(),
-                        leader.getUniqueId(),
-                        leader.getName()));
-        if (!(RequestManager.getRequest(recipient) instanceof VehicleGiveConsentRequest stored)
-                || !vehicleUuid.equals(stored.getVehicleUuid())) {
+        VehicleGiveConsentRequest request = new VehicleGiveConsentRequest(
+                faction.getOrCreateMainGuild(),
+                faction.getId(),
+                vehicleUuid,
+                vehicleTypeId,
+                recipient.getUniqueId(),
+                leader.getUniqueId(),
+                leader.getName());
+        RequestManager.addRequest(leader, recipient, request);
+        // addRequest refuses when the recipient is already considering a request, even one for this vehicle.
+        if (RequestManager.getRequest(recipient) != request) {
             return;
         }
         recipient.sendMessage(FactionVehicleReleaseMessages.givePrompt(leader.getName(), vehicleTypeId));

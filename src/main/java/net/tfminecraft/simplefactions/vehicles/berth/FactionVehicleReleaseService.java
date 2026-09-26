@@ -143,13 +143,18 @@ public final class FactionVehicleReleaseService {
         // never leave a personal vehicle that still loads as a faction vehicle.
         registry.unregister(vehicleUuid);
         if (!registrySaver.getAsBoolean()) {
+            // The file still holds the record, so restoring it in memory is enough.
             registry.register(record);
-            registrySaver.getAsBoolean();
             return outcome(Status.SAVE_FAILED, null, typeId);
         }
         if (!personalOwner.assign(vehicleUuid, recipientName)) {
             registry.register(record);
-            registrySaver.getAsBoolean();
+            if (!registrySaver.getAsBoolean()) {
+                logSevere("Vehicle " + vehicleUuid + " (" + typeId + ") was restored to faction "
+                        + faction.getId() + " in memory, but the registry could not be saved."
+                        + " Save the vehicle registry before the next restart or the faction loses it.");
+                return outcome(Status.SAVE_FAILED, null, typeId);
+            }
             return outcome(Status.OWNERSHIP_UNAVAILABLE, null, typeId);
         }
         return outcome(Status.OK, null, typeId);
@@ -184,12 +189,16 @@ public final class FactionVehicleReleaseService {
             return false;
         }
         String entry = VehicleOwnershipQueries.ownerEntry(playerName);
+        ActiveVehicle loaded;
         try {
-            if (assignLoaded(vehicleUuid, entry)) {
-                return true;
-            }
+            loaded = VehicleFramework.getVehicleManager().get(vehicleUuid);
         } catch (Throwable ignored) {
             // VehicleFramework is not running in unit tests.
+            loaded = null;
+        }
+        if (loaded != null) {
+            // A loaded vehicle is the live copy, so never fall back to the stored one for it.
+            return assignLoaded(loaded, entry);
         }
         try {
             if (assignStored(vehicleUuid, entry)) {
@@ -201,17 +210,23 @@ public final class FactionVehicleReleaseService {
         }
     }
 
-    private static boolean assignLoaded(String vehicleUuid, String ownerEntry) {
-        ActiveVehicle vehicle = VehicleFramework.getVehicleManager().get(vehicleUuid);
-        if (vehicle == null || vehicle.getOwnerData() == null) {
+    /** Sets the owner and saves it; the old owner is put back if the save fails. */
+    private static boolean assignLoaded(ActiveVehicle vehicle, String ownerEntry) {
+        if (vehicle.getOwnerData() == null) {
             return false;
         }
+        String previous = vehicle.getOwnerData().getOwner();
         vehicle.getOwnerData().setOwner(ownerEntry);
-        VehiclePersistence persistence = VehiclePersistence.current();
-        if (persistence != null) {
-            persistence.saveLive(vehicle);
+        try {
+            VehiclePersistence persistence = VehiclePersistence.current();
+            if (persistence != null) {
+                persistence.saveLive(vehicle);
+            }
+            return true;
+        } catch (RuntimeException e) {
+            vehicle.getOwnerData().setOwner(previous);
+            return false;
         }
-        return true;
     }
 
     @SuppressWarnings("unchecked")
@@ -251,5 +266,12 @@ public final class FactionVehicleReleaseService {
         }
         Optional<StoredVehicleMeta> meta = persistence.readMeta(vehicleUuid);
         return meta.isPresent() && ownerEntry.equalsIgnoreCase(meta.get().getOwner());
+    }
+
+    private static void logSevere(String message) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin != null) {
+            plugin.getLogger().severe(message);
+        }
     }
 }
