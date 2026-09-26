@@ -98,8 +98,9 @@ public final class VehicleFactionCommands {
 
         /**
          * Players often add an amount or their name ("pay bank 100"). The amount is always one
-         * day of the vehicle's upkeep, so anything after the source is ignored. A misspelt
-         * source is still rejected so it never falls back to the pouch.
+         * day of the vehicle's upkeep, so extra words are ignored once "bank" appears anywhere
+         * after "pay". Without "bank", only a lone amount is accepted, so a misspelt source
+         * like "bnak" never falls back to the pouch.
          */
         public static boolean isMaintenancePay(String[] args) {
             return args != null
@@ -107,19 +108,22 @@ public final class VehicleFactionCommands {
                     && args[0].equalsIgnoreCase("vehicle")
                     && args[1].equalsIgnoreCase("maintenance")
                     && args[2].equalsIgnoreCase("pay")
-                    && (args.length == 3 || args[3].equalsIgnoreCase("bank") || isAmount(args[3]));
+                    && (args.length == 3
+                            || mentionsBank(args)
+                            || (args.length == 4 && isAmount(args[3])));
         }
 
         public static PaymentSource maintenancePaymentSource(String[] args) {
-            if (!isMaintenancePay(args)) {
-                return PaymentSource.POUCH;
-            }
+            return isMaintenancePay(args) && mentionsBank(args) ? PaymentSource.BANK : PaymentSource.POUCH;
+        }
+
+        private static boolean mentionsBank(String[] args) {
             for (int i = 3; i < args.length; i++) {
                 if (args[i].equalsIgnoreCase("bank")) {
-                    return PaymentSource.BANK;
+                    return true;
                 }
             }
-            return PaymentSource.POUCH;
+            return false;
         }
 
         private static boolean isAmount(String arg) {

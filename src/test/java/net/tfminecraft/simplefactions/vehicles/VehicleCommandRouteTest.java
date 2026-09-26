@@ -56,6 +56,8 @@ class VehicleCommandRouteTest {
             {"vehicle", "maintenance", "pay", "bank", "100"},
             {"vehicle", "maintenance", "pay", "bank", "Alice", "100"},
             {"vehicle", "maintenance", "pay", "100", "bank"},
+            {"vehicle", "maintenance", "pay", "Alice", "bank"},
+            {"vehicle", "maintenance", "pay", "100", "Alice", "bank"},
         };
         for (String[] args : typed) {
             assertTrue(VehicleCommandRoute.isMaintenancePay(args));
@@ -63,6 +65,12 @@ class VehicleCommandRouteTest {
                     net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource.BANK,
                     VehicleCommandRoute.maintenancePaymentSource(args));
         }
+    }
+
+    @Test
+    void extraWordsWithoutBankAreRejected() {
+        assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance", "pay", "100", "bnak"}));
+        assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance", "pay", "Alice", "100"}));
     }
 
     @Test
