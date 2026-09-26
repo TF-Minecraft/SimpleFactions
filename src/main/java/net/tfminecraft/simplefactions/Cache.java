@@ -121,6 +121,9 @@ public class Cache {
 	public static int campaignRaidIntruderDamageIntervalTicks;
 	public static int campaignRaidIntruderDamageAmount;
 
+	public static int battleEmptySideGraceSeconds = 300;
+	public static boolean battleTimeCapEnabled = false;
+	public static int battleTimeCapMinutes = 120;
 	public static int battleProvincePollIntervalTicks;
 	public static int battleProvinceLeaveCountdownSeconds;
 	public static boolean battleProvinceBlockProtectionEnabled;

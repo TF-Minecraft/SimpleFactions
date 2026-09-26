@@ -11,22 +11,22 @@ class BattleLootServiceTest {
 
 	@Test
 	void shouldPay_whenBattleHadAWinnerAndLootIsOn() {
-		assertTrue(BattleLootService.shouldPay(true, false, true));
+		assertTrue(BattleLootService.shouldPay(false, true));
 	}
 
 	@Test
-	void shouldNotPay_whenBattleHadNoWinner() {
-		assertFalse(BattleLootService.shouldPay(false, false, true));
+	void shouldPay_whenBattleHadNoWinner() {
+		assertTrue(BattleLootService.shouldPay(false, true));
 	}
 
 	@Test
 	void shouldNotPay_forCampaignRaids() {
-		assertFalse(BattleLootService.shouldPay(true, true, true));
+		assertFalse(BattleLootService.shouldPay(true, true));
 	}
 
 	@Test
 	void shouldNotPay_whenTheBattleToggleIsOff() {
-		assertFalse(BattleLootService.shouldPay(true, false, false));
+		assertFalse(BattleLootService.shouldPay(false, false));
 	}
 
 	@Test

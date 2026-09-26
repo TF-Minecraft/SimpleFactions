@@ -177,6 +177,7 @@ class CampaignBattleOutcomeServiceTest {
 
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 		assertEquals(2, war.getCursorIndex());
+		assertEquals(3, war.getInitiativeAttacker());
 		assertTrue(CampaignPostBattleChoiceService.needsWinnerChoice(war));
 		assertTrue(BattleManager.get().isEmpty());
 	}
@@ -197,6 +198,8 @@ class CampaignBattleOutcomeServiceTest {
 
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 		assertEquals(cursorBefore, war.getCursorIndex());
+		assertEquals(4, war.getInitiativeAttacker());
+		assertEquals(4, war.getInitiativeDefender());
 		assertTrue(BattleManager.get().isEmpty());
 	}
 

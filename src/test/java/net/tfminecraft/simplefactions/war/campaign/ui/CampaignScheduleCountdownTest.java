@@ -26,6 +26,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattlePlacementValidator;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
@@ -107,7 +108,9 @@ class CampaignScheduleCountdownTest {
 
 			assertTrue(text.isPresent());
 			assertTrue(text.get().startsWith("Cannot start: "));
-			assertTrue(text.get().contains("contest area"));
+			assertTrue(text.get().contains("spawn"));
+			assertTrue(BattlePlacementValidator.validate(battle).stream()
+					.anyMatch(error -> error.contains("contest area")));
 		});
 	}
 

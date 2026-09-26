@@ -8,15 +8,21 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -75,6 +81,7 @@ class CampaignBattleLaunchServiceTest {
 		Cache.battleCampaignTemplateSiege = "";
 		Cache.warBattleWindowStartHour = 20;
 		Cache.warBattleWindowEndHour = 24;
+		CampaignBattleLaunchService.resetStartFailureAlertsForTests();
 
 		attacker = mock(Faction.class);
 		defender = mock(Faction.class);
@@ -237,7 +244,7 @@ class CampaignBattleLaunchServiceTest {
 			Battle battle = CampaignBattleLaunchService.launchAutoresolveBattle(war);
 
 			assertNotNull(battle);
-			assertTrue(battle.hasStarted());
+			assertFalse(battle.hasStarted());
 			assertEquals("campaign_w1_p20", battle.getId());
 		});
 	}
@@ -285,6 +292,7 @@ class CampaignBattleLaunchServiceTest {
 
 				SimpleFactions.plugin = plugin;
 				CampaignBattleLaunchService.prepareScheduledBattle(war);
+				placeSpawnsAndJails(BattleManager.getByWarId(war.getId()));
 				assertFalse(BattleManager.getByWarId(war.getId()).hasStarted());
 
 				assertTrue(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
@@ -355,11 +363,100 @@ class CampaignBattleLaunchServiceTest {
 				SimpleFactions.plugin = plugin;
 
 				CampaignBattleLaunchService.prepareScheduledBattle(war);
+				placeSpawnsAndJails(BattleManager.getByWarId(war.getId()));
 				assertFalse(BattleManager.getByWarId(war.getId()).hasStarted());
 
 				assertTrue(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
 				assertTrue(BattleManager.getByWarId(war.getId()).hasStarted());
 				assertEquals(4, war.getInitiativeAttacker());
+			}
+		});
+	}
+
+	@Test
+	void prepareScheduledBattle_alertsAdminsAndLogsMissingSetupOnce() {
+		War war = scheduledWar();
+		Player admin = mock(Player.class);
+		when(admin.isOnline()).thenReturn(true);
+		when(admin.hasPermission(anyString())).thenReturn(true);
+		Logger logger = mock(Logger.class);
+		SimpleFactions plugin = mock(SimpleFactions.class);
+		when(plugin.getLogger()).thenReturn(logger);
+		SimpleFactions.plugin = plugin;
+
+		withBukkit(bukkit -> {
+			bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(admin));
+			assertNotNull(CampaignBattleLaunchService.prepareScheduledBattle(war));
+			assertNotNull(CampaignBattleLaunchService.prepareScheduledBattle(war));
+		});
+
+		verify(admin, times(1)).sendMessage(contains("Attacker spawn is not set."));
+		verify(admin).sendMessage(contains("(field)"));
+		verify(admin).sendMessage(contains("province §e20"));
+		verify(admin).sendMessage(contains("CET"));
+		verify(logger, times(1)).warning(contains("province 20"));
+		verify(logger).warning(contains("Attacker jail is not set."));
+	}
+
+	@Test
+	void prepareScheduledBattle_labelsNavalVariant() {
+		War war = scheduledNavalWar();
+		Player admin = mock(Player.class);
+		when(admin.isOnline()).thenReturn(true);
+		when(admin.hasPermission(anyString())).thenReturn(true);
+
+		withBukkit(bukkit -> {
+			bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(admin));
+			CampaignBattleLaunchService.prepareScheduledBattle(war);
+		});
+
+		verify(admin).sendMessage(contains("(naval)"));
+	}
+
+	@Test
+	void tryStartScheduledBattle_notifiesBelligerentsOnceAndAdminsOnEachNewError() {
+		War war = scheduledWar();
+		war.setCampaignBattleSchedule(List.of(
+				new ScheduledCampaignBattle(20, CampaignBattleKind.SIEGE, false, "fort_a")));
+		war.setCampaignScheduleIndex(0);
+		when(attacker.getMembers()).thenReturn(List.of("Alice"));
+		Player alice = mock(Player.class);
+		when(alice.isOnline()).thenReturn(true);
+		when(alice.hasPermission(anyString())).thenReturn(false);
+		Player admin = mock(Player.class);
+		when(admin.isOnline()).thenReturn(true);
+		when(admin.hasPermission(anyString())).thenReturn(true);
+		SimpleFactions plugin = mock(SimpleFactions.class);
+		when(plugin.getLogger()).thenReturn(Logger.getLogger("test-start-failure"));
+		SimpleFactions.plugin = plugin;
+		Instant startAt = war.getScheduledBattleAt();
+
+		withBukkit(bukkit -> {
+			bukkit.when(() -> Bukkit.getPlayerExact("Alice")).thenReturn(alice);
+			bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of());
+			try (MockedStatic<CampaignOffensiveForfeitService> forfeit =
+					mockStatic(CampaignOffensiveForfeitService.class)) {
+				forfeit.when(() -> CampaignOffensiveForfeitService.applyIfBattleOffensiveCannotAttack(
+						any(), anyInt())).thenReturn(false);
+
+				CampaignBattleLaunchService.prepareScheduledBattle(war);
+				bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(admin));
+				assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
+				assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
+				verify(alice, times(1)).sendMessage(contains("could not start"));
+				verify(admin, times(1)).sendMessage(contains("could not start"));
+
+				Battle battle = BattleManager.getByWarId(war.getId());
+				CampaignBattleLaunchService.broadcastStartFailure(war, battle, "Defender jail is not set.");
+				verify(alice, times(1)).sendMessage(contains("could not start"));
+				verify(admin, times(2)).sendMessage(contains("could not start"));
+				assertFalse(battle.hasStarted());
+
+				// A replacement battle keeps the id but is a new occurrence, so it alerts again.
+				BattleManager.deleteBattle(battle);
+				CampaignBattleLaunchService.prepareScheduledBattle(war);
+				assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
+				verify(alice, times(2)).sendMessage(contains("could not start"));
 			}
 		});
 	}
@@ -412,14 +509,26 @@ class CampaignBattleLaunchServiceTest {
 		return war;
 	}
 
+	private static void placeSpawnsAndJails(Battle battle) {
+		org.bukkit.World world = mock(org.bukkit.World.class);
+		for (net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide side : battle.getSides()) {
+			side.setSpawn(new org.bukkit.Location(world, 0, 64, 0));
+			side.setJail(new org.bukkit.Location(world, 4, 64, 4));
+		}
+	}
+
 	private void withMockBossBar(Runnable action) {
+		withBukkit(bukkit -> action.run());
+	}
+
+	private void withBukkit(Consumer<MockedStatic<Bukkit>> action) {
 		BossBar bossBar = mock(BossBar.class);
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
 			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
 					.thenReturn(bossBar);
 			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class), any()))
 					.thenReturn(bossBar);
-			action.run();
+			action.accept(bukkit);
 		}
 	}
 }

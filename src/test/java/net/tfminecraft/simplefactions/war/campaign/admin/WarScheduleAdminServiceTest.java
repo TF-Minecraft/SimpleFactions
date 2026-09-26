@@ -247,6 +247,7 @@ class WarScheduleAdminServiceTest {
 					any(), any(Integer.class), any())).thenReturn(5);
 			withMockBossBar(() -> {
 				assertTrue(WarScheduleAdminService.battleCreate(war).success());
+				placeSpawnsAndJails(BattleManager.getByWarId(war.getId()));
 				assertTrue(WarScheduleAdminService.battleStart(war).success());
 				WarScheduleAdminResult result = WarScheduleAdminService.battleDelete(war);
 				assertFalse(result.success());
@@ -264,6 +265,7 @@ class WarScheduleAdminServiceTest {
 					any(), any(Integer.class), any())).thenReturn(5);
 			withMockBossBar(() -> {
 				assertTrue(WarScheduleAdminService.battleCreate(war).success());
+				placeSpawnsAndJails(BattleManager.getByWarId(war.getId()));
 				WarScheduleAdminResult result = WarScheduleAdminService.battleStart(war);
 				assertTrue(result.success());
 				assertTrue(BattleManager.getByWarId(war.getId()).hasStarted());
@@ -356,6 +358,14 @@ class WarScheduleAdminServiceTest {
 		when(faction.getMilitary()).thenReturn(military);
 		when(faction.getLeader()).thenReturn("leader");
 		when(faction.getName()).thenReturn("faction");
+	}
+
+	private static void placeSpawnsAndJails(Battle battle) {
+		org.bukkit.World world = mock(org.bukkit.World.class);
+		for (net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide side : battle.getSides()) {
+			side.setSpawn(new org.bukkit.Location(world, 0, 64, 0));
+			side.setJail(new org.bukkit.Location(world, 4, 64, 4));
+		}
 	}
 
 	private void withMockBossBar(Runnable action) {

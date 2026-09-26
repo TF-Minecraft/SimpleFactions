@@ -29,6 +29,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.capture.PointManager;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.BattleRaidSetup;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.RaidAttackerEliminationService;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.RaidWinService;
+import net.tfminecraft.simplefactions.war.battle.engine.win.BattleTimeCap;
 import net.tfminecraft.simplefactions.war.battle.engine.win.FieldWinService;
 import net.tfminecraft.simplefactions.war.battle.engine.win.SiegeContestService;
 import net.tfminecraft.simplefactions.war.battle.engine.win.SiegeWinService;
@@ -301,7 +302,11 @@ public class Battle {
 		pm.setPoints(this.points);
 		if(teleport) {
 			for(Player p : getAllParticipants()) {
-				p.teleport(getSideByPlayer(p).getSpawn());
+				BattleSide side = getSideByPlayer(p);
+				if (side == null || side.getSpawn() == null) {
+					continue;
+				}
+				p.teleport(side.getSpawn());
 				if(battleType == BattleType.FIELD && pm.getPoints().size() > 0) {
 					Battle b = this;
 					new BukkitRunnable()
@@ -340,6 +345,7 @@ public class Battle {
 		contestHoldRemainingSeconds = 0;
 		SiegeContestService.clearBattleState(this);
 		RaidAttackerEliminationService.clearBattleState(this);
+		FieldWinService.clearEmptySideTracking(this);
 		BattleCasualtyLedger.clear(this);
 		pm.end(getAllParticipants());
 		if (campaignRaid) {
@@ -398,6 +404,12 @@ public class Battle {
 			}
 		}
 		tickPoints();
+		if (battleType == BattleType.FIELD || battleType == BattleType.SIEGE) {
+			BattleTimeCap.check(this);
+			if (!started) {
+				return;
+			}
+		}
 		if (battleType == BattleType.FIELD) {
 			FieldWinService.checkFieldWin(this);
 		}

@@ -64,6 +64,20 @@ public final class BattlePlacementValidator {
 			return Collections.emptyList();
 		}
 		List<String> errors = new ArrayList<>();
+		if (battle.getWarId() != null) {
+			for (BattleSide side : battle.getSides()) {
+				if (side == null) {
+					continue;
+				}
+				String label = sideLabel(side);
+				if (side.getSpawn() == null) {
+					errors.add(label + " spawn is not set.");
+				}
+				if (side.getJail() == null) {
+					errors.add(label + " jail is not set.");
+				}
+			}
+		}
 		if (battle.getBattleType() == BattleType.SIEGE) {
 			ContestArea area = battle.getContestArea();
 			if (area == null || !area.isConfigured()) {
@@ -71,6 +85,14 @@ public final class BattlePlacementValidator {
 			}
 		}
 		return errors;
+	}
+
+	private static String sideLabel(BattleSide side) {
+		String id = side.getId();
+		if (id == null || id.isBlank()) {
+			return "Side";
+		}
+		return id.substring(0, 1).toUpperCase() + id.substring(1);
 	}
 
 	public static String validateForStart(Battle battle) {

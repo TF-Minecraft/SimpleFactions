@@ -179,6 +179,37 @@ class ConfigLoaderBattlePresenceTest {
 		assertEquals(0.0, Cache.battleItemDurabilityMultiplier);
 	}
 
+	@Test
+	void loadConfig_battleSafetyDefaults() throws IOException {
+		Path file = writeConfig("""
+				battle:
+				  province_poll_interval_ticks: 20
+				""");
+
+		new ConfigLoader().loadConfig(file.toFile());
+
+		assertEquals(300, Cache.battleEmptySideGraceSeconds);
+		assertFalse(Cache.battleTimeCapEnabled);
+		assertEquals(120, Cache.battleTimeCapMinutes);
+	}
+
+	@Test
+	void loadConfig_battleSafetyOverrides() throws IOException {
+		Path file = writeConfig("""
+				battle:
+				  province_poll_interval_ticks: 20
+				  empty_side_grace_seconds: 45
+				  time_cap_enabled: true
+				  time_cap_minutes: 90
+				""");
+
+		new ConfigLoader().loadConfig(file.toFile());
+
+		assertEquals(45, Cache.battleEmptySideGraceSeconds);
+		assertTrue(Cache.battleTimeCapEnabled);
+		assertEquals(90, Cache.battleTimeCapMinutes);
+	}
+
 	private Path writeConfig(String yaml) throws IOException {
 		Path file = tempDir.resolve("config.yml");
 		Files.writeString(file, yaml);
