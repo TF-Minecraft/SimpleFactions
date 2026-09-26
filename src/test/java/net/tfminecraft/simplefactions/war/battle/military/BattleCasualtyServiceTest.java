@@ -25,6 +25,7 @@ import org.mockito.MockedStatic;
 
 import org.bukkit.Bukkit;
 
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -49,9 +50,12 @@ class BattleCasualtyServiceTest {
 	private Map<String, Faction> factionsById;
 	private MockedStatic<Bukkit> bukkitMock;
 	private MockedStatic<WarManager> warManagerMock;
+	private int savedDeathsPerRegiment;
 
 	@BeforeEach
 	void setUp() {
+		savedDeathsPerRegiment = Cache.warBattleDeathsPerRegimentLoss;
+		Cache.warBattleDeathsPerRegimentLoss = 1;
 		savedWars = new ArrayList<>(WarManager.get());
 		WarManager.get().clear();
 		factionsById = new HashMap<>();
@@ -63,6 +67,7 @@ class BattleCasualtyServiceTest {
 
 	@AfterEach
 	void tearDown() {
+		Cache.warBattleDeathsPerRegimentLoss = savedDeathsPerRegiment;
 		warManagerMock.close();
 		bukkitMock.close();
 		for (War war : new ArrayList<>(WarManager.get())) {
@@ -181,6 +186,72 @@ class BattleCasualtyServiceTest {
 			assertEquals(3, commitmentCount(war.getId(), "atk", null, "professional"));
 			assertEquals(3, commitmentCount(war.getId(), "def", null, "garrison"));
 		}
+	}
+
+	@Test
+	void deathsBelowOneRegiment_areNotLost() {
+		Cache.warBattleDeathsPerRegimentLoss = 5;
+		Faction attacker = fighter("atk", Map.of("professional", 10));
+		Faction defender = fighter("def", Map.of("militia", 6, "garrison", 10));
+		War war = baseWar(7, attacker, defender);
+		war.setCampaignPhase(CampaignPhase.INVASION);
+		seedOwnRow(war, "def", "militia", 6);
+		seedOwnRow(war, "def", "garrison", 10);
+
+		Battle battle = campaignBattle(war, PROVINCE_ID);
+		Map<String, Integer> casualties = Map.of(BattleTemplate.DEFENDER_SIDE, 4);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
+			stubFactions(factions);
+
+			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+
+			assertEquals(6, commitmentCount(war.getId(), "def", null, "militia"));
+			assertEquals(10, commitmentCount(war.getId(), "def", null, "garrison"));
+			assertEquals(6, liveSlots("def", "militia"));
+			assertEquals(10, liveSlots("def", "garrison"));
+		}
+	}
+
+	@Test
+	void floorDeaths_debitOneRegimentPerFive() {
+		Cache.warBattleDeathsPerRegimentLoss = 5;
+		Faction attacker = fighter("atk", Map.of("professional", 10));
+		Faction defender = fighter("def", Map.of("militia", 6, "professional", 10));
+		War war = baseWar(8, attacker, defender);
+		war.setCampaignPhase(CampaignPhase.INVASION);
+		seedOwnRow(war, "def", "militia", 6);
+		seedOwnRow(war, "def", "professional", 10);
+
+		Battle battle = campaignBattle(war, PROVINCE_ID);
+		Map<String, Integer> casualties = Map.of(BattleTemplate.DEFENDER_SIDE, 12);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
+			stubFactions(factions);
+
+			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+
+			assertEquals(4, commitmentCount(war.getId(), "def", null, "militia"));
+			assertEquals(10, commitmentCount(war.getId(), "def", null, "professional"));
+			assertEquals(4, liveSlots("def", "militia"));
+			assertEquals(10, liveSlots("def", "professional"));
+		}
+	}
+
+	@Test
+	void regimentLossesForDeaths_usesFloor() {
+		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(0));
+		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(-3));
+		Cache.warBattleDeathsPerRegimentLoss = 5;
+		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(4));
+		assertEquals(1, BattleCasualtyService.regimentLossesForDeaths(5));
+		assertEquals(2, BattleCasualtyService.regimentLossesForDeaths(11));
+		Cache.warBattleDeathsPerRegimentLoss = 0;
+		assertEquals(1, BattleCasualtyService.regimentLossesForDeaths(5));
 	}
 
 	@Test

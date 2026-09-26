@@ -11,6 +11,7 @@ import java.util.Set;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -40,18 +41,26 @@ public final class BattleCasualtyService {
 			return;
 		}
 
+		int attackerRegimentLosses = regimentLossesForDeaths(
+				sideCasualties.getOrDefault(BattleTemplate.ATTACKER_SIDE, 0));
+		int defenderRegimentLosses = regimentLossesForDeaths(
+				sideCasualties.getOrDefault(BattleTemplate.DEFENDER_SIDE, 0));
+		if (attackerRegimentLosses <= 0 && defenderRegimentLosses <= 0) {
+			return;
+		}
+
 		Set<Faction> affectedFactions = new HashSet<>();
 		int attackerLosses = applySide(
 				war,
 				battleProvinceId,
 				war.getAttackers(),
-				sideCasualties.getOrDefault(BattleTemplate.ATTACKER_SIDE, 0),
+				attackerRegimentLosses,
 				affectedFactions);
 		int defenderLosses = applySide(
 				war,
 				battleProvinceId,
 				war.getDefenders(),
-				sideCasualties.getOrDefault(BattleTemplate.DEFENDER_SIDE, 0),
+				defenderRegimentLosses,
 				affectedFactions);
 
 		persistCommitments(war);
@@ -61,6 +70,17 @@ public final class BattleCasualtyService {
 			}
 		}
 		broadcastLosses(war, attackerLosses, defenderLosses);
+	}
+
+	public static int regimentLossesForDeaths(int deaths) {
+		int deathsPerRegiment = Cache.warBattleDeathsPerRegimentLoss;
+		if (deathsPerRegiment <= 0) {
+			deathsPerRegiment = 5;
+		}
+		if (deaths <= 0) {
+			return 0;
+		}
+		return deaths / deathsPerRegiment;
 	}
 
 	public static boolean shouldApply(War war, Battle battle, Map<String, Integer> sideCasualties) {

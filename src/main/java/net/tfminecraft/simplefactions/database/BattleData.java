@@ -1,7 +1,9 @@
 package net.tfminecraft.simplefactions.database;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.tfminecraft.simplefactions.war.battle.template.BattleLocation;
 import net.tfminecraft.simplefactions.war.battle.template.CapturePointDefinition;
@@ -32,6 +34,7 @@ public class BattleData {
 	public String defenderRespawnMode;
 	public Integer defenderLives;
 	public boolean navalVariant;
+	public Map<String, Integer> sideCasualties = new LinkedHashMap<>();
 	public BattleLocation navalSpawn;
 	public BattleLocation contestMin;
 	public BattleLocation contestMax;

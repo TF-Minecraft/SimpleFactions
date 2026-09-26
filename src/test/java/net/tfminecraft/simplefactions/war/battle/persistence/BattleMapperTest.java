@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mockStatic;
 
 import java.io.File;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.database.BattleData;
+import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyLedger;
 import net.tfminecraft.simplefactions.database.WarbandData;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
@@ -125,6 +127,47 @@ class BattleMapperTest {
 			data.campaignRaid = true;
 
 			assertFalse(BattleMapper.fromData(data).hasLootEnabled());
+		}
+	}
+
+	@Test
+	void roundTrip_preservesSideCasualties() {
+		BossBar bossBar = mock(BossBar.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
+					.thenReturn(bossBar);
+
+			Battle battle = BattleFactory.createBlank(BattleType.FIELD, "campaign_losses");
+			battle.setWarId(9);
+			battle.setStarted(true);
+			battle.restoreSideCasualties(Map.of("attacker", 4, "Defender", 2));
+
+			BattleData data = BattleMapper.toData(battle);
+			assertEquals(4, data.sideCasualties.get("attacker"));
+			assertEquals(2, data.sideCasualties.get("defender"));
+
+			BattleCasualtyLedger.resetForTests();
+			Battle restored = BattleMapper.fromData(data);
+
+			assertEquals(4, BattleCasualtyLedger.getSideCasualties(restored).get("attacker"));
+			assertEquals(2, BattleCasualtyLedger.getSideCasualties(restored).get("defender"));
+		}
+	}
+
+	@Test
+	void fromData_absentCasualtiesStayEmpty() {
+		BossBar bossBar = mock(BossBar.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
+					.thenReturn(bossBar);
+
+			BattleData data = new BattleData();
+			data.id = "legacy_no_losses";
+			data.battleType = BattleType.FIELD.toJson();
+			data.sideCasualties = null;
+
+			Battle restored = BattleMapper.fromData(data);
+			assertTrue(BattleCasualtyLedger.getSideCasualties(restored).isEmpty());
 		}
 	}
 

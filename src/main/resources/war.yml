@@ -80,6 +80,8 @@ war:
   battle_military:
     lives_per_regiment: 5
     min_side_lives: 1
+    # Recorded deaths on a side become regiment losses at this rate. Leftover deaths are not lost.
+    deaths_per_regiment_loss: 5
   # One reward per player for every fighter who was still in the battle when it
   # ended, both sides, and only when the battle produced a winner. The per-battle
   # toggle lives in the battle editor; campaign raids ship with it off.

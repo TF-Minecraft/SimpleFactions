@@ -286,6 +286,7 @@ public class BattleManager implements Listener{
 			BattleRespawnRouting.scheduleJailRespawn(
 					p.getUniqueId(), s.applyDeathAndNeedsJailRespawn());
 			BattleCasualtyLedger.recordSideCasualty(b, s);
+			BattlePersistenceService.persistBattle(b);
 		}
 	}
 
@@ -325,6 +326,7 @@ public class BattleManager implements Listener{
 			return;
 		}
 		BattleCasualtyLedger.recordSideCasualty(b, s);
+		BattlePersistenceService.persistBattle(b);
 		BattleRespawnRouting.clear(p.getUniqueId());
 	}
 	
