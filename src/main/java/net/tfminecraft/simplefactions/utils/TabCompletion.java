@@ -237,7 +237,12 @@ public class TabCompletion implements TabCompleter{
 							args.length >= 2 ? args[1] : "");
 				}
 				if(args.length == 3 && args[1].equalsIgnoreCase("transfer")) {
-					return completeInstallationIds(p, args[2], false);
+					List<String> ids = completeInstallationIds(p, args[2], false);
+					String prefix = args[2] == null ? "" : args[2];
+					if ("pool".startsWith(prefix.toLowerCase(java.util.Locale.ROOT))) {
+						ids.add(0, "pool");
+					}
+					return ids;
 				}
 				if(args.length == 4 && args[1].equalsIgnoreCase("maintenance") && args[2].equalsIgnoreCase("pay")) {
 					return VehicleTabCompletions.filter(List.of("bank"), args[3]);

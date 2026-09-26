@@ -31,8 +31,11 @@ public final class BattleVehicleEligibilityService {
 	private BattleVehicleEligibilityService() {}
 
 	public static boolean isEligible(War war, String factionId, PlayerVehicleRecord record) {
-		if (war == null || factionId == null || factionId.isBlank() || record == null) {
+		if (war == null || factionId == null || factionId.isBlank()) {
 			return true;
+		}
+		if (record == null) {
+			return false;
 		}
 		return isEligible(war, factionId, record.getVehicleTypeId(), record);
 	}
@@ -42,17 +45,44 @@ public final class BattleVehicleEligibilityService {
 		if (war == null || factionId == null || factionId.isBlank()) {
 			return true;
 		}
-		if (!VehicleCategoryRules.isBerthableType(vehicleTypeId)) {
-			return true;
+		return decide(war, factionId, vehicleTypeId, berthRecord) == BattleVehicleEligibilityResult.ALLOWED;
+	}
+
+	static BattleVehicleEligibilityResult decide(
+			War war, String factionId, String vehicleTypeId, PlayerVehicleRecord record) {
+		if (record != null && record.getMode() == OwnershipMode.POOL) {
+			return poolOnPlayerSide(war, factionId, record.getFactionId())
+					? BattleVehicleEligibilityResult.ALLOWED
+					: BattleVehicleEligibilityResult.DENIED_POOL_SIDE;
 		}
-		if (berthRecord == null || berthRecord.getMode() != OwnershipMode.INSTALLATION) {
+		if (record != null && record.getMode() == OwnershipMode.INSTALLATION) {
+			if (!VehicleCategoryRules.isBerthableType(vehicleTypeId)) {
+				return BattleVehicleEligibilityResult.ALLOWED;
+			}
+			String installationId = record.getInstallationId();
+			if (installationId == null || installationId.isBlank()) {
+				return BattleVehicleEligibilityResult.DENIED_NOT_BERTHED;
+			}
+			if (!BattleInstallationInPlayService.isInPlay(war, factionId, installationId)) {
+				return BattleVehicleEligibilityResult.DENIED_NOT_COMMITTED;
+			}
+			return BattleVehicleEligibilityResult.ALLOWED;
+		}
+		return BattleVehicleEligibilityResult.DENIED_NOT_FACTION_VEHICLE;
+	}
+
+	private static boolean poolOnPlayerSide(War war, String playerFactionId, String vehicleFactionId) {
+		if (vehicleFactionId == null || vehicleFactionId.isBlank()) {
 			return false;
 		}
-		String installationId = berthRecord.getInstallationId();
-		if (installationId == null || installationId.isBlank()) {
+		Faction playerFaction = FactionManager.getByString(playerFactionId);
+		Faction vehicleFaction = FactionManager.getByString(vehicleFactionId);
+		if (playerFaction == null || vehicleFaction == null) {
 			return false;
 		}
-		return BattleInstallationInPlayService.isInPlay(war, factionId, installationId);
+		var playerSide = war.getSide(playerFaction);
+		var vehicleSide = war.getSide(vehicleFaction);
+		return playerSide != null && playerSide.equals(vehicleSide);
 	}
 
 	public static BattleVehicleEligibilityResult check(
@@ -85,24 +115,8 @@ public final class BattleVehicleEligibilityService {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
 		}
 
-		String vehicleTypeId = vehicle.getId();
-		if (!VehicleCategoryRules.isBerthableType(vehicleTypeId)) {
-			return BattleVehicleEligibilityResult.ALLOWED;
-		}
-
 		Optional<PlayerVehicleRecord> recordOpt = registry.getByVehicleUuid(vehicle.getUUID());
-		PlayerVehicleRecord record = recordOpt.orElse(null);
-		if (record == null || record.getMode() != OwnershipMode.INSTALLATION) {
-			return BattleVehicleEligibilityResult.DENIED_NOT_BERTHED;
-		}
-		String installationId = record.getInstallationId();
-		if (installationId == null || installationId.isBlank()) {
-			return BattleVehicleEligibilityResult.DENIED_NOT_BERTHED;
-		}
-		if (!BattleInstallationInPlayService.isInPlay(war, faction.getId(), installationId)) {
-			return BattleVehicleEligibilityResult.DENIED_NOT_COMMITTED;
-		}
-		return BattleVehicleEligibilityResult.ALLOWED;
+		return decide(war, faction.getId(), vehicle.getId(), recordOpt.orElse(null));
 	}
 
 	public static Player resolveNotifyPlayer(ActiveVehicle vehicle, PlayerVehicleRegistry registry) {
@@ -131,12 +145,16 @@ public final class BattleVehicleEligibilityService {
 		NOT_CAMPAIGN_BATTLE,
 		DENIED_PRE_BATTLE_WARBAND,
 		DENIED_NOT_BERTHED,
-		DENIED_NOT_COMMITTED;
+		DENIED_NOT_COMMITTED,
+		DENIED_NOT_FACTION_VEHICLE,
+		DENIED_POOL_SIDE;
 
 		public boolean isDenied() {
 			return this == DENIED_PRE_BATTLE_WARBAND
 					|| this == DENIED_NOT_BERTHED
-					|| this == DENIED_NOT_COMMITTED;
+					|| this == DENIED_NOT_COMMITTED
+					|| this == DENIED_NOT_FACTION_VEHICLE
+					|| this == DENIED_POOL_SIDE;
 		}
 	}
 
@@ -154,6 +172,10 @@ public final class BattleVehicleEligibilityService {
 						"§cThis vehicle must be berthed at a committed installation for this battle.";
 				case DENIED_NOT_COMMITTED ->
 						"§cThis vehicle is berthed at an installation not committed for this battle.";
+				case DENIED_NOT_FACTION_VEHICLE ->
+						"§cOnly faction pool and installation vehicles can be used in a campaign battle.";
+				case DENIED_POOL_SIDE ->
+						"§cThis pool vehicle belongs to a faction that is not on your side.";
 				case ALLOWED, NOT_CAMPAIGN_BATTLE -> null;
 			};
 		}

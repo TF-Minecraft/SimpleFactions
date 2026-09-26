@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.ToDoubleFunction;
 
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
+
 import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
@@ -54,6 +56,13 @@ public class Ledger {
 
     public static void setNodeUpkeepLookup(ToDoubleFunction<Guild> lookup) {
         nodeUpkeepLookup = lookup == null ? guild -> 0.0 : lookup;
+    }
+
+    // Pool vehicle upkeep is withdrawn in VehicleUpkeepService. This lookup is the ledger line.
+    private static ToDoubleFunction<String> vehiclePoolUpkeep = FactionVehiclePoolService::dailyUpkeepOf;
+
+    public static void setVehiclePoolUpkeepForTests(ToDoubleFunction<String> lookup) {
+        vehiclePoolUpkeep = lookup == null ? FactionVehiclePoolService::dailyUpkeepOf : lookup;
     }
 
     public Ledger(Guild guild) {
@@ -280,6 +289,12 @@ public class Ledger {
                     amount -= InstallationConfigLoader.getDailyUpkeep(installation.getKind());
                 }
                 break;
+            case VEHICLE_UPKEEP:
+                if (!guild.isBase()) {
+                    return 0;
+                }
+                amount = -vehiclePoolUpkeep.applyAsDouble(f.getId());
+                break;
             case MILITARY_UPKEEP:
                 if (guild.isBase() && f.getMilitary() != null) {
                     amount = -f.getMilitary().getTotalUpkeep();
@@ -447,6 +462,7 @@ public class Ledger {
                 case TRADE_UPKEEP:
                 case UPGRADES_UPKEEP:
                 case INSTALLATIONS:
+                case VEHICLE_UPKEEP:
                 case MILITARY_UPKEEP:
                 case NODES:
                 case PENALTIES:
@@ -518,6 +534,7 @@ public class Ledger {
                 case TRADE_UPKEEP:
                 case UPGRADES_UPKEEP:
                 case INSTALLATIONS:
+                case VEHICLE_UPKEEP:
                 case MILITARY_UPKEEP:
                 case NODES:
                 case PENALTIES:
@@ -794,7 +811,8 @@ public class Ledger {
             // TRADE is paid here and nowhere else, so the bank moves by what the ledger shows.
             case TRADE:
             case TRADE_UPKEEP:
-            // INSTALLATIONS: withdrawn in Faction.newDay(), so getIncome() is ledger GUI display only
+            // INSTALLATIONS: withdrawn in Faction.newDay(), so getIncome() is ledger GUI display only.
+            // VEHICLE_UPKEEP: withdrawn in VehicleUpkeepService for the faction pool.
             case UPGRADES_UPKEEP:
             case PENALTIES:
             case CITIZENS:

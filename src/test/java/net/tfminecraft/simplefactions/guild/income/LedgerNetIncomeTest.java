@@ -61,6 +61,7 @@ class LedgerNetIncomeTest {
 		}
 		FactionManager.factions = new ArrayList<>();
 		Ledger.setNodeUpkeepLookup(null);
+		Ledger.setVehiclePoolUpkeepForTests(null);
 		if (tempDir != null) {
 			Files.walk(tempDir)
 				.sorted(java.util.Comparator.reverseOrder())
@@ -159,6 +160,32 @@ class LedgerNetIncomeTest {
 
 		assertEquals(0.0, ledger.getIncome(Cashflow.NODES));
 		assertEquals(0.0, ledger.getNetIncome());
+	}
+
+	@Test
+	void vehiclePoolUpkeep_isALedgerLineAndIsNotSettled() {
+		Faction faction = mock(Faction.class);
+		Guild guild = mock(Guild.class);
+		Military military = mock(Military.class);
+		InstallationHandler installationHandler = mock(InstallationHandler.class);
+
+		when(faction.getMilitary()).thenReturn(military);
+		when(military.getTotalUpkeep()).thenReturn(0.0);
+		when(faction.getInstallationHandler()).thenReturn(installationHandler);
+		when(installationHandler.getAll()).thenReturn(Collections.emptyList());
+		when(faction.getId()).thenReturn("red");
+		Ledger.setVehiclePoolUpkeepForTests(id -> 12.0);
+
+		Ledger ledger = baseLedger(faction, guild, true);
+		assertEquals(-12.0, ledger.getIncome(Cashflow.VEHICLE_UPKEEP));
+		assertEquals(-12.0, ledger.getNetIncome());
+
+		DailyGuildTransfers buffer = new DailyGuildTransfers();
+		ledger.populateDailyTransfers(buffer);
+		assertTrue(buffer.getExternalDeltas().isEmpty());
+
+		Ledger sub = baseLedger(faction, guild, false);
+		assertEquals(0.0, sub.getIncome(Cashflow.VEHICLE_UPKEEP));
 	}
 
 	@Test

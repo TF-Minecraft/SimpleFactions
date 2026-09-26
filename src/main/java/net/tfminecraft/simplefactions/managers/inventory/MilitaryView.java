@@ -74,6 +74,7 @@ public class MilitaryView {
 			}
 			
 		}
+		i.setItem(49, creator.createVehiclePoolIcon(f));
 		i.setItem(53, inv.createBackButton(SFGUI.MILITARY_VIEW));
 		if(open) player.openInventory(i);
 	}

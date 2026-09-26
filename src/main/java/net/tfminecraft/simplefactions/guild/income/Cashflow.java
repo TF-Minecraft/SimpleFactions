@@ -41,6 +41,7 @@ public enum Cashflow {
     UPGRADES_UPKEEP("#c46054Upgrades Upkeep", true, false),
     PENALTIES("#c74c3fPenalties", true, false),
     INSTALLATIONS("#706964Installations", true, false),
+    VEHICLE_UPKEEP("#a6659fVehicle Upkeep", true, false),
     MILITARY_UPKEEP("#a6659fMilitary Upkeep", true, false),
     NODES("#8a7a5cNodes", true, false);
 

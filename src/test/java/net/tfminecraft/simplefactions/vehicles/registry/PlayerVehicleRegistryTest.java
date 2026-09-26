@@ -66,6 +66,23 @@ class PlayerVehicleRegistryTest {
     }
 
     @Test
+    void saveAndLoad_keepsPoolFaction() {
+        UUID player = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(
+            player, "vehicle-pool", "field_artillery", OwnershipMode.POOL, null, "red"));
+
+        persistence.save();
+
+        PlayerVehicleRegistry loaded = new PlayerVehicleRegistry();
+        new VehicleRegistryPersistence(tempDir.toFile(), loaded).load();
+
+        PlayerVehicleRecord record = loaded.getByVehicleUuid("vehicle-pool").orElseThrow();
+        assertEquals(OwnershipMode.POOL, record.getMode());
+        assertEquals("red", record.getFactionId());
+        assertEquals(1, loaded.getPoolVehicles("red").size());
+    }
+
+    @Test
     void register_replacesDuplicateVehicleUuid() {
         UUID player = UUID.randomUUID();
         registry.register(new PlayerVehicleRecord(

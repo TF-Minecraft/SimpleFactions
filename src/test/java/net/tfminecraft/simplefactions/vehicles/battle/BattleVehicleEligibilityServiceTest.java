@@ -4,6 +4,7 @@ package net.tfminecraft.simplefactions.vehicles.battle;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.battle.BattleVehicleEligibilityService;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -82,7 +83,7 @@ class BattleVehicleEligibilityServiceTest {
 	}
 
 	@Test
-	void train_alwaysEligible() {
+	void personalVehicle_deniedWhateverTheType() {
 		PlayerVehicleRecord record = new PlayerVehicleRecord(
 				PLAYER_UUID,
 				"veh-1",
@@ -90,7 +91,42 @@ class BattleVehicleEligibilityServiceTest {
 				OwnershipMode.PERSONAL,
 				null);
 
+		assertFalse(BattleVehicleEligibilityService.isEligible(war, "atk", record));
+		assertFalse(BattleVehicleEligibilityService.isEligible(war, "atk", "coal_car", null));
+	}
+
+	@Test
+	void poolVehicle_allowedWhenFactionIsOnThePlayerSide() {
+		PlayerVehicleRecord record = new PlayerVehicleRecord(
+				PLAYER_UUID,
+				"veh-1",
+				"coal_car",
+				OwnershipMode.POOL,
+				null,
+				"atk");
+
 		assertTrue(BattleVehicleEligibilityService.isEligible(war, "atk", record));
+	}
+
+	@Test
+	void poolVehicle_deniedWhenFactionIsOnTheOtherSide() {
+		PlayerVehicleRecord record = new PlayerVehicleRecord(
+				PLAYER_UUID,
+				"veh-1",
+				"field_artillery",
+				OwnershipMode.POOL,
+				null,
+				"atk");
+
+		assertFalse(BattleVehicleEligibilityService.isEligible(war, "def", record));
+		assertEquals(
+				"§cThis pool vehicle belongs to a faction that is not on your side.",
+				BattleVehicleEligibilityService.Messages.forResult(
+						BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_POOL_SIDE));
+		assertEquals(
+				"§cOnly faction pool and installation vehicles can be used in a campaign battle.",
+				BattleVehicleEligibilityService.Messages.forResult(
+						BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_NOT_FACTION_VEHICLE));
 	}
 
 	@Test

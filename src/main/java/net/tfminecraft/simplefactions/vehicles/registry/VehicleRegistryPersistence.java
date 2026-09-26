@@ -39,7 +39,9 @@ public final class VehicleRegistryPersistence {
             List<PlayerVehicleRecord> records = new ArrayList<>();
             for (VehicleRecordData row : data) {
                 PlayerVehicleRecord record = row.toRecord();
-                if (record != null && record.getMode() == OwnershipMode.INSTALLATION) {
+                if (record != null
+                        && (record.getMode() == OwnershipMode.INSTALLATION
+                                || record.getMode() == OwnershipMode.POOL)) {
                     records.add(record);
                 }
             }
@@ -70,6 +72,7 @@ public final class VehicleRegistryPersistence {
         String vehicleTypeId;
         String mode;
         String installationId;
+        String factionId;
 
         static VehicleRecordData from(PlayerVehicleRecord record) {
             VehicleRecordData data = new VehicleRecordData();
@@ -78,6 +81,7 @@ public final class VehicleRegistryPersistence {
             data.vehicleTypeId = record.getVehicleTypeId();
             data.mode = record.getMode().name();
             data.installationId = record.getInstallationId();
+            data.factionId = record.getFactionId();
             return data;
         }
 
@@ -92,7 +96,8 @@ public final class VehicleRegistryPersistence {
                     vehicleUuid,
                     vehicleTypeId,
                     ownershipMode,
-                    installationId);
+                    installationId,
+                    factionId);
             } catch (IllegalArgumentException e) {
                 return null;
             }

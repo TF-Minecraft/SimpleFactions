@@ -2,7 +2,10 @@ package net.tfminecraft.simplefactions.vehicles.berth;
 
 
 
+import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.CanRegisterResult;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -18,13 +21,25 @@ import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 public final class VehicleTransferConsentService {
     private final InstallationVehicleService installationVehicleService;
     private final VehicleTransferSessionManager sessionManager;
+    private final FactionVehiclePoolService poolService;
 
     public VehicleTransferConsentService(
             InstallationVehicleService installationVehicleService,
             PlayerVehicleRegistry registry,
             VehicleTransferSessionManager sessionManager) {
+        this(
+                installationVehicleService,
+                sessionManager,
+                new FactionVehiclePoolService(registry, new InstallationVehicleOwnerSync(registry)));
+    }
+
+    public VehicleTransferConsentService(
+            InstallationVehicleService installationVehicleService,
+            VehicleTransferSessionManager sessionManager,
+            FactionVehiclePoolService poolService) {
         this.installationVehicleService = installationVehicleService;
         this.sessionManager = sessionManager;
+        this.poolService = poolService;
     }
 
     public void sendConsentRequest(
@@ -57,6 +72,32 @@ public final class VehicleTransferConsentService {
         leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
     }
 
+    public void sendPoolConsentRequest(
+            Player leader,
+            Player owner,
+            Faction faction,
+            ActiveVehicle vehicle) {
+        if (leader == null || owner == null || faction == null || vehicle == null) {
+            return;
+        }
+
+        RequestManager.addRequest(
+                leader,
+                owner,
+                new VehicleTransferConsentRequest(
+                        faction.getOrCreateMainGuild(),
+                        null,
+                        "faction vehicle pool",
+                        vehicle.getUUID(),
+                        vehicle.getId(),
+                        owner.getUniqueId(),
+                        leader.getUniqueId(),
+                        true));
+
+        owner.sendMessage(VehicleTransferMessages.poolConsentPrompt(leader.getName(), vehicle.getId()));
+        leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+    }
+
     public void acceptRequest(Player owner) {
         if (!(RequestManager.getRequest(owner) instanceof VehicleTransferConsentRequest req)) {
             return;
@@ -70,6 +111,11 @@ public final class VehicleTransferConsentService {
         Faction faction = resolveProposerFaction(req);
         if (faction == null) {
             owner.sendMessage(VehicleTransferMessages.consentExpired());
+            return;
+        }
+
+        if (req.isPool()) {
+            acceptPoolRequest(owner, req, faction);
             return;
         }
 
@@ -106,6 +152,27 @@ public final class VehicleTransferConsentService {
         notifyProposer(req, success);
     }
 
+    private void acceptPoolRequest(Player owner, VehicleTransferConsentRequest req, Faction faction) {
+        FactionVehiclePoolService.PoolTarget vehicle = resolvePoolTarget(req.getVehicleUuid());
+        ActiveVehicle activeVehicle = resolveVehicle(req.getVehicleUuid());
+        CanAddResult result = poolService.canAdd(faction, vehicle);
+        if (result != CanAddResult.OK) {
+            String typeId = activeVehicle != null ? activeVehicle.getId() : req.getVehicleTypeId();
+            String message = VehicleTransferMessages.forPoolResult(result, typeId, faction);
+            if (message != null) {
+                owner.sendMessage(message);
+            }
+            notifyProposer(req, message);
+            return;
+        }
+
+        poolService.register(faction, vehicle, req.getOwnerUuid());
+        sessionManager.clear(req.getProposerLeaderUuid());
+        String success = VehicleTransferMessages.poolSuccess();
+        owner.sendMessage(success);
+        notifyProposer(req, success);
+    }
+
     public void notifyExpired(VehicleTransferConsentRequest req, Player owner) {
         if (req == null) {
             return;
@@ -136,6 +203,29 @@ public final class VehicleTransferConsentService {
             @Override
             public org.bukkit.Location getLocation() {
                 return vehicle.getLocation();
+            }
+
+            @Override
+            public net.tfminecraft.vehicleframework.data.OwnerData getOwnerData() {
+                return vehicle.getOwnerData();
+            }
+        };
+    }
+
+    FactionVehiclePoolService.PoolTarget resolvePoolTarget(String vehicleUuid) {
+        ActiveVehicle vehicle = resolveVehicle(vehicleUuid);
+        if (vehicle == null) {
+            return null;
+        }
+        return new FactionVehiclePoolService.PoolTarget() {
+            @Override
+            public String getVehicleUuid() {
+                return vehicle.getUUID();
+            }
+
+            @Override
+            public String getVehicleTypeId() {
+                return vehicle.getId();
             }
 
             @Override

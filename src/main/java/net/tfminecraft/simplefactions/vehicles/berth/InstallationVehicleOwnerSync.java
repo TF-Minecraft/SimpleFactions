@@ -53,11 +53,20 @@ public final class InstallationVehicleOwnerSync {
         }
 
         Optional<PlayerVehicleRecord> recordOpt = registry.getByVehicleUuid(vehicleUuid);
-        if (recordOpt.isEmpty() || recordOpt.get().getMode() != OwnershipMode.INSTALLATION) {
+        if (recordOpt.isEmpty()) {
+            return;
+        }
+        PlayerVehicleRecord record = recordOpt.get();
+        if (record.getMode() == OwnershipMode.POOL) {
+            Faction faction = FactionManager.getByString(record.getFactionId());
+            applyExpectedOwner(ownerData, faction);
+            return;
+        }
+        if (record.getMode() != OwnershipMode.INSTALLATION) {
             return;
         }
 
-        String installationId = recordOpt.get().getInstallationId();
+        String installationId = record.getInstallationId();
         if (installationId == null) {
             return;
         }
@@ -67,6 +76,15 @@ public final class InstallationVehicleOwnerSync {
             return;
         }
 
+        applyExpectedOwner(ownerData, faction);
+    }
+
+    private static void applyExpectedOwner(
+            net.tfminecraft.vehicleframework.data.OwnerData ownerData,
+            Faction faction) {
+        if (faction == null) {
+            return;
+        }
         String expected = expectedOwner(faction);
         String current = ownerData.getOwner();
         if (!expected.equalsIgnoreCase(current) || isLegacyFactionOwner(current)) {
