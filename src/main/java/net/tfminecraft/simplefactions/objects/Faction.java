@@ -828,6 +828,16 @@ public class Faction {
 	
 	public void setRelation(Faction f, Relation r) {
 		diplomacyHandler.setRelation(f, r);
+		// A new or lost overlord changes the vassal-scope regiments this faction is granted.
+		if (military != null) military.refreshLawSlots();
+	}
+
+	/** Re-derives law-granted regiment slots here and in every vassal (they get this faction's vassal-scope grants). */
+	public void refreshLawSlots() {
+		if (military != null) military.refreshLawSlots();
+		for (Faction vassal : getVassals()) {
+			if (vassal != null && vassal.getMilitary() != null) vassal.getMilitary().refreshLawSlots();
+		}
 	}
 	
 	public void updateRelations() {
@@ -976,6 +986,7 @@ public class Faction {
 
 	public void applyLaw(Law law, LawGroup group) {
 		group.switchTo(law, System.currentTimeMillis());
+		refreshLawSlots();
 
 		LawEffect effect = law.getScopedEffects().get(Scope.FACTION);
 		if (effect == null) {

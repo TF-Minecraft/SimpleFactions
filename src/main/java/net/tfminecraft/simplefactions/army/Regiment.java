@@ -157,6 +157,13 @@ public class Regiment {
 		return Math.max(0, currentSlots - freeSlots);
 	}
 
+	/** Replaces the law-granted free slots and keeps every paid slot. */
+	public void setGrantedSlots(int granted) {
+		int paid = getPaidSlots();
+		freeSlots = Math.max(0, granted);
+		currentSlots = paid + freeSlots;
+	}
+
 	public double getUpkeep() {
 		return upkeep;
 	}
