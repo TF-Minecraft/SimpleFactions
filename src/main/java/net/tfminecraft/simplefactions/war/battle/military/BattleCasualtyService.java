@@ -286,6 +286,9 @@ public final class BattleCasualtyService {
 			if (commitment.count() <= 0) {
 				continue;
 			}
+			if (isEquipmentRegiment(sourceFactionId, commitment.regimentId())) {
+				continue;
+			}
 			sourceTargets.add(new RegimentTarget(sourceFactionId, commitment.regimentId(), commitment.count()));
 		}
 		if (sourceTargets.isEmpty()) {
@@ -307,7 +310,7 @@ public final class BattleCasualtyService {
 			return;
 		}
 		for (Regiment regiment : source.getMilitary().getRegiments()) {
-			if (regiment.isLevy() || regiment.isOffensive()) {
+			if (regiment.isLevy() || regiment.isOffensive() || regiment.isEquipment()) {
 				continue;
 			}
 			int sent = regiment.sentToOverlord();
@@ -383,6 +386,15 @@ public final class BattleCasualtyService {
 	private record LevyRowTarget(String holderId, String sourceId, int weight) {}
 
 	private record RemainderEntry(RegimentTarget target, double remainder) {}
+
+	private static boolean isEquipmentRegiment(String factionId, String regimentId) {
+		Faction faction = FactionManager.getByString(factionId);
+		if (faction == null || faction.getMilitary() == null || regimentId == null) {
+			return false;
+		}
+		Regiment regiment = faction.getMilitary().getRegiment(regimentId);
+		return regiment != null && regiment.isEquipment();
+	}
 
 	static int getCommitmentCount(int warId, String factionId, String sourceFactionId, String regimentId) {
 		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(warId)) {

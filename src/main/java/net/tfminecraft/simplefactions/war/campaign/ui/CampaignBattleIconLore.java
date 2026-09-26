@@ -124,7 +124,7 @@ final class CampaignBattleIconLore {
 		}
 		int total = 0;
 		for (Regiment regiment : military.getRegiments()) {
-			if (regiment == null || regiment.isLevy()) {
+			if (regiment == null || regiment.isLevy() || regiment.isEquipment()) {
 				continue;
 			}
 			total += Math.max(0, regiment.getCurrentSlots());

@@ -55,12 +55,13 @@ categories:
     cruiser:
       upkeep: 40
       size: 2
+  artillery:
+    field_artillery:
+      upkeep: 4
+      size: 1
   static_emplacements:
     fixed_artillery:
       upkeep: 12
-      size: 1
-    field_artillery:
-      upkeep: 4
       size: 1
     anti_air:
       upkeep: 12

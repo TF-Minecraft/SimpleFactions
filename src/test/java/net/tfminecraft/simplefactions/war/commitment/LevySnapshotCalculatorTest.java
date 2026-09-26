@@ -80,6 +80,22 @@ class LevySnapshotCalculatorTest {
 	}
 
 	@Test
+	void directLevyContribution_ignoresEquipmentSlots() {
+		Faction source = faction("v", 10);
+		Regiment artillery = mock(Regiment.class);
+		when(artillery.isLevy()).thenReturn(false);
+		when(artillery.isEquipment()).thenReturn(true);
+		when(artillery.getId()).thenReturn("artillery");
+		when(artillery.getCurrentSlots()).thenReturn(10);
+		Military military = source.getMilitary();
+		List<Regiment> regiments = new java.util.ArrayList<>(military.getRegiments());
+		regiments.add(artillery);
+		when(military.getRegiments()).thenReturn(regiments);
+
+		assertEquals(5, LevySnapshotCalculator.directLevyContribution(source));
+	}
+
+	@Test
 	void collectLevyRows_assignsNearestFighterHolder() {
 		Faction m = faction("m", 0);
 		Faction v = fighter("v", 10);

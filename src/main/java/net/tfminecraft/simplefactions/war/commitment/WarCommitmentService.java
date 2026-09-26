@@ -36,7 +36,7 @@ public final class WarCommitmentService {
 		Instant committedAt = Instant.now();
 		List<WarCommitment> created = new ArrayList<>();
 		for (Regiment regiment : faction.getMilitary().getRegiments()) {
-			if (regiment.isLevy()) {
+			if (regiment.isLevy() || regiment.isEquipment()) {
 				continue;
 			}
 			created.add(new WarCommitment(

@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.mercenary.company;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -84,6 +85,23 @@ class MercenaryHomeManpowerTest {
         Military military = new Military(faction);
 
         assertNull(military.getHomeCompany());
+        assertEquals(6, military.getManpower(true));
+    }
+
+    @Test
+    void equipmentRegimentAddsNoMercenaryManpower() {
+        when(handler.getGuild("hired_blades")).thenReturn(fixture.guild);
+        net.tfminecraft.simplefactions.army.Regiment equipment =
+                mock(net.tfminecraft.simplefactions.army.Regiment.class);
+        when(equipment.isEquipment()).thenReturn(true);
+        when(equipment.getCurrentSlots()).thenReturn(4);
+        MercenaryCompany company = new MercenaryCompany(fixture.guild, "Guns", equipment, 0);
+        fixture.guild.setCompany(company);
+        assertTrue(company.enlist("Sigrun"));
+
+        Military military = new Military(faction);
+
+        assertEquals(0, military.getMercenaryManpower());
         assertEquals(6, military.getManpower(true));
     }
 

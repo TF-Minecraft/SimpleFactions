@@ -10,6 +10,19 @@ professional:
     description:
         - "#73c9aaProfessional Army #a89977are professional soldiers"
         - "#a89977which can be used both in offensive and defensive wars"
+artillery:
+    name: "#c4a35aField Artillery"
+    equipment: true
+    default-slots: 0
+    upkeep: 6.0
+    expansion-time: 21600
+    item:
+        material: BLACK_DYE
+        model-data: 12
+    description:
+        - "#c4a35aField Artillery #a89977slots hold guns."
+        - "#a89977Each slot lets the faction keep one"
+        - "#a89977field artillery piece in its vehicle pool"
 militia:
     name: "#b2d485Militia"
     # Free slots now come from military laws (e.g. Decentralized grants militia 6).

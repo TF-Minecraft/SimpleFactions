@@ -28,6 +28,7 @@ public class Regiment {
 	private boolean professional;
 	private boolean offense;
 	private boolean mercenary;
+	private boolean equipment;
 	
 	private ItemStack icon;
 	
@@ -58,6 +59,7 @@ public class Regiment {
 		professional = config.getBoolean("professional", false);
 		offense = config.getBoolean("offense", false);
 		mercenary = config.getBoolean("mercenary", false);
+		equipment = config.getBoolean("equipment", false);
 		toOverlord = 0;
 	}
 	
@@ -75,6 +77,7 @@ public class Regiment {
 		toOverlord = another.sentToOverlord();
 		offense = another.isOffensive();
 		mercenary = another.isMercenary();
+		equipment = another.isEquipment();
 	}
 	
 	public void setLevyEntries(List<LevyEntry> entries) {
@@ -119,6 +122,11 @@ public class Regiment {
 	/** Mercenary regiments belong to a company, never to a faction military. */
 	public boolean isMercenary() {
 		return mercenary;
+	}
+
+	/** Equipment slots hold vehicles. They are not soldiers and never become manpower or lives. */
+	public boolean isEquipment() {
+		return equipment;
 	}
 
 	public String getId() {
