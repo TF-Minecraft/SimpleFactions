@@ -46,8 +46,10 @@ class TradeUpkeepTest {
 	}
 
 	@Test
-	void sanitizeMax_negativeFallsBackToTheDefault() {
+	void sanitizeMax_negativeOrNonFiniteFallsBackToTheDefault() {
 		assertEquals(TradeUpkeep.DEFAULT_MAX, TradeUpkeep.sanitizeMax(-0.1), 1e-9);
+		assertEquals(TradeUpkeep.DEFAULT_MAX, TradeUpkeep.sanitizeMax(Double.NaN), 1e-9);
+		assertEquals(TradeUpkeep.DEFAULT_MAX, TradeUpkeep.sanitizeMax(Double.POSITIVE_INFINITY), 1e-9);
 		assertEquals(0.0, TradeUpkeep.sanitizeMax(0.0), 1e-9);
 		assertEquals(0.6, TradeUpkeep.sanitizeMax(0.6), 1e-9);
 	}

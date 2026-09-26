@@ -16,9 +16,9 @@ public final class TradeUpkeep {
 	private TradeUpkeep() {
 	}
 
-	/** Negative limits fall back to the default; 0 stays the opt-out. */
+	/** Negative or non-finite limits fall back to the default; 0 stays the opt-out. */
 	public static double sanitizeMax(double max) {
-		return max < 0 ? DEFAULT_MAX : max;
+		return Double.isFinite(max) && max >= 0 ? max : DEFAULT_MAX;
 	}
 
 	public static double rate(double tradeFactor, double upkeepFactor) {

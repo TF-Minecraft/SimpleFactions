@@ -38,10 +38,10 @@ public class ConfigLoader {
 		Cache.prosperitySoftCap = config.getDouble("prosperity-soft-cap", 80);
 		Cache.prosperitySoftCapScale = config.getDouble("prosperity-soft-cap-scale", 20);
 		double maxTradeUpkeep = config.getDouble("max-trade-upkeep", TradeUpkeep.DEFAULT_MAX);
-		if (maxTradeUpkeep < 0) {
-			Bukkit.getLogger().warning("[SimpleFactions] max-trade-upkeep cannot be negative, using " + TradeUpkeep.DEFAULT_MAX);
-		}
 		Cache.maxTradeUpkeep = TradeUpkeep.sanitizeMax(maxTradeUpkeep);
+		if (Double.compare(Cache.maxTradeUpkeep, maxTradeUpkeep) != 0) {
+			Bukkit.getLogger().warning("[SimpleFactions] max-trade-upkeep must be 0 or more, using " + TradeUpkeep.DEFAULT_MAX);
+		}
 		Cache.maxPlaytimePrestigeExponent = config.getDouble("max-prestige-playtime-exponent", 5);
 		Cache.bankBlock = config.getString("bank-block", "v.lodestone");
 		Cache.maxExtraNodeCapacity = config.getInt("max-extra-node-capacity", 0);
