@@ -59,10 +59,10 @@ public class Ledger {
     }
 
     // Pool vehicle upkeep is withdrawn in VehicleUpkeepService. This lookup is the ledger line.
-    private static ToDoubleFunction<String> vehiclePoolUpkeep = FactionVehiclePoolService::dailyUpkeepOf;
+    private static ToDoubleFunction<String> factionVehicleUpkeep = FactionVehiclePoolService::dailyUpkeepOf;
 
     public static void setVehiclePoolUpkeepForTests(ToDoubleFunction<String> lookup) {
-        vehiclePoolUpkeep = lookup == null ? FactionVehiclePoolService::dailyUpkeepOf : lookup;
+        factionVehicleUpkeep = lookup == null ? FactionVehiclePoolService::dailyUpkeepOf : lookup;
     }
 
     public Ledger(Guild guild) {
@@ -293,7 +293,7 @@ public class Ledger {
                 if (!guild.isBase()) {
                     return 0;
                 }
-                amount = -vehiclePoolUpkeep.applyAsDouble(f.getId());
+                amount = -factionVehicleUpkeep.applyAsDouble(f.getId());
                 break;
             case MILITARY_UPKEEP:
                 if (guild.isBase() && f.getMilitary() != null) {
@@ -812,7 +812,7 @@ public class Ledger {
             case TRADE:
             case TRADE_UPKEEP:
             // INSTALLATIONS: withdrawn in Faction.newDay(), so getIncome() is ledger GUI display only.
-            // VEHICLE_UPKEEP: withdrawn in VehicleUpkeepService for the faction pool.
+            // VEHICLE_UPKEEP: withdrawn in VehicleUpkeepService for pool and installation vehicles.
             case UPGRADES_UPKEEP:
             case PENALTIES:
             case CITIZENS:

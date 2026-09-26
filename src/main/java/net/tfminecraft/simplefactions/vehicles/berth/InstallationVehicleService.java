@@ -109,7 +109,8 @@ public final class InstallationVehicleService {
                 vehicle.getVehicleUuid(),
                 vehicle.getVehicleTypeId(),
                 OwnershipMode.INSTALLATION,
-                installation.getId()));
+                installation.getId(),
+                faction != null ? faction.getId() : null));
         ownerSync.applyLeaderOwner(vehicle.getOwnerData(), faction);
         SimpleFactions.getInstance().saveVehicleRegistry();
     }

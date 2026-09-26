@@ -321,6 +321,131 @@ class VehicleUpkeepServiceTest {
         assertTrue(store.isUnpaid("vehicle-1"));
     }
 
+    @Test
+    void installationVehicleIsChargedToTheOwningFactionBank() {
+        UUID playerUuid = UUID.randomUUID();
+        bank.setBalance(playerUuid, 100.0);
+        bank.remember("Alice", playerUuid);
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "vehicle-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "installation-1"));
+
+        Bank factionBank = mock(Bank.class);
+        when(factionBank.getWealth()).thenReturn(100.0);
+        Faction faction = factionWithInstallation("red", "installation-1", factionBank);
+        java.util.List<Faction> previous = FactionManager.factions;
+        FactionManager.factions = new java.util.ArrayList<>();
+        FactionManager.factions.add(faction);
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", playerUuid)) {
+            service.processDailyUpkeep();
+            assertEquals(20.0, net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService
+                    .dailyUpkeep(registry, "red"));
+        } finally {
+            FactionManager.factions = previous;
+        }
+
+        assertEquals(100.0, bank.getBankBalance(playerUuid));
+        verify(factionBank).withdraw(20.0);
+        assertFalse(store.isUnpaid("vehicle-1"));
+    }
+
+    @Test
+    void installationVehicleMarksUnpaidWhenFactionBankIsShort() {
+        UUID playerUuid = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "vehicle-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "installation-1"));
+        Bank factionBank = mock(Bank.class);
+        when(factionBank.getWealth()).thenReturn(5.0);
+        Faction faction = factionWithInstallation("red", "installation-1", factionBank);
+        java.util.List<Faction> previous = FactionManager.factions;
+        FactionManager.factions = new java.util.ArrayList<>();
+        FactionManager.factions.add(faction);
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", playerUuid)) {
+            service.processDailyUpkeep();
+        } finally {
+            FactionManager.factions = previous;
+        }
+
+        verify(factionBank, never()).withdraw(org.mockito.ArgumentMatchers.anyDouble());
+        assertTrue(store.isUnpaid("vehicle-1"));
+    }
+
+    @Test
+    void unheldInstallationVehicleStopsDecaying() {
+        UUID playerUuid = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "vehicle-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "installation-1"));
+        store.markUnpaid("vehicle-1", 1L);
+        java.util.List<Faction> previous = FactionManager.factions;
+        FactionManager.factions = new java.util.ArrayList<>();
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", playerUuid)) {
+            service.processDailyUpkeep();
+        } finally {
+            FactionManager.factions = previous;
+        }
+
+        assertFalse(store.isUnpaid("vehicle-1"));
+    }
+
+    @Test
+    void sharedInstallationIdIsChargedToTheRecordsFaction() {
+        UUID playerUuid = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "vehicle-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "harbour",
+                "blue"));
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "legacy-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "harbour"));
+        Bank redBank = mock(Bank.class);
+        when(redBank.getWealth()).thenReturn(100.0);
+        Bank blueBank = mock(Bank.class);
+        when(blueBank.getWealth()).thenReturn(100.0);
+        Faction red = factionWithInstallation("red", "harbour", redBank);
+        Faction blue = factionWithInstallation("blue", "harbour", blueBank);
+        java.util.List<Faction> previous = FactionManager.factions;
+        FactionManager.factions = new java.util.ArrayList<>(List.of(red, blue));
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", playerUuid)) {
+            service.processDailyUpkeep();
+        } finally {
+            FactionManager.factions = previous;
+        }
+
+        // The legacy record matches two factions, so nobody is billed for it.
+        verify(blueBank).withdraw(20.0);
+        verify(redBank, never()).withdraw(org.mockito.ArgumentMatchers.anyDouble());
+    }
+
+    private static Faction factionWithInstallation(String id, String installationId, Bank factionBank) {
+        net.tfminecraft.simplefactions.installation.handler.InstallationHandler handler =
+                mock(net.tfminecraft.simplefactions.installation.handler.InstallationHandler.class);
+        when(handler.getById(installationId))
+                .thenReturn(mock(net.tfminecraft.simplefactions.installation.Installation.class));
+        Faction faction = mock(Faction.class);
+        when(faction.getId()).thenReturn(id);
+        when(faction.getBank()).thenReturn(factionBank);
+        when(faction.getLeader()).thenReturn("Alice");
+        when(faction.getInstallationHandler()).thenReturn(handler);
+        return faction;
+    }
+
     // Existing configuration identifies offline profiles by player name, not UUID.
     @SuppressWarnings("deprecation")
     private static MockedStatic<Bukkit> mockBukkit(String playerName, UUID playerUuid) {

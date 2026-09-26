@@ -7,6 +7,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
+import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleCategoryRules;
@@ -51,15 +52,61 @@ public final class FactionVehiclePoolService {
         return Math.max(0, regiment.getCurrentSlots());
     }
 
+    /** Upkeep the faction bank pays each day for its pool and installation vehicles. */
     public static double dailyUpkeep(PlayerVehicleRegistry registry, String factionId) {
         if (registry == null || factionId == null || factionId.isBlank()) {
             return 0.0;
         }
         double total = 0.0;
-        for (PlayerVehicleRecord record : registry.getPoolVehicles(factionId)) {
-            total += VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId());
+        for (PlayerVehicleRecord record : registry.getAll()) {
+            if (paidBy(record, factionId)) {
+                total += VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId());
+            }
         }
         return total;
+    }
+
+    private static boolean paidBy(PlayerVehicleRecord record, String factionId) {
+        if (record.getMode() == OwnershipMode.POOL) {
+            return factionId.equalsIgnoreCase(record.getFactionId());
+        }
+        Faction payer = record.getMode() == OwnershipMode.INSTALLATION ? payingFaction(record) : null;
+        return payer != null && factionId.equalsIgnoreCase(payer.getId());
+    }
+
+    private static boolean holdsInstallation(Faction faction, String installationId) {
+        return faction != null
+                && faction.getInstallationHandler() != null
+                && faction.getInstallationHandler().getById(installationId) != null;
+    }
+
+    /** The faction that pays a registered vehicle's upkeep: its pool's faction or its installation's owner. */
+    public static Faction payingFaction(PlayerVehicleRecord record) {
+        if (record == null || FactionManager.factions == null) {
+            return null;
+        }
+        if (record.getMode() == OwnershipMode.POOL) {
+            return record.getFactionId() == null ? null : FactionManager.getByString(record.getFactionId());
+        }
+        if (record.getMode() == OwnershipMode.INSTALLATION && record.getInstallationId() != null) {
+            // Installation ids are only unique within a faction, so the record names its faction.
+            if (record.getFactionId() != null) {
+                Faction faction = FactionManager.getByString(record.getFactionId());
+                return holdsInstallation(faction, record.getInstallationId()) ? faction : null;
+            }
+            // Older records have no faction id. Bill them only when exactly one faction matches.
+            Faction match = null;
+            for (Faction faction : FactionManager.factions) {
+                if (holdsInstallation(faction, record.getInstallationId())) {
+                    if (match != null) {
+                        return null;
+                    }
+                    match = faction;
+                }
+            }
+            return match;
+        }
+        return null;
     }
 
     /** Live lookup for the faction ledger. Zero when the plugin is not running. */

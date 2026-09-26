@@ -8,8 +8,6 @@ import java.util.Optional;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class InstallationVehicleOwnerSync {
@@ -71,7 +69,8 @@ public final class InstallationVehicleOwnerSync {
             return;
         }
 
-        Faction faction = findFactionForInstallation(installationId);
+        // Resolves by the record's faction id, since two factions can reuse an installation id.
+        Faction faction = net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.payingFaction(record);
         if (faction == null) {
             return;
         }
@@ -94,19 +93,5 @@ public final class InstallationVehicleOwnerSync {
 
     private static boolean isLegacyFactionOwner(String owner) {
         return owner != null && owner.startsWith("faction_");
-    }
-
-    private static Faction findFactionForInstallation(String installationId) {
-        for (Faction faction : FactionManager.factions) {
-            InstallationHandler handler = faction.getInstallationHandler();
-            if (handler == null) {
-                continue;
-            }
-            Installation installation = handler.getById(installationId);
-            if (installation != null) {
-                return faction;
-            }
-        }
-        return null;
     }
 }
