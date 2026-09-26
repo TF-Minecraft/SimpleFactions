@@ -57,9 +57,11 @@ final class CampaignBattleIconLore {
 		for (String category : VEHICLE_CATEGORY_ORDER) {
 			counts.put(category, new TreeMap<>());
 		}
+		// An older record with no faction id can match two same-named picks, so count it once.
+		Set<String> counted = new java.util.HashSet<>();
 		for (Map.Entry<String, String> picked : inPlayInstallations(war)) {
 			for (PlayerVehicleRecord record : registry.getByInstallation(picked.getKey(), picked.getValue())) {
-				if (record == null || record.getVehicleTypeId() == null) {
+				if (record == null || record.getVehicleTypeId() == null || !counted.add(record.getVehicleUuid())) {
 					continue;
 				}
 				if (!VehiclesConfigLoader.showsOnUpcomingBattleIcon(record.getVehicleTypeId())) {

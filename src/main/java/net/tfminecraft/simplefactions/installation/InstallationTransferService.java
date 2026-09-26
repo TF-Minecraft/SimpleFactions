@@ -4,6 +4,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vehicleframework.VehicleFramework;
@@ -47,6 +48,12 @@ public final class InstallationTransferService {
 			InstallationVehicleOwnerSync sync = new InstallationVehicleOwnerSync(registry);
 			for (PlayerVehicleRecord record : registry.getByInstallation(from.getId(), installation.getId())) {
 				if (record == null || record.getVehicleUuid() == null) {
+					continue;
+				}
+				// An older record has no faction id. Move it only when the new holder is the
+				// only faction with this installation id, so another faction's vehicle stays put.
+				if (record.getFactionId() == null
+						&& FactionVehiclePoolService.payingFaction(record) != to) {
 					continue;
 				}
 				// The vehicles move with the installation, so the new holder pays their upkeep.
