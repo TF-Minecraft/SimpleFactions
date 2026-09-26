@@ -1,14 +1,22 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattlePlacementValidator;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
@@ -18,12 +26,23 @@ import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalCont
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignOffensiveForfeitService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.SimpleFactions;
 
 public final class CampaignBattleLaunchService {
+	private static final DateTimeFormatter SCHEDULED_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+			.withZone(BattleWindowService.SCHEDULE_ZONE);
+	private static final Map<String, String> belligerentStartFailure = new ConcurrentHashMap<>();
+	private static final Map<String, String> adminStartFailure = new ConcurrentHashMap<>();
+
 	private CampaignBattleLaunchService() {
+	}
+
+	static void resetStartFailureAlertsForTests() {
+		belligerentStartFailure.clear();
+		adminStartFailure.clear();
 	}
 
 	public static Battle prepareScheduledBattle(War war) {
@@ -44,7 +63,9 @@ public final class CampaignBattleLaunchService {
 			return null;
 		}
 
-		return createCampaignBattle(war, provinceId, false);
+		Battle battle = createCampaignBattle(war, provinceId, false);
+		alertStaffOfScheduledBattle(war, battle);
+		return battle;
 	}
 
 	public static Battle launchAutoresolveBattle(War war) {
@@ -61,8 +82,7 @@ public final class CampaignBattleLaunchService {
 		if (existing != null) {
 			String startError = startPreparedBattle(war, existing);
 			if (startError != null) {
-				SimpleFactions.plugin.getLogger().warning(
-						"[SimpleFactions] Could not start autoresolve battle: " + startError);
+				logWarning("Could not start autoresolve battle: " + startError);
 			}
 			return existing;
 		}
@@ -75,8 +95,7 @@ public final class CampaignBattleLaunchService {
 		if (battle != null) {
 			String startError = startPreparedBattle(war, battle);
 			if (startError != null) {
-				SimpleFactions.plugin.getLogger().warning(
-						"[SimpleFactions] Could not start autoresolve battle: " + startError);
+				logWarning("Could not start autoresolve battle: " + startError);
 			}
 		}
 		return battle;
@@ -113,8 +132,7 @@ public final class CampaignBattleLaunchService {
 		}
 		String startError = startPreparedBattle(war, battle);
 		if (startError != null) {
-			SimpleFactions.plugin.getLogger().warning(
-					"[SimpleFactions] Could not start scheduled battle: " + startError);
+			logWarning("Could not start scheduled battle: " + startError);
 			broadcastStartFailure(war, battle, startError);
 			return false;
 		}
@@ -162,10 +180,81 @@ public final class CampaignBattleLaunchService {
 		return "campaign_w" + warId + "_p" + provinceId;
 	}
 
-	private static void broadcastStartFailure(War war, Battle battle, String error) {
+	static void broadcastStartFailure(War war, Battle battle, String error) {
 		String battleName = battle != null ? battle.getDisplayName() : "The scheduled battle";
 		String message = "§c" + battleName + " could not start: §7" + error;
-		broadcastToBelligerents(war, message);
+		String key = failureKey(war, battle);
+		if (belligerentStartFailure.putIfAbsent(key, error) == null) {
+			broadcastToBelligerents(war, message);
+		}
+		String previousAdmin = adminStartFailure.put(key, error);
+		if (!error.equals(previousAdmin)) {
+			sendToOnlineAdmins(message);
+		}
+	}
+
+	private static String failureKey(War war, Battle battle) {
+		if (battle != null && battle.getId() != null && !battle.getId().isBlank()) {
+			return battle.getId().toLowerCase(Locale.ROOT);
+		}
+		return war != null ? "war-" + war.getId() : "unknown";
+	}
+
+	private static void alertStaffOfScheduledBattle(War war, Battle battle) {
+		if (battle == null) {
+			return;
+		}
+		List<String> missing = BattlePlacementValidator.validate(battle);
+		String missingText = missing.isEmpty() ? "none" : String.join("; ", missing);
+		String when = formatScheduledTime(war != null ? war.getScheduledBattleAt() : null);
+		String type = scheduledBattleTypeLabel(battle);
+		String plain = battle.getDisplayName()
+				+ " (" + type + ") province " + battle.getProvinceId()
+				+ " at " + when
+				+ ". Still missing: " + missingText;
+		logWarning(plain);
+		sendToOnlineAdmins("§cScheduled battle §e" + battle.getDisplayName()
+				+ " §7(" + type + ") §cprovince §e" + battle.getProvinceId()
+				+ " §cat §e" + when
+				+ "§c. Still missing: §7" + missingText);
+	}
+
+	static String scheduledBattleTypeLabel(Battle battle) {
+		if (battle != null && battle.isNavalVariant()) {
+			return "naval";
+		}
+		if (battle != null && battle.getBattleType() == BattleType.SIEGE) {
+			return "siege";
+		}
+		return "field";
+	}
+
+	static String formatScheduledTime(Instant scheduledAt) {
+		if (scheduledAt == null) {
+			return "unscheduled";
+		}
+		return SCHEDULED_TIME.format(scheduledAt) + " CET";
+	}
+
+	private static void logWarning(String plain) {
+		Logger logger = SimpleFactions.plugin != null ? SimpleFactions.plugin.getLogger() : null;
+		if (logger == null) {
+			logger = Bukkit.getLogger();
+		}
+		if (logger != null) {
+			logger.warning("[SimpleFactions] " + plain);
+		}
+	}
+
+	private static void sendToOnlineAdmins(String message) {
+		if (Bukkit.getOnlinePlayers() == null) {
+			return;
+		}
+		for (Player player : Bukkit.getOnlinePlayers()) {
+			if (player != null && player.isOnline() && Permissions.isAdmin(player)) {
+				player.sendMessage(message);
+			}
+		}
 	}
 
 	private static void broadcastToBelligerents(War war, String message) {

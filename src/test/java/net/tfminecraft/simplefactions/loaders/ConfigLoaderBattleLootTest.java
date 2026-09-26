@@ -47,9 +47,10 @@ class ConfigLoaderBattleLootTest {
 	void loadWar_battleLootDefaults() throws IOException {
 		new ConfigLoader().loadWar(writeConfig(SCHEDULE).toFile());
 
-		assertEquals(BattleLootMode.COMMAND, Cache.battleLootMode);
+		assertEquals(BattleLootMode.ITEM, Cache.battleLootMode);
 		assertTrue(Cache.battleLootCommands.isEmpty());
-		assertEquals(1, Cache.battleLootItemAmount);
+		assertEquals("m.materials.ignitium", Cache.battleLootItemPath);
+		assertEquals(4, Cache.battleLootItemAmount);
 	}
 
 	@Test

@@ -143,7 +143,9 @@ public class CampaignBattleOutcomeService implements Listener {
 					sideCasualties != null ? sideCasualties : Map.of());
 		}
 
-		CampaignBattleEndService.spendOffensiveFuel(war);
+		if (winnerRole != null) {
+			CampaignBattleEndService.spendOffensiveFuel(war);
+		}
 		CampaignBattleEndService.clearHoldPeace(war);
 
 		ScheduledCampaignBattle foughtSlot = CampaignScheduleService.slotAtActiveIndex(war).orElse(null);

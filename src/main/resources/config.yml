@@ -99,6 +99,13 @@ battle:
     field: field_default
     siege: siege_default
     raid: campaign_raid_template
+  # A side with nobody online is eliminated only after this many seconds
+  # empty, from the battle start or from when its last player left.
+  empty_side_grace_seconds: 300
+  # Ends campaign field and siege battles after this long. The side with more lives left wins,
+  # equal lives is a draw. Off until the server decides to enforce it.
+  time_cap_enabled: false
+  time_cap_minutes: 120
 
 # A province's prosperity is unchanged up to prosperity-soft-cap. Past it the
 # excess grows with a square root, so each point is worth less: half at

@@ -17,8 +17,8 @@ public final class SiegeWinService {
 
 		BattleSide attacker = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
 		BattleSide defender = battle.getSideById(BattleTemplate.DEFENDER_SIDE);
-		boolean attackerEliminated = attacker != null && FieldWinService.isSideEliminated(attacker);
-		boolean defenderEliminated = defender != null && FieldWinService.isSideEliminated(defender);
+		boolean attackerEliminated = attacker != null && FieldWinService.isSideEliminated(battle, attacker);
+		boolean defenderEliminated = defender != null && FieldWinService.isSideEliminated(battle, defender);
 		boolean holdComplete = battle.getContestHoldRemainingSeconds() <= 0;
 
 		if (attackerEliminated && defenderEliminated) {

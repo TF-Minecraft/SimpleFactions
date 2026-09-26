@@ -20,7 +20,7 @@ import net.tfminecraft.tlibs.TLibs;
 
 /**
  * Pays one identical reward to every fighter who was online when a battle ended,
- * on both sides, provided the battle produced a winner and has loot enabled.
+ * win, lose, or draw, provided the battle has loot enabled.
  */
 public class BattleLootService implements Listener {
 
@@ -32,7 +32,7 @@ public class BattleLootService implements Listener {
 		if (event == null) {
 			return;
 		}
-		if (!shouldPay(event.hasWinner(), event.isCampaignRaid(), event.isLootEnabled())) {
+		if (!shouldPay(event.isCampaignRaid(), event.isLootEnabled())) {
 			return;
 		}
 		String battleId = event.getBattleId();
@@ -57,8 +57,8 @@ public class BattleLootService implements Listener {
 		}
 	}
 
-	public static boolean shouldPay(boolean hasWinner, boolean campaignRaid, boolean lootEnabled) {
-		return hasWinner && !campaignRaid && lootEnabled;
+	public static boolean shouldPay(boolean campaignRaid, boolean lootEnabled) {
+		return !campaignRaid && lootEnabled;
 	}
 
 	public static String formatCommand(String template, String playerName) {

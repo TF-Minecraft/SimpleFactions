@@ -204,6 +204,11 @@ class CampaignBattleJoinServiceTest {
 			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
 					.thenReturn(5);
 
+			org.bukkit.World world = mock(org.bukkit.World.class);
+			for (net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide side : battle.getSides()) {
+				side.setSpawn(new org.bukkit.Location(world, 0, 64, 0));
+				side.setJail(new org.bukkit.Location(world, 4, 64, 4));
+			}
 			battle.start();
 			battle.getSideById(BattleTemplate.ATTACKER_SIDE).setLives(0);
 

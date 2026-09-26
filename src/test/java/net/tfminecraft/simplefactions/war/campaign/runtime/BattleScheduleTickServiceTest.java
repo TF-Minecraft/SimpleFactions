@@ -187,6 +187,7 @@ class BattleScheduleTickServiceTest {
 				SimpleFactions.plugin = plugin;
 				WarManager.get().add(war);
 				CampaignBattleLaunchService.prepareScheduledBattle(war);
+				placeSpawnsAndJails(BattleManager.getByWarId(war.getId()));
 				BattleScheduleTickService.tick(war.getScheduledBattleAt());
 				assertTrue(BattleManager.getByWarId(war.getId()).hasStarted());
 			});
@@ -217,6 +218,14 @@ class BattleScheduleTickServiceTest {
 			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
 					any(), any(Integer.class), any(), any())).thenReturn(5);
 			runnable.run();
+		}
+	}
+
+	private static void placeSpawnsAndJails(net.tfminecraft.simplefactions.war.battle.engine.core.Battle battle) {
+		org.bukkit.World world = mock(org.bukkit.World.class);
+		for (net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide side : battle.getSides()) {
+			side.setSpawn(new org.bukkit.Location(world, 0, 64, 0));
+			side.setJail(new org.bukkit.Location(world, 4, 64, 4));
 		}
 	}
 

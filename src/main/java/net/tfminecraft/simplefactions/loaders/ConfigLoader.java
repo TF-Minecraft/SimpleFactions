@@ -96,6 +96,9 @@ public class ConfigLoader {
 		Cache.battleCampaignTemplateRaid = config.getString("battle.campaign_template.raid", "raid_template");
 		Cache.battleItemDurabilityMultiplier = clampUnit(
 				config.getDouble("battle.item_durability_multiplier", 0.2));
+		Cache.battleEmptySideGraceSeconds = Math.max(0, config.getInt("battle.empty_side_grace_seconds", 300));
+		Cache.battleTimeCapEnabled = config.getBoolean("battle.time_cap_enabled", false);
+		Cache.battleTimeCapMinutes = config.getInt("battle.time_cap_minutes", 120);
 		validateBattlePresenceConfig();
 		validateBattleTemplateDefaultsConfig();
 
@@ -217,13 +220,13 @@ public class ConfigLoader {
 		Cache.warBattleMinSideLives = config.getInt("war.battle_military.min_side_lives", 1);
 		int deathsPerRegiment = config.getInt("war.battle_military.deaths_per_regiment_loss", 5);
 		Cache.warBattleDeathsPerRegimentLoss = deathsPerRegiment > 0 ? deathsPerRegiment : 5;
-		Cache.battleLootMode = BattleLootMode.fromJson(config.getString("war.battle_loot.mode", "COMMAND"));
+		Cache.battleLootMode = BattleLootMode.fromJson(config.getString("war.battle_loot.mode", "ITEM"));
 		if (Cache.battleLootMode == null) {
 			Cache.battleLootMode = BattleLootMode.COMMAND;
 		}
 		Cache.battleLootCommands = new ArrayList<>(config.getStringList("war.battle_loot.commands"));
-		Cache.battleLootItemPath = config.getString("war.battle_loot.item", "");
-		Cache.battleLootItemAmount = Math.max(1, config.getInt("war.battle_loot.item_amount", 1));
+		Cache.battleLootItemPath = config.getString("war.battle_loot.item", "m.materials.ignitium");
+		Cache.battleLootItemAmount = Math.max(1, config.getInt("war.battle_loot.item_amount", 4));
 		Cache.campaignRaidMusterSeconds = config.getInt("war.campaign_raid.muster_seconds", 60);
 		Cache.campaignRaidMusterReminderSecondsBefore = loadReminderOffsets(
 				config,
