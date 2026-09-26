@@ -994,7 +994,9 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				String name = args.length == 2 ? args[1] : null;
-				if(name != null && f.getSettlementHandler().requiresFoundingName(claim)
+				boolean inCapital = f.hasCapital() && claim == f.getCapital()
+						&& !f.getSettlementHandler().requiresFoundingName(claim);
+				if(name != null && (inCapital || f.getSettlementHandler().requiresFoundingName(claim))
 						&& DisplayNameGate.check(p, NameOperation.SETTLEMENT_FOUND, name)
 						== DisplayNameGate.Result.NEEDS_CONFIRM) {
 					return true;
@@ -1007,16 +1009,22 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage(result.getMessage());
 					return true;
 				}
-				if(f.hasCapital() && claim == f.getCapital()) {
-					p.sendMessage("§aCapital is already set here.");
+				if(inCapital) {
+					if(name == null) {
+						p.sendMessage("§aCapital is already set here. §7Use §e/faction setcapital <name> §7to rename it.");
+						return true;
+					}
+					CapitalResult rename = f.getSettlementHandler().rename(claim, name, true);
+					if(!rename.isSuccess()) {
+						p.sendMessage(rename.getMessage());
+						return true;
+					}
+					CapitalMovePrompt.begin(p, f, claim, name, true);
 					return true;
 				}
 				if(f.hasCapital() && claim != f.getCapital()) {
-					List<Integer> lost = f.getProvinceHandler().previewProvincesLostIfCapitalMoved(claim);
-					if(!lost.isEmpty()) {
-						CapitalMovePrompt.begin(p, f, claim, name, lost.size());
-						return true;
-					}
+					CapitalMovePrompt.begin(p, f, claim, name, false);
+					return true;
 				}
 				CapitalMovePrompt.applyFactionCapitalMove(p, f, claim, name);
 				return true;

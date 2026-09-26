@@ -203,6 +203,36 @@ public class SettlementHandler {
                 "§aFounded settlement §f" + name + " §7(" + id + ")", settlement);
     }
 
+    /**
+     * Gives the settlement in {@code province} a new display name. The id is kept
+     * so wars that target it still resolve, so the new name's id must be free.
+     */
+    public CapitalResult rename(int province, String newName, boolean dryRun) {
+        Settlement settlement = getByProvince(province);
+        if (settlement == null) {
+            return CapitalResult.fail("§cThere is no settlement here to rename");
+        }
+        String id = Formatter.formatId(newName);
+        if (id.isBlank()) {
+            return CapitalResult.fail("§cInvalid settlement name");
+        }
+        Settlement clash = byId.get(id);
+        if (clash != null && clash != settlement) {
+            return CapitalResult.fail("§cA settlement with that id already exists");
+        }
+        String name = StringFormatter.formatHex(Formatter.formatName(newName));
+        if (name.equals(settlement.getName())) {
+            return CapitalResult.fail("§aCapital is already set here.");
+        }
+        if (dryRun) {
+            return CapitalResult.ok("§aReady to rename settlement", settlement);
+        }
+        String oldName = settlement.getName();
+        settlement.setName(name);
+        enqueueMapUpdate();
+        return CapitalResult.ok("§aRenamed §f" + oldName + " §ato §f" + name, settlement);
+    }
+
     public Settlement detachOnProvince(int province) {
         Settlement settlement = getByProvince(province);
         if (settlement == null) {

@@ -98,6 +98,8 @@ public class Faction {
 	// Epoch seconds. Faction ids come from the name, so a recycled name reuses the id;
 	// the chronicle export pairs id with this to tell reincarnations apart.
 	private long foundedAt;
+	// Leader-initiated capital moves and renames; the first one is free.
+	private int capitalMoves;
 	
 	
 	private TaxHandler taxHandler;
@@ -534,6 +536,12 @@ public class Faction {
 	}
 	public void setFoundedAt(long foundedAt) {
 		this.foundedAt = foundedAt;
+	}
+	public int getCapitalMoves() {
+		return capitalMoves;
+	}
+	public void setCapitalMoves(int capitalMoves) {
+		this.capitalMoves = capitalMoves;
 	}
 	public String getGovernmentString() {
 		return governmentType;

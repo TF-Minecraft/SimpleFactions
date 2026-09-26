@@ -4,6 +4,7 @@ package net.tfminecraft.simplefactions.managers;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Material;
@@ -65,8 +66,10 @@ import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract;
 import net.tfminecraft.simplefactions.mercenary.contract.SlotReservations;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.BattleWarbandRetreatService.ConfirmHandler;
+import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
+import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.war.core.Participant;
@@ -776,13 +779,27 @@ public class InventoryManager implements Listener{
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public void confirmCapitalMoveView(Player player, int provincesLost) {
+	public void confirmCapitalMoveView(
+			Player player, Faction faction, boolean rename, double cost, int provincesLost) {
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
 		ItemStack info = new ItemStack(Material.PAPER);
 		ItemMeta infoMeta = info.getItemMeta();
-		infoMeta.setDisplayName("§eMove faction capital?");
-		infoMeta.setLore(java.util.List.of(
-				"§cYou will lose " + provincesLost + " provinces"));
+		infoMeta.setDisplayName(rename ? "§eRename faction capital?" : "§eMove faction capital?");
+		List<String> lore = new ArrayList<>();
+		if (cost > 0) {
+			lore.add("§7Cost: §e" + Formatter.formatMoney(cost) + "d §7from the faction bank");
+			Bank bank = faction.getBank();
+			if (bank != null && bank.getWealth() != null) {
+				lore.add("§7Faction bank: §e" + Formatter.formatMoney(bank.getWealth()) + "d");
+			}
+		} else {
+			lore.add("§7Cost: §aFree §7(first capital change)");
+			lore.add("§7Later moves and renames cost §e" + Formatter.formatMoney(Cache.capitalMoveCost) + "d");
+		}
+		if (provincesLost > 0) {
+			lore.add("§cYou will lose " + provincesLost + " provinces");
+		}
+		infoMeta.setLore(lore);
 		info.setItemMeta(infoMeta);
 		i.setItem(13, info);
 		i.setItem(11, createButton("confirm", "setcapital", "1"));

@@ -148,6 +148,8 @@ public class Cache {
 	public static double branchUpgradeCost;
 	public static double branchUpgradeExponent;
 
+	public static double capitalMoveCost = 100.0;
+
 	public static double mercenaryFormationCost = 100.0;
 	public static int mercenaryFormationSeconds = 86400;
 	public static double mercenarySlotUpkeep = 8.0;
