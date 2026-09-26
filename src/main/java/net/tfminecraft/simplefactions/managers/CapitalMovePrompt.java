@@ -23,7 +23,8 @@ public class CapitalMovePrompt implements Listener {
             int fromCapital,
             int province,
             String settlementName,
-            boolean rename) {}
+            boolean rename,
+            double cost) {}
 
     /** A faction's first capital move or rename is free; later ones cost {@link Cache#capitalMoveCost}. */
     public static double costFor(Faction faction) {
@@ -63,10 +64,12 @@ public class CapitalMovePrompt implements Listener {
         int provincesLost = rename
                 ? 0 : faction.getProvinceHandler().previewProvincesLostIfCapitalMoved(province).size();
         pending.put(player, new CapitalMovePending(
-                faction, faction.getCapital(), province, settlementName, rename));
+                faction, faction.getCapital(), province, settlementName, rename, cost));
         FactionManager.getInv().confirming.put(player, faction);
         FactionManager.getInv().confirmCapitalMoveView(player, faction, rename, cost, provincesLost);
     }
+
+    enum Outcome { CANCELLED, REFUSED, CHANGED }
 
     public static void handleConfirm(Player player, boolean confirmed) {
         CapitalMovePending state = pending.remove(player);
@@ -75,31 +78,42 @@ public class CapitalMovePrompt implements Listener {
         if (state == null) {
             return;
         }
+        switch (confirm(player, state, confirmed)) {
+            case CANCELLED -> player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+            case REFUSED -> player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+            case CHANGED -> player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+        }
+    }
+
+    /** Applies a confirmed change and charges for it. Plays no sounds, so tests can run it without a server. */
+    static Outcome confirm(Player player, CapitalMovePending state, boolean confirmed) {
         if (!confirmed) {
             player.sendMessage("§7Capital change cancelled. Nothing was charged.");
-            player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-            return;
+            return Outcome.CANCELLED;
         }
         Faction faction = state.faction();
         // The leader or the capital may have changed while the menu was open.
         if (FactionManager.getByLeader(player.getName()) != faction
                 || faction.getCapital() != state.fromCapital()) {
             player.sendMessage("§cThe capital changed while you were deciding. Nothing was charged.");
-            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-            return;
+            return Outcome.REFUSED;
         }
-        double cost = costFor(faction);
+        // Charge the price the menu showed, never a different one.
+        double cost = state.cost();
+        if (costFor(faction) != cost) {
+            player.sendMessage("§cThe capital change price changed. Run §e/faction setcapital §cagain.");
+            return Outcome.REFUSED;
+        }
         String funds = checkFunds(faction, cost);
         if (funds != null) {
             player.sendMessage(funds);
-            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-            return;
+            return Outcome.REFUSED;
         }
         boolean changed = state.rename()
                 ? applyRename(player, faction, state.province(), state.settlementName())
                 : applyMove(player, faction, state.province(), state.settlementName());
         if (!changed) {
-            return;
+            return Outcome.REFUSED;
         }
         faction.setCapitalMoves(faction.getCapitalMoves() + 1);
         if (cost > 0) {
@@ -109,35 +123,30 @@ public class CapitalMovePrompt implements Listener {
             player.sendMessage("§7That was your free capital change. Later moves and renames cost §e"
                     + Formatter.formatMoney(Cache.capitalMoveCost) + "d§7.");
         }
+        return Outcome.CHANGED;
     }
 
     /** Sets the first capital. Free, and not counted as a move. */
     public static void applyFactionCapitalMove(Player player, Faction faction, int claim, String name) {
-        applyMove(player, faction, claim, name);
+        boolean changed = applyMove(player, faction, claim, name);
+        player.playSound(player, changed ? Sound.ENTITY_PLAYER_LEVELUP : Sound.ENTITY_VILLAGER_NO, 1f, 1f);
     }
 
     private static boolean applyMove(Player player, Faction faction, int claim, String name) {
         CapitalResult result = faction.getSettlementHandler().applyFactionCapital(player, claim, name);
         player.sendMessage(result.getMessage());
         if (!result.isSuccess()) {
-            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             return false;
         }
         faction.setCapital(claim);
         faction.getProvinceHandler().revalidateClaims();
-        player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
         return true;
     }
 
     private static boolean applyRename(Player player, Faction faction, int province, String name) {
         CapitalResult result = faction.getSettlementHandler().rename(province, name, false);
         player.sendMessage(result.getMessage());
-        if (!result.isSuccess()) {
-            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-            return false;
-        }
-        player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-        return true;
+        return result.isSuccess();
     }
 
     @EventHandler
