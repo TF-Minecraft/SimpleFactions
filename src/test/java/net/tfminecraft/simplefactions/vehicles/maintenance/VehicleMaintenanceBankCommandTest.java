@@ -75,6 +75,41 @@ class VehicleMaintenanceBankCommandTest {
     }
 
     @Test
+    void wrongPayFormatShowsUsageWithoutArming() {
+        Player player = mock(Player.class);
+        UUID payer = UUID.randomUUID();
+        when(player.getUniqueId()).thenReturn(payer);
+        when(player.getName()).thenReturn("OrdinaryPlayer");
+        Command command = mock(Command.class);
+        when(command.getName()).thenReturn("faction");
+        SimpleFactions plugin = mock(SimpleFactions.class);
+        var sessions = new VehicleMaintenancePaySessionManager();
+        when(plugin.getVehicleMaintenancePaySessionManager()).thenReturn(sessions);
+
+        try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class);
+                MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            sf.when(SimpleFactions::getInstance).thenReturn(plugin);
+            var commands = new CommandManager();
+            for (String[] args : List.of(
+                    new String[] {"vehicle", "maintenance", "pay", "bnak"},
+                    new String[] {"vehicle", "maintenance", "pay", "100", "bnak"})) {
+                assertTrue(commands.onCommand(player, command, "faction", args));
+            }
+            verify(player, times(2)).sendMessage(VehicleMaintenanceMessages.payUsage());
+            assertNull(sessions.get(payer));
+        }
+    }
+
+    @Test
+    void usageMessagesSpellOutBankWithoutBrackets() {
+        for (String usage : List.of(
+                VehicleMaintenanceMessages.payUsage(), VehicleMaintenanceMessages.vehicleUsage())) {
+            assertTrue(usage.contains("/faction vehicle maintenance pay bank"), usage);
+            assertFalse(usage.contains("[bank]"), usage);
+        }
+    }
+
+    @Test
     void expiredBankSessionCannotCharge() {
         Player player = mock(Player.class);
         UUID payer = UUID.randomUUID();
