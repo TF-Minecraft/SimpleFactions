@@ -86,6 +86,7 @@ public final class VehicleUpkeepService {
             double upkeep = VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId());
             if (upkeep <= 0.0) {
                 maintenanceStore.clearUnpaid(record.getVehicleUuid());
+                persistMaintenance();
                 continue;
             }
             Faction faction = FactionManager.getByString(record.getFactionId());

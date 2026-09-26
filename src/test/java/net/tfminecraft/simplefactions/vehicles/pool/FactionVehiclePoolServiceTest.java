@@ -187,6 +187,8 @@ class FactionVehiclePoolServiceTest {
         assertTrue(lines.get(0).contains("Artillery") && lines.get(0).contains("1/2"));
         assertTrue(lines.stream().anyMatch(line -> line.contains("field_artillery") && line.contains("unpaid")));
         assertTrue(lines.stream().anyMatch(line -> line.contains("coal_car") && line.contains("1.00d/day")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("Unpaid: 1 of 2")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("coal_car") && line.contains("#train-")));
     }
 
     private static FactionVehiclePoolService.PoolTarget target(String uuid, String typeId, String owner) {

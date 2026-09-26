@@ -149,4 +149,8 @@ public final class VehicleTransferMessages {
         int actual = InstallationBounds.provinceAt(vehicle == null ? null : vehicle.getLocation());
         return "§cVehicle must be in province " + required + " (currently " + actual + ").";
     }
+
+    public static String ownerChanged() {
+        return "§cThis vehicle changed owner after the request was sent. Ask again.";
+    }
 }

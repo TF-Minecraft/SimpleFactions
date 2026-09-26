@@ -33,6 +33,16 @@ public final class FactionVehiclePoolLore {
             return lore;
         }
 
+        int unpaid = 0;
+        for (PlayerVehicleRecord record : vehicles) {
+            if (unpaidUuids != null && unpaidUuids.contains(record.getVehicleUuid())) {
+                unpaid++;
+            }
+        }
+        if (unpaid > 0) {
+            lore.add("§cUnpaid: " + unpaid + " of " + vehicles.size());
+        }
+
         int listed = 0;
         for (PlayerVehicleRecord record : vehicles) {
             if (listed == MAX_LISTED) {
@@ -40,6 +50,7 @@ public final class FactionVehiclePoolLore {
             }
             double upkeep = VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId());
             String line = "§7- §f" + record.getVehicleTypeId()
+                    + " §8#" + shortId(record.getVehicleUuid())
                     + " §8" + Formatter.formatMoney(upkeep) + "d/day";
             if (unpaidUuids != null && unpaidUuids.contains(record.getVehicleUuid())) {
                 line = line + " §cunpaid";
@@ -52,5 +63,13 @@ public final class FactionVehiclePoolLore {
             lore.add("§7And " + remaining + " more...");
         }
         return lore;
+    }
+
+    /** Enough of the vehicle id to tell two vehicles of the same type apart. */
+    private static String shortId(String vehicleUuid) {
+        if (vehicleUuid == null) {
+            return "?";
+        }
+        return vehicleUuid.length() <= 6 ? vehicleUuid : vehicleUuid.substring(0, 6);
     }
 }

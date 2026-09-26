@@ -7,6 +7,7 @@ import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
+import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -127,6 +128,9 @@ public final class VehicleTransferConsentService {
 
         InstallationVehicleService.VehicleBerthTarget vehicle = resolveBerthTarget(req.getVehicleUuid());
         ActiveVehicle activeVehicle = resolveVehicle(req.getVehicleUuid());
+        if (changedHands(owner, req)) {
+            return;
+        }
 
         CanRegisterResult result = installationVehicleService.canRegister(installation, vehicle);
         if (result != CanRegisterResult.OK) {
@@ -155,6 +159,9 @@ public final class VehicleTransferConsentService {
     private void acceptPoolRequest(Player owner, VehicleTransferConsentRequest req, Faction faction) {
         FactionVehiclePoolService.PoolTarget vehicle = resolvePoolTarget(req.getVehicleUuid());
         ActiveVehicle activeVehicle = resolveVehicle(req.getVehicleUuid());
+        if (changedHands(owner, req)) {
+            return;
+        }
         CanAddResult result = poolService.canAdd(faction, vehicle);
         if (result != CanAddResult.OK) {
             String typeId = activeVehicle != null ? activeVehicle.getId() : req.getVehicleTypeId();
@@ -171,6 +178,19 @@ public final class VehicleTransferConsentService {
         String success = VehicleTransferMessages.poolSuccess();
         owner.sendMessage(success);
         notifyProposer(req, success);
+    }
+
+    /** Refuses the request if the vehicle was sold or re-claimed after the request was sent. */
+    private boolean changedHands(Player owner, VehicleTransferConsentRequest req) {
+        String current = VehicleOwnershipQueries.playerNameFromOwner(currentOwnerEntry(req.getVehicleUuid()));
+        if (current == null || current.equalsIgnoreCase(owner.getName())) {
+            // An unloaded or unowned vehicle is reported by the validation that follows.
+            return false;
+        }
+        String message = VehicleTransferMessages.ownerChanged();
+        owner.sendMessage(message);
+        notifyProposer(req, message);
+        return true;
     }
 
     public void notifyExpired(VehicleTransferConsentRequest req, Player owner) {
@@ -233,6 +253,11 @@ public final class VehicleTransferConsentService {
                 return vehicle.getOwnerData();
             }
         };
+    }
+
+    String currentOwnerEntry(String vehicleUuid) {
+        ActiveVehicle vehicle = resolveVehicle(vehicleUuid);
+        return vehicle == null || vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner();
     }
 
     ActiveVehicle resolveVehicle(String vehicleUuid) {

@@ -130,7 +130,7 @@ class BattleVehicleEligibilityServiceTest {
 	}
 
 	@Test
-	void nonBerthable_ignoresPicks() {
+	void nonBerthable_atInstallation_needsItInPlay() {
 		PlayerVehicleRecord record = new PlayerVehicleRecord(
 				PLAYER_UUID,
 				"veh-1",
@@ -138,6 +138,8 @@ class BattleVehicleEligibilityServiceTest {
 				OwnershipMode.INSTALLATION,
 				"airport-1");
 
+		assertFalse(BattleVehicleEligibilityService.isEligible(war, "atk", record));
+		setPicks("atk", "airport-1");
 		assertTrue(BattleVehicleEligibilityService.isEligible(war, "atk", record));
 	}
 

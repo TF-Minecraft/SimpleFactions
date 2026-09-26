@@ -5,7 +5,6 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
-import net.tfminecraft.simplefactions.vehicles.berth.VehicleCategoryRules;
 import java.util.Optional;
 
 import org.bukkit.Bukkit;
@@ -56,9 +55,6 @@ public final class BattleVehicleEligibilityService {
 					: BattleVehicleEligibilityResult.DENIED_POOL_SIDE;
 		}
 		if (record != null && record.getMode() == OwnershipMode.INSTALLATION) {
-			if (!VehicleCategoryRules.isBerthableType(vehicleTypeId)) {
-				return BattleVehicleEligibilityResult.ALLOWED;
-			}
 			String installationId = record.getInstallationId();
 			if (installationId == null || installationId.isBlank()) {
 				return BattleVehicleEligibilityResult.DENIED_NOT_BERTHED;
