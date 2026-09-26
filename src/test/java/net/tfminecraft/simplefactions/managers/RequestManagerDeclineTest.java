@@ -239,6 +239,26 @@ class RequestManagerDeclineTest {
 		verify(government, never()).addStabilityModifier(org.mockito.ArgumentMatchers.any());
 	}
 
+	@Test
+	void factionDecline_afterLeaderChange_stillPenalisesCalledFaction() {
+		Player oldLeader = player("OldLead");
+		Player caller = player("AtkLead");
+		Faction called = faction("ally", "NewLead", "Allies");
+		Government government = mock(Government.class);
+		when(called.getGovernment()).thenReturn(government);
+		FactionManager.factions.add(called);
+		Faction origin = faction("atk", "AtkLead", "Attackers");
+		Guild guild = mock(Guild.class);
+		when(guild.getFaction()).thenReturn(origin);
+		RequestManager.addRequest(caller, oldLeader, new WarRequest(guild, activeWar(), "ally"));
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			RequestManager.decline(oldLeader);
+		}
+
+		verify(government).addStabilityModifier(org.mockito.ArgumentMatchers.any(StabilityModifier.class));
+	}
+
 	private static War activeWar() {
 		War war = mock(War.class);
 		when(war.isActive()).thenReturn(true);

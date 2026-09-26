@@ -493,7 +493,7 @@ public class WarManager {
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Type §c/faction decline §7to decline");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), w));
+		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), w, target.getId()));
 	}
 	
 	public static void acceptRequest(Player p) {
@@ -525,7 +525,12 @@ public class WarManager {
 		if (req == null) return;
 		// No penalty for refusing a war that has already ended.
 		if (req.getWar() == null || !req.getWar().isActive()) return;
-		Faction receiver = called == null ? null : FactionManager.getByLeader(called.getName());
+		Faction receiver = req.getTargetFactionId() != null
+				? FactionManager.getByString(req.getTargetFactionId())
+				: null;
+		if (receiver == null && called != null) {
+			receiver = FactionManager.getByLeader(called.getName());
+		}
 		if (receiver != null && receiver.getGovernment() != null) {
 			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
 					"Declined Call to Arms",
