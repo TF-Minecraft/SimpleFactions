@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
@@ -68,19 +69,19 @@ public final class VehicleUpkeepService {
             }
             chargePlayer(playerUuid, upkeep, vehicle.getTypeId(), vehicle.getUuid(), now);
         }
-        chargePoolVehicles(now);
+        chargeFactionVehicles(now);
     }
 
     /**
-     * Pool vehicles are owned by the faction leader in VehicleFramework, the same way
-     * installation vehicles are, but the faction bank pays their upkeep.
+     * Pool and installation vehicles are owned by the faction leader in VehicleFramework,
+     * but the faction bank pays their upkeep. The faction ledger shows it as Vehicle Upkeep.
      */
-    private void chargePoolVehicles(long nowMillis) {
+    private void chargeFactionVehicles(long nowMillis) {
         if (registry == null || FactionManager.factions == null) {
             return;
         }
         for (PlayerVehicleRecord record : registry.getAll()) {
-            if (record.getMode() != OwnershipMode.POOL) {
+            if (record.getMode() != OwnershipMode.POOL && record.getMode() != OwnershipMode.INSTALLATION) {
                 continue;
             }
             double upkeep = VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId());
@@ -89,11 +90,15 @@ public final class VehicleUpkeepService {
                 persistMaintenance();
                 continue;
             }
-            Faction faction = FactionManager.getByString(record.getFactionId());
+            Faction faction = FactionVehiclePoolService.payingFaction(record);
+            if (faction == null && record.getMode() == OwnershipMode.INSTALLATION) {
+                // An installation no faction holds any more has nobody to bill.
+                continue;
+            }
             Bank bank = faction == null ? null : faction.getBank();
             Double wealth = bank == null ? null : bank.getWealth();
             if (wealth == null || wealth < upkeep) {
-                markPoolUnpaid(record, faction, upkeep, nowMillis);
+                markFactionUnpaid(record, faction, upkeep, nowMillis);
                 continue;
             }
             bank.withdraw(upkeep);
@@ -182,7 +187,7 @@ public final class VehicleUpkeepService {
         }
     }
 
-    private void markPoolUnpaid(
+    private void markFactionUnpaid(
             PlayerVehicleRecord record,
             Faction faction,
             double upkeep,
@@ -192,8 +197,8 @@ public final class VehicleUpkeepService {
         SimpleFactions plugin = SimpleFactions.getInstance();
         if (plugin != null) {
             plugin.getLogger().info(
-                "Faction vehicle pool upkeep unpaid for faction "
-                + record.getFactionId()
+                "Faction vehicle upkeep unpaid for faction "
+                + (faction != null ? faction.getId() : record.getFactionId())
                 + " vehicle "
                 + record.getVehicleTypeId()
                 + " amount "
