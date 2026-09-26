@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.managers;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -31,20 +32,7 @@ public class RequestManager {
 		new BukkitRunnable() {
 			@Override
 	        public void run() {
-				for(Map.Entry<Player, Request> entry : requests.entrySet()) {
-					Request request = entry.getValue();
-					if (!request.timedOut()) {
-						continue;
-					}
-					if (request instanceof VehicleTransferConsentRequest consentRequest) {
-						SimpleFactions plugin = SimpleFactions.getInstance();
-						if (plugin != null) {
-							plugin.getVehicleTransferConsentService()
-									.notifyExpired(consentRequest, entry.getKey());
-						}
-					}
-					requests.remove(entry.getKey());
-				}
+				expireTimedOutRequests();
 	        }
 	    }.runTaskTimer(SimpleFactions.plugin, 0L, 20L);
 	}
@@ -90,6 +78,38 @@ public class RequestManager {
 		}
 	}
 	
+	// A call to arms that expires is a decline. Package-visible for tests.
+	static void expireTimedOutRequests() {
+		Iterator<Map.Entry<Player, Request>> iterator = requests.entrySet().iterator();
+		while (iterator.hasNext()) {
+			Map.Entry<Player, Request> entry = iterator.next();
+			Request request = entry.getValue();
+			if (!request.timedOut()) {
+				continue;
+			}
+			if (request instanceof VehicleTransferConsentRequest consentRequest) {
+				SimpleFactions plugin = SimpleFactions.getInstance();
+				if (plugin != null) {
+					plugin.getVehicleTransferConsentService()
+							.notifyExpired(consentRequest, entry.getKey());
+				}
+			} else if (request instanceof WarRequest warRequest) {
+				WarManager.declineCallToArms(entry.getKey(), warRequest, false);
+			}
+			iterator.remove();
+		}
+	}
+
+	public static void decline(Player p) {
+		if (!hasRequest(p)) return;
+		Request req = requests.remove(p);
+		if (req instanceof WarRequest warRequest) {
+			WarManager.declineCallToArms(p, warRequest, true);
+			return;
+		}
+		p.sendMessage("§7You declined the request.");
+	}
+
 	public static void accept(Player p) {
 		if(!hasRequest(p)) return;
 		Request req = requests.get(p);
