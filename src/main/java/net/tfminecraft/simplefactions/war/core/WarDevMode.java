@@ -11,6 +11,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleRosterService;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
@@ -182,7 +183,7 @@ public final class WarDevMode {
 			seedDummyMembers(warband, Cache.warDevmodePhantomCount);
 			return;
 		}
-		Side side = resolveWarSide(war, battleSideId);
+		Side side = CampaignBattleSides.warSideFor(war, battle, battleSideId);
 		if (side == null) {
 			seedDummyMembers(warband, Cache.warDevmodePhantomCount);
 			return;
@@ -195,13 +196,4 @@ public final class WarDevMode {
 		seedDummyMembers(warband, count);
 	}
 
-	private static Side resolveWarSide(War war, String battleSideId) {
-		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return war.getAttackers();
-		}
-		if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return war.getDefenders();
-		}
-		return null;
-	}
 }

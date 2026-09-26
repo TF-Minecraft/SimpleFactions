@@ -38,6 +38,7 @@ import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
@@ -309,6 +310,31 @@ class BattleCasualtyServiceTest {
 			assertEquals(5, liveSlots("src", "professional"));
 			assertEquals(8, liveSlots("src", "artillery"));
 			assertEquals(8, artillerySent.get());
+		}
+	}
+
+	@Test
+	void counterPush_attackerSideDeathsDebitWarDefenders() {
+		Faction attacker = fighter("atk", Map.of("professional", 10));
+		Faction defender = fighter("def", Map.of("professional", 10));
+		War war = baseWar(9, attacker, defender);
+		war.setInitiativeHolder(BelligerentRole.DEFENDER);
+		seedOwnRow(war, "atk", "professional", 10);
+		seedOwnRow(war, "def", "professional", 10);
+
+		Battle battle = campaignBattle(war, PROVINCE_ID);
+		when(battle.getOffensiveCoalition()).thenReturn(CampaignCoalition.DEFENDER);
+		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(attacker);
+			stubFactions(factions);
+
+			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+
+			assertEquals(10, commitmentCount(war.getId(), "atk", null, "professional"));
+			assertEquals(7, commitmentCount(war.getId(), "def", null, "professional"));
 		}
 	}
 

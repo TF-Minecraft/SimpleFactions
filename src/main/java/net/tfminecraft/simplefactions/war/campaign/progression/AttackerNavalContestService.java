@@ -20,6 +20,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallati
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy;
+import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
@@ -43,14 +44,15 @@ public final class AttackerNavalContestService {
 	}
 
 	public static boolean hasBerthedNavalAtInPlayPort(War war) {
-		if (war == null || war.getAttackers() == null) {
+		Side offensive = offensiveSide(war);
+		if (offensive == null) {
 			return false;
 		}
 		PlayerVehicleRegistry registry = vehicleRegistryOrNull();
 		if (registry == null) {
 			return false;
 		}
-		for (Faction faction : BattleSideMembers.collectParticipatingFactions(war.getAttackers())) {
+		for (Faction faction : BattleSideMembers.collectParticipatingFactions(offensive)) {
 			if (hasBerthedNavalAtInPlayPort(war, faction, registry)) {
 				return true;
 			}
@@ -59,7 +61,8 @@ public final class AttackerNavalContestService {
 	}
 
 	/**
-	 * Applies an automatic naval-slot loss when the war attacker has no berthed navy at an in-play port.
+	 * Applies an automatic naval-slot loss when the coalition on the offensive has no berthed navy
+	 * at an in-play port. The other coalition wins the slot.
 	 *
 	 * @return true if auto-loss was applied and the caller should not start a live battle
 	 */
@@ -81,16 +84,25 @@ public final class AttackerNavalContestService {
 
 		purgeUnstartedBattle(war);
 
+		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
+		CampaignCoalition winner = offensive != null ? offensive.opposing() : CampaignCoalition.DEFENDER;
 		CampaignBattleOutcomeService.applyCampaignBattleOutcome(
 				war,
-				BelligerentRole.DEFENDER,
+				CampaignCoalitionService.coalitionToBelligerentRole(winner),
 				battleProvinceId,
 				null,
 				null,
-				CampaignCoalition.AGGRESSOR);
+				offensive);
 		CampaignBattleOutcomeService.finalizeCampaignBattleAfterOutcome(war);
 		broadcastAutoLoss(war);
 		return true;
+	}
+
+	private static Side offensiveSide(War war) {
+		if (war == null) {
+			return null;
+		}
+		return CampaignCoalitionService.toSide(war, CampaignCapabilityService.battleOffensiveCoalition(war));
 	}
 
 	private static boolean hasBerthedNavalAtInPlayPort(

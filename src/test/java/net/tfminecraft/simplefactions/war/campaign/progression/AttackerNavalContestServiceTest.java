@@ -180,6 +180,40 @@ class AttackerNavalContestServiceTest {
 	}
 
 	@Test
+	void applyIfAttackerHasNoBerthedNavy_counterPushChecksOffensiveSide() {
+		War war = navalWar();
+		war.setInitiativeHolder(BelligerentRole.DEFENDER);
+		commitAttackerPort(war);
+		registry.register(shipAt("port-atk"));
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+
+		assertTrue(AttackerNavalContestService.wouldAttackerAutoLoseNaval(war));
+		assertTrue(AttackerNavalContestService.applyIfAttackerHasNoBerthedNavy(war, 20));
+		assertEquals(4, war.getInitiativeAttacker());
+		assertEquals(3, war.getInitiativeDefender());
+		assertEquals(CampaignCoalition.DEFENDER, war.getLastBattleOffensiveCoalition());
+		assertEquals(CampaignCoalition.AGGRESSOR, war.getPostBattleWinnerCoalition());
+	}
+
+	@Test
+	void hasBerthedNavalAtInPlayPort_trueWhenOffensiveDefenderHasShip() {
+		War war = navalWar();
+		war.setInitiativeHolder(BelligerentRole.DEFENDER);
+		Installation port = new Installation("port-def", "Harbour", InstallationKind.PORT, 5, 0, 0, 1L);
+		InstallationHandler defenderHandler = mock(InstallationHandler.class);
+		when(defender.getInstallationHandler()).thenReturn(defenderHandler);
+		when(defenderHandler.getAll()).thenReturn(List.of(port));
+		when(defenderHandler.getById("port-def")).thenReturn(port);
+		war.getBattleInstallationPicks().computeIfAbsent("def", ignored -> new LinkedHashSet<>()).add("port-def");
+		war.setBattleInstallationPicksBattleDay(war.getBattleDay());
+		registry.register(new PlayerVehicleRecord(
+				UUID.randomUUID(), "v-def", "ironclad", OwnershipMode.INSTALLATION, "port-def"));
+
+		assertTrue(AttackerNavalContestService.hasBerthedNavalAtInPlayPort(war));
+		assertFalse(AttackerNavalContestService.wouldAttackerAutoLoseNaval(war));
+	}
+
+	@Test
 	void applyIfAttackerHasNoBerthedNavy_skipsWhenShipBerthed() {
 		War war = navalWar();
 		commitAttackerPort(war);

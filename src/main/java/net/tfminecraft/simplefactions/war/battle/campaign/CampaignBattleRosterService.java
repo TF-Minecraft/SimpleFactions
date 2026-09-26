@@ -82,8 +82,16 @@ public final class CampaignBattleRosterService {
 		if (war == null || battle == null) {
 			return;
 		}
-		enrollSide(war, battle, war.getAttackers(), BattleTemplate.ATTACKER_SIDE);
-		enrollSide(war, battle, war.getDefenders(), BattleTemplate.DEFENDER_SIDE);
+		enrollSide(
+				war,
+				battle,
+				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE),
+				BattleTemplate.ATTACKER_SIDE);
+		enrollSide(
+				war,
+				battle,
+				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE),
+				BattleTemplate.DEFENDER_SIDE);
 		BattlePersistenceService.persistBattle(battle);
 		for (BattleSide side : battle.getSides()) {
 			for (Warband warband : side.getBands()) {
@@ -171,13 +179,12 @@ public final class CampaignBattleRosterService {
 	private static void broadcastJoinReady(War war, Battle battle) {
 		String message = "§a" + battle.getDisplayName()
 				+ " ready. Sign up with §e/warband list §7and join your faction warband.";
-		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getAttackers())) {
-			Player player = Bukkit.getPlayerExact(memberName);
-			if (player != null && player.isOnline()) {
-				player.sendMessage(message);
-			}
-		}
-		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getDefenders())) {
+		notifySide(CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE), message);
+		notifySide(CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE), message);
+	}
+
+	private static void notifySide(Side side, String message) {
+		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
 			Player player = Bukkit.getPlayerExact(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);

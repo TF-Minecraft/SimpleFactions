@@ -38,6 +38,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService;
 import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandMembershipService;
@@ -81,6 +82,31 @@ class CampaignBattleJoinServiceTest {
 					war, battle, BattleTemplate.ATTACKER_SIDE, warband, "Carol", UUID.randomUUID());
 
 			assertEquals("Your faction is not on this battle side", error);
+		}
+	}
+
+	@Test
+	void counterPush_defenderMayJoinAttackerSide() {
+		War war = new War(1, attacker, defender);
+		war.setScheduledBattleProvinceId(PROVINCE_ID);
+		Battle battle = campaignBattle(1);
+		battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+		Warband warband = Warband.createCampaignSideShell(
+				"counter_attacker", war, war.getDefenders(), BattleTemplate.ATTACKER_SIDE);
+
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+			factions.when(() -> FactionManager.getByMember("Carol")).thenReturn(defender);
+			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
+			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
+					.thenReturn(5);
+
+			assertNull(CampaignBattleJoinService.validateWarbandMemberJoin(
+					war, battle, BattleTemplate.ATTACKER_SIDE, warband, "Carol", UUID.randomUUID()));
+			assertEquals(
+					"Your faction is not on this battle side",
+					CampaignBattleJoinService.validateWarbandMemberJoin(
+							war, battle, BattleTemplate.ATTACKER_SIDE, warband, "Alice", UUID.randomUUID()));
 		}
 	}
 

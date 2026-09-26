@@ -103,6 +103,6 @@ public final class CampaignUiCopy {
 	}
 
 	public static String navalAutoLossBroadcast() {
-		return "§eAttacker had no berthed navy at a committed port. §7Defender wins the naval slot.";
+		return "§eThe side on the offensive had no berthed navy at a committed port. §7The other side wins the naval slot.";
 	}
 }

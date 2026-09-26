@@ -50,6 +50,7 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.battle.persistence.BattleMapper;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
@@ -218,8 +219,24 @@ class CampaignBattleLaunchServiceTest {
 			assertEquals(Integer.valueOf(1), battle.getWarId());
 			assertEquals(Integer.valueOf(20), battle.getProvinceId());
 			assertEquals(BattleType.FIELD, battle.getBattleType());
+			assertEquals(CampaignCoalition.AGGRESSOR, battle.getOffensiveCoalition());
 			assertFalse(battle.isLocked());
 			assertTrue(battle.hasTeleport());
+		});
+	}
+
+	@Test
+	void prepareScheduledBattle_snapshotsCounterPushOffensive() {
+		War war = scheduledWar();
+		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+
+		withMockBossBar(() -> {
+			Battle battle = CampaignBattleLaunchService.prepareScheduledBattle(war);
+
+			assertEquals(CampaignCoalition.DEFENDER, battle.getOffensiveCoalition());
+			assertEquals(
+					CampaignCoalition.DEFENDER,
+					BattleMapper.fromData(BattleMapper.toData(battle)).getOffensiveCoalition());
 		});
 	}
 

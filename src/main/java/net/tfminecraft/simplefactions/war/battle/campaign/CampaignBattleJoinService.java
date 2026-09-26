@@ -15,7 +15,6 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService;
-import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 
 public final class CampaignBattleJoinService {
@@ -47,16 +46,12 @@ public final class CampaignBattleJoinService {
 	}
 
 	public static Side resolveWarSide(War war, String battleSideId) {
-		if (war == null || battleSideId == null) {
-			return null;
-		}
-		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return war.getAttackers();
-		}
-		if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return war.getDefenders();
-		}
-		return null;
+		Battle battle = war != null ? BattleManager.getByWarId(war.getId()) : null;
+		return resolveWarSide(war, battle, battleSideId);
+	}
+
+	public static Side resolveWarSide(War war, Battle battle, String battleSideId) {
+		return CampaignBattleSides.warSideFor(war, battle, battleSideId);
 	}
 
 	public static String validateJoin(War war, Battle battle, Warband warband, String sideId) {
@@ -104,7 +99,7 @@ public final class CampaignBattleJoinService {
 		if (faction == null) {
 			return "You must be in a faction to join this campaign battle";
 		}
-		Side battleSide = resolveWarSide(war, sideId);
+		Side battleSide = resolveWarSide(war, battle, sideId);
 		if (battleSide == null) {
 			return "Your faction is not on this battle side";
 		}
