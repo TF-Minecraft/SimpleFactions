@@ -40,7 +40,7 @@ public class ConfigLoader {
 		double maxTradeUpkeep = config.getDouble("max-trade-upkeep", TradeUpkeep.DEFAULT_MAX);
 		Cache.maxTradeUpkeep = TradeUpkeep.sanitizeMax(maxTradeUpkeep);
 		if (Double.compare(Cache.maxTradeUpkeep, maxTradeUpkeep) != 0) {
-			Bukkit.getLogger().warning("[SimpleFactions] max-trade-upkeep must be 0 or more, using " + TradeUpkeep.DEFAULT_MAX);
+			Bukkit.getLogger().warning("[SimpleFactions] max-trade-upkeep must be finite and 0 or more, using " + TradeUpkeep.DEFAULT_MAX);
 		}
 		Cache.maxPlaytimePrestigeExponent = config.getDouble("max-prestige-playtime-exponent", 5);
 		Cache.bankBlock = config.getString("bank-block", "v.lodestone");
