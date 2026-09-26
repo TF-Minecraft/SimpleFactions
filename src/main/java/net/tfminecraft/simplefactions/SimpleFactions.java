@@ -75,6 +75,9 @@ import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidBattle
 import net.tfminecraft.simplefactions.war.campaign.raid.intruder.CampaignRaidIntruderService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
 import net.tfminecraft.simplefactions.vehicles.battle.BattleVehicleEligibilityService;
+import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleGiveService;
+import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseListener;
+import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleUnberthService;
@@ -94,6 +97,7 @@ import net.tfminecraft.simplefactions.vehicles.VehicleSpawnListener;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferConsentService;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferListener;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager;
+import net.tfminecraft.simplefactions.vehicles.berth.VehicleReleaseSessionManager;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleUpkeepService;
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
@@ -168,10 +172,14 @@ public class SimpleFactions extends JavaPlugin{
 	private final net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService factionVehiclePoolService =
 			new net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService(
 					vehicleRegistry, installationVehicleOwnerSync);
+	private final FactionVehicleReleaseService factionVehicleReleaseService =
+			new FactionVehicleReleaseService(vehicleRegistry);
 	private final InstallationVehicleUnberthService installationVehicleUnberthService =
-			new InstallationVehicleUnberthService(vehicleRegistry);
+			new InstallationVehicleUnberthService(factionVehicleReleaseService);
 	private final VehicleTransferSessionManager vehicleTransferSessionManager =
 			new VehicleTransferSessionManager();
+	private final VehicleReleaseSessionManager vehicleReleaseSessionManager =
+			new VehicleReleaseSessionManager();
 	private final VehicleMaintenancePaySessionManager vehicleMaintenancePaySessionManager =
 			new VehicleMaintenancePaySessionManager();
 	private final VehicleMaintenanceStore vehicleMaintenanceStore = new VehicleMaintenanceStore();
@@ -181,6 +189,8 @@ public class SimpleFactions extends JavaPlugin{
 					installationVehicleService,
 					vehicleTransferSessionManager,
 					factionVehiclePoolService);
+	private final FactionVehicleGiveService factionVehicleGiveService =
+			new FactionVehicleGiveService(factionVehicleReleaseService);
 	private final VehicleRegistryClaimService vehicleRegistryClaimService =
 			new VehicleRegistryClaimService(vehicleRegistry);
 	private final VehicleRegistryClaimListener vehicleRegistryClaimListener =
@@ -192,6 +202,11 @@ public class SimpleFactions extends JavaPlugin{
 			installationVehicleService,
 			vehicleTransferConsentService,
 			factionVehiclePoolService);
+	private final FactionVehicleReleaseListener factionVehicleReleaseListener =
+			new FactionVehicleReleaseListener(
+					vehicleReleaseSessionManager,
+					factionVehicleReleaseService,
+					factionVehicleGiveService);
 	private final VehicleSpawnListener vehicleSpawnListener =
 			new VehicleSpawnListener(installationVehicleOwnerSync);
 	private final BattleVehicleEligibilityService.Listener battleVehicleEligibilityListener =
@@ -492,6 +507,10 @@ public class SimpleFactions extends JavaPlugin{
 		return vehicleTransferSessionManager;
 	}
 
+	public VehicleReleaseSessionManager getVehicleReleaseSessionManager() {
+		return vehicleReleaseSessionManager;
+	}
+
 	public VehicleMaintenancePaySessionManager getVehicleMaintenancePaySessionManager() {
 		return vehicleMaintenancePaySessionManager;
 	}
@@ -502,6 +521,10 @@ public class SimpleFactions extends JavaPlugin{
 
 	public VehicleTransferConsentService getVehicleTransferConsentService() {
 		return vehicleTransferConsentService;
+	}
+
+	public FactionVehicleGiveService getFactionVehicleGiveService() {
+		return factionVehicleGiveService;
 	}
 
 	public InstallationVehicleUnberthService getInstallationVehicleUnberthService() {
@@ -516,13 +539,16 @@ public class SimpleFactions extends JavaPlugin{
 		return vehicleUpkeepService;
 	}
 
-	public void saveVehicleRegistry() {
+	/** Returns false when the vehicle registry could not be written. */
+	public boolean saveVehicleRegistry() {
+		boolean saved = true;
 		if (vehicleRegistryPersistence != null) {
-			vehicleRegistryPersistence.save();
+			saved = vehicleRegistryPersistence.save();
 		}
 		if (vehicleMaintenancePersistence != null) {
 			vehicleMaintenancePersistence.save();
 		}
+		return saved;
 	}
 
 	private void registerRpCharactersIntegrationHooks() {
@@ -572,6 +598,7 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(vehicleIntegrationListener, this);
 		getServer().getPluginManager().registerEvents(vehicleRegistryClaimListener, this);
 		getServer().getPluginManager().registerEvents(vehicleTransferListener, this);
+		getServer().getPluginManager().registerEvents(factionVehicleReleaseListener, this);
 		getServer().getPluginManager().registerEvents(vehicleMaintenancePayListener, this);
 		getServer().getPluginManager().registerEvents(vehicleMaintenanceRepairListener, this);
 		getServer().getPluginManager().registerEvents(vehicleSpawnListener, this);

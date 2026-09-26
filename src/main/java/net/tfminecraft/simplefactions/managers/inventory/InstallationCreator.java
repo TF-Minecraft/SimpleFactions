@@ -171,7 +171,7 @@ public class InstallationCreator {
         lore.add("§7Type: §f" + record.getVehicleTypeId());
         lore.add("§7Location: " + VehicleFindMessages.formatLocation(location));
         if (leader) {
-            lore.add("§cClick to unberth");
+            lore.add("§cClick to take as your vehicle");
         }
         meta.setLore(lore);
         meta.getPersistentDataContainer()

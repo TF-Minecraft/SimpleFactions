@@ -648,6 +648,16 @@ public class CommandManager implements Listener, CommandExecutor{
 							p, transferId.isBlank() ? null : transferId);
 					return true;
 				}
+				if(VehicleCommandRoute.isTake(args)) {
+					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armTake(p);
+					return true;
+				}
+				String giveTarget = VehicleCommandRoute.giveTarget(args);
+				if(giveTarget != null) {
+					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armGive(
+							p, giveTarget.isBlank() ? null : giveTarget);
+					return true;
+				}
 				if(args.length >= 2 && args[1].equalsIgnoreCase("maintenance")) {
 					p.sendMessage(net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceMessages.payUsage());
 					return true;

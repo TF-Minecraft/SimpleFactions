@@ -6,6 +6,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -51,18 +54,33 @@ public final class VehicleRegistryPersistence {
         }
     }
 
-    public void save() {
+    /** Writes a temp file and moves it into place, so a failed save never leaves a half-written registry. */
+    public boolean save() {
         List<VehicleRecordData> data = new ArrayList<>();
         for (PlayerVehicleRecord record : registry.getAll()) {
             data.add(VehicleRecordData.from(record));
         }
         if (data.isEmpty() && !file.exists()) {
-            return;
+            return true;
         }
-        try (Writer writer = new FileWriter(file)) {
+        File temp = new File(file.getParentFile(), file.getName() + ".tmp");
+        try (Writer writer = new FileWriter(temp)) {
             GSON.toJson(data, writer);
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
+        }
+        try {
+            try {
+                Files.move(temp.toPath(), file.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 

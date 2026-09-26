@@ -17,6 +17,8 @@ class VehicleTabCompletionsTest {
     void subcommands_listsTransferAndMaintenance() {
         List<String> completions = VehicleTabCompletions.subcommands("");
         assertTrue(completions.contains("transfer"));
+        assertTrue(completions.contains("take"));
+        assertTrue(completions.contains("give"));
         assertTrue(completions.contains("maintenance"));
     }
 

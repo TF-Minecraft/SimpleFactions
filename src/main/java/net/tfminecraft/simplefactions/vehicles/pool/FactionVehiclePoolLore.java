@@ -28,6 +28,7 @@ public final class FactionVehiclePoolLore {
 
         List<String> lore = new ArrayList<>();
         lore.add("§7Artillery: §e" + artillery + "/" + slots);
+        lore.add("§7Leader: §e/faction vehicle take §7or §egive <player>");
         if (vehicles.isEmpty()) {
             lore.add("§7No vehicles in the pool.");
             return lore;
