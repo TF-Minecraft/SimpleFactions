@@ -220,8 +220,9 @@ public final class FactionVehicleReleaseService {
         vehicle.getOwnerData().setOwner(ownerEntry);
         try {
             VehiclePersistence persistence = VehiclePersistence.current();
-            if (persistence != null) {
-                persistence.saveLive(vehicle);
+            if (persistence != null && !persistence.saveLive(vehicle)) {
+                vehicle.getOwnerData().setOwner(previous);
+                return false;
             }
             return true;
         } catch (RuntimeException e) {
