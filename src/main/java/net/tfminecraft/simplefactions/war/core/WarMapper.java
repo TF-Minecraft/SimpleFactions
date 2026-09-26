@@ -166,6 +166,9 @@ public final class WarMapper {
 		data.autoresolveProposedByAttacker = war.isAutoresolveProposedByAttacker();
 		data.autoresolveProposedByDefender = war.isAutoresolveProposedByDefender();
 		data.postponementsThisCycle = war.getPostponementsThisCycle();
+		if (war.getPreparationFrozenUntil() != null) {
+			data.preparationFrozenUntil = war.getPreparationFrozenUntil().toString();
+		}
 		data.defenderChoiceResolved = war.isDefenderChoiceResolved();
 		data.forceQuorumNextClose = war.isForceQuorumNextClose();
 		if (war.getStartedAt() != null) {
@@ -278,6 +281,9 @@ public final class WarMapper {
 		war.setAutoresolveProposedByAttacker(data.autoresolveProposedByAttacker);
 		war.setAutoresolveProposedByDefender(data.autoresolveProposedByDefender);
 		war.setPostponementsThisCycle(data.postponementsThisCycle != null ? data.postponementsThisCycle : 0);
+		if (data.preparationFrozenUntil != null && !data.preparationFrozenUntil.isBlank()) {
+			war.setPreparationFrozenUntil(Instant.parse(data.preparationFrozenUntil));
+		}
 		war.setDefenderChoiceResolved(data.defenderChoiceResolved);
 		if (data.postBattleChoiceResolved != null) {
 			war.setPostBattleChoiceResolved(data.postBattleChoiceResolved);

@@ -73,6 +73,7 @@ import net.tfminecraft.simplefactions.laws.LawEffect;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 import net.tfminecraft.simplefactions.installation.InstallationTransferService;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
@@ -428,10 +429,13 @@ public class Faction {
 		double tax = getTotalForeignTaxRate();
 		if(getTaxRate() + tax > 100) setTaxRate(100-tax);
 		
-		military.tick();
-		installationHandler.tick();
+		boolean frozen = PreparationFreeze.isFrozen(this);
+		if (!frozen) {
+			military.tick();
+			installationHandler.tick();
+		}
 		for(Guild guild : guildHandler.getGuilds()) {
-			guild.tick();
+			guild.tick(frozen);
 		}
 		/*
 		for(FactionModifier m : getModifiers()) {

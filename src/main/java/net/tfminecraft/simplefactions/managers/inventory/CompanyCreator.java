@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -245,6 +246,9 @@ public class CompanyCreator {
 		List<String> lore = new ArrayList<>();
 		if (index == 0) {
 			lore.add("§7Time Left: §e" + TimeFormatter.formatTime(expansion.getTimeLeft()));
+			String frozen = PreparationFreeze.frozenLore(
+					PreparationFreeze.frozenUntil(guild.getCompany(), java.time.Instant.now()));
+			if (frozen != null) lore.add(frozen);
 		} else {
 			lore.add(StringFormatter.formatHex("#857e59Queued..."));
 		}
@@ -341,6 +345,9 @@ public class CompanyCreator {
 		List<String> lore = new ArrayList<>();
 		if (index == 0) {
 			lore.add("§7Time Left: §e" + TimeFormatter.formatTime(expansion.getTimeLeft()));
+			String frozen = PreparationFreeze.frozenLore(
+					PreparationFreeze.frozenUntil(guild.getCompany(), java.time.Instant.now()));
+			if (frozen != null) lore.add(frozen);
 		} else {
 			lore.add(StringFormatter.formatHex("#857e59Queued..."));
 		}

@@ -107,6 +107,7 @@ public class Cache {
 	public static int warBattleVotingDevMinPlayers;
 	public static boolean warBattleVotingDevMinPlayersEnabled;
 	public static int warBattleVotingMaxPostponements = 1;
+	public static int warPostponeFreezeHours = 24;
 	public static double warAutoresolveLuck = 0.15;
 	public static double warAutoresolveLoserLossFraction = 0.5;
 	public static int warBattleLivesPerRegiment;

@@ -73,6 +73,7 @@ public class WarData {
     public boolean autoresolveProposedByAttacker;
     public boolean autoresolveProposedByDefender;
     public Integer postponementsThisCycle;
+    public String preparationFrozenUntil;
     public boolean defenderChoiceResolved;
     public String initiativeHolderCoalition;
     public String pushTarget;

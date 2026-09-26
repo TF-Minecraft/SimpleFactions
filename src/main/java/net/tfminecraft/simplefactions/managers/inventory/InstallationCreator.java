@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -85,6 +86,8 @@ public class InstallationCreator {
         lore.add("§7Province: §e" + construction.getProvince());
         lore.add("§7Coords: §e" + construction.getCenterX() + ", " + construction.getCenterZ());
         lore.add("§7Time left: §e" + TimeFormatter.formatTime(construction.getTimeLeft()));
+        String frozen = PreparationFreeze.frozenLore(PreparationFreeze.frozenUntil(faction, java.time.Instant.now()));
+        if (frozen != null) lore.add(frozen);
         lore.add("§cClick to cancel");
         meta.setLore(lore);
         meta.getPersistentDataContainer()

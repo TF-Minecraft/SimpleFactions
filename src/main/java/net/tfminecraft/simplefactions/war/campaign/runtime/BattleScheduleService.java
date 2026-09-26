@@ -15,6 +15,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleLaunchService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
@@ -157,13 +158,13 @@ public final class BattleScheduleService {
 
 		int maxPostponements = Math.max(0, Cache.warBattleVotingMaxPostponements);
 		if (war.getPostponementsThisCycle() < maxPostponements) {
-			postpone(war);
+			postpone(war, now);
 			return BattleScheduleCloseResult.POSTPONED;
 		}
 		if (BattleAutoresolveService.resolve(war)) {
 			return BattleScheduleCloseResult.AUTORESOLVED;
 		}
-		postpone(war);
+		postpone(war, now);
 		return BattleScheduleCloseResult.POSTPONED;
 	}
 
@@ -233,6 +234,10 @@ public final class BattleScheduleService {
 	}
 
 	public static void postpone(War war) {
+		postpone(war, Instant.now());
+	}
+
+	public static void postpone(War war, Instant now) {
 		if (war == null || war.getBattleDay() == null) {
 			return;
 		}
@@ -246,15 +251,21 @@ public final class BattleScheduleService {
 		clearScheduledTargets(war);
 		war.setPostponementsThisCycle(war.getPostponementsThisCycle() + 1);
 		war.setDefenderChoiceResolved(false);
+		PreparationFreeze.applyPostponement(war, now);
 	}
 
 	public static void skipBattleDay(War war) {
+		skipBattleDay(war, Instant.now());
+	}
+
+	public static void skipBattleDay(War war, Instant now) {
 		if (war == null || war.getBattleDay() == null) {
 			return;
 		}
 		war.setBattleDay(war.getBattleDay().plusDays(1));
 		BattleInstallationPickService.clearForNewBattleDay(war);
 		CampaignRaidService.clearForNewBattleDay(war);
+		PreparationFreeze.applyPostponement(war, now);
 	}
 
 	public static Integer resolveBattleProvinceId(War war) {

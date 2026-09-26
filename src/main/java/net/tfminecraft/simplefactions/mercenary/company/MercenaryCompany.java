@@ -32,6 +32,7 @@ import net.tfminecraft.simplefactions.mercenary.contract.ContractStatus;
 import net.tfminecraft.simplefactions.mercenary.contract.ContractTerminationService;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract;
 import net.tfminecraft.simplefactions.mercenary.contract.TerminationReason;
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 
 /**
  * A mercenary company owned by a guild. The company holds its own regiment, so
@@ -530,6 +531,19 @@ public class MercenaryCompany {
 
     public void tick() {
         if (enforceCharacterGate()) return;
+        if (!PreparationFreeze.isFrozen(this)) {
+            tickGrowth();
+        }
+        if (formationRemaining > 0) return;
+        long now = System.currentTimeMillis();
+        if (!contractHandler.tickExpiry().isEmpty()
+                || !contractHandler.tickAmendments(now).isEmpty()) {
+            chime(SFGUI.CONTRACT_LIST_VIEW);
+        }
+    }
+
+    /** Formation, slot and upgrade timers; a postponed battle holds all three. */
+    private void tickGrowth() {
         if (formationRemaining > 0) {
             formationRemaining--;
             if (formationRemaining == 0 && regiment != null) {
@@ -541,11 +555,6 @@ public class MercenaryCompany {
         }
         tickSlotQueue();
         tickUpgradeQueue();
-        long now = System.currentTimeMillis();
-        if (!contractHandler.tickExpiry().isEmpty()
-                || !contractHandler.tickAmendments(now).isEmpty()) {
-            chime(SFGUI.CONTRACT_LIST_VIEW);
-        }
     }
 
     /**
