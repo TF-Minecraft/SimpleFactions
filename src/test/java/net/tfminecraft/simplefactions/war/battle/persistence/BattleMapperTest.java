@@ -37,6 +37,7 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleLocation;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 
 class BattleMapperTest {
 	@BeforeEach
@@ -168,6 +169,37 @@ class BattleMapperTest {
 
 			Battle restored = BattleMapper.fromData(data);
 			assertTrue(BattleCasualtyLedger.getSideCasualties(restored).isEmpty());
+		}
+	}
+
+	@Test
+	void roundTrip_preservesOffensiveCoalition() {
+		BossBar bossBar = mock(BossBar.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
+					.thenReturn(bossBar);
+
+			Battle battle = BattleFactory.createBlank(BattleType.FIELD, "counter_push");
+			battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+
+			BattleData data = BattleMapper.toData(battle);
+			assertEquals("defender", data.offensiveCoalition);
+			assertEquals(CampaignCoalition.DEFENDER, BattleMapper.fromData(data).getOffensiveCoalition());
+		}
+	}
+
+	@Test
+	void fromData_absentOffensiveCoalitionStaysUnset() {
+		BossBar bossBar = mock(BossBar.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
+					.thenReturn(bossBar);
+
+			BattleData data = new BattleData();
+			data.id = "legacy_sides";
+			data.battleType = BattleType.FIELD.toJson();
+
+			assertNull(BattleMapper.fromData(data).getOffensiveCoalition());
 		}
 	}
 

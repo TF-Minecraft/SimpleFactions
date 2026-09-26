@@ -23,6 +23,7 @@ import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignOffensiveForfeitService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
@@ -163,6 +164,7 @@ public final class CampaignBattleLaunchService {
 		Battle battle = BattleFactory.createBlank(type, battleId);
 		battle.setWarId(war.getId());
 		battle.setProvinceId(provinceId);
+		battle.setOffensiveCoalition(CampaignCapabilityService.battleOffensiveCoalition(war));
 		battle.setLocked(false);
 		battle.setTeleport(true);
 		BattleFactory.applyCampaignDefault(battle);

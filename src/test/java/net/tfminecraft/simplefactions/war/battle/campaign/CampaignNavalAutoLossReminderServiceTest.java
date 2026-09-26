@@ -81,6 +81,30 @@ class CampaignNavalAutoLossReminderServiceTest {
 	}
 
 	@Test
+	void processReminders_pingsOffensiveLeaderDuringCounterPush() {
+		War war = navalVotingWar();
+		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		Player alice = mock(Player.class);
+		Player bob = mock(Player.class);
+		when(alice.isOnline()).thenReturn(true);
+		when(bob.isOnline()).thenReturn(true);
+		Instant now = BattleWindowService.atScheduleHour(BATTLE_DAY, 14);
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<AttackerNavalContestService> contest =
+						mockStatic(AttackerNavalContestService.class)) {
+			contest.when(() -> AttackerNavalContestService.wouldAttackerAutoLoseNaval(war)).thenReturn(true);
+			bukkit.when(() -> Bukkit.getPlayerExact("Alice")).thenReturn(alice);
+			bukkit.when(() -> Bukkit.getPlayerExact("Bob")).thenReturn(bob);
+
+			CampaignNavalAutoLossReminderService.processReminders(war, now);
+
+			verify(bob).sendMessage(CampaignUiCopy.navalAutoLossLeaderPing());
+			verify(alice, never()).sendMessage(anyString());
+		}
+	}
+
+	@Test
 	void processReminders_skipsWhenAttackerHasBerthedNavy() {
 		War war = navalVotingWar();
 		Player alice = mock(Player.class);

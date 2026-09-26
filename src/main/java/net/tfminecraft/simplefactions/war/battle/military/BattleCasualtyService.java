@@ -20,6 +20,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarCommitment;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
@@ -53,13 +54,13 @@ public final class BattleCasualtyService {
 		int attackerLosses = applySide(
 				war,
 				battleProvinceId,
-				war.getAttackers(),
+				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE),
 				attackerRegimentLosses,
 				affectedFactions);
 		int defenderLosses = applySide(
 				war,
 				battleProvinceId,
-				war.getDefenders(),
+				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE),
 				defenderRegimentLosses,
 				affectedFactions);
 

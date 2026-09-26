@@ -13,6 +13,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.enums.LifeType;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 
@@ -47,13 +48,13 @@ public final class BattleLivesService {
 				battle,
 				BattleTemplate.ATTACKER_SIDE,
 				war,
-				war.getAttackers(),
+				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE),
 				provinceId);
 		applySideLives(
 				battle,
 				BattleTemplate.DEFENDER_SIDE,
 				war,
-				war.getDefenders(),
+				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE),
 				provinceId);
 	}
 
@@ -62,7 +63,7 @@ public final class BattleLivesService {
 			return new SideLivesPreview(0, 0, 0, 0, 0);
 		}
 		Integer provinceId = resolveProvinceId(war, battle);
-		Side warSide = resolveWarSide(war, battleSideId);
+		Side warSide = resolveWarSide(war, battle, battleSideId);
 		BattleSide battleSide = battle.getSideById(battleSideId);
 		if (warSide == null || battleSide == null) {
 			return new SideLivesPreview(0, 0, 0, 0, 0);
@@ -156,16 +157,7 @@ public final class BattleLivesService {
 		return provinceId;
 	}
 
-	static Side resolveWarSide(War war, String battleSideId) {
-		if (war == null || battleSideId == null) {
-			return null;
-		}
-		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return war.getAttackers();
-		}
-		if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return war.getDefenders();
-		}
-		return null;
+	static Side resolveWarSide(War war, Battle battle, String battleSideId) {
+		return CampaignBattleSides.warSideFor(war, battle, battleSideId);
 	}
 }

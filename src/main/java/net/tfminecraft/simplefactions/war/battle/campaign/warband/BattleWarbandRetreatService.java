@@ -10,6 +10,8 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleEndSupport;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
@@ -18,6 +20,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
+import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 
 public final class BattleWarbandRetreatService {
@@ -119,17 +122,28 @@ public final class BattleWarbandRetreatService {
 		if (battle == null || retreatingSideId == null) {
 			return null;
 		}
-		String opponentId = null;
-		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(retreatingSideId)) {
-			opponentId = BattleTemplate.DEFENDER_SIDE;
-		} else if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(retreatingSideId)) {
-			opponentId = BattleTemplate.ATTACKER_SIDE;
-		}
+		String opponentId = opposingBattleSideId(battle, retreatingSideId);
 		if (opponentId == null) {
 			return null;
 		}
 		BattleSide opponent = battle.getSideById(opponentId);
 		return opponent != null ? opponentId : null;
+	}
+
+	private static String opposingBattleSideId(Battle battle, String retreatingSideId) {
+		War war = battle.getWarId() != null ? WarManager.getById(battle.getWarId()) : null;
+		Side retreating = CampaignBattleSides.warSideFor(war, battle, retreatingSideId);
+		if (war != null && retreating != null) {
+			Side opponent = retreating == war.getAttackers() ? war.getDefenders() : war.getAttackers();
+			return CampaignBattleSides.battleSideFor(war, battle, opponent);
+		}
+		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(retreatingSideId)) {
+			return BattleTemplate.DEFENDER_SIDE;
+		}
+		if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(retreatingSideId)) {
+			return BattleTemplate.ATTACKER_SIDE;
+		}
+		return null;
 	}
 
 	public static long remainingSecondsUntilRetreat(Battle battle, Instant now) {

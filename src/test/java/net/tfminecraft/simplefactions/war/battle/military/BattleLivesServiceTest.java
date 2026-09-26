@@ -41,6 +41,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.enums.LifeType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService.SideLivesPreview;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 
 import java.lang.reflect.Constructor;
 import java.util.function.Consumer;
@@ -118,6 +119,34 @@ class BattleLivesServiceTest {
 				assertEquals(LifeType.COLLECTIVE, battle.getLifeType());
 				assertEquals(48, battle.getSideById(BattleTemplate.ATTACKER_SIDE).getLives());
 				assertEquals(11, battle.getSideById(BattleTemplate.DEFENDER_SIDE).getLives());
+			}
+		});
+	}
+
+	@Test
+	void applyCampaignLives_counterPushSwapsWarSides() {
+		War war = campaignWar(1);
+		withMockBossBar(bukkit -> {
+			Battle battle = campaignFieldBattle(1, PROVINCE_ID);
+			battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+
+			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+					MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+					MockedStatic<BattleLivesService> lives = mockStatic(BattleLivesService.class, CALLS_REAL_METHODS)) {
+				wars.when(() -> WarManager.getById(1)).thenReturn(war);
+				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
+						.thenReturn(10);
+				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
+						.thenReturn(3);
+				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.ATTACKER_SIDE)))
+						.thenReturn(2);
+				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.DEFENDER_SIDE)))
+						.thenReturn(4);
+
+				BattleLivesService.applyCampaignLives(battle);
+
+				assertEquals(13, battle.getSideById(BattleTemplate.ATTACKER_SIDE).getLives());
+				assertEquals(46, battle.getSideById(BattleTemplate.DEFENDER_SIDE).getLives());
 			}
 		});
 	}

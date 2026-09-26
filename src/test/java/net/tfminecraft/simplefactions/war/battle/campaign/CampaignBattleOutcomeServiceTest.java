@@ -183,6 +183,34 @@ class CampaignBattleOutcomeServiceTest {
 	}
 
 	@Test
+	void handleBattleEnded_counterPushAttackerSideWin_isWarDefender() {
+		War war = baseWar();
+		war.setInitiativeHolder(BelligerentRole.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+
+		Battle battle = BattleFactory.createBlank(BattleType.FIELD, "campaign_w1_p20");
+		battle.setWarId(1);
+		battle.setProvinceId(20);
+		battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+		BattleManager.addBattle(battle);
+
+		CampaignBattleOutcomeService.handleBattleEnded(
+				new BattleEndedEvent(
+						battle.getId(),
+						BattleType.FIELD,
+						1,
+						BattleTemplate.ATTACKER_SIDE,
+						Map.of(),
+						Set.of()));
+
+		assertEquals(CampaignCoalition.DEFENDER, war.getPostBattleWinnerCoalition());
+		assertEquals(4, war.getInitiativeAttacker());
+		assertEquals(3, war.getInitiativeDefender());
+		assertTrue(CampaignPostBattleChoiceService.needsWinnerChoice(war));
+	}
+
+	@Test
 	void handleBattleEnded_noWinner_reopensVoteOnly() {
 		War war = baseWar();
 		int cursorBefore = war.getCursorIndex();

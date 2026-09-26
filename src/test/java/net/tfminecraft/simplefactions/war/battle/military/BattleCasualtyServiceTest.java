@@ -38,6 +38,7 @@ import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
@@ -45,6 +46,7 @@ import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import java.time.Instant;
 
 class BattleCasualtyServiceTest {
+	private static final List<Integer> CREATED_WAR_IDS = new ArrayList<>();
 	private static final int PROVINCE_ID = 42;
 	private List<War> savedWars;
 	private Map<String, Faction> factionsById;
@@ -73,6 +75,11 @@ class BattleCasualtyServiceTest {
 		for (War war : new ArrayList<>(WarManager.get())) {
 			WarCommitmentService.clearCommitments(war.getId());
 		}
+		// Test wars are not registered, so their commitment rows are cleared by id.
+		for (int id : CREATED_WAR_IDS) {
+			WarCommitmentService.clearCommitments(id);
+		}
+		CREATED_WAR_IDS.clear();
 		WarManager.get().clear();
 		WarManager.get().addAll(savedWars);
 	}
@@ -313,6 +320,31 @@ class BattleCasualtyServiceTest {
 	}
 
 	@Test
+	void counterPush_attackerSideDeathsDebitWarDefenders() {
+		Faction attacker = fighter("atk", Map.of("professional", 10));
+		Faction defender = fighter("def", Map.of("professional", 10));
+		War war = baseWar(9, attacker, defender);
+		war.setInitiativeHolder(BelligerentRole.DEFENDER);
+		seedOwnRow(war, "atk", "professional", 10);
+		seedOwnRow(war, "def", "professional", 10);
+
+		Battle battle = campaignBattle(war, PROVINCE_ID);
+		when(battle.getOffensiveCoalition()).thenReturn(CampaignCoalition.DEFENDER);
+		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(attacker);
+			stubFactions(factions);
+
+			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+
+			assertEquals(10, commitmentCount(war.getId(), "atk", null, "professional"));
+			assertEquals(7, commitmentCount(war.getId(), "def", null, "professional"));
+		}
+	}
+
+	@Test
 	void skipsManualBattle() {
 		Faction attacker = fighter("atk", Map.of("professional", 5));
 		Faction defender = fighter("def", Map.of("professional", 4));
@@ -421,6 +453,8 @@ class BattleCasualtyServiceTest {
 	private static War baseWar(int id, Faction attacker, Faction defender) {
 		when(attacker.getName()).thenReturn("Attacker");
 		when(defender.getName()).thenReturn("Defender");
+		WarCommitmentService.clearCommitments(id);
+		CREATED_WAR_IDS.add(id);
 		War war = new War(id, attacker, defender);
 		war.setCampaignProvinces(List.of(PROVINCE_ID, 43, 44));
 		war.setCursorIndex(0);

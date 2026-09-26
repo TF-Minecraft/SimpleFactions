@@ -33,6 +33,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 
 class CampaignBattleRosterServiceTest {
@@ -97,6 +98,42 @@ class CampaignBattleRosterServiceTest {
 			assertEquals(1, battle.getSideById(BattleTemplate.ATTACKER_SIDE).getBands().size());
 			assertEquals(1, battle.getSideById(BattleTemplate.DEFENDER_SIDE).getBands().size());
 			assertEquals(2, WarbandManager.get().size());
+		}
+	}
+
+	@Test
+	void enrollWarbands_counterPushPutsDefendersOnAttackerSide() {
+		War war = new War(1, attacker, defender);
+		war.setScheduledBattleProvinceId(20);
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<net.tfminecraft.simplefactions.managers.WarManager> wars =
+						mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
+				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
+						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
+				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
+						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+			mockBossBar(bukkit);
+			Battle battle = createBattle(1);
+			battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(1)).thenReturn(war);
+			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("atk"))
+					.thenReturn(attacker);
+			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
+					.thenReturn(defender);
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
+					org.mockito.ArgumentMatchers.eq(war),
+					org.mockito.ArgumentMatchers.eq(20),
+					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+
+			CampaignBattleRosterService.enrollWarbands(war, battle);
+
+			assertEquals(
+					"The Defender Host",
+					battle.getSideById(BattleTemplate.ATTACKER_SIDE).getBands().get(0).getName());
+			assertEquals(
+					"The Attacker Host",
+					battle.getSideById(BattleTemplate.DEFENDER_SIDE).getBands().get(0).getName());
 		}
 	}
 

@@ -13,6 +13,8 @@ public class BattleData {
 	public String displayName;
 	public String battleType;
 	public Integer warId;
+	// Absent in older saves: war attackers stay on the battle attacker side.
+	public String offensiveCoalition;
 	public Integer provinceId;
 	public String templateName;
 	public boolean friendlyFire;

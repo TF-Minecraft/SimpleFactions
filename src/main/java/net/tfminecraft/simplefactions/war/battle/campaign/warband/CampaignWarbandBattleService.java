@@ -39,7 +39,8 @@ public final class CampaignWarbandBattleService {
 		if (faction == null) {
 			return "You must be in a faction to join this campaign battle";
 		}
-		net.tfminecraft.simplefactions.war.core.Side battleSide = CampaignBattleJoinService.resolveWarSide(war, sideId);
+		net.tfminecraft.simplefactions.war.core.Side battleSide =
+				CampaignBattleJoinService.resolveWarSide(war, battle, sideId);
 		if (battleSide == null) {
 			return "Your faction is not on this battle side";
 		}

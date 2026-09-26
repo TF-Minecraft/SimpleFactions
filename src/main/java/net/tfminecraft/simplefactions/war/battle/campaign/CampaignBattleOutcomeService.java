@@ -17,7 +17,6 @@ import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceSe
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
 import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyService;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
-import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
@@ -67,7 +66,7 @@ public class CampaignBattleOutcomeService implements Listener {
 		}
 
 		Battle battle = BattleManager.getByString(event.getBattleId());
-		BelligerentRole winnerRole = mapWinningSide(event.getWinningSideId());
+		BelligerentRole winnerRole = mapWinningSide(war, battle, event.getWinningSideId());
 		Integer battleProvinceId = battle != null && battle.getProvinceId() != null
 				? battle.getProvinceId()
 				: war.getScheduledBattleProvinceId();
@@ -234,17 +233,8 @@ public class CampaignBattleOutcomeService implements Listener {
 		}
 	}
 
-	private static BelligerentRole mapWinningSide(String winningSideId) {
-		if (winningSideId == null || winningSideId.isBlank()) {
-			return null;
-		}
-		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(winningSideId)) {
-			return BelligerentRole.ATTACKER;
-		}
-		if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(winningSideId)) {
-			return BelligerentRole.DEFENDER;
-		}
-		return null;
+	private static BelligerentRole mapWinningSide(War war, Battle battle, String winningSideId) {
+		return CampaignBattleSides.roleFor(war, battle, winningSideId);
 	}
 
 	private static OccupationService occupationService() {
