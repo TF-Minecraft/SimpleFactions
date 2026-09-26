@@ -123,15 +123,15 @@ public final class AttackerNavalContestService {
 			if (!BattleInstallationInPlayService.isInPlay(war, faction.getId(), installation.getId())) {
 				continue;
 			}
-			if (hasBerthedShip(registry, installation.getId())) {
+			if (hasBerthedShip(registry, faction.getId(), installation.getId())) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	private static boolean hasBerthedShip(PlayerVehicleRegistry registry, String installationId) {
-		for (PlayerVehicleRecord record : registry.getByInstallationId(installationId)) {
+	private static boolean hasBerthedShip(PlayerVehicleRegistry registry, String factionId, String installationId) {
+		for (PlayerVehicleRecord record : registry.getByInstallation(factionId, installationId)) {
 			Optional<String> categoryId = VehiclesConfigLoader.getCategoryId(record.getVehicleTypeId());
 			if (categoryId.isPresent() && SHIPS_CATEGORY.equalsIgnoreCase(categoryId.get())) {
 				return true;

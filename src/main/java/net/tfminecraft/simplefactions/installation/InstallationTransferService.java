@@ -4,6 +4,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vehicleframework.VehicleFramework;
@@ -28,11 +29,11 @@ public final class InstallationTransferService {
 		fromHandler.cancelPendingConstructionOnProvince(province);
 		for (Installation installation : fromHandler.detachOnProvince(province)) {
 			toHandler.acceptTransferred(installation);
-			syncBerthedOwners(to, installation);
+			syncBerthedOwners(from, to, installation);
 		}
 	}
 
-	private static void syncBerthedOwners(Faction to, Installation installation) {
+	private static void syncBerthedOwners(Faction from, Faction to, Installation installation) {
 		if (to == null || installation == null || installation.getId() == null) {
 			return;
 		}
@@ -45,15 +46,37 @@ public final class InstallationTransferService {
 				return;
 			}
 			InstallationVehicleOwnerSync sync = new InstallationVehicleOwnerSync(registry);
-			for (PlayerVehicleRecord record : registry.getByInstallationId(installation.getId())) {
+			for (PlayerVehicleRecord record : registry.getByInstallation(from.getId(), installation.getId())) {
 				if (record == null || record.getVehicleUuid() == null) {
 					continue;
 				}
-				ActiveVehicle vehicle = VehicleFramework.getVehicleManager().get(record.getVehicleUuid());
-				if (vehicle != null) {
-					sync.applyLeaderOwner(vehicle, to);
+				// An older record has no faction id. Move it only when the new holder is the
+				// only faction with this installation id, so another faction's vehicle stays put.
+				if (record.getFactionId() == null
+						&& FactionVehiclePoolService.payingFaction(record) != to) {
+					continue;
+				}
+				// The vehicles move with the installation, so the new holder pays their upkeep.
+				registry.register(new PlayerVehicleRecord(
+						record.getPlayerUuid(),
+						record.getVehicleUuid(),
+						record.getVehicleTypeId(),
+						record.getMode(),
+						record.getInstallationId(),
+						to.getId()));
+				try {
+					ActiveVehicle vehicle = VehicleFramework.getVehicleManager().get(record.getVehicleUuid());
+					if (vehicle != null) {
+						sync.applyLeaderOwner(vehicle, to);
+					}
+				} catch (RuntimeException e) {
+					// Kept per vehicle so the rest still transfer. The owner is corrected on its next spawn.
+					SimpleFactions.getInstance().getLogger().warning(
+							"Could not move vehicle " + record.getVehicleUuid() + " to faction " + to.getId()
+									+ " leader after installation transfer; it updates on next spawn: " + e);
 				}
 			}
+			SimpleFactions.getInstance().saveVehicleRegistry();
 		} catch (Exception ignored) {
 		}
 	}

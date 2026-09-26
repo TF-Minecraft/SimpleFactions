@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationOwners;
 import net.tfminecraft.simplefactions.installation.InstallationBounds;
 import net.tfminecraft.vehicleframework.data.OwnerData;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
@@ -74,7 +75,8 @@ public final class InstallationVehicleService {
         }
 
         int vehicleSize = VehiclesConfigLoader.getSize(vehicleTypeId);
-        int used = registry.usedCategorySize(installation.getId(), categoryId.get());
+        int used = registry.usedCategorySize(
+                InstallationOwners.ownerIdOf(installation), installation.getId(), categoryId.get());
         if (used + vehicleSize > capacity) {
             return CanRegisterResult.NO_CAPACITY;
         }

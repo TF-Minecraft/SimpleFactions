@@ -121,7 +121,7 @@ public class InstallationView {
         } else {
             inventory.setItem(49, creator.createDetailItem(installation));
             List<PlayerVehicleRecord> berthed =
-                    SimpleFactions.getVehicleRegistry().getByInstallationId(installation.getId());
+                    SimpleFactions.getVehicleRegistry().getByInstallation(f.getId(), installation.getId());
             berthed.sort(Comparator.comparing(PlayerVehicleRecord::getVehicleTypeId));
             for (int index = 0; index < berthed.size() && index < 45; index++) {
                 PlayerVehicleRecord record = berthed.get(index);

@@ -91,7 +91,9 @@ public final class VehicleFindMessages {
         player.sendMessage(header(installation));
         var records =
                 net.tfminecraft.simplefactions.SimpleFactions.getVehicleRegistry()
-                        .getByInstallationId(installation.getId());
+                        .getByInstallation(
+                                net.tfminecraft.simplefactions.installation.InstallationOwners.ownerIdOf(installation),
+                                installation.getId());
         if (records.isEmpty()) {
             player.sendMessage(noneAtInstallation(installation));
             return;

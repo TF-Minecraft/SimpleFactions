@@ -149,9 +149,15 @@ class PlayerVehicleRegistryTest {
             registry.register(new PlayerVehicleRecord(
                 player, "ship-4", "ironclad", OwnershipMode.PERSONAL, null));
 
-            assertEquals(3, registry.usedCategorySize("port-1", "ships"));
-            assertEquals(0, registry.usedCategorySize("port-1", "aircraft"));
-            assertEquals(1, registry.usedCategorySize("port-2", "ships"));
+            // Another faction's port with the same id does not use this port's space.
+            registry.register(new PlayerVehicleRecord(
+                player, "ship-5", "cruiser", OwnershipMode.INSTALLATION, "port-1", "blue"));
+
+            assertEquals(3, registry.usedCategorySize("red", "port-1", "ships"));
+            assertEquals(0, registry.usedCategorySize("red", "port-1", "aircraft"));
+            assertEquals(1, registry.usedCategorySize("red", "port-2", "ships"));
+            assertEquals(5, registry.usedCategorySize("blue", "port-1", "ships"));
+            assertEquals(2, registry.getByInstallation("red", "port-1").size());
         } finally {
             Files.walk(tempConfigDir)
                 .sorted(java.util.Comparator.reverseOrder())
