@@ -377,6 +377,27 @@ class VehicleUpkeepServiceTest {
         assertTrue(store.isUnpaid("vehicle-1"));
     }
 
+    @Test
+    void unheldInstallationVehicleStopsDecaying() {
+        UUID playerUuid = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "vehicle-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "installation-1"));
+        store.markUnpaid("vehicle-1", 1L);
+        java.util.List<Faction> previous = FactionManager.factions;
+        FactionManager.factions = new java.util.ArrayList<>();
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", playerUuid)) {
+            service.processDailyUpkeep();
+        } finally {
+            FactionManager.factions = previous;
+        }
+
+        assertFalse(store.isUnpaid("vehicle-1"));
+    }
+
     private static Faction factionWithInstallation(String id, String installationId, Bank factionBank) {
         net.tfminecraft.simplefactions.installation.handler.InstallationHandler handler =
                 mock(net.tfminecraft.simplefactions.installation.handler.InstallationHandler.class);

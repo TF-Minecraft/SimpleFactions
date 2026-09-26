@@ -92,7 +92,12 @@ public final class VehicleUpkeepService {
             }
             Faction faction = FactionVehiclePoolService.payingFaction(record);
             if (faction == null && record.getMode() == OwnershipMode.INSTALLATION) {
-                // An installation no faction holds any more has nobody to bill.
+                // An installation no faction holds any more has nobody to bill, so it
+                // must not keep decaying for a debt nobody can pay.
+                if (maintenanceStore.isUnpaid(record.getVehicleUuid())) {
+                    maintenanceStore.clearUnpaid(record.getVehicleUuid());
+                    persistMaintenance();
+                }
                 continue;
             }
             Bank bank = faction == null ? null : faction.getBank();
