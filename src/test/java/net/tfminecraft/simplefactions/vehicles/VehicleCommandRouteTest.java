@@ -48,7 +48,30 @@ class VehicleCommandRouteTest {
                 net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource.BANK,
                 VehicleCommandRoute.maintenancePaymentSource(new String[] {"VEHICLE", "MAINTENANCE", "PAY", "BANK"}));
         assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance", "pay", "bnak"}));
-        assertFalse(VehicleCommandRoute.isMaintenancePay(new String[] {"vehicle", "maintenance", "pay", "bank", "extra"}));
+    }
+
+    @Test
+    void extraWordsAfterBankStillPayFromBank() {
+        String[][] typed = {
+            {"vehicle", "maintenance", "pay", "bank", "100"},
+            {"vehicle", "maintenance", "pay", "bank", "Alice", "100"},
+            {"vehicle", "maintenance", "pay", "100", "bank"},
+        };
+        for (String[] args : typed) {
+            assertTrue(VehicleCommandRoute.isMaintenancePay(args));
+            assertEquals(
+                    net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource.BANK,
+                    VehicleCommandRoute.maintenancePaymentSource(args));
+        }
+    }
+
+    @Test
+    void anAmountWithoutBankPaysFromPouch() {
+        String[] args = {"vehicle", "maintenance", "pay", "100"};
+        assertTrue(VehicleCommandRoute.isMaintenancePay(args));
+        assertEquals(
+                net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource.POUCH,
+                VehicleCommandRoute.maintenancePaymentSource(args));
     }
 
 }

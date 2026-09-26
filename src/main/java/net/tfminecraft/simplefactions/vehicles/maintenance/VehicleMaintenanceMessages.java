@@ -16,7 +16,8 @@ public final class VehicleMaintenanceMessages {
 
     public static String payArmed(PaymentSource source) {
         return "§aRight-click the vehicle to pay one day of maintenance from your "
-                + (source == PaymentSource.BANK ? "bank" : "pouch") + ".";
+                + (source == PaymentSource.BANK ? "bank" : "pouch") + "."
+                + " §7(The amount is the vehicle's daily upkeep.)";
     }
 
     public static String bankShortfall(double shortfall, int secondsUntilCharge) {
@@ -53,7 +54,8 @@ public final class VehicleMaintenanceMessages {
     }
 
     public static String payUsage() {
-        return "§cUsage: §e/faction vehicle maintenance pay [bank]";
+        return "§cUsage: §e/faction vehicle maintenance pay bank§c, then right-click the vehicle."
+                + " §7No amount needed; it pays one day of the vehicle's upkeep.";
     }
 
     public static String vehicleUsage() {
