@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.battle.campaign;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -253,17 +254,20 @@ class CampaignBattleLaunchServiceTest {
 	}
 
 	@Test
-	void launchAutoresolveBattle_startsImmediately() {
+	void launchAutoresolveBattle_doesNotStartALiveBattle() {
 		War war = baseWar();
 		war.setBattleSchedulePhase(BattleSchedulePhase.AUTORESOLVE_PENDING);
 
-		withMockBossBar(() -> {
-			Battle battle = CampaignBattleLaunchService.launchAutoresolveBattle(war);
+		try (MockedStatic<net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService> autoresolve =
+				mockStatic(net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService.class)) {
+			autoresolve.when(() -> net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService
+					.resolve(war)).thenReturn(true);
 
-			assertNotNull(battle);
-			assertFalse(battle.hasStarted());
-			assertEquals("campaign_w1_p20", battle.getId());
-		});
+			assertNull(CampaignBattleLaunchService.launchAutoresolveBattle(war));
+			assertTrue(BattleManager.get().isEmpty());
+			autoresolve.verify(() -> net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService
+					.resolve(war));
+		}
 	}
 
 	@Test

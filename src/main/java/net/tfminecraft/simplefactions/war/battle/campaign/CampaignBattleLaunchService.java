@@ -25,6 +25,7 @@ import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignOffensiveForfeitService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -69,37 +70,13 @@ public final class CampaignBattleLaunchService {
 		return battle;
 	}
 
+	/** Simulated result. Does not create or start a live battle. */
 	public static Battle launchAutoresolveBattle(War war) {
 		if (war == null || !war.isActive()) {
 			return null;
 		}
-		Battle existing = BattleManager.getByWarId(war.getId());
-		Integer provinceId = BattleScheduleService.resolveScheduledProvinceId(war);
-		if (provinceId != null
-				&& AttackerNavalContestService.applyIfAttackerHasNoBerthedNavy(war, provinceId)) {
-			return null;
-		}
-
-		if (existing != null) {
-			String startError = startPreparedBattle(war, existing);
-			if (startError != null) {
-				logWarning("Could not start autoresolve battle: " + startError);
-			}
-			return existing;
-		}
-
-		if (provinceId == null) {
-			return null;
-		}
-
-		Battle battle = createCampaignBattle(war, provinceId, true);
-		if (battle != null) {
-			String startError = startPreparedBattle(war, battle);
-			if (startError != null) {
-				logWarning("Could not start autoresolve battle: " + startError);
-			}
-		}
-		return battle;
+		BattleAutoresolveService.resolve(war);
+		return null;
 	}
 
 	public static boolean tryStartScheduledBattle(War war, Instant now) {

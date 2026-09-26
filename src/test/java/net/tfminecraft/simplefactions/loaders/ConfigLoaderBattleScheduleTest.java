@@ -59,6 +59,35 @@ class ConfigLoaderBattleScheduleTest {
 		assertEquals(4, Cache.warBattleVotingMinPlayers);
 		assertEquals(1, Cache.warBattleVotingDevMinPlayers);
 		assertTrue(Cache.warBattleVotingDevMinPlayersEnabled);
+		assertEquals(1, Cache.warBattleVotingMaxPostponements);
+		assertEquals(0.15, Cache.warAutoresolveLuck, 0.0001);
+		assertEquals(0.5, Cache.warAutoresolveLoserLossFraction, 0.0001);
+	}
+
+	@Test
+	void loadConfig_autoresolveAndMaxPostponements() throws IOException {
+		Path file = writeConfig("""
+				war:
+				  battle_schedule:
+				    vote_close_hour: 16
+				    raid_window_start_hour: 19
+				    raid_window_end_hour: 20
+				    window_start_hour: 21
+				    window_end_hour: 24
+				    defender_choice_deadline_hour: 12
+				  battle_voting:
+				    min_players: 4
+				    max_postponements: 3
+				  autoresolve:
+				    luck: 0.2
+				    loser_loss_fraction: 0.25
+				""");
+
+		new ConfigLoader().loadWar(file.toFile());
+
+		assertEquals(3, Cache.warBattleVotingMaxPostponements);
+		assertEquals(0.2, Cache.warAutoresolveLuck, 0.0001);
+		assertEquals(0.25, Cache.warAutoresolveLoserLossFraction, 0.0001);
 	}
 
 	@Test

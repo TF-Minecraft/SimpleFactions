@@ -213,6 +213,18 @@ public class ConfigLoader {
 		} else {
 			Cache.warBattleVotingDevMinPlayers = Cache.warBattleVotingMinPlayers;
 		}
+		Cache.warBattleVotingMaxPostponements = Math.max(
+				0,
+				config.getInt("war.battle_voting.max_postponements", 1));
+		double autoresolveLuck = config.getDouble("war.autoresolve.luck", 0.15);
+		if (autoresolveLuck < 0) {
+			autoresolveLuck = 0;
+		} else if (autoresolveLuck > 1) {
+			autoresolveLuck = 1;
+		}
+		Cache.warAutoresolveLuck = autoresolveLuck;
+		double loserLossFraction = config.getDouble("war.autoresolve.loser_loss_fraction", 0.5);
+		Cache.warAutoresolveLoserLossFraction = loserLossFraction < 0 ? 0 : loserLossFraction;
 		Cache.warDevmodePhantomCount = config.getInt("war.devmode.phantom_count", 10);
 		validateBattleScheduleConfig();
 

@@ -155,6 +155,14 @@ public final class BattleScheduleService {
 			return BattleScheduleCloseResult.SCHEDULED;
 		}
 
+		int maxPostponements = Math.max(0, Cache.warBattleVotingMaxPostponements);
+		if (war.getPostponementsThisCycle() < maxPostponements) {
+			postpone(war);
+			return BattleScheduleCloseResult.POSTPONED;
+		}
+		if (BattleAutoresolveService.resolve(war)) {
+			return BattleScheduleCloseResult.AUTORESOLVED;
+		}
 		postpone(war);
 		return BattleScheduleCloseResult.POSTPONED;
 	}
@@ -279,6 +287,7 @@ public final class BattleScheduleService {
 		war.setScheduledBattleAt(scheduledAt);
 		war.setScheduledBattleProvinceId(provinceId);
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
+		war.setPostponementsThisCycle(0);
 		CampaignBattleLaunchService.prepareScheduledBattle(war);
 		return war.getScheduledBattleAt() != null;
 	}
@@ -290,6 +299,7 @@ public final class BattleScheduleService {
 		war.clearSignupRemindersSent();
 		war.setScheduledBattleProvinceId(provinceId);
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
+		war.setPostponementsThisCycle(0);
 		return CampaignBattleLaunchService.prepareScheduledBattle(war) != null;
 	}
 

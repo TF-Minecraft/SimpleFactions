@@ -64,6 +64,10 @@ public final class WarScheduleFeedbackFormatter {
 			return "§7Phase: §e" + formatPhase(war);
 		}
 		if (phase == BattleSchedulePhase.VOTING && war.getScheduledBattleAt() == null) {
+			if (war.getPostponementsThisCycle() == 0) {
+				return "§7Autoresolved §7· Battle day: §e" + formatBattleDay(war)
+						+ " §7· Phase: §e" + formatPhase(war);
+			}
 			return "§7Postponed §7· Battle day: §e" + formatBattleDay(war)
 					+ " §7· Phase: §e" + formatPhase(war);
 		}

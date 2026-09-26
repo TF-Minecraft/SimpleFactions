@@ -161,6 +161,23 @@ class BattleScheduleTickServiceTest {
 	}
 
 	@Test
+	void processWar_resolvesLingeringAutoresolvePending() {
+		War war = votingWar();
+		war.setBattleSchedulePhase(BattleSchedulePhase.AUTORESOLVE_PENDING);
+
+		try (MockedStatic<BattleAutoresolveService> autoresolve = mockStatic(BattleAutoresolveService.class)) {
+			autoresolve.when(() -> BattleAutoresolveService.resolve(war)).thenAnswer(invocation -> {
+				war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+				return true;
+			});
+
+			assertTrue(BattleScheduleTickService.processWar(war, voteCloseInstant()));
+			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+			autoresolve.verify(() -> BattleAutoresolveService.resolve(war));
+		}
+	}
+
+	@Test
 	void processWar_skipsNonVotingPhase() {
 		War war = votingWar();
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);

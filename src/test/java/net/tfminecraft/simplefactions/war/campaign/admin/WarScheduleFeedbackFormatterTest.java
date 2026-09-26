@@ -185,6 +185,25 @@ class WarScheduleFeedbackFormatterTest {
 		});
 	}
 
+	@Test
+	void closevote_autoresolved_doesNotSayPostponed() {
+		War war = votingWar();
+		war.setPostponementsThisCycle(0);
+
+		String combined = String.join(" ", WarScheduleFeedbackFormatter.format("closevote", war));
+		assertTrue(combined.contains("Autoresolved"));
+		assertFalse(combined.contains("Postponed"));
+	}
+
+	@Test
+	void closevote_postponed_namesTheNextBattleDay() {
+		War war = votingWar();
+		war.setPostponementsThisCycle(1);
+
+		String combined = String.join(" ", WarScheduleFeedbackFormatter.format("closevote", war));
+		assertTrue(combined.contains("Postponed"));
+	}
+
 	private War votingWar() {
 		War war = new War(1, attacker, defender);
 		war.setGoal(WarGoalType.SUBJUGATE);
