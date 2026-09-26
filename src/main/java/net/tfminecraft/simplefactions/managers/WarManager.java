@@ -239,6 +239,8 @@ public class WarManager {
 		}
 		WarCommitmentService.commitAllParticipants(war);
 		addWar(war);
+		// Anything that touched the rebels since the regiment split may have handed their law slots back.
+		refreshTempRebelSlots(war);
 		logWarDeclared(war, attacker, defender);
 		return war;
 	}
