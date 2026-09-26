@@ -46,6 +46,7 @@ import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import java.time.Instant;
 
 class BattleCasualtyServiceTest {
+	private static final List<Integer> CREATED_WAR_IDS = new ArrayList<>();
 	private static final int PROVINCE_ID = 42;
 	private List<War> savedWars;
 	private Map<String, Faction> factionsById;
@@ -74,6 +75,11 @@ class BattleCasualtyServiceTest {
 		for (War war : new ArrayList<>(WarManager.get())) {
 			WarCommitmentService.clearCommitments(war.getId());
 		}
+		// Test wars are not registered, so their commitment rows are cleared by id.
+		for (int id : CREATED_WAR_IDS) {
+			WarCommitmentService.clearCommitments(id);
+		}
+		CREATED_WAR_IDS.clear();
 		WarManager.get().clear();
 		WarManager.get().addAll(savedWars);
 	}
@@ -447,6 +453,8 @@ class BattleCasualtyServiceTest {
 	private static War baseWar(int id, Faction attacker, Faction defender) {
 		when(attacker.getName()).thenReturn("Attacker");
 		when(defender.getName()).thenReturn("Defender");
+		WarCommitmentService.clearCommitments(id);
+		CREATED_WAR_IDS.add(id);
 		War war = new War(id, attacker, defender);
 		war.setCampaignProvinces(List.of(PROVINCE_ID, 43, 44));
 		war.setCursorIndex(0);
