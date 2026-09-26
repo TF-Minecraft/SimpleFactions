@@ -74,6 +74,12 @@ public final class FactionVehiclePoolService {
         return payer != null && factionId.equalsIgnoreCase(payer.getId());
     }
 
+    private static boolean holdsInstallation(Faction faction, String installationId) {
+        return faction != null
+                && faction.getInstallationHandler() != null
+                && faction.getInstallationHandler().getById(installationId) != null;
+    }
+
     /** The faction that pays a registered vehicle's upkeep: its pool's faction or its installation's owner. */
     public static Faction payingFaction(PlayerVehicleRecord record) {
         if (record == null || FactionManager.factions == null) {
@@ -83,13 +89,22 @@ public final class FactionVehiclePoolService {
             return record.getFactionId() == null ? null : FactionManager.getByString(record.getFactionId());
         }
         if (record.getMode() == OwnershipMode.INSTALLATION && record.getInstallationId() != null) {
+            // Installation ids are only unique within a faction, so the record names its faction.
+            if (record.getFactionId() != null) {
+                Faction faction = FactionManager.getByString(record.getFactionId());
+                return holdsInstallation(faction, record.getInstallationId()) ? faction : null;
+            }
+            // Older records have no faction id. Bill them only when exactly one faction matches.
+            Faction match = null;
             for (Faction faction : FactionManager.factions) {
-                if (faction != null
-                        && faction.getInstallationHandler() != null
-                        && faction.getInstallationHandler().getById(record.getInstallationId()) != null) {
-                    return faction;
+                if (holdsInstallation(faction, record.getInstallationId())) {
+                    if (match != null) {
+                        return null;
+                    }
+                    match = faction;
                 }
             }
+            return match;
         }
         return null;
     }

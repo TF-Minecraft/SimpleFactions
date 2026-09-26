@@ -398,6 +398,41 @@ class VehicleUpkeepServiceTest {
         assertFalse(store.isUnpaid("vehicle-1"));
     }
 
+    @Test
+    void sharedInstallationIdIsChargedToTheRecordsFaction() {
+        UUID playerUuid = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "vehicle-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "harbour",
+                "blue"));
+        registry.register(new PlayerVehicleRecord(
+                playerUuid,
+                "legacy-1",
+                "ironclad",
+                OwnershipMode.INSTALLATION,
+                "harbour"));
+        Bank redBank = mock(Bank.class);
+        when(redBank.getWealth()).thenReturn(100.0);
+        Bank blueBank = mock(Bank.class);
+        when(blueBank.getWealth()).thenReturn(100.0);
+        Faction red = factionWithInstallation("red", "harbour", redBank);
+        Faction blue = factionWithInstallation("blue", "harbour", blueBank);
+        java.util.List<Faction> previous = FactionManager.factions;
+        FactionManager.factions = new java.util.ArrayList<>(List.of(red, blue));
+        try (MockedStatic<Bukkit> bukkit = mockBukkit("Alice", playerUuid)) {
+            service.processDailyUpkeep();
+        } finally {
+            FactionManager.factions = previous;
+        }
+
+        // The legacy record matches two factions, so nobody is billed for it.
+        verify(blueBank).withdraw(20.0);
+        verify(redBank, never()).withdraw(org.mockito.ArgumentMatchers.anyDouble());
+    }
+
     private static Faction factionWithInstallation(String id, String installationId, Bank factionBank) {
         net.tfminecraft.simplefactions.installation.handler.InstallationHandler handler =
                 mock(net.tfminecraft.simplefactions.installation.handler.InstallationHandler.class);
