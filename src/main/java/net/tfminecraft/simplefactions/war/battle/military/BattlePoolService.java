@@ -59,7 +59,7 @@ public final class BattlePoolService {
 
 		for (Faction fighter : fighters) {
 			Map<String, Integer> regimentCounts = collectOwnRegiments(war, fighter, battleProvinceId, mode);
-			addLevyRows(war, fighter.getId(), fighterIds, mode, regimentCounts);
+			addLevyRows(war, fighter.getId(), fighterIds, regimentCounts);
 			if (!regimentCounts.isEmpty()) {
 				eligible.put(fighter.getId(), regimentCounts);
 			}
@@ -126,21 +126,19 @@ public final class BattlePoolService {
 		if (mode == PoolMode.OFFENSIVE) {
 			return regiment.isOffensive();
 		}
-		return !regiment.isOffensive();
+		// Defence commits every regiment type. Militia stays limited to the faction's own province.
+		return true;
 	}
 
 	private static void addLevyRows(
 			War war,
 			String holderFactionId,
 			Set<String> fighterIds,
-			PoolMode mode,
 			Map<String, Integer> regimentCounts) {
 		if (holderFactionId == null || !fighterIds.contains(holderFactionId.toLowerCase())) {
 			return;
 		}
-		if (mode != PoolMode.OFFENSIVE && !CivilWarBorderLock.isCivilWar(war)) {
-			return;
-		}
+		// Levies reinforce both the offensive and the defensive pool.
 		int levyTotal = 0;
 		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
 			if (!commitment.isLevyRow()) {

@@ -124,6 +124,23 @@ class BattleCasualtyLedgerTest {
 	}
 
 	@Test
+	void recordedDeaths_surviveLedgerReset() {
+		withMockBossBar(() -> {
+			Battle battle = campaignFieldBattle(8);
+			BattleSide attacker = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
+			BattleCasualtyLedger.recordSideCasualty(battle, attacker);
+			BattleCasualtyLedger.recordSideCasualty(battle, attacker);
+
+			BattleCasualtyLedger.resetForTests();
+
+			assertEquals(2, BattleCasualtyLedger.getSideCasualties(battle).get("attacker"));
+
+			BattleCasualtyLedger.recordSideCasualty(battle, attacker);
+			assertEquals(3, BattleCasualtyLedger.getSideCasualties(battle).get("attacker"));
+		});
+	}
+
+	@Test
 	void tracksCasualties_siegeCampaignBattle() {
 		withMockBossBar(() -> {
 			Battle battle = BattleFactory.createBlank(BattleType.SIEGE, "siege");

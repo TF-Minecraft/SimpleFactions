@@ -46,6 +46,7 @@ class ConfigLoaderBattleMilitaryTest {
 
 		assertEquals(5, Cache.warBattleLivesPerRegiment);
 		assertEquals(1, Cache.warBattleMinSideLives);
+		assertEquals(5, Cache.warBattleDeathsPerRegimentLoss);
 	}
 
 	@Test
@@ -62,12 +63,14 @@ class ConfigLoaderBattleMilitaryTest {
 				  battle_military:
 				    lives_per_regiment: 7
 				    min_side_lives: 3
+				    deaths_per_regiment_loss: 8
 				""");
 
 		new ConfigLoader().loadWar(file.toFile());
 
 		assertEquals(7, Cache.warBattleLivesPerRegiment);
 		assertEquals(3, Cache.warBattleMinSideLives);
+		assertEquals(8, Cache.warBattleDeathsPerRegimentLoss);
 	}
 
 	private Path writeConfig(String yaml) throws IOException {

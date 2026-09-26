@@ -64,7 +64,7 @@ class BattlePoolServiceTest {
 			assertEquals(PoolMode.DEFENSIVE, BattlePoolService.resolvePoolMode(war, PROVINCE_ID, war.getDefenders()));
 
 			assertEquals(10, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getAttackers()));
-			assertEquals(6, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getDefenders()));
+			assertEquals(14, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getDefenders()));
 		}
 	}
 
@@ -82,7 +82,7 @@ class BattlePoolServiceTest {
 			assertEquals(PoolMode.DEFENSIVE, BattlePoolService.resolvePoolMode(war, PROVINCE_ID, war.getAttackers()));
 			assertEquals(PoolMode.OFFENSIVE, BattlePoolService.resolvePoolMode(war, PROVINCE_ID, war.getDefenders()));
 
-			assertEquals(4, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getAttackers()));
+			assertEquals(14, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getAttackers()));
 			assertEquals(8, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getDefenders()));
 		}
 	}
@@ -133,14 +133,61 @@ class BattlePoolServiceTest {
 	}
 
 	@Test
-	void levy_offensivePoolOnly() {
+	void levy_countedInBothPools() {
 		Faction attacker = fighter("atk", Map.of("professional", 5));
 		Faction defender = fighter("def", Map.of("professional", 1));
 		War war = baseWar(5, attacker, defender);
 		seedLevyRow(war, "atk", "subject", 12);
 
 		assertEquals(17, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getAttackers(), PoolMode.OFFENSIVE));
-		assertEquals(0, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getAttackers(), PoolMode.DEFENSIVE));
+		assertEquals(17, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getAttackers(), PoolMode.DEFENSIVE));
+	}
+
+	@Test
+	void defensivePool_includesEveryRegiment_militiaOnlyOnOwnedLand() {
+		Faction defender = fighter("def", Map.of(
+				"professional", 8,
+				"mercenary", 3,
+				"garrison", 2,
+				"militia", 6));
+		Faction attacker = fighter("atk", Map.of("professional", 1));
+		War war = baseWar(9, attacker, defender);
+		war.setCampaignPhase(CampaignPhase.INVASION);
+		seedLevyRow(war, "def", "subject", 4);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(null);
+
+			Map<String, Map<String, Integer>> neutral = BattlePoolService.eligibleRegiments(
+					war,
+					PROVINCE_ID,
+					war.getDefenders(),
+					PoolMode.DEFENSIVE);
+			assertEquals(8, neutral.get("def").get("professional"));
+			assertEquals(3, neutral.get("def").get("mercenary"));
+			assertEquals(2, neutral.get("def").get("garrison"));
+			assertEquals(4, neutral.get("def").get(WarCommitment.LEVY_REGIMENT_ID));
+			assertFalse(neutral.get("def").containsKey(BattlePoolService.MILITIA_REGIMENT_ID));
+
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
+			Map<String, Map<String, Integer>> owned = BattlePoolService.eligibleRegiments(
+					war,
+					PROVINCE_ID,
+					war.getDefenders(),
+					PoolMode.DEFENSIVE);
+			assertEquals(6, owned.get("def").get(BattlePoolService.MILITIA_REGIMENT_ID));
+
+			Map<String, Map<String, Integer>> offensive = BattlePoolService.eligibleRegiments(
+					war,
+					PROVINCE_ID,
+					war.getDefenders(),
+					PoolMode.OFFENSIVE);
+			assertEquals(8, offensive.get("def").get("professional"));
+			assertEquals(3, offensive.get("def").get("mercenary"));
+			assertEquals(4, offensive.get("def").get(WarCommitment.LEVY_REGIMENT_ID));
+			assertFalse(offensive.get("def").containsKey("garrison"));
+			assertFalse(offensive.get("def").containsKey(BattlePoolService.MILITIA_REGIMENT_ID));
+		}
 	}
 
 	@Test
@@ -274,7 +321,8 @@ class BattlePoolServiceTest {
 			Regiment regiment = mock(Regiment.class);
 			when(regiment.getId()).thenReturn(entry.getKey());
 			when(regiment.isLevy()).thenReturn(false);
-			when(regiment.isOffensive()).thenReturn("professional".equals(entry.getKey()));
+			when(regiment.isOffensive()).thenReturn(
+					"professional".equals(entry.getKey()) || "mercenary".equals(entry.getKey()));
 			when(regiment.getCurrentSlots()).thenReturn(entry.getValue());
 			regiments.add(regiment);
 		}

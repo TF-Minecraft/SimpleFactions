@@ -4,7 +4,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
@@ -66,6 +69,7 @@ public class Battle {
 	private boolean capturePointsEnabled;
 	private int contestHoldRemainingSeconds;
 	private boolean campaignRaid;
+	private final Map<String, Integer> recordedSideCasualties = new LinkedHashMap<>();
 	public List<CapturePoint> getPoints() {
 		return points;
 	}
@@ -216,6 +220,42 @@ public class Battle {
 
 	public void setStartedAt(Instant startedAt) {
 		this.startedAt = startedAt;
+	}
+
+	public Map<String, Integer> getRecordedSideCasualties() {
+		if (recordedSideCasualties.isEmpty()) {
+			return Map.of();
+		}
+		return Map.copyOf(recordedSideCasualties);
+	}
+
+	public void setRecordedSideCasualty(String sideId, int count) {
+		if (sideId == null) {
+			return;
+		}
+		String key = sideId.toLowerCase(Locale.ROOT);
+		if (count <= 0) {
+			recordedSideCasualties.remove(key);
+			return;
+		}
+		recordedSideCasualties.put(key, count);
+	}
+
+	public void restoreSideCasualties(Map<String, Integer> casualties) {
+		recordedSideCasualties.clear();
+		if (casualties == null) {
+			return;
+		}
+		for (Map.Entry<String, Integer> entry : casualties.entrySet()) {
+			if (entry.getKey() == null || entry.getValue() == null || entry.getValue() <= 0) {
+				continue;
+			}
+			recordedSideCasualties.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
+		}
+	}
+
+	public void clearRecordedSideCasualties() {
+		recordedSideCasualties.clear();
 	}
 	
 	public void setFriendlyFire(boolean b) {

@@ -108,6 +108,7 @@ public class Cache {
 	public static boolean warBattleVotingDevMinPlayersEnabled;
 	public static int warBattleLivesPerRegiment;
 	public static int warBattleMinSideLives;
+	public static int warBattleDeathsPerRegimentLoss;
 	public static BattleLootMode battleLootMode;
 	public static List<String> battleLootCommands = new ArrayList<>();
 	public static String battleLootItemPath;

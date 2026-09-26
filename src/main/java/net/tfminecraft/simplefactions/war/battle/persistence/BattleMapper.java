@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.battle.persistence;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.bukkit.Location;
@@ -56,6 +57,7 @@ public final class BattleMapper {
 				: null;
 		data.defenderLives = battle.getDefenderLives();
 		data.navalVariant = battle.isNavalVariant();
+		data.sideCasualties = new LinkedHashMap<>(battle.getRecordedSideCasualties());
 		data.navalSpawn = BattleLocation.fromBukkitLocation(battle.getNavalSpawn());
 		if (battle.getContestArea() != null) {
 			data.contestMin = battle.getContestArea().getMin();
@@ -102,6 +104,7 @@ public final class BattleMapper {
 		battle.setDefenderRespawnMode(parseDefenderRespawnMode(data.defenderRespawnMode));
 		battle.setDefenderLives(data.defenderLives);
 		battle.setNavalVariant(data.navalVariant);
+		battle.restoreSideCasualties(data.sideCasualties);
 		battle.setNavalSpawn(toLocation(data.navalSpawn));
 		if (data.contestMin != null && data.contestMax != null) {
 			battle.setContestArea(new ContestArea(data.contestMin, data.contestMax));
