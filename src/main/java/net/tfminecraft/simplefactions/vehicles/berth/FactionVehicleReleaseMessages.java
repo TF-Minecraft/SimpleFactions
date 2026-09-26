@@ -41,6 +41,10 @@ public final class FactionVehicleReleaseMessages {
         return "§cCannot give vehicles from this installation during battle or raid embargo.";
     }
 
+    public static String saveFailed() {
+        return "§cThe vehicle registry could not be saved, so nothing changed. Tell staff.";
+    }
+
     public static String ownershipUnavailable() {
         return "§cCould not assign that vehicle. Try again while it is spawned.";
     }
@@ -101,6 +105,7 @@ public final class FactionVehicleReleaseMessages {
                     outcome.vehicleTypeId(),
                     self ? null : recipientName);
             case OWNERSHIP_UNAVAILABLE -> ownershipUnavailable();
+            case SAVE_FAILED -> saveFailed();
         };
     }
 

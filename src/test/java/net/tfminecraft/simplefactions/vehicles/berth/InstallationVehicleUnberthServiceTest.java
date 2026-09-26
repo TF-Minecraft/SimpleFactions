@@ -97,7 +97,7 @@ class InstallationVehicleUnberthServiceTest {
                         OwnershipMode.INSTALLATION,
                         port.getId()));
 
-        SimpleFactions plugin = mock(SimpleFactions.class);
+        SimpleFactions plugin = savingPlugin();
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(plugin);
 
@@ -191,5 +191,14 @@ class InstallationVehicleUnberthServiceTest {
         assertTrue(registry.getByVehicleUuid(vehicleUuid).isPresent());
         assertTrue(assigned.isEmpty());
         assertTrue(InstallationVehicleUnberthService.messageFor(outcome).contains("cloudskimmer"));
+    }
+
+    /** A plugin mock whose registry saves succeed. */
+    private static SimpleFactions savingPlugin() {
+        // A default answer rather than when(), so it is safe inside another stubbing call.
+        return org.mockito.Mockito.mock(SimpleFactions.class, invocation ->
+                invocation.getMethod().getReturnType() == boolean.class
+                        ? Boolean.TRUE
+                        : org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation));
     }
 }

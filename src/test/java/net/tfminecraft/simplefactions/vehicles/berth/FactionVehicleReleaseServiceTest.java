@@ -118,7 +118,7 @@ class FactionVehicleReleaseServiceTest {
     void take_poolVehicleBecomesLeadersPersonalVehicle() {
         registry.register(pool("gun-1", "coal_car"));
 
-        SimpleFactions plugin = mock(SimpleFactions.class);
+        SimpleFactions plugin = savingPlugin();
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(plugin);
             Outcome outcome = service.take(faction, "Leader", "gun-1");
@@ -130,13 +130,43 @@ class FactionVehicleReleaseServiceTest {
     }
 
     @Test
+    void take_failedSaveKeepsTheFactionVehicleAndItsOwner() {
+        registry.register(pool("gun-1", "coal_car"));
+        FactionVehicleReleaseService failing = new FactionVehicleReleaseService(
+                registry,
+                (uuid, name) -> {
+                    assigned.add(uuid + ":" + name);
+                    return true;
+                },
+                () -> false);
+
+        Outcome outcome = failing.take(faction, "Leader", "gun-1");
+
+        assertEquals(Status.SAVE_FAILED, outcome.status());
+        assertTrue(registry.getByVehicleUuid("gun-1").isPresent());
+        assertTrue(assigned.isEmpty());
+    }
+
+    @Test
+    void take_failedOwnerChangeRestoresTheFactionRecord() {
+        registry.register(pool("gun-1", "coal_car"));
+        FactionVehicleReleaseService unassignable =
+                new FactionVehicleReleaseService(registry, (uuid, name) -> false, () -> true);
+
+        Outcome outcome = unassignable.take(faction, "Leader", "gun-1");
+
+        assertEquals(Status.OWNERSHIP_UNAVAILABLE, outcome.status());
+        assertEquals(OwnershipMode.POOL, registry.getByVehicleUuid("gun-1").orElseThrow().getMode());
+    }
+
+    @Test
     void take_installationVehicleBecomesLeadersPersonalVehicle() {
         when(handler.getById("port-1")).thenReturn(
                 new Installation("port-1", "Harbour", InstallationKind.PORT, 1, 0, 0, 0L));
         registry.register(berthed("ship-1", "ironclad", "port-1"));
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
-            sf.when(SimpleFactions::getInstance).thenReturn(mock(SimpleFactions.class));
+            sf.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
             Outcome outcome = service.take(faction, "Leader", "ship-1");
             assertEquals(Status.OK, outcome.status());
             assertEquals(List.of("ship-1:Leader"), assigned);
@@ -199,7 +229,7 @@ class FactionVehicleReleaseServiceTest {
         startBattle(false, false);
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
-            sf.when(SimpleFactions::getInstance).thenReturn(mock(SimpleFactions.class));
+            sf.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
             assertEquals(Status.OK, service.take(faction, "Leader", "car-1").status());
         }
     }
@@ -235,7 +265,7 @@ class FactionVehicleReleaseServiceTest {
         registry.register(pool("car-1", "coal_car"));
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
-            sf.when(SimpleFactions::getInstance).thenReturn(mock(SimpleFactions.class));
+            sf.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
             Outcome outcome = service.give(faction, "Leader", "Bob", "car-1");
             assertEquals(Status.OK, outcome.status());
             assertEquals(List.of("car-1:Bob"), assigned);
@@ -288,5 +318,14 @@ class FactionVehicleReleaseServiceTest {
     private static PlayerVehicleRecord berthed(String uuid, String typeId, String installationId) {
         return new PlayerVehicleRecord(
                 UUID.randomUUID(), uuid, typeId, OwnershipMode.INSTALLATION, installationId);
+    }
+
+    /** A plugin mock whose registry saves succeed. */
+    private static SimpleFactions savingPlugin() {
+        // A default answer rather than when(), so it is safe inside another stubbing call.
+        return org.mockito.Mockito.mock(SimpleFactions.class, invocation ->
+                invocation.getMethod().getReturnType() == boolean.class
+                        ? Boolean.TRUE
+                        : org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation));
     }
 }

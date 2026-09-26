@@ -48,6 +48,10 @@ public final class FactionVehicleGiveService {
             recipient.sendMessage("§cYou cannot accept this request.");
             return;
         }
+        if (req.timedOut()) {
+            notifyExpired(req, recipient);
+            return;
+        }
         Faction faction = FactionManager.getByString(req.getFactionId());
         if (faction == null || faction.getLeader() == null
                 || !faction.getLeader().equalsIgnoreCase(req.getLeaderName())) {

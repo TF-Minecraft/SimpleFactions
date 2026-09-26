@@ -539,13 +539,16 @@ public class SimpleFactions extends JavaPlugin{
 		return vehicleUpkeepService;
 	}
 
-	public void saveVehicleRegistry() {
+	/** Returns false when the vehicle registry could not be written. */
+	public boolean saveVehicleRegistry() {
+		boolean saved = true;
 		if (vehicleRegistryPersistence != null) {
-			vehicleRegistryPersistence.save();
+			saved = vehicleRegistryPersistence.save();
 		}
 		if (vehicleMaintenancePersistence != null) {
 			vehicleMaintenancePersistence.save();
 		}
+		return saved;
 	}
 
 	private void registerRpCharactersIntegrationHooks() {

@@ -111,7 +111,7 @@ class FactionVehicleGiveServiceTest {
         List<String> leaderMessages = messagesOf(leader);
         List<String> recipientMessages = messagesOf(recipient);
 
-        SimpleFactions plugin = mock(SimpleFactions.class);
+        SimpleFactions plugin = savingPlugin();
         when(plugin.getFactionVehicleGiveService()).thenReturn(giveService);
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
                 MockedStatic<SimpleFactions> factions = mockStatic(SimpleFactions.class)) {
@@ -132,6 +132,30 @@ class FactionVehicleGiveServiceTest {
     }
 
     @Test
+    void accept_refusesAnExpiredRequest() {
+        registry.register(new PlayerVehicleRecord(
+                UUID.randomUUID(), "car-1", "coal_car", OwnershipMode.POOL, null, "red"));
+        List<String> recipientMessages = messagesOf(recipient);
+        VehicleGiveConsentRequest expired = org.mockito.Mockito.spy(new VehicleGiveConsentRequest(
+                null, "red", "car-1", "coal_car", recipient.getUniqueId(), leaderUuid, "Leader"));
+        org.mockito.Mockito.doReturn(true).when(expired).timedOut();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                MockedStatic<SimpleFactions> factions = mockStatic(SimpleFactions.class)) {
+            factions.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
+            bukkit.when(() -> Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
+            messagesOf(leader);
+
+            RequestManager.addRequest(leader, recipient, expired);
+            giveService.acceptRequest(recipient);
+
+            assertTrue(registry.getByVehicleUuid("car-1").isPresent());
+            assertTrue(assigned.isEmpty());
+            assertEquals(List.of(FactionVehicleReleaseMessages.giveExpired()), recipientMessages);
+        }
+    }
+
+    @Test
     void accept_refusesWhenTheRecipientHasNoRoom() {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(), "car-1", "coal_car", OwnershipMode.POOL, null, "red"));
@@ -141,7 +165,7 @@ class FactionVehicleGiveServiceTest {
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
                 MockedStatic<SimpleFactions> factions = mockStatic(SimpleFactions.class)) {
-            factions.when(SimpleFactions::getInstance).thenReturn(mock(SimpleFactions.class));
+            factions.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
             bukkit.when(() -> Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
             messagesOf(leader);
 
@@ -169,5 +193,14 @@ class FactionVehicleGiveServiceTest {
             return null;
         }).when(player).sendMessage(anyString());
         return messages;
+    }
+
+    /** A plugin mock whose registry saves succeed. */
+    private static SimpleFactions savingPlugin() {
+        // A default answer rather than when(), so it is safe inside another stubbing call.
+        return org.mockito.Mockito.mock(SimpleFactions.class, invocation ->
+                invocation.getMethod().getReturnType() == boolean.class
+                        ? Boolean.TRUE
+                        : org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation));
     }
 }

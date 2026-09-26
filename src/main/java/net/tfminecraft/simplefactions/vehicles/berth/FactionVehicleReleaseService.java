@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.vehicles.berth;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -22,14 +23,28 @@ import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 public final class FactionVehicleReleaseService {
     private final PlayerVehicleRegistry registry;
     private final PersonalOwner personalOwner;
+    private final BooleanSupplier registrySaver;
 
     public FactionVehicleReleaseService(PlayerVehicleRegistry registry) {
         this(registry, FactionVehicleReleaseService::assignFrameworkOwner);
     }
 
     FactionVehicleReleaseService(PlayerVehicleRegistry registry, PersonalOwner personalOwner) {
+        this(registry, personalOwner, FactionVehicleReleaseService::saveRegistry);
+    }
+
+    FactionVehicleReleaseService(
+            PlayerVehicleRegistry registry,
+            PersonalOwner personalOwner,
+            BooleanSupplier registrySaver) {
         this.registry = registry;
         this.personalOwner = personalOwner;
+        this.registrySaver = registrySaver;
+    }
+
+    private static boolean saveRegistry() {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        return plugin == null || plugin.saveVehicleRegistry();
     }
 
     public interface PersonalOwner {
@@ -44,7 +59,8 @@ public final class FactionVehicleReleaseService {
         IN_BATTLE,
         NO_PERSONAL_ROOM,
         UNKNOWN_TYPE,
-        OWNERSHIP_UNAVAILABLE
+        OWNERSHIP_UNAVAILABLE,
+        SAVE_FAILED
     }
 
     public record Outcome(Status status, CanBuildResult slotFailure, String vehicleTypeId) {}
@@ -123,13 +139,18 @@ public final class FactionVehicleReleaseService {
         if (!apply) {
             return outcome(Status.OK, null, typeId);
         }
-        if (!personalOwner.assign(vehicleUuid, recipientName)) {
-            return outcome(Status.OWNERSHIP_UNAVAILABLE, null, typeId);
-        }
+        // Drop the faction record and save it before the owner changes, so a failed save can
+        // never leave a personal vehicle that still loads as a faction vehicle.
         registry.unregister(vehicleUuid);
-        SimpleFactions plugin = SimpleFactions.getInstance();
-        if (plugin != null) {
-            plugin.saveVehicleRegistry();
+        if (!registrySaver.getAsBoolean()) {
+            registry.register(record);
+            registrySaver.getAsBoolean();
+            return outcome(Status.SAVE_FAILED, null, typeId);
+        }
+        if (!personalOwner.assign(vehicleUuid, recipientName)) {
+            registry.register(record);
+            registrySaver.getAsBoolean();
+            return outcome(Status.OWNERSHIP_UNAVAILABLE, null, typeId);
         }
         return outcome(Status.OK, null, typeId);
     }

@@ -32,7 +32,8 @@ public final class InstallationVehicleUnberthService {
         IN_BATTLE,
         NO_PERSONAL_ROOM,
         UNKNOWN_TYPE,
-        OWNERSHIP_UNAVAILABLE
+        OWNERSHIP_UNAVAILABLE,
+        SAVE_FAILED
     }
 
     public record UnberthOutcome(UnberthResult result, CanBuildResult slotFailure, String vehicleTypeId) {}
@@ -61,6 +62,7 @@ public final class InstallationVehicleUnberthService {
             case NO_PERSONAL_ROOM -> UnberthResult.NO_PERSONAL_ROOM;
             case UNKNOWN_TYPE -> UnberthResult.UNKNOWN_TYPE;
             case OWNERSHIP_UNAVAILABLE -> UnberthResult.OWNERSHIP_UNAVAILABLE;
+            case SAVE_FAILED -> UnberthResult.SAVE_FAILED;
         };
     }
 
@@ -83,6 +85,7 @@ public final class InstallationVehicleUnberthService {
                     outcome.vehicleTypeId(),
                     null);
             case OWNERSHIP_UNAVAILABLE -> FactionVehicleReleaseMessages.ownershipUnavailable();
+            case SAVE_FAILED -> FactionVehicleReleaseMessages.saveFailed();
         };
     }
 }
