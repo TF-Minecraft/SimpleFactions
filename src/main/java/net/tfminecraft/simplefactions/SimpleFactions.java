@@ -595,8 +595,16 @@ public class SimpleFactions extends JavaPlugin{
 		if (constructionFreezeRegistered || !getServer().getPluginManager().isPluginEnabled("VFBuilders")) {
 			return;
 		}
-		net.tfminecraft.simplefactions.war.freeze.VfBuildersConstructionFreeze.register(this);
 		constructionFreezeRegistered = true;
+		try {
+			Class.forName("net.tfminecraft.vfbuilders.api.ConstructionFreeze");
+		} catch (ClassNotFoundException | LinkageError e) {
+			// Loading VfBuildersConstructionFreeze would fail on a VFBuilders without this API.
+			getLogger().warning("VFBuilders has no ConstructionFreeze API; update it so vehicle "
+					+ "projects freeze with postponed battles");
+			return;
+		}
+		net.tfminecraft.simplefactions.war.freeze.VfBuildersConstructionFreeze.register(this);
 	}
 
 	private void registerVehicleIntegration() {

@@ -14,18 +14,13 @@ import net.tfminecraft.vfbuilders.api.ConstructionFreeze;
 public final class VfBuildersConstructionFreeze implements ConstructionFreeze {
 
 	/**
-	 * Only call when VFBuilders is enabled. Older VFBuilders builds have no freeze
-	 * API; they are skipped with a warning instead of failing SimpleFactions.
+	 * Only call once VFBuilders is enabled and its ConstructionFreeze API is on the
+	 * classpath; this class cannot load without it.
 	 */
 	public static void register(Plugin plugin) {
-		try {
-			Bukkit.getServicesManager().register(
-					ConstructionFreeze.class, new VfBuildersConstructionFreeze(), plugin, ServicePriority.Normal);
-			plugin.getLogger().info("VFBuilders projects freeze with postponed battles");
-		} catch (LinkageError e) {
-			plugin.getLogger().warning("VFBuilders has no ConstructionFreeze API; update it so vehicle "
-					+ "projects freeze with postponed battles");
-		}
+		Bukkit.getServicesManager().register(
+				ConstructionFreeze.class, new VfBuildersConstructionFreeze(), plugin, ServicePriority.Normal);
+		plugin.getLogger().info("VFBuilders projects freeze with postponed battles");
 	}
 
 	@Override
