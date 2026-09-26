@@ -96,7 +96,7 @@ public final class BattlePoolService {
 			return regimentCounts;
 		}
 		for (Regiment regiment : faction.getMilitary().getRegiments()) {
-			if (regiment.isLevy()) {
+			if (regiment.isLevy() || regiment.isEquipment()) {
 				continue;
 			}
 			if (!isRegimentEligible(war, regiment, faction, battleProvinceId, mode)) {

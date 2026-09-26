@@ -47,7 +47,7 @@ public final class LevySnapshotCalculator {
 		int memberCap = source.getMembers() != null ? source.getMembers().size() : 0;
 		double levyPercent = source.getModifier(FactionModifiers.LEVY).getAmount();
 		for (Regiment regiment : source.getMilitary().getRegiments()) {
-			if (regiment.isLevy()) {
+			if (regiment.isLevy() || regiment.isEquipment()) {
 				continue;
 			}
 			int count = regiment.getCurrentSlots();

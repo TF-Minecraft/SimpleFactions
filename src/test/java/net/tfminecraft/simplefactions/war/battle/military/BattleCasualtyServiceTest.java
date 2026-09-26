@@ -255,6 +255,64 @@ class BattleCasualtyServiceTest {
 	}
 
 	@Test
+	void equipmentSlotsAreNotLost() {
+		Faction attacker = fighter("atk", Map.of("professional", 2));
+		Faction defender = fighter("def", Map.of("professional", 4, "artillery", 5));
+		War war = baseWar(8801, attacker, defender);
+		war.setCampaignPhase(CampaignPhase.INVASION);
+		seedOwnRow(war, "def", "professional", 4);
+		seedOwnRow(war, "def", "artillery", 5);
+
+		Battle battle = campaignBattle(war, PROVINCE_ID);
+		Map<String, Integer> casualties = Map.of(BattleTemplate.DEFENDER_SIDE, 5);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
+			stubFactions(factions);
+
+			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+
+			assertEquals(0, commitmentCount(war.getId(), "def", null, "professional"));
+			assertEquals(5, commitmentCount(war.getId(), "def", null, "artillery"));
+			assertEquals(0, liveSlots("def", "professional"));
+			assertEquals(5, liveSlots("def", "artillery"));
+		}
+	}
+
+	@Test
+	void levyDebitSkipsEquipmentOnTheSource() {
+		Faction attacker = fighter("atk", Map.of());
+		Faction source = fighter("src", Map.of("professional", 8, "artillery", 8));
+		Faction defender = fighter("def", Map.of("professional", 1));
+		Regiment artillery = source.getMilitary().getRegiment("artillery");
+		AtomicInteger artillerySent = new AtomicInteger(8);
+		when(artillery.sentToOverlord()).thenAnswer(inv -> artillerySent.get());
+		War war = baseWar(8802, attacker, defender);
+		war.setCampaignPhase(CampaignPhase.INVASION);
+		seedOwnRow(war, "src", "professional", 8);
+		seedOwnRow(war, "src", "artillery", 8);
+		seedLevyRow(war, "atk", "src", 6);
+
+		Battle battle = campaignBattle(war, PROVINCE_ID);
+		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
+			stubFactions(factions);
+
+			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+
+			assertEquals(5, commitmentCount(war.getId(), "src", null, "professional"));
+			assertEquals(8, commitmentCount(war.getId(), "src", null, "artillery"));
+			assertEquals(5, liveSlots("src", "professional"));
+			assertEquals(8, liveSlots("src", "artillery"));
+			assertEquals(8, artillerySent.get());
+		}
+	}
+
+	@Test
 	void skipsManualBattle() {
 		Faction attacker = fighter("atk", Map.of("professional", 5));
 		Faction defender = fighter("def", Map.of("professional", 4));
@@ -386,6 +444,7 @@ class BattleCasualtyServiceTest {
 			when(regiment.getId()).thenReturn(entry.getKey());
 			when(regiment.isLevy()).thenReturn(false);
 			when(regiment.isOffensive()).thenReturn("professional".equals(entry.getKey()));
+			when(regiment.isEquipment()).thenReturn("artillery".equals(entry.getKey()));
 			when(regiment.getCurrentSlots()).thenAnswer(inv -> currentSlots.get());
 			doAnswer(inv -> {
 				currentSlots.updateAndGet(value -> Math.max(0, value - 1));

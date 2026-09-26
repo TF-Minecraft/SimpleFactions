@@ -121,6 +121,18 @@ class WarCommitmentTest {
 	}
 
 	@Test
+	void commitFaction_skipsEquipmentSlots() {
+		War war = baseWar(12);
+		Faction faction = fighter("attacker", Map.of("professional", 2, "artillery", 5));
+
+		List<WarCommitment> commitments = WarCommitmentService.commitFaction(war, faction);
+
+		assertEquals(1, commitments.size());
+		assertEquals("professional", commitments.get(0).regimentId());
+		assertEquals(2, commitments.get(0).count());
+	}
+
+	@Test
 	void commitFaction_idempotent() {
 		War war = baseWar(9);
 		Faction faction = fighter("attacker", Map.of("infantry", 5));
@@ -337,6 +349,7 @@ class WarCommitmentTest {
 		for (Map.Entry<String, Integer> entry : slots.entrySet()) {
 			Regiment regiment = mock(Regiment.class);
 			when(regiment.isLevy()).thenReturn(false);
+			when(regiment.isEquipment()).thenReturn("artillery".equalsIgnoreCase(entry.getKey()));
 			when(regiment.getId()).thenReturn(entry.getKey());
 			when(regiment.getCurrentSlots()).thenReturn(entry.getValue());
 			regiments.add(regiment);

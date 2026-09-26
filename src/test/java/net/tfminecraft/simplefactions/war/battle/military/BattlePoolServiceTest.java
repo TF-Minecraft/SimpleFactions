@@ -264,6 +264,30 @@ class BattlePoolServiceTest {
 	}
 
 	@Test
+	void equipment_excludedFromOffensiveAndDefensivePools() {
+		Faction attacker = fighter("atk", Map.of("professional", 4, "artillery", 3, "militia", 2));
+		Faction defender = fighter("def", Map.of("professional", 1, "artillery", 5));
+		War war = baseWar(8, attacker, defender);
+		war.setCampaignPhase(CampaignPhase.INVASION);
+
+		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class)) {
+			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
+
+			Map<String, Map<String, Integer>> offensive = BattlePoolService.eligibleRegiments(
+					war, PROVINCE_ID, war.getAttackers(), PoolMode.OFFENSIVE);
+			assertEquals(4, offensive.get("atk").get("professional"));
+			assertFalse(offensive.get("atk").containsKey("artillery"));
+			assertEquals(4, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getAttackers()));
+
+			Map<String, Map<String, Integer>> defensive = BattlePoolService.eligibleRegiments(
+					war, PROVINCE_ID, war.getDefenders(), PoolMode.DEFENSIVE);
+			assertEquals(1, defensive.get("def").get("professional"));
+			assertFalse(defensive.get("def").containsKey("artillery"));
+			assertEquals(1, BattlePoolService.totalCommittedRegiments(war, PROVINCE_ID, war.getDefenders()));
+		}
+	}
+
+	@Test
 	void isMilitiaEligible_matchesDirectOwner() {
 		Faction owner = fighter("owner", Map.of("militia", 1));
 		Faction other = fighter("other", Map.of("militia", 1));
@@ -322,7 +346,10 @@ class BattlePoolServiceTest {
 			when(regiment.getId()).thenReturn(entry.getKey());
 			when(regiment.isLevy()).thenReturn(false);
 			when(regiment.isOffensive()).thenReturn(
-					"professional".equals(entry.getKey()) || "mercenary".equals(entry.getKey()));
+					"professional".equals(entry.getKey())
+							|| "mercenary".equals(entry.getKey())
+							|| "artillery".equals(entry.getKey()));
+			when(regiment.isEquipment()).thenReturn("artillery".equals(entry.getKey()));
 			when(regiment.getCurrentSlots()).thenReturn(entry.getValue());
 			regiments.add(regiment);
 		}

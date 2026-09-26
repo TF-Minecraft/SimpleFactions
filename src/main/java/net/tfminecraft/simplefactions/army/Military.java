@@ -222,15 +222,19 @@ public class Military {
 		return company != null && company.isFormed() && company.getRegiment() != null ? company : null;
 	}
 
-	/** Filled slots of the home company. Empty slots add nothing. */
+	/** Filled slots of the home company. Empty slots add nothing. Equipment slots are not soldiers. */
 	public int getMercenaryManpower() {
 		MercenaryCompany company = getHomeCompany();
-		return company == null ? 0 : company.getFilledSlots();
+		if (company == null || company.getRegiment() == null || company.getRegiment().isEquipment()) {
+			return 0;
+		}
+		return company.getFilledSlots();
 	}
 
 	public int getManpower(boolean offense) {
 		int manpower = getMercenaryManpower();
 		for(Regiment r : getRegiments()) {
+			if(r.isEquipment()) continue;
 			if(offense && !r.isOffensive()) continue;
 			if(r.isLevy()) {
 				for(LevyEntry e : r.getEntries()) {
@@ -246,6 +250,7 @@ public class Military {
 	public int getManpowerNoLevy(boolean offense) {
 		int manpower = getMercenaryManpower();
 		for(Regiment r : regiments) {
+			if(r.isEquipment()) continue;
 			if(offense && !r.isOffensive()) continue;
 			if(r.isLevy()) continue;
 			manpower += r.getCurrentSlots();
@@ -262,6 +267,7 @@ public class Military {
 			}
 			int total = 0;
 			for(Regiment r : subject.getMilitary().getRegiments()) {
+				if (r.isEquipment()) continue;
 				int count = r.getCurrentSlots();
 				count = (int) Math.round(count * (subject.getModifier(FactionModifiers.LEVY).getAmount()/100));
 				if(total+count >= subject.getMembers().size()) {

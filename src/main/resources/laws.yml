@@ -476,6 +476,7 @@ military:
             - military_upkeep(-10.0)
           regiments:
             - professional 2
+            - artillery 1
         vassals:
           modifiers:
             - levy(-10.0)

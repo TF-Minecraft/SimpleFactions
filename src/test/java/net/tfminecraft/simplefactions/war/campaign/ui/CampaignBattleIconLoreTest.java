@@ -25,9 +25,13 @@ class CampaignBattleIconLoreTest {
 		Regiment levy = mock(Regiment.class);
 		when(levy.isLevy()).thenReturn(true);
 		when(levy.getCurrentSlots()).thenReturn(50);
+		Regiment artillery = mock(Regiment.class);
+		when(artillery.isLevy()).thenReturn(false);
+		when(artillery.isEquipment()).thenReturn(true);
+		when(artillery.getCurrentSlots()).thenReturn(9);
 
 		Military military = mock(Military.class);
-		when(military.getRegiments()).thenReturn(List.of(professional, levy));
+		when(military.getRegiments()).thenReturn(List.of(professional, levy, artillery));
 
 		Faction leader = mock(Faction.class);
 		when(leader.getMilitary()).thenReturn(military);
