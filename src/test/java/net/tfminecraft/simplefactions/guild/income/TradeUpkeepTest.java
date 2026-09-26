@@ -44,4 +44,11 @@ class TradeUpkeepTest {
 	void rate_zeroLimitDisablesIt() {
 		assertEquals(1.8, TradeUpkeep.rate(0.9, 2.0, 0.0), 1e-9);
 	}
+
+	@Test
+	void sanitizeMax_negativeFallsBackToTheDefault() {
+		assertEquals(TradeUpkeep.DEFAULT_MAX, TradeUpkeep.sanitizeMax(-0.1), 1e-9);
+		assertEquals(0.0, TradeUpkeep.sanitizeMax(0.0), 1e-9);
+		assertEquals(0.6, TradeUpkeep.sanitizeMax(0.6), 1e-9);
+	}
 }

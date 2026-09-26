@@ -11,7 +11,14 @@ import net.tfminecraft.simplefactions.Cache;
  */
 public final class TradeUpkeep {
 
+	public static final double DEFAULT_MAX = 0.75;
+
 	private TradeUpkeep() {
+	}
+
+	/** Negative limits fall back to the default; 0 stays the opt-out. */
+	public static double sanitizeMax(double max) {
+		return max < 0 ? DEFAULT_MAX : max;
 	}
 
 	public static double rate(double tradeFactor, double upkeepFactor) {

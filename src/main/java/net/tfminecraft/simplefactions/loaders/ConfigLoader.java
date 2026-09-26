@@ -13,6 +13,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.map.export.ChapterIdentity;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleLootMode;
 import net.tfminecraft.simplefactions.war.battle.enums.DefenderRespawnMode;
@@ -36,7 +37,11 @@ public class ConfigLoader {
 		Cache.prestigeFromTradeFalloff = config.getDouble("prestige-from-trade-falloff", 0.1);
 		Cache.prosperitySoftCap = config.getDouble("prosperity-soft-cap", 80);
 		Cache.prosperitySoftCapScale = config.getDouble("prosperity-soft-cap-scale", 20);
-		Cache.maxTradeUpkeep = config.getDouble("max-trade-upkeep", 0.75);
+		double maxTradeUpkeep = config.getDouble("max-trade-upkeep", TradeUpkeep.DEFAULT_MAX);
+		if (maxTradeUpkeep < 0) {
+			Bukkit.getLogger().warning("[SimpleFactions] max-trade-upkeep cannot be negative, using " + TradeUpkeep.DEFAULT_MAX);
+		}
+		Cache.maxTradeUpkeep = TradeUpkeep.sanitizeMax(maxTradeUpkeep);
 		Cache.maxPlaytimePrestigeExponent = config.getDouble("max-prestige-playtime-exponent", 5);
 		Cache.bankBlock = config.getString("bank-block", "v.lodestone");
 		Cache.maxExtraNodeCapacity = config.getInt("max-extra-node-capacity", 0);
