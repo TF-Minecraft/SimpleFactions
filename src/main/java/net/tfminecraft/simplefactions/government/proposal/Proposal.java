@@ -267,7 +267,7 @@ public class Proposal {
             } else if (isTaxProposal() && tax != null) {
                 TaxTarget target = tax.getTarget();
                 if (target == TaxTarget.TARIFFS || target == TaxTarget.TARIFF_ID) {
-                    EconomicImpact.applyTariffImpact(econ, p, f, tax.getNewTax(), true, meta, true);
+                    EconomicImpact.applyTariffImpact(econ, p, f, tax.getId(), tax.getNewTax(), true, meta, true);
                 } else {
                     EconomicImpact.applyTaxImpact(econ, p, f, target, tax.getId(), tax.getNewTax(), true, meta, true);
                 }

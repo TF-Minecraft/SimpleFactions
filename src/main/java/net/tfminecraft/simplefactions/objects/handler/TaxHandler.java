@@ -36,14 +36,6 @@ public class TaxHandler {
         this.tariffs = tariffs;
     }
 
-    public boolean hasTariffs() {
-        IncomePreviewContext context = IncomePreviewContext.current();
-        if (context != null && context.affects(f)) {
-            return context.adjustTax(f, this, TaxTarget.TARIFFS, null, tariffs) > 0;
-        }
-        return tariffs > 0;
-    }
-
     public void setTariffs(double tariffs) {
         this.tariffs = tariffs;
     }
@@ -128,7 +120,8 @@ public class TaxHandler {
         double rate =  switch (target) {
             case CITIZENS -> citizenTax;
             case DIVIDENDS -> dividendTax;
-            case TARIFFS -> tariffs;
+            case TARIFFS -> (id != null && hasSpecificTax(target, id))
+                ? getSpecificTax(target, id) : tariffs;
 
             case GUILDS -> (id != null && hasSpecificTax(target, id))
                 ? getSpecificTax(target, id) : guildTax;
@@ -196,6 +189,7 @@ public class TaxHandler {
 
             case TARIFFS:
                 tariffs = applyBracket(tariffs, bracket);
+                applySpecificBracket(target, bracket);
                 break;
 
             default:

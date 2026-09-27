@@ -25,6 +25,7 @@ import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.war.resolution.PillageTradeHit;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
+import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
 import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 
@@ -166,10 +167,10 @@ public class ProvinceManager {
             Faction owner = TitleManager.getByProvince(province.getId());
             if(owner != null) {
                 if(save) guild.getTradeBreakdown().registerIncome(owner, provinceIncome);
-                if(owner.getTaxHandler().hasTariffs() && !RelationManager.sameRealm(owner, guild.getFaction())){
+                if(!RelationManager.sameRealm(owner, guild.getFaction())){
                     double provinceTariffs = provinceIncome*owner.getTaxRate(TaxTarget.TARIFFS, guild.getFaction().getId(), true)/100.0;
                     tariffs+=provinceTariffs;
-                    if(save) {
+                    if(save && provinceTariffs > 0) {
                         guild.getTradeBreakdown().registerTariffs(owner, provinceTariffs);
                     }
                 }
@@ -247,18 +248,18 @@ public class ProvinceManager {
      * since tariffs don't affect trade distribution.
      * 
      * @param faction The faction changing its tariff rate
+     * @param targetId The faction a specific tariff applies to, or null for the base rate
      * @param newTariffRate The new tariff rate (0-100)
      * @return Map of guilds to their tariff impact (negative = lose income, positive = gain income)
      */
-    public Map<Guild, Double> previewTariffRateChange(Faction faction, double newTariffRate) {
+    public Map<Guild, Double> previewTariffRateChange(Faction faction, String targetId, double newTariffRate) {
         Map<Guild, Double> impacts = new HashMap<>();
+        TaxHandler taxHandler = faction.getTaxHandler();
         
         // Initialize all guilds with 0 impact
         for (Guild guild : FactionManager.getAllGuilds()) {
             impacts.put(guild, 0.0);
         }
-        
-        double oldTariffRate = faction.getTaxHandler().getTariffs();
         
         // Loop through all provinces
         for (Province province : provinces.values()) {
@@ -270,11 +271,16 @@ public class ProvinceManager {
             for (Guild guild : FactionManager.getAllGuilds()) {
                 // Skip guilds in same realm (no tariffs within realm)
                 if (RelationManager.sameRealm(faction, guild.getFaction())) continue;
+                String guildFactionId = guild.getFaction().getId();
+                // A specific tariff only hits its target; a base change skips factions with their own rate
+                if (targetId != null ? !targetId.equalsIgnoreCase(guildFactionId)
+                        : taxHandler.hasSpecificTax(TaxTarget.TARIFFS, guildFactionId)) continue;
                 
                 double provinceIncome = province.getIncome(guild);
                 if (provinceIncome == 0) continue;
                 
                 // Calculate tariff impact delta
+                double oldTariffRate = taxHandler.getTaxRate(TaxTarget.TARIFFS, guildFactionId, false);
                 double oldTariff = provinceIncome * (oldTariffRate / 100.0);
                 double newTariff = provinceIncome * (newTariffRate / 100.0);
                 double tariffDelta = -(newTariff - oldTariff); // Negative because it reduces guild income
