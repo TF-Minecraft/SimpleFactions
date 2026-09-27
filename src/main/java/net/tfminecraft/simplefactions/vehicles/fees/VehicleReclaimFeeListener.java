@@ -8,6 +8,8 @@ import org.bukkit.event.Listener;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
+import net.tfminecraft.vehicleframework.data.VehicleRemovePayload;
+import net.tfminecraft.vehicleframework.enums.VehicleRemoveReason;
 import net.tfminecraft.vehicleframework.events.VehicleOwnerClaimedEvent;
 import net.tfminecraft.vehicleframework.events.VehicleRemoveEvent;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
@@ -71,9 +73,24 @@ public final class VehicleReclaimFeeListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onVehicleRemove(VehicleRemoveEvent event) {
-        if (event.getVehicle() != null && store.getLastOwner(event.getVehicle().getUUID()) != null) {
+        if (event.getVehicle() == null || !isDestroyed(event.getPayload())) {
+            return;
+        }
+        if (store.getLastOwner(event.getVehicle().getUUID()) != null) {
             store.forgetVehicle(event.getVehicle().getUUID());
             saver.run();
         }
+    }
+
+    /** Chunk unloads also fire VehicleRemoveEvent; only a vehicle that is gone for good is forgotten. */
+    static boolean isDestroyed(VehicleRemovePayload payload) {
+        if (payload == null) {
+            return false;
+        }
+        if (payload.isDeath()) {
+            return true;
+        }
+        VehicleRemoveReason reason = payload.getRemoveReason().orElse(null);
+        return reason == VehicleRemoveReason.PLAYER_DESTROY || reason == VehicleRemoveReason.ADMIN_KILL;
     }
 }

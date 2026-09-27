@@ -202,8 +202,8 @@ public class VehicleFeeView {
         String target = vehicleTypeId == null ? "all vehicles" : vehicleTypeId;
         String unit = kind.isPercent() ? "a percentage of upkeep" : "a multiple of upkeep";
         p.sendTitle("§a" + kind.getDisplayName(), "§eType a new rate for " + target + " §ein chat.", 20, 40, 20);
-        p.sendMessage("§eType the new " + kind.getDisplayName() + " for " + target + " as " + unit
-                + " §7(" + rangeText(f.getVehicleFeeHandler(), kind) + "§7)§e, or §ccancel§e.");
+        p.sendMessage(StringFormatter.formatHex("§eType the new " + kind.getDisplayName() + " for " + target
+                + " as " + unit + " §7(" + rangeText(f.getVehicleFeeHandler(), kind) + "§7)§e, or §ccancel§e."));
         p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
         p.closeInventory();
     }
