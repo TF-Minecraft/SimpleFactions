@@ -27,6 +27,7 @@ import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.branch.BranchModifier;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
+import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
@@ -484,31 +485,12 @@ public class GuildCreator {
 	// Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
 	@SuppressWarnings({"deprecation"})
 	public ItemStack createLedgerCitizensItem(Guild g) {
-		Ledger ledger = g.getLedger();
-
 		ItemStack i = new ItemStack(Material.PLAYER_HEAD);
 		ItemMeta m = i.getItemMeta();
 		m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 		m.setDisplayName(StringFormatter.formatHex("#94b572Citizens"));
-
-		List<String> lore = new ArrayList<>();
-		lore.add(StringFormatter.formatHex("#7a706aTop contributors"));
-		lore.add("");
-
-		int count = 0;
-		for (var entry : ledger.getCitizenTaxEntriesDescending()) {
-			if (count++ >= 5) break;
-			lore.add(StringFormatter.formatHex(
-				"#d4c9ae" + entry.getKey()
-				+ "#7a706a: #7fbd73+"
-				+ String.format("%.2f", entry.getValue()) + "d"
-			));
-		}
-
-		if (count == 0)
-			lore.add(StringFormatter.formatHex("#7a706aNo citizen taxes."));
-
-		m.setLore(lore);
+		m.setLore(ledgerSourceLore(g, LedgerHistory.Source.CITIZENS, "Top contributors",
+				g.getLedger().getCitizenTaxesCopy(), "No citizen taxes."));
 		i.setItemMeta(m);
 		return i;
 	}
@@ -520,30 +502,16 @@ public class GuildCreator {
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName(StringFormatter.formatHex("#b89448Guild Taxes"));
 
-		List<String> lore = new ArrayList<>();
-		lore.add(StringFormatter.formatHex("#7a706aPaying guilds"));
-		lore.add("");
-
-		int count = 0;
+		Map<String, Double> today = new HashMap<>();
 		for (Guild sub : g.getFaction().getGuildHandler().getGuilds()) {
 			if (sub.isBase()) continue;
 
 			double paid = Math.abs(sub.getLedger().getIncome(Cashflow.GUILD_PAYMENTS));
 			if (paid <= 0) continue;
-
-			lore.add(StringFormatter.formatHex(
-				"#d4c9ae" + sub.getName()
-				+ "#7a706a: #7fbd73+"
-				+ String.format("%.2f", paid) + "d"
-			));
-
-			if (++count >= 5) break;
+			today.merge(sub.getName(), paid, Double::sum);
 		}
 
-		if (count == 0)
-			lore.add(StringFormatter.formatHex("#7a706aNo guild taxes."));
-
-		m.setLore(lore);
+		m.setLore(ledgerSourceLore(g, LedgerHistory.Source.GUILD_TAXES, "Paying guilds", today, "No guild taxes."));
 		i.setItemMeta(m);
 		return i;
 	}
@@ -555,29 +523,15 @@ public class GuildCreator {
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName(StringFormatter.formatHex("#7299b5Vassals"));
 
-		List<String> lore = new ArrayList<>();
-		lore.add(StringFormatter.formatHex("#7a706aSubject contributions"));
-		lore.add("");
-
-		int count = 0;
+		Map<String, Double> today = new HashMap<>();
 		for (Faction v : RelationManager.getSubjects(g.getFaction())) {
 			Guild vg = v.getOrCreateMainGuild();
 			double paid = Math.abs(vg.getLedger().getIncome(Cashflow.OVERLORD_TAX));
 			if (paid <= 0) continue;
-
-			lore.add(StringFormatter.formatHex(
-				"#d4c9ae" + v.getName()
-				+ "#7a706a: #7fbd73+"
-				+ String.format("%.2f", paid) + "d"
-			));
-
-			if (++count >= 5) break;
+			today.merge(v.getName(), paid, Double::sum);
 		}
 
-		if (count == 0)
-			lore.add(StringFormatter.formatHex("#7a706aNo vassal income."));
-
-		m.setLore(lore);
+		m.setLore(ledgerSourceLore(g, LedgerHistory.Source.VASSALS, "Subject contributions", today, "No vassal income."));
 		i.setItemMeta(m);
 		return i;
 	}
@@ -591,12 +545,8 @@ public class GuildCreator {
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName(StringFormatter.formatHex("#ab8568Tributes"));
 
-		List<String> lore = new ArrayList<>();
-		lore.add(StringFormatter.formatHex("#7a706aTop tribute payers"));
-		lore.add("");
-
 		// payerFaction -> amount
-		HashMap<Faction, Double> received = new HashMap<>();
+		Map<String, Double> today = new HashMap<>();
 
 		for (Faction payer : FactionManager.getCopy()) { // or FactionManager.factions if you prefer
 			if (payer == null) continue;
@@ -605,7 +555,7 @@ public class GuildCreator {
 			Guild payerGuild = payer.getOrCreateMainGuild();
 			if (payerGuild == null) continue;
 
-			double base = payerGuild.getLedger().getGrossTaxableIncome();
+			double base = payerGuild.getLedger().getInternalTaxableIncome();
 			if (base <= 0) continue;
 
 			double totalFromPayer = 0.0;
@@ -619,29 +569,11 @@ public class GuildCreator {
 			}
 
 			if (totalFromPayer > 0) {
-				received.put(payer, totalFromPayer);
+				today.merge(payer.getName(), totalFromPayer, Double::sum);
 			}
 		}
 
-		// sort by value desc
-		List<Map.Entry<Faction, Double>> top = new ArrayList<>(received.entrySet());
-		top.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
-
-		int shown = 0;
-		for (var e : top) {
-			lore.add(StringFormatter.formatHex(
-				"#d4c9ae" + e.getKey().getName()
-				+ "#7a706a: #7fbd73+"
-				+ String.format("%.2f", e.getValue()) + "d"
-			));
-			if (++shown >= 5) break;
-		}
-
-		if (shown == 0) {
-			lore.add(StringFormatter.formatHex("#7a706aNo tributes received."));
-		}
-
-		m.setLore(lore);
+		m.setLore(ledgerSourceLore(g, LedgerHistory.Source.TRIBUTES, "Top tribute payers", today, "No tributes received."));
 		i.setItemMeta(m);
 		return i;
 	}
@@ -653,26 +585,61 @@ public class GuildCreator {
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName(StringFormatter.formatHex("#5cc46aTariffs"));
 
-		List<String> lore = new ArrayList<>();
-		lore.add(StringFormatter.formatHex("#7a706aTop tariff payers"));
-		lore.add("");
-
 		// payerFaction -> tariffs its guilds pay us
-		HashMap<Faction, Double> received = new HashMap<>();
+		Map<String, Double> today = new HashMap<>();
 		for (Guild payer : FactionManager.getAllGuilds()) {
 			if (payer == null || payer.getFaction() == null) continue;
 			double paid = payer.getTradeBreakdown().getTariffsByFaction(g.getFaction());
 			if (paid <= 0) continue;
-			received.merge(payer.getFaction(), paid, Double::sum);
+			today.merge(payer.getFaction().getName(), paid, Double::sum);
 		}
 
-		List<Map.Entry<Faction, Double>> top = new ArrayList<>(received.entrySet());
-		top.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+		m.setLore(ledgerSourceLore(g, LedgerHistory.Source.TARIFFS, "Top tariff payers", today, "No tariff income."));
+		i.setItemMeta(m);
+		return i;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createLedgerDepositsItem(Guild g) {
+		ItemStack i = new ItemStack(Material.CHEST);
+		ItemMeta m = i.getItemMeta();
+		m.setDisplayName(StringFormatter.formatHex("#c9a25eDeposits"));
+
+		List<String> lore = new ArrayList<>();
+		lore.add(StringFormatter.formatHex("#4c5250§oMember deposits into the bank"));
+		lore.add(StringFormatter.formatHex("#4c5250§oTracked only, not part of daily income"));
+		lore.addAll(ledgerSourceLore(g, LedgerHistory.Source.DEPOSITS, "Top depositors",
+				g.getLedger().getHistory().getDepositsToday(), "No deposits today."));
+		m.setLore(lore);
+		i.setItemMeta(m);
+		return i;
+	}
+
+	private static List<String> ledgerSourceLore(Guild g, LedgerHistory.Source source, String title,
+			Map<String, Double> today, String emptyToday) {
+		LedgerHistory history = g.getLedger().getHistory();
+		List<String> lore = new ArrayList<>();
+		lore.add(StringFormatter.formatHex("#7a706a" + title));
+		addLedgerSourceSection(lore, "Today", today, emptyToday);
+		addLedgerSourceSection(lore, "Last day", history.getLastDay(source), "Nothing last day.");
+		addLedgerSourceSection(lore, "Lifetime", history.getLifetime(source), "Nothing yet.");
+		return lore;
+	}
+
+	private static void addLedgerSourceSection(List<String> lore, String header, Map<String, Double> amounts, String empty) {
+		lore.add("");
+		lore.add(StringFormatter.formatHex(
+			"#f2e5c2" + header
+			+ "#7a706a: #7fbd73+"
+			+ String.format("%.2f", LedgerHistory.total(amounts)) + "d"
+		));
 
 		int count = 0;
-		for (var e : top) {
+		for (var e : LedgerHistory.descending(amounts)) {
+			if (e.getValue() <= 0) continue;
 			lore.add(StringFormatter.formatHex(
-				"#d4c9ae" + e.getKey().getName()
+				"#d4c9ae" + e.getKey()
 				+ "#7a706a: #7fbd73+"
 				+ String.format("%.2f", e.getValue()) + "d"
 			));
@@ -681,11 +648,7 @@ public class GuildCreator {
 		}
 
 		if (count == 0)
-			lore.add(StringFormatter.formatHex("#7a706aNo tariff income."));
-
-		m.setLore(lore);
-		i.setItemMeta(m);
-		return i;
+			lore.add(StringFormatter.formatHex("#7a706a" + empty));
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.

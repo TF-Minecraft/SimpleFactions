@@ -26,6 +26,8 @@ import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.Ledger;
+import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
@@ -506,6 +508,10 @@ public class FactionManager implements Listener{
 		runDailyStep("mercenary accrual", () ->
 				net.tfminecraft.simplefactions.mercenary.contract.ContractAccrualService.accrueDailyAndPush());
 
+		// Read the ledger view history before Phase 1 clears the day's citizen taxes.
+		Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> history = new HashMap<>();
+		runDailyStep("ledger history", () -> history.putAll(Ledger.collectHistoryDay(getAllGuilds())));
+
 		// Phase 1: collect transfers & external deltas
 		for (Guild g : getAllGuilds()) {
 			if (g == null || g.getLedger() == null) continue;
@@ -550,6 +556,11 @@ public class FactionManager implements Listener{
 					if(guild.getSize() >= before) break;
 				}
 			});
+		}
+
+		for (Guild g : getAllGuilds()) {
+			if (g == null || g.getLedger() == null) continue;
+			runDailyStep("ledger history " + g.getId(), () -> g.getLedger().getHistory().closeDay(history.get(g)));
 		}
 
 		PostSettlementPayouts.apply(

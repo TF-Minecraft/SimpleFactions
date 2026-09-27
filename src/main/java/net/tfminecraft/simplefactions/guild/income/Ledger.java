@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.guild.income;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,8 @@ public class Ledger {
 
     // Vehicle tax and fees collected today, already in the bank. Saved like casinoProfit.
     private double vehicleFeeIncome;
+
+    private final LedgerHistory history = new LedgerHistory();
 
     // Dowsing registers this as the daily upkeep of the guild's active nodes; unset means no
     // nodes plugin, so the line is 0. Settlement charges exactly what this reports.
@@ -167,6 +170,10 @@ public class Ledger {
     /** Seeded from disk at load, so the day's line survives a restart. */
     public void setVehicleFeeIncome(double amount) {
         vehicleFeeIncome = amount;
+    }
+
+    public LedgerHistory getHistory() {
+        return history;
     }
 
     public double getIncome(Cashflow cashflow) {
@@ -732,7 +739,7 @@ public class Ledger {
      * war reparations, vassal guild rollups). Used as the base for tribute and
      * reparations so ledger queries cannot recurse between factions.
      */
-    double getInternalTaxableIncome() {
+    public double getInternalTaxableIncome() {
         if (skipsMoneyMovement()) {
             return 0.0;
         }
@@ -777,11 +784,68 @@ public class Ledger {
      * Bankruptcy freezes a guild. A missing bank is not bankruptcy, but it also
      * cannot pay or receive, so settlement must skip it instead of throwing.
      */
-    private boolean skipsMoneyMovement() {
+    boolean skipsMoneyMovement() {
         if (guild.isBankrupt()) {
             return true;
         }
         return guild.getBank() == null;
+    }
+
+    /**
+     * What each capital is about to receive per ledger view source, walked from the payer side
+     * as {@link #applySettlementFor} moves it. Read before settlement clears the day.
+     */
+    public static Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> collectHistoryDay(Iterable<Guild> guilds) {
+        Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> out = new HashMap<>();
+        for (Guild payer : guilds) {
+            if (payer == null || payer.getLedger() == null) continue;
+            Ledger ledger = payer.getLedger();
+            Faction f = payer.getFaction();
+            if (f == null || ledger.skipsMoneyMovement()) continue;
+
+            if (payer.isBase()) {
+                ledger.citizenTaxes.forEach((name, tax) ->
+                        recordHistory(out, payer, LedgerHistory.Source.CITIZENS, name, tax));
+
+                Faction overlord = f.getOverlord();
+                if (overlord != null) {
+                    recordHistory(out, overlord.getOrCreateMainGuild(), LedgerHistory.Source.VASSALS,
+                            f.getName(), Math.abs(ledger.getIncome(Cashflow.OVERLORD_TAX)));
+                }
+
+                if (f.getModifiers() != null) {
+                    double base = ledger.getInternalTaxableIncome();
+                    for (FactionModifier mod : f.getModifiers()) {
+                        if (mod.getFrom() == null) continue;
+                        if (!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
+                        recordHistory(out, mod.getFrom().getOrCreateMainGuild(), LedgerHistory.Source.TRIBUTES,
+                                f.getName(), base * (mod.getAmount() / 100.0));
+                    }
+                }
+            } else {
+                recordHistory(out, f.getOrCreateMainGuild(), LedgerHistory.Source.GUILD_TAXES,
+                        payer.getName(), Math.abs(ledger.getIncome(Cashflow.GUILD_PAYMENTS)));
+            }
+
+            TradeBreakdown trade = payer.getTradeBreakdown();
+            if (trade != null && trade.getTariffsByFactionMap() != null) {
+                for (Map.Entry<Faction, Double> entry : trade.getTariffsByFactionMap().entrySet()) {
+                    if (entry.getKey() == null || entry.getValue() == null) continue;
+                    recordHistory(out, entry.getKey().getOrCreateMainGuild(), LedgerHistory.Source.TARIFFS,
+                            f.getName(), entry.getValue());
+                }
+            }
+        }
+        return out;
+    }
+
+    private static void recordHistory(Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> out,
+                                      Guild receiver, LedgerHistory.Source source, String name, Double amount) {
+        if (receiver == null || receiver.getBank() == null) return;
+        if (name == null || amount == null || amount <= 0) return;
+        out.computeIfAbsent(receiver, g -> new EnumMap<>(LedgerHistory.Source.class))
+                .computeIfAbsent(source, s -> new HashMap<>())
+                .merge(name, amount, Double::sum);
     }
 
     public void populateDailyTransfers(DailyGuildTransfers buffer) {

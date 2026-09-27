@@ -130,6 +130,7 @@ public class GuildView {
 			i.setItem(12, creator.createLedgerVassalsItem(guild));
 			i.setItem(13, creator.createLedgerTributesItem(guild));
 			i.setItem(14, creator.createLedgerTariffsItem(guild));
+			i.setItem(15, creator.createLedgerDepositsItem(guild));
 		}
 		i.setItem(26, inv.createBackButton(SFGUI.LEDGER_VIEW));
 		if(open) player.openInventory(i);
