@@ -23,6 +23,7 @@ import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.MercenaryInviteRequest;
 import net.tfminecraft.simplefactions.tiers.Title;
+import net.tfminecraft.simplefactions.tiers.admin.TitleAdminCommand;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.laws.LawGroup;
@@ -162,6 +163,12 @@ public class TabCompletion implements TabCompleter{
 
     @Override
     public List<String> onTabComplete (CommandSender sender, Command cmd, String label, String[] args){
+		if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase(TitleAdminCommand.SUBCOMMAND)) {
+			if(!Permissions.isAdmin(sender) || !Cache.provincesEnabled) {
+				return new ArrayList<>();
+			}
+			return TitleAdminCommand.complete(args);
+		}
 		if(cmd.getName().equalsIgnoreCase("company")) {
 			if(sender instanceof Player p) {
 				return completeCompany(p, args);
@@ -329,6 +336,7 @@ public class TabCompletion implements TabCompleter{
 						completions.add("destroytitle");
 						completions.add("granttitle");
 						completions.add("usurp");
+						completions.add(TitleAdminCommand.SUBCOMMAND);
 					}
 					completions.add("reloadconfigs");
 					completions.add("transfersubject");

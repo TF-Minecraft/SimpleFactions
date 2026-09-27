@@ -39,6 +39,7 @@ import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.ConstructResult;
 import net.tfminecraft.simplefactions.settlement.handler.CapitalResult;
 import net.tfminecraft.simplefactions.tiers.Title;
+import net.tfminecraft.simplefactions.tiers.admin.TitleAdminCommand;
 import net.tfminecraft.simplefactions.utils.DisplayNameGate;
 import net.tfminecraft.simplefactions.utils.DisplayNameGate.NameOperation;
 import net.tfminecraft.simplefactions.utils.Formatter;
@@ -60,6 +61,10 @@ public class CommandManager implements Listener, CommandExecutor{
 	
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+		// Title editing is staff-only and also works from the console.
+		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase(TitleAdminCommand.SUBCOMMAND)) {
+			return TitleAdminCommand.handle(sender, args);
+		}
 		if(sender instanceof Player) {
 			Player p = (Player) sender;
 			if((cmd.getName().equalsIgnoreCase(cmd1) || cmd.getName().equalsIgnoreCase(cmd2)) && args.length < 1) {

@@ -50,6 +50,11 @@ public class ProvinceManager {
         return provinces.getOrDefault(id, new Province());
     }
 
+    /** {@link #get} never returns null, so use this to check an id against provinces.txt. */
+    public boolean contains(int id) {
+        return provinces.containsKey(id);
+    }
+
     public void start(Map<Integer, Province> map) {
         provinces = map;
     }
