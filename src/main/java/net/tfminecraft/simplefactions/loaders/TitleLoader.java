@@ -8,6 +8,8 @@ import net.tfminecraft.simplefactions.tiers.Title;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public class TitleLoader {
@@ -80,6 +82,62 @@ public class TitleLoader {
     	return list;
     }
     
+    /** Writes one title's current state back to its tier file, keeping the other entries and their order. */
+    public static boolean saveTitle(Title title) {
+        return saveTitle(title, inputFolder);
+    }
+
+    static boolean saveTitle(Title title, File folder) {
+        File file = new File(folder, title.getTier().getId().toLowerCase() + ".json");
+        JsonObject root = new JsonObject();
+        if (file.exists()) {
+            try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
+                root = JsonParser.parseReader(reader).getAsJsonObject();
+            } catch (Exception e) {
+                // Never overwrite a file we could not read: that would drop every other title in the tier.
+                e.printStackTrace();
+                return false;
+            }
+        }
+        JsonObject entry = root.has(title.getId()) && root.get(title.getId()).isJsonObject()
+                ? root.getAsJsonObject(title.getId())
+                : new JsonObject();
+        writeEntry(entry, title);
+        root.add(title.getId(), entry);
+
+        File tmp = new File(folder, file.getName() + ".tmp");
+        try {
+            folder.mkdirs();
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
+                new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
+            }
+            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            tmp.delete();
+            return false;
+        }
+    }
+
+    static void writeEntry(JsonObject entry, Title title) {
+        if (title.getName() != null) entry.addProperty("name", title.getName());
+        if (title.getRgb() != null) entry.addProperty("rgb", title.getRgb());
+        if (entry.has("title-complete") || title.isTitleComplete()) {
+            entry.addProperty("title-complete", String.valueOf(title.isTitleComplete()));
+        }
+        if (entry.has("provinces") || !title.getProvinces().isEmpty()) {
+            JsonArray provinceArray = new JsonArray();
+            for (int provinceId : title.getProvinces()) provinceArray.add(provinceId);
+            entry.add("provinces", provinceArray);
+        }
+        if (entry.has("titles") || !title.getTitles().isEmpty()) {
+            JsonArray titleArray = new JsonArray();
+            for (String titleId : title.getTitles()) titleArray.add(titleId);
+            entry.add("titles", titleArray);
+        }
+    }
+
     //Create new
     
     public static Title createNewTitle(Tier tier, String id, String name, String rgb, List<Integer> provinces, List<String> usedTitles, boolean titleComplete) {

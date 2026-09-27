@@ -84,7 +84,19 @@ public class Title {
 	public List<String> getTitles() {
 		return titles;
 	}
-	
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setRgb(String rgb) {
+		this.rgb = rgb;
+	}
+
+	public void setTitleComplete(boolean titleComplete) {
+		this.titleComplete = titleComplete;
+	}
+
 	public boolean canGrant(Faction f) {
 		return f.getTitles(tier).size() >= 2;
 	}
