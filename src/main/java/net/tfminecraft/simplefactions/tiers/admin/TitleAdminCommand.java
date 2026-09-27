@@ -106,7 +106,7 @@ public final class TitleAdminCommand {
 	}
 
 	private static boolean provinceExists(int id) {
-		return SimpleFactions.getInstance().getProvinceManager().get(id) != null;
+		return SimpleFactions.getInstance().getProvinceManager().contains(id);
 	}
 
 	private static void apply(CommandSender sender, TitleAdminService.Result result) {
