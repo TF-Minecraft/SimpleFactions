@@ -271,6 +271,17 @@ public class SettlementHandler {
         return population;
     }
 
+    /** Players in the guilds whose capital is this settlement. */
+    public int populationSize(Settlement settlement) {
+        int total = 0;
+        for (Guild guild : getPopulation(settlement)) {
+            if (guild.getMembers() != null) {
+                total += guild.getMembers().size();
+            }
+        }
+        return total;
+    }
+
     public void validate() {
         List<Settlement> snapshot = new ArrayList<>(byId.values());
         for (Settlement s : snapshot) {

@@ -22,6 +22,10 @@ public final class Markers {
     private Markers() {
     }
 
+    static String markerSizeForPopulation(int population) {
+        return population > Cache.settlementLargePopulationThreshold ? "large" : "small";
+    }
+
     public static void export(File out) throws IOException {
         JsonObject root = new JsonObject();
         root.addProperty("map_id", Cache.mapRef);
@@ -41,8 +45,8 @@ public final class Markers {
                 row.addProperty("center_x", settlement.getCenterX());
                 row.addProperty("center_z", settlement.getCenterZ());
 
-                int population = faction.getSettlementHandler().getPopulation(settlement).size();
-                String markerSize = population > Cache.settlementLargePopulationThreshold ? "large" : "small";
+                int population = faction.getSettlementHandler().populationSize(settlement);
+                String markerSize = markerSizeForPopulation(population);
                 row.addProperty("population", population);
                 row.addProperty("marker_size", markerSize);
 
