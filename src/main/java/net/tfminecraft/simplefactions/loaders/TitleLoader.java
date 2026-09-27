@@ -109,11 +109,11 @@ public class TitleLoader {
         try {
             folder.mkdirs();
             try (Writer writer = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
-                new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
+                new GsonBuilder().serializeNulls().setPrettyPrinting().create().toJson(root, writer);
             }
             Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return true;
-        } catch (IOException e) {
+        } catch (IOException | JsonIOException e) {
             e.printStackTrace();
             tmp.delete();
             return false;

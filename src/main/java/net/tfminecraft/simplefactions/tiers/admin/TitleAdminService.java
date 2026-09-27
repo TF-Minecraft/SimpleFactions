@@ -180,7 +180,13 @@ public final class TitleAdminService {
 					+ " can only contain titles one tier below it");
 		}
 		if (containsId(parent.getTitles(), child.getId())) return Result.error(parent.getId() + " already contains " + child.getId());
-		Title previous = TitleLoader.getByTitle(child);
+		Title previous = null;
+		for (Title t : TitleLoader.getTitles()) {
+			if (t != parent && containsId(t.getTitles(), child.getId())) {
+				previous = t;
+				break;
+			}
+		}
 		if (previous != null && previous.getTitles().size() <= 1 && previous.getProvinces().isEmpty()) {
 			return Result.error("Moving " + child.getId() + " would leave " + previous.getId() + " empty");
 		}

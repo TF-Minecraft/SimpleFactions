@@ -27,7 +27,7 @@ class TitleLoaderSaveTest {
 	void saveKeepsOtherEntriesTheirOrderAndUnknownFields() throws Exception {
 		Files.writeString(folder.resolve("county.json"),
 				"{\"COUNTY_1\": {\"name\": \"Urseilos\", \"provinces\": [3, 1], \"rgb\": \"1,1,1\", \"note\": \"keep me\"},"
-						+ " \"COUNTY_2\": {\"name\": \"Ardentos\", \"provinces\": [4], \"rgb\": \"2,2,2\"}}",
+						+ " \"COUNTY_2\": {\"name\": \"Ardentos\", \"provinces\": [4], \"rgb\": \"2,2,2\", \"legacy\": null}}",
 				StandardCharsets.UTF_8);
 		Title title = title("{\"name\":\"Urseilos\",\"provinces\":[3,1],\"rgb\":\"1,1,1\"}");
 		title.setName("New Urseilos");
@@ -44,6 +44,7 @@ class TitleLoaderSaveTest {
 		assertFalse(saved.has("title-complete"));
 		assertFalse(saved.has("titles"));
 		assertEquals("Ardentos", root.getAsJsonObject("COUNTY_2").get("name").getAsString());
+		assertTrue(root.getAsJsonObject("COUNTY_2").has("legacy"), "null-valued fields in other entries are kept");
 		assertFalse(Files.exists(folder.resolve("county.json.tmp")));
 	}
 

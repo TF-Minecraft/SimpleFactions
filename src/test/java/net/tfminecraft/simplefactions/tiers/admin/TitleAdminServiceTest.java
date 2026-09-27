@@ -147,6 +147,15 @@ class TitleAdminServiceTest {
 	}
 
 	@Test
+	void addTitleFindsTheOldParentWhateverTheIdCase() {
+		duchy1.getTitles().set(1, "county_2");
+
+		assertTrue(TitleAdminService.addTitle("DUCHY_2", "COUNTY_2").ok());
+		assertEquals(List.of("COUNTY_1"), duchy1.getTitles());
+		assertEquals(List.of("COUNTY_3", "COUNTY_2"), duchy2.getTitles());
+	}
+
+	@Test
 	void addTitleChecksTiersAndEmptyParents() {
 		assertFalse(TitleAdminService.addTitle("DUCHY_1", "DUCHY_2").ok());
 		assertFalse(TitleAdminService.addTitle("COUNTY_1", "COUNTY_2").ok());
