@@ -83,9 +83,9 @@ public final class VehicleRegistrationFeeListener implements Listener {
                 build.payerUuid(), build.factionId(), FeeKind.REGISTRATION_FEE, build.amount());
         double shortfall = Formatter.formatDouble(build.amount() - refunded);
         if (shortfall > 0.0 && SimpleFactions.getInstance() != null) {
-            // The faction has spent it; there is nothing to hold it against, so staff are told instead.
+            // The faction bank may be short or the deposit may have failed; either way staff are told.
             SimpleFactions.getInstance().getLogger().warning("Registration fee refund short by " + shortfall
-                    + " for " + build.payerUuid() + ": faction " + build.factionId() + " could not cover it");
+                    + " for " + build.payerUuid() + " from faction " + build.factionId());
         }
         Player payer = Bukkit.getPlayer(build.payerUuid());
         if (payer != null && payer.isOnline()) {

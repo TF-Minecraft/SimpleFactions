@@ -35,8 +35,7 @@ public final class VehicleFeeMessages {
     }
 
     public static String registrationRefundShort(double amount) {
-        return "§c" + amount(amount) + " §cof your registration fee could not be refunded because your faction's "
-                + "bank is short. Ask your faction leader or staff.";
+        return "§c" + amount(amount) + " §cof your registration fee could not be refunded. Ask staff to look into it.";
     }
 
     public static String claimConfirm(Quote quote, String lastOwner) {
