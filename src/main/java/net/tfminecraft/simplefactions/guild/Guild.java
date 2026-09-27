@@ -216,6 +216,9 @@ public class Guild {
         this.wealth = 0.0;
         this.wealthModifiers = Database.loadModifiers(data.wealthModifiers);
         this.ledger = new Ledger(this);
+        if (data.vehicleFeeIncome != null) {
+            this.ledger.setVehicleFeeIncome(data.vehicleFeeIncome);
+        }
         if (data.casinoProfit != null) {
             this.ledger.setCasinoProfit(data.casinoProfit);
         }

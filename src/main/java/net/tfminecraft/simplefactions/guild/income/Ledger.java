@@ -50,6 +50,9 @@ public class Ledger {
     // so a restart cannot quietly wipe a day of gambling income before it is taxed.
     private double casinoProfit;
 
+    // Vehicle tax and fees collected today, already in the bank. Saved like casinoProfit.
+    private double vehicleFeeIncome;
+
     // Dowsing registers this as the daily upkeep of the guild's active nodes; unset means no
     // nodes plugin, so the line is 0. Settlement charges exactly what this reports.
     private static ToDoubleFunction<Guild> nodeUpkeepLookup = guild -> 0.0;
@@ -147,6 +150,23 @@ public class Ledger {
     /** Seeded from disk at load, so an unsettled day survives a restart. */
     public void setCasinoProfit(double amount) {
         casinoProfit = Math.max(0, amount);
+    }
+
+    /**
+     * Vehicle tax or a fee paid into this faction's bank (negative for a refund). The denars
+     * move when this is called; the ledger only shows them.
+     */
+    public void addVehicleFeeEntry(double amount) {
+        vehicleFeeIncome += amount;
+    }
+
+    public double getVehicleFeeIncome() {
+        return vehicleFeeIncome;
+    }
+
+    /** Seeded from disk at load, so the day's line survives a restart. */
+    public void setVehicleFeeIncome(double amount) {
+        vehicleFeeIncome = amount;
     }
 
     public double getIncome(Cashflow cashflow) {
@@ -266,6 +286,12 @@ public class Ledger {
             // share up through the ordinary tax on guilds.
             case GAMBLING:
                 amount = casinoProfit;
+                break;
+            case VEHICLE_FEES:
+                if (!guild.isBase()) {
+                    return 0;
+                }
+                amount = vehicleFeeIncome;
                 break;
             case TRADE: {
                 TradeBreakdown trade = guild.getTradeBreakdown();
@@ -446,6 +472,7 @@ public class Ledger {
                 case CITIZENS:
                 case TARIFFS:
                 case GAMBLING:
+                case VEHICLE_FEES:
                 case GUILDS:
                 case VASSALS:
                 case TRIBUTES:
@@ -521,6 +548,7 @@ public class Ledger {
                 case CITIZENS:
                 case TARIFFS:
                 case GAMBLING:
+                case VEHICLE_FEES:
                 case GUILDS:
                 case VASSALS:
                 case TRIBUTES:
@@ -780,6 +808,7 @@ public class Ledger {
         interestPayments.clear();
         // Taxed once, on the day it was won.
         casinoProfit = 0;
+        vehicleFeeIncome = 0;
         // Rebuilt from the persisted buckets by every pre-pass, so clearing them for a
         // bankrupt hirer too keeps yesterday's bill from being paid twice.
         mercenaryPayments.clear();
@@ -824,6 +853,9 @@ public class Ledger {
             // Banked by the games plugin the moment a table won it, so adding a delta here would
             // pay the guild twice. It is a tax base and a ledger line, nothing more.
             case GAMBLING:
+                return;
+            // Banked by VehicleFeeService as each charge is paid.
+            case VEHICLE_FEES:
                 return;
 
             // The faction share of military upkeep is withdrawn in Faction.newDay();

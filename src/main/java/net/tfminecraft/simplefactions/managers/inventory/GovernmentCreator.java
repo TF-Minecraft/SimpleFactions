@@ -579,7 +579,8 @@ public class GovernmentCreator {
     public ItemStack createCurrentProposalItem(Player p, Faction f, Proposal proposal) {
         ItemStack item = new ItemStack(Material.BOOK);
         ItemMeta m = item.getItemMeta();
-        m.setDisplayName(StringFormatter.formatHex(proposal.isLawProposal() ? "#93c9a7Law Proposal" : "#93c9a7Tax Proposal"));
+        m.setDisplayName(StringFormatter.formatHex(proposal.isLawProposal() ? "#93c9a7Law Proposal"
+                : proposal.isFeeProposal() ? "#93c9a7Fee Proposal" : "#93c9a7Tax Proposal"));
         List<String> lore = new ArrayList<String>();
         lore.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7"+proposal.getProposer()));
         LoreWriter.applyProposalLore(proposal, lore, p, f, m);
@@ -604,6 +605,13 @@ public class GovernmentCreator {
             List<String> lore = new ArrayList<String>();
             lore.add(StringFormatter.formatHex("#b8ae61Create a proposal to change"));
             lore.add(StringFormatter.formatHex("#b8ae61the tax rate in your faction."));
+            m.setLore(lore);
+        } else if(type.equalsIgnoreCase("fee")) {
+            m.setDisplayName(StringFormatter.formatHex("#93c9a7Vehicle Fee Proposal"));
+            List<String> lore = new ArrayList<String>();
+            lore.add(StringFormatter.formatHex("#b8ae61Create a proposal to change the"));
+            lore.add(StringFormatter.formatHex("#b8ae61vehicle tax or fees, for every"));
+            lore.add(StringFormatter.formatHex("#b8ae61vehicle or just one."));
             m.setLore(lore);
         } else if(type.equalsIgnoreCase("political")) {
             m.setDisplayName(StringFormatter.formatHex("#93c9a7Political Proposal"));

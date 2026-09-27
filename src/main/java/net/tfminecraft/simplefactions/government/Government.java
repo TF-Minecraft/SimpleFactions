@@ -884,6 +884,11 @@ public class Government {
             data.taxTarget = tax.getTarget().name();
             data.taxId = tax.getId();
             data.newTax = tax.getNewTax();
+        } else if (p.isFeeProposal()) {
+            data.type = "fee";
+            data.feeKind = p.getFeeChange().getKind().name();
+            data.feeVehicle = p.getFeeChange().getVehicleTypeId();
+            data.newFee = p.getFeeChange().getNewRate();
         } else if (p.isPoliticalActionProposal() && p.getPoliticalAction() != null) {
             data.type = "political";
             data.actionKey = p.getPoliticalAction().getAction().toString();

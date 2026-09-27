@@ -25,6 +25,8 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverMessages;
+import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverSessionManager;
 
 public final class VehicleFactionCommands {
     private VehicleFactionCommands() {}
@@ -75,6 +77,7 @@ public final class VehicleFactionCommands {
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().put(
                 player.getUniqueId(),
                 new VehicleReleaseSession(Kind.TAKE, System.currentTimeMillis() + timeoutMillis));
@@ -104,6 +107,7 @@ public final class VehicleFactionCommands {
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().put(
                 player.getUniqueId(),
                 new VehicleReleaseSession(
@@ -114,9 +118,38 @@ public final class VehicleFactionCommands {
         player.sendMessage(FactionVehicleReleaseMessages.giveArmed(target.getName()));
     }
 
+    /** Any player can hand one of their personal vehicles to another online player. */
+    public static void armHandover(Player player, String targetName) {
+        if (targetName == null || targetName.isBlank()) {
+            player.sendMessage(VehicleHandoverMessages.usage());
+            return;
+        }
+        if (targetName.equalsIgnoreCase(player.getName())) {
+            player.sendMessage(VehicleHandoverMessages.self());
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(targetName);
+        if (target == null || !target.isOnline()) {
+            player.sendMessage(VehicleHandoverMessages.recipientOffline(targetName));
+            return;
+        }
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
+        clearOtherVehicleSessions(plugin, player);
+        plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleHandoverSessionManager().put(
+                player.getUniqueId(),
+                new VehicleHandoverSessionManager.Session(
+                        target.getName(),
+                        target.getUniqueId(),
+                        System.currentTimeMillis() + timeoutMillis));
+        player.sendMessage(VehicleHandoverMessages.armed(target.getName()));
+    }
+
     private static void clearOtherVehicleSessions(SimpleFactions plugin, Player player) {
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
     }
 
     private static void armPoolTransfer(Player player) {
@@ -142,6 +175,7 @@ public final class VehicleFactionCommands {
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().put(
                 player.getUniqueId(),
                 new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source));
@@ -221,6 +255,20 @@ public final class VehicleFactionCommands {
         }
 
         /**
+         * Target name for a handover command, empty string if the name is missing,
+         * or null if args are not a handover command.
+         */
+        public static String handoverTarget(String[] args) {
+            if (args == null
+                    || args.length < 2
+                    || !args[0].equalsIgnoreCase("vehicle")
+                    || !args[1].equalsIgnoreCase("handover")) {
+                return null;
+            }
+            return args.length >= 3 ? args[2] : "";
+        }
+
+        /**
          * Target name for a give command, empty string if the name is missing,
          * or null if args are not a give command.
          */
@@ -239,7 +287,7 @@ public final class VehicleFactionCommands {
         private VehicleTabCompletions() {}
 
         public static List<String> subcommands(String prefix) {
-            return filter(List.of("transfer", "take", "give", "maintenance"), prefix);
+            return filter(List.of("transfer", "take", "give", "handover", "maintenance"), prefix);
         }
 
         public static List<String> maintenanceActions(String prefix) {

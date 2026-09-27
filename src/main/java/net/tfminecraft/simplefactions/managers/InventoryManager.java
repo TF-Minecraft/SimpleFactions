@@ -82,7 +82,12 @@ import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
+import net.tfminecraft.simplefactions.government.proposal.FeeChange;
+import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.government.proposal.TaxLawChange;
+import net.tfminecraft.simplefactions.managers.inventory.FeeRateInput;
+import net.tfminecraft.simplefactions.managers.inventory.VehicleFeeView;
+import net.tfminecraft.simplefactions.objects.handler.VehicleFeeHandler;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
@@ -95,6 +100,7 @@ public class InventoryManager implements Listener{
 	public HashMap<Player, Integer> campaignConfirmWar = new HashMap<>();
 	public HashMap<Player, Boolean> installationConfirmFromCommand = new HashMap<>();
 	public HashMap<Player, TaxChange> taxChange = new HashMap<>();
+	public HashMap<Player, FeeRateInput> feeChange = new HashMap<>();
 	public HashMap<Player, LoanPayment> loanPayments = new HashMap<>();
 	public HashMap<Player, DividendChange> dividendChange = new HashMap<>();
 	public HashMap<Player, SlotChangePrompt> slotChanges = new HashMap<>();
@@ -117,6 +123,12 @@ public class InventoryManager implements Listener{
 					if(entry.getValue().tick()) {
 						taxChange.remove(entry.getKey());
 						entry.getKey().sendMessage("§cTax change timed out.");
+					}
+				}
+				for(Map.Entry<Player, FeeRateInput> entry : ((HashMap<Player, FeeRateInput>) feeChange.clone()).entrySet()) {
+					if(entry.getValue().tick()) {
+						feeChange.remove(entry.getKey());
+						entry.getKey().sendMessage("§cFee change timed out.");
 					}
 				}
 				for(Map.Entry<Player, LoanPayment> entry : ((HashMap<Player, LoanPayment>) loanPayments.clone()).entrySet()) {
@@ -269,6 +281,7 @@ public class InventoryManager implements Listener{
 
 	//Government
 	public GovernmentView governmentView = new GovernmentView(this);
+	public VehicleFeeView vehicleFeeView = new VehicleFeeView(this);
 	public void governmentView(Player player, Faction f, Inventory i) {
 		governmentView.governmentView(player, f, i);
 	}
@@ -389,12 +402,16 @@ public class InventoryManager implements Listener{
 	}
 
 	public boolean chatTrigger(Player p) {
-		return taxChange.containsKey(p) || loanPayments.containsKey(p) || dividendChange.containsKey(p)
+		return taxChange.containsKey(p) || feeChange.containsKey(p) || loanPayments.containsKey(p) || dividendChange.containsKey(p)
 				|| slotChanges.containsKey(p);
 	}
 
 	public void setChanging(Faction faction, Player p, TaxTarget target, String id) {
 		taxChange.put(p, new TaxChange(faction, target, id));
+	}
+
+	public void setChangingFee(Faction faction, Player p, FeeKind kind, String vehicleTypeId) {
+		feeChange.put(p, new FeeRateInput(faction, kind, vehicleTypeId));
 	}
 
 	public boolean isPayingLoan(Player p) {
@@ -434,6 +451,7 @@ public class InventoryManager implements Listener{
 			@Override
 			public void run() {
 				if(taxChange.containsKey(p)) taxChat(p, e);;
+				if(feeChange.containsKey(p)) feeChat(p, e);
 				if(loanPayments.containsKey(p)) loanPaymentChat(p, e);
 				if(dividendChange.containsKey(p)) dividendChat(p, e);
 				if(slotChanges.containsKey(p)) slotChat(p, e);
@@ -476,58 +494,100 @@ public class InventoryManager implements Listener{
 			p.sendMessage("§4Type 'cancel' to cancel.");
 			return;
 		}
-		Government gov = f.getGovernment();
-		Proposal proposal = new Proposal(p.getName(), gov);
+		Proposal proposal = new Proposal(p.getName(), f.getGovernment());
 		TaxLawChange tax = new TaxLawChange(change.getTarget(), change.getId(), amount);
 		proposal.setTaxProposal(tax);
+		taxChange.remove(p);
+		submitRateProposal(p, f, proposal);
+	}
+
+	/**
+	 * Applies a tax or fee change straight away for a leader with no council, otherwise
+	 * proposes it to the council or adds it to the player's movement.
+	 */
+	private void submitRateProposal(Player p, Faction f, Proposal proposal) {
+		Government gov = f.getGovernment();
 		if(!gov.hasCouncil() && f.isLeader(p.getName())) {
 			p.sendMessage("§aChange applied!");
 			proposal.apply(null);
 			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-			taxChange.remove(p);
 			governmentView.governmentView(p, f, null);
 			return;
 		}
-		if(gov.canBeProposed(proposal)) {
-			if(gov.canPropose(p)) {
-				gov.propose(proposal);
-				p.sendTitle("", "§aProposal Added", 20, 80, 20);
-				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-			} else if(gov.canProposeOrStartMovement(p)) {
-				Movement movement = gov.getMovementByMember(p.getName());
-				if(movement != null) {
-					if(!gov.canBeProposed(proposal)) {
-						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-						return;
-					}
-					movement.createCause(p.getName(), proposal);
-					p.sendMessage("§aProposal added to your movement! Rally support for your proposal by sharing it with your faction and allies!");
-					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-					governmentView(p, f, null);
-					return;
-				}
-				if (net.tfminecraft.simplefactions.war.civilwar.CivilWarHostMovementRules.blocksHostGuildStart(f, p.getName())) {
-					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-					p.sendMessage(net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy.ONE_PROVINCE_HOST_GUILD);
-					return;
-				}
-				gov.startMovement(p.getName(), proposal);
-				p.sendTitle("", "§cMovement Started", 20, 80, 20);
-				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-				p.sendMessage("§aMovement started! Rally support for your proposal by sharing it with your faction and allies!");
-			} else {
-				p.sendMessage("§cYou can no longer propose this change.");
-				taxChange.remove(p);
-				return;
-			}
-		} else {
+		if(!gov.canBeProposed(proposal)) {
 			p.sendMessage("§cThere is already a proposal active for this target.");
-			taxChange.remove(p);
 			return;
 		}
-		//something changed so you cant do anything anymore :)
-		taxChange.remove(p);
+		if(gov.canPropose(p)) {
+			gov.propose(proposal);
+			p.sendTitle("", "§aProposal Added", 20, 80, 20);
+			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+		} else if(gov.canProposeOrStartMovement(p)) {
+			Movement movement = gov.getMovementByMember(p.getName());
+			if(movement != null) {
+				movement.createCause(p.getName(), proposal);
+				p.sendMessage("§aProposal added to your movement! Rally support for your proposal by sharing it with your faction and allies!");
+				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+				governmentView(p, f, null);
+				return;
+			}
+			if (net.tfminecraft.simplefactions.war.civilwar.CivilWarHostMovementRules.blocksHostGuildStart(f, p.getName())) {
+				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+				p.sendMessage(net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy.ONE_PROVINCE_HOST_GUILD);
+				return;
+			}
+			gov.startMovement(p.getName(), proposal);
+			p.sendTitle("", "§cMovement Started", 20, 80, 20);
+			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+			p.sendMessage("§aMovement started! Rally support for your proposal by sharing it with your faction and allies!");
+		} else {
+			p.sendMessage("§cYou can no longer propose this change.");
+			return;
+		}
 		governmentView.governmentView(p, f, null);
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons. Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
+	public void feeChat(Player p, AsyncPlayerChatEvent e) {
+		FeeRateInput change = feeChange.get(p);
+		Faction f = change.getFaction();
+		if(f == null) {
+			feeChange.remove(p);
+			return;
+		}
+		if(e.getMessage().equalsIgnoreCase("cancel")) {
+			p.sendMessage("§cFee change cancelled.");
+			feeChange.remove(p);
+			governmentView.governmentView(p, f, null);
+			return;
+		}
+		FeeKind kind = change.getKind();
+		double amount;
+		try {
+			amount = Double.parseDouble(e.getMessage());
+		} catch (Exception ex) {
+			p.sendMessage(kind.isPercent()
+					? "§cError inputting the amount, use the format §e15.5 §cfor 15.5% of upkeep (example)"
+					: "§cError inputting the amount, use the format §e1.5 §cfor 1.5 times upkeep (example)");
+			p.sendMessage("§4Type 'cancel' to cancel.");
+			return;
+		}
+		amount = Math.round(amount*100.0)/100.0;
+		VehicleFeeHandler handler = f.getVehicleFeeHandler();
+		if(amount > handler.getMax(kind)) {
+			p.sendMessage("§cThe maximum you can set for "+kind.getDisplayName()+" is §e"+kind.formatRate(handler.getMax(kind)));
+			p.sendMessage("§4Type 'cancel' to cancel.");
+			return;
+		} else if(amount < handler.getMin(kind)) {
+			p.sendMessage("§cThe minimum you can set for "+kind.getDisplayName()+" is §e"+kind.formatRate(handler.getMin(kind)));
+			p.sendMessage("§4Type 'cancel' to cancel.");
+			return;
+		}
+		Proposal proposal = new Proposal(p.getName(), f.getGovernment());
+		proposal.setFeeProposal(new FeeChange(kind, change.getVehicleTypeId(), amount));
+		feeChange.remove(p);
+		submitRateProposal(p, f, proposal);
 	}
 
 	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
@@ -1070,6 +1130,11 @@ public class InventoryManager implements Listener{
 					case SPECIFIC_TAX_PROPOSAL_VIEW:
 						governmentView.taxProposalView(p, f, null);
 						break;
+					case FEE_PROPOSAL_VIEW:
+					case FEE_CATEGORY_VIEW:
+					case FEE_VEHICLE_VIEW:
+						vehicleFeeView.back(p, f, h);
+						break;
 					case PROPOSALS:
 						governmentView(p, f, null);
 						break;
@@ -1201,6 +1266,10 @@ public class InventoryManager implements Listener{
 				|| h.getType() == SFGUI.FAVOUR_REPRESS_TYPE
 				|| h.getType() == SFGUI.FAVOUR_REPRESS_SELECT) {
 				governmentView.click(e, inv, p);
+			} else if(h.getType() == SFGUI.FEE_PROPOSAL_VIEW
+				|| h.getType() == SFGUI.FEE_CATEGORY_VIEW
+				|| h.getType() == SFGUI.FEE_VEHICLE_VIEW) {
+				vehicleFeeView.click(e, inv, p);
 			} else if(h.getType() == SFGUI.MOVEMENT_VIEW
 				|| h.getType() == SFGUI.MOVEMENT_LIST
 				|| h.getType() == SFGUI.CAUSES_VIEW

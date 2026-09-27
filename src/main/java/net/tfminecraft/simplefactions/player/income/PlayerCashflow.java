@@ -5,7 +5,9 @@ public enum PlayerCashflow {
     CITIZEN_TAX("#94b572Citizen Tax"),
     DIVIDEND_PAYOUT("#c49e5cDividend Payout"),
     WAGES("#c9a05eWages"),
-    VEHICLE_UPKEEP("#a6659fVehicles");
+    VEHICLE_UPKEEP("#a6659fVehicles"),
+    VEHICLE_TAX("#a6659fVehicle Tax"),
+    VEHICLE_FEES("#a6659fVehicle Fees");
 
     private final String display;
 

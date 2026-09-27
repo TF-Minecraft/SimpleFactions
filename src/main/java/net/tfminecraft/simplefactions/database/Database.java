@@ -164,6 +164,7 @@ public class Database {
                         data.laws,
                         data.governmentData
                 );
+                f.getVehicleFeeHandler().load(data.vehicleFees, data.vehicleTypeFees);
                 if (data.lawChangedAt != null) {
                     for (Map.Entry<String, Long> entry : data.lawChangedAt.entrySet()) {
                         LawGroup group = f.getLawHandler().getGroup(entry.getKey());
@@ -325,6 +326,12 @@ public class Database {
             data.dividendTax = f.getTaxHandler().getDividendTax();
             data.tariffs = f.getTaxHandler().getTariffs();
             data.specificTaxes = serializeSpecificTaxes(f.getTaxHandler());
+            data.vehicleFees = new HashMap<>(f.getVehicleFeeHandler().serializeRates());
+            data.vehicleTypeFees = new HashMap<>();
+            for (Map.Entry<String, Map<String, Double>> entry
+                    : f.getVehicleFeeHandler().serializeTypeRates().entrySet()) {
+                data.vehicleTypeFees.put(entry.getKey(), new HashMap<>(entry.getValue()));
+            }
             data.capital = f.getCapital();
             data.extraNodeCapacity = (double) f.getExtraNodeCapacity();
 
@@ -398,6 +405,7 @@ public class Database {
                 gd.dividendPercent = g.getDividendPercent();
                 gd.dividendEligible = g.getDividendEligibleSnapshot();
                 gd.casinoProfit = g.getLedger().getCasinoProfit();
+                gd.vehicleFeeIncome = g.getLedger().getVehicleFeeIncome();
                 Map<String, Double> citizenTaxes = g.getLedger().getCitizenTaxesCopy();
                 gd.citizenTaxes = citizenTaxes.isEmpty() ? null : citizenTaxes;
                 gd.company = g.getCompany() != null ? g.getCompany().serialize() : null;

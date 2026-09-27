@@ -26,6 +26,7 @@ public final class VehiclesConfigLoader {
     private static Set<String> categoryIds = Set.of();
     private static Map<String, Map<String, VehicleTypeConfig>> typesByCategory = Map.of();
     private static Map<String, String> categoryByVehicleTypeId = Map.of();
+    private static Set<String> feeExcludedCategories = Set.of();
 
     private VehiclesConfigLoader() {}
 
@@ -66,6 +67,12 @@ public final class VehiclesConfigLoader {
         if (maintenanceIntervalTicks < 1L) {
             fail("vehicles.yml maintenance-interval-ticks must be >= 1");
         }
+
+        Set<String> excluded = new HashSet<>();
+        for (String category : config.getStringList("fee-excluded-categories")) {
+            excluded.add(category.toLowerCase(java.util.Locale.ROOT));
+        }
+        feeExcludedCategories = Collections.unmodifiableSet(excluded);
 
         if (config.isConfigurationSection("upkeep")) {
             fail("vehicles.yml uses legacy upkeep block; use categories.<category>.<type>.upkeep instead");
@@ -141,6 +148,12 @@ public final class VehiclesConfigLoader {
         categoryIds = Collections.unmodifiableSet(categories);
         typesByCategory = Collections.unmodifiableMap(byCategory);
         categoryByVehicleTypeId = Collections.unmodifiableMap(typeToCategory);
+    }
+
+    /** VFBuilders blueprint categories left out of the vehicle fee proposal menu (staff-only ones). */
+    public static boolean isFeeExcludedCategory(String vfBuildersCategoryId) {
+        return vfBuildersCategoryId != null
+                && feeExcludedCategories.contains(vfBuildersCategoryId.toLowerCase(java.util.Locale.ROOT));
     }
 
     public static int getPersonalSlotLimit() {

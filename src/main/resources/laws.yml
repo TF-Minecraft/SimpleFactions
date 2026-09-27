@@ -212,6 +212,84 @@ guild_tax:
             guild_tax: "25-60"
             dividend_tax: "45-80"
 
+vehicle_tax:
+  name: "#c9c99bVehicle Tax"
+  description:
+    - "#c9c99bVehicle taxes #d4c9aeare paid by"
+    - "#d4c9aemembers who own vehicles, on top"
+    - "#d4c9aeof upkeep, along with fees for"
+    - "#d4c9aebuilding and handing them over."
+    - "#d4c9aeThe faction leader is exempt."
+  laws:
+    none:
+      name: "#bdaea8None"
+      description:
+        - "#bdaea8No vehicle taxes #d4c9aeor fees"
+        - "#d4c9aeare charged."
+      cost: 10
+      upkeep: 0
+      compatibility:
+        - low 1
+        - medium 2
+        - high 3
+      effects:
+        faction:
+          rules:
+            - vehicle_tax false
+            - registration_fee false
+            - transfer_fee false
+    low:
+      name: "#7bc767Low"
+      description:
+        - "#7bc767Light charges #d4c9aeon vehicle"
+        - "#d4c9aeowners bring in a little income."
+      cost: 15
+      upkeep: 1
+      compatibility:
+        - none 1
+        - medium 1
+        - high 2
+      effects:
+        faction:
+          brackets:
+            vehicle_tax: "5-15"
+            registration_fee: "0-1"
+            transfer_fee: "0-0.5"
+    medium:
+      name: "#bfc267Medium"
+      description:
+        - "#bfc267Moderate charges #d4c9aemake"
+        - "#d4c9aevehicle owners pay their share."
+      cost: 20
+      upkeep: 2
+      compatibility:
+        - none 2
+        - low 1
+        - high 1
+      effects:
+        faction:
+          brackets:
+            vehicle_tax: "15-35"
+            registration_fee: "1-3"
+            transfer_fee: "0.5-1.5"
+    high:
+      name: "#d1775eHigh"
+      description:
+        - "#d1775eHeavy charges #d4c9aemake owning"
+        - "#d4c9aeand trading vehicles costly."
+      cost: 30
+      upkeep: 4
+      compatibility:
+        - none 3
+        - low 2
+        - medium 1
+      effects:
+        faction:
+          brackets:
+            vehicle_tax: "35-75"
+            registration_fee: "3-6"
+            transfer_fee: "1.5-3"
+
 leadership:
   name: "#c9c99bLeadership"
   description:

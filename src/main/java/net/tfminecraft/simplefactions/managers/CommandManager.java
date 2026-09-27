@@ -652,6 +652,12 @@ public class CommandManager implements Listener, CommandExecutor{
 					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armTake(p);
 					return true;
 				}
+				String handoverTarget = VehicleCommandRoute.handoverTarget(args);
+				if(handoverTarget != null) {
+					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armHandover(
+							p, handoverTarget.isBlank() ? null : handoverTarget);
+					return true;
+				}
 				String giveTarget = VehicleCommandRoute.giveTarget(args);
 				if(giveTarget != null) {
 					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armGive(

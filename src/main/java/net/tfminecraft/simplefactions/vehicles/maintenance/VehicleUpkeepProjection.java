@@ -9,6 +9,9 @@ import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.player.income.PlayerCashflow;
 import net.tfminecraft.simplefactions.player.income.PlayerLedger;
+import net.tfminecraft.simplefactions.government.proposal.FeeKind;
+import net.tfminecraft.simplefactions.utils.Formatter;
+import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
 import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 
 public final class VehicleUpkeepProjection {
@@ -34,6 +37,37 @@ public final class VehicleUpkeepProjection {
         return total;
     }
 
+    /** Vehicle tax the player's faction will charge with tomorrow's upkeep. */
+    public static double projectedDailyTax(String playerName, PlayerVehicleRegistry registry) {
+        if (playerName == null || playerName.isBlank()) {
+            return 0.0;
+        }
+        double total = 0.0;
+        for (OwnedVehicleSummary vehicle :
+                VehicleOwnershipQueries.personalVehicles(playerName, registry)) {
+            VehicleFeeService.Quote quote =
+                    VehicleFeeService.quote(FeeKind.VEHICLE_TAX, playerName, vehicle.getTypeId());
+            if (quote != null) {
+                total += quote.amount();
+            }
+        }
+        return Formatter.formatDouble(total);
+    }
+
+    /** Settled tax once the day has charged it, otherwise the projected tax. */
+    public static double displayVehicleTax(PlayerLedger ledger, UUID playerUuid) {
+        if (ledger == null) {
+            return 0.0;
+        }
+        double settled = ledger.getAmount(PlayerCashflow.VEHICLE_TAX);
+        if (settled != 0.0 || ledger.getAmount(PlayerCashflow.VEHICLE_UPKEEP) != 0.0 || playerUuid == null) {
+            return settled;
+        }
+        String playerName = VehicleOwnershipQueries.resolvePlayerName(playerUuid);
+        double projected = projectedDailyTax(playerName, SimpleFactions.getVehicleRegistry());
+        return projected > 0.0 ? -projected : 0.0;
+    }
+
     public static double displayVehicleExpense(PlayerLedger ledger, UUID playerUuid) {
         if (ledger == null) {
             return 0.0;
@@ -55,6 +89,11 @@ public final class VehicleUpkeepProjection {
         double displayVehicle = displayVehicleExpense(ledger, playerUuid);
         if (settledVehicle == 0.0 && displayVehicle < 0.0) {
             net += displayVehicle;
+        }
+        double settledTax = ledger.getAmount(PlayerCashflow.VEHICLE_TAX);
+        double displayTax = displayVehicleTax(ledger, playerUuid);
+        if (settledTax == 0.0 && displayTax < 0.0) {
+            net += displayTax;
         }
         return net;
     }

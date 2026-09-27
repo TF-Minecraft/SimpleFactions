@@ -2,6 +2,9 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
+import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
+import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
+import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
@@ -67,7 +70,9 @@ public final class VehicleUpkeepService {
                 markUnpaid(vehicle.getUuid(), vehicle.getTypeId(), null, upkeep, now);
                 continue;
             }
-            chargePlayer(playerUuid, upkeep, vehicle.getTypeId(), vehicle.getUuid(), now);
+            // Tax is charged with upkeep, so a player who misses one misses both.
+            Quote tax = VehicleFeeService.quote(FeeKind.VEHICLE_TAX, playerName, vehicle.getTypeId());
+            chargePlayer(playerUuid, upkeep, tax, vehicle.getTypeId(), vehicle.getUuid(), now);
         }
         chargeFactionVehicles(now);
     }
@@ -118,7 +123,8 @@ public final class VehicleUpkeepService {
             return;
         }
         for (Player player : players) {
-            double upkeep = VehicleUpkeepProjection.projectedDailyUpkeep(player.getName(), registry);
+            double upkeep = VehicleUpkeepProjection.projectedDailyUpkeep(player.getName(), registry)
+                    + VehicleUpkeepProjection.projectedDailyTax(player.getName(), registry);
             if (upkeep <= 0.0) {
                 continue;
             }
@@ -145,17 +151,22 @@ public final class VehicleUpkeepService {
     private void chargePlayer(
             UUID playerUuid,
             double upkeep,
+            Quote tax,
             String vehicleTypeId,
             String vehicleUuid,
             long nowMillis) {
         if (playerUuid == null || upkeep <= 0.0) {
             return;
         }
-        if (!playerBank.withdrawFromBank(playerUuid, upkeep)) {
-            markUnpaid(vehicleUuid, vehicleTypeId, playerUuid, upkeep, nowMillis);
+        double total = tax == null ? upkeep : Formatter.formatDouble(upkeep + tax.amount());
+        if (!playerBank.withdrawFromBank(playerUuid, total)) {
+            markUnpaid(vehicleUuid, vehicleTypeId, playerUuid, total, nowMillis);
             return;
         }
         economyManager.getLedger(playerUuid).add(PlayerCashflow.VEHICLE_UPKEEP, -upkeep);
+        if (tax != null) {
+            VehicleFeeService.credit(playerUuid, tax);
+        }
         maintenanceStore.clearUnpaid(vehicleUuid);
         persistMaintenance();
     }

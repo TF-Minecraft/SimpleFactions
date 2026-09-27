@@ -86,6 +86,12 @@ import net.tfminecraft.simplefactions.vehicles.VehicleIntegrationListener;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleRegistryClaimListener;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleRegistryClaimService;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleRegistryPersistence;
+import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeConfirmations;
+import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore;
+import net.tfminecraft.simplefactions.vehicles.fees.VehicleReclaimFeeListener;
+import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverListener;
+import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverService;
+import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverSessionManager;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceDecayTask;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayListener;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService;
@@ -219,6 +225,16 @@ public class SimpleFactions extends JavaPlugin{
 			new VehicleMaintenancePayListener(
 					vehicleMaintenancePaySessionManager,
 					vehicleMaintenancePayService);
+	private final VehicleFeeStore vehicleFeeStore = new VehicleFeeStore();
+	private final VehicleFeeConfirmations vehicleFeeConfirmations = new VehicleFeeConfirmations();
+	private final VehicleHandoverSessionManager vehicleHandoverSessionManager = new VehicleHandoverSessionManager();
+	private final VehicleHandoverService vehicleHandoverService =
+			new VehicleHandoverService(vehicleRegistry, vehicleFeeStore, this::saveVehicleFees);
+	private final VehicleHandoverListener vehicleHandoverListener = new VehicleHandoverListener(
+			vehicleHandoverSessionManager, vehicleHandoverService, vehicleFeeConfirmations);
+	private final VehicleReclaimFeeListener vehicleReclaimFeeListener =
+			new VehicleReclaimFeeListener(vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees);
+	private boolean registrationFeeRegistered;
 	private boolean vehicleIntegrationRegistered = false;
 	private boolean constructionFreezeRegistered;
 	private final PlayerEconomyManager playerEconomyManager = new PlayerEconomyManager();
@@ -249,6 +265,8 @@ public class SimpleFactions extends JavaPlugin{
 			new File(getDataFolder(), "Cache"),
 			vehicleMaintenanceStore);
 		vehicleMaintenancePersistence.load();
+		vehicleFeeStore.bind(new File(getDataFolder(), "Cache"));
+		vehicleFeeStore.load();
 		registerVehicleIntegrationHooks();
 		if (Cache.mapEnabled && !getServer().getPluginManager().isPluginEnabled("TFMCWeb")) {
 			getLogger().severe(
@@ -528,6 +546,50 @@ public class SimpleFactions extends JavaPlugin{
 		return factionVehicleGiveService;
 	}
 
+	public VehicleHandoverSessionManager getVehicleHandoverSessionManager() {
+		return vehicleHandoverSessionManager;
+	}
+
+	public VehicleHandoverService getVehicleHandoverService() {
+		return vehicleHandoverService;
+	}
+
+	public void saveVehicleFees() {
+		vehicleFeeStore.save();
+	}
+
+	/** Remembers who a vehicle was just handed to, for the transfer fee on a later release. */
+	public void recordVehicleOwner(String vehicleUuid, String playerName) {
+		vehicleFeeStore.setLastOwner(vehicleUuid, playerName);
+		vehicleFeeStore.save();
+	}
+
+	/**
+	 * Records the current owner of every personal vehicle, so a vehicle released before
+	 * anyone built or claimed it through SimpleFactions still has a last owner.
+	 */
+	public void recordVehicleOwners() {
+		if (!getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
+			return;
+		}
+		try {
+			for (net.tfminecraft.vehicleframework.data.OwnedVehicleSummary vehicle
+					: net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.allPersonalVehicles(vehicleRegistry)) {
+				String owner = net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries
+						.playerNameFromOwner(vehicle.getOwner());
+				if (owner != null) {
+					vehicleFeeStore.setLastOwner(vehicle.getUuid(), owner);
+				}
+			}
+			for (net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord record : vehicleRegistry.getAll()) {
+				vehicleFeeStore.forgetVehicle(record.getVehicleUuid());
+			}
+			vehicleFeeStore.save();
+		} catch (RuntimeException | LinkageError e) {
+			getLogger().warning("Could not record vehicle owners for transfer fees: " + e);
+		}
+	}
+
 	public InstallationVehicleUnberthService getInstallationVehicleUnberthService() {
 		return installationVehicleUnberthService;
 	}
@@ -549,6 +611,7 @@ public class SimpleFactions extends JavaPlugin{
 		if (vehicleMaintenancePersistence != null) {
 			vehicleMaintenancePersistence.save();
 		}
+		vehicleFeeStore.save();
 		return saved;
 	}
 
@@ -584,11 +647,31 @@ public class SimpleFactions extends JavaPlugin{
 						|| "VehicleFramework".equalsIgnoreCase(event.getPlugin().getName())) {
 					registerVehicleIntegration();
 					registerConstructionFreeze();
+					registerRegistrationFee();
 				}
 			}
 		}, this);
 		registerVehicleIntegration();
 		registerConstructionFreeze();
+		registerRegistrationFee();
+	}
+
+	private void registerRegistrationFee() {
+		if (registrationFeeRegistered || !getServer().getPluginManager().isPluginEnabled("VFBuilders")
+				|| !getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
+			return;
+		}
+		registrationFeeRegistered = true;
+		try {
+			Class.forName("net.tfminecraft.vfbuilders.events.VehicleConstructionCancelEvent");
+		} catch (ClassNotFoundException | LinkageError e) {
+			// The listener needs the confirm click and cancel event from VFBuilders 2.1.0.
+			getLogger().warning("VFBuilders is older than 2.1.0, so vehicle registration fees are off; "
+					+ "update it to charge them");
+			return;
+		}
+		getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.vehicles.fees
+				.VehicleRegistrationFeeListener(vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees), this);
 	}
 
 	private void registerConstructionFreeze() {
@@ -622,7 +705,11 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(vehicleMaintenanceRepairListener, this);
 		getServer().getPluginManager().registerEvents(vehicleSpawnListener, this);
 		getServer().getPluginManager().registerEvents(battleVehicleEligibilityListener, this);
+		getServer().getPluginManager().registerEvents(vehicleHandoverListener, this);
+		getServer().getPluginManager().registerEvents(vehicleReclaimFeeListener, this);
 		vehicleIntegrationRegistered = true;
+		// VehicleFramework loads its vehicles as it enables, so wait before reading owners.
+		getServer().getScheduler().runTaskLater(this, this::recordVehicleOwners, 200L);
 		if (getServer().getPluginManager().isPluginEnabled("VFBuilders")) {
 			getLogger().info("[SimpleFactions] VFBuilders vehicle integration enabled");
 		} else {

@@ -33,6 +33,10 @@ public enum Cashflow {
     // ended. Not money creation: it moves denars from players to the guild.
     GAMBLING("#b58fc4Gambling", false, true),
 
+    // Vehicle tax and fees paid by members from their personal banks, banked as they are
+    // charged. Not money creation: it moves denars from players to the faction.
+    VEHICLE_FEES("#a6659fVehicle Taxes & Fees", false, false),
+
     // Money creation
     TRADE("#92d665Trade", true, true),
 

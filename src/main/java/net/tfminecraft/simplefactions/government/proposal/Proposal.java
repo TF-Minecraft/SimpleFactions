@@ -29,6 +29,7 @@ public class Proposal {
 
     private Law law;
     private TaxLawChange tax;
+    private FeeChange fee;
     private PoliticalAction action;
     private String target;
 
@@ -53,6 +54,8 @@ public class Proposal {
         } else if (isTaxProposal()) {
             TaxTarget target = tax.getTarget();
             gov.getFaction().getTaxHandler().setTaxRate(target, tax.getId(), tax.getNewTax());
+        } else if (isFeeProposal()) {
+            gov.getFaction().getVehicleFeeHandler().setRate(fee.getKind(), fee.getVehicleTypeId(), fee.getNewRate());
         } else if (isPoliticalActionProposal()) {
             gov.getFaction().applyPoliticalAction(cause, this);
         }
@@ -119,6 +122,15 @@ public class Proposal {
     public void setTaxProposal(TaxLawChange tax) {
         this.tax = tax;
     }
+    public boolean isFeeProposal() {
+        return fee != null;
+    }
+    public FeeChange getFeeChange() {
+        return fee;
+    }
+    public void setFeeProposal(FeeChange fee) {
+        this.fee = fee;
+    }
     public boolean isPoliticalActionProposal() {
         return action != null;
     }
@@ -126,7 +138,8 @@ public class Proposal {
         if(action == null) {
             if(isLawProposal()) {
                 return new PoliticalAction(Action.LAW_CHANGE);
-            } else if(isTaxProposal()) {
+            } else if(isTaxProposal() || isFeeProposal()) {
+                // Vehicle fees are taxes as far as movements and civil wars are concerned.
                 return new PoliticalAction(Action.TAX_CHANGE);
             }
         }
@@ -157,7 +170,8 @@ public class Proposal {
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) item.getItemMeta();
 
-        String title = isLawProposal() ? "Law Proposal" : isTaxProposal() ? "Tax Proposal" : "Political Action Proposal";
+        String title = isLawProposal() ? "Law Proposal" : isTaxProposal() ? "Tax Proposal"
+                : isFeeProposal() ? "Fee Proposal" : "Political Action Proposal";
         if (title.length() > 32) title = title.substring(0, 32);
         meta.setTitle(title);
         meta.setAuthor(proposer != null ? proposer : "Unknown");
@@ -166,7 +180,7 @@ public class Proposal {
 
         // First page: basic info
         List<String> first = new ArrayList<>();
-        first.add(StringFormatter.formatHex(isLawProposal() ? "#93c9a7Law Proposal" : "#93c9a7Tax Proposal"));
+        first.add(StringFormatter.formatHex("#93c9a7" + title));
         first.add("");
         first.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7" + proposer));
 
@@ -210,6 +224,8 @@ public class Proposal {
                 double baseRate = f.getTaxRate(target, null, false);
                 first.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a" + baseRate + "%#3f4040)"));
             }
+        } else if (isFeeProposal()) {
+            first.addAll(FeeProposalText.lines(f, fee));
         } else if(isPoliticalActionProposal()) {
             Action action = getPoliticalAction().getAction();
             first.add(StringFormatter.formatHex("#b8ae61Action: #c2bea7"+action.getDisplay()));

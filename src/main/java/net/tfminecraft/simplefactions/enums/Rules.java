@@ -14,6 +14,9 @@ public enum Rules {
     GUILD_TAX("Can Collect Guild Taxes", true), //Implemented
     DIVIDEND_TAX("Can Collect Dividend Taxes", true), //Implemented
     TARIFFS("Can Impose Tariffs", true), //Implemented
+    VEHICLE_TAX("Can Collect Vehicle Tax", true), //Implemented
+    REGISTRATION_FEE("Can Charge Vehicle Registration Fees", true), //Implemented
+    TRANSFER_FEE("Can Charge Vehicle Transfer Fees", true), //Implemented
     VASSAL_VOTING_RIGHTS("Vassals Have Voting Rights", true), //Implemented
     CAN_FAVOUR("Can Favour Guilds and Vassals", true),
     CAN_REPRESS("Can Repress Guilds and Vassals", true),

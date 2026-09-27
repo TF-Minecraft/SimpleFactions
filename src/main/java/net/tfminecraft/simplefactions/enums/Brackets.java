@@ -6,7 +6,10 @@ public enum Brackets {
     GUILD_TAX("Guild Tax"),
     VASSAL_TAX("Vassal Tax"),
     DIVIDEND_TAX("Dividend Tax"),
-    TARIFFS("Tariffs");
+    TARIFFS("Tariffs"),
+    VEHICLE_TAX("Vehicle Tax (% of upkeep)"),
+    REGISTRATION_FEE("Registration Fee (x upkeep)"),
+    TRANSFER_FEE("Transfer Fee (x upkeep)");
 
     private final String display;
 

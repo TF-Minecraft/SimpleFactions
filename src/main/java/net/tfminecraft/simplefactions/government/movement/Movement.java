@@ -489,6 +489,12 @@ public class Movement {
                     new net.tfminecraft.simplefactions.government.proposal.TaxLawChange(target, proposalData.taxId, proposalData.newTax);
                 p.setTaxProposal(tax);
                 return p;
+            } else if ("fee".equals(proposalData.type)) {
+                net.tfminecraft.simplefactions.government.proposal.FeeKind kind =
+                    net.tfminecraft.simplefactions.government.proposal.FeeKind.valueOf(proposalData.feeKind);
+                p.setFeeProposal(new net.tfminecraft.simplefactions.government.proposal.FeeChange(
+                    kind, proposalData.feeVehicle, proposalData.newFee == null ? 0.0 : proposalData.newFee));
+                return p;
             } else if ("political".equals(proposalData.type)) {
                 Action action = Action.valueOf(proposalData.actionKey);
                 PoliticalAction politicalAction = new PoliticalAction(action);

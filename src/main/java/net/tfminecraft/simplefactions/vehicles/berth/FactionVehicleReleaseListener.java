@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Outcome;
@@ -59,6 +60,10 @@ public final class FactionVehicleReleaseListener implements Listener {
         }
 
         Outcome outcome = releaseService.take(faction, leader.getName(), vehicle.getUUID());
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (outcome.status() == Status.OK && plugin != null) {
+            plugin.recordVehicleOwner(vehicle.getUUID(), leader.getName());
+        }
         String message = FactionVehicleReleaseMessages.forTake(outcome);
         if (message != null) {
             leader.sendMessage(message);
