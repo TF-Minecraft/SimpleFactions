@@ -83,7 +83,7 @@ public class LoreWriter {
                 lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+baseRate+"%#3f4040)"));
             }
             if(target == TaxTarget.TARIFFS || target == TaxTarget.TARIFF_ID) {
-                EconomicImpact.applyTariffImpact(lore, p, f, taxChange.getNewTax(), false, meta, false);
+                EconomicImpact.applyTariffImpact(lore, p, f, taxChange.getId(), taxChange.getNewTax(), false, meta, false);
             } else {
                 EconomicImpact.applyTaxImpact(lore, p, f, target, taxChange.getId(), taxChange.getNewTax(), false, meta, false);
             }

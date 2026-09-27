@@ -657,15 +657,24 @@ public class GuildCreator {
 		lore.add(StringFormatter.formatHex("#7a706aTop tariff payers"));
 		lore.add("");
 
-		int count = 0;
-		for (Faction f : g.getTradeBreakdown().getFactionsByIncomeDesc()) {
-			double paid = g.getTradeBreakdown().getTariffsByFaction(f);
+		// payerFaction -> tariffs its guilds pay us
+		HashMap<Faction, Double> received = new HashMap<>();
+		for (Guild payer : FactionManager.getAllGuilds()) {
+			if (payer == null || payer.getFaction() == null) continue;
+			double paid = payer.getTradeBreakdown().getTariffsByFaction(g.getFaction());
 			if (paid <= 0) continue;
+			received.merge(payer.getFaction(), paid, Double::sum);
+		}
 
+		List<Map.Entry<Faction, Double>> top = new ArrayList<>(received.entrySet());
+		top.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+
+		int count = 0;
+		for (var e : top) {
 			lore.add(StringFormatter.formatHex(
-				"#d4c9ae" + f.getName()
+				"#d4c9ae" + e.getKey().getName()
 				+ "#7a706a: #7fbd73+"
-				+ String.format("%.2f", paid) + "d"
+				+ String.format("%.2f", e.getValue()) + "d"
 			));
 
 			if (++count >= 5) break;

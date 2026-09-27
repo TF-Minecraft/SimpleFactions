@@ -62,26 +62,26 @@ public class EconomicImpact {
         write(lore, f.getTaxHandler().getTaxChangeEffects(target, id, rate), us, shortForm);
     }
 
-    public static void applyTariffImpact(List<String> lore, Player p, Faction f, double newTariffRate) {
-        applyTariffImpact(lore, p, f, newTariffRate, false, null, false);
+    public static void applyTariffImpact(List<String> lore, Player p, Faction f, String targetId, double newTariffRate) {
+        applyTariffImpact(lore, p, f, targetId, newTariffRate, false, null, false);
     }
 
-    public static void applyTariffImpact(List<String> lore, Player p, Faction f, double newTariffRate, boolean shortForm) {
-        applyTariffImpact(lore, p, f, newTariffRate, shortForm, null, false);
+    public static void applyTariffImpact(List<String> lore, Player p, Faction f, String targetId, double newTariffRate, boolean shortForm) {
+        applyTariffImpact(lore, p, f, targetId, newTariffRate, shortForm, null, false);
     }
 
     public static void applyTariffImpact(
-            List<String> lore, Player p, Faction f, double newTariffRate,
+            List<String> lore, Player p, Faction f, String targetId, double newTariffRate,
             boolean shortForm, ItemMeta meta, boolean book) {
         Guild us = viewer(p);
         if (us == null) {
             return;
         }
         if (defer(lore, p, us, shortForm, meta, book,
-                prepared -> EconomicPreview.copyOf(prepared).previewTariffRateChange(f, newTariffRate))) {
+                prepared -> EconomicPreview.copyOf(prepared).previewTariffRateChange(f, targetId, newTariffRate))) {
             return;
         }
-        write(lore, SimpleFactions.getInstance().getProvinceManager().previewTariffRateChange(f, newTariffRate), us, shortForm);
+        write(lore, SimpleFactions.getInstance().getProvinceManager().previewTariffRateChange(f, targetId, newTariffRate), us, shortForm);
     }
 
     public static void applyFavourRepressChange(List<String> lore, Player p, Faction f, Guild g, boolean favour) {
