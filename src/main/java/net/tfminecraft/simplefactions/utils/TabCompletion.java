@@ -236,7 +236,7 @@ public class TabCompletion implements TabCompleter{
 					return net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions.subcommands(
 							args.length >= 2 ? args[1] : "");
 				}
-				if(args.length == 3 && args[1].equalsIgnoreCase("give")) {
+				if(args.length == 3 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("handover"))) {
 					List<String> names = new ArrayList<>();
 					for(Player online : Bukkit.getOnlinePlayers()) {
 						names.add(online.getName());

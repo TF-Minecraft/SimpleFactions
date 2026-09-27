@@ -10,6 +10,8 @@ import org.bukkit.inventory.meta.BookMeta;
 
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
+import net.tfminecraft.simplefactions.government.proposal.FeeChange;
+import net.tfminecraft.simplefactions.government.proposal.FeeProposalText;
 import net.tfminecraft.simplefactions.government.proposal.TaxLawChange;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -132,6 +134,14 @@ public class SessionReport {
                     currentPage.append("Target: ").append(name).append("§r\n\n");
                     currentPage.append(String.format("%.0f", oldRate)).append("% §0→ ").append(taxChange.getNewTax()).append("%");
                 }
+            } else if (pr.proposal.isFeeProposal()) {
+                FeeChange fee = pr.proposal.getFeeChange();
+                double oldRate = faction.getVehicleFeeHandler().getRate(fee.getKind(), fee.getVehicleTypeId());
+                currentPage.append("Type: Fee\n");
+                currentPage.append("Fee: ").append(fee.getKind().getDisplayName()).append("\n");
+                currentPage.append("Vehicle: ").append(FeeProposalText.target(fee)).append("§r\n\n");
+                currentPage.append(fee.getKind().formatRate(oldRate)).append(" §0→ ")
+                        .append(fee.getKind().formatRate(fee.getNewRate()));
             }
             
             currentPage.append("\n\n§6Votes\n");

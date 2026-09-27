@@ -7,6 +7,10 @@ maintenance-interval-ticks: 72000
 default-upkeep: 4
 default-per-person: 1
 
+# VFBuilders blueprint categories hidden from the vehicle fee proposal menu, such as
+# staff-only ones. Fees still apply to vehicles in them through the general rate.
+fee-excluded-categories: []
+
 categories:
   land_vehicles:
     show-on-upcoming-battle-icon: true

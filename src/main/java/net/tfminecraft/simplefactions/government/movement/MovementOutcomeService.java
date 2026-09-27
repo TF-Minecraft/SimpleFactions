@@ -111,7 +111,7 @@ public final class MovementOutcomeService {
 			return true;
 		}
 		Proposal proposal = cause.getProposal();
-		if (proposal != null && (proposal.isLawProposal() || proposal.isTaxProposal())) {
+		if (proposal != null && (proposal.isLawProposal() || proposal.isTaxProposal() || proposal.isFeeProposal())) {
 			return true;
 		}
 		Action fromProposal = actionOf(cause);

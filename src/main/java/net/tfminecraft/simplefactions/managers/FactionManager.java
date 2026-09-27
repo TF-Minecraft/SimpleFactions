@@ -578,6 +578,7 @@ public class FactionManager implements Listener{
 
 		buffer.clear();
 		SimpleFactions.getInstance().getVehicleUpkeepService().processDailyUpkeep();
+		SimpleFactions.getInstance().recordVehicleOwners();
 	}
 
 	

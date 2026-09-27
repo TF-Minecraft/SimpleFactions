@@ -185,7 +185,7 @@ public final class FactionVehicleReleaseService {
         return new Outcome(status, slotFailure, vehicleTypeId);
     }
 
-    static boolean assignFrameworkOwner(String vehicleUuid, String playerName) {
+    public static boolean assignFrameworkOwner(String vehicleUuid, String playerName) {
         if (vehicleUuid == null || vehicleUuid.isBlank() || playerName == null || playerName.isBlank()) {
             return false;
         }

@@ -44,6 +44,8 @@ import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 import net.tfminecraft.simplefactions.objects.handler.LawHandler;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
+import net.tfminecraft.simplefactions.government.proposal.FeeKind;
+import net.tfminecraft.simplefactions.objects.handler.VehicleFeeHandler;
 import net.tfminecraft.simplefactions.rest.BannerFetcher;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.tiers.Tier;
@@ -103,6 +105,8 @@ public class Faction {
 	
 	
 	private TaxHandler taxHandler;
+	// Built before any constructor body runs, so lawHandler.apply() can set its brackets.
+	private final VehicleFeeHandler vehicleFeeHandler = new VehicleFeeHandler(this);
 
 	private Tier tier;
 	
@@ -420,6 +424,10 @@ public class Faction {
 	
 	public Military getMilitary() {
 		return military;
+	}
+
+	public VehicleFeeHandler getVehicleFeeHandler() {
+		return vehicleFeeHandler;
 	}
 
 	public TaxHandler getTaxHandler() {
@@ -1009,10 +1017,15 @@ public class Faction {
 		// --- existing tax logic ---
 		if (effect.hasBrackets()) {
 			for (Map.Entry<Brackets, Bracket> entry : effect.getBrackets().entrySet()) {
-				taxHandler.applyBracket(
-					BracketToTaxTarget.convert(entry.getKey()),
-					entry.getValue()
-				);
+				FeeKind feeKind = FeeKind.fromBracket(entry.getKey());
+				if (feeKind != null) {
+					vehicleFeeHandler.applyBracket(feeKind, entry.getValue());
+					continue;
+				}
+				TaxTarget target = BracketToTaxTarget.convert(entry.getKey());
+				if (target != null) {
+					taxHandler.applyBracket(target, entry.getValue());
+				}
 			}
 		}
 
@@ -1041,6 +1054,12 @@ public class Faction {
 					case TARIFFS:
 						if (!value)
 							taxHandler.applyBracket(TaxTarget.TARIFFS, new Bracket(0, 0));
+						break;
+					case VEHICLE_TAX:
+					case REGISTRATION_FEE:
+					case TRANSFER_FEE:
+						if (!value)
+							vehicleFeeHandler.applyBracket(FeeKind.fromRule(rule), new Bracket(0, 0));
 						break;
 					default:
 						break;

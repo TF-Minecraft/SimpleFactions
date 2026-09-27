@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.enums.Region;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Scope;
 import net.tfminecraft.simplefactions.government.movement.Action;
+import net.tfminecraft.simplefactions.government.proposal.FeeProposalText;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
 import net.tfminecraft.simplefactions.government.proposal.TaxLawChange;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
@@ -86,6 +87,8 @@ public class LoreWriter {
             } else {
                 EconomicImpact.applyTaxImpact(lore, p, f, target, taxChange.getId(), taxChange.getNewTax(), false, meta, false);
             }
+        } else if(proposal.isFeeProposal()) {
+            lore.addAll(FeeProposalText.lines(f, proposal.getFeeChange()));
         } else if(proposal.isPoliticalActionProposal()) {
             Action action = proposal.getPoliticalAction().getAction();
             lore.add(StringFormatter.formatHex("#b8ae61Action: #c2bea7"+action.getDisplay()));

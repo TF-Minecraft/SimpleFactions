@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.vehicles.berth;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RequestManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -71,6 +72,10 @@ public final class FactionVehicleGiveService {
                 notifyLeader(req, message);
             }
             return;
+        }
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin != null) {
+            plugin.recordVehicleOwner(req.getVehicleUuid(), recipient.getName());
         }
         recipient.sendMessage(FactionVehicleReleaseMessages.giveSuccessRecipient(req.getLeaderName()));
         notifyLeader(req, FactionVehicleReleaseMessages.giveSuccessLeader(recipient.getName()));

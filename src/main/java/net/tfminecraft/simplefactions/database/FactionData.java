@@ -37,6 +37,12 @@ public class FactionData {
     @SerializedName("specific taxes")
     public HashMap<String, HashMap<String, Double>> specificTaxes = new HashMap<>();
 
+    @SerializedName("vehicle fees")
+    public HashMap<String, Double> vehicleFees;
+
+    @SerializedName("vehicle type fees")
+    public HashMap<String, HashMap<String, Double>> vehicleTypeFees;
+
     public Integer capital;
 
     @SerializedName("extra node capacity")

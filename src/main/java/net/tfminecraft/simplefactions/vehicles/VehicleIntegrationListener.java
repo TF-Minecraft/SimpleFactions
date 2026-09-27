@@ -96,7 +96,7 @@ public final class VehicleIntegrationListener implements Listener {
         return "player_" + constructorUuid;
     }
 
-    private static String resolveVehicleTypeId(Blueprint blueprint) {
+    public static String resolveVehicleTypeId(Blueprint blueprint) {
         Vehicle vehicle = blueprint.getVehicle();
         if (vehicle != null && vehicle.getId() != null && !vehicle.getId().isEmpty()) {
             return vehicle.getId();

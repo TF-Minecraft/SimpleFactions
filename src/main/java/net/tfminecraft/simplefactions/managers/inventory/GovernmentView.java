@@ -135,6 +135,8 @@ public class GovernmentView {
 		i.clear();
 		i.setItem(0, creator.createProposalTypeItem("law"));
 		i.setItem(1, creator.createProposalTypeItem("tax"));
+		if(VehicleFeeView.anyChargeable(f))
+			i.setItem(3, creator.createProposalTypeItem("fee"));
 		if((!f.getGovernment().canPropose(player) && f.getGovernment().canProposeOrStartMovement(player))
 				|| (f.getGovernment().canPropose(player) && CouncilPeaceQueries.isParticipatingInAny(f)))
 			i.setItem(2, creator.createProposalTypeItem("political"));
@@ -385,6 +387,9 @@ public class GovernmentView {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(slot == 2) {
 				politicalProposalView(p, f, null);
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			} else if(slot == 3 && VehicleFeeView.anyChargeable(f)) {
+				inv.vehicleFeeView.feeProposalView(p, f, null);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			}
 		} else if (h.getType() == SFGUI.TAX_PROPOSAL_VIEW) {

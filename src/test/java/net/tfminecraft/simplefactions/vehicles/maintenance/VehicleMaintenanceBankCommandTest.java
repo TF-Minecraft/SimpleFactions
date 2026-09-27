@@ -37,6 +37,8 @@ class VehicleMaintenanceBankCommandTest {
         when(plugin.getVehicleMaintenancePaySessionManager()).thenReturn(sessions);
         when(plugin.getVehicleTransferSessionManager()).thenReturn(transfers);
         when(plugin.getVehicleReleaseSessionManager()).thenReturn(new VehicleReleaseSessionManager());
+        when(plugin.getVehicleHandoverSessionManager()).thenReturn(
+                new net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverSessionManager());
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class);
                 MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {

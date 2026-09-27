@@ -71,6 +71,8 @@ public final class PlayerLedgerCreator {
         for (PlayerCashflow cashflow : PlayerCashflow.values()) {
             double value = cashflow == PlayerCashflow.VEHICLE_UPKEEP
                     ? VehicleUpkeepProjection.displayVehicleExpense(ledger, playerUuid)
+                    : cashflow == PlayerCashflow.VEHICLE_TAX
+                    ? VehicleUpkeepProjection.displayVehicleTax(ledger, playerUuid)
                     : ledger.getAmount(cashflow);
             if (value >= 0) {
                 continue;

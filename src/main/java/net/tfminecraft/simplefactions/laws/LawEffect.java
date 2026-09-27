@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.enums.Brackets;
 import net.tfminecraft.simplefactions.enums.Region;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Scope;
+import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 
 public class LawEffect {
     private Map<Rules, Boolean> rules = new LinkedHashMap<>();
@@ -206,6 +207,8 @@ public class LawEffect {
         if(hasBrackets()) {
             for(Brackets b : brackets.keySet()) {
                 if(b == Brackets.CITIZEN_TAX || b == Brackets.DIVIDEND_TAX) continue;
+                // Vehicle fees are paid from personal banks, not guild income.
+                if(FeeKind.fromBracket(b) != null) continue;
                 return true;
             }
         }

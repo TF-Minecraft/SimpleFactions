@@ -19,6 +19,7 @@ public class BracketToTaxTarget {
             default:
                 break;
         }
-        return TaxTarget.CITIZENS;
+        // Vehicle fee brackets have no tax target; VehicleFeeHandler applies them.
+        return null;
     }
 }
