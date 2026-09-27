@@ -79,6 +79,7 @@ map-reference: main
 map-id: unknown
 # Display name for that chapter. Blank becomes Unknown; not derived from map-id.
 map-name: Unknown
+# Members of guilds whose capital is in the settlement. More than this uses the large map icon.
 settlement-large-population-threshold: 8
 port-sea-proximity-blocks: 20
 

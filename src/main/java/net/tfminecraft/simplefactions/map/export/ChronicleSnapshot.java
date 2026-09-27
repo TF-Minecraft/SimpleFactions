@@ -172,7 +172,7 @@ public final class ChronicleSnapshot {
 			int settlementPopulation = 0;
 			for (Settlement settlement : faction.getSettlementHandler().getAll()) {
 				settlements++;
-				settlementPopulation += faction.getSettlementHandler().getPopulation(settlement).size();
+				settlementPopulation += faction.getSettlementHandler().populationSize(settlement);
 			}
 			row.addProperty("settlements", settlements);
 			row.addProperty("population", settlementPopulation);
