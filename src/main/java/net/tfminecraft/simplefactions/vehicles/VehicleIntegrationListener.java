@@ -14,6 +14,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vfbuilders.core.Blueprint;
 import net.tfminecraft.vfbuilders.events.BeginVehicleConstructionEvent;
 import net.tfminecraft.vfbuilders.events.VehicleConstructEvent;
@@ -69,7 +70,7 @@ public final class VehicleIntegrationListener implements Listener {
             return;
         }
         VehicleRemovePayload payload = event.getPayload();
-        if (SimpleFactions.getVehicleRegistry().unregister(vehicle.getUUID())) {
+        if (dropRecord(SimpleFactions.getVehicleRegistry(), vehicle.getUUID(), payload)) {
             SimpleFactions.getInstance().saveVehicleRegistry();
             if (payload != null && payload.isDeath()) {
                 payload.getDeathCause().ifPresent(cause ->
@@ -82,6 +83,17 @@ public final class VehicleIntegrationListener implements Listener {
                 );
             }
         }
+    }
+
+    /**
+     * Drops a removed vehicle's faction record. A berthed or pool vehicle whose chunk unloads is
+     * still the faction's, so it only loses its record when it is destroyed.
+     */
+    static boolean dropRecord(PlayerVehicleRegistry registry, String vehicleUuid, VehicleRemovePayload payload) {
+        if (!VehicleRemovals.isGoneForGood(payload)) {
+            return false;
+        }
+        return registry.unregister(vehicleUuid);
     }
 
     private static String resolveOwnerEntry(UUID constructorUuid, Player onlineConstructor) {
