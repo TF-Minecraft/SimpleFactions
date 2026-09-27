@@ -127,4 +127,28 @@ class VehicleMaintenanceBankCommandTest {
         assertNull(sessions.get(payer));
         verifyNoInteractions(service);
     }
+
+    @Test
+    void failedPaymentDisarmsSessionSoLaterClicksReachTheVehicle() {
+        Player player = mock(Player.class);
+        UUID payer = UUID.randomUUID();
+        when(player.getUniqueId()).thenReturn(payer);
+        var sessions = new VehicleMaintenancePaySessionManager();
+        var session = new VehicleMaintenancePaySessionManager.VehicleMaintenancePaySession(
+                System.currentTimeMillis() + 60_000, PaymentSource.BANK);
+        sessions.put(payer, session);
+        var service = mock(VehicleMaintenancePayService.class);
+        when(service.tryPay(payer, "vehicle-uuid", "cog", PaymentSource.BANK))
+                .thenReturn(VehicleMaintenancePayService.VehicleMaintenancePayResult.NOT_UNPAID);
+        var listener = new VehicleMaintenancePayListener(sessions, service);
+
+        listener.pay(player, session, "vehicle-uuid", "cog");
+        verify(player).sendMessage(VehicleMaintenanceMessages.notUnpaid());
+        assertNull(sessions.get(payer));
+
+        var nextClick = new VehiclePreInteractEvent(player, null);
+        listener.onVehiclePreInteract(nextClick);
+        assertFalse(nextClick.isCancelled());
+        verify(service, times(1)).tryPay(any(), any(), any(), any());
+    }
 }
