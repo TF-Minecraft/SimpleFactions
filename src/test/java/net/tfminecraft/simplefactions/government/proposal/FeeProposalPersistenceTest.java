@@ -28,12 +28,16 @@ class FeeProposalPersistenceTest {
         ProposalHandler handler = new ProposalHandler(gov);
         handler.propose(fee(FeeKind.VEHICLE_TAX, null, 12.5));
         handler.propose(fee(FeeKind.TRANSFER_FEE, "cruiser", 2.0));
+        handler.propose(fee(FeeKind.REGISTRATION_FEE, "pack:ship", 1.5));
 
         List<String> saved = handler.serializeProposals();
         ProposalHandler restored = new ProposalHandler(gov);
         restored.restoreProposals(mock(Faction.class), saved);
 
-        assertEquals(2, restored.getProposals().size());
+        assertEquals(3, restored.getProposals().size());
+        FeeChange colon = restored.getProposals().get(2).getFeeChange();
+        assertEquals("pack:ship", colon.getVehicleTypeId());
+        assertEquals(1.5, colon.getNewRate());
         FeeChange general = restored.getProposals().get(0).getFeeChange();
         assertEquals(FeeKind.VEHICLE_TAX, general.getKind());
         assertNull(general.getVehicleTypeId());

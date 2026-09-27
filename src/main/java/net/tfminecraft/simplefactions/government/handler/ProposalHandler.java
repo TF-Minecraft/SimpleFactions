@@ -134,13 +134,17 @@ public class ProposalHandler {
                     }
                 }
             } else if (s.startsWith("fee:")) {
-                String[] parts = s.substring(4).split(":");
-                if (parts.length >= 3) {
+                // kind:type:rate, where the type may itself contain colons.
+                String body = s.substring(4);
+                int first = body.indexOf(':');
+                int last = body.lastIndexOf(':');
+                if (first > 0 && last > first) {
                     try {
-                        FeeKind kind = FeeKind.valueOf(parts[0]);
-                        String type = ALL_VEHICLES.equals(parts[1]) ? null : parts[1];
+                        FeeKind kind = FeeKind.valueOf(body.substring(0, first));
+                        String typeField = body.substring(first + 1, last);
+                        String type = ALL_VEHICLES.equals(typeField) ? null : typeField;
                         Proposal p = new Proposal(proposer, gov);
-                        p.setFeeProposal(new FeeChange(kind, type, Double.parseDouble(parts[2])));
+                        p.setFeeProposal(new FeeChange(kind, type, Double.parseDouble(body.substring(last + 1))));
                         proposals.add(p);
                     } catch (Exception e) {
                         // Skip malformed proposals

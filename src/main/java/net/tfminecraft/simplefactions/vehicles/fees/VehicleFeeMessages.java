@@ -34,6 +34,11 @@ public final class VehicleFeeMessages {
                 + " §aof registration fee was refunded to your bank.";
     }
 
+    public static String registrationRefundShort(double amount) {
+        return "§c" + amount(amount) + " §cof your registration fee could not be refunded because your faction's "
+                + "bank is short. Ask your faction leader or staff.";
+    }
+
     public static String claimConfirm(Quote quote, String lastOwner) {
         return "§6This vehicle was last owned by §e" + lastOwner + "§6, so claiming it is a transfer. "
                 + "The transfer fee is " + charge(quote) + "§6. Right-click again to confirm and pay from your bank.";

@@ -6,6 +6,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -98,8 +101,21 @@ public final class VehicleFeeStore {
         for (Map.Entry<String, PaidBuild> entry : paidBuilds.entrySet()) {
             data.paidBuilds.put(entry.getKey(), BuildData.from(entry.getValue()));
         }
-        try (Writer writer = new FileWriter(file)) {
+        // Written beside the file and moved into place, so an interrupted save keeps the old file.
+        File temp = new File(file.getParentFile(), file.getName() + ".tmp");
+        try (Writer writer = new FileWriter(temp)) {
             GSON.toJson(data, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+        try {
+            try {
+                Files.move(temp.toPath(), file.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -9,7 +9,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
+import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.VehicleIntegrationListener;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore.PaidBuild;
@@ -79,9 +81,20 @@ public final class VehicleRegistrationFeeListener implements Listener {
         saver.run();
         double refunded = VehicleFeeService.refund(
                 build.payerUuid(), build.factionId(), FeeKind.REGISTRATION_FEE, build.amount());
+        double shortfall = Formatter.formatDouble(build.amount() - refunded);
+        if (shortfall > 0.0 && SimpleFactions.getInstance() != null) {
+            // The faction has spent it; there is nothing to hold it against, so staff are told instead.
+            SimpleFactions.getInstance().getLogger().warning("Registration fee refund short by " + shortfall
+                    + " for " + build.payerUuid() + ": faction " + build.factionId() + " could not cover it");
+        }
         Player payer = Bukkit.getPlayer(build.payerUuid());
-        if (payer != null && payer.isOnline() && refunded > 0.0) {
-            payer.sendMessage(VehicleFeeMessages.registrationRefunded(refunded));
+        if (payer != null && payer.isOnline()) {
+            if (refunded > 0.0) {
+                payer.sendMessage(VehicleFeeMessages.registrationRefunded(refunded));
+            }
+            if (shortfall > 0.0) {
+                payer.sendMessage(VehicleFeeMessages.registrationRefundShort(shortfall));
+            }
         }
     }
 
