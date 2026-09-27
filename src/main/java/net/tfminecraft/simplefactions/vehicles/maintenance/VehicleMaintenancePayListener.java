@@ -39,14 +39,20 @@ public final class VehicleMaintenancePayListener implements Listener {
             return;
         }
 
+        pay(leader, session, vehicle.getUUID(), vehicle.getId());
+    }
+
+    void pay(Player leader, VehicleMaintenancePaySession session, String vehicleUuid, String vehicleTypeId) {
         VehicleMaintenancePayResult result = payService.tryPay(
                 leader.getUniqueId(),
-                vehicle.getUUID(),
-                vehicle.getId(),
+                vehicleUuid,
+                vehicleTypeId,
                 session.getPaymentSource());
+        // One click per armed command, whatever the outcome, so a failed payment
+        // does not keep swallowing vehicle interactions until the session expires.
+        sessionManager.clear(leader.getUniqueId());
         switch (result) {
             case SUCCESS -> {
-                sessionManager.clear(leader.getUniqueId());
                 SimpleFactions plugin = SimpleFactions.getInstance();
                 if (plugin != null) {
                     plugin.saveVehicleRegistry();
