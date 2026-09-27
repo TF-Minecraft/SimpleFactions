@@ -364,6 +364,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 					pouch.change(amount*-1);
 					g.getBank().deposit(amount);
+					g.getLedger().getHistory().addDeposit(p.getName(), amount);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aDeposited: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Guild Balance: #b39122"+b.getWealth()+"#dbaf1dd"));
@@ -1129,6 +1130,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 					pouch.change(amount*-1);
 					f.getBank().deposit(amount);
+					f.getOrCreateMainGuild().getLedger().getHistory().addDeposit(p.getName(), amount);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aDeposited: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Faction Balance: #b39122"+b.getWealth()+"#dbaf1dd"));

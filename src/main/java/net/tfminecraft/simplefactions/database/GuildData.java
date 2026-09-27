@@ -57,5 +57,12 @@ public class GuildData {
     @SerializedName("citizen taxes")
     public Map<String, Double> citizenTaxes;
 
+    @SerializedName("ledger last day")
+    public Map<String, Map<String, Double>> ledgerLastDay;
+    @SerializedName("ledger lifetime")
+    public Map<String, Map<String, Double>> ledgerLifetime;
+    @SerializedName("deposits today")
+    public Map<String, Double> depositsToday;
+
     public MercenaryCompanyData company;
 }

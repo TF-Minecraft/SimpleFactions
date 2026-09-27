@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
 import net.tfminecraft.simplefactions.loaders.BranchLoader;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
@@ -408,6 +409,13 @@ public class Database {
                 gd.vehicleFeeIncome = g.getLedger().getVehicleFeeIncome();
                 Map<String, Double> citizenTaxes = g.getLedger().getCitizenTaxesCopy();
                 gd.citizenTaxes = citizenTaxes.isEmpty() ? null : citizenTaxes;
+                LedgerHistory history = g.getLedger().getHistory();
+                Map<String, Map<String, Double>> lastDay = history.getLastDayCopy();
+                gd.ledgerLastDay = lastDay.isEmpty() ? null : lastDay;
+                Map<String, Map<String, Double>> lifetime = history.getLifetimeCopy();
+                gd.ledgerLifetime = lifetime.isEmpty() ? null : lifetime;
+                Map<String, Double> depositsToday = history.getDepositsTodayCopy();
+                gd.depositsToday = depositsToday.isEmpty() ? null : depositsToday;
                 gd.company = g.getCompany() != null ? g.getCompany().serialize() : null;
 
                 // --- Bank ---
