@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.utils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * Parses an amount typed into a bank deposit or withdrawal. Balances round each change to whole
@@ -23,6 +24,9 @@ public final class BankAmount {
         if (value.signum() <= 0) return null;
         if (value.stripTrailingZeros().scale() > 2) return null;
         double amount = value.doubleValue();
-        return Double.isFinite(amount) ? amount : null;
+        if (!Double.isFinite(amount)) return null;
+        // A huge amount can lose its cents as a double, which would move a different sum.
+        BigDecimal kept = BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP);
+        return kept.compareTo(value) == 0 ? amount : null;
     }
 }

@@ -24,6 +24,12 @@ class BankAmountTest {
 	}
 
 	@Test
+	void rejectsAmountsTooLargeToKeepTheirCents() {
+		assertNull(BankAmount.parse("12345678901234567.89"));
+		assertEquals(1_000_000_000.25, BankAmount.parse("1000000000.25"));
+	}
+
+	@Test
 	void rejectsAnythingElse() {
 		for (String text : new String[] { "0", "-5", "NaN", "Infinity", "abc", "", "1e400", null }) {
 			assertNull(BankAmount.parse(text), text);
