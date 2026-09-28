@@ -236,8 +236,9 @@ public class Loan {
     public double getDailyPayment(boolean subtractInterest) {
         if(isPaidOff()) return 0.0;
         int daysUntilDue = getDaysUntilDue();
-        if (daysUntilDue <= 0) return getTotalOwed(); // Due or overdue
-        double payment = (getTotalOwed() / getDaysUntilDue());
+        // Due or overdue: everything is owed now. Unpaid interest is still taken out below when
+        // asked, because getDailyInterest() charges it separately.
+        double payment = daysUntilDue <= 0 ? getTotalOwed() : getTotalOwed() / daysUntilDue;
         if(subtractInterest && unpaidInterest > 0) {
             payment -= Math.min(unpaidInterest, payment);
         }
