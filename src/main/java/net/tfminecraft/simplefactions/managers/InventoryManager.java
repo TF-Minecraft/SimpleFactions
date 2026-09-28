@@ -18,6 +18,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -990,6 +991,21 @@ public class InventoryManager implements Listener{
 		slotChanges.remove(e.getPlayer());
 	}
 
+	private static boolean isPluginMenu(Inventory inv) {
+		InventoryHolder holder = inv.getHolder();
+		return holder instanceof SFInventoryHolder
+				|| holder instanceof WarInventoryHolder
+				|| holder instanceof CampaignInventoryHolder
+				|| holder instanceof CampaignRaidLaunchHolder
+				|| holder instanceof SFCombinedInventoryHolder
+				|| holder instanceof DeclareWarHolder;
+	}
+
+	/** Raw slots below the top inventory's size are its own; the rest belong to the player. */
+	public static boolean isTopInventoryClick(int rawSlot, int topSize) {
+		return rawSlot >= 0 && rawSlot < topSize;
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	@EventHandler
@@ -1008,6 +1024,12 @@ public class InventoryManager implements Listener{
 				|| inv.getHolder() instanceof DeclareWarHolder) {
 			e.setCancelled(true);
 		}
+		if (inv.getHolder() instanceof SFInventoryHolder) {
+			e.setCancelled(true);
+		}
+		// Every menu button is in the top inventory. A click in the player's own inventory
+		// carries a slot number too, so it must never reach the views as a button press.
+		if (isPluginMenu(inv) && !isTopInventoryClick(e.getRawSlot(), inv.getSize())) return;
 		if(e.getCurrentItem() == null) return;
 		if(inv.getHolder() instanceof SFInventoryHolder) {
 			e.setCancelled(true);

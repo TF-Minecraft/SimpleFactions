@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.entry.PlayerEntry;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
+import net.tfminecraft.simplefactions.guild.loans.LoanFunding;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -50,6 +51,8 @@ public class Ledger {
     // Pushed by the games plugin as tables win, and saved with the bank balance it arrived in,
     // so a restart cannot quietly wipe a day of gambling income before it is taxed.
     private double casinoProfit;
+    /** Today's funded loan payments, set only while the settlement is being built. */
+    private Map<Loan, LoanFunding.Funded> loanPlan;
 
     // Vehicle tax and fees collected today, already in the bank. Saved like casinoProfit.
     private double vehicleFeeIncome;
@@ -240,12 +243,10 @@ public class Ledger {
                 amount = -getOverlordTax();
                 break;
             //Loans
+            // Automatic loan payments show what the borrower's balance would fund, as settlement pays.
             case LOAN_PAYMENTS: {
-                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) break;
-                for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
-                    if(loan == null || !loan.isAutoPay()) continue;
-                    if(loan.isPaidOff()) continue;
-                    amount -= loan.getDailyPayment(true);
+                for (LoanFunding.Funded funded : projectedLoanPlan().values()) {
+                    amount -= funded.principal();
                 }
                 break;
             }
@@ -253,18 +254,14 @@ public class Ledger {
                 amount += getAggregatedLoanPayments();
                 if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansGiven() == null) break;
                 for(Loan loan : guild.getLoanHandler().getLoansGiven()) {
-                    if(loan == null || !loan.isAutoPay()) continue;
-                    if(loan.isPaidOff()) continue;
-                    amount += loan.getDailyPayment(true);
+                    if(!LoanFunding.isCharged(loan)) continue;
+                    amount += projectedFunding(loan).principal();
                 }
                 break;
             //Interest
             case INTEREST_PAYMENTS: {
-                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) break;
-                for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
-                    if(loan == null || !loan.isAutoPay()) continue;
-                    if(loan.isPaidOff()) continue;
-                    amount -= loan.getDailyInterest();
+                for (LoanFunding.Funded funded : projectedLoanPlan().values()) {
+                    amount -= funded.interest();
                 }
                 break;
             }
@@ -272,9 +269,8 @@ public class Ledger {
                 amount += getAggregatedInterestPayments();
                 if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansGiven() == null) break;
                 for(Loan loan : guild.getLoanHandler().getLoansGiven()) {
-                    if(loan == null || !loan.isAutoPay()) continue;
-                    if(loan.isPaidOff()) continue;
-                    amount += loan.getDailyInterest();
+                    if(!LoanFunding.isCharged(loan)) continue;
+                    amount += projectedFunding(loan).interest();
                 }
                 break;
             case WAR_REPARATIONS:
@@ -848,6 +844,47 @@ public class Ledger {
                 .merge(name, amount, Double::sum);
     }
 
+    private static double wealthOf(Guild g) {
+        return g == null || g.getBank() == null ? 0.0 : Math.max(0.0, g.getBank().getWealth());
+    }
+
+    /** This guild's automatic loan payments as its current balance would fund them. */
+    private Map<Loan, LoanFunding.Funded> projectedLoanPlan() {
+        if (guild.getLoanHandler() == null) return Map.of();
+        return LoanFunding.plan(guild.getLoanHandler().getLoansTaken(), wealthOf(guild));
+    }
+
+    /** What a borrower's current balance would fund of this loan it took. */
+    private static LoanFunding.Funded projectedFunding(Loan loan) {
+        Guild borrower = loan.getBorrower();
+        if (borrower == null || borrower.getLoanHandler() == null) return LoanFunding.NONE;
+        return LoanFunding.plan(borrower.getLoanHandler().getLoansTaken(), wealthOf(borrower))
+                .getOrDefault(loan, LoanFunding.NONE);
+    }
+
+    /** Today's funded payment towards a loan this guild took, during settlement. */
+    private LoanFunding.Funded funded(Loan loan) {
+        if (loanPlan == null) return LoanFunding.NONE;
+        return loanPlan.getOrDefault(loan, LoanFunding.NONE);
+    }
+
+    /**
+     * What this guild can put towards loans today: its balance less the payments to other guilds
+     * and the net costs it has already committed to in this settlement.
+     */
+    private double loanBudget(DailyGuildTransfers buffer) {
+        double committed = 0.0;
+        Map<Guild, Double> sent = buffer.getTransfers().get(guild);
+        if (sent != null) {
+            for (Double amount : sent.values()) {
+                if (amount != null && amount > 0) committed += amount;
+            }
+        }
+        double external = buffer.getExternalDeltas().getOrDefault(guild, 0.0);
+        if (external < 0) committed -= external;
+        return Math.max(0.0, wealthOf(guild) - committed);
+    }
+
     public void populateDailyTransfers(DailyGuildTransfers buffer) {
         if(guild.isBankrupt() && guild.getLoanHandler() != null && guild.getLoanHandler().getLoansTaken() != null) {
             for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
@@ -856,6 +893,7 @@ public class Ledger {
                 loan.setAutoPay(false);
             }
         }
+
         if (!skipsMoneyMovement() && !guild.isBase()) {
             double pool = getDividendBreakdown().pool();
             if (pool > 0) {
@@ -863,7 +901,18 @@ public class Ledger {
             }
         }
         for (Cashflow cf : Cashflow.values()) {
+            if (cf == Cashflow.LOAN_PAYMENTS || cf == Cashflow.INTEREST_PAYMENTS) continue;
             applySettlementFor(cf, buffer);
+        }
+        // Loans are paid last, from what is left after today's other payments. The lender is
+        // credited in full, so an unfunded payment would create money; any shortfall stays owed.
+        loanPlan = guild.getLoanHandler() == null ? Map.of()
+                : LoanFunding.plan(guild.getLoanHandler().getLoansTaken(), loanBudget(buffer));
+        try {
+            applySettlementFor(Cashflow.LOAN_PAYMENTS, buffer);
+            applySettlementFor(Cashflow.INTEREST_PAYMENTS, buffer);
+        } finally {
+            loanPlan = null;
         }
         if (!skipsMoneyMovement()) {
             citizenTaxes.clear();
@@ -1016,10 +1065,8 @@ public class Ledger {
             case LOAN_PAYMENTS: {
                 if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) return;
                 for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
-                    double amount = 0;
-                    if(loan == null || !loan.isAutoPay()) continue;
-                    if(loan.isPaidOff()) continue;
-                    amount += loan.getDailyPayment(true);
+                    if(!LoanFunding.isCharged(loan)) continue;
+                    double amount = funded(loan).principal();
                     if(amount <= 0) continue;
                     loan.setTempPayment(amount);
                     buffer.add(guild, loan.getIssuer(), amount);
@@ -1031,12 +1078,12 @@ public class Ledger {
             case INTEREST_PAYMENTS: {
                 if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) return;
                 for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
-                    double amount = 0;
-                    if(loan == null || !loan.isAutoPay()) continue;
-                    if(loan.isPaidOff()) continue;
-                    amount += loan.getDailyInterest();
-                    if(amount <= 0) continue;
+                    if(!LoanFunding.isCharged(loan)) continue;
+                    if(loan.getDailyInterest() <= 0) continue;
+                    double amount = funded(loan).interest();
+                    // Recorded even when nothing could be paid, so the day's interest is still owed.
                     loan.setTempInterestPayment(amount);
+                    if(amount <= 0) continue;
                     buffer.add(guild, loan.getIssuer(), amount);
                 }
                 break;

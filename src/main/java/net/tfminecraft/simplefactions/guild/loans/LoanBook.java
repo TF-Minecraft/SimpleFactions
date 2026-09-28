@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.guild.loans;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -20,6 +21,17 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
 
 public class LoanBook {
+
+    /** The highest weekly interest a loan may charge, in percent. */
+    public static final double MAX_INTEREST = 100.0;
+    /** The highest daily overdue fee a loan may charge, in percent. */
+    public static final double MAX_OVERDUE_FEE = 100.0;
+    /** The longest a loan may run, in days. */
+    public static final int MAX_DURATION_DAYS = 365;
+
+    public static final String INVALID_TERMS_MESSAGE = "§cThose loan terms are not valid. Use a positive amount, "
+            + "a duration of 1 to " + MAX_DURATION_DAYS + " days, interest of 0 to " + (int) MAX_INTEREST
+            + "% and an overdue fee of 0 to " + (int) MAX_OVERDUE_FEE + "%.";
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
@@ -75,6 +87,8 @@ public class LoanBook {
         meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, loan.getIssuer().getId());
         meta.getPersistentDataContainer().set(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING, meta.getPage(2));
         meta.getPersistentDataContainer().set(Keys.INT, PersistentDataType.INTEGER, 3);
+        // The accepted loan takes this id, which marks the agreement as used.
+        meta.getPersistentDataContainer().set(Keys.LOAN_OFFER, PersistentDataType.STRING, UUID.randomUUID().toString());
         meta.getPersistentDataContainer().set(Keys.LONG, PersistentDataType.LONG, System.currentTimeMillis() + 86400000L); // 1 day in milliseconds
         book.setItemMeta(meta);
         return book;
@@ -142,6 +156,17 @@ public class LoanBook {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public static Loan createLoanFromBook(BookMeta meta, Guild borrower) {
+        return createLoanFromBook(meta, borrower, null);
+    }
+
+    /** The agreement id on a stage 3 book, or null for a book made before agreements had one. */
+    public static String offerId(BookMeta meta) {
+        return meta.getPersistentDataContainer().get(Keys.LOAN_OFFER, PersistentDataType.STRING);
+    }
+
+    // Keep the existing legacy text representation, formatting, and exact-string comparisons.
+    @SuppressWarnings("deprecation")
+    public static Loan createLoanFromBook(BookMeta meta, Guild borrower, String loanId) {
         String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
         Guild issuer = FactionManager.getGuildByString(id);
         if (issuer == null) return null;
@@ -149,10 +174,14 @@ public class LoanBook {
             return null;
 
         String page = ChatColor.stripColor(meta.getPage(2));
-        return createLoanFromString(page, issuer, borrower);
+        return createLoanFromString(page, issuer, borrower, loanId);
     }
 
     public static Loan createLoanFromString(String page, Guild issuer, Guild borrower) {
+        return createLoanFromString(page, issuer, borrower, null);
+    }
+
+    public static Loan createLoanFromString(String page, Guild issuer, Guild borrower, String loanId) {
         String[] lines = page.split("\n");
 
         double amount = 0;
@@ -190,12 +219,14 @@ public class LoanBook {
         }
 
         // ===== VALIDATION =====
-        if (amount <= 0) return null;
-        if (duration <= 0) return null;
-        if (interest < 0) return null;
-        if (overdueFee < 0) return null;
+        // Double.parseDouble accepts NaN and Infinity, which every comparison below would let through.
+        if (!Double.isFinite(amount) || amount <= 0) return null;
+        if (duration <= 0 || duration > MAX_DURATION_DAYS) return null;
+        if (!Double.isFinite(interest) || interest < 0 || interest > MAX_INTEREST) return null;
+        if (!Double.isFinite(overdueFee) || overdueFee < 0 || overdueFee > MAX_OVERDUE_FEE) return null;
 
         return new Loan(
+                loanId,
                 amount,
                 issuer,
                 borrower,
