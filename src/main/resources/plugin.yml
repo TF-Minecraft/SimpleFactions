@@ -5,7 +5,7 @@ version: ${project.version}
 author: Drefvelin
 
 depend: [DenarEconomy, TLibs]
-softdepend: [MMOItems, MythicLib, MMOCore, TFMCWeb, VehicleFramework, VFBuilders, ConditionalEvents, RPCharacters]
+softdepend: [MMOItems, MythicLib, MMOCore, TFMCWeb, VehicleFramework, VFBuilders, ConditionalEvents, RPCharacters, ItemsAdder]
 
 commands:
   faction:

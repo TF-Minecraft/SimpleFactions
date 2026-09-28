@@ -10,6 +10,7 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,6 +19,10 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.scheduler.BukkitRunnable;
+
+import dev.lone.itemsadder.api.Events.FurnitureBreakEvent;
+import dev.lone.itemsadder.api.Events.FurnitureInteractEvent;
+import dev.lone.itemsadder.api.Events.FurniturePlaceSuccessEvent;
 
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.LoanData;
@@ -52,6 +57,7 @@ import net.tfminecraft.simplefactions.utils.PostSettlementPayouts;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank;
 import net.tfminecraft.simplefactions.government.Government;
+import net.tfminecraft.simplefactions.government.VotingBlock;
 import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.tlibs.TLibs;
@@ -1154,7 +1160,10 @@ public class FactionManager implements Listener{
 
 	//Elections and stuff
 
+	private final Map<java.util.UUID, Long> boothOpenedAt = new HashMap<>();
+
 	public Faction getByVotingBooth(Block b) {
+		if (b == null) return null;
 		for(Faction f : factions) {
 			Government gov = f.getGovernment();
 			if(gov.isVotingBooth(b.getLocation())) return f;
@@ -1165,30 +1174,62 @@ public class FactionManager implements Listener{
 	@EventHandler
 	public void openBooth(PlayerInteractEvent e) {
 		if(!e.getAction().equals(Action.RIGHT_CLICK_BLOCK)) return;
-		Block b = e.getClickedBlock();
-		Player p = e.getPlayer();
+		if (presentBooth(e.getPlayer(), e.getClickedBlock())) {
+			e.setCancelled(true);
+		}
+	}
+
+	@EventHandler
+	public void openVotingFurniture(FurnitureInteractEvent e) {
+		Action action = e.getAction();
+		if (action != null && action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+		if (!VotingBlock.matches(Cache.votingBlock, e.getNamespacedID())) return;
+		Entity entity = e.getBukkitEntity();
+		if (entity == null) return;
+		if (presentBooth(e.getPlayer(), entity.getLocation().getBlock())) {
+			e.setCancelled(true);
+		}
+	}
+
+	private boolean presentBooth(Player p, Block b) {
 		Faction f = getByVotingBooth(b);
-		if(f == null) return;
-		e.setCancelled(true);
+		if(f == null) return false;
+		long now = System.currentTimeMillis();
+		Long openedAt = boothOpenedAt.get(p.getUniqueId());
+		if (openedAt != null && now - openedAt < 400) return true;
+		boothOpenedAt.put(p.getUniqueId(), now);
 		if(!f.getGovernment().hasElections()) {
 			p.sendMessage("§cThis faction has no elections");
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-			return;
+			return true;
 		}
 		if(!f.canVote(p.getName())) {
 			p.sendMessage("§cYou have no voting rights in this faction");
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-			return;
+			return true;
 		}
 		InventoryManager inv = new InventoryManager();
 		inv.electionView(p, f);
+		return true;
 	}
 
 	@EventHandler
 	public void placeVotingBooth(BlockPlaceEvent e) {
+		if (VotingBlock.furnitureId(Cache.votingBlock) != null) return;
 		Block b = e.getBlock();
-		Player p = e.getPlayer();
 		if(!TLibs.getBlockAPI().getChecker().checkBlock(b, Cache.votingBlock)) return;
+		registerVotingBooth(e.getPlayer(), b);
+	}
+
+	@EventHandler
+	public void placeVotingFurniture(FurniturePlaceSuccessEvent e) {
+		if (!VotingBlock.matches(Cache.votingBlock, e.getNamespacedID())) return;
+		Entity entity = e.getBukkitEntity();
+		if (entity == null) return;
+		registerVotingBooth(e.getPlayer(), entity.getLocation().getBlock());
+	}
+
+	private void registerVotingBooth(Player p, Block b) {
 		Faction f = FactionManager.getByMember(p.getName());
 		if(f == null) return;
 		Government gov = f.getGovernment();
@@ -1200,9 +1241,21 @@ public class FactionManager implements Listener{
 
 	@EventHandler
 	public void breakVotingBooth(BlockBreakEvent e) {
+		if (VotingBlock.furnitureId(Cache.votingBlock) != null) return;
 		Block b = e.getBlock();
-		Player p = e.getPlayer();
 		if(!TLibs.getBlockAPI().getChecker().checkBlock(b, Cache.votingBlock)) return;
+		unregisterVotingBooth(e.getPlayer(), b);
+	}
+
+	@EventHandler(ignoreCancelled = true)
+	public void breakVotingFurniture(FurnitureBreakEvent e) {
+		if (!VotingBlock.matches(Cache.votingBlock, e.getNamespacedID())) return;
+		Entity entity = e.getBukkitEntity();
+		if (entity == null) return;
+		unregisterVotingBooth(e.getPlayer(), entity.getLocation().getBlock());
+	}
+
+	private void unregisterVotingBooth(Player p, Block b) {
 		Faction f = getByVotingBooth(b);
 		if(f == null) return;
 		Government gov = f.getGovernment();

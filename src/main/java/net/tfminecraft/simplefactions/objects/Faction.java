@@ -1074,6 +1074,9 @@ public class Faction {
 
 		// --- 🔴 ELECTION CANCELLATION LOGIC ---
 		cancelInvalidElections();
+		if (enablesElections(effect)) {
+			government.ping();
+		}
 
 		// --- vassal logic ---
 		if (effect.prohibitsVassals() && hasVassals()) {
@@ -1131,6 +1134,15 @@ public class Faction {
 			default:
 				break;
 		}
+	}
+
+	static boolean enablesElections(LawEffect effect) {
+		if (effect == null || !effect.hasRules()) {
+			return false;
+		}
+		Map<Rules, Boolean> rules = effect.getRules();
+		return Boolean.TRUE.equals(rules.get(Rules.LEADER_ELECTIONS))
+				|| Boolean.TRUE.equals(rules.get(Rules.ELECTED_COUNCIL));
 	}
 
 	private void cancelInvalidElections() {
