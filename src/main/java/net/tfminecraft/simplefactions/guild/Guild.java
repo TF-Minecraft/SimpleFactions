@@ -225,6 +225,7 @@ public class Guild {
         this.ledger.setCitizenTaxes(data.citizenTaxes);
         this.ledger.getHistory().load(data.ledgerLastDay, data.ledgerLifetime, data.depositsToday);
         this.loanHandler = new LoanHandler(this, data.creditScore == null ? 50 : data.creditScore);
+        this.loanHandler.restoreUsedOffers(data.usedLoanOffers);
         if(data.favoured != null) this.favoured = data.favoured;
         if(data.repressed != null) this.repressed = data.repressed;
         if (data.dividendPercent != null) {

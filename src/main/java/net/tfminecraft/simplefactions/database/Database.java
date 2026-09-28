@@ -401,6 +401,7 @@ public class Database {
                             g.getStance(g.getFaction()).name() : 
                             g.getStance(g.getFaction()).name();
                 gd.creditScore = g.getLoanHandler().getCreditScore();
+                gd.usedLoanOffers = g.getLoanHandler().getUsedOffers();
                 gd.repressed = g.isRepressed();
                 gd.favoured = g.isFavoured();
                 gd.dividendPercent = g.getDividendPercent();

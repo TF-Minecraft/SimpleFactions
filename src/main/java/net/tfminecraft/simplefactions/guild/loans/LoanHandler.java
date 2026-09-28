@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.guild.loans;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,8 @@ public class LoanHandler {
     private Guild guild;
     private int creditScore = 50;
     private Map<String, Loan> issuedLoans = new LinkedHashMap<>();
+    /** Accepted loan agreements and when each book expires, kept until it can no longer be signed. */
+    private final Map<String, Long> usedOffers = new HashMap<>();
 
     public LoanHandler(Guild guild) {
         this.guild = guild;
@@ -25,6 +28,38 @@ public class LoanHandler {
 
     public void issueLoan(Loan loan) {
         issuedLoans.put(loan.getId(), loan);
+    }
+
+    /**
+     * Records a loan agreement as accepted and reports whether this was the first time. An
+     * agreement stays recorded, and saved, until its book expires, so a book cannot pay out twice
+     * even after a restart or once its loan is repaid or forgiven.
+     */
+    public boolean useOffer(String offerId, long bookExpiresAt) {
+        if (offerId == null) return false;
+        pruneUsedOffers();
+        if (usedOffers.containsKey(offerId) || issuedLoans.containsKey(offerId)) return false;
+        usedOffers.put(offerId, bookExpiresAt);
+        return true;
+    }
+
+    /** Accepted agreements whose books have not expired yet, for saving. */
+    public Map<String, Long> getUsedOffers() {
+        pruneUsedOffers();
+        return new HashMap<>(usedOffers);
+    }
+
+    public void restoreUsedOffers(Map<String, Long> saved) {
+        if (saved == null) return;
+        for (Map.Entry<String, Long> entry : saved.entrySet()) {
+            if (entry.getKey() != null && entry.getValue() != null) usedOffers.put(entry.getKey(), entry.getValue());
+        }
+        pruneUsedOffers();
+    }
+
+    private void pruneUsedOffers() {
+        long now = System.currentTimeMillis();
+        usedOffers.values().removeIf(expiresAt -> expiresAt < now);
     }
 
     public void removeLoan(String id) {

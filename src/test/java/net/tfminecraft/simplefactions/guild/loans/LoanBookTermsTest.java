@@ -1,7 +1,6 @@
 package net.tfminecraft.simplefactions.guild.loans;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -51,13 +50,6 @@ class LoanBookTermsTest {
 		assertNull(LoanBook.createLoanFromString(page("1000", "366", "6", "2"), null, null));
 		assertNull(LoanBook.createLoanFromString(page("1000", "1e10", "6", "2"), null, null));
 		assertNotNull(LoanBook.createLoanFromString(page("1000", "365", "6", "2"), null, null));
-	}
-
-	@Test
-	void anAgreementCanOnlyBeClaimedOnce() {
-		assertTrue(LoanBook.claimOffer("claim-once"));
-		assertFalse(LoanBook.claimOffer("claim-once"));
-		assertFalse(LoanBook.claimOffer(null));
 	}
 
 	@Test

@@ -41,6 +41,8 @@ public class GuildData {
 
     public List<LoanData> loans = new ArrayList<>();
     public Integer creditScore;
+    /** Accepted loan agreement ids and when their books expire. */
+    public Map<String, Long> usedLoanOffers;
 
     public Boolean favoured = false;
     public Boolean repressed = false;

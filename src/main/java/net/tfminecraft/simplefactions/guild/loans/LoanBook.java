@@ -3,9 +3,7 @@ package net.tfminecraft.simplefactions.guild.loans;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -34,9 +32,6 @@ public class LoanBook {
     public static final String INVALID_TERMS_MESSAGE = "§cThose loan terms are not valid. Use a positive amount, "
             + "a duration of 1 to " + MAX_DURATION_DAYS + " days, interest of 0 to " + (int) MAX_INTEREST
             + "% and an overdue fee of 0 to " + (int) MAX_OVERDUE_FEE + "%.";
-
-    /** Agreements accepted since the server started, so one book cannot be signed twice. */
-    private static final Set<String> CLAIMED_OFFERS = ConcurrentHashMap.newKeySet();
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
@@ -167,11 +162,6 @@ public class LoanBook {
     /** The agreement id on a stage 3 book, or null for a book made before agreements had one. */
     public static String offerId(BookMeta meta) {
         return meta.getPersistentDataContainer().get(Keys.LOAN_OFFER, PersistentDataType.STRING);
-    }
-
-    /** Marks an agreement as accepted; false if it already was. */
-    public static boolean claimOffer(String offerId) {
-        return offerId != null && CLAIMED_OFFERS.add(offerId);
     }
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.

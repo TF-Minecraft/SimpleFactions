@@ -160,7 +160,8 @@ public class PlayerManager implements Listener{
             }
             // Each agreement pays out once. The book is only swapped a few ticks later, so a
             // second signature before then, or after a restart, must not take the loan again.
-            if(issuer.getLoanHandler().getLoanById(offerId) != null || !LoanBook.claimOffer(offerId)) {
+            long bookExpiresAt = time != null ? time : System.currentTimeMillis() + 86400000L;
+            if(!issuer.getLoanHandler().useOffer(offerId, bookExpiresAt)) {
                 p.sendMessage("§cThis loan agreement has already been signed.");
                 return;
             }

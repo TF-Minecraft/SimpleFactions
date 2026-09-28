@@ -62,7 +62,11 @@ class LedgerLoanSettlementTest {
 
 	/** A 1 denar loan due tomorrow at 70,000,000% a week: 100,000 denars of interest a day. */
 	private Loan runawayLoan() {
-		return new Loan(1.0, lender, null, System.currentTimeMillis(), 1, 70_000_000.0, 0.0, true);
+		return runawayLoan(null);
+	}
+
+	private Loan runawayLoan(Guild borrower) {
+		return new Loan(1.0, lender, borrower, System.currentTimeMillis(), 1, 70_000_000.0, 0.0, true);
 	}
 
 	@Test
@@ -122,12 +126,47 @@ class LedgerLoanSettlementTest {
 		assertEquals(50.0, paid(buffer, borrower), 1e-9);
 	}
 
+	@Test
+	void loansArePaidFromWhatIsLeftAfterTheDaysOtherPayments() {
+		Guild borrower = borrower(10.0, runawayLoan());
+		Guild overlord = mock(Guild.class);
+		DailyGuildTransfers buffer = new DailyGuildTransfers();
+		buffer.add(borrower, overlord, 6.0);
+		buffer.addExternalDelta(borrower, -3.0);
+
+		new Ledger(borrower).populateDailyTransfers(buffer);
+
+		assertEquals(1.0, paid(buffer, borrower), 1e-9);
+	}
+
+	@Test
+	void theLedgerShowsOnlyWhatTheBorrowerCanFund() {
+		Guild borrower = guild("borrower", 10.0);
+		Loan loan = runawayLoan(borrower);
+		when(borrower.getLoanHandler().getLoansTaken()).thenReturn(List.of(loan));
+		Guild lenderGuild = guild("lender", 0.0);
+		when(lenderGuild.getLoanHandler().getLoansGiven()).thenReturn(List.of(loan));
+
+		Ledger lenders = new Ledger(lenderGuild);
+		Ledger borrowers = new Ledger(borrower);
+
+		assertEquals(10.0, lenders.getIncome(Cashflow.LOANS) + lenders.getIncome(Cashflow.INTEREST), 1e-9);
+		assertEquals(-10.0,
+				borrowers.getIncome(Cashflow.LOAN_PAYMENTS) + borrowers.getIncome(Cashflow.INTEREST_PAYMENTS), 1e-9);
+	}
+
 	private double paid(DailyGuildTransfers buffer, Guild borrower) {
 		Map<Guild, Double> to = buffer.getTransfers().get(borrower);
 		return to == null ? 0.0 : to.getOrDefault(lender, 0.0);
 	}
 
 	private Guild borrower(double wealth, Loan... loans) {
+		Guild guild = guild("borrower", wealth);
+		when(guild.getLoanHandler().getLoansTaken()).thenReturn(List.of(loans));
+		return guild;
+	}
+
+	private Guild guild(String id, double wealth) {
 		Faction faction = mock(Faction.class);
 		Guild guild = mock(Guild.class);
 		Military military = mock(Military.class);
@@ -145,13 +184,13 @@ class LedgerLoanSettlementTest {
 		when(guild.isBankrupt()).thenReturn(false);
 		when(guild.isBase()).thenReturn(false);
 		when(guild.getFaction()).thenReturn(faction);
-		when(guild.getId()).thenReturn("borrower");
+		when(guild.getId()).thenReturn(id);
 		when(guild.getDividendPercent()).thenReturn(0.0);
 		when(guild.getDividendEligibleMembers()).thenReturn(Collections.emptyList());
 		when(guild.getTradeBreakdown()).thenReturn(new TradeBreakdown());
 		when(guild.getUpgrades()).thenReturn(Collections.emptyList());
 		LoanHandler handler = mock(LoanHandler.class);
-		when(handler.getLoansTaken()).thenReturn(List.of(loans));
+		when(handler.getLoansTaken()).thenReturn(Collections.emptyList());
 		when(handler.getLoansGiven()).thenReturn(Collections.emptyList());
 		when(guild.getLoanHandler()).thenReturn(handler);
 		GuildHandler guildHandler = mock(GuildHandler.class);

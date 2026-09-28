@@ -8,6 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerEditBookEvent;
 import org.bukkit.inventory.meta.BookMeta;
@@ -23,7 +25,6 @@ import org.mockito.MockedStatic;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
-import net.tfminecraft.simplefactions.guild.loans.LoanBook;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.objects.Bank;
@@ -127,11 +128,13 @@ class PlayerManagerLoanBookTest {
 	}
 
 	@Test
-	void anAgreementClaimedSinceStartupCannotBeSignedAgain() {
-		when(lender.getLoanHandler()).thenReturn(new LoanHandler(lender));
-		LoanBook.claimOffer("offer-claimed");
+	void anAgreementSavedAsUsedBeforeARestartCannotBeSignedAgain() {
+		// The loan was repaid or forgiven, so only the saved record of the agreement remains.
+		LoanHandler loans = new LoanHandler(lender);
+		loans.restoreUsedOffers(Map.of("offer-used", System.currentTimeMillis() + 60_000L));
+		when(lender.getLoanHandler()).thenReturn(loans);
 
-		sign(book(3, "offer-claimed"));
+		sign(book(3, "offer-used"));
 
 		verify(player).sendMessage(contains("already been signed"));
 		verify(borrowerBank, never()).deposit(anyDouble());
