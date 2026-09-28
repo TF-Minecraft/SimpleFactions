@@ -106,6 +106,10 @@ public class ConfigLoader {
 
 		Cache.branchUpgradeCost = config.getDouble("branch-upgrade-cost", 100.0);
 		Cache.branchUpgradeExponent = config.getDouble("branch-upgrade-exponent", 1.1);
+		Cache.elevationBase = nonNegative(config.getDouble("elevation-base", 25.0), 25.0);
+		Cache.elevationSizeMultiplier = nonNegative(config.getDouble("elevation-size-multiplier", 1.0), 1.0);
+		Cache.elevationExponent = nonNegative(config.getDouble("elevation-exponent", 1.1), 1.1);
+		Cache.evictionMultiplier = nonNegative(config.getDouble("eviction-multiplier", 2.0), 2.0);
 		Cache.votingBlock = config.getString("voting-block", "iaf(tfmc:voting_booth)");
 		Cache.baseYear = config.getString("starting-year", "372 AE");
 
@@ -257,6 +261,13 @@ public class ConfigLoader {
 				config.getInt("war.campaign_raid.intruder_damage_amount", 4);
 		validateCampaignRaidConfig();
 		validateWarDevmodeConfig();
+	}
+
+	private static double nonNegative(double value, double fallback) {
+		if (Double.isNaN(value) || Double.isInfinite(value) || value < 0) {
+			return fallback;
+		}
+		return value;
 	}
 
 	private static FileConfiguration loadYaml(File file) {
