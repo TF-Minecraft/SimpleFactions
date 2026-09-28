@@ -127,6 +127,21 @@ class LedgerLoanSettlementTest {
 	}
 
 	@Test
+	void aDueLoansCarriedInterestIsTransferredOnce() {
+		// Due today, with a day of interest left unpaid from before auto-pay was switched on.
+		Loan loan = new Loan(700.0, lender, null, System.currentTimeMillis(), 1, 7.0, 0.0, false);
+		loan.tickDay();
+		loan.setAutoPay(true);
+		double owed = loan.getTotalOwed() + loan.getDailyInterestChange();
+		Guild borrower = borrower(1_000_000.0, loan);
+
+		DailyGuildTransfers buffer = new DailyGuildTransfers();
+		new Ledger(borrower).populateDailyTransfers(buffer);
+
+		assertEquals(owed, paid(buffer, borrower), 1e-9);
+	}
+
+	@Test
 	void loansArePaidFromWhatIsLeftAfterTheDaysOtherPayments() {
 		Guild borrower = borrower(10.0, runawayLoan());
 		Guild overlord = mock(Guild.class);
