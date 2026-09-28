@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.utils.BankAmount;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceMessages;
 import net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands;
@@ -352,12 +353,13 @@ public class CommandManager implements Listener, CommandExecutor{
 						p.sendMessage("§cYou need to be in the Guild Bank Chunk to deposit money");
 						return false;
 					}
-					double amount = Double.parseDouble(args[1]);
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
-					if(amount <= 0) {
-						p.sendMessage("§cAmount must be greater than 0");
+					Double parsed = BankAmount.parse(args[1]);
+					if(parsed == null) {
+						p.sendMessage("§cEnter a positive amount in whole cents, such as 10 or 2.50");
 						return false;
 					}
+					double amount = parsed;
+					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
 					if(pouch.getBal() < amount) {
 						p.sendMessage("§cNot enough funds");
 						return false;
@@ -376,8 +378,10 @@ public class CommandManager implements Listener, CommandExecutor{
 				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("withdraw") && args.length == 2) {
-				if(FactionManager.getGuildByMember(p.getName()) != null) {
-					Guild g = FactionManager.getGuildByMember(p.getName());
+				// Only the guild's leader may take money out; members of the main guild would
+				// otherwise be able to empty the faction treasury.
+				if(FactionManager.getGuildByLeader(p.getName()) != null) {
+					Guild g = FactionManager.getGuildByLeader(p.getName());
 					Bank b = g.getBank();
 					if(b == null) {
 						p.sendMessage("§cYour guild has no bank chunk");
@@ -387,12 +391,13 @@ public class CommandManager implements Listener, CommandExecutor{
 						p.sendMessage("§cYou need to be in the Guild Bank Chunk to withdraw money");
 						return false;
 					}
-					double amount = Double.parseDouble(args[1]);
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
-					if(amount <= 0) {
-						p.sendMessage("§cAmount must be greater than 0");
+					Double parsed = BankAmount.parse(args[1]);
+					if(parsed == null) {
+						p.sendMessage("§cEnter a positive amount in whole cents, such as 10 or 2.50");
 						return false;
 					}
+					double amount = parsed;
+					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
 					if(b.getWealth() < amount) {
 						p.sendMessage("§cNot enough funds in the guild bank");
 						return false;
@@ -1118,12 +1123,13 @@ public class CommandManager implements Listener, CommandExecutor{
 						p.sendMessage("§cYou need to be in the Bank Chunk to deposit money");
 						return false;
 					}
-					double amount = Double.parseDouble(args[1]);
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
-					if(amount <= 0) {
-						p.sendMessage("§cAmount must be greater than 0");
+					Double parsed = BankAmount.parse(args[1]);
+					if(parsed == null) {
+						p.sendMessage("§cEnter a positive amount in whole cents, such as 10 or 2.50");
 						return false;
 					}
+					double amount = parsed;
+					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
 					if(pouch.getBal() < amount) {
 						p.sendMessage("§cNot enough funds");
 						return false;
@@ -1153,12 +1159,13 @@ public class CommandManager implements Listener, CommandExecutor{
 						p.sendMessage("§cYou need to be in the Bank Chunk to withdraw money");
 						return false;
 					}
-					double amount = Double.parseDouble(args[1]);
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
-					if(amount <= 0) {
-						p.sendMessage("§cAmount must be greater than 0");
+					Double parsed = BankAmount.parse(args[1]);
+					if(parsed == null) {
+						p.sendMessage("§cEnter a positive amount in whole cents, such as 10 or 2.50");
 						return false;
 					}
+					double amount = parsed;
+					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
 					if(b.getWealth() < amount) {
 						p.sendMessage("§cNot enough funds in the faction bank");
 						return false;
