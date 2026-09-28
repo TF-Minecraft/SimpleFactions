@@ -106,12 +106,12 @@ public class LawHandler {
                     case DOMESTIC_GUILDS:
                         if(guild.isFavoured()) secondary = Scope.FAVOURED_GUILDS;
                         else if(guild.isRepressed()) secondary = Scope.REPRESSED_GUILDS;
+                        break;
                     case VASSALS:
-                        if(guild.isFavoured()) secondary = Scope.FAVOURED_VASSALS;
-                        else if(guild.isRepressed()) secondary = Scope.REPRESSED_VASSALS;
                     case VASSAL_GUILDS:
                         if(guild.isFavoured()) secondary = Scope.FAVOURED_VASSALS;
                         else if(guild.isRepressed()) secondary = Scope.REPRESSED_VASSALS;
+                        break;
                     default:
                         break;
                 }
