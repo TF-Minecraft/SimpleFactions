@@ -165,9 +165,9 @@ public class Faction {
 		this.settlementHandler = new SettlementHandler(this);
 		this.installationHandler = new InstallationHandler(this);
 		this.taxHandler = new TaxHandler(this, 5, 5, 5, 5, 5);
-		lawHandler.apply();
 		this.guildHandler = new GuildHandler(this);
 		guildHandler.addGuild(new Guild(this));
+		lawHandler.apply();
 		createBanner(bannerPatterns);
 		// Keyed per object: FactionCreateEvent can cancel this one, and the retry needs its own fetch.
 		List<String> placeholder = this.bannerPatterns;
