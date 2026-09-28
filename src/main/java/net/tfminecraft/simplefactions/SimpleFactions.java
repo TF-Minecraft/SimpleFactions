@@ -410,6 +410,10 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(displayNameGate, this);
 		getServer().getPluginManager().registerEvents(declareCodePrompt, this);
 		getServer().getPluginManager().registerEvents(factionManager, this);
+		if (getServer().getPluginManager().getPlugin("ItemsAdder") != null) {
+			getServer().getPluginManager().registerEvents(
+					new net.tfminecraft.simplefactions.managers.VotingBoothListener(factionManager), this);
+		}
 		getServer().getPluginManager().registerEvents(provincePresenceListener, this);
 		getServer().getPluginManager().registerEvents(battleManager, this);
 		getServer().getPluginManager().registerEvents(battleItemDurabilityListener, this);

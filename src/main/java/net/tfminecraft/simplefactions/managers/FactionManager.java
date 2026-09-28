@@ -52,6 +52,7 @@ import net.tfminecraft.simplefactions.utils.PostSettlementPayouts;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank;
 import net.tfminecraft.simplefactions.government.Government;
+import net.tfminecraft.simplefactions.government.VotingBlock;
 import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.tlibs.TLibs;
@@ -1154,7 +1155,10 @@ public class FactionManager implements Listener{
 
 	//Elections and stuff
 
+	private final Map<java.util.UUID, Long> boothOpenedAt = new HashMap<>();
+
 	public Faction getByVotingBooth(Block b) {
+		if (b == null) return null;
 		for(Faction f : factions) {
 			Government gov = f.getGovernment();
 			if(gov.isVotingBooth(b.getLocation())) return f;
@@ -1165,30 +1169,42 @@ public class FactionManager implements Listener{
 	@EventHandler
 	public void openBooth(PlayerInteractEvent e) {
 		if(!e.getAction().equals(Action.RIGHT_CLICK_BLOCK)) return;
-		Block b = e.getClickedBlock();
-		Player p = e.getPlayer();
+		if (presentBooth(e.getPlayer(), e.getClickedBlock())) {
+			e.setCancelled(true);
+		}
+	}
+
+	boolean presentBooth(Player p, Block b) {
 		Faction f = getByVotingBooth(b);
-		if(f == null) return;
-		e.setCancelled(true);
+		if(f == null) return false;
+		long now = System.currentTimeMillis();
+		Long openedAt = boothOpenedAt.get(p.getUniqueId());
+		if (openedAt != null && now - openedAt < 400) return true;
+		boothOpenedAt.put(p.getUniqueId(), now);
 		if(!f.getGovernment().hasElections()) {
 			p.sendMessage("§cThis faction has no elections");
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-			return;
+			return true;
 		}
 		if(!f.canVote(p.getName())) {
 			p.sendMessage("§cYou have no voting rights in this faction");
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-			return;
+			return true;
 		}
 		InventoryManager inv = new InventoryManager();
 		inv.electionView(p, f);
+		return true;
 	}
 
 	@EventHandler
 	public void placeVotingBooth(BlockPlaceEvent e) {
+		if (VotingBlock.furnitureId(Cache.votingBlock) != null) return;
 		Block b = e.getBlock();
-		Player p = e.getPlayer();
 		if(!TLibs.getBlockAPI().getChecker().checkBlock(b, Cache.votingBlock)) return;
+		registerVotingBooth(e.getPlayer(), b);
+	}
+
+	void registerVotingBooth(Player p, Block b) {
 		Faction f = FactionManager.getByMember(p.getName());
 		if(f == null) return;
 		Government gov = f.getGovernment();
@@ -1200,9 +1216,13 @@ public class FactionManager implements Listener{
 
 	@EventHandler
 	public void breakVotingBooth(BlockBreakEvent e) {
+		if (VotingBlock.furnitureId(Cache.votingBlock) != null) return;
 		Block b = e.getBlock();
-		Player p = e.getPlayer();
 		if(!TLibs.getBlockAPI().getChecker().checkBlock(b, Cache.votingBlock)) return;
+		unregisterVotingBooth(e.getPlayer(), b);
+	}
+
+	void unregisterVotingBooth(Player p, Block b) {
 		Faction f = getByVotingBooth(b);
 		if(f == null) return;
 		Government gov = f.getGovernment();

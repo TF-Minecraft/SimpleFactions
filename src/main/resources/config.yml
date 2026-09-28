@@ -56,7 +56,7 @@ mercenary-default-breach-refund: 500.0
 # smaller refund would make no-showing more profitable per head than fighting.
 
 bank-block: iaf(tfmc:bank)
-voting-block: v(chiseled_bookshelf)
+voting-block: iaf(tfmc:voting_booth)
 starting-year: "372 AE"
 
 max-extra-node-capacity: 0

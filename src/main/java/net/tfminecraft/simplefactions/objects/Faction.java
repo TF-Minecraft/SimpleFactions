@@ -165,9 +165,9 @@ public class Faction {
 		this.settlementHandler = new SettlementHandler(this);
 		this.installationHandler = new InstallationHandler(this);
 		this.taxHandler = new TaxHandler(this, 5, 5, 5, 5, 5);
-		lawHandler.apply();
 		this.guildHandler = new GuildHandler(this);
 		guildHandler.addGuild(new Guild(this));
+		lawHandler.apply();
 		createBanner(bannerPatterns);
 		// Keyed per object: FactionCreateEvent can cancel this one, and the retry needs its own fetch.
 		List<String> placeholder = this.bannerPatterns;
@@ -1074,6 +1074,9 @@ public class Faction {
 
 		// --- 🔴 ELECTION CANCELLATION LOGIC ---
 		cancelInvalidElections();
+		if (enablesElections(effect)) {
+			government.ping();
+		}
 
 		// --- vassal logic ---
 		if (effect.prohibitsVassals() && hasVassals()) {
@@ -1131,6 +1134,15 @@ public class Faction {
 			default:
 				break;
 		}
+	}
+
+	static boolean enablesElections(LawEffect effect) {
+		if (effect == null || !effect.hasRules()) {
+			return false;
+		}
+		Map<Rules, Boolean> rules = effect.getRules();
+		return Boolean.TRUE.equals(rules.get(Rules.LEADER_ELECTIONS))
+				|| Boolean.TRUE.equals(rules.get(Rules.ELECTED_COUNCIL));
 	}
 
 	private void cancelInvalidElections() {

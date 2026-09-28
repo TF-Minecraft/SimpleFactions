@@ -290,6 +290,9 @@ public class Government {
         }
         election.tick();
         if(!hasElections()) lastElectionDate = new Date(0);
+        // Elections otherwise start only when factions load. The day tick is what
+        // catches a Monday that begins while the server is already running.
+        ping();
         validateFavoursAndRepressions();
         replace();
     }
@@ -617,20 +620,22 @@ public class Government {
 
         LocalDate nextDate = getNextElectionStartDate();
 
+        ZoneId zone = ZoneId.systemDefault();
         Instant now = Instant.now();
-        Instant next = nextDate
-                .atStartOfDay(ZoneId.systemDefault())
-                .toInstant();
+        Instant next = nextDate.atStartOfDay(zone).toInstant();
+        if (!next.isAfter(now) && nextDate.equals(LocalDate.ofInstant(now, zone))) {
+            return "Today";
+        }
+        return formatTimeUntil(now, next);
+    }
 
-        if (next.isBefore(now)) {
+    public static String formatTimeUntil(Instant now, Instant next) {
+        if (now == null || next == null || !next.isAfter(now)) {
             return "0d 0h";
         }
-
         long seconds = ChronoUnit.SECONDS.between(now, next);
-
         long days = seconds / 86400;
         long hours = (seconds % 86400) / 3600;
-
         return days + "d " + hours + "h";
     }
 

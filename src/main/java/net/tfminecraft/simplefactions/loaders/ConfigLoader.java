@@ -106,7 +106,7 @@ public class ConfigLoader {
 
 		Cache.branchUpgradeCost = config.getDouble("branch-upgrade-cost", 100.0);
 		Cache.branchUpgradeExponent = config.getDouble("branch-upgrade-exponent", 1.1);
-		Cache.votingBlock = config.getString("voting-block", "v(chiseled_bookshelf)");
+		Cache.votingBlock = config.getString("voting-block", "iaf(tfmc:voting_booth)");
 		Cache.baseYear = config.getString("starting-year", "372 AE");
 
 		if(config.contains("terrain-modifiers")) {
