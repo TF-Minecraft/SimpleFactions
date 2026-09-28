@@ -828,12 +828,13 @@ public class Guild {
     }
 
     public double getElevationCost() {
-        double cost = getSize()*12;
-        return 25+Math.pow(cost, 1.1);
+        double scaled = getSize() * Cache.elevationSizeMultiplier;
+        double powered = scaled <= 0 ? 0 : Math.pow(scaled, Cache.elevationExponent);
+        return Cache.elevationBase + powered;
     }
 
     public double getEvictionCost() {
-        return getElevationCost()*2;
+        return getElevationCost() * Cache.evictionMultiplier;
     }
 
     public boolean canBeEvicted(Player p) {

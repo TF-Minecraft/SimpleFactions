@@ -148,6 +148,13 @@ public class Cache {
 	public static double branchUpgradeCost;
 	public static double branchUpgradeExponent;
 
+	/** Administrative power: elevation-base + (guild size × multiplier) ^ exponent. */
+	public static double elevationBase = 25.0;
+	public static double elevationSizeMultiplier = 1.0;
+	public static double elevationExponent = 1.1;
+	/** Eviction costs this many times the elevation cost. */
+	public static double evictionMultiplier = 2.0;
+
 	public static double capitalMoveCost = 100.0;
 
 	public static double mercenaryFormationCost = 100.0;
