@@ -50,6 +50,8 @@ public class Ledger {
     // Pushed by the games plugin as tables win, and saved with the bank balance it arrived in,
     // so a restart cannot quietly wipe a day of gambling income before it is taxed.
     private double casinoProfit;
+    /** What this guild can still put towards loans during the settlement being built. */
+    private double loanBudget;
 
     // Vehicle tax and fees collected today, already in the bank. Saved like casinoProfit.
     private double vehicleFeeIncome;
@@ -848,6 +850,14 @@ public class Ledger {
                 .merge(name, amount, Double::sum);
     }
 
+    /** Takes up to amount from today's loan budget and returns what was taken. */
+    private double takeFromLoanBudget(double amount) {
+        if (!Double.isFinite(amount) || amount <= 0) return 0.0;
+        double taken = Math.min(amount, loanBudget);
+        loanBudget -= taken;
+        return taken;
+    }
+
     public void populateDailyTransfers(DailyGuildTransfers buffer) {
         if(guild.isBankrupt() && guild.getLoanHandler() != null && guild.getLoanHandler().getLoansTaken() != null) {
             for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
@@ -856,6 +866,9 @@ public class Ledger {
                 loan.setAutoPay(false);
             }
         }
+        // Loan repayments and interest may only move money the borrower actually has. The lender
+        // is credited in full, so an unfunded payment would create money; any shortfall stays owed.
+        loanBudget = guild.getBank() == null ? 0.0 : Math.max(0.0, guild.getBank().getWealth());
         if (!skipsMoneyMovement() && !guild.isBase()) {
             double pool = getDividendBreakdown().pool();
             if (pool > 0) {
@@ -1020,6 +1033,7 @@ public class Ledger {
                     if(loan == null || !loan.isAutoPay()) continue;
                     if(loan.isPaidOff()) continue;
                     amount += loan.getDailyPayment(true);
+                    amount = takeFromLoanBudget(amount);
                     if(amount <= 0) continue;
                     loan.setTempPayment(amount);
                     buffer.add(guild, loan.getIssuer(), amount);
@@ -1036,7 +1050,10 @@ public class Ledger {
                     if(loan.isPaidOff()) continue;
                     amount += loan.getDailyInterest();
                     if(amount <= 0) continue;
+                    amount = takeFromLoanBudget(amount);
+                    // Recorded even when nothing could be paid, so the day's interest is still owed.
                     loan.setTempInterestPayment(amount);
+                    if(amount <= 0) continue;
                     buffer.add(guild, loan.getIssuer(), amount);
                 }
                 break;

@@ -64,6 +64,12 @@ public class PlayerManager implements Listener{
         }
         Integer stage = meta.getPersistentDataContainer().get(Keys.INT, PersistentDataType.INTEGER);
         if(stage == null) return;
+        if((stage == 1 || stage == 2) && !issuer.isLeader(p)) {
+            // Drafting and reviewing commit the lending guild's bank, so only its leader may sign.
+            e.setCancelled(true);
+            p.sendMessage("§cOnly the leader of "+issuer.getName()+" can draft its loans.");
+            return;
+        }
         if(stage == 1) {
             e.setCancelled(true);
             new BukkitRunnable() {
@@ -75,7 +81,12 @@ public class PlayerManager implements Listener{
                         p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
                         return;
                     }
-                    p.getInventory().setItemInMainHand(LoanBook.getEstimatedBook(LoanBook.createLoanFromBook(newMeta, null)));
+                    Loan draft = LoanBook.createLoanFromBook(newMeta, null);
+                    if(draft == null) {
+                        p.sendMessage(LoanBook.INVALID_TERMS_MESSAGE);
+                        return;
+                    }
+                    p.getInventory().setItemInMainHand(LoanBook.getEstimatedBook(draft));
                 }
             }.runTaskLater(SimpleFactions.plugin, 1L);
         }
@@ -90,18 +101,28 @@ public class PlayerManager implements Listener{
                         p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
                         return;
                     }
-                    p.getInventory().setItemInMainHand(LoanBook.getLoanBook(LoanBook.createLoanFromBook(newMeta, null)));
+                    Loan draft = LoanBook.createLoanFromBook(newMeta, null);
+                    if(draft == null) {
+                        p.sendMessage(LoanBook.INVALID_TERMS_MESSAGE);
+                        return;
+                    }
+                    p.getInventory().setItemInMainHand(LoanBook.getLoanBook(draft));
                 }
             }.runTaskLater(SimpleFactions.plugin, 1L);
         } else if(stage == 3) {
             e.setCancelled(true);
             Guild borrowerGuild = FactionManager.getGuildByLeader(p.getName());
-            Loan loan = LoanBook.createLoanFromBook(newMeta, borrowerGuild);
+            String offerId = LoanBook.offerId(newMeta);
+            Loan loan = offerId == null ? null : LoanBook.createLoanFromBook(newMeta, borrowerGuild, offerId);
             String validate = newMeta.getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
             Long time = newMeta.getPersistentDataContainer().get(Keys.LONG, PersistentDataType.LONG);
             if(time != null && time < System.currentTimeMillis()) {
                 p.sendMessage("§cThis loan contract has expired! Unable to process.");
                 p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
+                return;
+            }
+            if(offerId == null) {
+                p.sendMessage("§cThis loan agreement is out of date. Ask the lender for a new one.");
                 return;
             }
             if(validate == null) {
@@ -115,7 +136,7 @@ public class PlayerManager implements Listener{
                 return;
             }
             Loan validation = LoanBook.createLoanFromString(validate, issuer, borrowerGuild);
-            if(validation == null || !loan.validate(validation)) {
+            if(loan == null || validation == null || !loan.validate(validation)) {
                 p.sendMessage("§cThis loan contract has been tampered with! Unable to process.");
                 new BukkitRunnable() {
                 @Override
@@ -129,8 +150,18 @@ public class PlayerManager implements Listener{
                 p.sendMessage("§cYou must be the leader of a guild to sign a loan contract!");
                 return;
             }
+            if(issuer.getBank() == null || borrowerGuild.getBank() == null) {
+                p.sendMessage("§cBoth guilds need a bank to take out a loan!");
+                return;
+            }
             if(issuer.getBank().getWealth() < loan.getAmount()) {
                 p.sendMessage("§cThe issuer cannot afford this loan!");
+                return;
+            }
+            // Each agreement pays out once. The book is only swapped a few ticks later, so a
+            // second signature before then, or after a restart, must not take the loan again.
+            if(issuer.getLoanHandler().getLoanById(offerId) != null || !LoanBook.claimOffer(offerId)) {
+                p.sendMessage("§cThis loan agreement has already been signed.");
                 return;
             }
             borrowerGuild.getBank().deposit(loan.getAmount());

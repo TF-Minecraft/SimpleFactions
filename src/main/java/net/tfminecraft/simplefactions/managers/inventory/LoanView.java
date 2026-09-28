@@ -134,12 +134,28 @@ public class LoanView {
         if(open) player.openInventory(i);
     }
 
+    /** The loan with this id issued by issuer, or null unless borrower is the guild that took it. */
+    private static Loan borrowedBy(Guild borrower, Guild issuer, String id) {
+        if(borrower == null || issuer == null || id == null) return null;
+        Loan loan = issuer.getLoanHandler().getLoanById(id);
+        if(loan == null || loan.getBorrower() == null) return null;
+        return sameGuild(loan.getBorrower(), borrower) ? loan : null;
+    }
+
+    private static boolean sameGuild(Guild a, Guild b) {
+        return a != null && b != null && a.getId().equalsIgnoreCase(b.getId());
+    }
+
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
         if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
         SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
         Guild guild = FactionManager.getGuildByString(h.getId());
+        if(guild == null) {
+            e.setCancelled(true);
+            return;
+        }
         
         if(h.getType() == SFGUI.LOAN_MAIN_VIEW) {
             e.setCancelled(true);
@@ -158,6 +174,8 @@ public class LoanView {
             }
             // Issue New Loan button
             else if(e.getSlot() == 6) {
+                // The button is only drawn for the leader, so check the click too.
+                if(!guild.isLeader(p)) return;
                 if(!p.getInventory().getItemInMainHand().getType().equals(Material.WRITABLE_BOOK)) {
                     p.sendMessage("§cYou must have a book and quill in your hand to issue a new loan!");
                     return;
@@ -200,6 +218,8 @@ public class LoanView {
         }
         else if(h.getType() == SFGUI.TAKEN_LOAN_DETAIL_VIEW) {
             e.setCancelled(true);
+            // Paying, auto-pay and defaulting act for the borrower, so only its leader may use them.
+            if(!guild.isLeader(p)) return;
             // Pay off loan button
             if(e.getSlot() == 11) {
                 // Find the loan by looking at the detail item
@@ -208,7 +228,7 @@ public class LoanView {
                     String id = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
                     String gid = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     Guild issuer = FactionManager.getGuildByString(gid);
-                    Loan loan = issuer.getLoanHandler().getLoanById(id);
+                    Loan loan = borrowedBy(guild, issuer, id);
                     if(loan == null) return;
                     inv.setPayingLoan(p, loan);
                     p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -222,7 +242,7 @@ public class LoanView {
                     String id = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
                     String gid = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     Guild issuer = FactionManager.getGuildByString(gid);
-                    Loan loan = issuer.getLoanHandler().getLoanById(id);
+                    Loan loan = borrowedBy(guild, issuer, id);
                     if(loan == null) return;
                     if(loan.hasDefaulted() || loan.isPaidOff()) return;
                     loan.setAutoPay(!loan.isAutoPay());
@@ -237,7 +257,7 @@ public class LoanView {
                     String id = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
                     String gid = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     Guild issuer = FactionManager.getGuildByString(gid);
-                    Loan loan = issuer.getLoanHandler().getLoanById(id);
+                    Loan loan = borrowedBy(guild, issuer, id);
                     if(loan == null) return;
                     loan.setDefaulted(!loan.hasDefaulted());
                     if(loan.hasDefaulted()) {
@@ -250,6 +270,8 @@ public class LoanView {
             }
         } else if(h.getType() == SFGUI.ISSUED_LOAN_DETAIL_VIEW) {
             e.setCancelled(true);
+            // Pausing interest and forgiving act for the lender, so only its leader may use them.
+            if(!guild.isLeader(p)) return;
             // Pay off loan button
             if(e.getSlot() == 13) {
                 // Toggle interest
@@ -258,6 +280,7 @@ public class LoanView {
                     String id = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
                     String gid = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     Guild issuer = FactionManager.getGuildByString(gid);
+                    if(!sameGuild(issuer, guild)) return;
                     Loan loan = issuer.getLoanHandler().getLoanById(id);
                     if(loan == null) return;
                     loan.setPausedInterest(!loan.isInterestPaused());
@@ -271,6 +294,7 @@ public class LoanView {
                     String id = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
                     String gid = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     Guild issuer = FactionManager.getGuildByString(gid);
+                    if(!sameGuild(issuer, guild)) return;
                     Loan loan = issuer.getLoanHandler().getLoanById(id);
                     if(loan == null) return;
                     issuer.getLoanHandler().removeLoan(loan.getId());

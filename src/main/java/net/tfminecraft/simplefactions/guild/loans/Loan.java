@@ -23,6 +23,7 @@ public class Loan {
 
     private double tempPayment = 0; //Used by the ledger to earmark a payment without processing during that calculation cycle
     private double tempInterestPayment = 0; //Used by the ledger to earmark an interest payment without processing during that calculation cycle
+    private boolean interestCharged = false; //Set when the ledger charged today's interest, even if the borrower could not cover it
 
     private boolean defaulted = false;
     private boolean pausedInterest = false;
@@ -30,7 +31,12 @@ public class Loan {
     private LoanStatus status = LoanStatus.ACTIVE; //internal tracker so penalties/bonuses only apply once
 
     public Loan(double amount, Guild issuer, Guild borrower, long issueDate, int durationInDays, double interestRate, double overdueFee, boolean autoPay) {
-        id = UUID.randomUUID().toString();
+        this(null, amount, issuer, borrower, issueDate, durationInDays, interestRate, overdueFee, autoPay);
+    }
+
+    /** A new loan with the given id, or a random one when id is null. */
+    public Loan(String id, double amount, Guild issuer, Guild borrower, long issueDate, int durationInDays, double interestRate, double overdueFee, boolean autoPay) {
+        this.id = id != null ? id : UUID.randomUUID().toString();
         this.amount = amount;
         this.paidInterest = 0;
         this.unpaidInterest = 0;
@@ -148,7 +154,11 @@ public class Loan {
         if (!autoPay) {
             // Interest compounds onto the loan
             unpaidInterest += dailyInterest;
+        } else if (interestCharged && tempInterestPayment < dailyInterest) {
+            // The borrower could not cover today's interest, so the shortfall stays owed.
+            unpaidInterest += dailyInterest - tempInterestPayment;
         }
+        interestCharged = false;
         if(tempPayment > 0) {
             makePayment(tempPayment, false);
             tempPayment = 0;
@@ -169,7 +179,8 @@ public class Loan {
     }
 
     public void setTempInterestPayment(double amount) {
-        this.tempInterestPayment = amount;
+        this.tempInterestPayment = Math.max(0, amount);
+        this.interestCharged = true;
     }
 
     public boolean isPaidOff() {
