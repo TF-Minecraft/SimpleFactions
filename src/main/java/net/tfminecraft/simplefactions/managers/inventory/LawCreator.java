@@ -24,6 +24,8 @@ import net.tfminecraft.simplefactions.enums.Region;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Scope;
 import net.tfminecraft.simplefactions.government.Government;
+import net.tfminecraft.simplefactions.government.stability.StabilityMath;
+import net.tfminecraft.simplefactions.government.stability.StabilityTuning;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.laws.CanHaveLaw;
@@ -61,6 +63,10 @@ public class LawCreator {
 		// ---- Current law highlight ----
 		lore.add(StringFormatter.formatHex("#9cb68cCurrent Policy"));
 		lore.add(StringFormatter.formatHex("  #87d65c" + current.getName()));
+		String expectation = statePowerExpectation(current);
+		if (expectation != null) {
+			lore.add(StringFormatter.formatHex("  #9cb68cState Power Expectation§7: #d4c9ae" + expectation));
+		}
 		lore.add("");
 
 		// ---- Effects header ----
@@ -100,6 +106,11 @@ public class LawCreator {
 			lore.addAll(law.getDescription());
 			lore.add("");
 		}
+		String expectation = statePowerExpectation(law);
+		if (expectation != null) {
+			lore.add(StringFormatter.formatHex("#9cb68cState Power Expectation§7: #d4c9ae" + expectation));
+			lore.add("");
+		}
 		if(!isCurrent) {
 			double cost = law.getCost()*law.getCompatibility(group.getCurrent().getId());
 			double upkeep = law.getUpkeep();
@@ -121,7 +132,7 @@ public class LawCreator {
 		}
 
 		// ---- Effects ----
-		boolean affectsEconomy = false;
+		boolean affectsEconomy = law.affectsEconomy();
 
 		if (law.hasEffects()) {
 			for (Map.Entry<Scope, LawEffect> entry : law.getScopedEffects().entrySet()) {
@@ -235,5 +246,13 @@ public class LawCreator {
 		meta.getPersistentDataContainer().set(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING, law.getGroup());
 		i.setItemMeta(meta);
 		return i;
+	}
+
+	private static String statePowerExpectation(Law law) {
+		if (law == null || !"government".equalsIgnoreCase(law.getGroup())) {
+			return null;
+		}
+		double ratio = StabilityMath.governmentExpectation(law.getId(), StabilityTuning.get());
+		return Math.round(ratio * 100) + "%";
 	}
 }

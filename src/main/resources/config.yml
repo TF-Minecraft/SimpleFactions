@@ -3,6 +3,50 @@
 
 world-name: TFMC_Map
 
+# Legitimacy, economic strain, and the status brackets. Restart or reload after edits.
+stability:
+  legitimacy-election: 70
+  legitimacy-community: 80
+  legitimacy-council: 35
+  legitimacy-autocracy: 10
+  neutral-weight: 0.35
+  illegitimate-below: 50
+  movement-gain-multiplier: 2
+  # Most one guild may hold of trade power. Raised to an even split when fewer guilds cannot reach it.
+  diversity-autocracy: 35
+  diversity-oligarchy: 55
+  diversity-democracy: 75
+  diversity-community: 80
+  diversity-plutocracy: 90
+  diversity-free-trade: 10
+  diversity-decentralized: 5
+  diversity-mercantilism: 0
+  diversity-protectionism: -10
+  diversity-isolationism: -20
+  diversity-open-borders: 5
+  diversity-closed-borders: 0
+  diversity-favour: -10
+  diversity-repress: 10
+  diversity-min: 10
+  diversity-max: 100
+  community-free-provinces: 10
+  community-province-cost: 2
+  # Share of the largest other guild the state must match.
+  weak-state-autocracy: 1.0
+  weak-state-oligarchy: 0.5
+  weak-state-plutocracy: 0
+  weak-state-community: 0
+  weak-state-democracy: 0.2
+  elected-weak-state-factor: 0.5
+  # Extra trade power foreign guilds have in this nation's provinces at 0 stability.
+  foreign-trade-max: 0.5
+  # Admin, diplomacy, upkeep, de jure, and prestige reach their floor this many points below 100.
+  slow-debuff-span: 80
+  slow-admin-loss: 0.5
+  slow-upkeep-gain: 1.0
+  slow-de-jure-max: 30
+  slow-prestige-max: 25
+
 # When true, debug sessions are appended to plugins/SimpleFactions/logs/log.txt
 # and relation events are appended to plugins/SimpleFactions/logs/relations.log
 # Movement / civil war / war events go to movement.log, civilwar.log, war.log

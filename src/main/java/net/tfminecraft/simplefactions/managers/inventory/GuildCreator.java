@@ -155,6 +155,17 @@ public class GuildCreator {
 			m.setDisplayName(StringFormatter.formatHex("#338651Trade Breakdown"));
 			List<String> lore = new ArrayList<String>();
 			lore.add(StringFormatter.formatHex("#d4c9aeIncome from trade: #7fbd73"+guild.getTradeBreakdown().getIncome()));
+			Faction host = guild.getFaction();
+			if (host != null && host.getGovernment() != null) {
+				net.tfminecraft.simplefactions.government.stability.StabilityReport report = host.getGovernment().stateReport();
+				double compatibility = net.tfminecraft.simplefactions.government.stability.GovernmentIncompatibility.factor(guild);
+				if (compatibility < 0.999) {
+					lore.add(StringFormatter.formatHex("#d4c9aeStrained Government: #c9a066"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(compatibility * 100)+"%"));
+				}
+				if (guild.isBase() && report.stability < 100) {
+					lore.add(StringFormatter.formatHex("#d4c9aeState Output: #c9a066"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(report.stability)+"%"));
+				}
+			}
 			lore.add(StringFormatter.formatHex("#d4c9aeUpkeep from trade: #cb5b4f"+guild.getTradeBreakdown().getUpkeep()));
 			lore.add(StringFormatter.formatHex("#d4c9aeTariffs Paid: #b23c2f"+guild.getTradeBreakdown().getTariffs()));
 			lore.add(StringFormatter.formatHex("#d4c9aeTotal Trade Power: #a4bc5c"+guild.getTradeBreakdown().getTradePower()));

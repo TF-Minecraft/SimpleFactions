@@ -62,6 +62,10 @@ public class FactionCreator {
 		meta.setDisplayName("§f"+f.getName());
 		List<String> lore = new ArrayList<String>();
 		lore.add(f.getRank().getName());
+		if (f.getGovernment() != null) {
+			net.tfminecraft.simplefactions.government.stability.StabilityStatus status = f.getGovernment().stateReport().status;
+			lore.add(StringFormatter.formatHex(status.getListColor() + status.getLabel()));
+		}
 		if(f.getTitles().size() > 0) lore.add(StringFormatter.formatHex("#b84c44§lPrimary Title: #7a706a"+f.getHighestTitle().getName()));
 		lore.add(StringFormatter.formatHex("#c45749§lTier: "+f.getTier().getFormattedName()));
 		lore.add(StringFormatter.formatHex("#b8ae61Based in: #d4c9ae" + HomeSettlementNames.of(f)));
@@ -317,7 +321,14 @@ public class FactionCreator {
 			m.setDisplayName(StringFormatter.formatHex("#4793bfPrestige: #6eafba"+f.getPrestige()));
 			List<String> lore = new ArrayList<String>();
 			for(Modifier mod : f.getPrestigeModifiers()) {
-				lore.add(StringFormatter.formatHex("#93c9a7+"+mod.getAmount()+" from "+mod.getType()));
+				double amount = mod.getAmount();
+				if (mod.getType() != null && mod.getType().endsWith("% Malus")) {
+					lore.add(StringFormatter.formatHex("#d46a6a" + mod.getType() + ": #d13530" + amount));
+					continue;
+				}
+				String color = amount < 0 ? "#d13530" : "#93c9a7";
+				String sign = amount < 0 ? "" : "+";
+				lore.add(StringFormatter.formatHex(color + sign + amount + " from " + mod.getType()));
 			}
 			lore.add(StringFormatter.formatHex("#b69f5a────────────"));
 			lore.add(StringFormatter.formatHex("#7fbd73Current Rank: "+f.getRank().getName()));

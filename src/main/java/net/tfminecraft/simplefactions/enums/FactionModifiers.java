@@ -9,6 +9,7 @@ public enum FactionModifiers {
     MILITARY_UPKEEP(false, false),
     PRESTIGE(true, false),
     PRESTIGE_BONUS(true, false),
+    PRESTIGE_MALUS(false, false),
     DE_JURE(false, false),
     STABILITY_INFLUENCE(true, false),
     TRADE_POWER(true, true),

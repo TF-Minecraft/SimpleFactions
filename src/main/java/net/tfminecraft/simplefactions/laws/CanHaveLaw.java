@@ -26,6 +26,10 @@ public final class CanHaveLaw {
 		if (requirementReason != null) {
 			return requirementReason;
 		}
+		String communityReason = communityReason(faction, law);
+		if (communityReason != null) {
+			return communityReason;
+		}
 		return compatibilityReason(faction, law);
 	}
 
@@ -134,6 +138,34 @@ public final class CanHaveLaw {
 			}
 		}
 		return false;
+	}
+
+	private static String communityReason(Faction faction, Law law) {
+		if (faction == null || faction.getLawHandler() == null || law.getGroup() == null) {
+			return null;
+		}
+		String group = law.getGroup();
+		if (!group.equalsIgnoreCase("economy") && !group.equalsIgnoreCase("military")) {
+			return null;
+		}
+		Law government = currentLaw(faction, "government");
+		if (government == null || government.getId() == null || !government.getId().equalsIgnoreCase("community")) {
+			return null;
+		}
+		if (law.getId() != null && law.getId().equalsIgnoreCase("decentralized")) {
+			return null;
+		}
+		Law current = currentInGroup(faction, law);
+		if (current != null && current.getId() != null && current.getId().equalsIgnoreCase("decentralized")) {
+			return "§cCommunity rule cannot change this. Economy and Military stay Decentralized.";
+		}
+		return "§cAlready off Decentralized. Community cannot replace it. Another government can.";
+	}
+
+	private static Law currentLaw(Faction faction, String groupId) {
+		LawGroup group = faction.getLawHandler().getGroup(groupId);
+		if (group == null) return null;
+		return group.getCurrent();
 	}
 
 	private static String compatibilityReason(Faction faction, Law law) {

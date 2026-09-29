@@ -85,13 +85,40 @@ public class Province {
             double prev,
             int distance
     ) {
+        Faction host = guild.getFaction();
+        double reach = 1;
+        if (host != null && host.getGovernment() != null) {
+            reach = host.getGovernment().getEconomicStability() / 100.0;
+        }
+        calculateTrade(manager, guild, prev, distance, reach);
+    }
+
+    public void calculateTrade(
+            ProvinceManager manager,
+            Guild guild,
+            double prev,
+            int distance,
+            double reach
+    ) {
         double amount;
         double carry = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_CARRY);
+        if (reach <= 0) {
+            if (prev != -1) return;
+            amount = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.realmSeed(
+                    guild, GuildModifierOverride.resolve(guild, GuildModifier.TRADE_POWER));
+            amount *= net.tfminecraft.simplefactions.government.stability.GovernmentIncompatibility.factor(guild);
+            if (amount < 0.5) return;
+            writeTrade(guild, amount, distance);
+            return;
+        }
+        carry *= reach;
         double effectiveDistance = distance / Math.pow(carry, 1.1);
         double factor = Math.pow(getTradeCarry(), effectiveDistance);
         if (prev == -1) {
             // Capital province
-            amount = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_POWER);
+            amount = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.realmSeed(
+                    guild, GuildModifierOverride.resolve(guild, GuildModifier.TRADE_POWER));
+            amount *= net.tfminecraft.simplefactions.government.stability.GovernmentIncompatibility.factor(guild);
         } else {
             amount = prev *factor;
         }
@@ -110,13 +137,13 @@ public class Province {
             data.put(guild.getId(), entry);
         }
 
-        entry.setTrade(amount);
+        entry.setTrade(foreignTrade(guild, amount));
         entry.setDistance(distance);
 
         for (Integer n : neighbours) {
             Province neighbour = manager.get(n);
             if (neighbour != null) {
-                neighbour.calculateTrade(manager, guild, amount, distance+1);
+                neighbour.calculateTrade(manager, guild, amount, distance + 1, reach);
             }
         }
     }
@@ -133,7 +160,8 @@ public class Province {
 
         if (prev == null) {
             // Capital province
-            amount = GuildModifierOverride.resolve(guild, GuildModifier.PRODUCTION);
+            amount = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.realmSeed(
+                    guild, GuildModifierOverride.resolve(guild, GuildModifier.PRODUCTION));
         } else {
             amount = prev.getProduction()*factor;
         }
@@ -213,6 +241,30 @@ public class Province {
         total = Math.round(total * 100.0) / 100.0;
         this.prosperity = total;
     }
+    private double foreignTrade(Guild guild, double amount) {
+        Faction owner = getOwner();
+        Faction host = guild.getFaction();
+        if (owner == null || host == null || owner.getGovernment() == null) return amount;
+        if (owner.getId() != null && owner.getId().equalsIgnoreCase(host.getId())) return amount;
+        double bonus = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.foreignTradeBonus(
+                owner.getGovernment().getStability(),
+                net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
+        return amount * (1 + bonus);
+    }
+
+    private void writeTrade(Guild guild, double amount, int distance) {
+        ProvinceDataEntry entry = data.get(guild.getId());
+        if (entry != null && entry.getTrade() >= amount) {
+            return;
+        }
+        if (entry == null) {
+            entry = new ProvinceDataEntry(guild);
+            data.put(guild.getId(), entry);
+        }
+        entry.setTrade(foreignTrade(guild, amount));
+        entry.setDistance(distance);
+    }
+
     public double getTradeCarry() {
         return Cache.tradeCarry.getOrDefault(terrain, 0.5);
     }

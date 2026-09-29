@@ -29,6 +29,7 @@ public class ConfigLoader {
 		Cache.chapterId = ChapterIdentity.normalizeId(config.getString("map-id"));
 		Cache.chapterName = ChapterIdentity.normalizeName(config.getString("map-name"));
 		Cache.worldName = config.getString("world-name", "TFMC_Map");
+		net.tfminecraft.simplefactions.government.stability.StabilityTuning.load(config);
 
 		Cache.maxMembers = config.getInt("max-members", 64);
 		Cache.maxWealthPrestige = config.getInt("max-prestige-from-wealth", 1000);

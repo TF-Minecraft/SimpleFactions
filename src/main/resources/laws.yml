@@ -338,9 +338,12 @@ government:
     community:
       name: "#bdaea8Community"
       description:
-        - "#bdaea8Community rule #d4c9aerelies"
-        - "#d4c9aeon local authority and trust."
-        - "#d4c9aeNo council or government is needed"
+        - "#bdaea8Community rule #d4c9aeis stable."
+        - "#d4c9aeLegitimacy is high, and an uneven"
+        - "#d4c9aeeconomy barely strains it."
+        - "#d4c9aeEconomy and Military stay Decentralized."
+        - "#d4c9ae10 provinces sit comfortably."
+        - "#d4c9aeEach province past that costs 2 stability."
       cost: 20
       upkeep: 0
       compatibility:

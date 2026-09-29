@@ -38,6 +38,8 @@ import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.enums.Member;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.government.election.Candidate;
+import net.tfminecraft.simplefactions.government.stability.StabilityReport;
+import net.tfminecraft.simplefactions.government.stability.StateStability;
 import net.tfminecraft.simplefactions.government.election.Election;
 import net.tfminecraft.simplefactions.government.movement.Action;
 import net.tfminecraft.simplefactions.government.movement.Movement;
@@ -466,18 +468,22 @@ public class Government {
         for(Guild guild : getRepressed()) {
             total += guild.getRepressFavourCost();
         }
-        total *= 3-getStability()/50.0;
+        total *= net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.upkeepFactor(
+				stateReport().stability,
+				net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
         return total;
     }
 
     public double getTaxEfficiency() {
-        return getStability()/100.0;
+        return stateReport().status.getTaxFactor();
     }
 
     public double getBaseMaxPower() {
         double base = f.getOrCreateMainGuild().getModifier(GuildModifier.ADMIN_POWER);
         base *= 1+f.getModifier(FactionModifiers.ADMIN_POWER_MULTIPLIER).getAmount()/100.0;
-        base *= getStability()/100.0;
+        base *= net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.adminFactor(
+				stateReport().stability,
+				net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
         return base;
     }
 
@@ -509,7 +515,9 @@ public class Government {
         double base = 1;
         base += f.getOrCreateMainGuild().getModifier(GuildModifier.ADMIN_POWER_GAIN);
         base *= 1 + f.getModifier(FactionModifiers.ADMIN_POWER_GAIN_MULTIPLIER).getAmount() / 100.0;
-        base *= getStability() / 100.0;
+        base *= net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.adminFactor(
+				stateReport().stability,
+				net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
 
         double power = getPower();
         double maxPower = getMaxPower();
@@ -545,29 +553,32 @@ public class Government {
         return 100.0/(f.getMembers().size()+f.getVassalMembers().size());
     }
 
+    public StabilityReport stateReport() {
+        return StateStability.of(f);
+    }
+
+    public boolean isIllegitimate() {
+        return stateReport().illegitimate;
+    }
+
+    public double getLegitimacy() {
+        return stateReport().legitimacy;
+    }
+
+    public double getEconomicStability() {
+        return stateReport().economic;
+    }
+
+    public double deJureScore() {
+        StabilityReport report = stateReport();
+        return f.getModifier(FactionModifiers.DE_JURE).getAmount()
+				+ net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.deJureBonus(
+						report.stability,
+						net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
+    }
+
     public double getStability() {
-        double stability = getBaseStability();
-        for(Guild guild : f.getGuildHandler().getGuilds()) {
-            stability += guild.getStabilityModifier(f);
-        }
-        for(Faction vassal : RelationManager.getSubjects(f)) {
-            stability += vassal.getOrCreateMainGuild().getStabilityModifier(f);
-        }
-        if(council.couldBeBigger()) {
-            stability -= getStabilityMalusFromCouncil();
-        }
-        if(f.getOrCreateMainGuild().isBankrupt()) {
-            stability -= 100;
-        }
-        if(hasElections() && votingBooths.size() == 0) {
-            stability -= 75;
-        }
-        for(StabilityModifier modifier : stabilityModifiers) {
-            stability += modifier.getModifier();
-        }
-        if(stability < 0) stability = 0;
-        if(stability > 100) stability = 100;
-        return Formatter.formatDouble(stability);
+        return stateReport().stability;
     }
 
     public String getStabilityString() {

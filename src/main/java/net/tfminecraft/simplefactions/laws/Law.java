@@ -84,6 +84,9 @@ public class Law {
         return CanHaveLaw.canHave(f, this);
     }
     public boolean affectsEconomy() {
+        if ("government".equalsIgnoreCase(group)) {
+            return true;
+        }
         for(LawEffect effect : scopedEffects.values()) {
             if(effect.affectsEconomy()) return true;
         }

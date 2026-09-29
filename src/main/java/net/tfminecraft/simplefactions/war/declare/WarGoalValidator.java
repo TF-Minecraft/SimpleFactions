@@ -64,6 +64,9 @@ public class WarGoalValidator {
 	private WarValidationResult validateShared(WarDeclareRequest request) {
 		Faction attacker = request.getAttacker();
 		Faction defender = request.getDefender();
+		if (attacker.getGovernment() != null && !attacker.getGovernment().stateReport().status.canWageWar()) {
+			return WarValidationResult.fail("§cA " + attacker.getGovernment().stateReport().status.getLabel() + " cannot declare war.");
+		}
 		if (attacker.getId().equalsIgnoreCase(defender.getId())) {
 			return WarValidationResult.fail("§cYou cannot declare war on your own faction.");
 		}

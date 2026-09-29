@@ -953,6 +953,8 @@ public class Ledger {
             // TRADE is paid here and nowhere else, so the bank moves by what the ledger shows.
             case TRADE:
             case TRADE_UPKEEP:
+                buffer.addExternalDelta(guild, getIncome(cf));
+                return;
             // INSTALLATIONS: withdrawn in Faction.newDay(), so getIncome() is ledger GUI display only.
             // VEHICLE_UPKEEP: withdrawn in VehicleUpkeepService for pool and installation vehicles.
             case UPGRADES_UPKEEP:
