@@ -115,7 +115,7 @@ public class TierTitleCreator {
 	    ItemStack i = new ItemStack(Material.RED_CONCRETE, 1);
 	    if (f.hasTitle(t)) i.setType(Material.GREEN_CONCRETE);
 	    else if (FactionManager.getTitleOwner(t) != null) i.setType(Material.GRAY_CONCRETE);
-	    else if (t.canBeCreatedBy(f, provinces, titles, f.getModifier(FactionModifiers.DE_JURE).getAmount())) i.setType(Material.YELLOW_CONCRETE);
+	    else if (t.canBeCreatedBy(f, provinces, titles, f.getGovernment().deJureScore())) i.setType(Material.YELLOW_CONCRETE);
 
 	    ItemMeta m = i.getItemMeta();
 	    m.setDisplayName(StringFormatter.formatHex("#d4bb98§l" + t.getName()));
@@ -137,10 +137,10 @@ public class TierTitleCreator {
 	    // Add dynamic progress info
 	    if(t.isComposite()) {
 	        lore.add(""); // Spacer
-	        t.getGUIString(f, provinces, titles, f.getModifier(FactionModifiers.DE_JURE).getAmount(), lore);
+	        t.getGUIString(f, provinces, titles, f.getGovernment().deJureScore(), lore);
 	    } else if(progressRatio(t, f, provinces, titles) > -1){
 	        lore.add(""); // Spacer
-	        t.getGUIString(f, provinces, titles, f.getModifier(FactionModifiers.DE_JURE).getAmount(), lore);
+	        t.getGUIString(f, provinces, titles, f.getGovernment().deJureScore(), lore);
 		}
 		if(FactionManager.getTitleOwner(t) != null) {
 	    	lore.add(""); // Spacer
@@ -165,7 +165,7 @@ public class TierTitleCreator {
 			amount = t.getFormCost();
 		}
 		/* //Remove the comment out part if you want DE JURE scaling cost
-		double deJure = f.getModifier(FactionModifiers.DE_JURE).getAmount();
+		double deJure = f.getGovernment().deJureScore();
 		deJure = deJure/100.0;
 		amount = (int) Math.round(amount*deJure);
 		if(amount < 1) amount = 1;

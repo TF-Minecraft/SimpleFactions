@@ -6,6 +6,10 @@ import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
@@ -32,6 +36,13 @@ import net.tfminecraft.simplefactions.enums.Stance;
 import net.tfminecraft.simplefactions.government.Council;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.StabilityModifier;
+import net.tfminecraft.simplefactions.government.stability.StabilityDebuffs;
+import net.tfminecraft.simplefactions.government.stability.StabilityFacts;
+import net.tfminecraft.simplefactions.government.stability.StabilityFacts.Body;
+import net.tfminecraft.simplefactions.government.stability.StabilityMath;
+import net.tfminecraft.simplefactions.government.stability.StabilityReport;
+import net.tfminecraft.simplefactions.government.stability.StabilityTuning;
+import net.tfminecraft.simplefactions.government.stability.StateStability;
 import net.tfminecraft.simplefactions.government.election.Candidate;
 import net.tfminecraft.simplefactions.government.movement.Action;
 import net.tfminecraft.simplefactions.government.movement.PoliticalAction;
@@ -186,71 +197,208 @@ public class GovernmentCreator {
     public ItemStack createStabilityItem(Faction f) {
         ItemStack item = IconGetter.getIconOrDefault("stability", Material.BLACK_DYE);
         ItemMeta m = item.getItemMeta();
-        Government gov = f.getGovernment();
-        m.setDisplayName(StringFormatter.formatHex("#85c265Stability§7: §e"+gov.getStabilityString()+"%"));
-        List<String> lore = new ArrayList<String>();
-        lore.add(StringFormatter.formatHex("#b8ae61Base: #45c46f+"+Formatter.formatDouble(gov.getBaseStability())+"%"));
-        double effect = f.getOrCreateMainGuild().getStabilityModifier(f);
-        lore.add(StringFormatter.formatHex("#b8ae61From State: " + ( effect >= 0 ? "#45c46f+" : "#d13530")+Formatter.formatDouble(effect)+"%"));
-        if(gov.getStabilityMalusFromCouncil() > 0) {
-            lore.add(StringFormatter.formatHex("#b8ae61Council too small: #d13530-"+Formatter.formatDouble(gov.getStabilityMalusFromCouncil())+"%"));
-        }
-        for(StabilityModifier modifier : gov.getStabilityModifiers()) {
-            lore.add(StringFormatter.formatHex("#b8ae61"+modifier.getName()+": " + ( modifier.getModifier() >= 0 ? "#45c46f+" : "#d13530")+Formatter.formatDouble(modifier.getModifier())+"%" + " §7("+(modifier.getDecay() >= 0 ? "+#45c46f+" : "#d13530")+Formatter.formatDouble(modifier.getDecay())+"%/hour§7)"));
-        }
-        if(f.getOrCreateMainGuild().isBankrupt()) {
-            lore.add(StringFormatter.formatHex("#b8ae61State is bankrupt! #d13530-100%"));
-        }
-        if(gov.hasElections() && gov.getVotingBooths().isEmpty()) {
-            lore.add(StringFormatter.formatHex("#b8ae61No voting booths! #d13530-75%"));
-        }
-        lore.add(StringFormatter.formatHex("#93c9a7Stances:"));
-        for(Guild guild : f.getGuildHandler().getGuilds()) {
-            if(guild.isBase()) continue;
-            effect = guild.getStabilityModifier(f);
-            lore.add(StringFormatter.formatHex(" #d4bb98- "+guild.getName()+" §7("+guild.getType().getName()+"§7): "+guild.getStance(f).getDisplay()+" §7("+( effect >= 0 ? "#45c46f+" : "#d13530")+Formatter.formatDouble(effect)+"%"+"§7)"));
-        }
-        for(Faction v : RelationManager.getSubjects(f)) {
-            Guild guild = v.getOrCreateMainGuild();
-            effect = guild.getStabilityModifier(f);
-            lore.add(StringFormatter.formatHex(" #d4bb98- "+guild.getName()+" §7(#4269a8Vassal§7): "+guild.getStance(f).getDisplay()+" §7("+( effect >= 0 ? "#45c46f+" : "#d13530")+Formatter.formatDouble(effect)+"%"+"§7)"));
-        }
-        
-        // Add stability effects section
-        if(gov.getStability() < 100) {
-            lore.add(" ");
-            lore.add(StringFormatter.formatHex("#93c9a7Effects:"));
-            
-            // Tax Efficiency penalty (1 - taxEfficiency)
-            double taxEfficiencyPenalty = (1.0 - gov.getTaxEfficiency()) * 100.0;
-            lore.add(StringFormatter.formatHex("#b8ae61Tax Efficiency: #d13530-"+Formatter.formatDouble(taxEfficiencyPenalty)+"%"));
-            
-            // Admin Power Gain (stability/100 is the multiplier, so penalty from 100% stability)
-            double stabilityMultiplier = gov.getStability() / 100.0;
-            double powerGainPenalty = (1.0 - stabilityMultiplier) * 100.0;
-            lore.add(StringFormatter.formatHex("#b8ae61Admin Power Gain: #d13530-"+Formatter.formatDouble(powerGainPenalty)+"%"));
-            
-            // Max Admin Power (also uses stability/100 multiplier)
-            double maxPowerPenalty = (1.0 - stabilityMultiplier) * 100.0;
-            lore.add(StringFormatter.formatHex("#b8ae61Max Admin Power: #d13530-"+Formatter.formatDouble(maxPowerPenalty)+"%"));
-
-            // Max Diplomatic Capacity (also uses stability/100 multiplier)
-            double maxDiplomaticPenalty = (1.0 - stabilityMultiplier) * 100.0;
-            lore.add(StringFormatter.formatHex("#b8ae61Max Diplomatic Capacity: #d13530-"+Formatter.formatDouble(maxDiplomaticPenalty)+"%"));
-            
-            // Law Upkeep (uses 3 - stability/50 multiplier, so upkeep increases as stability decreases)
-            double upkeepMultiplier = 3.0 - gov.getStability() / 50.0;
-            double upkeepIncrease = (upkeepMultiplier - 1.0) * 100.0;
-            if(upkeepIncrease > 0) {
-                lore.add(StringFormatter.formatHex("#b8ae61Law Upkeep: #d13530+"+Formatter.formatDouble(upkeepIncrease)+"%"));
-            } else {
-                lore.add(StringFormatter.formatHex("#b8ae61Law Upkeep: #45c46f"+Formatter.formatDouble(upkeepIncrease)+"%"));
-            }
-        }
-        
-        m.setLore(lore);
+        StabilityReport report = f.getGovernment().stateReport();
+        String color = report.status.getListColor();
+        paint(m, color + report.status.getLabel() + "§7: " + color + num(report.stability) + "%", stabilityLore(f, report));
         item.setItemMeta(m);
         return item;
+    }
+
+    public ItemStack createLegitimacyItem(Faction f) {
+        ItemStack item = IconGetter.getIconOrDefault("overlord", Material.BLACK_DYE);
+        ItemMeta m = item.getItemMeta();
+        StabilityReport report = f.getGovernment().stateReport();
+        String color = scoreColor(report.legitimacy);
+        paint(m, "#d4c9aeLegitimacy§7: " + color + num(report.legitimacy) + "%", legitimacyLore(f, report));
+        item.setItemMeta(m);
+        return item;
+    }
+
+    private List<String> stabilityLore(Faction faction, StabilityReport report) {
+        StabilityFacts facts = StateStability.facts(faction);
+        List<String> lore = new ArrayList<>();
+        double legitimacyCost = StabilityMath.curve(report.legitimacy);
+        lore.add("#b8ae61Legitimacy: " + (legitimacyCost > 0.05 ? "#d13530-" : "#45c46f-") + num(legitimacyCost));
+        lore.add("#b8ae61Weak State: " + (report.weakStateMalus > 0 ? "#d13530-" : "#45c46f-") + num(report.weakStateMalus));
+        if (report.weakStateMalus > 0) {
+            lore.add("#8f8a7aState needs to be size " + num(report.requiredLevels));
+        }
+        if (report.overextension > 0) {
+            lore.add("#b8ae61Provinces: #d13530-" + num(report.overextension));
+        }
+        Government government = faction.getGovernment();
+        if (government != null && government.getStabilityModifiers() != null) {
+            for (StabilityModifier modifier : government.getStabilityModifiers()) {
+                if (modifier == null) {
+                    continue;
+                }
+                lore.add("#b8ae61" + modifier.getName() + ": " + (modifier.getModifier() >= 0 ? "#45c46f+" : "#d13530")
+                        + num(modifier.getModifier()) + "%");
+            }
+        }
+        if (facts.bankrupt) {
+            lore.add("#b8ae61State is bankrupt: #d13530-100%");
+        }
+        List<String> effects = effectLines(report, StabilityTuning.get());
+        if (!effects.isEmpty()) {
+            lore.add(" ");
+            lore.add("#93c9a7Effects:");
+            lore.addAll(effects);
+        }
+        return lore;
+    }
+
+    private List<String> legitimacyLore(Faction faction, StabilityReport report) {
+        StabilityTuning tuning = StabilityTuning.get();
+        StabilityFacts facts = StateStability.facts(faction);
+        List<String> lore = new ArrayList<>();
+        lore.add(legitimacyStanding(report.legitimacy));
+        List<String> stances = stanceLines(facts, tuning);
+        if (!stances.isEmpty()) {
+            lore.add(" ");
+            lore.add("#93c9a7Stances:");
+            lore.addAll(stances);
+        }
+        lore.add(" ");
+        lore.add("#93c9a7Effects:");
+        double legitimacyCost = StabilityMath.curve(report.legitimacy);
+        lore.add("#b8ae61Stability: " + (legitimacyCost > 0.05 ? "#d13530-" : "#45c46f-") + num(legitimacyCost));
+        return lore;
+    }
+
+    private static List<String> stanceLines(StabilityFacts facts, StabilityTuning tuning) {
+        double base = StabilityMath.baseLegitimacy(facts, tuning);
+        int population = 0;
+        for (Body body : facts.guilds) {
+            if (body != null && !body.realm) {
+                population += Math.max(0, body.members);
+            }
+        }
+        for (Body vassal : facts.vassals) {
+            if (vassal != null) {
+                population += Math.max(0, vassal.members);
+            }
+        }
+        List<String> lines = new ArrayList<>();
+        if (population <= 0) {
+            return lines;
+        }
+        double room = Math.max(0, 100 - base);
+        for (Body body : facts.guilds) {
+            if (body == null || body.realm) {
+                continue;
+            }
+            lines.add(stanceLine(body.name, body.stance, body.members, false, room, population, tuning));
+        }
+        for (Body vassal : facts.vassals) {
+            if (vassal == null) {
+                continue;
+            }
+            lines.add(stanceLine(vassal.name, vassal.stance, vassal.members, true, room, population, tuning));
+        }
+        return lines;
+    }
+
+    private static String stanceLine(String name, String stance, int members, boolean vassal, double room, int population, StabilityTuning tuning) {
+        String word = switch (stance == null ? "" : stance.toUpperCase()) {
+            case "OPPOSE" -> "#d13530Oppose";
+            case "NEUTRAL" -> "#decc68Neutral";
+            default -> "#4bc957Support";
+        };
+        double effect = population <= 0 ? 0 : room * Math.max(0, members) * StabilityMath.weight(stance, tuning) / population;
+        String who = strip(name);
+        if (vassal) {
+            who += " §7(Vassal)";
+        }
+        return " #d4bb98- #d4c9ae" + who + ": " + word + " §7(+" + num(effect) + "%)";
+    }
+
+    private static List<String> effectLines(StabilityReport report, StabilityTuning tuning) {
+        List<String> lines = new ArrayList<>();
+        double taxPenalty = (1 - report.status.getTaxFactor()) * 100;
+        double foreign = StabilityDebuffs.foreignTradeBonus(report.stability, tuning) * 100;
+        double adminPenalty = (1 - StabilityDebuffs.adminFactor(report.stability, tuning)) * 100;
+        double upkeepIncrease = (StabilityDebuffs.upkeepFactor(report.stability, tuning) - 1) * 100;
+        double deJure = StabilityDebuffs.deJureBonus(report.stability, tuning);
+        double prestige = StabilityDebuffs.prestigeMalus(report.stability, tuning);
+        double outputPenalty = Math.max(0, 100 - report.stability);
+        penalty(lines, "Tax Efficiency", taxPenalty);
+        penalty(lines, "Foreign Trade Power", foreign);
+        penalty(lines, "Admin Power Gain", adminPenalty);
+        penalty(lines, "Max Admin Power", adminPenalty);
+        penalty(lines, "Max Diplomatic Capacity", adminPenalty);
+        penalty(lines, "Law Upkeep", upkeepIncrease);
+        penalty(lines, "De Jure Requirement", deJure);
+        penalty(lines, "Prestige Malus", prestige);
+        penalty(lines, "State Output", outputPenalty);
+        if (!report.status.canWageWar()) {
+            lines.add("#b8ae61Offensive War: #d13530Locked");
+        }
+        if (!report.status.canFormTitles()) {
+            lines.add("#b8ae61Title Formation: #d13530Locked");
+        }
+        if (report.illegitimate) {
+            lines.add("#b8ae61Movement Organization: #d13530" + num(tuning.movementGainMultiplier) + "x");
+        }
+        return lines;
+    }
+
+    private static void penalty(List<String> lines, String label, double amount) {
+        if (amount <= 0.05) {
+            return;
+        }
+        String sign = label.equals("Law Upkeep") || label.equals("Foreign Trade Power") || label.equals("De Jure Requirement") ? "+" : "-";
+        lines.add("#b8ae61" + label + ": #d13530" + sign + num(amount) + (label.equals("De Jure Requirement") ? "" : "%"));
+    }
+
+    private static String strip(String name) {
+        if (name == null || name.isBlank()) {
+            return "A guild";
+        }
+        return name.replaceAll("§x(?:§[0-9a-fA-F]){6}", "").replaceAll("§.", "");
+    }
+
+    static String legitimacyStanding(double legitimacy) {
+        if (legitimacy < 50) {
+            return "#d13530Illegitimate Government";
+        }
+        if (legitimacy < 65) {
+            return "#d1b43fContested Government";
+        }
+        return "#45c46fLegitimate Government";
+    }
+
+    static void paint(ItemMeta meta, String name, List<String> lore) {
+        meta.displayName(plain(name));
+        List<Component> lines = new ArrayList<>();
+        for (String line : lore) {
+            lines.add(plain(line));
+        }
+        meta.lore(lines);
+    }
+
+    private static Component plain(String legacy) {
+        String text = legacy == null ? "" : legacy;
+        if (!text.startsWith("#") && !text.startsWith("§")) {
+            text = "#d4c9ae" + text;
+        }
+        return LegacyComponentSerializer.legacySection()
+                .deserialize(StringFormatter.formatHex(text))
+                .decoration(TextDecoration.ITALIC, false);
+    }
+
+    static String scoreColor(double score) {
+        if (score >= 75) return "#45c46f";
+        if (score >= 50) return "#d1b43f";
+        return "#d13530";
+    }
+
+    static String num(double value) {
+        double rounded = Math.round(value * 10.0) / 10.0;
+        if (rounded == (long) rounded) {
+            return Long.toString((long) rounded);
+        }
+        return Double.toString(rounded);
     }
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -261,13 +409,9 @@ public class GovernmentCreator {
         if(stance == Stance.OPPOSE) item = new ItemStack(Material.RED_CONCRETE);
         else if(stance == Stance.SUPPORT) item = new ItemStack(Material.GREEN_CONCRETE);
         ItemMeta m = item.getItemMeta();
-        m.setDisplayName(StringFormatter.formatHex(stance.getDisplay()));
         List<String> lore = new ArrayList<String>();
-        double effect = guild.getStabilityModifier(f);
-        lore.add(StringFormatter.formatHex("#b8ae61Stability Effect: "+( effect >= 0 ? "#45c46f+" : "#d13530")+Formatter.formatDouble(effect)+"%"));
-        lore.add("");
-        lore.add(StringFormatter.formatHex("#28ed70Click to change"));
-        m.setLore(lore);
+        lore.add("#28ed70Click to change");
+        paint(m, stance.getDisplay(), lore);
         m.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, guild.getId());
         item.setItemMeta(m);
         return item;

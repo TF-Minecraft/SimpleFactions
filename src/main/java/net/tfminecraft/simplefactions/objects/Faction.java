@@ -813,9 +813,10 @@ public class Faction {
 		}
 
 		double bonusPercent = getModifier(FactionModifiers.PRESTIGE_BONUS).getAmount();
+		double malusPercent = getModifier(FactionModifiers.PRESTIGE_MALUS).getAmount();
 
 		prestigeModifiers = PrestigeBreakdown.build(
-				prestigeModifiers, members, wealthAmount, tradeAmount, provinceAmount, titleAmount, fromSubjects, bonusPercent);
+				prestigeModifiers, members, wealthAmount, tradeAmount, provinceAmount, titleAmount, fromSubjects, bonusPercent, malusPercent);
 		prestige = PrestigeBreakdown.total(prestigeModifiers);
 		
 		if(this.rank.getLevel() < RankLoader.getRanks().size()) {
@@ -1295,6 +1296,15 @@ public class Faction {
 		}
 		if (branchPrestigeBonus != 0.0) {
 			all.add(new FactionModifier(FactionModifiers.PRESTIGE_BONUS, branchPrestigeBonus));
+		}
+		if (getGovernment() != null) {
+			net.tfminecraft.simplefactions.government.stability.StabilityReport report = getGovernment().stateReport();
+			double malus = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.prestigeMalus(
+					report.stability,
+					net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
+			if (malus > 0) {
+				all.add(new FactionModifier(FactionModifiers.PRESTIGE_MALUS, malus));
+			}
 		}
 	    return all;
 	}

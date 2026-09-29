@@ -175,6 +175,8 @@ public class Movement {
         }
         if(!hasLeader()) {
             base = -10;
+        } else if (base > 0 && f.getGovernment() != null && f.getGovernment().isIllegitimate()) {
+            base *= net.tfminecraft.simplefactions.government.stability.StabilityTuning.get().movementGainMultiplier;
         }
         return Formatter.formatDouble(base);
     }

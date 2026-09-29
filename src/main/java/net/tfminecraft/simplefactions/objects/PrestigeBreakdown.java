@@ -24,6 +24,19 @@ public final class PrestigeBreakdown {
 			double titles,
 			double subjects,
 			double bonusPercent) {
+		return build(persistent, members, wealth, trade, provinces, titles, subjects, bonusPercent, 0);
+	}
+
+	public static List<Modifier> build(
+			List<Modifier> persistent,
+			double members,
+			double wealth,
+			double trade,
+			double provinces,
+			double titles,
+			double subjects,
+			double bonusPercent,
+			double malusPercent) {
 		List<Modifier> modifiers = new ArrayList<>();
 		if(persistent != null) {
 			for(Modifier m : persistent) {
@@ -39,6 +52,11 @@ public final class PrestigeBreakdown {
 		if(bonusPercent > 0) {
 			double extra = total(modifiers)*(bonusPercent/100.0);
 			modifiers.add(new Modifier(bonusPercent+"% Bonus", Formatter.formatDouble(extra), false));
+		}
+		if(malusPercent > 0) {
+			double shown = Formatter.formatDouble(malusPercent);
+			double cut = total(modifiers)*(shown/100.0);
+			modifiers.add(new Modifier(shown+"% Malus", Formatter.formatDouble(-cut), false));
 		}
 		return modifiers;
 	}

@@ -59,7 +59,8 @@ public class GovernmentView {
 		i.clear();
 		i.setItem(10, creator.createGovernmentItem(f));
 		i.setItem(11, creator.createStabilityItem(f));
-		i.setItem(12, creator.createCouncilItem(f));
+		i.setItem(12, creator.createLegitimacyItem(f));
+		i.setItem(13, creator.createCouncilItem(f));
 		i.setItem(15, creator.createProposalItem(player, f));
 		if(f.hasFactionRule(Rules.CAN_FAVOUR) | f.hasFactionRule(Rules.CAN_REPRESS)) i.setItem(16, creator.createFavourRepressEntryButton());
 		i.setItem(24, creator.createProposalListItem(player, f));
@@ -70,11 +71,11 @@ public class GovernmentView {
 		if(gov.getCouncil().canHostSession() && f.getLeader().equalsIgnoreCase(player.getName())) {
 			i.setItem(23, creator.createStartCouncilButton(player, f));
 		}
-		
-		Guild g = FactionManager.getGuildByMember(player.getName());
-		if(g != null && gov.canAffectStability(g)) {
-			i.setItem(28, creator.createStanceItem(f, g));
+		Guild viewer = FactionManager.getGuildByMember(player.getName());
+		if(viewer != null && gov.canAffectStability(viewer)) {
+			i.setItem(28, creator.createStanceItem(f, viewer));
 		}
+		
 		i.setItem(53, inv.createBackButton(SFGUI.GOVERNMENT_VIEW));
         if(open) player.openInventory(i);
 	}
@@ -327,12 +328,12 @@ public class GovernmentView {
 			int slot = e.getSlot();
 			ItemStack item = e.getCurrentItem();
 			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
-			if(slot == 28) {
+			if(slot == 28 && item != null && item.getItemMeta() != null) {
 				String id = item.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
 				if(id != null) {
-					Guild g = FactionManager.getGuildByString(id);
-					if(g != null) {
-						g.switchStance();
+					Guild guild = FactionManager.getGuildByString(id);
+					if(guild != null) {
+						guild.switchStance();
 						governmentView(p, f, inventory);
 						p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					}
@@ -366,7 +367,7 @@ public class GovernmentView {
 				SimpleFactions.plugin.getSessionManager().newSession(p, f);
 				p.closeInventory();
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-			} else if(slot == 12) {
+			} else if(slot == 13) {
 				Government gov = f.getGovernment();
 				if(!gov.hasCouncil()) return;
 				councilView(p, f, null);

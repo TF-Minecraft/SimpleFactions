@@ -214,6 +214,11 @@ public class TierTitleView {
 			
 			if(action.equalsIgnoreCase("claim")) {
 				if(!type.equals(Material.YELLOW_CONCRETE)) return;
+				if (f.getGovernment() != null && !f.getGovernment().stateReport().status.canFormTitles()) {
+					p.sendMessage("§cA " + f.getGovernment().stateReport().status.getLabel() + " cannot form titles.");
+					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+					return;
+				}
 				String o = RelationManager.getOverlord(f);
 				if(o != null) {
 					Faction overlord = FactionManager.getByString(o);

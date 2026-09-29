@@ -152,6 +152,9 @@ public class FactionModifier {
 			case PRESTIGE_BONUS:
 				prefix = "#409dc2Prestige Bonus";
 				break;
+			case PRESTIGE_MALUS:
+				prefix = "#d46a6aPrestige Malus";
+				break;
 			case TRIBUTE:
 				prefix = "#d49024Tribute";
 				break;
@@ -188,10 +191,14 @@ public class FactionModifier {
 
 	private String suffix(double displayed) {
 		String color = isBeneficial(displayed) ? "#87d65c" : "#d65c5c";
+		String shown = FormatterRound(displayed);
+		if (type == FactionModifiers.PRESTIGE_MALUS && displayed > 0) {
+			shown = "-" + shown;
+		}
 		return StringFormatter.formatHex(
 			"§7(" + color
 			+ (isMultiplier() && displayed > 0 ? "+" : "")
-			+ FormatterRound(displayed) + "%§7)"
+			+ shown + "%§7)"
 		);
 	}
 

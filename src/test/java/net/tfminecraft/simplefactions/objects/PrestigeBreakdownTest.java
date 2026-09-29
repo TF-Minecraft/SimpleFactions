@@ -126,6 +126,32 @@ class PrestigeBreakdownTest {
 	}
 
 	@Test
+	void build_malusCutsTheTotalIncludingBonus() {
+		List<Modifier> modifiers = PrestigeBreakdown.build(List.of(), 100, 0, 0, 0, 0, 0, 10, 25);
+		assertEquals(10.0, find(modifiers, "10.0% Bonus").getAmount(), 1e-9);
+		assertEquals(-27.5, find(modifiers, "25.0% Malus").getAmount(), 1e-9);
+		assertEquals(82.5, PrestigeBreakdown.total(modifiers), 1e-9);
+	}
+
+	@Test
+	void build_failedStateMalusIsAQuarter() {
+		List<Modifier> modifiers = PrestigeBreakdown.build(List.of(), 200, 0, 0, 0, 0, 0, 0, 25);
+		assertEquals(-50.0, find(modifiers, "25.0% Malus").getAmount(), 1e-9);
+		assertEquals(150.0, PrestigeBreakdown.total(modifiers), 1e-9);
+	}
+
+	@Test
+	void build_malusIsIdempotentAndDropsWhenCleared() {
+		List<Modifier> modifiers = PrestigeBreakdown.build(List.of(), 100, 0, 0, 0, 0, 0, 0, 25);
+		double first = PrestigeBreakdown.total(modifiers);
+		modifiers = PrestigeBreakdown.build(modifiers, 100, 0, 0, 0, 0, 0, 0, 25);
+		assertEquals(first, PrestigeBreakdown.total(modifiers), 1e-9);
+		modifiers = PrestigeBreakdown.build(modifiers, 100, 0, 0, 0, 0, 0, 0, 0);
+		assertNull(find(modifiers, "25.0% Malus"));
+		assertEquals(100.0, PrestigeBreakdown.total(modifiers), 1e-9);
+	}
+
+	@Test
 	void total_handlesNullAndEmpty() {
 		assertEquals(0.0, PrestigeBreakdown.total(null), 1e-9);
 		assertEquals(0.0, PrestigeBreakdown.total(List.of()), 1e-9);

@@ -27,7 +27,10 @@ public class DiplomacyHandler {
     public double getDiplomaticCapacity() {
         double base = f.getOrCreateMainGuild().getModifier(GuildModifier.DIPLOMATIC_CAPACITY);
         base *= 1+f.getModifier(FactionModifiers.DIPLOMATIC_CAPACITY_MULTIPLIER).getAmount()/100.0;
-        base *= f.getGovernment().getStability()/100.0;
+        net.tfminecraft.simplefactions.government.stability.StabilityReport report = f.getGovernment().stateReport();
+        base *= net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.adminFactor(
+				report.stability,
+				net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
         return base;
     }
 
