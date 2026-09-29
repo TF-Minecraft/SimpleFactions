@@ -1408,7 +1408,8 @@ public class InventoryManager implements Listener{
 				Boolean b = Boolean.parseBoolean(data);
 				if(b) {
 					if(!f.canDissolve()) return;
-					Faction returnView = f.dissolve(f.getSubjects(), new ArrayList<>());
+					Faction returnView = f.dissolve(f.getSubjects(), f.getGuildHandler().getGuilds());
+					confirming.remove(p);
 					factionView(p, returnView);
 					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				}
