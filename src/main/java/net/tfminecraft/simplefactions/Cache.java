@@ -25,7 +25,7 @@ public class Cache {
 
 	public static int maxMembers;
 	public static int maxWealthPrestige;
-	public static double prestigePerTradePower = 0.1;
+	public static double prestigePerTradePower = 2.0;
 	public static double prestigeFromTradeSoftCap = 2000;
 	public static double prestigeFromTradeFalloff = 0.1;
 	public static double prosperitySoftCap = 80;

@@ -154,7 +154,6 @@ public class ProvinceManager {
         if(save) guild.getTradeBreakdown().clear();
         double income = 0;
         double upkeep = 0;
-        double trade = 0;
         double upkeepFactor = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_UPKEEP);
         double tariffs = 0;
 
@@ -176,17 +175,13 @@ public class ProvinceManager {
                 }
             }
             income += provinceIncome;
-            
-            if(owner == null) continue;
-            
-            trade += getTotalTrade(guild);
         }
         if(save) {
             guild.getTradeBreakdown().setTariffs(tariffs);
             guild.getTradeBreakdown().setUpkeep(upkeep);
             income = PillageTradeHit.applyToIncome(guild, income);
             guild.getTradeBreakdown().setIncome(income);
-            guild.getTradeBreakdown().setTradePower(trade);
+            guild.getTradeBreakdown().setTradePower(getTotalTrade(guild));
         }
         income-=upkeep;
 

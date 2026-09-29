@@ -56,8 +56,8 @@ wipe-log: true
 
 max-prestige-from-wealth: 800 # shared between factions based on % of global wealth
 # Prestige from the faction's own guilds' trade power (not vassals).
-# 0.1 means 10 trade power is 1 prestige. 0 disables the Trade line.
-prestige-per-trade-power: 0.1
+# 2.0 means 1 trade power is 2 prestige. 0 disables the Trade line.
+prestige-per-trade-power: 2.0
 # Linear until this much Trade prestige, then the next points keep paying
 # but the rate decays toward prestige-from-trade-falloff over each further
 # cap-sized band. 0.1 means very slow growth past ~2000. 1.0 is no falloff.
