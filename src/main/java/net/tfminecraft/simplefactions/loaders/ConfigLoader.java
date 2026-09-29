@@ -33,7 +33,7 @@ public class ConfigLoader {
 
 		Cache.maxMembers = config.getInt("max-members", 64);
 		Cache.maxWealthPrestige = config.getInt("max-prestige-from-wealth", 1000);
-		Cache.prestigePerTradePower = config.getDouble("prestige-per-trade-power", 0.1);
+		Cache.prestigePerTradePower = config.getDouble("prestige-per-trade-power", 2.0);
 		Cache.prestigeFromTradeSoftCap = config.getDouble("prestige-from-trade-soft-cap", 2000);
 		Cache.prestigeFromTradeFalloff = config.getDouble("prestige-from-trade-falloff", 0.1);
 		Cache.prosperitySoftCap = config.getDouble("prosperity-soft-cap", 80);
