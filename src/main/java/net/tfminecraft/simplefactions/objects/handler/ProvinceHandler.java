@@ -139,9 +139,10 @@ public class ProvinceHandler {
 		Province target = pm.get(provinceId);
 		if (target == null || !target.isValid()) return false;
 
-		// 1️⃣ Effective adjacency (land + water + capital sea fan-out)
+		// Effective adjacency: land, one water tile, or one sea tile from the capital's land blob
+		Set<Integer> capitalBlob = capitalLandBlob(pm);
 		for (int ownedId : provinces) {
-			if (isEffectivelyAdjacent(pm, ownedId, provinceId)) {
+			if (isEffectivelyAdjacent(pm, ownedId, provinceId, capitalBlob)) {
 				return true;
 			}
 		}
@@ -488,8 +489,9 @@ public class ProvinceHandler {
 		}
 
 		boolean adjacent = false;
+		Set<Integer> capitalBlob = capitalLandBlob(pm);
 		for (int ownedId : provinces) {
-			if (isEffectivelyAdjacent(pm, ownedId, provinceId)) {
+			if (isEffectivelyAdjacent(pm, ownedId, provinceId, capitalBlob)) {
 				adjacent = true;
 				break;
 			}
@@ -508,17 +510,32 @@ public class ProvinceHandler {
 		return "§cThis province must be connected to your realm by land or by sea.";
 	}
 
-	private boolean isEffectivelyAdjacent(ProvinceManager pm, int fromId, int targetId) {
+	/**
+	 * Owned land provinces reachable from the faction capital without crossing sea.
+	 * A sea crossing is allowed from any province in this blob, not only the capital itself.
+	 */
+	private Set<Integer> capitalLandBlob(ProvinceManager pm) {
+		Set<Integer> blob = new HashSet<>();
+		if (capital == -1 || !provinces.contains(capital)) {
+			return blob;
+		}
+		floodLand(pm, capital, blob);
+		return blob;
+	}
+
+	private boolean isEffectivelyAdjacent(
+			ProvinceManager pm,
+			int fromId,
+			int targetId,
+			Set<Integer> capitalBlob) {
 		Province from = pm.get(fromId);
 		Province target = pm.get(targetId);
 		if (from == null || target == null) return false;
 
-		// 1️⃣ Direct adjacency
 		if (from.getNeighbours().contains(targetId)) {
 			return true;
 		}
 
-		// 2️⃣ Single WATER bridge
 		for (int nId : from.getNeighbours()) {
 			Province mid = pm.get(nId);
 			if (mid == null || mid.getTerrain() != Terrain.WATER) continue;
@@ -528,11 +545,10 @@ public class ProvinceHandler {
 			}
 		}
 
-		// 3️⃣ Capital SEA fan-out
-		if (fromId == capital) {
+		if (capitalBlob.contains(fromId)) {
 			for (int nId : from.getNeighbours()) {
 				Province sea = pm.get(nId);
-				if (sea == null || !sea.isSea()) continue;
+				if (sea == null || sea.getTerrain() != Terrain.SEA) continue;
 
 				if (sea.getNeighbours().contains(targetId)) {
 					return true;
