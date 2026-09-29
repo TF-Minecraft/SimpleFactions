@@ -82,12 +82,7 @@ class GuildBankCommandTest {
 	void theLeaderCanWithdraw() {
 		factions.when(() -> FactionManager.getGuildByLeader("Steve")).thenReturn(guild);
 
-		try {
-			run("withdraw", "250");
-		} catch (LinkageError serverOnly) {
-			// The bank report ends with a sound, which needs a running server's registry. The
-			// money has already moved by then.
-		}
+		run("withdraw", "250");
 
 		verify(bank).withdraw(250.0);
 		verify(pouch).change(250.0);
