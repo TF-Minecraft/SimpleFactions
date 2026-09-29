@@ -204,6 +204,8 @@ public class TierTitleView {
 				String s = inventory.getContents()[0].getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 				titleTypeView(inventory, p, f, TitleLoader.getById(s).getTier(), false, page);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				// The redraw can leave the clicked slot empty, so it is no longer a title button.
+				return;
 			}
 			key = new NamespacedKey(SimpleFactions.plugin, "id");
 			String s = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
