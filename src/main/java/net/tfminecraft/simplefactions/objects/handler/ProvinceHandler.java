@@ -94,7 +94,7 @@ public class ProvinceHandler {
                 }
 				f.getSettlementHandler().onProvinceLost(i);
 				f.getInstallationHandler().onProvinceLost(i);
-				return;
+				break;
 			}
 		}
 		FactionManager.getMap().enqueue("nation", f.getRGB());
@@ -417,6 +417,7 @@ public class ProvinceHandler {
 
 	private Set<Integer> computeLegalProvinces(ProvinceManager pm, int factionCapital) {
 		Set<Integer> legal = new HashSet<>();
+		Set<Integer> capitalBlob = capitalLandBlob(pm, factionCapital);
 
 		for (Guild g : f.getGuildHandler().getGuilds()) {
 			if (!g.hasCapital()) continue;
@@ -426,12 +427,28 @@ public class ProvinceHandler {
 				continue;
 			}
 			legal.add(cap);
-			floodLand(pm, cap, legal);
 		}
 
-		if (factionCapital != -1) {
+		if (provinces.contains(factionCapital)) {
 			legal.add(factionCapital);
-			floodLand(pm, factionCapital, legal);
+		}
+
+		// Follow the same edges that allowed these claims: owned land, WATER
+		// bridges, and one SEA tile from the proposed capital's land blob.
+		// Reached overseas holdings may extend inland or over WATER, but do not
+		// become new sources for SEA crossings.
+		ArrayDeque<Integer> queue = new ArrayDeque<>(legal);
+		while (!queue.isEmpty()) {
+			int from = queue.poll();
+			for (int target : provinces) {
+				if (legal.contains(target)) continue;
+				Province province = pm.get(target);
+				if (province == null || !province.isValid() || province.isSea()) continue;
+				if (isEffectivelyAdjacent(pm, from, target, capitalBlob)) {
+					legal.add(target);
+					queue.add(target);
+				}
+			}
 		}
 
 		return legal;
@@ -442,11 +459,16 @@ public class ProvinceHandler {
 	}
 
 	private boolean isCapitalStillLegal(ProvinceManager pm, int guildCapitalId, int factionCapitalId) {
+		Province guildCapital = pm.get(guildCapitalId);
+		if (!provinces.contains(guildCapitalId) || guildCapital == null || !guildCapital.isValid()
+				|| guildCapital.isSea()) {
+			return false;
+		}
 		if (factionCapitalId != -1 && isLandConnected(pm, factionCapitalId, guildCapitalId)) {
 			return true;
 		}
 
-		return isSeaAdjacent(pm, pm.get(guildCapitalId));
+		return isSeaAdjacent(pm, guildCapital);
 	}
 
 	private void floodLand(ProvinceManager pm, int start, Set<Integer> out) {
@@ -515,11 +537,15 @@ public class ProvinceHandler {
 	 * A sea crossing is allowed from any province in this blob, not only the capital itself.
 	 */
 	private Set<Integer> capitalLandBlob(ProvinceManager pm) {
+		return capitalLandBlob(pm, capital);
+	}
+
+	private Set<Integer> capitalLandBlob(ProvinceManager pm, int factionCapital) {
 		Set<Integer> blob = new HashSet<>();
-		if (capital == -1 || !provinces.contains(capital)) {
+		if (factionCapital == -1 || !provinces.contains(factionCapital)) {
 			return blob;
 		}
-		floodLand(pm, capital, blob);
+		floodLand(pm, factionCapital, blob);
 		return blob;
 	}
 
