@@ -43,17 +43,13 @@ public class MilitaryView {
 		}
 		var m = f.getMilitary();
 		i.setItem(10, creator.createMilitarySummary(f));
+		boolean leader = f.getLeader().equalsIgnoreCase(player.getName());
 		for(int x = 0; x<m.getRegiments().size(); x++) {
 			int slot = x+12;
 			Regiment r = m.getRegiments().get(x);
 			i.setItem(slot, creator.createRegimentIcon(f, r));
-			if(!r.isLevy() && f.getLeader().equalsIgnoreCase(player.getName())) {
-				int a = slot-9;
-				i.setItem(a, creator.createRegimentIncreaseButton(f, r));
-				if(r.getCurrentSlots() > 0) {
-					a = slot+9;
-					i.setItem(a, creator.createRegimentDecreaseButton(f, r));
-				}
+			if(!r.isLevy() && leader) {
+				i.setItem(slot - 9, creator.createRegimentIncreaseButton(f, r));
 			}
 		}
 		int next = 12 + m.getRegiments().size();
@@ -64,6 +60,14 @@ public class MilitaryView {
 		}
 		for (int slot = next; slot <= 44; slot++) {
 			i.setItem(slot, new ItemStack(Material.AIR, 1));
+		}
+		// The clear above wipes the row under the regiments. Downgrade buttons go back on after it.
+		if (leader) {
+			for (int x = 0; x < m.getRegiments().size(); x++) {
+				Regiment r = m.getRegiments().get(x);
+				if (r.isLevy() || r.getCurrentSlots() <= 0) continue;
+				i.setItem(x + 21, creator.createRegimentDecreaseButton(f, r));
+			}
 		}
 		for(int x = 0; x<3; x++) {
 			int slot = x+39;
@@ -101,11 +105,6 @@ public class MilitaryView {
 		Faction f = FactionManager.getByString(factionId);
 		if(f == null) return;
 		
-		if(f.getMilitary().getQueue().size() == 3) {
-			p.sendMessage("§cQueue is full");
-			return;
-		}
-		
 		key = new org.bukkit.NamespacedKey(SimpleFactions.plugin, "regiment");
 		String regiment = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 		if(regiment == null) return;
@@ -115,7 +114,12 @@ public class MilitaryView {
 		key = new org.bukkit.NamespacedKey(SimpleFactions.plugin, "type");
 		String type = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 		if(type == null) return;
+		if(!f.getLeader().equalsIgnoreCase(p.getName())) return;
 		if(type.contentEquals("increase")) {
+			if(f.getMilitary().getQueue().size() == 3) {
+				p.sendMessage("§cQueue is full");
+				return;
+			}
 			ExpandResult result = f.getMilitary().canExpand(r);
 			if (!result.allowed()) {
 				p.sendMessage("§c" + result.reason());
@@ -125,9 +129,9 @@ public class MilitaryView {
 				f.getMilitary().enqueue(r);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			}
-		} else {
-			inv.confirmView(p, f, "regiment", r.getId());
-			inv.confirming.put(p, f);
+		} else if(type.contentEquals("decrease")) {
+			r.sizeDecrease();
+			p.sendMessage("§cDecreased size of "+r.getName());
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 		}
 		militaryView(e.getView().getTopInventory(), p, f, false);

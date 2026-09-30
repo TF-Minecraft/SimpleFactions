@@ -1394,7 +1394,7 @@ public class InventoryManager implements Listener{
 				}
 				Regiment r = f.getMilitary().getRegiment(data);
 				r.sizeDecrease();
-				p.sendMessage("§cDecrased size of "+r.getName());
+				p.sendMessage("§cDecreased size of "+r.getName());
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				militaryView(null, p, f, true);
 				return;
