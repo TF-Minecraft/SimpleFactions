@@ -322,7 +322,7 @@ public class FactionCreator {
 			List<String> lore = new ArrayList<String>();
 			for(Modifier mod : f.getPrestigeModifiers()) {
 				double amount = mod.getAmount();
-				if (mod.getType() != null && mod.getType().endsWith("% Malus")) {
+				if (mod.getType() != null && (mod.getType().endsWith("% Malus") || mod.getType().endsWith("% Inactivity"))) {
 					lore.add(StringFormatter.formatHex("#d46a6a" + mod.getType() + ": #d13530" + amount));
 					continue;
 				}

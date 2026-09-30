@@ -462,6 +462,7 @@ public class FactionManager implements Listener{
 
 	public void time() {
 		timer++;
+		net.tfminecraft.simplefactions.inactivity.InactivityService.tickIfDue(factions);
 		if(timer % 3600 == 0) {
 			for(Faction f : factions) {
 				if (f.getGovernment() != null) {
@@ -494,7 +495,10 @@ public class FactionManager implements Listener{
 				if(f == null) continue;
 				runDailyStep("faction " + f.getId(), f::newDay);
 			}
-			runDailyStep("inactive members", () -> FactionCleanup.kickInactiveMembers(factions));
+			runDailyStep("inactive members", () -> {
+				FactionCleanup.advanceOfflineDays(factions);
+				net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
+			});
 			runDailyStep("income", this::settleIncome);
 			timer = 0;
 			day++;
@@ -551,7 +555,9 @@ public class FactionManager implements Listener{
 			runDailyStep("deposit " + guild.getId(), () -> {
 				guild.getBank().deposit(amount);
 				int liquidations = 0;
-				while(guild.isBankrupt() && guild.canLiquidate() && liquidations++ < 1000) {
+				while(guild.isBankrupt() && guild.canLiquidate()
+						&& !net.tfminecraft.simplefactions.inactivity.InactivityService.isFullyInactive(guild.getMembers())
+						&& liquidations++ < 1000) {
 					int before = guild.getSize();
 					guild.liquidateRandom();
 					if(guild.getSize() >= before) break;
@@ -608,6 +614,7 @@ public class FactionManager implements Listener{
 			f.ping();
 		}
 		updateAllPrestigeConverged();
+		net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
 		fixRelations();
 		loadDBLoans();
 		loaded = true;

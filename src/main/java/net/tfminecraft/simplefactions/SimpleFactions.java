@@ -274,6 +274,7 @@ public class SimpleFactions extends JavaPlugin{
 				+ "Map upload, province lookup, and regen require TFMCWeb + api.base-url / api.plugin-key."
 			);
 		}
+		net.tfminecraft.simplefactions.inactivity.InactivityService.load();
 		db.loadFactions();
 		getCommand(commands.cmd1).setExecutor(commands);
 		getCommand(commands.cmd2).setExecutor(commands);
@@ -360,6 +361,7 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.stopAutosave();
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		sessionManager.end();
+		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
 		db.saveTimer(FactionManager.getTimer(), FactionManager.getDay());
 		for(Faction f : FactionManager.factions) {
 			db.saveFaction(f);

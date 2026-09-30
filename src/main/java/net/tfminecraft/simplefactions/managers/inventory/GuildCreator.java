@@ -201,8 +201,14 @@ public class GuildCreator {
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 				m.setDisplayName(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+guild.getMembers().size()+"/"+Cache.maxMembers));
 				List<String> lore = new ArrayList<>();
+				int outputPenalty = net.tfminecraft.simplefactions.inactivity.InactivityService.guildPercent(guild);
+				if (outputPenalty > 0) {
+					lore.add(StringFormatter.formatHex("#c95644Inactive output -" + outputPenalty + "%. Upgrades stay, but they are weakened."));
+				}
 				for(String s : guild.getMembers()) {
-					lore.add(StringFormatter.formatHex("#d4c9ae"+s));
+					String mark = net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(s)
+							? " #c95644(inactive)" : "";
+					lore.add(StringFormatter.formatHex("#d4c9ae"+s+mark));
 				}
 				m.setLore(lore);
 				i.setItemMeta(m);
@@ -228,6 +234,10 @@ public class GuildCreator {
 		meta.setDisplayName(StringFormatter.formatHex("#d979c2Upgrades"));
 
 		List<String> lore = new ArrayList<>();
+		int outputPenalty = net.tfminecraft.simplefactions.inactivity.InactivityService.guildPercent(guild);
+		if (outputPenalty > 0) {
+			lore.add(StringFormatter.formatHex("#c95644Inactive output -" + outputPenalty + "%. Levels are unchanged."));
+		}
 		for(Upgrade u : guild.getUpgrades()) {
 			lore.add(StringFormatter.formatHex(" #adc7be- "+u.getName()+" §7["+u.getLevel()+"]"));
 		}

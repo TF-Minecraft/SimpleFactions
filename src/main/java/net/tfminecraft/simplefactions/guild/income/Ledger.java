@@ -340,6 +340,7 @@ public class Ledger {
                 if (guild.getCompany() != null && guild.getCompany().isFormed()) {
                     amount -= guild.getCompany().getUpgradeUpkeep();
                 }
+                amount *= net.tfminecraft.simplefactions.inactivity.InactivityService.outputFactor(guild);
                 break;
             case NODES:
                 amount = -nodeUpkeepLookup.applyAsDouble(guild);
