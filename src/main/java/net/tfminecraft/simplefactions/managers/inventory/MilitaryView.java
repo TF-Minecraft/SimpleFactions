@@ -114,6 +114,7 @@ public class MilitaryView {
 		key = new org.bukkit.NamespacedKey(SimpleFactions.plugin, "type");
 		String type = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 		if(type == null) return;
+		if(!f.getLeader().equalsIgnoreCase(p.getName())) return;
 		if(type.contentEquals("increase")) {
 			if(f.getMilitary().getQueue().size() == 3) {
 				p.sendMessage("§cQueue is full");

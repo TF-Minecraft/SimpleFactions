@@ -118,6 +118,7 @@ class MilitaryViewDowngradeTest {
 				mock(net.tfminecraft.simplefactions.army.MilitaryExpansion.class)));
 
 		Player player = mock(Player.class);
+		when(player.getName()).thenReturn("Leader");
 		Inventory inventory = mock(Inventory.class);
 		InventoryView inventoryView = mock(InventoryView.class);
 		when(inventoryView.getTopInventory()).thenReturn(inventory);
@@ -136,6 +137,32 @@ class MilitaryViewDowngradeTest {
 		verify(player).sendMessage("§cDecreased size of Professional Army");
 		verify(player).playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 		verify(player, never()).sendMessage("§cQueue is full");
+	}
+
+	@Test
+	void downgradeClick_ignoresAnyoneButTheLeader() {
+		InventoryManager manager = mock(InventoryManager.class);
+		MilitaryView view = spy(new MilitaryView(manager));
+		doNothing().when(view).militaryView(any(), any(), any(), anyBoolean());
+
+		Faction faction = faction("Leader");
+		Regiment regiment = regiment("professional", 2, false);
+		when(faction.getMilitary().getRegiment("professional")).thenReturn(regiment);
+
+		Player player = mock(Player.class);
+		when(player.getName()).thenReturn("Member");
+		Inventory inventory = mock(Inventory.class);
+		ItemStack clicked = decreaseItem("faction-1", "professional");
+		InventoryClickEvent event = mock(InventoryClickEvent.class);
+		when(event.getCurrentItem()).thenReturn(clicked);
+
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			factions.when(() -> FactionManager.getByString("faction-1")).thenReturn(faction);
+			view.click(event, inventory, player);
+		}
+
+		verify(regiment, never()).sizeDecrease();
+		verify(view, never()).militaryView(any(), any(), any(), anyBoolean());
 	}
 
 	private static Faction faction(String leader) {
