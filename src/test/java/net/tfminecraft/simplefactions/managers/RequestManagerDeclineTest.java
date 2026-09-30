@@ -29,6 +29,7 @@ import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.StabilityModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.objects.request.RelationRequest;
 import net.tfminecraft.simplefactions.objects.request.RelocateRequest;
 import net.tfminecraft.simplefactions.objects.request.Request;
 import net.tfminecraft.simplefactions.objects.request.VehicleTransferConsentRequest;
@@ -215,9 +216,17 @@ class RequestManagerDeclineTest {
 	}
 
 	@Test
-	void warRequest_lastsSixtySeconds() {
+	void warRequest_lastsSixtySeconds() throws Exception {
 		WarRequest request = new WarRequest(mock(Guild.class), activeWar());
 		assertFalse(request.timedOut());
+		assertSixtySecondWindow(request);
+	}
+
+	@Test
+	void relationRequest_lastsSixtySeconds() throws Exception {
+		RelationRequest request = new RelationRequest(mock(Guild.class), null, true);
+		assertFalse(request.timedOut());
+		assertSixtySecondWindow(request);
 	}
 
 	@Test
@@ -330,5 +339,13 @@ class RequestManagerDeclineTest {
 		Field time = Request.class.getDeclaredField("time");
 		time.setAccessible(true);
 		time.setLong(request, 0L);
+	}
+
+	private static void assertSixtySecondWindow(Request request) throws Exception {
+		Field time = Request.class.getDeclaredField("time");
+		time.setAccessible(true);
+		long remaining = time.getLong(request) - System.currentTimeMillis();
+		assertTrue(remaining > 55_000L, "remaining was " + remaining);
+		assertTrue(remaining <= 60_000L, "remaining was " + remaining);
 	}
 }
