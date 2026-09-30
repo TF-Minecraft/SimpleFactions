@@ -102,14 +102,14 @@ class MilitaryViewDowngradeTest {
 	}
 
 	@Test
-	void downgradeClick_shrinksTheRegimentImmediately() {
+	void downgradeClick_opensConfirmBeforeShrinking() {
 		InventoryManager manager = mock(InventoryManager.class);
+		manager.confirming = new java.util.HashMap<>();
 		MilitaryView view = spy(new MilitaryView(manager));
 		doNothing().when(view).militaryView(any(), any(), any(), anyBoolean());
 
 		Faction faction = faction("Leader");
 		Regiment regiment = regiment("professional", 2, false);
-		when(regiment.getName()).thenReturn("Professional Army");
 		Military military = faction.getMilitary();
 		when(military.getRegiment("professional")).thenReturn(regiment);
 		when(military.getQueue()).thenReturn(List.of(
@@ -132,11 +132,12 @@ class MilitaryViewDowngradeTest {
 			view.click(event, inventory, player);
 		}
 
-		verify(regiment).sizeDecrease();
-		verify(manager, never()).confirmView(any(), any(), any(), any());
-		verify(player).sendMessage("§cDecreased size of Professional Army");
+		verify(regiment, never()).sizeDecrease();
+		verify(manager).confirmView(player, faction, "regiment", "professional");
+		assertSame(faction, manager.confirming.get(player));
 		verify(player).playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 		verify(player, never()).sendMessage("§cQueue is full");
+		verify(view, never()).militaryView(any(), any(), any(), anyBoolean());
 	}
 
 	@Test
@@ -162,6 +163,7 @@ class MilitaryViewDowngradeTest {
 		}
 
 		verify(regiment, never()).sizeDecrease();
+		verify(manager, never()).confirmView(any(), any(), any(), any());
 		verify(view, never()).militaryView(any(), any(), any(), anyBoolean());
 	}
 

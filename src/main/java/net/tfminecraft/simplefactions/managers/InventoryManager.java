@@ -1392,7 +1392,9 @@ public class InventoryManager implements Listener{
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					return;
 				}
+				if(f == null || !f.getLeader().equalsIgnoreCase(p.getName())) return;
 				Regiment r = f.getMilitary().getRegiment(data);
+				if(r == null) return;
 				r.sizeDecrease();
 				p.sendMessage("§cDecreased size of "+r.getName());
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
