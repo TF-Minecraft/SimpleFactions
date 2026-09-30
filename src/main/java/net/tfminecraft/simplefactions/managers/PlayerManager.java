@@ -21,7 +21,6 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.loans.LoanBook;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.utils.FactionCleanup;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.mercenary.MercenaryResult;
@@ -43,7 +42,7 @@ import net.tfminecraft.denareconomy.event.PlayerEarnMoneyEvent;
 public class PlayerManager implements Listener{
     @EventHandler
     public void joinEvent(PlayerJoinEvent e) {
-        FactionCleanup.ping(e.getPlayer().getName());
+        net.tfminecraft.simplefactions.inactivity.InactivityService.onLogin(e.getPlayer());
     }
 
     //Loans and stuff

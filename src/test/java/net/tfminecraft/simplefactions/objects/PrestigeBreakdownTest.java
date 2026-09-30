@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -149,6 +150,19 @@ class PrestigeBreakdownTest {
 		modifiers = PrestigeBreakdown.build(modifiers, 100, 0, 0, 0, 0, 0, 0, 0);
 		assertNull(find(modifiers, "25.0% Malus"));
 		assertEquals(100.0, PrestigeBreakdown.total(modifiers), 1e-9);
+	}
+
+	@Test
+	void build_inactivityCutsAfterMalusAndDoesNotPersist() {
+		List<Modifier> modifiers = PrestigeBreakdown.build(List.of(), 200, 0, 0, 0, 0, 0, 0, 0, 1);
+		assertEquals(-2.0, find(modifiers, "1% Inactivity").getAmount(), 1e-9);
+		assertFalse(find(modifiers, "1% Inactivity").isPersistent());
+		assertEquals(198.0, PrestigeBreakdown.total(modifiers), 1e-9);
+		modifiers = PrestigeBreakdown.build(modifiers, 200, 0, 0, 0, 0, 0, 0, 0, 100);
+		assertEquals(0.0, PrestigeBreakdown.total(modifiers), 1e-9);
+		modifiers = PrestigeBreakdown.build(modifiers, 200, 0, 0, 0, 0, 0, 0, 0, 0);
+		assertNull(find(modifiers, "100% Inactivity"));
+		assertEquals(200.0, PrestigeBreakdown.total(modifiers), 1e-9);
 	}
 
 	@Test

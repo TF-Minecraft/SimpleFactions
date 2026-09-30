@@ -682,6 +682,10 @@ public class Guild {
         for(Upgrade u : upgrades.values()) {
             amount += u.getAmount(m);
         }
+        // Levels stay. While the guild is inactive, the benefit of those levels fades.
+        if (m != null && m.isPositive()) {
+            amount *= net.tfminecraft.simplefactions.inactivity.InactivityService.outputFactor(this);
+        }
         return amount;
     }
 

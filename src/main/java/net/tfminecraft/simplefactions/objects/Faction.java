@@ -814,9 +814,10 @@ public class Faction {
 
 		double bonusPercent = getModifier(FactionModifiers.PRESTIGE_BONUS).getAmount();
 		double malusPercent = getModifier(FactionModifiers.PRESTIGE_MALUS).getAmount();
+		int inactivityPercent = net.tfminecraft.simplefactions.inactivity.InactivityService.prestigePercent(this);
 
 		prestigeModifiers = PrestigeBreakdown.build(
-				prestigeModifiers, members, wealthAmount, tradeAmount, provinceAmount, titleAmount, fromSubjects, bonusPercent, malusPercent);
+				prestigeModifiers, members, wealthAmount, tradeAmount, provinceAmount, titleAmount, fromSubjects, bonusPercent, malusPercent, inactivityPercent);
 		prestige = PrestigeBreakdown.total(prestigeModifiers);
 		
 		if(this.rank.getLevel() < RankLoader.getRanks().size()) {

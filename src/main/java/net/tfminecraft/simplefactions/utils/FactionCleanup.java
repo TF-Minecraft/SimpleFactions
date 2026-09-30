@@ -5,82 +5,128 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
-import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.inactivity.InactivityRules;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 public class FactionCleanup {
 
-    private static final int MAX_DAYS_OFFLINE = 21; // Customize this
     private static final File LOGIN_FILE = new File("plugins/SimpleFactions/Cache", "logins.json");
+    private static Map<String, Integer> offlineDays;
 
-
-    public static void kickInactiveMembers(List<Faction> factions) {
-        Map<String, Integer> offlineDays;
+    /**
+     * Counts a day offline for members who are not on the server. Members who
+     * reach {@link InactivityRules#DAYS_UNTIL_INACTIVE} stay in the guild and
+     * are marked inactive. They are not kicked, and a lone inactive leader
+     * does not dissolve the faction.
+     */
+    public static void advanceOfflineDays(List<Faction> factions) {
         try {
-            offlineDays = loadOfflineDays();
-            if (offlineDays == null) return;
+            if (!ensureLoaded()) return;
+            Set<String> members = new HashSet<>();
 
-            // Add missing members before incrementing
-            for (Faction faction : factions) {
-                for (String member : faction.getMembers()) {
-                    String name = member.toLowerCase();
-                    if(name.startsWith("dummy_")) continue;
-                    offlineDays.putIfAbsent(name, 0); // If not tracked yet, start at 0
-                }
-            }
-
-            // Increment all days by 1
-            for (Map.Entry<String, Integer> entry : offlineDays.entrySet()) {
-                offlineDays.put(entry.getKey(), entry.getValue() + 1);
-            }
-
-            for (Faction faction : new ArrayList<>(factions)) {
-                List<String> members = new ArrayList<>(faction.getMembers()); // Avoid ConcurrentModificationException
-
-                for (String member : members) {
-                    if(member.startsWith("dummy_")) continue;
-                    int daysOffline = offlineDays.getOrDefault(member.toLowerCase(), 0);
-                    if(!faction.getMembers().contains(member)) continue;
-                    if (daysOffline >= MAX_DAYS_OFFLINE) {
-                        if (faction.getLeader().equalsIgnoreCase(member)) {
-                            if (faction.getMembers().size() == 1) {
-                                FactionManager.deleteFaction(faction);
-                            }
-                            continue;
-                        }
-                        if(!faction.canBeCleanKicked(member)) continue;
-                        faction.forceRemoveMember(member);
-                        SimpleFactions.getInstance().getLogger().info("Kicked " + member + " from faction " + faction.getName() + " (offline for " + daysOffline + " days)");
+            if (factions != null) {
+                for (Faction faction : factions) {
+                    if (faction == null) continue;
+                    for (String member : faction.getMembers()) {
+                        if (!InactivityRules.isTrackedMember(member)) continue;
+                        String key = member.toLowerCase(Locale.ROOT);
+                        offlineDays.putIfAbsent(key, 0);
+                        members.add(key);
                     }
                 }
             }
 
-            // Save updated offlineDays back to file
-            saveOfflineDays(offlineDays);
+            for (Map.Entry<String, Integer> entry : new HashMap<>(offlineDays).entrySet()) {
+                String name = entry.getKey();
+                int before = entry.getValue() == null ? 0 : entry.getValue();
+                if (isOnline(name)) {
+                    offlineDays.put(name, 0);
+                    continue;
+                }
+                int after = before + 1;
+                offlineDays.put(name, after);
+                if (members.contains(name)
+                        && !InactivityRules.isInactive(before)
+                        && InactivityRules.isInactive(after)) {
+                    log(name + " is inactive after " + after + " days offline and stays in their guild");
+                }
+            }
 
+            saveOfflineDays(offlineDays);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    public static int daysOffline(String username) {
+        if (username == null) return 0;
+        if (!ensureLoaded()) return 0;
+        Integer days = offlineDays.get(username.toLowerCase(Locale.ROOT));
+        return days == null ? 0 : days;
+    }
+
+    public static void ping(String username) {
+        if (username == null || username.isBlank()) return;
+        try {
+            if (!ensureLoaded()) offlineDays = new HashMap<>();
+            offlineDays.put(username.toLowerCase(Locale.ROOT), 0);
+            saveOfflineDays(offlineDays);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static boolean ensureLoaded() {
+        if (offlineDays != null) return true;
+        try {
+            Map<String, Integer> loaded = loadOfflineDays();
+            if (loaded == null) return false;
+            offlineDays = loaded;
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private static boolean isOnline(String name) {
+        try {
+            if (Bukkit.getServer() == null || name == null) return false;
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (player != null && player.getName().equalsIgnoreCase(name)) return true;
+            }
+        } catch (Throwable ignored) {
+            return false;
+        }
+        return false;
+    }
+
     private static Map<String, Integer> loadOfflineDays() throws IOException {
         if (!LOGIN_FILE.exists()) {
+            LOGIN_FILE.getParentFile().mkdirs();
             LOGIN_FILE.createNewFile();
-            return new HashMap<>(); // Return empty map instead of null
+            return new HashMap<>();
         }
 
         try (FileReader reader = new FileReader(LOGIN_FILE)) {
             Type mapType = new TypeToken<Map<String, Integer>>() {}.getType();
-            return new Gson().fromJson(reader, mapType);
+            Map<String, Integer> loaded = new Gson().fromJson(reader, mapType);
+            return loaded == null ? new HashMap<>() : loaded;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -88,29 +134,20 @@ public class FactionCleanup {
     }
 
     private static void saveOfflineDays(Map<String, Integer> data) throws IOException {
+        File parent = LOGIN_FILE.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
         if (!LOGIN_FILE.exists()) {
             LOGIN_FILE.createNewFile();
         }
         try (FileWriter writer = new FileWriter(LOGIN_FILE)) {
             new Gson().toJson(data, writer);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
-    public static void ping(String username) {
-        try {
-            Map<String, Integer> offlineDays = loadOfflineDays();
-            if (offlineDays == null) {
-                offlineDays = new HashMap<>();
-            }
-
-            offlineDays.put(username.toLowerCase(), 0); // Reset to 0
-
-            saveOfflineDays(offlineDays);
-        } catch (IOException e) {
-            e.printStackTrace();
+    private static void log(String message) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin != null && plugin.getLogger() != null) {
+            plugin.getLogger().log(Level.INFO, message);
         }
     }
 }
-
