@@ -16,7 +16,7 @@ import net.tfminecraft.simplefactions.enums.FactionModifiers;
 class DiplomacyHandlerCapacityTest {
 
 	@Test
-	void usedCapacity_usesPartnerPrestigeNotSelf() {
+	void usedCapacity_usesPartnerPrestigeWithDiminishingReturns() {
 		Faction self = mock(Faction.class);
 		when(self.getId()).thenReturn("self");
 		when(self.getPrestige()).thenReturn(50.0);
@@ -40,7 +40,7 @@ class DiplomacyHandlerCapacityTest {
 				org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class)) {
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("partner"))
 					.thenReturn(partner);
-			assertEquals(20.0, handler.getUsedDiplomaticCapacity(), 1e-9);
+			assertEquals(Math.sqrt(200.0), handler.getUsedDiplomaticCapacity(), 1e-9);
 		}
 	}
 

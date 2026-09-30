@@ -68,7 +68,7 @@ public class RelationManager {
 		}
 		double cost = r.getBaseCost();
 		if(!r.isSettable()) cost = 0;
-		cost*=prestigeOf(to)/10.0;
+		cost *= prestigeCostScale(prestigeOf(to));
 		if(r.isVassalage()) {
 			cost/=3.0;
 		}
@@ -83,7 +83,16 @@ public class RelationManager {
 		if (cost == 0) {
 			return 0;
 		}
-		return cost * prestigeOf(to) / 10.0;
+		return cost * prestigeCostScale(prestigeOf(to));
+	}
+
+	/** Keeps existing costs through 100 prestige, then applies diminishing returns. */
+	private static double prestigeCostScale(double prestige) {
+		double nonNegativePrestige = Math.max(0, prestige);
+		if (nonNegativePrestige <= 100) {
+			return nonNegativePrestige / 10.0;
+		}
+		return Math.sqrt(nonNegativePrestige);
 	}
 
 	private static double prestigeOf(Faction faction) {
