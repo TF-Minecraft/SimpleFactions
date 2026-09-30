@@ -130,9 +130,10 @@ public class MilitaryView {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			}
 		} else if(type.contentEquals("decrease")) {
-			r.sizeDecrease();
-			p.sendMessage("§cDecreased size of "+r.getName());
+			inv.confirmView(p, f, "regiment", r.getId());
+			inv.confirming.put(p, f);
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			return;
 		}
 		militaryView(e.getView().getTopInventory(), p, f, false);
 	}
