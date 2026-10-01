@@ -373,6 +373,13 @@ public final class SupplyHubCommands {
 
     /** Hub changes move trade power, so the map and incomes are brought up to date at once. */
     private static void recalculateTrade() {
+        if (FactionManager.getMap() != null && FactionManager.factions != null) {
+            for (Faction faction : FactionManager.factions) {
+                if (faction != null && faction.getRGB() != null) {
+                    FactionManager.getMap().enqueue("nation", faction.getRGB());
+                }
+            }
+        }
         SimpleFactions plugin = SimpleFactions.getInstance();
         if (plugin == null || plugin.getProvinceManager() == null) {
             return;
