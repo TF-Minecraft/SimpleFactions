@@ -3,7 +3,7 @@ package net.tfminecraft.simplefactions.government.stability;
 import net.tfminecraft.simplefactions.government.stability.StabilityFacts.Body;
 
 /**
- * Legitimacy, economic strain, and the status that names the result.
+ * Legitimacy, the size of the state, and the status that names the result.
  * Stance changes legitimacy only. It does not add or subtract stability on its own.
  */
 public final class StabilityMath {
@@ -23,7 +23,6 @@ public final class StabilityMath {
 		}
 		endorsement(facts, tuning, report);
 		weakState(facts, tuning, report);
-		report.economic = 100;
 		double over = 0;
 		if ("community".equals(id(facts.government))) {
 			int past = Math.max(0, facts.provinces - tuning.communityFreeProvinces);
@@ -116,96 +115,6 @@ public final class StabilityMath {
 		return missing * missing / 100.0;
 	}
 
-	private static void economy(StabilityFacts facts, StabilityTuning tuning, StabilityReport report) {
-		int bodies = 0;
-		double totalTrade = 0;
-		Body realm = null;
-		int maxOther = 0;
-		String largestOther = "";
-		String leaderName = "";
-		double leaderTrade = -1;
-		for (Body body : facts.guilds) {
-			if (body == null) continue;
-			bodies++;
-			totalTrade += Math.max(0, body.tradePower);
-			if (body.realm) {
-				realm = body;
-				report.realmLevels = body.branchLevels;
-			} else if (body.branchLevels > maxOther) {
-				maxOther = body.branchLevels;
-				largestOther = body.name == null ? "" : body.name;
-			}
-			if (body.tradePower > leaderTrade) {
-				leaderTrade = body.tradePower;
-				leaderName = body.name == null ? "" : body.name;
-			}
-		}
-		report.leadingGuild = leaderName;
-		report.largestOther = largestOther;
-		report.leadingLevels = maxOther;
-		report.leadingTradeShare = totalTrade <= 0 ? 0 : leaderTrade / totalTrade;
-		report.stateLeads = realm != null && realm.branchLevels >= maxOther;
-		double law = diversityLaw(facts, tuning);
-		report.diversityLaw = round(law);
-		if (bodies <= 1) {
-			report.economic = 100;
-			report.diversity = 100;
-			report.stateLeads = true;
-			return;
-		}
-		double used = Math.max(law, 100.0 / bodies);
-		report.diversity = round(used);
-		double over = Math.max(0, report.leadingTradeShare * 100 - report.diversity);
-		report.economic = round(clamp(100 - over));
-	}
-
-	public static double governmentDiversity(StabilityFacts facts, StabilityTuning tuning) {
-		return switch (id(facts.government)) {
-			case "oligarchy" -> tuning.diversityOligarchy;
-			case "democracy" -> tuning.diversityDemocracy;
-			case "community" -> tuning.diversityCommunity;
-			case "plutocracy" -> tuning.diversityPlutocracy;
-			default -> tuning.diversityAutocracy;
-		};
-	}
-
-	public static double economyDiversity(StabilityFacts facts, StabilityTuning tuning) {
-		return switch (id(facts.economy)) {
-			case "free_trade" -> tuning.diversityFreeTrade;
-			case "mercantilism" -> tuning.diversityMercantilism;
-			case "protectionism" -> tuning.diversityProtectionism;
-			case "isolationism" -> tuning.diversityIsolationism;
-			default -> tuning.diversityDecentralized;
-		};
-	}
-
-	public static double borderDiversity(StabilityFacts facts, StabilityTuning tuning) {
-		if ("open_borders".equals(id(facts.borders))) {
-			return tuning.diversityOpenBorders;
-		}
-		return tuning.diversityClosedBorders;
-	}
-
-	private static double diversityLaw(StabilityFacts facts, StabilityTuning tuning) {
-		double bar = governmentDiversity(facts, tuning) + economyDiversity(facts, tuning) + borderDiversity(facts, tuning);
-		bar += marked(facts, true) * tuning.diversityFavour;
-		bar += marked(facts, false) * tuning.diversityRepress;
-		if (bar < tuning.diversityMin) return tuning.diversityMin;
-		if (bar > tuning.diversityMax) return tuning.diversityMax;
-		return bar;
-	}
-
-	private static int marked(StabilityFacts facts, boolean favour) {
-		int count = 0;
-		for (Body body : facts.guilds) {
-			if (body != null && (favour ? body.favoured : body.repressed)) count++;
-		}
-		for (Body body : facts.vassals) {
-			if (body != null && (favour ? body.favoured : body.repressed)) count++;
-		}
-		return count;
-	}
-
 	public static double baseLegitimacy(StabilityFacts facts, StabilityTuning tuning) {
 		if (facts.electedLeadership || "democracy".equals(id(facts.government))) {
 			return tuning.legitimacyElection;
@@ -243,15 +152,7 @@ public final class StabilityMath {
 			report.lines.add("Realm " + report.realmLevels + " branch levels. This government needs "
 					+ num(report.requiredLevels) + ".");
 		}
-		report.lines.add("Legitimacy costs " + num(curve(report.legitimacy))
-				+ ". Economy costs " + num(curve(report.economic)) + ".");
-		report.lines.add("Economy " + num(report.economic));
-		if (report.singleBody) {
-			report.lines.add("Guilds 1.");
-		} else {
-			report.lines.add(report.leadingGuild + " holds " + num(report.leadingTradeShare * 100) + "%.");
-			report.lines.add("Diversity " + num(report.diversity) + "%.");
-		}
+		report.lines.add("Legitimacy costs " + num(curve(report.legitimacy)) + ".");
 		if (report.overextension > 0) {
 			int past = Math.max(0, facts.provinces - tuning.communityFreeProvinces);
 			report.lines.add("Community overextension -" + num(report.overextension));
@@ -259,7 +160,6 @@ public final class StabilityMath {
 					+ tuning.communityFreeProvinces + " sit comfortably. "
 					+ past + " past that, at " + num(tuning.communityProvinceCost) + " each.");
 		}
-		report.lines.add("Trade reach " + num(report.economic) + "%.");
 		if (report.stability < 100) {
 			report.lines.add("State output " + num(report.stability) + "%.");
 		}

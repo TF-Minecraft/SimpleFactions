@@ -1,6 +1,5 @@
 package net.tfminecraft.simplefactions.government.stability;
 
-import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.enums.Stance;
 import net.tfminecraft.simplefactions.government.stability.StabilityFacts.Body;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -26,8 +25,6 @@ public final class StateStability {
 		}
 		facts.government = law(faction, "government", "autocracy");
 		facts.electedLeadership = "elected".equals(law(faction, "leadership", "fixed"));
-		facts.economy = law(faction, "economy", "decentralized");
-		facts.borders = law(faction, "borders", "closed_borders");
 		facts.provinces = faction.getProvinces() == null ? 0 : faction.getProvinces().size();
 		facts.bankrupt = faction.getOrCreateMainGuild() != null && faction.getOrCreateMainGuild().isBankrupt();
 		if (faction.getGovernment() != null && faction.getGovernment().getStabilityModifiers() != null) {
@@ -57,8 +54,6 @@ public final class StateStability {
 			body.stance = main == null || main.getStance(faction) == null
 					? "SUPPORT"
 					: main.getStance(faction).name();
-			body.favoured = main != null && main.isFavoured();
-			body.repressed = main != null && main.isRepressed();
 			facts.vassals.add(body);
 		}
 		return facts;
@@ -70,11 +65,8 @@ public final class StateStability {
 		body.realm = guild.isBase();
 		body.members = guild.getMembers() == null ? 0 : guild.getMembers().size();
 		body.branchLevels = guild.getSize();
-		body.tradePower = Math.max(0, guild.getModifier(GuildModifier.TRADE_POWER));
 		Stance stance = guild.getStance(faction);
 		body.stance = stance == null ? "SUPPORT" : stance.name();
-		body.favoured = guild.isFavoured();
-		body.repressed = guild.isRepressed();
 		return body;
 	}
 

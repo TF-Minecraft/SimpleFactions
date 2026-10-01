@@ -85,33 +85,8 @@ public class Province {
             double prev,
             int distance
     ) {
-        Faction host = guild.getFaction();
-        double reach = 1;
-        if (host != null && host.getGovernment() != null) {
-            reach = host.getGovernment().getEconomicStability() / 100.0;
-        }
-        calculateTrade(manager, guild, prev, distance, reach);
-    }
-
-    public void calculateTrade(
-            ProvinceManager manager,
-            Guild guild,
-            double prev,
-            int distance,
-            double reach
-    ) {
         double amount;
         double carry = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_CARRY);
-        if (reach <= 0) {
-            if (prev != -1) return;
-            amount = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.realmSeed(
-                    guild, GuildModifierOverride.resolve(guild, GuildModifier.TRADE_POWER));
-            amount *= net.tfminecraft.simplefactions.government.stability.GovernmentIncompatibility.factor(guild);
-            if (amount < 0.5) return;
-            writeTrade(guild, amount, distance);
-            return;
-        }
-        carry *= reach;
         double effectiveDistance = distance / Math.pow(carry, 1.1);
         double factor = Math.pow(getTradeCarry(), effectiveDistance);
         if (prev == -1) {
@@ -143,7 +118,7 @@ public class Province {
         for (Integer n : neighbours) {
             Province neighbour = manager.get(n);
             if (neighbour != null) {
-                neighbour.calculateTrade(manager, guild, amount, distance + 1, reach);
+                neighbour.calculateTrade(manager, guild, amount, distance + 1);
             }
         }
     }
@@ -250,19 +225,6 @@ public class Province {
                 owner.getGovernment().getStability(),
                 net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
         return amount * (1 + bonus);
-    }
-
-    private void writeTrade(Guild guild, double amount, int distance) {
-        ProvinceDataEntry entry = data.get(guild.getId());
-        if (entry != null && entry.getTrade() >= amount) {
-            return;
-        }
-        if (entry == null) {
-            entry = new ProvinceDataEntry(guild);
-            data.put(guild.getId(), entry);
-        }
-        entry.setTrade(foreignTrade(guild, amount));
-        entry.setDistance(distance);
     }
 
     public double getTradeCarry() {

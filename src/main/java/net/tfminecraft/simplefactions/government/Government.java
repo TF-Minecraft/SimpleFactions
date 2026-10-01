@@ -565,10 +565,6 @@ public class Government {
         return stateReport().legitimacy;
     }
 
-    public double getEconomicStability() {
-        return stateReport().economic;
-    }
-
     public double deJureScore() {
         StabilityReport report = stateReport();
         return f.getModifier(FactionModifiers.DE_JURE).getAmount()

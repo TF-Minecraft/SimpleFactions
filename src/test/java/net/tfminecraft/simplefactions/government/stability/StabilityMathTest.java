@@ -12,10 +12,10 @@ class StabilityMathTest {
 
 	@Test
 	void autocracyNeedsSupportToStayLegitimate() {
-		StabilityFacts neutral = nation("autocracy", false, "mercantilism", "closed_borders", 21);
-		guild(neutral, "Chisels", false, 8, 34, 37.5, "NEUTRAL", false);
-		guild(neutral, "Scrolls", false, 5, 5, 7.5, "NEUTRAL", false);
-		guild(neutral, "Realm", true, 12, 13, 4.5, "SUPPORT", false);
+		StabilityFacts neutral = nation("autocracy", false, 21);
+		guild(neutral, "Chisels", false, 8, 34, "NEUTRAL");
+		guild(neutral, "Scrolls", false, 5, 5, "NEUTRAL");
+		guild(neutral, "Realm", true, 12, 13, "SUPPORT");
 		StabilityReport boycott = StabilityMath.assess(neutral);
 		assertEquals(41.5, boycott.legitimacy);
 		assertTrue(boycott.illegitimate);
@@ -30,7 +30,6 @@ class StabilityMathTest {
 		assertEquals(34, endorsed.requiredLevels);
 		assertEquals(100, endorsed.legitimacy);
 		assertFalse(endorsed.illegitimate);
-		assertEquals(100, endorsed.economic);
 		assertEquals(61.9, endorsed.stability);
 		assertEquals(StabilityStatus.STRAINED, endorsed.status);
 		assertEquals(0.382, GovernmentIncompatibility.factor(34, 13, 1), 0.001);
@@ -38,21 +37,20 @@ class StabilityMathTest {
 
 	@Test
 	void aStateAtLeastAsLargeAsTheBiggestGuildIsNotWeak() {
-		StabilityFacts facts = nation("autocracy", false, "mercantilism", "closed_borders", 21);
-		guild(facts, "Chisels", false, 8, 13, 37.5, "SUPPORT", false);
-		guild(facts, "Realm", true, 12, 34, 4.5, "SUPPORT", false);
+		StabilityFacts facts = nation("autocracy", false, 21);
+		guild(facts, "Chisels", false, 8, 13, "SUPPORT");
+		guild(facts, "Realm", true, 12, 34, "SUPPORT");
 		StabilityReport report = StabilityMath.assess(facts);
 		assertEquals(0, report.weakStateMalus);
-		assertEquals(100, report.economic);
 		assertEquals(100, report.stability);
 		assertEquals(1, GovernmentIncompatibility.factor(13, 34, 1));
 	}
 
 	@Test
 	void oligarchyOnlyNeedsHalfTheLargestGuild() {
-		StabilityFacts facts = nation("oligarchy", false, "protectionism", "closed_borders", 22);
-		guild(facts, "Betriebsrat", false, 5, 18, 20, "SUPPORT", false);
-		guild(facts, "Realm", true, 4, 11, 6, "SUPPORT", false);
+		StabilityFacts facts = nation("oligarchy", false, 22);
+		guild(facts, "Betriebsrat", false, 5, 18, "SUPPORT");
+		guild(facts, "Realm", true, 4, 11, "SUPPORT");
 		StabilityReport report = StabilityMath.assess(facts);
 		assertEquals(9, report.requiredLevels);
 		assertEquals(0, report.weakStateMalus);
@@ -63,39 +61,36 @@ class StabilityMathTest {
 
 	@Test
 	void singleGuildIsAStableHivemind() {
-		StabilityFacts facts = nation("autocracy", false, "mercantilism", "closed_borders", 18);
-		guild(facts, "Realm", true, 4, 18, 5.5, "SUPPORT", false);
+		StabilityFacts facts = nation("autocracy", false, 18);
+		guild(facts, "Realm", true, 4, 18, "SUPPORT");
 		StabilityReport report = StabilityMath.assess(facts);
 		assertEquals(100, report.legitimacy);
-		assertEquals(100, report.economic);
 		assertEquals(StabilityStatus.STABLE, report.status);
 	}
 
 	@Test
 	void communityStaysHighOnNeutralAndPaysForSize() {
-		StabilityFacts facts = nation("community", false, "protectionism", "open_borders", 23);
-		guild(facts, "Vardyn", false, 7, 16, 15, "NEUTRAL", false);
-		guild(facts, "Oyfthyr", false, 4, 16, 15, "NEUTRAL", false);
-		guild(facts, "Noyn", false, 4, 10, 10, "NEUTRAL", false);
-		guild(facts, "Realm", true, 5, 13, 5.5, "SUPPORT", false);
+		StabilityFacts facts = nation("community", false, 23);
+		guild(facts, "Vardyn", false, 7, 16, "NEUTRAL");
+		guild(facts, "Oyfthyr", false, 4, 16, "NEUTRAL");
+		guild(facts, "Noyn", false, 4, 10, "NEUTRAL");
+		guild(facts, "Realm", true, 5, 13, "SUPPORT");
 		StabilityReport report = StabilityMath.assess(facts);
 		assertEquals(87, report.legitimacy);
 		assertEquals(0, report.weakStateMalus);
-		assertEquals(100, report.economic);
 		assertEquals(26, report.overextension);
 		assertEquals(72.3, report.stability);
 		assertEquals(StabilityStatus.STRAINED, report.status);
 	}
 
 	@Test
-	void favourAddsStrainAndHolyOrderLandsFailing() {
-		StabilityFacts facts = nation("autocracy", false, "protectionism", "closed_borders", 44);
-		guild(facts, "Keepers", false, 6, 36, 42.5, "SUPPORT", true);
-		guild(facts, "Kinswomen", false, 6, 9, 7.5, "SUPPORT", false);
-		guild(facts, "Gravekeepers", false, 4, 2, 5, "SUPPORT", false);
-		guild(facts, "Realm", true, 7, 22, 6, "SUPPORT", false);
+	void aStateSmallerThanTheBiggestGuildIsWeak() {
+		StabilityFacts facts = nation("autocracy", false, 44);
+		guild(facts, "Keepers", false, 6, 36, "SUPPORT");
+		guild(facts, "Kinswomen", false, 6, 9, "SUPPORT");
+		guild(facts, "Gravekeepers", false, 4, 2, "SUPPORT");
+		guild(facts, "Realm", true, 7, 22, "SUPPORT");
 		StabilityReport report = StabilityMath.assess(facts);
-		assertEquals(100, report.economic);
 		assertEquals(36, report.requiredLevels);
 		assertEquals(15.1, report.weakStateMalus);
 		assertEquals(100, report.legitimacy);
@@ -107,14 +102,14 @@ class StabilityMathTest {
 
 	@Test
 	void plutocracyMatchesNothingAndDemocracyMatchesAFifth() {
-		StabilityFacts corporate = nation("plutocracy", false, "free_trade", "open_borders", 4);
-		guild(corporate, "House", false, 4, 20, 10, "SUPPORT", false);
-		guild(corporate, "Realm", true, 2, 1, 1, "SUPPORT", false);
+		StabilityFacts corporate = nation("plutocracy", false, 4);
+		guild(corporate, "House", false, 4, 20, "SUPPORT");
+		guild(corporate, "Realm", true, 2, 1, "SUPPORT");
 		assertEquals(0, StabilityMath.assess(corporate).weakStateMalus);
 
-		StabilityFacts democracy = nation("democracy", false, "free_trade", "open_borders", 4);
-		guild(democracy, "Assembly", false, 4, 20, 5, "SUPPORT", false);
-		guild(democracy, "Realm", true, 2, 4, 1, "SUPPORT", false);
+		StabilityFacts democracy = nation("democracy", false, 4);
+		guild(democracy, "Assembly", false, 4, 20, "SUPPORT");
+		guild(democracy, "Realm", true, 2, 4, "SUPPORT");
 		StabilityReport report = StabilityMath.assess(democracy);
 		assertEquals(4.0, report.requiredLevels);
 		assertEquals(0, report.weakStateMalus);
@@ -148,25 +143,21 @@ class StabilityMathTest {
 		assertFalse(StabilityStatus.FAILED.canFormTitles());
 	}
 
-	private static StabilityFacts nation(String government, boolean elected, String economy, String borders, int provinces) {
+	private static StabilityFacts nation(String government, boolean elected, int provinces) {
 		StabilityFacts facts = new StabilityFacts();
 		facts.government = government;
 		facts.electedLeadership = elected;
-		facts.economy = economy;
-		facts.borders = borders;
 		facts.provinces = provinces;
 		return facts;
 	}
 
-	private static void guild(StabilityFacts facts, String name, boolean realm, int members, int levels, double trade, String stance, boolean favoured) {
+	private static void guild(StabilityFacts facts, String name, boolean realm, int members, int levels, String stance) {
 		Body body = new Body();
 		body.name = name;
 		body.realm = realm;
 		body.members = members;
 		body.branchLevels = levels;
-		body.tradePower = trade;
 		body.stance = stance;
-		body.favoured = favoured;
 		facts.guilds.add(body);
 	}
 }
