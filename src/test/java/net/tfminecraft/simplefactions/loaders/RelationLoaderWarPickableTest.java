@@ -55,6 +55,25 @@ class RelationLoaderWarPickableTest {
 	}
 
 	@Test
+	void blocScaling_isReadAndDefaultsToOff() throws Exception {
+		YamlConfiguration config = new YamlConfiguration();
+		config.loadFromString("""
+				name: Ally
+				cost: 1.5
+				bloc-scaling: 8
+				""");
+		assertEquals(8.0, new RelationType("ally", config).getBlocScaling(), 1e-9);
+
+		YamlConfiguration plain = new YamlConfiguration();
+		plain.loadFromString("""
+				name: Subject
+				bloc-scaling: -3
+				""");
+		assertEquals(0.0, new RelationType("subject", plain).getBlocScaling(), 1e-9);
+		assertEquals(0.0, new RelationType("none", new YamlConfiguration()).getBlocScaling(), 1e-9);
+	}
+
+	@Test
 	void canPickForWarFalse_isNotPickable() throws Exception {
 		YamlConfiguration config = new YamlConfiguration();
 		config.loadFromString("""

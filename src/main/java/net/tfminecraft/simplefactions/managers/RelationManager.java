@@ -72,6 +72,9 @@ public class RelationManager {
 		if(r.isVassalage()) {
 			cost/=3.0;
 		}
+		if(cost != 0 && r.getBlocScaling() > 0) {
+			cost *= 1 + r.getBlocScaling() * blocShare(from, to);
+		}
 		return cost;
 	}
 
@@ -93,6 +96,23 @@ public class RelationManager {
 			return nonNegativePrestige / 10.0;
 		}
 		return Math.sqrt(nonNegativePrestige);
+	}
+
+	/** The share of all factions' prestige that these two hold together, from 0 to 1. */
+	static double blocShare(Faction from, Faction to) {
+		double total = 0;
+		for (Faction faction : FactionManager.factions) {
+			if (faction == null) continue;
+			total += Math.max(0, prestigeOf(faction));
+		}
+		if (total <= 0) {
+			return 0;
+		}
+		double bloc = Math.max(0, prestigeOf(from));
+		if (from != to) {
+			bloc += Math.max(0, prestigeOf(to));
+		}
+		return Math.min(1, bloc / total);
 	}
 
 	private static double prestigeOf(Faction faction) {

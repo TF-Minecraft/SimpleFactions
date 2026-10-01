@@ -82,7 +82,10 @@ types:
     ally:
         name: "#975bbdAlly"
         target: 30
-        cost: 3.5
+        cost: 1.5
+        # Multiplies the cost by 1 + bloc-scaling * (both factions' prestige / all factions' prestige),
+        # so an alliance between the strongest factions costs far more than one between small ones.
+        bloc-scaling: 8
         mutual: true #Do both parties need to agree to this relationship?
         threshold:
             mode: higher_than_or_equal_to
