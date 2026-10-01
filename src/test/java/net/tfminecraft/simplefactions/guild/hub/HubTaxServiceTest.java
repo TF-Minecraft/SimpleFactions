@@ -18,6 +18,7 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -86,6 +87,7 @@ class HubTaxServiceTest {
         Faction home = mock(Faction.class);
         Faction host = mock(Faction.class);
         when(home.getId()).thenReturn("home");
+        when(home.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
         when(host.getId()).thenReturn("host");
         when(host.hasHubPermit("guild")).thenReturn(true);
         when(host.getTaxRate(TaxTarget.HUB_TAX, null, true)).thenReturn(50.0);

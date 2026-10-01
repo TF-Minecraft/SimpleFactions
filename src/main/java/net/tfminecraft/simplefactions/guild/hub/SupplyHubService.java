@@ -13,6 +13,8 @@ import net.tfminecraft.simplefactions.database.SupplyHubData;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.enums.Rules;
+import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -39,6 +41,7 @@ public final class SupplyHubService {
     }
 
     public enum BuildFailure {
+        ECONOMY_DISALLOWS,
         KIND_DISALLOWS,
         ALREADY_HAS_HUB,
         HUB_LIMIT,
@@ -48,6 +51,7 @@ public final class SupplyHubService {
     }
 
     public enum DormantReason {
+        ECONOMY_DISALLOWS,
         INSTALLATION_GONE,
         NO_PERMIT,
         BEYOND_HUB_SLOTS,
@@ -195,6 +199,8 @@ public final class SupplyHubService {
     public static String buildFailureMessage(BuildFailure failure, String kindDisplayName, int limit) {
         String kind = kindDisplayName == null || kindDisplayName.isBlank() ? "installation" : kindDisplayName;
         switch (failure) {
+            case ECONOMY_DISALLOWS:
+                return "§cYour faction's economy does not allow supply hubs";
             case KIND_DISALLOWS:
                 return "§cA " + kind + " cannot host a supply hub";
             case ALREADY_HAS_HUB:
@@ -246,6 +252,32 @@ public final class SupplyHubService {
         return true;
     }
 
+    public static boolean allowsSupplyHubs(Guild guild) {
+        Faction faction = guild == null ? null : guild.getFaction();
+        if (faction == null) {
+            return true;
+        }
+        IncomePreviewContext context = IncomePreviewContext.current();
+        return context != null ? context.allowsHubRule(faction, Rules.SUPPLY_HUBS)
+                : faction.hasFactionRule(Rules.SUPPLY_HUBS);
+    }
+
+    public static HubStanding standing(
+            Guild guild,
+            SupplyHub hub,
+            boolean installationExists,
+            boolean allowed,
+            int hubSlots,
+            List<SupplyHub> atInstallationOldestFirst) {
+        if (!allowsSupplyHubs(guild)) {
+            return new HubStanding(false, DormantReason.ECONOMY_DISALLOWS);
+        }
+        if (beyondGuildLimit(guild, hub)) {
+            return new HubStanding(false, DormantReason.BEYOND_GUILD_LIMIT);
+        }
+        return standing(hub, installationExists, allowed, hubSlots, atInstallationOldestFirst);
+    }
+
     public static HubStanding standing(
             SupplyHub hub,
             boolean installationExists,
@@ -278,6 +310,8 @@ public final class SupplyHubService {
             return "dormant";
         }
         switch (reason) {
+            case ECONOMY_DISALLOWS:
+                return "your faction's economy does not allow supply hubs";
             case INSTALLATION_GONE:
                 return "its installation no longer exists";
             case NO_PERMIT:

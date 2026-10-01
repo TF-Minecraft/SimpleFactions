@@ -51,7 +51,8 @@ public final class HubNetwork {
         if (guild == null || guild.getId() == null) {
             return List.of();
         }
-        return links.getOrDefault(guild.getId(), List.of());
+        List<Link> cached = links.getOrDefault(guild.getId(), List.of());
+        return cached.isEmpty() || SupplyHubService.allowsSupplyHubs(guild) ? cached : List.of();
     }
 
     /** Rebuilds every guild's connections. Server thread only. */
@@ -179,9 +180,6 @@ public final class HubNetwork {
         List<Installation> sites = new ArrayList<>();
         String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
         for (SupplyHub hub : guild.getSupplyHubs()) {
-            if (SupplyHubService.beyondGuildLimit(guild, hub)) {
-                continue;
-            }
             Installation installation =
                     SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
             if (installation == null) {
@@ -190,7 +188,7 @@ public final class HubNetwork {
             Faction owner = FactionManager.getByString(hub.ownerFactionId());
             boolean permit = owner != null && owner.hasHubPermit(guild.getId());
             HubStanding standing = SupplyHubService.standing(
-                    hub,
+                    guild, hub,
                     true,
                     SupplyHubService.ownerAllows(guildFactionId, hub.ownerFactionId(), permit),
                     InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),

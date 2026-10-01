@@ -216,7 +216,9 @@ public class LawEffect {
             for(Rules r : rules.keySet()) {
                 if(r == Rules.VASSAL_TAX
                 || r == Rules.GUILD_TAX
-                || r == Rules.TARIFFS) {
+                || r == Rules.TARIFFS
+                || r == Rules.HUB_TAX
+                || r == Rules.SUPPLY_HUBS) {
                     return true;
                 }
             }

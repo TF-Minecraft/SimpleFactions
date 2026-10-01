@@ -18,10 +18,15 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
+import net.tfminecraft.simplefactions.laws.Law;
+import net.tfminecraft.simplefactions.laws.LawGroup;
+import org.bukkit.configuration.file.YamlConfiguration;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
@@ -59,6 +64,7 @@ class ProvinceManagerHubTransportTest {
 
         Faction host = mock(Faction.class);
         when(host.getId()).thenReturn("host");
+        when(host.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
         guild = mock(Guild.class);
         when(guild.getId()).thenReturn("guild");
         when(guild.getFaction()).thenReturn(host);
@@ -78,6 +84,34 @@ class ProvinceManagerHubTransportTest {
         titles.close();
         HubNetwork.setLinksForTests(null);
         Cache.provincesEnabled = provincesWereEnabled;
+    }
+
+    @Test
+    void forbiddenSupplyHubsCarryNothingAndLawPreviewSuppressesCachedLinks() {
+        link(new Link(1, 22, Mode.RAIL, 0, 0.7, 0.25));
+        List<Link> cached = HubNetwork.linksFor(guild);
+        recalculate();
+        assertEquals(14, trade(22), 1e-9);
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("effects.faction.rules", List.of("supply_hubs false"));
+        Law proposed = new Law("economy", "decentralized", config);
+        IncomePreviewContext.open(IncomePreviewContext.law(guild.getFaction(), mock(LawGroup.class), proposed));
+        try {
+            ProvinceManager snapshot = provinces.createSnapshotShell();
+            snapshot.copyAllDataFrom(provinces);
+            snapshot.recalculateForSingleGuild(guild, false);
+            assertTrue(HubNetwork.linksFor(guild).isEmpty());
+            assertEquals(0, snapshot.get(22).getStoredGuildTrade(guild));
+            assertEquals(0, snapshot.get(22).getGuildProduction(guild));
+            assertEquals(14, trade(22), 1e-9);
+        } finally {
+            IncomePreviewContext.clear();
+        }
+        assertEquals(cached, HubNetwork.linksFor(guild));
+        when(guild.getFaction().hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(false);
+        recalculate();
+        assertEquals(0, trade(22));
+        assertEquals(0, production(22));
     }
 
     @Test

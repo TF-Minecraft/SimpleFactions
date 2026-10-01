@@ -15,6 +15,7 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.enums.Rules;
 
 public class TaxHandler {
+    public static final Bracket DEFAULT_HUB_TAX_BRACKET = new Bracket(0, 10);
     private Faction f;
     private TaxSnapshot savedSnapshot;
 
@@ -51,14 +52,15 @@ public class TaxHandler {
     }
 
     private double clampHubTax(double rate) {
-        return clampHubTax(rate, taxBrackets.get(TaxTarget.TARIFFS));
+        return canCollectTax(TaxTarget.HUB_TAX)
+                ? clampHubTax(rate, getBracket(TaxTarget.HUB_TAX)) : 0;
     }
 
     private double clampHubTax(double rate, Bracket bracket) {
         if (!Double.isFinite(rate)) {
             return 0;
         }
-        double max = Math.min(Cache.supplyHubMaxTax, bracket == null ? 100.0 : bracket.getMax());
+        double max = Math.min(Cache.supplyHubMaxTax, bracket == null ? DEFAULT_HUB_TAX_BRACKET.getMax() : bracket.getMax());
         double min = Math.min(max, bracket == null ? 0.0 : bracket.getMin());
         return Math.max(min, Math.min(max, rate));
     }
@@ -147,7 +149,7 @@ public class TaxHandler {
         double rate =  switch (target) {
             case CITIZENS -> citizenTax;
             case DIVIDENDS -> dividendTax;
-            case HUB_TAX -> getHubTax();
+            case HUB_TAX -> hubTax;
             case TARIFFS -> (id != null && hasSpecificTax(target, id))
                 ? getSpecificTax(target, id) : tariffs;
 
@@ -173,10 +175,11 @@ public class TaxHandler {
             rate = context.adjustTax(f, this, target, id, rate);
         }
         if (target == TaxTarget.HUB_TAX) {
-            // adjustTax already applied the proposed law's bracket, as it does for tariffs.
-            Bracket bracket = context != null && context.previewsLaw(f)
-                    ? null : taxBrackets.get(TaxTarget.TARIFFS);
-            rate = clampHubTax(rate, bracket);
+            if (context != null && context.previewsLaw(f)) {
+                rate = clampHubTax(rate, new Bracket(0, Cache.supplyHubMaxTax));
+            } else {
+                rate = clampHubTax(rate);
+            }
         }
         return effective ? Formatter.formatDouble(rate * f.getGovernment().getTaxEfficiency()) : rate;
     }
@@ -221,9 +224,12 @@ public class TaxHandler {
                 dividendTax = applyBracket(dividendTax, bracket);
                 break;
 
+            case HUB_TAX:
+                setHubTax(hubTax);
+                break;
+
             case TARIFFS:
                 tariffs = applyBracket(tariffs, bracket);
-                setHubTax(hubTax);
                 applySpecificBracket(target, bracket);
                 break;
 
@@ -233,12 +239,13 @@ public class TaxHandler {
     }
 
     public Bracket getBracket(TaxTarget target) {
-        return taxBrackets.get(target);
+        return target == TaxTarget.HUB_TAX
+                ? taxBrackets.getOrDefault(target, DEFAULT_HUB_TAX_BRACKET) : taxBrackets.get(target);
     }
 
     public double getMin(TaxTarget target) {
         if(!canCollectTax(target)) return 0.0;
-        Bracket bracket = taxBrackets.get(target == TaxTarget.HUB_TAX ? TaxTarget.TARIFFS : target);
+        Bracket bracket = getBracket(target);
         if (bracket == null) return 0.0;
         if (target == TaxTarget.HUB_TAX) {
             return Math.min(bracket.getMin(), getMax(target));
@@ -248,9 +255,9 @@ public class TaxHandler {
 
     public double getMax(TaxTarget target) {
         if(!canCollectTax(target)) return 0.0;
-        Bracket bracket = taxBrackets.get(target == TaxTarget.HUB_TAX ? TaxTarget.TARIFFS : target);
+        Bracket bracket = getBracket(target);
         if (target == TaxTarget.HUB_TAX) {
-            return Math.min(Cache.supplyHubMaxTax, bracket == null ? 100.0 : bracket.getMax());
+            return Math.min(Cache.supplyHubMaxTax, bracket == null ? DEFAULT_HUB_TAX_BRACKET.getMax() : bracket.getMax());
         }
         if (bracket == null) return 100.0;
         return bracket.getMax();
@@ -270,8 +277,9 @@ public class TaxHandler {
                 return f.hasFactionRule(Rules.DIVIDEND_TAX);
             case TARIFFS:
             case TARIFF_ID:
-            case HUB_TAX:
                 return f.hasFactionRule(Rules.TARIFFS);
+            case HUB_TAX:
+                return f.hasFactionRule(Rules.HUB_TAX);
             default:
                 return false;
         }

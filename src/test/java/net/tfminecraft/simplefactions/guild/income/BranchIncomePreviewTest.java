@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -67,6 +68,7 @@ class BranchIncomePreviewTest {
 		live.start(Map.of(capital.getId(), capital, neighbour.getId(), neighbour));
 
 		faction = mock(Faction.class);
+		when(faction.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
 		when(faction.getTaxRate(TaxTarget.GUILDS, "fields", true)).thenReturn(0.0);
 
 		guild = mock(Guild.class);

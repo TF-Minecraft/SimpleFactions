@@ -664,6 +664,8 @@ economy:
         faction:
           rules:
             - tariffs false
+            - hub_tax false
+            - supply_hubs false
         foreign_guilds:
           our_territory:
             - trade_power(5.0)
@@ -688,6 +690,7 @@ economy:
         faction:
           brackets:
             tariffs: "0-75"
+            hub_tax: "0-50"
         foreign_guilds:
           our_territory:
             - trade_power(-80.0)
@@ -717,6 +720,7 @@ economy:
         faction:
           brackets:
             tariffs: "0-50"
+            hub_tax: "0-40"
         foreign_guilds:
           our_territory:
             - trade_power(-25.0)
@@ -747,6 +751,7 @@ economy:
         faction:
           brackets:
             tariffs: "0-25"
+            hub_tax: "0-25"
         domestic_guilds:
           foreign_territory:
             - trade_power(10.0)
@@ -766,6 +771,8 @@ economy:
         - decentralized 1
       effects:
         faction:
+          brackets:
+            hub_tax: "0-10"
           rules:
             - tariffs false
         foreign_guilds:

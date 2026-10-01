@@ -186,6 +186,10 @@ public final class SupplyHubCommands {
             player.sendMessage("§cOnly the guild leader can build a supply hub");
             return true;
         }
+        if (!SupplyHubService.allowsSupplyHubs(guild)) {
+            player.sendMessage(SupplyHubService.buildFailureMessage(BuildFailure.ECONOMY_DISALLOWS, null, 0));
+            return true;
+        }
         List<PlacedCandidate> covering = covering(player.getLocation());
         if (covering.isEmpty()) {
             player.sendMessage("§cYou are not standing inside an installation");
@@ -305,10 +309,6 @@ public final class SupplyHubCommands {
     }
 
     private static String statusOf(Guild guild, SupplyHub hub, Installation installation) {
-        if (SupplyHubService.beyondGuildLimit(guild, hub)) {
-            return SupplyHubService.statusText(new HubStanding(
-                    false, SupplyHubService.DormantReason.BEYOND_GUILD_LIMIT));
-        }
         String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
         Faction owner = FactionManager.getByString(hub.ownerFactionId());
         boolean permit = owner != null && owner.hasHubPermit(guild.getId());
@@ -319,7 +319,7 @@ public final class SupplyHubCommands {
         List<SupplyHub> atInstallation = SupplyHubService.atInstallation(
                 hub.ownerFactionId(), hub.installationId(), SupplyHubService.allGuilds());
         HubStanding standing = SupplyHubService.standing(
-                hub,
+                guild, hub,
                 installation != null,
                 SupplyHubService.ownerAllows(guildFactionId, hub.ownerFactionId(), permit),
                 slots,

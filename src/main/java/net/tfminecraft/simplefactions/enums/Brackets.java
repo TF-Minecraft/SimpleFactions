@@ -7,6 +7,7 @@ public enum Brackets {
     VASSAL_TAX("Vassal Tax"),
     DIVIDEND_TAX("Dividend Tax"),
     TARIFFS("Tariffs"),
+    HUB_TAX("Hub Tax"),
     VEHICLE_TAX("Vehicle Tax (% of upkeep)"),
     REGISTRATION_FEE("Registration Fee (x upkeep)"),
     TRANSFER_FEE("Transfer Fee (x upkeep)");
