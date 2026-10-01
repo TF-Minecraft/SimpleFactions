@@ -48,6 +48,7 @@ import net.tfminecraft.simplefactions.managers.inventory.FactionView;
 import net.tfminecraft.simplefactions.managers.inventory.GovernmentView;
 import net.tfminecraft.simplefactions.managers.inventory.GuildView;
 import net.tfminecraft.simplefactions.managers.inventory.InstallationView;
+import net.tfminecraft.simplefactions.managers.inventory.SupplyHubView;
 import net.tfminecraft.simplefactions.managers.inventory.InventoryUpdater;
 import net.tfminecraft.simplefactions.managers.inventory.LawView;
 import net.tfminecraft.simplefactions.managers.inventory.LoanPayment;
@@ -213,6 +214,7 @@ public class InventoryManager implements Listener{
 
 	//Guilds
 	public GuildView guildView = new GuildView(this);
+	public SupplyHubView supplyHubView = new SupplyHubView(this);
 	public PlayerLedgerView playerLedgerView = new PlayerLedgerView(this);
 	public void guildList(Player player) {
 		guildView.guildList(player);
@@ -757,6 +759,14 @@ public class InventoryManager implements Listener{
 		player.openInventory(i);
 	}
 
+	public void confirmSupplyHub(Player player, Faction faction, String data) {
+		confirming.put(player, faction);
+		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
+		inventory.setItem(11, createButton("confirm", "supply_hub_action", data));
+		inventory.setItem(15, createButton("cancel", "supply_hub_action", data));
+		player.openInventory(inventory);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void openQueueCancelConfirm(Player player, Faction f, String payload, String title) {
@@ -1086,6 +1096,16 @@ public class InventoryManager implements Listener{
 							guildList(p);
 						}
 						break;
+					case SUPPLY_HUB_VIEW:
+						if (g != null) {
+							guildView(p, g);
+						}
+						break;
+					case HOSTED_SUPPLY_HUB_VIEW:
+						if (f != null) {
+							installationView.installationDetailView(p, f, h.getSecondaryId());
+						}
+						break;
 					case MILITARY_VIEW:
 						factionView(p, f);
 						break;
@@ -1276,6 +1296,9 @@ public class InventoryManager implements Listener{
 			} else if(h.getType() == SFGUI.INSTALLATIONS_VIEW
 					|| h.getType() == SFGUI.INSTALLATION_DETAIL_VIEW) {
 				installationView.click(e, inv, p);
+			} else if (h.getType() == SFGUI.SUPPLY_HUB_VIEW
+					|| h.getType() == SFGUI.HOSTED_SUPPLY_HUB_VIEW) {
+				supplyHubView.click(e, inv, p);
 			} else if(h.getType() == SFGUI.GOVERNMENT_VIEW 
 				|| h.getType() == SFGUI.PROPOSAL_VIEW
 				|| h.getType() == SFGUI.PROPOSALS
@@ -1356,9 +1379,21 @@ public class InventoryManager implements Listener{
 			}
 			if(!confirming.containsKey(p)) return;
 			ItemStack item = e.getCurrentItem();
+			if (item == null || !item.hasItemMeta()) {
+				return;
+			}
 			ItemMeta m = item.getItemMeta();
-			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "queue_cancel");
+			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "supply_hub_action");
 			String data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			if (data != null) {
+				boolean accepted = item.getType().equals(Material.GREEN_CONCRETE);
+				supplyHubView.confirm(p, data, accepted);
+				confirming.remove(p);
+				p.playSound(p, accepted ? Sound.ENTITY_PLAYER_LEVELUP : Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				return;
+			}
+			key = new NamespacedKey(SimpleFactions.plugin, "queue_cancel");
+			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			if (data != null) {
 				var parsed = QueueCancelPayload.parse(data);
 				if (parsed.isEmpty()) {
