@@ -21,7 +21,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 
 public final class BattleProvinceBlockProtectionService {
 	public static final String BLOCKED =
-			"§cBlock changes are disabled in the battle province while this battle is active.";
+			"§cYou cannot build or dig in this province while the battle is under way.";
 
 	private BattleProvinceBlockProtectionService() {}
 

@@ -347,12 +347,12 @@ public class PlayerManager implements Listener{
         Guild g = FactionManager.getGuildByMember(p.getName());
 
         if (f == null && g == null) {
-            p.sendMessage("§a[DenarEconomy] §cYou must be in a faction");
+            p.sendMessage("§cYou must belong to a guild or faction to bank here.");
             return false;
         }
 
         if (!inFactionOrGuildBankChunk(p)) {
-            p.sendMessage("§a[DenarEconomy] §cYou must be inside the bank chunk to deposit/withdraw");
+            p.sendMessage("§cYou must be at your bank to deposit or withdraw.");
             return false;
         }
 
