@@ -5,12 +5,20 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import net.md_5.bungee.api.ChatColor;
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
+import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
+import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -67,10 +75,20 @@ public final class Markers {
         JsonArray installations = new JsonArray();
         for (Faction faction : FactionManager.factions) {
             for (Installation installation : faction.getInstallationHandler().getAll()) {
-                installations.add(installationRow(installation, faction.getId()));
+                installations.add(installationRow(
+                        installation,
+                        faction.getId(),
+                        InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
+                        SupplyHubService.countAt(faction.getId(), installation.getId(), SupplyHubService.allGuilds())));
             }
         }
         root.add("installations", installations);
+
+        JsonArray hubLinks = new JsonArray();
+        for (Guild guild : SupplyHubService.allGuilds()) {
+            hubLinks.addAll(hubLinkRows(guild, HubNetwork.linksFor(guild)));
+        }
+        root.add("hub_links", hubLinks);
 
         JsonArray forts = new JsonArray();
         for (Faction faction : FactionManager.factions) {
@@ -115,6 +133,14 @@ public final class Markers {
     }
 
     static JsonObject installationRow(Installation installation, String factionId) {
+        return installationRow(
+                installation,
+                factionId,
+                SupplyHubService.defaultHubSlots(installation.getKind(), installation.getLevel()),
+                0);
+    }
+
+    static JsonObject installationRow(Installation installation, String factionId, int hubSlots, int hubs) {
         JsonObject row = new JsonObject();
         row.addProperty("id", installation.getId());
         row.addProperty("name", installation.getName());
@@ -124,7 +150,134 @@ public final class Markers {
         row.addProperty("center_x", installation.getCenterX());
         row.addProperty("center_z", installation.getCenterZ());
         row.addProperty("level", installation.getLevel());
+        row.addProperty("hub_slots", hubSlots);
+        row.addProperty("hubs", hubs);
         return row;
+    }
+
+    static JsonArray hubLinkRows(Guild guild, List<Link> links) {
+        JsonArray rows = new JsonArray();
+        if (guild == null || guild.getFaction() == null || guild.getFaction().getId() == null || links == null) {
+            return rows;
+        }
+        for (Link link : links) {
+            if (link == null || link.fromProvince() >= link.toProvince()) {
+                continue;
+            }
+            Installation from = activeHubAt(guild, link.fromProvince(), link.mode().getKind());
+            Installation to = activeHubAt(guild, link.toProvince(), link.mode().getKind());
+            if (from == null || to == null) {
+                continue;
+            }
+            Faction fromFaction = hubOwner(guild, from);
+            Faction toFaction = hubOwner(guild, to);
+            if (fromFaction == null || toFaction == null) {
+                continue;
+            }
+            rows.add(hubLinkRow(
+                    guild.getId(),
+                    stripColor(guild.getName()),
+                    guild.getFaction().getId(),
+                    link,
+                    hubEndpoint(from, fromFaction),
+                    hubEndpoint(to, toFaction)));
+        }
+        return rows;
+    }
+
+    static JsonObject hubLinkRow(
+            String guildId,
+            String guildName,
+            String factionId,
+            Link link,
+            HubEndpoint from,
+            HubEndpoint to) {
+        JsonObject row = new JsonObject();
+        row.addProperty("guild_id", guildId);
+        row.addProperty("guild_name", stripColor(guildName));
+        row.addProperty("faction_id", factionId);
+        row.addProperty("mode", link.mode().getKey());
+        row.addProperty("distance", link.distance());
+        row.addProperty("trade_share", roundShare(link.tradeFactor()));
+        row.addProperty("production_share", roundShare(link.productionFactor()));
+        row.add("from", hubEndpointRow(from));
+        row.add("to", hubEndpointRow(to));
+        return row;
+    }
+
+    static JsonObject hubEndpointRow(HubEndpoint endpoint) {
+        JsonObject row = new JsonObject();
+        row.addProperty("installation_id", endpoint.installationId());
+        row.addProperty("faction_id", endpoint.factionId());
+        row.addProperty("name", stripColor(endpoint.name()));
+        row.addProperty("province_id", endpoint.provinceId());
+        row.addProperty("center_x", endpoint.centerX());
+        row.addProperty("center_z", endpoint.centerZ());
+        return row;
+    }
+
+    private static Installation activeHubAt(Guild guild, int provinceId, InstallationKind kind) {
+        for (SupplyHub hub : guild.getSupplyHubs()) {
+            Installation installation = SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
+            if (installation == null || installation.getProvince() != provinceId || installation.getKind() != kind) {
+                continue;
+            }
+            Faction owner = FactionManager.getByString(hub.ownerFactionId());
+            boolean permit = owner != null && owner.hasHubPermit(guild.getId());
+            String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
+            SupplyHubService.HubStanding standing = SupplyHubService.standing(
+                    hub,
+                    true,
+                    SupplyHubService.ownerAllows(guildFactionId, hub.ownerFactionId(), permit),
+                    InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
+                    SupplyHubService.atInstallation(
+                            hub.ownerFactionId(), hub.installationId(), SupplyHubService.allGuilds()));
+            if (standing.active()) {
+                return installation;
+            }
+        }
+        return null;
+    }
+
+    private static Faction hubOwner(Guild guild, Installation installation) {
+        for (SupplyHub hub : guild.getSupplyHubs()) {
+            if (hub.installationId() == null || hub.ownerFactionId() == null) {
+                continue;
+            }
+            Installation hubInstallation = SupplyHubService.findInstallation(
+                    hub.ownerFactionId(), hub.installationId());
+            if (hubInstallation == installation) {
+                return FactionManager.getByString(hub.ownerFactionId());
+            }
+        }
+        return null;
+    }
+
+    private static HubEndpoint hubEndpoint(Installation installation, Faction owner) {
+        return new HubEndpoint(
+                installation.getId(),
+                owner.getId(),
+                installation.getName(),
+                installation.getProvince(),
+                installation.getCenterX(),
+                installation.getCenterZ());
+    }
+
+    private static String stripColor(String value) {
+        return ChatColor.stripColor(value == null ? "" : value);
+    }
+
+    private static double roundShare(double share) {
+        return Math.round(share * 10000.0) / 10000.0;
+    }
+
+    record HubEndpoint(
+            String installationId,
+            String factionId,
+            String name,
+            int provinceId,
+            int centerX,
+            int centerZ) {
     }
 
     static String installationKind(Installation installation) {
