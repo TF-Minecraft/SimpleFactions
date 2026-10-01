@@ -129,13 +129,13 @@ public class InstallationView {
             List<PlayerVehicleRecord> berthed =
                     SimpleFactions.getVehicleRegistry().getByInstallation(f.getId(), installation.getId());
             berthed.sort(Comparator.comparing(PlayerVehicleRecord::getVehicleTypeId));
-            for (int index = 0; index < berthed.size() && index < 45; index++) {
+            for (int index = 0; index < berthed.size() && index < 43; index++) {
                 PlayerVehicleRecord record = berthed.get(index);
                 Optional<Location> location =
                         VehicleFramework.getVehicleManager()
                                 .getOfflineLocation(record.getVehicleUuid());
                 inventory.setItem(
-                        index,
+                        berthedVehicleSlot(index),
                         creator.createBerthedVehicleIcon(record, location, leader));
             }
         }
@@ -160,6 +160,13 @@ public class InstallationView {
 
         inventory.setItem(53, inv.createBackButton(SFGUI.INSTALLATION_DETAIL_VIEW));
         if (open) player.openInventory(inventory);
+    }
+
+    static int berthedVehicleSlot(int index) {
+        if (index < 0 || index >= 43) {
+            return -1;
+        }
+        return index + (index >= 11 ? 1 : 0) + (index >= 12 ? 1 : 0);
     }
 
     public void click(InventoryClickEvent event, Inventory inventory, Player player) {

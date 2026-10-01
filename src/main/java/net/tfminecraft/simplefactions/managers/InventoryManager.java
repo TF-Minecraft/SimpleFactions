@@ -1473,8 +1473,11 @@ public class InventoryManager implements Listener{
 					installationDetailView(p, f, data);
 					return;
 				}
-				f.getInstallationHandler().cancelPending(data);
-				p.sendMessage("§aCancelled upgrade for installation §f" + data);
+				if (f.getInstallationHandler().cancelPendingUpgrade(data)) {
+					p.sendMessage("§aCancelled upgrade for installation §f" + data);
+				} else {
+					p.sendMessage("§cNo pending upgrade for §f" + data);
+				}
 				installationsView(null, p, f, true);
 				return;
 			}

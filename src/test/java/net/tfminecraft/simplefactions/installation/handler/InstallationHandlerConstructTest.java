@@ -74,6 +74,21 @@ class InstallationHandlerConstructTest {
 	}
 
 	@Test
+	void cancelPendingUpgradeDoesNotCancelConstructionAndReturnsFalseWhenEmpty() {
+		Fixture fx = fixture();
+		try (TestMocks mocks = testMocks(fx, false)) {
+			assertTrue(fx.handler.construct(
+					InstallationKind.FORT, DISPLAY_NAME, PROVINCE, X, Z).isSuccess());
+			assertFalse(fx.handler.cancelPendingUpgrade("green_fort"));
+			assertNotNull(fx.handler.getPendingConstruction());
+
+			assertTrue(fx.handler.cancelPending("green_fort"));
+			assertFalse(fx.handler.cancelPendingUpgrade("green_fort"));
+			assertNull(fx.handler.getPendingConstruction());
+		}
+	}
+
+	@Test
 	void deconstructingInstallationCancelsItsPendingUpgrade() {
 		Fixture fx = fixture();
 		Installation station = new Installation(

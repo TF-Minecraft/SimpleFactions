@@ -276,6 +276,17 @@ public class InstallationHandler {
         return true;
     }
 
+    public boolean cancelPendingUpgrade(String id) {
+        if (pendingConstruction == null
+                || !pendingConstruction.isUpgrade()
+                || id == null
+                || !pendingConstruction.getId().equalsIgnoreCase(id)) {
+            return false;
+        }
+        cancelUpgrade(id);
+        return true;
+    }
+
     public ConstructResult upgrade(String id) {
         if (id == null || id.isBlank()) {
             return ConstructResult.fail("§cUsage: §e/faction upgrade <installation id>");
