@@ -26,6 +26,7 @@ public final class VehiclesConfigLoader {
     private static Set<String> categoryIds = Set.of();
     private static Map<String, Map<String, VehicleTypeConfig>> typesByCategory = Map.of();
     private static Map<String, String> categoryByVehicleTypeId = Map.of();
+    private static Map<String, String> categoryDisplayNames = Map.of();
     private static Set<String> feeExcludedCategories = Set.of();
 
     private VehiclesConfigLoader() {}
@@ -86,6 +87,7 @@ public final class VehiclesConfigLoader {
         Set<String> categories = new HashSet<>();
         Map<String, Map<String, VehicleTypeConfig>> byCategory = new HashMap<>();
         Map<String, String> typeToCategory = new HashMap<>();
+        Map<String, String> displayNames = new HashMap<>();
 
         for (String categoryId : categoriesSection.getKeys(false)) {
             String normalizedCategoryId = categoryId.toLowerCase();
@@ -94,6 +96,10 @@ public final class VehiclesConfigLoader {
             ConfigurationSection categorySection = categoriesSection.getConfigurationSection(categoryId);
             Map<String, VehicleTypeConfig> types = new HashMap<>();
             if (categorySection != null) {
+                String displayName = categorySection.getString("display-name");
+                if (displayName != null && !displayName.isBlank()) {
+                    displayNames.put(normalizedCategoryId, displayName);
+                }
                 boolean categoryShowIcon = categorySection.getBoolean("show-on-upcoming-battle-icon", false);
                 for (String vehicleTypeId : categorySection.getKeys(false)) {
                     if (!categorySection.isConfigurationSection(vehicleTypeId)) {
@@ -148,6 +154,7 @@ public final class VehiclesConfigLoader {
         categoryIds = Collections.unmodifiableSet(categories);
         typesByCategory = Collections.unmodifiableMap(byCategory);
         categoryByVehicleTypeId = Collections.unmodifiableMap(typeToCategory);
+        categoryDisplayNames = Collections.unmodifiableMap(displayNames);
     }
 
     /** VFBuilders blueprint categories left out of the vehicle fee proposal menu (staff-only ones). */
@@ -222,6 +229,13 @@ public final class VehiclesConfigLoader {
 
     public static Set<String> getCategoryIds() {
         return categoryIds;
+    }
+
+    public static String getCategoryDisplayName(String categoryId) {
+        if (categoryId == null || categoryId.isEmpty()) {
+            return null;
+        }
+        return categoryDisplayNames.get(categoryId.toLowerCase());
     }
 
     public static Map<String, VehicleTypeConfig> getTypesInCategory(String categoryId) {

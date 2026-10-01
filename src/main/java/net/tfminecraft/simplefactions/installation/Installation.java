@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.installation;
 
 import net.tfminecraft.simplefactions.database.InstallationData;
+import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 
 public class Installation {
     private final String id;
@@ -10,6 +11,7 @@ public class Installation {
     private final int centerX;
     private final int centerZ;
     private final long completedAt;
+    private int level;
 
     public Installation(
             String id,
@@ -19,6 +21,18 @@ public class Installation {
             int centerX,
             int centerZ,
             long completedAt) {
+        this(id, name, kind, province, centerX, centerZ, completedAt, 1);
+    }
+
+    public Installation(
+            String id,
+            String name,
+            InstallationKind kind,
+            int province,
+            int centerX,
+            int centerZ,
+            long completedAt,
+            int level) {
         this.id = id;
         this.name = name;
         this.kind = kind;
@@ -26,6 +40,7 @@ public class Installation {
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.completedAt = completedAt;
+        this.level = clampLevel(kind, level);
     }
 
     public Installation(InstallationData data) {
@@ -43,6 +58,7 @@ public class Installation {
         this.centerX = data.centerX != null ? data.centerX : 0;
         this.centerZ = data.centerZ != null ? data.centerZ : 0;
         this.completedAt = data.completedAt != null ? data.completedAt : 0L;
+        this.level = clampLevel(kind, data.level != null ? data.level : 1);
     }
 
     public String getId() {
@@ -73,6 +89,25 @@ public class Installation {
         return completedAt;
     }
 
+    public int getLevel() {
+        return level;
+    }
+
+    public void setLevel(int level) {
+        this.level = clampLevel(kind, level);
+    }
+
+    private static int clampLevel(InstallationKind kind, int level) {
+        if (level < 1) {
+            return 1;
+        }
+        try {
+            return Math.min(level, InstallationConfigLoader.getMaximumLevel(kind));
+        } catch (IllegalStateException ignored) {
+            return level;
+        }
+    }
+
     public InstallationData toData() {
         InstallationData data = new InstallationData();
         data.id = id;
@@ -82,6 +117,7 @@ public class Installation {
         data.centerX = centerX;
         data.centerZ = centerZ;
         data.completedAt = completedAt;
+        data.level = level;
         return data;
     }
 }

@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.installation.handler;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +11,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.bukkit.Bukkit;
@@ -23,6 +26,7 @@ import net.tfminecraft.simplefactions.map.MapSystem;
 import net.tfminecraft.simplefactions.map.ProvinceSpatial;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.installation.Installation;
@@ -33,6 +37,95 @@ class InstallationHandlerConstructTest {
 	private static final int X = 10;
 	private static final int Z = 20;
 	private static final String DISPLAY_NAME = "green_fort";
+
+	@Test
+	void upgradeUsesSharedQueueAndFinishesAtNextLevel() {
+		Fixture fx = fixture();
+		Installation station = new Installation("central_station", "Central", InstallationKind.TRAIN_STATION, PROVINCE, X, Z, 1L);
+		fx.handler.acceptTransferred(station);
+		try (TestMocks mocks = testMocks(fx, false)) {
+			ConstructResult result = fx.handler.upgrade(station.getId());
+			assertTrue(result.isSuccess());
+			assertTrue(fx.handler.getPendingConstruction().isUpgrade());
+			assertEquals(1, station.getLevel());
+			assertFalse(fx.handler.construct(InstallationKind.FORT, "new", PROVINCE, X, Z).isSuccess());
+			for (int i = 0; i < 100; i++) fx.handler.tick();
+			assertEquals(2, station.getLevel());
+			assertNull(fx.handler.getPendingConstruction());
+		}
+	}
+
+	@Test
+	void pendingUpgradePersistsAndCanBeCancelled() {
+		Fixture fx = fixture();
+		fx.handler.acceptTransferred(new Installation("central_station", "Central", InstallationKind.TRAIN_STATION, PROVINCE, X, Z, 1L));
+		try (TestMocks mocks = testMocks(fx, false)) {
+			assertTrue(fx.handler.upgrade("central_station").isSuccess());
+			var data = fx.handler.serializeConstruction();
+			assertTrue(data.upgrade);
+			InstallationHandler restored = new InstallationHandler(fx.faction);
+			restored.acceptTransferred(fx.handler.getById("central_station"));
+			restored.loadConstruction(data);
+			assertTrue(restored.getPendingConstruction().isUpgrade());
+			assertEquals(data.timeLeft, restored.serializeConstruction().timeLeft);
+			assertTrue(restored.cancelPending("central_station"));
+			assertNull(restored.getPendingConstruction());
+		}
+	}
+
+	@Test
+	void cancelPendingUpgradeDoesNotCancelConstructionAndReturnsFalseWhenEmpty() {
+		Fixture fx = fixture();
+		try (TestMocks mocks = testMocks(fx, false)) {
+			assertTrue(fx.handler.construct(
+					InstallationKind.FORT, DISPLAY_NAME, PROVINCE, X, Z).isSuccess());
+			assertFalse(fx.handler.cancelPendingUpgrade("green_fort"));
+			assertNotNull(fx.handler.getPendingConstruction());
+
+			assertTrue(fx.handler.cancelPending("green_fort"));
+			assertFalse(fx.handler.cancelPendingUpgrade("green_fort"));
+			assertNull(fx.handler.getPendingConstruction());
+		}
+	}
+
+	@Test
+	void deconstructingInstallationCancelsItsPendingUpgrade() {
+		Fixture fx = fixture();
+		Installation station = new Installation(
+				"central_station", "Central", InstallationKind.TRAIN_STATION,
+				PROVINCE, X, Z, 1L);
+		fx.handler.acceptTransferred(station);
+		try (TestMocks mocks = testMocks(fx, false)) {
+			assertTrue(fx.handler.upgrade(station.getId()).isSuccess());
+
+			ConstructResult result = fx.handler.deconstruct(station.getId());
+
+			assertTrue(result.isSuccess());
+			assertNull(fx.handler.getById(station.getId()));
+			assertNull(fx.handler.getPendingConstruction());
+		}
+	}
+
+	@Test
+	void missedUpkeepDropsLevelAndCancelsUpgradeButLevelOneDissolves() {
+		Fixture fx = fixture();
+		Bank bank = mock(Bank.class);
+		when(bank.getWealth()).thenReturn(0.0);
+		when(fx.faction.getBank()).thenReturn(bank);
+		Installation station = new Installation("central_station", "Central", InstallationKind.TRAIN_STATION, PROVINCE, X, Z, 1L, 2);
+		fx.handler.acceptTransferred(station);
+		try (TestMocks mocks = testMocks(fx, false)) {
+			assertTrue(fx.handler.upgrade("central_station").isSuccess());
+			fx.handler.payDailyUpkeep();
+			assertEquals(1, station.getLevel());
+			assertNull(fx.handler.getPendingConstruction());
+			verify(bank, never()).withdraw(any());
+			assertTrue(fx.handler.upgrade("central_station").isSuccess());
+			fx.handler.payDailyUpkeep();
+			assertNull(fx.handler.getById("central_station"));
+			assertNull(fx.handler.getPendingConstruction());
+		}
+	}
 
 	@Test
 	void constructInstant_fort_success() {
@@ -312,6 +405,10 @@ class InstallationHandlerConstructTest {
 		MockedStatic<InstallationConfigLoader> config = mockStatic(InstallationConfigLoader.class);
 		config.when(() -> InstallationConfigLoader.getConstructionTimeSeconds(any()))
 				.thenReturn(60);
+		config.when(() -> InstallationConfigLoader.getConstructionTimeSeconds(any(InstallationKind.class), anyInt()))
+				.thenReturn(100);
+		config.when(() -> InstallationConfigLoader.getMaximumLevel(any(InstallationKind.class))).thenReturn(3);
+		config.when(() -> InstallationConfigLoader.getDailyUpkeep(any(InstallationKind.class), anyInt())).thenReturn(35.0);
 
 		MockedStatic<ProvinceSpatial> spatial = mockStatic(ProvinceSpatial.class);
 		spatial.when(() -> ProvinceSpatial.withinConfiguredPortSeaProximity(anyInt(), anyInt()))

@@ -821,7 +821,7 @@ public class InventoryManager implements Listener{
 			}
 			case INSTALLATION -> {
 				Faction f = FactionManager.getByString(parsed.ownerId());
-				yield f != null && f.getInstallationHandler().deconstruct(parsed.detail()).isSuccess();
+				yield f != null && f.getInstallationHandler().cancelPending(parsed.detail());
 			}
 			case COMPANY_SLOT -> {
 				Guild guild = FactionManager.getGuildByString(parsed.ownerId());
@@ -1385,9 +1385,9 @@ public class InventoryManager implements Listener{
 			}
 			key = new NamespacedKey(SimpleFactions.plugin, "regiment");
 			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
-			if(data != null) {
+			if (data != null) {
 				Faction f = confirming.get(p);
-				if(item.getType().equals(Material.RED_CONCRETE)) {
+				if (item.getType().equals(Material.RED_CONCRETE)) {
 					militaryView(null, p, f, true);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					return;
@@ -1441,6 +1441,42 @@ public class InventoryManager implements Listener{
 					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				} else {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				}
+				installationsView(null, p, f, true);
+				return;
+			}
+			key = new NamespacedKey(SimpleFactions.plugin, "installation_upgrade");
+			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			if(data != null) {
+				Faction f = confirming.get(p);
+				if(item.getType().equals(Material.RED_CONCRETE)) {
+					installationDetailView(p, f, data);
+					return;
+				}
+				ConstructResult result = f.getInstallationHandler().upgrade(data);
+				p.sendMessage(result.getMessage());
+				p.playSound(
+						p,
+						result.isSuccess()
+								? Sound.ENTITY_PLAYER_LEVELUP
+								: Sound.BLOCK_NOTE_BLOCK_BIT,
+						1f,
+						1f);
+				installationsView(null, p, f, true);
+				return;
+			}
+			key = new NamespacedKey(SimpleFactions.plugin, "installation_cancel_upgrade");
+			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			if (data != null) {
+				Faction f = confirming.get(p);
+				if (item.getType().equals(Material.RED_CONCRETE)) {
+					installationDetailView(p, f, data);
+					return;
+				}
+				if (f.getInstallationHandler().cancelPendingUpgrade(data)) {
+					p.sendMessage("§aCancelled upgrade for installation §f" + data);
+				} else {
+					p.sendMessage("§cNo pending upgrade for §f" + data);
 				}
 				installationsView(null, p, f, true);
 				return;

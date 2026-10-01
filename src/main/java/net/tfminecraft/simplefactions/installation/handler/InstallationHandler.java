@@ -170,7 +170,9 @@ public class InstallationHandler {
             return ConstructResult.fail("§cUsage: §e/faction deconstruct <id>");
         }
 
-        if (pendingConstruction != null && pendingConstruction.getId().equalsIgnoreCase(id)) {
+        if (pendingConstruction != null
+                && !pendingConstruction.isUpgrade()
+                && pendingConstruction.getId().equalsIgnoreCase(id)) {
             String kindName = pendingConstruction.getKind().getDisplayName();
             String constructionName = pendingConstruction.getName();
             clearPendingConstruction();
@@ -191,6 +193,8 @@ public class InstallationHandler {
 
         String installationName = installation.getName();
         String kindName = installation.getKind().getDisplayName();
+
+        cancelUpgrade(installation.getId());
 
         byId.remove(installation.getId());
         byProvinceKind.remove(indexKey(installation.getKind(), installation.getProvince()));
@@ -223,17 +227,33 @@ public class InstallationHandler {
         installations.sort(
                 Comparator.comparingDouble(
                                 (Installation installation) ->
-                                        InstallationConfigLoader.getDailyUpkeep(installation.getKind()))
+                                        InstallationConfigLoader.getDailyUpkeep(
+                                                installation.getKind(), installation.getLevel()))
                         .thenComparingLong(Installation::getCompletedAt));
 
         Bank bank = faction.getBank();
         for (Installation installation : installations) {
-            double upkeep = InstallationConfigLoader.getDailyUpkeep(installation.getKind());
+            double upkeep = InstallationConfigLoader.getDailyUpkeep(
+                    installation.getKind(), installation.getLevel());
             if (upkeep <= 0) {
                 continue;
             }
             if (bank == null || bank.getWealth() < upkeep) {
-                dissolveForNonPayment(installation);
+                if (installation.getLevel() > 1) {
+                    cancelUpgrade(installation.getId());
+                    installation.setLevel(installation.getLevel() - 1);
+                    enqueueMapUpdate();
+                    Player leader = Bukkit.getPlayerExact(faction.getLeader());
+                    if (leader != null) {
+                        leader.sendMessage(
+                                "§c" + installation.getKind().getDisplayName()
+                                        + " §f" + installation.getName()
+                                        + " §cdropped to level " + installation.getLevel()
+                                        + " §7(unable to pay upkeep)");
+                    }
+                } else {
+                    dissolveForNonPayment(installation);
+                }
                 continue;
             }
             bank.withdraw(upkeep);
@@ -244,6 +264,77 @@ public class InstallationHandler {
         if (pendingConstruction != null && pendingConstruction.getProvince() == province) {
             clearPendingConstruction();
         }
+    }
+
+    public boolean cancelPending(String id) {
+        if (pendingConstruction == null
+                || id == null
+                || !pendingConstruction.getId().equalsIgnoreCase(id)) {
+            return false;
+        }
+        clearPendingConstruction();
+        return true;
+    }
+
+    public boolean cancelPendingUpgrade(String id) {
+        if (pendingConstruction == null
+                || !pendingConstruction.isUpgrade()
+                || id == null
+                || !pendingConstruction.getId().equalsIgnoreCase(id)) {
+            return false;
+        }
+        cancelUpgrade(id);
+        return true;
+    }
+
+    public ConstructResult upgrade(String id) {
+        if (id == null || id.isBlank()) {
+            return ConstructResult.fail("§cUsage: §e/faction upgrade <installation id>");
+        }
+        if (pendingConstruction != null) {
+            return ConstructResult.fail("§cYour faction is already building an installation");
+        }
+        Installation installation = getById(id);
+        if (installation == null) {
+            return ConstructResult.fail("§cNo installation with id §f" + id);
+        }
+        int nextLevel = installation.getLevel() + 1;
+        if (nextLevel > InstallationConfigLoader.getMaximumLevel(installation.getKind())) {
+            return ConstructResult.fail("§c" + installation.getKind().getDisplayName() + " is already at maximum level");
+        }
+        InstallationConstruction upgrade = new InstallationConstruction(
+                installation.getId(),
+                installation.getName(),
+                installation.getKind(),
+                installation.getProvince(),
+                installation.getCenterX(),
+                installation.getCenterZ(),
+                InstallationConfigLoader.getConstructionTimeSeconds(installation.getKind(), nextLevel),
+                System.currentTimeMillis(), true);
+        setPendingConstruction(upgrade);
+        return ConstructResult.ok(
+                "§eUpgrading " + installation.getKind().getDisplayName() + " §f"
+                        + installation.getName() + " §eto level " + nextLevel + " - §7"
+                        + TimeFormatter.formatTime(upgrade.getTimeLeft()) + " remaining");
+    }
+
+    public ConstructResult upgradeInstant(String id) {
+        if (pendingConstruction != null) {
+            return ConstructResult.fail("§cYour faction is already building an installation");
+        }
+        Installation installation = getById(id);
+        if (installation == null) {
+            return ConstructResult.fail("§cNo installation with id §f" + id);
+        }
+        if (installation.getLevel() >= InstallationConfigLoader.getMaximumLevel(installation.getKind())) {
+            return ConstructResult.fail("§c" + installation.getKind().getDisplayName() + " is already at maximum level");
+        }
+        installation.setLevel(installation.getLevel() + 1);
+        enqueueMapUpdate();
+        return ConstructResult.ok(
+                "§aUpgraded " + installation.getKind().getDisplayName() + " §f"
+                        + installation.getName() + " §7to level " + installation.getLevel(),
+                installation);
     }
 
     public List<Installation> detachOnProvince(int province) {
@@ -326,6 +417,7 @@ public class InstallationHandler {
     }
 
     private void removeInstallation(Installation installation) {
+        cancelUpgrade(installation.getId());
         byId.remove(installation.getId());
         byProvinceKind.remove(indexKey(installation.getKind(), installation.getProvince()));
         enqueueMapUpdate();
@@ -408,6 +500,23 @@ public class InstallationHandler {
     }
 
     private void completeConstruction(InstallationConstruction construction) {
+        if (construction.isUpgrade()) {
+            Installation installation = getById(construction.getId());
+            if (installation != null) {
+                installation.setLevel(installation.getLevel() + 1);
+                enqueueMapUpdate();
+                Player leader = Bukkit.getPlayerExact(faction.getLeader());
+                if (leader != null) {
+                    leader.sendMessage(
+                            "§a" + installation.getKind().getDisplayName()
+                                    + " §f" + installation.getName()
+                                    + " §ahas finished upgrading to level "
+                                    + installation.getLevel());
+                }
+            }
+            clearPendingConstruction();
+            return;
+        }
         Installation installation = placeCompleted(
                 construction.getId(),
                 construction.getName(),
@@ -466,6 +575,14 @@ public class InstallationHandler {
                     indexKey(pendingConstruction.getKind(), pendingConstruction.getProvince()));
         }
         pendingConstruction = null;
+    }
+
+    private void cancelUpgrade(String id) {
+        if (pendingConstruction != null
+                && pendingConstruction.isUpgrade()
+                && pendingConstruction.getId().equalsIgnoreCase(id)) {
+            clearPendingConstruction();
+        }
     }
 
     private void enqueueMapUpdate() {

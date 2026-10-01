@@ -647,6 +647,29 @@ public class CommandManager implements Listener, CommandExecutor{
 				inv.confirmView(p, f, "installation", id);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				return true;
+			} else if (cmd.getName().equalsIgnoreCase(cmd1)
+					&& args[0].equalsIgnoreCase("upgrade")) {
+				if (!Cache.requireProvinces(p)) {
+					return true;
+				}
+				Faction f = FactionManager.getByLeader(p.getName());
+				if (f == null) {
+					p.sendMessage("§cYou need to be a faction leader to upgrade installations");
+					return true;
+				}
+				if (args.length < 2) {
+					p.sendMessage("§cUsage: §e/faction upgrade <installation id>");
+					return true;
+				}
+				if (f.getInstallationHandler().getById(args[1]) == null) {
+					p.sendMessage("§cNo installation with id §f" + args[1]);
+					return true;
+				}
+				InventoryManager inv = new InventoryManager();
+				inv.confirming.put(p, f);
+				inv.confirmView(p, f, "installation_upgrade", args[1]);
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("vehicle")) {
 				if(VehicleCommandRoute.isMaintenancePay(args)) {
 					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armMaintenancePay(
@@ -1248,6 +1271,27 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 					p.sendMessage("§aFaction "+f.getName()+" §adeleted!");
 				}
+				return true;
+			} else if (cmd.getName().equalsIgnoreCase(cmd1)
+					&& args[0].equalsIgnoreCase("forceupgrade")) {
+				if (!Permissions.isAdmin(sender)) {
+					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
+					return true;
+				}
+				if (!Cache.requireProvinces(p)) {
+					return true;
+				}
+				if (args.length < 3) {
+					p.sendMessage("§cUsage: §e/faction forceupgrade <faction> <installation id>");
+					return true;
+				}
+				Faction f = FactionManager.getByString(args[1]);
+				if (f == null) {
+					p.sendMessage("§cError! faction does not exist!");
+					return true;
+				}
+				ConstructResult result = f.getInstallationHandler().upgradeInstant(args[2]);
+				p.sendMessage(result.getMessage());
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("forceconstruct")) {
 				if(!Permissions.isAdmin(sender)) {

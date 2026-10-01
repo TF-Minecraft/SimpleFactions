@@ -15,6 +15,7 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.database.InstallationConstructionData;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 
 class InstallationTransferServiceTest {
@@ -23,7 +24,11 @@ class InstallationTransferServiceTest {
 	void transfer_movesCompletedInstallToNewOwner() {
 		Fixture from = faction("from", "Alice");
 		Fixture to = faction("to", "Bob");
-		Installation port = new Installation("port-1", "Harbour", InstallationKind.PORT, 42, 0, 0, 1L);
+		Installation port;
+		try (MockedStatic<InstallationConfigLoader> config = mockStatic(InstallationConfigLoader.class)) {
+			config.when(() -> InstallationConfigLoader.getMaximumLevel(InstallationKind.PORT)).thenReturn(3);
+			port = new Installation("port-1", "Harbour", InstallationKind.PORT, 42, 0, 0, 1L, 2);
+		}
 		from.handler.acceptTransferred(port);
 
 		InstallationTransferService.transfer(from.faction, to.faction, 42);
@@ -31,6 +36,7 @@ class InstallationTransferServiceTest {
 		assertNull(from.handler.getById("port-1"));
 		assertNotNull(to.handler.getById("port-1"));
 		assertEquals(42, to.handler.getById("port-1").getProvince());
+		assertEquals(2, to.handler.getById("port-1").getLevel());
 		assertTrue(from.handler.getAll().isEmpty());
 	}
 

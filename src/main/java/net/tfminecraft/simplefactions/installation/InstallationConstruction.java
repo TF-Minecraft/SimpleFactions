@@ -12,6 +12,7 @@ public class InstallationConstruction {
     private final int centerZ;
     private int timeLeft;
     private final long startedAt;
+    private final boolean upgrade;
 
     public InstallationConstruction(
             String id,
@@ -22,6 +23,19 @@ public class InstallationConstruction {
             int centerZ,
             int timeLeft,
             long startedAt) {
+        this(id, name, kind, province, centerX, centerZ, timeLeft, startedAt, false);
+    }
+
+    public InstallationConstruction(
+            String id,
+            String name,
+            InstallationKind kind,
+            int province,
+            int centerX,
+            int centerZ,
+            int timeLeft,
+            long startedAt,
+            boolean upgrade) {
         this.id = id;
         this.name = name;
         this.kind = kind;
@@ -30,6 +44,7 @@ public class InstallationConstruction {
         this.centerZ = centerZ;
         this.timeLeft = timeLeft;
         this.startedAt = startedAt;
+        this.upgrade = upgrade;
     }
 
     public InstallationConstruction(
@@ -46,7 +61,7 @@ public class InstallationConstruction {
                 province,
                 centerX,
                 centerZ,
-                InstallationConfigLoader.getConstructionTimeSeconds(kind),
+                InstallationConfigLoader.getConstructionTimeSeconds(kind, 1),
                 System.currentTimeMillis());
     }
 
@@ -66,6 +81,7 @@ public class InstallationConstruction {
         this.centerZ = data.centerZ != null ? data.centerZ : 0;
         this.timeLeft = data.timeLeft != null ? data.timeLeft : 0;
         this.startedAt = data.startedAt != null ? data.startedAt : System.currentTimeMillis();
+        this.upgrade = Boolean.TRUE.equals(data.upgrade);
     }
 
     public void tick() {
@@ -107,6 +123,10 @@ public class InstallationConstruction {
         return startedAt;
     }
 
+    public boolean isUpgrade() {
+        return upgrade;
+    }
+
     public InstallationConstructionData toData() {
         InstallationConstructionData data = new InstallationConstructionData();
         data.id = id;
@@ -117,6 +137,7 @@ public class InstallationConstruction {
         data.centerZ = centerZ;
         data.timeLeft = timeLeft;
         data.startedAt = startedAt;
+        data.upgrade = upgrade;
         return data;
     }
 }

@@ -48,6 +48,7 @@ class InstallationConfigLoaderTest {
         assertEquals(259200, InstallationConfigLoader.getConstructionTimeSeconds(InstallationKind.TRAIN_STATION));
         assertEquals(java.util.Map.of("static_emplacements", 2),
                 InstallationConfigLoader.getCategorySlots(InstallationKind.TRAIN_STATION));
+        assertEquals(3, InstallationConfigLoader.getMaximumLevel(InstallationKind.TRAIN_STATION));
     }
 
     @Test
@@ -63,6 +64,44 @@ class InstallationConfigLoaderTest {
         assertEquals(0, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, "land_vehicles"));
         assertEquals(0, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, "ships"));
         assertEquals(0, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, "train"));
+        assertEquals(3, InstallationConfigLoader.getMaximumLevel(InstallationKind.TRAIN_STATION));
+        assertEquals(35.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION, 2));
+        assertEquals(100.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION, 3));
+        assertEquals(4, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, 3, "static_emplacements"));
+    }
+
+    @Test
+    void load_readsHigherLevelsAndRejectsGaps() throws IOException {
+        Path path = writeInstallationsFixture();
+        Files.writeString(path, Files.readString(path) + """
+            train_station:
+              radius: 80
+              daily-upkeep: 10
+              construction-time: 259200
+              slots:
+                static_emplacements: 2
+              levels:
+                2:
+                  daily-upkeep: 35
+                  construction-time: 259200
+                  slots:
+                    static_emplacements: 3
+                3:
+                  daily-upkeep: 100
+                  construction-time: 432000
+                  slots:
+                    static_emplacements: 4
+            """);
+        InstallationConfigLoader.load(path.toFile());
+        assertEquals(35.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION, 2));
+        assertEquals(432000, InstallationConfigLoader.getConstructionTimeSeconds(InstallationKind.TRAIN_STATION, 3));
+        assertEquals(3, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, 2, "static_emplacements"));
+
+        String validConfig = Files.readString(path);
+        Files.writeString(path, validConfig.replace("2:\n", "4:\n"));
+        assertThrows(IllegalStateException.class, () -> InstallationConfigLoader.load(path.toFile()));
+        Files.writeString(path, validConfig.replace("2:\n", "1:\n"));
+        assertThrows(IllegalStateException.class, () -> InstallationConfigLoader.load(path.toFile()));
     }
 
     @Test

@@ -2,30 +2,49 @@ package net.tfminecraft.simplefactions.installation;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.TreeMap;
 
 public final class InstallationKindConfig {
-    private final double dailyUpkeep;
-    private final int constructionTimeSeconds;
-    private final int radius;
-    private final Map<String, Integer> categorySlots;
+    public record Level(double dailyUpkeep, int constructionTimeSeconds, Map<String, Integer> categorySlots) {
+        public Level {
+            categorySlots = Collections.unmodifiableMap(categorySlots);
+        }
+    }
 
-    public InstallationKindConfig(
-            double dailyUpkeep,
-            int constructionTimeSeconds,
-            int radius,
-            Map<String, Integer> categorySlots) {
-        this.dailyUpkeep = dailyUpkeep;
-        this.constructionTimeSeconds = constructionTimeSeconds;
+    private final int radius;
+    private final Map<Integer, Level> levels;
+
+    public InstallationKindConfig(int radius, Map<Integer, Level> levels) {
         this.radius = radius;
-        this.categorySlots = Collections.unmodifiableMap(categorySlots);
+        this.levels = Collections.unmodifiableMap(new TreeMap<>(levels));
+    }
+
+    public Level getLevel(int level) {
+        return levels.get(Math.min(Math.max(level, 1), getMaximumLevel()));
+    }
+
+    public int getMaximumLevel() {
+        return levels.size();
+    }
+
+    public Map<Integer, Level> getLevels() {
+        return levels;
     }
 
     public double getDailyUpkeep() {
-        return dailyUpkeep;
+        return getDailyUpkeep(1);
+    }
+
+    public double getDailyUpkeep(int level) {
+        return getLevel(level).dailyUpkeep();
     }
 
     public int getConstructionTimeSeconds() {
-        return constructionTimeSeconds;
+        return getConstructionTimeSeconds(1);
+    }
+
+    public int getConstructionTimeSeconds(int level) {
+        return getLevel(level).constructionTimeSeconds();
     }
 
     public int getRadius() {
@@ -33,6 +52,10 @@ public final class InstallationKindConfig {
     }
 
     public Map<String, Integer> getCategorySlots() {
-        return categorySlots;
+        return getCategorySlots(1);
+    }
+
+    public Map<String, Integer> getCategorySlots(int level) {
+        return getLevel(level).categorySlots();
     }
 }

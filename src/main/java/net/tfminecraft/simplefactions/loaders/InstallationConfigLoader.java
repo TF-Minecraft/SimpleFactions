@@ -16,6 +16,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.InstallationKindConfig;
+import net.tfminecraft.simplefactions.installation.InstallationKindConfig.Level;
 
 public final class InstallationConfigLoader {
     private static final Map<InstallationKind, InstallationKindConfig> byKind =
@@ -59,11 +60,14 @@ public final class InstallationConfigLoader {
             ConfigurationSection section = config.getConfigurationSection(key);
             if (section == null) {
                 if (kind == InstallationKind.TRAIN_STATION) {
-                    byKind.put(kind, new InstallationKindConfig(
-                            10,
-                            259200,
-                            80,
-                            Map.of("static_emplacements", 2)));
+                    byKind.put(
+                            kind,
+                            new InstallationKindConfig(
+                                    80,
+                                    Map.of(
+                                            1, new Level(10, 259200, Map.of("static_emplacements", 2)),
+                                            2, new Level(35, 259200, Map.of("static_emplacements", 3)),
+                                            3, new Level(100, 432000, Map.of("static_emplacements", 4)))));
                     continue;
                 }
                 fail("installations.yml missing required section: " + key);
@@ -98,34 +102,101 @@ public final class InstallationConfigLoader {
                 fail("installations.yml " + key + ".slots is required");
             }
 
-            Map<String, Integer> categorySlots = new HashMap<>();
-            for (String categoryId : slotsSection.getKeys(false)) {
-                String normalizedCategoryId = categoryId.toLowerCase();
-                if (!knownCategories.contains(normalizedCategoryId)) {
-                    fail("installations.yml " + key + ".slots." + categoryId
-                            + " references unknown vehicle category (check vehicles.yml categories)");
+            Map<String, Integer> categorySlots = readSlots(key, slotsSection, knownCategories);
+            Map<Integer, Level> levels = new HashMap<>();
+            levels.put(1, new Level(dailyUpkeep, constructionTimeSeconds, categorySlots));
+            ConfigurationSection levelsSection = section.getConfigurationSection("levels");
+            if (section.contains("levels") && levelsSection == null) {
+                fail("installations.yml " + key + ".levels must be a section");
+            }
+            if (levelsSection != null) {
+                Map<Integer, ConfigurationSection> parsedLevels = new HashMap<>();
+                for (String levelKey : levelsSection.getKeys(false)) {
+                    int level;
+                    try {
+                        level = Integer.parseInt(levelKey);
+                    } catch (NumberFormatException e) {
+                        fail("installations.yml " + key + ".levels." + levelKey
+                                + " must be a level number >= 2");
+                        return;
+                    }
+                    if (level < 2
+                            || parsedLevels.put(
+                                    level, levelsSection.getConfigurationSection(levelKey)) != null) {
+                        fail("installations.yml " + key + ".levels must start at 2 with no gaps");
+                    }
                 }
-                int capacity = slotsSection.getInt(categoryId);
-                if (capacity < 0) {
-                    fail("installations.yml " + key + ".slots." + categoryId + " must be >= 0");
+                for (int level = 2; level <= parsedLevels.size() + 1; level++) {
+                    ConfigurationSection levelSection = parsedLevels.get(level);
+                    if (levelSection == null) {
+                        fail("installations.yml " + key + ".levels must start at 2 with no gaps");
+                    }
+                    String prefix = key + ".levels." + level;
+                    if (!levelSection.contains("daily-upkeep")) {
+                        fail("installations.yml " + prefix + ".daily-upkeep is required");
+                    }
+                    if (!levelSection.contains("construction-time")) {
+                        fail("installations.yml " + prefix + ".construction-time is required");
+                    }
+                    double levelUpkeep = levelSection.getDouble("daily-upkeep");
+                    int levelConstruction = levelSection.getInt("construction-time");
+                    if (levelUpkeep < 0) {
+                        fail("installations.yml " + prefix + ".daily-upkeep must be >= 0");
+                    }
+                    if (levelConstruction <= 0) {
+                        fail("installations.yml " + prefix + ".construction-time must be > 0");
+                    }
+                    ConfigurationSection levelSlots = levelSection.getConfigurationSection("slots");
+                    if (levelSlots == null) {
+                        fail("installations.yml " + prefix + ".slots is required");
+                    }
+                    levels.put(
+                            level,
+                            new Level(
+                                    levelUpkeep,
+                                    levelConstruction,
+                                    readSlots(prefix, levelSlots, knownCategories)));
                 }
-                categorySlots.put(normalizedCategoryId, capacity);
             }
 
-            byKind.put(kind, new InstallationKindConfig(
-                    dailyUpkeep,
-                    constructionTimeSeconds,
-                    radius,
-                    categorySlots));
+            byKind.put(kind, new InstallationKindConfig(radius, levels));
         }
     }
 
+    private static Map<String, Integer> readSlots(
+            String key,
+            ConfigurationSection slotsSection,
+            Set<String> knownCategories) {
+        Map<String, Integer> categorySlots = new HashMap<>();
+        for (String categoryId : slotsSection.getKeys(false)) {
+            String normalizedCategoryId = categoryId.toLowerCase();
+            if (!knownCategories.contains(normalizedCategoryId)) {
+                fail("installations.yml " + key + ".slots." + categoryId
+                        + " references unknown vehicle category (check vehicles.yml categories)");
+            }
+            int capacity = slotsSection.getInt(categoryId);
+            if (capacity < 0) {
+                fail("installations.yml " + key + ".slots." + categoryId + " must be >= 0");
+            }
+            categorySlots.put(normalizedCategoryId, capacity);
+        }
+        return categorySlots;
+    }
+
     public static double getDailyUpkeep(InstallationKind kind) {
-        return require(kind).getDailyUpkeep();
+        return getDailyUpkeep(kind, 1);
+    }
+
+    public static double getDailyUpkeep(InstallationKind kind, int level) {
+        return require(kind).getDailyUpkeep(level);
     }
 
     public static int getConstructionTimeSeconds(InstallationKind kind) {
-        return require(kind).getConstructionTimeSeconds();
+        return getConstructionTimeSeconds(kind, 1);
+    }
+
+    public static int getConstructionTimeSeconds(InstallationKind kind, int level) {
+        return require(kind).getConstructionTimeSeconds(level);
     }
 
     public static int getRadius(InstallationKind kind) {
@@ -141,15 +212,27 @@ public final class InstallationConfigLoader {
     }
 
     public static int getCategorySlotCapacity(InstallationKind kind, String categoryId) {
+        return getCategorySlotCapacity(kind, 1, categoryId);
+    }
+
+    public static int getCategorySlotCapacity(InstallationKind kind, int level, String categoryId) {
         if (categoryId == null || categoryId.isEmpty()) {
             return 0;
         }
-        Integer capacity = require(kind).getCategorySlots().get(categoryId.toLowerCase());
+        Integer capacity = require(kind).getCategorySlots(level).get(categoryId.toLowerCase());
         return capacity == null ? 0 : capacity;
     }
 
     public static Map<String, Integer> getCategorySlots(InstallationKind kind) {
-        return require(kind).getCategorySlots();
+        return getCategorySlots(kind, 1);
+    }
+
+    public static Map<String, Integer> getCategorySlots(InstallationKind kind, int level) {
+        return require(kind).getCategorySlots(level);
+    }
+
+    public static int getMaximumLevel(InstallationKind kind) {
+        return require(kind).getMaximumLevel();
     }
 
     public static Map<InstallationKind, InstallationKindConfig> getAll() {
