@@ -32,6 +32,7 @@ import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
+import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.enums.SFGUI;
@@ -158,7 +159,7 @@ public class WarView {
 	private boolean canEditCounterGoal(War war, Player player) {
 		syncFirstBattleStarted(war);
 		if (war == null || player == null || !war.isActive() || war.hasFirstBattleStarted()
-				|| war.getWarType() == WarType.RAID) {
+				|| war.getWarType() == WarType.RAID || CivilWarBorderLock.isCivilWar(war)) {
 			return false;
 		}
 		Faction leader = FactionManager.getByLeader(player.getName());
