@@ -89,7 +89,7 @@ class GuildKickCommandTest {
 
 			assertTrue(new CommandManager().onCommand(leader, command, "guild", new String[] {"kick", "leader"}));
 
-			verify(leader).sendMessage("§cCant kick the leader!");
+			verify(leader).sendMessage("§cYou cannot dismiss the leader!");
 			bukkit.verifyNoInteractions();
 		}
 	}

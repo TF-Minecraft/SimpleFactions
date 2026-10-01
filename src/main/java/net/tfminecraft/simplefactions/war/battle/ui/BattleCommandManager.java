@@ -137,12 +137,12 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				if (!p.getUniqueId().equals(w.getLeaderId())) {
-					p.sendMessage("§cOnly the leader can kick players!");
+					p.sendMessage("§cOnly the leader can dismiss members!");
 					return true;
 				}
 				Player kickTarget = Bukkit.getPlayerExact(args[1]);
 				if (kickTarget != null && kickTarget.getUniqueId().equals(w.getLeaderId())) {
-					p.sendMessage("§cCant kick the leader!");
+					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
 				}
 				if (kickTarget == null || !w.hasMember(kickTarget)) {
@@ -192,7 +192,7 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				if (!p.getUniqueId().equals(w.getLeaderId())) {
-					p.sendMessage("§cOnly the leader can invite players!");
+					p.sendMessage("§cOnly the leader can invite new members!");
 					return true;
 				}
 				if (w.hasMember(Bukkit.getPlayerExact(args[1]))) {
@@ -247,7 +247,7 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				if(WarbandManager.getByLeader(p) != null && !w.isFaction()) {
-					p.sendMessage("§cCant leave if you are the leader");
+					p.sendMessage("§cA leader cannot abandon their warband.");
 					p.sendMessage("§cUse /warband delete first");
 					return true;
 				}

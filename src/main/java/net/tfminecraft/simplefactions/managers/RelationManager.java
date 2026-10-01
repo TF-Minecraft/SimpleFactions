@@ -158,7 +158,7 @@ public class RelationManager {
 				return false;
 			}
 			if(!vassalCheck(target, origin)) {
-				if(p != null) p.sendMessage("§cThis faction is alredy a subject of someone else");
+				if(p != null) p.sendMessage("§cThis faction is already a subject of someone else");
 				return false;
 			}
 			String topLiege = getTopLiege(origin);

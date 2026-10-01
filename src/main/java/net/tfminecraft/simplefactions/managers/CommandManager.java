@@ -172,7 +172,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(!guild.isLeader(p)) {
-					p.sendMessage("§cOnly the guild leader can invite players!");
+					p.sendMessage("§cOnly the guild leader can invite new members!");
 					return true;
 				}
 				if(guild.isBase()) {
@@ -255,7 +255,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(FactionManager.getGuildByLeader(p.getName()) != null) {
-					p.sendMessage("§cCant leave if you are the leader");
+					p.sendMessage("§cA leader cannot abandon their guild.");
 					p.sendMessage("§cUse /guild delete first");
 					return true;
 				}
@@ -278,7 +278,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(args[1].equalsIgnoreCase(guild.getLeader())) {
-					p.sendMessage("§cCant kick the leader!");
+					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
 				}
 				guild.kick(args[1]);
@@ -333,10 +333,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					if(g.getBank() != null) {
 						Bank bank = g.getBank();
 						bank.setChunk(p.getLocation().getChunk());
-						p.sendMessage("§aBank Chunk Moved");
+						p.sendMessage("§aBank moved");
 					} else {
 						g.setBank(new Bank(g, 0, p.getLocation().getChunk()));
-						p.sendMessage("§aBank Chunk Set");
+						p.sendMessage("§aBank established");
 					}
 					p.playSound(p, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1f, 1f);
 				} else {
@@ -348,11 +348,11 @@ public class CommandManager implements Listener, CommandExecutor{
 					Guild g = FactionManager.getGuildByMember(p.getName());
 					Bank b = g.getBank();
 					if(b == null) {
-						p.sendMessage("§cYour guild has no bank chunk");
+						p.sendMessage("§cYour guild has not established a bank");
 						return false;
 					}
 					if(!p.getLocation().getChunk().equals(g.getBank().getChunk())) {
-						p.sendMessage("§cYou need to be in the Guild Bank Chunk to deposit money");
+						p.sendMessage("§cYou must be at your guild bank to deposit money");
 						return false;
 					}
 					Double parsed = BankAmount.parse(args[1]);
@@ -376,7 +376,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§e=====================================");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
 				} else {
-					p.sendMessage("§cYou need to be a in a guild to deposit money into the guild bank");
+					p.sendMessage("§cYou need to be in a guild to deposit money into the guild bank");
 				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("withdraw") && args.length == 2) {
@@ -386,11 +386,11 @@ public class CommandManager implements Listener, CommandExecutor{
 					Guild g = FactionManager.getGuildByLeader(p.getName());
 					Bank b = g.getBank();
 					if(b == null) {
-						p.sendMessage("§cYour guild has no bank chunk");
+						p.sendMessage("§cYour guild has not established a bank");
 						return false;
 					}
 					if(!p.getLocation().getChunk().equals(b.getChunk())) {
-						p.sendMessage("§cYou need to be in the Guild Bank Chunk to withdraw money");
+						p.sendMessage("§cYou must be at your guild bank to withdraw money");
 						return false;
 					}
 					Double parsed = BankAmount.parse(args[1]);
@@ -863,11 +863,11 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(!p.getName().equalsIgnoreCase(f.getLeader())) {
-					p.sendMessage("§cOnly the leader can kick players!");
+					p.sendMessage("§cOnly the leader can dismiss members!");
 					return true;
 				}
 				if(args[1].equalsIgnoreCase(f.getLeader())) {
-					p.sendMessage("§cCant kick the leader!");
+					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
 				}
 				if(!f.getMembers().contains(args[1])) {
@@ -909,7 +909,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(!f.canBecomeLeader(args[1])) {
-					p.sendMessage("§cPlayer is not eligble to be leader (perhaps they are a guild leader?)");
+					p.sendMessage("§cPlayer is not eligible to be leader (perhaps they are a guild leader?)");
 					return true;
 				}
 				f.setLeader(args[1]);
@@ -926,7 +926,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(!p.getName().equalsIgnoreCase(f.getLeader())) {
-					p.sendMessage("§cOnly the leader can invite players!");
+					p.sendMessage("§cOnly the leader can invite new members!");
 					return true;
 				}
 				Player invited = Bukkit.getPlayer(args[1]);
@@ -977,7 +977,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(FactionManager.getByLeader(p.getName()) != null) {
-					p.sendMessage("§cCant leave if you are the leader");
+					p.sendMessage("§cA leader cannot abandon their faction.");
 					p.sendMessage("§cUse /faction delete first");
 					return true;
 				}
@@ -1128,10 +1128,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					if(f.getBank() != null) {
 						Bank bank = f.getBank();
 						bank.setChunk(p.getLocation().getChunk());
-						p.sendMessage("§aBank Chunk Moved");
+						p.sendMessage("§aBank moved");
 					} else {
 						f.setBank(new Bank(f.getOrCreateMainGuild(), 0, p.getLocation().getChunk()));
-						p.sendMessage("§aBank Chunk Set");
+						p.sendMessage("§aBank established");
 					}
 					p.playSound(p, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1f, 1f);
 				} else {
@@ -1143,11 +1143,11 @@ public class CommandManager implements Listener, CommandExecutor{
 					Faction f = FactionManager.getByMember(p.getName());
 					Bank b = f.getBank();
 					if(b == null) {
-						p.sendMessage("§cYour faction has no bank chunk");
+						p.sendMessage("§cYour faction has not established a bank");
 						return false;
 					}
 					if(!p.getLocation().getChunk().equals(f.getBank().getChunk())) {
-						p.sendMessage("§cYou need to be in the Bank Chunk to deposit money");
+						p.sendMessage("§cYou must be at your faction bank to deposit money");
 						return false;
 					}
 					Double parsed = BankAmount.parse(args[1]);
@@ -1171,7 +1171,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§e=====================================");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
 				} else {
-					p.sendMessage("§cYou need to be a in a faction to deposit money into the faction bank");
+					p.sendMessage("§cYou need to be in a faction to deposit money into the faction bank");
 				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("withdraw") && args.length == 2) {
@@ -1179,11 +1179,11 @@ public class CommandManager implements Listener, CommandExecutor{
 					Faction f = FactionManager.getByMember(p.getName());
 					Bank b = f.getBank();
 					if(b == null) {
-						p.sendMessage("§cYour faction has no bank chunk");
+						p.sendMessage("§cYour faction has not established a bank");
 						return false;
 					}
 					if(!p.getLocation().getChunk().equals(b.getChunk())) {
-						p.sendMessage("§cYou need to be in the Bank Chunk to withdraw money");
+						p.sendMessage("§cYou must be at your faction bank to withdraw money");
 						return false;
 					}
 					Double parsed = BankAmount.parse(args[1]);
@@ -1419,7 +1419,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(!f.canBecomeLeader(args[2])) {
-					p.sendMessage("§cPlayer is not eligble to be leader (perhaps they are a guild leader?)");
+					p.sendMessage("§cPlayer is not eligible to be leader (perhaps they are a guild leader?)");
 					return true;
 				}
 				f.setLeader(args[2]);

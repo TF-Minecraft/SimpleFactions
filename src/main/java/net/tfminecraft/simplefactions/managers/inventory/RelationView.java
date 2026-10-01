@@ -334,7 +334,7 @@ public class RelationView {
 			RelationType r = RelationLoader.getType(rid);
 			
 			if(origin.getRelation(f.getId()).getType().hasLock()) {
-				p.sendMessage("§cYou are not allowed to change your relationship with "+f.getName()+"§c!");
+				p.sendMessage("§cOnly "+f.getName()+"§c can end this relationship.");
 				return;
 			}
 			if(r.isVassalage()) {
@@ -388,7 +388,7 @@ public class RelationView {
 			RelationType current = origin.getDiplomacyHandler().getTradeRelation(f.getId());
 			RelationType theirCurrent = f.getDiplomacyHandler().getTradeRelation(origin.getId());
 			if(current != null && current.hasLock()) {
-				p.sendMessage("§cYou are not allowed to change your relationship with "+f.getName()+"§c!");
+				p.sendMessage("§cOnly "+f.getName()+"§c can end this relationship.");
 				return;
 			}
 
@@ -418,7 +418,7 @@ public class RelationView {
 			RelationType current = origin.getDiplomacyHandler().getTreatyRelation(f.getId());
 			RelationType theirCurrent = f.getDiplomacyHandler().getTreatyRelation(origin.getId());
 			if(current != null && current.hasLock()) {
-				p.sendMessage("§cYou are not allowed to change your relationship with "+f.getName()+"§c!");
+				p.sendMessage("§cOnly "+f.getName()+"§c can end this relationship.");
 				return;
 			}
 
