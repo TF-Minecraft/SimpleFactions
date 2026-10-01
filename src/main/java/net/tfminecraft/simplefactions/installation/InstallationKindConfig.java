@@ -5,7 +5,11 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public final class InstallationKindConfig {
-    public record Level(double dailyUpkeep, int constructionTimeSeconds, Map<String, Integer> categorySlots) {
+    public record Level(
+            double dailyUpkeep,
+            int constructionTimeSeconds,
+            Map<String, Integer> categorySlots,
+            int hubSlots) {
         public Level {
             categorySlots = Collections.unmodifiableMap(categorySlots);
         }
@@ -57,5 +61,9 @@ public final class InstallationKindConfig {
 
     public Map<String, Integer> getCategorySlots(int level) {
         return getLevel(level).categorySlots();
+    }
+
+    public int getHubSlots(int level) {
+        return getLevel(level).hubSlots();
     }
 }

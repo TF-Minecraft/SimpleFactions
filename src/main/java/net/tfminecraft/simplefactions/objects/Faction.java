@@ -30,6 +30,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.loaders.TierLoader;
@@ -136,6 +137,8 @@ public class Faction {
 
 	//Installations
 	private final InstallationHandler installationHandler;
+
+	private final List<String> hubPermits = new ArrayList<>();
 
 	private final List<WarReparationsObligation> warReparationsObligations = new ArrayList<>();
 	
@@ -466,6 +469,33 @@ public class Faction {
 
 	public InstallationHandler getInstallationHandler() {
 		return installationHandler;
+	}
+
+	public List<String> getHubPermits() {
+		return hubPermits;
+	}
+
+	public void loadHubPermits(List<String> permits) {
+		hubPermits.clear();
+		if (permits == null) {
+			return;
+		}
+		for (String guildId : permits) {
+			if (guildId == null || guildId.isBlank()) {
+				continue;
+			}
+			if (!SupplyHubService.hasPermit(hubPermits, guildId)) {
+				hubPermits.add(guildId);
+			}
+		}
+	}
+
+	public boolean hasHubPermit(String guildId) {
+		return SupplyHubService.hasPermit(hubPermits, guildId);
+	}
+
+	public boolean toggleHubPermit(String guildId) {
+		return SupplyHubService.togglePermit(hubPermits, guildId);
 	}
 
 	public ProvinceHandler getProvinceHandler() {

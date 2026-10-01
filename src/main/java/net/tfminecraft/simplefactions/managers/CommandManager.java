@@ -163,6 +163,8 @@ public class CommandManager implements Listener, CommandExecutor{
 				InventoryManager i = new InventoryManager();
 				i.guildList(p);
 				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("hub")) {
+				return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.guild(p, args);
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("invite") && args.length == 2) {
 				Guild guild = FactionManager.getGuildByLeader(p.getName());
 				if(guild == null) {
@@ -618,6 +620,8 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.playSound(p, Sound.BLOCK_ANVIL_USE, 1f, 1f);
 				}
 				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("hubpermit")) {
+				return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.permit(p, args);
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("deconstruct")) {
 				if(!Cache.requireProvinces(p)) {
 					return true;

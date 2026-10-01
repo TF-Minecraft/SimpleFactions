@@ -78,9 +78,18 @@ mercenary-min-price-per-day: 10.0
 mercenary-max-contract-days: 14
 # Pre-filled into a new contract; the real figure lives on the contract itself.
 mercenary-default-breach-refund: 500.0
+
 # Not configurable: the absence refund per slot per battle must be at least
 # mercenary-min-price-per-battle, validated when the contract is created. A
 # smaller refund would make no-showing more profitable per head than fighting.
+
+supply-hubs:
+  # Hubs a guild may have before any upgrades.
+  base-limit: 2
+  # Daily upkeep of a guild's first hub, in denars.
+  base-upkeep: 15
+  # Each further hub costs this many times the one before.
+  upkeep-growth: 1.5
 
 bank-block: iaf(tfmc:bank)
 voting-block: iaf(tfmc:voting_booth)
