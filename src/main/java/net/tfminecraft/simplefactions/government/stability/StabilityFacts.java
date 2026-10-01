@@ -7,8 +7,6 @@ import java.util.List;
 public final class StabilityFacts {
 	public String government = "autocracy";
 	public boolean electedLeadership;
-	public String economy = "decentralized";
-	public String borders = "closed_borders";
 	public int provinces;
 	public boolean bankrupt;
 	public boolean plutocracySeated;
@@ -21,9 +19,6 @@ public final class StabilityFacts {
 		public boolean realm;
 		public int members;
 		public int branchLevels;
-		public double tradePower;
 		public String stance = "SUPPORT";
-		public boolean favoured;
-		public boolean repressed;
 	}
 }
