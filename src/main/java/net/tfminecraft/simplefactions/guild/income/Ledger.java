@@ -754,11 +754,8 @@ public class Ledger {
     }
 
     public double getWarReparationsPayment() {
-        if (!guild.isBase()) {
-            return 0.0;
-        }
         Faction f = guild.getFaction();
-        double base = getReparationsTaxableIncome();
+        double base = getTradeGrossIncome();
         double paid = 0.0;
         for (WarReparationsObligation obligation : WarReparationsService.activeObligations(f)) {
             paid += base * (obligation.getIncomePercent() / 100.0);
@@ -779,16 +776,21 @@ public class Ledger {
             if (f == null || f.getId().equals(self.getId())) {
                 continue;
             }
-            Guild payerGuild = f.getOrCreateMainGuild();
-            if (payerGuild == null || payerGuild.getLedger() == null) {
+            if (f.getGuildHandler() == null) {
                 continue;
             }
-            double base = payerGuild.getLedger().getReparationsTaxableIncome();
             for (WarReparationsObligation obligation : WarReparationsService.activeObligations(f)) {
                 if (!self.getId().equalsIgnoreCase(obligation.getPayeeFactionId())) {
                     continue;
                 }
-                total += base * (obligation.getIncomePercent() / 100.0);
+                for (Guild payerGuild : f.getGuildHandler().getGuilds()) {
+                    if (payerGuild == null) {
+                        continue;
+                    }
+                    TradeBreakdown trade = payerGuild.getTradeBreakdown();
+                    double grossTradeIncome = trade == null ? 0.0 : trade.getIncome();
+                    total += grossTradeIncome * (obligation.getIncomePercent() / 100.0);
+                }
             }
         }
         return total;
@@ -796,6 +798,11 @@ public class Ledger {
 
     double getReparationsTaxableIncome() {
         return getInternalTaxableIncome();
+    }
+
+    private double getTradeGrossIncome() {
+        TradeBreakdown trade = guild.getTradeBreakdown();
+        return trade == null ? 0.0 : Math.max(0.0, trade.getIncome());
     }
 
     /**
@@ -1104,12 +1111,9 @@ public class Ledger {
             }
 
             case WAR_REPARATIONS_PAYMENT: {
-                if (!guild.isBase()) {
-                    return;
-                }
                 Faction f = guild.getFaction();
                 if (f == null) return;
-                double base = getReparationsTaxableIncome();
+                double base = getTradeGrossIncome();
                 for (WarReparationsObligation obligation : WarReparationsService.activeObligations(f)) {
                     if (obligation == null) continue;
                     Faction receiverFaction = FactionManager.getByString(obligation.getPayeeFactionId());
