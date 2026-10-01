@@ -158,6 +158,23 @@ public class ProvinceManager {
      */
     private void carryTradeThroughHubs(Guild guild) {
         List<Link> links = HubNetwork.linksFor(guild);
+        if (links.isEmpty()) return;
+        // Prosperity weighs production by a province's distance from where it came. Trade arriving
+        // through a hub must not shorten that for production that still walked from the capital,
+        // so the walked distances are put back afterwards. Production a hub delivers sets its own.
+        Map<Integer, Integer> walked = new HashMap<>();
+        for (Province province : provinces.values()) {
+            ProvinceDataEntry entry = province.getAllData().get(guild.getId());
+            if (entry != null) walked.put(province.getId(), entry.getDistance());
+        }
+        deliverTradeThroughHubs(guild, links);
+        for (Map.Entry<Integer, Integer> distance : walked.entrySet()) {
+            ProvinceDataEntry entry = provinces.get(distance.getKey()).getAllData().get(guild.getId());
+            if (entry != null) entry.setDistance(distance.getValue());
+        }
+    }
+
+    private void deliverTradeThroughHubs(Guild guild, List<Link> links) {
         for (int pass = 0; pass <= links.size(); pass++) {
             boolean moved = false;
             for (Link link : links) {

@@ -73,6 +73,21 @@ class HubNetworkTest {
     }
 
     @Test
+    void aTrackLengthThatIsNotARealDistanceIsNoConnection() {
+        Installation a = installation("a", InstallationKind.TRAIN_STATION, 1, 0, 0);
+        Installation b = installation("b", InstallationKind.TRAIN_STATION, 5, 300, 400);
+
+        HubNetwork.setRailRoutesForTests((from, to) -> OptionalDouble.of(Double.NaN));
+        assertNull(HubNetwork.connect(a, b, provinces));
+
+        HubNetwork.setRailRoutesForTests((from, to) -> OptionalDouble.of(-50));
+        assertNull(HubNetwork.connect(a, b, provinces));
+
+        HubNetwork.setRailRoutesForTests((from, to) -> OptionalDouble.of(Double.POSITIVE_INFINITY));
+        assertNull(HubNetwork.connect(a, b, provinces));
+    }
+
+    @Test
     void trackIsMeasuredOncePerPairUntilForgotten() {
         int[] calls = {0};
         HubNetwork.setRailRoutesForTests((from, to) -> {

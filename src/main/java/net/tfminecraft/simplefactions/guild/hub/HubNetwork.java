@@ -143,7 +143,7 @@ public final class HubNetwork {
                 distance = straightLine(from, to);
                 break;
         }
-        if (!HubTransport.inRange(rates, distance)) {
+        if (!Double.isFinite(distance) || distance < 0 || !HubTransport.inRange(rates, distance)) {
             return null;
         }
         return HubTransport.link(from.getProvince(), to.getProvince(), mode, distance);

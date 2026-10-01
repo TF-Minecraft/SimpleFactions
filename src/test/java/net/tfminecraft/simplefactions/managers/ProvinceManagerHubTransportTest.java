@@ -98,11 +98,40 @@ class ProvinceManagerHubTransportTest {
         assertEquals(14, trade(22), 1e-9);
         assertEquals(14 * 0.85, trade(21), 1e-9);
         assertEquals(14 * 0.85, trade(23), 1e-9);
-        assertEquals(0, provinces.get(22).getData("guild").getDistance());
+        assertEquals(0, distance(22));
+        assertEquals(1, distance(21));
         assertEquals(2.5, production(22), 1e-9);
         assertTrue(production(21) > 0 && production(21) < 2.5);
         // The road in between gets nothing from the journey.
         assertEquals(0, trade(12));
+    }
+
+    @Test
+    void tradeOnlyDeliveryKeepsTheWalkedDistanceForProductionThatWalked() {
+        // Province 4 is three steps from the capital. An air link brings more trade there but no
+        // production, so the production that walked in is still weighed as three steps away.
+        link(new Link(1, 4, Mode.AIR, 0, 0.9, 0));
+
+        recalculate();
+
+        assertEquals(18, trade(4), 1e-9);
+        assertTrue(production(4) > 0);
+        assertEquals(3, distance(4));
+        assertEquals(2, distance(3));
+        assertEquals(4, distance(5));
+    }
+
+    @Test
+    void productionDeliveredByAHubIsMeasuredFromThatHub() {
+        recalculate();
+        double walkedProduction = production(4);
+        link(new Link(1, 4, Mode.RAIL, 0, 0.9, 0.9));
+
+        recalculate();
+
+        assertTrue(production(4) > walkedProduction);
+        assertEquals(9, production(4), 1e-9);
+        assertEquals(0, distance(4));
     }
 
     @Test
@@ -205,6 +234,10 @@ class ProvinceManagerHubTransportTest {
 
     private double trade(int province) {
         return provinces.get(province).getStoredGuildTrade(guild);
+    }
+
+    private int distance(int province) {
+        return provinces.get(province).getData("guild").getDistance();
     }
 
     private double production(int province) {

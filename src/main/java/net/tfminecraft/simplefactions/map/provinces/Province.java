@@ -285,6 +285,7 @@ public class Province {
     /**
      * Starts a second source of production here, as a supply hub does, and spreads it to the
      * neighbours by the usual rule. Does nothing if the guild already has as much here.
+     * Where this production wins, the province is measured from the hub instead of the capital.
      */
     public void seedProduction(ProvinceManager manager, Guild guild, double amount) {
         if (amount < 0.1) return;
@@ -298,11 +299,46 @@ public class Province {
             data.put(guild.getId(), entry);
         }
         entry.setProduction(amount);
+        entry.setDistance(0);
 
         for (Integer n : neighbours) {
             Province neighbour = manager.get(n);
             if (neighbour != null) {
-                neighbour.calculateProduction(manager, guild, entry, 1);
+                neighbour.spreadHubProduction(manager, guild, entry, 1);
+            }
+        }
+    }
+
+    /**
+     * {@link #calculateProduction} for production that came from a hub. Where it wins, the
+     * province's distance becomes the distance from that hub, because prosperity weighs
+     * production by how far it travelled.
+     */
+    private void spreadHubProduction(
+            ProvinceManager manager,
+            Guild guild,
+            ProvinceDataEntry prev,
+            int distance
+    ) {
+        double factor = Math.pow(getTradeCarry(), 0.5) * getTradeFactor(guild);
+        double amount = prev.getProduction() * factor;
+        if (amount < 0.1) return;
+
+        ProvinceDataEntry entry = data.get(guild.getId());
+        if (entry != null && entry.getProduction() >= amount) {
+            return;
+        }
+        if (entry == null) {
+            entry = new ProvinceDataEntry(guild);
+            data.put(guild.getId(), entry);
+        }
+        entry.setProduction(amount);
+        entry.setDistance(distance);
+
+        for (Integer n : neighbours) {
+            Province neighbour = manager.get(n);
+            if (neighbour != null) {
+                neighbour.spreadHubProduction(manager, guild, entry, distance + 1);
             }
         }
     }
