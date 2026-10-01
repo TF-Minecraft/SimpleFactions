@@ -90,6 +90,8 @@ supply-hubs:
   base-upkeep: 15
   # Each further hub costs this many times the one before.
   upkeep-growth: 1.5
+  # Maximum hub tax rate a host faction can set.
+  max-tax: 50
   # A hub takes the guild's trade power and production in its province and delivers a share
   # to each of the guild's hubs it is connected to. Train stations connect by track, ports
   # across the sea, airports through the air; different kinds do not connect.

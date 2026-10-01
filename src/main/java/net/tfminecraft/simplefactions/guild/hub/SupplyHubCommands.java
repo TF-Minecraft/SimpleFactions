@@ -251,6 +251,9 @@ public final class SupplyHubCommands {
                     hub, guild.getSupplyHubs(), SupplyHubService.baseUpkeep(), SupplyHubService.upkeepGrowth());
             player.sendMessage("§f" + name + " §7(" + kind + ") §7owned by §f" + ownerName);
             player.sendMessage("§7Upkeep: §e" + Formatter.formatMoney(cost) + "d/day §7" + statusOf(guild, hub, installation));
+            HubTaxBreakdown.Assessment assessment = guild.getHubTaxBreakdown().forHub(hub);
+            player.sendMessage("§7Taxable income: §e" + Formatter.formatMoney(assessment.taxableIncome())
+                    + "d/day §7Hub Tax: §e" + Formatter.formatMoney(assessment.tax()) + "d/day");
             for (String line : connectionLines(guild, installation)) {
                 player.sendMessage(line);
             }

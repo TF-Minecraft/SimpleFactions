@@ -504,6 +504,8 @@ public class FactionManager implements Listener{
 			runDailyStep("supply hub links", () -> {
 				net.tfminecraft.simplefactions.guild.hub.HubNetwork.forgetRoutes();
 				SimpleFactions.getInstance().getProvinceManager().recalculate();
+				net.tfminecraft.simplefactions.guild.hub.HubTaxService.refresh(
+						SimpleFactions.getInstance().getProvinceManager());
 			});
 			runDailyStep("income", this::settleIncome);
 			timer = 0;

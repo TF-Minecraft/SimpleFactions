@@ -90,6 +90,8 @@ public final class SupplyHubService {
                 }
             }
         }
+        double maxTax = config == null ? 50.0 : config.getDouble("supply-hubs.max-tax", 50.0);
+        Cache.supplyHubMaxTax = Double.isFinite(maxTax) ? Math.max(0, Math.min(100, maxTax)) : 50.0;
         Cache.supplyHubBaseLimit = limit;
         Cache.supplyHubBaseUpkeep = upkeep;
         Cache.supplyHubUpkeepGrowth = growth;

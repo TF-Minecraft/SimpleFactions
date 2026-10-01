@@ -34,6 +34,9 @@ public class FactionData {
 
     public Double tariffs;
 
+    @SerializedName("hub tax")
+    public Double hubTax;
+
     @SerializedName("specific taxes")
     public HashMap<String, HashMap<String, Double>> specificTaxes = new HashMap<>();
 

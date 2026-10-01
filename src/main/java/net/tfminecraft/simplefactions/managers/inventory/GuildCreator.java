@@ -178,6 +178,7 @@ public class GuildCreator {
 			}
 			lore.add(StringFormatter.formatHex("#d4c9aeUpkeep from trade: #cb5b4f"+guild.getTradeBreakdown().getUpkeep()));
 			lore.add(StringFormatter.formatHex("#d4c9aeTariffs Paid: #b23c2f"+guild.getTradeBreakdown().getTariffs()));
+			lore.add(StringFormatter.formatHex("#d4c9aeHub Tax Paid: #b23c2f"+guild.getHubTaxBreakdown().getTotalTax()));
 			lore.add(StringFormatter.formatHex("#d4c9aeTotal Trade Power: #a4bc5c"+guild.getTradeBreakdown().getTradePower()));
 			String pillageLine = PillageTradeHit.breakdownLine(guild);
 			if (pillageLine != null) {
@@ -333,7 +334,8 @@ public class GuildCreator {
 			lore.add(StringFormatter.formatHex("#ed1313No capital!"));
 		} else {
 			lore.add("");
-			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+guild.getTradeBreakdown().getNetTradeIncome()));
+			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
+					guild.getTradeBreakdown().getNetTradeIncome() - guild.getHubTaxBreakdown().getTotalTax())));
 			lore.add(incomeChangeLine(delta));
 		}
 		lore.add("");
@@ -379,7 +381,8 @@ public class GuildCreator {
 			lore.add("");
 			lore.add(StringFormatter.formatHex("#ed1313No capital!"));
 		} else {
-			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+guild.getTradeBreakdown().getNetTradeIncome()));
+			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
+					guild.getTradeBreakdown().getNetTradeIncome() - guild.getHubTaxBreakdown().getTotalTax())));
 			lore.add(incomeChangeLine(delta));
 		}
 		lore.add("");
@@ -626,6 +629,38 @@ public class GuildCreator {
 		}
 
 		m.setLore(ledgerSourceLore(g, LedgerHistory.Source.TARIFFS, "Top tariff payers", today, "No tariff income."));
+		i.setItemMeta(m);
+		return i;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createLedgerHubTaxItem(Guild g, boolean payments) {
+		ItemStack i = new ItemStack(Material.EMERALD);
+		ItemMeta m = i.getItemMeta();
+		m.setDisplayName(StringFormatter.formatHex("#5cc46aHub Tax" + (payments ? " Paid" : "")));
+		Map<String, Double> today = new HashMap<>();
+		if (payments) {
+			if (!g.isBankrupt() && g.getHubTaxBreakdown() != null) {
+				g.getHubTaxBreakdown().getTaxesByFaction().forEach((host, tax) -> {
+					if (tax > 0) {
+						today.merge(host.getName(), tax, Double::sum);
+					}
+				});
+			}
+		} else {
+			for (Guild payer : FactionManager.getAllGuilds()) {
+				if (payer.isBankrupt() || payer.getBank() == null || payer.getHubTaxBreakdown() == null) {
+					continue;
+				}
+				double tax = payer.getHubTaxBreakdown().getTax(g.getFaction());
+				if (tax > 0) {
+					today.merge(payer.getFaction().getName(), tax, Double::sum);
+				}
+			}
+		}
+		m.setLore(ledgerSourceLore(g, payments ? LedgerHistory.Source.HUB_TAX_PAYMENTS : LedgerHistory.Source.HUB_TAX,
+				payments ? "Top hub tax hosts" : "Top hub tax payers", today, "No hub tax today."));
 		i.setItemMeta(m);
 		return i;
 	}

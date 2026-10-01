@@ -191,7 +191,7 @@ public class GovernmentView {
 	@SuppressWarnings("deprecation")
 	public void taxProposalView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
-		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_PROPOSAL_VIEW), 9, "§7Select Tax Type");
+		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_PROPOSAL_VIEW), 18, "§7Select Tax Type");
 		i.clear();
 		int x = 0;
 		for(TaxTarget target : TaxTarget.values()) {
@@ -199,7 +199,7 @@ public class GovernmentView {
 			i.setItem(x, creator.createTaxTypeItem(player, f, target, true));
 			x++;
 		}
-		i.setItem(8, inv.createBackButton(SFGUI.TAX_PROPOSAL_VIEW));
+		i.setItem(17, inv.createBackButton(SFGUI.TAX_PROPOSAL_VIEW));
 		if(open) player.openInventory(i);
 	}
 

@@ -222,6 +222,10 @@ public final class IncomePreviewContext {
         return owner != null && faction == owner && (law != null || taxRate != null);
     }
 
+    public boolean affectsHubTax(Faction owner) {
+        return owner != null && faction == owner && (law != null || taxTarget == TaxTarget.HUB_TAX);
+    }
+
     private boolean replaces(TaxHandler handler, TaxTarget query, String id) {
         if (taxTarget == null || query == null) {
             return false;
@@ -253,7 +257,9 @@ public final class IncomePreviewContext {
         }
         if (effect.hasBrackets()) {
             for (Map.Entry<Brackets, Bracket> entry : effect.getBrackets().entrySet()) {
-                if (BracketToTaxTarget.convert(entry.getKey()) == family && entry.getValue() != null) {
+                if ((BracketToTaxTarget.convert(entry.getKey()) == family
+                        || (family == TaxTarget.HUB_TAX && entry.getKey() == Brackets.TARIFFS))
+                        && entry.getValue() != null) {
                     rate = clamp(rate, entry.getValue());
                 }
             }
@@ -299,7 +305,7 @@ public final class IncomePreviewContext {
             case GUILDS, GUILD_ID -> Rules.GUILD_TAX;
             case VASSALS, VASSAL_ID -> Rules.VASSAL_TAX;
             case DIVIDENDS -> Rules.DIVIDEND_TAX;
-            case TARIFFS, TARIFF_ID -> Rules.TARIFFS;
+            case TARIFFS, TARIFF_ID, HUB_TAX -> Rules.TARIFFS;
             default -> null;
         };
     }
