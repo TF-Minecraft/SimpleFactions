@@ -112,13 +112,13 @@ public final class SupplyHubCommands {
         }
         if (args.length == 2) {
             completions.add("list");
-            if (guild.isLeader(player)) {
+            if (isLeader(guild, player)) {
                 completions.add("build");
                 completions.add("remove");
             }
             return completions;
         }
-        if (args.length == 3 && args[1].equalsIgnoreCase("remove") && guild.isLeader(player)) {
+        if (args.length == 3 && args[1].equalsIgnoreCase("remove") && isLeader(guild, player)) {
             return completeRemove(guild.getSupplyHubs());
         }
         return completions;
@@ -179,7 +179,7 @@ public final class SupplyHubCommands {
             player.sendMessage("§cYou are not in a guild");
             return true;
         }
-        if (!guild.isLeader(player)) {
+        if (!isLeader(guild, player)) {
             player.sendMessage("§cOnly the guild leader can build a supply hub");
             return true;
         }
@@ -255,7 +255,7 @@ public final class SupplyHubCommands {
             player.sendMessage("§cYou are not in a guild");
             return true;
         }
-        if (!guild.isLeader(player)) {
+        if (!isLeader(guild, player)) {
             player.sendMessage("§cOnly the guild leader can remove a supply hub");
             return true;
         }
@@ -360,6 +360,11 @@ public final class SupplyHubCommands {
         }
         Province province = plugin.getProvinceManager().get(provinceId);
         return SupplyHubService.exportedTrade(province, guildId);
+    }
+
+    /** A realm guild is led by its faction's leader, which {@link Guild#getLeader()} resolves. */
+    private static boolean isLeader(Guild guild, Player player) {
+        return player.getName().equalsIgnoreCase(guild.getLeader());
     }
 
     private static Player online(String name) {

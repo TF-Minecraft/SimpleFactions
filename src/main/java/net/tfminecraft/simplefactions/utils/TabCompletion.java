@@ -195,8 +195,7 @@ public class TabCompletion implements TabCompleter{
 			if(sender instanceof Player){
 				Player p = (Player) sender;
 				List<String> completions = new ArrayList<>();
-				if(FactionManager.getGuildByMember(p.getName()) != null) {
-					completions.add("menu");
+				if(FactionManager.getGuildByMember(p.getName()) != null && Cache.provincesEnabled) {
 					completions.add("hub");
 				}
 				completions.add("create");
