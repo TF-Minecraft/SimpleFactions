@@ -12,7 +12,7 @@ public final class VehicleCategoryRules {
             return false;
         }
         for (InstallationKind kind : InstallationKind.values()) {
-            if (InstallationConfigLoader.getCategorySlotCapacity(kind, categoryId) > 0) {
+            if (InstallationConfigLoader.getCategorySlotCapacity(kind, 1, categoryId) > 0) {
                 return true;
             }
         }

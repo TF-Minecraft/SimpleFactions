@@ -423,7 +423,8 @@ public class FactionCreator {
 				int trainStations = 0;
 				double totalUpkeep = 0;
 				for(Installation installation : f.getInstallationHandler().getAll()) {
-					totalUpkeep += InstallationConfigLoader.getDailyUpkeep(installation.getKind());
+					totalUpkeep += InstallationConfigLoader.getDailyUpkeep(
+							installation.getKind(), installation.getLevel());
 					if(installation.getKind() == InstallationKind.FORT) forts++;
 					else if(installation.getKind() == InstallationKind.PORT) ports++;
 					else if(installation.getKind() == InstallationKind.AIRPORT) airports++;

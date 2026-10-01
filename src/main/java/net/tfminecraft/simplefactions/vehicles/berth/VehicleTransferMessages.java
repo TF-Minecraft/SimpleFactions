@@ -125,6 +125,7 @@ public final class VehicleTransferMessages {
         String category = VehiclesConfigLoader.getCategoryId(vehicleTypeId).orElse("vehicle");
         int capacity = InstallationConfigLoader.getCategorySlotCapacity(
                 installation.getKind(),
+                installation.getLevel(),
                 category);
         int used = SimpleFactions.getVehicleRegistry().usedCategorySize(
                 net.tfminecraft.simplefactions.installation.InstallationOwners.ownerIdOf(installation),

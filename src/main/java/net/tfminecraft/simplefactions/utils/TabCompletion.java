@@ -222,6 +222,17 @@ public class TabCompletion implements TabCompleter{
 				return completeConstructKinds(args);
 			}
 		}
+		else if (cmd.getName().equalsIgnoreCase("faction")
+				&& args.length >= 1
+				&& args.length <= 2
+				&& args[0].equalsIgnoreCase("upgrade")) {
+			if (!Cache.provincesEnabled
+					|| !(sender instanceof Player p)
+					|| FactionManager.getByLeader(p.getName()) == null) {
+				return new ArrayList<>();
+			}
+			return completeInstallationIds(p, args.length >= 2 ? args[1] : "", false);
+		}
 		else if(cmd.getName().equalsIgnoreCase("faction")
 				&& args.length >= 1
 				&& args.length <= 2
@@ -301,6 +312,7 @@ public class TabCompletion implements TabCompleter{
 						completions.add("claim");
 						completions.add("construct");
 						completions.add("deconstruct");
+						completions.add("upgrade");
 						completions.add("unclaim");
 						completions.add("setcapital");
 					}
@@ -330,6 +342,7 @@ public class TabCompletion implements TabCompleter{
 					completions.add("getglobalwealth");
 					if(Cache.provincesEnabled) {
 						completions.add("forceconstruct");
+						completions.add("forceupgrade");
 						completions.add("queueallnations");
 						completions.add("fullregen");
 						completions.add("reloadtitles");
@@ -548,6 +561,29 @@ public class TabCompletion implements TabCompleter{
 					}
 					return completions;
 				}
+			} else if (cmd.getName().equalsIgnoreCase("faction")
+					&& Cache.provincesEnabled
+					&& args.length == 2
+					&& args[0].equalsIgnoreCase("forceupgrade")) {
+				List<String> completions = new ArrayList<>();
+				for (Faction f : FactionManager.factions) {
+					completions.add(f.getId());
+				}
+				return completions;
+			} else if (cmd.getName().equalsIgnoreCase("faction")
+					&& Cache.provincesEnabled
+					&& args.length == 3
+					&& args[0].equalsIgnoreCase("forceupgrade")) {
+				Faction f = FactionManager.getByString(args[1]);
+				List<String> completions = new ArrayList<>();
+				if (f != null) {
+					for (Installation installation : f.getInstallationHandler().getAll()) {
+						completions.add(installation.getId());
+					}
+				}
+				String prefix = args[2].toLowerCase();
+				completions.removeIf(id -> !id.toLowerCase().startsWith(prefix));
+				return completions;
 			} else if(cmd.getName().equalsIgnoreCase("faction")
 					&& Cache.provincesEnabled
 					&& args.length == 2

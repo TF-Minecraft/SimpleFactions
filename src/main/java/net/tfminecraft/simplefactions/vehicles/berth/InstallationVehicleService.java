@@ -69,6 +69,7 @@ public final class InstallationVehicleService {
 
         int capacity = InstallationConfigLoader.getCategorySlotCapacity(
                 installation.getKind(),
+                installation.getLevel(),
                 categoryId.get());
         if (capacity <= 0) {
             return CanRegisterResult.UNSUPPORTED_CATEGORY;

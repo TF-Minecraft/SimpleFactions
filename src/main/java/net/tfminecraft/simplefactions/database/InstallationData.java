@@ -8,4 +8,5 @@ public class InstallationData {
     public Integer centerX;
     public Integer centerZ;
     public Long completedAt;
+    public Integer level;
 }

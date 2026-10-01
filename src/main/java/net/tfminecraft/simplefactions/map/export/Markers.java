@@ -67,15 +67,7 @@ public final class Markers {
         JsonArray installations = new JsonArray();
         for (Faction faction : FactionManager.factions) {
             for (Installation installation : faction.getInstallationHandler().getAll()) {
-                JsonObject row = new JsonObject();
-                row.addProperty("id", installation.getId());
-                row.addProperty("name", installation.getName());
-                row.addProperty("kind", installationKind(installation));
-                row.addProperty("faction_id", faction.getId());
-                row.addProperty("province_id", installation.getProvince());
-                row.addProperty("center_x", installation.getCenterX());
-                row.addProperty("center_z", installation.getCenterZ());
-                installations.add(row);
+                installations.add(installationRow(installation, faction.getId()));
             }
         }
         root.add("installations", installations);
@@ -120,6 +112,19 @@ public final class Markers {
         try (FileWriter writer = new FileWriter(out, StandardCharsets.UTF_8)) {
             new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
         }
+    }
+
+    static JsonObject installationRow(Installation installation, String factionId) {
+        JsonObject row = new JsonObject();
+        row.addProperty("id", installation.getId());
+        row.addProperty("name", installation.getName());
+        row.addProperty("kind", installationKind(installation));
+        row.addProperty("faction_id", factionId);
+        row.addProperty("province_id", installation.getProvince());
+        row.addProperty("center_x", installation.getCenterX());
+        row.addProperty("center_z", installation.getCenterZ());
+        row.addProperty("level", installation.getLevel());
+        return row;
     }
 
     static String installationKind(Installation installation) {

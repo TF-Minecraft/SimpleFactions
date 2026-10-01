@@ -26,3 +26,14 @@ train_station:
   construction-time: 259200
   slots:
     static_emplacements: 2
+  levels:
+    2:
+      daily-upkeep: 35
+      construction-time: 259200
+      slots:
+        static_emplacements: 3
+    3:
+      daily-upkeep: 100
+      construction-time: 432000
+      slots:
+        static_emplacements: 4

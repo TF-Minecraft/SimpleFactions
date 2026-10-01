@@ -9,4 +9,5 @@ public class InstallationConstructionData {
     public Integer centerZ;
     public Integer timeLeft;
     public Long startedAt;
+    public Boolean upgrade;
 }

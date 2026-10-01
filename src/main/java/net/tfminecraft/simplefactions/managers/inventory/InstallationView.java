@@ -19,6 +19,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.enums.SFGUI;
 import net.tfminecraft.simplefactions.installation.Installation;
@@ -91,9 +92,9 @@ public class InstallationView {
     public void installationDetailView(Player player, Faction f, String installationId, Inventory inventory) {
         InstallationHandler handler = f.getInstallationHandler();
         InstallationConstruction pending = handler.getPendingConstruction();
-        boolean isPending =
-                pending != null && pending.getId().equalsIgnoreCase(installationId);
+        boolean isPending = isPendingConstruction(pending, installationId);
         Installation installation = handler.getById(installationId);
+        boolean upgrading = isPendingUpgrade(pending, installationId) && installation != null;
 
         if (!isPending && installation == null) {
             if (inventory == null) {
@@ -117,9 +118,14 @@ public class InstallationView {
 
         boolean leader = f.getLeader().equalsIgnoreCase(player.getName());
         if (isPending) {
-            inventory.setItem(49, creator.createConstructionDetailItem(pending));
+            inventory.setItem(
+                    49,
+                    creator.createConstructionDetailItem(
+                            pending, handler.getById(pending.getId())));
         } else {
-            inventory.setItem(49, creator.createDetailItem(installation));
+            inventory.setItem(
+                    49,
+                    creator.createDetailItem(installation, upgrading ? pending : null));
             List<PlayerVehicleRecord> berthed =
                     SimpleFactions.getVehicleRegistry().getByInstallation(f.getId(), installation.getId());
             berthed.sort(Comparator.comparing(PlayerVehicleRecord::getVehicleTypeId));
@@ -137,8 +143,19 @@ public class InstallationView {
         if (leader) {
             inventory.setItem(
                     11, creator.createDeconstructButton(installationId, isPending));
+            if (upgrading) {
+                inventory.setItem(
+                        13, creator.createCancelUpgradeButton(installation, pending));
+            } else if (!isPending
+                    && InstallationConfigLoader.getMaximumLevel(installation.getKind())
+                            > installation.getLevel()) {
+                inventory.setItem(13, creator.createUpgradeButton(installation));
+            } else {
+                inventory.setItem(13, new ItemStack(Material.AIR, 1));
+            }
         } else {
             inventory.setItem(11, new ItemStack(Material.AIR, 1));
+            inventory.setItem(13, new ItemStack(Material.AIR, 1));
         }
 
         inventory.setItem(53, inv.createBackButton(SFGUI.INSTALLATION_DETAIL_VIEW));
@@ -183,6 +200,32 @@ public class InstallationView {
 
         if (holder.getType() == SFGUI.INSTALLATION_DETAIL_VIEW) {
             int slot = event.getSlot();
+            if (slot == 13) {
+                ItemStack upgradeItem = event.getCurrentItem();
+                if (upgradeItem == null
+                        || !upgradeItem.hasItemMeta()
+                        || !f.getLeader().equalsIgnoreCase(player.getName())) {
+                    return;
+                }
+                String id = upgradeItem.getItemMeta()
+                        .getPersistentDataContainer()
+                        .get(Keys.STRING_KEY, PersistentDataType.STRING);
+                if (id == null) {
+                    return;
+                }
+                inv.confirming.put(player, f);
+                InstallationConstruction pending = f.getInstallationHandler()
+                        .getPendingConstruction();
+                String action =
+                        pending != null
+                                && pending.isUpgrade()
+                                && pending.getId().equalsIgnoreCase(id)
+                                        ? "installation_cancel_upgrade"
+                                        : "installation_upgrade";
+                inv.confirmView(player, f, action, id);
+                player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+                return;
+            }
             if (slot >= 0 && slot <= 44) {
                 handleBerthedVehicleClick(event, inventory, player, f);
                 return;
@@ -246,5 +289,17 @@ public class InstallationView {
             installationDetailView(player, faction, installationId);
             player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
         }
+    }
+
+    static boolean isPendingConstruction(InstallationConstruction pending, String installationId) {
+        return pending != null
+                && !pending.isUpgrade()
+                && pending.getId().equalsIgnoreCase(installationId);
+    }
+
+    static boolean isPendingUpgrade(InstallationConstruction pending, String installationId) {
+        return pending != null
+                && pending.isUpgrade()
+                && pending.getId().equalsIgnoreCase(installationId);
     }
 }

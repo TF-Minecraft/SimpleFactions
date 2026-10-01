@@ -315,7 +315,8 @@ public class Ledger {
                 }
                 for (Installation installation : f.getInstallationHandler().getAll()) {
                     if (installation == null) continue;
-                    amount -= InstallationConfigLoader.getDailyUpkeep(installation.getKind());
+                    amount -= InstallationConfigLoader.getDailyUpkeep(
+                            installation.getKind(), installation.getLevel());
                 }
                 break;
             case VEHICLE_UPKEEP:
