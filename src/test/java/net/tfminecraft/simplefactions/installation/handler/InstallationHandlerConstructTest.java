@@ -210,6 +210,50 @@ class InstallationHandlerConstructTest {
 		}
 	}
 
+	@Test
+	void constructInstant_trainStation_succeedsWithoutPortPlacementRule() {
+		Fixture fx = fixture();
+		try (TestMocks mocks = testMocks(fx, false)) {
+			mocks.portProximity(false);
+
+			ConstructResult result = fx.handler.constructInstant(
+					InstallationKind.TRAIN_STATION, "central_station", PROVINCE, X, Z);
+
+			assertTrue(result.isSuccess());
+			assertNotNull(fx.handler.getByProvince(InstallationKind.TRAIN_STATION, PROVINCE));
+			mocks.verifyMapEnqueue();
+		}
+	}
+
+	@Test
+	void constructInstant_duplicateTrainStationInProvince_fails() {
+		Fixture fx = fixture();
+		fx.handler.acceptTransferred(new Installation(
+				"existing_station", "Existing Station", InstallationKind.TRAIN_STATION, PROVINCE, 0, 0, 1L));
+		try (TestMocks mocks = testMocks(fx, false)) {
+			org.mockito.Mockito.clearInvocations(mocks.map);
+			ConstructResult result = fx.handler.constructInstant(
+					InstallationKind.TRAIN_STATION, "central_station", PROVINCE, X, Z);
+
+			assertFalse(result.isSuccess());
+			assertTrue(result.getMessage().contains("already has a train station"));
+			mocks.verifyNoMapEnqueue();
+		}
+	}
+
+	@Test
+	void constructInstant_trainStationOnSea_fails() {
+		Fixture fx = fixture();
+		try (TestMocks mocks = testMocks(fx, false, true)) {
+			ConstructResult result = fx.handler.constructInstant(
+					InstallationKind.TRAIN_STATION, "central_station", PROVINCE, X, Z);
+
+			assertFalse(result.isSuccess());
+			assertTrue(result.getMessage().contains("cannot construct on water"));
+			mocks.verifyNoMapEnqueue();
+		}
+	}
+
 	private static net.tfminecraft.simplefactions.database.InstallationConstructionData pendingData() {
 		net.tfminecraft.simplefactions.database.InstallationConstructionData data =
 				new net.tfminecraft.simplefactions.database.InstallationConstructionData();

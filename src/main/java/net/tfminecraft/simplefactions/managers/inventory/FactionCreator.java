@@ -420,16 +420,19 @@ public class FactionCreator {
 				int forts = 0;
 				int ports = 0;
 				int airports = 0;
+				int trainStations = 0;
 				double totalUpkeep = 0;
 				for(Installation installation : f.getInstallationHandler().getAll()) {
 					totalUpkeep += InstallationConfigLoader.getDailyUpkeep(installation.getKind());
 					if(installation.getKind() == InstallationKind.FORT) forts++;
 					else if(installation.getKind() == InstallationKind.PORT) ports++;
 					else if(installation.getKind() == InstallationKind.AIRPORT) airports++;
+					else if(installation.getKind() == InstallationKind.TRAIN_STATION) trainStations++;
 				}
 				List<String> lore = new ArrayList<String>();
 				lore.add("§7Click to view Installations");
-				lore.add("§7Forts: §e" + forts + " §7Ports: §e" + ports + " §7Airports: §e" + airports);
+				lore.add("§7Forts: §e" + forts + " §7Ports: §e" + ports + " §7Airports: §e" + airports
+						+ " §7Train Stations: §e" + trainStations);
 				lore.add("§7Total upkeep: §e" + Formatter.formatDouble(totalUpkeep) + "d/day");
 				m.setLore(lore);
 				NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");

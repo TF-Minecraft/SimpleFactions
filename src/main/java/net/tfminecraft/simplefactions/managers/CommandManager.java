@@ -585,12 +585,12 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(args.length == 1) {
-					p.sendMessage("§cUsage: §e/faction construct <fort|port|airport> <name>");
+					p.sendMessage("§cUsage: §e/faction construct <fort|port|airport|train_station> <name>");
 					return true;
 				}
 				InstallationKind kind = InstallationKind.fromCommand(args[1]);
 				if(kind == null) {
-					p.sendMessage("§cUnknown installation type. Use: §efort§7, §eport§7, or §eairport");
+					p.sendMessage("§cUnknown installation type. Use: §efort§7, §eport§7, §eairport§7, or §etrain_station");
 					return true;
 				}
 				if(args.length == 2) {
@@ -1258,7 +1258,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(args.length < 2) {
-					p.sendMessage("§cUsage: §e/faction forceconstruct <faction> <fort|port|airport> <name>");
+					p.sendMessage("§cUsage: §e/faction forceconstruct <faction> <fort|port|airport|train_station> <name>");
 					return true;
 				}
 				Faction f = FactionManager.getByString(args[1]);
@@ -1267,12 +1267,12 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				if(args.length < 3) {
-					p.sendMessage("§cUsage: §e/faction forceconstruct <faction> <fort|port|airport> <name>");
+					p.sendMessage("§cUsage: §e/faction forceconstruct <faction> <fort|port|airport|train_station> <name>");
 					return true;
 				}
 				InstallationKind kind = InstallationKind.fromCommand(args[2]);
 				if(kind == null) {
-					p.sendMessage("§cUnknown installation type. Use: §efort§7, §eport§7, or §eairport");
+					p.sendMessage("§cUnknown installation type. Use: §efort§7, §eport§7, §eairport§7, or §etrain_station");
 					return true;
 				}
 				if(args.length < 4) {

@@ -126,7 +126,7 @@ public class InstallationHandler {
 
         return ConstructResult.ok(
                 "§eBuilding "
-                        + kind.getCommandName()
+                        + kind.getDisplayName()
                         + " §f"
                         + validated.name
                         + "§e - §7"
@@ -156,7 +156,7 @@ public class InstallationHandler {
 
         return ConstructResult.ok(
                 "§aConstructed "
-                        + kind.getCommandName()
+                        + kind.getDisplayName()
                         + " §f"
                         + validated.name
                         + " §7("
@@ -171,7 +171,7 @@ public class InstallationHandler {
         }
 
         if (pendingConstruction != null && pendingConstruction.getId().equalsIgnoreCase(id)) {
-            String kindName = pendingConstruction.getKind().getCommandName();
+            String kindName = pendingConstruction.getKind().getDisplayName();
             String constructionName = pendingConstruction.getName();
             clearPendingConstruction();
             return ConstructResult.ok(
@@ -190,7 +190,7 @@ public class InstallationHandler {
         }
 
         String installationName = installation.getName();
-        String kindName = installation.getKind().getCommandName();
+        String kindName = installation.getKind().getDisplayName();
 
         byId.remove(installation.getId());
         byProvinceKind.remove(indexKey(installation.getKind(), installation.getProvince()));
@@ -304,7 +304,7 @@ public class InstallationHandler {
         if (leader != null) {
             leader.sendMessage(
                     "§c"
-                            + installation.getKind().getCommandName()
+                            + installation.getKind().getDisplayName()
                             + " §f"
                             + installation.getName()
                             + " §chas been destroyed");
@@ -318,7 +318,7 @@ public class InstallationHandler {
         if (leader != null) {
             leader.sendMessage(
                     "§c"
-                            + installation.getKind().getCommandName()
+                            + installation.getKind().getDisplayName()
                             + " §f"
                             + installation.getName()
                             + " §chas been destroyed §7(unable to pay upkeep)");
@@ -359,7 +359,7 @@ public class InstallationHandler {
                 || pendingByProvinceKind.containsKey(indexKey(kind, province))) {
             return ValidatedConstruct.fail(
                     ConstructResult.fail(
-                            "§cThis province already has a " + kind.getCommandName()));
+                            "§cThis province already has a " + kind.getDisplayName()));
         }
 
         Province prov = SimpleFactions.getInstance().getProvinceManager().get(province);
@@ -422,7 +422,7 @@ public class InstallationHandler {
         if (leader != null) {
             leader.sendMessage(
                     "§a"
-                            + installation.getKind().getCommandName()
+                            + installation.getKind().getDisplayName()
                             + " §f"
                             + installation.getName()
                             + " §ahas finished construction");

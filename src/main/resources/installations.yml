@@ -20,3 +20,9 @@ airport:
   construction-time: 259200
   slots:
     aircraft: 10
+train_station:
+  radius: 80
+  daily-upkeep: 10
+  construction-time: 259200
+  slots:
+    static_emplacements: 2

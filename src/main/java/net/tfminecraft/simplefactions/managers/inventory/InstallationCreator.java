@@ -32,6 +32,7 @@ public class InstallationCreator {
         int forts = 0;
         int ports = 0;
         int airports = 0;
+        int trainStations = 0;
         double totalUpkeep = 0;
         for (Installation installation : handler.getAll()) {
             totalUpkeep += InstallationConfigLoader.getDailyUpkeep(installation.getKind());
@@ -45,6 +46,9 @@ public class InstallationCreator {
                 case AIRPORT:
                     airports++;
                     break;
+                case TRAIN_STATION:
+                    trainStations++;
+                    break;
                 default:
                     break;
             }
@@ -55,7 +59,8 @@ public class InstallationCreator {
         meta.setDisplayName(StringFormatter.formatHex("#706964Installations"));
         List<String> lore = new ArrayList<>();
         lore.add("§7Total: §e" + handler.getAll().size());
-        lore.add("§7Forts: §e" + forts + " §7Ports: §e" + ports + " §7Airports: §e" + airports);
+        lore.add("§7Forts: §e" + forts + " §7Ports: §e" + ports + " §7Airports: §e" + airports
+                + " §7Train Stations: §e" + trainStations);
         lore.add("§7Total Upkeep: §e" + Formatter.formatDouble(totalUpkeep) + "d/day");
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -65,7 +70,7 @@ public class InstallationCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createInstallationIcon(Installation installation) {
-        ItemStack item = new ItemStack(Material.GREEN_CONCRETE, 1);
+        ItemStack item = new ItemStack(iconFor(installation.getKind()), 1);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(installation.getName());
         meta.setLore(createOperationalLore(installation));
@@ -82,7 +87,7 @@ public class InstallationCreator {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("§eBuilding " + construction.getName());
         List<String> lore = new ArrayList<>();
-        lore.add("§7Kind: §e" + construction.getKind().getCommandName());
+        lore.add("§7Kind: §e" + construction.getKind().getDisplayName());
         lore.add("§7Province: §e" + construction.getProvince());
         lore.add("§7Coords: §e" + construction.getCenterX() + ", " + construction.getCenterZ());
         lore.add("§7Time left: §e" + TimeFormatter.formatTime(construction.getTimeLeft()));
@@ -102,7 +107,7 @@ public class InstallationCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createDetailItem(Installation installation) {
-        ItemStack item = new ItemStack(Material.GREEN_CONCRETE, 1);
+        ItemStack item = new ItemStack(iconFor(installation.getKind()), 1);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(installation.getName());
         meta.setLore(createOperationalLore(installation));
@@ -119,7 +124,7 @@ public class InstallationCreator {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("§eBuilding " + construction.getName());
         List<String> lore = new ArrayList<>();
-        lore.add("§7Kind: §e" + construction.getKind().getCommandName());
+        lore.add("§7Kind: §e" + construction.getKind().getDisplayName());
         lore.add("§7Province: §e" + construction.getProvince());
         lore.add("§7Coords: §e" + construction.getCenterX() + ", " + construction.getCenterZ());
         lore.add("§7Time left: §e" + TimeFormatter.formatTime(construction.getTimeLeft()));
@@ -150,7 +155,7 @@ public class InstallationCreator {
 
     private List<String> createOperationalLore(Installation installation) {
         List<String> lore = new ArrayList<>();
-        lore.add("§7Kind: §e" + installation.getKind().getCommandName());
+        lore.add("§7Kind: §e" + installation.getKind().getDisplayName());
         lore.add("§7Province: §e" + installation.getProvince());
         lore.add(
                 "§7Coords: §e" + installation.getCenterX() + ", " + installation.getCenterZ());
@@ -160,6 +165,10 @@ public class InstallationCreator {
                                 InstallationConfigLoader.getDailyUpkeep(installation.getKind()))
                         + "d/day");
         return lore;
+    }
+
+    private Material iconFor(InstallationKind kind) {
+        return kind == InstallationKind.TRAIN_STATION ? Material.MINECART : Material.GREEN_CONCRETE;
     }
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.

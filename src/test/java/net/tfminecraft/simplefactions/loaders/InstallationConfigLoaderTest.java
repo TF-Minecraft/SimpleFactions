@@ -1,7 +1,7 @@
 package net.tfminecraft.simplefactions.loaders;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,6 +43,26 @@ class InstallationConfigLoaderTest {
         assertEquals(8, InstallationConfigLoader.getCategorySlots(InstallationKind.FORT).get("static_emplacements"));
         assertEquals(2, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.FORT, "land_vehicles"));
         assertEquals(10, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.AIRPORT, "aircraft"));
+        assertEquals(10.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
+        assertEquals(80, InstallationConfigLoader.getRadius(InstallationKind.TRAIN_STATION));
+        assertEquals(259200, InstallationConfigLoader.getConstructionTimeSeconds(InstallationKind.TRAIN_STATION));
+        assertEquals(java.util.Map.of("static_emplacements", 2),
+                InstallationConfigLoader.getCategorySlots(InstallationKind.TRAIN_STATION));
+    }
+
+    @Test
+    void load_usesTrainStationDefaultsWhenSectionIsMissing() throws IOException {
+        InstallationConfigLoader.load(writeInstallationsFixture().toFile());
+
+        assertEquals(80, InstallationConfigLoader.getRadius(InstallationKind.TRAIN_STATION));
+        assertEquals(10.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
+        assertEquals(259200, InstallationConfigLoader.getConstructionTimeSeconds(InstallationKind.TRAIN_STATION));
+        assertEquals(java.util.Map.of("static_emplacements", 2),
+                InstallationConfigLoader.getCategorySlots(InstallationKind.TRAIN_STATION));
+        assertEquals(0, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, "aircraft"));
+        assertEquals(0, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, "land_vehicles"));
+        assertEquals(0, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, "ships"));
+        assertEquals(0, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, "train"));
     }
 
     @Test
@@ -180,6 +200,7 @@ class InstallationConfigLoaderTest {
                   upkeep: 20
                   size: 1
               land_vehicles: {}
+              train: {}
               static_emplacements: {}
               aircraft: {}
             """);

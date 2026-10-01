@@ -70,7 +70,7 @@ public final class Markers {
                 JsonObject row = new JsonObject();
                 row.addProperty("id", installation.getId());
                 row.addProperty("name", installation.getName());
-                row.addProperty("kind", installation.getKind().getCommandName());
+                row.addProperty("kind", installationKind(installation));
                 row.addProperty("faction_id", faction.getId());
                 row.addProperty("province_id", installation.getProvince());
                 row.addProperty("center_x", installation.getCenterX());
@@ -120,5 +120,9 @@ public final class Markers {
         try (FileWriter writer = new FileWriter(out, StandardCharsets.UTF_8)) {
             new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
         }
+    }
+
+    static String installationKind(Installation installation) {
+        return installation.getKind().getCommandName();
     }
 }

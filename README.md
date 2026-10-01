@@ -12,7 +12,7 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 - **Layered diplomacy** — form alliances, establish subject and overlord relationships, negotiate treaties, and impose trade embargoes.
 - **National economies** — manage wealth and taxation, including income moving through relationships between members, nations, and overlords.
 - **Settlements and guilds** — establish named cities and capitals and organise groups within a nation.
-- **Military infrastructure** — construct forts, ports, and airports that support the nation's military presence.
+- **Military infrastructure** — construct forts, ports, airports, and train stations with `/faction construct <fort|port|airport|train_station> <name>`.
 - **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
 
 ## A shared political world
