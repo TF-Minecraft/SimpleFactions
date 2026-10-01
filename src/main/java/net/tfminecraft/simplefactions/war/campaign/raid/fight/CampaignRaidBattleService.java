@@ -13,6 +13,7 @@ import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleJoinService;
@@ -146,6 +147,8 @@ public final class CampaignRaidBattleService {
 		if (startError != null) {
 			return null;
 		}
+		war.setFirstBattleStarted(true);
+		WarManager.persist(war);
 
 		teleportAttackerWarband(attackerWarband, sourceCenter);
 		alertDefenders(war, raid, target);

@@ -26,6 +26,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import net.tfminecraft.vehicleframework.events.VFExplosionEvent;
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleEndReason;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.enums.DefenderRespawnMode;
@@ -490,6 +492,13 @@ public class BattleManager implements Listener{
 						return;
 					}
 					BattlePersistenceService.persistBattle(b);
+					if (b.getWarId() != null) {
+						War war = WarManager.getById(b.getWarId());
+						if (war != null) {
+							war.setFirstBattleStarted(true);
+						WarManager.persist(war);
+						}
+					}
 					p.closeInventory();
 				}
 			} else if(e.getSlot() == 22) {

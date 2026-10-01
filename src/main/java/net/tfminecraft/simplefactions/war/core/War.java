@@ -41,6 +41,9 @@ public class War {
 	private Side attackers;
 	private Side defenders;
 	private WarGoalType goal;
+	private WarGoalType defenderCounterGoal;
+	private String defenderCounterRelationTypeId;
+	private boolean firstBattleStarted;
 	private WarType warType;
 	private WarStatus status = WarStatus.ACTIVE;
 	private String attackerLeaderId;
@@ -184,6 +187,30 @@ public class War {
 
 	public void setGoal(WarGoalType goal) {
 		this.goal = goal;
+	}
+
+	public WarGoalType getDefenderCounterGoal() {
+		return defenderCounterGoal;
+	}
+
+	public String getDefenderCounterRelationTypeId() {
+		return defenderCounterRelationTypeId;
+	}
+
+	public void setDefenderCounterGoal(WarGoalType goal, String relationTypeId) {
+		if (firstBattleStarted) {
+			return;
+		}
+		this.defenderCounterGoal = goal;
+		this.defenderCounterRelationTypeId = goal == WarGoalType.SUBJUGATE ? relationTypeId : null;
+	}
+
+	public boolean hasFirstBattleStarted() {
+		return firstBattleStarted;
+	}
+
+	public void setFirstBattleStarted(boolean firstBattleStarted) {
+		this.firstBattleStarted = firstBattleStarted;
 	}
 
 	public WarType getWarType() {

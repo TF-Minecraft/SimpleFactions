@@ -12,12 +12,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.loaders.RelationLoader;
+import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.WarInventoryHolder;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -25,6 +28,11 @@ import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarType;
+import net.tfminecraft.simplefactions.war.enums.WarGoalType;
+import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
+import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.enums.SFGUI;
@@ -121,7 +129,114 @@ public class WarView {
 			i.setItem(49, creator.createCampaignButton(w));
 		}
 		i.setItem(53, inv.createBackButton(SFGUI.WAR_VIEW));
+		i.setItem(48, createCounterGoalItem(w, player));
 		if(open) player.openInventory(i);
+	}
+
+	private ItemStack createCounterGoalItem(War war, Player viewer) {
+		syncFirstBattleStarted(war);
+		boolean canEdit = canEditCounterGoal(war, viewer);
+		ItemStack item = new ItemStack(canEdit ? Material.GOLDEN_SWORD : Material.GOLD_INGOT);
+		ItemMeta meta = item.getItemMeta();
+		WarGoalType selected = war.getDefenderCounterGoal();
+		meta.setDisplayName("§eDefender Counter Goal");
+		List<String> lore = new ArrayList<>();
+		lore.add(selected == null
+				? "§7Default: War Reparations"
+				: "§7Selected: " + selected.getDisplayName());
+		if (war.hasFirstBattleStarted()) {
+			lore.add("§cLocked after the first battle began");
+		} else if (canEdit) {
+			lore.add("§aClick to set or change");
+		} else {
+			lore.add("§7Set by the defending nation before battle");
+		}
+		meta.setLore(lore);
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	private boolean canEditCounterGoal(War war, Player player) {
+		syncFirstBattleStarted(war);
+		if (war == null || player == null || !war.isActive() || war.hasFirstBattleStarted()
+				|| war.getWarType() == WarType.RAID || CivilWarBorderLock.isCivilWar(war)) {
+			return false;
+		}
+		Faction leader = FactionManager.getByLeader(player.getName());
+		return leader != null && war.getDefenderLeaderId() != null
+				&& war.getDefenderLeaderId().equalsIgnoreCase(leader.getId());
+	}
+
+	private void syncFirstBattleStarted(War war) {
+		if (war == null || war.hasFirstBattleStarted()) return;
+		Battle battle = BattleManager.getByWarId(war.getId());
+		if (battle != null && battle.hasStarted()) {
+			war.setFirstBattleStarted(true);
+			WarManager.persist(war);
+		}
+	}
+
+	private void counterGoalView(Player player, War war) {
+		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
+				new WarInventoryHolder(war.getId(), SFGUI.WAR_COUNTER_GOAL),
+				27,
+				"§7Defender Counter Goal");
+		int slot = 10;
+		addCounterGoalOption(inventory, slot++, WarGoalType.TRIBUTARY, Material.GOLD_INGOT,
+				"§7Make the attacker a tributary");
+		addCounterGoalOption(inventory, slot++, WarGoalType.OPEN_MARKET, Material.BOOK,
+				"§7Force the attacker's market law open");
+		Faction attacker = FactionManager.getByString(war.getAttackerLeaderId());
+		Faction defender = FactionManager.getByString(war.getDefenderLeaderId());
+		if (attacker != null && defender != null && attacker.getHighestTitle() != null
+				&& WarGoalValidator.canUsurpByRank(defender.getTier().getTier(), attacker.getTier().getTier())) {
+			addCounterGoalOption(inventory, slot++, WarGoalType.USURP, Material.NETHER_STAR,
+					"§7Take the attacker's highest title");
+		}
+		List<RelationType> vassalTypes = RelationLoader.getWarPickableVassalTypes();
+		if (vassalTypes != null && !vassalTypes.isEmpty()) {
+			for (RelationType type : vassalTypes) {
+				if (slot >= 17) break;
+				ItemStack option = goalOption(Material.CHAINMAIL_CHESTPLATE, "§eSubjugate: " + type.getName(),
+						"§7Make the attacker your " + type.getName());
+				ItemMeta meta = option.getItemMeta();
+				meta.getPersistentDataContainer().set(
+						new NamespacedKey(SimpleFactions.plugin, "counter_relation_type"),
+						PersistentDataType.STRING,
+						type.getId());
+				option.setItemMeta(meta);
+				inventory.setItem(slot++, option);
+			}
+		}
+		ItemStack defaultOption = goalOption(Material.PAPER, "§fDefault: War Reparations",
+				"§7Use 25% of each payer guild's gross trade income for 10 days");
+		ItemMeta defaultMeta = defaultOption.getItemMeta();
+		defaultMeta.getPersistentDataContainer().set(
+				new NamespacedKey(SimpleFactions.plugin, "counter_default"), PersistentDataType.BYTE, (byte) 1);
+		defaultOption.setItemMeta(defaultMeta);
+		inventory.setItem(22, defaultOption);
+		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_VIEW));
+		player.openInventory(inventory);
+	}
+
+	private void addCounterGoalOption(Inventory inventory, int slot, WarGoalType goal, Material material, String description) {
+		ItemStack option = goalOption(material, "§e" + goal.getDisplayName(), description);
+		ItemMeta meta = option.getItemMeta();
+		meta.getPersistentDataContainer().set(
+				new NamespacedKey(SimpleFactions.plugin, "counter_goal"),
+				PersistentDataType.STRING,
+				goal.toJson());
+		option.setItemMeta(meta);
+		inventory.setItem(slot, option);
+	}
+
+	private ItemStack goalOption(Material material, String name, String description) {
+		ItemStack item = new ItemStack(material);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(name);
+		meta.setLore(List.of(description, "§7Choosing this removes war reparations"));
+		item.setItemMeta(meta);
+		return item;
 	}
 
 	private void fillSideColumn(
@@ -247,6 +362,43 @@ public class WarView {
 			if (w == null) return;
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			warView(null, p, w, true);
+		} else if (inventory.getHolder() instanceof WarInventoryHolder holder
+				&& holder.getType() == SFGUI.WAR_COUNTER_GOAL) {
+			e.setCancelled(true);
+			War war = WarManager.getById(holder.getId());
+			if (war == null) return;
+			if (e.getSlot() == 26) {
+				warView(null, p, war, true);
+				return;
+			}
+			if (!canEditCounterGoal(war, p)) {
+				p.sendMessage("§cCounter goals can only be changed by the defending nation's leader before the first battle begins.");
+				warView(null, p, war, true);
+				return;
+			}
+			ItemStack selected = e.getCurrentItem();
+			if (selected == null || selected.getItemMeta() == null) return;
+			var data = selected.getItemMeta().getPersistentDataContainer();
+			String relationTypeId = data.get(
+					new NamespacedKey(SimpleFactions.plugin, "counter_relation_type"),
+					PersistentDataType.STRING);
+			String goalId = data.get(
+					new NamespacedKey(SimpleFactions.plugin, "counter_goal"),
+					PersistentDataType.STRING);
+			boolean useDefault = data.has(
+					new NamespacedKey(SimpleFactions.plugin, "counter_default"),
+					PersistentDataType.BYTE);
+			if (useDefault || goalId != null || relationTypeId != null) {
+				WarGoalType goal = useDefault ? null : relationTypeId != null
+						? WarGoalType.SUBJUGATE
+						: WarGoalType.fromJson(goalId);
+				war.setDefenderCounterGoal(goal, relationTypeId);
+				WarManager.persist(war);
+				p.sendMessage(goal == null
+						? "§aWar reparations set as the default counter."
+						: "§aDefender counter goal set to " + goal.getDisplayName() + ".");
+			}
+			warView(null, p, war, true);
 		} else if(inventory.getHolder() instanceof WarInventoryHolder && ((WarInventoryHolder) inventory.getHolder()).getType().equals(SFGUI.WAR_VIEW)) {
 			e.setCancelled(true);
 			WarInventoryHolder h = (WarInventoryHolder) inventory.getHolder();
@@ -261,6 +413,14 @@ public class WarView {
 				}
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				inv.openCampaignView(p, w);
+				return;
+			} else if (e.getSlot() == 48) {
+				if (!canEditCounterGoal(w, p)) {
+					p.sendMessage("§cOnly the defending nation's leader can set a counter goal before the first battle begins.");
+					return;
+				}
+				counterGoalView(p, w);
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				return;
 			}
 			if (e.getCurrentItem() == null || e.getCurrentItem().getItemMeta() == null) return;
