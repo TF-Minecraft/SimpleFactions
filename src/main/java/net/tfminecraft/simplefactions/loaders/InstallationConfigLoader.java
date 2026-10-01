@@ -58,6 +58,14 @@ public final class InstallationConfigLoader {
             String key = kind.getCommandName();
             ConfigurationSection section = config.getConfigurationSection(key);
             if (section == null) {
+                if (kind == InstallationKind.TRAIN_STATION) {
+                    byKind.put(kind, new InstallationKindConfig(
+                            10,
+                            259200,
+                            80,
+                            Map.of("static_emplacements", 2)));
+                    continue;
+                }
                 fail("installations.yml missing required section: " + key);
             }
 

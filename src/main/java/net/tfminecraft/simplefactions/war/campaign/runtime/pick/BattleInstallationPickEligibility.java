@@ -18,7 +18,8 @@ import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 public final class BattleInstallationPickEligibility {
 	private static final Set<InstallationKind> PICKABLE_KINDS = EnumSet.of(
 			InstallationKind.PORT,
-			InstallationKind.AIRPORT);
+			InstallationKind.AIRPORT,
+			InstallationKind.TRAIN_STATION);
 
 	private BattleInstallationPickEligibility() {}
 

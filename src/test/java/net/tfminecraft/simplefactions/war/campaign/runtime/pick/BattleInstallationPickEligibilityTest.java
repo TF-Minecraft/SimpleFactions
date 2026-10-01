@@ -45,6 +45,7 @@ class BattleInstallationPickEligibilityTest {
 	void isPickableKind_acceptsPortAndAirport() {
 		assertTrue(BattleInstallationPickEligibility.isPickableKind(InstallationKind.PORT));
 		assertTrue(BattleInstallationPickEligibility.isPickableKind(InstallationKind.AIRPORT));
+		assertTrue(BattleInstallationPickEligibility.isPickableKind(InstallationKind.TRAIN_STATION));
 	}
 
 	@Test
