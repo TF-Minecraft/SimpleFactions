@@ -90,6 +90,29 @@ supply-hubs:
   base-upkeep: 15
   # Each further hub costs this many times the one before.
   upkeep-growth: 1.5
+  # A hub takes the guild's trade power and production in its province and delivers a share
+  # to each of the guild's hubs it is connected to. Train stations connect by track, ports
+  # across the sea, airports through the air; different kinds do not connect.
+  #   trade / production: share delivered before distance loss (capped at 0.95)
+  #   kept-per-1000-blocks: share that survives each 1000 blocks
+  #   max-range: longest connection in blocks, 0 for no limit
+  # Rail distance is measured along the track, sea and air in a straight line.
+  transport:
+    rail:
+      trade: 0.70
+      production: 0.25
+      kept-per-1000-blocks: 0.90
+      max-range: 0
+    sea:
+      trade: 0.45
+      production: 0.30
+      kept-per-1000-blocks: 0.85
+      max-range: 4000
+    air:
+      trade: 0.20
+      production: 0.0
+      kept-per-1000-blocks: 0.80
+      max-range: 2500
 
 bank-block: iaf(tfmc:bank)
 voting-block: iaf(tfmc:voting_booth)

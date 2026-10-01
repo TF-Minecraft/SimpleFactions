@@ -14,6 +14,8 @@ import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
+import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
 import net.tfminecraft.simplefactions.objects.Bracket;
@@ -91,6 +93,7 @@ public class ProvinceManager {
         if (!Cache.provincesEnabled) {
             return;
         }
+        HubNetwork.refreshIfLive(this);
         dropMissingGuilds();
         for(Guild g : FactionManager.getAllGuilds()) {
             if (!g.hasCapital()) continue;
@@ -109,6 +112,7 @@ public class ProvinceManager {
             return;
         }
         if (!g.hasCapital()) return;
+        HubNetwork.refreshIfLive(this);
         dropMissingGuilds();
         recalculateGuild(g);
         recalculateProduction(g);
@@ -131,6 +135,7 @@ public class ProvinceManager {
         if (capital != null) {
             capital.calculateProduction(this, guild, null, 0);
         }
+        carryProductionThroughHubs(guild);
     }
 
     private void recalculateGuild(Guild guild) {
@@ -141,6 +146,47 @@ public class ProvinceManager {
         Province capital = provinces.get(guild.getCapital());
         if (capital != null) {
             capital.calculateTrade(this, guild, -1, 0);
+        }
+        carryTradeThroughHubs(guild);
+    }
+
+    /**
+     * Each supply hub delivers a share of the guild's trade power in its province to the hubs
+     * it is connected to, and the power spreads on from there as it does from the capital.
+     * A hub only matters where it brings more than already arrives. Passes repeat so power can
+     * travel along a chain of hubs; every link loses some, so this settles.
+     */
+    private void carryTradeThroughHubs(Guild guild) {
+        List<Link> links = HubNetwork.linksFor(guild);
+        for (int pass = 0; pass <= links.size(); pass++) {
+            boolean moved = false;
+            for (Link link : links) {
+                Province from = provinces.get(link.fromProvince());
+                Province to = provinces.get(link.toProvince());
+                if (from == null || to == null) continue;
+                double delivered = from.getRawGuildTrade(guild) * link.tradeFactor();
+                if (delivered < 0.5 || delivered <= to.getStoredGuildTrade(guild)) continue;
+                to.seedTrade(this, guild, delivered);
+                moved = true;
+            }
+            if (!moved) return;
+        }
+    }
+
+    private void carryProductionThroughHubs(Guild guild) {
+        List<Link> links = HubNetwork.linksFor(guild);
+        for (int pass = 0; pass <= links.size(); pass++) {
+            boolean moved = false;
+            for (Link link : links) {
+                Province from = provinces.get(link.fromProvince());
+                Province to = provinces.get(link.toProvince());
+                if (from == null || to == null) continue;
+                double delivered = from.getGuildProduction(guild) * link.productionFactor();
+                if (delivered < 0.1 || delivered <= to.getGuildProduction(guild)) continue;
+                to.seedProduction(this, guild, delivered);
+                moved = true;
+            }
+            if (!moved) return;
         }
     }
 

@@ -499,6 +499,12 @@ public class FactionManager implements Listener{
 				FactionCleanup.advanceOfflineDays(factions);
 				net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
 			});
+			// Track may have been laid or cut since yesterday, so measure hub links again
+			// and settle the day on trade that reflects them.
+			runDailyStep("supply hub links", () -> {
+				net.tfminecraft.simplefactions.guild.hub.HubNetwork.forgetRoutes();
+				SimpleFactions.getInstance().getProvinceManager().recalculate();
+			});
 			runDailyStep("income", this::settleIncome);
 			timer = 0;
 			day++;

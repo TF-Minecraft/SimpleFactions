@@ -217,14 +217,93 @@ public class Province {
         this.prosperity = total;
     }
     private double foreignTrade(Guild guild, double amount) {
+        return amount * foreignTradeFactor(guild);
+    }
+
+    /** What a foreign guild's trade power is multiplied by here: above 1 as the owner loses stability. */
+    private double foreignTradeFactor(Guild guild) {
         Faction owner = getOwner();
         Faction host = guild.getFaction();
-        if (owner == null || host == null || owner.getGovernment() == null) return amount;
-        if (owner.getId() != null && owner.getId().equalsIgnoreCase(host.getId())) return amount;
+        if (owner == null || host == null || owner.getGovernment() == null) return 1;
+        if (owner.getId() != null && owner.getId().equalsIgnoreCase(host.getId())) return 1;
         double bonus = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.foreignTradeBonus(
                 owner.getGovernment().getStability(),
                 net.tfminecraft.simplefactions.government.stability.StabilityTuning.get());
-        return amount * (1 + bonus);
+        return 1 + bonus;
+    }
+
+    /**
+     * The guild's trade power here as it arrived, before the foreign-trade bonus. Supply hubs
+     * pass this on, so the bonus cannot compound from hub to hub.
+     */
+    public double getRawGuildTrade(Guild guild) {
+        ProvinceDataEntry entry = data.get(guild.getId());
+        if (entry == null) return 0;
+        double factor = foreignTradeFactor(guild);
+        return factor <= 0 ? 0 : entry.getTrade() / factor;
+    }
+
+    /** The guild's stored trade power here, as {@link #calculateTrade} compares against. */
+    public double getStoredGuildTrade(Guild guild) {
+        ProvinceDataEntry entry = data.get(guild.getId());
+        return entry == null ? 0 : entry.getTrade();
+    }
+
+    public double getGuildProduction(Guild guild) {
+        ProvinceDataEntry entry = data.get(guild.getId());
+        return entry == null ? 0 : entry.getProduction();
+    }
+
+    /**
+     * Starts a second source of trade power here, as a supply hub does, and spreads it to the
+     * neighbours by the usual rule. The hub is a fresh origin: the power arrives undiminished
+     * and decays with distance from here. Does nothing if the guild already has as much here.
+     */
+    public void seedTrade(ProvinceManager manager, Guild guild, double amount) {
+        if (amount < 0.5) return;
+
+        ProvinceDataEntry entry = data.get(guild.getId());
+        if (entry != null && entry.getTrade() >= amount) {
+            return;
+        }
+        if (entry == null) {
+            entry = new ProvinceDataEntry(guild);
+            data.put(guild.getId(), entry);
+        }
+        entry.setTrade(foreignTrade(guild, amount));
+        entry.setDistance(0);
+
+        for (Integer n : neighbours) {
+            Province neighbour = manager.get(n);
+            if (neighbour != null) {
+                neighbour.calculateTrade(manager, guild, amount, 1);
+            }
+        }
+    }
+
+    /**
+     * Starts a second source of production here, as a supply hub does, and spreads it to the
+     * neighbours by the usual rule. Does nothing if the guild already has as much here.
+     */
+    public void seedProduction(ProvinceManager manager, Guild guild, double amount) {
+        if (amount < 0.1) return;
+
+        ProvinceDataEntry entry = data.get(guild.getId());
+        if (entry != null && entry.getProduction() >= amount) {
+            return;
+        }
+        if (entry == null) {
+            entry = new ProvinceDataEntry(guild);
+            data.put(guild.getId(), entry);
+        }
+        entry.setProduction(amount);
+
+        for (Integer n : neighbours) {
+            Province neighbour = manager.get(n);
+            if (neighbour != null) {
+                neighbour.calculateProduction(manager, guild, entry, 1);
+            }
+        }
     }
 
     public double getTradeCarry() {
