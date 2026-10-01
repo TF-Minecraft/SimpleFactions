@@ -17,6 +17,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import net.tfminecraft.simplefactions.enums.Rules;
+import net.tfminecraft.simplefactions.objects.Bracket;
+import net.tfminecraft.simplefactions.laws.Law;
+import net.tfminecraft.simplefactions.laws.LawGroup;
+import org.bukkit.configuration.file.YamlConfiguration;
 import net.tfminecraft.simplefactions.database.GuildData;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.government.Government;
@@ -54,6 +59,8 @@ class LedgerHubTaxTest {
         when(host.getGovernment()).thenReturn(government);
         when(government.getTaxEfficiency()).thenReturn(1.0);
         taxes = new TaxHandler(host, 0, 0, 0, 0, 0);
+        when(host.hasFactionRule(Rules.HUB_TAX)).thenReturn(true);
+        taxes.applyBracket(TaxTarget.HUB_TAX, new Bracket(0, 50));
         taxes.setHubTax(20);
         when(host.getTaxHandler()).thenReturn(taxes);
         when(host.getTaxRate(any(TaxTarget.class), nullable(String.class), anyBoolean()))
@@ -161,6 +168,52 @@ class LedgerHubTaxTest {
         assertEquals(20, taxes.getHubTax());
         assertEquals(10, assessment.getTotalTax());
         assertEquals(50, assessment.getTaxableIncome(host));
+    }
+
+    @Test
+    void forbiddenHostCollectsNothingEvenFromAnExistingAssessment() {
+        when(host.hasFactionRule(Rules.HUB_TAX)).thenReturn(false);
+        assertEquals(0, taxes.getHubTax());
+        assertEquals(0, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
+        assertEquals(0, receiver.getLedger().getIncome(Cashflow.HUB_TAX));
+        assertEquals(200, payer.getLedger().getNetIncome());
+        assertTrue(Ledger.collectHistoryDay(List.of(payer, receiver)).isEmpty());
+        DailyGuildTransfers transfers = new DailyGuildTransfers();
+        payer.getLedger().populateDailyTransfers(transfers);
+        assertTrue(transfers.getTransfers().isEmpty());
+    }
+
+    @Test
+    void lawPreviewUsesIndependentBracketAndRuleOnBothLedgerSides() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("effects.faction.rules", List.of("tariffs false"));
+        config.set("effects.faction.brackets.hub_tax", "0-10");
+        LawGroup group = mock(LawGroup.class);
+        IncomePreviewContext.open(IncomePreviewContext.law(host, group, new Law("economy", "free_trade", config)));
+        assertEquals(-5, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
+        assertEquals(5, receiver.getLedger().getIncome(Cashflow.HUB_TAX));
+        IncomePreviewContext.clear();
+
+        config.set("effects.faction.rules", List.of("hub_tax false", "supply_hubs false"));
+        IncomePreviewContext.open(IncomePreviewContext.law(host, group, new Law("economy", "decentralized", config)));
+        assertEquals(0, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
+        assertEquals(0, receiver.getLedger().getIncome(Cashflow.HUB_TAX));
+        IncomePreviewContext.clear();
+        assertEquals(20, taxes.getHubTax());
+        assertEquals(10, assessment.getTotalTax());
+    }
+
+    @Test
+    void dormantHubLawPreviewRemovesPaymentsWithoutChangingTheStoredAssessment() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("effects.faction.rules", List.of("supply_hubs false"));
+        IncomePreviewContext.open(IncomePreviewContext.law(payer.getFaction(), mock(LawGroup.class),
+                new Law("economy", "decentralized", config)));
+        assertEquals(0, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
+        assertEquals(0, receiver.getLedger().getIncome(Cashflow.HUB_TAX));
+        IncomePreviewContext.clear();
+        assertEquals(10, assessment.getTotalTax());
+        assertEquals(-10, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
     }
 
     private static Guild guild(Faction faction, boolean base) {

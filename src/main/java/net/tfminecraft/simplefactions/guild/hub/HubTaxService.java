@@ -49,7 +49,7 @@ public final class HubTaxService {
             boolean allowed = SupplyHubService.ownerAllows(
                     guild.getFaction().getId(), host.getId(), host.hasHubPermit(guild.getId()));
             if (!SupplyHubService.standing(
-                    hub, true, allowed,
+                    guild, hub, true, allowed,
                     InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
                     SupplyHubService.atInstallation(host.getId(), installation.getId(), guilds)).active()) {
                 continue;

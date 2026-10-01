@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,6 +31,7 @@ import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.database.SupplyHubData;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.DormantReason;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.HubCandidate;
@@ -60,6 +62,46 @@ class SupplyHubServiceTest {
         Cache.supplyHubBaseLimit = previousLimit;
         Cache.supplyHubBaseUpkeep = previousUpkeep;
         Cache.supplyHubUpkeepGrowth = previousGrowth;
+    }
+
+    @Test
+    void forbiddenEconomyRefusesBuildBeforeCheckingTheInstallation() {
+        boolean enabled = Cache.provincesEnabled;
+        Cache.provincesEnabled = true;
+        Guild guild = mock(Guild.class);
+        Faction faction = mock(Faction.class);
+        Player player = mock(Player.class);
+        when(player.getName()).thenReturn("leader");
+        when(guild.getLeader()).thenReturn("leader");
+        when(guild.getFaction()).thenReturn(faction);
+        when(faction.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(false);
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            factions.when(() -> FactionManager.getGuildByMember("leader")).thenReturn(guild);
+            assertTrue(SupplyHubCommands.guild(player, new String[] {"hub", "build"}));
+            verify(player).sendMessage("§cYour faction's economy does not allow supply hubs");
+            verify(player, never()).getLocation();
+        } finally {
+            Cache.provincesEnabled = enabled;
+        }
+    }
+
+    @Test
+    void forbiddenEconomyMakesExistingHubsDormantButKeepsUpkeepAndSlots() {
+        SupplyHub hub = hub("decentralized", "station", 1);
+        Guild guild = guildWith(hub);
+        Faction faction = mock(Faction.class);
+        when(guild.getFaction()).thenReturn(faction);
+        HubStanding standing = SupplyHubService.standing(guild, hub, true, true, 1, List.of(hub));
+        assertFalse(standing.active());
+        assertEquals(DormantReason.ECONOMY_DISALLOWS, standing.reason());
+        assertEquals("§cDormant §7(your faction's economy does not allow supply hubs)",
+                SupplyHubService.statusText(standing));
+        assertEquals(SupplyHubService.baseUpkeep(), SupplyHubService.dailyCost(guild));
+        assertEquals(1, SupplyHubService.countAt("decentralized", "station", List.of(guild)));
+
+        // The host's economy does not forbid a foreign guild that may build hubs.
+        when(faction.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
+        assertTrue(SupplyHubService.standing(guild, hub, true, true, 1, List.of(hub)).active());
     }
 
     @Test

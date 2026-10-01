@@ -33,6 +33,7 @@ import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.PostSettlementPayouts.PlayerUuidLookup;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
+import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
@@ -425,8 +426,17 @@ public class Ledger {
         if (hubTax == null || guild.getFaction() == null || skipsMoneyMovement()) {
             return Map.of();
         }
+        IncomePreviewContext context = IncomePreviewContext.current();
+        if (context != null && context.previewsLaw(guild.getFaction())
+                && !context.allowsHubRule(guild.getFaction(), Rules.SUPPLY_HUBS)) {
+            return Map.of();
+        }
         Map<Faction, Double> payable = new HashMap<>();
         for (Map.Entry<Faction, Double> entry : hubTax.getTaxesByFaction().entrySet()) {
+            boolean allowed = context != null
+                    ? context.allowsHubRule(entry.getKey(), Rules.HUB_TAX)
+                    : entry.getKey().hasFactionRule(Rules.HUB_TAX);
+            if (!allowed) continue;
             Guild receiver = entry.getKey().getOrCreateMainGuild();
             if (entry.getValue() > 0 && receiver != null && receiver.getLedger() != null
                     && !receiver.getLedger().skipsMoneyMovement()) {

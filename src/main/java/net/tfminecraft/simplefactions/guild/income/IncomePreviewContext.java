@@ -249,7 +249,54 @@ public final class IncomePreviewContext {
         return true;
     }
 
+    public boolean allowsHubRule(Faction owner, Rules rule) {
+        if (!previewsLaw(owner)) {
+            return owner.hasFactionRule(rule);
+        }
+        LawEffect proposed = law.getScopedEffects().get(Scope.FACTION);
+        if (proposed != null && Boolean.FALSE.equals(proposed.getRules().get(rule))) {
+            return false;
+        }
+        boolean foundTrue = proposed != null && Boolean.TRUE.equals(proposed.getRules().get(rule));
+        if (owner.getLawHandler() != null) {
+            for (Law current : owner.getLawHandler().getCurrentLaws()) {
+                if (current.getGroup().equals(law.getGroup())) continue;
+                LawEffect effect = current.getScopedEffects().get(Scope.FACTION);
+                if (effect != null && effect.getRules().containsKey(rule)) {
+                    if (!effect.getRules().get(rule)) return false;
+                    foundTrue = true;
+                }
+            }
+        }
+        if (foundTrue) return true;
+        Faction overlord = owner.getOverlord();
+        return overlord == null || !Boolean.FALSE.equals(overlord.getExplicitRule(Scope.VASSALS, rule));
+    }
+
+    private Bracket hubTaxBracket() {
+        Bracket bracket = TaxHandler.DEFAULT_HUB_TAX_BRACKET;
+        boolean foundGroup = false;
+        if (faction.getLawHandler() != null) {
+            for (Law current : faction.getLawHandler().getCurrentLaws()) {
+                if (current.getGroup().equals(law.getGroup())) {
+                    current = law;
+                    foundGroup = true;
+                }
+                LawEffect effect = current.getScopedEffects().get(Scope.FACTION);
+                if (effect != null && effect.getBrackets().containsKey(Brackets.HUB_TAX)) {
+                    bracket = effect.getBrackets().get(Brackets.HUB_TAX);
+                }
+            }
+        }
+        LawEffect proposed = law.getScopedEffects().get(Scope.FACTION);
+        return !foundGroup && proposed != null
+                ? proposed.getBrackets().getOrDefault(Brackets.HUB_TAX, bracket) : bracket;
+    }
+
     private double clampForLaw(TaxTarget target, double rate) {
+        if (target == TaxTarget.HUB_TAX) {
+            return allowsHubRule(faction, Rules.HUB_TAX) ? clamp(rate, hubTaxBracket()) : 0;
+        }
         LawEffect effect = law.getScopedEffects().get(Scope.FACTION);
         if (effect == null) {
             return rate;
@@ -261,8 +308,7 @@ public final class IncomePreviewContext {
         }
         if (effect.hasBrackets()) {
             for (Map.Entry<Brackets, Bracket> entry : effect.getBrackets().entrySet()) {
-                if ((BracketToTaxTarget.convert(entry.getKey()) == family
-                        || (family == TaxTarget.HUB_TAX && entry.getKey() == Brackets.TARIFFS))
+                if (BracketToTaxTarget.convert(entry.getKey()) == family
                         && entry.getValue() != null) {
                     rate = clamp(rate, entry.getValue());
                 }
@@ -309,7 +355,8 @@ public final class IncomePreviewContext {
             case GUILDS, GUILD_ID -> Rules.GUILD_TAX;
             case VASSALS, VASSAL_ID -> Rules.VASSAL_TAX;
             case DIVIDENDS -> Rules.DIVIDEND_TAX;
-            case TARIFFS, TARIFF_ID, HUB_TAX -> Rules.TARIFFS;
+            case TARIFFS, TARIFF_ID -> Rules.TARIFFS;
+            case HUB_TAX -> Rules.HUB_TAX;
             default -> null;
         };
     }

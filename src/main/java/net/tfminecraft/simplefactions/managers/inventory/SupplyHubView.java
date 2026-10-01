@@ -268,9 +268,6 @@ public class SupplyHubView {
     }
 
     private static HubStanding standing(Guild guild, SupplyHub hub) {
-        if (SupplyHubService.beyondGuildLimit(guild, hub)) {
-            return new HubStanding(false, SupplyHubService.DormantReason.BEYOND_GUILD_LIMIT);
-        }
         Installation installation = SupplyHubService.findInstallation(
                 hub.ownerFactionId(), hub.installationId());
         Faction owner = FactionManager.getByString(hub.ownerFactionId());
@@ -280,7 +277,7 @@ public class SupplyHubView {
         int slots = installation == null
                 ? 0
                 : InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());
-        return SupplyHubService.standing(hub, installation != null, allowed, slots,
+        return SupplyHubService.standing(guild, hub, installation != null, allowed, slots,
                 SupplyHubService.atInstallation(
                         hub.ownerFactionId(), hub.installationId(), SupplyHubService.allGuilds()));
     }
