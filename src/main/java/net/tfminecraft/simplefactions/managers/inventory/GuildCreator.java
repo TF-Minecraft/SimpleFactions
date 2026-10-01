@@ -58,6 +58,16 @@ public class GuildCreator {
 
 	FactionRanker r = new FactionRanker();
 
+	@SuppressWarnings("deprecation")
+	public ItemStack createSupplyHubsItem() {
+		ItemStack item = new ItemStack(Material.CHEST);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(StringFormatter.formatHex("#b5835a§lSupply Hubs"));
+		meta.setLore(List.of("§7View your guild's supply hubs"));
+		item.setItemMeta(meta);
+		return item;
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createListItem(Player p, Guild guild) {

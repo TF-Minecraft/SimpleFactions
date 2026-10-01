@@ -27,6 +27,16 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.tlibs.utils.TimeFormatter;
 
 public class InstallationCreator {
+
+    @SuppressWarnings("deprecation")
+    public ItemStack createSupplyHubsButton() {
+        ItemStack item = new ItemStack(Material.CHEST, 1);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("§eSupply Hubs");
+        meta.setLore(List.of("§7View guild hubs hosted here"));
+        item.setItemMeta(meta);
+        return item;
+    }
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createSummary(Faction f) {

@@ -11,8 +11,11 @@ class InstallationViewTest {
 		assertEquals(10, InstallationView.berthedVehicleSlot(10));
 		assertEquals(12, InstallationView.berthedVehicleSlot(11));
 		assertEquals(14, InstallationView.berthedVehicleSlot(12));
-		assertEquals(44, InstallationView.berthedVehicleSlot(42));
+		assertEquals(44, InstallationView.berthedVehicleSlot(41));
+		assertEquals(-1, InstallationView.berthedVehicleSlot(42));
 		assertEquals(-1, InstallationView.berthedVehicleSlot(43));
+		assertEquals(15, InstallationView.supplyHubSlot(1));
+		assertEquals(-1, InstallationView.supplyHubSlot(0));
 		assertNotEquals(11, InstallationView.berthedVehicleSlot(11));
 		assertNotEquals(13, InstallationView.berthedVehicleSlot(12));
 	}

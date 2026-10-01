@@ -202,6 +202,8 @@ public class GuildView {
 		}
 		i.setItem(13, creator.createMenuItem(player, guild, MenuItemType.TRADE_BREAKDOWN));
 		i.setItem(14, creator.createLedgerItem(player, guild));
+		// Slots 20 to 24 are the branch upgrade buttons, so this sits past Loans.
+		i.setItem(26, creator.createSupplyHubsItem());
 		if (!guild.isBase()) {
 			i.setItem(17, creator.createDividendItem(player, guild));
 		}
@@ -251,6 +253,14 @@ public class GuildView {
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+		if (h.getType() == SFGUI.GUILD_VIEW && e.getSlot() == 26) {
+			e.setCancelled(true);
+			Guild guild = FactionManager.getGuildByString(h.getId());
+			if (guild != null && guild.isMember(p)) {
+				inv.supplyHubView.guildView(p, guild);
+			}
+			return;
+		}
 		if (e.getView().getTitle().equalsIgnoreCase("§7Guild List")) {
 			e.setCancelled(true);
 
