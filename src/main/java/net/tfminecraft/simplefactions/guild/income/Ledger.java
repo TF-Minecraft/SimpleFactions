@@ -784,6 +784,10 @@ public class Ledger {
                     if (payerGuild == null) {
                         continue;
                     }
+                    Ledger payerLedger = payerGuild.getLedger();
+                    if (payerLedger == null || payerLedger.skipsMoneyMovement()) {
+                        continue;
+                    }
                     TradeBreakdown trade = payerGuild.getTradeBreakdown();
                     double grossTradeIncome = trade == null ? 0.0 : trade.getIncome();
                     total += grossTradeIncome * (obligation.getIncomePercent() / 100.0);
