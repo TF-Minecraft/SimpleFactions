@@ -297,9 +297,6 @@ public class Ledger {
                 amount = getWarReparationsReceived();
                 break;
             case WAR_REPARATIONS_PAYMENT:
-                if (!guild.isBase()) {
-                    return 0;
-                }
                 amount = -getWarReparationsPayment();
                 break;
             // No isBase() guard: the guild whose tables won declares it, and the capital picks its
