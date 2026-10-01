@@ -235,8 +235,9 @@ public class Ledger {
                 amount = getTotalHubTaxEarned();
                 break;
             case HUB_TAX_PAYMENTS: {
-                HubTaxBreakdown hubTax = guild.getHubTaxBreakdown();
-                amount = hubTax == null ? 0 : -hubTax.getTotalTax();
+                for (double tax : getPayableHubTaxes().values()) {
+                    amount -= tax;
+                }
                 break;
             }
             case TARIFF_PAYMENTS: {
@@ -405,17 +406,33 @@ public class Ledger {
     }
 
     public double getTotalHubTaxEarned() {
+        if (skipsMoneyMovement()) {
+            return 0;
+        }
         double total = 0;
         for (Guild payer : FactionManager.getAllGuilds()) {
-            if (payer.getLedger() == null || payer.getLedger().skipsMoneyMovement()) {
+            if (payer.getLedger() == null) {
                 continue;
             }
-            HubTaxBreakdown hubTax = payer.getHubTaxBreakdown();
-            if (hubTax != null) {
-                total += hubTax.getTax(guild.getFaction());
-            }
+            total += payer.getLedger().getPayableHubTaxes().getOrDefault(guild.getFaction(), 0.0);
         }
         return total;
+    }
+
+    private Map<Faction, Double> getPayableHubTaxes() {
+        HubTaxBreakdown hubTax = guild.getHubTaxBreakdown();
+        if (hubTax == null || guild.getFaction() == null || skipsMoneyMovement()) {
+            return Map.of();
+        }
+        Map<Faction, Double> payable = new HashMap<>();
+        for (Map.Entry<Faction, Double> entry : hubTax.getTaxesByFaction().entrySet()) {
+            Guild receiver = entry.getKey().getOrCreateMainGuild();
+            if (entry.getValue() > 0 && receiver != null && receiver.getLedger() != null
+                    && !receiver.getLedger().skipsMoneyMovement()) {
+                payable.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return payable;
     }
 
     public List<Map.Entry<String, Double>> getCitizenTaxEntriesDescending() {
@@ -863,17 +880,11 @@ public class Ledger {
                         payer.getName(), Math.abs(ledger.getIncome(Cashflow.GUILD_PAYMENTS)));
             }
 
-            HubTaxBreakdown hubTax = payer.getHubTaxBreakdown();
-            if (hubTax != null) {
-                for (Map.Entry<Faction, Double> entry : hubTax.getTaxesByFaction().entrySet()) {
-                    if (entry.getValue() <= 0) {
-                        continue;
-                    }
-                    recordHistory(out, entry.getKey().getOrCreateMainGuild(), LedgerHistory.Source.HUB_TAX,
-                            f.getName(), entry.getValue());
-                    recordHistory(out, payer, LedgerHistory.Source.HUB_TAX_PAYMENTS,
-                            entry.getKey().getName(), entry.getValue());
-                }
+            for (Map.Entry<Faction, Double> entry : ledger.getPayableHubTaxes().entrySet()) {
+                recordHistory(out, entry.getKey().getOrCreateMainGuild(), LedgerHistory.Source.HUB_TAX,
+                        f.getName(), entry.getValue());
+                recordHistory(out, payer, LedgerHistory.Source.HUB_TAX_PAYMENTS,
+                        entry.getKey().getName(), entry.getValue());
             }
             TradeBreakdown trade = payer.getTradeBreakdown();
             if (trade != null && trade.getTariffsByFactionMap() != null) {
@@ -1105,14 +1116,8 @@ public class Ledger {
             }
 
             case HUB_TAX_PAYMENTS: {
-                HubTaxBreakdown hubTax = guild.getHubTaxBreakdown();
-                if (hubTax == null) {
-                    return;
-                }
-                for (Map.Entry<Faction, Double> entry : hubTax.getTaxesByFaction().entrySet()) {
-                    if (entry.getValue() > 0) {
-                        buffer.add(guild, entry.getKey().getOrCreateMainGuild(), entry.getValue());
-                    }
+                for (Map.Entry<Faction, Double> entry : getPayableHubTaxes().entrySet()) {
+                    buffer.add(guild, entry.getKey().getOrCreateMainGuild(), entry.getValue());
                 }
                 break;
             }

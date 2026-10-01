@@ -226,6 +226,10 @@ public final class IncomePreviewContext {
         return owner != null && faction == owner && (law != null || taxTarget == TaxTarget.HUB_TAX);
     }
 
+    public boolean previewsLaw(Faction owner) {
+        return owner != null && faction == owner && law != null;
+    }
+
     private boolean replaces(TaxHandler handler, TaxTarget query, String id) {
         if (taxTarget == null || query == null) {
             return false;

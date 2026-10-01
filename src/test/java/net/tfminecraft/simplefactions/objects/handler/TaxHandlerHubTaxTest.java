@@ -17,6 +17,9 @@ import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
+import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
+import net.tfminecraft.simplefactions.laws.Law;
+import net.tfminecraft.simplefactions.laws.LawGroup;
 import net.tfminecraft.simplefactions.objects.Bracket;
 import net.tfminecraft.simplefactions.objects.Faction;
 
@@ -25,6 +28,7 @@ class TaxHandlerHubTaxTest {
     private int previousLimit;
     private double previousUpkeep;
     private double previousGrowth;
+    private Faction faction;
     private TaxHandler handler;
 
     @BeforeEach
@@ -34,7 +38,7 @@ class TaxHandlerHubTaxTest {
         previousUpkeep = Cache.supplyHubBaseUpkeep;
         previousGrowth = Cache.supplyHubUpkeepGrowth;
         SupplyHubService.loadConfig(null);
-        Faction faction = mock(Faction.class);
+        faction = mock(Faction.class);
         Government government = mock(Government.class);
         when(faction.hasFactionRule(Rules.TARIFFS)).thenReturn(true);
         when(faction.getGovernment()).thenReturn(government);
@@ -44,6 +48,7 @@ class TaxHandlerHubTaxTest {
 
     @AfterEach
     void tearDown() {
+        IncomePreviewContext.clear();
         Cache.supplyHubMaxTax = previousCap;
         Cache.supplyHubBaseLimit = previousLimit;
         Cache.supplyHubBaseUpkeep = previousUpkeep;
@@ -75,6 +80,29 @@ class TaxHandlerHubTaxTest {
         assertEquals(20, handler.getMax(TaxTarget.HUB_TAX));
         handler.applyBracket(TaxTarget.TARIFFS, new Bracket(0, 0));
         assertEquals(0, handler.getHubTax());
+    }
+
+    @Test
+    void lawPreviewUsesTheProposedTariffBracketAndConfiguredCap() {
+        handler.applyBracket(TaxTarget.TARIFFS, new Bracket(0, 10));
+        handler.setHubTax(5);
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("effects.FACTION.brackets.TARIFFS", "20-80");
+        Law proposed = new Law("taxes", "proposed", config);
+        LawGroup group = mock(LawGroup.class);
+
+        IncomePreviewContext.open(IncomePreviewContext.law(faction, group, proposed));
+        assertEquals(20, handler.getTaxRate(TaxTarget.TARIFFS, null, false));
+        assertEquals(20, handler.getTaxRate(TaxTarget.HUB_TAX, null, false));
+        assertEquals(16, handler.getTaxRate(TaxTarget.HUB_TAX, null, true));
+        Cache.supplyHubMaxTax = 15;
+        assertEquals(15, handler.getTaxRate(TaxTarget.HUB_TAX, null, false));
+        IncomePreviewContext.clear();
+
+        assertEquals(5, handler.getHubTax());
+        assertEquals(5, handler.getTaxRate(TaxTarget.HUB_TAX, null, false));
+        IncomePreviewContext.open(IncomePreviewContext.tax(faction, TaxTarget.HUB_TAX, null, 40));
+        assertEquals(10, handler.getTaxRate(TaxTarget.HUB_TAX, null, false));
     }
 
     @Test

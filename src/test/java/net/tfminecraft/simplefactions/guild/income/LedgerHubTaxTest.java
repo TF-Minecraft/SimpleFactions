@@ -129,6 +129,22 @@ class LedgerHubTaxTest {
     }
 
     @Test
+    void bankruptHostsReceiveNothingAndPayersKeepTheirIncome() {
+        when(receiver.isBankrupt()).thenReturn(true);
+        assertEquals(0, receiver.getLedger().getTotalHubTaxEarned());
+        assertEquals(0, receiver.getLedger().getIncome(Cashflow.HUB_TAX));
+        assertEquals(0, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
+        assertEquals(200, payer.getLedger().getNetIncome());
+        assertEquals(200, payer.getLedger().getDividendBase());
+        assertTrue(Ledger.collectHistoryDay(List.of(payer, receiver)).isEmpty());
+        DailyGuildTransfers transfers = new DailyGuildTransfers();
+        payer.getLedger().populateDailyTransfers(transfers);
+        receiver.getLedger().populateDailyTransfers(transfers);
+        assertTrue(transfers.getTransfers().isEmpty());
+        assertEquals(Map.of(payer, 200.0), transfers.getExternalDeltas());
+    }
+
+    @Test
     void missingBankPayersAreFrozenAndBaseGuildsAlsoPay() {
         when(payer.getBank()).thenReturn(null);
         assertEquals(0, receiver.getLedger().getIncome(Cashflow.HUB_TAX));

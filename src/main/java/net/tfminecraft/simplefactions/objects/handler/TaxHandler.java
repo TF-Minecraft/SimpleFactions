@@ -51,10 +51,13 @@ public class TaxHandler {
     }
 
     private double clampHubTax(double rate) {
+        return clampHubTax(rate, taxBrackets.get(TaxTarget.TARIFFS));
+    }
+
+    private double clampHubTax(double rate, Bracket bracket) {
         if (!Double.isFinite(rate)) {
             return 0;
         }
-        Bracket bracket = taxBrackets.get(TaxTarget.TARIFFS);
         double max = Math.min(Cache.supplyHubMaxTax, bracket == null ? 100.0 : bracket.getMax());
         double min = Math.min(max, bracket == null ? 0.0 : bracket.getMin());
         return Math.max(min, Math.min(max, rate));
@@ -170,7 +173,10 @@ public class TaxHandler {
             rate = context.adjustTax(f, this, target, id, rate);
         }
         if (target == TaxTarget.HUB_TAX) {
-            rate = clampHubTax(rate);
+            // adjustTax already applied the proposed law's bracket, as it does for tariffs.
+            Bracket bracket = context != null && context.previewsLaw(f)
+                    ? null : taxBrackets.get(TaxTarget.TARIFFS);
+            rate = clampHubTax(rate, bracket);
         }
         return effective ? Formatter.formatDouble(rate * f.getGovernment().getTaxEfficiency()) : rate;
     }
