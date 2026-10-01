@@ -640,20 +640,18 @@ public class GuildCreator {
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName(StringFormatter.formatHex("#5cc46aHub Tax" + (payments ? " Paid" : "")));
 		Map<String, Double> today = new HashMap<>();
+		// The same figures the ledger settles: nothing to or from a guild that moves no money.
 		if (payments) {
-			if (!g.isBankrupt() && g.getHubTaxBreakdown() != null) {
-				g.getHubTaxBreakdown().getTaxesByFaction().forEach((host, tax) -> {
-					if (tax > 0) {
-						today.merge(host.getName(), tax, Double::sum);
-					}
-				});
+			if (g.getLedger() != null) {
+				g.getLedger().getPayableHubTaxes().forEach(
+						(host, tax) -> today.merge(host.getName(), tax, Double::sum));
 			}
-		} else {
+		} else if (g.getLedger() != null && !g.isBankrupt()) {
 			for (Guild payer : FactionManager.getAllGuilds()) {
-				if (payer.isBankrupt() || payer.getBank() == null || payer.getHubTaxBreakdown() == null) {
+				if (payer.getLedger() == null) {
 					continue;
 				}
-				double tax = payer.getHubTaxBreakdown().getTax(g.getFaction());
+				double tax = payer.getLedger().getPayableHubTaxes().getOrDefault(g.getFaction(), 0.0);
 				if (tax > 0) {
 					today.merge(payer.getFaction().getName(), tax, Double::sum);
 				}

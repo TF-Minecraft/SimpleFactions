@@ -419,7 +419,8 @@ public class Ledger {
         return total;
     }
 
-    private Map<Faction, Double> getPayableHubTaxes() {
+    /** Hub tax this guild will actually pay today, by host. Empty when either side moves no money. */
+    public Map<Faction, Double> getPayableHubTaxes() {
         HubTaxBreakdown hubTax = guild.getHubTaxBreakdown();
         if (hubTax == null || guild.getFaction() == null || skipsMoneyMovement()) {
             return Map.of();
