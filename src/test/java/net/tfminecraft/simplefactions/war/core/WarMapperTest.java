@@ -823,6 +823,37 @@ class WarMapperTest {
 		}
 	}
 
+	@Test
+	void fromData_restoresDefenderCounterGoalAndBattleLock() {
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("faction_a");
+		when(defender.getId()).thenReturn("faction_b");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		try {
+			WarData data = minimalWarData();
+			data.defenderCounterGoal = "subjugate";
+			data.defenderCounterRelationTypeId = "march";
+			data.firstBattleStarted = true;
+
+			War war = WarMapper.fromData(data);
+			assertEquals(WarGoalType.SUBJUGATE, war.getDefenderCounterGoal());
+			assertEquals("march", war.getDefenderCounterRelationTypeId());
+			assertTrue(war.hasFirstBattleStarted());
+
+			war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+			assertEquals(WarGoalType.SUBJUGATE, war.getDefenderCounterGoal());
+			WarData roundTripped = WarMapper.toData(war);
+			assertEquals("subjugate", roundTripped.defenderCounterGoal);
+			assertEquals("march", roundTripped.defenderCounterRelationTypeId);
+			assertTrue(roundTripped.firstBattleStarted);
+		} finally {
+			FactionManager.factions.remove(attacker);
+			FactionManager.factions.remove(defender);
+		}
+	}
+
 	private static WarData minimalWarData() {
 		WarData data = new WarData();
 		data.id = 9;

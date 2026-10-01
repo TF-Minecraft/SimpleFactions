@@ -620,6 +620,21 @@ class WarOutcomeServiceTest {
 	}
 
 	@Test
+	void defenderVictory_selectedCounterGoalAppliesAgainstAttackerInsteadOfReparations() {
+		Fixture fx = fixture();
+		fx.war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+		RelationType tributary = mock(RelationType.class);
+		when(tributary.getId()).thenReturn("tributary");
+		try (MockedStatic<RelationLoader> loader = mockStatic(RelationLoader.class);
+				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			loader.when(() -> RelationLoader.getType("tributary")).thenReturn(tributary);
+			WarOutcomeService.apply(fx.war, WarEndReason.DEFENDER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(tributary, fx.attacker, fx.defender));
+		}
+		assertTrue(fx.payerObligations.isEmpty());
+	}
+
+	@Test
 	void tickAfterDailySettlement_decrementsThenRemoves() {
 		Faction payer = mock(Faction.class);
 		List<WarReparationsObligation> obligations = new ArrayList<>();

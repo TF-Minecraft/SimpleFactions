@@ -197,7 +197,7 @@ public class WarView {
 		if (vassalTypes != null && !vassalTypes.isEmpty()) {
 			for (RelationType type : vassalTypes) {
 				if (slot >= 17) break;
-				ItemStack option = goalOption(Material.CHAIN, "§eSubjugate: " + type.getName(),
+				ItemStack option = goalOption(Material.CHAINMAIL_CHESTPLATE, "§eSubjugate: " + type.getName(),
 						"§7Make the attacker your " + type.getName());
 				ItemMeta meta = option.getItemMeta();
 				meta.getPersistentDataContainer().set(
