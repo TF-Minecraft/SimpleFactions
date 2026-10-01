@@ -25,6 +25,7 @@ import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
+import net.tfminecraft.simplefactions.guild.hub.HubTaxBreakdown;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
@@ -91,6 +92,7 @@ public class Guild {
 	private List<Modifier> wealthModifiers = new ArrayList<>();
 
     private TradeBreakdown breakdown = new TradeBreakdown();
+    private volatile HubTaxBreakdown hubTaxBreakdown = HubTaxBreakdown.empty();
 
     private Stance stance;
 
@@ -702,6 +704,14 @@ public class Guild {
         return scratch != null ? scratch : breakdown;
     }
     public void setTradeBreakdown(TradeBreakdown breakdown) { this.breakdown = breakdown; }
+
+    public HubTaxBreakdown getHubTaxBreakdown() {
+        return hubTaxBreakdown;
+    }
+
+    public void setHubTaxBreakdown(HubTaxBreakdown hubTaxBreakdown) {
+        this.hubTaxBreakdown = hubTaxBreakdown;
+    }
 
     public double getRepressFavourCost() {
         return Formatter.formatDouble(getStabilityEffect()*0.5);

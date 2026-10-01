@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.objects.handler;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
 import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
@@ -24,6 +25,7 @@ public class TaxHandler {
     private double vassalTax;
     private double dividendTax;
     private double tariffs;
+    private double hubTax;
 
     private HashMap<TaxTarget, HashMap<String, Double>> specificTaxes = new HashMap<>();
 
@@ -38,6 +40,27 @@ public class TaxHandler {
 
     public void setTariffs(double tariffs) {
         this.tariffs = tariffs;
+    }
+
+    public void setHubTax(double rate) {
+        hubTax = clampHubTax(rate);
+    }
+
+    public double getHubTax() {
+        return clampHubTax(hubTax);
+    }
+
+    private double clampHubTax(double rate) {
+        return clampHubTax(rate, taxBrackets.get(TaxTarget.TARIFFS));
+    }
+
+    private double clampHubTax(double rate, Bracket bracket) {
+        if (!Double.isFinite(rate)) {
+            return 0;
+        }
+        double max = Math.min(Cache.supplyHubMaxTax, bracket == null ? 100.0 : bracket.getMax());
+        double min = Math.min(max, bracket == null ? 0.0 : bracket.getMin());
+        return Math.max(min, Math.min(max, rate));
     }
 
     public void setCitizenTax(double citizenTax) {
@@ -95,6 +118,10 @@ public class TaxHandler {
                 dividendTax = rate;
                 break;
 
+            case HUB_TAX:
+                setHubTax(rate);
+                break;
+
             case TARIFFS:
                 tariffs = rate;
                 break;
@@ -120,6 +147,7 @@ public class TaxHandler {
         double rate =  switch (target) {
             case CITIZENS -> citizenTax;
             case DIVIDENDS -> dividendTax;
+            case HUB_TAX -> getHubTax();
             case TARIFFS -> (id != null && hasSpecificTax(target, id))
                 ? getSpecificTax(target, id) : tariffs;
 
@@ -143,6 +171,12 @@ public class TaxHandler {
         IncomePreviewContext context = IncomePreviewContext.current();
         if (context != null) {
             rate = context.adjustTax(f, this, target, id, rate);
+        }
+        if (target == TaxTarget.HUB_TAX) {
+            // adjustTax already applied the proposed law's bracket, as it does for tariffs.
+            Bracket bracket = context != null && context.previewsLaw(f)
+                    ? null : taxBrackets.get(TaxTarget.TARIFFS);
+            rate = clampHubTax(rate, bracket);
         }
         return effective ? Formatter.formatDouble(rate * f.getGovernment().getTaxEfficiency()) : rate;
     }
@@ -189,6 +223,7 @@ public class TaxHandler {
 
             case TARIFFS:
                 tariffs = applyBracket(tariffs, bracket);
+                setHubTax(hubTax);
                 applySpecificBracket(target, bracket);
                 break;
 
@@ -203,14 +238,20 @@ public class TaxHandler {
 
     public double getMin(TaxTarget target) {
         if(!canCollectTax(target)) return 0.0;
-        Bracket bracket = taxBrackets.get(target);
+        Bracket bracket = taxBrackets.get(target == TaxTarget.HUB_TAX ? TaxTarget.TARIFFS : target);
         if (bracket == null) return 0.0;
+        if (target == TaxTarget.HUB_TAX) {
+            return Math.min(bracket.getMin(), getMax(target));
+        }
         return bracket.getMin();
     }
 
     public double getMax(TaxTarget target) {
         if(!canCollectTax(target)) return 0.0;
-        Bracket bracket = taxBrackets.get(target);
+        Bracket bracket = taxBrackets.get(target == TaxTarget.HUB_TAX ? TaxTarget.TARIFFS : target);
+        if (target == TaxTarget.HUB_TAX) {
+            return Math.min(Cache.supplyHubMaxTax, bracket == null ? 100.0 : bracket.getMax());
+        }
         if (bracket == null) return 100.0;
         return bracket.getMax();
     }
@@ -229,6 +270,7 @@ public class TaxHandler {
                 return f.hasFactionRule(Rules.DIVIDEND_TAX);
             case TARIFFS:
             case TARIFF_ID:
+            case HUB_TAX:
                 return f.hasFactionRule(Rules.TARIFFS);
             default:
                 return false;
@@ -236,6 +278,9 @@ public class TaxHandler {
     }
 
     public void setSpecificTax(TaxTarget target, String id, double rate) {
+        if (target == TaxTarget.HUB_TAX) {
+            return;
+        }
         double defaultRate = getDefaultRate(target);
 
         if (Double.compare(rate, defaultRate) == 0) {
@@ -295,6 +340,7 @@ public class TaxHandler {
             vassalTax,
             dividendTax,
             tariffs,
+            hubTax,
             copiedSpecificTaxes
         );
     }
@@ -307,6 +353,7 @@ public class TaxHandler {
         this.vassalTax = savedSnapshot.vassalTax;
         this.dividendTax = savedSnapshot.dividendTax;
         this.tariffs = savedSnapshot.tariffs;
+        setHubTax(savedSnapshot.hubTax);
 
         this.specificTaxes.clear();
 
@@ -326,6 +373,7 @@ public class TaxHandler {
             case GUILDS, GUILD_ID -> guildTax;
             case VASSALS, VASSAL_ID -> vassalTax;
             case DIVIDENDS -> dividendTax;
+            case HUB_TAX -> getHubTax();
             case TARIFFS, TARIFF_ID -> tariffs;
             default -> 0.0;
         };

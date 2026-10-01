@@ -346,6 +346,8 @@ public class SimpleFactions extends JavaPlugin{
 		if (Cache.provincesEnabled) {
 			provinceSnapshot = provinceManager.createSnapshotShell();
 			provinceManager.recalculate();
+			// Hub tax is assessed at the day change; do it once now so menus are right before then.
+			net.tfminecraft.simplefactions.guild.hub.HubTaxService.refresh(provinceManager);
 		}
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();

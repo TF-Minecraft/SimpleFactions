@@ -19,6 +19,8 @@ public final class LedgerHistory {
         VASSALS,
         TRIBUTES,
         TARIFFS,
+        HUB_TAX,
+        HUB_TAX_PAYMENTS,
         DEPOSITS
     }
 

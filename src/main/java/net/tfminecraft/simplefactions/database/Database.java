@@ -166,6 +166,7 @@ public class Database {
                         data.laws,
                         data.governmentData
                 );
+                f.getTaxHandler().setHubTax(data.hubTax == null ? 0.0 : data.hubTax);
                 f.getVehicleFeeHandler().load(data.vehicleFees, data.vehicleTypeFees);
                 if (data.lawChangedAt != null) {
                     for (Map.Entry<String, Long> entry : data.lawChangedAt.entrySet()) {
@@ -329,6 +330,7 @@ public class Database {
             data.vassalTax = f.getTaxHandler().getVassalTax();
             data.dividendTax = f.getTaxHandler().getDividendTax();
             data.tariffs = f.getTaxHandler().getTariffs();
+            data.hubTax = f.getTaxHandler().getHubTax();
             data.specificTaxes = serializeSpecificTaxes(f.getTaxHandler());
             data.vehicleFees = new HashMap<>(f.getVehicleFeeHandler().serializeRates());
             data.vehicleTypeFees = new HashMap<>();

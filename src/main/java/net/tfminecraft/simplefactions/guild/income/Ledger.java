@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
+import net.tfminecraft.simplefactions.guild.hub.HubTaxBreakdown;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.income.entry.PlayerEntry;
@@ -227,6 +228,18 @@ public class Ledger {
                 if(!guild.isBase()) return 0;
                 amount = getTotalTariffsEarned();
                 break;
+            case HUB_TAX:
+                if (!guild.isBase()) {
+                    return 0;
+                }
+                amount = getTotalHubTaxEarned();
+                break;
+            case HUB_TAX_PAYMENTS: {
+                for (double tax : getPayableHubTaxes().values()) {
+                    amount -= tax;
+                }
+                break;
+            }
             case TARIFF_PAYMENTS: {
                 TradeBreakdown tariffs = guild.getTradeBreakdown();
                 amount = tariffs == null ? 0 : -tariffs.getTariffs();
@@ -392,6 +405,37 @@ public class Ledger {
         return total;
     }
 
+    public double getTotalHubTaxEarned() {
+        if (skipsMoneyMovement()) {
+            return 0;
+        }
+        double total = 0;
+        for (Guild payer : FactionManager.getAllGuilds()) {
+            if (payer.getLedger() == null) {
+                continue;
+            }
+            total += payer.getLedger().getPayableHubTaxes().getOrDefault(guild.getFaction(), 0.0);
+        }
+        return total;
+    }
+
+    /** Hub tax this guild will actually pay today, by host. Empty when either side moves no money. */
+    public Map<Faction, Double> getPayableHubTaxes() {
+        HubTaxBreakdown hubTax = guild.getHubTaxBreakdown();
+        if (hubTax == null || guild.getFaction() == null || skipsMoneyMovement()) {
+            return Map.of();
+        }
+        Map<Faction, Double> payable = new HashMap<>();
+        for (Map.Entry<Faction, Double> entry : hubTax.getTaxesByFaction().entrySet()) {
+            Guild receiver = entry.getKey().getOrCreateMainGuild();
+            if (entry.getValue() > 0 && receiver != null && receiver.getLedger() != null
+                    && !receiver.getLedger().skipsMoneyMovement()) {
+                payable.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return payable;
+    }
+
     public List<Map.Entry<String, Double>> getCitizenTaxEntriesDescending() {
         return citizenTaxes.entrySet().stream()
             .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
@@ -482,6 +526,7 @@ public class Ledger {
                 case TRADE:
                 case CITIZENS:
                 case TARIFFS:
+                case HUB_TAX:
                 case GAMBLING:
                 case VEHICLE_FEES:
                 case GUILDS:
@@ -509,6 +554,7 @@ public class Ledger {
                 case OVERLORD_TAX:
                 case TRIBUTE_PAYMENTS:
                 case TARIFF_PAYMENTS:
+                case HUB_TAX_PAYMENTS:
                 case DIVIDEND_PAYMENT:
                 case DIVIDEND_PAYOUT:
                 case WAR_REPARATIONS_PAYMENT:
@@ -559,6 +605,7 @@ public class Ledger {
                 case TRADE:
                 case CITIZENS:
                 case TARIFFS:
+                case HUB_TAX:
                 case GAMBLING:
                 case VEHICLE_FEES:
                 case GUILDS:
@@ -583,6 +630,7 @@ public class Ledger {
                 case OVERLORD_TAX:
                 case TRIBUTE_PAYMENTS:
                 case TARIFF_PAYMENTS:
+                case HUB_TAX_PAYMENTS:
                 case WAR_REPARATIONS_PAYMENT:
                 case LOAN_PAYMENTS:
                 case INTEREST_PAYMENTS:
@@ -833,6 +881,12 @@ public class Ledger {
                         payer.getName(), Math.abs(ledger.getIncome(Cashflow.GUILD_PAYMENTS)));
             }
 
+            for (Map.Entry<Faction, Double> entry : ledger.getPayableHubTaxes().entrySet()) {
+                recordHistory(out, entry.getKey().getOrCreateMainGuild(), LedgerHistory.Source.HUB_TAX,
+                        f.getName(), entry.getValue());
+                recordHistory(out, payer, LedgerHistory.Source.HUB_TAX_PAYMENTS,
+                        entry.getKey().getName(), entry.getValue());
+            }
             TradeBreakdown trade = payer.getTradeBreakdown();
             if (trade != null && trade.getTariffsByFactionMap() != null) {
                 for (Map.Entry<Faction, Double> entry : trade.getTariffsByFactionMap().entrySet()) {
@@ -1062,6 +1116,13 @@ public class Ledger {
                 return;
             }
 
+            case HUB_TAX_PAYMENTS: {
+                for (Map.Entry<Faction, Double> entry : getPayableHubTaxes().entrySet()) {
+                    buffer.add(guild, entry.getKey().getOrCreateMainGuild(), entry.getValue());
+                }
+                break;
+            }
+
             //Taxes and Tariffs
             case TARIFF_PAYMENTS: {
                 TradeBreakdown tariffs = guild.getTradeBreakdown();
@@ -1165,6 +1226,7 @@ public class Ledger {
             case DIVIDENDS:
             case TRIBUTES:
             case TARIFFS:
+            case HUB_TAX:
             case WAR_REPARATIONS:
             case MERCENARY_CONTRACT:
             case REFUNDS:

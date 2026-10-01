@@ -6,6 +6,7 @@ public enum TaxTarget {
     VASSALS("Vassals"),
     DIVIDENDS("Dividends"),
     TARIFFS("Tariffs"),
+    HUB_TAX("Hub Tax"),
     TARIFF_ID("Faction Specific Tariffs"),
     GUILD_ID("Guild Specific"),
     VASSAL_ID("Vassal Specific");

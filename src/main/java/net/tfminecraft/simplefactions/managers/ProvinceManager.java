@@ -33,6 +33,7 @@ import net.tfminecraft.simplefactions.laws.LawGroup;
 
 public class ProvinceManager {
     private Map<Integer, Province> provinces = new HashMap<>();
+    private Map<String, List<Link>> hubLinksOverride;
     private long stateVersion = 0;
     private long lastCalculatedVersion = -1;
 
@@ -72,6 +73,18 @@ public class ProvinceManager {
 
         snap.start(map);
         return snap;
+    }
+
+    /** Snapshot-only link selection. An unset map keeps the normal cached network. */
+    public void setHubLinksOverride(Map<String, List<Link>> links) {
+        hubLinksOverride = links;
+    }
+
+    private List<Link> hubLinksFor(Guild guild) {
+        if (hubLinksOverride != null && hubLinksOverride.containsKey(guild.getId())) {
+            return hubLinksOverride.get(guild.getId());
+        }
+        return HubNetwork.linksFor(guild);
     }
 
     public void clearGuildData(String guildId) {
@@ -157,7 +170,7 @@ public class ProvinceManager {
      * travel along a chain of hubs; every link loses some, so this settles.
      */
     private void carryTradeThroughHubs(Guild guild) {
-        List<Link> links = HubNetwork.linksFor(guild);
+        List<Link> links = hubLinksFor(guild);
         if (links.isEmpty()) return;
         // Prosperity weighs production by a province's distance from where it came. Trade arriving
         // through a hub must not shorten that for production that still walked from the capital,
@@ -192,7 +205,7 @@ public class ProvinceManager {
     }
 
     private void carryProductionThroughHubs(Guild guild) {
-        List<Link> links = HubNetwork.linksFor(guild);
+        List<Link> links = hubLinksFor(guild);
         double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
         for (int pass = 0; pass <= links.size(); pass++) {
             boolean moved = false;
@@ -252,6 +265,20 @@ public class ProvinceManager {
 
         // Optional rounding for display
         return Math.round(income * 100.0) / 100.0;
+    }
+
+    /** The gross trade line, before upkeep and tariffs, without writing a guild breakdown. */
+    public double getGrossTradeIncome(Guild guild) {
+        if (!Cache.provincesEnabled) {
+            return 0;
+        }
+        double income = 0;
+        for (Province province : provinces.values()) {
+            if (province.getTerrain().generatesIncome()) {
+                income += province.getIncome(guild);
+            }
+        }
+        return PillageTradeHit.applyToIncome(guild, income);
     }
 
     public double getIncome(Guild guild) {

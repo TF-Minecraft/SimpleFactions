@@ -32,7 +32,7 @@ public class TaxView {
     public void taxView(Player player, Faction f, Inventory i) {
         if(f == null) return;
 		boolean open = i == null;
-		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_VIEW), 9, "§7Tax View");
+		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_VIEW), 18, "§7Tax View");
 		i.clear();
 		int slot = 0;
 		for(TaxTarget target : TaxTarget.values()) {
@@ -40,7 +40,7 @@ public class TaxView {
 			i.setItem(slot, creator.createTaxTypeItem(player, f, target, false));
 			slot++;
 		}
-		i.setItem(8, inv.createBackButton(SFGUI.TAX_VIEW));
+		i.setItem(17, inv.createBackButton(SFGUI.TAX_VIEW));
 		if(open) player.openInventory(i);
 	}
 
