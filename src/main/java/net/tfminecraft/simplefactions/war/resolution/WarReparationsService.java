@@ -2,10 +2,13 @@ package net.tfminecraft.simplefactions.war.resolution;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.war.core.War;
 
 public final class WarReparationsService {
@@ -32,8 +35,39 @@ public final class WarReparationsService {
 		if (days <= 0 || percent <= 0) {
 			return false;
 		}
-		payer.addWarReparationsObligation(new WarReparationsObligation(payee.getId(), percent, days));
+		for (Faction includedPayer : payerAndVassals(payer)) {
+			includedPayer.addWarReparationsObligation(
+					new WarReparationsObligation(payee.getId(), percent, days));
+		}
 		return true;
+	}
+
+	/** Returns the defeated faction and its full vassal tree, once each. */
+	private static List<Faction> payerAndVassals(Faction root) {
+		Set<String> visitedIds = new LinkedHashSet<>();
+		List<Faction> result = new ArrayList<>();
+		collectPayers(root, visitedIds, result);
+		return result;
+	}
+
+	private static void collectPayers(Faction faction, Set<String> visitedIds, List<Faction> result) {
+		if (faction == null || faction.getId() == null || !visitedIds.add(faction.getId().toLowerCase())) {
+			return;
+		}
+		result.add(faction);
+		List<Faction> subjects;
+		try {
+			subjects = RelationManager.getSubjects(faction);
+		} catch (RuntimeException ignored) {
+			// A faction being removed during settlement has no subjects to process.
+			return;
+		}
+		if (subjects == null) {
+			return;
+		}
+		for (Faction subject : subjects) {
+			collectPayers(subject, visitedIds, result);
+		}
 	}
 
 	public static void tickAfterDailySettlement(Faction payer) {

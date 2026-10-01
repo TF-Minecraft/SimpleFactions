@@ -175,7 +175,7 @@ public class RelationCreator {
 		} else {
 			if (paying != null) {
 				lore.add(StringFormatter.formatHex("#c74c3fPaying "+target.getName()));
-				lore.add(StringFormatter.formatHex("#a89977"+Formatter.formatDouble(paying.getIncomePercent())+"% of main guild income"));
+				lore.add(StringFormatter.formatHex("#a89977"+Formatter.formatDouble(paying.getIncomePercent())+"% of each guild's gross trade income"));
 				lore.add(StringFormatter.formatHex("#a89977"+paying.getDaysRemaining()+" day(s) remaining"));
 			}
 			if (receiving != null) {
@@ -183,12 +183,13 @@ public class RelationCreator {
 					lore.add(" ");
 				}
 				lore.add(StringFormatter.formatHex("#87d65cReceiving from "+target.getName()));
-				lore.add(StringFormatter.formatHex("#a89977"+Formatter.formatDouble(receiving.getIncomePercent())+"% of their main guild income"));
+				lore.add(StringFormatter.formatHex("#a89977"+Formatter.formatDouble(receiving.getIncomePercent())+"% of each payer guild's gross trade income"));
 				lore.add(StringFormatter.formatHex("#a89977"+receiving.getDaysRemaining()+" day(s) remaining"));
 			}
 		}
 		lore.add(" ");
-		lore.add(StringFormatter.formatHex("#7a7a7aBased on internal taxable income"));
+		lore.add(StringFormatter.formatHex("#7a7a7aIncludes every guild in each vassal chain"));
+		lore.add(StringFormatter.formatHex("#7a7a7aCalculated before trade upkeep"));
 		m.setLore(lore);
 		i.setItemMeta(m);
 		return i;

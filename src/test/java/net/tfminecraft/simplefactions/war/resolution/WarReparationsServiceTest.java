@@ -12,9 +12,11 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
@@ -76,6 +78,36 @@ class WarReparationsServiceTest {
 		assertEquals("def", obligations.get(0).getPayeeFactionId());
 		assertEquals(25, obligations.get(0).getIncomePercent());
 		assertEquals(10, obligations.get(0).getDaysRemaining());
+	}
+
+	@Test
+	void apply_recursivelyAddsObligationToEveryVassalOnce() {
+		Faction child = mockFaction("child");
+		Faction grandchild = mockFaction("grandchild");
+		List<WarReparationsObligation> childObligations = new ArrayList<>();
+		List<WarReparationsObligation> grandchildObligations = new ArrayList<>();
+		when(child.getWarReparationsObligations()).thenReturn(childObligations);
+		when(grandchild.getWarReparationsObligations()).thenReturn(grandchildObligations);
+		doAnswer(invocation -> {
+			childObligations.add(invocation.getArgument(0));
+			return null;
+		}).when(child).addWarReparationsObligation(org.mockito.ArgumentMatchers.any());
+		doAnswer(invocation -> {
+			grandchildObligations.add(invocation.getArgument(0));
+			return null;
+		}).when(grandchild).addWarReparationsObligation(org.mockito.ArgumentMatchers.any());
+
+		try (MockedStatic<RelationManager> relations = org.mockito.Mockito.mockStatic(RelationManager.class)) {
+			relations.when(() -> RelationManager.getSubjects(payer)).thenReturn(List.of(child));
+			relations.when(() -> RelationManager.getSubjects(child)).thenReturn(List.of(grandchild));
+			relations.when(() -> RelationManager.getSubjects(grandchild)).thenReturn(List.of(payer));
+			assertTrue(WarReparationsService.apply(payer, payee));
+		}
+
+		assertEquals(1, obligations.size());
+		assertEquals(1, childObligations.size());
+		assertEquals(1, grandchildObligations.size());
+		assertEquals("def", grandchildObligations.get(0).getPayeeFactionId());
 	}
 
 	private static Faction mockFaction(String id) {

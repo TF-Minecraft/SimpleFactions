@@ -49,6 +49,7 @@ class WarReparationsLedgerTest {
 		FactionManager.factions.add(payee);
 
 		Guild payerGuild = mockGuild(payer, true, 200.0);
+		payerGuild.getTradeBreakdown().setUpkeep(125.0);
 		when(payer.getOrCreateMainGuild()).thenReturn(payerGuild);
 		Ledger ledger = new Ledger(payerGuild);
 
@@ -56,32 +57,42 @@ class WarReparationsLedgerTest {
 	}
 
 	@Test
-	void payeeMainGuild_incomeIsPositiveFromPayerGross() {
+	void payeeMainGuild_receivesDirectlyFromAllGuildsInPayerVassalTree() {
 		Faction payer = mockFaction("atk");
+		Faction vassal = mockFaction("vassal");
 		Faction payee = mockFaction("def");
 		when(payer.getWarReparationsObligations()).thenReturn(List.of(
 				new WarReparationsObligation("def", 25, 10)));
+		when(vassal.getWarReparationsObligations()).thenReturn(List.of(
+				new WarReparationsObligation("def", 25, 10)));
 		when(payee.getWarReparationsObligations()).thenReturn(List.of());
 		FactionManager.factions.add(payer);
+		FactionManager.factions.add(vassal);
 		FactionManager.factions.add(payee);
 
 		Guild payerGuild = mockGuild(payer, true, 200.0);
+		Guild payerBranch = mockGuild(payer, false, 80.0);
+		Guild vassalMainGuild = mockGuild(vassal, true, 120.0);
 		Guild payeeGuild = mockGuild(payee, true, 0.0);
 		when(payer.getOrCreateMainGuild()).thenReturn(payerGuild);
 		when(payee.getOrCreateMainGuild()).thenReturn(payeeGuild);
+		when(payer.getGuildHandler().getGuilds()).thenReturn(List.of(payerGuild, payerBranch));
+		when(vassal.getGuildHandler().getGuilds()).thenReturn(List.of(vassalMainGuild));
 
 		Ledger payeeLedger = new Ledger(payeeGuild);
-		assertEquals(50.0, payeeLedger.getIncome(Cashflow.WAR_REPARATIONS));
+		assertEquals(100.0, payeeLedger.getIncome(Cashflow.WAR_REPARATIONS));
+		assertEquals(-20.0, payerBranch.getLedger().getIncome(Cashflow.WAR_REPARATIONS_PAYMENT));
+		assertEquals(-30.0, vassalMainGuild.getLedger().getIncome(Cashflow.WAR_REPARATIONS_PAYMENT));
 	}
 
 	@Test
-	void subsidiaryGuild_reparationsAreZero() {
+	void subsidiaryGuild_paysFromItsOwnGrossTrade() {
 		Faction payer = mockFaction("atk");
 		when(payer.getWarReparationsObligations()).thenReturn(List.of(
 				new WarReparationsObligation("def", 25, 10)));
 		Guild sub = mockGuild(payer, false, 200.0);
 		Ledger ledger = new Ledger(sub);
-		assertEquals(0.0, ledger.getIncome(Cashflow.WAR_REPARATIONS_PAYMENT));
+		assertEquals(-50.0, ledger.getIncome(Cashflow.WAR_REPARATIONS_PAYMENT));
 		assertEquals(0.0, ledger.getIncome(Cashflow.WAR_REPARATIONS));
 	}
 
@@ -102,6 +113,7 @@ class WarReparationsLedgerTest {
 		Guild suzerainGuild = mockGuild(suzerain, true, 0.0);
 		when(tributary.getOrCreateMainGuild()).thenReturn(tributaryGuild);
 		when(suzerain.getOrCreateMainGuild()).thenReturn(suzerainGuild);
+		when(tributary.getGuildHandler().getGuilds()).thenReturn(List.of(tributaryGuild));
 
 		Ledger suzerainLedger = new Ledger(suzerainGuild);
 		Ledger tributaryLedger = new Ledger(tributaryGuild);
