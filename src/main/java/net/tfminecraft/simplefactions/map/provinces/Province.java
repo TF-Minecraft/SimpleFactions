@@ -243,7 +243,7 @@ public class Province {
         return factor <= 0 ? 0 : entry.getTrade() / factor;
     }
 
-    /** The guild's stored trade power here, as {@link #calculateTrade} compares against. */
+    /** The guild's trade power here as stored, with the foreign-trade bonus. */
     public double getStoredGuildTrade(Guild guild) {
         ProvinceDataEntry entry = data.get(guild.getId());
         return entry == null ? 0 : entry.getTrade();
@@ -262,8 +262,9 @@ public class Province {
     public void seedTrade(ProvinceManager manager, Guild guild, double amount) {
         if (amount < 0.5) return;
 
+        // Like for like: the stored value carries the foreign-trade bonus, the delivery does not.
         ProvinceDataEntry entry = data.get(guild.getId());
-        if (entry != null && entry.getTrade() >= amount) {
+        if (entry != null && getRawGuildTrade(guild) >= amount) {
             return;
         }
         if (entry == null) {

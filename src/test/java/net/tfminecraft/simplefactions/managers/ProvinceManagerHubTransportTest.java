@@ -18,7 +18,9 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.enums.Terrain;
+import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport;
@@ -110,6 +112,27 @@ class ProvinceManagerHubTransportTest {
         recalculate();
 
         assertEquals(17, trade(2), 1e-9);
+    }
+
+    @Test
+    void deliveryIsComparedBeforeTheForeignTradeBonus() {
+        // Province 2 belongs to an unstable foreign nation, so the guild's 17 there is stored as 25.5.
+        Faction owner = mock(Faction.class);
+        Government government = mock(Government.class);
+        when(owner.getId()).thenReturn("owner");
+        when(owner.getGovernment()).thenReturn(government);
+        when(owner.getDiplomacyHandler()).thenReturn(mock(DiplomacyHandler.class));
+        when(government.getStability()).thenReturn(0.0);
+        titles.when(() -> TitleManager.getByProvince(2)).thenReturn(owner);
+        link(new Link(1, 2, Mode.RAIL, 0, 0.9, 0));
+
+        try (MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+            recalculate();
+        }
+
+        // 18 delivered beats the 17 that arrived by road, though it is below the stored 25.5.
+        assertEquals(18, provinces.get(2).getRawGuildTrade(guild), 1e-9);
+        assertEquals(27, trade(2), 1e-9);
     }
 
     @Test

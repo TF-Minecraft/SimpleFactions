@@ -165,7 +165,7 @@ public class ProvinceManager {
                 Province to = provinces.get(link.toProvince());
                 if (from == null || to == null) continue;
                 double delivered = from.getRawGuildTrade(guild) * link.tradeFactor();
-                if (delivered < 0.5 || delivered <= to.getStoredGuildTrade(guild)) continue;
+                if (delivered < 0.5 || delivered <= to.getRawGuildTrade(guild)) continue;
                 to.seedTrade(this, guild, delivered);
                 moved = true;
             }
