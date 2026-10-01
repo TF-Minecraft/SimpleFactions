@@ -65,3 +65,36 @@ storehouses:
     - trade_carry 0.25
     - trade_upkeep 0 0.02
     - prestige 0 5
+supply_lines:
+  name: "#b5835aSupply Lines"
+  icon: "rail.0"
+  group: 3
+  description:
+    - "#b5835aSupply Lines #d4c9aestrengthen the"
+    - "#d4c9aeguild's network of supply hubs,"
+    - "#d4c9aemaking more hubs available and"
+    - "#d4c9aepassing more trade power between them."
+  allowed-types:
+    - guild
+    - realm
+  modifiers:
+    - hub_limit 0 0.5
+    - hub_trade 0 0.03
+    - trade_upkeep 0 0.01
+    - prestige 0 5
+freight_yards:
+  name: "#a9744fFreight Yards"
+  icon: "chest_minecart.0"
+  group: 4
+  description:
+    - "#a9744fFreight Yards #d4c9aeimprove the"
+    - "#d4c9aehandover of production between"
+    - "#d4c9aehubs, helping workshops prosper"
+    - "#d4c9aefar beyond the guild's capital."
+  allowed-types:
+    - guild
+    - realm
+  modifiers:
+    - hub_production 0 0.08
+    - trade_upkeep 0 0.01
+    - prestige 0 5

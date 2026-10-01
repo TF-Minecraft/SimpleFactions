@@ -167,21 +167,22 @@ public class ProvinceManager {
             ProvinceDataEntry entry = province.getAllData().get(guild.getId());
             if (entry != null) walked.put(province.getId(), entry.getDistance());
         }
-        deliverTradeThroughHubs(guild, links);
+        deliverTradeThroughHubs(
+                guild, links, GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE));
         for (Map.Entry<Integer, Integer> distance : walked.entrySet()) {
             ProvinceDataEntry entry = provinces.get(distance.getKey()).getAllData().get(guild.getId());
             if (entry != null) entry.setDistance(distance.getValue());
         }
     }
 
-    private void deliverTradeThroughHubs(Guild guild, List<Link> links) {
+    private void deliverTradeThroughHubs(Guild guild, List<Link> links, double bonus) {
         for (int pass = 0; pass <= links.size(); pass++) {
             boolean moved = false;
             for (Link link : links) {
                 Province from = provinces.get(link.fromProvince());
                 Province to = provinces.get(link.toProvince());
                 if (from == null || to == null) continue;
-                double delivered = from.getRawGuildTrade(guild) * link.tradeFactor();
+                double delivered = from.getRawGuildTrade(guild) * link.boostedTradeFactor(bonus);
                 if (delivered < 0.5 || delivered <= to.getRawGuildTrade(guild)) continue;
                 to.seedTrade(this, guild, delivered);
                 moved = true;
@@ -192,13 +193,14 @@ public class ProvinceManager {
 
     private void carryProductionThroughHubs(Guild guild) {
         List<Link> links = HubNetwork.linksFor(guild);
+        double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
         for (int pass = 0; pass <= links.size(); pass++) {
             boolean moved = false;
             for (Link link : links) {
                 Province from = provinces.get(link.fromProvince());
                 Province to = provinces.get(link.toProvince());
                 if (from == null || to == null) continue;
-                double delivered = from.getGuildProduction(guild) * link.productionFactor();
+                double delivered = from.getGuildProduction(guild) * link.boostedProductionFactor(bonus);
                 if (delivered < 0.1 || delivered <= to.getGuildProduction(guild)) continue;
                 to.seedProduction(this, guild, delivered);
                 moved = true;

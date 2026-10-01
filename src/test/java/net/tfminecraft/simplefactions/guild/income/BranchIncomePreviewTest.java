@@ -29,6 +29,9 @@ import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
+import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
+import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
@@ -89,6 +92,7 @@ class BranchIncomePreviewTest {
 	@AfterEach
 	void tearDown() {
 		GuildModifierOverride.clear();
+		HubNetwork.setLinksForTests(null);
 		Cache.provincesEnabled = savedProvincesEnabled;
 		if (savedPlainsCarry == null) {
 			Cache.tradeCarry.remove(Terrain.PLAINS);
@@ -164,5 +168,19 @@ class BranchIncomePreviewTest {
 		}
 		assertEquals(2, branch.getLevel());
 		assertEquals(12.5, capital.getProsperity());
+	}
+
+	@Test
+	void branchPreviewUsesHypotheticalHubTradeLevel() {
+		HubNetwork.setLinksForTests(Map.of("fields", List.of(
+				new Link(capital.getId(), neighbour.getId(), Mode.RAIL, 0, 0.9, 0))));
+		YamlConfiguration yaml = new YamlConfiguration();
+		yaml.set("name", "Supply Lines");
+		yaml.set("group", 3);
+		yaml.set("modifiers", List.of("HUB_TRADE 0 0.2"));
+		Branch supplyLines = new Branch(new Branch("supply_lines", yaml), 0);
+
+		assertTrue(live.previewUpgradeIncomeExact(guild, supplyLines) > 0);
+		assertEquals(0, supplyLines.getLevel());
 	}
 }

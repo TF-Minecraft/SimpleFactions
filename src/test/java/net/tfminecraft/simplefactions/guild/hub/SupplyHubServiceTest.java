@@ -29,6 +29,7 @@ import net.tfminecraft.simplefactions.database.InstallationData;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.database.SupplyHubData;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.DormantReason;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.HubCandidate;
@@ -185,6 +186,27 @@ class SupplyHubServiceTest {
         assertTrue(SupplyHubService.statusText(beyond).contains("hub slots"));
         assertTrue(SupplyHubService.statusText(missing).contains("no longer exists"));
         assertTrue(SupplyHubService.statusText(noPermit).contains("hub permit"));
+    }
+
+    @Test
+    void guildLimitIncludesWholeBranchBonus_andExcessHubsAreNewestFirst() {
+        Cache.supplyHubBaseLimit = 2;
+        Guild guild = mock(Guild.class);
+        List<SupplyHub> hubs = new ArrayList<>(List.of(
+                hub("rome", "old", 1), hub("rome", "middle", 2), hub("rome", "new", 3)));
+        when(guild.getSupplyHubs()).thenReturn(hubs);
+        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(1.5);
+
+        assertEquals(3, SupplyHubService.limit(guild));
+        assertFalse(SupplyHubService.beyondGuildLimit(guild, hubs.get(0)));
+        assertFalse(SupplyHubService.beyondGuildLimit(guild, hubs.get(1)));
+        assertFalse(SupplyHubService.beyondGuildLimit(guild, hubs.get(2)));
+
+        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(0.5);
+        assertEquals(2, SupplyHubService.limit(guild));
+        assertTrue(SupplyHubService.beyondGuildLimit(guild, hubs.get(2)));
+        assertTrue(SupplyHubService.statusText(new HubStanding(
+                false, DormantReason.BEYOND_GUILD_LIMIT)).contains("guild's supply hub limit"));
     }
 
     @Test

@@ -65,6 +65,20 @@ class HubTransportTest {
     }
 
     @Test
+    void modifierBoostIsAppliedBeforeTheShareCapAndDistanceLoss() {
+        Link link = HubTransport.link(3, 9, Mode.RAIL, 1000);
+
+        assertEquals(0.70 * 1.3 * 0.90, link.boostedTradeFactor(0.30), 1e-9);
+        assertEquals(0.25 * 1.3 * 0.90, link.boostedProductionFactor(0.30), 1e-9);
+
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("supply-hubs.transport.rail.trade", 0.90);
+        HubTransport.loadConfig(config);
+        Link capped = HubTransport.link(3, 9, Mode.RAIL, 0);
+        assertEquals(HubTransport.MAX_SHARE, capped.boostedTradeFactor(0.5), 1e-9);
+    }
+
+    @Test
     void maxRangeZeroMeansNoLimit() {
         assertTrue(HubTransport.inRange(HubTransport.rates(Mode.RAIL), 50_000));
         assertTrue(HubTransport.inRange(HubTransport.rates(Mode.AIR), 2500));

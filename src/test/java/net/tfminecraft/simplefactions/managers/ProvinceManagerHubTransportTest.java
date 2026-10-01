@@ -67,6 +67,7 @@ class ProvinceManagerHubTransportTest {
         when(guild.getModifier(GuildModifier.TRADE_POWER)).thenReturn(20.0);
         when(guild.getModifier(GuildModifier.TRADE_CARRY)).thenReturn(1.0);
         when(guild.getModifier(GuildModifier.PRODUCTION)).thenReturn(10.0);
+        when(guild.getModifier(GuildModifier.HUB_TRADE)).thenReturn(0.0);
 
         titles = mockStatic(TitleManager.class);
         titles.when(() -> TitleManager.getByProvince(anyInt())).thenReturn(null);
@@ -104,6 +105,16 @@ class ProvinceManagerHubTransportTest {
         assertTrue(production(21) > 0 && production(21) < 2.5);
         // The road in between gets nothing from the journey.
         assertEquals(0, trade(12));
+    }
+
+    @Test
+    void hubTradeModifierBoostsTheShareDuringRecalculation() {
+        when(guild.getModifier(GuildModifier.HUB_TRADE)).thenReturn(0.30);
+        link(new Link(1, 22, Mode.RAIL, 0, 0.7, 0.25));
+
+        recalculate();
+
+        assertEquals(18.2, trade(22), 1e-9);
     }
 
     @Test
