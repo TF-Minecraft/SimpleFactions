@@ -165,6 +165,8 @@ public final class BattleAutoresolveService {
 			war.setPostponementsThisCycle(0);
 			return true;
 		}
+		war.setFirstBattleStarted(true);
+		WarManager.persist(war);
 
 		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
 		if (offensive == null) {

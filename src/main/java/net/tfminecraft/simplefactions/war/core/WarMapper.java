@@ -57,6 +57,11 @@ public final class WarMapper {
 		if (war.getGoal() != null) {
 			data.goal = war.getGoal().toJson();
 		}
+		if (war.getDefenderCounterGoal() != null) {
+			data.defenderCounterGoal = war.getDefenderCounterGoal().toJson();
+		}
+		data.defenderCounterRelationTypeId = war.getDefenderCounterRelationTypeId();
+		data.firstBattleStarted = war.hasFirstBattleStarted();
 		if (war.getWarType() != null) {
 			data.warType = war.getWarType().toJson();
 		}
@@ -197,6 +202,10 @@ public final class WarMapper {
 		war.setSchemaVersion(data.schemaVersion > 0 ? data.schemaVersion : 2);
 
 		war.setGoal(WarGoalType.fromJson(data.goal));
+		war.setDefenderCounterGoal(
+				WarGoalType.fromJson(data.defenderCounterGoal),
+				data.defenderCounterRelationTypeId);
+		war.setFirstBattleStarted(data.firstBattleStarted);
 		war.setWarType(WarType.fromJson(data.warType));
 		war.setStatus(WarStatus.fromJson(data.status));
 		if (data.attackerLeaderId != null) {

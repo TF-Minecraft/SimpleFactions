@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.utils.Permissions;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
@@ -126,7 +127,12 @@ public final class CampaignBattleLaunchService {
 			return "Battle already started.";
 		}
 		CampaignBattleRosterService.ensureEnrolledForced(war, battle);
-		return battle.start();
+		String error = battle.start();
+		if (error == null) {
+			war.setFirstBattleStarted(true);
+			WarManager.persist(war);
+		}
+		return error;
 	}
 
 	private static Battle createCampaignBattle(War war, int provinceId, boolean immediateStart) {

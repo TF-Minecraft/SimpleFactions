@@ -14,6 +14,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility;
 import net.tfminecraft.simplefactions.war.declare.OpenMarketEligibility;
@@ -38,8 +39,10 @@ public final class WarOutcomeService {
 			case DEFENDER_VICTORY -> {
 				if (CivilWarBorderLock.isCivilWar(war)) {
 					endMovementEmpty(war);
-				} else {
+				} else if (war.getDefenderCounterGoal() == null) {
 					WarReparationsService.applyFromWar(war);
+				} else {
+					applyDefenderCounterGoal(war);
 				}
 			}
 			case WHITE_PEACE, ADMIN_END -> {
@@ -48,6 +51,20 @@ public final class WarOutcomeService {
 				}
 			}
 		}
+	}
+
+	private static void applyDefenderCounterGoal(War war) {
+		War counterWar = new War(
+				war.getId(),
+				war.getDefenders(),
+				war.getAttackers(),
+				war.getDefenderCounterGoal(),
+				WarDeclareHelper.warTypeForGoal(war.getDefenderCounterGoal()),
+				null,
+				war.getObjectiveProvinceId(),
+				war.getStartedAt());
+		counterWar.setRelationTypeId(war.getDefenderCounterRelationTypeId());
+		applyAttackerGoal(counterWar);
 	}
 
 	static void applyAttackerGoal(War war) {

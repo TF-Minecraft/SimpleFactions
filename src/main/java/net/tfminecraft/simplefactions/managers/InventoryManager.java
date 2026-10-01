@@ -1348,7 +1348,7 @@ public class InventoryManager implements Listener{
 			}
 		} else if (inv.getHolder() instanceof WarInventoryHolder warHolder) {
 			e.setCancelled(true);
-			if (warHolder.getType() == SFGUI.WAR_VIEW) {
+			if (warHolder.getType() == SFGUI.WAR_VIEW || warHolder.getType() == SFGUI.WAR_COUNTER_GOAL) {
 				warView.click(e, inv, p);
 			}
 		} else if (inv.getHolder() instanceof CampaignInventoryHolder campaignHolder) {
