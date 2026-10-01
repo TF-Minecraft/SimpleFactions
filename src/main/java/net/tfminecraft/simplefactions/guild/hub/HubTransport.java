@@ -63,6 +63,16 @@ public final class HubTransport {
             double distance,
             double tradeFactor,
             double productionFactor) {
+
+        /** The boosted share is capped before the cached distance loss is applied. */
+        public double boostedTradeFactor(double bonus) {
+            return boostedFactor(tradeFactor, mode, distance, bonus, true);
+        }
+
+        /** The boosted share is capped before the cached distance loss is applied. */
+        public double boostedProductionFactor(double bonus) {
+            return boostedFactor(productionFactor, mode, distance, bonus, false);
+        }
     }
 
     private static final Map<Mode, Rates> DEFAULTS = new EnumMap<>(Mode.class);
@@ -141,6 +151,21 @@ public final class HubTransport {
                 distance,
                 delivered(modeRates.trade(), modeRates.keptPer1000(), distance),
                 delivered(modeRates.production(), modeRates.keptPer1000(), distance));
+    }
+
+    private static double boostedFactor(double factor, Mode mode, double distance, double bonus, boolean trade) {
+        Rates modeRates = rates(mode);
+        double baseShare = trade ? modeRates.trade() : modeRates.production();
+        if (factor <= 0 || baseShare <= 0) {
+            return 0;
+        }
+        double distanceLoss = delivered(1.0, modeRates.keptPer1000(), distance);
+        if (distanceLoss <= 0) {
+            return 0;
+        }
+        double unboostedShare = Math.min(MAX_SHARE, factor / distanceLoss);
+        double boostedShare = Math.min(MAX_SHARE, unboostedShare * (1.0 + Math.max(0, bonus)));
+        return delivered(boostedShare, modeRates.keptPer1000(), distance);
     }
 
     private static double share(double value) {

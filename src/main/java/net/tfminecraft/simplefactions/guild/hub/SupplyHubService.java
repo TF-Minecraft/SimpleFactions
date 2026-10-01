@@ -11,6 +11,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.database.SupplyHubData;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -48,7 +50,8 @@ public final class SupplyHubService {
     public enum DormantReason {
         INSTALLATION_GONE,
         NO_PERMIT,
-        BEYOND_HUB_SLOTS
+        BEYOND_HUB_SLOTS,
+        BEYOND_GUILD_LIMIT
     }
 
     public record HubStanding(boolean active, DormantReason reason) {
@@ -102,6 +105,23 @@ public final class SupplyHubService {
 
     public static double upkeepGrowth() {
         return Cache.supplyHubUpkeepGrowth;
+    }
+
+    public static int limit(Guild guild) {
+        if (guild == null) {
+            return baseLimit();
+        }
+        return Math.max(0, baseLimit() + (int) Math.floor(
+                GuildModifierOverride.resolve(guild, GuildModifier.HUB_LIMIT)));
+    }
+
+    /** Hubs above the guild limit are dormant newest first, and remain in the saved list. */
+    public static boolean beyondGuildLimit(Guild guild, SupplyHub hub) {
+        if (guild == null || hub == null) {
+            return false;
+        }
+        List<SupplyHub> ordered = oldestFirst(guild.getSupplyHubs());
+        return indexOfHub(ordered, hub) >= limit(guild);
     }
 
     /**
@@ -262,6 +282,8 @@ public final class SupplyHubService {
                 return "the owning faction has not granted a hub permit";
             case BEYOND_HUB_SLOTS:
                 return "it is beyond this installation's hub slots";
+            case BEYOND_GUILD_LIMIT:
+                return "it is beyond your guild's supply hub limit";
             default:
                 return "dormant";
         }

@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Rates;
@@ -22,6 +23,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.SeaConnectivity;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.enums.GuildModifier;
 
 /**
  * The connections between each guild's active supply hubs.
@@ -101,6 +103,7 @@ public final class HubNetwork {
         if (guild == null || target == null || provinces == null) {
             return 0;
         }
+        double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE);
         double best = 0;
         for (Installation source : activeSites(guild, SupplyHubService.allGuilds())) {
             Link link = connect(source, target, provinces);
@@ -108,7 +111,7 @@ public final class HubNetwork {
                 continue;
             }
             double power = provinces.get(source.getProvince()).getRawGuildTrade(guild);
-            best = Math.max(best, power * link.tradeFactor());
+            best = Math.max(best, power * link.boostedTradeFactor(bonus));
         }
         return best;
     }
@@ -176,6 +179,9 @@ public final class HubNetwork {
         List<Installation> sites = new ArrayList<>();
         String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
         for (SupplyHub hub : guild.getSupplyHubs()) {
+            if (SupplyHubService.beyondGuildLimit(guild, hub)) {
+                continue;
+            }
             Installation installation =
                     SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
             if (installation == null) {

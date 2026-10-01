@@ -11,6 +11,8 @@ import org.bukkit.entity.Player;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.HubStanding;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.PlacedCandidate;
@@ -208,7 +210,7 @@ public final class SupplyHubCommands {
                 chosen.hubSlots(),
                 SupplyHubService.hasHub(guild.getSupplyHubs(), chosen.ownerFactionId(), installation.getId()),
                 guild.getSupplyHubs().size(),
-                SupplyHubService.baseLimit(),
+                SupplyHubService.limit(guild),
                 SupplyHubService.countLoaded(chosen.ownerFactionId(), installation.getId()),
                 Math.max(
                         tradeInProvince(installation.getProvince(), guild.getId()),
@@ -216,7 +218,7 @@ public final class SupplyHubCommands {
                 SupplyHubService.ownerAllows(guildFactionId, chosen.ownerFactionId(), permit));
         if (failure != null) {
             player.sendMessage(SupplyHubService.buildFailureMessage(
-                    failure, installation.getKind().getDisplayName(), SupplyHubService.baseLimit()));
+                    failure, installation.getKind().getDisplayName(), SupplyHubService.limit(guild)));
             return true;
         }
         guild.getSupplyHubs().add(new SupplyHub(
@@ -233,11 +235,11 @@ public final class SupplyHubCommands {
             return true;
         }
         List<SupplyHub> hubs = SupplyHubService.oldestFirst(guild.getSupplyHubs());
+        player.sendMessage("§eSupply hubs §7(" + hubs.size() + "/" + SupplyHubService.limit(guild) + ")");
         if (hubs.isEmpty()) {
             player.sendMessage("§7Your guild has no supply hubs");
             return true;
         }
-        player.sendMessage("§eSupply hubs §7(" + hubs.size() + ")");
         for (SupplyHub hub : hubs) {
             Installation installation = SupplyHubService.findInstallation(
                     hub.ownerFactionId(), hub.installationId());
@@ -300,6 +302,10 @@ public final class SupplyHubCommands {
     }
 
     private static String statusOf(Guild guild, SupplyHub hub, Installation installation) {
+        if (SupplyHubService.beyondGuildLimit(guild, hub)) {
+            return SupplyHubService.statusText(new HubStanding(
+                    false, SupplyHubService.DormantReason.BEYOND_GUILD_LIMIT));
+        }
         String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
         Faction owner = FactionManager.getByString(hub.ownerFactionId());
         boolean permit = owner != null && owner.hasHubPermit(guild.getId());
@@ -392,6 +398,8 @@ public final class SupplyHubCommands {
         if (installation == null) {
             return lines;
         }
+        double tradeBonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE);
+        double productionBonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
         for (HubTransport.Link link : HubNetwork.linksFor(guild)) {
             if (link.fromProvince() != installation.getProvince()
                     || link.mode().getKind() != installation.getKind()) {
@@ -399,8 +407,10 @@ public final class SupplyHubCommands {
             }
             lines.add("§7Sends to §f" + hubNameIn(guild, link) + " §7by " + link.mode().getKey()
                     + " (" + Math.round(link.distance()) + " blocks): §e"
-                    + Math.round(link.tradeFactor() * 100) + "% §7trade, §e"
-                    + Math.round(link.productionFactor() * 100) + "% §7production");
+                    + Math.round(link.boostedTradeFactor(tradeBonus) * 100)
+                    + "% §7trade, §e"
+                    + Math.round(link.boostedProductionFactor(productionBonus) * 100)
+                    + "% §7production");
         }
         return lines;
     }
