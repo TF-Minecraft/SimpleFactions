@@ -378,7 +378,7 @@ public final class SupplyHubCommands {
     }
 
     /** Hub changes move trade power, so the map and incomes are brought up to date at once. */
-    private static void recalculateTrade() {
+    public static void recalculateTrade() {
         if (FactionManager.getMap() != null && FactionManager.factions != null) {
             for (Faction faction : FactionManager.factions) {
                 if (faction != null && faction.getRGB() != null) {

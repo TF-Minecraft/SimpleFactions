@@ -15,7 +15,10 @@ import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.enums.SFGUI;
+import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
@@ -83,7 +86,7 @@ public class SupplyHubView {
             }
             inventory.setItem(index, item);
         }
-        int limit = SupplyHubService.baseLimit();
+        int limit = SupplyHubService.limit(guild);
         inventory.setItem(49, SupplyHubCreator.item(Material.PAPER, "§eSupply Hub Information", List.of(
                 "§7Hubs: §e" + hubs.size() + "/" + limit,
                 "§7Daily upkeep: §e" + Formatter.formatDouble(SupplyHubService.dailyCost(guild)) + "d/day",
@@ -168,7 +171,7 @@ public class SupplyHubView {
                 return;
             }
             if (event.getSlot() == 53) {
-                inv.guildView(player, guild);
+                // InventoryManager's back button handling opens the guild menu.
                 return;
             }
             if (!isLeader(guild, player)) {
@@ -196,7 +199,7 @@ public class SupplyHubView {
             }
             Installation installation = faction.getInstallationHandler().getById(holder.getSecondaryId());
             if (event.getSlot() == 53) {
-                inv.installationView.installationDetailView(player, faction, holder.getSecondaryId());
+                // InventoryManager's back button handling opens the installation menu.
                 return;
             }
             if (!faction.getLeader().equalsIgnoreCase(player.getName()) || installation == null) {
@@ -226,7 +229,7 @@ public class SupplyHubView {
             }
             if (accepted) {
                 if (removeGuildHub(guild.getSupplyHubs(), parts[2], parts[3])) {
-                    SimpleFactions.getInstance().getProvinceManager().recalculate();
+                    SupplyHubCommands.recalculateTrade();
                 }
             }
             guildView(player, guild);
@@ -240,7 +243,7 @@ public class SupplyHubView {
             if (accepted) {
                 Guild guild = FactionManager.getGuildByString(parts[3]);
                 if (guild != null && removeGuildHub(guild.getSupplyHubs(), parts[1], parts[2])) {
-                    SimpleFactions.getInstance().getProvinceManager().recalculate();
+                    SupplyHubCommands.recalculateTrade();
                     org.bukkit.entity.Player online = SimpleFactions.plugin.getServer()
                             .getPlayerExact(guild.getLeader());
                     if (online != null) {
@@ -265,6 +268,9 @@ public class SupplyHubView {
     }
 
     private static HubStanding standing(Guild guild, SupplyHub hub) {
+        if (SupplyHubService.beyondGuildLimit(guild, hub)) {
+            return new HubStanding(false, SupplyHubService.DormantReason.BEYOND_GUILD_LIMIT);
+        }
         Installation installation = SupplyHubService.findInstallation(
                 hub.ownerFactionId(), hub.installationId());
         Faction owner = FactionManager.getByString(hub.ownerFactionId());
@@ -284,8 +290,11 @@ public class SupplyHubView {
         if (installation == null) {
             return result;
         }
+        double tradeBonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE);
+        double productionBonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
         for (Link link : HubNetwork.linksFor(guild)) {
-            if (link.fromProvince() != installation.getProvince()) {
+            if (link.fromProvince() != installation.getProvince()
+                    || link.mode().getKind() != installation.getKind()) {
                 continue;
             }
             Installation destination = null;
@@ -301,8 +310,8 @@ public class SupplyHubView {
             if (destination != null) {
                 result.add("§7Sends to §f" + destination.getName() + " §7by "
                         + link.mode().getKey() + " (" + Math.round(link.distance()) + " blocks): §e"
-                        + Math.round(link.tradeFactor() * 100) + "% §7trade, §e"
-                        + Math.round(link.productionFactor() * 100) + "% §7production");
+                        + Math.round(link.boostedTradeFactor(tradeBonus) * 100) + "% §7trade, §e"
+                        + Math.round(link.boostedProductionFactor(productionBonus) * 100) + "% §7production");
             }
         }
         return result;
