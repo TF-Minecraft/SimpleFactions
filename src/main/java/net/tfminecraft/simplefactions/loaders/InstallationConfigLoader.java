@@ -14,6 +14,7 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.InstallationKindConfig;
 import net.tfminecraft.simplefactions.installation.InstallationKindConfig.Level;
@@ -65,9 +66,12 @@ public final class InstallationConfigLoader {
                             new InstallationKindConfig(
                                     80,
                                     Map.of(
-                                            1, new Level(10, 259200, Map.of("static_emplacements", 2)),
-                                            2, new Level(35, 259200, Map.of("static_emplacements", 3)),
-                                            3, new Level(100, 432000, Map.of("static_emplacements", 4)))));
+                                            1, new Level(10, 259200, Map.of("static_emplacements", 2),
+                                                    SupplyHubService.defaultHubSlots(kind, 1)),
+                                            2, new Level(35, 259200, Map.of("static_emplacements", 3),
+                                                    SupplyHubService.defaultHubSlots(kind, 2)),
+                                            3, new Level(100, 432000, Map.of("static_emplacements", 4),
+                                                    SupplyHubService.defaultHubSlots(kind, 3)))));
                     continue;
                 }
                 fail("installations.yml missing required section: " + key);
@@ -103,8 +107,9 @@ public final class InstallationConfigLoader {
             }
 
             Map<String, Integer> categorySlots = readSlots(key, slotsSection, knownCategories);
+            int hubSlots = readHubSlots(kind, 1, section, key);
             Map<Integer, Level> levels = new HashMap<>();
-            levels.put(1, new Level(dailyUpkeep, constructionTimeSeconds, categorySlots));
+            levels.put(1, new Level(dailyUpkeep, constructionTimeSeconds, categorySlots, hubSlots));
             ConfigurationSection levelsSection = section.getConfigurationSection("levels");
             if (section.contains("levels") && levelsSection == null) {
                 fail("installations.yml " + key + ".levels must be a section");
@@ -155,7 +160,8 @@ public final class InstallationConfigLoader {
                             new Level(
                                     levelUpkeep,
                                     levelConstruction,
-                                    readSlots(prefix, levelSlots, knownCategories)));
+                                    readSlots(prefix, levelSlots, knownCategories),
+                                    readHubSlots(kind, level, levelSection, prefix)));
                 }
             }
 
@@ -181,6 +187,18 @@ public final class InstallationConfigLoader {
             categorySlots.put(normalizedCategoryId, capacity);
         }
         return categorySlots;
+    }
+
+    private static int readHubSlots(
+            InstallationKind kind, int level, ConfigurationSection section, String key) {
+        if (!section.contains("hub-slots")) {
+            return SupplyHubService.defaultHubSlots(kind, level);
+        }
+        int hubSlots = section.getInt("hub-slots");
+        if (hubSlots < 0) {
+            fail("installations.yml " + key + ".hub-slots must be >= 0");
+        }
+        return hubSlots;
     }
 
     public static double getDailyUpkeep(InstallationKind kind) {
@@ -229,6 +247,10 @@ public final class InstallationConfigLoader {
 
     public static Map<String, Integer> getCategorySlots(InstallationKind kind, int level) {
         return require(kind).getCategorySlots(level);
+    }
+
+    public static int getHubSlots(InstallationKind kind, int level) {
+        return require(kind).getHubSlots(level);
     }
 
     public static int getMaximumLevel(InstallationKind kind) {

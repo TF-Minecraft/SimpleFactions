@@ -99,4 +99,7 @@ public class FactionData {
 
     @SerializedName("war reparations")
     public List<WarReparationsObligationData> warReparationsObligations = new ArrayList<>();
+
+    @SerializedName("hub permits")
+    public List<String> hubPermits = new ArrayList<>();
 }

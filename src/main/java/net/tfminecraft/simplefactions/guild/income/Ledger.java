@@ -14,6 +14,9 @@ import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.income.entry.PlayerEntry;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.loans.LoanFunding;
@@ -346,6 +349,9 @@ public class Ledger {
             case NODES:
                 amount = -nodeUpkeepLookup.applyAsDouble(guild);
                 break;
+            case SUPPLY_HUBS:
+                amount = -SupplyHubService.dailyCost(guild);
+                break;
             //Mercenary contracts
             case MERCENARY_CONTRACT:
                 amount = getAggregatedContractEarnings();
@@ -497,6 +503,7 @@ public class Ledger {
                 case VEHICLE_UPKEEP:
                 case MILITARY_UPKEEP:
                 case NODES:
+                case SUPPLY_HUBS:
                 case PENALTIES:
                 case GUILD_PAYMENTS:
                 case OVERLORD_TAX:
@@ -570,6 +577,7 @@ public class Ledger {
                 case VEHICLE_UPKEEP:
                 case MILITARY_UPKEEP:
                 case NODES:
+                case SUPPLY_HUBS:
                 case PENALTIES:
                 case GUILD_PAYMENTS:
                 case OVERLORD_TAX:
@@ -896,6 +904,8 @@ public class Ledger {
             }
         }
 
+        List<SupplyHub> removedHubs = SupplyHubService.shedUnpaid(guild);
+        SupplyHubCommands.notifyRemoved(guild, removedHubs);
         if (!skipsMoneyMovement() && !guild.isBase()) {
             double pool = getDividendBreakdown().pool();
             if (pool > 0) {
@@ -964,6 +974,8 @@ public class Ledger {
             case CITIZENS:
             // Dowsing reports the nodes active right now, so a node is charged for each day it runs.
             case NODES:
+            // Supply hubs are a sink. Unpaid hubs were already removed, newest first.
+            case SUPPLY_HUBS:
                 buffer.addExternalDelta(guild, getIncome(cf));
                 return;
 

@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
 import net.tfminecraft.simplefactions.loaders.BranchLoader;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
@@ -190,6 +191,7 @@ public class Database {
                 if (data.installations != null) {
                     f.getInstallationHandler().load(data.installations);
                 }
+                f.loadHubPermits(data.hubPermits);
 
                 if (data.installationQueue != null) {
                     f.getInstallationHandler().loadConstruction(data.installationQueue);
@@ -300,6 +302,7 @@ public class Database {
                 e.printStackTrace();
             }
         }
+        SupplyHubService.dropMissingLoaded();
         FactionManager.loading = false;
     }
 
@@ -343,6 +346,7 @@ public class Database {
 
             data.settlements = f.getSettlementHandler().serialize();
             data.installations = f.getInstallationHandler().serialize();
+            data.hubPermits = new ArrayList<>(f.getHubPermits());
             data.installationQueue = f.getInstallationHandler().serializeConstruction();
 
             for (int p : f.getProvinces()) data.provinces.add(p);
@@ -418,6 +422,7 @@ public class Database {
                 Map<String, Double> depositsToday = history.getDepositsTodayCopy();
                 gd.depositsToday = depositsToday.isEmpty() ? null : depositsToday;
                 gd.company = g.getCompany() != null ? g.getCompany().serialize() : null;
+                gd.supplyHubs = SupplyHubService.toData(g.getSupplyHubs());
 
                 // --- Bank ---
                 if (g.getBank() != null) {

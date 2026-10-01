@@ -67,4 +67,7 @@ public class GuildData {
     public Map<String, Double> depositsToday;
 
     public MercenaryCompanyData company;
+
+    @SerializedName("supply hubs")
+    public List<SupplyHubData> supplyHubs = new ArrayList<>();
 }

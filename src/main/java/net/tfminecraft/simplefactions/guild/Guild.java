@@ -48,6 +48,8 @@ import net.tfminecraft.simplefactions.army.MilitaryExpansion;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.GuildBranchData;
 import net.tfminecraft.simplefactions.database.GuildData;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.database.StabilityModifierData;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.RandomRGB;
@@ -102,6 +104,7 @@ public class Guild {
     private double dividendPercent = 0.0;
     private List<String> dividendEligible = new ArrayList<>();
     private MercenaryCompany company;
+    private final List<SupplyHub> supplyHubs = new ArrayList<>();
 
     public Guild(Faction f) {
         host = f;
@@ -240,6 +243,7 @@ public class Guild {
             this.company = new MercenaryCompany(
                     this, data.company, MercenaryCompany.cloneMercenaryRegiment());
         }
+        this.supplyHubs.addAll(SupplyHubService.fromData(data.supplyHubs));
         if(data.pillageHits != null) {
             for (StabilityModifierData smd : data.pillageHits) {
                 if (smd == null || smd.name == null) {
@@ -417,6 +421,10 @@ public class Guild {
         return true;
     }
     public String getId() { return id; }
+
+    public List<SupplyHub> getSupplyHubs() {
+        return supplyHubs;
+    }
     public String getName() { return isBase() ? host.getName() : name; }
 
     /** Backing name, even while this guild is a faction base (display name follows the host). */

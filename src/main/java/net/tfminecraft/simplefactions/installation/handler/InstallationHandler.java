@@ -198,6 +198,8 @@ public class InstallationHandler {
 
         byId.remove(installation.getId());
         byProvinceKind.remove(indexKey(installation.getKind(), installation.getProvince()));
+        net.tfminecraft.simplefactions.guild.hub.SupplyHubService.onInstallationRemoved(
+                faction.getId(), installation.getId());
         enqueueMapUpdate();
 
         return ConstructResult.ok(
@@ -341,7 +343,7 @@ public class InstallationHandler {
         List<Installation> moved = new ArrayList<>();
         for (Installation installation : new ArrayList<>(byId.values())) {
             if (installation.getProvince() == province) {
-                removeInstallation(installation);
+                removeInstallation(installation, false);
                 moved.add(installation);
             }
         }
@@ -389,7 +391,7 @@ public class InstallationHandler {
     }
 
     void dissolve(Installation installation) {
-        removeInstallation(installation);
+        removeInstallation(installation, true);
 
         Player leader = Bukkit.getPlayerExact(faction.getLeader());
         if (leader != null) {
@@ -403,7 +405,7 @@ public class InstallationHandler {
     }
 
     private void dissolveForNonPayment(Installation installation) {
-        removeInstallation(installation);
+        removeInstallation(installation, true);
 
         Player leader = Bukkit.getPlayerExact(faction.getLeader());
         if (leader != null) {
@@ -416,10 +418,14 @@ public class InstallationHandler {
         }
     }
 
-    private void removeInstallation(Installation installation) {
+    private void removeInstallation(Installation installation, boolean dropHubs) {
         cancelUpgrade(installation.getId());
         byId.remove(installation.getId());
         byProvinceKind.remove(indexKey(installation.getKind(), installation.getProvince()));
+        if (dropHubs) {
+            net.tfminecraft.simplefactions.guild.hub.SupplyHubService.onInstallationRemoved(
+                    faction.getId(), installation.getId());
+        }
         enqueueMapUpdate();
     }
 
