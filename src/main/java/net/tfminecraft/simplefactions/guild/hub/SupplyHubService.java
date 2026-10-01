@@ -182,7 +182,7 @@ public final class SupplyHubService {
             case NO_FREE_SLOT:
                 return "§cThis installation has no free hub slot";
             case NO_TRADE:
-                return "§cYour guild has no trade power in this province";
+                return "§cYour guild has no trade power in this province, and none of its hubs can reach it";
             case NO_PERMIT:
                 return "§cThe faction that owns this installation has not granted your guild a hub permit";
             default:

@@ -85,6 +85,7 @@ public final class SupplyHubCommands {
         } else {
             player.sendMessage("§cRemoved the hub permit for §f" + target.getName());
         }
+        recalculateTrade();
         return true;
     }
 
@@ -209,7 +210,9 @@ public final class SupplyHubCommands {
                 guild.getSupplyHubs().size(),
                 SupplyHubService.baseLimit(),
                 SupplyHubService.countLoaded(chosen.ownerFactionId(), installation.getId()),
-                tradeInProvince(installation.getProvince(), guild.getId()),
+                Math.max(
+                        tradeInProvince(installation.getProvince(), guild.getId()),
+                        reachableTrade(guild, installation)),
                 SupplyHubService.ownerAllows(guildFactionId, chosen.ownerFactionId(), permit));
         if (failure != null) {
             player.sendMessage(SupplyHubService.buildFailureMessage(
@@ -219,6 +222,7 @@ public final class SupplyHubCommands {
         guild.getSupplyHubs().add(new SupplyHub(
                 chosen.ownerFactionId(), installation.getId(), System.currentTimeMillis()));
         player.sendMessage("§aBuilt a supply hub at §f" + installation.getName());
+        recalculateTrade();
         return true;
     }
 
@@ -245,6 +249,9 @@ public final class SupplyHubCommands {
                     hub, guild.getSupplyHubs(), SupplyHubService.baseUpkeep(), SupplyHubService.upkeepGrowth());
             player.sendMessage("§f" + name + " §7(" + kind + ") §7owned by §f" + ownerName);
             player.sendMessage("§7Upkeep: §e" + Formatter.formatMoney(cost) + "d/day §7" + statusOf(guild, hub, installation));
+            for (String line : connectionLines(guild, installation)) {
+                player.sendMessage(line);
+            }
         }
         return true;
     }
@@ -271,6 +278,7 @@ public final class SupplyHubCommands {
         String label = label(match.hub());
         guild.getSupplyHubs().remove(match.hub());
         player.sendMessage("§aRemoved the supply hub at §f" + label);
+        recalculateTrade();
         return true;
     }
 
@@ -351,6 +359,55 @@ public final class SupplyHubCommands {
             }
         }
         return SupplyHubService.nearest(covering);
+    }
+
+    /** Trade power the guild's existing hubs would deliver to a hub at this installation. */
+    private static double reachableTrade(Guild guild, Installation installation) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin == null || plugin.getProvinceManager() == null) {
+            return 0;
+        }
+        double delivered = HubNetwork.potentialTrade(guild, installation, plugin.getProvinceManager());
+        return delivered >= 0.5 ? delivered : 0;
+    }
+
+    /** Hub changes move trade power, so the map and incomes are brought up to date at once. */
+    private static void recalculateTrade() {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin == null || plugin.getProvinceManager() == null) {
+            return;
+        }
+        plugin.getProvinceManager().recalculate();
+    }
+
+    private static List<String> connectionLines(Guild guild, Installation installation) {
+        List<String> lines = new ArrayList<>();
+        if (installation == null) {
+            return lines;
+        }
+        for (HubTransport.Link link : HubNetwork.linksFor(guild)) {
+            if (link.fromProvince() != installation.getProvince()
+                    || link.mode().getKind() != installation.getKind()) {
+                continue;
+            }
+            lines.add("§7Sends to §f" + hubNameIn(guild, link) + " §7by " + link.mode().getKey()
+                    + " (" + Math.round(link.distance()) + " blocks): §e"
+                    + Math.round(link.tradeFactor() * 100) + "% §7trade, §e"
+                    + Math.round(link.productionFactor() * 100) + "% §7production");
+        }
+        return lines;
+    }
+
+    private static String hubNameIn(Guild guild, HubTransport.Link link) {
+        for (SupplyHub hub : guild.getSupplyHubs()) {
+            Installation other = SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
+            if (other != null
+                    && other.getProvince() == link.toProvince()
+                    && other.getKind() == link.mode().getKind()) {
+                return other.getName();
+            }
+        }
+        return "province " + link.toProvince();
     }
 
     private static double tradeInProvince(int provinceId, String guildId) {

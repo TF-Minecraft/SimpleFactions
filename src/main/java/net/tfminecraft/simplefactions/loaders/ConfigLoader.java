@@ -72,6 +72,7 @@ public class ConfigLoader {
 		Cache.mercenaryMaxContractDays = config.getInt("mercenary-max-contract-days", 14);
 		Cache.mercenaryDefaultBreachRefund = config.getDouble("mercenary-default-breach-refund", 500.0);
 		net.tfminecraft.simplefactions.guild.hub.SupplyHubService.loadConfig(config);
+		net.tfminecraft.simplefactions.guild.hub.HubTransport.loadConfig(config);
 
 		Cache.settlementLargePopulationThreshold = config.getInt("settlement-large-population-threshold", 8);
 		Cache.portSeaProximityBlocks = config.getInt("port-sea-proximity-blocks", 20);
