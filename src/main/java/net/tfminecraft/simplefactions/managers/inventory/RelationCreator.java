@@ -317,7 +317,7 @@ public class RelationCreator {
 			RelationType current = origin.getRelation(target.getId()).getType();
 			String wartime = RelationManager.wartimeBlock(t, target, origin);
 			if(current.hasLock()) {
-				lore.add(StringFormatter.formatHex("#d4bb98You have the relation "+current.getName()+"#d4bb98, which only they can end."));
+				lore.add(StringFormatter.formatHex("#d4bb98You have the relation "+current.getName()+"#d4bb98, which binds you and cannot be changed by you alone."));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
 			} else if(wartime != null) {
@@ -437,7 +437,7 @@ public class RelationCreator {
 		if(full) {
 			RelationType current = origin.getDiplomacyHandler().getTradeRelation(target.getId());
 			if(current != null && current.hasLock()) {
-				lore.add(StringFormatter.formatHex("#d4bb98You have the agreement "+current.getName()+"#d4bb98, which only they can end."));
+				lore.add(StringFormatter.formatHex("#d4bb98You have the agreement "+current.getName()+"#d4bb98, which binds you and cannot be changed by you alone."));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
 			} else if(current != null && (origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t) || target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink()))) {
@@ -540,7 +540,7 @@ public class RelationCreator {
 		if(full) {
 			RelationType current = origin.getDiplomacyHandler().getTreatyRelation(target.getId());
 			if(current != null && current.hasLock()) {
-				lore.add(StringFormatter.formatHex("#d4bb98You have the treaty "+current.getName()+"#d4bb98, which only they can end."));
+				lore.add(StringFormatter.formatHex("#d4bb98You have the treaty "+current.getName()+"#d4bb98, which binds you and cannot be changed by you alone."));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
 			} else if(!t.isClearTreaty() && current != null && (origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t) || target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink()))) {
