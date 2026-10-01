@@ -29,6 +29,7 @@ public class RelationType {
 	
 	private String link;
 	private double baseCost;
+	private double blocScaling;
 	
 	private List<FactionModifier> giveModifiers = new ArrayList<>();
 	private List<FactionModifier> recieveModifiers = new ArrayList<>();
@@ -51,6 +52,7 @@ public class RelationType {
 		name = StringFormatter.formatHex(config.getString("name", "None"));
 		prefix = StringFormatter.formatHex(config.getString("prefix", "#a89977Our "));
 		baseCost = config.getDouble("cost", 0.0);
+		blocScaling = Math.max(0.0, config.getDouble("bloc-scaling", 0.0));
 		target = config.getInt("target", 0);
 		limit = config.getInt("limit", -1);
 		def = config.getBoolean("default", false);
@@ -115,6 +117,11 @@ public class RelationType {
 
 	public double getBaseCost() {
 		return baseCost;
+	}
+
+	/** How strongly the cost grows with the two factions' share of all prestige; 0 turns it off. */
+	public double getBlocScaling() {
+		return blocScaling;
 	}
 	
 	public boolean hasThreshold() {
