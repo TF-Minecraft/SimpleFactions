@@ -157,6 +157,12 @@ public final class MercenaryCompanyService {
         if (!company.isLeader(actor)) {
             return MercenaryResult.deny("Only the guild leader can dismiss mercenaries.");
         }
+        if (!company.isEnlisted(player)) {
+            return MercenaryResult.deny(player + " does not serve in your company.");
+        }
+        if (company.hasFreeSlot()) {
+            return MercenaryResult.deny("Fill every slot before dismissing a mercenary.");
+        }
         if (!company.kick(player)) {
             return MercenaryResult.deny(player + " does not serve in your company.");
         }
@@ -176,6 +182,27 @@ public final class MercenaryCompanyService {
             return MercenaryResult.deny("Only the guild leader can expand the company.");
         }
         return company.enqueueExpansion();
+    }
+
+    /** Remove one unused slot. A dismissal must create the free slot first. */
+    public static MercenaryResult removeSlot(Guild guild, String actor) {
+        if (guild == null || guild.getCompany() == null) {
+            return MercenaryResult.deny("Your guild has no mercenary company.");
+        }
+        MercenaryCompany company = guild.getCompany();
+        if (!company.isLeader(actor)) {
+            return MercenaryResult.deny("Only the guild leader can remove company slots.");
+        }
+        if (company.isForming()) {
+            return MercenaryResult.deny("Your company is still being founded.");
+        }
+        if (!company.hasFreeSlot()) {
+            return MercenaryResult.deny("Dismiss a mercenary before removing a slot.");
+        }
+        if (!company.dropSlot()) {
+            return MercenaryResult.deny("There is no unused slot to remove.");
+        }
+        return MercenaryResult.ok("Removed one unused company slot.");
     }
 
     public static MercenaryResult upgrade(Guild guild, String actor, String upgradeId) {

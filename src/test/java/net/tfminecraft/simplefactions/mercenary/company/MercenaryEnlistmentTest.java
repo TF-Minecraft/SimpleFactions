@@ -141,6 +141,48 @@ class MercenaryEnlistmentTest {
     }
 
     @Test
+    void kickingIsRefusedWhileAnotherSlotIsAlreadyFree() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = formed(fixture);
+        company.getRegiment().sizeIncrease();
+        company.enlist("Sigrun");
+
+        MercenaryResult result = MercenaryCompanyService.kick(fixture.guild, "Ivar", "Sigrun");
+
+        assertFalse(result.ok());
+        assertEquals("Fill every slot before dismissing a mercenary.", result.message());
+        assertEquals(List.of("Sigrun"), company.getEnlisted());
+    }
+
+    @Test
+    void anUnusedSlotCanBeRemovedAfterDismissingItsMercenary() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = formed(fixture);
+        company.enlist("Sigrun");
+
+        assertTrue(MercenaryCompanyService.kick(fixture.guild, "Ivar", "Sigrun").ok());
+        MercenaryResult result = MercenaryCompanyService.removeSlot(fixture.guild, "Ivar");
+
+        assertTrue(result.ok());
+        assertEquals(0, company.getSlots());
+        assertTrue(company.getEnlisted().isEmpty());
+    }
+
+    @Test
+    void aFilledSlotCannotBeRemoved() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = formed(fixture);
+        company.enlist("Sigrun");
+
+        MercenaryResult result = MercenaryCompanyService.removeSlot(fixture.guild, "Ivar");
+
+        assertFalse(result.ok());
+        assertEquals("Dismiss a mercenary before removing a slot.", result.message());
+        assertEquals(1, company.getSlots());
+        assertEquals(List.of("Sigrun"), company.getEnlisted());
+    }
+
+    @Test
     void onlyTheLeaderMayKick() {
         CompanyFixture fixture = new CompanyFixture(0);
         MercenaryCompany company = formed(fixture);

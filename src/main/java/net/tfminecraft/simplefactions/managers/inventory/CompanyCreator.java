@@ -230,8 +230,10 @@ public class CompanyCreator {
 		if (occupant == null) {
 			lore.add(StringFormatter.formatHex("#877e7cEmpty"));
 			lore.add(StringFormatter.formatHex("#877e7cAn empty slot blocks expansion"));
+			lore.add(StringFormatter.formatHex("#877e7cClick to remove this unused slot"));
 		} else {
 			lore.add("§7Mercenary: §e" + occupant);
+			lore.add(StringFormatter.formatHex("#877e7cDismiss from Roster before removing a slot"));
 		}
 		lore.add("§7Upkeep: §e" + Formatter.formatMoney(Cache.mercenarySlotUpkeep) + "d");
 		return lore;
