@@ -425,6 +425,7 @@ public class Database {
                 gd.depositsToday = depositsToday.isEmpty() ? null : depositsToday;
                 gd.company = g.getCompany() != null ? g.getCompany().serialize() : null;
                 gd.supplyHubs = SupplyHubService.toData(g.getSupplyHubs());
+                gd.supplyHubTutorialDismissals = g.getSupplyHubTutorialDismissals();
 
                 // --- Bank ---
                 if (g.getBank() != null) {

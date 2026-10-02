@@ -5,7 +5,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiPredicate;
 
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import net.tfminecraft.simplefactions.Cache;
@@ -28,9 +27,6 @@ import net.tfminecraft.simplefactions.objects.Faction;
  * Whether a hub is active is computed here and never saved.
  */
 public final class SupplyHubService {
-    public static final int DEFAULT_LIMIT = 2;
-    public static final double DEFAULT_UPKEEP = 15.0;
-    public static final double DEFAULT_GROWTH = 1.5;
 
     private static final Comparator<SupplyHub> OLDEST_FIRST = Comparator
             .comparingLong(SupplyHub::createdAt)
@@ -77,48 +73,19 @@ public final class SupplyHubService {
     }
 
     public static void loadConfig(FileConfiguration config) {
-        int limit = DEFAULT_LIMIT;
-        double upkeep = DEFAULT_UPKEEP;
-        double growth = DEFAULT_GROWTH;
-        if (config != null) {
-            ConfigurationSection section = config.getConfigurationSection("supply-hubs");
-            if (section != null) {
-                if (section.contains("base-limit")) {
-                    limit = section.getInt("base-limit");
-                }
-                if (section.contains("base-upkeep")) {
-                    upkeep = section.getDouble("base-upkeep");
-                }
-                if (section.contains("upkeep-growth")) {
-                    growth = section.getDouble("upkeep-growth");
-                }
-            }
-        }
         double maxTax = config == null ? 50.0 : config.getDouble("supply-hubs.max-tax", 50.0);
         Cache.supplyHubMaxTax = Double.isFinite(maxTax) ? Math.max(0, Math.min(100, maxTax)) : 50.0;
-        Cache.supplyHubBaseLimit = limit;
-        Cache.supplyHubBaseUpkeep = upkeep;
-        Cache.supplyHubUpkeepGrowth = growth;
-    }
-
-    public static int baseLimit() {
-        return Cache.supplyHubBaseLimit;
-    }
-
-    public static double baseUpkeep() {
-        return Cache.supplyHubBaseUpkeep;
-    }
-
-    public static double upkeepGrowth() {
-        return Cache.supplyHubUpkeepGrowth;
     }
 
     public static int limit(Guild guild) {
         if (guild == null) {
-            return baseLimit();
+            return 0;
         }
-        return Math.max(0, baseLimit() + (int) Math.floor(
-                GuildModifierOverride.resolve(guild, GuildModifier.HUB_LIMIT)));
+        return Math.max(0, (int) Math.floor(GuildModifierOverride.resolve(guild, GuildModifier.HUB_LIMIT)));
+    }
+
+    public static double upkeepPerHub(Guild guild) {
+        return guild == null ? 0 : Math.max(0, GuildModifierOverride.resolve(guild, GuildModifier.HUB_UPKEEP));
     }
 
     /** Hubs above the guild limit are dormant newest first, and remain in the saved list. */
@@ -325,49 +292,38 @@ public final class SupplyHubService {
         }
     }
 
-    public static double upkeepAt(int indexOldestZero, double base, double growth) {
-        if (indexOldestZero < 0) {
-            return 0;
-        }
-        return base * Math.pow(growth, indexOldestZero);
-    }
-
-    public static double totalUpkeep(int count, double base, double growth) {
-        double total = 0;
-        for (int i = 0; i < count; i++) {
-            total += upkeepAt(i, base, growth);
-        }
-        return total;
+    public static double totalUpkeep(int count, double perHub) {
+        return Math.max(0, count) * Math.max(0, perHub);
     }
 
     public static double dailyCost(Guild guild) {
         if (guild == null || guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty()) {
             return 0;
         }
-        return totalUpkeep(guild.getSupplyHubs().size(), baseUpkeep(), upkeepGrowth());
+        return totalUpkeep(guild.getSupplyHubs().size(), upkeepPerHub(guild));
     }
 
-    public static double upkeepOf(SupplyHub hub, List<SupplyHub> guildHubs, double base, double growth) {
+    public static double upkeepOf(SupplyHub hub, List<SupplyHub> guildHubs, double perHub) {
         List<SupplyHub> ordered = oldestFirst(guildHubs);
         int index = indexOfHub(ordered, hub);
         if (index < 0) {
             return 0;
         }
-        return upkeepAt(index, base, growth);
+        return Math.max(0, perHub);
     }
 
     /**
      * Removes hubs the guild cannot pay for, newest first. Hubs that remain are the ones
      * the daily charge should take. Does not move money.
      */
-    public static List<SupplyHub> shedUnpaid(List<SupplyHub> hubs, double wealth, double base, double growth) {
+    public static List<SupplyHub> shedUnpaid(List<SupplyHub> hubs, double wealth, double perHub) {
         List<SupplyHub> removed = new ArrayList<>();
         if (hubs == null || hubs.isEmpty()) {
             return removed;
         }
         List<SupplyHub> ordered = oldestFirst(hubs);
         int guard = 0;
-        while (!ordered.isEmpty() && totalUpkeep(ordered.size(), base, growth) > wealth && guard++ < 10000) {
+        while (!ordered.isEmpty() && totalUpkeep(ordered.size(), perHub) > wealth && guard++ < 10000) {
             SupplyHub newest = ordered.remove(ordered.size() - 1);
             if (!hubs.remove(newest)) {
                 break;
@@ -386,7 +342,7 @@ public final class SupplyHubService {
         if (bank != null && bank.getWealth() != null) {
             wealth = bank.getWealth();
         }
-        return shedUnpaid(guild.getSupplyHubs(), wealth, baseUpkeep(), upkeepGrowth());
+        return shedUnpaid(guild.getSupplyHubs(), wealth, upkeepPerHub(guild));
     }
 
     public static boolean hasHub(List<SupplyHub> guildHubs, String ownerFactionId, String installationId) {

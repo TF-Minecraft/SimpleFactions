@@ -6,6 +6,7 @@ import java.util.Map;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 
 /**
@@ -59,10 +60,20 @@ public final class HubTransport {
     public record Link(
             int fromProvince,
             int toProvince,
+            String fromFactionId,
+            String fromInstallationId,
+            String toFactionId,
+            String toInstallationId,
             Mode mode,
             double distance,
             double tradeFactor,
             double productionFactor) {
+
+        public Link(int fromProvince, int toProvince, Mode mode, double distance,
+                double tradeFactor, double productionFactor) {
+            this(fromProvince, toProvince, null, null, null, null, mode,
+                    distance, tradeFactor, productionFactor);
+        }
 
         /** The boosted share is capped before the cached distance loss is applied. */
         public double boostedTradeFactor(double bonus) {
@@ -142,13 +153,24 @@ public final class HubTransport {
         return share * Math.pow(keptPer1000, Math.max(0, distance) / 1000.0);
     }
 
-    public static Link link(int fromProvince, int toProvince, Mode mode, double distance) {
+    public static Link link(Installation from, String fromFactionId, Installation to, String toFactionId, Mode mode, double distance) {
         Rates modeRates = rates(mode);
         return new Link(
-                fromProvince,
-                toProvince,
+                from.getProvince(),
+                to.getProvince(),
+                fromFactionId,
+                from.getId(),
+                toFactionId,
+                to.getId(),
                 mode,
                 distance,
+                delivered(modeRates.trade(), modeRates.keptPer1000(), distance),
+                delivered(modeRates.production(), modeRates.keptPer1000(), distance));
+    }
+
+    public static Link link(int fromProvince, int toProvince, Mode mode, double distance) {
+        Rates modeRates = rates(mode);
+        return new Link(fromProvince, toProvince, mode, distance,
                 delivered(modeRates.trade(), modeRates.keptPer1000(), distance),
                 delivered(modeRates.production(), modeRates.keptPer1000(), distance));
     }

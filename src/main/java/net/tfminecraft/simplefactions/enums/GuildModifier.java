@@ -7,6 +7,7 @@ public enum GuildModifier {
     PRODUCTION("#f2c94cProduction", true),
     TRADE_CARRY("#86d1b0Trade Carry", true),
     HUB_LIMIT("#c99b70Supply Hub Limit", true),
+    HUB_UPKEEP("#d6645aSupply Hub Upkeep", false),
     HUB_TRADE("#b5835aHub Trade Transfer", true),
     HUB_PRODUCTION("#a9744fHub Production Transfer", true),
     DIPLOMATIC_CAPACITY("#56ccf2Diplomatic Capacity", true),
@@ -33,5 +34,9 @@ public enum GuildModifier {
 
     public boolean isPositive() {
         return positive;
+    }
+
+    public boolean scalesWithInactivity() {
+        return positive && this != HUB_LIMIT;
     }
 }

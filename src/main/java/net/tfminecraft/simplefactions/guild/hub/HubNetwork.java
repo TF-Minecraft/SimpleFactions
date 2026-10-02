@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Rates;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.HubStanding;
 import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
@@ -40,7 +41,9 @@ public final class HubNetwork {
     }
 
     private static volatile Map<String, List<Link>> links = Map.of();
-    private static final Map<String, OptionalDouble> railDistances = new ConcurrentHashMap<>();
+    private record CachedRoute(OptionalDouble distance, long expiresAt) { }
+    private static final Map<String, CachedRoute> railDistances = new ConcurrentHashMap<>();
+    private static final long ROUTE_MISS_TTL_MILLIS = 30_000L;
     private static RailRoutes railRoutes = HubNetwork::trackDistance;
 
     private HubNetwork() {
@@ -122,35 +125,58 @@ public final class HubNetwork {
         if (from == null || to == null || from == to || from.getProvince() == to.getProvince()) {
             return null;
         }
-        Mode mode = HubTransport.modeBetween(from.getKind(), to.getKind());
-        if (mode == null) {
+        if (!hubKind(from) || !hubKind(to)) {
             return null;
         }
+        String fromFactionId = SupplyHubService.owningFactionId(from);
+        String toFactionId = SupplyHubService.owningFactionId(to);
+        if (fromFactionId == null) {
+            fromFactionId = "";
+        }
+        if (toFactionId == null) {
+            toFactionId = "";
+        }
+        Link best = modeLink(from, fromFactionId, to, toFactionId, Mode.RAIL, provinces);
+        Mode ownMode = HubTransport.modeBetween(from.getKind(), to.getKind());
+        if (ownMode != null && ownMode != Mode.RAIL) {
+            Link own = modeLink(from, fromFactionId, to, toFactionId, ownMode, provinces);
+            if (own != null && (best == null || own.tradeFactor() > best.tradeFactor())) {
+                best = own;
+            }
+        }
+        return best;
+    }
+
+    private static boolean hubKind(Installation installation) {
+        return installation.getKind() == InstallationKind.PORT
+                || installation.getKind() == InstallationKind.AIRPORT
+                || installation.getKind() == InstallationKind.TRAIN_STATION;
+    }
+
+    private static Link modeLink(
+            Installation from, String fromFactionId, Installation to, String toFactionId,
+            Mode mode, ProvinceManager provinces) {
         Rates rates = HubTransport.rates(mode);
         double distance;
-        switch (mode) {
-            case RAIL:
-                OptionalDouble track = railDistance(from, to);
-                if (track.isEmpty()) {
-                    return null;
-                }
-                distance = track.getAsDouble();
-                break;
-            case SEA:
-                if (SeaConnectivity.sharedSeaProvinces(
-                        provinces, List.of(from.getProvince()), List.of(to.getProvince())).isEmpty()) {
-                    return null;
-                }
-                distance = straightLine(from, to);
-                break;
-            default:
-                distance = straightLine(from, to);
-                break;
+        if (mode == Mode.RAIL) {
+            OptionalDouble track = railDistance(from, to);
+            if (track.isEmpty()) {
+                return null;
+            }
+            distance = track.getAsDouble();
+        } else if (mode == Mode.SEA) {
+            if (SeaConnectivity.sharedSeaProvinces(
+                    provinces, List.of(from.getProvince()), List.of(to.getProvince())).isEmpty()) {
+                return null;
+            }
+            distance = straightLine(from, to);
+        } else {
+            distance = straightLine(from, to);
         }
         if (!Double.isFinite(distance) || distance < 0 || !HubTransport.inRange(rates, distance)) {
             return null;
         }
-        return HubTransport.link(from.getProvince(), to.getProvince(), mode, distance);
+        return HubTransport.link(from, fromFactionId, to, toFactionId, mode, distance);
     }
 
     public static void setLinksForTests(Map<String, List<Link>> replacement) {
@@ -201,19 +227,17 @@ public final class HubNetwork {
     }
 
     private static OptionalDouble railDistance(Installation from, Installation to) {
-        String a = from.getProvince() + ":" + from.getId();
-        String b = to.getProvince() + ":" + to.getId();
+        String a = SupplyHubService.owningFactionId(from) + ":" + from.getProvince() + ":" + from.getId();
+        String b = SupplyHubService.owningFactionId(to) + ":" + to.getProvince() + ":" + to.getId();
         String key = a.compareTo(b) <= 0 ? a + "|" + b : b + "|" + a;
-        OptionalDouble known = railDistances.get(key);
-        if (known != null) {
-            return known;
+        long now = System.currentTimeMillis();
+        CachedRoute known = railDistances.get(key);
+        if (known != null && (known.distance().isPresent() || known.expiresAt() > now)) {
+            return known.distance();
         }
-        // Only a found route is remembered: stations with no track yet are asked about again,
-        // so a line connects as soon as it is finished rather than at the next daily check.
         OptionalDouble measured = railRoutes.distance(from, to);
-        if (measured.isPresent()) {
-            railDistances.put(key, measured);
-        }
+        railDistances.put(key, new CachedRoute(
+                measured, measured.isPresent() ? Long.MAX_VALUE : now + ROUTE_MISS_TTL_MILLIS));
         return measured;
     }
 

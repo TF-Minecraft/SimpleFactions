@@ -165,9 +165,6 @@ public class Cache {
 	public static int mercenaryMaxContractDays = 14;
 	public static double mercenaryDefaultBreachRefund = 500.0;
 
-	public static int supplyHubBaseLimit = 2;
-	public static double supplyHubBaseUpkeep = 15.0;
-	public static double supplyHubUpkeepGrowth = 1.5;
 	public static double supplyHubMaxTax = 50.0;
 
 	public static Map<Scope, LawEffect> baseEffects = new HashMap<>();

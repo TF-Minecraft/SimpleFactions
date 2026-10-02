@@ -52,16 +52,10 @@ import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 
 class SupplyHubServiceTest {
     private final List<Faction> previousFactions = new ArrayList<>(FactionManager.factions);
-    private final int previousLimit = Cache.supplyHubBaseLimit;
-    private final double previousUpkeep = Cache.supplyHubBaseUpkeep;
-    private final double previousGrowth = Cache.supplyHubUpkeepGrowth;
 
     @AfterEach
     void restore() {
         FactionManager.factions = new ArrayList<>(previousFactions);
-        Cache.supplyHubBaseLimit = previousLimit;
-        Cache.supplyHubBaseUpkeep = previousUpkeep;
-        Cache.supplyHubUpkeepGrowth = previousGrowth;
     }
 
     @Test
@@ -91,12 +85,14 @@ class SupplyHubServiceTest {
         Guild guild = guildWith(hub);
         Faction faction = mock(Faction.class);
         when(guild.getFaction()).thenReturn(faction);
+        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(2.0);
         HubStanding standing = SupplyHubService.standing(guild, hub, true, true, 1, List.of(hub));
         assertFalse(standing.active());
         assertEquals(DormantReason.ECONOMY_DISALLOWS, standing.reason());
         assertEquals("§cDormant §7(your faction's economy does not allow supply hubs)",
                 SupplyHubService.statusText(standing));
-        assertEquals(SupplyHubService.baseUpkeep(), SupplyHubService.dailyCost(guild));
+        when(guild.getModifier(GuildModifier.HUB_UPKEEP)).thenReturn(15.0);
+        assertEquals(15.0, SupplyHubService.dailyCost(guild));
         assertEquals(1, SupplyHubService.countAt("decentralized", "station", List.of(guild)));
 
         // The host's economy does not forbid a foreign guild that may build hubs.
@@ -163,12 +159,10 @@ class SupplyHubServiceTest {
     }
 
     @Test
-    void upkeep_growsFromTheOldestHub() {
-        assertEquals(15.0, SupplyHubService.upkeepAt(0, 15, 1.5), 1e-9);
-        assertEquals(22.5, SupplyHubService.upkeepAt(1, 15, 1.5), 1e-9);
-        assertEquals(33.75, SupplyHubService.upkeepAt(2, 15, 1.5), 1e-9);
-        assertEquals(50.625, SupplyHubService.upkeepAt(3, 15, 1.5), 1e-9);
-        assertEquals(71.25, SupplyHubService.totalUpkeep(3, 15, 1.5), 1e-9);
+    void upkeepIsFlatForEveryHub() {
+        assertEquals(0.0, SupplyHubService.totalUpkeep(0, 15), 1e-9);
+        assertEquals(45.0, SupplyHubService.totalUpkeep(3, 15), 1e-9);
+        assertEquals(15.0, SupplyHubService.totalUpkeep(3, 5), 1e-9);
     }
 
     @Test
@@ -177,16 +171,16 @@ class SupplyHubServiceTest {
         hubs.add(hub("rome", "a", 1));
         hubs.add(hub("rome", "b", 2));
         hubs.add(hub("rome", "c", 3));
-        List<SupplyHub> removed = SupplyHubService.shedUnpaid(hubs, 40, 15, 1.5);
+        List<SupplyHub> removed = SupplyHubService.shedUnpaid(hubs, 40, 15);
         assertEquals(List.of("c"), ids(removed));
         assertEquals(List.of("a", "b"), ids(hubs));
-        assertEquals(37.5, SupplyHubService.totalUpkeep(hubs.size(), 15, 1.5), 1e-9);
+        assertEquals(30.0, SupplyHubService.totalUpkeep(hubs.size(), 15), 1e-9);
 
-        removed = SupplyHubService.shedUnpaid(hubs, 15, 15, 1.5);
+        removed = SupplyHubService.shedUnpaid(hubs, 15, 15);
         assertEquals(List.of("b"), ids(removed));
         assertEquals(List.of("a"), ids(hubs));
 
-        removed = SupplyHubService.shedUnpaid(hubs, 14.99, 15, 1.5);
+        removed = SupplyHubService.shedUnpaid(hubs, 14.99, 15);
         assertEquals(List.of("a"), ids(removed));
         assertTrue(hubs.isEmpty());
     }
@@ -196,7 +190,7 @@ class SupplyHubServiceTest {
         List<SupplyHub> hubs = new ArrayList<>();
         hubs.add(hub("rome", "a", 1));
         hubs.add(hub("rome", "b", 2));
-        assertTrue(SupplyHubService.shedUnpaid(hubs, 37.5, 15, 1.5).isEmpty());
+        assertTrue(SupplyHubService.shedUnpaid(hubs, 30, 15).isEmpty());
         assertEquals(2, hubs.size());
     }
 
@@ -232,12 +226,11 @@ class SupplyHubServiceTest {
 
     @Test
     void guildLimitIncludesWholeBranchBonus_andExcessHubsAreNewestFirst() {
-        Cache.supplyHubBaseLimit = 2;
         Guild guild = mock(Guild.class);
         List<SupplyHub> hubs = new ArrayList<>(List.of(
                 hub("rome", "old", 1), hub("rome", "middle", 2), hub("rome", "new", 3)));
         when(guild.getSupplyHubs()).thenReturn(hubs);
-        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(1.5);
+        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(3.5);
 
         assertEquals(3, SupplyHubService.limit(guild));
         assertFalse(SupplyHubService.beyondGuildLimit(guild, hubs.get(0)));
@@ -245,10 +238,17 @@ class SupplyHubServiceTest {
         assertFalse(SupplyHubService.beyondGuildLimit(guild, hubs.get(2)));
 
         when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(0.5);
-        assertEquals(2, SupplyHubService.limit(guild));
-        assertTrue(SupplyHubService.beyondGuildLimit(guild, hubs.get(2)));
+        assertEquals(0, SupplyHubService.limit(guild));
+        assertTrue(SupplyHubService.beyondGuildLimit(guild, hubs.get(0)));
         assertTrue(SupplyHubService.statusText(new HubStanding(
                 false, DormantReason.BEYOND_GUILD_LIMIT)).contains("guild's supply hub limit"));
+    }
+
+    @Test
+    void hubLimitIsNotScaledWithInactivity() {
+        assertTrue(GuildModifier.HUB_LIMIT.isPositive());
+        assertFalse(GuildModifier.HUB_LIMIT.scalesWithInactivity());
+        assertFalse(GuildModifier.HUB_UPKEEP.isPositive());
     }
 
     @Test
@@ -256,8 +256,8 @@ class SupplyHubServiceTest {
         SupplyHub first = hub("rome", "harbour", 1);
         SupplyHub dormant = hub("rome", "harbour", 2);
         List<SupplyHub> guildHubs = List.of(first, dormant);
-        assertEquals(22.5, SupplyHubService.upkeepOf(dormant, guildHubs, 15, 1.5), 1e-9);
-        assertEquals(37.5, SupplyHubService.totalUpkeep(guildHubs.size(), 15, 1.5), 1e-9);
+        assertEquals(15.0, SupplyHubService.upkeepOf(dormant, guildHubs, 15), 1e-9);
+        assertEquals(30.0, SupplyHubService.totalUpkeep(guildHubs.size(), 15), 1e-9);
         assertEquals(2, SupplyHubService.countAt("rome", "harbour", List.of(guildWith(first, dormant))));
     }
 
@@ -357,24 +357,13 @@ class SupplyHubServiceTest {
     }
 
     @Test
-    void missingConfigKeys_useDefaults() {
-        YamlConfiguration empty = new YamlConfiguration();
-        SupplyHubService.loadConfig(empty);
-        assertEquals(2, Cache.supplyHubBaseLimit);
-        assertEquals(15.0, Cache.supplyHubBaseUpkeep, 1e-9);
-        assertEquals(1.5, Cache.supplyHubUpkeepGrowth, 1e-9);
-
-        YamlConfiguration partial = new YamlConfiguration();
-        partial.set("supply-hubs.base-limit", 4);
-        SupplyHubService.loadConfig(partial);
-        assertEquals(4, Cache.supplyHubBaseLimit);
-        assertEquals(15.0, Cache.supplyHubBaseUpkeep, 1e-9);
-        assertEquals(1.5, Cache.supplyHubUpkeepGrowth, 1e-9);
-
-        YamlConfiguration explicitZero = new YamlConfiguration();
-        explicitZero.set("supply-hubs.base-upkeep", 0);
-        SupplyHubService.loadConfig(explicitZero);
-        assertEquals(0.0, Cache.supplyHubBaseUpkeep, 1e-9);
+    void oldUpkeepAndLimitConfigKeysAreIgnored() {
+        YamlConfiguration old = new YamlConfiguration();
+        old.set("supply-hubs.base-limit", 4);
+        old.set("supply-hubs.base-upkeep", 0);
+        old.set("supply-hubs.upkeep-growth", 3.0);
+        SupplyHubService.loadConfig(old);
+        assertEquals(50.0, Cache.supplyHubMaxTax, 1e-9);
     }
 
     @Test
@@ -409,8 +398,6 @@ class SupplyHubServiceTest {
 
     @Test
     void ledger_supplyHubsIsItsOwnSinkLine() {
-        Cache.supplyHubBaseUpkeep = 15;
-        Cache.supplyHubUpkeepGrowth = 1.5;
         Guild guild = mock(Guild.class);
         Faction faction = mock(Faction.class);
         List<SupplyHub> hubs = new ArrayList<>();
@@ -418,31 +405,31 @@ class SupplyHubServiceTest {
         hubs.add(hub("rome", "b", 2));
         hubs.add(hub("rome", "c", 3));
         when(guild.getSupplyHubs()).thenReturn(hubs);
+        when(guild.getModifier(GuildModifier.HUB_UPKEEP)).thenReturn(15.0);
         Bank bank = mock(Bank.class);
         when(bank.getWealth()).thenReturn(40.0);
         Ledger ledger = ledger(faction, guild, bank);
 
         assertTrue(Cashflow.SUPPLY_HUBS.getDisplay().contains("Supply hubs"));
-        assertEquals(-71.25, ledger.getIncome(Cashflow.SUPPLY_HUBS), 1e-9);
+        assertEquals(-45.0, ledger.getIncome(Cashflow.SUPPLY_HUBS), 1e-9);
 
         DailyGuildTransfers buffer = new DailyGuildTransfers();
         ledger.populateDailyTransfers(buffer);
         assertEquals(List.of("a", "b"), ids(hubs));
-        assertEquals(-37.5, buffer.getExternalDeltas().get(guild), 1e-9);
+        assertEquals(-30.0, buffer.getExternalDeltas().get(guild), 1e-9);
         assertTrue(buffer.getTransfers().isEmpty());
-        assertEquals(-37.5, ledger.getIncome(Cashflow.SUPPLY_HUBS), 1e-9);
-        assertEquals(-37.5, ledger.getNetIncome(), 1e-9);
+        assertEquals(-30.0, ledger.getIncome(Cashflow.SUPPLY_HUBS), 1e-9);
+        assertEquals(-30.0, ledger.getNetIncome(), 1e-9);
     }
 
     @Test
     void ledger_removesEveryHubWhenNoneCanBePaid() {
-        Cache.supplyHubBaseUpkeep = 15;
-        Cache.supplyHubUpkeepGrowth = 1.5;
         Guild guild = mock(Guild.class);
         Faction faction = mock(Faction.class);
         List<SupplyHub> hubs = new ArrayList<>();
         hubs.add(hub("rome", "a", 1));
         when(guild.getSupplyHubs()).thenReturn(hubs);
+        when(guild.getModifier(GuildModifier.HUB_UPKEEP)).thenReturn(15.0);
         Bank bank = mock(Bank.class);
         when(bank.getWealth()).thenReturn(10.0);
         Ledger ledger = ledger(faction, guild, bank);

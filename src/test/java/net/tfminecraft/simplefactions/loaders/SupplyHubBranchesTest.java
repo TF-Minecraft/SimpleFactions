@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildType;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.database.GuildBranchData;
 
 class SupplyHubBranchesTest {
     private final Map<String, Branch> savedBranches = new HashMap<>(BranchLoader.map);
@@ -61,9 +62,35 @@ class SupplyHubBranchesTest {
         assertNotNull(freightGuild);
         assertNotNull(freightRealm);
         assertEquals("supply_lines", supplyGuild.getId());
-        assertEquals("freight_yards", freightRealm.getId());
+        assertEquals("counting_houses", freightRealm.getId());
+        assertEquals(2.0, supplyGuild.getModifier(GuildModifier.HUB_LIMIT).getBase());
         assertEquals(0.5, supplyGuild.getModifier(GuildModifier.HUB_LIMIT).getPerLevel());
-        assertEquals(0.08, freightRealm.getModifier(GuildModifier.HUB_PRODUCTION).getPerLevel());
+        assertEquals(0.05, supplyGuild.getModifier(GuildModifier.HUB_TRADE).getPerLevel());
+        assertEquals(0.08, supplyGuild.getModifier(GuildModifier.HUB_PRODUCTION).getPerLevel());
+        assertEquals(-0.01, freightRealm.getModifier(GuildModifier.TRADE_UPKEEP).getPerLevel());
+        assertEquals(15.0, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getBase());
+        assertEquals(1.0, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getPerLevel());
+        assertEquals(0.5, BranchLoader.getByString("storehouses").getModifier(GuildModifier.HUB_UPKEEP).getPerLevel());
         assertTrue(!supplyGuild.getDescription().isEmpty());
+    }
+
+    @Test
+    void freightYardsResolvesToCountingHousesOnlyWhenNoExactBranchExists() {
+        Branch counting = new Branch("counting_houses", new YamlConfiguration().createSection("counting_houses"));
+        BranchLoader.map.clear();
+        BranchLoader.map.put(counting.getId(), counting);
+        assertEquals(counting, BranchLoader.getByString("freight_yards"));
+        Branch migrated = new Branch(BranchLoader.getByString("freight_yards"), 3);
+        assertEquals("counting_houses", migrated.getId());
+        assertEquals(3, migrated.getLevel());
+        GuildBranchData saved = new GuildBranchData();
+        saved.id = migrated.getId();
+        saved.level = migrated.getLevel();
+        assertEquals("counting_houses", saved.id);
+        assertEquals(3, saved.level);
+
+        Branch legacy = new Branch("freight_yards", new YamlConfiguration().createSection("freight_yards"));
+        BranchLoader.map.put(legacy.getId(), legacy);
+        assertEquals(legacy, BranchLoader.getByString("freight_yards"));
     }
 }
