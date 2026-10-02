@@ -28,6 +28,13 @@ public class BranchLoader {
 		for(Branch r : map.values()) {
 			if(r.getId().equalsIgnoreCase(id)) return r;
 		}
+		if (id != null && id.equalsIgnoreCase("freight_yards")) {
+			for (Branch branch : map.values()) {
+				if (branch.getId().equalsIgnoreCase("counting_houses")) {
+					return branch;
+				}
+			}
+		}
 		return null;
 	}
 	public static Branch getByGroup(Guild guild, int group) {

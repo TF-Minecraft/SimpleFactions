@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -68,13 +69,64 @@ class HubTaxServiceTest {
 
     @Test
     void removingAHubOnlyRemovesItsOwnModeAtEitherEnd() {
-        Installation station = new Installation("a", "A", InstallationKind.TRAIN_STATION, 1, 0, 0, 0L);
-        assertTrue(HubTaxService.touches(new Link(1, 2, Mode.RAIL, 0, 0.7, 0.25), station));
-        assertTrue(HubTaxService.touches(new Link(2, 1, Mode.RAIL, 0, 0.7, 0.25), station));
+        SupplyHub station = new SupplyHub("owner", "a", 0);
+        SupplyHub port = new SupplyHub("owner", "port", 0);
+        assertTrue(HubTaxService.touches(new Link(1, 2, "owner", "a", "owner", "b", Mode.RAIL, 0, 0.7, 0.25), station));
+        assertTrue(HubTaxService.touches(new Link(2, 1, "owner", "b", "owner", "a", Mode.RAIL, 0, 0.7, 0.25), station));
         org.junit.jupiter.api.Assertions.assertFalse(
-                HubTaxService.touches(new Link(1, 2, Mode.AIR, 0, 0.2, 0), station));
+                HubTaxService.touches(new Link(1, 2, "owner", "c", "owner", "b", Mode.AIR, 0, 0.2, 0), station));
         org.junit.jupiter.api.Assertions.assertFalse(
-                HubTaxService.touches(new Link(2, 3, Mode.RAIL, 0, 0.7, 0.25), station));
+                HubTaxService.touches(new Link(2, 3, "owner", "b", "owner", "c", Mode.RAIL, 0, 0.7, 0.25), station));
+        Link stationRoute = new Link(1, 2, "owner", "a", "remote", "b", Mode.RAIL, 0, 0.7, 0.25);
+        Link portRoute = new Link(1, 3, "owner", "port", "remote", "c", Mode.RAIL, 0, 0.7, 0.25);
+        assertTrue(HubTaxService.touches(stationRoute, station));
+        assertTrue(HubTaxService.touches(portRoute, port));
+        org.junit.jupiter.api.Assertions.assertFalse(HubTaxService.touches(portRoute, station));
+        org.junit.jupiter.api.Assertions.assertFalse(HubTaxService.touches(stationRoute, port));
+    }
+
+    @Test
+    void connectionLinesAttributeSameProvinceHubsByInstallation() {
+        Guild guild = mock(Guild.class);
+        when(guild.getId()).thenReturn("guild");
+        SupplyHub portHub = new SupplyHub("home", "port", 1);
+        SupplyHub stationHub = new SupplyHub("home", "station", 2);
+        SupplyHub portDestinationHub = new SupplyHub("remote", "port-destination", 3);
+        SupplyHub stationDestinationHub = new SupplyHub("remote", "station-destination", 4);
+        when(guild.getSupplyHubs()).thenReturn(List.of(
+                portHub, stationHub, portDestinationHub, stationDestinationHub));
+        Installation port = new Installation("port", "Port", InstallationKind.PORT, 1, 0, 0, 0L);
+        Installation station = new Installation("station", "Station", InstallationKind.TRAIN_STATION, 1, 0, 0, 0L);
+        Installation portDestination = new Installation(
+                "port-destination", "Port destination", InstallationKind.PORT, 2, 0, 0, 0L);
+        Installation stationDestination = new Installation(
+                "station-destination", "Station destination", InstallationKind.TRAIN_STATION, 3, 0, 0, 0L);
+        InstallationHandler homeSites = mock(InstallationHandler.class);
+        InstallationHandler remoteSites = mock(InstallationHandler.class);
+        Faction home = mock(Faction.class);
+        Faction remote = mock(Faction.class);
+        when(home.getInstallationHandler()).thenReturn(homeSites);
+        when(remote.getInstallationHandler()).thenReturn(remoteSites);
+        when(homeSites.getById("port")).thenReturn(port);
+        when(homeSites.getById("station")).thenReturn(station);
+        when(remoteSites.getById("port-destination")).thenReturn(portDestination);
+        when(remoteSites.getById("station-destination")).thenReturn(stationDestination);
+        List<Link> links = List.of(
+                new Link(1, 2, "home", "port", "remote", "port-destination", Mode.RAIL, 100, 0.7, 0.25),
+                new Link(1, 3, "home", "station", "remote", "station-destination", Mode.RAIL, 200, 0.7, 0.25));
+        HubNetwork.setLinksForTests(Map.of("guild", links));
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            factions.when(() -> FactionManager.getByString("home")).thenReturn(home);
+            factions.when(() -> FactionManager.getByString("remote")).thenReturn(remote);
+            List<String> portLines = SupplyHubCommands.connectionLines(guild, portHub, port);
+            List<String> stationLines = SupplyHubCommands.connectionLines(guild, stationHub, station);
+            assertEquals(1, portLines.size());
+            assertTrue(portLines.get(0).contains("Port destination"));
+            assertEquals(1, stationLines.size());
+            assertTrue(stationLines.get(0).contains("Station destination"));
+        } finally {
+            HubNetwork.setLinksForTests(null);
+        }
     }
 
     @Test
@@ -96,6 +148,7 @@ class HubTaxServiceTest {
         when(guild.hasCapital()).thenReturn(true);
         when(guild.getCapital()).thenReturn(1);
         when(guild.getModifier(GuildModifier.TRADE_POWER)).thenReturn(20.0);
+        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(3.0);
         when(guild.getModifier(GuildModifier.TRADE_CARRY)).thenReturn(1.0);
         when(guild.getModifier(GuildModifier.PRODUCTION)).thenReturn(10.0);
         TradeBreakdown trade = new TradeBreakdown();
@@ -123,8 +176,8 @@ class HubTaxServiceTest {
             map.get(id + 1).addNeighbour(id);
         }
         provinces.start(map);
-        List<Link> links = List.of(new Link(1, 22, Mode.RAIL, 0, 0.7, 0.25),
-                new Link(22, 1, Mode.RAIL, 0, 0.7, 0.25));
+        List<Link> links = List.of(new Link(1, 22, "home", "a", "host", "b", Mode.RAIL, 0, 0.7, 0.25),
+                new Link(22, 1, "host", "b", "home", "a", Mode.RAIL, 0, 0.7, 0.25));
         HubNetwork.setLinksForTests(Map.of("guild", links));
         try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
                 MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);

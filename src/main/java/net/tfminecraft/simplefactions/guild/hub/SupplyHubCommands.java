@@ -13,6 +13,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
+import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.HubStanding;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.PlacedCandidate;
@@ -39,6 +40,9 @@ public final class SupplyHubCommands {
             return true;
         }
         String action = args[1];
+        if (action.equalsIgnoreCase("gotit") && args.length == 2) {
+            return gotIt(player);
+        }
         if (action.equalsIgnoreCase("build")) {
             return build(player);
         }
@@ -207,6 +211,17 @@ public final class SupplyHubCommands {
             player.sendMessage("§cYou are not standing inside an installation");
             return true;
         }
+        boolean capitalHub = hasCapitalHub(guild);
+        SupplyHubTutorial.Decision tutorial = SupplyHubTutorial.decision(
+                guild.hasCapital(), capitalHub, installation.getProvince() == guild.getCapital(),
+                guild.hasDismissedSupplyHubTutorial(player.getUniqueId().toString()));
+        if (tutorial == SupplyHubTutorial.Decision.SHOW) {
+            Installation capitalInstallation = capitalPlacement(guild);
+            Faction capitalOwner = capitalInstallation == null ? capitalOwner(guild) : null;
+            SupplyHubTutorial.show(player, SupplyHubTutorial.placementLine(
+                    capitalInstallation, capitalOwner == null ? null : capitalOwner.getName()));
+            return true;
+        }
         String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
         Faction owner = FactionManager.getByString(chosen.ownerFactionId());
         boolean permit = owner != null && owner.hasHubPermit(guild.getId());
@@ -229,7 +244,86 @@ public final class SupplyHubCommands {
                 chosen.ownerFactionId(), installation.getId(), System.currentTimeMillis()));
         player.sendMessage("§aBuilt a supply hub at §f" + installation.getName());
         recalculateTrade();
+        SupplyHub newHub = guild.getSupplyHubs().get(guild.getSupplyHubs().size() - 1);
+        List<String> connections = connectionLines(guild, newHub, installation);
+        for (String line : connections) {
+            player.sendMessage(line);
+        }
+        if (connections.isEmpty() && guild.getSupplyHubs().size() == 1) {
+            player.sendMessage("§7A hub does nothing alone. Build a second one where you want trade to arrive.");
+        } else if (connections.isEmpty()) {
+            player.sendMessage("§7This hub is not linked to any of your other hubs. Train track links any two hubs; ports also link by sea and airports by air.");
+        }
+        if (tutorial == SupplyHubTutorial.Decision.NOTE) {
+            player.sendMessage("§7Your guild still has no hub in its capital province, so this hub has little to pass on.");
+        }
         return true;
+    }
+
+    private static boolean gotIt(Player player) {
+        Guild guild = FactionManager.getGuildByMember(player.getName());
+        if (guild == null) {
+            player.sendMessage("§cYou are not in a guild");
+            return true;
+        }
+        guild.dismissSupplyHubTutorial(player.getUniqueId().toString());
+        new Database().saveFaction(guild.getFaction());
+        player.sendMessage("§aGot it. §7Run §e/guild hub build §7again to build here anyway.");
+        return true;
+    }
+
+    private static boolean hasCapitalHub(Guild guild) {
+        if (guild == null || !guild.hasCapital()) return false;
+        for (SupplyHub hub : guild.getSupplyHubs()) {
+            Installation installation = SupplyHubService.findInstallation(
+                    hub.ownerFactionId(), hub.installationId());
+            if (installation != null && installation.getProvince() == guild.getCapital()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Installation capitalPlacement(Guild guild) {
+        if (guild == null || !guild.hasCapital()) {
+            return null;
+        }
+        if (FactionManager.factions == null) {
+            return null;
+        }
+        for (Faction faction : FactionManager.factions) {
+            if (faction == null || faction.getInstallationHandler() == null) {
+                continue;
+            }
+            boolean permitted = faction.hasHubPermit(guild.getId());
+            if (!SupplyHubService.ownerAllows(
+                    guild.getFaction() == null ? null : guild.getFaction().getId(), faction.getId(), permitted)) {
+                continue;
+            }
+            for (Installation installation : faction.getInstallationHandler().getAll()) {
+                if (installation == null || installation.getProvince() != guild.getCapital()) {
+                    continue;
+                }
+                int slots = InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());
+                if (slots <= SupplyHubService.countLoaded(faction.getId(), installation.getId())) continue;
+                if (SupplyHubService.hasHub(guild.getSupplyHubs(), faction.getId(), installation.getId())) continue;
+                if (Math.max(
+                        tradeInProvince(installation.getProvince(), guild.getId()),
+                        reachableTrade(guild, installation)) < 0.5) continue;
+                return installation;
+            }
+        }
+        return null;
+    }
+
+    private static Faction capitalOwner(Guild guild) {
+        if (guild == null || !guild.hasCapital()) return null;
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin == null || plugin.getProvinceManager() == null) {
+            return null;
+        }
+        Province province = plugin.getProvinceManager().get(guild.getCapital());
+        return province == null ? null : province.getOwner();
     }
 
     private static boolean list(Player player) {
@@ -252,14 +346,18 @@ public final class SupplyHubCommands {
             Faction owner = FactionManager.getByString(hub.ownerFactionId());
             String ownerName = owner == null ? hub.ownerFactionId() : owner.getName();
             double cost = SupplyHubService.upkeepOf(
-                    hub, guild.getSupplyHubs(), SupplyHubService.baseUpkeep(), SupplyHubService.upkeepGrowth());
+                    hub, guild.getSupplyHubs(), SupplyHubService.upkeepPerHub(guild));
             player.sendMessage("§f" + name + " §7(" + kind + ") §7owned by §f" + ownerName);
             player.sendMessage("§7Upkeep: §e" + Formatter.formatMoney(cost) + "d/day §7" + statusOf(guild, hub, installation));
             HubTaxBreakdown.Assessment assessment = guild.getHubTaxBreakdown().forHub(hub);
             player.sendMessage("§7Taxable income: §e" + Formatter.formatMoney(assessment.taxableIncome())
                     + "d/day §7Hub Tax: §e" + Formatter.formatMoney(assessment.tax()) + "d/day");
-            for (String line : connectionLines(guild, installation)) {
+            List<String> connections = connectionLines(guild, hub, installation);
+            for (String line : connections) {
                 player.sendMessage(line);
+            }
+            if (connections.isEmpty() && standingOf(guild, hub, installation).active()) {
+                player.sendMessage("§7Not linked to another hub");
             }
         }
         return true;
@@ -309,6 +407,10 @@ public final class SupplyHubCommands {
     }
 
     private static String statusOf(Guild guild, SupplyHub hub, Installation installation) {
+        return SupplyHubService.statusText(standingOf(guild, hub, installation));
+    }
+
+    private static HubStanding standingOf(Guild guild, SupplyHub hub, Installation installation) {
         String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
         Faction owner = FactionManager.getByString(hub.ownerFactionId());
         boolean permit = owner != null && owner.hasHubPermit(guild.getId());
@@ -324,7 +426,7 @@ public final class SupplyHubCommands {
                 SupplyHubService.ownerAllows(guildFactionId, hub.ownerFactionId(), permit),
                 slots,
                 atInstallation);
-        return SupplyHubService.statusText(standing);
+        return standing;
     }
 
     private static String label(SupplyHub hub) {
@@ -396,7 +498,7 @@ public final class SupplyHubCommands {
         plugin.getProvinceManager().recalculate();
     }
 
-    private static List<String> connectionLines(Guild guild, Installation installation) {
+    static List<String> connectionLines(Guild guild, SupplyHub hub, Installation installation) {
         List<String> lines = new ArrayList<>();
         if (installation == null) {
             return lines;
@@ -405,10 +507,10 @@ public final class SupplyHubCommands {
         double productionBonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
         for (HubTransport.Link link : HubNetwork.linksFor(guild)) {
             if (link.fromProvince() != installation.getProvince()
-                    || link.mode().getKind() != installation.getKind()) {
+                    || !sameEndpoint(link.fromFactionId(), link.fromInstallationId(), hub)) {
                 continue;
             }
-            lines.add("§7Sends to §f" + hubNameIn(guild, link) + " §7by " + link.mode().getKey()
+            lines.add("§7Sends to §f" + hubNameIn(link) + " §7by " + link.mode().getKey()
                     + " (" + Math.round(link.distance()) + " blocks): §e"
                     + Math.round(link.boostedTradeFactor(tradeBonus) * 100)
                     + "% §7trade, §e"
@@ -418,16 +520,15 @@ public final class SupplyHubCommands {
         return lines;
     }
 
-    private static String hubNameIn(Guild guild, HubTransport.Link link) {
-        for (SupplyHub hub : guild.getSupplyHubs()) {
-            Installation other = SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
-            if (other != null
-                    && other.getProvince() == link.toProvince()
-                    && other.getKind() == link.mode().getKind()) {
-                return other.getName();
-            }
-        }
-        return "province " + link.toProvince();
+    private static String hubNameIn(HubTransport.Link link) {
+        Installation other = SupplyHubService.findInstallation(link.toFactionId(), link.toInstallationId());
+        return other == null ? "province " + link.toProvince() : other.getName();
+    }
+
+    private static boolean sameEndpoint(String factionId, String installationId, SupplyHub hub) {
+        return factionId != null && installationId != null && hub != null
+                && factionId.equalsIgnoreCase(hub.ownerFactionId())
+                && installationId.equalsIgnoreCase(hub.installationId());
     }
 
     private static double tradeInProvince(int provinceId, String guildId) {

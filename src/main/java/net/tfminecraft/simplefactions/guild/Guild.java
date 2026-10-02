@@ -107,6 +107,7 @@ public class Guild {
     private List<String> dividendEligible = new ArrayList<>();
     private MercenaryCompany company;
     private final List<SupplyHub> supplyHubs = new ArrayList<>();
+    private final Set<String> supplyHubTutorialDismissals = new HashSet<>();
 
     public Guild(Faction f) {
         host = f;
@@ -246,6 +247,9 @@ public class Guild {
                     this, data.company, MercenaryCompany.cloneMercenaryRegiment());
         }
         this.supplyHubs.addAll(SupplyHubService.fromData(data.supplyHubs));
+        if (data.supplyHubTutorialDismissals != null) {
+            supplyHubTutorialDismissals.addAll(data.supplyHubTutorialDismissals);
+        }
         if(data.pillageHits != null) {
             for (StabilityModifierData smd : data.pillageHits) {
                 if (smd == null || smd.name == null) {
@@ -427,6 +431,20 @@ public class Guild {
     public List<SupplyHub> getSupplyHubs() {
         return supplyHubs;
     }
+
+    public boolean hasDismissedSupplyHubTutorial(String playerId) {
+        return playerId != null && supplyHubTutorialDismissals.contains(playerId);
+    }
+
+    public void dismissSupplyHubTutorial(String playerId) {
+        if (playerId != null) {
+            supplyHubTutorialDismissals.add(playerId);
+        }
+    }
+
+    public List<String> getSupplyHubTutorialDismissals() {
+        return new ArrayList<>(supplyHubTutorialDismissals);
+    }
     public String getName() { return isBase() ? host.getName() : name; }
 
     /** Backing name, even while this guild is a faction base (display name follows the host). */
@@ -459,8 +477,11 @@ public class Guild {
         return branches.getOrDefault(i, null);
     }
     public Branch getBranch(String id) {
+        // A renamed branch is still found by the id it was saved under.
+        Branch definition = BranchLoader.getByString(id);
+        String current = definition == null ? id : definition.getId();
         for(Branch b : branches.values()) {
-            if(b.getId().equalsIgnoreCase(id)) return b;
+            if(b.getId().equalsIgnoreCase(current)) return b;
         }
         return null;
     }
@@ -693,7 +714,7 @@ public class Guild {
             amount += u.getAmount(m);
         }
         // Levels stay. While the guild is inactive, the benefit of those levels fades.
-        if (m != null && m.isPositive()) {
+        if (m != null && m.scalesWithInactivity()) {
             amount *= net.tfminecraft.simplefactions.inactivity.InactivityService.outputFactor(this);
         }
         return amount;

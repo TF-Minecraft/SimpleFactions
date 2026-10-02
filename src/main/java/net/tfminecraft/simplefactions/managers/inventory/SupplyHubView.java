@@ -67,7 +67,7 @@ public class SupplyHubView {
                     installation == null ? hub.installationId() : installation.getName(),
                     installation == null ? "Unknown" : installation.getKind().getDisplayName(),
                     owner == null ? hub.ownerFactionId() : owner.getName(),
-                    SupplyHubService.upkeepOf(hub, hubs, SupplyHubService.baseUpkeep(), SupplyHubService.upkeepGrowth()),
+                    SupplyHubService.upkeepOf(hub, hubs, SupplyHubService.upkeepPerHub(guild)),
                     standing,
                     connections,
                     province == null ? 0 : SupplyHubService.exportedTrade(province, guild.getId()),
@@ -88,7 +88,9 @@ public class SupplyHubView {
         }
         int limit = SupplyHubService.limit(guild);
         inventory.setItem(49, SupplyHubCreator.item(Material.PAPER, "§eSupply Hub Information", List.of(
+                "§7Hubs work in pairs.",
                 "§7Hubs: §e" + hubs.size() + "/" + limit,
+                "§7Upkeep per hub: §e" + Formatter.formatDouble(SupplyHubService.upkeepPerHub(guild)) + "d/day",
                 "§7Daily upkeep: §e" + Formatter.formatDouble(SupplyHubService.dailyCost(guild)) + "d/day",
                 "§7Build with §e/guild hub build §7while standing in a port, airport or train station")));
         inventory.setItem(53, inv.createBackButton(SFGUI.SUPPLY_HUB_VIEW));
@@ -291,7 +293,8 @@ public class SupplyHubView {
         double productionBonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
         for (Link link : HubNetwork.linksFor(guild)) {
             if (link.fromProvince() != installation.getProvince()
-                    || link.mode().getKind() != installation.getKind()) {
+                    || !hub.ownerFactionId().equalsIgnoreCase(link.fromFactionId())
+                    || !hub.installationId().equalsIgnoreCase(link.fromInstallationId())) {
                 continue;
             }
             Installation destination = null;
@@ -299,7 +302,8 @@ public class SupplyHubView {
                 Installation candidate = SupplyHubService.findInstallation(
                         other.ownerFactionId(), other.installationId());
                 if (candidate != null && candidate.getProvince() == link.toProvince()
-                        && candidate.getKind() == link.mode().getKind()) {
+                        && other.ownerFactionId().equalsIgnoreCase(link.toFactionId())
+                        && other.installationId().equalsIgnoreCase(link.toInstallationId())) {
                     destination = candidate;
                     break;
                 }
@@ -310,6 +314,9 @@ public class SupplyHubView {
                         + Math.round(link.boostedTradeFactor(tradeBonus) * 100) + "% §7trade, §e"
                         + Math.round(link.boostedProductionFactor(productionBonus) * 100) + "% §7production");
             }
+        }
+        if (result.isEmpty() && standing(guild, hub).active()) {
+            result.add("§7Not linked to another hub");
         }
         return result;
     }

@@ -25,18 +25,12 @@ import net.tfminecraft.simplefactions.objects.Faction;
 
 class TaxHandlerHubTaxTest {
     private double previousCap;
-    private int previousLimit;
-    private double previousUpkeep;
-    private double previousGrowth;
     private Faction faction;
     private TaxHandler handler;
 
     @BeforeEach
     void setUp() {
         previousCap = Cache.supplyHubMaxTax;
-        previousLimit = Cache.supplyHubBaseLimit;
-        previousUpkeep = Cache.supplyHubBaseUpkeep;
-        previousGrowth = Cache.supplyHubUpkeepGrowth;
         SupplyHubService.loadConfig(null);
         faction = mock(Faction.class);
         Government government = mock(Government.class);
@@ -51,9 +45,6 @@ class TaxHandlerHubTaxTest {
     void tearDown() {
         IncomePreviewContext.clear();
         Cache.supplyHubMaxTax = previousCap;
-        Cache.supplyHubBaseLimit = previousLimit;
-        Cache.supplyHubBaseUpkeep = previousUpkeep;
-        Cache.supplyHubUpkeepGrowth = previousGrowth;
     }
 
     @Test

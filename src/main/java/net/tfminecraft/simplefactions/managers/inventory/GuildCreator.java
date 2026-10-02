@@ -452,9 +452,16 @@ public class GuildCreator {
 			if (value >= 0) continue;
 
 			hasExpenses = true;
+			String display = cf.getDisplay();
+			if (cf == Cashflow.SUPPLY_HUBS && !g.getSupplyHubs().isEmpty()) {
+				display += "#d4c9ae (" + g.getSupplyHubs().size() + " × "
+						+ net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
+								 net.tfminecraft.simplefactions.guild.hub.SupplyHubService.upkeepPerHub(g))
+						+ "d per hub)";
+			}
 			lore.add(StringFormatter.formatHex(
 				"#cfc7a2• "
-				+ cf.getDisplay()
+				+ display
 				+ "#d6cf69: #cf493a"
 				+ String.format("%.2f", value)
 				+ "d"

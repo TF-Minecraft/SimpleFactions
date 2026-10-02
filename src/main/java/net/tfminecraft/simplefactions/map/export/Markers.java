@@ -164,8 +164,8 @@ public final class Markers {
             if (link == null || link.fromProvince() >= link.toProvince()) {
                 continue;
             }
-            Installation from = activeHubAt(guild, link.fromProvince(), link.mode().getKind());
-            Installation to = activeHubAt(guild, link.toProvince(), link.mode().getKind());
+            Installation from = activeHubAt(guild, link.fromProvince(), link.fromFactionId(), link.fromInstallationId());
+            Installation to = activeHubAt(guild, link.toProvince(), link.toFactionId(), link.toInstallationId());
             if (from == null || to == null) {
                 continue;
             }
@@ -216,10 +216,12 @@ public final class Markers {
         return row;
     }
 
-    private static Installation activeHubAt(Guild guild, int provinceId, InstallationKind kind) {
+    private static Installation activeHubAt(Guild guild, int provinceId, String factionId, String installationId) {
         for (SupplyHub hub : guild.getSupplyHubs()) {
             Installation installation = SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
-            if (installation == null || installation.getProvince() != provinceId || installation.getKind() != kind) {
+            if (installation == null || installation.getProvince() != provinceId
+                    || !hub.ownerFactionId().equalsIgnoreCase(factionId)
+                    || !hub.installationId().equalsIgnoreCase(installationId)) {
                 continue;
             }
             Faction owner = FactionManager.getByString(hub.ownerFactionId());

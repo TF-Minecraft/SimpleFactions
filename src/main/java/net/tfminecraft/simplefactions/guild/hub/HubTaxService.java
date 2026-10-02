@@ -55,7 +55,7 @@ public final class HubTaxService {
                 continue;
             }
             List<Link> remaining = links.stream()
-                    .filter(link -> !touches(link, installation))
+                    .filter(link -> !touches(link, hub))
                     .toList();
             without.put(hub, incomeWith(provinces, guild, remaining));
             hosts.put(hub, host);
@@ -99,10 +99,15 @@ public final class HubTaxService {
         return marginal;
     }
 
-    static boolean touches(Link link, Installation installation) {
-        return link.mode().getKind() == installation.getKind()
-                && (link.fromProvince() == installation.getProvince()
-                || link.toProvince() == installation.getProvince());
+    static boolean touches(Link link, SupplyHub hub) {
+        return hub != null && (matches(link.fromFactionId(), link.fromInstallationId(), hub)
+                || matches(link.toFactionId(), link.toInstallationId(), hub));
+    }
+
+    private static boolean matches(String factionId, String installationId, SupplyHub hub) {
+        return factionId != null && installationId != null
+                && factionId.equalsIgnoreCase(hub.ownerFactionId())
+                && installationId.equalsIgnoreCase(hub.installationId());
     }
 
     private static double incomeWith(ProvinceManager source, Guild guild, List<Link> links) {

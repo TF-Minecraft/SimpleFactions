@@ -12,6 +12,7 @@ import java.util.OptionalDouble;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
@@ -107,7 +108,7 @@ class HubNetworkTest {
     }
 
     @Test
-    void missingTrackIsAskedAboutAgain_soANewLineConnectsAtOnce() {
+    void missingTrackIsCachedUntilForgotten_thenANewLineConnects() {
         boolean[] laid = {false};
         HubNetwork.setRailRoutesForTests((from, to) -> laid[0] ? OptionalDouble.of(300) : OptionalDouble.empty());
         Installation a = installation("a", InstallationKind.TRAIN_STATION, 1, 0, 0);
@@ -116,6 +117,8 @@ class HubNetworkTest {
         assertNull(HubNetwork.connect(a, b, provinces));
         laid[0] = true;
 
+        assertNull(HubNetwork.connect(a, b, provinces));
+        HubNetwork.forgetRoutes();
         assertNotNull(HubNetwork.connect(a, b, provinces));
     }
 
@@ -152,7 +155,7 @@ class HubNetworkTest {
     }
 
     @Test
-    void differentKindsAndSameProvinceDoNotConnect() {
+    void mixedKindsUseRailAndSameProvinceDoesNotConnect() {
         HubNetwork.setRailRoutesForTests((from, to) -> OptionalDouble.of(10));
         Installation station = installation("a", InstallationKind.TRAIN_STATION, 1, 0, 0);
         Installation port = installation("b", InstallationKind.PORT, 5, 10, 10);
@@ -160,7 +163,7 @@ class HubNetworkTest {
         Installation fort = installation("d", InstallationKind.FORT, 5, 10, 10);
         Installation otherFort = installation("e", InstallationKind.FORT, 6, 10, 10);
 
-        assertNull(HubNetwork.connect(station, port, provinces));
+        assertEquals(Mode.RAIL, HubNetwork.connect(station, port, provinces).mode());
         assertNull(HubNetwork.connect(station, sameProvince, provinces));
         assertNull(HubNetwork.connect(fort, otherFort, provinces));
         assertNull(HubNetwork.connect(station, station, provinces));
@@ -175,11 +178,46 @@ class HubNetworkTest {
 
         List<Link> links = HubNetwork.linksBetween(List.of(a, b, airport), provinces);
 
-        assertEquals(2, links.size());
+        assertEquals(6, links.size());
         assertEquals(1, links.get(0).fromProvince());
         assertEquals(5, links.get(0).toProvince());
-        assertEquals(5, links.get(1).fromProvince());
-        assertEquals(1, links.get(1).toProvince());
+        assertEquals(1, links.get(1).fromProvince());
+        assertEquals(6, links.get(1).toProvince());
+        assertEquals(5, links.get(2).fromProvince());
+        assertEquals(1, links.get(2).toProvince());
+    }
+
+
+    @Test
+    void aPairUsesTheModeWithTheHigherTradeShareAndRailWinsATie() {
+        Installation a = installation("a", InstallationKind.PORT, 1, 0, 0);
+        Installation b = installation("b", InstallationKind.PORT, 5, 600, 800);
+        HubNetwork.setRailRoutesForTests((from, to) -> OptionalDouble.of(1000));
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("supply-hubs.transport.rail.trade", 0.50);
+        config.set("supply-hubs.transport.rail.kept-per-1000-blocks", 1.0);
+        config.set("supply-hubs.transport.sea.trade", 0.60);
+        config.set("supply-hubs.transport.sea.kept-per-1000-blocks", 1.0);
+        HubTransport.loadConfig(config);
+        assertEquals(Mode.SEA, HubNetwork.connect(a, b, provinces).mode());
+
+        config.set("supply-hubs.transport.rail.trade", 0.60);
+        HubTransport.loadConfig(config);
+        assertEquals(Mode.RAIL, HubNetwork.connect(a, b, provinces).mode());
+    }
+
+    @Test
+    void aMissingTrackIsAskedAgainAfterThirtySecondsOnly() {
+        int[] calls = {0};
+        HubNetwork.setRailRoutesForTests((from, to) -> {
+            calls[0]++;
+            return OptionalDouble.empty();
+        });
+        Installation a = installation("a", InstallationKind.TRAIN_STATION, 1, 0, 0);
+        Installation b = installation("b", InstallationKind.AIRPORT, 5, 10, 10);
+        HubNetwork.connect(a, b, provinces);
+        HubNetwork.connect(a, b, provinces);
+        assertEquals(1, calls[0]);
     }
 
     private static Installation installation(String id, InstallationKind kind, int province, int x, int z) {
