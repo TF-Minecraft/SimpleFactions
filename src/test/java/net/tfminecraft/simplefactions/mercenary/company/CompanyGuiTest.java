@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +18,9 @@ import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
+import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.inventory.CompanyCreator;
+import net.tfminecraft.simplefactions.managers.inventory.CompanyView;
 import net.tfminecraft.simplefactions.utils.Formatter;
 
 /** The company screens, checked through the lore builders as the ledger screen is. */
@@ -92,6 +97,20 @@ class CompanyGuiTest {
         assertTrue(lore.stream().anyMatch(line ->
                 line.contains("Contract income") && line.contains(Formatter.formatMoney(0.0))));
         assertTrue(lore.stream().anyMatch(line -> line.contains("Net position")));
+    }
+
+    @Test
+    void aLargeCompanyShowsItsLastSlotsInTheRemovalMenu() {
+        MercenaryCompany company = formedCompany();
+        company.getRegiment().setCurrentSlots(40);
+        Inventory inventory = mock(Inventory.class);
+        CompanyView view = new CompanyView(mock(InventoryManager.class));
+        view.creator = mock(CompanyCreator.class);
+
+        view.slotsView(mock(Player.class), fixture.guild, inventory);
+
+        verify(view.creator).createSlotItem(company, 4);
+        verify(view.creator).createSlotItem(company, 39);
     }
 
     @Test

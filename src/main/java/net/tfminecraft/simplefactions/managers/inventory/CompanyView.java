@@ -28,6 +28,8 @@ public class CompanyView {
 	private static final int UPGRADES_BUTTON = 15;
 	private static final int CONTRACTS_BUTTON = 22;
 	private static final int EXPAND_BUTTON = 4;
+	private static final int FIRST_SLOT_BUTTON = 9;
+	private static final int LAST_SLOT_BUTTON = 44;
 
 	public InventoryManager inv;
 	public CompanyCreator creator = new CompanyCreator();
@@ -84,8 +86,10 @@ public class CompanyView {
 		i.clear();
 		MercenaryCompany company = guild.getCompany();
 		if (company == null) return;
-		for (int slot = 0; slot < company.getSlots() && slot < 36; slot++) {
-			i.setItem(9 + slot, creator.createSlotItem(company, slot));
+		int visibleSlots = Math.min(company.getSlots(), LAST_SLOT_BUTTON - FIRST_SLOT_BUTTON + 1);
+		int firstVisibleSlot = company.getSlots() - visibleSlots;
+		for (int slot = 0; slot < visibleSlots; slot++) {
+			i.setItem(FIRST_SLOT_BUTTON + slot, creator.createSlotItem(company, firstVisibleSlot + slot));
 		}
 		if (company.isLeader(player.getName())) {
 			i.setItem(EXPAND_BUTTON, creator.createExpandButton(company));
@@ -200,6 +204,17 @@ public class CompanyView {
 
 	private void clickSlots(
 			InventoryClickEvent e, Inventory inventory, Player p, Guild guild, MercenaryCompany company) {
+		if (e.getClickedInventory() != inventory) return;
+		int slot = e.getSlot();
+		if (slot >= FIRST_SLOT_BUTTON && slot <= LAST_SLOT_BUTTON) {
+			int visibleSlots = Math.min(company.getSlots(), LAST_SLOT_BUTTON - FIRST_SLOT_BUTTON + 1);
+			int slotIndex = company.getSlots() - visibleSlots + slot - FIRST_SLOT_BUTTON;
+			if (slotIndex < company.getSlots() && slotIndex >= company.getEnlisted().size()) {
+				report(p, MercenaryCompanyService.removeSlot(guild, p.getName()));
+				slotsView(p, guild, inventory);
+			}
+			return;
+		}
 		if (e.getSlot() == EXPAND_BUTTON) {
 			report(p, MercenaryCompanyService.expand(guild, p.getName()));
 			slotsView(p, guild, inventory);
