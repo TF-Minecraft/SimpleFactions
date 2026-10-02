@@ -89,6 +89,53 @@ public class RelationManager {
 		return cost * prestigeCostScale(prestigeOf(to));
 	}
 
+	/**
+	 * True when this change spends more capacity than {@code available}.
+	 * Ending or cheapening a relation is allowed even if the faction is already over capacity.
+	 */
+	public static boolean lacksCapacityForChange(double available, double newCost, double oldCost) {
+		double increase = newCost - oldCost;
+		return increase > 0.0 && available < increase;
+	}
+
+	/** The type the other faction will hold after {@code origin} sets {@code next} toward {@code target}. */
+	public static RelationType partnerRelationAfter(Faction target, Faction origin, RelationType next) {
+		if (next == null || target == null || origin == null) {
+			return null;
+		}
+		if (reverseChange(target, origin, next) || next.willReset()) {
+			return next.getLink();
+		}
+		return target.getRelation(origin.getId()).getType();
+	}
+
+	public static boolean actorLacksCapacity(Faction actor, Faction other, RelationType next, RelationType current) {
+		if (actor == null || other == null || (next != null && next.equals(current))) {
+			return false;
+		}
+		return lacksCapacityForChange(
+				actor.getDiplomacyHandler().getAvailableCapacity(),
+				getDiplomaticCost(actor, other, next),
+				getDiplomaticCost(actor, other, current));
+	}
+
+	public static boolean partnerLacksRelationCapacity(Faction origin, Faction target, RelationType next) {
+		if (origin == null || target == null) {
+			return false;
+		}
+		RelationType theirCurrent = target.getRelation(origin.getId()).getType();
+		return actorLacksCapacity(target, origin, partnerRelationAfter(target, origin, next), theirCurrent);
+	}
+
+	/** Trade and treaty overlays. A non-mutual type leaves the partner's overlay unchanged. */
+	public static boolean partnerLacksOverlayCapacity(Faction origin, Faction target, RelationType next, RelationType theirCurrent) {
+		if (origin == null || target == null || next == null) {
+			return false;
+		}
+		RelationType theirNext = next.isMutual() ? next.getLink() : theirCurrent;
+		return actorLacksCapacity(target, origin, theirNext, theirCurrent);
+	}
+
 	/** Keeps existing costs through 100 prestige, then applies diminishing returns. */
 	private static double prestigeCostScale(double prestige) {
 		double nonNegativePrestige = Math.max(0, prestige);
@@ -533,7 +580,7 @@ public class RelationManager {
 		}
 		double oldCost = getDiplomaticCost(origin, target, current);
 		double newCost = getDiplomaticCost(origin, target, a);
-		if (origin.getDiplomacyHandler().getAvailableCapacity() < newCost - oldCost) {
+		if (lacksCapacityForChange(origin.getDiplomacyHandler().getAvailableCapacity(), newCost, oldCost)) {
 			p.sendMessage("§cYou lack diplomatic capacity for this attitude!");
 			return false;
 		}

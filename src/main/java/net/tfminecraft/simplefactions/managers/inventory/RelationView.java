@@ -362,12 +362,11 @@ public class RelationView {
 				return;
 			}
 
-			double ourCost = RelationManager.getDiplomaticCost(origin, f, r);
-			double theirCost = r.hasLink() ? RelationManager.getDiplomaticCost(f, origin, r.getLink()) : 0;
-			if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !origin.getRelation(f.getId()).getType().equals(r) || f.getDiplomacyHandler().getAvailableCapacity() < theirCost && !f.getRelation(origin.getId()).getType().equals(r.getLink())) {
-				if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !origin.getRelation(f.getId()).getType().equals(r)) 
+			RelationType currentRelation = origin.getRelation(f.getId()).getType();
+			if(RelationManager.actorLacksCapacity(origin, f, r, currentRelation) || RelationManager.partnerLacksRelationCapacity(origin, f, r)) {
+				if(RelationManager.actorLacksCapacity(origin, f, r, currentRelation))
 					p.sendMessage("§cYou lack diplomatic capacity for this relation!");
-				if(f.getDiplomacyHandler().getAvailableCapacity() < theirCost && !f.getRelation(origin.getId()).getType().equals(r.getLink())) 
+				if(RelationManager.partnerLacksRelationCapacity(origin, f, r))
 					p.sendMessage("§cThey lack diplomatic capacity for this relation!");
 				return;
 			}
@@ -392,12 +391,10 @@ public class RelationView {
 				return;
 			}
 
-			double ourCost = RelationManager.getDiplomaticCost(origin, f, r);
-			double theirCost = r.hasLink() ? RelationManager.getDiplomaticCost(f, origin, r.getLink()) : 0;
-			if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && (current == null || !current.equals(r)) || f.getDiplomacyHandler().getAvailableCapacity() < theirCost && (theirCurrent == null || !theirCurrent.equals(r.getLink()))) {
-				if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && (current == null || !current.equals(r))) 
+			if(RelationManager.actorLacksCapacity(origin, f, r, current) || RelationManager.partnerLacksOverlayCapacity(origin, f, r, theirCurrent)) {
+				if(RelationManager.actorLacksCapacity(origin, f, r, current))
 					p.sendMessage("§cYou lack diplomatic capacity for this relation!");
-				if(f.getDiplomacyHandler().getAvailableCapacity() < theirCost && (theirCurrent == null || !theirCurrent.equals(r.getLink()))) 
+				if(RelationManager.partnerLacksOverlayCapacity(origin, f, r, theirCurrent))
 					p.sendMessage("§cThey lack diplomatic capacity for this relation!");
 				return;
 			}
@@ -422,16 +419,12 @@ public class RelationView {
 				return;
 			}
 
-			if(!r.isClearTreaty()) {
-				double ourCost = RelationManager.getDiplomaticCost(origin, f, r);
-				double theirCost = r.hasLink() ? RelationManager.getDiplomaticCost(f, origin, r.getLink()) : 0;
-				if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && (current == null || !current.equals(r)) || f.getDiplomacyHandler().getAvailableCapacity() < theirCost && (theirCurrent == null || !theirCurrent.equals(r.getLink()))) {
-					if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && (current == null || !current.equals(r))) 
-						p.sendMessage("§cYou lack diplomatic capacity for this relation!");
-					if(f.getDiplomacyHandler().getAvailableCapacity() < theirCost && (theirCurrent == null || !theirCurrent.equals(r.getLink()))) 
-						p.sendMessage("§cThey lack diplomatic capacity for this relation!");
-					return;
-				}
+			if(!r.isClearTreaty() && (RelationManager.actorLacksCapacity(origin, f, r, current) || RelationManager.partnerLacksOverlayCapacity(origin, f, r, theirCurrent))) {
+				if(RelationManager.actorLacksCapacity(origin, f, r, current))
+					p.sendMessage("§cYou lack diplomatic capacity for this relation!");
+				if(RelationManager.partnerLacksOverlayCapacity(origin, f, r, theirCurrent))
+					p.sendMessage("§cThey lack diplomatic capacity for this relation!");
+				return;
 			}
 			
 			RelationManager.setTreatyRelation(p, r, f, origin, true);
