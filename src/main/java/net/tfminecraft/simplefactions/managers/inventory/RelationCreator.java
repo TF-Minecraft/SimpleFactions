@@ -235,7 +235,7 @@ public class RelationCreator {
 			boolean same = current != null && current.getId().equalsIgnoreCase(a.getId());
 			double oldCost = RelationManager.getDiplomaticCost(origin, target, current);
 			double newCost = RelationManager.getDiplomaticCost(origin, target, a);
-			if (!same && origin.getDiplomacyHandler().getAvailableCapacity() < newCost - oldCost) {
+			if (!same && RelationManager.lacksCapacityForChange(origin.getDiplomacyHandler().getAvailableCapacity(), newCost, oldCost)) {
 				lore.add(StringFormatter.formatHex("#d4bb98You lack diplomatic capacity for this attitude!"));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
@@ -325,10 +325,10 @@ public class RelationCreator {
 				lore.add(StringFormatter.formatHex(wartime));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
-			} else if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t) || target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink())) {
-				if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t)) 
+			} else if(RelationManager.actorLacksCapacity(origin, target, t, current) || RelationManager.partnerLacksRelationCapacity(origin, target, t)) {
+				if(RelationManager.actorLacksCapacity(origin, target, t, current))
 					lore.add(StringFormatter.formatHex("#d4bb98You lack diplomatic capacity for this relation!"));
-				if(target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink())) 
+				if(RelationManager.partnerLacksRelationCapacity(origin, target, t))
 					lore.add(StringFormatter.formatHex("#d4bb98They lack diplomatic capacity for this relation!"));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
@@ -437,40 +437,32 @@ public class RelationCreator {
 		lore.add(" ");
 		if(full) {
 			RelationType current = origin.getDiplomacyHandler().getTradeRelation(target.getId());
+			RelationType theirCurrent = target.getDiplomacyHandler().getTradeRelation(origin.getId());
+			boolean weLack = RelationManager.actorLacksCapacity(origin, target, t, current);
+			boolean theyLack = RelationManager.partnerLacksOverlayCapacity(origin, target, t, theirCurrent);
 			if(current != null && current.hasLock()) {
 				lore.add(StringFormatter.formatHex("#d4bb98You have the agreement "+current.getName()+"#d4bb98, which binds you and cannot be changed by you alone."));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
-			} else if(current != null && (origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t) || target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink()))) {
-				if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t)) 
+			} else if(weLack || theyLack) {
+				if(weLack)
 					lore.add(StringFormatter.formatHex("#d4bb98You lack diplomatic capacity for this relation!"));
-				if(target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink())) 
+				if(theyLack)
 					lore.add(StringFormatter.formatHex("#d4bb98They lack diplomatic capacity for this relation!"));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
+			} else if(current != null && current.equals(t)) {
+				lore.add(StringFormatter.formatHex("#28ed70Current"));
+				lore.add(StringFormatter.formatHex("#28ed70Click to end agreement"));
+				m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+				m.addEnchant(Enchantment.UNBREAKING, 1, true);
+				if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, null, false, m, false);
+			} else if(t.isMutual()) {
+				lore.add(StringFormatter.formatHex("#28ed70Click to request agreement"));
+				if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t, false, m, false);
 			} else {
-				if(current != null &&  current.equals(t)) {
-					lore.add(StringFormatter.formatHex("#28ed70Current"));
-					lore.add(StringFormatter.formatHex("#28ed70Click to end agreement"));
-					m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-					m.addEnchant(Enchantment.UNBREAKING, 1, true);
-					if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, null, false, m, false);
-				} else if(origin.getDiplomacyHandler().getAvailableCapacity() > ourCost && target.getDiplomacyHandler().getAvailableCapacity() > theirCost) {
-					if(t.isMutual()) {
-						lore.add(StringFormatter.formatHex("#28ed70Click to request agreement"));
-						if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t, false, m, false);
-					} else {
-						lore.add(StringFormatter.formatHex("#28ed70Click to set"));
-						if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t, false, m, false);
-					}
-				} else {
-					if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost) 
-						lore.add(StringFormatter.formatHex("#d4bb98You lack diplomatic capacity for this relation!"));
-					if(target.getDiplomacyHandler().getAvailableCapacity() < theirCost) 
-						lore.add(StringFormatter.formatHex("#d4bb98They lack diplomatic capacity for this relation!"));
-					lore.add(" ");
-					lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
-				}
+				lore.add(StringFormatter.formatHex("#28ed70Click to set"));
+				if(full) EconomicImpact.applyTradeAgreementChange(lore, p, origin, target, t, false, m, false);
 			}
 		} else {
 			lore.add(StringFormatter.formatHex("#28ed70Click for more information"));
@@ -540,14 +532,17 @@ public class RelationCreator {
 		lore.add(" ");
 		if(full) {
 			RelationType current = origin.getDiplomacyHandler().getTreatyRelation(target.getId());
+			RelationType theirCurrent = target.getDiplomacyHandler().getTreatyRelation(origin.getId());
+			boolean weLack = !t.isClearTreaty() && RelationManager.actorLacksCapacity(origin, target, t, current);
+			boolean theyLack = !t.isClearTreaty() && RelationManager.partnerLacksOverlayCapacity(origin, target, t, theirCurrent);
 			if(current != null && current.hasLock()) {
 				lore.add(StringFormatter.formatHex("#d4bb98You have the treaty "+current.getName()+"#d4bb98, which binds you and cannot be changed by you alone."));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
-			} else if(!t.isClearTreaty() && current != null && (origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t) || target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink()))) {
-				if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost && !current.equals(t)) 
+			} else if(weLack || theyLack) {
+				if(weLack)
 					lore.add(StringFormatter.formatHex("#d4bb98You lack diplomatic capacity for this relation!"));
-				if(target.getDiplomacyHandler().getAvailableCapacity() < theirCost && !current.equals(t.getLink())) 
+				if(theyLack)
 					lore.add(StringFormatter.formatHex("#d4bb98They lack diplomatic capacity for this relation!"));
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
@@ -561,19 +556,10 @@ public class RelationCreator {
 				lore.add(StringFormatter.formatHex("#28ed70Current"));
 				m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 				m.addEnchant(Enchantment.UNBREAKING, 1, true);
-			} else if(origin.getDiplomacyHandler().getAvailableCapacity() >= ourCost && target.getDiplomacyHandler().getAvailableCapacity() >= theirCost) {
-				if(t.isMutual()) {
-					lore.add(StringFormatter.formatHex("#28ed70Click to request"));
-				} else {
-					lore.add(StringFormatter.formatHex("#28ed70Click to set"));
-				}
+			} else if(t.isMutual()) {
+				lore.add(StringFormatter.formatHex("#28ed70Click to request"));
 			} else {
-				if(origin.getDiplomacyHandler().getAvailableCapacity() < ourCost) 
-					lore.add(StringFormatter.formatHex("#d4bb98You lack diplomatic capacity for this relation!"));
-				if(target.getDiplomacyHandler().getAvailableCapacity() < theirCost) 
-					lore.add(StringFormatter.formatHex("#d4bb98They lack diplomatic capacity for this relation!"));
-				lore.add(" ");
-				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
+				lore.add(StringFormatter.formatHex("#28ed70Click to set"));
 			}
 		} else {
 			lore.add(StringFormatter.formatHex("#28ed70Click for more information"));
