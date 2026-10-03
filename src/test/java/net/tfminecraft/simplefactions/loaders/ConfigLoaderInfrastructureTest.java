@@ -26,6 +26,8 @@ class ConfigLoaderInfrastructureTest {
         Cache.infrastructureStation = previous[4];
         Cache.infrastructurePort = previous[5];
         Cache.infrastructureAirport = previous[6];
+        Cache.infrastructureTrack = previous[7];
+        Cache.infrastructureTrackRefreshSeconds = (int) previous[8];
     }
 
     @Test
@@ -42,7 +44,7 @@ class ConfigLoaderInfrastructureTest {
                 """);
         load("enable-map: false\n");
 
-        assertValues(20, 0.75, 0.25, 0.5, 10, 10, 5);
+        assertValues(20, 0.75, 0.25, 0.5, 10, 10, 5, 10, 300);
     }
 
     @Test
@@ -52,7 +54,7 @@ class ConfigLoaderInfrastructureTest {
                   full: 30
                 """);
 
-        assertValues(30, 0.75, 0.25, 0.5, 10, 10, 5);
+        assertValues(30, 0.75, 0.25, 0.5, 10, 10, 5, 10, 300);
     }
 
     @Test
@@ -66,9 +68,11 @@ class ConfigLoaderInfrastructureTest {
                   station: 12
                   port: 8
                   airport: 4
+                  track: 17
+                  track-refresh-seconds: 45
                 """);
 
-        assertValues(30, 0.80, 0.10, 0.25, 12, 8, 4);
+        assertValues(30, 0.80, 0.10, 0.25, 12, 8, 4, 17, 45);
     }
 
     @Test
@@ -101,7 +105,8 @@ class ConfigLoaderInfrastructureTest {
     private static double[] values() {
         return new double[] {Cache.infrastructureFull, Cache.infrastructureTarget,
                 Cache.infrastructureWildernessSpread, Cache.infrastructureSpreadFloor,
-                Cache.infrastructureStation, Cache.infrastructurePort, Cache.infrastructureAirport};
+                Cache.infrastructureStation, Cache.infrastructurePort, Cache.infrastructureAirport,
+                Cache.infrastructureTrack, Cache.infrastructureTrackRefreshSeconds};
     }
 
     private static void assertValues(double... expected) {

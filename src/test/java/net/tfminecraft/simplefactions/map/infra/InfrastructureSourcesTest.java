@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ class InfrastructureSourcesTest {
     private final double station = Cache.infrastructureStation;
     private final double port = Cache.infrastructurePort;
     private final double airport = Cache.infrastructureAirport;
+    private final double track = Cache.infrastructureTrack;
 
     @AfterEach
     void restore() {
@@ -35,13 +37,14 @@ class InfrastructureSourcesTest {
         Cache.infrastructureStation = station;
         Cache.infrastructurePort = port;
         Cache.infrastructureAirport = airport;
+        Cache.infrastructureTrack = track;
     }
 
     @Test
     void realmCapitalUsesTheResolvedModifierOnce() {
         Guild guild = guild(true, 1, 12.5);
         Map<Integer, Double> sources = InfrastructureSources.collect(
-                Map.of(1, province(1, "forest")), List.of(guild), List.of());
+                Map.of(1, province(1, "forest")), List.of(guild), List.of(), Set.of());
 
         assertEquals(12.5, sources.get(1));
         verify(guild, times(1)).getModifier(GuildModifier.INFRASTRUCTURE);
@@ -54,7 +57,7 @@ class InfrastructureSourcesTest {
         Guild guild = guild(true, 1, 12.5);
         GuildModifierOverride.use(guild, Map.of(GuildModifier.INFRASTRUCTURE, 17.0));
         Map<Integer, Double> sources = InfrastructureSources.collect(
-                Map.of(1, province(1, "forest")), List.of(guild), List.of());
+                Map.of(1, province(1, "forest")), List.of(guild), List.of(), Set.of());
 
         assertEquals(17, sources.get(1));
         verify(guild, never()).getModifier(GuildModifier.INFRASTRUCTURE);
@@ -67,7 +70,7 @@ class InfrastructureSourcesTest {
         when(noCapital.hasCapital()).thenReturn(false);
 
         assertTrue(InfrastructureSources.collect(Map.of(1, province(1, "forest")),
-                List.of(regular, noCapital), List.of()).isEmpty());
+                List.of(regular, noCapital), List.of(), Set.of()).isEmpty());
         verify(regular, never()).getModifier(GuildModifier.INFRASTRUCTURE);
         verify(noCapital, never()).getModifier(GuildModifier.INFRASTRUCTURE);
     }
@@ -84,7 +87,7 @@ class InfrastructureSourcesTest {
         Map<Integer, Double> sources = InfrastructureSources.collect(Map.of(
                 1, province(1, "forest"), 2, province(2, "forest"),
                 3, province(3, "forest"), 4, province(4, "forest")), List.of(),
-                List.of(faction(station, port, airport, fort)));
+                List.of(faction(station, port, airport, fort)), Set.of());
 
         assertEquals(Map.of(1, 7.0, 2, 11.0, 3, 3.0), sources);
         verify(station, never()).getLevel();
@@ -98,7 +101,7 @@ class InfrastructureSourcesTest {
         Guild guild = guild(true, 1, 10);
         Map<Integer, Double> sources = InfrastructureSources.collect(Map.of(
                 1, province(1, "forest"), 2, province(2, "plains")), List.of(guild),
-                List.of(faction(installation(InstallationKind.TRAIN_STATION, 1))));
+                List.of(faction(installation(InstallationKind.TRAIN_STATION, 1))), Set.of());
         Map<Integer, InfrastructureSpread.Arrival> result = InfrastructureSpread.spread(Map.of(
                 1, new InfrastructureSpread.Node(0.6, true, "realm", List.of(2)),
                 2, new InfrastructureSpread.Node(0.75, true, "realm", List.of(1))), sources, 0.25, 0.5);
@@ -114,9 +117,31 @@ class InfrastructureSourcesTest {
                 List.of(guild(true, 1, 10), guild(true, 2, 10), guild(true, 3, 10)),
                 List.of(faction(installation(InstallationKind.PORT, 1),
                         installation(InstallationKind.TRAIN_STATION, 2),
-                        installation(InstallationKind.AIRPORT, 3))));
+                        installation(InstallationKind.AIRPORT, 3))), Set.of());
 
         assertTrue(sources.isEmpty());
+    }
+
+    @Test
+    void trackProvincesAddOnceAndCombineWithOtherSources() {
+        Cache.infrastructureTrack = 10;
+        Map<Integer, Double> sources = InfrastructureSources.collect(Map.of(
+                1, province(1, "forest"), 2, province(2, "sea"), 3, province(3, "plains")),
+                List.of(), List.of(faction(installation(InstallationKind.TRAIN_STATION, 1))), Set.of(1, 2, 3));
+
+        assertEquals(Map.of(1, 20.0, 3, 10.0), sources);
+    }
+
+    @Test
+    void trackProvinceSourceSpreadsOnlyThroughUnownedLand() {
+        Map<Integer, Province> provinces = Map.of(1, province(1, "plains"), 2, province(2, "plains"));
+        Map<Integer, Double> sources = InfrastructureSources.collect(provinces, List.of(), List.of(), Set.of(1));
+        Map<Integer, InfrastructureSpread.Arrival> result = InfrastructureSpread.spread(Map.of(
+                1, new InfrastructureSpread.Node(0.75, true, null, List.of(2)),
+                2, new InfrastructureSpread.Node(0.75, true, "realm", List.of(1))), sources, 0.25, 0.5);
+
+        assertEquals(10, result.get(1).amount());
+        assertTrue(!result.containsKey(2));
     }
 
     private static Province province(int id, String terrain) {

@@ -82,6 +82,9 @@ public class ConfigLoader {
 		Cache.infrastructureStation = config.getDouble("infrastructure.station", 10);
 		Cache.infrastructurePort = config.getDouble("infrastructure.port", 10);
 		Cache.infrastructureAirport = config.getDouble("infrastructure.airport", 5);
+		Cache.infrastructureTrack = config.getDouble("infrastructure.track", 10);
+		Cache.infrastructureTrackRefreshSeconds = Math.max(30,
+				config.getInt("infrastructure.track-refresh-seconds", 300));
 
 		Cache.settlementLargePopulationThreshold = config.getInt("settlement-large-population-threshold", 8);
 		Cache.portSeaProximityBlocks = config.getInt("port-sea-proximity-blocks", 20);
