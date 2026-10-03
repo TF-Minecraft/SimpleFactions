@@ -107,7 +107,7 @@ class OfficePersistenceTest {
         when(plugin.getLogger()).thenReturn(mock(java.util.logging.Logger.class));
         try (var bukkit = mockStatic(org.bukkit.Bukkit.class);
              var players = mockStatic(net.tfminecraft.rpcharacters.managers.PlayerManager.class);
-             var databases = mockConstruction(Database.class)) {
+             var databases = mockConstruction(Database.class, (database, context) -> when(database.saveFactionChecked(faction)).thenReturn(true))) {
             field.set(null, registry);
             net.tfminecraft.simplefactions.SimpleFactions.plugin = plugin;
             bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
@@ -124,7 +124,7 @@ class OfficePersistenceTest {
             assertTrue(restored.hasPendingFounder());
             assertEquals("founder-character", restored.pendingFounderCharacter(SpecialPosition.SPYMASTER));
             assertEquals(1, databases.constructed().size());
-            verify(databases.constructed().getFirst()).saveFaction(faction);
+            verify(databases.constructed().getFirst()).saveFactionChecked(faction);
             bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Founder")).thenReturn(null);
             EspionageService.initializeFounder(faction);
             assertNull(state.getSpymaster(), "Offline retry must not finalize a zero-aptitude office");
@@ -140,6 +140,60 @@ class OfficePersistenceTest {
             assertTrue(state.getSpymaster().automatic);
             assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
             assertEquals(2, databases.constructed().size(), "The completed appointment is saved after its pending identity");
+        } finally {
+            field.set(null, previous);
+            net.tfminecraft.simplefactions.SimpleFactions.plugin = previousPlugin;
+        }
+    }
+
+    @Test void failedPendingIdentitySaveRestoresBindingAndRetriesForNewAndExistingFounders() throws Exception {
+        var registry = mock(CharacterAptitudes.class);
+        when(registry.aptitude(eq("new-character"), any())).thenThrow(new java.io.IOException("Test aptitude save failure"));
+        var field = EspionageService.class.getDeclaredField("characterAptitudes");
+        field.setAccessible(true);
+        var previous = field.get(null);
+        var previousPlugin = net.tfminecraft.simplefactions.SimpleFactions.plugin;
+        var plugin = mock(net.tfminecraft.simplefactions.SimpleFactions.class);
+        when(plugin.getLogger()).thenReturn(mock(java.util.logging.Logger.class));
+        field.set(null, registry);
+        net.tfminecraft.simplefactions.SimpleFactions.plugin = plugin;
+        try {
+            for (String oldIdentity : new String[]{null, "old-character"}) {
+                var faction = mock(Faction.class);
+                var founder = mock(Player.class);
+                var data = mock(net.tfminecraft.rpcharacters.objects.PlayerData.class);
+                var character = mock(net.tfminecraft.rpcharacters.objects.RPCharacter.class);
+                var state = new EspionageState();
+                if (oldIdentity != null) state.pendingFounder(SpecialPosition.SPYMASTER, oldIdentity);
+                when(faction.getEspionage()).thenReturn(state);
+                when(faction.getLeader()).thenReturn("Founder");
+                when(faction.isLeader("Founder")).thenReturn(true);
+                when(faction.getMembers()).thenReturn(List.of("Founder"));
+                when(founder.getUniqueId()).thenReturn(UUID.randomUUID());
+                when(data.getActiveCharacter()).thenReturn(character);
+                when(character.getId()).thenReturn("new-character");
+                var saves = new java.util.concurrent.atomic.AtomicInteger();
+                try (var bukkit = mockStatic(org.bukkit.Bukkit.class);
+                     var players = mockStatic(net.tfminecraft.rpcharacters.managers.PlayerManager.class);
+                     var databases = mockConstruction(Database.class, (database, context) ->
+                             when(database.saveFactionChecked(faction)).thenReturn(saves.incrementAndGet() > 1))) {
+                    bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
+                    var plugins = mock(org.bukkit.plugin.PluginManager.class);
+                    when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
+                    bukkit.when(org.bukkit.Bukkit::getPluginManager).thenReturn(plugins);
+                    bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Founder")).thenReturn(founder);
+                    players.when(() -> net.tfminecraft.rpcharacters.managers.PlayerManager.get(founder)).thenReturn(data);
+                    EspionageService.initializeFounder(faction);
+                    assertTrue(state.hasPendingFounder(), "Failed saving a new founder must retain the retry intent");
+                    assertEquals(oldIdentity, state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
+                    assertNull(EspionageService.spymaster(faction));
+                    assertEquals("new-character", state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
+                    assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
+                    assertEquals(2, databases.constructed().size());
+                    for (Database database : databases.constructed()) verify(database).saveFactionChecked(faction);
+                    verify(faction, never()).getBank();
+                }
+            }
         } finally {
             field.set(null, previous);
             net.tfminecraft.simplefactions.SimpleFactions.plugin = previousPlugin;

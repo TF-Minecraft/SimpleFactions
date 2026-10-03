@@ -73,8 +73,15 @@ public final class EspionageService {
                 net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                         "Could not save founder aptitude", exception);
                 String previousCharacterId = faction.getEspionage().pendingFounderCharacter(office);
+                // Keep the retry intent even for a newly created faction; roll back only the unsaved binding.
+                faction.getEspionage().pendingFounder(office);
+                var previous = faction.getEspionage().snapshotOffices();
                 faction.getEspionage().pendingFounder(office, characterId);
-                if (!characterId.equals(previousCharacterId)) saveOrMark(faction, dirty);
+                if (!characterId.equals(previousCharacterId)) {
+                    if (dirty == null) {
+                        if (!new Database().saveFactionChecked(faction)) faction.getEspionage().restoreOffices(previous);
+                    } else saveOrMark(faction, dirty);
+                }
                 if (founder != null) founder.sendMessage("\u00a7cYour founding office could not be initialized. It will be retried when the office is checked.");
                 continue;
             }

@@ -1,7 +1,7 @@
-# Espionage (development)
+# Espionage and special positions
 
-Foreign faction and guild menus always show public identity and flavor details:
-character names of faction leaders, government, rank, tier, titles, settlements, culture,
+Foreign faction and guild menus show public identity and flavor details, including
+faction leaders' character names when available, government, rank, tier, titles, settlements, culture,
 religion, guild types, allies and subjects. Prestige is public and its ranking
 uses exact values. Other figures are hidden or shown as intelligence ranges.
 Members retain exact information about their own faction and guilds. This covers
@@ -306,3 +306,5 @@ Pending founder appointments retain their character identity when an aptitude
 save fails; an unrelated character death cannot cancel that pending appointment.
 Changed pending identities are saved immediately during office lookups, or once
 with the faction's report batch, so they survive an unexpected process exit.
+Failed immediate saves restore the previous identity and keep initialization
+pending, so a later lookup can retry the binding without consuming an appointment.
