@@ -106,5 +106,5 @@ public class FactionData {
     public List<WarReparationsObligationData> warReparationsObligations = new ArrayList<>();
 
     @SerializedName("hub permits")
-    public List<String> hubPermits = new ArrayList<>();
+    public List<String> hubPermits;
 }

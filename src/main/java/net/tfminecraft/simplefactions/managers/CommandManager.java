@@ -634,8 +634,6 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.playSound(p, Sound.BLOCK_ANVIL_USE, 1f, 1f);
 				}
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("hubpermit")) {
-				return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.permit(p, args);
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("deconstruct")) {
 				if(!Cache.requireProvinces(p)) {
 					return true;

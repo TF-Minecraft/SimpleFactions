@@ -204,19 +204,16 @@ public final class HubNetwork {
     /** Installations of the guild's hubs that are active right now. */
     private static List<Installation> activeSites(Guild guild, List<Guild> guilds) {
         List<Installation> sites = new ArrayList<>();
-        String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
         for (SupplyHub hub : guild.getSupplyHubs()) {
             Installation installation =
                     SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
             if (installation == null) {
                 continue;
             }
-            Faction owner = FactionManager.getByString(hub.ownerFactionId());
-            boolean permit = owner != null && owner.hasHubPermit(guild.getId());
             HubStanding standing = SupplyHubService.standing(
                     guild, hub,
                     true,
-                    SupplyHubService.ownerAllows(guildFactionId, hub.ownerFactionId(), permit),
+                    SupplyHubService.hubPermitted(guild, hub.ownerFactionId(), hub.installationId()),
                     InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
                     SupplyHubService.atInstallation(hub.ownerFactionId(), hub.installationId(), guilds));
             if (standing.active()) {

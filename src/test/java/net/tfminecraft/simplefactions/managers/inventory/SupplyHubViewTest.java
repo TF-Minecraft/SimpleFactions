@@ -24,8 +24,8 @@ class SupplyHubViewTest {
 
         List<String> dormant = SupplyHubCreator.guildHubLore(
                 "North Port", "Port", "Northland", 15,
-                new HubStanding(false, DormantReason.NO_PERMIT), List.of(), 12, 4);
-        assertTrue(dormant.contains("§cDormant §7(the owning faction has not granted a hub permit)"));
+                new HubStanding(false, DormantReason.NO_AGREEMENT), List.of(), 12, 4);
+        assertTrue(dormant.contains("§cDormant §7(there is no hub agreement)"));
     }
 
     @Test

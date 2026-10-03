@@ -163,8 +163,8 @@ class LedgerHubTaxTest {
     @Test
     void ratePreviewUsesStoredBasesAndLeavesTheAssessmentAndRateAlone() {
         Map<Guild, Double> impact = EconomicPreview.tax(host, TaxTarget.HUB_TAX, null, 40);
-        assertEquals(-10, impact.get(payer));
-        assertEquals(10, impact.get(receiver));
+        assertEquals(0, impact.get(payer));
+        assertEquals(0, impact.get(receiver));
         assertEquals(20, taxes.getHubTax());
         assertEquals(10, assessment.getTotalTax());
         assertEquals(50, assessment.getTaxableIncome(host));
@@ -190,8 +190,8 @@ class LedgerHubTaxTest {
         config.set("effects.faction.brackets.hub_tax", "0-10");
         LawGroup group = mock(LawGroup.class);
         IncomePreviewContext.open(IncomePreviewContext.law(host, group, new Law("economy", "free_trade", config)));
-        assertEquals(-5, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
-        assertEquals(5, receiver.getLedger().getIncome(Cashflow.HUB_TAX));
+        assertEquals(-10, payer.getLedger().getIncome(Cashflow.HUB_TAX_PAYMENTS));
+        assertEquals(10, receiver.getLedger().getIncome(Cashflow.HUB_TAX));
         IncomePreviewContext.clear();
 
         config.set("effects.faction.rules", List.of("hub_tax false", "supply_hubs false"));

@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.Cache;
@@ -61,50 +60,34 @@ public final class SupplyHubCommands {
         return true;
     }
 
-    public static boolean permit(Player player, String[] args) {
-        if (!Cache.requireProvinces(player)) {
-            return true;
-        }
-        Faction faction = FactionManager.getByLeader(player.getName());
-        if (faction == null) {
-            player.sendMessage("§cYou need to be a faction leader to grant hub permits");
-            return true;
-        }
-        if (args.length < 2) {
-            listPermits(player, faction);
-            return true;
-        }
-        Guild target = FactionManager.getGuildByString(args[1]);
-        if (target == null) {
-            player.sendMessage("§cNo guild by the id " + args[1]);
-            return true;
-        }
-        if (target.getFaction() != null
-                && target.getFaction().getId() != null
-                && target.getFaction().getId().equalsIgnoreCase(faction.getId())) {
-            player.sendMessage("§cYour faction's own guilds do not need a hub permit");
-            return true;
-        }
-        boolean granted = faction.toggleHubPermit(target.getId());
-        if (granted) {
-            player.sendMessage("§aGranted §f" + target.getName() + " §aa hub permit");
-        } else {
-            player.sendMessage("§cRemoved the hub permit for §f" + target.getName());
-        }
-        recalculateTrade();
-        return true;
-    }
-
     public static void notifyRemoved(Guild guild, List<SupplyHub> removed) {
         if (guild == null || removed == null || removed.isEmpty()) {
             return;
         }
         Player leader = online(guild.getLeader());
-        if (leader == null) {
-            return;
-        }
         for (SupplyHub hub : removed) {
-            leader.sendMessage(SupplyHubService.removalMessage(label(hub)));
+            if (leader != null) {
+                leader.sendMessage(SupplyHubService.removalMessage(label(hub)));
+            }
+            Faction host = FactionManager.getByString(hub.ownerFactionId());
+            if (host == null || host.getGovernment() == null) {
+                continue;
+            }
+            String message = "§c" + (guild.getName() == null ? "A guild" : guild.getName())
+                    + "'s supply hub at §f" + label(hub) + " §cwas removed §7(they could not pay)";
+            java.util.LinkedHashSet<String> council = new java.util.LinkedHashSet<>();
+            if (host.getLeader() != null) {
+                council.add(host.getLeader());
+            }
+            if (host.getGovernment().getCouncilMembers() != null) {
+                council.addAll(host.getGovernment().getCouncilMembers());
+            }
+            for (String name : council) {
+                Player member = online(name);
+                if (member != null) {
+                    member.sendMessage(message);
+                }
+            }
         }
     }
 
@@ -127,28 +110,6 @@ public final class SupplyHubCommands {
         }
         if (args.length == 3 && args[1].equalsIgnoreCase("remove") && isLeader(guild, player)) {
             return completeRemove(guild.getSupplyHubs());
-        }
-        return completions;
-    }
-
-    public static List<String> completePermits(CommandSender sender, String[] args) {
-        List<String> completions = new ArrayList<>();
-        if (!(sender instanceof Player player) || !Cache.provincesEnabled) {
-            return completions;
-        }
-        if (FactionManager.getByLeader(player.getName()) == null) {
-            return completions;
-        }
-        if (args.length != 2) {
-            return completions;
-        }
-        for (Guild guild : FactionManager.getAllGuilds()) {
-            if (guild == null || guild.getId() == null) {
-                continue;
-            }
-            if (!completions.contains(guild.getId())) {
-                completions.add(guild.getId());
-            }
         }
         return completions;
     }
@@ -222,9 +183,6 @@ public final class SupplyHubCommands {
                     capitalInstallation, capitalOwner == null ? null : capitalOwner.getName()));
             return true;
         }
-        String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
-        Faction owner = FactionManager.getByString(chosen.ownerFactionId());
-        boolean permit = owner != null && owner.hasHubPermit(guild.getId());
         BuildFailure failure = SupplyHubService.checkBuild(
                 chosen.hubSlots(),
                 SupplyHubService.hasHub(guild.getSupplyHubs(), chosen.ownerFactionId(), installation.getId()),
@@ -234,7 +192,7 @@ public final class SupplyHubCommands {
                 Math.max(
                         tradeInProvince(installation.getProvince(), guild.getId()),
                         reachableTrade(guild, installation)),
-                SupplyHubService.ownerAllows(guildFactionId, chosen.ownerFactionId(), permit));
+                SupplyHubService.hubPermitted(guild, chosen.ownerFactionId(), installation.getId()));
         if (failure != null) {
             player.sendMessage(SupplyHubService.buildFailureMessage(
                     failure, installation.getKind().getDisplayName(), SupplyHubService.limit(guild)));
@@ -295,13 +253,11 @@ public final class SupplyHubCommands {
             if (faction == null || faction.getInstallationHandler() == null) {
                 continue;
             }
-            boolean permitted = faction.hasHubPermit(guild.getId());
-            if (!SupplyHubService.ownerAllows(
-                    guild.getFaction() == null ? null : guild.getFaction().getId(), faction.getId(), permitted)) {
-                continue;
-            }
             for (Installation installation : faction.getInstallationHandler().getAll()) {
                 if (installation == null || installation.getProvince() != guild.getCapital()) {
+                    continue;
+                }
+                if (!SupplyHubService.hubPermitted(guild, faction.getId(), installation.getId())) {
                     continue;
                 }
                 int slots = InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());
@@ -384,26 +340,10 @@ public final class SupplyHubCommands {
         }
         String label = label(match.hub());
         guild.getSupplyHubs().remove(match.hub());
+        HubAgreementService.onHubRemoved(guild, match.hub().ownerFactionId(), match.hub().installationId());
         player.sendMessage("§aRemoved the supply hub at §f" + label);
         recalculateTrade();
         return true;
-    }
-
-    private static void listPermits(Player player, Faction faction) {
-        List<String> permits = faction.getHubPermits();
-        if (permits.isEmpty()) {
-            player.sendMessage("§7No hub permits");
-            return;
-        }
-        player.sendMessage("§eHub permits");
-        for (String guildId : permits) {
-            Guild guild = FactionManager.getGuildByString(guildId);
-            if (guild == null) {
-                player.sendMessage("§7- §f" + guildId);
-            } else {
-                player.sendMessage("§7- §f" + guild.getName() + " §7(" + guild.getId() + ")");
-            }
-        }
     }
 
     private static String statusOf(Guild guild, SupplyHub hub, Installation installation) {
@@ -411,9 +351,6 @@ public final class SupplyHubCommands {
     }
 
     private static HubStanding standingOf(Guild guild, SupplyHub hub, Installation installation) {
-        String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
-        Faction owner = FactionManager.getByString(hub.ownerFactionId());
-        boolean permit = owner != null && owner.hasHubPermit(guild.getId());
         int slots = 0;
         if (installation != null) {
             slots = InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());
@@ -423,7 +360,7 @@ public final class SupplyHubCommands {
         HubStanding standing = SupplyHubService.standing(
                 guild, hub,
                 installation != null,
-                SupplyHubService.ownerAllows(guildFactionId, hub.ownerFactionId(), permit),
+                SupplyHubService.hubPermitted(guild, hub.ownerFactionId(), hub.installationId()),
                 slots,
                 atInstallation);
         return standing;
@@ -470,6 +407,15 @@ public final class SupplyHubCommands {
             }
         }
         return SupplyHubService.nearest(covering);
+    }
+
+    static double tradeAvailable(Guild guild, Installation installation) {
+        if (guild == null || installation == null) {
+            return 0;
+        }
+        return Math.max(
+                tradeInProvince(installation.getProvince(), guild.getId()),
+                reachableTrade(guild, installation));
     }
 
     /** Trade power the guild's existing hubs would deliver to a hub at this installation. */

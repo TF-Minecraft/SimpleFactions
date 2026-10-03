@@ -546,7 +546,8 @@ public class FactionCreator {
 			//if(foreignTax > 0) lore.add(StringFormatter.formatHex("#d4c9aeForeign Taxes§e: #a39a84"+foreignTax+"%"));
             // Show base rates for non-ID tax targets (read-only)
             for (TaxTarget target : TaxTarget.values()) {
-                if (target == TaxTarget.GUILD_ID || target == TaxTarget.VASSAL_ID || target == TaxTarget.TARIFF_ID) continue;
+                if (target == TaxTarget.GUILD_ID || target == TaxTarget.VASSAL_ID || target == TaxTarget.TARIFF_ID
+                        || target == TaxTarget.HUB_TAX) continue;
                 if (!f.getTaxHandler().canCollectTax(target)) continue;
                 lore.add(StringFormatter.formatHex("#93c9a7" + target.getDisplayName() + ": #a39a84" + f.getTaxRate(target, null, false) + "%"+ " §8(§7"+f.getTaxRate(target, null, true)+"% effective§8)"));
             }

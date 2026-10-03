@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.enums.SFGUI;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
@@ -129,7 +130,8 @@ public class SupplyHubView {
             ItemStack item = SupplyHubCreator.item(Material.CHEST,
                     "§e" + guild.getName(),
                     SupplyHubCreator.hostHubLore(guild.getName(), host == null ? "Unknown" : host.getName(), standing));
-            if (faction.getLeader().equalsIgnoreCase(player.getName())) {
+            boolean agreed = HubAgreementService.hasAgreement(guild, faction.getId(), installation.getId());
+            if (!agreed && faction.getLeader() != null && faction.getLeader().equalsIgnoreCase(player.getName())) {
                 ItemMeta meta = item.getItemMeta();
                 meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, guild.getId());
                 List<String> lore = new ArrayList<>(meta.getLore());
@@ -141,23 +143,7 @@ public class SupplyHubView {
         }
         inventory.setItem(47, SupplyHubCreator.item(Material.PAPER, "§eHub Slots",
                 List.of("§7Used: §e" + guilds.size() + "/" + max)));
-        inventory.setItem(49, SupplyHubCreator.item(Material.WRITABLE_BOOK, "§eHub Permits",
-                permitLore(faction)));
         inventory.setItem(53, inv.createBackButton(SFGUI.HOSTED_SUPPLY_HUB_VIEW));
-    }
-
-    public static List<String> permitLore(Faction faction) {
-        List<String> lore = new ArrayList<>();
-        lore.add("§7Changed with §e/faction hubpermit <guild>");
-        lore.add("§7Permitted guilds:");
-        if (faction.getHubPermits().isEmpty()) {
-            lore.add("§8None");
-        } else {
-            for (String permit : faction.getHubPermits()) {
-                lore.add("§e" + permit);
-            }
-        }
-        return lore;
     }
 
     public static boolean removeGuildHub(
@@ -235,6 +221,7 @@ public class SupplyHubView {
             }
             if (accepted) {
                 if (removeGuildHub(guild.getSupplyHubs(), parts[2], parts[3])) {
+                    HubAgreementService.onHubRemoved(guild, parts[2], parts[3]);
                     SupplyHubCommands.recalculateTrade();
                 }
             }
@@ -248,6 +235,9 @@ public class SupplyHubView {
             }
             if (accepted) {
                 Guild guild = FactionManager.getGuildByString(parts[3]);
+                if (guild != null && HubAgreementService.hasAgreement(guild, parts[1], parts[2])) {
+                    return false;
+                }
                 if (guild != null && removeGuildHub(guild.getSupplyHubs(), parts[1], parts[2])) {
                     SupplyHubCommands.recalculateTrade();
                     org.bukkit.entity.Player online = SimpleFactions.plugin.getServer()
@@ -276,10 +266,7 @@ public class SupplyHubView {
     private static HubStanding standing(Guild guild, SupplyHub hub) {
         Installation installation = SupplyHubService.findInstallation(
                 hub.ownerFactionId(), hub.installationId());
-        Faction owner = FactionManager.getByString(hub.ownerFactionId());
-        boolean allowed = SupplyHubService.ownerAllows(
-                guild.getFaction() == null ? null : guild.getFaction().getId(), hub.ownerFactionId(),
-                owner != null && owner.hasHubPermit(guild.getId()));
+        boolean allowed = SupplyHubService.hubPermitted(guild, hub.ownerFactionId(), hub.installationId());
         int slots = installation == null
                 ? 0
                 : InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());

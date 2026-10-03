@@ -96,7 +96,7 @@ class TaxHandlerHubTaxTest {
         assertEquals(5, handler.getHubTax());
         assertEquals(5, handler.getTaxRate(TaxTarget.HUB_TAX, null, false));
         IncomePreviewContext.open(IncomePreviewContext.tax(faction, TaxTarget.HUB_TAX, null, 40));
-        assertEquals(10, handler.getTaxRate(TaxTarget.HUB_TAX, null, false));
+        assertEquals(5, handler.getTaxRate(TaxTarget.HUB_TAX, null, false));
     }
 
     @Test
@@ -150,16 +150,16 @@ class TaxHandlerHubTaxTest {
     }
 
     @Test
-    void factionRateRoundTripsAndOldSavesDefaultToZero() {
+    void savedHubTaxAndPermitsLoadWithoutChangingTheLiveRate() {
         handler.applyBracket(TaxTarget.HUB_TAX, new Bracket(0, 50));
-        handler.setHubTax(23.5);
-        FactionData data = new FactionData();
-        data.hubTax = handler.getHubTax();
-        FactionData restored = JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(data), FactionData.class);
-        handler.setHubTax(restored.hubTax == null ? 0 : restored.hubTax);
-        assertEquals(23.5, handler.getHubTax());
-        FactionData legacy = JsonUtil.GSON.fromJson("{\"id\":\"old\"}", FactionData.class);
-        handler.setHubTax(legacy.hubTax == null ? 0 : legacy.hubTax);
-        assertEquals(0, handler.getHubTax());
+        handler.setHubTax(8);
+        FactionData data = JsonUtil.GSON.fromJson(
+                "{\"hub tax\":23.5,\"hub permits\":[\"merchants\"]}", FactionData.class);
+        assertEquals(23.5, data.hubTax);
+        assertEquals(java.util.List.of("merchants"), data.hubPermits);
+        assertEquals(8, handler.getHubTax());
+        String fresh = JsonUtil.GSON.toJson(new FactionData());
+        assertFalse(fresh.contains("hub tax"));
+        assertFalse(fresh.contains("hub permits"));
     }
 }

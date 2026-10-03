@@ -509,6 +509,9 @@ public class FactionManager implements Listener{
 						SimpleFactions.getInstance().getProvinceManager());
 			});
 			runDailyStep("income", this::settleIncome);
+			runDailyStep("hub agreements", () ->
+					net.tfminecraft.simplefactions.guild.hub.HubAgreementService.tick(
+							getAllGuilds(), System.currentTimeMillis()));
 			timer = 0;
 			day++;
 		}
@@ -625,6 +628,7 @@ public class FactionManager implements Listener{
 		updateAllPrestigeConverged();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
 		fixRelations();
+		net.tfminecraft.simplefactions.guild.hub.SupplyHubService.dropUnagreedForeignLoaded();
 		loadDBLoans();
 		loaded = true;
 	}

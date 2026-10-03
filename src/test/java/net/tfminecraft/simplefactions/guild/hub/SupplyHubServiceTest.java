@@ -108,7 +108,7 @@ class SupplyHubServiceTest {
         assertEquals(BuildFailure.HUB_LIMIT, SupplyHubService.checkBuild(2, false, 2, 2, 0, 1, true));
         assertEquals(BuildFailure.NO_FREE_SLOT, SupplyHubService.checkBuild(2, false, 0, 2, 2, 1, true));
         assertEquals(BuildFailure.NO_TRADE, SupplyHubService.checkBuild(2, false, 0, 2, 0, 0, true));
-        assertEquals(BuildFailure.NO_PERMIT, SupplyHubService.checkBuild(2, false, 0, 2, 0, 1, false));
+        assertEquals(BuildFailure.NO_AGREEMENT, SupplyHubService.checkBuild(2, false, 0, 2, 0, 1, false));
         assertNull(SupplyHubService.checkBuild(2, false, 1, 2, 1, 0.01, true));
     }
 
@@ -123,10 +123,17 @@ class SupplyHubServiceTest {
     }
 
     @Test
-    void build_ownFactionNeedsNoPermit_otherFactionDoes() {
-        assertTrue(SupplyHubService.ownerAllows("rome", "rome", false));
-        assertFalse(SupplyHubService.ownerAllows("venice", "rome", false));
-        assertTrue(SupplyHubService.ownerAllows("venice", "rome", true));
+    void build_ownFactionNeedsNoAgreement_otherFactionDoes() {
+        Guild guild = mock(Guild.class);
+        Faction faction = mock(Faction.class);
+        when(guild.getFaction()).thenReturn(faction);
+        when(faction.getId()).thenReturn("rome");
+        when(guild.getHubAgreements()).thenReturn(new ArrayList<>());
+        FactionManager.factions = new ArrayList<>();
+        assertTrue(SupplyHubService.hubPermitted(guild, "rome", "harbour"));
+        assertFalse(SupplyHubService.hubPermitted(guild, "venice", "harbour"));
+        guild.getHubAgreements().add(new HubAgreement("venice", "harbour", 10, 0, 14, true, true, null, false));
+        assertTrue(SupplyHubService.hubPermitted(guild, "venice", "harbour"));
     }
 
     @Test
@@ -216,13 +223,13 @@ class SupplyHubServiceTest {
         HubStanding missing = SupplyHubService.standing(first, false, true, 2, oldest);
         assertEquals(DormantReason.INSTALLATION_GONE, missing.reason());
 
-        HubStanding noPermit = SupplyHubService.standing(first, true, false, 2, oldest);
-        assertEquals(DormantReason.NO_PERMIT, noPermit.reason());
+        HubStanding noAgreement = SupplyHubService.standing(first, true, false, 2, oldest);
+        assertEquals(DormantReason.NO_AGREEMENT, noAgreement.reason());
 
         assertTrue(SupplyHubService.statusText(active).contains("Active"));
         assertTrue(SupplyHubService.statusText(beyond).contains("hub slots"));
         assertTrue(SupplyHubService.statusText(missing).contains("no longer exists"));
-        assertTrue(SupplyHubService.statusText(noPermit).contains("hub permit"));
+        assertTrue(SupplyHubService.statusText(noAgreement).contains("no hub agreement"));
     }
 
     @Test
@@ -275,12 +282,10 @@ class SupplyHubServiceTest {
         assertEquals("venice", moved.ownerFactionId());
         assertEquals("harbour", moved.installationId());
         assertEquals(4L, moved.createdAt());
-        HubStanding afterMove = SupplyHubService.standing(
-                moved, true, SupplyHubService.ownerAllows("rome", "venice", false), 2, List.of(moved));
-        assertEquals(DormantReason.NO_PERMIT, afterMove.reason());
-        HubStanding permitted = SupplyHubService.standing(
-                moved, true, SupplyHubService.ownerAllows("rome", "venice", true), 2, List.of(moved));
-        assertTrue(permitted.active());
+        HubStanding afterMove = SupplyHubService.standing(moved, true, false, 2, List.of(moved));
+        assertEquals(DormantReason.NO_AGREEMENT, afterMove.reason());
+        HubStanding agreed = SupplyHubService.standing(moved, true, true, 2, List.of(moved));
+        assertTrue(agreed.active());
     }
 
     @Test
@@ -291,12 +296,10 @@ class SupplyHubServiceTest {
         assertEquals(0, SupplyHubService.countAt("rome", "harbour", List.of(staying)));
         assertEquals(1, SupplyHubService.countAt("rome", "harbour", List.of(gone, staying)));
 
-        HubStanding atHome = SupplyHubService.standing(
-                hub, true, SupplyHubService.ownerAllows("rome", "rome", false), 1, List.of(hub));
+        HubStanding atHome = SupplyHubService.standing(hub, true, true, 1, List.of(hub));
         assertTrue(atHome.active());
-        HubStanding moved = SupplyHubService.standing(
-                hub, true, SupplyHubService.ownerAllows("venice", "rome", false), 1, List.of(hub));
-        assertEquals(DormantReason.NO_PERMIT, moved.reason());
+        HubStanding moved = SupplyHubService.standing(hub, true, false, 1, List.of(hub));
+        assertEquals(DormantReason.NO_AGREEMENT, moved.reason());
     }
 
     @Test
@@ -328,6 +331,11 @@ class SupplyHubServiceTest {
         handler.load(List.of(installation));
         when(faction.getInstallationHandler()).thenReturn(handler);
         Guild guild = guildWith(loaded.toArray(SupplyHub[]::new));
+        when(guild.getFaction()).thenReturn(faction);
+        when(guild.getHubAgreements()).thenReturn(new ArrayList<>());
+        when(guild.getHubOffers()).thenReturn(new ArrayList<>());
+        when(guild.getId()).thenReturn("merchants");
+        when(guild.getName()).thenReturn("Merchants");
         GuildHandler guilds = mock(GuildHandler.class);
         when(guilds.getGuilds()).thenReturn(List.of(guild));
         when(faction.getGuildHandler()).thenReturn(guilds);
@@ -341,20 +349,15 @@ class SupplyHubServiceTest {
     }
 
     @Test
-    void permits_toggleAndRoundTripWithTheFaction() {
-        List<String> permits = new ArrayList<>();
-        assertTrue(SupplyHubService.togglePermit(permits, "merchants"));
-        assertTrue(SupplyHubService.hasPermit(permits, "Merchants"));
-        assertFalse(SupplyHubService.togglePermit(permits, "merchants"));
-        assertFalse(SupplyHubService.hasPermit(permits, "merchants"));
-        SupplyHubService.togglePermit(permits, "merchants");
-
-        FactionData data = new FactionData();
-        data.hubPermits = new ArrayList<>(permits);
-        String json = JsonUtil.GSON.toJson(data);
-        assertTrue(json.contains("hub permits"));
-        FactionData restored = JsonUtil.GSON.fromJson(json, FactionData.class);
-        assertEquals(List.of("merchants"), restored.hubPermits);
+    void savedHubPermitsAndHubTaxLoadAndAreNotWritten() {
+        FactionData loaded = JsonUtil.GSON.fromJson(
+                "{\"hub permits\":[\"merchants\"],\"hub tax\":12.0,\"id\":\"rome\"}", FactionData.class);
+        assertEquals("rome", loaded.id);
+        assertEquals(List.of("merchants"), loaded.hubPermits);
+        assertEquals(12.0, loaded.hubTax);
+        String fresh = JsonUtil.GSON.toJson(new FactionData());
+        assertFalse(fresh.contains("hub permits"));
+        assertFalse(fresh.contains("hub tax"));
     }
 
     @Test
@@ -365,6 +368,9 @@ class SupplyHubServiceTest {
         old.set("supply-hubs.upkeep-growth", 3.0);
         SupplyHubService.loadConfig(old);
         assertEquals(50.0, Cache.supplyHubMaxTax, 1e-9);
+        assertEquals(500.0, Cache.supplyHubMaxFee, 1e-9);
+        assertEquals(7, Cache.supplyHubOfferDays);
+        assertEquals(14, Cache.supplyHubAgreementDays);
     }
 
     @Test
