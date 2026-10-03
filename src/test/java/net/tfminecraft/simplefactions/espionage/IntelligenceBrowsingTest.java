@@ -22,6 +22,10 @@ class IntelligenceBrowsingTest {
         when(faction.getId()).thenReturn(id);
         when(faction.getFoundedAt()).thenReturn(1L);
         when(faction.getEspionage()).thenReturn(new EspionageState());
+        var holder = new SpecialPositionAssignment();
+        holder.playerName = "Spy";
+        faction.getEspionage().appoint(holder, 50);
+        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
         when(faction.getMembers()).thenReturn(List.of());
         when(faction.getGuildHandler().getGuilds()).thenReturn(List.of());
         when(faction.getMilitary().getRegiments()).thenReturn(List.of());

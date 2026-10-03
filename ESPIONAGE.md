@@ -7,6 +7,21 @@ uses exact values. Other figures are hidden or shown as intelligence ranges.
 Members retain exact information about their own faction and guilds. This covers
 in-game menus; website exports and staff administration commands are unchanged.
 
+A faction without an eligible, living Spymaster reveals exact information to
+everyone, including its guild menus, complete rosters, ledgers and wealth rankings.
+No daily estimates are generated for an unguarded faction. This takes effect when
+menus are reopened, including after removal, permanent character death or a solo
+leader becoming ineligible. Appointing an eligible Spymaster restores the usual
+intelligence checks, even if their aptitude is 0. Public viewing does not grant
+management authority or access to private sabotage settings. Staff alone retain
+the additional Minecraft account names provided by their bypass permission.
+
+Without an eligible Spymaster, a faction also receives no daily reports about
+protected foreign factions. Previously cached reports become unreadable immediately;
+private fields remain Unknown and the menu says "Report quality: Absent" with
+"The Spymaster's office stands vacant; no findings reach your court."
+Unguarded foreign factions and normally public information remain visible.
+
 ## Staff viewing permission
 
 Set the permission node in `plugins/SimpleFactions/special-positions.yml`:
@@ -31,8 +46,8 @@ For the staff track (`staff_player` → `staff_inactive` → `staff`), grant the
 explicitly to `staff` and deny it for `staff_inactive`; explicit denials inherited
 from lower ranks override a generic `*` grant. On dev the active grant uses
 `server=dev` so it does not change permissions on other servers.
-Test promotion/demotion on a foreign faction: own faction information stays
-exact at every rank. Reopen the menu after a rank change.
+Test promotion/demotion on a foreign faction with an eligible Spymaster: own and
+unguarded faction information stays exact at every rank. Reopen the menu after a rank change.
 
 ## Spymaster appointment
 
@@ -120,13 +135,14 @@ existing permanent aptitudes are retained.
 ## Daily intelligence and rankings
 
 Any `/faction` or `/guild` command that opens a GUI requests the faction's
-reports for every foreign faction, including list, menu, positions, espionage
+reports for protected foreign factions when your own Spymaster is eligible, including list, menu, positions, espionage
 and Spymaster settings commands.
 The first member to open a GUI by command that UTC day triggers the checks; all faction members
 share the reports. Faction/guild clicks, sorting and periodic GUI refreshes only read cached
 reports. They never roll or send intelligence messages. Commands that do not
 open a menu never gather intelligence.
-Uncached information stays hidden until a faction member opens a GUI by command.
+Protected uncached information stays hidden until a faction member with an eligible
+Spymaster opens a GUI by command. Unguarded faction information is always exact.
 One roleplay notice goes to the requesting player when new reports are created.
 
 Days run from midnight to midnight **UTC**. Each faction rolls offense and defense
@@ -140,7 +156,9 @@ margin = observer.offense - target.defense
 
 Averaged luck makes a full 0-versus-100 upset exceptionally rare (roughly 0.002% with defaults), while smaller aptitude gaps can still be overcome. Luck spread, draw count and aptitude multiplier are configurable. Each ordered
 observer/target pair has one snapshot per day. Reopening, replacing Spymasters,
-sabotage changes and restarts do not reroll the day's intelligence. Changes affect
+sabotage changes and restarts do not reroll the day's intelligence. A vacant office
+immediately disables its faction's reports and exposes its own information;
+refilling it restores access to any still-current cached reports. Other changes affect
 the next uncached rolls. A recreated target faction receives a fresh report.
 
 | Margin | Intelligence | Approximate range width | Known non-leader members |

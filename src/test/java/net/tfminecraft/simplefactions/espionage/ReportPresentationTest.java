@@ -37,6 +37,7 @@ class ReportPresentationTest {
 
     @Test void onlyMaskedHoldersAllowForeignAccessToPreviouslyPrivateMenus() {
         var outsider = mock(Player.class); var faction = mock(Faction.class);
+        EspionageTestFixtures.protect(faction);
         try (var factions = mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class)) {
             factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("f")).thenReturn(faction);
             var holder = new net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder("f", net.tfminecraft.simplefactions.enums.SFGUI.MILITARY_VIEW);
