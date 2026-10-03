@@ -196,6 +196,7 @@ public class Guild {
                 );
             }
         }
+        BranchLoader.replaceDisallowedBranches(branches, type);
         int group = 0;
         while(group < 10) {
             if(!this.branches.containsKey(group)) {

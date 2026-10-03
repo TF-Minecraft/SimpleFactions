@@ -59,7 +59,9 @@ public final class BranchIncomePreview {
         ProvinceManager after = copy(prepared.snapshot);
         double baseline = income(before, guild, current);
         double changed = income(after, guild, hypothetical);
-        double net = (changed - baseline) * (1.0 - taxFraction);
+        double upkeepChange = Math.max(0.0, hypothetical.getOrDefault(GuildModifier.INFRASTRUCTURE_UPKEEP, 0.0))
+                - Math.max(0.0, current.getOrDefault(GuildModifier.INFRASTRUCTURE_UPKEEP, 0.0));
+        double net = (changed - baseline) * (1.0 - taxFraction) - upkeepChange;
         return Math.round(net * 100.0) / 100.0;
     }
 

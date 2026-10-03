@@ -26,6 +26,7 @@ import net.tfminecraft.simplefactions.enums.Stance;
 import net.tfminecraft.simplefactions.events.FactionCreateEvent;
 import net.tfminecraft.simplefactions.events.FactionDeleteEvent;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.GuildBankGrant;
 import net.tfminecraft.simplefactions.loaders.LawLoader;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
@@ -71,6 +72,9 @@ public class CommandManager implements Listener, CommandExecutor{
 	private boolean dispatchCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("reloadespionage"))
             return EspionageCommands.reload(sender, args);
+		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("addguildbank")) {
+			return addGuildBank(sender, args);
+		}
 		// Title editing is staff-only and also works from the console.
 		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase(TitleAdminCommand.SUBCOMMAND)) {
 			return TitleAdminCommand.handle(sender, args);
@@ -1891,6 +1895,38 @@ public class CommandManager implements Listener, CommandExecutor{
 			p.sendMessage("§a[SimpleFactions]§c Error with command format, use the gameplay guide for a list of commands");
 		}
 		return false;
+	}
+
+	private boolean addGuildBank(CommandSender sender, String[] args) {
+		if(!Permissions.isAdmin(sender)) {
+			sender.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
+			return true;
+		}
+		if(args.length != 3) {
+			sender.sendMessage("§cUsage: §e/faction addguildbank <guild id> <amount>");
+			return true;
+		}
+		Guild guild = FactionManager.getGuildByString(args[1]);
+		if(guild == null) {
+			sender.sendMessage("§a[SimpleFactions]§c Error! guild does not exist!");
+			return true;
+		}
+		Double amount = BankAmount.parse(args[2]);
+		if(amount == null) {
+			sender.sendMessage("§cUsage: §e/faction addguildbank <guild id> <amount>");
+			return true;
+		}
+		if(guild.getBank() == null) {
+			sender.sendMessage("§a[SimpleFactions]§c This guild does not have a bank");
+			return true;
+		}
+		if(!GuildBankGrant.grant(guild, amount)) {
+			sender.sendMessage("§a[SimpleFactions]§c This guild does not have a bank");
+			return true;
+		}
+		sender.sendMessage("§a[SimpleFactions]§a Added " + Formatter.formatMoney(amount)
+				+ " to " + guild.getName() + "'s bank. New balance: " + Formatter.formatMoney(guild.getBank().getWealth()));
+		return true;
 	}
 
 	private boolean tryClaimForCapital(Player p, Faction f, int claim) {

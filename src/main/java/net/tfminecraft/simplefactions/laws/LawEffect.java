@@ -13,6 +13,7 @@ import net.tfminecraft.simplefactions.loaders.RegimentLoader;
 import net.tfminecraft.simplefactions.objects.Bracket;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.enums.Brackets;
+import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.enums.Region;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Scope;
@@ -169,6 +170,19 @@ public class LawEffect {
 
     public Map<Region, List<FactionModifier>> getRegionModifiers() {
         return regionModifiers;
+    }
+
+    /** Null means absent; an explicit zero still overrides a default. */
+    public Double getModifierAmount(FactionModifiers type, Region region) {
+        Double amount = null;
+        List<FactionModifier> modifiers = new ArrayList<>(globalModifiers);
+        modifiers.addAll(regionModifiers.getOrDefault(region, List.of()));
+        for (FactionModifier modifier : modifiers) {
+            if (modifier.getType() == type) {
+                amount = (amount == null ? 0 : amount) + modifier.getAmount();
+            }
+        }
+        return amount;
     }
 
     public Map<Rules, Boolean> getRules() {

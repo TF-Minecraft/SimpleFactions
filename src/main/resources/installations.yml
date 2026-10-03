@@ -3,7 +3,7 @@ transfer-request-timeout-seconds: 60
 
 fort:
   radius: 80
-  daily-upkeep: 50
+  daily-upkeep: 30
   construction-time: 432000
   hub-slots: 0
   slots:
@@ -11,21 +11,21 @@ fort:
     land_vehicles: 2
 port:
   radius: 80
-  daily-upkeep: 20
+  daily-upkeep: 15
   construction-time: 259200
   hub-slots: 2
   slots:
     ships: 8
 airport:
   radius: 80
-  daily-upkeep: 35
+  daily-upkeep: 20
   construction-time: 259200
   hub-slots: 1
   slots:
     aircraft: 10
 train_station:
   radius: 80
-  daily-upkeep: 10
+  daily-upkeep: 5
   construction-time: 259200
   hub-slots: 1
   slots:

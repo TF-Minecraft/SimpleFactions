@@ -173,6 +173,14 @@ public class TabCompletion implements TabCompleter{
 			return sender instanceof Player player
 					? EspionageCommands.complete(player, args) : List.of();
 		}
+		if(cmd.getName().equalsIgnoreCase("faction") && Permissions.isAdmin(sender)
+				&& args.length == 2 && args[0].equalsIgnoreCase("addguildbank")) {
+			List<String> completions = new ArrayList<>();
+			for(Guild guild : FactionManager.getAllGuilds()) {
+				if(guild != null) completions.add(guild.getId());
+			}
+			return filtered(completions, args[1]);
+		}
 		if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase(TitleAdminCommand.SUBCOMMAND)) {
 			if(!Permissions.isAdmin(sender) || !Cache.provincesEnabled) {
 				return new ArrayList<>();
@@ -361,6 +369,7 @@ public class TabCompletion implements TabCompleter{
 					completions.add("setcolour");
 				}
 				if(Permissions.isAdmin(sender)) {
+					completions.add("addguildbank");
 					completions.add("forceleader");
 					completions.add("forcejoin");
 					completions.add("forcewithdraw");

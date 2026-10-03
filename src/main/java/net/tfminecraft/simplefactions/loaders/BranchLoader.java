@@ -14,6 +14,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildType;
 
 public class BranchLoader {
     public static Map<String, Branch> map = new HashMap<>();
@@ -38,11 +39,24 @@ public class BranchLoader {
 		return null;
 	}
 	public static Branch getByGroup(Guild guild, int group) {
+		return getByGroup(guild.getType(), group);
+	}
+	public static Branch getByGroup(GuildType type, int group) {
 		for(Branch b : getList()) {
 			if(b.getGroup() != group) continue;
-			if(b.isAllowed(guild.getType())) return b;
+			if(b.isAllowed(type)) return b;
 		}
 		return null;
+	}
+	public static void replaceDisallowedBranches(Map<Integer, Branch> branches, GuildType type) {
+		for (Branch branch : branches.values()) {
+			if (!branch.isAllowed(type)) {
+				Branch replacement = getByGroup(type, branch.getGroup());
+				if (replacement != null) {
+					branches.put(branch.getGroup(), new Branch(replacement, branch.getLevel()));
+				}
+			}
+		}
 	}
 	public void load(File configFile) {
 		FileConfiguration config = new YamlConfiguration();

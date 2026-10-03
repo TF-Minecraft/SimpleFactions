@@ -43,7 +43,7 @@ class InstallationConfigLoaderTest {
         assertEquals(8, InstallationConfigLoader.getCategorySlots(InstallationKind.FORT).get("static_emplacements"));
         assertEquals(2, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.FORT, "land_vehicles"));
         assertEquals(10, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.AIRPORT, "aircraft"));
-        assertEquals(10.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
+        assertEquals(5.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
         assertEquals(80, InstallationConfigLoader.getRadius(InstallationKind.TRAIN_STATION));
         assertEquals(259200, InstallationConfigLoader.getConstructionTimeSeconds(InstallationKind.TRAIN_STATION));
         assertEquals(java.util.Map.of("static_emplacements", 2),
@@ -56,7 +56,7 @@ class InstallationConfigLoaderTest {
         InstallationConfigLoader.load(writeInstallationsFixture().toFile());
 
         assertEquals(80, InstallationConfigLoader.getRadius(InstallationKind.TRAIN_STATION));
-        assertEquals(10.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
+        assertEquals(5.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
         assertEquals(259200, InstallationConfigLoader.getConstructionTimeSeconds(InstallationKind.TRAIN_STATION));
         assertEquals(java.util.Map.of("static_emplacements", 2),
                 InstallationConfigLoader.getCategorySlots(InstallationKind.TRAIN_STATION));
@@ -74,6 +74,16 @@ class InstallationConfigLoaderTest {
         assertEquals(1, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 1));
         assertEquals(2, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 2));
         assertEquals(4, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 3));
+    }
+
+    @Test
+    void load_bundledInstallationUpkeep() {
+        InstallationConfigLoader.load(Path.of("src/main/resources/installations.yml").toFile());
+
+        assertEquals(30.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.FORT));
+        assertEquals(15.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.PORT));
+        assertEquals(20.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.AIRPORT));
+        assertEquals(5.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
     }
 
     @Test

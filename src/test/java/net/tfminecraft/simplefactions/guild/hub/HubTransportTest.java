@@ -27,13 +27,17 @@ class HubTransportTest {
         Rates sea = HubTransport.rates(Mode.SEA);
         Rates air = HubTransport.rates(Mode.AIR);
 
-        assertEquals(0.70, rail.trade());
-        assertEquals(0.25, rail.production());
-        assertEquals(0.45, sea.trade());
-        assertEquals(0.30, sea.production());
+        assertEquals(0.40, rail.trade());
+        assertEquals(0.80, rail.production());
+        assertEquals(0.30, sea.trade());
+        assertEquals(0.70, sea.production());
         assertEquals(0.20, air.trade());
-        assertEquals(0.0, air.production());
+        assertEquals(0.50, air.production());
         assertTrue(rail.trade() > sea.trade() && sea.trade() > air.trade());
+
+        Link railLink = HubTransport.link(1, 2, Mode.RAIL, 0);
+        assertEquals(0.40, railLink.tradeFactor());
+        assertEquals(0.80, railLink.productionFactor());
     }
 
     @Test
@@ -48,9 +52,9 @@ class HubTransportTest {
 
     @Test
     void distanceLosesAShareEveryThousandBlocks() {
-        assertEquals(0.70, HubTransport.delivered(0.70, 0.90, 0), 1e-9);
-        assertEquals(0.63, HubTransport.delivered(0.70, 0.90, 1000), 1e-9);
-        assertEquals(0.70 * 0.81, HubTransport.delivered(0.70, 0.90, 2000), 1e-9);
+        assertEquals(0.40, HubTransport.delivered(0.40, 0.90, 0), 1e-9);
+        assertEquals(0.36, HubTransport.delivered(0.40, 0.90, 1000), 1e-9);
+        assertEquals(0.40 * 0.81, HubTransport.delivered(0.40, 0.90, 2000), 1e-9);
         assertEquals(0, HubTransport.delivered(0, 0.90, 500));
     }
 
@@ -60,16 +64,16 @@ class HubTransportTest {
 
         assertEquals(3, link.fromProvince());
         assertEquals(9, link.toProvince());
-        assertEquals(0.45 * 0.85, link.tradeFactor(), 1e-9);
-        assertEquals(0.30 * 0.85, link.productionFactor(), 1e-9);
+        assertEquals(0.30 * 0.85, link.tradeFactor(), 1e-9);
+        assertEquals(0.70 * 0.85, link.productionFactor(), 1e-9);
     }
 
     @Test
     void modifierBoostIsAppliedBeforeTheShareCapAndDistanceLoss() {
         Link link = HubTransport.link(3, 9, Mode.RAIL, 1000);
 
-        assertEquals(0.70 * 1.3 * 0.90, link.boostedTradeFactor(0.30), 1e-9);
-        assertEquals(0.25 * 1.3 * 0.90, link.boostedProductionFactor(0.30), 1e-9);
+        assertEquals(0.40 * 1.3 * 0.90, link.boostedTradeFactor(0.30), 1e-9);
+        assertEquals(HubTransport.MAX_SHARE * 0.90, link.boostedProductionFactor(0.30), 1e-9);
 
         YamlConfiguration config = new YamlConfiguration();
         config.set("supply-hubs.transport.rail.trade", 0.90);
@@ -98,14 +102,14 @@ class HubTransportTest {
         assertEquals(0, HubTransport.rates(Mode.RAIL).production());
         assertEquals(0.90, HubTransport.rates(Mode.RAIL).keptPer1000());
         assertEquals(900, HubTransport.rates(Mode.AIR).maxRange());
-        assertEquals(0.45, HubTransport.rates(Mode.SEA).trade());
+        assertEquals(0.30, HubTransport.rates(Mode.SEA).trade());
     }
 
     @Test
     void missingConfigKeepsDefaults() {
         HubTransport.loadConfig(new YamlConfiguration());
 
-        assertEquals(0.70, HubTransport.rates(Mode.RAIL).trade());
+        assertEquals(0.40, HubTransport.rates(Mode.RAIL).trade());
         assertEquals(4000, HubTransport.rates(Mode.SEA).maxRange());
     }
 }

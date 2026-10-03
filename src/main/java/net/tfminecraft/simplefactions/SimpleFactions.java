@@ -9,9 +9,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.map.ProvinceGrid;
+import net.tfminecraft.simplefactions.map.infra.TrackProvinceCache;
 import net.tfminecraft.simplefactions.map.presence.ProvincePresenceListener;
 import net.tfminecraft.simplefactions.map.presence.ProvincePresenceService;
 import net.tfminecraft.simplefactions.map.presence.ProvincePresenceTickService;
@@ -169,6 +171,7 @@ public class SimpleFactions extends JavaPlugin{
 			new net.tfminecraft.simplefactions.mercenary.contract.AttendanceService.Hook();
 	private ProvinceManager provinceSnapshot = new ProvinceManager();
 	private ProvinceGrid provinceGrid;
+	private BukkitTask trackInfrastructureRefreshTask;
 	private final PlayerVehicleRegistry vehicleRegistry = new PlayerVehicleRegistry();
 	private VehicleRegistryPersistence vehicleRegistryPersistence;
 	private final InstallationVehicleOwnerSync installationVehicleOwnerSync =
@@ -354,15 +357,20 @@ public class SimpleFactions extends JavaPlugin{
 		sessionManager.start();
 		if (Cache.provincesEnabled) {
 			provinceSnapshot = provinceManager.createSnapshotShell();
+			refreshTrackProvinces(() -> {});
 			provinceManager.recalculate();
 			// Hub tax is assessed at the day change; do it once now so menus are right before then.
 			net.tfminecraft.simplefactions.guild.hub.HubTaxService.refresh(provinceManager);
+			long refreshTicks = Cache.infrastructureTrackRefreshSeconds * 20L;
+			trackInfrastructureRefreshTask = getServer().getScheduler().runTaskTimer(
+					this, () -> { refreshTrackProvinces(); }, refreshTicks, refreshTicks);
 		}
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
 	}
 	@Override
 	public void onDisable() {
+		if (trackInfrastructureRefreshTask != null) trackInfrastructureRefreshTask.cancel();
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.unregister();
 		MercenaryStatService.clearAll();
 		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.reset();
@@ -530,6 +538,31 @@ public class SimpleFactions extends JavaPlugin{
 
 	public ProvinceGrid getProvinceGrid() {
 		return provinceGrid;
+	}
+
+	public boolean refreshTrackProvinces() {
+		return refreshTrackProvinces(provinceManager::recalculate);
+	}
+
+	private boolean refreshTrackProvinces(Runnable recalculate) {
+		return TrackProvinceCache.live().refresh(() -> {
+			if (provinceGrid == null) {
+				return java.util.Set.of();
+			}
+			if (!getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
+				TrackProvinceCache.live().vehicleFrameworkUnavailable(
+						message -> getLogger().info("[SimpleFactions] " + message));
+				return java.util.Set.of();
+			}
+			java.util.Map<Integer, net.tfminecraft.simplefactions.map.provinces.Province> provinces =
+					new java.util.HashMap<>();
+			for (net.tfminecraft.simplefactions.map.provinces.Province province : provinceManager.getProvinces()) {
+				provinces.put(province.getId(), province);
+			}
+			return net.tfminecraft.simplefactions.guild.hub.VehicleFrameworkTrackProvinces.sample(
+					Cache.worldName, provinceGrid, provinces);
+		}, recalculate,
+				message -> getLogger().warning("[SimpleFactions] " + message));
 	}
 
 	public SessionManager getSessionManager() {
