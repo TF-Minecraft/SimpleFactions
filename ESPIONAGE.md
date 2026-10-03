@@ -302,3 +302,5 @@ RPCharacters permanent character death removes that character's Spymaster office
 preserving paid appointment history. Ordinary Minecraft respawns and cancelled
 character deaths do not remove the office. Removal is confirmed after the death
 event commits, and loaded dead-character assignments are rejected when checked.
+Pending founder appointments retain their character identity when an aptitude
+save fails; an unrelated character death cannot cancel that pending appointment.

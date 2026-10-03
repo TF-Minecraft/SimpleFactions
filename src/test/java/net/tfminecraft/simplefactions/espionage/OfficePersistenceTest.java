@@ -119,7 +119,9 @@ class OfficePersistenceTest {
             assertNull(state.getSpymaster());
             assertTrue(state.hasPendingFounder());
             assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
-            assertTrue(JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(state), EspionageState.class).hasPendingFounder());
+            var restored = JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(state), EspionageState.class);
+            assertTrue(restored.hasPendingFounder());
+            assertEquals("founder-character", restored.pendingFounderCharacter(SpecialPosition.SPYMASTER));
             bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Founder")).thenReturn(null);
             EspionageService.initializeFounder(faction);
             assertNull(state.getSpymaster(), "Offline retry must not finalize a zero-aptitude office");
@@ -128,6 +130,7 @@ class OfficePersistenceTest {
             assertEquals(84, EspionageService.spymaster(faction).aptitude);
             assertEquals("founder-character", state.getSpymaster().characterId);
             assertFalse(state.hasPendingFounder());
+            assertNull(state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
             assertTrue(state.getSpymaster().automatic);
             assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
         } finally {

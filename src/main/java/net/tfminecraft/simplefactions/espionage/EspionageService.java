@@ -68,7 +68,7 @@ public final class EspionageService {
             } catch (java.io.IOException exception) {
                 net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                         "Could not save founder aptitude", exception);
-                faction.getEspionage().pendingFounder(office);
+                faction.getEspionage().pendingFounder(office, characterId);
                 if (founder != null) founder.sendMessage("\u00a7cYour founding office could not be initialized. It will be retried when the office is checked.");
                 continue;
             }
@@ -163,7 +163,8 @@ public final class EspionageService {
             var holder = state.getSpymaster();
             boolean matching = holder != null && (characterId.equals(holder.characterId)
                     || holder.characterId == null && owner != null && holder.isHolder(owner.getUniqueId()));
-            boolean pending = state.isPendingFounder(SpecialPosition.SPYMASTER) && owner != null && faction.isLeader(owner.getName());
+            boolean pending = state.isPendingFounder(SpecialPosition.SPYMASTER) && owner != null && faction.isLeader(owner.getName())
+                    && characterId.equals(state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
             if (!matching && !pending) continue;
             state.removeSpymaster();
             new Database().saveFaction(faction);

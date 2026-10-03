@@ -15,14 +15,20 @@ public class EspionageState {
     private Map<SpecialPosition, Integer> appointments = new EnumMap<>(SpecialPosition.class);
     private java.util.List<OfficeUnrest> unrest = new java.util.ArrayList<>();
     private java.util.Set<SpecialPosition> pendingFounders = java.util.EnumSet.noneOf(SpecialPosition.class);
+    private Map<SpecialPosition, String> pendingFounderCharacters = new EnumMap<>(SpecialPosition.class);
 
     void pendingFounder(SpecialPosition office) { pendingFounders.add(office); }
+    void pendingFounder(SpecialPosition office, String characterId) {
+        pendingFounder(office);
+        if (characterId != null) pendingFounderCharacters.put(office, characterId);
+    }
+    String pendingFounderCharacter(SpecialPosition office) { return pendingFounderCharacters.get(office); }
     boolean hasPendingFounder() { return !pendingFounders.isEmpty(); }
     boolean isPendingFounder(SpecialPosition office) { return pendingFounders.contains(office); }
 
     record OfficeSnapshot(Map<SpecialPosition, SpecialPositionAssignment> positions,
             Map<SpecialPosition, Integer> appointments, java.util.List<OfficeUnrest> unrest,
-            java.util.Set<SpecialPosition> pendingFounders) {}
+            java.util.Set<SpecialPosition> pendingFounders, Map<SpecialPosition, String> pendingFounderCharacters) {}
 
     OfficeSnapshot snapshotOffices() {
         var savedPositions = new EnumMap<SpecialPosition, SpecialPositionAssignment>(SpecialPosition.class);
@@ -30,7 +36,7 @@ public class EspionageState {
         var savedAppointments = new EnumMap<SpecialPosition, Integer>(SpecialPosition.class);
         savedAppointments.putAll(appointments);
         return new OfficeSnapshot(savedPositions, savedAppointments,
-                new java.util.ArrayList<>(unrest), new java.util.HashSet<>(pendingFounders));
+                new java.util.ArrayList<>(unrest), new java.util.HashSet<>(pendingFounders), new HashMap<>(pendingFounderCharacters));
     }
 
     void restoreOffices(OfficeSnapshot snapshot) {
@@ -38,6 +44,7 @@ public class EspionageState {
         appointments.clear(); appointments.putAll(snapshot.appointments());
         unrest.clear(); unrest.addAll(snapshot.unrest());
         pendingFounders.clear(); pendingFounders.addAll(snapshot.pendingFounders());
+        pendingFounderCharacters.clear(); pendingFounderCharacters.putAll(snapshot.pendingFounderCharacters());
     }
 
     public SpecialPositionAssignment holder(SpecialPosition office) { return positions.get(office); }
@@ -55,6 +62,7 @@ public class EspionageState {
         assignment.aptitude = EspionageMath.clamp(aptitude, 0, 100);
         positions.put(office, assignment);
         pendingFounders.remove(office);
+        pendingFounderCharacters.remove(office);
     }
 
     public void addUnrest(SpecialPosition office, double points, double days, long now) {
@@ -81,6 +89,7 @@ public class EspionageState {
 
     public void removeSpymaster() {
         pendingFounders.remove(SpecialPosition.SPYMASTER);
+        pendingFounderCharacters.remove(SpecialPosition.SPYMASTER);
         appointments.put(SpecialPosition.SPYMASTER, appointmentCount(SpecialPosition.SPYMASTER));
         positions.remove(SpecialPosition.SPYMASTER);
     }
@@ -98,6 +107,7 @@ public class EspionageState {
 
     public void appoint(SpecialPositionAssignment assignment, int permanentAptitude) {
         pendingFounders.remove(SpecialPosition.SPYMASTER);
+        pendingFounderCharacters.remove(SpecialPosition.SPYMASTER);
         appointments.put(SpecialPosition.SPYMASTER, appointmentCount(SpecialPosition.SPYMASTER) + 1);
         assignment.automatic = false;
         assignment.aptitude = EspionageMath.clamp(permanentAptitude, 0, 100);

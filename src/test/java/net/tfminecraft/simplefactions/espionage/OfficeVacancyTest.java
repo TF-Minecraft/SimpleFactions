@@ -80,6 +80,36 @@ class OfficeVacancyTest {
         }
     }
 
+    @Test void pendingFounderDeathOnlyRevokesTheAssociatedCharacterAndKeepsFreeAppointment() {
+        var faction = mock(Faction.class);
+        var owner = mock(Player.class);
+        var state = new EspionageState();
+        when(faction.getEspionage()).thenReturn(state);
+        when(owner.getName()).thenReturn("Founder");
+        when(faction.isLeader("Founder")).thenReturn(true);
+        state.pendingFounder(SpecialPosition.SPYMASTER, "founder-character");
+        var snapshot = state.snapshotOffices();
+        state.removeSpymaster();
+        state.restoreOffices(snapshot);
+        assertEquals("founder-character", state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
+        try (var factions = mockStatic(FactionManager.class); var databases = mockConstruction(Database.class)) {
+            factions.when(FactionManager::getCopy).thenReturn(List.of(faction));
+            EspionageService.characterDied(owner, "unrelated-character", "Other");
+            assertTrue(state.hasPendingFounder());
+            assertTrue(databases.constructed().isEmpty());
+            verify(owner, never()).sendMessage(anyString());
+            EspionageService.characterDied(owner, "founder-character", "Founder");
+            assertFalse(state.hasPendingFounder());
+            assertNull(state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
+            assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
+            verify(databases.constructed().getFirst()).saveFaction(faction);
+            state.pendingFounder(SpecialPosition.SPYMASTER);
+            EspionageService.characterDied(owner, "unrelated-character", "Other");
+            assertTrue(state.hasPendingFounder(), "A founder with no character identity cannot match an unrelated death");
+            assertEquals(1, databases.constructed().size());
+        }
+    }
+
     @Test void deathListenerIgnoresCancellationAndWaitsForConfirmedCharacterStatus() {
         var character = mock(RPCharacter.class); var owner = mock(Player.class);
         var event = new CharacterPermakillEvent(owner, character, PermakillCause.OTHER);
