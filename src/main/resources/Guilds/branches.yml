@@ -57,14 +57,15 @@ storehouses:
     - "#bf8a45Storehouses #d4c9aeincrease the"
     - "#d4c9aeease of trade for your existing"
     - "#d4c9aenetwork, resulting in notable gains in"
-    - "#d4c9aetrade reach"
+    - "#d4c9aetrade reach and raise the production"
+    - "#d4c9aetheir hubs pass on."
   allowed-types:
     - guild
     - realm
   modifiers:
-    - trade_carry 0.25
+    - trade_carry 0.25 0.15
     - trade_upkeep 0 0.02
-    - hub_upkeep 0 0.5
+    - hub_production 0 0.03
     - prestige 0 5
 supply_lines:
   name: "#b5835aSupply Lines"
@@ -82,7 +83,7 @@ supply_lines:
     - hub_limit 2 0.5
     - hub_trade 0 0.05
     - hub_production 0 0.08
-    - hub_upkeep 15 1
+    - hub_upkeep 2 0.5
     - trade_upkeep 0 0.01
     - prestige 0 5
 counting_houses:

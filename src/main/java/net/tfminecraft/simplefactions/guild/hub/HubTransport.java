@@ -90,9 +90,9 @@ public final class HubTransport {
     private static volatile Map<Mode, Rates> rates;
 
     static {
-        DEFAULTS.put(Mode.RAIL, new Rates(0.70, 0.25, 0.90, 0));
-        DEFAULTS.put(Mode.SEA, new Rates(0.45, 0.30, 0.85, 4000));
-        DEFAULTS.put(Mode.AIR, new Rates(0.20, 0.0, 0.80, 2500));
+        DEFAULTS.put(Mode.RAIL, new Rates(0.40, 0.80, 0.90, 0));
+        DEFAULTS.put(Mode.SEA, new Rates(0.30, 0.70, 0.85, 4000));
+        DEFAULTS.put(Mode.AIR, new Rates(0.20, 0.50, 0.80, 2500));
         rates = new EnumMap<>(DEFAULTS);
     }
 

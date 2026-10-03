@@ -69,8 +69,8 @@ class HubNetworkTest {
         assertNotNull(link);
         assertEquals(Mode.RAIL, link.mode());
         assertEquals(2000, link.distance());
-        assertEquals(0.70 * 0.81, link.tradeFactor(), 1e-9);
-        assertEquals(0.25 * 0.81, link.productionFactor(), 1e-9);
+        assertEquals(0.40 * 0.81, link.tradeFactor(), 1e-9);
+        assertEquals(0.80 * 0.81, link.productionFactor(), 1e-9);
     }
 
     @Test
@@ -134,7 +134,7 @@ class HubNetworkTest {
         assertNotNull(link);
         assertEquals(Mode.SEA, link.mode());
         assertEquals(1000, link.distance(), 1e-9);
-        assertEquals(0.45 * 0.85, link.tradeFactor(), 1e-9);
+        assertEquals(0.30 * 0.85, link.tradeFactor(), 1e-9);
         assertNull(HubNetwork.connect(a, inland, provinces));
         assertNull(HubNetwork.connect(a, lake, provinces));
     }
@@ -150,7 +150,7 @@ class HubNetworkTest {
         assertNotNull(link);
         assertEquals(Mode.AIR, link.mode());
         assertEquals(2500, link.distance(), 1e-9);
-        assertEquals(0, link.productionFactor());
+        assertEquals(0.50 * Math.pow(0.80, 2.5), link.productionFactor(), 1e-9);
         assertNull(HubNetwork.connect(a, far, provinces));
     }
 

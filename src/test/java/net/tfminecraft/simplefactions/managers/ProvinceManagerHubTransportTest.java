@@ -88,10 +88,10 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void forbiddenSupplyHubsCarryNothingAndLawPreviewSuppressesCachedLinks() {
-        link(new Link(1, 22, Mode.RAIL, 0, 0.7, 0.25));
+        link(new Link(1, 22, Mode.RAIL, 0, 0.4, 0.8));
         List<Link> cached = HubNetwork.linksFor(guild);
         recalculate();
-        assertEquals(14, trade(22), 1e-9);
+        assertEquals(8, trade(22), 1e-9);
         YamlConfiguration config = new YamlConfiguration();
         config.set("effects.faction.rules", List.of("supply_hubs false"));
         Law proposed = new Law("economy", "decentralized", config);
@@ -103,7 +103,7 @@ class ProvinceManagerHubTransportTest {
             assertTrue(HubNetwork.linksFor(guild).isEmpty());
             assertEquals(0, snapshot.get(22).getStoredGuildTrade(guild));
             assertEquals(0, snapshot.get(22).getGuildProduction(guild));
-            assertEquals(14, trade(22), 1e-9);
+            assertEquals(8, trade(22), 1e-9);
         } finally {
             IncomePreviewContext.clear();
         }
@@ -126,17 +126,17 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void hubDeliversAShareAndItSpreadsFromThere() {
-        link(new Link(1, 22, Mode.RAIL, 0, 0.7, 0.25));
+        link(new Link(1, 22, Mode.RAIL, 0, 0.4, 0.8));
 
         recalculate();
 
-        assertEquals(14, trade(22), 1e-9);
-        assertEquals(14 * 0.85, trade(21), 1e-9);
-        assertEquals(14 * 0.85, trade(23), 1e-9);
+        assertEquals(8, trade(22), 1e-9);
+        assertEquals(8 * 0.85, trade(21), 1e-9);
+        assertEquals(8 * 0.85, trade(23), 1e-9);
         assertEquals(0, distance(22));
         assertEquals(1, distance(21));
-        assertEquals(2.5, production(22), 1e-9);
-        assertTrue(production(21) > 0 && production(21) < 2.5);
+        assertEquals(8, production(22), 1e-9);
+        assertTrue(production(21) > 0 && production(21) < 8);
         // The road in between gets nothing from the journey.
         assertEquals(0, trade(12));
     }
@@ -144,11 +144,11 @@ class ProvinceManagerHubTransportTest {
     @Test
     void hubTradeModifierBoostsTheShareDuringRecalculation() {
         when(guild.getModifier(GuildModifier.HUB_TRADE)).thenReturn(0.30);
-        link(new Link(1, 22, Mode.RAIL, 0, 0.7, 0.25));
+        link(new Link(1, 22, Mode.RAIL, 0, 0.4, 0.8));
 
         recalculate();
 
-        assertEquals(18.2, trade(22), 1e-9);
+        assertEquals(10.4, trade(22), 1e-9);
     }
 
     @Test
@@ -211,23 +211,23 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void powerTravelsAlongAChainAndLosesAShareAtEachHub() {
-        link(new Link(1, 8, Mode.RAIL, 0, 0.7, 0.25), new Link(8, 14, Mode.RAIL, 0, 0.7, 0.25));
+        link(new Link(1, 8, Mode.RAIL, 0, 0.4, 0.8), new Link(8, 14, Mode.RAIL, 0, 0.4, 0.8));
 
         recalculate();
 
-        assertEquals(14, trade(8), 1e-9);
-        assertEquals(9.8, trade(14), 1e-9);
-        assertEquals(2.5, production(8), 1e-9);
-        assertEquals(0.625, production(14), 1e-9);
+        assertEquals(8, trade(8), 1e-9);
+        assertEquals(3.2, trade(14), 1e-9);
+        assertEquals(8, production(8), 1e-9);
+        assertEquals(6.4, production(14), 1e-9);
     }
 
     @Test
     void chainSettlesWhateverOrderTheLinksAreIn() {
-        link(new Link(8, 14, Mode.RAIL, 0, 0.7, 0.25), new Link(1, 8, Mode.RAIL, 0, 0.7, 0.25));
+        link(new Link(8, 14, Mode.RAIL, 0, 0.4, 0.8), new Link(1, 8, Mode.RAIL, 0, 0.4, 0.8));
 
         recalculate();
 
-        assertEquals(9.8, trade(14), 1e-9);
+        assertEquals(3.2, trade(14), 1e-9);
     }
 
     @Test
@@ -256,7 +256,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void recalculatingAgainGivesTheSameResult() {
-        link(new Link(1, 12, Mode.RAIL, 0, 0.7, 0.25));
+        link(new Link(1, 12, Mode.RAIL, 0, 0.4, 0.8));
 
         recalculate();
         double first = trade(12);
