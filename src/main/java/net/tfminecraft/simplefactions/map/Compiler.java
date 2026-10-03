@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.google.gson.Gson;
@@ -98,11 +99,12 @@ public class Compiler {
 		if (!p.isSea()) {
 			double terrain = p.getTradeCarry();
 			double infrastructure = p.getInfrastructure();
-			o.addProperty("terrain", p.getTerrain().name().toLowerCase());
-			o.addProperty("terrain_value", r2(terrain));
-			if (infrastructure > 0) {
+			o.addProperty("terrain", p.getTerrain().name().toLowerCase(Locale.ROOT));
+			o.addProperty("terrain_value", terrain);
+			if (infrastructure > 0 && Double.isFinite(Cache.infrastructureFull) && Cache.infrastructureFull > 0) {
 				o.addProperty("infrastructure", r2(infrastructure));
-				o.addProperty("infrastructure_fill", r2(Math.min(1, infrastructure / Cache.infrastructureFull)));
+				o.addProperty("infrastructure_fill", r2(Math.max(0, Math.min(1,
+						infrastructure / Cache.infrastructureFull))));
 			}
 			o.addProperty("effective_terrain", r2(EffectiveTerrain.calculate(terrain, infrastructure,
 					Cache.infrastructureFull, Cache.infrastructureTarget, 1)));

@@ -59,6 +59,27 @@ class CompilerProvinceExportTest {
 	}
 
 	@Test
+	void terrainValueIsNotRounded() {
+		Cache.tradeCarry.put(Terrain.BOG, 0.445);
+
+		JsonObject json = Compiler.provinceToJson(new Province(1, "bog", 0), null);
+
+		assertEquals(0.445, json.get("terrain_value").getAsDouble());
+	}
+
+	@Test
+	void invalidInfrastructureFullOmitsInfrastructureFields() {
+		Cache.infrastructureFull = -5;
+		Province province = new Province(1, "bog", 0);
+		province.setInfrastructure(12);
+
+		JsonObject json = Compiler.provinceToJson(province, null);
+
+		assertFalse(json.has("infrastructure"));
+		assertFalse(json.has("infrastructure_fill"));
+	}
+
+	@Test
 	void bogWithoutInfrastructureOmitsInfrastructureFields() {
 		JsonObject json = Compiler.provinceToJson(new Province(1, "bog", 0), null);
 

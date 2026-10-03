@@ -72,6 +72,20 @@ class ConfigLoaderInfrastructureTest {
     }
 
     @Test
+    void zeroFullUsesDefault() throws IOException {
+        load("infrastructure:\n  full: 0\n");
+
+        assertEquals(20, Cache.infrastructureFull, 1e-9);
+    }
+
+    @Test
+    void negativeFullUsesDefault() throws IOException {
+        load("infrastructure:\n  full: -5\n");
+
+        assertEquals(20, Cache.infrastructureFull, 1e-9);
+    }
+
+    @Test
     void zeroSpreadFloorUsesDefault() throws IOException {
         load("infrastructure:\n  spread-floor: 0\n");
 
