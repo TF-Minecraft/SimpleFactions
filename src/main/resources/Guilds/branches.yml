@@ -17,6 +17,7 @@ bureaucracy:
     - trade_power 1 0.5
     - production 4 0.5
     - trade_upkeep 0 0.03
+    - infrastructure 0 0.1
     - prestige 0 5
     - prestige_bonus 0 0.5
 guild_halls:
@@ -78,12 +79,31 @@ supply_lines:
     - "#d4c9aeEach hub costs more to run."
   allowed-types:
     - guild
-    - realm
   modifiers:
     - hub_limit 2 0.5
     - hub_trade 0 0.05
     - hub_production 0 0.08
-    - hub_upkeep 2 0.5
+    - hub_upkeep 1 0.5
+    - trade_upkeep 0 0.01
+    - prestige 0 5
+infrastructure:
+  name: "#86d1b0Infrastructure"
+  icon: "rail.0"
+  group: 3
+  description:
+    - "#86d1b0Infrastructure #d4c9aeimproves poor"
+    - "#d4c9aeland in the realm for every guild,"
+    - "#d4c9aestarting at the capital. Hubs come"
+    - "#d4c9aemore slowly; each level costs daily upkeep."
+  allowed-types:
+    - realm
+  modifiers:
+    - infrastructure 0 2
+    - infrastructure_upkeep 0 1
+    - hub_limit 2 0.25
+    - hub_trade 0 0.05
+    - hub_production 0 0.08
+    - hub_upkeep 1 0.5
     - trade_upkeep 0 0.01
     - prestige 0 5
 counting_houses:

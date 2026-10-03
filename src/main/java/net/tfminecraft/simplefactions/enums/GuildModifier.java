@@ -6,6 +6,7 @@ public enum GuildModifier {
     TRADE_UPKEEP("#d6645aTrade Upkeep", false),
     PRODUCTION("#f2c94cProduction", true),
     INFRASTRUCTURE("#86d1b0Infrastructure", true),
+    INFRASTRUCTURE_UPKEEP("#86d1b0Infrastructure Upkeep", false),
     TRADE_CARRY("#86d1b0Trade Carry", true),
     HUB_LIMIT("#c99b70Supply Hub Limit", true),
     HUB_UPKEEP("#d6645aSupply Hub Upkeep", false),

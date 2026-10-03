@@ -30,6 +30,7 @@ import net.tfminecraft.simplefactions.database.InstallationData;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.database.SupplyHubData;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
@@ -420,6 +421,57 @@ class SupplyHubServiceTest {
         assertTrue(buffer.getTransfers().isEmpty());
         assertEquals(-30.0, ledger.getIncome(Cashflow.SUPPLY_HUBS), 1e-9);
         assertEquals(-30.0, ledger.getNetIncome(), 1e-9);
+    }
+
+    @Test
+    void infrastructureHubLimitFloorsTheFractionalLevels() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("group", 3);
+        yaml.set("modifiers", List.of("HUB_LIMIT 2 0.25"));
+        Branch prototype = new Branch("infrastructure", yaml);
+        for (int level : List.of(0, 3, 4, 8)) {
+            Guild guild = mock(Guild.class);
+            when(guild.getModifier(GuildModifier.HUB_LIMIT))
+                    .thenReturn(new Branch(prototype, level).getAmount(GuildModifier.HUB_LIMIT));
+            int expected = level < 4 ? 2 : level < 8 ? 3 : 4;
+            assertEquals(expected, SupplyHubService.limit(guild));
+        }
+    }
+
+    @Test
+    void supplyLinesHubLimitAddsOneHubEveryTwoLevels() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("group", 3);
+        yaml.set("modifiers", List.of("HUB_LIMIT 2 0.5"));
+        Branch prototype = new Branch("supply_lines", yaml);
+        for (int level : List.of(0, 2, 4)) {
+            Guild guild = mock(Guild.class);
+            when(guild.getModifier(GuildModifier.HUB_LIMIT))
+                    .thenReturn(new Branch(prototype, level).getAmount(GuildModifier.HUB_LIMIT));
+            assertEquals(2 + level / 2, SupplyHubService.limit(guild));
+        }
+    }
+
+    @Test
+    void ledger_infrastructureUpkeepIsShownAndSettledWithoutShedding() {
+        Guild guild = mock(Guild.class);
+        Faction faction = mock(Faction.class);
+        Bank bank = mock(Bank.class);
+        when(bank.getWealth()).thenReturn(0.0);
+        when(guild.getModifier(GuildModifier.INFRASTRUCTURE_UPKEEP)).thenReturn(4.0);
+        Ledger ledger = ledger(faction, guild, bank);
+
+        assertTrue(Cashflow.INFRASTRUCTURE_UPKEEP.getDisplay().contains("Infrastructure"));
+        assertEquals(-4.0, ledger.getIncome(Cashflow.INFRASTRUCTURE_UPKEEP), 1e-9);
+        assertEquals(-4.0, ledger.getNetIncome(), 1e-9);
+        DailyGuildTransfers buffer = new DailyGuildTransfers();
+        ledger.populateDailyTransfers(buffer);
+        assertEquals(-4.0, buffer.getExternalDeltas().get(guild), 1e-9);
+
+        Guild withoutInfrastructure = mock(Guild.class);
+        when(withoutInfrastructure.getModifier(GuildModifier.INFRASTRUCTURE_UPKEEP)).thenReturn(0.0);
+        Ledger noInfrastructureLedger = ledger(faction, withoutInfrastructure, bank);
+        assertEquals(0.0, noInfrastructureLedger.getIncome(Cashflow.INFRASTRUCTURE_UPKEEP), 1e-9);
     }
 
     @Test
