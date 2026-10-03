@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.database;
 
 
+import net.tfminecraft.simplefactions.identity.LeaderCharacters;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import java.io.File;
 import java.util.ArrayList;
@@ -185,6 +186,7 @@ public class Database {
                 f.setFoundedAt(data.foundedAt != null ? data.foundedAt : System.currentTimeMillis()/1000L);
                 f.setCapitalMoves(data.capitalMoves != null ? data.capitalMoves : 0);
                 f.setEspionage(data.espionage);
+                f.rememberLeaderCharacter(data.leaderCharacter, data.leaderCharacterOf);
 
                 if (data.settlements != null) {
                     f.getSettlementHandler().load(data.settlements);
@@ -326,6 +328,11 @@ public class Database {
             data.name = f.getName();
             data.rgb = f.getRGB();
             data.leader = f.getLeader();
+            LeaderCharacters.Remembered leaderCharacter = LeaderCharacters.resolve(
+                    f.getLeader(), f.getLeaderCharacter(), f.getLeaderCharacterOf());
+            f.rememberLeaderCharacter(leaderCharacter.name(), leaderCharacter.player());
+            data.leaderCharacter = leaderCharacter.name();
+            data.leaderCharacterOf = leaderCharacter.player();
             data.rulerTitle = f.getRulerTitle();
             data.government = f.getGovernmentString();
             data.culture = f.getCulture();

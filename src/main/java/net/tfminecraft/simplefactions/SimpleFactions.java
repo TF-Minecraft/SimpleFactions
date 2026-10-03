@@ -374,6 +374,7 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.unregister();
 		MercenaryStatService.clearAll();
 		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.reset();
+		net.tfminecraft.simplefactions.identity.LeaderCharacters.reset();
 		vehicleMaintenanceDecayTask.stop();
 		CampaignViewRefreshService.stop();
 		BattleManager.shutdown();
@@ -430,6 +431,8 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(bankManager, this);
 		getServer().getPluginManager().registerEvents(titleManager, this);
 		getServer().getPluginManager().registerEvents(playerManager, this);
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.identity.LeaderCharacterListener(this), this);
 		getServer().getPluginManager().registerEvents(sessionManager, this);
 		getServer().getPluginManager().registerEvents(relocationPrompt, this);
 		getServer().getPluginManager().registerEvents(capitalMovePrompt, this);
@@ -691,6 +694,8 @@ public class SimpleFactions extends JavaPlugin{
 				new net.tfminecraft.simplefactions.mercenary.company.RpCharactersMercenaryTraitProbe());
 		net.tfminecraft.simplefactions.prestige.MemberPlaytime.setProbe(
 				new net.tfminecraft.simplefactions.prestige.RpCharactersPlaytimeProbe());
+		net.tfminecraft.simplefactions.identity.LeaderCharacters.setProbe(
+				new net.tfminecraft.simplefactions.identity.RpCharactersLeaderCharacterProbe());
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
 		if (!officeCharacterDeathRegistered) {
 			getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);
