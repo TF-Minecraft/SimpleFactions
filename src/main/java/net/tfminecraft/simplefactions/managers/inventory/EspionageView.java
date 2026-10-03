@@ -117,7 +117,7 @@ public final class EspionageView {
 
     public static void foreignLedger(Player viewer, Guild guild, InventoryManager manager) {
         Inventory inventory = Bukkit.createInventory(new SFInventoryHolder(guild.getId(), SFGUI.FOREIGN_LEDGER_VIEW),
-                54, "\u00a77Reported Ledger for " + org.bukkit.ChatColor.stripColor(guild.getName()));
+                54, "\u00a77Reported Ledger");
         var report = EspionageService.report(viewer, guild.getFaction());
         inventory.setItem(4, ledgerItem(report, guild));
         int slot = 9;

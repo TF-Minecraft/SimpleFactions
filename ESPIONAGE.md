@@ -9,7 +9,7 @@ in-game menus; website exports and staff administration commands are unchanged.
 
 ## Staff viewing permission
 
-Set the permission node in `plugins/SimpleFactions/config.yml`:
+Set the permission node in `plugins/SimpleFactions/special-positions.yml`:
 
 ```yaml
 espionage:
@@ -32,8 +32,7 @@ explicitly to `staff` and deny it for `staff_inactive`; explicit denials inherit
 from lower ranks override a generic `*` grant. On dev the active grant uses
 `server=dev` so it does not change permissions on other servers.
 Test promotion/demotion on a foreign faction: own faction information stays
-exact at every rank. Reopen the menu or wait for its periodic refresh after a
-rank change.
+exact at every rank. Reopen the menu after a rank change.
 
 ## Spymaster appointment
 
