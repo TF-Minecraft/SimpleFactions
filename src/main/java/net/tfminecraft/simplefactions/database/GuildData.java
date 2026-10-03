@@ -10,6 +10,13 @@ public class GuildData {
     public String id;
     public String name;
     public String leader;
+
+    /** The leader's roleplay character name and the player it was read from. */
+    @com.google.gson.annotations.SerializedName("leader character")
+    public String leaderCharacter;
+
+    @com.google.gson.annotations.SerializedName("leader character of")
+    public String leaderCharacterOf;
     public String rgb;
     public String type;
     public Integer capital;

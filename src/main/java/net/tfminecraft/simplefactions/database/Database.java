@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.database;
 
 
+import net.tfminecraft.simplefactions.identity.LeaderCharacters;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import java.io.File;
 import java.util.ArrayList;
@@ -185,6 +186,7 @@ public class Database {
                 f.setFoundedAt(data.foundedAt != null ? data.foundedAt : System.currentTimeMillis()/1000L);
                 f.setCapitalMoves(data.capitalMoves != null ? data.capitalMoves : 0);
                 f.setEspionage(data.espionage);
+                f.rememberLeaderCharacter(data.leaderCharacter, data.leaderCharacterOf);
 
                 if (data.settlements != null) {
                     f.getSettlementHandler().load(data.settlements);
@@ -255,6 +257,7 @@ public class Database {
                         }
 
                         Guild g = new Guild(gd, f);
+                        g.rememberLeaderCharacter(gd.leaderCharacter, gd.leaderCharacterOf);
 
                         // --- Bank ---
                         if ("true".equalsIgnoreCase(gd.bank)) {
@@ -324,6 +327,9 @@ public class Database {
             data.name = f.getName();
             data.rgb = f.getRGB();
             data.leader = f.getLeader();
+            rememberLeaderCharacters(f);
+            data.leaderCharacter = f.getLeaderCharacter();
+            data.leaderCharacterOf = f.getLeaderCharacterOf();
             data.rulerTitle = f.getRulerTitle();
             data.government = f.getGovernmentString();
             data.culture = f.getCulture();
@@ -402,6 +408,8 @@ public class Database {
                 gd.id = g.getId();
                 gd.name = g.getOwnName();
                 gd.leader = g.getLeader();
+                gd.leaderCharacter = g.getLeaderCharacter();
+                gd.leaderCharacterOf = g.getLeaderCharacterOf();
                 gd.rgb = g.getRGB();
                 gd.type = g.getType().getId();
                 gd.capital = g.getCapital();
@@ -533,6 +541,22 @@ public class Database {
     /* =====================================================
      * HELPERS
      * ===================================================== */
+
+    /**
+     * Brings the realm's and its guilds' leader characters up to date before
+     * they are written. A name learned here must still reach the map: the join
+     * refresh that runs later would find nothing new and leave nation.json
+     * stale, so the map is told now.
+     */
+    static void rememberLeaderCharacters(Faction f) {
+        boolean changed = LeaderCharacters.refresh(f);
+        for (Guild g : f.getGuildHandler().getGuilds()) {
+            if (g != null) changed |= LeaderCharacters.refresh(g);
+        }
+        if (changed && FactionManager.getMap() != null) {
+            FactionManager.getMap().markLeaderNamesChanged();
+        }
+    }
 
     public static List<Modifier> loadModifiers(List<String> raw) {
         List<Modifier> list = new ArrayList<>();

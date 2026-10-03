@@ -106,6 +106,9 @@ public class Faction {
 	private Double prestige;
 	private String rulerTitle;
 	private String leader;
+	/** Last known roleplay name of {@link #leader}; see LeaderCharacters. */
+	private String leaderCharacter;
+	private String leaderCharacterOf;
 	private Integer extraNodeCapacity;
 	private List<Modifier> prestigeModifiers = new ArrayList<>();
 	// Epoch seconds. Faction ids come from the name, so a recycled name reuses the id;
@@ -195,6 +198,9 @@ public class Faction {
 		this.name = guild.getName();
 		this.diplomacyHandler = new DiplomacyHandler(this);
 		this.leader = guild.getLeader();
+		// Read before the guild becomes this realm's own and starts sharing these fields.
+		this.leaderCharacter = guild.getLeaderCharacter();
+		this.leaderCharacterOf = guild.getLeaderCharacterOf();
 		this.rulerTitle = "Leader";
 		this.bannerPatterns = guild.getBannerPatterns();
 		this.rank = RankLoader.getLowest();
@@ -741,6 +747,16 @@ public class Faction {
 	}
 	public String getLeader() {
 		return leader;
+	}
+	public String getLeaderCharacter() {
+		return leaderCharacter;
+	}
+	public String getLeaderCharacterOf() {
+		return leaderCharacterOf;
+	}
+	public void rememberLeaderCharacter(String name, String player) {
+		this.leaderCharacter = name;
+		this.leaderCharacterOf = player;
 	}
 	public void setLeader(String leader) {
 		getOrCreateMainGuild().setLeader(leader);

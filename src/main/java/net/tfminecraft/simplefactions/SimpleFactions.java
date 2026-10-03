@@ -381,7 +381,7 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		sessionManager.end();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
-		saveLoadedFactions();
+		saveFactionsForShutdown();
 		for(War w : WarManager.get()){
 			db.saveWar(w);
 		}
@@ -392,6 +392,12 @@ public class SimpleFactions extends JavaPlugin{
 			vehicleMaintenancePersistence.save();
 		}
 	}
+    void saveFactionsForShutdown() {
+        // The save resolves leader characters, so RPCharacters stays asked until it is done.
+        saveLoadedFactions();
+        net.tfminecraft.simplefactions.identity.LeaderCharacters.reset();
+    }
+
     void saveLoadedFactions() {
         // An early enable failure must not overwrite partially restored faction state.
         if (!FactionManager.isLoaded()) return;
@@ -430,6 +436,8 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(bankManager, this);
 		getServer().getPluginManager().registerEvents(titleManager, this);
 		getServer().getPluginManager().registerEvents(playerManager, this);
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.identity.LeaderCharacterListener(this), this);
 		getServer().getPluginManager().registerEvents(sessionManager, this);
 		getServer().getPluginManager().registerEvents(relocationPrompt, this);
 		getServer().getPluginManager().registerEvents(capitalMovePrompt, this);
@@ -691,6 +699,16 @@ public class SimpleFactions extends JavaPlugin{
 				new net.tfminecraft.simplefactions.mercenary.company.RpCharactersMercenaryTraitProbe());
 		net.tfminecraft.simplefactions.prestige.MemberPlaytime.setProbe(
 				new net.tfminecraft.simplefactions.prestige.RpCharactersPlaytimeProbe());
+		net.tfminecraft.simplefactions.identity.LeaderCharacters.setProbe(
+				new net.tfminecraft.simplefactions.identity.RpCharactersLeaderCharacterProbe());
+		// Learn every realm and guild leader's character once the server has
+		// settled, online or not, and ship it with the next map cycle.
+		getServer().getScheduler().runTaskLater(this, () -> {
+			net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
+			if (FactionManager.getMap() != null) {
+				FactionManager.getMap().markLeaderNamesChanged();
+			}
+		}, 200L);
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
 		if (!officeCharacterDeathRegistered) {
 			getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);

@@ -15,6 +15,16 @@ public class FactionData {
     public String rgb;
     public String leader;
 
+    /**
+     * The leader's roleplay character name, for the web map, and the player
+     * it was read from. See {@code LeaderCharacters}.
+     */
+    @SerializedName("leader character")
+    public String leaderCharacter;
+
+    @SerializedName("leader character of")
+    public String leaderCharacterOf;
+
     @SerializedName("ruler title")
     public String rulerTitle;
 
