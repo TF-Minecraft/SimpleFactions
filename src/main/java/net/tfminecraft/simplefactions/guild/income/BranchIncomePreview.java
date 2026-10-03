@@ -9,7 +9,9 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.branch.BranchModifier;
+import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
+import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /**
@@ -65,6 +67,29 @@ public final class BranchIncomePreview {
         return Math.round(net * 100.0) / 100.0;
     }
 
+    /**
+     * The realm guild's infrastructure reaches every guild in the realm, so an
+     * up or down of that branch is their incomes added together.
+     */
+    public static boolean showsRealm(Guild guild, Branch branch) {
+        return guild != null
+                && guild.isBase()
+                && branch != null
+                && branch.getModifier(GuildModifier.INFRASTRUCTURE) != null;
+    }
+
+    public static double estimateRealm(
+            Prepared prepared,
+            Guild realmGuild,
+            Map<GuildModifier, Double> current,
+            Map<GuildModifier, Double> hypothetical) {
+        double before = realmIncome(prepared, realmGuild, current);
+        double after = realmIncome(prepared, realmGuild, hypothetical);
+        double upkeepChange = Math.max(0.0, hypothetical.getOrDefault(GuildModifier.INFRASTRUCTURE_UPKEEP, 0.0))
+                - Math.max(0.0, current.getOrDefault(GuildModifier.INFRASTRUCTURE_UPKEEP, 0.0));
+        return Math.round((after - before - upkeepChange) * 100.0) / 100.0;
+    }
+
     public static Map<GuildModifier, Double> modifiers(Guild guild) {
         EnumMap<GuildModifier, Double> amounts = new EnumMap<>(GuildModifier.class);
         for (GuildModifier modifier : GuildModifier.values()) {
@@ -103,6 +128,39 @@ public final class BranchIncomePreview {
         ProvinceManager snapshot = source.createSnapshotShell();
         snapshot.copyAllDataFrom(source);
         return snapshot;
+    }
+
+    private static double realmIncome(
+            Prepared prepared, Guild realmGuild, Map<GuildModifier, Double> amounts) {
+        ProvinceManager snapshot = copy(prepared.snapshot);
+        GuildModifierOverride.use(realmGuild, amounts);
+        try {
+            snapshot.recalculateQuiet();
+            double sum = 0;
+            Faction realm = realmGuild.getFaction();
+            for (Guild guild : FactionManager.getAllGuilds()) {
+                if (guild == null || !sameRealm(realm, guild.getFaction())) {
+                    continue;
+                }
+                sum += snapshot.getIncome(guild, false) * (1.0 - taxFraction(guild));
+            }
+            return sum;
+        } finally {
+            GuildModifierOverride.clear();
+        }
+    }
+
+    private static boolean sameRealm(Faction realm, Faction guildFaction) {
+        if (realm == null || guildFaction == null) {
+            return false;
+        }
+        if (realm == guildFaction) {
+            return true;
+        }
+        if (realm.getId() != null && realm.getId().equalsIgnoreCase(guildFaction.getId())) {
+            return true;
+        }
+        return RelationManager.sameRealm(realm, guildFaction);
     }
 
     private static double income(ProvinceManager snapshot, Guild guild, Map<GuildModifier, Double> amounts) {

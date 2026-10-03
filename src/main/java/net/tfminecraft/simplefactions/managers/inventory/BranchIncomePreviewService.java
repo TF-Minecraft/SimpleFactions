@@ -59,7 +59,9 @@ public final class BranchIncomePreviewService {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             double delta;
             try {
-                delta = BranchIncomePreview.estimate(prepared, guild, current, hypothetical, taxFraction);
+                delta = BranchIncomePreview.showsRealm(guild, branch)
+                        ? BranchIncomePreview.estimateRealm(prepared, guild, current, hypothetical)
+                        : BranchIncomePreview.estimate(prepared, guild, current, hypothetical, taxFraction);
             } catch (RuntimeException ex) {
                 plugin.getLogger().log(
                         Level.WARNING,

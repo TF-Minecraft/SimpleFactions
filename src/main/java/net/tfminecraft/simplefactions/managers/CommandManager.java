@@ -40,6 +40,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.ConstructResult;
+import net.tfminecraft.simplefactions.managers.inventory.InstallationBuildConfirm;
 import net.tfminecraft.simplefactions.settlement.handler.CapitalResult;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.tiers.admin.TitleAdminCommand;
@@ -623,15 +624,15 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				String name = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
-				ConstructResult result = f.getInstallationHandler().construct(
+				if (InstallationBuildConfirm.open(
+						p,
+						f,
 						kind,
 						name,
 						province,
 						p.getLocation().getBlockX(),
-						p.getLocation().getBlockZ());
-				p.sendMessage(result.getMessage());
-				if(result.isSuccess()) {
-					p.playSound(p, Sound.BLOCK_ANVIL_USE, 1f, 1f);
+						p.getLocation().getBlockZ())) {
+					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("deconstruct")) {

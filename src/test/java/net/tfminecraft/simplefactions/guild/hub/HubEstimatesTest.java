@@ -272,6 +272,8 @@ class HubEstimatesTest {
             HubEstimates.rebuild(provinces, List.of(operator), List.of(home));
             assertTrue(HubEstimates.infrastructureWorth(home) > 0,
                     "worth " + HubEstimates.infrastructureWorth(home));
+            assertTrue(HubEstimates.hasInfrastructureWorth(home));
+            assertFalse(HubEstimates.hasInfrastructureWorth("nobody"));
 
             InstallationPreview preview = HubEstimates.previewInstallation(
                     provinces, home, 2, InstallationKind.TRAIN_STATION);

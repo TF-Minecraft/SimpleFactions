@@ -140,6 +140,28 @@ public class ProvinceManager {
         for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
     }
 
+    /**
+     * Same flood as {@link #recalculate()} without writing guild trade breakdowns.
+     * A realm-wide branch preview runs this off the server thread.
+     */
+    public void recalculateQuiet() {
+        if (!Cache.provincesEnabled) {
+            return;
+        }
+        HubNetwork.refreshIfLive(this);
+        recalculateInfrastructure();
+        dropMissingGuilds();
+        for (Guild g : FactionManager.getAllGuilds()) {
+            if (!g.hasCapital()) continue;
+            recalculateGuild(g);
+        }
+        for (Guild g : FactionManager.getAllGuilds()) {
+            if (!g.hasCapital()) continue;
+            recalculateProduction(g);
+        }
+        recalculateProsperity();
+    }
+
     public void recalculateForSingleGuild(Guild g, boolean save) {
         if (!Cache.provincesEnabled) {
             return;
