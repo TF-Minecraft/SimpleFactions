@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.map.infra;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
@@ -16,7 +17,8 @@ public final class InfrastructureSources {
     private InfrastructureSources() {}
 
     public static Map<Integer, Double> collect(
-            Map<Integer, Province> provinces, Collection<Guild> guilds, Collection<Faction> factions) {
+            Map<Integer, Province> provinces, Collection<Guild> guilds, Collection<Faction> factions,
+            Set<Integer> trackProvinces) {
         Map<Integer, Double> sources = new HashMap<>();
         for (Guild guild : guilds) {
             if (guild == null || !guild.isBase() || !guild.hasCapital()) continue;
@@ -33,6 +35,9 @@ public final class InfrastructureSources {
                 };
                 add(provinces, sources, installation.getProvince(), amount);
             }
+        }
+        for (Integer id : trackProvinces) {
+            add(provinces, sources, id, Cache.infrastructureTrack);
         }
         return sources;
     }

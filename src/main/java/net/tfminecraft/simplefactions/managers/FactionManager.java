@@ -503,7 +503,8 @@ public class FactionManager implements Listener{
 			// and settle the day on trade that reflects them.
 			runDailyStep("supply hub links", () -> {
 				net.tfminecraft.simplefactions.guild.hub.HubNetwork.forgetRoutes();
-				SimpleFactions.getInstance().getProvinceManager().recalculate();
+				boolean tracksChanged = SimpleFactions.getInstance().refreshTrackProvinces();
+				if (!tracksChanged) SimpleFactions.getInstance().getProvinceManager().recalculate();
 				net.tfminecraft.simplefactions.guild.hub.HubTaxService.refresh(
 						SimpleFactions.getInstance().getProvinceManager());
 			});

@@ -174,6 +174,8 @@ public class Cache {
 	public static double infrastructureStation = 10;
 	public static double infrastructurePort = 10;
 	public static double infrastructureAirport = 5;
+	public static double infrastructureTrack = 10;
+	public static int infrastructureTrackRefreshSeconds = 300;
 
 	public static Map<Scope, LawEffect> baseEffects = new HashMap<>();
 

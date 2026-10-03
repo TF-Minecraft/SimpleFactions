@@ -193,6 +193,8 @@ infrastructure:
     station: 10
     port: 10
     airport: 5
+    track: 10
+    track-refresh-seconds: 300
 
 terrain-modifiers:
     - FARMLAND 0.95

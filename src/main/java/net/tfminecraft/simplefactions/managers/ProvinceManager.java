@@ -152,7 +152,8 @@ public class ProvinceManager {
                     province.getTradeCarry(), !province.isSea(), origin, province.getNeighbours()));
         }
         Map<Integer, Double> sources = InfrastructureSources.collect(
-                provinces, FactionManager.getAllGuilds(), FactionManager.getCopy());
+                provinces, FactionManager.getAllGuilds(), FactionManager.getCopy(),
+                net.tfminecraft.simplefactions.map.infra.TrackProvinceCache.live().provinces());
         Map<Integer, InfrastructureSpread.Arrival> infrastructure = InfrastructureSpread.spread(
                 graph, sources, Cache.infrastructureWildernessSpread, Cache.infrastructureSpreadFloor);
         for (Province province : provinces.values()) {
