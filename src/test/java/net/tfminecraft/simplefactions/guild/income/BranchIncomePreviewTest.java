@@ -224,9 +224,13 @@ class BranchIncomePreviewTest {
         BranchIncomePreview.Prepared prepared = BranchIncomePreview.prepare(live);
         Map<GuildModifier, Double> current = BranchIncomePreview.modifiers(realmGuild);
         Map<GuildModifier, Double> raised = BranchIncomePreview.adjust(current, infrastructure, 0, 1);
-        double alone = BranchIncomePreview.estimateRealm(prepared, realmGuild, current, raised);
+        double alone = BranchIncomePreview.estimateRealm(
+                prepared, realmGuild, current, raised,
+                BranchIncomePreview.guildsNow(), BranchIncomePreview.factionsNow());
         when(handler.getGuilds()).thenReturn(List.of(realmGuild, other));
-        double both = BranchIncomePreview.estimateRealm(prepared, realmGuild, current, raised);
+        double both = BranchIncomePreview.estimateRealm(
+                prepared, realmGuild, current, raised,
+                BranchIncomePreview.guildsNow(), BranchIncomePreview.factionsNow());
 
         assertTrue(alone > 0, "alone " + alone);
         assertTrue(both > alone, "both " + both + " alone " + alone);

@@ -69,33 +69,31 @@ public final class InstallationBuildConfirm {
         inventory.setItem(15, menus.createButton("cancel", "installation_build", "build"));
         player.openInventory(inventory);
 
+        ProvinceManager live = plugin.getProvinceManager();
+        ProvinceManager snapshot = null;
+        if (live != null) {
+            snapshot = live.createSnapshotShell();
+            snapshot.copyAllDataFrom(live);
+        }
+        ProvinceManager provinces = snapshot;
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             List<String> lore;
-            boolean wrote = false;
             try {
                 HubEstimates.InstallationPreview preview = HubEstimates.previewInstallation(
-                        plugin.getProvinceManager(), faction, province, kind);
-                wrote = preview != HubEstimates.InstallationPreview.NONE;
+                        provinces, faction, province, kind);
                 lore = InfrastructureMenuCopy.installationPreview(preview);
             } catch (RuntimeException ex) {
                 plugin.getLogger().log(
                         Level.WARNING,
                         "Installation preview failed for " + kind + " in province " + province,
                         ex);
-                wrote = true;
                 lore = List.of("§cIncome estimate unavailable");
             }
             if (!plugin.isEnabled()) {
                 return;
             }
             List<String> lines = lore;
-            boolean restore = wrote;
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (restore) {
-                    restoreTrade(plugin);
-                }
-                publish(player, token, lines);
-            });
+            Bukkit.getScheduler().runTask(plugin, () -> publish(player, token, lines));
         });
         return true;
     }
@@ -144,18 +142,6 @@ public final class InstallationBuildConfirm {
     public static void forget(Player player) {
         if (player != null) {
             PENDING.remove(player.getUniqueId());
-        }
-    }
-
-    private static void restoreTrade(SimpleFactions plugin) {
-        ProvinceManager live = plugin.getProvinceManager();
-        if (live == null) {
-            return;
-        }
-        try {
-            live.recalculate();
-        } catch (RuntimeException ex) {
-            plugin.getLogger().log(Level.WARNING, "Could not restore trade after an installation preview", ex);
         }
     }
 

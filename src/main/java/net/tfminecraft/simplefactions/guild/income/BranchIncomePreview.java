@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.guild.income;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 import net.tfminecraft.simplefactions.enums.GuildModifier;
@@ -78,13 +80,36 @@ public final class BranchIncomePreview {
                 && branch.getModifier(GuildModifier.INFRASTRUCTURE) != null;
     }
 
+    /** Guilds and factions as they were on the server thread. The preview does not read the live lists. */
+    public static List<Guild> guildsNow() {
+        List<Guild> guilds = new ArrayList<>();
+        for (Guild guild : FactionManager.getAllGuilds()) {
+            if (guild != null) {
+                guilds.add(guild);
+            }
+        }
+        return List.copyOf(guilds);
+    }
+
+    public static List<Faction> factionsNow() {
+        List<Faction> factions = new ArrayList<>();
+        for (Faction faction : FactionManager.getCopy()) {
+            if (faction != null) {
+                factions.add(faction);
+            }
+        }
+        return List.copyOf(factions);
+    }
+
     public static double estimateRealm(
             Prepared prepared,
             Guild realmGuild,
             Map<GuildModifier, Double> current,
-            Map<GuildModifier, Double> hypothetical) {
-        double before = realmIncome(prepared, realmGuild, current);
-        double after = realmIncome(prepared, realmGuild, hypothetical);
+            Map<GuildModifier, Double> hypothetical,
+            List<Guild> guilds,
+            List<Faction> factions) {
+        double before = realmIncome(prepared, realmGuild, current, guilds, factions);
+        double after = realmIncome(prepared, realmGuild, hypothetical, guilds, factions);
         double upkeepChange = Math.max(0.0, hypothetical.getOrDefault(GuildModifier.INFRASTRUCTURE_UPKEEP, 0.0))
                 - Math.max(0.0, current.getOrDefault(GuildModifier.INFRASTRUCTURE_UPKEEP, 0.0));
         return Math.round((after - before - upkeepChange) * 100.0) / 100.0;
@@ -131,14 +156,19 @@ public final class BranchIncomePreview {
     }
 
     private static double realmIncome(
-            Prepared prepared, Guild realmGuild, Map<GuildModifier, Double> amounts) {
+            Prepared prepared,
+            Guild realmGuild,
+            Map<GuildModifier, Double> amounts,
+            List<Guild> guilds,
+            List<Faction> factions) {
         ProvinceManager snapshot = copy(prepared.snapshot);
         GuildModifierOverride.use(realmGuild, amounts);
         try {
-            snapshot.recalculateQuiet();
+            snapshot.recalculateQuiet(guilds, factions);
             double sum = 0;
             Faction realm = realmGuild.getFaction();
-            for (Guild guild : FactionManager.getAllGuilds()) {
+            List<Guild> present = guilds == null ? List.of() : guilds;
+            for (Guild guild : present) {
                 if (guild == null || !sameRealm(realm, guild.getFaction())) {
                     continue;
                 }
@@ -146,6 +176,7 @@ public final class BranchIncomePreview {
             }
             return sum;
         } finally {
+            snapshot.clearPreviewLists();
             GuildModifierOverride.clear();
         }
     }

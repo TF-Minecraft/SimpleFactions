@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -15,6 +16,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.keys.Keys;
 
@@ -50,6 +52,9 @@ public final class BranchIncomePreviewService {
         Map<GuildModifier, Double> current = BranchIncomePreview.modifiers(guild);
         Map<GuildModifier, Double> hypothetical = BranchIncomePreview.adjust(current, branch, level, levelDelta);
         double taxFraction = BranchIncomePreview.taxFraction(guild);
+        boolean realmWide = BranchIncomePreview.showsRealm(guild, branch);
+        List<Guild> realmGuilds = realmWide ? BranchIncomePreview.guildsNow() : List.of();
+        List<Faction> realmFactions = realmWide ? BranchIncomePreview.factionsNow() : List.of();
         String guildId = guild.getId();
         String branchId = branch.getId();
         long token = TOKENS.incrementAndGet();
@@ -59,8 +64,9 @@ public final class BranchIncomePreviewService {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             double delta;
             try {
-                delta = BranchIncomePreview.showsRealm(guild, branch)
-                        ? BranchIncomePreview.estimateRealm(prepared, guild, current, hypothetical)
+                delta = realmWide
+                        ? BranchIncomePreview.estimateRealm(
+                                prepared, guild, current, hypothetical, realmGuilds, realmFactions)
                         : BranchIncomePreview.estimate(prepared, guild, current, hypothetical, taxFraction);
             } catch (RuntimeException ex) {
                 plugin.getLogger().log(
