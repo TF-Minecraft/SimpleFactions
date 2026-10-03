@@ -73,6 +73,13 @@ public class ConfigLoader {
 		Cache.mercenaryDefaultBreachRefund = config.getDouble("mercenary-default-breach-refund", 500.0);
 		net.tfminecraft.simplefactions.guild.hub.SupplyHubService.loadConfig(config);
 		net.tfminecraft.simplefactions.guild.hub.HubTransport.loadConfig(config);
+		Cache.infrastructureFull = config.getDouble("infrastructure.full", 20);
+		Cache.infrastructureTarget = config.getDouble("infrastructure.target", 0.75);
+		Cache.infrastructureWildernessSpread = config.getDouble("infrastructure.wilderness-spread", 0.25);
+		Cache.infrastructureSpreadFloor = config.getDouble("infrastructure.spread-floor", 0.5);
+		Cache.infrastructureStation = config.getDouble("infrastructure.station", 10);
+		Cache.infrastructurePort = config.getDouble("infrastructure.port", 10);
+		Cache.infrastructureAirport = config.getDouble("infrastructure.airport", 5);
 
 		Cache.settlementLargePopulationThreshold = config.getInt("settlement-large-population-threshold", 8);
 		Cache.portSeaProximityBlocks = config.getInt("port-sea-proximity-blocks", 20);

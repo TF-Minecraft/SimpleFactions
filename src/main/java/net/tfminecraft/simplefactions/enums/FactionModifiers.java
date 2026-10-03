@@ -14,6 +14,7 @@ public enum FactionModifiers {
     STABILITY_INFLUENCE(true, false),
     TRADE_POWER(true, true),
     PRODUCTION(true, true),
+    INFRASTRUCTURE_ACCESS(true, true),
     DIPLOMATIC_CAPACITY_MULTIPLIER(true, false),
     ADMIN_POWER_MULTIPLIER(true, false),
     ADMIN_POWER_GAIN_MULTIPLIER(true, false);
