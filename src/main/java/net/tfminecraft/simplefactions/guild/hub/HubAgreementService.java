@@ -133,6 +133,10 @@ public final class HubAgreementService {
         return findAgreement(guild, hostFactionId, installationId) != null;
     }
 
+    public static HubOffer offer(Guild guild, String hostFactionId, String installationId) {
+        return findOffer(guild, hostFactionId, installationId);
+    }
+
     public static HubAgreement findAgreement(Guild guild, String hostFactionId, String installationId) {
         if (guild == null || guild.getHubAgreements() == null) {
             return null;

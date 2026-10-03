@@ -131,6 +131,12 @@ public class FactionView {
 		i.setItem(13, creator.createMenuItem(player, f, MenuItemType.PRESTIGE));
 		i.setItem(14, creator.createMenuItem(player, f, MenuItemType.MEMBERS));
 		i.setItem(23, creator.createMenuItem(player, f, MenuItemType.GUILDS));
+		String hubOffers = net.tfminecraft.simplefactions.guild.hub.HubAgreementService.joinSummary(player.getName());
+		Faction viewerFaction = FactionManager.getByMember(player.getName());
+		if (hubOffers != null && viewerFaction != null && viewerFaction.getId() != null
+				&& viewerFaction.getId().equalsIgnoreCase(f.getId())) {
+			i.setItem(22, SupplyHubCreator.item(Material.WRITABLE_BOOK, "§eHub offers", List.of(hubOffers, "§eClick to answer")));
+		}
 		i.setItem(15, guildCreator.createLedgerItem(player, f.getOrCreateMainGuild()));
 		i.setItem(16, creator.createMenuItem(player, f, MenuItemType.MODIFIERS));
 		i.setItem(25, creator.createMenuItem(player, f, MenuItemType.TAX));
@@ -276,6 +282,11 @@ public class FactionView {
                 }
                 return;
             }
+			if (e.getSlot() == 22) {
+				HubProposalMenu.openOffers(p);
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				return;
+			}
 			if (e.getSlot() == 20) {
 				EspionageView.positions(p, viewed, inv);
 				return;

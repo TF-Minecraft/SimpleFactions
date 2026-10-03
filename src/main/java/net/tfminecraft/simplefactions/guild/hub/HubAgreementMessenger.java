@@ -18,6 +18,7 @@ final class HubAgreementMessenger {
             Player player = online(notice.playerName());
             if (player != null && notice.message() != null) {
                 player.sendMessage(notice.message());
+                net.tfminecraft.simplefactions.managers.inventory.HubProposalMenu.refresh(player);
             }
         }
     }
