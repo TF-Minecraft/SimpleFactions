@@ -19,6 +19,10 @@ class CharacterNameResolutionTest {
         assertTrue(CharacterNames.inviteCompletions(names, new String[]{"invite", "Lady", "Raven", ""}).isEmpty());
         assertTrue(CharacterNames.inviteCompletions(names, new String[]{"invite", "Account", "", ""}).isEmpty());
         assertEquals(java.util.List.of("Account"), CharacterNames.inviteCompletions(names, new String[]{"invite", "acc"}));
+        assertEquals(java.util.List.of("Lady Raven"), CharacterNames.inviteCompletions(
+                java.util.List.of("\u00a76Lady \u00a7eRaven"), new String[]{"invite", "La"}));
+        assertEquals(java.util.List.of("Raven"), CharacterNames.inviteCompletions(
+                java.util.List.of("\u00a76Lady \u00a7eRaven"), new String[]{"invite", "Lady", "R"}));
     }
     private Player player(String name) {
         var player = mock(Player.class);

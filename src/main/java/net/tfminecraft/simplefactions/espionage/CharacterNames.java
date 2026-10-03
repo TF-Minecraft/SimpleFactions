@@ -45,7 +45,7 @@ public final class CharacterNames {
         if (args.length < 2) return java.util.List.of();
         int skip = args.length - 2;
         String prefix = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
-        return names.stream().distinct()
+        return names.stream().filter(java.util.Objects::nonNull).map(org.bukkit.ChatColor::stripColor).distinct()
                 .filter(name -> name.regionMatches(true, 0, prefix, 0, prefix.length()))
                 .map(name -> name.split(" "))
                 .filter(words -> words.length > skip)
