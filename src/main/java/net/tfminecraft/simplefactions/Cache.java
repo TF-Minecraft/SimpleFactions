@@ -169,6 +169,7 @@ public class Cache {
 	public static double supplyHubMaxFee = 500.0;
 	public static int supplyHubOfferDays = 7;
 	public static int supplyHubAgreementDays = 14;
+	public static int supplyHubEstimateCandidates = 24;
 
 	public static double infrastructureFull = 20;
 	public static double infrastructureTarget = 0.75;

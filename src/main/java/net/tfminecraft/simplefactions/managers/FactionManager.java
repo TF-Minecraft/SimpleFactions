@@ -512,6 +512,8 @@ public class FactionManager implements Listener{
 			runDailyStep("hub agreements", () ->
 					net.tfminecraft.simplefactions.guild.hub.HubAgreementService.tick(
 							getAllGuilds(), System.currentTimeMillis()));
+			runDailyStep("hub estimates", () ->
+					net.tfminecraft.simplefactions.guild.hub.HubEstimates.scheduleDaily());
 			timer = 0;
 			day++;
 		}
