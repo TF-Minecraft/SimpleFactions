@@ -69,10 +69,12 @@ public final class EspionageView {
     private static ItemStack reportHeader(Player viewer, IntelligenceReport report) {
         var observer = FactionManager.getByMember(viewer.getName());
         var spy = observer == null ? null : observer.getEspionage().getSpymaster();
-        String last = spy == null || !EspionageService.eligible(observer, spy.playerName) ? "\u00a77Without a Spymaster, scattered whispers reach your court."
+        boolean missingSpymaster = !EspionageService.hasSpymaster(observer);
+        String last = missingSpymaster ? "\u00a77The Spymaster's office stands vacant; no findings reach your court."
                 : "\u00a77These are today\u2019s findings, delivered by your spymaster, " + CharacterNames.of(spy.playerName) + ".";
         return item(Material.SPYGLASS, "Foreign intelligence",
-                "\u00a77Report quality: \u00a7e" + (report == null ? net.tfminecraft.simplefactions.espionage.IntelligenceTier.UNKNOWN.label() : report.qualityLabel()),
+                "\u00a77Report quality: \u00a7e" + (missingSpymaster ? "Absent"
+                        : report == null ? net.tfminecraft.simplefactions.espionage.IntelligenceTier.UNKNOWN.label() : report.qualityLabel()),
                 report == null ? "\u00a77No dated account has yet reached your court." : "\u00a77Dated " + report.loreDate(), last);
     }
 
@@ -267,6 +269,8 @@ public final class EspionageView {
                 holder != null && faction.isLeader(holder.playerName) ? "§7Solo leader: " + Math.round(EspionageConfig.soloMultiplier() * 100)
                         + "% aptitude retained (base " + holder.aptitude + ")." : "§7Faction leaders are ineligible while other members belong.",
                 "§7Gathers foreign intelligence and guards your secrets.",
+                holder == null ? "\u00a7cWithout a Spymaster, all faction and guild information is public."
+                        : "\u00a77An eligible Spymaster protects your faction and guild information.",
                 holder != null && holder.isHolder(viewer.getUniqueId())
                         ? "§aClick your own head to inspect your private conduct." : "§8Private conduct is known only to the office holder.");
         if (holder != null) {
@@ -283,7 +287,8 @@ public final class EspionageView {
                     faction.getEspionage().appointmentCount(SpecialPosition.SPYMASTER) == 0
                             ? "\u00a77The founder's assignment does not use your free appointment."
                             : "\u00a77Unrest: -" + EspionageConfig.stabilityPenalty() + " points, fading over " + EspionageConfig.penaltyDays() + " days."));
-            inventory.setItem(15, item(Material.REDSTONE, "Remove Spymaster", "§7Leaves this office with 0 aptitude."));
+            inventory.setItem(15, item(Material.REDSTONE, "Remove Spymaster",
+                    "\u00a7cMakes all faction and guild information public."));
         }
         inventory.setItem(26, manager.createBackButton(SFGUI.SPYMASTER_VIEW));
         viewer.openInventory(inventory);

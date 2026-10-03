@@ -16,12 +16,22 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
 
 class EspionageBypassTest {
+    private void protect(Faction faction) {
+        var state = new EspionageState();
+        var holder = new SpecialPositionAssignment();
+        holder.playerName = "Spy";
+        state.appoint(holder, 50);
+        when(faction.getEspionage()).thenReturn(state);
+        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+    }
+
     @Test
     void configuredPermissionChangesOnReloadAndOwnViewsRemainExact() {
         Player viewer = mock(Player.class);
         when(viewer.getName()).thenReturn("Viewer");
         when(viewer.hasPermission(EspionageService.BYPASS_PERMISSION)).thenReturn(true);
         Faction own = mock(Faction.class), foreign = mock(Faction.class);
+        protect(foreign);
         when(own.isMemberIgnoreCase("Viewer")).thenReturn(true);
         var config = new org.bukkit.configuration.file.YamlConfiguration();
         try {
@@ -75,6 +85,7 @@ class EspionageBypassTest {
         when(staff.getName()).thenReturn("Staff");
         when(staff.hasPermission(EspionageService.BYPASS_PERMISSION)).thenReturn(true);
         Faction faction = mock(Faction.class);
+        protect(faction);
         try (var factions = mockStatic(FactionManager.class)) {
             factions.when(() -> FactionManager.getByString("target")).thenReturn(faction);
             assertTrue(EspionageService.canViewExact(staff, faction));

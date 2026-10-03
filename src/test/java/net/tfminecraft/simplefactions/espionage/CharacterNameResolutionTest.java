@@ -13,6 +13,7 @@ class CharacterNameResolutionTest {
         var account = "NoActiveCharacterAccount";
         var viewer = player("ForeignViewer");
         var faction = mock(net.tfminecraft.simplefactions.objects.Faction.class);
+        EspionageTestFixtures.protect(faction);
         var plugins = mock(org.bukkit.plugin.PluginManager.class);
         var roleplay = mock(org.bukkit.plugin.Plugin.class);
         var offline = mock(org.bukkit.OfflinePlayer.class);
