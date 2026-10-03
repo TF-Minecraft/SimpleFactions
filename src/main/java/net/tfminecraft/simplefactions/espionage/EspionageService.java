@@ -48,6 +48,10 @@ public final class EspionageService {
 
     /** Only new factions pass through addFaction; loading saves never reassigns offices. */
     public static void initializeFounder(Faction faction) {
+        initializeFounder(faction, null);
+    }
+
+    private static void initializeFounder(Faction faction, java.util.Set<Faction> dirty) {
         if (faction.getEspionage() == null || org.bukkit.Bukkit.getServer() == null) return;
         var founder = org.bukkit.Bukkit.getPlayerExact(faction.getLeader());
         String characterId = OfficeCharacters.activeCharacterId(founder);
@@ -68,7 +72,9 @@ public final class EspionageService {
             } catch (java.io.IOException exception) {
                 net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                         "Could not save founder aptitude", exception);
+                String previousCharacterId = faction.getEspionage().pendingFounderCharacter(office);
                 faction.getEspionage().pendingFounder(office, characterId);
+                if (!characterId.equals(previousCharacterId)) saveOrMark(faction, dirty);
                 if (founder != null) founder.sendMessage("\u00a7cYour founding office could not be initialized. It will be retried when the office is checked.");
                 continue;
             }
@@ -139,7 +145,7 @@ public final class EspionageService {
 
     private static SpecialPositionAssignment spymaster(Faction faction, java.util.Set<Faction> dirty) {
         if (faction.getEspionage().hasPendingFounder()) {
-            initializeFounder(faction);
+            initializeFounder(faction, dirty);
             if (!faction.getEspionage().hasPendingFounder()) saveOrMark(faction, dirty);
         }
         SpecialPositionAssignment holder = faction.getEspionage().getSpymaster();

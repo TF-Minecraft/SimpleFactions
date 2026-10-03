@@ -304,3 +304,5 @@ character deaths do not remove the office. Removal is confirmed after the death
 event commits, and loaded dead-character assignments are rejected when checked.
 Pending founder appointments retain their character identity when an aptitude
 save fails; an unrelated character death cannot cancel that pending appointment.
+Changed pending identities are saved immediately during office lookups, or once
+with the faction's report batch, so they survive an unexpected process exit.

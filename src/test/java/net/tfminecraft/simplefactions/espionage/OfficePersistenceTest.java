@@ -97,7 +97,8 @@ class OfficePersistenceTest {
         when(player.getActiveCharacter()).thenReturn(character);
         when(character.getId()).thenReturn("founder-character");
         var registry = mock(CharacterAptitudes.class);
-        when(registry.aptitude(eq("founder-character"), any())).thenThrow(new java.io.IOException("Test save failure")).thenReturn(84);
+        when(registry.aptitude(eq("founder-character"), any())).thenThrow(new java.io.IOException("Test save failure"))
+                .thenThrow(new java.io.IOException("Test retry failure")).thenReturn(84);
         var field = EspionageService.class.getDeclaredField("characterAptitudes");
         field.setAccessible(true);
         var previous = field.get(null);
@@ -122,17 +123,23 @@ class OfficePersistenceTest {
             var restored = JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(state), EspionageState.class);
             assertTrue(restored.hasPendingFounder());
             assertEquals("founder-character", restored.pendingFounderCharacter(SpecialPosition.SPYMASTER));
+            assertEquals(1, databases.constructed().size());
+            verify(databases.constructed().getFirst()).saveFaction(faction);
             bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Founder")).thenReturn(null);
             EspionageService.initializeFounder(faction);
             assertNull(state.getSpymaster(), "Offline retry must not finalize a zero-aptitude office");
             assertTrue(state.hasPendingFounder());
+            assertEquals(1, databases.constructed().size(), "An unchanged pending identity does not need another save");
             bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Founder")).thenReturn(founder);
+            assertNull(EspionageService.spymaster(faction));
+            assertEquals(1, databases.constructed().size(), "Retrying the same character does not rewrite the pending identity");
             assertEquals(84, EspionageService.spymaster(faction).aptitude);
             assertEquals("founder-character", state.getSpymaster().characterId);
             assertFalse(state.hasPendingFounder());
             assertNull(state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
             assertTrue(state.getSpymaster().automatic);
             assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
+            assertEquals(2, databases.constructed().size(), "The completed appointment is saved after its pending identity");
         } finally {
             field.set(null, previous);
             net.tfminecraft.simplefactions.SimpleFactions.plugin = previousPlugin;
