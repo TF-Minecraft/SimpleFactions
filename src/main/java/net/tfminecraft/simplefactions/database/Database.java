@@ -184,6 +184,7 @@ public class Database {
                 }
                 f.setFoundedAt(data.foundedAt != null ? data.foundedAt : System.currentTimeMillis()/1000L);
                 f.setCapitalMoves(data.capitalMoves != null ? data.capitalMoves : 0);
+                f.setEspionage(data.espionage);
 
                 if (data.settlements != null) {
                     f.getSettlementHandler().load(data.settlements);
@@ -389,6 +390,7 @@ public class Database {
             data.rank = f.getRank() != null ? f.getRank().getId() : null;
             data.foundedAt = f.getFoundedAt();
             data.capitalMoves = f.getCapitalMoves();
+            data.espionage = f.getEspionage();
 
             // --- Guild ---
             for (Guild g : f.getGuildHandler().getGuilds()) {

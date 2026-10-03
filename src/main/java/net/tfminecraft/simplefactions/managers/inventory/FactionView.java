@@ -1,11 +1,13 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
 import org.bukkit.NamespacedKey;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryAction;
@@ -73,11 +75,9 @@ public class FactionView {
 	public void populateFactionList(Inventory inv, Player player) {
 		currentRanking.putIfAbsent(player, RankType.PRESTIGE);
 		currentPage.putIfAbsent(player, 0);
-		RankType rankType = currentRanking.get(player);
 		int page = currentPage.get(player);
 
-		List<Faction> factions = r.getRankedList(rankType);
-		Collections.reverse(factions);
+		List<Faction> factions = r.getVisibleRankedList(player, currentRanking.get(player));
 
 		List<Integer> usableSlots = new ArrayList<>();
 		for (int i = 0; i < INVENTORY_SIZE; i++) {
@@ -97,7 +97,7 @@ public class FactionView {
 			inv.setItem(slot, creator.createListItem(player, f));
 		}
 
-		inv.setItem(8, DefaultCreator.createRankButton(rankType));
+		inv.setItem(8, DefaultCreator.createRankButton(currentRanking.get(player)));
 
 		if (page > 0) {
 			inv.setItem(PREV_PAGE_SLOT, DefaultCreator.createPreviousPageButton());
@@ -116,7 +116,13 @@ public class FactionView {
 	public void factionView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.FACTION_VIEW), 54, "§7Faction View");
+		if (!EspionageService.canViewExact(player, f)) {
+			EspionageView.foreign(i, player, f, inv);
+			if (open) player.openInventory(i);
+			return;
+		}
 		i.clear();
+		i.setItem(20, EspionageService.isOwn(player, f) ? EspionageView.positionButton() : EspionageView.foreignPositionsItem(player, f));
 		if(f.getMembers().contains(player.getName())) i.setItem(1, creator.createMenuItem(player, f, MenuItemType.BANNER_GET));
 		i.setItem(10, creator.createMenuItem(player, f, MenuItemType.BANNER));
 		if(f.getLeader().equalsIgnoreCase(player.getName())) i.setItem(19, creator.createMenuItem(player, f, MenuItemType.BANNER_RANDOM));
@@ -153,7 +159,7 @@ public class FactionView {
 					INVENTORY_SIZE,
 					"§7Faction Guilds");
 		}
-		populateFactionGuilds(i, f, page);
+		populateFactionGuilds(i, player, f, page);
 		if (open) {
 			player.openInventory(i);
 		}
@@ -166,11 +172,11 @@ public class FactionView {
 				new SFInventoryHolder(f.getId(), SFGUI.FACTION_GUILDS, page),
 				INVENTORY_SIZE,
 				"§7Faction Guilds");
-		populateFactionGuilds(i, f, page);
+		populateFactionGuilds(i, player, f, page);
 		player.openInventory(i);
 	}
 
-	public void populateFactionGuilds(Inventory inv, Faction f, int page) {
+	public void populateFactionGuilds(Inventory inv, Player player, Faction f, int page) {
 		List<Guild> guilds = new ArrayList<>(f.getGuildHandler().getGuilds());
 		List<Integer> usableSlots = new ArrayList<>();
 		for (int i = 0; i < INVENTORY_SIZE; i++) {
@@ -183,7 +189,7 @@ public class FactionView {
 		int start = page * perPage;
 		int end = Math.min(start + perPage, guilds.size());
 		for (int i = start; i < end; i++) {
-			inv.setItem(usableSlots.get(i - start), guildCreator.createListItem(null, guilds.get(i)));
+			inv.setItem(usableSlots.get(i - start), guildCreator.createListItem(player, guilds.get(i)));
 		}
 		if (page > 0) {
 			inv.setItem(PREV_PAGE_SLOT, DefaultCreator.createPreviousPageButton());
@@ -234,21 +240,12 @@ public class FactionView {
 				return;
 			}
 			if(e.getSlot() == 8) {
-				RankType t = currentRanking.get(p);
-				switch (t) {
-					case PRESTIGE:
-						currentRanking.put(p, RankType.WEALTH);
-						break;
-					case WEALTH:
-						currentRanking.put(p, RankType.MEMBERS);
-						break;
-					default:
-						currentRanking.put(p, RankType.PRESTIGE);
-						break;
-				}
+				RankType ranking = currentRanking.getOrDefault(p, RankType.PRESTIGE);
+				currentRanking.put(p, ranking == RankType.PRESTIGE ? RankType.WEALTH
+						: ranking == RankType.WEALTH ? RankType.MEMBERS : RankType.PRESTIGE);
 				currentPage.put(p, 0);
-				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				factionList(p);
+				return;
 			} else{
 				ItemStack i = e.getCurrentItem();
 				if(i == null) return;
@@ -264,6 +261,15 @@ public class FactionView {
 			}
 		} else if(e.getView().getTitle().equalsIgnoreCase("§7Faction View")) {
 			e.setCancelled(true);
+			if (!(inventory.getHolder() instanceof SFInventoryHolder holder)) return;
+			Faction viewed = FactionManager.getByString(holder.getId());
+			if (viewed == null) return;
+			if (!EspionageService.canViewExact(p, viewed)
+					&& e.getSlot() != 23 && e.getSlot() != 31 && e.getSlot() != 53 && e.getSlot() != 15 && e.getSlot() != 20) return;
+			if (e.getSlot() == 20) {
+				EspionageView.positions(p, viewed, inv);
+				return;
+			}
 			if(e.getSlot() == 28) {
 				ItemStack item = e.getCurrentItem();
 				ItemMeta m = item.getItemMeta();

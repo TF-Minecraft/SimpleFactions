@@ -1,0 +1,88 @@
+# Special offices and their intelligence network. Reload settings with /faction reloadconfigs.
+# For testing: /faction reloadespionage reloads this file, rerolls daily checks and regenerates reports.
+# Character aptitude rolls, appointment history and unrest are never reset by that command.
+espionage:
+  # Assign these nodes through LuckPerms; bypass only grants viewing access.
+  bypass-permission: simplefactions.espionage.bypass
+  reload-permission: simplefactions.espionage.reload
+  appointments:
+    # First deliberate appointment is free. The automatic founding appointment does not count.
+    repeat-cost: 250.0
+    stability-penalty: 10.0
+    penalty-days: 7.0
+  # Each character rolls once for life. Attribute/formula changes affect only new characters.
+  aptitude:
+    base: 50.0
+    attribute-center: 6
+    attribute-cap: 16
+    random-spread: 20
+    # A leader can only hold this office in a one-person faction; they retain 25% aptitude.
+    solo-leader-multiplier: 0.25
+    attribute-weights:
+      intelligence: 3.0
+      wisdom: 2.5
+      charisma: 1.5
+      dexterity: 1.0
+      constitution: -2.0
+      strength: -2.0
+  checks:
+    # Daily roll = aptitude * multiplier + averaged luck - private sabotage reduction.
+    # Averaging three uniform draws makes extreme luck (and major upsets) rare but possible.
+    aptitude-multiplier: 1.25
+    luck-spread: 75
+    luck-draws: 3
+  intelligence:
+    # Margin = observing faction's offense minus target's defense. Nonpositive margins are Unknown.
+    tiers:
+      rumours:
+        minimum-margin: 1
+        uncertainty: 1.5
+        roster-fraction: 0.2
+        maximum-bounded-fraction: 0.75
+        maximum-relative-width: 4.0
+      broad:
+        minimum-margin: 30
+        uncertainty: 0.75
+        roster-fraction: 0.4
+        maximum-bounded-fraction: 0.65
+        maximum-relative-width: 3.0
+      reliable:
+        minimum-margin: 65
+        uncertainty: 0.2
+        roster-fraction: 0.6
+        maximum-bounded-fraction: 0.5
+        maximum-relative-width: 2.0
+      detailed:
+        minimum-margin: 100
+        uncertainty: 0.1
+        roster-fraction: 0.8
+        maximum-bounded-fraction: 0.5
+        maximum-relative-width: 2.0
+    maximum-roster-size: 23
+    # Fields stay Unknown below their minimum tier, even if an old report contains an estimate.
+    # Valid values: rumours, broad, reliable, detailed. Unknown disables disclosure entirely.
+    # These rules apply to both faction and guild metrics; flavours, leaders, guilds and prestige stay public.
+    minimum-tiers:
+      members: rumours
+      roster: rumours
+      wealth: rumours
+      prosperity: broad
+      stability: broad
+      administrative-power: reliable
+      professional-army: reliable
+      levies: broad
+      mercenaries: reliable
+      installations: broad
+      net-income: broad
+      trade-power: broad
+      income-total: broad
+      expense-total: broad
+      cashflow: reliable
+      dividend-rate: reliable
+      dividend-pool: reliable
+      dividend-tax: reliable
+      dividend-per-member: reliable
+      office-holder: reliable
+      office-aptitude: detailed
+      # Optional per-category overrides, e.g. TRADE: broad. All other categories use cashflow above.
+      cashflows: {}

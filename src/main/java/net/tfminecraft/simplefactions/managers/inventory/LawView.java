@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.List;
 
 import org.bukkit.Sound;
@@ -36,6 +37,7 @@ public class LawView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void lawView(Player player, Faction f, Inventory i) {
+		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_VIEW), 54, "§7Laws");
 		i.clear();
@@ -50,6 +52,7 @@ public class LawView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void lawSelect(Player player, Faction f, LawGroup group, Inventory i) {
+		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_SELECT, group.getId()), 27, "§7Law View");
 		i.clear();

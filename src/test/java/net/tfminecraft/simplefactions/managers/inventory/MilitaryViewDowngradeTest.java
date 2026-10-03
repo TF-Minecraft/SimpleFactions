@@ -170,6 +170,7 @@ class MilitaryViewDowngradeTest {
 	private static Faction faction(String leader) {
 		Faction faction = mock(Faction.class);
 		when(faction.getLeader()).thenReturn(leader);
+		when(faction.isLeader(leader)).thenReturn(true);
 		when(faction.getMilitary()).thenReturn(mock(Military.class));
 		return faction;
 	}

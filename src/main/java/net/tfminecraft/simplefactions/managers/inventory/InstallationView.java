@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -41,6 +42,7 @@ public class InstallationView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void installationsView(Inventory inventory, Player player, Faction f, boolean open) {
+		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
         if (open) {
             inventory =
                     SimpleFactions.plugin
@@ -90,6 +92,7 @@ public class InstallationView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void installationDetailView(Player player, Faction f, String installationId, Inventory inventory) {
+		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
         InstallationHandler handler = f.getInstallationHandler();
         InstallationConstruction pending = handler.getPendingConstruction();
         boolean isPending = isPendingConstruction(pending, installationId);

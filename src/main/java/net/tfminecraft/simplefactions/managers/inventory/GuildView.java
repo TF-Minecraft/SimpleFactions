@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -90,11 +91,9 @@ public class GuildView {
 	public void populateGuildList(Inventory inv, Player p) {
 		currentRanking.putIfAbsent(p, RankType.WEALTH);
 		currentPage.putIfAbsent(p, 0);
-		RankType rank = currentRanking.get(p);
 		int page = currentPage.get(p);
 
-		List<Guild> guilds = new FactionRanker().getRankedGuildList(rank);
-		Collections.reverse(guilds);
+		List<Guild> guilds = new FactionRanker().getVisibleRankedGuildList(p, currentRanking.get(p));
 
 		List<Integer> usableSlots = new ArrayList<>();
 		for (int i = 0; i < INVENTORY_SIZE; i++) {
@@ -113,7 +112,7 @@ public class GuildView {
 			inv.setItem(usableSlots.get(i - start), creator.createListItem(p, g));
 		}
 
-		inv.setItem(8, DefaultCreator.createRankButton(rank));
+		inv.setItem(8, DefaultCreator.createRankButton(currentRanking.get(p)));
 		if (page > 0) inv.setItem(PREV_PAGE_SLOT, DefaultCreator.createPreviousPageButton());
 		if (end < guilds.size()) inv.setItem(NEXT_PAGE_SLOT, DefaultCreator.createNextPageButton());
 	}
@@ -121,6 +120,7 @@ public class GuildView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void ledgerView(Player player, Guild guild, Inventory i) {
+		if (!EspionageService.canViewExact(player, guild.getFaction())) { EspionageView.foreignLedger(player, guild, inv); return; }
 		boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW), 27, "§7Ledger for "+guild.getName());
 		i.clear();
@@ -155,6 +155,10 @@ public class GuildView {
 	}
 
     public void guildView(Player player, Guild guild, Inventory i) {
+		if (!EspionageService.canViewExact(player, guild.getFaction())) {
+            EspionageView.guild(i, player, guild, inv);
+            return;
+        }
 		if(manager == null) setProvinceManager(SimpleFactions.getInstance().getProvinceManager());
 		if(guild.hasCapital()) {
 			if(guild.getTradeBreakdown().getIncome() == 0) manager.recalculate();
@@ -223,6 +227,7 @@ public class GuildView {
 	}
 
 	public void upgradeView(Player player, Guild guild, Inventory i) {
+		if (!EspionageService.canViewExact(player, guild.getFaction())) { inv.factionView(player, guild.getFaction()); return; }
 		i.clear();
 		List<Upgrade> upgrades = guild.getUpgrades();
 		
@@ -320,6 +325,9 @@ public class GuildView {
 			if (guild == null) {
 				return;
 			}
+			if (!EspionageService.canViewExact(p, guild.getFaction())
+					&& e.getSlot() != HOST_FACTION_SLOT && e.getSlot() != 53 && e.getSlot() != 14) return;
+			if (e.getSlot() == 14) { ledgerView(p, guild, null); return; }
 			if (e.getSlot() == HOST_FACTION_SLOT) {
 				Faction faction = guild.getFaction();
 				if (faction != null) {

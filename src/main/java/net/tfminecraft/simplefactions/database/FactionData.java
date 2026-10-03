@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.database;
 
+import net.tfminecraft.simplefactions.espionage.EspionageState;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +9,7 @@ import java.util.HashMap;
 import com.google.gson.annotations.SerializedName;
 
 public class FactionData {
+    public EspionageState espionage;
     public String id;
     public String name;
     public String rgb;

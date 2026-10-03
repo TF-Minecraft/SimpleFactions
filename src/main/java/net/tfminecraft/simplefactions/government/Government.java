@@ -229,7 +229,12 @@ public class Government {
     }
 
     public List<StabilityModifier> getStabilityModifiers() {
-        return stabilityModifiers;
+        if (f == null || f.getEspionage() == null) return stabilityModifiers;
+        var active = f.getEspionage().unrestModifiers(System.currentTimeMillis());
+        if (active.isEmpty()) return stabilityModifiers;
+        List<StabilityModifier> result = new ArrayList<>(stabilityModifiers);
+        result.addAll(active);
+        return result;
     }
 
     // Government

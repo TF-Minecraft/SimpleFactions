@@ -701,6 +701,7 @@ public class FactionManager implements Listener{
 		factions = l;
 	}
 	public static void addFaction(Faction f) {
+		net.tfminecraft.simplefactions.espionage.EspionageService.initializeFounder(f);
 		factions.add(f);
 		if (f.getProvinces() == null || f.getProvinces().isEmpty()) {
 			return;

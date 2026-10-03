@@ -7,6 +7,15 @@ author: Drefvelin
 depend: [DenarEconomy, TLibs]
 softdepend: [MMOItems, MythicLib, MMOCore, TFMCWeb, VehicleFramework, VFBuilders, ConditionalEvents, RPCharacters, ItemsAdder]
 
+permissions:
+  simplefactions.espionage.bypass:
+    description: View exact faction and guild information through the original menus and rankings.
+    default: false
+
+  simplefactions.espionage.reload:
+    description: Reload office settings and regenerate all daily intelligence reports for testing.
+    default: false
+
 commands:
   faction:
       useage: /<command>

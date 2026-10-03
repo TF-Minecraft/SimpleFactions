@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 import net.tfminecraft.simplefactions.utils.BankAmount;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceMessages;
@@ -62,12 +63,24 @@ public class CommandManager implements Listener, CommandExecutor{
 	
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+		return net.tfminecraft.simplefactions.espionage.CommandIntelligence.execute(
+				sender instanceof Player player ? player : null,
+				() -> dispatchCommand(sender, cmd, label, args));
+	}
+
+	private boolean dispatchCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("reloadespionage"))
+            return EspionageCommands.reload(sender, args);
 		// Title editing is staff-only and also works from the console.
 		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase(TitleAdminCommand.SUBCOMMAND)) {
 			return TitleAdminCommand.handle(sender, args);
 		}
 		if(sender instanceof Player) {
 			Player p = (Player) sender;
+			if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1
+					&& EspionageCommands.matches(args[0])) {
+				return EspionageCommands.handle(p, args);
+			}
 			if((cmd.getName().equalsIgnoreCase(cmd1) || cmd.getName().equalsIgnoreCase(cmd2)) && args.length < 1) {
 				p.sendMessage("§a[SimpleFactions]§c Error with command format, use the gameplay guide for a list of commands");
 				return true;
@@ -165,7 +178,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("hub")) {
 				return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.guild(p, args);
-			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("invite") && args.length == 2) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("invite") && args.length >= 2) {
 				Guild guild = FactionManager.getGuildByLeader(p.getName());
 				if(guild == null) {
 					p.sendMessage("§cYou are not the leader of a guild");
@@ -179,14 +192,11 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cThis is the base guild, use /faction invite instead");
 					return true;
 				}
-				String invitee = args[1];
-				if(invitee.equalsIgnoreCase(p.getName())) {
+				String invitee = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+				Player invited = net.tfminecraft.simplefactions.espionage.CharacterNames.resolveOnline(p, invitee);
+				if(invited == null) return true;
+				if(invited.getUniqueId().equals(p.getUniqueId())) {
 					p.sendMessage("§cCannot invite yourself");
-					return true;
-				}
-				Player invited = Bukkit.getPlayer(invitee);
-				if(invited == null) {
-					p.sendMessage("§cCould not find the player "+invitee);
 					return true;
 				}
 				String name = invited.getName();
@@ -919,7 +929,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 				}
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("invite") && args.length == 2) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("invite") && args.length >= 2) {
 				Faction f = FactionManager.getByMember(p.getName());
 				if(f == null) {
 					p.sendMessage("§cYou need to have a faction to invite someone");
@@ -929,9 +939,9 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cOnly the leader can invite new members!");
 					return true;
 				}
-				Player invited = Bukkit.getPlayer(args[1]);
+				Player invited = net.tfminecraft.simplefactions.espionage.CharacterNames.resolveOnline(p,
+						String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
 				if(invited == null) {
-					p.sendMessage("§cNo player found by that IGN");
 					return true;
 				}
 				String name = invited.getName();

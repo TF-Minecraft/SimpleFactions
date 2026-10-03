@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.List;
 
 import org.bukkit.Sound;
@@ -54,10 +55,11 @@ public class GovernmentView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void governmentView(Player player, Faction f, Inventory i) {
+		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
         boolean open = i == null;
 		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.GOVERNMENT_VIEW), 54, "§7Government View");
 		i.clear();
-		i.setItem(10, creator.createGovernmentItem(f));
+		i.setItem(10, creator.createGovernmentItem(player, f));
 		i.setItem(11, creator.createStabilityItem(f));
 		i.setItem(12, creator.createLegitimacyItem(f));
 		i.setItem(13, creator.createCouncilItem(f));

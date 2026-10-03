@@ -276,6 +276,14 @@ public class SimpleFactions extends JavaPlugin{
 		}
 		net.tfminecraft.simplefactions.inactivity.InactivityService.load();
 		db.loadFactions();
+		try {
+			net.tfminecraft.simplefactions.espionage.EspionageService.loadAptitudes(
+					getDataFolder().toPath().resolve("Cache/character-aptitudes.json"));
+		} catch (Exception error) {
+			getLogger().log(java.util.logging.Level.SEVERE, "Cannot load permanent character aptitudes; disabling SimpleFactions", error);
+			getServer().getPluginManager().disablePlugin(this);
+			return;
+		}
 		getCommand(commands.cmd1).setExecutor(commands);
 		getCommand(commands.cmd2).setExecutor(commands);
 		getCommand(commands.cmd1).setTabCompleter(new TabCompletion());
@@ -379,6 +387,7 @@ public class SimpleFactions extends JavaPlugin{
 		}
 	}
 	public void loadConfigs() {
+		net.tfminecraft.simplefactions.espionage.SpecialPositionsConfigFile.load(this);
 		configLoader.loadConfig(new File(getDataFolder(), "config.yml"));
 		configLoader.loadWar(new File(getDataFolder(), "war.yml"));
 		VehiclesConfigLoader.load(new File(getDataFolder(), "vehicles.yml"));

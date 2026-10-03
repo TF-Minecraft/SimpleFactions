@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.utils;
 
+import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 
 import net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions;
 import java.util.ArrayList;
@@ -163,6 +164,15 @@ public class TabCompletion implements TabCompleter{
 
     @Override
     public List<String> onTabComplete (CommandSender sender, Command cmd, String label, String[] args){
+        if (cmd.getName().equalsIgnoreCase("faction") && args.length == 1
+                && sender.hasPermission(net.tfminecraft.simplefactions.espionage.EspionageConfig.reloadPermission())
+                && "reloadespionage".regionMatches(true, 0, args[0], 0, args[0].length()) && !args[0].isEmpty())
+            return List.of("reloadespionage");
+		if (cmd.getName().equalsIgnoreCase("faction") && args.length >= 2
+				&& EspionageCommands.matches(args[0])) {
+			return sender instanceof Player player
+					? EspionageCommands.complete(player, args) : List.of();
+		}
 		if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase(TitleAdminCommand.SUBCOMMAND)) {
 			if(!Permissions.isAdmin(sender) || !Cache.provincesEnabled) {
 				return new ArrayList<>();
@@ -316,6 +326,8 @@ public class TabCompletion implements TabCompleter{
 				List<String> completions = new ArrayList<>();
 				completions.add("list");
 				if(FactionManager.getByMember(p.getName()) != null) completions.add("menu");
+				if(FactionManager.getByMember(p.getName()) != null) completions.addAll(List.of("positions", "spymaster", "espionage"));
+                if (p.hasPermission(net.tfminecraft.simplefactions.espionage.EspionageConfig.reloadPermission())) completions.add("reloadespionage");
 				completions.add("create");
 				completions.add("accept");
 				completions.add("decline");
@@ -439,13 +451,17 @@ public class TabCompletion implements TabCompleter{
 				}
 				return completions;
 			}
-		} else if(eitherCommand(cmd) && args.length == 2 && args[0].equalsIgnoreCase("invite")){
+		} else if(eitherCommand(cmd) && args.length >= 2 && args[0].equalsIgnoreCase("invite")){
 			if(sender instanceof Player){
 				List<String> completions = new ArrayList<String>();
 				for(Player p : Bukkit.getOnlinePlayers()) {
 					completions.add(p.getName());
+					completions.add(net.tfminecraft.simplefactions.espionage.CharacterNames.of(p.getName()));
 				}
-				return completions;
+				String prefix = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+				return completions.stream().distinct().filter(name -> name.regionMatches(true, 0, prefix, 0, prefix.length()))
+						.map(name -> String.join(" ", java.util.Arrays.copyOfRange(name.split(" "), args.length - 2, name.split(" ").length)))
+						.toList();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("kick")){
 			if(sender instanceof Player){

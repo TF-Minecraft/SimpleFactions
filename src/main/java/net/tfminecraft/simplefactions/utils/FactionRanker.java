@@ -10,6 +10,62 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.enums.RankType;
 
 public class FactionRanker {
+    public Double visibleGuildValue(org.bukkit.entity.Player viewer, Guild guild, RankType type) {
+        String metric = type == RankType.MEMBERS ? "Members" : type == RankType.INCOME ? "Income"
+                : type == RankType.TRADE_POWER ? "Trade power" : "Wealth";
+        return net.tfminecraft.simplefactions.espionage.EspionageService.visibleValue(viewer, guild.getFaction(),
+                "Guild:" + guild.getId() + ":" + metric,
+                () -> type == RankType.MEMBERS ? guild.getMembers().size() : type == RankType.INCOME ? guild.getLedger().getNetIncome()
+                        : type == RankType.TRADE_POWER ? guild.getTradeBreakdown().getTradePower() : guild.getWealth());
+    }
+
+    public List<Guild> getVisibleRankedGuildList(org.bukkit.entity.Player viewer, RankType type) {
+        List<Guild> guilds = new java.util.ArrayList<>(FactionManager.getAllGuilds());
+        java.util.Map<Guild, Double> values = new java.util.HashMap<>();
+        for (Guild guild : guilds) values.put(guild, visibleGuildValue(viewer, guild, type));
+        guilds.sort((first, second) -> {
+            Double a = values.get(first), b = values.get(second);
+            if (a == null && b != null) return 1;
+            if (a != null && b == null) return -1;
+            int comparison = a == null ? 0 : Double.compare(b, a);
+            return comparison != 0 ? comparison : first.getId().compareToIgnoreCase(second.getId());
+        });
+        return guilds;
+    }
+
+    public Integer getVisibleGuildRank(org.bukkit.entity.Player viewer, Guild target, RankType type) {
+        if (visibleGuildValue(viewer, target, type) == null) return null;
+        var ranked = getVisibleRankedGuildList(viewer, type);
+        for (int index = 0; index < ranked.size(); index++) if (ranked.get(index).getId().equals(target.getId())) return index + 1;
+        return null;
+    }
+    public Double visibleValue(org.bukkit.entity.Player viewer, Faction faction, RankType type) {
+        String metric = type == RankType.PRESTIGE ? "Prestige" : type == RankType.MEMBERS ? "Members" : "Wealth";
+        return net.tfminecraft.simplefactions.espionage.EspionageService.visibleValue(viewer, faction, metric,
+                () -> type == RankType.PRESTIGE ? faction.getPrestige()
+                        : type == RankType.MEMBERS ? faction.getMembers().size() : faction.getWealth());
+    }
+
+    public List<Faction> getVisibleRankedList(org.bukkit.entity.Player viewer, RankType type) {
+        List<Faction> factions = FactionManager.getCopy();
+        java.util.Map<Faction, Double> values = new java.util.HashMap<>();
+        for (Faction faction : factions) values.put(faction, visibleValue(viewer, faction, type));
+        factions.sort((first, second) -> {
+            Double a = values.get(first), b = values.get(second);
+            if (a == null && b != null) return 1;
+            if (a != null && b == null) return -1;
+            int comparison = a == null ? 0 : Double.compare(b, a);
+            return comparison != 0 ? comparison : first.getId().compareToIgnoreCase(second.getId());
+        });
+        return factions;
+    }
+
+    public Integer getVisibleRank(org.bukkit.entity.Player viewer, Faction target, RankType type) {
+        if (visibleValue(viewer, target, type) == null) return null;
+        List<Faction> ranked = getVisibleRankedList(viewer, type);
+        for (int index = 0; index < ranked.size(); index++) if (ranked.get(index).getId().equals(target.getId())) return index + 1;
+        return null;
+    }
 	public Integer getPrestigeRank(Faction f) {
 		List<Faction> factions = getRankedList(RankType.PRESTIGE);
 		Collections.reverse(factions);
