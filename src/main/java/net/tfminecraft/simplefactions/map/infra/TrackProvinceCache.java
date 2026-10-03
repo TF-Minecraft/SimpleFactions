@@ -10,6 +10,7 @@ public final class TrackProvinceCache {
 
     private volatile Set<Integer> provinces = Set.of();
     private boolean warned;
+    private boolean vehicleFrameworkUnavailableLogged;
 
     public static TrackProvinceCache live() {
         return LIVE;
@@ -17,6 +18,13 @@ public final class TrackProvinceCache {
 
     public Set<Integer> provinces() {
         return provinces;
+    }
+
+    public void vehicleFrameworkUnavailable(Consumer<String> info) {
+        if (!vehicleFrameworkUnavailableLogged) {
+            vehicleFrameworkUnavailableLogged = true;
+            info.accept("VehicleFramework is not enabled; railway track gives no infrastructure.");
+        }
     }
 
     public boolean refresh(Supplier<Set<Integer>> sampler, Runnable recalculate, Consumer<String> warning) {

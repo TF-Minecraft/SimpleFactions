@@ -38,4 +38,26 @@ class TrackProvinceCacheTest {
         assertEquals(1, warnings.get());
         assertEquals(2, recalculations.get());
     }
+
+    @Test
+    void vehicleFrameworkAbsentLogsOnlyOnce() {
+        TrackProvinceCache cache = new TrackProvinceCache();
+        AtomicInteger infoMessages = new AtomicInteger();
+        AtomicInteger recalculations = new AtomicInteger();
+
+        assertFalse(cache.refresh(() -> {
+            cache.vehicleFrameworkUnavailable(message -> {
+                assertEquals("VehicleFramework is not enabled; railway track gives no infrastructure.", message);
+                infoMessages.incrementAndGet();
+            });
+            return Set.of();
+        }, recalculations::incrementAndGet, message -> {}));
+        assertFalse(cache.refresh(() -> {
+            cache.vehicleFrameworkUnavailable(message -> infoMessages.incrementAndGet());
+            return Set.of();
+        }, recalculations::incrementAndGet, message -> {}));
+
+        assertEquals(1, infoMessages.get());
+        assertEquals(0, recalculations.get());
+    }
 }

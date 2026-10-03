@@ -532,7 +532,12 @@ public class SimpleFactions extends JavaPlugin{
 
 	private boolean refreshTrackProvinces(Runnable recalculate) {
 		return TrackProvinceCache.live().refresh(() -> {
-			if (provinceGrid == null || !getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
+			if (provinceGrid == null) {
+				return java.util.Set.of();
+			}
+			if (!getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
+				TrackProvinceCache.live().vehicleFrameworkUnavailable(
+						message -> getLogger().info("[SimpleFactions] " + message));
 				return java.util.Set.of();
 			}
 			java.util.Map<Integer, net.tfminecraft.simplefactions.map.provinces.Province> provinces =
