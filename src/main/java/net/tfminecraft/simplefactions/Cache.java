@@ -167,6 +167,14 @@ public class Cache {
 
 	public static double supplyHubMaxTax = 50.0;
 
+	public static double infrastructureFull = 20;
+	public static double infrastructureTarget = 0.75;
+	public static double infrastructureWildernessSpread = 0.25;
+	public static double infrastructureSpreadFloor = 0.5;
+	public static double infrastructureStation = 10;
+	public static double infrastructurePort = 10;
+	public static double infrastructureAirport = 5;
+
 	public static Map<Scope, LawEffect> baseEffects = new HashMap<>();
 
 	public static Map<Terrain, Double> tradeCarry = new HashMap<>();

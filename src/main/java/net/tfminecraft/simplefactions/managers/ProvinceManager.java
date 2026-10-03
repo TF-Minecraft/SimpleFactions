@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.managers;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
@@ -18,6 +19,9 @@ import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
+import net.tfminecraft.simplefactions.map.infra.InfrastructureAccess;
+import net.tfminecraft.simplefactions.map.infra.InfrastructureSources;
+import net.tfminecraft.simplefactions.map.infra.InfrastructureSpread;
 import net.tfminecraft.simplefactions.objects.Bracket;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.Cache;
@@ -107,6 +111,7 @@ public class ProvinceManager {
             return;
         }
         HubNetwork.refreshIfLive(this);
+        recalculateInfrastructure();
         dropMissingGuilds();
         for(Guild g : FactionManager.getAllGuilds()) {
             if (!g.hasCapital()) continue;
@@ -124,6 +129,7 @@ public class ProvinceManager {
         if (!Cache.provincesEnabled) {
             return;
         }
+        recalculateInfrastructure();
         if (!g.hasCapital()) return;
         HubNetwork.refreshIfLive(this);
         dropMissingGuilds();
@@ -135,6 +141,24 @@ public class ProvinceManager {
             }
         }
         recalculateProsperity();
+    }
+
+    private void recalculateInfrastructure() {
+        Map<Integer, InfrastructureSpread.Node> graph = new HashMap<>();
+        for (Province province : provinces.values()) {
+            Faction realm = InfrastructureAccess.topRealm(province.getOwner());
+            String origin = realm == null ? null : realm.getId().toLowerCase(Locale.ROOT);
+            graph.put(province.getId(), new InfrastructureSpread.Node(
+                    province.getTradeCarry(), !province.isSea(), origin, province.getNeighbours()));
+        }
+        Map<Integer, Double> sources = InfrastructureSources.collect(
+                provinces, FactionManager.getAllGuilds(), FactionManager.getCopy());
+        Map<Integer, InfrastructureSpread.Arrival> infrastructure = InfrastructureSpread.spread(
+                graph, sources, Cache.infrastructureWildernessSpread, Cache.infrastructureSpreadFloor);
+        for (Province province : provinces.values()) {
+            InfrastructureSpread.Arrival arrival = infrastructure.get(province.getId());
+            province.setInfrastructure(arrival == null ? 0 : arrival.amount());
+        }
     }
 
     private void recalculateProsperity() {
@@ -326,6 +350,7 @@ public class ProvinceManager {
             }
 
             dst.setProsperity(src.getProsperity());
+            dst.setInfrastructure(src.getInfrastructure());
         }
     }
 

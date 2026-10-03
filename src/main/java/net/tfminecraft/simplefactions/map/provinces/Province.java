@@ -17,6 +17,8 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
+import net.tfminecraft.simplefactions.map.infra.EffectiveTerrain;
+import net.tfminecraft.simplefactions.map.infra.InfrastructureAccess;
 import net.tfminecraft.simplefactions.utils.ModifierMerger;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
@@ -32,6 +34,7 @@ public class Province {
     private int centerX;
     private int centerZ;
     private double prosperity = 0;
+    private double infrastructure = 0;
     private final Set<Integer> neighbours = new HashSet<>();
 
     public Province() {
@@ -88,7 +91,7 @@ public class Province {
         double amount;
         double carry = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_CARRY);
         double effectiveDistance = distance / Math.pow(carry, 1.1);
-        double factor = Math.pow(getTradeCarry(), effectiveDistance);
+        double factor = Math.pow(getTradeCarry(guild), effectiveDistance);
         if (prev == -1) {
             // Capital province
             amount = net.tfminecraft.simplefactions.government.stability.StabilityDebuffs.realmSeed(
@@ -130,7 +133,7 @@ public class Province {
             int distance
     ) {
         double amount;
-        double terrainFactor = Math.pow(getTradeCarry(), 0.5);
+        double terrainFactor = Math.pow(getTradeCarry(guild), 0.5);
         double factor = terrainFactor*getTradeFactor(guild);
 
         if (prev == null) {
@@ -167,7 +170,7 @@ public class Province {
     public double getTradeFactor(Guild guild) {
         double trade = getGuildTrade(guild);
         if(trade == 0) return 0.05;
-        double K = 2.5 / Math.pow(getTradeCarry(), 0.5);
+        double K = 2.5 / Math.pow(getTradeCarry(guild), 0.5);
         return (trade / (trade + K));
     }
 
@@ -320,7 +323,7 @@ public class Province {
             ProvinceDataEntry prev,
             int distance
     ) {
-        double factor = Math.pow(getTradeCarry(), 0.5) * getTradeFactor(guild);
+        double factor = Math.pow(getTradeCarry(guild), 0.5) * getTradeFactor(guild);
         double amount = prev.getProduction() * factor;
         if (amount < 0.1) return;
 
@@ -346,6 +349,16 @@ public class Province {
     public double getTradeCarry() {
         return Cache.tradeCarry.getOrDefault(terrain, 0.5);
     }
+
+    public double getTradeCarry(Guild guild) {
+        double terrain = getTradeCarry();
+        if (guild == null || isSea() || infrastructure <= 0 || terrain >= Cache.infrastructureTarget) return terrain;
+        return EffectiveTerrain.calculate(terrain, infrastructure, Cache.infrastructureFull,
+                Cache.infrastructureTarget, InfrastructureAccess.forGuild(guild.getFaction(), getOwner()));
+    }
+
+    public double getInfrastructure() { return infrastructure; }
+    public void setInfrastructure(double amount) { infrastructure = amount; }
     public Set<Integer> getNeighbours() {
         return Collections.unmodifiableSet(neighbours);
     }
