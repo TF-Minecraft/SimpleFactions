@@ -2,7 +2,6 @@ package net.tfminecraft.simplefactions.espionage;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
 import org.bukkit.Bukkit;
 import net.tfminecraft.rpcharacters.managers.PlayerManager;
@@ -12,7 +11,7 @@ import com.google.gson.JsonObject;
 /** Offline names are read without loading or modifying RPCharacters player state. */
 public final class CharacterNames {
     private record Cached(String name, long expires) {}
-    private static final Map<String, Cached> cache = new HashMap<>();
+    private static final Map<String, Cached> cache = new java.util.concurrent.ConcurrentHashMap<>();
     private CharacterNames() {}
 
     public static String display(org.bukkit.entity.Player viewer, String account) {
@@ -40,6 +39,19 @@ public final class CharacterNames {
     }
 
     record Resolution(org.bukkit.entity.Player player, boolean ambiguous) {}
+
+    /** Bukkit replaces only the current argument, so return the untyped suffix of a full name. */
+    public static java.util.List<String> inviteCompletions(java.util.Collection<String> names, String[] args) {
+        if (args.length < 2) return java.util.List.of();
+        int skip = args.length - 2;
+        String prefix = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+        return names.stream().distinct()
+                .filter(name -> name.regionMatches(true, 0, prefix, 0, prefix.length()))
+                .map(name -> name.split(" "))
+                .filter(words -> words.length > skip)
+                .map(words -> String.join(" ", java.util.Arrays.copyOfRange(words, skip, words.length)))
+                .toList();
+    }
 
     public static String of(String playerName) {
         if (playerName == null) return "Unknown";

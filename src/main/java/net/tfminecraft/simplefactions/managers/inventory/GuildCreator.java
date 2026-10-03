@@ -220,9 +220,8 @@ public class GuildCreator {
 			for(Guild g : top) {
 				if (r.visibleGuildValue(p, g, RankType.INCOME) == null) continue;
 				x++;
-				var report = EspionageService.report(p, g.getFaction());
 				String income = EspionageService.canViewExact(p, g.getFaction()) ? String.valueOf(g.getLedger().getNetIncome())
-						: report.display("Guild:" + g.getId() + ":Income");
+						: guildIntelligence(EspionageService.report(p, g.getFaction()), g, "Income", "");
 				lore.add(StringFormatter.formatHex("§f - §e"+x+". "+g.getName()+" §7["+g.getSize()+"§7]#d4c9ae: #7fbd73"+income+"d/day"));
 				if(x > 4) break;
 			}

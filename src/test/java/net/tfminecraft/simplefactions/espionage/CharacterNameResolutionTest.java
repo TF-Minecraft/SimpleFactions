@@ -7,6 +7,19 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 class CharacterNameResolutionTest {
+    @org.junit.jupiter.api.Test
+    void invitationCompletionReturnsOnlyCurrentTokenAndGuardsPastEndOfName() {
+        var names = java.util.List.of("Lady Raven", "Lady Rose", "Lady", "Account", "Lady Raven");
+        assertEquals(java.util.List.of("Lady Raven", "Lady Rose", "Lady"),
+                CharacterNames.inviteCompletions(names, new String[]{"invite", "La"}));
+        assertEquals(java.util.List.of("Raven", "Rose"),
+                CharacterNames.inviteCompletions(names, new String[]{"invite", "Lady", "R"}));
+        assertEquals(java.util.List.of("Raven", "Rose"),
+                CharacterNames.inviteCompletions(names, new String[]{"invite", "lady", ""}));
+        assertTrue(CharacterNames.inviteCompletions(names, new String[]{"invite", "Lady", "Raven", ""}).isEmpty());
+        assertTrue(CharacterNames.inviteCompletions(names, new String[]{"invite", "Account", "", ""}).isEmpty());
+        assertEquals(java.util.List.of("Account"), CharacterNames.inviteCompletions(names, new String[]{"invite", "acc"}));
+    }
     private Player player(String name) {
         var player = mock(Player.class);
         when(player.getName()).thenReturn(name);

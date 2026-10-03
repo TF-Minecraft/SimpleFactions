@@ -26,7 +26,9 @@ public final class SpecialPositionsConfigFile {
             if (!existed && legacy.exists()) {
                 // Preserve comments and unrelated settings. Never rewrite the entire main YAML.
                 String before = Files.readString(legacy.toPath());
-                String after = before.replaceFirst("(?m)^espionage:[^\\r\\n]*(?:\\r?\\n(?:[ \\t]+[^\\r\\n]*|#[^\\r\\n]*|))*", "");
+                // Keep comments for the next root key; interior comments have another indented line after them.
+                String after = before.replaceFirst("(?m)^espionage:[^\\r\\n]*(?:(?:\\r?\\n(?:[ \\t]*|[ \\t]*#[^\\r\\n]*))*"
+                        + "\\r?\\n[ \\t]+[^\\r\\n]*)*(?:\\r?\\n[ \\t]*(?=\\r?\\n|$))*(?:\\r?\\n)?", "");
                 if (!before.equals(after)) {
                     Files.copy(legacy.toPath(), new File(plugin.getDataFolder(), "config.yml.before-special-positions").toPath(),
                             StandardCopyOption.REPLACE_EXISTING);

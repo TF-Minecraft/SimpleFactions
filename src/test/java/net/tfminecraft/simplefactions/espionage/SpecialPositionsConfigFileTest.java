@@ -12,7 +12,7 @@ class SpecialPositionsConfigFileTest {
 
     @Test void completeMigrationRemovesOnlyTheLegacySectionAndBacksUpTheOriginal() throws Exception {
         var legacy = directory.resolve("config.yml");
-        String original = "# Keep this comment\nunrelated: value\nespionage:\n  aptitude:\n    attribute-weights:\n      strength: -4.0\n\nafter: preserved\n";
+        String original = "# Keep this comment\nunrelated: value\nespionage:\n  aptitude:\n# An interior office comment\n    attribute-weights:\n      strength: -4.0\n\n# Keep the next key's comment\nafter: preserved\n";
         Files.writeString(legacy, original);
         var plugin = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.SimpleFactions.class);
         org.mockito.Mockito.when(plugin.getDataFolder()).thenReturn(directory.toFile());
@@ -21,7 +21,7 @@ class SpecialPositionsConfigFileTest {
         org.mockito.Mockito.when(plugin.getLogger()).thenReturn(java.util.logging.Logger.getAnonymousLogger());
         try {
             SpecialPositionsConfigFile.load(plugin);
-            assertEquals("# Keep this comment\nunrelated: value\nafter: preserved\n", Files.readString(legacy));
+            assertEquals("# Keep this comment\nunrelated: value\n# Keep the next key's comment\nafter: preserved\n", Files.readString(legacy));
             assertEquals(original, Files.readString(directory.resolve("config.yml.before-special-positions")));
             assertEquals(-4, EspionageConfig.weights().get("strength"));
             SpecialPositionsConfigFile.load(plugin);

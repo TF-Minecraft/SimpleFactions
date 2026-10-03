@@ -458,10 +458,7 @@ public class TabCompletion implements TabCompleter{
 					completions.add(p.getName());
 					completions.add(net.tfminecraft.simplefactions.espionage.CharacterNames.of(p.getName()));
 				}
-				String prefix = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
-				return completions.stream().distinct().filter(name -> name.regionMatches(true, 0, prefix, 0, prefix.length()))
-						.map(name -> String.join(" ", java.util.Arrays.copyOfRange(name.split(" "), args.length - 2, name.split(" ").length)))
-						.toList();
+				return net.tfminecraft.simplefactions.espionage.CharacterNames.inviteCompletions(completions, args);
 			}
 		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("kick")){
 			if(sender instanceof Player){
