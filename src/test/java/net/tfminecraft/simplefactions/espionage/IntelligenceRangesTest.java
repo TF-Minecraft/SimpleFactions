@@ -92,7 +92,7 @@ class IntelligenceRangesTest {
         var report = new IntelligenceReport();
         report.quality = "Detailed estimates";
         report.quality = "Hidden";
-        assertEquals("Unknown", report.qualityLabel());
+        assertEquals("Botched report", report.qualityLabel());
         assertEquals("Hidden", report.quality);
         assertEquals("Unknown", report.display("Wealth"));
         report.estimates = null;

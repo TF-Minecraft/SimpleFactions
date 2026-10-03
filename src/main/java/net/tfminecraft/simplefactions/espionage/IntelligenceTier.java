@@ -4,7 +4,7 @@ import java.util.Locale;
 
 /** Stable identifiers for saved reports and configurable disclosure rules. */
 public enum IntelligenceTier {
-    UNKNOWN("Unknown"), RUMOURS("Rumours"), BROAD("Broad estimates"),
+    UNKNOWN("Botched report"), RUMOURS("Rumours"), BROAD("Broad estimates"),
     RELIABLE("Reliable estimates"), DETAILED("Detailed estimates");
 
     private final String label;

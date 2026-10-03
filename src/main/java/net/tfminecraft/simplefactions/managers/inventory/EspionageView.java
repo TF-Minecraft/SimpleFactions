@@ -72,7 +72,7 @@ public final class EspionageView {
         String last = spy == null || !EspionageService.eligible(observer, spy.playerName) ? "\u00a77Without a Spymaster, scattered whispers reach your court."
                 : "\u00a77These are today\u2019s findings, delivered by your spymaster, " + CharacterNames.of(spy.playerName) + ".";
         return item(Material.SPYGLASS, "Foreign intelligence",
-                "\u00a77Report quality: \u00a7e" + (report == null ? "Unknown" : report.qualityLabel()),
+                "\u00a77Report quality: \u00a7e" + (report == null ? net.tfminecraft.simplefactions.espionage.IntelligenceTier.UNKNOWN.label() : report.qualityLabel()),
                 report == null ? "\u00a77No dated account has yet reached your court." : "\u00a77Dated " + report.loreDate(), last);
     }
 
@@ -120,7 +120,7 @@ public final class EspionageView {
 
     public static void foreignLedger(Player viewer, Guild guild, InventoryManager manager) {
         Inventory inventory = Bukkit.createInventory(new SFInventoryHolder(guild.getId(), SFGUI.FOREIGN_LEDGER_VIEW),
-                27, "\u00a77Ledger for " + guild.getName());
+                27, MenuTitles.legacy("Ledger for " + guild.getName()));
         var report = EspionageService.report(viewer, guild.getFaction());
         if (guild.isBase()) {
             Material[] icons = {Material.PLAYER_HEAD, Material.BARREL, Material.IRON_INGOT, Material.GOLD_INGOT,

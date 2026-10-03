@@ -274,3 +274,6 @@ Unknown details. Foreign views cannot submit proposals, train troops, upgrade
 buildings, cancel queues or modify another faction. Periodic refreshes never
 replace a masked snapshot with an exact submenu. Ledger detail windows retain
 the original 27-slot layout; cashflow estimates remain in the Ledger tooltip.
+
+Generated daily reports always start at Rumours. A missing or invalid report
+uses the zero-information category **Botched report**, with private fields Unknown.

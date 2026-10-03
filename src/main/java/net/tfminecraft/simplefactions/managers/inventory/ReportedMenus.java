@@ -171,7 +171,7 @@ public final class ReportedMenus {
     }
 
     public static Inventory open(Player viewer, String id, SFGUI type, int size, String title) {
-        return SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(id, type), size, "\u00a77" + title);
+        return SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(id, type), size, MenuTitles.legacy(title));
     }
 
     public static void taxes(Inventory inventory, Player viewer, Faction faction, InventoryManager manager) {

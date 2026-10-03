@@ -122,7 +122,7 @@ public class GuildView {
 	public void ledgerView(Player player, Guild guild, Inventory i) {
 		if (!EspionageService.canViewExact(player, guild.getFaction())) { EspionageView.foreignLedger(player, guild, inv); return; }
 		boolean open = i == null;
-		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW), 27, "§7Ledger for "+guild.getName());
+		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW), 27, MenuTitles.legacy("Ledger for "+guild.getName()));
 		i.clear();
 		if(guild.isBase()) {
 			i.setItem(10, creator.createLedgerCitizensItem(guild));

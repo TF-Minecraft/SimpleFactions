@@ -50,7 +50,7 @@ public class LoanView {
         if(open) i = SimpleFactions.plugin.getServer().createInventory(
             new SFInventoryHolder(guild.getId(), SFGUI.LOAN_MAIN_VIEW),
             9,
-            "§7Loans - " + guild.getName()
+            MenuTitles.legacy("Loans - " + guild.getName())
         );
         i.clear();
         i.setItem(2, creator.createLoansGivenButton(guild));

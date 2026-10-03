@@ -16,6 +16,13 @@ import net.tfminecraft.simplefactions.objects.Faction;
 class ReportPresentationTest {
     @AfterEach void defaults() { EspionageConfig.load(new YamlConfiguration()); }
 
+    @Test void missingReportsAreBotchedAndColouredNamesProduceCleanWindowTitles() {
+        assertEquals("Botched report", new IntelligenceReport().qualityLabel());
+        assertFalse(new IntelligenceReport().allows("members"));
+        assertEquals("\u00a77Ledger for Holy Order", net.tfminecraft.simplefactions.managers.inventory.MenuTitles.legacy("Ledger for \u00a7x\u00a71\u00a72\u00a73\u00a74\u00a75\u00a76Holy Order"));
+        assertEquals("\u00a77Loans - Holy Order", net.tfminecraft.simplefactions.managers.inventory.MenuTitles.legacy("Loans - \u00a76Holy Order\u00a7"));
+    }
+
     @Test void installationAndUpgradeRangesRespectTheirConfiguredMaximums() {
         var report = EspionageService.createReport(Map.of(), 100, new Random(1));
         for (String metric : List.of("Installation:fort:Level", "Guild:g:Upgrade:workshop")) {
