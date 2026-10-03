@@ -98,15 +98,21 @@ public final class HubProposalMenu {
     }
 
     public static void openOffers(Player player) {
-        openOfferList(player, null, null);
+        openOfferList(player, null, null, 0);
     }
 
     public static void openOffersAt(Player player, String hostFactionId, String installationId) {
-        openOfferList(player, hostFactionId, installationId);
+        openOfferList(player, hostFactionId, installationId, 0);
     }
 
     public static void openNegotiation(
             Player player, Guild guild, String hostFactionId, String installationId, int rate, long feeCents) {
+        openNegotiation(player, guild, hostFactionId, installationId, rate, feeCents, rate, feeCents);
+    }
+
+    private static void openNegotiation(
+            Player player, Guild guild, String hostFactionId, String installationId,
+            int rate, long feeCents, int baseRate, long baseFeeCents) {
         if (player == null || guild == null || hostFactionId == null || installationId == null) {
             return;
         }
@@ -120,18 +126,23 @@ public final class HubProposalMenu {
         int max = range.maxPercent();
         int shownRate = HubProposalCopy.clampRate(rate, min, max);
         long shownFee = HubProposalCopy.clampFeeCents(feeCents, Cache.supplyHubMaxFee);
+        int shownBaseRate = HubProposalCopy.clampRate(baseRate, min, max);
+        long shownBaseFee = HubProposalCopy.clampFeeCents(baseFeeCents, Cache.supplyHubMaxFee);
         Destination destination = findDestination(guild, hostFactionId, installationId);
         Terms terms = destination == null ? null : HubEstimates.applyTerms(destination, shownRate, shownFee);
         HubOffer offer = HubAgreementService.offer(guild, hostFactionId, installationId);
         HubAgreement agreement = HubAgreementService.findAgreement(guild, hostFactionId, installationId);
         boolean leader = isLeader(guild, player);
         boolean council = isCouncil(host, player);
-        boolean yourTurn = offer != null && ((offer.awaiting() == OfferSide.GUILD && leader)
+        boolean sentThese = offer != null && offer.lastActor() != null
+                && offer.lastActor().equalsIgnoreCase(player.getName());
+        boolean yourTurn = offer != null && !sentThese && ((offer.awaiting() == OfferSide.GUILD && leader)
                 || (offer.awaiting() == OfferSide.HOST && council));
 
         Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
                 new SFInventoryHolder(guild.getId(), SFGUI.HUB_NEGOTIATION,
-                        hostFactionId + SEP + installationId + SEP + shownRate + SEP + shownFee),
+                        hostFactionId + SEP + installationId + SEP + shownRate + SEP + shownFee
+                                + SEP + shownBaseRate + SEP + shownBaseFee),
                 54, "§7Hub Agreement");
         String site = destination == null ? installationId : destination.label();
         inventory.setItem(4, SupplyHubCreator.item(Material.PAPER, "§eYour side",
@@ -142,6 +153,11 @@ public final class HubProposalMenu {
         termsLore.add("§7Daily fee: §e" + Formatter.formatMoney(shownFee / 100.0));
         termsLore.add("§7Term: §e" + Math.max(1, Cache.supplyHubAgreementDays) + " days");
         termsLore.add(HubProposalCopy.breakEvenLine(destination, shownFee, min, max));
+        if (offer != null && (offer.taxRatePercent() != shownRate || offer.feeCents() != shownFee)) {
+            termsLore.add("§7Offered now: §e" + offer.taxRatePercent() + "%§7 and §e"
+                    + Formatter.formatMoney(offer.feeCents() / 100.0));
+            termsLore.add("§7Your unsent terms stay on the buttons");
+        }
         if (offer != null) {
             termsLore.add(yourTurn ? "§eWaiting on you" : "§7Waiting on the other side");
         } else if (agreement != null) {
@@ -155,6 +171,9 @@ public final class HubProposalMenu {
         inventory.setItem(29, action(Material.RED_DYE, "§cRate -1", "rate:-1"));
         inventory.setItem(31, action(Material.LIME_DYE, "§aRate +1", "rate:1"));
         inventory.setItem(32, action(Material.LIME_DYE, "§aRate +5", "rate:5"));
+        if (offer != null && (offer.taxRatePercent() != shownRate || offer.feeCents() != shownFee)) {
+            inventory.setItem(30, action(Material.GOLD_NUGGET, "§eUse offered terms", "adopt"));
+        }
         inventory.setItem(37, action(Material.RED_DYE, "§cFee -10", "fee:-1000"));
         inventory.setItem(38, action(Material.RED_DYE, "§cFee -1", "fee:-100"));
         inventory.setItem(40, action(Material.LIME_DYE, "§aFee +1", "fee:100"));
@@ -208,17 +227,8 @@ public final class HubProposalMenu {
                     openProposals(player, guild, holder.getPage());
                 }
             } else if (holder.getType() == SFGUI.HUB_OFFER_LIST) {
-                String filter = holder.getSecondaryId();
-                if (filter == null) {
-                    openOffers(player);
-                } else {
-                    String[] parts = filter.split(SEP, -1);
-                    if (parts.length >= 2) {
-                        openOffersAt(player, parts[0], parts[1]);
-                    } else {
-                        openOffers(player);
-                    }
-                }
+                String[] filter = offerFilter(holder.getSecondaryId());
+                openOfferList(player, filter[0], filter[1], holder.getPage());
             } else if (holder.getType() == SFGUI.HUB_NEGOTIATION) {
                 Guild guild = FactionManager.getGuildByString(holder.getId());
                 Draft draft = Draft.parse(holder.getSecondaryId());
@@ -226,9 +236,9 @@ public final class HubProposalMenu {
                     return;
                 }
                 HubOffer offer = HubAgreementService.offer(guild, draft.hostId, draft.installationId);
-                int rate = offer == null ? draft.rate : offer.taxRatePercent();
-                long fee = offer == null ? draft.feeCents : offer.feeCents();
-                openNegotiation(player, guild, draft.hostId, draft.installationId, rate, fee);
+                Draft next = refreshed(draft, offer);
+                openNegotiation(player, guild, next.hostId, next.installationId,
+                        next.rate, next.feeCents, next.baseRate, next.baseFeeCents);
             }
         } catch (Throwable ignored) {
             // Menus are not open during a test, and a missing server must not drop the notice.
@@ -303,13 +313,23 @@ public final class HubProposalMenu {
         int max = range.maxPercent();
         if (action.startsWith("rate:")) {
             int next = HubProposalCopy.clampRate(draft.rate + parseInt(action.substring(5)), min, max);
-            openNegotiation(player, guild, draft.hostId, draft.installationId, next, draft.feeCents);
+            openNegotiation(player, guild, draft.hostId, draft.installationId,
+                    next, draft.feeCents, draft.baseRate, draft.baseFeeCents);
             return;
         }
         if (action.startsWith("fee:")) {
             long next = HubProposalCopy.clampFeeCents(
                     draft.feeCents + parseInt(action.substring(4)), Cache.supplyHubMaxFee);
-            openNegotiation(player, guild, draft.hostId, draft.installationId, draft.rate, next);
+            openNegotiation(player, guild, draft.hostId, draft.installationId,
+                    draft.rate, next, draft.baseRate, draft.baseFeeCents);
+            return;
+        }
+        if (action.equals("adopt")) {
+            HubOffer offer = HubAgreementService.offer(guild, draft.hostId, draft.installationId);
+            if (offer != null) {
+                openNegotiation(player, guild, draft.hostId, draft.installationId,
+                        offer.taxRatePercent(), offer.feeCents());
+            }
             return;
         }
         if (action.equals("offer")) {
@@ -337,12 +357,22 @@ public final class HubProposalMenu {
             if (result.message() != null) {
                 player.sendMessage(result.message());
             }
-            openNegotiation(player, guild, draft.hostId, draft.installationId, draft.rate, draft.feeCents);
+            openNegotiation(player, guild, draft.hostId, draft.installationId,
+                    draft.rate, draft.feeCents, draft.baseRate, draft.baseFeeCents);
         }
     }
 
     private static void clickOffers(
             InventoryClickEvent event, SFInventoryHolder holder, Player player, InventoryManager menus) {
+        String[] filter = offerFilter(holder.getSecondaryId());
+        if (event.getSlot() == 48) {
+            openOfferList(player, filter[0], filter[1], holder.getPage() - 1);
+            return;
+        }
+        if (event.getSlot() == 50) {
+            openOfferList(player, filter[0], filter[1], holder.getPage() + 1);
+            return;
+        }
         if (event.getSlot() == 53) {
             Faction faction = FactionManager.getByMember(player.getName());
             if (faction != null) {
@@ -418,7 +448,7 @@ public final class HubProposalMenu {
         }
     }
 
-    private static void openOfferList(Player player, String hostFactionId, String installationId) {
+    private static void openOfferList(Player player, String hostFactionId, String installationId, int page) {
         if (player == null) {
             return;
         }
@@ -437,16 +467,19 @@ public final class HubProposalMenu {
             }
             matters.add(matter);
         }
+        int pages = Math.max(1, (matters.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int shown = Math.max(0, Math.min(page, pages - 1));
         String filter = hostFactionId == null ? null : hostFactionId + SEP + installationId;
         Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
-                new SFInventoryHolder(player.getName(), SFGUI.HUB_OFFER_LIST, filter),
+                new SFInventoryHolder(player.getName(), SFGUI.HUB_OFFER_LIST, shown, false, filter),
                 54, "§7Hub Offers");
         if (matters.isEmpty()) {
             inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7Nothing is waiting", List.of(
                     "§7Offers and agreements that are about to end show up here.")));
         }
-        for (int index = 0; index < matters.size() && index < PAGE_SIZE; index++) {
-            PendingMatter matter = matters.get(index);
+        List<PendingMatter> visible = page(matters, shown, PAGE_SIZE);
+        for (int index = 0; index < visible.size(); index++) {
+            PendingMatter matter = visible.get(index);
             ItemStack item = SupplyHubCreator.item(Material.WRITABLE_BOOK, "§eHub offer", List.of(
                     matter.message() == null ? "§7An offer is waiting" : matter.message(),
                     "§eClick to open"));
@@ -456,8 +489,25 @@ public final class HubProposalMenu {
             item.setItemMeta(meta);
             inventory.setItem(index, item);
         }
+        if (shown > 0) {
+            inventory.setItem(48, SupplyHubCreator.item(Material.ARROW, "§ePrevious page", List.of()));
+        }
+        if (shown + 1 < pages) {
+            inventory.setItem(50, SupplyHubCreator.item(Material.ARROW, "§eNext page", List.of()));
+        }
         inventory.setItem(53, backButton(SFGUI.HUB_OFFER_LIST));
         player.openInventory(inventory);
+    }
+
+    private static String[] offerFilter(String secondaryId) {
+        if (secondaryId == null) {
+            return new String[] {null, null};
+        }
+        String[] parts = secondaryId.split(SEP, -1);
+        if (parts.length < 2) {
+            return new String[] {null, null};
+        }
+        return new String[] {parts[0], parts[1]};
     }
 
     private static Destination findDestination(Guild guild, String hostId, String installationId) {
@@ -541,7 +591,8 @@ public final class HubProposalMenu {
         return government != null && government.isCouncilMember(player);
     }
 
-    private record Draft(String hostId, String installationId, int rate, long feeCents) {
+    /** The buttons show {@code rate} and {@code feeCents}. {@code baseRate} is the offer they were editing from. */
+    record Draft(String hostId, String installationId, int rate, long feeCents, int baseRate, long baseFeeCents) {
         static Draft parse(String raw) {
             if (raw == null) {
                 return null;
@@ -551,10 +602,38 @@ public final class HubProposalMenu {
                 return null;
             }
             try {
-                return new Draft(parts[0], parts[1], Integer.parseInt(parts[2]), Long.parseLong(parts[3]));
+                int rate = Integer.parseInt(parts[2]);
+                long fee = Long.parseLong(parts[3]);
+                int baseRate = parts.length >= 6 ? Integer.parseInt(parts[4]) : rate;
+                long baseFee = parts.length >= 6 ? Long.parseLong(parts[5]) : fee;
+                return new Draft(parts[0], parts[1], rate, fee, baseRate, baseFee);
             } catch (NumberFormatException ex) {
                 return null;
             }
         }
+    }
+
+    /** Keeps an unsent rate or fee. A screen that still matches the last offer follows the new terms. */
+    static Draft refreshed(Draft draft, HubOffer offer) {
+        if (draft == null || offer == null) {
+            return draft;
+        }
+        boolean unsent = draft.rate != draft.baseRate || draft.feeCents != draft.baseFeeCents;
+        if (!unsent) {
+            return new Draft(draft.hostId, draft.installationId,
+                    offer.taxRatePercent(), offer.feeCents(), offer.taxRatePercent(), offer.feeCents());
+        }
+        return new Draft(draft.hostId, draft.installationId,
+                draft.rate, draft.feeCents, offer.taxRatePercent(), offer.feeCents());
+    }
+
+    static <T> List<T> page(List<T> items, int page, int pageSize) {
+        if (items == null || items.isEmpty() || pageSize < 1) {
+            return List.of();
+        }
+        int pages = Math.max(1, (items.size() + pageSize - 1) / pageSize);
+        int shown = Math.max(0, Math.min(page, pages - 1));
+        int start = shown * pageSize;
+        return items.subList(start, Math.min(items.size(), start + pageSize));
     }
 }

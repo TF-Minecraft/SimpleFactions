@@ -255,6 +255,9 @@ public final class HubAgreementService {
         if (offer == null) {
             return missingOrLapsed(guild, hostFactionId, installationId, facts, nowMillis);
         }
+        if (offer.lastActor() != null && offer.lastActor().equalsIgnoreCase(actorName)) {
+            return AgreementResult.fail("§cYou can only accept terms the other side sent");
+        }
         if (!actsFor(offer.awaiting(), guild, actorName, hostFactionId, facts)) {
             OfferSide sender = offer.awaiting() == OfferSide.HOST ? OfferSide.GUILD : OfferSide.HOST;
             if (actsFor(sender, guild, actorName, hostFactionId, facts)) {

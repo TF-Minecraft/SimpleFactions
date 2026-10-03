@@ -113,6 +113,23 @@ class HubAgreementServiceTest {
     }
 
     @Test
+    void leaderOnTheHostCouncilCannotAcceptTheirOwnOffer() {
+        Facts facts = new Facts();
+        facts.councils.put("host", List.of("Leader", "Council"));
+        Guild guild = guild();
+        assertTrue(HubAgreementService.propose(guild, "Leader", "host", "port", 10, 1.0, facts, 0L).succeeded());
+
+        AgreementResult own = HubAgreementService.accept(guild, "leader", "host", "port", facts, 1L);
+        assertFalse(own.succeeded());
+        assertTrue(own.message().contains("other side"));
+        assertEquals(1, guild.getHubOffers().size());
+
+        AgreementResult accepted = HubAgreementService.accept(guild, "Council", "host", "port", facts, 2L);
+        assertTrue(accepted.succeeded());
+        assertTrue(guild.getHubOffers().isEmpty());
+    }
+
+    @Test
     void lapsedOfferIsRefusedAndTheTickDropsIt() {
         Facts facts = new Facts();
         Guild guild = guild();
