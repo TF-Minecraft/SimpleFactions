@@ -71,6 +71,27 @@ class ConfigLoaderInfrastructureTest {
         assertValues(30, 0.80, 0.10, 0.25, 12, 8, 4);
     }
 
+    @Test
+    void zeroSpreadFloorUsesDefault() throws IOException {
+        load("infrastructure:\n  spread-floor: 0\n");
+
+        assertEquals(0.5, Cache.infrastructureSpreadFloor, 1e-9);
+    }
+
+    @Test
+    void negativeSpreadFloorUsesDefault() throws IOException {
+        load("infrastructure:\n  spread-floor: -0.25\n");
+
+        assertEquals(0.5, Cache.infrastructureSpreadFloor, 1e-9);
+    }
+
+    @Test
+    void positiveSpreadFloorIsKept() throws IOException {
+        load("infrastructure:\n  spread-floor: 0.25\n");
+
+        assertEquals(0.25, Cache.infrastructureSpreadFloor, 1e-9);
+    }
+
     private void load(String yaml) throws IOException {
         Path file = tempDir.resolve("config.yml");
         Files.writeString(file, yaml);

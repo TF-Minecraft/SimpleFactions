@@ -76,7 +76,9 @@ public class ConfigLoader {
 		Cache.infrastructureFull = config.getDouble("infrastructure.full", 20);
 		Cache.infrastructureTarget = config.getDouble("infrastructure.target", 0.75);
 		Cache.infrastructureWildernessSpread = config.getDouble("infrastructure.wilderness-spread", 0.25);
-		Cache.infrastructureSpreadFloor = config.getDouble("infrastructure.spread-floor", 0.5);
+		double infrastructureSpreadFloor = config.getDouble("infrastructure.spread-floor", 0.5);
+		Cache.infrastructureSpreadFloor = Double.isFinite(infrastructureSpreadFloor) && infrastructureSpreadFloor > 0
+				? infrastructureSpreadFloor : 0.5;
 		Cache.infrastructureStation = config.getDouble("infrastructure.station", 10);
 		Cache.infrastructurePort = config.getDouble("infrastructure.port", 10);
 		Cache.infrastructureAirport = config.getDouble("infrastructure.airport", 5);
