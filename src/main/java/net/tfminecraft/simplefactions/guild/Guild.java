@@ -466,6 +466,23 @@ public class Guild {
         if(stored != null) members.remove(stored);
     }
     public String getLeader() { return isBase() ? host.getLeader() : leader; }
+
+    /** Last known roleplay name of the leader; a realm's own guild shares the realm's. */
+    private String leaderCharacter;
+    private String leaderCharacterOf;
+
+    public String getLeaderCharacter() {
+        return isBase() ? host.getLeaderCharacter() : leaderCharacter;
+    }
+
+    public String getLeaderCharacterOf() {
+        return isBase() ? host.getLeaderCharacterOf() : leaderCharacterOf;
+    }
+
+    public void rememberLeaderCharacter(String name, String player) {
+        this.leaderCharacter = name;
+        this.leaderCharacterOf = player;
+    }
     public void setLeader(String leader) {
         this.leader = leader;
     }

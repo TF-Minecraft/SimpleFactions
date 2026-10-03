@@ -259,6 +259,7 @@ public class Database {
                         }
 
                         Guild g = new Guild(gd, f);
+                        g.rememberLeaderCharacter(gd.leaderCharacter, gd.leaderCharacterOf);
 
                         // --- Bank ---
                         if ("true".equalsIgnoreCase(gd.bank)) {
@@ -411,6 +412,13 @@ public class Database {
                 gd.id = g.getId();
                 gd.name = g.getOwnName();
                 gd.leader = g.getLeader();
+                LeaderCharacters.Remembered guildLeader = LeaderCharacters.resolve(
+                        g.getLeader(), g.getLeaderCharacter(), g.getLeaderCharacterOf());
+                if (!g.isBase()) {
+                    g.rememberLeaderCharacter(guildLeader.name(), guildLeader.player());
+                }
+                gd.leaderCharacter = guildLeader.name();
+                gd.leaderCharacterOf = guildLeader.player();
                 gd.rgb = g.getRGB();
                 gd.type = g.getType().getId();
                 gd.capital = g.getCapital();

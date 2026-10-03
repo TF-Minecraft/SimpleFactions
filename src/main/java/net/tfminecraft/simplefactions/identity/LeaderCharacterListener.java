@@ -7,11 +7,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
+import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /**
- * Notes a realm leader's character shortly after they join, so the map learns
+ * Notes a realm or guild leader's character shortly after they join, so the map learns
  * it even when the leader is never online at the moment the map exports. The
  * delay gives RPCharacters time to load the player's characters. The name is
  * kept on the faction and written out with its next save.
@@ -34,10 +35,19 @@ public final class LeaderCharacterListener implements Listener {
 
     static void rememberFor(String player) {
         for (Faction faction : FactionManager.factions) {
-            if (faction == null || !player.equalsIgnoreCase(faction.getLeader())) continue;
-            LeaderCharacters.Remembered remembered = LeaderCharacters.resolve(
-                    faction.getLeader(), faction.getLeaderCharacter(), faction.getLeaderCharacterOf());
-            faction.rememberLeaderCharacter(remembered.name(), remembered.player());
+            if (faction == null) continue;
+            if (player.equalsIgnoreCase(faction.getLeader())) {
+                LeaderCharacters.Remembered remembered = LeaderCharacters.resolve(
+                        faction.getLeader(), faction.getLeaderCharacter(), faction.getLeaderCharacterOf());
+                faction.rememberLeaderCharacter(remembered.name(), remembered.player());
+            }
+            // Guild leaders too; a realm's own guild follows the realm above.
+            for (Guild guild : faction.getGuildHandler().getGuilds()) {
+                if (guild == null || guild.isBase() || !player.equalsIgnoreCase(guild.getLeader())) continue;
+                LeaderCharacters.Remembered remembered = LeaderCharacters.resolve(
+                        guild.getLeader(), guild.getLeaderCharacter(), guild.getLeaderCharacterOf());
+                guild.rememberLeaderCharacter(remembered.name(), remembered.player());
+            }
         }
     }
 }
