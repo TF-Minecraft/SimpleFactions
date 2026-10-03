@@ -173,7 +173,7 @@ class BranchIncomePreviewTest {
 	}
 
 	@Test
-	void branchPreviewUsesHypotheticalHubTradeLevel() {
+    void branchPreviewUsesHypotheticalHubTradeLevel() {
 		HubNetwork.setLinksForTests(Map.of("fields", List.of(
 				new Link(capital.getId(), neighbour.getId(), Mode.RAIL, 0, 0.9, 0))));
 		YamlConfiguration yaml = new YamlConfiguration();
@@ -183,6 +183,19 @@ class BranchIncomePreviewTest {
 		Branch supplyLines = new Branch(new Branch("supply_lines", yaml), 0);
 
 		assertTrue(live.previewUpgradeIncomeExact(guild, supplyLines) > 0);
-		assertEquals(0, supplyLines.getLevel());
-	}
+        assertEquals(0, supplyLines.getLevel());
+    }
+
+    @Test
+    void branchPreviewIncludesInfrastructureUpkeepChange() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("group", 3);
+        yaml.set("modifiers", List.of("INFRASTRUCTURE_UPKEEP 0 1"));
+        Branch infrastructure = new Branch(new Branch("infrastructure", yaml), 2);
+        when(guild.getModifier(GuildModifier.INFRASTRUCTURE_UPKEEP)).thenReturn(2.0);
+
+        assertEquals(-1.0, live.previewUpgradeIncomeExact(guild, infrastructure));
+        assertEquals(1.0, live.previewDowngradeIncomeExact(guild, infrastructure));
+        assertEquals(2, infrastructure.getLevel());
+    }
 }
