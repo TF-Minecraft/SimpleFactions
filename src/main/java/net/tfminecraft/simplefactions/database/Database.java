@@ -313,6 +313,11 @@ public class Database {
      * ===================================================== */
 
     public void saveFaction(Faction f) {
+        saveFactionChecked(f);
+    }
+
+    /** Office mutations must not acknowledge success unless the faction save completed. */
+    public boolean saveFactionChecked(Faction f) {
         try {
             File file = new File("plugins/SimpleFactions/Data", f.getId() + ".json");
 
@@ -516,10 +521,12 @@ public class Database {
                 data.warReparationsObligations.add(obligationData);
             }
 
-            JsonUtil.writeJson(file, data);
+            JsonUtil.writeJsonAtomic(file, data);
+            return true;
 
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
     }
 

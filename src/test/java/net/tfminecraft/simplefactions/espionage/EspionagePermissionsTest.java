@@ -70,7 +70,8 @@ class EspionagePermissionsTest {
         when(leader.getUniqueId()).thenReturn(UUID.randomUUID());
         when(holder.getName()).thenReturn("Spy");
         when(holder.getUniqueId()).thenReturn(assignment.playerId);
-        try (var databases = mockConstruction(Database.class)) {
+        try (var databases = mockConstruction(Database.class, (database, context) ->
+                when(database.saveFactionChecked(faction)).thenReturn(true))) {
             assertFalse(EspionageService.setSabotage(leader, faction, true, 100));
             assertEquals(0, assignment.offenseReduction);
             assertFalse(EspionageService.setSabotage(holder, faction, true, 24));

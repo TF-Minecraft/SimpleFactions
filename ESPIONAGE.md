@@ -277,3 +277,10 @@ the original 27-slot layout; cashflow estimates remain in the Ledger tooltip.
 
 Generated daily reports always start at Rumours. A missing or invalid report
 uses the zero-information category **Botched report**, with private fields Unknown.
+
+Office appointments, removals and sabotage changes acknowledge success only after
+the faction save succeeds. Failed saves restore the prior office state and refund
+any appointment charge; faction JSON is staged before replacing the previous save.
+A founder aptitude save failure leaves the office initialization pending and retries
+when the office is checked while the founder has an active character. It never
+finalizes a failed aptitude roll as a permanent zero or consumes the free appointment.

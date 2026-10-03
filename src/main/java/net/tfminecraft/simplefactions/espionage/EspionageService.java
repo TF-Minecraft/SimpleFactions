@@ -59,18 +59,22 @@ public final class EspionageService {
         for (SpecialPosition office : SpecialPosition.values()) {
             if (faction.getEspionage().holder(office) != null) continue;
             if (office == SpecialPosition.SPYMASTER && !eligible(faction, faction.getLeader())) continue;
+            if (faction.getEspionage().isPendingFounder(office) && character == null) continue;
             var assignment = new SpecialPositionAssignment();
             assignment.playerName = faction.getLeader();
             assignment.playerId = founder == null ? org.bukkit.Bukkit.getOfflinePlayer(faction.getLeader()).getUniqueId() : founder.getUniqueId();
             int aptitude = 0;
             try {
-                if (character != null && characterAptitudes != null) {
+                if (character != null) {
                     aptitude = characterAptitude(founder, character);
                     assignment.characterId = character.getId();
                 }
             } catch (java.io.IOException exception) {
                 net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                         "Could not save founder aptitude", exception);
+                faction.getEspionage().pendingFounder(office);
+                if (founder != null) founder.sendMessage("\u00a7cYour founding office could not be initialized. It will be retried when the office is checked.");
+                continue;
             }
             faction.getEspionage().assignFounder(office, assignment, aptitude);
             if (founder != null) founder.sendMessage("\u00a78\u00a7oUntil a trusted hand is appointed, you hold the keys to the "
@@ -99,6 +103,16 @@ public final class EspionageService {
         return true;
     }
 
+    static boolean completeAndSaveAppointment(Faction faction, SpecialPositionAssignment assignment, int aptitude) {
+        var previous = faction.getEspionage().snapshotOffices();
+        double cost = appointmentCost(faction);
+        if (!completeAppointment(faction, assignment, aptitude)) return false;
+        if (new Database().saveFactionChecked(faction)) return true;
+        faction.getEspionage().restoreOffices(previous);
+        if (cost > 0) faction.getBank().deposit(cost);
+        return false;
+    }
+
     public static int effectiveAptitude(Faction faction, SpecialPositionAssignment holder) {
         if (holder == null || !eligible(faction, holder.playerName)) return 0;
         return faction.isLeader(holder.playerName) ? (int) Math.floor(holder.aptitude * EspionageConfig.soloMultiplier()) : holder.aptitude;
@@ -119,6 +133,10 @@ public final class EspionageService {
     }
 
     public static SpecialPositionAssignment spymaster(Faction faction) {
+        if (faction.getEspionage().hasPendingFounder()) {
+            initializeFounder(faction);
+            if (!faction.getEspionage().hasPendingFounder()) new Database().saveFaction(faction);
+        }
         SpecialPositionAssignment holder = faction.getEspionage().getSpymaster();
         if (holder != null && !eligible(faction, holder.playerName)) {
             faction.getEspionage().removeSpymaster();
@@ -166,14 +184,16 @@ public final class EspionageService {
         try {
             if (characterAptitudes == null) throw new java.io.IOException("Character aptitude registry is unavailable");
             int aptitude = characterAptitude(candidate, character);
-            if (!completeAppointment(faction, assignment, aptitude)) return false;
+            if (!completeAndSaveAppointment(faction, assignment, aptitude)) {
+                actor.sendMessage("\u00a7cThe appointment could not be saved. The office and treasury are unchanged.");
+                return false;
+            }
         } catch (java.io.IOException exception) {
             actor.sendMessage("§cThe aptitude could not be saved. The appointment has not been made.");
             net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                     "Could not save character aptitude", exception);
             return false;
         }
-        new Database().saveFaction(faction);
         // Address only the appointee. Sabotage preferences are never broadcast.
         candidate.sendMessage("§8§oA sealed letter reaches your hands. The keys to " + faction.getName()
                 + "§8§o's unseen network are now yours. You have been appointed Spymaster.");
@@ -206,8 +226,13 @@ public final class EspionageService {
             actor.sendMessage("§cOnly your faction leader can remove the Spymaster.");
             return false;
         }
+        var previous = faction.getEspionage().snapshotOffices();
         faction.getEspionage().removeSpymaster();
-        new Database().saveFaction(faction);
+        if (!new Database().saveFactionChecked(faction)) {
+            faction.getEspionage().restoreOffices(previous);
+            actor.sendMessage("\u00a7cThe office removal could not be saved. The Spymaster remains appointed.");
+            return false;
+        }
         actor.sendMessage("§aThe Spymaster office is now vacant.");
         return true;
     }
@@ -222,9 +247,15 @@ public final class EspionageService {
             actor.sendMessage("§cChoose a reduction of 0, 25, 50, 75, or 100. Zero disables sabotage.");
             return false;
         }
+        int previous = offense ? holder.offenseReduction : holder.defenseReduction;
         if (offense) holder.offenseReduction = reduction;
         else holder.defenseReduction = reduction;
-        new Database().saveFaction(faction);
+        if (!new Database().saveFactionChecked(faction)) {
+            if (offense) holder.offenseReduction = previous;
+            else holder.defenseReduction = previous;
+            actor.sendMessage("\u00a7cYour private conduct could not be saved. Your previous choice remains in effect.");
+            return false;
+        }
         actor.sendMessage("§7Private " + (offense ? "offensive" : "defensive") + " sabotage: "
                 + (reduction == 0 ? "§adisabled" : "§c-" + reduction + " to your roll")
                 + "§7. This affects your next daily rolls; existing reports stay unchanged.");
