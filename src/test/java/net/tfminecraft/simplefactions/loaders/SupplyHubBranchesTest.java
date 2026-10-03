@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.loaders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -68,9 +69,19 @@ class SupplyHubBranchesTest {
         assertEquals(0.05, supplyGuild.getModifier(GuildModifier.HUB_TRADE).getPerLevel());
         assertEquals(0.08, supplyGuild.getModifier(GuildModifier.HUB_PRODUCTION).getPerLevel());
         assertEquals(-0.01, freightRealm.getModifier(GuildModifier.TRADE_UPKEEP).getPerLevel());
-        assertEquals(15.0, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getBase());
-        assertEquals(1.0, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getPerLevel());
-        assertEquals(0.5, BranchLoader.getByString("storehouses").getModifier(GuildModifier.HUB_UPKEEP).getPerLevel());
+        assertEquals(2.0, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getBase());
+        assertEquals(0.5, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getPerLevel());
+        Branch storehouses = new Branch(BranchLoader.getByString("storehouses"), 3);
+        Branch supplyLines = new Branch(BranchLoader.getByString("supply_lines"), 4);
+        assertEquals(0.70, storehouses.getAmount(GuildModifier.TRADE_CARRY));
+        assertEquals(0.09, storehouses.getAmount(GuildModifier.HUB_PRODUCTION));
+        assertNull(storehouses.getModifier(GuildModifier.HUB_UPKEEP));
+        assertEquals(2.0, supplyGuild.getAmount(GuildModifier.HUB_UPKEEP));
+        assertEquals(4.0, supplyLines.getAmount(GuildModifier.HUB_UPKEEP));
+        Branch twoStorehouses = new Branch(BranchLoader.getByString("storehouses"), 2);
+        Branch fiveSupplyLines = new Branch(BranchLoader.getByString("supply_lines"), 5);
+        assertEquals(0.46, twoStorehouses.getAmount(GuildModifier.HUB_PRODUCTION)
+                + fiveSupplyLines.getAmount(GuildModifier.HUB_PRODUCTION));
         assertTrue(!supplyGuild.getDescription().isEmpty());
     }
 

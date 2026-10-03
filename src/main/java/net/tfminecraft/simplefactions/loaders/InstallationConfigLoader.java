@@ -66,7 +66,7 @@ public final class InstallationConfigLoader {
                             new InstallationKindConfig(
                                     80,
                                     Map.of(
-                                            1, new Level(10, 259200, Map.of("static_emplacements", 2),
+                                            1, new Level(5, 259200, Map.of("static_emplacements", 2),
                                                     SupplyHubService.defaultHubSlots(kind, 1)),
                                             2, new Level(35, 259200, Map.of("static_emplacements", 3),
                                                     SupplyHubService.defaultHubSlots(kind, 2)),

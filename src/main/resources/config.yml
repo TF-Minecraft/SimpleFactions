@@ -95,18 +95,18 @@ supply-hubs:
   # Rail distance is measured along the track, sea and air in a straight line.
   transport:
     rail:
-      trade: 0.70
-      production: 0.25
+      trade: 0.40
+      production: 0.80
       kept-per-1000-blocks: 0.90
       max-range: 0
     sea:
-      trade: 0.45
-      production: 0.30
+      trade: 0.30
+      production: 0.70
       kept-per-1000-blocks: 0.85
       max-range: 4000
     air:
       trade: 0.20
-      production: 0.0
+      production: 0.50
       kept-per-1000-blocks: 0.80
       max-range: 2500
 
