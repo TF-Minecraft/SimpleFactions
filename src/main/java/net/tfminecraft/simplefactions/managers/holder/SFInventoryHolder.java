@@ -10,6 +10,7 @@ public class SFInventoryHolder implements InventoryHolder {
     private final SFGUI type;
     private int page;
     private boolean flag;
+    private boolean reported;
     private final String secondaryId;
 
     public SFInventoryHolder(String id, SFGUI type) {
@@ -60,6 +61,9 @@ public class SFInventoryHolder implements InventoryHolder {
     public String getSecondaryId() {
         return secondaryId;
     }
+
+    public boolean isReported() { return reported; }
+    public void markReported() { reported = true; }
 
     @Override
     public Inventory getInventory() {

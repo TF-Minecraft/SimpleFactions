@@ -37,10 +37,13 @@ public final class IntelligenceLedger {
     }
 
     public static List<String> summary(IntelligenceReport report, Guild guild) {
-        return List.of("#4c5250\u00a7oAdded to the bank at the", "#4c5250\u00a7ostart of a new day", "",
+        var lore = new java.util.ArrayList<>(List.of("#4c5250\u00a7oAdded to the bank at the", "#4c5250\u00a7ostart of a new day", "",
                 "#4fd945Income", "#d6cf69Total: " + value(report, guild, "Income total", "d/day"), "",
                 "#cf493aExpenses", "#d6cf69Total: " + value(report, guild, "Expense total", "d/day"), "",
                 "#f2e5c2Net Income", "#d6cf69Total: " + value(report, guild, "Income", "d/day"), "",
-                "\u00a77Click to inspect the reported accounts.");
+                "\u00a77Click to inspect the reported accounts."));
+        lore.add("");
+        for (Cashflow flow : Cashflow.values()) lore.add(flow.getDisplay() + ": " + value(report, guild, "Cashflow:" + flow.name(), "d/day"));
+        return lore;
     }
 }

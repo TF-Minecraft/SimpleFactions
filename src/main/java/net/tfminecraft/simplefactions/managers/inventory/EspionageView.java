@@ -31,7 +31,7 @@ import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.objects.Faction;
 
-/** Foreign reports deliberately have no links to exact military or economic submenus. */
+/** Foreign reports retain normal navigation through read-only, masked menus. */
 @SuppressWarnings("deprecation")
 public final class EspionageView {
     private EspionageView() {}
@@ -85,7 +85,7 @@ public final class EspionageView {
         var creator = new GuildCreator();
         inventory.clear();
         inventory.setItem(4, reportHeader(viewer, report));
-        inventory.setItem(10, creator.createPublicListItem(viewer, guild));
+        inventory.setItem(10, creator.createMenuItem(viewer, guild, MenuItemType.BANNER));
         inventory.setItem(11, creator.createMenuItem(viewer, guild, MenuItemType.LEADER));
         inventory.setItem(12, styled(Material.GOLD_NUGGET, "#d1b43fWealth: " + IntelligenceLedger.value(report, guild, "Wealth", "d")));
         inventory.setItem(13, styled(Material.EMERALD, "#338651Trade Breakdown",
@@ -95,19 +95,22 @@ public final class EspionageView {
                 "#d4c9aeHub Tax Paid: " + IntelligenceLedger.value(report, guild, "Cashflow:HUB_TAX_PAYMENTS", "d/day"),
                 "#d4c9aeTotal Trade Power: " + IntelligenceLedger.value(report, guild, "Trade power", "")));
         inventory.setItem(14, ledgerItem(report, guild));
-        List<String> roster = new ArrayList<>();
-        roster.add("#d4c9aeLeader: " + CharacterNames.display(viewer, guild.getLeader()));
-        if (report != null && report.allows("roster") && report.guildMembers != null)
-            report.guildMembers.getOrDefault(guild.getId(), List.of()).forEach(name -> roster.add("#d4c9ae" + name));
+        List<String> roster = net.tfminecraft.simplefactions.espionage.RosterLore.guild(viewer, guild);
         inventory.setItem(15, styled(Material.PLAYER_HEAD, "#b8ae61Members: "
-                + IntelligenceLedger.value(report, guild, "Members", ""), roster.toArray(String[]::new)));
-        inventory.setItem(16, styled(Material.ENCHANTED_BOOK, "#a6659fUpgrades", "\u00a77Upgrades: Unknown"));
+                + IntelligenceLedger.value(report, guild, "Members", "") + "/" + net.tfminecraft.simplefactions.Cache.maxMembers, roster.toArray(String[]::new)));
+        if (guild.hasUpgrades()) inventory.setItem(16, styled(Material.GOLD_INGOT, "#d979c2Upgrades", "\u00a77Click to inspect upgrades."));
+        for (int group = 0; group < 10; group++) {
+            var branch = guild.getBranch(group);
+            if (branch != null) inventory.setItem(group + 29, ReportedMenus.branch(viewer, guild, branch));
+        }
+        inventory.setItem(GuildView.COMPANY_SLOT, styled(Material.IRON_SWORD, "Mercenary Company", "\u00a77Company details: Unknown", "\u00a77Click to inspect."));
         if (!guild.isBase()) inventory.setItem(17, styled(Material.GOLD_INGOT, "#c49e5cDividends",
                 "#d4c9aeRate: " + IntelligenceLedger.value(report, guild, "Dividend rate", "%"),
                 "#d4c9aePool: " + IntelligenceLedger.value(report, guild, "Dividend pool", "d"),
                 "#d4c9aeTax withheld: " + IntelligenceLedger.value(report, guild, "Dividend tax", "d"),
                 "#d4c9aePer member: " + IntelligenceLedger.value(report, guild, "Dividend per member", "d")));
-        inventory.setItem(25, styled(Material.GOLD_INGOT, "#d6cf69Loans", "\u00a77Loans: Unknown"));
+        inventory.setItem(25, ReportedMenus.mask(IconGetter.getIconOrDefault("guild_loans", Material.BLACK_DYE),
+                "#e8c65fLoans", List.of("\u00a77Loans: Unknown")));
         inventory.setItem(26, styled(Material.CHEST, "#b5835aSupply Hubs", "\u00a77Supply hubs: Unknown"));
         inventory.setItem(GuildView.HOST_FACTION_SLOT, creator.createHostFactionItem(guild));
         inventory.setItem(53, manager.createBackButton(SFGUI.GUILD_VIEW));
@@ -117,13 +120,23 @@ public final class EspionageView {
 
     public static void foreignLedger(Player viewer, Guild guild, InventoryManager manager) {
         Inventory inventory = Bukkit.createInventory(new SFInventoryHolder(guild.getId(), SFGUI.FOREIGN_LEDGER_VIEW),
-                54, "\u00a77Reported Ledger");
+                27, "\u00a77Ledger for " + guild.getName());
         var report = EspionageService.report(viewer, guild.getFaction());
-        inventory.setItem(4, ledgerItem(report, guild));
-        int slot = 9;
-        for (Cashflow flow : Cashflow.values()) inventory.setItem(slot++, styled(Material.PAPER, flow.getDisplay(),
-                "#d6cf69Reported daily amount: " + IntelligenceLedger.value(report, guild, "Cashflow:" + flow.name(), "d/day")));
-        inventory.setItem(53, manager.createBackButton(SFGUI.FOREIGN_LEDGER_VIEW));
+        if (guild.isBase()) {
+            Material[] icons = {Material.PLAYER_HEAD, Material.BARREL, Material.IRON_INGOT, Material.GOLD_INGOT,
+                    Material.EMERALD, Material.CHEST, Material.GOLD_NUGGET};
+            String[] titles = {"#94b572Citizens", "#b89448Guild Taxes", "#7299b5Vassals", "#ab8568Tributes",
+                    "#5cc46aTariffs", "#c9a25eDeposits", "#5cc46aHub Tax"};
+            Cashflow[] flows = {Cashflow.CITIZENS, Cashflow.GUILDS, Cashflow.VASSALS, Cashflow.TRIBUTES,
+                    Cashflow.TARIFFS, null, Cashflow.HUB_TAX};
+            for (int index = 0; index < icons.length; index++) inventory.setItem(10 + index, styled(icons[index], titles[index],
+                    "\u00a77Today's amount: " + (flows[index] == null ? "Unknown" : IntelligenceLedger.value(report, guild, "Cashflow:" + flows[index].name(), "d/day")),
+                    "\u00a77Contributors and history: Unknown"));
+        }
+        inventory.setItem(17, styled(Material.GOLD_NUGGET, "#5cc46aHub Tax Payments",
+                "\u00a77Today's amount: " + IntelligenceLedger.value(report, guild, "Cashflow:HUB_TAX_PAYMENTS", "d/day"),
+                "\u00a77Contributors and history: Unknown"));
+        inventory.setItem(26, manager.createBackButton(SFGUI.FOREIGN_LEDGER_VIEW));
         viewer.openInventory(inventory);
     }
 
@@ -165,10 +178,7 @@ public final class EspionageView {
                     "#7fbd73Current Rank: " + target.getRank().getName(),
                     "#7fbd73Prestige ranking: #" + new net.tfminecraft.simplefactions.utils.FactionRanker().getPrestigeRank(target));
             case MEMBERS -> {
-                List<String> lore = new ArrayList<>();
-                lore.add("#d4c9aeLeader: " + CharacterNames.display(viewer, target.getLeader()) + " "
-                        + net.tfminecraft.simplefactions.utils.Represents.represents(target, target.getLeader()));
-                if (report != null && report.allows("roster") && report.members != null) report.members.forEach(member -> lore.add("#d4c9ae" + member));
+                List<String> lore = net.tfminecraft.simplefactions.espionage.RosterLore.faction(viewer, target);
                 yield styled(Material.PLAYER_HEAD, "#b8ae61Members: #7fbd73" + value(report, "Members", ""), lore.toArray(String[]::new));
             }
             case MODIFIERS -> styled(Material.GOLDEN_APPLE, "#c49760Modifiers",
@@ -342,7 +352,7 @@ public final class EspionageView {
             return;
         }
         if (menu.getType() == SFGUI.FOREIGN_LEDGER_VIEW) {
-            if (event.getRawSlot() == 53) {
+            if (event.getRawSlot() == 26) {
                 var guild = FactionManager.getGuildByString(menu.getId());
                 if (guild != null) {
                     if (guild.isBase()) manager.factionView(viewer, guild.getFaction());

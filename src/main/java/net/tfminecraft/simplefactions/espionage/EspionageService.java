@@ -271,9 +271,10 @@ public final class EspionageService {
             created[0] = true;
             int margin = observer.getEspionage().rolls(day, effectiveAptitude(observer, attacker), random).offense()
                     - target.getEspionage().rolls(day, effectiveAptitude(target, defender), random).defense();
-            IntelligenceReport generated = createReport(margin <= 0 ? Map.of() : metrics(target), margin, random);
+            IntelligenceReport generated = createReport(metrics(target), margin, random);
             captureMembers(generated, target, margin, random);
             captureOffices(generated, target, random);
+            ReportDetails.capture(generated, target);
             return generated;
         });
         if (created[0] && persist) {
@@ -304,6 +305,21 @@ public final class EspionageService {
         for (var guild : target.getGuildHandler().getGuilds()) {
             report.guildMembers.put(guild.getId(), sample.stream().filter(guild::isMember)
                     .filter(name -> !guild.isLeader(name)).map(CharacterNames::of).toList());
+        }
+        report.roster = new java.util.ArrayList<>();
+        for (var guild : target.getGuildHandler().getGuilds()) {
+            for (String name : guild.getMembers()) {
+                if (target.isLeader(name)) continue;
+                var offices = java.util.Arrays.stream(SpecialPosition.values()).filter(office -> {
+                    var holder = target.getEspionage().holder(office);
+                    return holder != null && holder.playerName.equalsIgnoreCase(name);
+                }).toList();
+                boolean knownLeader = guild.isLeader(name) && report.allows("guild-leader");
+                boolean knownOffice = !offices.isEmpty() && report.allows("office-holder");
+                if (!knownLeader && !knownOffice && (!report.allows("guild-members") || !sample.contains(name))) continue;
+                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.of(name), guild.getId(), guild.getName(), sample.contains(name),
+                        knownLeader, knownOffice ? offices : java.util.List.of()));
+            }
         }
     }
 
@@ -370,16 +386,31 @@ public final class EspionageService {
         values.put("Levies", (double) (faction.getMilitary().getManpower(false) - faction.getMilitary().getManpowerNoLevy(false)));
         values.put("Mercenaries", (double) faction.getMilitary().getMercenaryManpower());
         values.put("Installations", (double) faction.getInstallationHandler().getAll().size());
+        for (var tax : net.tfminecraft.simplefactions.government.proposal.TaxTarget.values())
+            if (!tax.name().endsWith("_ID")) values.put("Tax:" + tax.name(), faction.getTaxHandler().getTaxRate(tax, null, false));
+        for (int index = 0; index < faction.getMilitary().getQueue().size(); index++)
+            values.put("Training:" + index, (double) faction.getMilitary().getQueue().get(index).getTimeLeft());
         for (var guild : faction.getGuildHandler().getGuilds()) {
             values.put("Guild:" + guild.getId() + ":Wealth", guild.getWealth());
             values.put("Guild:" + guild.getId() + ":Members", (double) guild.getMembers().size());
             values.put("Guild:" + guild.getId() + ":Income", guild.getLedger().getNetIncome());
             IntelligenceLedger.capture(values, guild);
+            for (int group = 0; group < 10; group++) {
+                var branch = guild.getBranch(group);
+                if (branch != null) values.put(IntelligenceLedger.key(guild, "Branch:" + branch.getId()), (double) branch.getLevel());
+            }
+            for (var upgrade : guild.getUpgrades()) values.put(IntelligenceLedger.key(guild, "Upgrade:" + upgrade.getId()), (double) upgrade.getLevel());
             if (guild.hasCapital()) values.put("Guild:" + guild.getId() + ":Trade power", guild.getTradeBreakdown().getTradePower());
         }
+        for (var regiment : faction.getMilitary().getRegiments()) values.put("Regiment:" + regiment.getId()
+                + (regiment.isLevy() ? ":Levies" : ":Soldiers"), (double) (regiment.isLevy()
+                ? regiment.getEntries().stream().mapToInt(net.tfminecraft.simplefactions.army.LevyEntry::getAmount).sum() : regiment.getCurrentSlots()));
+        for (var installation : faction.getInstallationHandler().getAll()) values.put("Installation:" + installation.getId() + ":Level", (double) installation.getLevel());
         if (faction.getGovernment() != null) {
             values.put("Stability", faction.getGovernment().getStability());
             values.put("Administrative power", faction.getGovernment().getPower());
+            values.put("Legitimacy", faction.getGovernment().stateReport().legitimacy);
+            values.put("Council size", (double) faction.getGovernment().getCouncil().getCurrentSize());
         }
         return values;
     }

@@ -117,7 +117,7 @@ class IntelligenceBrowsingTest {
     @Test
     void sampledRostersImproveWithQualityAndPersistAsSnapshots() {
         List<String> members = java.util.stream.IntStream.range(0, 10).mapToObj(i -> "Character " + i + " — Guild").toList();
-        assertTrue(EspionageService.sample(members, 0, new Random(1)).isEmpty());
+        assertEquals(2, EspionageService.sample(members, 0, new Random(1)).size());
         assertEquals(2, EspionageService.sample(members, 1, new Random(1)).size());
         assertEquals(4, EspionageService.sample(members, 30, new Random(1)).size());
         assertEquals(6, EspionageService.sample(members, 65, new Random(1)).size());

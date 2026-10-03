@@ -32,10 +32,11 @@ espionage:
     luck-spread: 75
     luck-draws: 3
   intelligence:
-    # Margin = observing faction's offense minus target's defense. Nonpositive margins are Unknown.
+    # Margin = observing faction's offense minus target's defense. Rumours is the minimum report quality.
+    # Negative margins return Rumours; individual fields stay Unknown below their required tier.
     tiers:
       rumours:
-        minimum-margin: 1
+        minimum-margin: 0
         uncertainty: 1.5
         roster-fraction: 0.2
         maximum-bounded-fraction: 0.75
@@ -61,7 +62,7 @@ espionage:
     maximum-roster-size: 23
     # Fields stay Unknown below their minimum tier, even if an old report contains an estimate.
     # Valid values: rumours, broad, reliable, detailed. Unknown disables disclosure entirely.
-    # These rules apply to both faction and guild metrics; flavours, leaders, guilds and prestige stay public.
+    # The faction and all its guilds share one daily quality. Flavours, faction leaders, guilds and prestige stay public.
     minimum-tiers:
       members: rumours
       roster: rumours
@@ -84,5 +85,14 @@ espionage:
       dividend-per-member: reliable
       office-holder: reliable
       office-aptitude: detailed
+      guild-leader: reliable
+      guild-members: rumours
+      training: reliable
+      buildings: broad
+      upgrades: reliable
+      taxes: reliable
+      laws: reliable
+      government: reliable
+      installation-details: reliable
       # Optional per-category overrides, e.g. TRADE: broad. All other categories use cashflow above.
       cashflows: {}

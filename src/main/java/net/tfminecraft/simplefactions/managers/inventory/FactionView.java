@@ -265,7 +265,17 @@ public class FactionView {
 			Faction viewed = FactionManager.getByString(holder.getId());
 			if (viewed == null) return;
 			if (!EspionageService.canViewExact(p, viewed)
-					&& e.getSlot() != 23 && e.getSlot() != 31 && e.getSlot() != 53 && e.getSlot() != 15 && e.getSlot() != 20) return;
+					&& e.getSlot() != 23 && e.getSlot() != 31 && e.getSlot() != 53 && e.getSlot() != 15 && e.getSlot() != 20) {
+                switch (e.getSlot()) {
+                    case 11 -> inv.governmentView(p, viewed, null);
+                    case 25 -> inv.taxView(p, viewed);
+                    case 28 -> inv.lawView(p, viewed, null);
+                    case 29 -> inv.militaryView(null, p, viewed, true);
+                    case 32 -> inv.installationsView(null, p, viewed, true);
+                    default -> { }
+                }
+                return;
+            }
 			if (e.getSlot() == 20) {
 				EspionageView.positions(p, viewed, inv);
 				return;
@@ -397,7 +407,6 @@ public class FactionView {
 				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 				Faction f = FactionManager.getByString(h.getId());
-				if(!f.getLeader().equalsIgnoreCase(p.getName())) return;
 				inv.taxView(p, f);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(e.getSlot() == 23) {

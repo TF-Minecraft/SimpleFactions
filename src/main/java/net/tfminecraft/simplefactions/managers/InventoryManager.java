@@ -1282,6 +1282,11 @@ public class InventoryManager implements Listener{
 						break;
 				}
 			}
+            if (h.isReported() && !net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(p,
+                    net.tfminecraft.simplefactions.espionage.EspionageAccess.owner(h))) {
+                net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.navigate(e, p, h, this);
+                return;
+            }
 			if(h.getType() == SFGUI.FACTION_LIST || h.getType() == SFGUI.FACTION_VIEW || h.getType() == SFGUI.FACTION_GUILDS) {
 				factionView.click(e, inv, p);
 			} else if(h.getType() == SFGUI.GUILD_LIST || h.getType() == SFGUI.GUILD_VIEW || h.getType() == SFGUI.UPGRADE_VIEW) {

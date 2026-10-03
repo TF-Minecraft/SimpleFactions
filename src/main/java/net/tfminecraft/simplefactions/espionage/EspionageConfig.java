@@ -31,7 +31,12 @@ public final class EspionageConfig {
             Map.entry("cashflow", IntelligenceTier.RELIABLE), Map.entry("dividend-rate", IntelligenceTier.RELIABLE),
             Map.entry("dividend-pool", IntelligenceTier.RELIABLE), Map.entry("dividend-tax", IntelligenceTier.RELIABLE),
             Map.entry("dividend-per-member", IntelligenceTier.RELIABLE), Map.entry("office-holder", IntelligenceTier.RELIABLE),
-            Map.entry("office-aptitude", IntelligenceTier.DETAILED));
+            Map.entry("office-aptitude", IntelligenceTier.DETAILED),
+            Map.entry("guild-leader", IntelligenceTier.RELIABLE), Map.entry("guild-members", IntelligenceTier.RUMOURS),
+            Map.entry("training", IntelligenceTier.RELIABLE), Map.entry("buildings", IntelligenceTier.BROAD),
+            Map.entry("upgrades", IntelligenceTier.RELIABLE), Map.entry("taxes", IntelligenceTier.RELIABLE),
+            Map.entry("laws", IntelligenceTier.RELIABLE), Map.entry("government", IntelligenceTier.RELIABLE),
+            Map.entry("installation-details", IntelligenceTier.RELIABLE));
     static { load(new org.bukkit.configuration.file.YamlConfiguration()); }
     public record TierSettings(int minimumMargin, double uncertainty, double rosterFraction,
                                double boundedFraction, double relativeWidth) {}
@@ -64,12 +69,12 @@ public final class EspionageConfig {
         luckDraws = (int) bounded(config, "espionage.checks.luck-draws", 3, 1, 20);
         rosterLimit = (int) bounded(config, "espionage.intelligence.maximum-roster-size", 23, 0, 1000);
         tiers.clear();
-        int previous = 0;
+        int previous = -1;
         for (var tier : IntelligenceTier.values()) {
             if (tier == IntelligenceTier.UNKNOWN) continue;
             int index = tier.ordinal() - 1;
             String path = "espionage.intelligence.tiers." + tier.key() + ".";
-            int margin = Math.max(previous + 1, (int) bounded(config, path + "minimum-margin", new int[]{1,30,65,100}[index], 1, 10000));
+            int margin = Math.max(previous + 1, (int) bounded(config, path + "minimum-margin", new int[]{0,30,65,100}[index], 0, 10000));
             tiers.put(tier, new TierSettings(margin,
                     bounded(config, path + "uncertainty", new double[]{1.5,.75,.2,.1}[index], .01, 10),
                     bounded(config, path + "roster-fraction", new double[]{.2,.4,.6,.8}[index], 0, 1),
@@ -97,16 +102,23 @@ public final class EspionageConfig {
     }
 
     public static IntelligenceTier tier(int margin) {
-        IntelligenceTier result = IntelligenceTier.UNKNOWN;
+        IntelligenceTier result = IntelligenceTier.RUMOURS;
         for (var tier : IntelligenceTier.values())
             if (tier != IntelligenceTier.UNKNOWN && margin >= tiers.get(tier).minimumMargin()) result = tier;
         return result;
     }
     public static TierSettings settings(IntelligenceTier tier) { return tiers.get(tier); }
     public static String metricKey(String metric) {
+        if (metric.equals("Legitimacy") || metric.equals("Council size")) return "government";
+        if (metric.startsWith("Tax:")) return "taxes";
+        if (metric.startsWith("Training:")) return "training";
+        if (metric.startsWith("Regiment:")) return metric.endsWith(":Levies") ? "levies" : "professional-army";
+        if (metric.startsWith("Installation:")) return "installation-details";
         if (metric.startsWith("Position:")) return "office-aptitude";
         if (metric.contains(":Cashflow:")) return "cashflow";
         String leaf = metric.startsWith("Guild:") ? metric.substring(metric.indexOf(':', 6) + 1) : metric;
+        if (leaf.startsWith("Branch:")) return "buildings";
+        if (leaf.startsWith("Upgrade:")) return "upgrades";
         if (leaf.equals("Daily net income") || leaf.equals("Income")) return "net-income";
         return leaf.toLowerCase(java.util.Locale.ROOT).replace(' ', '-');
     }

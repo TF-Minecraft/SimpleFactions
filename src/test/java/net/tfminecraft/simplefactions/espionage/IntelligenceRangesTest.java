@@ -97,6 +97,6 @@ class IntelligenceRangesTest {
         assertEquals("Unknown", report.display("Wealth"));
         report.estimates = null;
         assertEquals("Unknown", report.display("Wealth"));
-        assertEquals("Unknown", EspionageMath.quality(0));
+        assertEquals("Rumours", EspionageMath.quality(0));
     }
 }

@@ -42,7 +42,12 @@ public class InstallationView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void installationsView(Inventory inventory, Player player, Faction f, boolean open) {
-		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
+		if (!EspionageService.canViewExact(player, f)) {
+            if (open || inventory == null) inventory = ReportedMenus.open(player, f.getId(), SFGUI.INSTALLATIONS_VIEW, 54, "Installations View");
+            ReportedMenus.installations(inventory, player, f, inv);
+            if (open) player.openInventory(inventory);
+            return;
+        }
         if (open) {
             inventory =
                     SimpleFactions.plugin
@@ -92,7 +97,13 @@ public class InstallationView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void installationDetailView(Player player, Faction f, String installationId, Inventory inventory) {
-		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
+		if (!EspionageService.canViewExact(player, f)) {
+            boolean show = inventory == null;
+            if (show) inventory = ReportedMenus.open(player, f.getId(), SFGUI.INSTALLATION_DETAIL_VIEW, 54, "Installation Details");
+            ReportedMenus.installationDetail(inventory, player, f, installationId, inv);
+            if (show) player.openInventory(inventory);
+            return;
+        }
         InstallationHandler handler = f.getInstallationHandler();
         InstallationConstruction pending = handler.getPendingConstruction();
         boolean isPending = isPendingConstruction(pending, installationId);

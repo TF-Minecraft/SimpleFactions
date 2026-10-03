@@ -13,6 +13,17 @@ public class IntelligenceReport {
     public Map<String, EspionageMath.Estimate> estimates = new LinkedHashMap<>();
     public java.util.List<String> members = new java.util.ArrayList<>();
     public Map<String, java.util.List<String>> guildMembers = new LinkedHashMap<>();
+    public java.util.List<RosterMember> roster = new java.util.ArrayList<>();
+    public Map<String, java.util.List<String>> details = new LinkedHashMap<>();
+    public Map<String, Long> maximums = new LinkedHashMap<>();
+
+    public record RosterMember(String character, String guildId, String guildName, boolean sampled, boolean guildLeader,
+                               java.util.List<SpecialPosition> offices) {}
+
+    /** Detail lists use the same disclosure gates as ranged metrics, including after reload. */
+    public java.util.List<String> details(String field, String key) {
+        return !allows(field) || details == null ? java.util.List.of() : details.getOrDefault(key, java.util.List.of());
+    }
 
     public String loreDate() {
         return net.tfminecraft.rpcharacters.calendar.FantasyCalendar.formatDate(java.time.LocalDate.ofEpochDay(day)
@@ -25,8 +36,14 @@ public class IntelligenceReport {
     }
 
     public EspionageMath.Estimate estimate(String metric) {
-        return !EspionageConfig.allows(tier(), metric) ? null
-                : IntelligenceRanges.reasonable(metric, estimates == null ? null : estimates.get(metric), tier());
+        if (!EspionageConfig.allows(tier(), metric)) return null;
+        var raw = estimates == null ? null : estimates.get(metric);
+        Long maximum = maximums == null ? null : maximums.get(metric);
+        if (raw != null && maximum != null) {
+            raw = new EspionageMath.Estimate(Math.max(0, raw.lower()), Math.min(maximum, raw.upper()));
+            if (raw.upper() - (double) raw.lower() > maximum * EspionageConfig.settings(tier()).boundedFraction()) return null;
+        }
+        return IntelligenceRanges.reasonable(metric, raw, tier());
     }
 
     public String qualityLabel() {

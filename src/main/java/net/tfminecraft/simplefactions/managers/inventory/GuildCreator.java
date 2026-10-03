@@ -87,7 +87,7 @@ public class GuildCreator {
 		lore.add(StringFormatter.formatHex("#b8ae61Part of: "+guild.getFaction().getName()));
 		lore.add(StringFormatter.formatHex("#b8ae61Based in: #d4c9ae" + HomeSettlementNames.of(guild)));
 		lore.add(" ");
-		lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7"+CharacterNames.display(p, guild.getLeader())));
+		lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7"+ReportedMenus.guildLeader(p, guild)));
 		lore.add(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+(own ? String.valueOf(guild.getMembers().size()) : guildIntelligence(report, guild, "Members", ""))));
 		lore.add(" ");
         if (guild.hasCapital()) {
@@ -165,8 +165,8 @@ public class GuildCreator {
 			i = new ItemStack(Material.PLAYER_HEAD, 1);
 			SkullMeta m = (SkullMeta) i.getItemMeta();
 			m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-			m.setDisplayName(StringFormatter.formatHex("#9c9775§lLeader: #c2bea7"+CharacterNames.display(p, guild.getLeader())));
-			m.setOwningPlayer(Bukkit.getOfflinePlayer(guild.getLeader()));
+			m.setDisplayName(StringFormatter.formatHex("#9c9775§lLeader: #c2bea7"+ReportedMenus.guildLeader(p, guild)));
+            if (!ReportedMenus.guildLeader(p, guild).endsWith("Unknown")) m.setOwningPlayer(Bukkit.getOfflinePlayer(guild.getLeader()));
 			i.setItemMeta(m);
 		} else if(t.equals(MenuItemType.WEALTH)) {
 			i = new ItemStack(Material.GOLD_NUGGET, 1);
@@ -232,19 +232,7 @@ public class GuildCreator {
 				ItemMeta m = i.getItemMeta();
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 				m.setDisplayName(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+guild.getMembers().size()+"/"+Cache.maxMembers));
-				List<String> lore = new ArrayList<>();
-				int outputPenalty = net.tfminecraft.simplefactions.inactivity.InactivityService.guildPercent(guild);
-				if (outputPenalty > 0) {
-					lore.add(StringFormatter.formatHex("#c95644Inactive output -" + outputPenalty + "%. Upgrades stay, but they are weakened."));
-				}
-				List<String> members = new ArrayList<>(guild.getMembers());
-				members.removeIf(name -> name.equalsIgnoreCase(guild.getLeader()));
-				members.addFirst(guild.getLeader());
-				for(String s : members) {
-					String mark = net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(s)
-							? " #c95644(inactive)" : "";
-					lore.add(StringFormatter.formatHex("#d4c9ae"+CharacterNames.display(p, s)+mark));
-				}
+				List<String> lore = net.tfminecraft.simplefactions.espionage.RosterLore.guild(p, guild).stream().map(StringFormatter::formatHex).toList();
 				m.setLore(lore);
 				i.setItemMeta(m);
 		}

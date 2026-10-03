@@ -95,8 +95,8 @@ class EspionageMathTest {
 
     @Test
     void hiddenAndFiniteChecksFailClosed() {
-        assertNull(EspionageMath.estimate(100, 0, false, new Random(1)));
-        assertNull(EspionageMath.estimate(100, -10, false, new Random(1)));
+        assertNotNull(EspionageMath.estimate(100, 0, false, new Random(1)));
+        assertNotNull(EspionageMath.estimate(100, -10, false, new Random(1)));
         assertNull(EspionageMath.estimate(Double.NaN, 100, false, new Random(1)));
     }
 

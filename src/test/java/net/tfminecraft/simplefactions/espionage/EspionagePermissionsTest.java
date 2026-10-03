@@ -23,22 +23,30 @@ import net.tfminecraft.simplefactions.objects.Faction;
 
 class EspionagePermissionsTest {
     @Test
-    void outsidersAreRedirectedBeforeAnyExactSubmenuIsBuilt() {
+    void outsidersOpenMaskedSubmenusWithoutBuildingExactInformation() {
         Player outsider = mock(Player.class);
         Faction faction = mock(Faction.class);
         Guild guild = mock(Guild.class);
         when(guild.getFaction()).thenReturn(faction);
         InventoryManager manager = mock(InventoryManager.class);
-        new MilitaryView(manager).militaryView(null, outsider, faction, true);
-        new GovernmentView(manager).governmentView(outsider, faction, null);
-        new LawView(manager).lawView(outsider, faction, null);
-        new InstallationView(manager).installationsView(null, outsider, faction, true);
-        try (var views = mockStatic(net.tfminecraft.simplefactions.managers.inventory.EspionageView.class)) {
+        var inventory = mock(org.bukkit.inventory.Inventory.class);
+        try (var reported = mockStatic(net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.class);
+             var views = mockStatic(net.tfminecraft.simplefactions.managers.inventory.EspionageView.class)) {
+            reported.when(() -> net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.open(any(), any(), any(), anyInt(), anyString())).thenReturn(inventory);
+            new MilitaryView(manager).militaryView(null, outsider, faction, true);
+            new GovernmentView(manager).governmentView(outsider, faction, null);
+            new LawView(manager).lawView(outsider, faction, null);
+            new InstallationView(manager).installationsView(null, outsider, faction, true);
             new GuildView(manager).ledgerView(outsider, guild, null);
+            new GuildView(manager).upgradeView(outsider, guild, inventory);
+            reported.verify(() -> net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.military(inventory, outsider, faction, manager));
+            reported.verify(() -> net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.government(inventory, outsider, faction, manager));
+            reported.verify(() -> net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.laws(inventory, outsider, faction, manager));
+            reported.verify(() -> net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.installations(inventory, outsider, faction, manager));
+            reported.verify(() -> net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.upgrades(inventory, outsider, guild, manager));
             views.verify(() -> net.tfminecraft.simplefactions.managers.inventory.EspionageView.foreignLedger(outsider, guild, manager));
         }
-        new GuildView(manager).upgradeView(outsider, guild, null);
-        verify(manager, times(5)).factionView(outsider, faction);
+        verify(manager, never()).factionView(outsider, faction);
         verify(faction, never()).getMilitary();
         verify(faction, never()).getGovernment();
         verify(guild, never()).getLedger();

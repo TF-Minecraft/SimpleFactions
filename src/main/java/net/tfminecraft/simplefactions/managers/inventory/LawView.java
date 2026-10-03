@@ -37,7 +37,13 @@ public class LawView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void lawView(Player player, Faction f, Inventory i) {
-		if (!EspionageService.canViewExact(player, f)) { inv.factionView(player, f); return; }
+		if (!EspionageService.canViewExact(player, f)) {
+            boolean show = i == null;
+            if (show) i = ReportedMenus.open(player, f.getId(), SFGUI.LAW_VIEW, 54, "Laws");
+            ReportedMenus.laws(i, player, f, inv);
+            if (show) player.openInventory(i);
+            return;
+        }
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_VIEW), 54, "§7Laws");
 		i.clear();

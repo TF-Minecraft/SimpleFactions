@@ -33,6 +33,8 @@ public final class EspionageAccess {
     public static boolean denied(Player player, SFInventoryHolder holder) {
         if (!requiresOwn(holder.getType())) return false;
         Faction faction = owner(holder);
+        if (faction != null && holder.isReported()
+                && net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.READABLE.contains(holder.getType())) return false;
         boolean office = holder.getType() == SFGUI.SPECIAL_POSITIONS
                 || holder.getType() == SFGUI.SPYMASTER_VIEW
                 || holder.getType() == SFGUI.SPYMASTER_SETTINGS || holder.getType() == SFGUI.SPYMASTER_SELECT;

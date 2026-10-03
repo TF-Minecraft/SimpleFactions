@@ -10,7 +10,11 @@ public final class IntelligenceRanges {
     private IntelligenceRanges() {}
 
     public static boolean nonnegative(String metric) {
-        return NONNEGATIVE.contains(metric) || metric.endsWith(":Members") || metric.endsWith(":Trade power")
+        return NONNEGATIVE.contains(metric) || metric.equals("Legitimacy") || metric.equals("Council size")
+                || metric.startsWith("Regiment:") || metric.startsWith("Installation:")
+                || metric.startsWith("Tax:") || metric.startsWith("Training:")
+                || metric.contains(":Branch:") || metric.contains(":Upgrade:")
+                || metric.endsWith(":Members") || metric.endsWith(":Trade power")
                 || metric.endsWith(":Income total") || metric.endsWith(":Expense total")
                 || metric.contains(":Dividend ") || metric.startsWith("Position:") || cashflow(metric) != null
                         && cashflow(metric) != net.tfminecraft.simplefactions.guild.income.Cashflow.VEHICLE_FEES && !nonpositive(metric);
@@ -44,7 +48,7 @@ public final class IntelligenceRanges {
         if (raw == null || raw.lower() >= raw.upper()) return null;
         long minimum = nonnegative(metric) ? 0 : Long.MIN_VALUE;
         Long maximum = null;
-        if (metric.equals("Stability") || metric.endsWith(":Dividend rate") || metric.startsWith("Position:")) maximum = 100L;
+        if (metric.equals("Stability") || metric.equals("Legitimacy") || metric.startsWith("Tax:") || metric.endsWith(":Dividend rate") || metric.startsWith("Position:")) maximum = 100L;
         else if (metric.startsWith("Guild:") && metric.endsWith(":Members") && Cache.maxMembers > 0)
             maximum = (long) Cache.maxMembers;
         boolean boundedDomain = maximum != null;

@@ -1,7 +1,7 @@
 # Espionage (development)
 
 Foreign faction and guild menus always show public identity and flavor details:
-character names of leaders, government, rank, tier, titles, settlements, culture,
+character names of faction leaders, government, rank, tier, titles, settlements, culture,
 religion, guild types, allies and subjects. Prestige is public and its ranking
 uses exact values. Other figures are hidden or shown as intelligence ranges.
 Members retain exact information about their own faction and guilds. This covers
@@ -145,7 +145,7 @@ the next uncached rolls. A recreated target faction receives a fresh report.
 
 | Margin | Intelligence | Approximate range width | Known non-leader members |
 | --- | --- | --- | --- |
-| <= 0 | Unknown | None | 0% |
+| <= 0 | Rumours | Up to 300% | 20% |
 | 1-29 | Rumours | 300% of magnitude | 20% |
 | 30-64 | Broad estimates | 150% | 40% |
 | 65-99 | Reliable estimates | 40% | 60% |
@@ -155,7 +155,9 @@ Samples are rounded down, capped at 23, and saved with the report so reopening
 cannot reveal extra names. They contain character names and guild affiliations.
 The faction leader is always displayed separately alongside the member-count
 range, regardless of quality. Guild rosters use the same sample, filtered by
-guild, and always show their guild leader. Own rosters put the leader first.
+guild. Guild leaders and special-office identities use their configurable tier gates.
+All rosters distinguish the faction leader, guild leaders and office holders; guilds
+are grouped by descending visible wealth (estimated midpoints for foreign views).
 
 Ranges are rounded, asymmetric snapshots containing the true value when generated.
 They never collapse to an exact number, including zero. Reports cover members,
@@ -180,12 +182,12 @@ faction. Unknown entries appear alphabetically after ranked known entries and ha
 no numeric rank. Guild income leaderboards use the same intelligence policy.
 Foreign tooltips retain the same colors, spacing and field order as own entries;
 foreign faction and guild views retain their familiar slot layouts. Foreign
-menus allow public diplomacy and guild flavor browsing while exact
-ledgers, military, government, laws, installations and upgrade menus stay private.
+menus allow diplomacy and guild browsing, plus read-only masked ledgers, military,
+government, laws, installations and upgrade windows.
 Private menus recheck membership before interacting or refreshing.
 
 Foreign ledgers show daily income, expenses, net income, and a reported accounts
-menu for individual cashflows. Trade breakdowns and dividends use the same
+menu in the original ledger slots; the tooltip includes individual cashflows. Trade breakdowns and dividends use the same
 snapshot estimates. Dividend percentages stay within 0–100%; income and expense
 cashflows respect their valid signs. Missing new fields in an older report stay
 Unknown until the next day's report; opening a ledger never regenerates it.
@@ -236,7 +238,10 @@ Rumours. Office identities require Reliable and office aptitude requires Detaile
 An `unknown` threshold disables that field. Invalid or unconfigured fields fail
 closed. `cashflows` accepts individual enum-category overrides such as `TRADE`.
 These gates apply when generating **and reading** reports, including old caches.
-Roster names also obey their own tier gate; leaders remain public.
+Roster names also obey roster/guild-members gates. Faction leaders remain public;
+guild leaders use guild-leader, and office identities use office-holder. Reports
+always have at least Rumours quality, including negative margins. Every guild in
+a faction shares that same daily quality.
 
 Foreign Special Positions is a read-only report using the same daily comparison.
 Office names/vacancy and aptitude ranges are saved snapshots; holder-only sabotage
@@ -254,3 +259,18 @@ default false), and intentionally overrides the once-per-day rule for testing.
 Reopen menus afterward to see refreshed accounts. It preserves permanent aptitude,
 office holders, sabotage preferences, appointment counts, treasury and unrest.
 `/faction reloadconfigs` reloads settings without regenerating reports.
+
+### Read-only foreign navigation
+
+Foreign menus use the original inventory sizes, category slots, template icons
+and back routes. Guild branches return to their normal building slots; their
+levels/effects are estimates gated by `buildings`. Guild upgrades and the upgrade
+queue use `upgrades`. The military view opens normally; its regiment counts are
+gated by professional-army/levies and its training queue by `training` (Reliable
+by default). Numeric tax rates use `taxes`, selected laws use `laws`, and
+installation identity/levels/construction use `installation-details`. All use
+the faction's cached report. Hidden categories keep their menu entry with
+Unknown details. Foreign views cannot submit proposals, train troops, upgrade
+buildings, cancel queues or modify another faction. Periodic refreshes never
+replace a masked snapshot with an exact submenu. Ledger detail windows retain
+the original 27-slot layout; cashflow estimates remain in the Ledger tooltip.

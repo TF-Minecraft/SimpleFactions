@@ -31,6 +31,13 @@ public class TaxView {
     @SuppressWarnings("deprecation")
     public void taxView(Player player, Faction f, Inventory i) {
         if(f == null) return;
+        if (!net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(player, f)) {
+            boolean show = i == null;
+            if (show) i = ReportedMenus.open(player, f.getId(), SFGUI.TAX_VIEW, 18, "Tax View");
+            ReportedMenus.taxes(i, player, f, inv);
+            if (show) player.openInventory(i);
+            return;
+        }
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_VIEW), 18, "§7Tax View");
 		i.clear();
@@ -83,12 +90,12 @@ public class TaxView {
 
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		e.setCancelled(true);
-        Faction f = FactionManager.getByLeader(p.getName());
+        SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+        Faction f = FactionManager.getByString(holder.getId());
         if(f == null) {
             p.closeInventory();
             return;
         }
-		SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
 		if(holder.getType() == SFGUI.TAX_VIEW) {
 			ItemStack item = e.getCurrentItem();
 			if(item == null || item.getItemMeta() == null) return;

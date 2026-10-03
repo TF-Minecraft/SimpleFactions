@@ -408,16 +408,7 @@ public class FactionCreator {
 				memberNames.removeIf(name -> name.equalsIgnoreCase(f.getLeader()));
 				memberNames.add(0, f.getLeader());
 				m.setDisplayName(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+memberNames.size()));
-				List<String> lore = new ArrayList<String>();
-				int count = 0;
-				for(String s : memberNames) {
-					if(count == 24) break;
-					lore.add(StringFormatter.formatHex("#d4c9ae"+CharacterNames.display(p, s)+" "+Represents.represents(f, s)));
-					count++;
-				}
-				if(count < memberNames.size()) {
-					lore.add("§7...and "+(memberNames.size()-count)+" more");
-				}
+				List<String> lore = net.tfminecraft.simplefactions.espionage.RosterLore.faction(p, f).stream().map(StringFormatter::formatHex).toList();
 				m.setLore(lore);
 				i.setItemMeta(m);	
 		} else if(t.equals(MenuItemType.GUILDS)) {

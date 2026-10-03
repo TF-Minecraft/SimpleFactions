@@ -189,7 +189,7 @@ public class GuildView {
 			tradePreview = BranchIncomePreview.prepare(manager);
 		}
 		int group = 0;
-		while(guild.getBranch(group) != null || group > 10) {
+		while(group < 10 && guild.getBranch(group) != null) {
 			Branch b = guild.getBranch(group);
 			group++;
 			i.setItem(group+28, creator.createBranchItem(player, guild, b));
@@ -227,7 +227,7 @@ public class GuildView {
 	}
 
 	public void upgradeView(Player player, Guild guild, Inventory i) {
-		if (!EspionageService.canViewExact(player, guild.getFaction())) { inv.factionView(player, guild.getFaction()); return; }
+		if (!EspionageService.canViewExact(player, guild.getFaction())) { ReportedMenus.upgrades(i, player, guild, inv); return; }
 		i.clear();
 		List<Upgrade> upgrades = guild.getUpgrades();
 		
@@ -263,7 +263,7 @@ public class GuildView {
 		if (h.getType() == SFGUI.GUILD_VIEW && e.getSlot() == 26) {
 			e.setCancelled(true);
 			Guild guild = FactionManager.getGuildByString(h.getId());
-			if (guild != null && guild.isMember(p)) {
+			if (guild != null) {
 				inv.supplyHubView.guildView(p, guild);
 			}
 			return;
@@ -326,7 +326,12 @@ public class GuildView {
 				return;
 			}
 			if (!EspionageService.canViewExact(p, guild.getFaction())
-					&& e.getSlot() != HOST_FACTION_SLOT && e.getSlot() != 53 && e.getSlot() != 14) return;
+					&& e.getSlot() != HOST_FACTION_SLOT && e.getSlot() != 53 && e.getSlot() != 14) {
+                if (e.getSlot() == 16) upgradeView(p, guild);
+                if (e.getSlot() == COMPANY_SLOT) inv.companyView.companyView(p, guild);
+                if (e.getSlot() == 25) inv.loanView.loanMainView(p, guild);
+                return;
+            }
 			if (e.getSlot() == 14) { ledgerView(p, guild, null); return; }
 			if (e.getSlot() == HOST_FACTION_SLOT) {
 				Faction faction = guild.getFaction();
