@@ -44,11 +44,14 @@ class RosterAndLedgerPresentationTest {
         report = EspionageService.createReport(Map.of(), 65, new Random(1));
         report.estimates.put("Guild:g:Cashflow:TRADE", new EspionageMath.Estimate(100, 120));
         report.estimates.put("Guild:g:Cashflow:MILITARY_UPKEEP", new EspionageMath.Estimate(-20, -10));
+        report.estimates.put("Guild:g:Cashflow:GUILDS", new EspionageMath.Estimate(0, 2));
+        report.estimates.put("Guild:g:Cashflow:VEHICLE_UPKEEP", new EspionageMath.Estimate(-2, 0));
         String text = String.join("\n", IntelligenceLedger.summary(report, guild));
         assertTrue(text.indexOf("Income\n") < text.indexOf("Trade:"));
         assertTrue(text.indexOf("Trade:") < text.indexOf("Expenses\n"));
         assertTrue(text.indexOf("Expenses\n") < text.indexOf("Military Upkeep:"));
         assertFalse(text.contains("Guilds:"));
+        assertFalse(text.contains("Vehicle Upkeep:"));
         verify(guild, never()).getLedger();
     }
 }

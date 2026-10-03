@@ -54,7 +54,7 @@ public final class IntelligenceLedger {
         for (Cashflow flow : Cashflow.values()) {
             String metric = "Cashflow:" + flow.name();
             var range = report.estimate(key(guild, metric));
-            if (range != null && range.midpoint() != 0 && (range.midpoint() < 0) == expenses)
+            if (range != null && (expenses ? range.upper() < 0 : range.lower() > 0))
                 lore.add(flow.getDisplay() + ": " + value(report, guild, metric, "d/day"));
         }
     }
