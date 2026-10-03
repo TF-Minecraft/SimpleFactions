@@ -47,19 +47,13 @@ public final class LeaderCharacterListener implements Listener {
         for (Faction faction : FactionManager.factions) {
             if (faction == null) continue;
             if (player == null || player.equalsIgnoreCase(faction.getLeader())) {
-                LeaderCharacters.Remembered remembered = LeaderCharacters.resolve(
-                        faction.getLeader(), faction.getLeaderCharacter(), faction.getLeaderCharacterOf());
-                changed |= !java.util.Objects.equals(remembered.name(), faction.getLeaderCharacter());
-                faction.rememberLeaderCharacter(remembered.name(), remembered.player());
+                changed |= LeaderCharacters.refresh(faction);
             }
             // Guild leaders too; a realm's own guild follows the realm above.
             for (Guild guild : faction.getGuildHandler().getGuilds()) {
                 if (guild == null || guild.isBase()) continue;
                 if (player != null && !player.equalsIgnoreCase(guild.getLeader())) continue;
-                LeaderCharacters.Remembered remembered = LeaderCharacters.resolve(
-                        guild.getLeader(), guild.getLeaderCharacter(), guild.getLeaderCharacterOf());
-                changed |= !java.util.Objects.equals(remembered.name(), guild.getLeaderCharacter());
-                guild.rememberLeaderCharacter(remembered.name(), remembered.player());
+                changed |= LeaderCharacters.refresh(guild);
             }
         }
         if (changed && FactionManager.getMap() != null) {

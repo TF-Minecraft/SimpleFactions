@@ -498,6 +498,11 @@ public class Guild {
         this.leaderCharacter = name;
         this.leaderCharacterOf = player;
     }
+
+    /** A realm's own guild becoming an ordinary one keeps the realm's remembered name. */
+    void keepHostLeaderCharacter() {
+        rememberLeaderCharacter(getLeaderCharacter(), getLeaderCharacterOf());
+    }
     public void setLeader(String leader) {
         this.leader = leader;
     }
@@ -955,6 +960,7 @@ public class Guild {
             this.capital = getCapital();
             this.id = getId();
             this.leader = getLeader();
+            keepHostLeaderCharacter();
             this.members = new ArrayList<>(getMembers());
             this.invites = new ArrayList<>(getInvites());
             if (this.name == null || this.name.isBlank()) {

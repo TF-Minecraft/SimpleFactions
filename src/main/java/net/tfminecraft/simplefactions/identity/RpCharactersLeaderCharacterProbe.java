@@ -30,12 +30,15 @@ public final class RpCharactersLeaderCharacterProbe implements LeaderCharacters.
     static final File CHARACTER_ROOT = new File("plugins/RPCharacters/data/characterdata");
 
     @Override
+    public boolean available() {
+        return Bukkit.getServer() != null
+                && Bukkit.getPluginManager() != null
+                && Bukkit.getPluginManager().isPluginEnabled("RPCharacters");
+    }
+
+    @Override
     public String activeCharacterName(String player) {
-        if (Bukkit.getServer() == null
-                || Bukkit.getPluginManager() == null
-                || !Bukkit.getPluginManager().isPluginEnabled("RPCharacters")) {
-            return null;
-        }
+        if (!available()) return null;
         Player online = Bukkit.getPlayerExact(player);
         if (online != null) {
             PlayerData data = PlayerManager.get(online);

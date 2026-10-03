@@ -198,6 +198,9 @@ public class Faction {
 		this.name = guild.getName();
 		this.diplomacyHandler = new DiplomacyHandler(this);
 		this.leader = guild.getLeader();
+		// Read before the guild becomes this realm's own and starts sharing these fields.
+		this.leaderCharacter = guild.getLeaderCharacter();
+		this.leaderCharacterOf = guild.getLeaderCharacterOf();
 		this.rulerTitle = "Leader";
 		this.bannerPatterns = guild.getBannerPatterns();
 		this.rank = RankLoader.getLowest();

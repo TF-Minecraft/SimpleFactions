@@ -374,7 +374,6 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.unregister();
 		MercenaryStatService.clearAll();
 		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.reset();
-		net.tfminecraft.simplefactions.identity.LeaderCharacters.reset();
 		vehicleMaintenanceDecayTask.stop();
 		CampaignViewRefreshService.stop();
 		BattleManager.shutdown();
@@ -382,7 +381,7 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		sessionManager.end();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
-		saveLoadedFactions();
+		saveFactionsForShutdown();
 		for(War w : WarManager.get()){
 			db.saveWar(w);
 		}
@@ -393,6 +392,12 @@ public class SimpleFactions extends JavaPlugin{
 			vehicleMaintenancePersistence.save();
 		}
 	}
+    void saveFactionsForShutdown() {
+        // The save resolves leader characters, so RPCharacters stays asked until it is done.
+        saveLoadedFactions();
+        net.tfminecraft.simplefactions.identity.LeaderCharacters.reset();
+    }
+
     void saveLoadedFactions() {
         // An early enable failure must not overwrite partially restored faction state.
         if (!FactionManager.isLoaded()) return;
