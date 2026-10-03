@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mockStatic;
@@ -73,10 +75,26 @@ class SupplyHubServiceTest {
         try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
             factions.when(() -> FactionManager.getGuildByMember("leader")).thenReturn(guild);
             assertTrue(SupplyHubCommands.guild(player, new String[] {"hub", "build"}));
-            verify(player).sendMessage("§cYour faction's economy does not allow supply hubs");
+            verify(player).sendMessage(SupplyHubCommands.MENU_HINT);
             verify(player, never()).getLocation();
         } finally {
             Cache.provincesEnabled = enabled;
+        }
+    }
+
+    @Test
+    void placeRefusesAForbiddenEconomyBeforeLookingUpTheInstallation() {
+        Guild guild = mock(Guild.class);
+        Faction faction = mock(Faction.class);
+        Player player = mock(Player.class);
+        when(player.getName()).thenReturn("leader");
+        when(guild.getLeader()).thenReturn("leader");
+        when(guild.getFaction()).thenReturn(faction);
+        when(faction.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(false);
+        try (MockedStatic<SupplyHubService> hubs = mockStatic(SupplyHubService.class, CALLS_REAL_METHODS)) {
+            assertFalse(SupplyHubCommands.place(player, guild, "host", "station"));
+            verify(player).sendMessage("§cYour faction's economy does not allow supply hubs");
+            hubs.verify(() -> SupplyHubService.findInstallation(any(), any()), never());
         }
     }
 

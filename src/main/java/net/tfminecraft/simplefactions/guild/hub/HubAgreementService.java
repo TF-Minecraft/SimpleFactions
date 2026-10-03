@@ -133,6 +133,10 @@ public final class HubAgreementService {
         return findAgreement(guild, hostFactionId, installationId) != null;
     }
 
+    public static HubOffer offer(Guild guild, String hostFactionId, String installationId) {
+        return findOffer(guild, hostFactionId, installationId);
+    }
+
     public static HubAgreement findAgreement(Guild guild, String hostFactionId, String installationId) {
         if (guild == null || guild.getHubAgreements() == null) {
             return null;
@@ -250,6 +254,9 @@ public final class HubAgreementService {
         HubOffer offer = readyOffer(guild, hostFactionId, installationId, facts, nowMillis);
         if (offer == null) {
             return missingOrLapsed(guild, hostFactionId, installationId, facts, nowMillis);
+        }
+        if (offer.lastActor() != null && offer.lastActor().equalsIgnoreCase(actorName)) {
+            return AgreementResult.fail("§cYou can only accept terms the other side sent");
         }
         if (!actsFor(offer.awaiting(), guild, actorName, hostFactionId, facts)) {
             OfferSide sender = offer.awaiting() == OfferSide.HOST ? OfferSide.GUILD : OfferSide.HOST;
