@@ -27,6 +27,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.branch.BranchModifier;
+import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
@@ -348,7 +349,7 @@ public class GuildCreator {
 			lore.add("");
 			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
 					guild.getTradeBreakdown().getNetTradeIncome() - guild.getHubTaxBreakdown().getTotalTax())));
-			lore.add(incomeChangeLine(delta));
+			lore.add(incomeChangeLine(delta, BranchIncomePreview.showsRealm(guild, branch)));
 		}
 		lore.add("");
 		lore.add(StringFormatter.formatHex("#50e846§lClick to Upgrade"));
@@ -395,7 +396,7 @@ public class GuildCreator {
 		} else {
 			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
 					guild.getTradeBreakdown().getNetTradeIncome() - guild.getHubTaxBreakdown().getTotalTax())));
-			lore.add(incomeChangeLine(delta));
+			lore.add(incomeChangeLine(delta, BranchIncomePreview.showsRealm(guild, branch)));
 		}
 		lore.add("");
 		lore.add(StringFormatter.formatHex(
@@ -406,15 +407,16 @@ public class GuildCreator {
 		return lore;
 	}
 
-	private String incomeChangeLine(Double delta) {
+	String incomeChangeLine(Double delta, boolean realm) {
+		String label = realm ? "Estimated Realm Income Change" : "Estimated Income Change";
 		if (delta == null) {
-			return StringFormatter.formatHex("#f2e5c2Estimated Income Change#d6cf69: #7a706aCalculating...");
+			return StringFormatter.formatHex("#f2e5c2" + label + "#d6cf69: #7a706aCalculating...");
 		}
 		if (delta.isNaN()) {
 			return StringFormatter.formatHex("#cf493aIncome estimate unavailable");
 		}
 		return StringFormatter.formatHex(
-			"#f2e5c2Estimated Income Change#d6cf69: "
+			"#f2e5c2" + label + "#d6cf69: "
 			+ (delta >= 0 ? "#4fd945+" : "#cf493a")
 			+ String.format("%.2f", delta)
 			+ "d/day"

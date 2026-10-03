@@ -2,9 +2,11 @@ package net.tfminecraft.simplefactions.managers;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.bukkit.Bukkit;
 
@@ -37,6 +39,9 @@ import net.tfminecraft.simplefactions.laws.LawGroup;
 
 public class ProvinceManager {
     private Map<Integer, Province> provinces = new HashMap<>();
+    /** Set only on a preview copy, so a background flood does not walk the live faction list. */
+    private List<Guild> previewGuilds;
+    private List<Faction> previewFactions;
     private Map<String, List<Link>> hubLinksOverride;
     private boolean infrastructureSuppressed;
     private Map<Integer, Double> extraInfrastructure;
@@ -140,6 +145,38 @@ public class ProvinceManager {
         for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
     }
 
+    /**
+     * Same flood as {@link #recalculate()} without writing guild trade breakdowns.
+     * {@code guilds} and {@code factions} are copies taken on the server thread.
+     */
+    public void recalculateQuiet(List<Guild> guilds, List<Faction> factions) {
+        if (!Cache.provincesEnabled) {
+            return;
+        }
+        previewGuilds = guilds == null ? List.of() : List.copyOf(guilds);
+        previewFactions = factions == null ? List.of() : List.copyOf(factions);
+        HubNetwork.refreshIfLive(this);
+        recalculateInfrastructure();
+        dropExcept(previewGuilds);
+        for (Guild guild : previewGuilds) {
+            if (guild != null && guild.hasCapital()) {
+                recalculateGuild(guild);
+            }
+        }
+        for (Guild guild : previewGuilds) {
+            if (guild != null && guild.hasCapital()) {
+                recalculateProduction(guild);
+            }
+        }
+        recalculateProsperity();
+    }
+
+    /** Drops the copies {@link #recalculateQuiet} kept for the income read that follows. */
+    public void clearPreviewLists() {
+        previewGuilds = null;
+        previewFactions = null;
+    }
+
     public void recalculateForSingleGuild(Guild g, boolean save) {
         if (!Cache.provincesEnabled) {
             return;
@@ -167,13 +204,16 @@ public class ProvinceManager {
         }
         Map<Integer, InfrastructureSpread.Node> graph = new HashMap<>();
         for (Province province : provinces.values()) {
-            Faction realm = InfrastructureAccess.topRealm(province.getOwner());
+            Faction realm = InfrastructureAccess.topRealm(
+                    previewFactions != null ? ownerOf(province.getId()) : province.getOwner());
             String origin = realm == null ? null : realm.getId().toLowerCase(Locale.ROOT);
             graph.put(province.getId(), new InfrastructureSpread.Node(
                     province.getTradeCarry(), !province.isSea(), origin, province.getNeighbours()));
         }
         Map<Integer, Double> sources = InfrastructureSources.collect(
-                provinces, FactionManager.getAllGuilds(), FactionManager.getCopy(),
+                provinces,
+                previewGuilds != null ? previewGuilds : FactionManager.getAllGuilds(),
+                previewFactions != null ? previewFactions : FactionManager.getCopy(),
                 net.tfminecraft.simplefactions.map.infra.TrackProvinceCache.live().provinces());
         if (extraInfrastructure != null) {
             for (Map.Entry<Integer, Double> extra : extraInfrastructure.entrySet()) {
@@ -296,7 +336,9 @@ public class ProvinceManager {
             if(provinceIncome == 0) continue;
             //if(provinceIncome > guildTrade) provinceIncome = guildTrade;
             upkeep += provinceIncome*TradeUpkeep.rate(province.getTradeFactor(guild), upkeepFactor);
-            Faction owner = TitleManager.getByProvince(province.getId());
+            Faction owner = previewFactions != null
+                    ? ownerOf(province.getId())
+                    : TitleManager.getByProvince(province.getId());
             if(owner != null) {
                 if(save) guild.getTradeBreakdown().registerIncome(owner, provinceIncome);
                 if(!RelationManager.sameRealm(owner, guild.getFaction())){
@@ -369,6 +411,35 @@ public class ProvinceManager {
     }
 
     //Simulation
+    private void dropExcept(List<Guild> present) {
+        Set<String> ids = new HashSet<>();
+        for (Guild guild : present) {
+            if (guild != null && guild.getId() != null) {
+                ids.add(guild.getId().toLowerCase(Locale.ROOT));
+            }
+        }
+        for (Province province : provinces.values()) {
+            List<String> remove = new ArrayList<>();
+            for (String id : province.getAllData().keySet()) {
+                if (id == null || !ids.contains(id.toLowerCase(Locale.ROOT))) {
+                    remove.add(id);
+                }
+            }
+            for (String id : remove) {
+                province.clearGuildData(id);
+            }
+        }
+    }
+
+    private Faction ownerOf(int provinceId) {
+        for (Faction faction : previewFactions) {
+            if (faction != null && faction.hasProvince(provinceId)) {
+                return faction;
+            }
+        }
+        return null;
+    }
+
     public void copyAllDataFrom(ProvinceManager source) {
         for (Province src : source.provinces.values()) {
             Province dst = provinces.get(src.getId());

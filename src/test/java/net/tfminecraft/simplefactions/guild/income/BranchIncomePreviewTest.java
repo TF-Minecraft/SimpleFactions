@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.guild.income;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -37,6 +38,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 
 class BranchIncomePreviewTest {
 	private final List<Faction> savedFactions = new ArrayList<>();
@@ -197,5 +199,58 @@ class BranchIncomePreviewTest {
         assertEquals(-1.0, live.previewUpgradeIncomeExact(guild, infrastructure));
         assertEquals(1.0, live.previewDowngradeIncomeExact(guild, infrastructure));
         assertEquals(2, infrastructure.getLevel());
+        assertFalse(BranchIncomePreview.showsRealm(guild, infrastructure));
+    }
+
+    @Test
+    void infrastructureOnTheRealmGuildCountsEveryGuild() {
+        Cache.tradeCarry.put(Terrain.PLAINS, 0.4);
+        Guild realmGuild = guild("realm", true);
+        Guild other = guild("fields-two", false);
+        GuildHandler handler = mock(GuildHandler.class);
+        when(handler.getGuilds()).thenReturn(List.of(realmGuild));
+        when(faction.getId()).thenReturn("home");
+        when(faction.getGuildHandler()).thenReturn(handler);
+        FactionManager.factions.add(faction);
+
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("group", 3);
+        yaml.set("modifiers", List.of("INFRASTRUCTURE 0 20"));
+        Branch infrastructure = new Branch(new Branch("infrastructure", yaml), 0);
+        assertTrue(BranchIncomePreview.showsRealm(realmGuild, infrastructure));
+        assertFalse(BranchIncomePreview.showsRealm(other, infrastructure));
+        assertFalse(BranchIncomePreview.showsRealm(realmGuild, branch));
+
+        BranchIncomePreview.Prepared prepared = BranchIncomePreview.prepare(live);
+        Map<GuildModifier, Double> current = BranchIncomePreview.modifiers(realmGuild);
+        Map<GuildModifier, Double> raised = BranchIncomePreview.adjust(current, infrastructure, 0, 1);
+        double alone = BranchIncomePreview.estimateRealm(
+                prepared, realmGuild, current, raised,
+                BranchIncomePreview.guildsNow(), BranchIncomePreview.factionsNow());
+        when(handler.getGuilds()).thenReturn(List.of(realmGuild, other));
+        double both = BranchIncomePreview.estimateRealm(
+                prepared, realmGuild, current, raised,
+                BranchIncomePreview.guildsNow(), BranchIncomePreview.factionsNow());
+
+        assertTrue(alone > 0, "alone " + alone);
+        assertTrue(both > alone, "both " + both + " alone " + alone);
+        assertEquals(0, infrastructure.getLevel());
+    }
+
+    private Guild guild(String id, boolean base) {
+        Guild created = mock(Guild.class);
+        when(created.getId()).thenReturn(id);
+        when(created.isBase()).thenReturn(base);
+        when(created.hasCapital()).thenReturn(true);
+        when(created.getCapital()).thenReturn(capital.getId());
+        when(created.getFaction()).thenReturn(faction);
+        when(created.getModifier(any())).thenAnswer(invocation -> switch ((GuildModifier) invocation.getArgument(0)) {
+            case TRADE_POWER -> 8.0;
+            case TRADE_CARRY -> 1.2;
+            case PRODUCTION -> 6.0;
+            case TRADE_UPKEEP -> 0.05;
+            default -> 0.0;
+        });
+        return created;
     }
 }

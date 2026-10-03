@@ -147,6 +147,26 @@ public final class HubEstimates {
         return 0;
     }
 
+    /** False before the first daily pass, so a menu can avoid showing a missing figure as +0. */
+    public static boolean hasInfrastructureWorth(Faction realm) {
+        return realm != null && hasInfrastructureWorth(realm.getId());
+    }
+
+    public static boolean hasInfrastructureWorth(String realmId) {
+        if (realmId == null) {
+            return false;
+        }
+        if (headlines.containsKey(realmId)) {
+            return true;
+        }
+        for (String key : headlines.keySet()) {
+            if (realmId.equalsIgnoreCase(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static Terms applyTerms(Destination destination, int ratePercent, long feeCents) {
         if (destination == null) {
             return new Terms(0, 0, 0, 0);
