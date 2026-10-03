@@ -194,11 +194,6 @@ public class TabCompletion implements TabCompleter{
 			}
 			return new ArrayList<>();
 		}
-		else if(cmd.getName().equalsIgnoreCase("faction")
-				&& args.length >= 2
-				&& args[0].equalsIgnoreCase("hubpermit")) {
-			return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.completePermits(sender, args);
-		}
 		else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 0 && args.length < 2 ) {
 			if(sender instanceof Player){
 				Player p = (Player) sender;
@@ -336,7 +331,6 @@ public class TabCompletion implements TabCompleter{
 						completions.add("construct");
 						completions.add("deconstruct");
 						completions.add("upgrade");
-						completions.add("hubpermit");
 						completions.add("unclaim");
 						completions.add("setcapital");
 					}

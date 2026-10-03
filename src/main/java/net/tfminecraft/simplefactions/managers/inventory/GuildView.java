@@ -132,8 +132,10 @@ public class GuildView {
 			i.setItem(14, creator.createLedgerTariffsItem(guild));
 			i.setItem(15, creator.createLedgerDepositsItem(guild));
 			i.setItem(16, creator.createLedgerHubTaxItem(guild, false));
+			i.setItem(18, creator.createLedgerHubFeeItem(guild, false));
 		}
 		i.setItem(17, creator.createLedgerHubTaxItem(guild, true));
+		i.setItem(19, creator.createLedgerHubFeeItem(guild, true));
 		i.setItem(26, inv.createBackButton(SFGUI.LEDGER_VIEW));
 		if(open) player.openInventory(i);
 	}

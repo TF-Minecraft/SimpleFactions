@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -21,7 +20,6 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Terrain;
-import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
@@ -138,17 +136,23 @@ class HubTaxServiceTest {
         Guild guild = mock(Guild.class);
         Faction home = mock(Faction.class);
         Faction host = mock(Faction.class);
+        Faction west = mock(Faction.class);
         when(home.getId()).thenReturn("home");
         when(home.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
+        when(home.getRelations()).thenReturn(new HashMap<>());
         when(host.getId()).thenReturn("host");
-        when(host.hasHubPermit("guild")).thenReturn(true);
-        when(host.getTaxRate(TaxTarget.HUB_TAX, null, true)).thenReturn(50.0);
+        when(host.getRelations()).thenReturn(new HashMap<>());
+        when(west.getId()).thenReturn("west");
+        when(west.getRelations()).thenReturn(new HashMap<>());
         when(guild.getId()).thenReturn("guild");
+        when(guild.getHubAgreements()).thenReturn(new ArrayList<>(List.of(
+                new HubAgreement("host", "b", 50, 0, 14, true, true, null, false),
+                new HubAgreement("west", "c", 10, 0, 14, true, true, null, false))));
         when(guild.getFaction()).thenReturn(home);
         when(guild.hasCapital()).thenReturn(true);
         when(guild.getCapital()).thenReturn(1);
         when(guild.getModifier(GuildModifier.TRADE_POWER)).thenReturn(20.0);
-        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(3.0);
+        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(4.0);
         when(guild.getModifier(GuildModifier.TRADE_CARRY)).thenReturn(1.0);
         when(guild.getModifier(GuildModifier.PRODUCTION)).thenReturn(10.0);
         TradeBreakdown trade = new TradeBreakdown();
@@ -156,16 +160,21 @@ class HubTaxServiceTest {
         when(guild.getTradeBreakdown()).thenReturn(trade);
         SupplyHub first = new SupplyHub("home", "a", 1);
         SupplyHub last = new SupplyHub("host", "b", 2);
-        SupplyHub dormant = new SupplyHub("host", "dormant", 3);
-        when(guild.getSupplyHubs()).thenReturn(new ArrayList<>(List.of(first, last, dormant)));
+        SupplyHub other = new SupplyHub("west", "c", 3);
+        SupplyHub dormant = new SupplyHub("host", "dormant", 4);
+        when(guild.getSupplyHubs()).thenReturn(new ArrayList<>(List.of(first, last, other, dormant)));
         Installation a = new Installation("a", "A", InstallationKind.TRAIN_STATION, 1, 0, 0, 0L);
         Installation b = new Installation("b", "B", InstallationKind.TRAIN_STATION, 22, 100, 0, 0L);
+        Installation c = new Installation("c", "C", InstallationKind.TRAIN_STATION, 12, 0, 0, 0L);
         InstallationHandler homeSites = mock(InstallationHandler.class);
         InstallationHandler hostSites = mock(InstallationHandler.class);
+        InstallationHandler westSites = mock(InstallationHandler.class);
         when(home.getInstallationHandler()).thenReturn(homeSites);
         when(host.getInstallationHandler()).thenReturn(hostSites);
+        when(west.getInstallationHandler()).thenReturn(westSites);
         when(homeSites.getById("a")).thenReturn(a);
         when(hostSites.getById("b")).thenReturn(b);
+        when(westSites.getById("c")).thenReturn(c);
         ProvinceManager provinces = new ProvinceManager();
         Map<Integer, Province> map = new HashMap<>();
         for (int id = 1; id <= 24; id++) {
@@ -177,13 +186,16 @@ class HubTaxServiceTest {
         }
         provinces.start(map);
         List<Link> links = List.of(new Link(1, 22, "home", "a", "host", "b", Mode.RAIL, 0, 0.7, 0.25),
-                new Link(22, 1, "host", "b", "home", "a", Mode.RAIL, 0, 0.7, 0.25));
+                new Link(22, 1, "host", "b", "home", "a", Mode.RAIL, 0, 0.7, 0.25),
+                new Link(1, 12, "home", "a", "west", "c", Mode.RAIL, 0, 0.7, 0.25),
+                new Link(12, 1, "west", "c", "home", "a", Mode.RAIL, 0, 0.7, 0.25));
         HubNetwork.setLinksForTests(Map.of("guild", links));
         try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
                 MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
                 MockedStatic<InstallationConfigLoader> config = mockStatic(InstallationConfigLoader.class)) {
             factions.when(() -> FactionManager.getByString("home")).thenReturn(home);
             factions.when(() -> FactionManager.getByString("host")).thenReturn(host);
+            factions.when(() -> FactionManager.getByString("west")).thenReturn(west);
             factions.when(() -> FactionManager.getGuildByString("guild")).thenReturn(guild);
             factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
             titles.when(() -> TitleManager.getByProvince(anyInt())).thenReturn(null);
@@ -210,11 +222,12 @@ class HubTaxServiceTest {
             HubTaxBreakdown assessment = HubTaxService.assess(provinces, guild, List.of(guild));
 
             assertTrue(gain > 0);
-            assertEquals(gain / 2, assessment.forHub(first).taxableIncome(), 1e-9);
-            assertEquals(gain / 2, assessment.forHub(last).taxableIncome(), 1e-9);
             assertEquals(0, assessment.forHub(first).tax());
-            assertEquals(gain / 4, assessment.forHub(last).tax(), 1e-9);
-            assertEquals(gain / 2, assessment.getTaxableIncome(host), 1e-9);
+            assertTrue(assessment.forHub(last).taxableIncome() > 0);
+            assertTrue(assessment.forHub(other).taxableIncome() > 0);
+            assertEquals(assessment.forHub(last).taxableIncome() * 0.5, assessment.forHub(last).tax(), 1e-6);
+            assertEquals(assessment.forHub(other).taxableIncome() * 0.1, assessment.forHub(other).tax(), 1e-6);
+            assertEquals(assessment.forHub(last).taxableIncome(), assessment.getTaxableIncome(host), 1e-9);
             assertEquals(0, assessment.forHub(dormant).taxableIncome());
             for (Province p : provinces.getProvinces()) {
                 assertSame(liveEntries.get(p.getId()), p.getAllData().get("guild"));
@@ -231,10 +244,11 @@ class HubTaxServiceTest {
             assertEquals(links, HubNetwork.linksFor(guild));
             try (MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
                 relations.when(() -> RelationManager.sameRealm(host, home)).thenReturn(true);
+                relations.when(() -> RelationManager.sameRealm(west, home)).thenReturn(true);
                 HubTaxBreakdown exempt = HubTaxService.assess(provinces, guild, List.of(guild));
                 assertEquals(0, exempt.getTotalTax());
-                assertEquals(gain / 2, exempt.getTaxableIncome(host), 1e-9);
                 assertTrue(exempt.forHub(last).taxableIncome() > 0);
+                assertTrue(exempt.forHub(other).taxableIncome() > 0);
             }
             HubNetwork.setLinksForTests(null);
             assertEquals(0, HubTaxService.assess(provinces, guild, List.of(guild)).getTotalTax());

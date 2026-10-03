@@ -672,6 +672,35 @@ public class GuildCreator {
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
+	public ItemStack createLedgerHubFeeItem(Guild g, boolean payments) {
+		ItemStack i = new ItemStack(Material.EMERALD);
+		ItemMeta m = i.getItemMeta();
+		m.setDisplayName(StringFormatter.formatHex("#5cc46aHub Fee" + (payments ? " Paid" : "")));
+		Map<String, Double> today = new HashMap<>();
+		if (payments) {
+			if (g.getLedger() != null) {
+				g.getLedger().getPayableHubFees().forEach(
+						(host, fee) -> today.merge(host.getName(), fee, Double::sum));
+			}
+		} else if (g.getLedger() != null && !g.isBankrupt() && g.getFaction() != null) {
+			for (Guild payer : FactionManager.getAllGuilds()) {
+				if (payer.getLedger() == null) {
+					continue;
+				}
+				double fee = payer.getLedger().getPayableHubFees().getOrDefault(g.getFaction(), 0.0);
+				if (fee > 0) {
+					today.merge(payer.getFaction().getName(), fee, Double::sum);
+				}
+			}
+		}
+		m.setLore(ledgerSourceLore(g, payments ? LedgerHistory.Source.HUB_FEE_PAYMENTS : LedgerHistory.Source.HUB_FEE,
+				payments ? "Top hub fee hosts" : "Top hub fee payers", today, "No hub fee today."));
+		i.setItemMeta(m);
+		return i;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createLedgerDepositsItem(Guild g) {
 		ItemStack i = new ItemStack(Material.CHEST);
 		ItemMeta m = i.getItemMeta();

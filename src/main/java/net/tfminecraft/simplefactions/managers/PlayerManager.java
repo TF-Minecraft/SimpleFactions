@@ -43,6 +43,10 @@ public class PlayerManager implements Listener{
     @EventHandler
     public void joinEvent(PlayerJoinEvent e) {
         net.tfminecraft.simplefactions.inactivity.InactivityService.onLogin(e.getPlayer());
+        String hubSummary = net.tfminecraft.simplefactions.guild.hub.HubAgreementService.joinSummary(e.getPlayer().getName());
+        if (hubSummary != null) {
+            e.getPlayer().sendMessage(hubSummary);
+        }
     }
 
     //Loans and stuff

@@ -509,6 +509,9 @@ public class FactionManager implements Listener{
 						SimpleFactions.getInstance().getProvinceManager());
 			});
 			runDailyStep("income", this::settleIncome);
+			runDailyStep("hub agreements", () ->
+					net.tfminecraft.simplefactions.guild.hub.HubAgreementService.tick(
+							getAllGuilds(), System.currentTimeMillis()));
 			timer = 0;
 			day++;
 		}

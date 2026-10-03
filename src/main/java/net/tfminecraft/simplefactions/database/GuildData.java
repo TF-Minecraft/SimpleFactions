@@ -71,6 +71,12 @@ public class GuildData {
     @SerializedName("supply hubs")
     public List<SupplyHubData> supplyHubs = new ArrayList<>();
 
+    @SerializedName("hub agreements")
+    public List<HubAgreementData> hubAgreements = new ArrayList<>();
+
+    @SerializedName("hub offers")
+    public List<HubOfferData> hubOffers = new ArrayList<>();
+
     @SerializedName("supply hub tutorial dismissals")
     public List<String> supplyHubTutorialDismissals = new ArrayList<>();
 }

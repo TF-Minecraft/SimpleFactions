@@ -14,6 +14,8 @@ public enum Cashflow {
     TARIFFS("#5cc46aTariffs", false, true),
     HUB_TAX_PAYMENTS("#5cc46aHub Tax", false, false),
     HUB_TAX("#5cc46aHub Tax", false, true),
+    HUB_FEE_PAYMENTS("#5cc46aHub Fee", false, false),
+    HUB_FEE("#5cc46aHub Fee", false, true),
     LOAN_PAYMENTS("#e6bb57Loans", false, false),
     LOANS("#e6bb57Loans", false, false),
     INTEREST_PAYMENTS("#c25140Interest Payments", false, false),

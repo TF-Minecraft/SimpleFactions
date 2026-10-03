@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
 import net.tfminecraft.simplefactions.loaders.BranchLoader;
@@ -166,7 +167,6 @@ public class Database {
                         data.laws,
                         data.governmentData
                 );
-                f.getTaxHandler().setHubTax(data.hubTax == null ? 0.0 : data.hubTax);
                 f.getVehicleFeeHandler().load(data.vehicleFees, data.vehicleTypeFees);
                 if (data.lawChangedAt != null) {
                     for (Map.Entry<String, Long> entry : data.lawChangedAt.entrySet()) {
@@ -192,8 +192,6 @@ public class Database {
                 if (data.installations != null) {
                     f.getInstallationHandler().load(data.installations);
                 }
-                f.loadHubPermits(data.hubPermits);
-
                 if (data.installationQueue != null) {
                     f.getInstallationHandler().loadConstruction(data.installationQueue);
                 }
@@ -330,7 +328,7 @@ public class Database {
             data.vassalTax = f.getTaxHandler().getVassalTax();
             data.dividendTax = f.getTaxHandler().getDividendTax();
             data.tariffs = f.getTaxHandler().getTariffs();
-            data.hubTax = f.getTaxHandler().getHubTax();
+            data.hubTax = null;
             data.specificTaxes = serializeSpecificTaxes(f.getTaxHandler());
             data.vehicleFees = new HashMap<>(f.getVehicleFeeHandler().serializeRates());
             data.vehicleTypeFees = new HashMap<>();
@@ -348,7 +346,7 @@ public class Database {
 
             data.settlements = f.getSettlementHandler().serialize();
             data.installations = f.getInstallationHandler().serialize();
-            data.hubPermits = new ArrayList<>(f.getHubPermits());
+            data.hubPermits = null;
             data.installationQueue = f.getInstallationHandler().serializeConstruction();
 
             for (int p : f.getProvinces()) data.provinces.add(p);
@@ -425,6 +423,8 @@ public class Database {
                 gd.depositsToday = depositsToday.isEmpty() ? null : depositsToday;
                 gd.company = g.getCompany() != null ? g.getCompany().serialize() : null;
                 gd.supplyHubs = SupplyHubService.toData(g.getSupplyHubs());
+                gd.hubAgreements = HubAgreementService.toAgreementData(g.getHubAgreements());
+                gd.hubOffers = HubAgreementService.toOfferData(g.getHubOffers());
                 gd.supplyHubTutorialDismissals = g.getSupplyHubTutorialDismissals();
 
                 // --- Bank ---

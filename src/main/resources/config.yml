@@ -84,8 +84,14 @@ mercenary-default-breach-refund: 500.0
 # smaller refund would make no-showing more profitable per head than fighting.
 
 supply-hubs:
-  # Maximum hub tax rate a host faction can set.
+  # Highest hub tax percent an agreement may set. The host's economy law can set a lower cap.
   max-tax: 50
+  # Highest daily fee, in denars, an agreement may set.
+  max-fee: 500
+  # Days an offer stays open after the last move.
+  offer-days: 7
+  # Days a hub agreement runs.
+  agreement-days: 14
   # A hub takes the guild's trade power and production in its province and delivers a share
   # to each of the guild's hubs it is connected to. Train track joins any two kinds; ports
   # also connect across the sea, and airports through the air.
