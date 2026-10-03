@@ -159,7 +159,7 @@ public final class EspionageView {
         return switch (type) {
             case GOVERNMENT -> {
                 ItemStack head = styled(Material.PLAYER_HEAD, "#93c9a7Government:",
-                        "#9c9775§l" + target.getRulerTitle() + ": #c2bea7" + CharacterNames.display(viewer, target.getLeader()),
+                        "#9c9775§l" + target.getRulerTitle() + ": #c2bea7" + CharacterNames.display(viewer, target.getLeader(), target),
                         "#85c265Administrative Power§7: §e" + value(report, "Administrative power", ""),
                         "#85c265Stability: " + IntelligenceReport.stabilityRange(report), " ",
                         "#b8ae61Ruling System: #d4c9ae" + target.getGovernmentString());

@@ -10,7 +10,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 
 class OfficeAppointmentsTest {
     @Test
-    void newSoloFactionAssignsFounderWithoutChargingOrUsingTheFreeAppointment() {
+    void newSoloFactionWaitsForACharacterWithoutUsingTheFreeAppointment() {
         var faction = mock(Faction.class);
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
@@ -23,8 +23,8 @@ class OfficeAppointmentsTest {
             bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
             bukkit.when(() -> org.bukkit.Bukkit.getOfflinePlayer("Founder")).thenReturn(offline);
             EspionageService.initializeFounder(faction);
-            assertEquals("Founder", state.getSpymaster().playerName);
-            assertTrue(state.getSpymaster().automatic);
+            assertNull(state.getSpymaster());
+            assertTrue(state.hasPendingFounder());
             assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
             verify(faction, never()).getBank();
             state.removeSpymaster();

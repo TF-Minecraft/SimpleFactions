@@ -90,7 +90,7 @@ class ReportPresentationTest {
         report.roster = List.of(new IntelligenceReport.RosterMember("Known Member", "rich", "Rich Guild", true, false, List.of()),
                 new IntelligenceReport.RosterMember("Secret Spy", "poor", "Poor Guild", false, false, List.of(SpecialPosition.SPYMASTER)),
                 new IntelligenceReport.RosterMember("Guild Baron", "rich", "Rich Guild", false, true, List.of()));
-        try (var service = mockStatic(EspionageService.class); var names = mockStatic(CharacterNames.class)) {
+        try (var service = mockStatic(EspionageService.class); var names = mockStatic(CharacterNames.class, CALLS_REAL_METHODS)) {
             service.when(() -> EspionageService.report(viewer, faction)).thenReturn(report);
             service.when(() -> EspionageService.visibleValue(eq(viewer), eq(faction), anyString(), any()))
                     .thenAnswer(call -> call.getArgument(2).toString().contains("rich") ? 100.0 : 10.0);

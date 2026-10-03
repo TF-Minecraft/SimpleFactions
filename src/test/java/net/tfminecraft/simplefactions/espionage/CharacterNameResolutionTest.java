@@ -7,6 +7,34 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 class CharacterNameResolutionTest {
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path folder;
+
+    @Test void foreignFallbackHidesAccountsOnlyWhenRoleplayIsEnabled() {
+        var account = "NoActiveCharacterAccount";
+        var viewer = player("ForeignViewer");
+        var faction = mock(net.tfminecraft.simplefactions.objects.Faction.class);
+        var plugins = mock(org.bukkit.plugin.PluginManager.class);
+        var roleplay = mock(org.bukkit.plugin.Plugin.class);
+        var offline = mock(org.bukkit.OfflinePlayer.class);
+        when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
+        when(plugins.getPlugin("RPCharacters")).thenReturn(roleplay);
+        when(roleplay.getDataFolder()).thenReturn(folder.toFile());
+        when(offline.getUniqueId()).thenReturn(java.util.UUID.randomUUID());
+        try (var bukkit = mockStatic(org.bukkit.Bukkit.class)) {
+            bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
+            bukkit.when(org.bukkit.Bukkit::getPluginManager).thenReturn(plugins);
+            bukkit.when(() -> org.bukkit.Bukkit.getOfflinePlayer(account)).thenReturn(offline);
+            assertEquals("Unknown", CharacterNames.forForeign(account));
+            assertEquals("Unknown", CharacterNames.display(viewer, account, faction));
+            assertEquals(account, CharacterNames.of(account), "Invitations keep account fallback");
+            when(faction.isMemberIgnoreCase("ForeignViewer")).thenReturn(true);
+            assertEquals(account, CharacterNames.display(viewer, account, faction));
+            when(viewer.hasPermission(EspionageService.BYPASS_PERMISSION)).thenReturn(true);
+            assertEquals(account + " \u00a77(" + account + ")", CharacterNames.display(viewer, account, faction));
+            when(plugins.isPluginEnabled("RPCharacters")).thenReturn(false);
+            assertEquals(account, CharacterNames.forForeign(account), "Servers without RPCharacters keep account names");
+        }
+    }
     @org.junit.jupiter.api.Test
     void invitationCompletionReturnsOnlyCurrentTokenAndGuardsPastEndOfName() {
         var names = java.util.List.of("Lady Raven", "Lady Rose", "Lady", "Account", "Lady Raven");

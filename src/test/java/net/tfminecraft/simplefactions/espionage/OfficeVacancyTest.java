@@ -70,14 +70,10 @@ class OfficeVacancyTest {
         when(character.getStatus()).thenReturn(Status.DEAD);
         try (var factions = mockStatic(FactionManager.class); var databases = mockConstruction(Database.class)) {
             factions.when(FactionManager::getCopy).thenReturn(List.of(faction));
-            EspionageService.characterDied(null, character);
+            EspionageService.characterDied(null, character.getId(), "Spy");
             assertSame(holder, state.getSpymaster());
             when(character.getId()).thenReturn("appointed");
-            when(character.getStatus()).thenReturn(Status.ALIVE);
-            EspionageService.characterDied(null, character);
-            assertSame(holder, state.getSpymaster());
-            when(character.getStatus()).thenReturn(Status.DEAD);
-            EspionageService.characterDied(null, character);
+            EspionageService.characterDied(null, character.getId(), "Spy");
             assertNull(state.getSpymaster());
             assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
             verify(databases.constructed().getFirst()).saveFaction(faction);
@@ -100,8 +96,14 @@ class OfficeVacancyTest {
                     .thenAnswer(call -> { task.set(call.getArgument(1)); return null; });
             listener.onCharacterDeath(event);
             service.verifyNoInteractions();
+            when(character.getStatus()).thenReturn(Status.ALIVE);
             task.get().run();
-            service.verify(() -> EspionageService.characterDied(owner, character));
+            service.verifyNoInteractions();
+            when(character.getStatus()).thenReturn(Status.DEAD);
+            when(character.getId()).thenReturn("appointed");
+            when(character.getName()).thenReturn("Spy");
+            task.get().run();
+            service.verify(() -> EspionageService.characterDied(owner, "appointed", "Spy"));
         } finally { SimpleFactions.plugin = previous; }
     }
 }

@@ -47,12 +47,31 @@ class IntelligenceBrowsingTest {
             var report = EspionageService.report(first, target);
             assertNotNull(report);
             assertSame(report, EspionageService.report(second, target));
-            assertEquals(1, databases.constructed().size());
+            assertEquals(2, databases.constructed().size());
             EspionageService.refreshReports(second);
             assertSame(report, EspionageService.report(second, target));
-            assertEquals(1, databases.constructed().size(), "A second member cannot reroll the faction's day");
+            assertEquals(2, databases.constructed().size(), "A second member cannot reroll the faction's day");
             verify(first, times(1)).sendMessage(anyString());
             verify(second, never()).sendMessage(anyString());
+        }
+    }
+
+    @Test
+    void dailyRefreshBatchesObserverAndTargetsAndSkipsUnchangedReports() {
+        Player viewer = mock(Player.class);
+        when(viewer.getName()).thenReturn("Viewer");
+        Faction observer = faction("observer"), first = faction("first"), second = faction("second");
+        try (var factions = mockStatic(FactionManager.class); var databases = mockConstruction(Database.class)) {
+            factions.when(() -> FactionManager.getByMember("Viewer")).thenReturn(observer);
+            factions.when(FactionManager::getCopy).thenAnswer(ignored -> new ArrayList<>(List.of(observer, first, second)));
+            EspionageService.refreshReports(viewer);
+            assertEquals(3, databases.constructed().size());
+            verify(databases.constructed().get(0)).saveFaction(first);
+            verify(databases.constructed().get(1)).saveFaction(observer);
+            verify(databases.constructed().get(2)).saveFaction(second);
+            EspionageService.refreshReports(viewer);
+            assertEquals(3, databases.constructed().size());
+            for (Database database : databases.constructed()) verifyNoMoreInteractions(database);
         }
     }
 

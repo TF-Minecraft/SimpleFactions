@@ -19,12 +19,12 @@ public final class RosterLore {
         var report = exact ? null : EspionageService.report(viewer, faction);
         List<String> lore = new ArrayList<>();
         String title = faction.getRulerTitle();
-        lore.add("#e8c55a\u00a7l" + (title == null || title.isBlank() ? "Leader" : title) + ": #f4e4aa" + CharacterNames.display(viewer, faction.getLeader()));
+        lore.add("#e8c55a\u00a7l" + (title == null || title.isBlank() ? "Leader" : title) + ": #f4e4aa" + CharacterNames.display(viewer, faction.getLeader(), faction));
         List<String> leaderOffices = exact ? java.util.Arrays.stream(SpecialPosition.values()).filter(office -> {
             var holder = faction.getEspionage().holder(office);
             return holder != null && holder.playerName.equalsIgnoreCase(faction.getLeader());
         }).map(SpecialPosition::label).toList() : report == null ? List.of() : report.details("office-holder", "leader-offices");
-        for (String office : leaderOffices) lore.add("#93c9a7  " + office + ": #c2daca" + CharacterNames.display(viewer, faction.getLeader()));
+        for (String office : leaderOffices) lore.add("#93c9a7  " + office + ": #c2daca" + CharacterNames.display(viewer, faction.getLeader(), faction));
         List<Guild> guilds = new ArrayList<>(only == null ? faction.getGuildHandler().getGuilds() : List.of(only));
         guilds.sort(Comparator.comparing((Guild guild) -> !guild.isBase()).thenComparing(Comparator.comparing((Guild guild) -> {
             var wealth = exact ? guild.getWealth() : EspionageService.visibleValue(viewer, faction,

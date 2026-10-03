@@ -65,7 +65,7 @@ class IntelligencePolicyTest {
         holder.playerName = "Account";
         state.appoint(holder, 80);
         try (var names = mockStatic(CharacterNames.class)) {
-            names.when(() -> CharacterNames.of("Account")).thenReturn("Lady Raven");
+            names.when(() -> CharacterNames.forForeign("Account")).thenReturn("Lady Raven");
             for (int margin : new int[]{30, 65, 100}) {
                 var report = EspionageService.createReport(Map.of(), margin, new Random(1));
                 EspionageService.captureOffices(report, target, new Random(1));

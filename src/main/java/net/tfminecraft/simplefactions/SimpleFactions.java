@@ -373,10 +373,7 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		sessionManager.end();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
-		db.saveTimer(FactionManager.getTimer(), FactionManager.getDay());
-		for(Faction f : FactionManager.factions) {
-			db.saveFaction(f);
-		}
+		saveLoadedFactions();
 		for(War w : WarManager.get()){
 			db.saveWar(w);
 		}
@@ -387,6 +384,13 @@ public class SimpleFactions extends JavaPlugin{
 			vehicleMaintenancePersistence.save();
 		}
 	}
+    void saveLoadedFactions() {
+        // An early enable failure must not overwrite partially restored faction state.
+        if (!FactionManager.isLoaded()) return;
+        db.saveTimer(FactionManager.getTimer(), FactionManager.getDay());
+        for (Faction faction : FactionManager.factions) db.saveFaction(faction);
+    }
+
 	public void loadConfigs() {
 		net.tfminecraft.simplefactions.espionage.SpecialPositionsConfigFile.load(this);
 		configLoader.loadConfig(new File(getDataFolder(), "config.yml"));

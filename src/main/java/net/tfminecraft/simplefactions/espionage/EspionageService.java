@@ -2,7 +2,6 @@ package net.tfminecraft.simplefactions.espionage;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -10,9 +9,6 @@ import java.util.random.RandomGenerator;
 
 import org.bukkit.entity.Player;
 
-import net.tfminecraft.rpcharacters.managers.PlayerManager;
-import net.tfminecraft.rpcharacters.objects.RPCharacter;
-import net.tfminecraft.rpcharacters.objects.attributes.AttributeModifier;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -54,21 +50,21 @@ public final class EspionageService {
     public static void initializeFounder(Faction faction) {
         if (faction.getEspionage() == null || org.bukkit.Bukkit.getServer() == null) return;
         var founder = org.bukkit.Bukkit.getPlayerExact(faction.getLeader());
-        var data = founder == null ? null : PlayerManager.get(founder);
-        RPCharacter character = data == null ? null : data.getActiveCharacter();
+        String characterId = OfficeCharacters.activeCharacterId(founder);
         for (SpecialPosition office : SpecialPosition.values()) {
             if (faction.getEspionage().holder(office) != null) continue;
             if (office == SpecialPosition.SPYMASTER && !eligible(faction, faction.getLeader())) continue;
-            if (faction.getEspionage().isPendingFounder(office) && character == null) continue;
+            if (characterId == null) {
+                faction.getEspionage().pendingFounder(office);
+                continue;
+            }
             var assignment = new SpecialPositionAssignment();
             assignment.playerName = faction.getLeader();
             assignment.playerId = founder == null ? org.bukkit.Bukkit.getOfflinePlayer(faction.getLeader()).getUniqueId() : founder.getUniqueId();
             int aptitude = 0;
             try {
-                if (character != null) {
-                    aptitude = characterAptitude(founder, character);
-                    assignment.characterId = character.getId();
-                }
+                aptitude = characterAptitude(founder, characterId);
+                assignment.characterId = characterId;
             } catch (java.io.IOException exception) {
                 net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                         "Could not save founder aptitude", exception);
@@ -133,39 +129,45 @@ public final class EspionageService {
     }
 
     public static SpecialPositionAssignment spymaster(Faction faction) {
+        return spymaster(faction, null);
+    }
+
+    private static void saveOrMark(Faction faction, java.util.Set<Faction> dirty) {
+        if (dirty == null) new Database().saveFaction(faction);
+        else dirty.add(faction);
+    }
+
+    private static SpecialPositionAssignment spymaster(Faction faction, java.util.Set<Faction> dirty) {
         if (faction.getEspionage().hasPendingFounder()) {
             initializeFounder(faction);
-            if (!faction.getEspionage().hasPendingFounder()) new Database().saveFaction(faction);
+            if (!faction.getEspionage().hasPendingFounder()) saveOrMark(faction, dirty);
         }
         SpecialPositionAssignment holder = faction.getEspionage().getSpymaster();
         if (holder != null && (!eligible(faction, holder.playerName) || deadCharacter(holder))) {
             faction.getEspionage().removeSpymaster();
-            new Database().saveFaction(faction);
+            saveOrMark(faction, dirty);
             return null;
         }
         return holder;
     }
 
     private static boolean deadCharacter(SpecialPositionAssignment holder) {
-        if (holder.characterId == null || holder.playerId == null) return false;
-        var data = PlayerManager.get(holder.playerId);
-        return data != null && data.getCharacters().stream().anyMatch(character ->
-                holder.characterId.equals(character.getId()) && character.getStatus() == net.tfminecraft.rpcharacters.enums.Status.DEAD);
+        return OfficeCharacters.isDead(holder.playerId, holder.characterId);
     }
 
     /** Character death, rather than an ordinary Minecraft respawn, ends the appointment. */
-    public static void characterDied(Player owner, RPCharacter character) {
-        if (character == null || character.getStatus() != net.tfminecraft.rpcharacters.enums.Status.DEAD) return;
+    public static void characterDied(Player owner, String characterId, String characterName) {
+        if (characterId == null) return;
         for (Faction faction : FactionManager.getCopy()) {
             var state = faction.getEspionage();
             var holder = state.getSpymaster();
-            boolean matching = holder != null && (character.getId().equals(holder.characterId)
+            boolean matching = holder != null && (characterId.equals(holder.characterId)
                     || holder.characterId == null && owner != null && holder.isHolder(owner.getUniqueId()));
             boolean pending = state.isPendingFounder(SpecialPosition.SPYMASTER) && owner != null && faction.isLeader(owner.getName());
             if (!matching && !pending) continue;
             state.removeSpymaster();
             new Database().saveFaction(faction);
-            if (owner != null) owner.sendMessage("\u00a78\u00a7oWith the passing of " + character.getName()
+            if (owner != null) owner.sendMessage("\u00a78\u00a7oWith the passing of " + characterName
                     + ", the keys to the Spymaster's office return to the faction. The office awaits a successor.");
         }
     }
@@ -196,15 +198,14 @@ public final class EspionageService {
             actor.sendMessage("§cThe faction leader cannot be Spymaster unless the faction has only one member.");
             return false;
         }
-        var playerData = PlayerManager.get(candidate);
-        RPCharacter character = playerData == null ? null : playerData.getActiveCharacter();
-        if (character == null) {
+        String characterId = OfficeCharacters.activeCharacterId(candidate);
+        if (characterId == null) {
             actor.sendMessage("§cThat member needs an active roleplay character.");
             return false;
         }
         SpecialPositionAssignment current = spymaster(faction);
         if (current != null && !current.automatic && current.isHolder(candidate.getUniqueId())
-                && character.getId().equals(current.characterId)) {
+                && characterId.equals(current.characterId)) {
             actor.sendMessage("§7That member is already your Spymaster.");
             return false;
         }
@@ -217,10 +218,10 @@ public final class EspionageService {
         SpecialPositionAssignment assignment = new SpecialPositionAssignment();
         assignment.playerId = candidate.getUniqueId();
         assignment.playerName = candidate.getName();
-        assignment.characterId = character.getId();
+        assignment.characterId = characterId;
         try {
             if (characterAptitudes == null) throw new java.io.IOException("Character aptitude registry is unavailable");
-            int aptitude = characterAptitude(candidate, character);
+            int aptitude = characterAptitude(candidate, characterId);
             if (!completeAndSaveAppointment(faction, assignment, aptitude)) {
                 actor.sendMessage("\u00a7cThe appointment could not be saved. The office and treasury are unchanged.");
                 return false;
@@ -244,18 +245,10 @@ public final class EspionageService {
         return true;
     }
 
-    private static int characterAptitude(Player player, RPCharacter character) throws java.io.IOException {
+    private static int characterAptitude(Player player, String characterId) throws java.io.IOException {
         if (characterAptitudes == null) throw new java.io.IOException("Character aptitude registry is unavailable");
-        return characterAptitudes.aptitude(character.getId(), () -> {
-            Map<String, Integer> attributes = new HashMap<>();
-            var mmoAttributes = net.Indyuce.mmocore.api.player.PlayerData.get(player).getAttributes();
-            for (String attribute : EspionageConfig.DEFAULT_WEIGHTS.keySet()) {
-                var instance = mmoAttributes.getInstance(attribute);
-                attributes.put(attribute, instance == null
-                        ? character.getAttributeData().getAmount(new AttributeModifier(attribute, 0)) : instance.getBase());
-            }
-            return EspionageMath.aptitude(attributes, ThreadLocalRandom.current());
-        });
+        return characterAptitudes.aptitude(characterId, () ->
+                EspionageMath.aptitude(OfficeCharacters.attributes(player), ThreadLocalRandom.current()));
     }
 
     public static boolean remove(Player actor, Faction faction) {
@@ -315,24 +308,22 @@ public final class EspionageService {
         Faction observer = FactionManager.getByMember(viewer.getName());
         if (observer == null) return;
         boolean updated = false;
+        java.util.Set<Faction> dirty = new java.util.LinkedHashSet<>();
         for (Faction target : FactionManager.getCopy()) {
             if (target == observer || target.getId().equals(observer.getId())) continue;
             if (observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day()) == null) {
-                generateReport(observer, target);
+                generateReport(observer, target, dirty);
                 updated = true;
             }
         }
+        for (Faction faction : dirty) new Database().saveFaction(faction);
         if (updated) viewer.sendMessage("§8§oYour faction's unseen network delivers today's sealed intelligence reports.");
     }
 
-    private static IntelligenceReport generateReport(Faction observer, Faction target) {
-        return generateReport(observer, target, true);
-    }
-
-    private static IntelligenceReport generateReport(Faction observer, Faction target, boolean persist) {
+    private static IntelligenceReport generateReport(Faction observer, Faction target, java.util.Set<Faction> dirty) {
         long day = LocalDate.now(ZoneOffset.UTC).toEpochDay();
-        var attacker = spymaster(observer);
-        var defender = spymaster(target);
+        var attacker = spymaster(observer, dirty);
+        var defender = spymaster(target, dirty);
         boolean[] created = {false};
         RandomGenerator random = ThreadLocalRandom.current();
         IntelligenceReport report = observer.getEspionage().report(target.getId(), target.getFoundedAt(), day, () -> {
@@ -345,10 +336,9 @@ public final class EspionageService {
             ReportDetails.capture(generated, target);
             return generated;
         });
-        if (created[0] && persist) {
-            Database database = new Database();
-            database.saveFaction(target);
-            database.saveFaction(observer);
+        if (created[0]) {
+            dirty.add(target);
+            dirty.add(observer);
         }
         return report;
     }
@@ -368,11 +358,11 @@ public final class EspionageService {
     static void captureMembers(IntelligenceReport report, Faction target, int margin, RandomGenerator random) {
         var sample = sample(target.getMembers().stream().distinct()
                 .filter(name -> !target.isLeader(name)).toList(), margin, random);
-        report.members = sample.stream().map(name -> CharacterNames.of(name) + " §7— "
+        report.members = sample.stream().map(name -> CharacterNames.forForeign(name) + " §7— "
                 + net.tfminecraft.simplefactions.utils.Represents.represents(target, name)).toList();
         for (var guild : target.getGuildHandler().getGuilds()) {
             report.guildMembers.put(guild.getId(), sample.stream().filter(guild::isMember)
-                    .filter(name -> !guild.isLeader(name)).map(CharacterNames::of).toList());
+                    .filter(name -> !guild.isLeader(name)).map(CharacterNames::forForeign).toList());
         }
         report.roster = new java.util.ArrayList<>();
         for (var guild : target.getGuildHandler().getGuilds()) {
@@ -385,7 +375,7 @@ public final class EspionageService {
                 boolean knownLeader = guild.isLeader(name) && report.allows("guild-leader");
                 boolean knownOffice = !offices.isEmpty() && report.allows("office-holder");
                 if (!knownLeader && !knownOffice && (!report.allows("guild-members") || !sample.contains(name))) continue;
-                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.of(name), guild.getId(), guild.getName(), sample.contains(name),
+                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.forForeign(name), guild.getId(), guild.getName(), sample.contains(name),
                         knownLeader, knownOffice ? offices : java.util.List.of()));
             }
         }
@@ -415,7 +405,7 @@ public final class EspionageService {
         for (var office : SpecialPosition.values()) {
             var holder = target.getEspionage().holder(office);
             if (report.allows("office-holder")) report.officeHolders.put(office,
-                    holder == null ? "Vacant" : CharacterNames.of(holder.playerName));
+                    holder == null ? "Vacant" : CharacterNames.forForeign(holder.playerName));
             String key = IntelligenceReport.officeAptitudeKey(office);
             if (!report.allows(key)) continue;
             double aptitude = office == SpecialPosition.SPYMASTER ? effectiveAptitude(target, holder)
@@ -431,14 +421,15 @@ public final class EspionageService {
         var factions = FactionManager.getCopy();
         for (var faction : factions) faction.getEspionage().resetReportsAndRolls();
         int count = 0;
+        java.util.Set<Faction> dirty = new java.util.LinkedHashSet<>(factions);
         for (var observer : factions) {
             for (var target : factions) if (!observer.getId().equals(target.getId())) {
-                generateReport(observer, target, false);
+                generateReport(observer, target, dirty);
                 count++;
             }
-            // Also persist resets for a lone faction, which has no foreign targets.
-            new Database().saveFaction(observer);
         }
+        // Persist every reset/report once, including a lone faction with no foreign targets.
+        for (Faction faction : factions) new Database().saveFaction(faction);
         return count;
     }
 

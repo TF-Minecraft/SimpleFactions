@@ -31,7 +31,7 @@ final class ReportDetails {
             report.details.put("construction", pending == null ? List.of() : List.of((pending.isUpgrade() ? "Upgrading " : "Building ") + pending.getName()));
         }
         if (report.allows("guild-leader")) for (var guild : target.getGuildHandler().getGuilds())
-            report.details.put("guild-leader:" + guild.getId(), List.of(CharacterNames.of(guild.getLeader())));
+            report.details.put("guild-leader:" + guild.getId(), List.of(CharacterNames.forForeign(guild.getLeader())));
         if (report.allows("upgrades")) for (var guild : target.getGuildHandler().getGuilds())
             report.details.put("upgrading:" + guild.getId(), guild.getUpgradeQueue().stream()
                     .map(entry -> entry.getUpgrade().getName()).limit(3).toList());

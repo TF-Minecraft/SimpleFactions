@@ -67,7 +67,7 @@ public class GovernmentCreator {
         m.setDisplayName(StringFormatter.formatHex("#93c9a7Government:"));
         List<String> lore = new ArrayList<String>();
         Government gov = f.getGovernment();
-        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.espionage.CharacterNames.display(p, f.getLeader())));
+        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.espionage.CharacterNames.display(p, f.getLeader(), f)));
         double power = Formatter.formatDouble(gov.getPower());
         double maxPower = Formatter.formatDouble(gov.getMaxPower());
         String powerString = ((power < 0) ? "§c" : "") + power+"/"+((maxPower < 0) ? "§c" : "") + maxPower;

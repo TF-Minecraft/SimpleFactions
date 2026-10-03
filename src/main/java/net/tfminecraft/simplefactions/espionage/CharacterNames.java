@@ -19,6 +19,19 @@ public final class CharacterNames {
         return EspionageService.bypasses(viewer) ? character + " \u00a77(" + account + ")" : character;
     }
 
+    public static String display(org.bukkit.entity.Player viewer, String account,
+                                 net.tfminecraft.simplefactions.objects.Faction faction) {
+        if (!OfficeCharacters.enabled("RPCharacters") || EspionageService.canViewExact(viewer, faction))
+            return display(viewer, account);
+        return forForeign(account);
+    }
+
+    /** A missing active character must not expose account identity in foreign reports. */
+    public static String forForeign(String account) {
+        String name = activeName(account);
+        return name == null ? "Unknown" : name;
+    }
+
     /** Exact account names take precedence; ambiguous character names never pick a player arbitrarily. */
     public static org.bukkit.entity.Player resolveOnline(org.bukkit.entity.Player sender, String input) {
         String query = input.strip();
@@ -54,8 +67,13 @@ public final class CharacterNames {
     }
 
     public static String of(String playerName) {
+        String name = activeName(playerName);
+        return name == null ? playerName : name;
+    }
+
+    private static String activeName(String playerName) {
         if (playerName == null) return "Unknown";
-        if (Bukkit.getServer() == null || !Bukkit.getPluginManager().isPluginEnabled("RPCharacters")) return playerName;
+        if (!OfficeCharacters.enabled("RPCharacters")) return playerName;
         var player = Bukkit.getPlayerExact(playerName);
         if (player != null) {
             var data = PlayerManager.get(player);
@@ -64,7 +82,7 @@ public final class CharacterNames {
         }
         Cached cached = cache.get(playerName);
         if (cached != null && cached.expires > System.currentTimeMillis()) return cached.name;
-        String result = playerName;
+        String result = null;
         var plugin = Bukkit.getPluginManager().getPlugin("RPCharacters");
         Path folder = plugin.getDataFolder().toPath().resolve("data/characterdata")
                 .resolve(Bukkit.getOfflinePlayer(playerName).getUniqueId().toString());
@@ -78,7 +96,7 @@ public final class CharacterNames {
                     }
                 }
             } catch (java.io.IOException | com.google.gson.JsonParseException | IllegalStateException ignored) {
-                // No readable character: keep the account name as a useful fallback.
+                // Cache the absence too; account-oriented callers supply their own fallback.
             }
         }
         cache.put(playerName, new Cached(result, System.currentTimeMillis() + 30_000));

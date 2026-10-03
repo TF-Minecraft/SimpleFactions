@@ -287,6 +287,12 @@ any appointment charge; faction JSON is staged before replacing the previous sav
 A founder aptitude save failure leaves the office initialization pending and retries
 when the office is checked while the founder has an active character. It never
 finalizes a failed aptitude roll as a permanent zero or consumes the free appointment.
+Founders without an active character (or without RPCharacters enabled) also remain
+pending. With MMOCore absent, aptitude uses RPCharacters' saved attribute values.
+Foreign reports use Unknown for missing character names; own views, staff bypass
+and invitations retain their account-name fallback. Daily refreshes batch faction
+saves once per changed faction. A startup failure before faction restoration
+completes cannot overwrite faction saves or the saved timer during shutdown.
 
 An empty or ineligible special office applies a persistent stability penalty until
 filled, including offices never deliberately assigned and holders who leave. The

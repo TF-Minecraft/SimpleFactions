@@ -110,6 +110,9 @@ class OfficePersistenceTest {
             field.set(null, registry);
             net.tfminecraft.simplefactions.SimpleFactions.plugin = plugin;
             bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
+            var plugins = mock(org.bukkit.plugin.PluginManager.class);
+            when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
+            bukkit.when(org.bukkit.Bukkit::getPluginManager).thenReturn(plugins);
             bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Founder")).thenReturn(founder);
             players.when(() -> net.tfminecraft.rpcharacters.managers.PlayerManager.get(founder)).thenReturn(player);
             EspionageService.initializeFounder(faction);

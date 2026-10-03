@@ -12,6 +12,10 @@ public final class OfficeCharacterDeathListener implements Listener {
         if (event.isCancelled()) return;
         // RPCharacters fires before committing death. Confirm the resulting status next tick.
         SimpleFactions.plugin.getServer().getScheduler().runTask(SimpleFactions.plugin,
-                () -> EspionageService.characterDied(event.getPlayer(), event.getCharacter()));
+                () -> {
+                    var character = event.getCharacter();
+                    if (character.getStatus() == net.tfminecraft.rpcharacters.enums.Status.DEAD)
+                        EspionageService.characterDied(event.getPlayer(), character.getId(), character.getName());
+                });
     }
 }
