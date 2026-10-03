@@ -26,6 +26,7 @@ class EspionagePermissionsTest {
     void outsidersOpenMaskedSubmenusWithoutBuildingExactInformation() {
         Player outsider = mock(Player.class);
         Faction faction = mock(Faction.class);
+        EspionageTestFixtures.protect(faction);
         Guild guild = mock(Guild.class);
         when(guild.getFaction()).thenReturn(faction);
         InventoryManager manager = mock(InventoryManager.class);
@@ -104,10 +105,11 @@ class EspionagePermissionsTest {
     void unaffiliatedAndOwnMembersDoNotConsumeForeignRolls() {
         Player viewer = mock(Player.class);
         Faction target = mock(Faction.class);
+        EspionageTestFixtures.protect(target);
         when(viewer.getName()).thenReturn("Visitor");
         try (var factions = mockStatic(FactionManager.class)) {
             assertNull(EspionageService.report(viewer, target));
-            verify(target, never()).getEspionage();
+            assertNull(target.getEspionage().cachedReport("unused", 0, 0));
             when(target.isMemberIgnoreCase("Visitor")).thenReturn(true);
             assertNull(EspionageService.report(viewer, target));
             factions.verify(() -> FactionManager.getByMember("Visitor"), times(1));
@@ -120,7 +122,7 @@ class EspionagePermissionsTest {
         Faction faction = mock(Faction.class);
         when(member.getName()).thenReturn("FormerSpy");
         when(member.getUniqueId()).thenReturn(UUID.randomUUID());
-        when(faction.getEspionage()).thenReturn(new EspionageState());
+        EspionageTestFixtures.protect(faction);
         try (var factions = mockStatic(FactionManager.class)) {
             factions.when(() -> FactionManager.getByString("faction")).thenReturn(faction);
             assertTrue(EspionageAccess.denied(member, new SFInventoryHolder("faction", SFGUI.MILITARY_VIEW)));

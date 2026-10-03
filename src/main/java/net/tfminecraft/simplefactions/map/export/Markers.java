@@ -224,13 +224,10 @@ public final class Markers {
                     || !hub.installationId().equalsIgnoreCase(installationId)) {
                 continue;
             }
-            Faction owner = FactionManager.getByString(hub.ownerFactionId());
-            boolean permit = owner != null && owner.hasHubPermit(guild.getId());
-            String guildFactionId = guild.getFaction() == null ? null : guild.getFaction().getId();
             SupplyHubService.HubStanding standing = SupplyHubService.standing(
                     hub,
                     true,
-                    SupplyHubService.ownerAllows(guildFactionId, hub.ownerFactionId(), permit),
+                    SupplyHubService.hubPermitted(guild, hub.ownerFactionId(), hub.installationId()),
                     InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
                     SupplyHubService.atInstallation(
                             hub.ownerFactionId(), hub.installationId(), SupplyHubService.allGuilds()));

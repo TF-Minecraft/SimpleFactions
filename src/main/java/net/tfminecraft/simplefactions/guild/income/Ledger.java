@@ -243,6 +243,18 @@ public class Ledger {
                 }
                 break;
             }
+            case HUB_FEE:
+                if (!guild.isBase()) {
+                    return 0;
+                }
+                amount = getTotalHubFeeEarned();
+                break;
+            case HUB_FEE_PAYMENTS: {
+                for (double fee : getPayableHubFees().values()) {
+                    amount -= fee;
+                }
+                break;
+            }
             case TARIFF_PAYMENTS: {
                 TradeBreakdown tariffs = guild.getTradeBreakdown();
                 amount = tariffs == null ? 0 : -tariffs.getTariffs();
@@ -448,6 +460,56 @@ public class Ledger {
         return payable;
     }
 
+    public double getTotalHubFeeEarned() {
+        if (skipsMoneyMovement()) {
+            return 0;
+        }
+        double total = 0;
+        for (Guild payer : FactionManager.getAllGuilds()) {
+            if (payer.getLedger() == null) {
+                continue;
+            }
+            total += payer.getLedger().getPayableHubFees().getOrDefault(guild.getFaction(), 0.0);
+        }
+        return total;
+    }
+
+    /** Agreement fees this guild will pay today, by host. Empty when either side moves no money. */
+    public Map<Faction, Double> getPayableHubFees() {
+        if (guild.getFaction() == null || skipsMoneyMovement() || guild.getHubAgreements() == null) {
+            return Map.of();
+        }
+        IncomePreviewContext context = IncomePreviewContext.current();
+        if (context != null && context.previewsLaw(guild.getFaction())
+                && !context.allowsHubRule(guild.getFaction(), Rules.SUPPLY_HUBS)) {
+            return Map.of();
+        }
+        Map<Faction, Double> payable = new HashMap<>();
+        for (net.tfminecraft.simplefactions.guild.hub.HubAgreement agreement : guild.getHubAgreements()) {
+            if (agreement == null || agreement.feeCents() <= 0) {
+                continue;
+            }
+            Faction host = FactionManager.getByString(agreement.hostFactionId());
+            if (host == null || RelationManager.sameRealm(host, guild.getFaction())) {
+                continue;
+            }
+            Guild receiver = mainGuild(host);
+            if (agreement.feeCents() > 0 && receiver != null && receiver.getLedger() != null
+                    && !receiver.getLedger().skipsMoneyMovement()) {
+                payable.merge(host, agreement.feeCents() / 100.0, Double::sum);
+            }
+        }
+        return payable;
+    }
+
+    /** The host's capital, if it already exists. A missing capital receives nothing. */
+    private static Guild mainGuild(Faction host) {
+        if (host == null || host.getGuildHandler() == null) {
+            return null;
+        }
+        return host.getGuildHandler().getGuild(host.getId());
+    }
+
     public List<Map.Entry<String, Double>> getCitizenTaxEntriesDescending() {
         return citizenTaxes.entrySet().stream()
             .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
@@ -539,6 +601,7 @@ public class Ledger {
                 case CITIZENS:
                 case TARIFFS:
                 case HUB_TAX:
+                case HUB_FEE:
                 case GAMBLING:
                 case VEHICLE_FEES:
                 case GUILDS:
@@ -568,6 +631,7 @@ public class Ledger {
                 case TRIBUTE_PAYMENTS:
                 case TARIFF_PAYMENTS:
                 case HUB_TAX_PAYMENTS:
+                case HUB_FEE_PAYMENTS:
                 case DIVIDEND_PAYMENT:
                 case DIVIDEND_PAYOUT:
                 case WAR_REPARATIONS_PAYMENT:
@@ -619,6 +683,7 @@ public class Ledger {
                 case CITIZENS:
                 case TARIFFS:
                 case HUB_TAX:
+                case HUB_FEE:
                 case GAMBLING:
                 case VEHICLE_FEES:
                 case GUILDS:
@@ -645,6 +710,7 @@ public class Ledger {
                 case TRIBUTE_PAYMENTS:
                 case TARIFF_PAYMENTS:
                 case HUB_TAX_PAYMENTS:
+                case HUB_FEE_PAYMENTS:
                 case WAR_REPARATIONS_PAYMENT:
                 case LOAN_PAYMENTS:
                 case INTEREST_PAYMENTS:
@@ -912,6 +978,14 @@ public class Ledger {
                 recordHistory(out, payer, LedgerHistory.Source.HUB_TAX_PAYMENTS,
                         entry.getKey().getName(), entry.getValue());
             }
+            for (Map.Entry<Faction, Double> entry : ledger.getPayableHubFees().entrySet()) {
+                Guild receiver = entry.getKey().getGuildHandler() == null
+                        ? null : entry.getKey().getGuildHandler().getGuild(entry.getKey().getId());
+                recordHistory(out, receiver, LedgerHistory.Source.HUB_FEE,
+                        f.getName(), entry.getValue());
+                recordHistory(out, payer, LedgerHistory.Source.HUB_FEE_PAYMENTS,
+                        entry.getKey().getName(), entry.getValue());
+            }
             TradeBreakdown trade = payer.getTradeBreakdown();
             if (trade != null && trade.getTariffsByFactionMap() != null) {
                 for (Map.Entry<Faction, Double> entry : trade.getTariffsByFactionMap().entrySet()) {
@@ -1146,6 +1220,17 @@ public class Ledger {
                 break;
             }
 
+            case HUB_FEE_PAYMENTS: {
+                for (Map.Entry<Faction, Double> entry : getPayableHubFees().entrySet()) {
+                    Guild receiver = mainGuild(entry.getKey());
+                    if (receiver == null) {
+                        continue;
+                    }
+                    buffer.add(guild, receiver, entry.getValue());
+                }
+                break;
+            }
+
             //Taxes and Tariffs
             case TARIFF_PAYMENTS: {
                 TradeBreakdown tariffs = guild.getTradeBreakdown();
@@ -1250,6 +1335,7 @@ public class Ledger {
             case TRIBUTES:
             case TARIFFS:
             case HUB_TAX:
+            case HUB_FEE:
             case WAR_REPARATIONS:
             case MERCENARY_CONTRACT:
             case REFUNDS:

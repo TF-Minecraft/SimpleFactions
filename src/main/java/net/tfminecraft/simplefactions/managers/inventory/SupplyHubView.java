@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.enums.SFGUI;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
@@ -96,7 +97,16 @@ public class SupplyHubView {
                 "§7Hubs: §e" + hubs.size() + "/" + limit,
                 "§7Upkeep per hub: §e" + Formatter.formatDouble(SupplyHubService.upkeepPerHub(guild)) + "d/day",
                 "§7Daily upkeep: §e" + Formatter.formatDouble(SupplyHubService.dailyCost(guild)) + "d/day",
-                "§7Build with §e/guild hub build §7while standing in a port, airport or train station")));
+                "§7Choose §ePropose a hub §7to see where one would pay.")));
+        if (isLeader(guild, player)) {
+            ItemStack propose = SupplyHubCreator.item(Material.EMERALD, "§aPropose a hub", List.of(
+                    "§7Where a hub would pay, from today's estimates.",
+                    "§eClick to choose a destination"));
+            ItemMeta proposeMeta = propose.getItemMeta();
+            proposeMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "propose");
+            propose.setItemMeta(proposeMeta);
+            inventory.setItem(45, propose);
+        }
         inventory.setItem(53, inv.createBackButton(SFGUI.SUPPLY_HUB_VIEW));
     }
 
@@ -129,7 +139,8 @@ public class SupplyHubView {
             ItemStack item = SupplyHubCreator.item(Material.CHEST,
                     "§e" + guild.getName(),
                     SupplyHubCreator.hostHubLore(guild.getName(), host == null ? "Unknown" : host.getName(), standing));
-            if (faction.getLeader().equalsIgnoreCase(player.getName())) {
+            boolean agreed = HubAgreementService.hasAgreement(guild, faction.getId(), installation.getId());
+            if (!agreed && faction.getLeader() != null && faction.getLeader().equalsIgnoreCase(player.getName())) {
                 ItemMeta meta = item.getItemMeta();
                 meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, guild.getId());
                 List<String> lore = new ArrayList<>(meta.getLore());
@@ -141,23 +152,17 @@ public class SupplyHubView {
         }
         inventory.setItem(47, SupplyHubCreator.item(Material.PAPER, "§eHub Slots",
                 List.of("§7Used: §e" + guilds.size() + "/" + max)));
-        inventory.setItem(49, SupplyHubCreator.item(Material.WRITABLE_BOOK, "§eHub Permits",
-                permitLore(faction)));
-        inventory.setItem(53, inv.createBackButton(SFGUI.HOSTED_SUPPLY_HUB_VIEW));
-    }
-
-    public static List<String> permitLore(Faction faction) {
-        List<String> lore = new ArrayList<>();
-        lore.add("§7Changed with §e/faction hubpermit <guild>");
-        lore.add("§7Permitted guilds:");
-        if (faction.getHubPermits().isEmpty()) {
-            lore.add("§8None");
-        } else {
-            for (String permit : faction.getHubPermits()) {
-                lore.add("§e" + permit);
-            }
+        if (faction.getGovernment() != null && faction.getGovernment().isCouncilMember(player)
+                && hasOfferAt(faction.getId(), installation.getId())) {
+            ItemStack offers = SupplyHubCreator.item(Material.WRITABLE_BOOK, "§eHub offers", List.of(
+                    "§7An offer for a hub here is waiting.",
+                    "§eClick to answer"));
+            ItemMeta offerMeta = offers.getItemMeta();
+            offerMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "offers");
+            offers.setItemMeta(offerMeta);
+            inventory.setItem(45, offers);
         }
-        return lore;
+        inventory.setItem(53, inv.createBackButton(SFGUI.HOSTED_SUPPLY_HUB_VIEW));
     }
 
     public static boolean removeGuildHub(
@@ -192,6 +197,11 @@ public class SupplyHubView {
             if (data == null) {
                 return;
             }
+            if (data.equals("propose")) {
+                HubProposalMenu.openProposals(player, guild, 0);
+                player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+                return;
+            }
             int separator = data.indexOf(':');
             if (separator < 0) {
                 return;
@@ -208,7 +218,18 @@ public class SupplyHubView {
                 // InventoryManager's back button handling opens the installation menu.
                 return;
             }
-            if (!faction.getLeader().equalsIgnoreCase(player.getName()) || installation == null) {
+            if (installation == null) {
+                return;
+            }
+            ItemStack clicked = event.getCurrentItem();
+            String marker = clicked == null || !clicked.hasItemMeta() ? null
+                    : clicked.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
+            if ("offers".equals(marker)) {
+                HubProposalMenu.openOffersAt(player, faction.getId(), installation.getId());
+                player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+                return;
+            }
+            if (!faction.getLeader().equalsIgnoreCase(player.getName())) {
                 return;
             }
             ItemStack item = event.getCurrentItem();
@@ -228,6 +249,17 @@ public class SupplyHubView {
 
     public boolean confirm(Player player, String data, boolean accepted) {
         String[] parts = data.split("\\|", -1);
+        if (parts.length == 4 && parts[0].equals("build")) {
+            Guild guild = FactionManager.getGuildByString(parts[1]);
+            if (guild == null || !isLeader(guild, player)) {
+                return false;
+            }
+            if (accepted) {
+                SupplyHubCommands.place(player, guild, parts[2], parts[3]);
+            }
+            guildView(player, guild);
+            return true;
+        }
         if (parts.length == 4 && parts[0].equals("guild")) {
             Guild guild = FactionManager.getGuildByString(parts[1]);
             if (guild == null || !isLeader(guild, player)) {
@@ -235,6 +267,7 @@ public class SupplyHubView {
             }
             if (accepted) {
                 if (removeGuildHub(guild.getSupplyHubs(), parts[2], parts[3])) {
+                    HubAgreementService.onHubRemoved(guild, parts[2], parts[3]);
                     SupplyHubCommands.recalculateTrade();
                 }
             }
@@ -248,6 +281,9 @@ public class SupplyHubView {
             }
             if (accepted) {
                 Guild guild = FactionManager.getGuildByString(parts[3]);
+                if (guild != null && HubAgreementService.hasAgreement(guild, parts[1], parts[2])) {
+                    return false;
+                }
                 if (guild != null && removeGuildHub(guild.getSupplyHubs(), parts[1], parts[2])) {
                     SupplyHubCommands.recalculateTrade();
                     org.bukkit.entity.Player online = SimpleFactions.plugin.getServer()
@@ -273,13 +309,19 @@ public class SupplyHubView {
         return player.getName().equalsIgnoreCase(guild.getLeader());
     }
 
+    private static boolean hasOfferAt(String hostFactionId, String installationId) {
+        for (Guild guild : SupplyHubService.allGuilds()) {
+            if (HubAgreementService.offer(guild, hostFactionId, installationId) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static HubStanding standing(Guild guild, SupplyHub hub) {
         Installation installation = SupplyHubService.findInstallation(
                 hub.ownerFactionId(), hub.installationId());
-        Faction owner = FactionManager.getByString(hub.ownerFactionId());
-        boolean allowed = SupplyHubService.ownerAllows(
-                guild.getFaction() == null ? null : guild.getFaction().getId(), hub.ownerFactionId(),
-                owner != null && owner.hasHubPermit(guild.getId()));
+        boolean allowed = SupplyHubService.hubPermitted(guild, hub.ownerFactionId(), hub.installationId());
         int slots = installation == null
                 ? 0
                 : InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());

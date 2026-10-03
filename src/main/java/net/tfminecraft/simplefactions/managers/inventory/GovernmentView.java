@@ -203,6 +203,7 @@ public class GovernmentView {
 		i.clear();
 		int x = 0;
 		for(TaxTarget target : TaxTarget.values()) {
+			if(target == TaxTarget.HUB_TAX) continue;
 			if(!f.getTaxHandler().canCollectTax(target)) continue;
 			i.setItem(x, creator.createTaxTypeItem(player, f, target, true));
 			x++;
@@ -413,6 +414,7 @@ public class GovernmentView {
 			if(id == null) return;
 			try {
 				TaxTarget target = TaxTarget.valueOf(id);
+				if(target == TaxTarget.HUB_TAX) return;
 				if(target == TaxTarget.GUILD_ID) {
 					specificTaxProposalView(p, f, null, TaxTarget.GUILD_ID);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

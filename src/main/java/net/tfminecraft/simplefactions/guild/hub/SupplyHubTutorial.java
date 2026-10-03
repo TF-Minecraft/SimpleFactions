@@ -39,6 +39,7 @@ public final class SupplyHubTutorial {
                         + " your second where you want trade to arrive.",
                 "Hubs link by train track between any two of them. Ports also link across the"
                         + " sea, and airports through the air.",
+                "Open your guild menu, then Supply Hubs, and choose Propose a hub.",
                 capitalLine);
         for (String line : lines) {
             player.sendMessage("§7" + line);

@@ -138,7 +138,15 @@ public final class EspionageService {
 
     /** Viewing permission does not grant membership or authority over faction offices. */
     public static boolean canViewExact(Player viewer, Faction target) {
-        return target != null && (bypasses(viewer) || isOwn(viewer, target));
+        return viewer != null && target != null
+                && (bypasses(viewer) || isOwn(viewer, target) || !hasSpymaster(target));
+    }
+
+    /** A vacant, ineligible or deceased holder leaves every guild's information unguarded. */
+    public static boolean hasSpymaster(Faction faction) {
+        if (faction == null || faction.getEspionage() == null) return false;
+        var holder = faction.getEspionage().getSpymaster();
+        return holder != null && eligible(faction, holder.playerName) && !deadCharacter(holder);
     }
 
     public static SpecialPositionAssignment spymaster(Faction faction) {
@@ -310,7 +318,7 @@ public final class EspionageService {
     public static IntelligenceReport report(Player viewer, Faction target) {
         if (viewer == null || canViewExact(viewer, target)) return null;
         Faction observer = FactionManager.getByMember(viewer.getName());
-        if (observer == null) return null;
+        if (!hasSpymaster(observer)) return null;
         return observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day());
     }
 
@@ -323,11 +331,14 @@ public final class EspionageService {
         if (observer == null) return;
         boolean updated = false;
         java.util.Set<Faction> dirty = new java.util.LinkedHashSet<>();
+        if (spymaster(observer, dirty) == null) {
+            for (Faction faction : dirty) new Database().saveFaction(faction);
+            return;
+        }
         for (Faction target : FactionManager.getCopy()) {
             if (target == observer || target.getId().equals(observer.getId())) continue;
             if (observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day()) == null) {
-                generateReport(observer, target, dirty);
-                updated = true;
+                if (generateReport(observer, target, dirty) != null) updated = true;
             }
         }
         for (Faction faction : dirty) new Database().saveFaction(faction);
@@ -336,8 +347,10 @@ public final class EspionageService {
 
     private static IntelligenceReport generateReport(Faction observer, Faction target, java.util.Set<Faction> dirty) {
         long day = LocalDate.now(ZoneOffset.UTC).toEpochDay();
-        var attacker = spymaster(observer, dirty);
         var defender = spymaster(target, dirty);
+        if (defender == null) return null; // Exact public information needs no daily estimate.
+        var attacker = spymaster(observer, dirty);
+        if (attacker == null) return null; // A vacant office cannot deliver foreign findings.
         boolean[] created = {false};
         RandomGenerator random = ThreadLocalRandom.current();
         IntelligenceReport report = observer.getEspionage().report(target.getId(), target.getFoundedAt(), day, () -> {
@@ -438,8 +451,7 @@ public final class EspionageService {
         java.util.Set<Faction> dirty = new java.util.LinkedHashSet<>(factions);
         for (var observer : factions) {
             for (var target : factions) if (!observer.getId().equals(target.getId())) {
-                generateReport(observer, target, dirty);
-                count++;
+                if (generateReport(observer, target, dirty) != null) count++;
             }
         }
         // Persist every reset/report once, including a lone faction with no foreign targets.

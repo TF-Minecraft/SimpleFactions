@@ -37,6 +37,7 @@ import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.WarInventoryHolder;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignInstallationPickView;
+import net.tfminecraft.simplefactions.managers.inventory.InstallationBuildConfirm;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignRaidLaunchView;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignView;
 import net.tfminecraft.simplefactions.managers.inventory.CompanyView;
@@ -1001,6 +1002,8 @@ public class InventoryManager implements Listener{
 		if (pendingCompanyFounds.remove(e.getPlayer()) != null) {
 			confirming.remove(e.getPlayer());
 		}
+		InstallationBuildConfirm.forget(e.getPlayer());
+		confirming.remove(e.getPlayer());
 		slotChanges.remove(e.getPlayer());
 	}
 
@@ -1317,6 +1320,10 @@ public class InventoryManager implements Listener{
 			} else if (h.getType() == SFGUI.SUPPLY_HUB_VIEW
 					|| h.getType() == SFGUI.HOSTED_SUPPLY_HUB_VIEW) {
 				supplyHubView.click(e, inv, p);
+			} else if (h.getType() == SFGUI.HUB_PROPOSAL_LIST
+					|| h.getType() == SFGUI.HUB_NEGOTIATION
+					|| h.getType() == SFGUI.HUB_OFFER_LIST) {
+				net.tfminecraft.simplefactions.managers.inventory.HubProposalMenu.click(e, inv, p, this);
 			} else if(h.getType() == SFGUI.GOVERNMENT_VIEW 
 				|| h.getType() == SFGUI.PROPOSAL_VIEW
 				|| h.getType() == SFGUI.PROPOSALS
@@ -1471,6 +1478,17 @@ public class InventoryManager implements Listener{
 					factionView(p, returnView);
 					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				}
+				return;
+			}
+			key = new NamespacedKey(SimpleFactions.plugin, "installation_build");
+			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			if (data != null) {
+				if (item.getType().equals(Material.RED_CONCRETE)) {
+					InstallationBuildConfirm.cancel(p);
+				} else {
+					InstallationBuildConfirm.accept(p);
+				}
+				confirming.remove(p);
 				return;
 			}
 			key = new NamespacedKey(SimpleFactions.plugin, "installation");

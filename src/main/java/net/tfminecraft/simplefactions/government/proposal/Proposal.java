@@ -53,6 +53,9 @@ public class Proposal {
             gov.getFaction().applyLaw(law, group);
         } else if (isTaxProposal()) {
             TaxTarget target = tax.getTarget();
+            if (target == TaxTarget.HUB_TAX) {
+                return;
+            }
             gov.getFaction().getTaxHandler().setTaxRate(target, tax.getId(), tax.getNewTax());
         } else if (isFeeProposal()) {
             gov.getFaction().getVehicleFeeHandler().setRate(fee.getKind(), fee.getVehicleTypeId(), fee.getNewRate());

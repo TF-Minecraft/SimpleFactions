@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.hub.HubTaxBreakdown.Assessment;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
@@ -46,8 +45,7 @@ public final class HubTaxService {
             if (installation == null || host == null) {
                 continue;
             }
-            boolean allowed = SupplyHubService.ownerAllows(
-                    guild.getFaction().getId(), host.getId(), host.hasHubPermit(guild.getId()));
+            boolean allowed = SupplyHubService.hubPermitted(guild, host.getId(), installation.getId());
             if (!SupplyHubService.standing(
                     guild, hub, true, allowed,
                     InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
@@ -73,7 +71,7 @@ public final class HubTaxService {
             if (RelationManager.sameRealm(host, guild.getFaction())) {
                 exemptHosts.add(host);
             } else {
-                tax = income * host.getTaxRate(TaxTarget.HUB_TAX, null, true) / 100.0;
+                tax = income * HubAgreementService.taxRatePercent(guild, entry.getKey()) / 100.0;
                 taxesByFaction.merge(host, tax, Double::sum);
             }
             assessments.put(entry.getKey(), new Assessment(income, tax));

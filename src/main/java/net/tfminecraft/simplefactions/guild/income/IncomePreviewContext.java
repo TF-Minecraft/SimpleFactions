@@ -222,10 +222,6 @@ public final class IncomePreviewContext {
         return owner != null && faction == owner && (law != null || taxRate != null);
     }
 
-    public boolean affectsHubTax(Faction owner) {
-        return owner != null && faction == owner && (law != null || taxTarget == TaxTarget.HUB_TAX);
-    }
-
     public boolean previewsLaw(Faction owner) {
         return owner != null && faction == owner && law != null;
     }
@@ -236,6 +232,9 @@ public final class IncomePreviewContext {
         }
         TaxTarget family = family(taxTarget);
         TaxTarget queryFamily = family(query);
+        if (family == TaxTarget.HUB_TAX || queryFamily == TaxTarget.HUB_TAX) {
+            return false;
+        }
         if (family != queryFamily) {
             return false;
         }

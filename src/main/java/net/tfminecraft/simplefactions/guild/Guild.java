@@ -49,6 +49,9 @@ import net.tfminecraft.simplefactions.army.MilitaryExpansion;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.GuildBranchData;
 import net.tfminecraft.simplefactions.database.GuildData;
+import net.tfminecraft.simplefactions.guild.hub.HubAgreement;
+import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
+import net.tfminecraft.simplefactions.guild.hub.HubOffer;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.database.StabilityModifierData;
@@ -107,6 +110,8 @@ public class Guild {
     private List<String> dividendEligible = new ArrayList<>();
     private MercenaryCompany company;
     private final List<SupplyHub> supplyHubs = new ArrayList<>();
+    private final List<HubAgreement> hubAgreements = new ArrayList<>();
+    private final List<HubOffer> hubOffers = new ArrayList<>();
     private final Set<String> supplyHubTutorialDismissals = new HashSet<>();
 
     public Guild(Faction f) {
@@ -248,6 +253,8 @@ public class Guild {
                     this, data.company, MercenaryCompany.cloneMercenaryRegiment());
         }
         this.supplyHubs.addAll(SupplyHubService.fromData(data.supplyHubs));
+        this.hubAgreements.addAll(HubAgreementService.fromAgreementData(data.hubAgreements));
+        this.hubOffers.addAll(HubAgreementService.fromOfferData(data.hubOffers));
         if (data.supplyHubTutorialDismissals != null) {
             supplyHubTutorialDismissals.addAll(data.supplyHubTutorialDismissals);
         }
@@ -431,6 +438,14 @@ public class Guild {
 
     public List<SupplyHub> getSupplyHubs() {
         return supplyHubs;
+    }
+
+    public List<HubAgreement> getHubAgreements() {
+        return hubAgreements;
+    }
+
+    public List<HubOffer> getHubOffers() {
+        return hubOffers;
     }
 
     public boolean hasDismissedSupplyHubTutorial(String playerId) {

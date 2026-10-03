@@ -23,8 +23,11 @@ import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.rest.BannerFetcher;
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.HubEstimates;
+import net.tfminecraft.simplefactions.guild.hub.InfrastructureMenuCopy;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
 import net.tfminecraft.simplefactions.enums.MenuItemType;
 import net.tfminecraft.simplefactions.enums.RankType;
@@ -129,8 +132,17 @@ public class FactionView {
 		i.setItem(11, creator.createMenuItem(player, f, MenuItemType.GOVERNMENT));
 		i.setItem(12, creator.createMenuItem(player, f, MenuItemType.WEALTH));
 		i.setItem(13, creator.createMenuItem(player, f, MenuItemType.PRESTIGE));
+		if (Cache.provincesEnabled) {
+			i.setItem(21, infrastructureHeadline(f));
+		}
 		i.setItem(14, creator.createMenuItem(player, f, MenuItemType.MEMBERS));
 		i.setItem(23, creator.createMenuItem(player, f, MenuItemType.GUILDS));
+		String hubOffers = net.tfminecraft.simplefactions.guild.hub.HubAgreementService.joinSummary(player.getName());
+		Faction viewerFaction = FactionManager.getByMember(player.getName());
+		if (hubOffers != null && viewerFaction != null && viewerFaction.getId() != null
+				&& viewerFaction.getId().equalsIgnoreCase(f.getId())) {
+			i.setItem(22, SupplyHubCreator.item(Material.WRITABLE_BOOK, "§eHub offers", List.of(hubOffers, "§eClick to answer")));
+		}
 		i.setItem(15, guildCreator.createLedgerItem(player, f.getOrCreateMainGuild()));
 		i.setItem(16, creator.createMenuItem(player, f, MenuItemType.MODIFIERS));
 		i.setItem(25, creator.createMenuItem(player, f, MenuItemType.TAX));
@@ -143,6 +155,19 @@ public class FactionView {
 		i.setItem(34, creator.createMenuItem(player, f, MenuItemType.TITLES));
 		i.setItem(53, this.inv.createBackButton(SFGUI.FACTION_VIEW));
 		if(open) player.openInventory(i);
+	}
+
+	@SuppressWarnings("deprecation")
+	private ItemStack infrastructureHeadline(Faction faction) {
+		ItemStack item = new ItemStack(Material.RAIL);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§6Infrastructure");
+		String line = HubEstimates.hasInfrastructureWorth(faction)
+				? InfrastructureMenuCopy.headline(HubEstimates.infrastructureWorth(faction))
+				: InfrastructureMenuCopy.headlineUnknown();
+		meta.setLore(List.of(line));
+		item.setItemMeta(meta);
+		return item;
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -276,6 +301,11 @@ public class FactionView {
                 }
                 return;
             }
+			if (e.getSlot() == 22) {
+				HubProposalMenu.openOffers(p);
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				return;
+			}
 			if (e.getSlot() == 20) {
 				EspionageView.positions(p, viewed, inv);
 				return;

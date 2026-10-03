@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
 import net.tfminecraft.simplefactions.objects.Bank;
@@ -43,13 +44,13 @@ public final class SupplyHubService {
         HUB_LIMIT,
         NO_FREE_SLOT,
         NO_TRADE,
-        NO_PERMIT
+        NO_AGREEMENT
     }
 
     public enum DormantReason {
         ECONOMY_DISALLOWS,
         INSTALLATION_GONE,
-        NO_PERMIT,
+        NO_AGREEMENT,
         BEYOND_HUB_SLOTS,
         BEYOND_GUILD_LIMIT
     }
@@ -75,6 +76,14 @@ public final class SupplyHubService {
     public static void loadConfig(FileConfiguration config) {
         double maxTax = config == null ? 50.0 : config.getDouble("supply-hubs.max-tax", 50.0);
         Cache.supplyHubMaxTax = Double.isFinite(maxTax) ? Math.max(0, Math.min(100, maxTax)) : 50.0;
+        double maxFee = config == null ? 500.0 : config.getDouble("supply-hubs.max-fee", 500.0);
+        Cache.supplyHubMaxFee = Double.isFinite(maxFee) ? Math.max(0, maxFee) : 500.0;
+        int offerDays = config == null ? 7 : config.getInt("supply-hubs.offer-days", 7);
+        Cache.supplyHubOfferDays = Math.max(1, offerDays);
+        int agreementDays = config == null ? 14 : config.getInt("supply-hubs.agreement-days", 14);
+        Cache.supplyHubAgreementDays = Math.max(1, agreementDays);
+        int candidates = config == null ? 24 : config.getInt("supply-hubs.estimate-candidates", 24);
+        Cache.supplyHubEstimateCandidates = Math.max(1, candidates);
     }
 
     public static int limit(Guild guild) {
@@ -158,7 +167,7 @@ public final class SupplyHubService {
             return BuildFailure.NO_TRADE;
         }
         if (!permitted) {
-            return BuildFailure.NO_PERMIT;
+            return BuildFailure.NO_AGREEMENT;
         }
         return null;
     }
@@ -178,45 +187,28 @@ public final class SupplyHubService {
                 return "§cThis installation has no free hub slot";
             case NO_TRADE:
                 return "§cYour guild has no trade power in this province, and none of its hubs can reach it";
-            case NO_PERMIT:
-                return "§cThe faction that owns this installation has not granted your guild a hub permit";
+            case NO_AGREEMENT:
+                return "§cA supply hub in another realm needs an agreement";
             default:
                 return "§cYou cannot build a supply hub here";
         }
     }
 
-    public static boolean ownerAllows(String guildFactionId, String ownerFactionId, boolean permit) {
-        if (guildFactionId != null && guildFactionId.equalsIgnoreCase(ownerFactionId)) {
+/** Own realm, or a hub agreement with the installation's owner. */
+    public static boolean hubPermitted(Guild guild, String ownerFactionId, String installationId) {
+        if (guild == null || ownerFactionId == null || installationId == null) {
+            return false;
+        }
+        Faction guildFaction = guild.getFaction();
+        if (guildFaction != null && guildFaction.getId() != null
+                && guildFaction.getId().equalsIgnoreCase(ownerFactionId)) {
             return true;
         }
-        return permit;
-    }
-
-    public static boolean hasPermit(Iterable<String> permits, String guildId) {
-        if (permits == null || guildId == null) {
-            return false;
+        Faction owner = FactionManager.getByString(ownerFactionId);
+        if (owner != null && RelationManager.sameRealm(owner, guildFaction)) {
+            return true;
         }
-        for (String id : permits) {
-            if (guildId.equalsIgnoreCase(id)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** @return true when the guild is permitted after the toggle */
-    public static boolean togglePermit(List<String> permits, String guildId) {
-        if (permits == null || guildId == null || guildId.isBlank()) {
-            return false;
-        }
-        for (int i = 0; i < permits.size(); i++) {
-            if (guildId.equalsIgnoreCase(permits.get(i))) {
-                permits.remove(i);
-                return false;
-            }
-        }
-        permits.add(guildId);
-        return true;
+        return HubAgreementService.hasAgreement(guild, ownerFactionId, installationId);
     }
 
     public static boolean allowsSupplyHubs(Guild guild) {
@@ -255,7 +247,7 @@ public final class SupplyHubService {
             return new HubStanding(false, DormantReason.INSTALLATION_GONE);
         }
         if (!allowed) {
-            return new HubStanding(false, DormantReason.NO_PERMIT);
+            return new HubStanding(false, DormantReason.NO_AGREEMENT);
         }
         int index = indexOfHub(atInstallationOldestFirst, hub);
         if (index < 0 || index >= hubSlots) {
@@ -281,8 +273,8 @@ public final class SupplyHubService {
                 return "your faction's economy does not allow supply hubs";
             case INSTALLATION_GONE:
                 return "its installation no longer exists";
-            case NO_PERMIT:
-                return "the owning faction has not granted a hub permit";
+            case NO_AGREEMENT:
+                return "there is no hub agreement";
             case BEYOND_HUB_SLOTS:
                 return "it is beyond this installation's hub slots";
             case BEYOND_GUILD_LIMIT:
@@ -323,7 +315,7 @@ public final class SupplyHubService {
         }
         List<SupplyHub> ordered = oldestFirst(hubs);
         int guard = 0;
-        while (!ordered.isEmpty() && totalUpkeep(ordered.size(), perHub) > wealth && guard++ < 10000) {
+        while (!ordered.isEmpty() && shedCost(ordered, perHub, null) > wealth && guard++ < 10000) {
             SupplyHub newest = ordered.remove(ordered.size() - 1);
             if (!hubs.remove(newest)) {
                 break;
@@ -331,6 +323,39 @@ public final class SupplyHubService {
             removed.add(newest);
         }
         return removed;
+    }
+
+    /**
+     * Same as {@link #shedUnpaid(List, double, double)}, counting each hub's agreement fee as well.
+     */
+    public static List<SupplyHub> shedUnpaid(
+            List<SupplyHub> hubs, double wealth, double perHub, java.util.function.ToDoubleFunction<SupplyHub> feeOf) {
+        List<SupplyHub> removed = new ArrayList<>();
+        if (hubs == null || hubs.isEmpty()) {
+            return removed;
+        }
+        List<SupplyHub> ordered = oldestFirst(hubs);
+        int guard = 0;
+        while (!ordered.isEmpty() && shedCost(ordered, perHub, feeOf) > wealth && guard++ < 10000) {
+            SupplyHub newest = ordered.remove(ordered.size() - 1);
+            if (!hubs.remove(newest)) {
+                break;
+            }
+            removed.add(newest);
+        }
+        return removed;
+    }
+
+    private static double shedCost(
+            List<SupplyHub> ordered, double perHub, java.util.function.ToDoubleFunction<SupplyHub> feeOf) {
+        double total = totalUpkeep(ordered.size(), perHub);
+        if (feeOf == null) {
+            return total;
+        }
+        for (SupplyHub hub : ordered) {
+            total += Math.max(0, feeOf.applyAsDouble(hub));
+        }
+        return total;
     }
 
     public static List<SupplyHub> shedUnpaid(Guild guild) {
@@ -342,7 +367,10 @@ public final class SupplyHubService {
         if (bank != null && bank.getWealth() != null) {
             wealth = bank.getWealth();
         }
-        return shedUnpaid(guild.getSupplyHubs(), wealth, upkeepPerHub(guild));
+        List<SupplyHub> removed = shedUnpaid(
+                guild.getSupplyHubs(), wealth, upkeepPerHub(guild), hub -> HubAgreementService.feeDenars(guild, hub));
+        HubAgreementService.endFor(guild, removed);
+        return removed;
     }
 
     public static boolean hasHub(List<SupplyHub> guildHubs, String ownerFactionId, String installationId) {
@@ -456,12 +484,23 @@ public final class SupplyHubService {
         dropMissing(allGuilds(), SupplyHubService::installationExists);
     }
 
+    /**
+     * Called once relations are loaded. Before that, a vassal hub at its overlord's
+     * installation looks foreign and would be deleted.
+     */
+    public static void dropUnagreedForeignLoaded() {
+        HubAgreementService.logRemovedForeignHubs(
+                HubAgreementService.removeUnagreedForeignHubs(allGuilds(), HubAgreementFacts.LIVE));
+    }
+
     public static void onInstallationRemoved(String ownerFactionId, String installationId) {
-        removeInstallation(allGuilds(), ownerFactionId, installationId);
+        HubAgreementMessenger.deliver(HubAgreementService.onInstallationRemoved(
+                allGuilds(), ownerFactionId, installationId, HubAgreementFacts.LIVE));
     }
 
     public static void onInstallationTransferred(String fromFactionId, String toFactionId, String installationId) {
-        retarget(allGuilds(), fromFactionId, toFactionId, installationId);
+        HubAgreementMessenger.deliver(HubAgreementService.onTransferred(
+                allGuilds(), fromFactionId, toFactionId, installationId, HubAgreementFacts.LIVE));
     }
 
     public static boolean installationExists(String ownerFactionId, String installationId) {

@@ -27,6 +27,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.branch.BranchModifier;
+import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
@@ -348,7 +349,7 @@ public class GuildCreator {
 			lore.add("");
 			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
 					guild.getTradeBreakdown().getNetTradeIncome() - guild.getHubTaxBreakdown().getTotalTax())));
-			lore.add(incomeChangeLine(delta));
+			lore.add(incomeChangeLine(delta, BranchIncomePreview.showsRealm(guild, branch)));
 		}
 		lore.add("");
 		lore.add(StringFormatter.formatHex("#50e846§lClick to Upgrade"));
@@ -395,7 +396,7 @@ public class GuildCreator {
 		} else {
 			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
 					guild.getTradeBreakdown().getNetTradeIncome() - guild.getHubTaxBreakdown().getTotalTax())));
-			lore.add(incomeChangeLine(delta));
+			lore.add(incomeChangeLine(delta, BranchIncomePreview.showsRealm(guild, branch)));
 		}
 		lore.add("");
 		lore.add(StringFormatter.formatHex(
@@ -406,15 +407,16 @@ public class GuildCreator {
 		return lore;
 	}
 
-	private String incomeChangeLine(Double delta) {
+	String incomeChangeLine(Double delta, boolean realm) {
+		String label = realm ? "Estimated Realm Income Change" : "Estimated Income Change";
 		if (delta == null) {
-			return StringFormatter.formatHex("#f2e5c2Estimated Income Change#d6cf69: #7a706aCalculating...");
+			return StringFormatter.formatHex("#f2e5c2" + label + "#d6cf69: #7a706aCalculating...");
 		}
 		if (delta.isNaN()) {
 			return StringFormatter.formatHex("#cf493aIncome estimate unavailable");
 		}
 		return StringFormatter.formatHex(
-			"#f2e5c2Estimated Income Change#d6cf69: "
+			"#f2e5c2" + label + "#d6cf69: "
 			+ (delta >= 0 ? "#4fd945+" : "#cf493a")
 			+ String.format("%.2f", delta)
 			+ "d/day"
@@ -680,6 +682,35 @@ public class GuildCreator {
 		}
 		m.setLore(ledgerSourceLore(g, payments ? LedgerHistory.Source.HUB_TAX_PAYMENTS : LedgerHistory.Source.HUB_TAX,
 				payments ? "Top hub tax hosts" : "Top hub tax payers", today, "No hub tax today."));
+		i.setItemMeta(m);
+		return i;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createLedgerHubFeeItem(Guild g, boolean payments) {
+		ItemStack i = new ItemStack(Material.EMERALD);
+		ItemMeta m = i.getItemMeta();
+		m.setDisplayName(StringFormatter.formatHex("#5cc46aHub Fee" + (payments ? " Paid" : "")));
+		Map<String, Double> today = new HashMap<>();
+		if (payments) {
+			if (g.getLedger() != null) {
+				g.getLedger().getPayableHubFees().forEach(
+						(host, fee) -> today.merge(host.getName(), fee, Double::sum));
+			}
+		} else if (g.getLedger() != null && !g.isBankrupt() && g.getFaction() != null) {
+			for (Guild payer : FactionManager.getAllGuilds()) {
+				if (payer.getLedger() == null) {
+					continue;
+				}
+				double fee = payer.getLedger().getPayableHubFees().getOrDefault(g.getFaction(), 0.0);
+				if (fee > 0) {
+					today.merge(payer.getFaction().getName(), fee, Double::sum);
+				}
+			}
+		}
+		m.setLore(ledgerSourceLore(g, payments ? LedgerHistory.Source.HUB_FEE_PAYMENTS : LedgerHistory.Source.HUB_FEE,
+				payments ? "Top hub fee hosts" : "Top hub fee payers", today, "No hub fee today."));
 		i.setItemMeta(m);
 		return i;
 	}
