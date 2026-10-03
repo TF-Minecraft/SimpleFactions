@@ -139,11 +139,34 @@ public class MapSystem {
 	public void updateLiveData() {
 		lastUpdate = 0;
 		prepareLiveFiles();
+		// Leader character names live in Data/*.json and ship in nation.json,
+		// which the quiet path otherwise skips. A name learned since the last
+		// cycle re-exports just that file, so it reaches the map within one
+		// cycle rather than at the next hourly full update.
+		boolean shipNation = leaderNamesChanged;
+		leaderNamesChanged = false;
+		if (shipNation) {
+			Database db = new Database();
+			for (Faction fac : FactionManager.factions) {
+				db.saveFaction(fac);
+			}
+			compiler.exportAllFactionsToNationJson();
+		}
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
 			uploadLiveFiles();
+			if (shipNation) {
+				RestServer.upload("nation", new File("plugins/SimpleFactions/MapAPI/nation.json"));
+			}
 			RestServer.commenceRegen("trade");
 		});
+	}
+
+	private volatile boolean leaderNamesChanged;
+
+	/** A realm or guild leader's character name changed; see LeaderCharacters. */
+	public void markLeaderNamesChanged() {
+		leaderNamesChanged = true;
 	}
 	
 	public void fullRegen() {

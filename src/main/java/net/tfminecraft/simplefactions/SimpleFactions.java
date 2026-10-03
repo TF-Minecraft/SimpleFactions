@@ -696,6 +696,14 @@ public class SimpleFactions extends JavaPlugin{
 				new net.tfminecraft.simplefactions.prestige.RpCharactersPlaytimeProbe());
 		net.tfminecraft.simplefactions.identity.LeaderCharacters.setProbe(
 				new net.tfminecraft.simplefactions.identity.RpCharactersLeaderCharacterProbe());
+		// Learn every realm and guild leader's character once the server has
+		// settled, online or not, and ship it with the next map cycle.
+		getServer().getScheduler().runTaskLater(this, () -> {
+			net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
+			if (FactionManager.getMap() != null) {
+				FactionManager.getMap().markLeaderNamesChanged();
+			}
+		}, 200L);
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
 		if (!officeCharacterDeathRegistered) {
 			getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);

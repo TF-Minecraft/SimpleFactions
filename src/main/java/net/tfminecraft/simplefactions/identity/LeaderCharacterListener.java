@@ -34,20 +34,36 @@ public final class LeaderCharacterListener implements Listener {
     }
 
     static void rememberFor(String player) {
+        refresh(player);
+    }
+
+    /**
+     * Re-reads every realm and guild leader's character (or only `player`'s
+     * when given) and, if any name changed, asks the map to ship nation.json
+     * on its next cycle.
+     */
+    public static void refresh(String player) {
+        boolean changed = false;
         for (Faction faction : FactionManager.factions) {
             if (faction == null) continue;
-            if (player.equalsIgnoreCase(faction.getLeader())) {
+            if (player == null || player.equalsIgnoreCase(faction.getLeader())) {
                 LeaderCharacters.Remembered remembered = LeaderCharacters.resolve(
                         faction.getLeader(), faction.getLeaderCharacter(), faction.getLeaderCharacterOf());
+                changed |= !java.util.Objects.equals(remembered.name(), faction.getLeaderCharacter());
                 faction.rememberLeaderCharacter(remembered.name(), remembered.player());
             }
             // Guild leaders too; a realm's own guild follows the realm above.
             for (Guild guild : faction.getGuildHandler().getGuilds()) {
-                if (guild == null || guild.isBase() || !player.equalsIgnoreCase(guild.getLeader())) continue;
+                if (guild == null || guild.isBase()) continue;
+                if (player != null && !player.equalsIgnoreCase(guild.getLeader())) continue;
                 LeaderCharacters.Remembered remembered = LeaderCharacters.resolve(
                         guild.getLeader(), guild.getLeaderCharacter(), guild.getLeaderCharacterOf());
+                changed |= !java.util.Objects.equals(remembered.name(), guild.getLeaderCharacter());
                 guild.rememberLeaderCharacter(remembered.name(), remembered.player());
             }
+        }
+        if (changed && FactionManager.getMap() != null) {
+            FactionManager.getMap().markLeaderNamesChanged();
         }
     }
 }
