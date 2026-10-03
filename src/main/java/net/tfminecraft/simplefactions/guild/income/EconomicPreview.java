@@ -93,6 +93,11 @@ public final class EconomicPreview {
         }
     }
 
+    /** Net income of every guild after recalculating this snapshot. Writes the live trade breakdowns. */
+    public static Map<Guild, Double> projectNets(ProvinceManager snapshot) {
+        return project(snapshot, IncomePreviewContext.scratch(), false);
+    }
+
     private static Map<Guild, Double> project(
             ProvinceManager snapshot, IncomePreviewContext context, boolean capitalsOnly) {
         IncomePreviewContext.open(context);

@@ -38,6 +38,8 @@ import net.tfminecraft.simplefactions.laws.LawGroup;
 public class ProvinceManager {
     private Map<Integer, Province> provinces = new HashMap<>();
     private Map<String, List<Link>> hubLinksOverride;
+    private boolean infrastructureSuppressed;
+    private Map<Integer, Double> extraInfrastructure;
     private long stateVersion = 0;
     private long lastCalculatedVersion = -1;
 
@@ -82,6 +84,19 @@ public class ProvinceManager {
     /** Snapshot-only link selection. An unset map keeps the normal cached network. */
     public void setHubLinksOverride(Map<String, List<Link>> links) {
         hubLinksOverride = links;
+    }
+
+    /** Snapshot-only. The next recalculation writes 0 infrastructure on every province. */
+    public void setInfrastructureSuppressed(boolean suppressed) {
+        infrastructureSuppressed = suppressed;
+    }
+
+    /**
+     * Snapshot-only source added before the spread. Sea and water provinces are ignored.
+     * A null or empty map adds nothing. Copies do not inherit this.
+     */
+    public void setExtraInfrastructure(Map<Integer, Double> extra) {
+        extraInfrastructure = extra == null || extra.isEmpty() ? null : Map.copyOf(extra);
     }
 
     private List<Link> hubLinksFor(Guild guild) {
@@ -144,6 +159,12 @@ public class ProvinceManager {
     }
 
     private void recalculateInfrastructure() {
+        if (infrastructureSuppressed) {
+            for (Province province : provinces.values()) {
+                province.setInfrastructure(0);
+            }
+            return;
+        }
         Map<Integer, InfrastructureSpread.Node> graph = new HashMap<>();
         for (Province province : provinces.values()) {
             Faction realm = InfrastructureAccess.topRealm(province.getOwner());
@@ -154,6 +175,15 @@ public class ProvinceManager {
         Map<Integer, Double> sources = InfrastructureSources.collect(
                 provinces, FactionManager.getAllGuilds(), FactionManager.getCopy(),
                 net.tfminecraft.simplefactions.map.infra.TrackProvinceCache.live().provinces());
+        if (extraInfrastructure != null) {
+            for (Map.Entry<Integer, Double> extra : extraInfrastructure.entrySet()) {
+                Province province = provinces.get(extra.getKey());
+                if (province == null || province.isSea() || extra.getValue() == null || extra.getValue() <= 0) {
+                    continue;
+                }
+                sources.merge(extra.getKey(), extra.getValue(), Double::sum);
+            }
+        }
         Map<Integer, InfrastructureSpread.Arrival> infrastructure = InfrastructureSpread.spread(
                 graph, sources, Cache.infrastructureWildernessSpread, Cache.infrastructureSpreadFloor);
         for (Province province : provinces.values()) {
