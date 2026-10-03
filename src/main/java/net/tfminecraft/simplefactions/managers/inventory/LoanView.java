@@ -39,11 +39,18 @@ public class LoanView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void loanMainView(Player player, Guild guild, Inventory i) {
+        if (!net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(player, guild.getFaction())) {
+            boolean show = i == null;
+            if (show) i = ReportedMenus.open(player, guild.getId(), SFGUI.LOAN_MAIN_VIEW, 9, "Loans - " + guild.getName());
+            ReportedMenus.loans(i, inv);
+            if (show) player.openInventory(i);
+            return;
+        }
         boolean open = i == null;
         if(open) i = SimpleFactions.plugin.getServer().createInventory(
             new SFInventoryHolder(guild.getId(), SFGUI.LOAN_MAIN_VIEW),
             9,
-            "§7Loans - " + guild.getName()
+            MenuTitles.legacy("Loans - " + guild.getName())
         );
         i.clear();
         i.setItem(2, creator.createLoansGivenButton(guild));

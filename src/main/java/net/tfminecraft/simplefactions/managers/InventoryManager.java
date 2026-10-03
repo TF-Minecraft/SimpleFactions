@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.espionage.EspionageAccess;
+import net.tfminecraft.simplefactions.managers.inventory.EspionageView;
 
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy;
 import java.util.ArrayList;
@@ -983,7 +985,8 @@ public class InventoryManager implements Listener{
 			e.setCancelled(true);
 		}
 		if (inv.getHolder() instanceof SFInventoryHolder
-				&& ((SFInventoryHolder) inv.getHolder()).getType() == SFGUI.PLAYER_LEDGER_VIEW) {
+				&& (((SFInventoryHolder) inv.getHolder()).getType() == SFGUI.PLAYER_LEDGER_VIEW
+				|| EspionageView.handles(((SFInventoryHolder) inv.getHolder()).getType()))) {
 			e.setCancelled(true);
 		}
 		// Confirm screens have no holder; an item dragged into one is lost when it closes.
@@ -1040,6 +1043,16 @@ public class InventoryManager implements Listener{
 		// Every menu button is in the top inventory. A click in the player's own inventory
 		// carries a slot number too, so it must never reach the views as a button press.
 		if (isPluginMenu(inv) && !isTopInventoryClick(e.getRawSlot(), inv.getSize())) return;
+		if (inv.getHolder() instanceof SFInventoryHolder holder
+				&& EspionageAccess.denied(p, holder)) {
+			p.closeInventory();
+			return;
+		}
+		if (inv.getHolder() instanceof SFInventoryHolder holder
+				&& EspionageView.handles(holder.getType())) {
+			EspionageView.click(e, p, holder, this);
+			return;
+		}
 		if(e.getCurrentItem() == null) return;
 		if(inv.getHolder() instanceof SFInventoryHolder) {
 			e.setCancelled(true);
@@ -1269,6 +1282,11 @@ public class InventoryManager implements Listener{
 						break;
 				}
 			}
+            if (h.isReported() && !net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(p,
+                    net.tfminecraft.simplefactions.espionage.EspionageAccess.owner(h))) {
+                net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.navigate(e, p, h, this);
+                return;
+            }
 			if(h.getType() == SFGUI.FACTION_LIST || h.getType() == SFGUI.FACTION_VIEW || h.getType() == SFGUI.FACTION_GUILDS) {
 				factionView.click(e, inv, p);
 			} else if(h.getType() == SFGUI.GUILD_LIST || h.getType() == SFGUI.GUILD_VIEW || h.getType() == SFGUI.UPGRADE_VIEW) {

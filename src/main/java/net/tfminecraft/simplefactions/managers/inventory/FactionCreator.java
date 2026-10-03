@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageService;
+import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
 
 import java.util.ArrayList;
@@ -60,12 +62,30 @@ public class FactionCreator {
 		ItemStack i = new ItemStack(f.getBanner());
 		ItemMeta meta = i.getItemMeta();
 		meta.setDisplayName("§f"+f.getName());
+		List<String> lore = listLore(p, f);
+		meta.setLore(lore);
+		NamespacedKey id = new NamespacedKey(SimpleFactions.plugin, "id");
+		meta.getPersistentDataContainer().set(id, PersistentDataType.STRING, f.getId());
+		i.setItemMeta(meta);
+		return i;
+	}
+
+    private static String intelligence(net.tfminecraft.simplefactions.espionage.IntelligenceReport report, String metric, String units) {
+        String value = report == null ? "Unknown" : report.display(metric);
+        return value.equals("Unknown") ? "\u00a77" + value : value + units;
+    }
+
+    public List<String> listLore(Player p, Faction f) {
+        boolean exact = EspionageService.canViewExact(p, f);
+        var report = exact ? null : EspionageService.report(p, f);
 		List<String> lore = new ArrayList<String>();
 		lore.add(f.getRank().getName());
-		if (f.getGovernment() != null) {
-			net.tfminecraft.simplefactions.government.stability.StabilityStatus status = f.getGovernment().stateReport().status;
-			lore.add(StringFormatter.formatHex(status.getListColor() + status.getLabel()));
-		}
+        if (exact && f.getGovernment() != null) {
+            var status = f.getGovernment().stateReport().status;
+            lore.add(StringFormatter.formatHex(status.getListColor() + status.getLabel()));
+        } else if (!exact) {
+            lore.add(StringFormatter.formatHex(net.tfminecraft.simplefactions.espionage.IntelligenceReport.stabilityState(report)));
+        }
 		if(f.getTitles().size() > 0) lore.add(StringFormatter.formatHex("#b84c44§lPrimary Title: #7a706a"+f.getHighestTitle().getName()));
 		lore.add(StringFormatter.formatHex("#c45749§lTier: "+f.getTier().getFormattedName()));
 		lore.add(StringFormatter.formatHex("#b8ae61Based in: #d4c9ae" + HomeSettlementNames.of(f)));
@@ -73,18 +93,25 @@ public class FactionCreator {
 		if(realmSize > 0 && realmSize-f.getProvinces().size() > 0) lore.add(StringFormatter.formatHex("#d4c9aeRealm Size: #7a706a"+realmSize+" #a39ba8("+(realmSize-f.getProvinces().size())+" from subjects)"));
 		else if(realmSize > 0) lore.add(StringFormatter.formatHex("#d4c9aeRealm Size: #7a706a"+realmSize));
 		lore.add(" ");
-		lore.add(StringFormatter.formatHex("#9c9775"+f.getRulerTitle()+": #c2bea7"+f.getLeader()));
+		lore.add(StringFormatter.formatHex("#9c9775"+f.getRulerTitle()+": #c2bea7"+CharacterNames.display(p, f.getLeader(), f)));
 		lore.add(StringFormatter.formatHex("#b8ae61Ruling System: #d4c9ae"+f.getGovernmentString()));
 		lore.add(StringFormatter.formatHex("#b8ae61Culture: #d4c9ae"+f.getCulture()));
 		lore.add(StringFormatter.formatHex("#b8ae61Religion: #d4c9ae"+f.getReligion()));
-		int subjectMembers = f.getCompleteMemberList().size()-f.getMembers().size();
-		lore.add(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+f.getCompleteMemberList().size()+((subjectMembers > 0) ? " #a39ba8("+subjectMembers+" from subjects)" : "")));
+        if (exact) {
+            int subjectMembers = f.getCompleteMemberList().size() - f.getMembers().size();
+            lore.add(StringFormatter.formatHex("#b8ae61Members: #7fbd73" + f.getCompleteMemberList().size()
+                    + (subjectMembers > 0 ? " #a39ba8(" + subjectMembers + " from subjects)" : "")));
+        } else lore.add(StringFormatter.formatHex("#b8ae61Members: #7fbd73" + intelligence(report, "Members", "")));
 		lore.add(" ");
 		lore.add(StringFormatter.formatHex("#4793bfPrestige: #6eafba"+f.getPrestige()+" #7a706a("+r.getPrestigeRank(f)+")"));
-		lore.add(StringFormatter.formatHex("#d1b43fWealth: #ccbb76"+f.getWealth()+"d #7a706a("+r.getWealthRank(f)+")"));
-		double prosperity = f.getProsperity();
-		if(prosperity > 0) lore.add(StringFormatter.formatHex("#4bb244Prosperity: #4fd945"+f.getProsperity()));
-		if(!f.getMembers().contains(p.getName())) {
+        Integer wealthRank = r.getVisibleRank(p, f, RankType.WEALTH);
+        String wealth = exact ? f.getWealth() + "d" : intelligence(report, "Wealth", "d");
+        lore.add(StringFormatter.formatHex("#d1b43fWealth: #ccbb76" + wealth
+                + (wealthRank == null ? "" : " #7a706a(" + (exact ? "" : "estimated ") + wealthRank + ")")));
+        if (exact) {
+            if (f.getProsperity() > 0) lore.add(StringFormatter.formatHex("#4bb244Prosperity: #4fd945" + f.getProsperity()));
+        } else lore.add(StringFormatter.formatHex("#4bb244Prosperity: #4fd945" + intelligence(report, "Prosperity", "")));
+		if(p != null && !EspionageService.isOwn(p, f)) {
 			Faction origin = FactionManager.getByMember(p.getName());
 			if(origin != null) {
 				Relation r = origin.getRelation(f.getId());
@@ -125,12 +152,8 @@ public class FactionCreator {
 				lore.add(StringFormatter.formatHex("#bccbd1- "+ally.getName()));
 			}
 		}
-		meta.setLore(lore);
-		NamespacedKey id = new NamespacedKey(SimpleFactions.plugin, "id");
-		meta.getPersistentDataContainer().set(id, PersistentDataType.STRING, f.getId());
-		i.setItemMeta(meta);
-		return i;
-	}
+        return lore;
+    }
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
@@ -233,6 +256,10 @@ public class FactionCreator {
 	
 	@SuppressWarnings("deprecation")
 	public ItemStack createMenuItem(Player p, Faction f, MenuItemType t) {
+		if (!EspionageService.canViewExact(p, f) && java.util.Set.of(MenuItemType.GOVERNMENT,
+				MenuItemType.WEALTH, MenuItemType.PRESTIGE, MenuItemType.MEMBERS, MenuItemType.MODIFIERS,
+				MenuItemType.TAX, MenuItemType.LAWS, MenuItemType.MILITARY, MenuItemType.INSTALLATIONS,
+				MenuItemType.DIPLOMACY).contains(t)) return applyIcon(EspionageView.factionItem(p, f, t), t);
 		ItemStack i = new ItemStack(Material.DIRT, 1);
 		if(t.equals(MenuItemType.BANNER)) {
 			i = new ItemStack(f.getBanner());
@@ -264,7 +291,7 @@ public class FactionCreator {
 			i = new ItemStack(Material.PLAYER_HEAD, 1);
 			SkullMeta m = (SkullMeta) i.getItemMeta();
 			m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-			m.setDisplayName(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+f.getLeader()));
+			m.setDisplayName(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+CharacterNames.display(p, f.getLeader(), f)));
 			m.setOwningPlayer(Bukkit.getOfflinePlayer(f.getLeader()));
 			List<String> lore = new ArrayList<String>();
 			lore.add(StringFormatter.formatHex("#b8ae61Ruling System: #d4c9ae"+f.getGovernmentString()));
@@ -278,7 +305,7 @@ public class FactionCreator {
 			m.setOwningPlayer(Bukkit.getOfflinePlayer(f.getLeader()));
 			List<String> lore = new ArrayList<String>();
 			Government gov = f.getGovernment();
-			lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+f.getLeader()));
+			lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+CharacterNames.display(p, f.getLeader(), f)));
 			double power = Formatter.formatDouble(gov.getPower());
 			double maxPower = Formatter.formatDouble(gov.getMaxPower());
 			String powerString = ((power < 0) ? "§c" : "") + power+"/"+((maxPower < 0) ? "§c" : "") + maxPower;
@@ -377,18 +404,11 @@ public class FactionCreator {
 				i = new ItemStack(Material.PLAYER_HEAD, 1);
 				ItemMeta m = i.getItemMeta();
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-				List<String> memberNames = f.getCompleteMemberList();
+				List<String> memberNames = new ArrayList<>(f.getMembers());
+				memberNames.removeIf(name -> name.equalsIgnoreCase(f.getLeader()));
+				memberNames.add(0, f.getLeader());
 				m.setDisplayName(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+memberNames.size()));
-				List<String> lore = new ArrayList<String>();
-				int count = 0;
-				for(String s : memberNames) {
-					if(count == 24) break;
-					lore.add(StringFormatter.formatHex("#d4c9ae"+s+" "+Represents.represents(f, s)));
-					count++;
-				}
-				if(count < memberNames.size()) {
-					lore.add("§7...and "+(memberNames.size()-count)+" more");
-				}
+				List<String> lore = net.tfminecraft.simplefactions.espionage.RosterLore.faction(p, f).stream().map(StringFormatter::formatHex).toList();
 				m.setLore(lore);
 				i.setItemMeta(m);	
 		} else if(t.equals(MenuItemType.GUILDS)) {
@@ -555,6 +575,10 @@ public class FactionCreator {
 			m.getPersistentDataContainer().set(key, PersistentDataType.STRING, f.getId());
 			i.setItemMeta(m);
 		}
+		return applyIcon(i, t);
+	}
+
+	public static ItemStack applyIcon(ItemStack i, MenuItemType t) {
 		if(IconGetter.hasIcon(t.toString())) {
 			ItemStack icon = IconGetter.getIcon(t.toString());
 			i.setType(icon.getType());

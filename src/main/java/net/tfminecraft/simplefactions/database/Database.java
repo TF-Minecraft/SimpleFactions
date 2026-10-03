@@ -184,6 +184,7 @@ public class Database {
                 }
                 f.setFoundedAt(data.foundedAt != null ? data.foundedAt : System.currentTimeMillis()/1000L);
                 f.setCapitalMoves(data.capitalMoves != null ? data.capitalMoves : 0);
+                f.setEspionage(data.espionage);
 
                 if (data.settlements != null) {
                     f.getSettlementHandler().load(data.settlements);
@@ -312,6 +313,11 @@ public class Database {
      * ===================================================== */
 
     public void saveFaction(Faction f) {
+        saveFactionChecked(f);
+    }
+
+    /** Office mutations must not acknowledge success unless the faction save completed. */
+    public boolean saveFactionChecked(Faction f) {
         try {
             File file = new File("plugins/SimpleFactions/Data", f.getId() + ".json");
 
@@ -389,6 +395,7 @@ public class Database {
             data.rank = f.getRank() != null ? f.getRank().getId() : null;
             data.foundedAt = f.getFoundedAt();
             data.capitalMoves = f.getCapitalMoves();
+            data.espionage = f.getEspionage();
 
             // --- Guild ---
             for (Guild g : f.getGuildHandler().getGuilds()) {
@@ -514,10 +521,12 @@ public class Database {
                 data.warReparationsObligations.add(obligationData);
             }
 
-            JsonUtil.writeJson(file, data);
+            JsonUtil.writeJsonAtomic(file, data);
+            return true;
 
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
     }
 

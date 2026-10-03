@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.objects;
 
+import net.tfminecraft.simplefactions.espionage.EspionageState;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -81,6 +82,16 @@ import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class Faction {
+	private EspionageState espionage = new EspionageState();
+
+	public EspionageState getEspionage() {
+		return espionage;
+	}
+
+	public void setEspionage(EspionageState espionage) {
+		this.espionage = espionage != null ? espionage : new EspionageState();
+	}
+
 	private Formatter format = new Formatter();
 	private String id;
 	private String name;

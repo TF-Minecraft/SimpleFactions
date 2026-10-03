@@ -52,6 +52,7 @@ public class CompanyView {
 	}
 
 	public void companyView(Player player, Guild guild, Inventory i) {
+        if (!net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(player, guild.getFaction())) { ReportedMenus.company(i, inv); return; }
 		i.clear();
 		MercenaryCompany company = guild.getCompany();
 		if (company != null && company.isFormed()) {

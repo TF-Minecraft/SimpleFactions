@@ -22,4 +22,25 @@ public class JsonUtil {
             GSON.toJson(data, w);
         }
     }
+
+    /** Stage a complete save beside the destination so failed writes keep the previous data. */
+    public static void writeJsonAtomic(File file, Object data) throws IOException {
+        var destination = file.toPath().toAbsolutePath();
+        var pending = java.nio.file.Files.createFile(destination.resolveSibling(file.getName() + "." + java.util.UUID.randomUUID() + ".tmp"));
+        try {
+            if (java.nio.file.Files.exists(destination)
+                    && java.nio.file.Files.getFileAttributeView(destination, java.nio.file.attribute.PosixFileAttributeView.class) != null) {
+                java.nio.file.Files.setPosixFilePermissions(pending, java.nio.file.Files.getPosixFilePermissions(destination));
+            }
+            java.nio.file.Files.writeString(pending, GSON.toJson(data));
+            try {
+                java.nio.file.Files.move(pending, destination, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                java.nio.file.Files.move(pending, destination, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            java.nio.file.Files.deleteIfExists(pending);
+        }
+    }
 }

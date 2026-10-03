@@ -52,6 +52,10 @@ public class SupplyHubView {
     }
 
     private void populateGuildView(Player player, Guild guild, Inventory inventory) {
+        if (!net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(player, guild.getFaction())) {
+            ReportedMenus.supplyHubs(inventory, player, guild, inv);
+            return;
+        }
         inventory.clear();
         ProvinceManager provinces = SimpleFactions.getInstance().getProvinceManager();
         List<SupplyHub> hubs = SupplyHubService.oldestFirst(guild.getSupplyHubs());

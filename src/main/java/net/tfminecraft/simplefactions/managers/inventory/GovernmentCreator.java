@@ -59,13 +59,15 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 public class GovernmentCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
-    public ItemStack createGovernmentItem(Faction f) {
+    public ItemStack createGovernmentItem(Faction f) { return createGovernmentItem(null, f); }
+
+    public ItemStack createGovernmentItem(Player p, Faction f) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta m = item.getItemMeta();
         m.setDisplayName(StringFormatter.formatHex("#93c9a7Government:"));
         List<String> lore = new ArrayList<String>();
         Government gov = f.getGovernment();
-        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+f.getLeader()));
+        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.espionage.CharacterNames.display(p, f.getLeader(), f)));
         double power = Formatter.formatDouble(gov.getPower());
         double maxPower = Formatter.formatDouble(gov.getMaxPower());
         String powerString = ((power < 0) ? "§c" : "") + power+"/"+((maxPower < 0) ? "§c" : "") + maxPower;

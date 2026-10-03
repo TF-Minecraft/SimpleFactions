@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageAccess;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -45,6 +46,12 @@ public class InventoryUpdater {
 	private static final Set<SFGUI> SKIP_PERIODIC_REFRESH = EnumSet.of(
 			// Ledger projections and countdowns are snapshots refreshed on opening.
 			SFGUI.FACTION_VIEW,
+			SFGUI.SPECIAL_POSITIONS,
+			SFGUI.SPYMASTER_VIEW,
+			SFGUI.FOREIGN_LEDGER_VIEW,
+			SFGUI.FOREIGN_POSITIONS_VIEW,
+			SFGUI.SPYMASTER_SETTINGS,
+			SFGUI.SPYMASTER_SELECT,
 			SFGUI.PLAYER_LEDGER_VIEW,
 			SFGUI.GUILD_VIEW,
 			SFGUI.GUILD_LIST,
@@ -107,7 +114,12 @@ public class InventoryUpdater {
 	}
 
 	private void refreshSFHolder(Player p, Inventory i, SFInventoryHolder h) {
+		if (EspionageAccess.denied(p, h)) {
+			p.closeInventory();
+			return;
+		}
 		SFGUI type = h.getType();
+        if (h.isReported() && !net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(p, EspionageAccess.owner(h))) return;
 		if (skipsPeriodicRefresh(type)) {
 			return;
 		}

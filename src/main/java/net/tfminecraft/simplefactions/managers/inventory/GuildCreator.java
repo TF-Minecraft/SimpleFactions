@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageService;
+import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
 
@@ -55,6 +57,9 @@ import net.tfminecraft.tlibs.utils.TimeFormatter;
 import net.tfminecraft.tlibs.TLibs;
 
 public class GuildCreator {
+    public ItemStack createPublicListItem(Player viewer, Guild guild) {
+        return createListItem(viewer, guild);
+    }
 
 	FactionRanker r = new FactionRanker();
 
@@ -74,27 +79,41 @@ public class GuildCreator {
 		ItemStack i = new ItemStack(guild.getBanner());
 		ItemMeta meta = i.getItemMeta();
 		meta.setDisplayName("§f"+guild.getName());
+        boolean own = EspionageService.canViewExact(p, guild.getFaction());
+        var report = own ? null : EspionageService.report(p, guild.getFaction());
 		List<String> lore = new ArrayList<String>();
 		lore.add(StringFormatter.formatHex("#7a706a§lType: "+guild.getType().getName()));
 		if(guild.hasCapital()) lore.add(StringFormatter.formatHex("#c45749§lSize: #d4c9ae"+guild.getSize()));
 		lore.add(StringFormatter.formatHex("#b8ae61Part of: "+guild.getFaction().getName()));
 		lore.add(StringFormatter.formatHex("#b8ae61Based in: #d4c9ae" + HomeSettlementNames.of(guild)));
 		lore.add(" ");
-		lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7"+guild.getLeader()));
-		lore.add(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+guild.getMembers().size()));
+		lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7"+ReportedMenus.guildLeader(p, guild)));
+		lore.add(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+(own ? String.valueOf(guild.getMembers().size()) : guildIntelligence(report, guild, "Members", ""))));
 		lore.add(" ");
-		if(guild.hasCapital()) {
-			lore.add(StringFormatter.formatHex("#41b541Trade Power: #a4bc5c"+guild.getTradeBreakdown().getTradePower()));
-			double income = guild.getLedger().getNetIncome();
-			lore.add(StringFormatter.formatHex("#74ba74Estimated Income: "+(income > 0 ? "#5cbc5c" : "#c45749")+income+"d/day"));
-		}
-		lore.add(StringFormatter.formatHex("#d1b43fWealth: #ccbb76"+guild.getWealth()+"d #7a706a("+r.getWealthRank(guild)+")"));
+        if (guild.hasCapital()) {
+            lore.add(StringFormatter.formatHex("#41b541Trade Power: #a4bc5c"
+                    + (own ? String.valueOf(guild.getTradeBreakdown().getTradePower()) : guildIntelligence(report, guild, "Trade power", ""))));
+            String income = own ? guild.getLedger().getNetIncome() + "d/day" : guildIntelligence(report, guild, "Income", "d/day");
+            Double midpoint = r.visibleGuildValue(p, guild, RankType.INCOME);
+            lore.add(StringFormatter.formatHex("#74ba74Estimated Income: "
+                    + (midpoint != null && midpoint <= 0 ? "#c45749" : "#5cbc5c") + income));
+        }
+        Integer rank = r.getVisibleGuildRank(p, guild, RankType.WEALTH);
+        String wealth = own ? guild.getWealth() + "d" : guildIntelligence(report, guild, "Wealth", "d");
+        lore.add(StringFormatter.formatHex("#d1b43fWealth: #ccbb76" + wealth
+                + (rank == null ? "" : " #7a706a(" + (own ? "" : "estimated ") + rank + ")")));
 		meta.setLore(lore);
 		NamespacedKey id = new NamespacedKey(SimpleFactions.plugin, "id");
 		meta.getPersistentDataContainer().set(id, PersistentDataType.STRING, guild.getId());
 		i.setItemMeta(meta);
 		return i;
 	}
+
+    private static String guildIntelligence(net.tfminecraft.simplefactions.espionage.IntelligenceReport report,
+                                            Guild guild, String metric, String units) {
+        String value = report == null ? "Unknown" : report.display("Guild:" + guild.getId() + ":" + metric);
+        return value.equals("Unknown") ? "\u00a77" + value : value + units;
+    }
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
@@ -146,8 +165,8 @@ public class GuildCreator {
 			i = new ItemStack(Material.PLAYER_HEAD, 1);
 			SkullMeta m = (SkullMeta) i.getItemMeta();
 			m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-			m.setDisplayName(StringFormatter.formatHex("#9c9775§lLeader: #c2bea7"+guild.getLeader()));
-			m.setOwningPlayer(Bukkit.getOfflinePlayer(guild.getLeader()));
+			m.setDisplayName(StringFormatter.formatHex("#9c9775§lLeader: #c2bea7"+ReportedMenus.guildLeader(p, guild)));
+            if (!ReportedMenus.guildLeader(p, guild).endsWith("Unknown")) m.setOwningPlayer(Bukkit.getOfflinePlayer(guild.getLeader()));
 			i.setItemMeta(m);
 		} else if(t.equals(MenuItemType.WEALTH)) {
 			i = new ItemStack(Material.GOLD_NUGGET, 1);
@@ -197,11 +216,13 @@ public class GuildCreator {
 			lore.add("");
 			lore.add(StringFormatter.formatHex("#c95644Top 5 Guilds:"));
 			x = 0;
-			List<Guild> top = (new FactionRanker()).getRankedGuildList(RankType.INCOME);
-			Collections.reverse(top);
+			List<Guild> top = r.getVisibleRankedGuildList(p, RankType.INCOME);
 			for(Guild g : top) {
+				if (r.visibleGuildValue(p, g, RankType.INCOME) == null) continue;
 				x++;
-				lore.add(StringFormatter.formatHex("§f - §e"+x+". "+g.getName()+" §7["+g.getSize()+"§7]#d4c9ae: #7fbd73"+SimpleFactions.getInstance().getProvinceManager().getIncome(g)+"d/day"));
+				String income = EspionageService.canViewExact(p, g.getFaction()) ? String.valueOf(g.getLedger().getNetIncome())
+						: guildIntelligence(EspionageService.report(p, g.getFaction()), g, "Income", "");
+				lore.add(StringFormatter.formatHex("§f - §e"+x+". "+g.getName()+" §7["+g.getSize()+"§7]#d4c9ae: #7fbd73"+income+"d/day"));
 				if(x > 4) break;
 			}
 			m.setLore(lore);
@@ -211,16 +232,7 @@ public class GuildCreator {
 				ItemMeta m = i.getItemMeta();
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 				m.setDisplayName(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+guild.getMembers().size()+"/"+Cache.maxMembers));
-				List<String> lore = new ArrayList<>();
-				int outputPenalty = net.tfminecraft.simplefactions.inactivity.InactivityService.guildPercent(guild);
-				if (outputPenalty > 0) {
-					lore.add(StringFormatter.formatHex("#c95644Inactive output -" + outputPenalty + "%. Upgrades stay, but they are weakened."));
-				}
-				for(String s : guild.getMembers()) {
-					String mark = net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(s)
-							? " #c95644(inactive)" : "";
-					lore.add(StringFormatter.formatHex("#d4c9ae"+s+mark));
-				}
+				List<String> lore = net.tfminecraft.simplefactions.espionage.RosterLore.guild(p, guild).stream().map(StringFormatter::formatHex).toList();
 				m.setLore(lore);
 				i.setItemMeta(m);
 		}
@@ -412,6 +424,8 @@ public class GuildCreator {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createLedgerItem(Player p, Guild g) {
+		if (!EspionageService.canViewExact(p, g.getFaction()))
+			return EspionageView.ledgerItem(EspionageService.report(p, g.getFaction()), g);
 		Ledger ledger = g.getLedger();
 		ItemStack i = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta meta = i.getItemMeta();

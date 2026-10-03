@@ -238,6 +238,7 @@ public class SimpleFactions extends JavaPlugin{
 	private final VehicleReclaimFeeListener vehicleReclaimFeeListener =
 			new VehicleReclaimFeeListener(vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees);
 	private boolean registrationFeeRegistered;
+	private boolean officeCharacterDeathRegistered;
 	private boolean vehicleIntegrationRegistered = false;
 	private boolean constructionFreezeRegistered;
 	private final PlayerEconomyManager playerEconomyManager = new PlayerEconomyManager();
@@ -279,6 +280,14 @@ public class SimpleFactions extends JavaPlugin{
 		}
 		net.tfminecraft.simplefactions.inactivity.InactivityService.load();
 		db.loadFactions();
+		try {
+			net.tfminecraft.simplefactions.espionage.EspionageService.loadAptitudes(
+					getDataFolder().toPath().resolve("Cache/character-aptitudes.json"));
+		} catch (Exception error) {
+			getLogger().log(java.util.logging.Level.SEVERE, "Cannot load permanent character aptitudes; disabling SimpleFactions", error);
+			getServer().getPluginManager().disablePlugin(this);
+			return;
+		}
 		getCommand(commands.cmd1).setExecutor(commands);
 		getCommand(commands.cmd2).setExecutor(commands);
 		getCommand(commands.cmd1).setTabCompleter(new TabCompletion());
@@ -372,10 +381,7 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		sessionManager.end();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
-		db.saveTimer(FactionManager.getTimer(), FactionManager.getDay());
-		for(Faction f : FactionManager.factions) {
-			db.saveFaction(f);
-		}
+		saveLoadedFactions();
 		for(War w : WarManager.get()){
 			db.saveWar(w);
 		}
@@ -386,7 +392,15 @@ public class SimpleFactions extends JavaPlugin{
 			vehicleMaintenancePersistence.save();
 		}
 	}
+    void saveLoadedFactions() {
+        // An early enable failure must not overwrite partially restored faction state.
+        if (!FactionManager.isLoaded()) return;
+        db.saveTimer(FactionManager.getTimer(), FactionManager.getDay());
+        for (Faction faction : FactionManager.factions) db.saveFaction(faction);
+    }
+
 	public void loadConfigs() {
+		net.tfminecraft.simplefactions.espionage.SpecialPositionsConfigFile.load(this);
 		configLoader.loadConfig(new File(getDataFolder(), "config.yml"));
 		configLoader.loadWar(new File(getDataFolder(), "war.yml"));
 		VehiclesConfigLoader.load(new File(getDataFolder(), "vehicles.yml"));
@@ -678,6 +692,10 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.prestige.MemberPlaytime.setProbe(
 				new net.tfminecraft.simplefactions.prestige.RpCharactersPlaytimeProbe());
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
+		if (!officeCharacterDeathRegistered) {
+			getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);
+			officeCharacterDeathRegistered = true;
+		}
 	}
 
 	private void registerVehicleIntegrationHooks() {
