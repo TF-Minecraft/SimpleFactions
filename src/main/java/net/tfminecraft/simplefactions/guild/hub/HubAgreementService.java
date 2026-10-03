@@ -120,7 +120,11 @@ public final class HubAgreementService {
     }
 
     public static List<HubNotice> tick(Iterable<Guild> guilds, long nowMillis) {
-        List<HubNotice> notices = tick(guilds, nowMillis, HubAgreementFacts.LIVE);
+        boolean[] hubsRemoved = {false};
+        List<HubNotice> notices = tick(guilds, nowMillis, HubAgreementFacts.LIVE, hubsRemoved);
+        if (hubsRemoved[0]) {
+            SupplyHubCommands.recalculateTrade();
+        }
         HubAgreementMessenger.deliver(notices);
         return notices;
     }
@@ -449,6 +453,11 @@ public final class HubAgreementService {
     }
 
     static List<HubNotice> tick(Iterable<Guild> guilds, long nowMillis, HubAgreementFacts facts) {
+        return tick(guilds, nowMillis, facts, null);
+    }
+
+    static List<HubNotice> tick(
+            Iterable<Guild> guilds, long nowMillis, HubAgreementFacts facts, boolean[] hubsRemoved) {
         List<HubNotice> notices = new ArrayList<>();
         if (guilds == null || facts == null) {
             return notices;
@@ -457,7 +466,9 @@ public final class HubAgreementService {
             if (guild == null) {
                 continue;
             }
-            tickAgreements(guild, facts, notices);
+            if (tickAgreements(guild, facts, notices) && hubsRemoved != null && hubsRemoved.length > 0) {
+                hubsRemoved[0] = true;
+            }
             tickOffers(guild, nowMillis, facts);
         }
         return notices;
@@ -720,10 +731,11 @@ public final class HubAgreementService {
         return data;
     }
 
-    private static void tickAgreements(Guild guild, HubAgreementFacts facts, List<HubNotice> notices) {
+    private static boolean tickAgreements(Guild guild, HubAgreementFacts facts, List<HubNotice> notices) {
         if (guild.getHubAgreements() == null) {
-            return;
+            return false;
         }
+        boolean removed = false;
         List<HubAgreement> kept = new ArrayList<>();
         for (HubAgreement agreement : new ArrayList<>(guild.getHubAgreements())) {
             if (agreement == null) {
@@ -733,7 +745,7 @@ public final class HubAgreementService {
             String installationId = agreement.installationId();
             String label = facts.installationLabel(hostId, installationId);
             if (!facts.hostExists(hostId) || !facts.installationExists(hostId, installationId)) {
-                removeHub(guild, hostId, installationId);
+                removed = removeHub(guild, hostId, installationId) || removed;
                 notices.addAll(tell(List.of(facts.guildLeader(guild)),
                         "§cYour supply hub at §f" + label + " §cwas removed because the installation is gone"));
                 continue;
@@ -769,13 +781,14 @@ public final class HubAgreementService {
                 notices.addAll(tell(List.of(facts.guildLeader(guild)), message));
                 notices.addAll(tell(facts.council(hostId), message));
             } else {
-                removeHub(guild, hostId, installationId);
+                removed = removeHub(guild, hostId, installationId) || removed;
                 String message = "§cThe hub agreement at §f" + label + " §cended and the hub was removed";
                 notices.addAll(tell(List.of(facts.guildLeader(guild)), message));
                 notices.addAll(tell(facts.council(hostId), message));
             }
         }
         replaceAllAgreements(guild, kept);
+        return removed;
     }
 
     private static HubAgreement applyDormant(
@@ -971,14 +984,16 @@ public final class HubAgreementService {
         return guild != null && SupplyHubService.hasHub(guild.getSupplyHubs(), hostFactionId, installationId);
     }
 
-    private static void removeHub(Guild guild, String hostFactionId, String installationId) {
+    private static boolean removeHub(Guild guild, String hostFactionId, String installationId) {
         if (guild == null || guild.getSupplyHubs() == null) {
-            return;
+            return false;
         }
         SupplyHub hub = SupplyHubService.findHub(guild.getSupplyHubs(), hostFactionId, installationId);
-        if (hub != null) {
-            guild.getSupplyHubs().remove(hub);
+        if (hub == null) {
+            return false;
         }
+        guild.getSupplyHubs().remove(hub);
+        return true;
     }
 
     private static HubOffer findOffer(Guild guild, String hostFactionId, String installationId) {

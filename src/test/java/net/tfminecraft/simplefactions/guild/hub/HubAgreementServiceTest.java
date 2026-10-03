@@ -314,6 +314,11 @@ class HubAgreementServiceTest {
             when(receiver.isBankrupt()).thenReturn(true);
             assertEquals(0, payer.getLedger().getIncome(Cashflow.HUB_FEE_PAYMENTS), 1e-9);
             assertEquals(0, receiver.getLedger().getIncome(Cashflow.HUB_FEE), 1e-9);
+
+            when(receiver.isBankrupt()).thenReturn(false);
+            when(host.hasFactionRule(Rules.HUB_TAX)).thenReturn(false);
+            assertEquals(-2.5, payer.getLedger().getIncome(Cashflow.HUB_FEE_PAYMENTS), 1e-9);
+            assertEquals(2.5, receiver.getLedger().getIncome(Cashflow.HUB_FEE), 1e-9);
         }
     }
 

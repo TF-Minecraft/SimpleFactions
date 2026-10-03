@@ -480,6 +480,13 @@ public final class SupplyHubService {
 
     public static void dropMissingLoaded() {
         dropMissing(allGuilds(), SupplyHubService::installationExists);
+    }
+
+    /**
+     * Called once relations are loaded. Before that, a vassal hub at its overlord's
+     * installation looks foreign and would be deleted.
+     */
+    public static void dropUnagreedForeignLoaded() {
         HubAgreementService.logRemovedForeignHubs(
                 HubAgreementService.removeUnagreedForeignHubs(allGuilds(), HubAgreementFacts.LIVE));
     }

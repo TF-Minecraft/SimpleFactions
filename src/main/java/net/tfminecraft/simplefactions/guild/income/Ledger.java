@@ -493,12 +493,6 @@ public class Ledger {
             if (host == null || RelationManager.sameRealm(host, guild.getFaction())) {
                 continue;
             }
-            boolean allowed = context != null
-                    ? context.allowsHubRule(host, Rules.HUB_TAX)
-                    : host.hasFactionRule(Rules.HUB_TAX);
-            if (!allowed) {
-                continue;
-            }
             Guild receiver = mainGuild(host);
             if (agreement.feeCents() > 0 && receiver != null && receiver.getLedger() != null
                     && !receiver.getLedger().skipsMoneyMovement()) {
