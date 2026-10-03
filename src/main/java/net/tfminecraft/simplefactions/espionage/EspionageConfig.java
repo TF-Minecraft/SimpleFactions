@@ -20,6 +20,7 @@ public final class EspionageConfig {
     private static final Map<IntelligenceTier, TierSettings> tiers = new java.util.EnumMap<>(IntelligenceTier.class);
     private static final Map<String, IntelligenceTier> minimums = new LinkedHashMap<>();
     private static final Map<String, IntelligenceTier> cashflows = new LinkedHashMap<>();
+    private static final Map<SpecialPosition, Double> vacancyPenalties = new java.util.EnumMap<>(SpecialPosition.class);
     private static final Map<String, IntelligenceTier> DEFAULT_MINIMUMS = Map.ofEntries(
             Map.entry("members", IntelligenceTier.RUMOURS), Map.entry("roster", IntelligenceTier.RUMOURS),
             Map.entry("wealth", IntelligenceTier.RUMOURS), Map.entry("prosperity", IntelligenceTier.BROAD),
@@ -56,6 +57,10 @@ public final class EspionageConfig {
         repeatCost = nonnegative(config, "espionage.appointments.repeat-cost", 250);
         stabilityPenalty = Math.min(100, nonnegative(config, "espionage.appointments.stability-penalty", 10));
         penaltyDays = Math.min(3650, nonnegative(config, "espionage.appointments.penalty-days", 7));
+        vacancyPenalties.clear();
+        for (SpecialPosition office : SpecialPosition.values()) vacancyPenalties.put(office,
+                Math.min(100, nonnegative(config, "positions." + office.name().toLowerCase(java.util.Locale.ROOT)
+                        + ".vacancy-stability-penalty", 10)));
         reloadPermission = config.getString("espionage.reload-permission", "simplefactions.espionage.reload");
         if (reloadPermission == null || reloadPermission.isBlank()) reloadPermission = "simplefactions.espionage.reload";
         reloadPermission = reloadPermission.strip();
@@ -142,6 +147,7 @@ public final class EspionageConfig {
     public static double repeatCost() { return repeatCost; }
     public static double stabilityPenalty() { return stabilityPenalty; }
     public static double penaltyDays() { return penaltyDays; }
+    public static double vacancyPenalty(SpecialPosition office) { return vacancyPenalties.getOrDefault(office, 10.0); }
 
     public static Map<String, Double> weights() { return weights; }
     public static String bypassPermission() { return bypassPermission; }

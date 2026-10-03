@@ -97,7 +97,7 @@ class ReportPresentationTest {
             names.when(() -> CharacterNames.display(viewer, "Leader")).thenReturn("King Rowan");
             var lore = RosterLore.faction(viewer, faction);
             String text = String.join("\n", lore);
-            assertTrue(text.startsWith("#e8c55a\u00a7lFaction Leader:"));
+            assertTrue(text.startsWith("#e8c55a\u00a7lLeader:"));
             assertTrue(text.indexOf("Rich Guild") < text.indexOf("Poor Guild"));
             assertTrue(text.indexOf("Guild Baron") < text.indexOf("Known Member"));
             assertTrue(text.contains("Spymaster: #c2dacaSecret Spy"));

@@ -235,6 +235,7 @@ public class SimpleFactions extends JavaPlugin{
 	private final VehicleReclaimFeeListener vehicleReclaimFeeListener =
 			new VehicleReclaimFeeListener(vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees);
 	private boolean registrationFeeRegistered;
+	private boolean officeCharacterDeathRegistered;
 	private boolean vehicleIntegrationRegistered = false;
 	private boolean constructionFreezeRegistered;
 	private final PlayerEconomyManager playerEconomyManager = new PlayerEconomyManager();
@@ -654,6 +655,10 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.prestige.MemberPlaytime.setProbe(
 				new net.tfminecraft.simplefactions.prestige.RpCharactersPlaytimeProbe());
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
+		if (!officeCharacterDeathRegistered) {
+			getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);
+			officeCharacterDeathRegistered = true;
+		}
 	}
 
 	private void registerVehicleIntegrationHooks() {

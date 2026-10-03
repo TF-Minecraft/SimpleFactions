@@ -156,8 +156,10 @@ cannot reveal extra names. They contain character names and guild affiliations.
 The faction leader is always displayed separately alongside the member-count
 range, regardless of quality. Guild rosters use the same sample, filtered by
 guild. Guild leaders and special-office identities use their configurable tier gates.
-All rosters distinguish the faction leader, guild leaders and office holders; guilds
-are grouped by descending visible wealth (estimated midpoints for foreign views).
+All rosters distinguish the leader, guild leaders and office holders. The leader
+uses the faction's custom ruler title, defaulting to Leader. Subjects belong only
+to their own roster. The realm guild always comes first, followed by other guilds
+in descending visible wealth (estimated midpoints for foreign views).
 
 Ranges are rounded, asymmetric snapshots containing the true value when generated.
 They never collapse to an exact number, including zero. Reports cover members,
@@ -187,7 +189,8 @@ government, laws, installations and upgrade windows.
 Private menus recheck membership before interacting or refreshing.
 
 Foreign ledgers show daily income, expenses, net income, and a reported accounts
-menu in the original ledger slots; the tooltip includes individual cashflows. Trade breakdowns and dividends use the same
+menu in the original ledger slots; available cashflows appear under Income or
+Expenses, without a long list of Unknown categories. Trade breakdowns and dividends use the same
 snapshot estimates. Dividend percentages stay within 0–100%; income and expense
 cashflows respect their valid signs. Missing new fields in an older report stay
 Unknown until the next day's report; opening a ledger never regenerates it.
@@ -284,3 +287,12 @@ any appointment charge; faction JSON is staged before replacing the previous sav
 A founder aptitude save failure leaves the office initialization pending and retries
 when the office is checked while the founder has an active character. It never
 finalizes a failed aptitude roll as a permanent zero or consumes the free appointment.
+
+An empty or ineligible special office applies a persistent stability penalty until
+filled, including offices never deliberately assigned and holders who leave. The
+per-office setting `positions.spymaster.vacancy-stability-penalty` defaults to 10
+points; zero disables it. This is independent of the seven-day replacement unrest.
+RPCharacters permanent character death removes that character's Spymaster office,
+preserving paid appointment history. Ordinary Minecraft respawns and cancelled
+character deaths do not remove the office. Removal is confirmed after the death
+event commits, and loaded dead-character assignments are rejected when checked.

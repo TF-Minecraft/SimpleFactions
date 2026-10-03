@@ -37,13 +37,25 @@ public final class IntelligenceLedger {
     }
 
     public static List<String> summary(IntelligenceReport report, Guild guild) {
-        var lore = new java.util.ArrayList<>(List.of("#4c5250\u00a7oAdded to the bank at the", "#4c5250\u00a7ostart of a new day", "",
-                "#4fd945Income", "#d6cf69Total: " + value(report, guild, "Income total", "d/day"), "",
-                "#cf493aExpenses", "#d6cf69Total: " + value(report, guild, "Expense total", "d/day"), "",
-                "#f2e5c2Net Income", "#d6cf69Total: " + value(report, guild, "Income", "d/day"), "",
-                "\u00a77Click to inspect the reported accounts."));
-        lore.add("");
-        for (Cashflow flow : Cashflow.values()) lore.add(flow.getDisplay() + ": " + value(report, guild, "Cashflow:" + flow.name(), "d/day"));
+        var lore = new java.util.ArrayList<>(List.of("#4c5250\u00a7oAdded to the bank at the", "#4c5250\u00a7ostart of a new day", "", "#4fd945Income"));
+        cashflowLines(lore, report, guild, false);
+        lore.add("#d6cf69Total: " + value(report, guild, "Income total", "d/day"));
+        lore.add(""); lore.add("#cf493aExpenses");
+        cashflowLines(lore, report, guild, true);
+        lore.add("#d6cf69Total: " + value(report, guild, "Expense total", "d/day"));
+        lore.add(""); lore.add("#f2e5c2Net Income");
+        lore.add("#d6cf69Total: " + value(report, guild, "Income", "d/day"));
+        lore.add(""); lore.add("\u00a77Click to inspect the reported accounts.");
         return lore;
+    }
+
+    private static void cashflowLines(List<String> lore, IntelligenceReport report, Guild guild, boolean expenses) {
+        if (report == null) return;
+        for (Cashflow flow : Cashflow.values()) {
+            String metric = "Cashflow:" + flow.name();
+            var range = report.estimate(key(guild, metric));
+            if (range != null && range.midpoint() != 0 && (range.midpoint() < 0) == expenses)
+                lore.add(flow.getDisplay() + ": " + value(report, guild, metric, "d/day"));
+        }
     }
 }

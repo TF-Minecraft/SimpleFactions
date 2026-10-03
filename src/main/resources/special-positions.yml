@@ -1,6 +1,11 @@
 # Special offices and their intelligence network. Reload settings with /faction reloadconfigs.
 # For testing: /faction reloadespionage reloads this file, rerolls daily checks and regenerates reports.
 # Character aptitude rolls, appointment history and unrest are never reset by that command.
+positions:
+  spymaster:
+    # Stability points lost whenever the office is vacant or its holder is ineligible.
+    # Persists without decay until filled. Zero disables this penalty.
+    vacancy-stability-penalty: 10.0
 espionage:
   # Assign these nodes through LuckPerms; bypass only grants viewing access.
   bypass-permission: simplefactions.espionage.bypass

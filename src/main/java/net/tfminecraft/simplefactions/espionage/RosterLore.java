@@ -18,22 +18,19 @@ public final class RosterLore {
         boolean exact = EspionageService.canViewExact(viewer, faction);
         var report = exact ? null : EspionageService.report(viewer, faction);
         List<String> lore = new ArrayList<>();
-        lore.add("#e8c55a\u00a7lFaction Leader: #f4e4aa" + CharacterNames.display(viewer, faction.getLeader()));
+        String title = faction.getRulerTitle();
+        lore.add("#e8c55a\u00a7l" + (title == null || title.isBlank() ? "Leader" : title) + ": #f4e4aa" + CharacterNames.display(viewer, faction.getLeader()));
         List<String> leaderOffices = exact ? java.util.Arrays.stream(SpecialPosition.values()).filter(office -> {
             var holder = faction.getEspionage().holder(office);
             return holder != null && holder.playerName.equalsIgnoreCase(faction.getLeader());
         }).map(SpecialPosition::label).toList() : report == null ? List.of() : report.details("office-holder", "leader-offices");
         for (String office : leaderOffices) lore.add("#93c9a7  " + office + ": #c2daca" + CharacterNames.display(viewer, faction.getLeader()));
         List<Guild> guilds = new ArrayList<>(only == null ? faction.getGuildHandler().getGuilds() : List.of(only));
-        if (exact && only == null) for (String name : faction.getCompleteMemberList()) {
-            Guild represented = net.tfminecraft.simplefactions.managers.FactionManager.getGuildByMember(name);
-            if (represented != null && guilds.stream().noneMatch(guild -> guild.getId().equals(represented.getId()))) guilds.add(represented);
-        }
-        guilds.sort(Comparator.comparing((Guild guild) -> {
+        guilds.sort(Comparator.comparing((Guild guild) -> !guild.isBase()).thenComparing(Comparator.comparing((Guild guild) -> {
             var wealth = exact ? guild.getWealth() : EspionageService.visibleValue(viewer, faction,
                     IntelligenceLedger.key(guild, "Wealth"), guild::getWealth);
             return wealth == null ? Double.NEGATIVE_INFINITY : wealth;
-        }).reversed().thenComparing(Guild::getName, String.CASE_INSENSITIVE_ORDER));
+        }).reversed()).thenComparing(Guild::getName, String.CASE_INSENSITIVE_ORDER));
         for (Guild guild : guilds) {
             List<IntelligenceReport.RosterMember> entries;
             if (exact) entries = guild.getMembers().stream().filter(name -> !faction.isLeader(name)).map(name ->
@@ -48,7 +45,8 @@ public final class RosterLore {
                             || entry.guildLeader() && report.allows("guild-leader")
                             || !entry.offices().isEmpty() && report.allows("office-holder")).toList();
             lore.add("");
-            lore.add("#cba351\u00a7l" + guild.getName() + (guild.isBase() ? " #7fbd73(Capital)" : " #b8ae61(Guild)"));
+            String guildType = guild.isBase() && guild.getType() != null ? guild.getType().getName() : guild.isBase() ? "Realm" : "Guild";
+            lore.add("#cba351\u00a7l" + guild.getName() + (guild.isBase() ? " #7fbd73(" : " #b8ae61(") + guildType + ")");
             var sorted = new ArrayList<>(entries);
             sorted.sort(Comparator.comparingInt((IntelligenceReport.RosterMember entry) ->
                     (entry.guildLeader() && (exact || report.allows("guild-leader")) ? 0

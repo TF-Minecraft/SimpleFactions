@@ -404,7 +404,7 @@ public class FactionCreator {
 				i = new ItemStack(Material.PLAYER_HEAD, 1);
 				ItemMeta m = i.getItemMeta();
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-				List<String> memberNames = new ArrayList<>(f.getCompleteMemberList());
+				List<String> memberNames = new ArrayList<>(f.getMembers());
 				memberNames.removeIf(name -> name.equalsIgnoreCase(f.getLeader()));
 				memberNames.add(0, f.getLeader());
 				m.setDisplayName(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+memberNames.size()));

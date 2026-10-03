@@ -138,12 +138,49 @@ public final class EspionageService {
             if (!faction.getEspionage().hasPendingFounder()) new Database().saveFaction(faction);
         }
         SpecialPositionAssignment holder = faction.getEspionage().getSpymaster();
-        if (holder != null && !eligible(faction, holder.playerName)) {
+        if (holder != null && (!eligible(faction, holder.playerName) || deadCharacter(holder))) {
             faction.getEspionage().removeSpymaster();
             new Database().saveFaction(faction);
             return null;
         }
         return holder;
+    }
+
+    private static boolean deadCharacter(SpecialPositionAssignment holder) {
+        if (holder.characterId == null || holder.playerId == null) return false;
+        var data = PlayerManager.get(holder.playerId);
+        return data != null && data.getCharacters().stream().anyMatch(character ->
+                holder.characterId.equals(character.getId()) && character.getStatus() == net.tfminecraft.rpcharacters.enums.Status.DEAD);
+    }
+
+    /** Character death, rather than an ordinary Minecraft respawn, ends the appointment. */
+    public static void characterDied(Player owner, RPCharacter character) {
+        if (character == null || character.getStatus() != net.tfminecraft.rpcharacters.enums.Status.DEAD) return;
+        for (Faction faction : FactionManager.getCopy()) {
+            var state = faction.getEspionage();
+            var holder = state.getSpymaster();
+            boolean matching = holder != null && (character.getId().equals(holder.characterId)
+                    || holder.characterId == null && owner != null && holder.isHolder(owner.getUniqueId()));
+            boolean pending = state.isPendingFounder(SpecialPosition.SPYMASTER) && owner != null && faction.isLeader(owner.getName());
+            if (!matching && !pending) continue;
+            state.removeSpymaster();
+            new Database().saveFaction(faction);
+            if (owner != null) owner.sendMessage("\u00a78\u00a7oWith the passing of " + character.getName()
+                    + ", the keys to the Spymaster's office return to the faction. The office awaits a successor.");
+        }
+    }
+
+    public static java.util.List<net.tfminecraft.simplefactions.government.StabilityModifier> stabilityModifiers(Faction faction, long now) {
+        var result = new java.util.ArrayList<>(faction.getEspionage().unrestModifiers(now));
+        for (SpecialPosition office : SpecialPosition.values()) {
+            var holder = faction.getEspionage().holder(office);
+            boolean occupied = holder != null && (office != SpecialPosition.SPYMASTER
+                    || eligible(faction, holder.playerName) && !deadCharacter(holder));
+            double penalty = EspionageConfig.vacancyPenalty(office);
+            if (!occupied && penalty > 0) result.add(new net.tfminecraft.simplefactions.government.StabilityModifier(
+                    "Vacant " + office.label(), -penalty, 0));
+        }
+        return result;
     }
 
     public static boolean appoint(Player actor, Faction faction, Player candidate) {
