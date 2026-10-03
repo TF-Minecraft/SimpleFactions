@@ -13,7 +13,7 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 - **National economies** — manage wealth and taxation, including income moving through relationships between members, nations, and overlords.
 - **Settlements and guilds** — establish named cities and capitals and organise groups within a nation.
 - **Military infrastructure** — construct forts, ports, airports, and train stations with `/faction construct <fort|port|airport|train_station> <name>`.
-- **Espionage** — appoint a Spymaster, protect faction secrets, and obtain shared daily intelligence estimates. See [the development espionage guide](ESPIONAGE.md).
+- **Espionage** — appoint a Spymaster, protect faction secrets, and obtain shared daily intelligence estimates.
 - **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
 
 ## A shared political world
@@ -29,6 +29,19 @@ Created by Drefvelin, with inspiration from Paradox Interactive. The original pr
 [Project documentation](https://github.com/TF-Minecraft/Docs/blob/main/projects/SimpleFactions/README.md)
 
 Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/TF-Minecraft/Docs).
+
+[Espionage and special positions](https://github.com/TF-Minecraft/Docs/blob/main/projects/SimpleFactions/docs/espionage.md)
+
+## Tests
+
+Run `mvn clean verify` with Java 21, as CI does. The build needs the private
+dependency jars and shared TF-Minecraft plugins described in the project
+documentation.
+
+The suite in `src/test` uses JUnit 5 and Mockito, mocking the Paper and plugin
+APIs rather than starting a server. It checks plugin logic, not behaviour on a
+live Paper server. Surefire writes reports to `target/surefire-reports/`. No
+coverage gate is enforced.
 
 ## License
 
