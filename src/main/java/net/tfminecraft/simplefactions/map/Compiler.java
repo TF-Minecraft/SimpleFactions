@@ -15,15 +15,17 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.map.export.OccupationMapExport;
+import net.tfminecraft.simplefactions.map.infra.EffectiveTerrain;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
-import net.tfminecraft.simplefactions.SimpleFactions;
 
 public class Compiler {
 	public void exportQueue(HashMap<String, List<String>> queues) {
@@ -71,6 +73,44 @@ public class Compiler {
 		return Math.round(v * 100.0) / 100.0;
 	}
 
+	static JsonObject provinceToJson(Province p, String occupierId) {
+		JsonObject o = new JsonObject();
+
+		o.addProperty("id", p.getId());
+		o.addProperty("prosperity", p.getProsperity());
+		if (occupierId != null) {
+			o.addProperty("occupied_by", occupierId);
+		}
+
+		// trade data
+		JsonObject trade = new JsonObject();
+		for (Map.Entry<String, ProvinceDataEntry> e : p.getAllData().entrySet()) {
+			ProvinceDataEntry d = e.getValue();
+			if (d.getTrade() < 0.1) continue;
+
+			JsonObject g = new JsonObject();
+			g.addProperty("trade", r2(d.getTrade()));
+			g.addProperty("production", r2(d.getProduction()));
+			trade.add(e.getKey(), g);
+		}
+		o.add("trade", trade);
+
+		if (!p.isSea()) {
+			double terrain = p.getTradeCarry();
+			double infrastructure = p.getInfrastructure();
+			o.addProperty("terrain", p.getTerrain().name().toLowerCase());
+			o.addProperty("terrain_value", r2(terrain));
+			if (infrastructure > 0) {
+				o.addProperty("infrastructure", r2(infrastructure));
+				o.addProperty("infrastructure_fill", r2(Math.min(1, infrastructure / Cache.infrastructureFull)));
+			}
+			o.addProperty("effective_terrain", r2(EffectiveTerrain.calculate(terrain, infrastructure,
+					Cache.infrastructureFull, Cache.infrastructureTarget, 1)));
+		}
+
+		return o;
+	}
+
 	public void exportProvincesToJson(File out) throws Exception {
 		JsonArray arr = new JsonArray();
 
@@ -80,34 +120,7 @@ public class Compiler {
 				TitleManager::getByProvince);
 
 		for (Province p : pm.getProvinces()) {
-			JsonObject o = new JsonObject();
-
-			o.addProperty("id", p.getId());
-			o.addProperty("prosperity", p.getProsperity());
-			String occupierId = occupiedBy.get(p.getId());
-			if (occupierId != null) {
-				o.addProperty("occupied_by", occupierId);
-			}
-
-			// trade data
-			JsonObject trade = new JsonObject();
-			double totalTrade = 0;
-
-			for (Map.Entry<String, ProvinceDataEntry> e : p.getAllData().entrySet()) {
-				ProvinceDataEntry d = e.getValue();
-				if (d.getTrade() < 0.1) continue;
-
-				JsonObject g = new JsonObject();
-				g.addProperty("trade", r2(d.getTrade()));
-				g.addProperty("production", r2(d.getProduction()));
-
-				trade.add(e.getKey(), g);
-				totalTrade += d.getTrade();
-			}
-
-			o.add("trade", trade);
-
-			arr.add(o);
+			arr.add(provinceToJson(p, occupiedBy.get(p.getId())));
 		}
 
 		try (FileWriter w = new FileWriter(out)) {
