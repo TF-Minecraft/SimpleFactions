@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import net.tfminecraft.simplefactions.guild.GuildType;
+import net.tfminecraft.simplefactions.guild.IconFormat;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
@@ -90,6 +91,9 @@ public class Branch {
         if (level > 0) level--;
     }
     public ItemStack getIconItem() {
+        if (IconFormat.classify(icon) == IconFormat.Kind.ITEM_PATH) {
+            return IconFormat.itemFromPath(icon);
+        }
         String[] args = icon.split("\\.");
         ItemStack item = new ItemStack(Material.DIRT, 1);
         try {
