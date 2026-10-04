@@ -130,12 +130,22 @@ public final class NetworkSummary {
         for (int i = 0; i < value.length(); i++) {
             char c = value.charAt(i);
             if (c == '§') {
-                if (i + 1 < value.length() && value.charAt(i + 1) != '§') i++;
+                if (i + 1 < value.length() && isLegacyFormatCode(value.charAt(i + 1))) i++;
                 continue;
             }
             out.append(c);
         }
         return out.toString().trim();
+    }
+
+    private static boolean isLegacyFormatCode(char code) {
+        return (code >= '0' && code <= '9')
+                || (code >= 'a' && code <= 'f')
+                || (code >= 'A' && code <= 'F')
+                || (code >= 'k' && code <= 'o')
+                || (code >= 'K' && code <= 'O')
+                || code == 'r' || code == 'R'
+                || code == 'x' || code == 'X';
     }
 
     private static Draft draft(

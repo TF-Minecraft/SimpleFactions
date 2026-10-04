@@ -53,6 +53,8 @@ class NetworkSummaryTest {
         assertEquals("The", NetworkSummary.plain(
                 "§x§a§3§a§1§8§4§§x§3§9§6§E§4§7T§§x§3§9§6§F§4§Dh§§x§3§9§6§F§5§2e"));
         assertEquals("Gold", NetworkSummary.plain("§6Gold"));
+        assertEquals("Green", NetworkSummary.plain("§AGreen"));
+        assertEquals("zName", NetworkSummary.plain("§§zName"));
         assertEquals("Gold", NetworkSummary.plain("Gold§"));
     }
 
