@@ -1234,7 +1234,11 @@ public class InventoryManager implements Listener{
 						}
 						break;			
 					case LEDGER_VIEW:
-						factionView(p, f);
+						// The holder keeps the guild's ID, so f is never set here.
+						if (g == null) p.closeInventory();
+						else if (h.getFlag()) guildView(p, g);
+						else if (g.getFaction() != null) factionView(p, g.getFaction());
+						else p.closeInventory();
 						break;
 					case TAX_VIEW_SPECIFIC:
 						taxView(p, f);

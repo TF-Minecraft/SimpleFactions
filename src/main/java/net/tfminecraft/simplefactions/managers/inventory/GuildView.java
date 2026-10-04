@@ -117,27 +117,44 @@ public class GuildView {
 		if (end < guilds.size()) inv.setItem(NEXT_PAGE_SLOT, DefaultCreator.createNextPageButton());
 	}
 
+	public void ledgerView(Player player, Guild guild, Inventory i) {
+		ledgerView(player, guild, i, false);
+	}
+
+	/**
+	 * The summary of every income and expense line sits on top, money received by source on
+	 * the second row and money paid out on the third. {@code fromGuildView} is kept in the
+	 * holder flag so Back returns to the menu the ledger was opened from.
+	 */
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public void ledgerView(Player player, Guild guild, Inventory i) {
+	public void ledgerView(Player player, Guild guild, Inventory i, boolean fromGuildView) {
 		if (!EspionageService.canViewExact(player, guild.getFaction())) { EspionageView.foreignLedger(player, guild, inv); return; }
 		boolean open = i == null;
-		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW), 27, MenuTitles.legacy("Ledger for "+guild.getName()));
+		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW, 0, fromGuildView), 36, MenuTitles.legacy("Ledger for "+guild.getName()));
 		i.clear();
+		i.setItem(4, creator.createLedgerItem(player, guild));
 		if(guild.isBase()) {
-			i.setItem(10, creator.createLedgerCitizensItem(guild));
-			i.setItem(11, creator.createLedgerGuildsItem(guild));
-			i.setItem(12, creator.createLedgerVassalsItem(guild));
-			i.setItem(13, creator.createLedgerTributesItem(guild));
-			i.setItem(14, creator.createLedgerTariffsItem(guild));
-			i.setItem(15, creator.createLedgerDepositsItem(guild));
-			i.setItem(16, creator.createLedgerHubTaxItem(guild, false));
-			i.setItem(18, creator.createLedgerHubFeeItem(guild, false));
+			placeCentred(i, 9, List.of(
+					creator.createLedgerCitizensItem(guild),
+					creator.createLedgerGuildsItem(guild),
+					creator.createLedgerVassalsItem(guild),
+					creator.createLedgerTributesItem(guild),
+					creator.createLedgerTariffsItem(guild),
+					creator.createLedgerDepositsItem(guild),
+					creator.createLedgerHubTaxItem(guild, false),
+					creator.createLedgerHubFeeItem(guild, false)));
 		}
-		i.setItem(17, creator.createLedgerHubTaxItem(guild, true));
-		i.setItem(19, creator.createLedgerHubFeeItem(guild, true));
-		i.setItem(26, inv.createBackButton(SFGUI.LEDGER_VIEW));
+		placeCentred(i, 18, List.of(
+				creator.createLedgerHubTaxItem(guild, true),
+				creator.createLedgerHubFeeItem(guild, true)));
+		i.setItem(31, inv.createBackButton(SFGUI.LEDGER_VIEW));
 		if(open) player.openInventory(i);
+	}
+
+	private static void placeCentred(Inventory i, int rowStart, List<ItemStack> items) {
+		int slot = rowStart + (9 - items.size()) / 2;
+		for (ItemStack item : items) i.setItem(slot++, item);
 	}
 
 
@@ -334,7 +351,7 @@ public class GuildView {
                 if (e.getSlot() == 25) inv.loanView.loanMainView(p, guild);
                 return;
             }
-			if (e.getSlot() == 14) { ledgerView(p, guild, null); return; }
+			if (e.getSlot() == 14) { ledgerView(p, guild, null, true); return; }
 			if (e.getSlot() == HOST_FACTION_SLOT) {
 				Faction faction = guild.getFaction();
 				if (faction != null) {
