@@ -245,13 +245,13 @@ class HubTaxServiceTest {
 
             HubTaxBreakdown assessment = HubTaxService.assess(provinces, guild, List.of(guild));
 
-            assertTrue(gain > 0);
+            assertEquals(0, gain, 1e-9);
             assertEquals(0, assessment.forHub(first).tax());
-            assertTrue(assessment.forHub(last).taxableIncome() > 0);
-            assertTrue(assessment.forHub(other).taxableIncome() > 0);
-            assertEquals(assessment.forHub(last).taxableIncome() * 0.5, assessment.forHub(last).tax(), 1e-6);
-            assertEquals(assessment.forHub(other).taxableIncome() * 0.1, assessment.forHub(other).tax(), 1e-6);
-            assertEquals(assessment.forHub(last).taxableIncome(), assessment.getTaxableIncome(host), 1e-9);
+            assertEquals(0, assessment.forHub(last).taxableIncome());
+            assertEquals(0, assessment.forHub(other).taxableIncome());
+            assertEquals(0, assessment.forHub(last).tax());
+            assertEquals(0, assessment.forHub(other).tax());
+            assertEquals(0, assessment.getTaxableIncome(host), 1e-9);
             assertEquals(0, assessment.forHub(dormant).taxableIncome());
             for (Province p : provinces.getProvinces()) {
                 assertSame(liveEntries.get(p.getId()), p.getAllData().get("guild"));
@@ -271,8 +271,8 @@ class HubTaxServiceTest {
                 relations.when(() -> RelationManager.sameRealm(west, home)).thenReturn(true);
                 HubTaxBreakdown exempt = HubTaxService.assess(provinces, guild, List.of(guild));
                 assertEquals(0, exempt.getTotalTax());
-                assertTrue(exempt.forHub(last).taxableIncome() > 0);
-                assertTrue(exempt.forHub(other).taxableIncome() > 0);
+                assertEquals(0, exempt.forHub(last).taxableIncome());
+                assertEquals(0, exempt.forHub(other).taxableIncome());
             }
             HubNetwork.setHighwayForTests(null, null);
             assertEquals(0, HubTaxService.assess(provinces, guild, List.of(guild)).getTotalTax());
@@ -286,12 +286,10 @@ class HubTaxServiceTest {
     }
 
     @Test
-    void oneHubTaxEqualsTheIncomeItAddsAndIsZeroWhenTradeArrivesAnyway() {
+    void hubTaxIsZeroBecauseHubsDoNotChangeTrade() {
         boolean enabled = Cache.provincesEnabled;
         Map<Terrain, Double> carry = new HashMap<>(Cache.tradeCarry);
-        double strength = Cache.supplyHubNoHubStrength;
         Cache.provincesEnabled = true;
-        Cache.supplyHubNoHubStrength = 0.5;
         Cache.tradeCarry.put(Terrain.PLAINS, 0.85);
         try {
             YamlConfiguration rates = new YamlConfiguration();
@@ -326,7 +324,7 @@ class HubTaxServiceTest {
                 double without = bare.getGrossTradeIncome(guild);
 
                 HubTaxBreakdown added = HubTaxService.assess(road, guild, List.of(guild));
-                assertTrue(added.forHub(hub).taxableIncome() > 0);
+                assertEquals(0, added.forHub(hub).taxableIncome());
                 assertEquals(full - without, added.forHub(hub).taxableIncome(), 1e-6);
                 assertEquals(0, added.forHub(hub).tax());
 
@@ -340,20 +338,17 @@ class HubTaxServiceTest {
             HubNetwork.setHighwayForTests(null, null);
             HubTransport.resetConfig();
             Cache.provincesEnabled = enabled;
-            Cache.supplyHubNoHubStrength = strength;
             Cache.tradeCarry.clear();
             Cache.tradeCarry.putAll(carry);
         }
     }
 
     @Test
-    void corridorGainIsCountedOnce() {
+    void corridorHubTaxIsAlsoZero() {
         boolean enabled = Cache.provincesEnabled;
         Map<Terrain, Double> carry = new HashMap<>(Cache.tradeCarry);
-        double strength = Cache.supplyHubNoHubStrength;
         double corridor = Cache.supplyHubCorridorShare;
         Cache.provincesEnabled = true;
-        Cache.supplyHubNoHubStrength = 0.5;
         Cache.tradeCarry.put(Terrain.PLAINS, 0.85);
         try {
             YamlConfiguration rates = new YamlConfiguration();
@@ -394,8 +389,8 @@ class HubTaxServiceTest {
                 double without = bare.getGrossTradeIncome(guild);
 
                 HubTaxBreakdown added = HubTaxService.assess(road, guild, List.of(guild));
-                assertTrue(withHub > bare.get(4).getRawGuildTrade(guild));
-                assertTrue(added.forHub(hub).taxableIncome() > 0);
+                assertEquals(withHub, bare.get(4).getRawGuildTrade(guild), 1e-9);
+                assertEquals(0, added.forHub(hub).taxableIncome());
                 assertEquals(full - without, added.forHub(hub).taxableIncome(), 1e-6);
                 assertEquals(0, added.forHub(hub).tax());
             }
@@ -403,7 +398,6 @@ class HubTaxServiceTest {
             HubNetwork.setHighwayForTests(null, null);
             HubTransport.resetConfig();
             Cache.provincesEnabled = enabled;
-            Cache.supplyHubNoHubStrength = strength;
             Cache.supplyHubCorridorShare = corridor;
             Cache.tradeCarry.clear();
             Cache.tradeCarry.putAll(carry);

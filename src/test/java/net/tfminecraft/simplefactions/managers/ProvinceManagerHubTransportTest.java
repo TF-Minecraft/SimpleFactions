@@ -93,7 +93,7 @@ class ProvinceManagerHubTransportTest {
     }
 
     @Test
-    void forbiddenHubsStillCarryTradeAtNoHubStrength() {
+    void hubLawDoesNotAffectGraphTradeOrProduction() {
         connect(1, 22);
         List<Link> cached = HubNetwork.linksFor(guild);
         recalculate();
@@ -107,8 +107,8 @@ class ProvinceManagerHubTransportTest {
             snapshot.copyAllDataFrom(provinces);
             snapshot.recalculateForSingleGuild(guild, false);
             assertTrue(HubNetwork.linksFor(guild).isEmpty());
-            assertEquals(2, snapshot.get(22).getStoredGuildTrade(guild), 1e-9);
-            assertEquals(0, snapshot.get(22).getGuildProduction(guild));
+            assertEquals(8, snapshot.get(22).getStoredGuildTrade(guild), 1e-9);
+            assertEquals(8, snapshot.get(22).getGuildProduction(guild));
             assertEquals(8, trade(22), 1e-9);
         } finally {
             IncomePreviewContext.clear();
@@ -116,8 +116,8 @@ class ProvinceManagerHubTransportTest {
         assertEquals(cached, HubNetwork.linksFor(guild));
         when(guild.getFaction().hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(false);
         recalculate();
-        assertEquals(2, trade(22), 1e-9);
-        assertEquals(0, production(22));
+        assertEquals(8, trade(22), 1e-9);
+        assertEquals(8, production(22));
     }
 
     @Test
@@ -148,13 +148,13 @@ class ProvinceManagerHubTransportTest {
     }
 
     @Test
-    void hubTradeModifierBoostsTheShareDuringRecalculation() {
+    void hubTradeModifierDoesNotBoostTheShare() {
         when(guild.getModifier(GuildModifier.HUB_TRADE)).thenReturn(0.30);
         connect(1, 22);
 
         recalculate();
 
-        assertEquals(10.4, trade(22), 1e-9);
+        assertEquals(8, trade(22), 1e-9);
     }
 
     @Test

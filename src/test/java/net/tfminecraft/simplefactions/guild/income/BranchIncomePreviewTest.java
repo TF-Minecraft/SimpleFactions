@@ -180,7 +180,7 @@ class BranchIncomePreviewTest {
 	}
 
 	@Test
-    void branchPreviewUsesHypotheticalHubTradeLevel() {
+    void hubTradeBranchNoLongerChangesIncome() {
 		YamlConfiguration rates = new YamlConfiguration();
 		rates.set("supply-hubs.transport.rail.trade", 0.90);
 		rates.set("supply-hubs.transport.rail.production", 0);
@@ -198,7 +198,7 @@ class BranchIncomePreviewTest {
 		yaml.set("modifiers", List.of("HUB_TRADE 0 0.2"));
 		Branch supplyLines = new Branch(new Branch("supply_lines", yaml), 0);
 
-		assertTrue(live.previewUpgradeIncomeExact(guild, supplyLines) > 0);
+		assertEquals(0, live.previewUpgradeIncomeExact(guild, supplyLines));
         assertEquals(0, supplyLines.getLevel());
     }
 

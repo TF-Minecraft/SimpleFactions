@@ -18,7 +18,7 @@ import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.map.infra.EffectiveTerrain;
-import net.tfminecraft.simplefactions.map.infra.InfrastructureAccess;
+import net.tfminecraft.simplefactions.guild.network.InstallationAccess;
 import net.tfminecraft.simplefactions.utils.ModifierMerger;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
@@ -354,7 +354,7 @@ public class Province {
         double terrain = getTradeCarry();
         if (guild == null || isSea() || infrastructure <= 0 || terrain >= Cache.infrastructureTarget) return terrain;
         return EffectiveTerrain.calculate(terrain, infrastructure, Cache.infrastructureFull,
-                Cache.infrastructureTarget, InfrastructureAccess.forGuild(guild.getFaction(), getOwner()));
+                Cache.infrastructureTarget, InstallationAccess.of(guild.getFaction(), getOwner()));
     }
 
     public double getInfrastructure() { return infrastructure; }

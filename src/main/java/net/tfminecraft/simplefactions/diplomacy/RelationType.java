@@ -38,6 +38,8 @@ public class RelationType {
 	private boolean treaty;
 	private boolean blocksWar;
 	private boolean blocksShops;
+	private boolean blocksInstallations;
+	private double installationAccess;
 	private boolean clearTreaty;
 	private List<FactionModifier> tradeEffectsUs = new ArrayList<>();
 	private List<FactionModifier> tradeEffectsThem = new ArrayList<>();
@@ -69,6 +71,8 @@ public class RelationType {
 		treaty = config.getBoolean("treaty", false);
 		blocksWar = config.getBoolean("blocks-war", false);
 		blocksShops = config.getBoolean("blocks-shops", false);
+		blocksInstallations = config.getBoolean("blocks-installations", key.equalsIgnoreCase("embargo"));
+		installationAccess = config.getDouble("installation-access", defaultInstallationAccess(key));
 		clearTreaty = config.getBoolean("clear", false);
 		if(config.isConfigurationSection("threshold")) {
 			threshold = new Threshold(config.getConfigurationSection("threshold"));
@@ -101,6 +105,14 @@ public class RelationType {
 
 	public boolean blocksShops() {
 		return blocksShops;
+	}
+
+	public boolean blocksInstallations() {
+		return blocksInstallations;
+	}
+
+	public double getInstallationAccess() {
+		return installationAccess;
 	}
 
 	public boolean isClearTreaty() {
@@ -262,5 +274,13 @@ public class RelationType {
 
 	public int getLimit() {
 		return limit;
+	}
+
+	private static double defaultInstallationAccess(String id) {
+		return switch (id.toLowerCase()) {
+			case "trade_agreement", "unequal_treaty_leader" -> 1.0;
+			case "unequal_treaty_subject" -> 0.5;
+			default -> 0;
+		};
 	}
 }

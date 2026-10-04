@@ -95,9 +95,6 @@ supply-hubs:
   offer-days: 7
   # Days a hub agreement runs.
   agreement-days: 14
-  # Trade without your hub at a stop is carried at this strength. Both ends
-  # without a hub multiply it twice. 1 is full strength.
-  no-hub-strength: 0.5
   # Sea and rail leave this share of the delivery in the provinces along the way.
   # Air leaves nothing. 1 leaves the full delivery.
   corridor-share: 0.5

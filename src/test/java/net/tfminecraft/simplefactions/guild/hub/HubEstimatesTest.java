@@ -45,13 +45,13 @@ class HubEstimatesTest {
         Installation target = station("target", 2, 1000, 0);
         ProvinceManager provinces = provinces(guild, Map.of(1, 10.0, 2, 4.0, 3, 40.0));
         var linked = TestGraphs.linked("home", 1000, near, richer, target);
-        // Rail over 1000 blocks keeps 0.36. A hub at near delivers 3.6; the unhubbed richer end delivers 7.2.
+        // Rail over 1000 blocks keeps 0.36. Hubs no longer change the richer end's 14.4 arrival.
         HubNetwork.setHighwayForTests(linked, Map.of("bog", TestGraphs.hubs("home", near)));
-        assertEquals(7.2, HubEstimates.arrives(guild, target, List.of(near), provinces), 0.01);
+        assertEquals(14.4, HubEstimates.arrives(guild, target, List.of(near), provinces), 0.01);
         HubNetwork.setHighwayForTests(linked, Map.of("bog", TestGraphs.hubs("home", near, richer)));
         assertEquals(14.4, HubEstimates.arrives(guild, target, List.of(near, richer), provinces), 0.01);
         HubNetwork.setHighwayForTests(linked, Map.of());
-        assertEquals(7.2, HubEstimates.arrives(guild, target, List.of(), provinces), 0.01);
+        assertEquals(14.4, HubEstimates.arrives(guild, target, List.of(), provinces), 0.01);
 
         HubNetwork.setHighwayForTests(
                 TestGraphs.rail("home", List.of(near, target), (from, to) -> false, 0), Map.of());

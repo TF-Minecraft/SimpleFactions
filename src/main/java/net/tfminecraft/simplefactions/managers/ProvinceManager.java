@@ -20,13 +20,11 @@ import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.hub.Highway;
 import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
 import net.tfminecraft.simplefactions.guild.hub.HighwaySnapshot;
-import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
+import net.tfminecraft.simplefactions.guild.network.InstallationAccess;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
-import net.tfminecraft.simplefactions.map.infra.InfrastructureAccess;
 import net.tfminecraft.simplefactions.map.infra.InfrastructureSources;
 import net.tfminecraft.simplefactions.map.infra.InfrastructureSpread;
 import net.tfminecraft.simplefactions.objects.Bracket;
@@ -49,6 +47,7 @@ public class ProvinceManager {
     private List<Faction> previewFactions;
     /** Set on a copy so a preview keeps the graph and hubs it was given, off the server thread. */
     private HighwaySnapshot highwayCapture;
+    private Map<Guild, Map<String, Double>> installationAccess = new HashMap<>();
     private boolean infrastructureSuppressed;
     private Map<Integer, Double> extraInfrastructure;
     private long stateVersion = 0;
@@ -94,8 +93,8 @@ public class ProvinceManager {
     }
 
     /**
-     * Snapshot-only graph and hubbed nodes. Trade and production on this copy use them and do not
-     * read the live world. A guild absent from the map is hubbed nowhere. Null clears the capture.
+     * Snapshot-only graph. The hub map remains in the signature for callers that still build hub
+     * previews, but hubs do not affect trade or production. Null clears the capture.
      */
     public void setHighwayOverride(TradeGraph graph, Map<String, Set<HubSite>> hubbedByGuild) {
         if (graph == null && hubbedByGuild == null) {
@@ -129,31 +128,6 @@ public class ProvinceManager {
         return snapshot == null || snapshot.graph() == null ? TradeGraph.live() : snapshot.graph();
     }
 
-    /** Active hubs, or none when the guild's law forbids them. */
-    private Set<HubSite> hubbedFor(Guild guild) {
-        if (guild == null || guild.getId() == null || !SupplyHubService.allowsSupplyHubs(guild)) {
-            return Set.of();
-        }
-        HighwaySnapshot snapshot = highway();
-        if (snapshot == null) {
-            return Set.of();
-        }
-        Set<HubSite> sites = snapshot.hubbed(guild.getId());
-        return sites == null ? Set.of() : sites;
-    }
-
-    private List<Link> productionLinks(Guild guild) {
-        if (guild == null || guild.getId() == null || !SupplyHubService.allowsSupplyHubs(guild)) {
-            return List.of();
-        }
-        if (highwayCapture != null) {
-            List<Link> links = highwayCapture.links(guild.getId());
-            return links == null ? List.of() : links;
-        }
-        List<Link> links = HubNetwork.linksFor(guild);
-        return links == null ? List.of() : links;
-    }
-
     public void clearGuildData(String guildId) {
         if (guildId == null) {
             return;
@@ -173,19 +147,25 @@ public class ProvinceManager {
         if (!Cache.provincesEnabled) {
             return;
         }
-        HubNetwork.refreshIfLive(this);
-        recalculateInfrastructure();
-        dropMissingGuilds();
-        for(Guild g : FactionManager.getAllGuilds()) {
-            if (!g.hasCapital()) continue;
-            recalculateGuild(g);
+        InstallationAccess.beginRecalculation();
+        try {
+            installationAccess = new HashMap<>();
+            HubNetwork.refreshIfLive(this);
+            recalculateInfrastructure();
+            dropMissingGuilds();
+            for(Guild g : FactionManager.getAllGuilds()) {
+                if (!g.hasCapital()) continue;
+                recalculateGuild(g);
+            }
+            for(Guild g : FactionManager.getAllGuilds()) {
+                if (!g.hasCapital()) continue;
+                recalculateProduction(g);
+            }
+            recalculateProsperity();
+            for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
+        } finally {
+            InstallationAccess.endRecalculation();
         }
-        for(Guild g : FactionManager.getAllGuilds()) {
-            if (!g.hasCapital()) continue;
-            recalculateProduction(g);
-        }
-        recalculateProsperity();
-        for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
     }
 
     /**
@@ -198,20 +178,26 @@ public class ProvinceManager {
         }
         previewGuilds = guilds == null ? List.of() : List.copyOf(guilds);
         previewFactions = factions == null ? List.of() : List.copyOf(factions);
-        HubNetwork.refreshIfLive(this);
-        recalculateInfrastructure();
-        dropExcept(previewGuilds);
-        for (Guild guild : previewGuilds) {
-            if (guild != null && guild.hasCapital()) {
-                recalculateGuild(guild);
+        InstallationAccess.beginRecalculation();
+        try {
+            installationAccess = new HashMap<>();
+            HubNetwork.refreshIfLive(this);
+            recalculateInfrastructure();
+            dropExcept(previewGuilds);
+            for (Guild guild : previewGuilds) {
+                if (guild != null && guild.hasCapital()) {
+                    recalculateGuild(guild);
+                }
             }
-        }
-        for (Guild guild : previewGuilds) {
-            if (guild != null && guild.hasCapital()) {
-                recalculateProduction(guild);
+            for (Guild guild : previewGuilds) {
+                if (guild != null && guild.hasCapital()) {
+                    recalculateProduction(guild);
+                }
             }
+            recalculateProsperity();
+        } finally {
+            InstallationAccess.endRecalculation();
         }
-        recalculateProsperity();
     }
 
     /** Drops the copies {@link #recalculateQuiet} kept for the income read that follows. */
@@ -224,18 +210,24 @@ public class ProvinceManager {
         if (!Cache.provincesEnabled) {
             return;
         }
-        recalculateInfrastructure();
-        if (!g.hasCapital()) return;
-        HubNetwork.refreshIfLive(this);
-        dropMissingGuilds();
-        recalculateGuild(g);
-        recalculateProduction(g);
-        if(save) {
-            for(Guild guild : FactionManager.getAllGuilds()) {
-                getIncome(guild);
+        InstallationAccess.beginRecalculation();
+        try {
+            installationAccess = new HashMap<>();
+            recalculateInfrastructure();
+            if (!g.hasCapital()) return;
+            HubNetwork.refreshIfLive(this);
+            dropMissingGuilds();
+            recalculateGuild(g);
+            recalculateProduction(g);
+            if(save) {
+                for(Guild guild : FactionManager.getAllGuilds()) {
+                    getIncome(guild);
+                }
             }
+            recalculateProsperity();
+        } finally {
+            InstallationAccess.endRecalculation();
         }
-        recalculateProsperity();
     }
 
     private void recalculateInfrastructure() {
@@ -247,7 +239,7 @@ public class ProvinceManager {
         }
         Map<Integer, InfrastructureSpread.Node> graph = new HashMap<>();
         for (Province province : provinces.values()) {
-            Faction realm = InfrastructureAccess.topRealm(
+            Faction realm = InstallationAccess.topRealm(
                     previewFactions != null ? ownerOf(province.getId()) : province.getOwner());
             String origin = realm == null ? null : realm.getId().toLowerCase(Locale.ROOT);
             graph.put(province.getId(), new InfrastructureSpread.Node(
@@ -286,7 +278,7 @@ public class ProvinceManager {
         if (capital != null) {
             capital.calculateProduction(this, guild, null, 0);
         }
-        carryProductionThroughHubs(guild);
+        carryProductionThroughGraph(guild);
     }
 
     private void recalculateGuild(Guild guild) {
@@ -298,25 +290,20 @@ public class ProvinceManager {
         if (capital != null) {
             capital.calculateTrade(this, guild, -1, 0);
         }
-        carryTradeThroughHubs(guild);
+        carryTradeThroughGraph(guild);
     }
 
-    /**
-     * Trade walks the shared graph after the capital. A guild with no hubs, or whose law forbids
-     * them, still receives each hop at no-hub strength. Passes repeat until nothing larger arrives.
-     */
-    private void carryTradeThroughHubs(Guild guild) {
+    /** Trade walks the shared graph after the capital. Passes repeat until nothing larger arrives. */
+    private void carryTradeThroughGraph(Guild guild) {
         // Prosperity weighs production by a province's distance from where it came. Trade arriving
         // along the graph must not shorten that for production that still walked from the capital,
-        // so the walked distances are put back afterwards. Production a hub delivers sets its own.
+        // so the walked distances are put back afterwards. Production delivered by the graph sets its own.
         Map<Integer, Integer> walked = new HashMap<>();
         for (Province province : provinces.values()) {
             ProvinceDataEntry entry = province.getAllData().get(guild.getId());
             if (entry != null) walked.put(province.getId(), entry.getDistance());
         }
-        Highway.deliver(
-                this, guild, graphFor(), hubbedFor(guild),
-                GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE));
+        Highway.deliver(this, guild, graphFor(), accessFor(guild));
         depositCorridors(guild);
         for (Map.Entry<Integer, Integer> distance : walked.entrySet()) {
             ProvinceDataEntry entry = provinces.get(distance.getKey()).getAllData().get(guild.getId());
@@ -329,27 +316,42 @@ public class ProvinceManager {
         if (guild == null) {
             return;
         }
-        Highway.deposit(
-                this, guild, graphFor(), hubbedFor(guild),
-                GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE));
+        Highway.deposit(this, guild, graphFor(), accessFor(guild));
     }
 
-    private void carryProductionThroughHubs(Guild guild) {
-        List<Link> links = productionLinks(guild);
-        double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
-        for (int pass = 0; pass <= links.size(); pass++) {
-            boolean moved = false;
-            for (Link link : links) {
-                Province from = provinces.get(link.fromProvince());
-                Province to = provinces.get(link.toProvince());
-                if (from == null || to == null) continue;
-                double delivered = from.getGuildProduction(guild) * link.boostedProductionFactor(bonus);
-                if (delivered < 0.1 || delivered <= to.getGuildProduction(guild)) continue;
-                to.seedProduction(this, guild, delivered);
-                moved = true;
+    private void carryProductionThroughGraph(Guild guild) {
+        Highway.deliverProduction(this, guild, graphFor(), accessFor(guild));
+    }
+
+    private Map<String, Double> accessFor(Guild guild) {
+        return installationAccess.computeIfAbsent(guild, ignored -> {
+            Map<String, Double> access = new HashMap<>();
+            for (TradeGraph.Node node : graphFor().nodes()) {
+                if (node.ownerFactionId() == null) continue;
+                String ownerId = node.ownerFactionId().toLowerCase(Locale.ROOT);
+                access.computeIfAbsent(ownerId, id -> {
+                    Faction owner = factionById(id, guild.getFaction());
+                    return owner == null ? 0 : InstallationAccess.of(guild.getFaction(), owner);
+                });
             }
-            if (!moved) return;
+            return Map.copyOf(access);
+        });
+    }
+
+    private Faction factionById(String id, Faction guildFaction) {
+        if (guildFaction != null && guildFaction.getId() != null
+                && guildFaction.getId().equalsIgnoreCase(id)) {
+            return guildFaction;
         }
+        if (previewFactions != null) {
+            for (Faction faction : previewFactions) {
+                if (faction != null && faction.getId() != null && faction.getId().equalsIgnoreCase(id)) {
+                    return faction;
+                }
+            }
+            return null;
+        }
+        return FactionManager.getByString(id);
     }
 
     public double getIncome(Guild guild, boolean save) {
