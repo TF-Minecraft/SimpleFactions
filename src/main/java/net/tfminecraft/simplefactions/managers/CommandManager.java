@@ -71,6 +71,8 @@ public class CommandManager implements Listener, CommandExecutor{
 	}
 
 	private boolean dispatchCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("tradegraph"))
+            return net.tfminecraft.simplefactions.guild.network.TradeGraphCommand.handle(sender, args);
         if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("reloadespionage"))
             return EspionageCommands.reload(sender, args);
 		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("addguildbank")) {
