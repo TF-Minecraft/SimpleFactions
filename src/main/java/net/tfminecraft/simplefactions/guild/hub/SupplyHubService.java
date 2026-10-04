@@ -82,8 +82,7 @@ public final class SupplyHubService {
         Cache.supplyHubOfferDays = Math.max(1, offerDays);
         int agreementDays = config == null ? 14 : config.getInt("supply-hubs.agreement-days", 14);
         Cache.supplyHubAgreementDays = Math.max(1, agreementDays);
-        int candidates = config == null ? 24 : config.getInt("supply-hubs.estimate-candidates", 24);
-        Cache.supplyHubEstimateCandidates = Math.max(1, candidates);
+        Cache.supplyHubAutoAccept = config != null && config.getBoolean("supply-hubs.auto-accept", false);
     }
 
     public static int limit(Guild guild) {

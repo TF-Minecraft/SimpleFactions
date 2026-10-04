@@ -84,6 +84,9 @@ mercenary-default-breach-refund: 500.0
 # smaller refund would make no-showing more profitable per head than fighting.
 
 supply-hubs:
+  # Dev servers only. When true, the player who sends hub terms also accepts them,
+  # so one person can finish an agreement. Leave this false on a live server.
+  auto-accept: false
   # Highest hub tax percent an agreement may set. The host's economy law can set a lower cap.
   max-tax: 50
   # Highest daily fee, in denars, an agreement may set.
@@ -92,9 +95,6 @@ supply-hubs:
   offer-days: 7
   # Days a hub agreement runs.
   agreement-days: 14
-  # How many ready installations, and how many provinces worth building, are fully
-  # estimated per guild each day. The closest ones are kept.
-  estimate-candidates: 24
   # A hub takes the guild's trade power and production in its province and delivers a share
   # to each of the guild's hubs it is connected to. Train track joins any two kinds; ports
   # also connect across the sea, and airports through the air.

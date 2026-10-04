@@ -18,8 +18,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
-import net.tfminecraft.simplefactions.guild.hub.HubEstimates;
 import net.tfminecraft.simplefactions.guild.hub.InfrastructureMenuCopy;
+import net.tfminecraft.simplefactions.guild.hub.InfrastructurePreview;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.ConstructResult;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -79,7 +79,7 @@ public final class InstallationBuildConfirm {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             List<String> lore;
             try {
-                HubEstimates.InstallationPreview preview = HubEstimates.previewInstallation(
+                InfrastructurePreview.InstallationPreview preview = InfrastructurePreview.previewInstallation(
                         provinces, faction, province, kind);
                 lore = InfrastructureMenuCopy.installationPreview(preview);
             } catch (RuntimeException ex) {

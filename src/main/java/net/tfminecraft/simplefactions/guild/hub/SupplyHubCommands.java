@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 
@@ -89,6 +90,11 @@ public final class SupplyHubCommands {
             player.sendMessage("§cThat installation is not there");
             return false;
         }
+        if ((guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty())
+                && !inOwnTerritory(guild, ownerFactionId)) {
+            player.sendMessage("§cYour first hub has to be in your own territory");
+            return false;
+        }
         boolean capitalHub = hasCapitalHub(guild);
         SupplyHubTutorial.Decision tutorial = SupplyHubTutorial.decision(
                 guild.hasCapital(), capitalHub, installation.getProvince() == guild.getCapital(),
@@ -151,6 +157,18 @@ public final class SupplyHubCommands {
         new Database().saveFaction(guild.getFaction());
         player.sendMessage("§aGot it. §7Open your guild's Supply Hubs menu when you want to build one.");
         return true;
+    }
+
+    private static boolean inOwnTerritory(Guild guild, String ownerFactionId) {
+        Faction guildFaction = guild == null ? null : guild.getFaction();
+        if (guildFaction == null || ownerFactionId == null || guildFaction.getId() == null) {
+            return false;
+        }
+        if (guildFaction.getId().equalsIgnoreCase(ownerFactionId)) {
+            return true;
+        }
+        Faction owner = FactionManager.getByString(ownerFactionId);
+        return owner != null && RelationManager.sameRealm(owner, guildFaction);
     }
 
     private static boolean hasCapitalHub(Guild guild) {

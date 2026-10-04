@@ -20,7 +20,7 @@ public final class InfrastructureMenuCopy {
         return "§7Working out what this would earn...";
     }
 
-    public static List<String> installationPreview(HubEstimates.InstallationPreview preview) {
+    public static List<String> installationPreview(InfrastructurePreview.InstallationPreview preview) {
         if (preview == null) {
             return List.of(calculating());
         }

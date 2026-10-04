@@ -1,9 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -26,11 +24,10 @@ import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.AgreementRes
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.PendingMatter;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.RateRange;
 import net.tfminecraft.simplefactions.guild.hub.HubEstimates;
-import net.tfminecraft.simplefactions.guild.hub.HubEstimates.Destination;
-import net.tfminecraft.simplefactions.guild.hub.HubEstimates.Group;
-import net.tfminecraft.simplefactions.guild.hub.HubEstimates.Terms;
+import net.tfminecraft.simplefactions.guild.hub.HubEstimates.Site;
 import net.tfminecraft.simplefactions.guild.hub.HubOffer;
 import net.tfminecraft.simplefactions.guild.hub.HubProposalCopy;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.hub.OfferSide;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -41,7 +38,6 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 
 /**
  * The proposal list, the shared negotiation chest, and the host's offer list.
- * Changing the rate or the fee only reruns {@link HubEstimates#applyTerms}.
  */
 public final class HubProposalMenu {
     private static final String SEP = "\u001f";
@@ -51,6 +47,10 @@ public final class HubProposalMenu {
     }
 
     public static void openProposals(Player player, Guild guild, int page) {
+        openProposals(player, guild, page, false);
+    }
+
+    static void openProposals(Player player, Guild guild, int page, boolean showAll) {
         if (player == null || guild == null) {
             return;
         }
@@ -58,31 +58,52 @@ public final class HubProposalMenu {
             player.sendMessage("§cOnly the guild leader can propose a hub");
             return;
         }
-        List<Destination> destinations = HubEstimates.destinations(guild);
-        int pages = Math.max(1, (destinations.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        List<Site> sites = HubEstimates.sites(guild);
+        boolean noHubs = guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty();
+        boolean focused = noHubs && !showAll;
+        List<Site> territory = noHubs ? HubEstimates.territory(sites) : sites;
+        List<Site> tradable = noHubs ? HubEstimates.withTrade(territory) : territory;
+        List<Site> listed = noHubs
+                ? (focused ? HubEstimates.bestTerritory(tradable) : tradable)
+                : HubEstimates.connected(sites);
+        listed = noHubs ? HubEstimates.byTradePower(listed) : HubEstimates.byArrival(listed);
+        int pages = Math.max(1, (listed.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int shown = Math.max(0, Math.min(page, pages - 1));
         Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
-                new SFInventoryHolder(guild.getId(), SFGUI.HUB_PROPOSAL_LIST, shown),
-                54, "§7Propose a Hub");
-        if (destinations.isEmpty()) {
-            inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No estimates yet", List.of(
-                    "§7Where a hub would pay is worked out once a day.",
-                    "§7Check back after the next income pass.")));
+                new SFInventoryHolder(guild.getId(), SFGUI.HUB_PROPOSAL_LIST, shown, showAll && noHubs),
+                54, noHubs ? "§7Main Hub" : "§7Propose a Hub");
+        if (listed.isEmpty()) {
+            if (noHubs && territory.isEmpty()) {
+                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7You have no installation", List.of(
+                        "§7Build a port, airport, or train station in your territory.")));
+            } else if (noHubs) {
+                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No trade power in your territory", List.of(
+                        "§7A main hub is placed where your guild already has trade power.")));
+            } else if (!sites.isEmpty()) {
+                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No connections can be made", List.of(
+                        "§7You might need a rail")));
+            } else {
+                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No installation can take a hub", List.of(
+                        "§7Every open port, airport, and train station already has your hub, or has no free slot.")));
+            }
         }
         int start = shown * PAGE_SIZE;
-        for (int index = 0; index < PAGE_SIZE && start + index < destinations.size(); index++) {
-            Destination destination = destinations.get(start + index);
+        for (int index = 0; index < PAGE_SIZE && start + index < listed.size(); index++) {
+            Site destination = listed.get(start + index);
             Faction host = FactionManager.getByString(destination.hostFactionId());
             List<String> lore = new ArrayList<>();
             lore.add("§7Host: §f" + (host == null ? destination.hostFactionId() : host.getName()));
-            lore.addAll(HubProposalCopy.destinationLore(destination));
-            ItemStack item = SupplyHubCreator.item(
-                    destination.group() == Group.READY ? Material.CHEST : Material.MAP,
-                    "§e" + destination.label(), lore);
+            lore.addAll(HubProposalCopy.destinationLore(destination, !noHubs));
+            if (focused) {
+                lore.add(listed.size() > 1
+                        ? "§7Tied for the most trade power in your territory"
+                        : "§7The most trade power in your territory");
+            }
+            ItemStack item = SupplyHubCreator.item(Material.CHEST, "§e" + destination.label(), lore);
             ItemMeta meta = item.getItemMeta();
             String installation = destination.installationId() == null ? "" : destination.installationId();
             meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING,
-                    destination.group().name() + SEP + destination.hostFactionId() + SEP + installation
+                    destination.hostFactionId() + SEP + installation
                             + SEP + destination.provinceId() + SEP + (destination.ownRealm() ? "own" : "foreign"));
             item.setItemMeta(meta);
             inventory.setItem(index, item);
@@ -92,6 +113,15 @@ public final class HubProposalMenu {
         }
         if (shown + 1 < pages) {
             inventory.setItem(50, SupplyHubCreator.item(Material.ARROW, "§eNext page", List.of()));
+        }
+        if (noHubs && !tradable.isEmpty() && (focused ? tradable.size() > listed.size() : true)) {
+            if (focused) {
+                inventory.setItem(49, action(Material.BOOK, "§eView all", "view:all", List.of(
+                        "§7Every place in your territory with trade power")));
+            } else {
+                inventory.setItem(49, action(Material.COMPASS, "§eBest in your territory", "view:best", List.of(
+                        "§7Only the installations with the most trade power")));
+            }
         }
         inventory.setItem(53, backButton(SFGUI.HUB_PROPOSAL_LIST));
         player.openInventory(inventory);
@@ -110,7 +140,7 @@ public final class HubProposalMenu {
         openNegotiation(player, guild, hostFactionId, installationId, rate, feeCents, rate, feeCents);
     }
 
-    private static void openNegotiation(
+    static void openNegotiation(
             Player player, Guild guild, String hostFactionId, String installationId,
             int rate, long feeCents, int baseRate, long baseFeeCents) {
         if (player == null || guild == null || hostFactionId == null || installationId == null) {
@@ -128,8 +158,7 @@ public final class HubProposalMenu {
         long shownFee = HubProposalCopy.clampFeeCents(feeCents, Cache.supplyHubMaxFee);
         int shownBaseRate = HubProposalCopy.clampRate(baseRate, min, max);
         long shownBaseFee = HubProposalCopy.clampFeeCents(baseFeeCents, Cache.supplyHubMaxFee);
-        Destination destination = findDestination(guild, hostFactionId, installationId);
-        Terms terms = destination == null ? null : HubEstimates.applyTerms(destination, shownRate, shownFee);
+        Site destination = findDestination(guild, hostFactionId, installationId);
         HubOffer offer = HubAgreementService.offer(guild, hostFactionId, installationId);
         HubAgreement agreement = HubAgreementService.findAgreement(guild, hostFactionId, installationId);
         boolean leader = isLeader(guild, player);
@@ -146,17 +175,19 @@ public final class HubProposalMenu {
                 54, "§7Hub Agreement");
         String site = destination == null ? installationId : destination.label();
         inventory.setItem(4, SupplyHubCreator.item(Material.PAPER, "§eYour side",
-                HubProposalCopy.operatorLines(destination, terms)));
+                HubProposalCopy.powerLines(destination)));
         List<String> termsLore = new ArrayList<>();
         termsLore.add("§7" + site);
         termsLore.add("§7Rate: §e" + shownRate + "% §7(§e" + min + "-" + max + "%§7)");
         termsLore.add("§7Daily fee: §e" + Formatter.formatMoney(shownFee / 100.0));
         termsLore.add("§7Term: §e" + Math.max(1, Cache.supplyHubAgreementDays) + " days");
-        termsLore.add(HubProposalCopy.breakEvenLine(destination, shownFee, min, max));
+        if (Cache.supplyHubAutoAccept) {
+            termsLore.add("§7Dev server: sending these terms accepts them.");
+        }
         if (offer != null && (offer.taxRatePercent() != shownRate || offer.feeCents() != shownFee)) {
             termsLore.add("§7Offered now: §e" + offer.taxRatePercent() + "%§7 and §e"
                     + Formatter.formatMoney(offer.feeCents() / 100.0));
-            termsLore.add("§7Your unsent terms stay on the buttons");
+            termsLore.add("§7Your unsent terms stay on this screen");
         }
         if (offer != null) {
             termsLore.add(yourTurn ? "§eWaiting on you" : "§7Waiting on the other side");
@@ -165,19 +196,17 @@ public final class HubProposalMenu {
         }
         inventory.setItem(13, SupplyHubCreator.item(Material.GOLD_INGOT, "§eTerms", termsLore));
         inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§eHost side",
-                HubProposalCopy.hostLines(destination, terms, guildNames(destination))));
+                HubProposalCopy.hostLines(destination)));
 
-        inventory.setItem(28, action(Material.RED_DYE, "§cRate -5", "rate:-5"));
-        inventory.setItem(29, action(Material.RED_DYE, "§cRate -1", "rate:-1"));
-        inventory.setItem(31, action(Material.LIME_DYE, "§aRate +1", "rate:1"));
-        inventory.setItem(32, action(Material.LIME_DYE, "§aRate +5", "rate:5"));
+        inventory.setItem(29, action(Material.NAME_TAG, "§eSet rate", "type:rate", List.of(
+                "§7Now §e" + shownRate + "%",
+                "§7Click, then type the percent in chat")));
         if (offer != null && (offer.taxRatePercent() != shownRate || offer.feeCents() != shownFee)) {
             inventory.setItem(30, action(Material.GOLD_NUGGET, "§eUse offered terms", "adopt"));
         }
-        inventory.setItem(37, action(Material.RED_DYE, "§cFee -10", "fee:-1000"));
-        inventory.setItem(38, action(Material.RED_DYE, "§cFee -1", "fee:-100"));
-        inventory.setItem(40, action(Material.LIME_DYE, "§aFee +1", "fee:100"));
-        inventory.setItem(41, action(Material.LIME_DYE, "§aFee +10", "fee:1000"));
+        inventory.setItem(31, action(Material.NAME_TAG, "§eSet fee", "type:fee", List.of(
+                "§7Now §e" + Formatter.formatMoney(shownFee / 100.0),
+                "§7Click, then type the fee in chat")));
 
         if (offer != null && yourTurn) {
             inventory.setItem(45, action(Material.RED_CONCRETE, "§cDecline", "decline"));
@@ -224,7 +253,7 @@ public final class HubProposalMenu {
             if (holder.getType() == SFGUI.HUB_PROPOSAL_LIST) {
                 Guild guild = FactionManager.getGuildByString(holder.getId());
                 if (guild != null) {
-                    openProposals(player, guild, holder.getPage());
+                    openProposals(player, guild, holder.getPage(), holder.getFlag());
                 }
             } else if (holder.getType() == SFGUI.HUB_OFFER_LIST) {
                 String[] filter = offerFilter(holder.getSecondaryId());
@@ -256,35 +285,48 @@ public final class HubProposalMenu {
             return;
         }
         if (event.getSlot() == 48) {
-            openProposals(player, guild, holder.getPage() - 1);
+            openProposals(player, guild, holder.getPage() - 1, holder.getFlag());
             return;
         }
         if (event.getSlot() == 50) {
-            openProposals(player, guild, holder.getPage() + 1);
+            openProposals(player, guild, holder.getPage() + 1, holder.getFlag());
             return;
         }
         String data = key(event.getCurrentItem());
         if (data == null) {
             return;
         }
+        if (data.equals("view:all")) {
+            openProposals(player, guild, 0, true);
+            return;
+        }
+        if (data.equals("view:best")) {
+            openProposals(player, guild, 0, false);
+            return;
+        }
         String[] parts = data.split(SEP, -1);
-        if (parts.length < 4) {
+        if (parts.length < 4 || parts[1].isEmpty()) {
             return;
         }
         player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-        if (Group.WORTH_BUILDING.name().equals(parts[0]) || parts[2].isEmpty()) {
-            player.sendMessage("§7A station has to be built there before a hub can be proposed.");
+        boolean noHubs = guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty();
+        boolean ownRealm = parts[3].equals("own");
+        if (noHubs && !ownRealm) {
+            player.sendMessage("§cYour first hub has to be in your own territory");
             return;
         }
-        Destination destination = findDestination(guild, parts[1], parts[2]);
-        boolean ownRealm = (parts.length >= 5 && parts[4].equals("own"))
-                || (destination != null && destination.ownRealm());
-        if (ownRealm) {
+        if (SupplyHubService.hasHub(guild.getSupplyHubs(), parts[0], parts[1])) {
+            player.sendMessage("§cYour guild already has a supply hub there");
+            openProposals(player, guild, holder.getPage(), holder.getFlag());
+            return;
+        }
+        Site destination = findDestination(guild, parts[0], parts[1]);
+        if (ownRealm || (destination != null && destination.ownRealm())) {
             menus.confirmSupplyHub(player, guild.getFaction(),
-                    "build|" + guild.getId() + "|" + parts[1] + "|" + parts[2]);
+                    "build|" + guild.getId() + "|" + parts[0] + "|" + parts[1]);
             return;
         }
-        openFromExisting(player, guild, parts[1], parts[2]);
+        openFromExisting(player, guild, parts[0], parts[1]);
     }
 
     private static void clickNegotiation(
@@ -307,21 +349,10 @@ public final class HubProposalMenu {
             return;
         }
         player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-        Faction host = FactionManager.getByString(draft.hostId);
-        RateRange range = HubAgreementService.allowedRateRange(host);
-        int min = range.minPercent();
-        int max = range.maxPercent();
-        if (action.startsWith("rate:")) {
-            int next = HubProposalCopy.clampRate(draft.rate + parseInt(action.substring(5)), min, max);
-            openNegotiation(player, guild, draft.hostId, draft.installationId,
-                    next, draft.feeCents, draft.baseRate, draft.baseFeeCents);
-            return;
-        }
-        if (action.startsWith("fee:")) {
-            long next = HubProposalCopy.clampFeeCents(
-                    draft.feeCents + parseInt(action.substring(4)), Cache.supplyHubMaxFee);
-            openNegotiation(player, guild, draft.hostId, draft.installationId,
-                    draft.rate, next, draft.baseRate, draft.baseFeeCents);
+        if (action.equals("type:rate") || action.equals("type:fee")) {
+            HubTermsPrompt.ask(player, guild, draft.hostId, draft.installationId,
+                    draft.rate, draft.feeCents, draft.baseRate, draft.baseFeeCents,
+                    action.equals("type:rate"));
             return;
         }
         if (action.equals("adopt")) {
@@ -333,7 +364,7 @@ public final class HubProposalMenu {
             return;
         }
         if (action.equals("offer")) {
-            sendTerms(player, guild, draft);
+            sendTerms(player, guild, draft, menus);
             return;
         }
         if (action.equals("accept")) {
@@ -408,7 +439,7 @@ public final class HubProposalMenu {
         openNegotiation(player, guild, hostId, installationId, rate, fee);
     }
 
-    private static void sendTerms(Player player, Guild guild, Draft draft) {
+    private static void sendTerms(Player player, Guild guild, Draft draft, InventoryManager menus) {
         HubOffer offer = HubAgreementService.offer(guild, draft.hostId, draft.installationId);
         AgreementResult result;
         if (offer != null && !waitingOn(player, guild, offer)) {
@@ -427,6 +458,17 @@ public final class HubProposalMenu {
         }
         if (result.message() != null) {
             player.sendMessage(result.message());
+        }
+        if (result.succeeded() && Cache.supplyHubAutoAccept) {
+            AgreementResult accepted = HubAgreementService.acceptAutomatically(
+                    guild, draft.hostId, draft.installationId);
+            if (accepted.message() != null) {
+                player.sendMessage(accepted.message());
+            }
+            if (accepted.succeeded() && accepted.builtHub()) {
+                menus.supplyHubView.guildView(player, guild);
+                return;
+            }
         }
         if (result.succeeded()) {
             openFromExisting(player, guild, draft.hostId, draft.installationId);
@@ -510,8 +552,8 @@ public final class HubProposalMenu {
         return new String[] {parts[0], parts[1]};
     }
 
-    private static Destination findDestination(Guild guild, String hostId, String installationId) {
-        for (Destination destination : HubEstimates.destinations(guild)) {
+    private static Site findDestination(Guild guild, String hostId, String installationId) {
+        for (Site destination : HubEstimates.sites(guild)) {
             if (destination.installationId() == null || destination.hostFactionId() == null) {
                 continue;
             }
@@ -523,20 +565,12 @@ public final class HubProposalMenu {
         return null;
     }
 
-    private static Map<String, String> guildNames(Destination destination) {
-        Map<String, String> names = new LinkedHashMap<>();
-        if (destination == null || destination.hostGuildGains() == null) {
-            return names;
-        }
-        for (String guildId : destination.hostGuildGains().keySet()) {
-            Guild guild = FactionManager.getGuildByString(guildId);
-            names.put(guildId, guild == null || guild.getName() == null ? guildId : guild.getName());
-        }
-        return names;
+    private static ItemStack action(Material material, String name, String action) {
+        return action(material, name, action, List.of());
     }
 
-    private static ItemStack action(Material material, String name, String action) {
-        ItemStack item = SupplyHubCreator.item(material, name, List.of());
+    private static ItemStack action(Material material, String name, String action, List<String> lore) {
+        ItemStack item = SupplyHubCreator.item(material, name, lore);
         ItemMeta meta = item.getItemMeta();
         meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, action);
         item.setItemMeta(meta);
@@ -562,13 +596,6 @@ public final class HubProposalMenu {
         return item.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
     }
 
-    private static int parseInt(String text) {
-        try {
-            return Integer.parseInt(text);
-        } catch (NumberFormatException ex) {
-            return 0;
-        }
-    }
 
     private static boolean waitingOn(Player player, Guild guild, HubOffer offer) {
         if (offer == null || player == null) {

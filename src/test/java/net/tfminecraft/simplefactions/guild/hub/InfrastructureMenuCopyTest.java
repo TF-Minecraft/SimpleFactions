@@ -7,7 +7,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import net.tfminecraft.simplefactions.guild.hub.HubEstimates.InstallationPreview;
+import net.tfminecraft.simplefactions.guild.hub.InfrastructurePreview.InstallationPreview;
 
 class InfrastructureMenuCopyTest {
     @Test

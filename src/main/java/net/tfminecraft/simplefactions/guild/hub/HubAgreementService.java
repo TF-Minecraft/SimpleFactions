@@ -19,6 +19,8 @@ import net.tfminecraft.simplefactions.utils.Formatter;
  */
 public final class HubAgreementService {
     static final long DAY_MILLIS = 86_400_000L;
+    /** Not a player name. Used only while supply-hubs.auto-accept is on. */
+    static final String DEV_ACTOR = "dev-auto-accept";
 
     private HubAgreementService() {
     }
@@ -68,6 +70,24 @@ public final class HubAgreementService {
             Guild guild, String actorName, String hostFactionId, String installationId) {
         AgreementResult result = accept(
                 guild, actorName, hostFactionId, installationId, HubAgreementFacts.LIVE, System.currentTimeMillis());
+        if (result.builtHub()) {
+            SupplyHubCommands.recalculateTrade();
+        }
+        HubAgreementMessenger.deliver(result.notices());
+        return result;
+    }
+
+    /**
+     * Finishes the current offer as the host. Does nothing unless
+     * {@code supply-hubs.auto-accept} is on, so a live server still needs the other side.
+     */
+    public static AgreementResult acceptAutomatically(
+            Guild guild, String hostFactionId, String installationId) {
+        if (!net.tfminecraft.simplefactions.Cache.supplyHubAutoAccept) {
+            return AgreementResult.fail("§cThat offer is waiting on the other side");
+        }
+        AgreementResult result = accept(
+                guild, DEV_ACTOR, hostFactionId, installationId, HubAgreementFacts.LIVE, System.currentTimeMillis());
         if (result.builtHub()) {
             SupplyHubCommands.recalculateTrade();
         }
@@ -258,7 +278,8 @@ public final class HubAgreementService {
         if (offer.lastActor() != null && offer.lastActor().equalsIgnoreCase(actorName)) {
             return AgreementResult.fail("§cYou can only accept terms the other side sent");
         }
-        if (!actsFor(offer.awaiting(), guild, actorName, hostFactionId, facts)) {
+        boolean devHost = net.tfminecraft.simplefactions.Cache.supplyHubAutoAccept && DEV_ACTOR.equals(actorName);
+        if (!devHost && !actsFor(offer.awaiting(), guild, actorName, hostFactionId, facts)) {
             OfferSide sender = offer.awaiting() == OfferSide.HOST ? OfferSide.GUILD : OfferSide.HOST;
             if (actsFor(sender, guild, actorName, hostFactionId, facts)) {
                 return AgreementResult.fail("§cYou can only accept terms the other side sent");
