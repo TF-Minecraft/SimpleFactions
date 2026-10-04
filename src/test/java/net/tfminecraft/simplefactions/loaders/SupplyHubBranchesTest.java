@@ -54,64 +54,40 @@ class SupplyHubBranchesTest {
         Guild realmType = mock(Guild.class);
         when(realmType.getType()).thenReturn(GuildLoader.getByString("realm"));
 
-        Branch supplyGuild = BranchLoader.getByGroup(guildType, 3);
-        Branch supplyRealm = BranchLoader.getByGroup(realmType, 3);
-        Branch freightGuild = BranchLoader.getByGroup(guildType, 4);
-        Branch freightRealm = BranchLoader.getByGroup(realmType, 4);
+        Branch countingGuild = BranchLoader.getByGroup(guildType, 3);
+        Branch countingRealm = BranchLoader.getByGroup(realmType, 3);
+        Branch guildAfterCounting = BranchLoader.getByGroup(guildType, 4);
+        Branch realmAfterCounting = BranchLoader.getByGroup(realmType, 4);
 
-        assertNotNull(supplyGuild);
-        assertNull(supplyRealm);
-        assertNotNull(freightGuild);
-        assertNotNull(freightRealm);
-        assertEquals("supply_lines", supplyGuild.getId());
+        assertNotNull(countingGuild);
+        assertNotNull(countingRealm);
+        assertNull(guildAfterCounting);
+        assertNull(realmAfterCounting);
+        assertNull(BranchLoader.getByString("supply_lines"));
         assertNull(BranchLoader.getByString("infrastructure"));
-        assertEquals("counting_houses", freightRealm.getId());
-        assertEquals(2.0, supplyGuild.getModifier(GuildModifier.HUB_LIMIT).getBase());
-        assertEquals(0.5, supplyGuild.getModifier(GuildModifier.HUB_LIMIT).getPerLevel());
-        assertEquals(0.05, supplyGuild.getModifier(GuildModifier.HUB_TRADE).getPerLevel());
-        assertEquals(0.08, supplyGuild.getModifier(GuildModifier.HUB_PRODUCTION).getPerLevel());
-        assertEquals(-0.01, freightRealm.getModifier(GuildModifier.TRADE_UPKEEP).getPerLevel());
-        assertEquals(1.0, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getBase());
-        assertEquals(0.5, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getPerLevel());
+        assertEquals("counting_houses", countingGuild.getId());
+        assertEquals("counting_houses", countingRealm.getId());
+        assertEquals(-0.01, countingRealm.getModifier(GuildModifier.TRADE_UPKEEP).getPerLevel());
         assertNotNull(BranchLoader.getByString("bureaucracy"));
         Branch storehouses = new Branch(BranchLoader.getByString("storehouses"), 3);
-        Branch supplyLines = new Branch(BranchLoader.getByString("supply_lines"), 4);
-        assertEquals(0.70, storehouses.getAmount(GuildModifier.TRADE_CARRY));
-        assertEquals(0.09, storehouses.getAmount(GuildModifier.HUB_PRODUCTION));
-        assertNull(storehouses.getModifier(GuildModifier.HUB_UPKEEP));
-        assertEquals(1.0, supplyGuild.getAmount(GuildModifier.HUB_UPKEEP));
-        assertEquals(3.0, supplyLines.getAmount(GuildModifier.HUB_UPKEEP));
-        Branch twoStorehouses = new Branch(BranchLoader.getByString("storehouses"), 2);
-        Branch fiveSupplyLines = new Branch(BranchLoader.getByString("supply_lines"), 5);
-        assertEquals(0.46, twoStorehouses.getAmount(GuildModifier.HUB_PRODUCTION)
-                + fiveSupplyLines.getAmount(GuildModifier.HUB_PRODUCTION));
-        assertTrue(!supplyGuild.getDescription().isEmpty());
+        assertEquals(1.00, storehouses.getAmount(GuildModifier.TRADE_CARRY));
+        assertTrue(!countingGuild.getDescription().isEmpty());
     }
 
     @Test
-    void savedSupplyLinesStayWhenTheRealmHasNoBranchInThatGroup() {
+    void aDisallowedBranchIsReplacedByTheAllowedOneAtThatGroup() {
         loadBundledBranches();
-        Branch supplyLines = new Branch(BranchLoader.getByString("supply_lines"), 3);
-        Map<Integer, Branch> realmBranches = new HashMap<>(Map.of(3, supplyLines));
-        Map<Integer, Branch> normalBranches = new HashMap<>(Map.of(3, supplyLines));
-        BranchLoader.replaceDisallowedBranches(realmBranches, GuildLoader.getByString("realm"));
+        YamlConfiguration realmOnly = new YamlConfiguration();
+        realmOnly.set("name", "Realm Only");
+        realmOnly.set("group", 3);
+        realmOnly.set("allowed-types", java.util.List.of("realm"));
+        BranchLoader.map.put("realm_only", new Branch("realm_only", realmOnly));
+        Map<Integer, Branch> normalBranches = new HashMap<>(Map.of(3,
+                new Branch(BranchLoader.getByString("realm_only"), 2)));
         BranchLoader.replaceDisallowedBranches(normalBranches, GuildLoader.getByString("guild"));
 
-        assertEquals("supply_lines", realmBranches.get(3).getId());
-        assertEquals(3, realmBranches.get(3).getLevel());
-        assertEquals("supply_lines", normalBranches.get(3).getId());
-        assertEquals(3, normalBranches.get(3).getLevel());
-
-        YamlConfiguration legacyConfig = new YamlConfiguration();
-        legacyConfig.set("name", "Supply Lines");
-        legacyConfig.set("group", 3);
-        legacyConfig.set("allowed-types", java.util.List.of("guild", "realm"));
-        BranchLoader.map.put("supply_lines", new Branch("supply_lines", legacyConfig));
-        Map<Integer, Branch> legacyRealmBranches = new HashMap<>(Map.of(3,
-                new Branch(BranchLoader.getByString("supply_lines"), 0)));
-        BranchLoader.replaceDisallowedBranches(legacyRealmBranches, GuildLoader.getByString("realm"));
-        assertEquals("supply_lines", legacyRealmBranches.get(3).getId());
-        assertEquals(0, legacyRealmBranches.get(3).getLevel());
+        assertEquals("counting_houses", normalBranches.get(3).getId());
+        assertEquals(2, normalBranches.get(3).getLevel());
     }
 
     private static void loadBundledBranches() {

@@ -360,11 +360,6 @@ public class SimpleFactions extends JavaPlugin{
 			provinceSnapshot = provinceManager.createSnapshotShell();
 			refreshTrackProvinces(() -> {});
 			provinceManager.recalculate();
-			// Hub tax is assessed at the day change; do it once now so menus are right before then.
-			net.tfminecraft.simplefactions.guild.hub.HubTaxService.refresh(provinceManager);
-			if (Cache.supplyHubAutoAccept) {
-				getLogger().info("Hub auto-accept is on.");
-			}
 			trackRefreshTask = getServer().getScheduler().runTaskTimer(
 					this, () -> { refreshTrackProvinces(); }, TRACK_REFRESH_TICKS, TRACK_REFRESH_TICKS);
 		}
@@ -436,8 +431,6 @@ public class SimpleFactions extends JavaPlugin{
 	public void registerListeners() {
 		getServer().getPluginManager().registerEvents(commands, this);
 		getServer().getPluginManager().registerEvents(inventoryManager, this);
-		getServer().getPluginManager().registerEvents(
-				new net.tfminecraft.simplefactions.managers.inventory.HubTermsPrompt(), this);
 		getServer().getPluginManager().registerEvents(bankManager, this);
 		getServer().getPluginManager().registerEvents(titleManager, this);
 		getServer().getPluginManager().registerEvents(playerManager, this);
@@ -576,7 +569,7 @@ public class SimpleFactions extends JavaPlugin{
 					Cache.worldName, provinceGrid, provinces);
 		}, () -> {
 			// Forget cached rail routes first; that also drops the graph's routes.
-			net.tfminecraft.simplefactions.guild.hub.HubNetwork.forgetRoutes();
+			net.tfminecraft.simplefactions.guild.network.TradeGraph.forgetRoutes();
 			net.tfminecraft.simplefactions.guild.network.TradeGraph.refresh(provinceManager);
 			recalculate.run();
 		},

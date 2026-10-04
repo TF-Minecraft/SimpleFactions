@@ -1,0 +1,21 @@
+{
+  "id": "vardera",
+  "name": "Vardera",
+  "hub tax": 12.5,
+  "hub permits": ["port-a"],
+  "guilds": [
+    {
+      "id": "chisels",
+      "name": "The Chisels",
+      "supply hubs": [{ "owner": "vardera", "installation": "port-a" }],
+      "hub agreements": [{ "id": "old-agreement" }],
+      "hub offers": [{ "kind": "join" }],
+      "supply hub tutorial dismissals": ["player-1"],
+      "branches": [
+        { "id": "supply_lines", "level": 4 },
+        { "id": "infrastructure", "level": 2 },
+        { "id": "storehouses", "level": 1 }
+      ]
+    }
+  ]
+}

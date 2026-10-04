@@ -255,9 +255,9 @@ public class Province {
     }
 
     /**
-     * Starts a second source of trade power here, as a supply hub does, and spreads it to the
-     * neighbours by the usual rule. The hub is a fresh origin: the power arrives undiminished
-     * and decays with distance from here. Does nothing if the guild already has as much here.
+     * Starts another source of trade power here and spreads it to the neighbours by the usual
+     * rule. The power arrives undiminished and decays with distance from here. Does nothing if
+     * the guild already has as much here.
      */
     public void seedTrade(ProvinceManager manager, Guild guild, double amount) {
         if (amount < 0.5) return;
@@ -283,9 +283,9 @@ public class Province {
     }
 
     /**
-     * Starts a second source of production here, as a supply hub does, and spreads it to the
-     * neighbours by the usual rule. Does nothing if the guild already has as much here.
-     * Where this production wins, the province is measured from the hub instead of the capital.
+     * Starts another source of production here and spreads it to the neighbours by the usual
+     * rule. Does nothing if the guild already has as much here. Where this production wins,
+     * the province is measured from here instead of the capital.
      */
     public void seedProduction(ProvinceManager manager, Guild guild, double amount) {
         if (amount < 0.1) return;

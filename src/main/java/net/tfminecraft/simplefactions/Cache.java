@@ -165,12 +165,6 @@ public class Cache {
 	public static int mercenaryMaxContractDays = 14;
 	public static double mercenaryDefaultBreachRefund = 500.0;
 
-	public static double supplyHubMaxTax = 50.0;
-	public static double supplyHubMaxFee = 500.0;
-	public static int supplyHubOfferDays = 7;
-	public static int supplyHubAgreementDays = 14;
-	/** Dev servers only. Sending hub terms also accepts them. */
-	public static boolean supplyHubAutoAccept = false;
 	/** Share of a sea or rail delivery left in the provinces along the way. */
 	public static double supplyHubCorridorShare = 0.5;
 

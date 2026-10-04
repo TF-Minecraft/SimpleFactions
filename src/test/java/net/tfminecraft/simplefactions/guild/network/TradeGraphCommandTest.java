@@ -61,12 +61,13 @@ class TradeGraphCommandTest {
         assertTrue(TradeGraphCommand.handle(sender, new String[] {"tradegraph"}));
 
         ArgumentCaptor<String> messages = ArgumentCaptor.forClass(String.class);
-        verify(sender, times(4)).sendMessage(messages.capture());
+        verify(sender, times(5)).sendMessage(messages.capture());
         assertEquals(List.of(
-                "§6Network 1. §72 nodes, global.",
-                "§ealpha/a §7port, province 1, level 1, 2 hub slots.",
-                "§7alpha/a to beta/b. sea, 500.0 blocks, 2 provinces.",
-                "§ebeta/b §7port, province 4, level 1, 1 hub slot."), messages.getAllValues());
+                "§6Trade graph. §e2§7 installations, §e1§7 connection.",
+                "§ea §7alpha, port",
+                "§7  b, sea, 500 blocks, 2 provinces",
+                "§eb §7beta, port",
+                "§7  a, sea, 500 blocks, 2 provinces"), messages.getAllValues());
     }
 
     @Test
@@ -77,7 +78,7 @@ class TradeGraphCommandTest {
         verify(sender).sendMessage("§cUsage: §e/faction tradegraph");
 
         assertTrue(TradeGraphCommand.handle(sender, new String[] {"tradegraph"}));
-        verify(sender).sendMessage("§7There are no trade networks.");
+        verify(sender).sendMessage("§6Trade graph. §e0§7 installations, §e0§7 connections.");
     }
 
     @Test
@@ -105,8 +106,8 @@ class TradeGraphCommandTest {
         provinces.put(3, new ProvinceData(Terrain.SEA, java.util.Set.of(2, 4)));
         provinces.put(4, new ProvinceData(Terrain.PLAINS, java.util.Set.of(3)));
         return TradeGraphBuilder.build(List.of(
-                new Site("alpha", new Installation("a", "a", InstallationKind.PORT, 1, 0, 0, 1L), 2, true),
-                new Site("beta", new Installation("b", "b", InstallationKind.PORT, 4, 300, 400, 1L), 1, true)),
+                new Site("alpha", new Installation("a", "a", InstallationKind.PORT, 1, 0, 0, 1L), true),
+                new Site("beta", new Installation("b", "b", InstallationKind.PORT, 4, 300, 400, 1L), true)),
                 provinces, (from, to) -> Optional.empty(), point -> 0);
     }
 }

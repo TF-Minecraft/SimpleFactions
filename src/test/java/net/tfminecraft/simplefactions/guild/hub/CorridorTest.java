@@ -118,7 +118,7 @@ class CorridorTest {
         Installation first = new Installation("a", "a", InstallationKind.AIRPORT, 1, 0, 0, 1L);
         Installation second = new Installation("b", "b", InstallationKind.AIRPORT, 2, 1000, 0, 1L);
         TradeGraph graph = TradeGraphBuilder.build(
-                List.of(new Site("owner", first, 1, true), new Site("owner", second, 1, true)),
+                List.of(new Site("owner", first, true), new Site("owner", second, true)),
                 Map.of(),
                 (left, right) -> Optional.empty(),
                 point -> 0);
@@ -229,7 +229,7 @@ class CorridorTest {
         }
         points.add(new Point(2, 0, 0));
         return TradeGraphBuilder.build(
-                List.of(new Site(firstOwner, first, 1, true), new Site(secondOwner, second, 1, true)),
+                List.of(new Site(firstOwner, first, true), new Site(secondOwner, second, true)),
                 data,
                 (left, right) -> Optional.of(new RailRoutes.Route(length, points)),
                 point -> (int) point.x());

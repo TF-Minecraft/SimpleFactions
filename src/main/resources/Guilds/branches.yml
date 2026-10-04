@@ -57,38 +57,18 @@ storehouses:
     - "#bf8a45Storehouses #d4c9aeincrease the"
     - "#d4c9aeease of trade for your existing"
     - "#d4c9aenetwork, resulting in notable gains in"
-    - "#d4c9aetrade reach and raise the production"
-    - "#d4c9aetheir hubs pass on."
+    - "#d4c9aetrade reach"
   allowed-types:
     - guild
     - realm
   modifiers:
-    - trade_carry 0.25 0.15
+    - trade_carry 0.25
     - trade_upkeep 0 0.02
-    - hub_production 0 0.03
-    - prestige 0 5
-supply_lines:
-  name: "#b5835aSupply Lines"
-  icon: "rail.0"
-  group: 3
-  description:
-    - "#b5835aSupply Lines #d4c9aeallow more"
-    - "#d4c9aehubs and pass on more trade power"
-    - "#d4c9aeand production between them."
-    - "#d4c9aeEach hub costs more to run."
-  allowed-types:
-    - guild
-  modifiers:
-    - hub_limit 2 0.5
-    - hub_trade 0 0.05
-    - hub_production 0 0.08
-    - hub_upkeep 1 0.5
-    - trade_upkeep 0 0.01
     - prestige 0 5
 counting_houses:
   name: "#a9744fCounting Houses"
   icon: "chest_minecart.0"
-  group: 4
+  group: 3
   description:
     - "#a9744fCounting Houses #d4c9aekeep the"
     - "#d4c9aeguild's books in order, reducing"

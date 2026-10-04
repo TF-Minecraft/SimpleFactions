@@ -499,19 +499,14 @@ public class FactionManager implements Listener{
 				FactionCleanup.advanceOfflineDays(factions);
 				net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
 			});
-			// Track may have been laid or cut since yesterday, so measure hub links again
+			// Track may have been laid or cut since yesterday, so measure routes again
 			// and settle the day on trade that reflects them.
-			runDailyStep("supply hub links", () -> {
-				net.tfminecraft.simplefactions.guild.hub.HubNetwork.forgetRoutes();
+			runDailyStep("trade routes", () -> {
+				net.tfminecraft.simplefactions.guild.network.TradeGraph.forgetRoutes();
 				boolean tracksChanged = SimpleFactions.getInstance().refreshTrackProvinces();
 				if (!tracksChanged) SimpleFactions.getInstance().getProvinceManager().recalculate();
-				net.tfminecraft.simplefactions.guild.hub.HubTaxService.refresh(
-						SimpleFactions.getInstance().getProvinceManager());
 			});
 			runDailyStep("income", this::settleIncome);
-			runDailyStep("hub agreements", () ->
-					net.tfminecraft.simplefactions.guild.hub.HubAgreementService.tick(
-							getAllGuilds(), System.currentTimeMillis()));
 			timer = 0;
 			day++;
 		}
@@ -628,7 +623,6 @@ public class FactionManager implements Listener{
 		updateAllPrestigeConverged();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
 		fixRelations();
-		net.tfminecraft.simplefactions.guild.hub.SupplyHubService.dropUnagreedForeignLoaded();
 		loadDBLoans();
 		loaded = true;
 	}

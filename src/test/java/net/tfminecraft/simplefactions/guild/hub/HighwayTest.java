@@ -75,7 +75,7 @@ class HighwayTest {
     void tearDown() {
         titles.close();
         factions.close();
-        HubNetwork.setHighwayForTests(null, null);
+        TradeGraph.setLiveForTests(null);
         HubTransport.resetConfig();
         Cache.provincesEnabled = provincesWereEnabled;
         if (previousPlains == null) {
@@ -147,7 +147,7 @@ class HighwayTest {
     void productionMovesDuringRecalculationWithoutHubs() {
         TradeGraph graph = edge("home", "home", 0);
         ProvinceManager provinces = road();
-        HubNetwork.setHighwayForTests(graph, Map.of("guild", Set.of()));
+        TradeGraph.setLiveForTests(graph);
 
         provinces.recalculateForSingleGuild(guild, false);
 
@@ -204,7 +204,7 @@ class HighwayTest {
                         "c-d", List.of(3, 4),
                         "a-d", List.of(1, 4)));
         ProvinceManager provinces = isolated(1, 2, 3, 4);
-        HubNetwork.setHighwayForTests(graph, Map.of());
+        provinces.setHighwayOverride(graph);
 
         provinces.recalculateForSingleGuild(guild, false);
         Map<Integer, Double> settled = rawAt(provinces, 1, 2, 3, 4);
@@ -217,7 +217,7 @@ class HighwayTest {
         Installation first = station("a", 1);
         Installation second = station("b", 2);
         return TradeGraphBuilder.build(
-                List.of(new Site(firstOwner, first, 1, true), new Site(secondOwner, second, 1, true)),
+                List.of(new Site(firstOwner, first, true), new Site(secondOwner, second, true)),
                 Map.of(),
                 (left, right) -> Optional.of(new RailRoutes.Route(length, List.of())),
                 point -> 0);
@@ -239,7 +239,7 @@ class HighwayTest {
                 9, new ProvinceData(Terrain.SEA, Set.of(1, 2)),
                 2, new ProvinceData(Terrain.PLAINS, Set.of(9)));
         return TradeGraphBuilder.build(
-                List.of(new Site("home", a, 1, true), new Site("home", b, 1, true)),
+                List.of(new Site("home", a, true), new Site("home", b, true)),
                 provinces,
                 (left, right) -> Optional.of(new RailRoutes.Route(0, List.of())),
                 point -> 0);
@@ -257,7 +257,7 @@ class HighwayTest {
             }
         }
         List<Site> sites = installations.stream()
-                .map(installation -> new Site("home", installation, 1, true))
+                .map(installation -> new Site("home", installation, true))
                 .toList();
         return TradeGraphBuilder.build(sites, data, (from, to) -> {
             List<Integer> route = routes.get(from.getId() + "-" + to.getId());

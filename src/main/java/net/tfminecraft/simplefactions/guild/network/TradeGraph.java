@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.bukkit.Bukkit;
+
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
@@ -12,8 +15,8 @@ import net.tfminecraft.simplefactions.managers.ProvinceManager;
 /** Immutable connections shared by every guild. Safe to read on any thread. */
 public final class TradeGraph {
     public record Node(
-            String ownerFactionId, String installationId, InstallationKind kind, int provinceId,
-            int centerX, int centerZ, int level, int hubSlots, int networkIndex) {
+            String ownerFactionId, String installationId, String name, InstallationKind kind,
+            int provinceId, int centerX, int centerZ, int level, int networkIndex) {
     }
 
     /** Provinces run from first to second; neither endpoint province is included. */
@@ -82,6 +85,22 @@ public final class TradeGraph {
     /** Rebuilds from installations and track. Server thread only. */
     public static void refresh(ProvinceManager provinces) {
         live = LiveTradeGraph.build(provinces);
+    }
+
+    /** Refreshes when called for the live province data on the server thread; otherwise no-op. */
+    public static void refreshIfLive(ProvinceManager provinces) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin == null || plugin.getProvinceManager() != provinces) {
+            return;
+        }
+        try {
+            if (!Bukkit.isPrimaryThread()) {
+                return;
+            }
+        } catch (RuntimeException | LinkageError e) {
+            return;
+        }
+        refresh(provinces);
     }
 
     public static void forgetRoutes() {

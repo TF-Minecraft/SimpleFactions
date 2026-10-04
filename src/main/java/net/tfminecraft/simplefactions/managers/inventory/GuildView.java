@@ -122,9 +122,9 @@ public class GuildView {
 	}
 
 	/**
-	 * The summary of every income and expense line sits on top, money received by source on
-	 * the second row and money paid out on the third. {@code fromGuildView} is kept in the
-	 * holder flag so Back returns to the menu the ledger was opened from.
+	 * The summary of every income and expense line sits on top, with money received by source
+	 * below it. {@code fromGuildView} is kept in the holder flag so Back returns to the menu
+	 * the ledger was opened from.
 	 */
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
@@ -141,13 +141,8 @@ public class GuildView {
 					creator.createLedgerVassalsItem(guild),
 					creator.createLedgerTributesItem(guild),
 					creator.createLedgerTariffsItem(guild),
-					creator.createLedgerDepositsItem(guild),
-					creator.createLedgerHubTaxItem(guild, false),
-					creator.createLedgerHubFeeItem(guild, false)));
+					creator.createLedgerDepositsItem(guild)));
 		}
-		placeCentred(i, 18, List.of(
-				creator.createLedgerHubTaxItem(guild, true),
-				creator.createLedgerHubFeeItem(guild, true)));
 		i.setItem(31, inv.createBackButton(SFGUI.LEDGER_VIEW));
 		if(open) player.openInventory(i);
 	}
@@ -227,8 +222,6 @@ public class GuildView {
 		}
 		i.setItem(13, creator.createMenuItem(player, guild, MenuItemType.TRADE_BREAKDOWN));
 		i.setItem(14, creator.createLedgerItem(player, guild));
-		// Slots 20 to 24 are the branch upgrade buttons, so this sits past Loans.
-		i.setItem(26, creator.createSupplyHubsItem(guild));
 		if (!guild.isBase()) {
 			i.setItem(17, creator.createDividendItem(player, guild));
 		}
@@ -279,14 +272,6 @@ public class GuildView {
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
-		if (h.getType() == SFGUI.GUILD_VIEW && e.getSlot() == 26) {
-			e.setCancelled(true);
-			Guild guild = FactionManager.getGuildByString(h.getId());
-			if (guild != null) {
-				inv.supplyHubView.guildView(p, guild);
-			}
-			return;
-		}
 		if (e.getView().getTitle().equalsIgnoreCase("§7Guild List")) {
 			e.setCancelled(true);
 

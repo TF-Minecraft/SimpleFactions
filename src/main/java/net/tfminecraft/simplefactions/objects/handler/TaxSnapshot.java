@@ -10,7 +10,6 @@ public class TaxSnapshot {
     final double vassalTax;
     final double dividendTax;
     final double tariffs;
-    final double hubTax;
 
     final HashMap<TaxTarget, HashMap<String, Double>> specificTaxes;
 
@@ -20,7 +19,6 @@ public class TaxSnapshot {
         double vassalTax,
         double dividendTax,
         double tariffs,
-        double hubTax,
         HashMap<TaxTarget, HashMap<String, Double>> specificTaxes
     ) {
         this.citizenTax = citizenTax;
@@ -28,7 +26,6 @@ public class TaxSnapshot {
         this.vassalTax = vassalTax;
         this.dividendTax = dividendTax;
         this.tariffs = tariffs;
-        this.hubTax = hubTax;
         this.specificTaxes = specificTaxes;
     }
 }

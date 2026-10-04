@@ -53,7 +53,7 @@ class HighwayTimingTest {
 
     @AfterEach
     void tearDown() {
-        HubNetwork.setHighwayForTests(null, null);
+        TradeGraph.setLiveForTests(null);
         Cache.provincesEnabled = savedProvinces;
         Cache.supplyHubCorridorShare = savedCorridor;
         if (savedPlains == null) {
@@ -93,17 +93,14 @@ class HighwayTimingTest {
         ObjenesisStd objects = new ObjenesisStd();
         QuietFaction faction = objects.newInstance(QuietFaction.class);
         List<Guild> guilds = new ArrayList<>();
-        Map<String, java.util.Set<Highway.HubSite>> hubbed = new HashMap<>();
         for (int index = 0; index < GUILDS; index++) {
             PlainGuild guild = objects.newInstance(PlainGuild.class);
             guild.gid = "g" + index;
             guild.capitalId = index + 1;
             guild.faction = faction;
             guilds.add(guild);
-            hubbed.put(guild.gid, TestGraphs.hubs(
-                    "realm", nodes.get(index % NODES), nodes.get((index + 7) % NODES)));
         }
-        HubNetwork.setHighwayForTests(graph, hubbed);
+        TradeGraph.setLiveForTests(graph);
 
         // One unmeasured pass so the timed runs are not the first time the flood is compiled.
         provinces.recalculateQuiet(guilds, List.of());
@@ -159,7 +156,7 @@ class HighwayTimingTest {
             data.put(id, new ProvinceData(Terrain.PLAINS, java.util.Set.of()));
         }
         for (Installation node : nodes) {
-            sites.add(new Site("realm", node, 1, true));
+            sites.add(new Site("realm", node, true));
         }
         return TradeGraphBuilder.build(sites, data, (from, to) -> {
             int start = from.getProvince();

@@ -43,7 +43,6 @@ public class TaxView {
 		i.clear();
 		int slot = 0;
 		for(TaxTarget target : TaxTarget.values()) {
-			if(target == TaxTarget.HUB_TAX) continue;
 			if(!f.getTaxHandler().canCollectTax(target)) continue;
 			i.setItem(slot, creator.createTaxTypeItem(player, f, target, false));
 			slot++;

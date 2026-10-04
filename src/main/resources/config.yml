@@ -83,18 +83,7 @@ mercenary-default-breach-refund: 500.0
 # mercenary-min-price-per-battle, validated when the contract is created. A
 # smaller refund would make no-showing more profitable per head than fighting.
 
-supply-hubs:
-  # Dev servers only. When true, the player who sends hub terms also accepts them,
-  # so one person can finish an agreement. Leave this false on a live server.
-  auto-accept: false
-  # Highest hub tax percent an agreement may set. The host's economy law can set a lower cap.
-  max-tax: 50
-  # Highest daily fee, in denars, an agreement may set.
-  max-fee: 500
-  # Days an offer stays open after the last move.
-  offer-days: 7
-  # Days a hub agreement runs.
-  agreement-days: 14
+installation-trade:
   # Strength of sea and rail corridor provinces as boarding and arrival stops.
   # Air has no corridor stops. 1 makes a corridor stop as strong as an installation.
   corridor-share: 0.5

@@ -31,10 +31,10 @@ public final class IntelligenceRanges {
         var flow = cashflow(metric);
         if (flow == null) return false;
         return switch (flow) {
-            case GUILD_PAYMENTS, DIVIDEND_PAYMENT, DIVIDEND_PAYOUT, TARIFF_PAYMENTS, HUB_TAX_PAYMENTS,
+            case GUILD_PAYMENTS, DIVIDEND_PAYMENT, DIVIDEND_PAYOUT, TARIFF_PAYMENTS,
                     LOAN_PAYMENTS, INTEREST_PAYMENTS, TRIBUTE_PAYMENTS, OVERLORD_TAX, WAR_REPARATIONS_PAYMENT,
                     MERCENARY_PAYMENTS, REFUND_PAYMENTS, WAGE_PAYMENTS, TRADE_UPKEEP, UPGRADES_UPKEEP,
-                    PENALTIES, INSTALLATIONS, VEHICLE_UPKEEP, MILITARY_UPKEEP, NODES, SUPPLY_HUBS -> true;
+                    PENALTIES, INSTALLATIONS, VEHICLE_UPKEEP, MILITARY_UPKEEP, NODES -> true;
             default -> false;
         };
     }

@@ -11,7 +11,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
-import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -28,15 +27,6 @@ import net.tfminecraft.tlibs.utils.TimeFormatter;
 
 public class InstallationCreator {
 
-    @SuppressWarnings("deprecation")
-    public ItemStack createSupplyHubsButton() {
-        ItemStack item = new ItemStack(Material.CHEST, 1);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§eSupply Hubs");
-        meta.setLore(List.of("§7View guild hubs hosted here"));
-        item.setItemMeta(meta);
-        return item;
-    }
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createSummary(Faction f) {
@@ -243,14 +233,6 @@ public class InstallationCreator {
                 .entrySet()) {
             lore.add("§7" + categoryDisplayName(slot.getKey()) + " slots: §e" + slot.getValue());
         }
-        int hubSlots = InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());
-        if (hubSlots > 0) {
-            String ownerId = SupplyHubService.owningFactionId(installation);
-            int used = ownerId == null
-                    ? 0
-                    : SupplyHubService.countLoaded(ownerId, installation.getId());
-            lore.add("§7Hubs: §e" + used + "/" + hubSlots);
-        }
         return lore;
     }
 
@@ -274,7 +256,6 @@ public class InstallationCreator {
                 .entrySet()) {
             lore.add("§7" + categoryDisplayName(slot.getKey()) + " slots: §e" + slot.getValue());
         }
-        lore.add("§7Hub slots: §e" + InstallationConfigLoader.getHubSlots(installation.getKind(), nextLevel));
         lore.add("§eClick to upgrade");
         meta.setLore(lore);
         meta.getPersistentDataContainer()

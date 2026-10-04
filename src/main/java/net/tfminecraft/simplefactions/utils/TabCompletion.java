@@ -196,22 +196,10 @@ public class TabCompletion implements TabCompleter{
 		else if(cmd.getName().equalsIgnoreCase("mercenaries")) {
 			return completeMercenaries(args);
 		}
-		else if(cmd.getName().equalsIgnoreCase("guild")
-				&& args.length >= 2
-				&& args[0].equalsIgnoreCase("hub")) {
-			if(sender instanceof Player p) {
-				return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.completeGuild(p, args);
-			}
-			return new ArrayList<>();
-		}
 		else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 0 && args.length < 2 ) {
 			if(sender instanceof Player){
 				Player p = (Player) sender;
 				List<String> completions = new ArrayList<>();
-				if(FactionManager.getGuildByMember(p.getName()) != null && Cache.provincesEnabled) {
-					completions.add("hub");
-					completions.add("networks");
-				}
 				completions.add("create");
 				completions.add("join");
 				completions.add("menu");

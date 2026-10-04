@@ -14,8 +14,6 @@ public class BracketToTaxTarget {
                 return TaxTarget.GUILDS;
             case TARIFFS:
                 return TaxTarget.TARIFFS;
-            case HUB_TAX:
-                return TaxTarget.HUB_TAX;
             case VASSAL_TAX:
                 return TaxTarget.VASSALS;
             default:

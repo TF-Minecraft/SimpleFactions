@@ -18,9 +18,6 @@ import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.hub.Highway;
-import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
-import net.tfminecraft.simplefactions.guild.hub.HighwaySnapshot;
-import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.network.InstallationAccess;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.map.provinces.Province;
@@ -43,8 +40,8 @@ public class ProvinceManager {
     /** Set only on a preview copy, so a background flood does not walk the live faction list. */
     private List<Guild> previewGuilds;
     private List<Faction> previewFactions;
-    /** Set on a copy so a preview keeps the graph and hubs it was given, off the server thread. */
-    private HighwaySnapshot highwayCapture;
+    /** Set on a copy so a preview keeps the graph it was given, off the server thread. */
+    private TradeGraph highwayCapture;
     private Map<Guild, Map<String, Double>> installationAccess = new HashMap<>();
     private long stateVersion = 0;
     private long lastCalculatedVersion = -1;
@@ -84,31 +81,17 @@ public class ProvinceManager {
         }
 
         snap.start(map);
-        snap.highwayCapture = highwayCapture != null ? highwayCapture : HighwaySnapshot.current();
+        snap.highwayCapture = highwayCapture != null ? highwayCapture : TradeGraph.live();
         return snap;
     }
 
-    /**
-     * Snapshot-only graph. The hub map remains in the signature for callers that still build hub
-     * previews, but hubs do not affect trade or production. Null clears the capture.
-     */
-    public void setHighwayOverride(TradeGraph graph, Map<String, Set<HubSite>> hubbedByGuild) {
-        if (graph == null && hubbedByGuild == null) {
-            highwayCapture = null;
-            return;
-        }
-        highwayCapture = HighwaySnapshot.of(
-                graph == null ? TradeGraph.live() : graph,
-                hubbedByGuild == null ? Map.of() : hubbedByGuild);
-    }
-
-    private HighwaySnapshot highway() {
-        return highwayCapture != null ? highwayCapture : HighwaySnapshot.current();
+    /** Snapshot-only graph. Null clears the capture so later reads use the live graph. */
+    public void setHighwayOverride(TradeGraph graph) {
+        highwayCapture = graph;
     }
 
     private TradeGraph graphFor() {
-        HighwaySnapshot snapshot = highway();
-        return snapshot == null || snapshot.graph() == null ? TradeGraph.live() : snapshot.graph();
+        return highwayCapture != null ? highwayCapture : TradeGraph.live();
     }
 
     public void clearGuildData(String guildId) {
@@ -133,7 +116,7 @@ public class ProvinceManager {
         InstallationAccess.beginRecalculation();
         try {
             installationAccess = new HashMap<>();
-            HubNetwork.refreshIfLive(this);
+            TradeGraph.refreshIfLive(this);
             dropMissingGuilds();
             for(Guild g : FactionManager.getAllGuilds()) {
                 if (!g.hasCapital()) continue;
@@ -163,7 +146,7 @@ public class ProvinceManager {
         InstallationAccess.beginRecalculation();
         try {
             installationAccess = new HashMap<>();
-            HubNetwork.refreshIfLive(this);
+            TradeGraph.refreshIfLive(this);
             dropExcept(previewGuilds);
             for (Guild guild : previewGuilds) {
                 if (guild != null && guild.hasCapital()) {
@@ -195,7 +178,7 @@ public class ProvinceManager {
         try {
             installationAccess = new HashMap<>();
             if (!g.hasCapital()) return;
-            HubNetwork.refreshIfLive(this);
+            TradeGraph.refreshIfLive(this);
             dropMissingGuilds();
             recalculateGuild(g);
             recalculateProduction(g);

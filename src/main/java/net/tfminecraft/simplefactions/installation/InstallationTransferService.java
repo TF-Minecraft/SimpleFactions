@@ -29,8 +29,6 @@ public final class InstallationTransferService {
 		fromHandler.cancelPendingConstructionOnProvince(province);
 		for (Installation installation : fromHandler.detachOnProvince(province)) {
 			toHandler.acceptTransferred(installation);
-			net.tfminecraft.simplefactions.guild.hub.SupplyHubService.onInstallationTransferred(
-					from.getId(), to.getId(), installation.getId());
 			syncBerthedOwners(from, to, installation);
 		}
 	}

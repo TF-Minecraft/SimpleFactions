@@ -1039,7 +1039,6 @@ public class Faction {
 
 		LawEffect effect = law.getScopedEffects().get(Scope.FACTION);
 		if (effect == null) {
-			refreshHubTaxBracket();
 			cancelInvalidElections();
 			return;
 		}
@@ -1085,10 +1084,6 @@ public class Faction {
 						if (!value)
 							taxHandler.applyBracket(TaxTarget.TARIFFS, new Bracket(0, 0));
 						break;
-					case HUB_TAX:
-						if (!value)
-							taxHandler.applyBracket(TaxTarget.HUB_TAX, new Bracket(0, 0));
-						break;
 					case VEHICLE_TAX:
 					case REGISTRATION_FEE:
 					case TRANSFER_FEE:
@@ -1100,8 +1095,6 @@ public class Faction {
 				}
 			}
 		}
-
-		refreshHubTaxBracket();
 
 		// --- council structure ---
 		if (effect.affectsCouncilSize() || effect.affectsCouncilType()) {
@@ -1120,18 +1113,6 @@ public class Faction {
 				RelationManager.endVassalage(vassal, this, false);
 			}
 		}
-	}
-
-	private void refreshHubTaxBracket() {
-		Bracket bracket = TaxHandler.DEFAULT_HUB_TAX_BRACKET;
-		for (Law current : lawHandler.getCurrentLaws()) {
-			LawEffect effect = current.getScopedEffects().get(Scope.FACTION);
-			if (effect != null && effect.getBrackets().containsKey(Brackets.HUB_TAX)) {
-				bracket = effect.getBrackets().get(Brackets.HUB_TAX);
-			}
-		}
-		taxHandler.applyBracket(TaxTarget.HUB_TAX,
-				hasFactionRule(Rules.HUB_TAX) ? bracket : new Bracket(0, 0));
 	}
 
 	public void applyPoliticalAction(Cause cause, Proposal proposal) {

@@ -12,10 +12,6 @@ public enum Cashflow {
     CITIZENS("#c7bf85From tax on #94b572Citizens", false, true),
     TARIFF_PAYMENTS("#5cc46aTariffs", false, false),
     TARIFFS("#5cc46aTariffs", false, true),
-    HUB_TAX_PAYMENTS("#5cc46aHub Tax", false, false),
-    HUB_TAX("#5cc46aHub Tax", false, true),
-    HUB_FEE_PAYMENTS("#5cc46aHub Fee", false, false),
-    HUB_FEE("#5cc46aHub Fee", false, true),
     LOAN_PAYMENTS("#e6bb57Loans", false, false),
     LOANS("#e6bb57Loans", false, false),
     INTEREST_PAYMENTS("#c25140Interest Payments", false, false),
@@ -51,8 +47,7 @@ public enum Cashflow {
     INSTALLATIONS("#706964Installations", true, false),
     VEHICLE_UPKEEP("#a6659fVehicle Upkeep", true, false),
     MILITARY_UPKEEP("#a6659fMilitary Upkeep", true, false),
-    NODES("#8a7a5cNodes", true, false),
-    SUPPLY_HUBS("#b5835aSupply hubs", true, false);
+    NODES("#8a7a5cNodes", true, false);
 
     private final String display;
     private final boolean affectsInflation;

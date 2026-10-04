@@ -14,8 +14,6 @@ public enum Rules {
     GUILD_TAX("Can Collect Guild Taxes", true), //Implemented
     DIVIDEND_TAX("Can Collect Dividend Taxes", true), //Implemented
     TARIFFS("Can Impose Tariffs", true), //Implemented
-    HUB_TAX("Can Collect Hub Taxes", true), //Implemented
-    SUPPLY_HUBS("Can Build Supply Hubs", true), //Implemented
     VEHICLE_TAX("Can Collect Vehicle Tax", true), //Implemented
     REGISTRATION_FEE("Can Charge Vehicle Registration Fees", true), //Implemented
     TRANSFER_FEE("Can Charge Vehicle Transfer Fees", true), //Implemented

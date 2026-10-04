@@ -68,12 +68,6 @@ class InstallationConfigLoaderTest {
         assertEquals(35.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION, 2));
         assertEquals(100.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION, 3));
         assertEquals(4, InstallationConfigLoader.getCategorySlotCapacity(InstallationKind.TRAIN_STATION, 3, "static_emplacements"));
-        assertEquals(0, InstallationConfigLoader.getHubSlots(InstallationKind.FORT, 1));
-        assertEquals(2, InstallationConfigLoader.getHubSlots(InstallationKind.PORT, 1));
-        assertEquals(1, InstallationConfigLoader.getHubSlots(InstallationKind.AIRPORT, 1));
-        assertEquals(1, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 1));
-        assertEquals(2, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 2));
-        assertEquals(4, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 3));
     }
 
     @Test
@@ -84,68 +78,6 @@ class InstallationConfigLoaderTest {
         assertEquals(15.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.PORT));
         assertEquals(20.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.AIRPORT));
         assertEquals(5.0, InstallationConfigLoader.getDailyUpkeep(InstallationKind.TRAIN_STATION));
-    }
-
-    @Test
-    void load_hubSlots_missingKeyUsesTableAndPresentKeyOverrides() throws IOException {
-        Path path = tempDir.resolve("installations-hubs.yml");
-        Files.writeString(path, """
-            consent-proximity-blocks: 20
-            transfer-request-timeout-seconds: 60
-            fort:
-              radius: 80
-              daily-upkeep: 50
-              construction-time: 10
-              slots:
-                static_emplacements: 8
-            port:
-              radius: 80
-              daily-upkeep: 20
-              construction-time: 10
-              slots:
-                ships: 8
-              levels:
-                2:
-                  daily-upkeep: 40
-                  construction-time: 10
-                  slots:
-                    ships: 9
-            airport:
-              radius: 80
-              daily-upkeep: 35
-              construction-time: 10
-              slots:
-                aircraft: 10
-            train_station:
-              radius: 80
-              daily-upkeep: 10
-              construction-time: 10
-              hub-slots: 3
-              slots:
-                static_emplacements: 2
-              levels:
-                2:
-                  daily-upkeep: 35
-                  construction-time: 10
-                  slots:
-                    static_emplacements: 3
-                3:
-                  daily-upkeep: 100
-                  construction-time: 10
-                  hub-slots: 9
-                  slots:
-                    static_emplacements: 4
-            """);
-        InstallationConfigLoader.load(path.toFile());
-        assertEquals(2, InstallationConfigLoader.getHubSlots(InstallationKind.PORT, 1));
-        assertEquals(0, InstallationConfigLoader.getHubSlots(InstallationKind.PORT, 2));
-        assertEquals(3, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 1));
-        assertEquals(2, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 2));
-        assertEquals(9, InstallationConfigLoader.getHubSlots(InstallationKind.TRAIN_STATION, 3));
-
-        String valid = Files.readString(path);
-        Files.writeString(path, valid.replace("hub-slots: 3", "hub-slots: -1"));
-        assertThrows(IllegalStateException.class, () -> InstallationConfigLoader.load(path.toFile()));
     }
 
     @Test
