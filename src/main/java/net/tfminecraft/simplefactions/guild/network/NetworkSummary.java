@@ -129,8 +129,8 @@ public final class NetworkSummary {
         StringBuilder out = new StringBuilder(value.length());
         for (int i = 0; i < value.length(); i++) {
             char c = value.charAt(i);
-            if (c == '§' && i + 1 < value.length()) {
-                i++;
+            if (c == '§') {
+                if (i + 1 < value.length() && value.charAt(i + 1) != '§') i++;
                 continue;
             }
             out.append(c);
