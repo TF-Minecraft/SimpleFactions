@@ -171,8 +171,6 @@ public class Cache {
 	public static int supplyHubAgreementDays = 14;
 	/** Dev servers only. Sending hub terms also accepts them. */
 	public static boolean supplyHubAutoAccept = false;
-	/** Share of a hop kept at an end where the guild has no active hub. */
-	public static double supplyHubNoHubStrength = 0.5;
 	/** Share of a sea or rail delivery left in the provinces along the way. */
 	public static double supplyHubCorridorShare = 0.5;
 

@@ -21,7 +21,7 @@ public class FactionModifier {
 	public FactionModifier(String m) {
 	    try {
 	        amount = Double.parseDouble(m.split("\\(")[1].replace(")", ""));
-	        type = FactionModifiers.valueOf(m.split("\\(")[0].toUpperCase());
+	        type = modifierType(m.split("\\(")[0]);
 			atEqual = amount;
 	    } catch(Exception e) {
 	        e.printStackTrace();
@@ -88,7 +88,7 @@ public class FactionModifier {
 		}
 		FactionModifiers type;
 		try {
-			type = FactionModifiers.valueOf(String.valueOf(typeRaw).toUpperCase());
+			type = modifierType(String.valueOf(typeRaw));
 		} catch (IllegalArgumentException ex) {
 			return null;
 		}
@@ -105,6 +105,14 @@ public class FactionModifier {
 
 	private static String stringVal(Object o) {
 		return o == null ? null : String.valueOf(o);
+	}
+
+	private static FactionModifiers modifierType(String value) {
+		String id = value.toUpperCase();
+		if (id.equals("INFRASTRUCTURE_ACCESS")) {
+			id = "INSTALLATION_ACCESS";
+		}
+		return FactionModifiers.valueOf(id);
 	}
 
 	private static double doubleVal(Object o, double fallback) {
@@ -172,6 +180,9 @@ public class FactionModifier {
 				break;
 			case PRODUCTION:
 				prefix = "#f2c94cProduction";
+				break;
+			case INSTALLATION_ACCESS:
+				prefix = "#92d6baInstallation Access";
 				break;
 			case DIPLOMATIC_CAPACITY_MULTIPLIER:
 				prefix = "#56ccf2Diplomatic Capacity Multiplier";

@@ -415,27 +415,6 @@ class SupplyHubServiceTest {
         assertEquals(500.0, Cache.supplyHubMaxFee, 1e-9);
         assertEquals(7, Cache.supplyHubOfferDays);
         assertEquals(14, Cache.supplyHubAgreementDays);
-        assertEquals(0.5, Cache.supplyHubNoHubStrength, 1e-9);
-    }
-
-    @Test
-    void noHubStrengthClampsAndALeftoverMaxRangeIsNotAnError() {
-        double previous = Cache.supplyHubNoHubStrength;
-        try {
-            YamlConfiguration high = new YamlConfiguration();
-            high.set("supply-hubs.no-hub-strength", 4);
-            high.set("supply-hubs.transport.rail.max-range", 10);
-            SupplyHubService.loadConfig(high);
-            assertEquals(1, Cache.supplyHubNoHubStrength, 1e-9);
-            YamlConfiguration low = new YamlConfiguration();
-            low.set("supply-hubs.no-hub-strength", -2);
-            SupplyHubService.loadConfig(low);
-            assertEquals(0, Cache.supplyHubNoHubStrength, 1e-9);
-            SupplyHubService.loadConfig(null);
-            assertEquals(0.5, Cache.supplyHubNoHubStrength, 1e-9);
-        } finally {
-            Cache.supplyHubNoHubStrength = previous;
-        }
     }
 
     @Test

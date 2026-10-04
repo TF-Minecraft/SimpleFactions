@@ -83,8 +83,6 @@ public final class SupplyHubService {
         int agreementDays = config == null ? 14 : config.getInt("supply-hubs.agreement-days", 14);
         Cache.supplyHubAgreementDays = Math.max(1, agreementDays);
         Cache.supplyHubAutoAccept = config != null && config.getBoolean("supply-hubs.auto-accept", false);
-        double strength = config == null ? 0.5 : config.getDouble("supply-hubs.no-hub-strength", 0.5);
-        Cache.supplyHubNoHubStrength = Double.isFinite(strength) ? Math.max(0, Math.min(1, strength)) : 0.5;
         double corridor = config == null ? 0.5 : config.getDouble("supply-hubs.corridor-share", 0.5);
         Cache.supplyHubCorridorShare = Double.isFinite(corridor) ? Math.max(0, Math.min(1, corridor)) : 0.5;
     }

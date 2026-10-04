@@ -49,14 +49,12 @@ class HighwayTimingTest {
     private final List<Faction> savedFactions = new ArrayList<>();
     private boolean savedProvinces;
     private Double savedPlains;
-    private double savedStrength;
     private double savedCorridor;
 
     @AfterEach
     void tearDown() {
         HubNetwork.setHighwayForTests(null, null);
         Cache.provincesEnabled = savedProvinces;
-        Cache.supplyHubNoHubStrength = savedStrength;
         Cache.supplyHubCorridorShare = savedCorridor;
         if (savedPlains == null) {
             Cache.tradeCarry.remove(Terrain.PLAINS);
@@ -74,9 +72,7 @@ class HighwayTimingTest {
         savedProvinces = Cache.provincesEnabled;
         Cache.provincesEnabled = true;
         savedPlains = Cache.tradeCarry.get(Terrain.PLAINS);
-        savedStrength = Cache.supplyHubNoHubStrength;
         savedCorridor = Cache.supplyHubCorridorShare;
-        Cache.supplyHubNoHubStrength = 0.5;
         Cache.supplyHubCorridorShare = 0.5;
         Cache.tradeCarry.put(Terrain.PLAINS, 0.85);
 
