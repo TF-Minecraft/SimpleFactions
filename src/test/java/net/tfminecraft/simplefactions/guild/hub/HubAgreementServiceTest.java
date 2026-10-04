@@ -50,6 +50,28 @@ class HubAgreementServiceTest {
     @AfterEach
     void restoreCap() {
         Cache.supplyHubMaxTax = 50;
+        Cache.supplyHubAutoAccept = false;
+    }
+
+    @Test
+    void autoAcceptFinishesTheOfferOnlyWhileTheFlagIsOn() {
+        Facts facts = new Facts();
+        Guild guild = guild();
+        assertTrue(HubAgreementService.propose(guild, "Leader", "host", "port", 10, 1.0, facts, 0L).succeeded());
+
+        AgreementResult blocked = HubAgreementService.accept(
+                guild, HubAgreementService.DEV_ACTOR, "host", "port", facts, 1L);
+        assertFalse(blocked.succeeded());
+        assertEquals(1, guild.getHubOffers().size());
+        assertTrue(guild.getSupplyHubs().isEmpty());
+
+        Cache.supplyHubAutoAccept = true;
+        AgreementResult accepted = HubAgreementService.accept(
+                guild, HubAgreementService.DEV_ACTOR, "host", "port", facts, 2L);
+        assertTrue(accepted.succeeded());
+        assertTrue(accepted.builtHub());
+        assertTrue(guild.getHubOffers().isEmpty());
+        assertNotNull(HubAgreementService.findAgreement(guild, "host", "port"));
     }
 
     @Test

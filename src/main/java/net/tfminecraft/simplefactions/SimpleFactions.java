@@ -361,6 +361,9 @@ public class SimpleFactions extends JavaPlugin{
 			provinceManager.recalculate();
 			// Hub tax is assessed at the day change; do it once now so menus are right before then.
 			net.tfminecraft.simplefactions.guild.hub.HubTaxService.refresh(provinceManager);
+			if (Cache.supplyHubAutoAccept) {
+				getLogger().info("Hub auto-accept is on.");
+			}
 			long refreshTicks = Cache.infrastructureTrackRefreshSeconds * 20L;
 			trackInfrastructureRefreshTask = getServer().getScheduler().runTaskTimer(
 					this, () -> { refreshTrackProvinces(); }, refreshTicks, refreshTicks);
@@ -433,6 +436,8 @@ public class SimpleFactions extends JavaPlugin{
 	public void registerListeners() {
 		getServer().getPluginManager().registerEvents(commands, this);
 		getServer().getPluginManager().registerEvents(inventoryManager, this);
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.managers.inventory.HubTermsPrompt(), this);
 		getServer().getPluginManager().registerEvents(bankManager, this);
 		getServer().getPluginManager().registerEvents(titleManager, this);
 		getServer().getPluginManager().registerEvents(playerManager, this);

@@ -19,6 +19,7 @@ import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
+import net.tfminecraft.simplefactions.guild.hub.HubEstimates;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
@@ -92,20 +93,56 @@ public class SupplyHubView {
             inventory.setItem(index, item);
         }
         int limit = SupplyHubService.limit(guild);
-        inventory.setItem(49, SupplyHubCreator.item(Material.PAPER, "§eSupply Hub Information", List.of(
+        List<String> information = new ArrayList<>(List.of(
                 "§7Hubs work in pairs.",
                 "§7Hubs: §e" + hubs.size() + "/" + limit,
                 "§7Upkeep per hub: §e" + Formatter.formatDouble(SupplyHubService.upkeepPerHub(guild)) + "d/day",
-                "§7Daily upkeep: §e" + Formatter.formatDouble(SupplyHubService.dailyCost(guild)) + "d/day",
-                "§7Choose §ePropose a hub §7to see where one would pay.")));
-        if (isLeader(guild, player)) {
-            ItemStack propose = SupplyHubCreator.item(Material.EMERALD, "§aPropose a hub", List.of(
-                    "§7Where a hub would pay, from today's estimates.",
-                    "§eClick to choose a destination"));
-            ItemMeta proposeMeta = propose.getItemMeta();
-            proposeMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "propose");
-            propose.setItemMeta(proposeMeta);
-            inventory.setItem(45, propose);
+                "§7Daily upkeep: §e" + Formatter.formatDouble(SupplyHubService.dailyCost(guild)) + "d/day"));
+        boolean noHubs = hubs.isEmpty();
+        boolean noInstallation = false;
+        boolean noTrade = false;
+        if (noHubs) {
+            var territory = HubEstimates.territory(HubEstimates.sites(guild));
+            noInstallation = territory.isEmpty();
+            noTrade = !noInstallation && HubEstimates.withTrade(territory).isEmpty();
+        }
+        if (noHubs && noInstallation) {
+            information.add("§7You have no installation for a hub.");
+        } else if (noHubs && noTrade) {
+            information.add("§7None of your installations have trade power.");
+        } else if (isLeader(guild, player)) {
+            if (noHubs) {
+                information.add("§7Choose §eCreate main hub §7to place the first one in your territory.");
+            } else {
+                information.add("§7Choose §ePropose a hub §7to see where your hubs can reach.");
+            }
+        }
+        inventory.setItem(49, SupplyHubCreator.item(Material.PAPER, "§eSupply Hub Information", information));
+        if (noHubs && noInstallation) {
+            inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7You have no installation", List.of(
+                    "§7Build a port, airport, or train station in your territory.")));
+        } else if (noHubs && noTrade) {
+            inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No trade power in your territory", List.of(
+                    "§7A main hub is placed where your guild already has trade power.")));
+        } else if (isLeader(guild, player)) {
+            if (noHubs) {
+                ItemStack main = SupplyHubCreator.item(Material.EMERALD, "§aCreate main hub", List.of(
+                        "§7The first hub has to be in your territory.",
+                        "§7It starts where your trade power is highest.",
+                        "§eClick to choose the site"));
+                ItemMeta mainMeta = main.getItemMeta();
+                mainMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "main");
+                main.setItemMeta(mainMeta);
+                inventory.setItem(22, main);
+            } else {
+                ItemStack propose = SupplyHubCreator.item(Material.EMERALD, "§aPropose a hub", List.of(
+                        "§7Places your existing hubs can already reach.",
+                        "§eClick to choose a destination"));
+                ItemMeta proposeMeta = propose.getItemMeta();
+                proposeMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "propose");
+                propose.setItemMeta(proposeMeta);
+                inventory.setItem(45, propose);
+            }
         }
         inventory.setItem(53, inv.createBackButton(SFGUI.SUPPLY_HUB_VIEW));
     }
@@ -197,7 +234,7 @@ public class SupplyHubView {
             if (data == null) {
                 return;
             }
-            if (data.equals("propose")) {
+            if (data.equals("propose") || data.equals("main")) {
                 HubProposalMenu.openProposals(player, guild, 0);
                 player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
                 return;

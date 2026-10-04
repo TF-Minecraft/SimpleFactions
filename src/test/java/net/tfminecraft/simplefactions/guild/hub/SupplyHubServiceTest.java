@@ -45,6 +45,7 @@ import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
+import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -79,6 +80,27 @@ class SupplyHubServiceTest {
             verify(player, never()).getLocation();
         } finally {
             Cache.provincesEnabled = enabled;
+        }
+    }
+
+    @Test
+    void firstHubMustBeInOwnTerritory() {
+        Guild guild = mock(Guild.class);
+        Faction home = mock(Faction.class);
+        Player player = mock(Player.class);
+        Installation installation = mock(Installation.class);
+        when(player.getName()).thenReturn("leader");
+        when(guild.getLeader()).thenReturn("leader");
+        when(guild.getFaction()).thenReturn(home);
+        when(home.getId()).thenReturn("home");
+        when(home.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
+        when(guild.getSupplyHubs()).thenReturn(new ArrayList<>());
+        try (MockedStatic<SupplyHubService> hubs = mockStatic(SupplyHubService.class, CALLS_REAL_METHODS);
+                MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            hubs.when(() -> SupplyHubService.findInstallation("other", "port")).thenReturn(installation);
+            factions.when(() -> FactionManager.getByString("other")).thenReturn(null);
+            assertFalse(SupplyHubCommands.place(player, guild, "other", "port"));
+            verify(player).sendMessage("§cYour first hub has to be in your own territory");
         }
     }
 
