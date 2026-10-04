@@ -17,8 +17,13 @@ import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.guild.hub.Highway;
+import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
+import net.tfminecraft.simplefactions.guild.hub.HighwaySnapshot;
+import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
 import net.tfminecraft.simplefactions.map.infra.InfrastructureAccess;
@@ -42,7 +47,8 @@ public class ProvinceManager {
     /** Set only on a preview copy, so a background flood does not walk the live faction list. */
     private List<Guild> previewGuilds;
     private List<Faction> previewFactions;
-    private Map<String, List<Link>> hubLinksOverride;
+    /** Set on a copy so a preview keeps the graph and hubs it was given, off the server thread. */
+    private HighwaySnapshot highwayCapture;
     private boolean infrastructureSuppressed;
     private Map<Integer, Double> extraInfrastructure;
     private long stateVersion = 0;
@@ -83,12 +89,22 @@ public class ProvinceManager {
         }
 
         snap.start(map);
+        snap.highwayCapture = highwayCapture != null ? highwayCapture : HighwaySnapshot.current();
         return snap;
     }
 
-    /** Snapshot-only link selection. An unset map keeps the normal cached network. */
-    public void setHubLinksOverride(Map<String, List<Link>> links) {
-        hubLinksOverride = links;
+    /**
+     * Snapshot-only graph and hubbed nodes. Trade and production on this copy use them and do not
+     * read the live world. A guild absent from the map is hubbed nowhere. Null clears the capture.
+     */
+    public void setHighwayOverride(TradeGraph graph, Map<String, Set<HubSite>> hubbedByGuild) {
+        if (graph == null && hubbedByGuild == null) {
+            highwayCapture = null;
+            return;
+        }
+        highwayCapture = HighwaySnapshot.of(
+                graph == null ? TradeGraph.live() : graph,
+                hubbedByGuild == null ? Map.of() : hubbedByGuild);
     }
 
     /** Snapshot-only. The next recalculation writes 0 infrastructure on every province. */
@@ -104,11 +120,38 @@ public class ProvinceManager {
         extraInfrastructure = extra == null || extra.isEmpty() ? null : Map.copyOf(extra);
     }
 
-    private List<Link> hubLinksFor(Guild guild) {
-        if (hubLinksOverride != null && hubLinksOverride.containsKey(guild.getId())) {
-            return hubLinksOverride.get(guild.getId());
+    private HighwaySnapshot highway() {
+        return highwayCapture != null ? highwayCapture : HighwaySnapshot.current();
+    }
+
+    private TradeGraph graphFor() {
+        HighwaySnapshot snapshot = highway();
+        return snapshot == null || snapshot.graph() == null ? TradeGraph.live() : snapshot.graph();
+    }
+
+    /** Active hubs, or none when the guild's law forbids them. */
+    private Set<HubSite> hubbedFor(Guild guild) {
+        if (guild == null || guild.getId() == null || !SupplyHubService.allowsSupplyHubs(guild)) {
+            return Set.of();
         }
-        return HubNetwork.linksFor(guild);
+        HighwaySnapshot snapshot = highway();
+        if (snapshot == null) {
+            return Set.of();
+        }
+        Set<HubSite> sites = snapshot.hubbed(guild.getId());
+        return sites == null ? Set.of() : sites;
+    }
+
+    private List<Link> productionLinks(Guild guild) {
+        if (guild == null || guild.getId() == null || !SupplyHubService.allowsSupplyHubs(guild)) {
+            return List.of();
+        }
+        if (highwayCapture != null) {
+            List<Link> links = highwayCapture.links(guild.getId());
+            return links == null ? List.of() : links;
+        }
+        List<Link> links = HubNetwork.linksFor(guild);
+        return links == null ? List.of() : links;
     }
 
     public void clearGuildData(String guildId) {
@@ -259,48 +302,38 @@ public class ProvinceManager {
     }
 
     /**
-     * Each supply hub delivers a share of the guild's trade power in its province to the hubs
-     * it is connected to, and the power spreads on from there as it does from the capital.
-     * A hub only matters where it brings more than already arrives. Passes repeat so power can
-     * travel along a chain of hubs; every link loses some, so this settles.
+     * Trade walks the shared graph after the capital. A guild with no hubs, or whose law forbids
+     * them, still receives each hop at no-hub strength. Passes repeat until nothing larger arrives.
      */
     private void carryTradeThroughHubs(Guild guild) {
-        List<Link> links = hubLinksFor(guild);
-        if (links.isEmpty()) return;
         // Prosperity weighs production by a province's distance from where it came. Trade arriving
-        // through a hub must not shorten that for production that still walked from the capital,
+        // along the graph must not shorten that for production that still walked from the capital,
         // so the walked distances are put back afterwards. Production a hub delivers sets its own.
         Map<Integer, Integer> walked = new HashMap<>();
         for (Province province : provinces.values()) {
             ProvinceDataEntry entry = province.getAllData().get(guild.getId());
             if (entry != null) walked.put(province.getId(), entry.getDistance());
         }
-        deliverTradeThroughHubs(
-                guild, links, GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE));
+        Highway.deliver(
+                this, guild, graphFor(), hubbedFor(guild),
+                GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE));
+        depositCorridors(guild);
         for (Map.Entry<Integer, Integer> distance : walked.entrySet()) {
             ProvinceDataEntry entry = provinces.get(distance.getKey()).getAllData().get(guild.getId());
             if (entry != null) entry.setDistance(distance.getValue());
         }
     }
 
-    private void deliverTradeThroughHubs(Guild guild, List<Link> links, double bonus) {
-        for (int pass = 0; pass <= links.size(); pass++) {
-            boolean moved = false;
-            for (Link link : links) {
-                Province from = provinces.get(link.fromProvince());
-                Province to = provinces.get(link.toProvince());
-                if (from == null || to == null) continue;
-                double delivered = from.getRawGuildTrade(guild) * link.boostedTradeFactor(bonus);
-                if (delivered < 0.5 || delivered <= to.getRawGuildTrade(guild)) continue;
-                to.seedTrade(this, guild, delivered);
-                moved = true;
-            }
-            if (!moved) return;
+    /** Sea and rail corridor deposits. Runs only after the highway has settled. */
+    private void depositCorridors(Guild guild) {
+        // Filled in when corridor deposits are added. The highway is not run again after this.
+        if (guild == null) {
+            return;
         }
     }
 
     private void carryProductionThroughHubs(Guild guild) {
-        List<Link> links = hubLinksFor(guild);
+        List<Link> links = productionLinks(guild);
         double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_PRODUCTION);
         for (int pass = 0; pass <= links.size(); pass++) {
             boolean moved = false;

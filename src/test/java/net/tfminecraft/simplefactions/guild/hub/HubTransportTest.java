@@ -1,7 +1,6 @@
 package net.tfminecraft.simplefactions.guild.hub;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -83,10 +82,18 @@ class HubTransportTest {
     }
 
     @Test
-    void maxRangeZeroMeansNoLimit() {
-        assertTrue(HubTransport.inRange(HubTransport.rates(Mode.RAIL), 50_000));
-        assertTrue(HubTransport.inRange(HubTransport.rates(Mode.AIR), 2500));
-        assertFalse(HubTransport.inRange(HubTransport.rates(Mode.AIR), 2501));
+    void aConfiguredMaxRangeIsIgnored() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("supply-hubs.transport.air.max-range", 900);
+        config.set("supply-hubs.transport.sea.max-range", 10);
+        config.set("supply-hubs.transport.rail.max-range", 50);
+
+        HubTransport.loadConfig(config);
+
+        assertEquals(0.20, HubTransport.rates(Mode.AIR).trade());
+        assertEquals(0.80, HubTransport.rates(Mode.AIR).keptPer1000());
+        assertEquals(0.30, HubTransport.rates(Mode.SEA).trade());
+        assertEquals(0.40, HubTransport.rates(Mode.RAIL).trade());
     }
 
     @Test
@@ -101,7 +108,7 @@ class HubTransportTest {
         assertEquals(HubTransport.MAX_SHARE, HubTransport.rates(Mode.RAIL).trade());
         assertEquals(0, HubTransport.rates(Mode.RAIL).production());
         assertEquals(0.90, HubTransport.rates(Mode.RAIL).keptPer1000());
-        assertEquals(900, HubTransport.rates(Mode.AIR).maxRange());
+        assertEquals(0.20, HubTransport.rates(Mode.AIR).trade());
         assertEquals(0.30, HubTransport.rates(Mode.SEA).trade());
     }
 
@@ -110,6 +117,6 @@ class HubTransportTest {
         HubTransport.loadConfig(new YamlConfiguration());
 
         assertEquals(0.40, HubTransport.rates(Mode.RAIL).trade());
-        assertEquals(4000, HubTransport.rates(Mode.SEA).maxRange());
+        assertEquals(0.85, HubTransport.rates(Mode.SEA).keptPer1000());
     }
 }

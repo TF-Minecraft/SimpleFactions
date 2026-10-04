@@ -94,7 +94,9 @@ public class SupplyHubView {
         }
         int limit = SupplyHubService.limit(guild);
         List<String> information = new ArrayList<>(List.of(
-                "§7Hubs work in pairs.",
+                "§7Trade walks from your capital. Ports, airports and stations carry it further.",
+                "§7Your hub at a stop carries it at full strength.",
+                "§7Production only moves between your own hubs.",
                 "§7Hubs: §e" + hubs.size() + "/" + limit,
                 "§7Upkeep per hub: §e" + Formatter.formatDouble(SupplyHubService.upkeepPerHub(guild)) + "d/day",
                 "§7Daily upkeep: §e" + Formatter.formatDouble(SupplyHubService.dailyCost(guild)) + "d/day"));

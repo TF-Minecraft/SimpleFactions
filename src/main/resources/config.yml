@@ -95,29 +95,26 @@ supply-hubs:
   offer-days: 7
   # Days a hub agreement runs.
   agreement-days: 14
-  # A hub takes the guild's trade power and production in its province and delivers a share
-  # to each of the guild's hubs it is connected to. Train track joins any two kinds; ports
-  # also connect across the sea, and airports through the air.
+  # Trade without your hub at a stop is carried at this strength. Both ends
+  # without a hub multiply it twice. 1 is full strength.
+  no-hub-strength: 0.5
+  # A stop delivers a share of the guild's trade there to the next stop.
   #   trade / production: share delivered before distance loss (capped at 0.95)
   #   kept-per-1000-blocks: share that survives each 1000 blocks
-  #   max-range: longest connection in blocks, 0 for no limit
-  # Rail distance is measured along the track, sea and air in a straight line.
+  # Rail length is the track route. Sea and air are a straight line.
   transport:
     rail:
       trade: 0.40
       production: 0.80
       kept-per-1000-blocks: 0.90
-      max-range: 0
     sea:
       trade: 0.30
       production: 0.70
       kept-per-1000-blocks: 0.85
-      max-range: 4000
     air:
       trade: 0.20
       production: 0.50
       kept-per-1000-blocks: 0.80
-      max-range: 2500
 
 bank-block: iaf(tfmc:bank)
 voting-block: iaf(tfmc:voting_booth)

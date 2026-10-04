@@ -10,8 +10,8 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalDouble;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.enums.GuildModifier;
@@ -30,6 +30,12 @@ import net.tfminecraft.simplefactions.objects.Faction;
 
 class HubEstimatesTest {
 
+    @AfterEach
+    void clearHighway() {
+        HubNetwork.setHighwayForTests(null, null);
+        HubTransport.resetConfig();
+    }
+
     @Test
     void arrivalUsesExistingTrackAndIgnoresAMissingRailway() {
         HubTransport.resetConfig();
@@ -38,21 +44,14 @@ class HubEstimatesTest {
         Installation richer = station("richer", 3, 0, 0);
         Installation target = station("target", 2, 1000, 0);
         ProvinceManager provinces = provinces(guild, Map.of(1, 10.0, 2, 4.0, 3, 40.0));
-        HubNetwork.setRailRoutesForTests((from, to) -> OptionalDouble.of(1000));
-        try {
-            assertEquals(3.6, HubEstimates.arrives(guild, target, List.of(near), provinces), 0.01);
-            assertEquals(14.4, HubEstimates.arrives(guild, target, List.of(near, richer), provinces), 0.01);
-            assertEquals(0, HubEstimates.arrives(guild, target, List.of(), provinces), 0.01);
-        } finally {
-            HubNetwork.setRailRoutesForTests(null);
-        }
+        HubNetwork.setHighwayForTests(TestGraphs.linked("home", 1000, near, richer, target), Map.of());
+        assertEquals(3.6, HubEstimates.arrives(guild, target, List.of(near), provinces), 0.01);
+        assertEquals(14.4, HubEstimates.arrives(guild, target, List.of(near, richer), provinces), 0.01);
+        assertEquals(0, HubEstimates.arrives(guild, target, List.of(), provinces), 0.01);
 
-        HubNetwork.setRailRoutesForTests((from, to) -> OptionalDouble.empty());
-        try {
-            assertEquals(0, HubEstimates.arrives(guild, target, List.of(near), provinces), 0.01);
-        } finally {
-            HubNetwork.setRailRoutesForTests(null);
-        }
+        HubNetwork.setHighwayForTests(
+                TestGraphs.rail("home", List.of(near, target), (from, to) -> false, 0), Map.of());
+        assertEquals(0, HubEstimates.arrives(guild, target, List.of(near), provinces), 0.01);
     }
 
     @Test

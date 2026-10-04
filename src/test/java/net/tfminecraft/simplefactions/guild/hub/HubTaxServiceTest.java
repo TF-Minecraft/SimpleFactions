@@ -12,7 +12,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
@@ -21,8 +24,13 @@ import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
+import net.tfminecraft.simplefactions.guild.network.RailRoutes;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
+import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder;
+import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.Site;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
@@ -185,11 +193,25 @@ class HubTaxServiceTest {
             map.get(id + 1).addNeighbour(id);
         }
         provinces.start(map);
-        List<Link> links = List.of(new Link(1, 22, "home", "a", "host", "b", Mode.RAIL, 0, 0.7, 0.25),
-                new Link(22, 1, "host", "b", "home", "a", Mode.RAIL, 0, 0.7, 0.25),
-                new Link(1, 12, "home", "a", "west", "c", Mode.RAIL, 0, 0.7, 0.25),
-                new Link(12, 1, "west", "c", "home", "a", Mode.RAIL, 0, 0.7, 0.25));
-        HubNetwork.setLinksForTests(Map.of("guild", links));
+        YamlConfiguration rates = new YamlConfiguration();
+        rates.set("supply-hubs.transport.rail.trade", 0.70);
+        rates.set("supply-hubs.transport.rail.production", 0.25);
+        HubTransport.loadConfig(rates);
+        TradeGraph graph = TradeGraphBuilder.build(
+                List.of(new Site("home", a, 1, true), new Site("host", b, 1, true), new Site("west", c, 1, true)),
+                Map.of(),
+                (from, to) -> {
+                    int left = Math.min(from.getProvince(), to.getProvince());
+                    int right = Math.max(from.getProvince(), to.getProvince());
+                    if (left == 1 && (right == 12 || right == 22)) {
+                        return Optional.of(new RailRoutes.Route(0, List.of()));
+                    }
+                    return Optional.empty();
+                },
+                point -> 0);
+        Set<HubSite> hubs = Set.of(new HubSite("home", "a"), new HubSite("host", "b"), new HubSite("west", "c"));
+        HubNetwork.setHighwayForTests(graph, Map.of("guild", hubs));
+        List<Link> links = HubNetwork.linksFor(guild);
         try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
                 MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
                 MockedStatic<InstallationConfigLoader> config = mockStatic(InstallationConfigLoader.class)) {
@@ -215,7 +237,7 @@ class HubTaxServiceTest {
             }
             ProvinceManager noLinks = provinces.createSnapshotShell();
             noLinks.copyAllDataFrom(provinces);
-            noLinks.setHubLinksOverride(Map.of("guild", List.of()));
+            noLinks.setHighwayOverride(graph, Map.of("guild", Set.of()));
             noLinks.recalculateForSingleGuild(guild, false);
             double gain = provinces.getGrossTradeIncome(guild) - noLinks.getGrossTradeIncome(guild);
 
@@ -250,13 +272,115 @@ class HubTaxServiceTest {
                 assertTrue(exempt.forHub(last).taxableIncome() > 0);
                 assertTrue(exempt.forHub(other).taxableIncome() > 0);
             }
-            HubNetwork.setLinksForTests(null);
+            HubNetwork.setHighwayForTests(null, null);
             assertEquals(0, HubTaxService.assess(provinces, guild, List.of(guild)).getTotalTax());
         } finally {
-            HubNetwork.setLinksForTests(null);
+            HubNetwork.setHighwayForTests(null, null);
+            HubTransport.resetConfig();
             Cache.provincesEnabled = enabled;
             Cache.tradeCarry.clear();
             Cache.tradeCarry.putAll(carry);
         }
+    }
+
+    @Test
+    void oneHubTaxEqualsTheIncomeItAddsAndIsZeroWhenTradeArrivesAnyway() {
+        boolean enabled = Cache.provincesEnabled;
+        Map<Terrain, Double> carry = new HashMap<>(Cache.tradeCarry);
+        double strength = Cache.supplyHubNoHubStrength;
+        Cache.provincesEnabled = true;
+        Cache.supplyHubNoHubStrength = 0.5;
+        Cache.tradeCarry.put(Terrain.PLAINS, 0.85);
+        try {
+            YamlConfiguration rates = new YamlConfiguration();
+            rates.set("supply-hubs.transport.rail.trade", 0.95);
+            rates.set("supply-hubs.transport.rail.production", 0);
+            HubTransport.loadConfig(rates);
+            ProvinceManager road = road();
+            Guild guild = capitalGuild();
+            Faction home = guild.getFaction();
+            Installation capital = new Installation("a", "A", InstallationKind.TRAIN_STATION, 1, 0, 0, 0L);
+            Installation far = new Installation("far", "Far", InstallationKind.TRAIN_STATION, 7, 0, 0, 0L);
+            Installation near = new Installation("near", "Near", InstallationKind.TRAIN_STATION, 2, 0, 0, 0L);
+            SupplyHub hub = new SupplyHub("home", "a", 1);
+            when(guild.getSupplyHubs()).thenReturn(List.of(hub));
+
+            try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+                    MockedStatic<TitleManager> titles = mockStatic(TitleManager.class)) {
+                factions.when(() -> FactionManager.getByString("home")).thenReturn(home);
+                factions.when(() -> FactionManager.getGuildByString("guild")).thenReturn(guild);
+                factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+                titles.when(() -> TitleManager.getByProvince(anyInt())).thenReturn(null);
+
+                TradeGraph reaches = rail(capital, far);
+                Set<HubSite> active = Set.of(new HubSite("home", "a"));
+                HubNetwork.setHighwayForTests(reaches, Map.of("guild", active));
+                road.recalculateForSingleGuild(guild, false);
+                double full = road.getGrossTradeIncome(guild);
+                ProvinceManager bare = road.createSnapshotShell();
+                bare.copyAllDataFrom(road);
+                bare.setHighwayOverride(reaches, Map.of("guild", Set.of()));
+                bare.recalculateForSingleGuild(guild, false);
+                double without = bare.getGrossTradeIncome(guild);
+
+                HubTaxBreakdown added = HubTaxService.assess(road, guild, List.of(guild));
+                assertTrue(added.forHub(hub).taxableIncome() > 0);
+                assertEquals(full - without, added.forHub(hub).taxableIncome(), 1e-6);
+                assertEquals(0, added.forHub(hub).tax());
+
+                TradeGraph local = rail(capital, near);
+                HubNetwork.setHighwayForTests(local, Map.of("guild", active));
+                HubTaxBreakdown idle = HubTaxService.assess(road, guild, List.of(guild));
+                assertEquals(0, idle.forHub(hub).taxableIncome());
+                assertEquals(0, idle.forHub(hub).tax());
+            }
+        } finally {
+            HubNetwork.setHighwayForTests(null, null);
+            HubTransport.resetConfig();
+            Cache.provincesEnabled = enabled;
+            Cache.supplyHubNoHubStrength = strength;
+            Cache.tradeCarry.clear();
+            Cache.tradeCarry.putAll(carry);
+        }
+    }
+
+    private static TradeGraph rail(Installation from, Installation to) {
+        return TradeGraphBuilder.build(
+                List.of(new Site("home", from, 1, true), new Site("home", to, 1, true)),
+                Map.of(),
+                (left, right) -> Optional.of(new RailRoutes.Route(0, List.of())),
+                point -> 0);
+    }
+
+    private static ProvinceManager road() {
+        ProvinceManager provinces = new ProvinceManager();
+        Map<Integer, Province> map = new HashMap<>();
+        for (int id = 1; id <= 24; id++) {
+            map.put(id, new Province(id, Terrain.PLAINS.name(), 50));
+        }
+        for (int id = 1; id < 24; id++) {
+            map.get(id).addNeighbour(id + 1);
+            map.get(id + 1).addNeighbour(id);
+        }
+        provinces.start(map);
+        return provinces;
+    }
+
+    private static Guild capitalGuild() {
+        Faction home = mock(Faction.class);
+        when(home.getId()).thenReturn("home");
+        when(home.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
+        when(home.getRelations()).thenReturn(new HashMap<>());
+        Guild guild = mock(Guild.class);
+        when(guild.getId()).thenReturn("guild");
+        when(guild.getFaction()).thenReturn(home);
+        when(guild.hasCapital()).thenReturn(true);
+        when(guild.getCapital()).thenReturn(1);
+        when(guild.getModifier(GuildModifier.TRADE_POWER)).thenReturn(20.0);
+        when(guild.getModifier(GuildModifier.TRADE_CARRY)).thenReturn(1.0);
+        when(guild.getModifier(GuildModifier.PRODUCTION)).thenReturn(10.0);
+        when(guild.getModifier(GuildModifier.HUB_LIMIT)).thenReturn(1.0);
+        when(guild.getHubAgreements()).thenReturn(new ArrayList<>());
+        return guild;
     }
 }
