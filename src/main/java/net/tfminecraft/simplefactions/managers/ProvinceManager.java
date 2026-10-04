@@ -324,12 +324,14 @@ public class ProvinceManager {
         }
     }
 
-    /** Sea and rail corridor deposits. Runs only after the highway has settled. */
+    /** Sea and rail corridor deposits. Runs only after the highway has settled, and does not run it again. */
     private void depositCorridors(Guild guild) {
-        // Filled in when corridor deposits are added. The highway is not run again after this.
         if (guild == null) {
             return;
         }
+        Highway.deposit(
+                this, guild, graphFor(), hubbedFor(guild),
+                GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE));
     }
 
     private void carryProductionThroughHubs(Guild guild) {

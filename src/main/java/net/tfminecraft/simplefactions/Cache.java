@@ -173,6 +173,8 @@ public class Cache {
 	public static boolean supplyHubAutoAccept = false;
 	/** Share of a hop kept at an end where the guild has no active hub. */
 	public static double supplyHubNoHubStrength = 0.5;
+	/** Share of a sea or rail delivery left in the provinces along the way. */
+	public static double supplyHubCorridorShare = 0.5;
 
 	public static double infrastructureFull = 20;
 	public static double infrastructureTarget = 0.75;
