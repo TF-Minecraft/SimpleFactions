@@ -23,7 +23,7 @@ public final class TrackProvinceCache {
     public void vehicleFrameworkUnavailable(Consumer<String> info) {
         if (!vehicleFrameworkUnavailableLogged) {
             vehicleFrameworkUnavailableLogged = true;
-            info.accept("VehicleFramework is not enabled; railway track gives no infrastructure.");
+            info.accept("VehicleFramework is not enabled; railway track is not read.");
         }
     }
 
@@ -35,7 +35,7 @@ public final class TrackProvinceCache {
             sampled = Set.of();
             if (!warned) {
                 warned = true;
-                warning.accept("Could not read VehicleFramework tracks; track infrastructure is disabled.");
+                warning.accept("Could not read VehicleFramework tracks; track provinces are treated as empty.");
             }
         }
         if (provinces.equals(sampled)) return false;

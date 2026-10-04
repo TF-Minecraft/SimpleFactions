@@ -52,8 +52,7 @@ public enum Cashflow {
     VEHICLE_UPKEEP("#a6659fVehicle Upkeep", true, false),
     MILITARY_UPKEEP("#a6659fMilitary Upkeep", true, false),
     NODES("#8a7a5cNodes", true, false),
-    SUPPLY_HUBS("#b5835aSupply hubs", true, false),
-    INFRASTRUCTURE_UPKEEP("#86d1b0Infrastructure", true, false);
+    SUPPLY_HUBS("#b5835aSupply hubs", true, false);
 
     private final String display;
     private final boolean affectsInflation;

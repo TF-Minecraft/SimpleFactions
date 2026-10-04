@@ -174,16 +174,6 @@ public class Cache {
 	/** Share of a sea or rail delivery left in the provinces along the way. */
 	public static double supplyHubCorridorShare = 0.5;
 
-	public static double infrastructureFull = 20;
-	public static double infrastructureTarget = 0.75;
-	public static double infrastructureWildernessSpread = 0.25;
-	public static double infrastructureSpreadFloor = 0.5;
-	public static double infrastructureStation = 10;
-	public static double infrastructurePort = 10;
-	public static double infrastructureAirport = 5;
-	public static double infrastructureTrack = 10;
-	public static int infrastructureTrackRefreshSeconds = 300;
-
 	public static Map<Scope, LawEffect> baseEffects = new HashMap<>();
 
 	public static Map<Terrain, Double> tradeCarry = new HashMap<>();

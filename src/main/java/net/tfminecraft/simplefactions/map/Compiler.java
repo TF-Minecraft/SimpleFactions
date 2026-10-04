@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import com.google.gson.Gson;
@@ -16,7 +15,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -24,7 +22,6 @@ import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.map.export.OccupationMapExport;
-import net.tfminecraft.simplefactions.map.infra.EffectiveTerrain;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
 
@@ -95,20 +92,6 @@ public class Compiler {
 			trade.add(e.getKey(), g);
 		}
 		o.add("trade", trade);
-
-		if (!p.isSea()) {
-			double terrain = p.getTradeCarry();
-			double infrastructure = p.getInfrastructure();
-			o.addProperty("terrain", p.getTerrain().name().toLowerCase(Locale.ROOT));
-			o.addProperty("terrain_value", terrain);
-			if (infrastructure > 0 && Double.isFinite(Cache.infrastructureFull) && Cache.infrastructureFull > 0) {
-				o.addProperty("infrastructure", r2(infrastructure));
-				o.addProperty("infrastructure_fill", r2(Math.max(0, Math.min(1,
-						infrastructure / Cache.infrastructureFull))));
-			}
-			o.addProperty("effective_terrain", r2(EffectiveTerrain.calculate(terrain, infrastructure,
-					Cache.infrastructureFull, Cache.infrastructureTarget, 1)));
-		}
 
 		return o;
 	}

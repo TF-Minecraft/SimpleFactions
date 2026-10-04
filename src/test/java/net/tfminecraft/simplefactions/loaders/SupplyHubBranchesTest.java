@@ -60,11 +60,11 @@ class SupplyHubBranchesTest {
         Branch freightRealm = BranchLoader.getByGroup(realmType, 4);
 
         assertNotNull(supplyGuild);
-        assertNotNull(supplyRealm);
+        assertNull(supplyRealm);
         assertNotNull(freightGuild);
         assertNotNull(freightRealm);
         assertEquals("supply_lines", supplyGuild.getId());
-        assertEquals("infrastructure", supplyRealm.getId());
+        assertNull(BranchLoader.getByString("infrastructure"));
         assertEquals("counting_houses", freightRealm.getId());
         assertEquals(2.0, supplyGuild.getModifier(GuildModifier.HUB_LIMIT).getBase());
         assertEquals(0.5, supplyGuild.getModifier(GuildModifier.HUB_LIMIT).getPerLevel());
@@ -73,12 +73,7 @@ class SupplyHubBranchesTest {
         assertEquals(-0.01, freightRealm.getModifier(GuildModifier.TRADE_UPKEEP).getPerLevel());
         assertEquals(1.0, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getBase());
         assertEquals(0.5, supplyGuild.getModifier(GuildModifier.HUB_UPKEEP).getPerLevel());
-        Branch infrastructure = new Branch(BranchLoader.getByString("infrastructure"), 10);
-        assertEquals(20.0, infrastructure.getAmount(GuildModifier.INFRASTRUCTURE));
-        assertEquals(10.0, infrastructure.getAmount(GuildModifier.INFRASTRUCTURE_UPKEEP));
-        Branch bureaucracy = new Branch(BranchLoader.getByString("bureaucracy"), 5);
-        assertEquals(20.5, infrastructure.getAmount(GuildModifier.INFRASTRUCTURE)
-                + bureaucracy.getAmount(GuildModifier.INFRASTRUCTURE));
+        assertNotNull(BranchLoader.getByString("bureaucracy"));
         Branch storehouses = new Branch(BranchLoader.getByString("storehouses"), 3);
         Branch supplyLines = new Branch(BranchLoader.getByString("supply_lines"), 4);
         assertEquals(0.70, storehouses.getAmount(GuildModifier.TRADE_CARRY));
@@ -94,7 +89,7 @@ class SupplyHubBranchesTest {
     }
 
     @Test
-    void savedBranchesMoveToTheAllowedBranchAtTheSameLevel() {
+    void savedSupplyLinesStayWhenTheRealmHasNoBranchInThatGroup() {
         loadBundledBranches();
         Branch supplyLines = new Branch(BranchLoader.getByString("supply_lines"), 3);
         Map<Integer, Branch> realmBranches = new HashMap<>(Map.of(3, supplyLines));
@@ -102,7 +97,7 @@ class SupplyHubBranchesTest {
         BranchLoader.replaceDisallowedBranches(realmBranches, GuildLoader.getByString("realm"));
         BranchLoader.replaceDisallowedBranches(normalBranches, GuildLoader.getByString("guild"));
 
-        assertEquals("infrastructure", realmBranches.get(3).getId());
+        assertEquals("supply_lines", realmBranches.get(3).getId());
         assertEquals(3, realmBranches.get(3).getLevel());
         assertEquals("supply_lines", normalBranches.get(3).getId());
         assertEquals(3, normalBranches.get(3).getLevel());

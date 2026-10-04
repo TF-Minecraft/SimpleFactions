@@ -47,7 +47,7 @@ class TrackProvinceCacheTest {
 
         assertFalse(cache.refresh(() -> {
             cache.vehicleFrameworkUnavailable(message -> {
-                assertEquals("VehicleFramework is not enabled; railway track gives no infrastructure.", message);
+                assertEquals("VehicleFramework is not enabled; railway track is not read.", message);
                 infoMessages.incrementAndGet();
             });
             return Set.of();
