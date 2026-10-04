@@ -42,6 +42,8 @@ class NetworkSummaryTest {
     @Test
     void aGuildNameThatStartsWithTheIsNotPrefixedAgain() {
         assertEquals("The Chisels Network", nameOf("The Chisels"));
+        assertEquals("the Chisels Network", nameOf("the Chisels"));
+        assertEquals("THE Chisels Network", nameOf("THE Chisels"));
         assertEquals("The Yevakeepers Network", nameOf("Yevakeepers"));
         assertEquals("The Bog Network", nameOf("§aThe Bog"));
     }

@@ -252,7 +252,7 @@ public final class NetworkSummary {
 
     /** A guild name that already starts with "The " is not prefixed again. */
     private static String titled(String label, boolean guild) {
-        if (guild && label.startsWith("The ")) return label + " Network";
+        if (guild && label.regionMatches(true, 0, "The ", 0, 4)) return label + " Network";
         return "The " + label + " Network";
     }
 
