@@ -84,21 +84,27 @@ public final class HubTermsPrompt implements Listener {
         if (player == null) {
             return;
         }
-        Pending pending = WAITING.remove(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+        Pending pending = WAITING.get(playerId);
         if (pending == null) {
             return;
         }
         if (isExpired(pending.askedAtMillis, System.currentTimeMillis())) {
+            WAITING.remove(playerId, pending);
             return;
         }
         event.setCancelled(true);
         String message = event.getMessage();
         if (SimpleFactions.plugin == null) {
+            WAITING.remove(playerId, pending);
             return;
         }
         new BukkitRunnable() {
             @Override
             public void run() {
+                if (!WAITING.remove(playerId, pending)) {
+                    return;
+                }
                 apply(player, pending, message);
             }
         }.runTask(SimpleFactions.plugin);
