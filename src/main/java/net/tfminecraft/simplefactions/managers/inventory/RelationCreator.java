@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.diplomacy.Attitude;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.diplomacy.Threshold;
+import net.tfminecraft.simplefactions.guild.network.InstallationTradeCopy;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -433,6 +434,10 @@ public class RelationCreator {
 			for(FactionModifier mod : t.getTradeEffectsThem()) {
 				lore.add("§7- "+mod.getString());
 			}
+		}
+		String installations = InstallationTradeCopy.agreementLine(t);
+		if(installations != null) {
+			lore.add(StringFormatter.formatHex("#a89977" + installations));
 		}
 		lore.add(" ");
 		if(full) {

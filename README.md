@@ -16,6 +16,27 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 - **Espionage** — appoint a Spymaster, protect faction secrets, and obtain shared daily intelligence estimates.
 - **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
 
+## Installation trade
+
+Ports, airports and train stations carry a guild's trade and production further, and so do the sea lanes and railways between them. Trade can board a line at any province along it, and it is strongest on and off at installations.
+
+A guild uses installations in its own realm fully. An embargo or a war closes them. Otherwise access is the better of the trade agreement and the two realms' economy laws. An isolationist host stays closed to foreigners without an agreement.
+
+| Economy law | Grants to foreign guilds | Own guilds' reach abroad |
+|---|---|---|
+| Free trade | 50% | +10% |
+| Decentralized | 35% | 0 |
+| Mercantilism | 15% | +20% |
+| Protectionism | 10% | 0 |
+| Isolationism | 0 | -25% |
+
+Config keys:
+
+- `installation-trade.transport` — rail, sea, and air, each with `trade`, `production`, and `kept-per-1000-blocks`
+- `installation-trade.corridor-share`
+- Relation types: `installation-access` and `blocks-installations`
+- Law modifier: `installation_access`
+
 ## A shared political world
 
 [ProvinceSystem](https://github.com/TF-Minecraft/ProvinceSystem) presents the world map, borders, settlements, and military activity on the website.

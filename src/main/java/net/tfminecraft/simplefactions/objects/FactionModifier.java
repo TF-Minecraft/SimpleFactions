@@ -7,6 +7,7 @@ import org.bukkit.configuration.ConfigurationSection;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
+import net.tfminecraft.simplefactions.enums.Region;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class FactionModifier {
@@ -200,15 +201,21 @@ public class FactionModifier {
 		return StringFormatter.formatHex(prefix);
 	}
 
-	private String suffix(double displayed) {
+	private String suffix(double displayed, Region region) {
+		double shownAmount = displayed;
+		boolean signed = isMultiplier() && displayed > 0;
+		if (type == FactionModifiers.INSTALLATION_ACCESS) {
+			shownAmount = displayed * 100.0;
+			signed = region == Region.FOREIGN_TERRITORY && displayed > 0;
+		}
 		String color = isBeneficial(displayed) ? "#87d65c" : "#d65c5c";
-		String shown = FormatterRound(displayed);
+		String shown = FormatterRound(shownAmount);
 		if (type == FactionModifiers.PRESTIGE_MALUS && displayed > 0) {
 			shown = "-" + shown;
 		}
 		return StringFormatter.formatHex(
 			"§7(" + color
-			+ (isMultiplier() && displayed > 0 ? "+" : "")
+			+ (signed ? "+" : "")
 			+ shown + "%§7)"
 		);
 	}
@@ -230,12 +237,16 @@ public class FactionModifier {
 	}
 
 	public String getString(Faction owner) {
+		return getString(owner, null);
+	}
+
+	public String getString(Faction owner, Region region) {
 		double displayed = resolve(owner);
 		String extra = "";
 		if (scale == ModifierScale.Kind.RELATIVE_PRESTIGE) {
 			extra = StringFormatter.formatHex(" #a39ba8(vs their prestige)");
 		}
-		return prefix()+"§e: "+suffix(displayed)+extra;
+		return prefix()+"§e: "+suffix(displayed, region)+extra;
 	}
 
 	public FactionModifiers getType() {
