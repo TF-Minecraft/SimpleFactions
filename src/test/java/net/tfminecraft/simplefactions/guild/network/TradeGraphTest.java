@@ -91,8 +91,8 @@ class TradeGraphTest {
         provinces.put(2, land(12, 20));
 
         TradeGraph graph = build(List.of(
-                site("alpha", "a", InstallationKind.PORT, 1, 0, 0, 2),
-                site("alpha", "b", InstallationKind.PORT, 2, 300, 400, 1)), provinces, NO_TRACK);
+                site("alpha", "a", InstallationKind.PORT, 1, 0, 0),
+                site("alpha", "b", InstallationKind.PORT, 2, 300, 400)), provinces, NO_TRACK);
 
         Edge edge = between(graph, "a", "b", Mode.SEA);
         assertNotNull(edge);
@@ -112,11 +112,11 @@ class TradeGraphTest {
         assertSame(edge, graph.edgesAt(first).getFirst());
         assertSame(edge, graph.edgesAt(second).getFirst());
         assertEquals(1, first.level());
-        assertEquals(2, first.hubSlots());
+        assertEquals("a", first.name());
         assertEquals(0, first.centerX());
         assertEquals(400, second.centerZ());
-        assertNull(graph.networkOf(new Node("no", "no", InstallationKind.PORT, 1, 0, 0, 1, 1, 0)));
-        assertTrue(graph.edgesAt(new Node("no", "no", InstallationKind.PORT, 1, 0, 0, 1, 1, 0)).isEmpty());
+        assertNull(graph.networkOf(new Node("no", "no", "no", InstallationKind.PORT, 1, 0, 0, 1, 0)));
+        assertTrue(graph.edgesAt(new Node("no", "no", "no", InstallationKind.PORT, 1, 0, 0, 1, 0)).isEmpty());
     }
 
     @Test
@@ -293,8 +293,8 @@ class TradeGraphTest {
     void anUnfinishedInstallationIsNotANode() {
         Map<Integer, ProvinceData> provinces = coast(Terrain.SEA);
         TradeGraph graph = build(List.of(
-                site("alpha", "ready", InstallationKind.PORT, 1, 0, 0, 4),
-                new Site("alpha", installation("building", InstallationKind.PORT, 4, 30, 40), 2, false),
+                site("alpha", "ready", InstallationKind.PORT, 1, 0, 0),
+                new Site("alpha", installation("building", InstallationKind.PORT, 4, 30, 40), false),
                 site("alpha", "keep", InstallationKind.FORT, 6, 0, 0)), provinces, NO_TRACK);
 
         assertEquals(List.of("ready"), graph.nodes().stream().map(Node::installationId).toList());
@@ -302,7 +302,7 @@ class TradeGraphTest {
         assertNotNull(ready);
         assertEquals(1, ready.provinceId());
         assertEquals(1, ready.level());
-        assertEquals(4, ready.hubSlots());
+        assertEquals("ready", ready.name());
         assertEquals(InstallationKind.PORT, ready.kind());
         assertNull(graph.node("alpha", "building"));
         assertNull(graph.node("alpha", "keep"));
@@ -365,12 +365,7 @@ class TradeGraphTest {
     }
 
     private static Site site(String faction, String id, InstallationKind kind, int province, int x, int z) {
-        return site(faction, id, kind, province, x, z, 1);
-    }
-
-    private static Site site(
-            String faction, String id, InstallationKind kind, int province, int x, int z, int hubSlots) {
-        return new Site(faction, installation(id, kind, province, x, z), hubSlots, true);
+        return new Site(faction, installation(id, kind, province, x, z), true);
     }
 
     private static Installation installation(String id, InstallationKind kind, int province, int x, int z) {

@@ -19,7 +19,6 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
-import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.government.Government;
@@ -28,9 +27,6 @@ import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 import org.bukkit.configuration.file.YamlConfiguration;
-import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
-import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport;
 import net.tfminecraft.simplefactions.guild.hub.TestGraphs;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
@@ -39,7 +35,7 @@ import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 
-/** Trade power and production carried between supply hubs during the province recalculation. */
+/** Trade power and production carried along the trade graph during the province recalculation. */
 class ProvinceManagerHubTransportTest {
     private static final int LAST = 24;
 
@@ -69,7 +65,6 @@ class ProvinceManagerHubTransportTest {
 
         Faction host = mock(Faction.class);
         when(host.getId()).thenReturn("host");
-        when(host.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
         guild = mock(Guild.class);
         when(guild.getId()).thenReturn("guild");
         when(guild.getFaction()).thenReturn(host);
@@ -78,7 +73,6 @@ class ProvinceManagerHubTransportTest {
         when(guild.getModifier(GuildModifier.TRADE_POWER)).thenReturn(20.0);
         when(guild.getModifier(GuildModifier.TRADE_CARRY)).thenReturn(1.0);
         when(guild.getModifier(GuildModifier.PRODUCTION)).thenReturn(10.0);
-        when(guild.getModifier(GuildModifier.HUB_TRADE)).thenReturn(0.0);
 
         titles = mockStatic(TitleManager.class);
         titles.when(() -> TitleManager.getByProvince(anyInt())).thenReturn(null);
@@ -87,34 +81,30 @@ class ProvinceManagerHubTransportTest {
     @AfterEach
     void tearDown() {
         titles.close();
-        HubNetwork.setHighwayForTests(null, null);
+        TradeGraph.setLiveForTests(null);
         HubTransport.resetConfig();
         Cache.provincesEnabled = provincesWereEnabled;
     }
 
     @Test
-    void hubLawDoesNotAffectGraphTradeOrProduction() {
+    void snapshotRecalculationKeepsGraphTrade() {
         connect(1, 22);
-        List<Link> cached = HubNetwork.linksFor(guild);
         recalculate();
         assertEquals(8, trade(22), 1e-9);
         YamlConfiguration config = new YamlConfiguration();
-        config.set("effects.faction.rules", List.of("supply_hubs false"));
+        config.set("effects.faction.rules", List.of("tariffs false"));
         Law proposed = new Law("economy", "decentralized", config);
         IncomePreviewContext.open(IncomePreviewContext.law(guild.getFaction(), mock(LawGroup.class), proposed));
         try {
             ProvinceManager snapshot = provinces.createSnapshotShell();
             snapshot.copyAllDataFrom(provinces);
             snapshot.recalculateForSingleGuild(guild, false);
-            assertTrue(HubNetwork.linksFor(guild).isEmpty());
             assertEquals(8, snapshot.get(22).getStoredGuildTrade(guild), 1e-9);
             assertEquals(8, snapshot.get(22).getGuildProduction(guild));
             assertEquals(8, trade(22), 1e-9);
         } finally {
             IncomePreviewContext.clear();
         }
-        assertEquals(cached, HubNetwork.linksFor(guild));
-        when(guild.getFaction().hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(false);
         recalculate();
         assertEquals(8, trade(22), 1e-9);
         assertEquals(8, production(22));
@@ -145,16 +135,6 @@ class ProvinceManagerHubTransportTest {
         assertTrue(production(21) > 0 && production(21) < 8);
         // The road in between gets nothing from the journey.
         assertEquals(0, trade(12));
-    }
-
-    @Test
-    void hubTradeModifierDoesNotBoostTheShare() {
-        when(guild.getModifier(GuildModifier.HUB_TRADE)).thenReturn(0.30);
-        connect(1, 22);
-
-        recalculate();
-
-        assertEquals(8, trade(22), 1e-9);
     }
 
     @Test
@@ -269,7 +249,7 @@ class ProvinceManagerHubTransportTest {
         assertEquals(first, trade(12), 1e-9);
     }
 
-    /** Stations at these provinces, hubbed at each, joined in list order. */
+    /** Stations at these provinces, joined in list order. */
     private void connect(int... provinces) {
         connect(0.40, 0.80, provinces);
     }
@@ -285,11 +265,7 @@ class ProvinceManagerHubTransportTest {
                     "p" + province, "p" + province, InstallationKind.TRAIN_STATION, province, 0, 0, 1L));
         }
         TradeGraph graph = TestGraphs.rail("host", sites, (from, to) -> adjacent(provinces, from, to), 0);
-        java.util.Set<HubSite> hubs = new java.util.HashSet<>();
-        for (Installation site : sites) {
-            hubs.add(new HubSite("host", site.getId()));
-        }
-        HubNetwork.setHighwayForTests(graph, Map.of("guild", hubs));
+        TradeGraph.setLiveForTests(graph);
     }
 
     private static boolean adjacent(int[] provinces, Installation from, Installation to) {

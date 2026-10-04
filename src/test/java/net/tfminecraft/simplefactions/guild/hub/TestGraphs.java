@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 
 import net.tfminecraft.simplefactions.enums.Terrain;
-import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
 import net.tfminecraft.simplefactions.guild.network.RailRoutes;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder;
@@ -26,7 +25,7 @@ public final class TestGraphs {
         Map<Integer, ProvinceData> provinces = new HashMap<>();
         List<Site> built = new ArrayList<>();
         for (Installation site : sites) {
-            built.add(new Site(owner, site, 1, true));
+            built.add(new Site(owner, site, true));
             provinces.putIfAbsent(site.getProvince(), new ProvinceData(Terrain.PLAINS, Set.of()));
         }
         return TradeGraphBuilder.build(built, provinces, (from, to) -> {
@@ -39,13 +38,5 @@ public final class TestGraphs {
 
     public static TradeGraph linked(String owner, double length, Installation... sites) {
         return rail(owner, List.of(sites), (from, to) -> true, length);
-    }
-
-    public static Set<HubSite> hubs(String owner, Installation... sites) {
-        Set<HubSite> hubbed = new java.util.HashSet<>();
-        for (Installation site : sites) {
-            hubbed.add(new HubSite(owner, site.getId()));
-        }
-        return hubbed;
     }
 }

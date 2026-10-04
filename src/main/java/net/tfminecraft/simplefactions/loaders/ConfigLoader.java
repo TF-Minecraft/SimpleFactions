@@ -23,6 +23,18 @@ import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.laws.LawEffect;
 
 public class ConfigLoader {
+	private static void loadInstallationTrade(FileConfiguration config) {
+		org.bukkit.configuration.ConfigurationSection section =
+				config == null ? null : config.getConfigurationSection("installation-trade");
+		if (section == null && config != null && config.getConfigurationSection("supply-hubs") != null) {
+			section = config.getConfigurationSection("supply-hubs");
+			Bukkit.getLogger().info("[SimpleFactions] Reading transport and corridor-share from supply-hubs. Rename that section to installation-trade.");
+		}
+		double corridor = section == null ? 0.5 : section.getDouble("corridor-share", 0.5);
+		Cache.supplyHubCorridorShare = Double.isFinite(corridor) ? Math.max(0, Math.min(1, corridor)) : 0.5;
+		net.tfminecraft.simplefactions.guild.hub.HubTransport.loadConfig(config);
+	}
+
 	public void loadConfig(File configFile) {
 		FileConfiguration config = loadYaml(configFile);
 		Cache.mapRef = config.getString("map-reference", "main");
@@ -71,8 +83,7 @@ public class ConfigLoader {
 		Cache.mercenaryMinPricePerDay = config.getDouble("mercenary-min-price-per-day", 10.0);
 		Cache.mercenaryMaxContractDays = config.getInt("mercenary-max-contract-days", 14);
 		Cache.mercenaryDefaultBreachRefund = config.getDouble("mercenary-default-breach-refund", 500.0);
-		net.tfminecraft.simplefactions.guild.hub.SupplyHubService.loadConfig(config);
-		net.tfminecraft.simplefactions.guild.hub.HubTransport.loadConfig(config);
+		loadInstallationTrade(config);
 
 		Cache.settlementLargePopulationThreshold = config.getInt("settlement-large-population-threshold", 8);
 		Cache.portSeaProximityBlocks = config.getInt("port-sea-proximity-blocks", 20);

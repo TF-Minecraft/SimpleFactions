@@ -17,7 +17,6 @@ import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.ProvinceDa
 import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.Site;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
-import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.ProvinceGrid;
@@ -36,11 +35,10 @@ final class LiveTradeGraph {
         if (FactionManager.factions != null) {
             for (Faction faction : FactionManager.factions) {
                 if (faction == null || faction.getId() == null || faction.getInstallationHandler() == null) continue;
-                // Pending construction is separate from getAll(), as in SupplyHubService.findInstallation.
+                // Pending construction is separate from getAll().
                 for (Installation installation : faction.getInstallationHandler().getAll()) {
                     if (installation == null || installation.getKind() == InstallationKind.FORT) continue;
-                    sites.add(new Site(faction.getId(), installation, InstallationConfigLoader.getHubSlots(
-                            installation.getKind(), installation.getLevel()), true));
+                    sites.add(new Site(faction.getId(), installation, true));
                     identities.put(installation,
                             faction.getId() + ":" + installation.getProvince() + ":" + installation.getId());
                 }

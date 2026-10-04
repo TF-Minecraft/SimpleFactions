@@ -99,8 +99,7 @@ public final class HubTransport {
 
     public static void loadConfig(FileConfiguration config) {
         Map<Mode, Rates> loaded = new EnumMap<>(DEFAULTS);
-        ConfigurationSection transport =
-                config == null ? null : config.getConfigurationSection("supply-hubs.transport");
+        ConfigurationSection transport = transportSection(config);
         if (transport != null) {
             for (Mode mode : Mode.values()) {
                 ConfigurationSection section = transport.getConfigurationSection(mode.getKey());
@@ -115,6 +114,17 @@ public final class HubTransport {
             }
         }
         rates = loaded;
+    }
+
+    /** installation-trade.transport, or the old supply-hubs.transport when that section is absent. */
+    private static ConfigurationSection transportSection(FileConfiguration config) {
+        if (config == null) {
+            return null;
+        }
+        if (config.getConfigurationSection("installation-trade") != null) {
+            return config.getConfigurationSection("installation-trade.transport");
+        }
+        return config.getConfigurationSection("supply-hubs.transport");
     }
 
     public static void resetConfig() {

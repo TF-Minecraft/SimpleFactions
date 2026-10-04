@@ -94,7 +94,6 @@ public final class EspionageView {
                 "#d4c9aeIncome from trade: " + IntelligenceLedger.value(report, guild, "Cashflow:TRADE", "d/day"),
                 "#d4c9aeUpkeep from trade: " + IntelligenceLedger.value(report, guild, "Cashflow:TRADE_UPKEEP", "d/day"),
                 "#d4c9aeTariffs Paid: " + IntelligenceLedger.value(report, guild, "Cashflow:TARIFF_PAYMENTS", "d/day"),
-                "#d4c9aeHub Tax Paid: " + IntelligenceLedger.value(report, guild, "Cashflow:HUB_TAX_PAYMENTS", "d/day"),
                 "#d4c9aeTotal Trade Power: " + IntelligenceLedger.value(report, guild, "Trade power", "")));
         inventory.setItem(14, ledgerItem(report, guild));
         List<String> roster = net.tfminecraft.simplefactions.espionage.RosterLore.guild(viewer, guild);
@@ -113,7 +112,6 @@ public final class EspionageView {
                 "#d4c9aePer member: " + IntelligenceLedger.value(report, guild, "Dividend per member", "d")));
         inventory.setItem(25, ReportedMenus.mask(IconGetter.getIconOrDefault("guild_loans", Material.BLACK_DYE),
                 "#e8c65fLoans", List.of("\u00a77Loans: Unknown")));
-        inventory.setItem(26, styled(Material.CHEST, "#b5835aSupply Hubs", "\u00a77Supply hubs: Unknown"));
         inventory.setItem(GuildView.HOST_FACTION_SLOT, creator.createHostFactionItem(guild));
         inventory.setItem(53, manager.createBackButton(SFGUI.GUILD_VIEW));
         for (var entry : java.util.Map.of(12, MenuItemType.WEALTH, 13, MenuItemType.TRADE_BREAKDOWN, 15, MenuItemType.MEMBERS).entrySet())
@@ -126,18 +124,15 @@ public final class EspionageView {
         var report = EspionageService.report(viewer, guild.getFaction());
         if (guild.isBase()) {
             Material[] icons = {Material.PLAYER_HEAD, Material.BARREL, Material.IRON_INGOT, Material.GOLD_INGOT,
-                    Material.EMERALD, Material.CHEST, Material.GOLD_NUGGET};
+                    Material.EMERALD, Material.CHEST};
             String[] titles = {"#94b572Citizens", "#b89448Guild Taxes", "#7299b5Vassals", "#ab8568Tributes",
-                    "#5cc46aTariffs", "#c9a25eDeposits", "#5cc46aHub Tax"};
+                    "#5cc46aTariffs", "#c9a25eDeposits"};
             Cashflow[] flows = {Cashflow.CITIZENS, Cashflow.GUILDS, Cashflow.VASSALS, Cashflow.TRIBUTES,
-                    Cashflow.TARIFFS, null, Cashflow.HUB_TAX};
+                    Cashflow.TARIFFS, null};
             for (int index = 0; index < icons.length; index++) inventory.setItem(10 + index, styled(icons[index], titles[index],
                     "\u00a77Today's amount: " + (flows[index] == null ? "Unknown" : IntelligenceLedger.value(report, guild, "Cashflow:" + flows[index].name(), "d/day")),
                     "\u00a77Contributors and history: Unknown"));
         }
-        inventory.setItem(17, styled(Material.GOLD_NUGGET, "#5cc46aHub Tax Payments",
-                "\u00a77Today's amount: " + IntelligenceLedger.value(report, guild, "Cashflow:HUB_TAX_PAYMENTS", "d/day"),
-                "\u00a77Contributors and history: Unknown"));
         inventory.setItem(26, manager.createBackButton(SFGUI.FOREIGN_LEDGER_VIEW));
         viewer.openInventory(inventory);
     }

@@ -172,14 +172,6 @@ public class InstallationView {
             inventory.setItem(13, new ItemStack(Material.AIR, 1));
         }
 
-        if (!isPending && installation != null) {
-            int hubSlot = supplyHubSlot(
-                    InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()));
-            if (hubSlot >= 0) {
-                inventory.setItem(hubSlot, creator.createSupplyHubsButton());
-            }
-        }
-
         inventory.setItem(53, inv.createBackButton(SFGUI.INSTALLATION_DETAIL_VIEW));
         if (open) player.openInventory(inventory);
     }
@@ -189,10 +181,6 @@ public class InstallationView {
             return -1;
         }
         return index + (index >= 11 ? 1 : 0) + (index >= 12 ? 1 : 0) + (index >= 13 ? 1 : 0);
-    }
-
-    static int supplyHubSlot(int hubSlots) {
-        return hubSlots > 0 ? 15 : -1;
     }
 
     public void click(InventoryClickEvent event, Inventory inventory, Player player) {
@@ -233,14 +221,6 @@ public class InstallationView {
 
         if (holder.getType() == SFGUI.INSTALLATION_DETAIL_VIEW) {
             int slot = event.getSlot();
-            if (slot == 15) {
-                Installation installation = f.getInstallationHandler().getById(holder.getSecondaryId());
-                if (installation != null && InstallationConfigLoader.getHubSlots(
-                        installation.getKind(), installation.getLevel()) > 0) {
-                    inv.supplyHubView.hostedView(player, f, installation);
-                }
-                return;
-            }
             if (slot == 13) {
                 ItemStack upgradeItem = event.getCurrentItem();
                 if (upgradeItem == null

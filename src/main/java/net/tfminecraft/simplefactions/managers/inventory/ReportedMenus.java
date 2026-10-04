@@ -21,7 +21,7 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 public final class ReportedMenus {
     public static final Set<SFGUI> READABLE = java.util.EnumSet.of(SFGUI.MILITARY_VIEW, SFGUI.GOVERNMENT_VIEW,
             SFGUI.INSTALLATIONS_VIEW, SFGUI.INSTALLATION_DETAIL_VIEW, SFGUI.LAW_VIEW, SFGUI.LAW_SELECT,
-            SFGUI.TAX_VIEW, SFGUI.TAX_VIEW_SPECIFIC, SFGUI.UPGRADE_VIEW, SFGUI.SUPPLY_HUB_VIEW, SFGUI.COMPANY_VIEW,
+            SFGUI.TAX_VIEW, SFGUI.TAX_VIEW_SPECIFIC, SFGUI.UPGRADE_VIEW, SFGUI.COMPANY_VIEW,
             SFGUI.COUNCIL_VIEW, SFGUI.PROPOSALS, SFGUI.MOVEMENT_LIST, SFGUI.STABILITY_VIEW,
             SFGUI.LOAN_MAIN_VIEW, SFGUI.LOANS_GIVEN_VIEW, SFGUI.LOANS_TAKEN_VIEW,
             SFGUI.COMPANY_SLOTS_VIEW, SFGUI.COMPANY_ROSTER_VIEW, SFGUI.COMPANY_UPGRADE_VIEW, SFGUI.CONTRACT_LIST_VIEW);
@@ -193,14 +193,6 @@ public final class ReportedMenus {
         inventory.setItem(15, EspionageView.item(Material.GOLD_INGOT, "Company Upgrades", "\u00a77Upgrades: Unknown"));
         inventory.setItem(22, EspionageView.item(Material.WRITABLE_BOOK, "Contracts", "\u00a77Contracts: Unknown"));
         inventory.setItem(26, manager.createBackButton(SFGUI.COMPANY_VIEW));
-    }
-
-    public static void supplyHubs(Inventory inventory, Player viewer, Guild guild, InventoryManager manager) {
-        prepare(inventory);
-        var report = EspionageService.report(viewer, guild.getFaction());
-        inventory.setItem(49, EspionageView.item(Material.PAPER, "Supply Hub Information", "\u00a77Hubs: Unknown",
-                "\u00a77Daily upkeep: " + IntelligenceLedger.value(report, guild, "Cashflow:SUPPLY_HUBS", "d/day")));
-        inventory.setItem(53, manager.createBackButton(SFGUI.SUPPLY_HUB_VIEW));
     }
 
     public static void loans(Inventory inventory, InventoryManager manager) {

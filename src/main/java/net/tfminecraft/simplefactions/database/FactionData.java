@@ -46,9 +46,6 @@ public class FactionData {
 
     public Double tariffs;
 
-    @SerializedName("hub tax")
-    public Double hubTax;
-
     @SerializedName("specific taxes")
     public HashMap<String, HashMap<String, Double>> specificTaxes = new HashMap<>();
 
@@ -114,7 +111,4 @@ public class FactionData {
 
     @SerializedName("war reparations")
     public List<WarReparationsObligationData> warReparationsObligations = new ArrayList<>();
-
-    @SerializedName("hub permits")
-    public List<String> hubPermits;
 }

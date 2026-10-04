@@ -14,10 +14,6 @@ import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
-import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
-import net.tfminecraft.simplefactions.guild.hub.HubTaxBreakdown;
-import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
-import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.income.entry.PlayerEntry;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.loans.LoanFunding;
@@ -33,7 +29,6 @@ import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.PostSettlementPayouts.PlayerUuidLookup;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
-import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
@@ -229,30 +224,6 @@ public class Ledger {
                 if(!guild.isBase()) return 0;
                 amount = getTotalTariffsEarned();
                 break;
-            case HUB_TAX:
-                if (!guild.isBase()) {
-                    return 0;
-                }
-                amount = getTotalHubTaxEarned();
-                break;
-            case HUB_TAX_PAYMENTS: {
-                for (double tax : getPayableHubTaxes().values()) {
-                    amount -= tax;
-                }
-                break;
-            }
-            case HUB_FEE:
-                if (!guild.isBase()) {
-                    return 0;
-                }
-                amount = getTotalHubFeeEarned();
-                break;
-            case HUB_FEE_PAYMENTS: {
-                for (double fee : getPayableHubFees().values()) {
-                    amount -= fee;
-                }
-                break;
-            }
             case TARIFF_PAYMENTS: {
                 TradeBreakdown tariffs = guild.getTradeBreakdown();
                 amount = tariffs == null ? 0 : -tariffs.getTariffs();
@@ -372,9 +343,6 @@ public class Ledger {
             case NODES:
                 amount = -nodeUpkeepLookup.applyAsDouble(guild);
                 break;
-            case SUPPLY_HUBS:
-                amount = -SupplyHubService.dailyCost(guild);
-                break;
             //Mercenary contracts
             case MERCENARY_CONTRACT:
                 amount = getAggregatedContractEarnings();
@@ -413,96 +381,6 @@ public class Ledger {
             total += g.getTradeBreakdown().getTariffsByFaction(guild.getFaction());
         }
         return total;
-    }
-
-    public double getTotalHubTaxEarned() {
-        if (skipsMoneyMovement()) {
-            return 0;
-        }
-        double total = 0;
-        for (Guild payer : FactionManager.getAllGuilds()) {
-            if (payer.getLedger() == null) {
-                continue;
-            }
-            total += payer.getLedger().getPayableHubTaxes().getOrDefault(guild.getFaction(), 0.0);
-        }
-        return total;
-    }
-
-    /** Hub tax this guild will actually pay today, by host. Empty when either side moves no money. */
-    public Map<Faction, Double> getPayableHubTaxes() {
-        HubTaxBreakdown hubTax = guild.getHubTaxBreakdown();
-        if (hubTax == null || guild.getFaction() == null || skipsMoneyMovement()) {
-            return Map.of();
-        }
-        IncomePreviewContext context = IncomePreviewContext.current();
-        if (context != null && context.previewsLaw(guild.getFaction())
-                && !context.allowsHubRule(guild.getFaction(), Rules.SUPPLY_HUBS)) {
-            return Map.of();
-        }
-        Map<Faction, Double> payable = new HashMap<>();
-        for (Map.Entry<Faction, Double> entry : hubTax.getTaxesByFaction().entrySet()) {
-            boolean allowed = context != null
-                    ? context.allowsHubRule(entry.getKey(), Rules.HUB_TAX)
-                    : entry.getKey().hasFactionRule(Rules.HUB_TAX);
-            if (!allowed) continue;
-            Guild receiver = entry.getKey().getOrCreateMainGuild();
-            if (entry.getValue() > 0 && receiver != null && receiver.getLedger() != null
-                    && !receiver.getLedger().skipsMoneyMovement()) {
-                payable.put(entry.getKey(), entry.getValue());
-            }
-        }
-        return payable;
-    }
-
-    public double getTotalHubFeeEarned() {
-        if (skipsMoneyMovement()) {
-            return 0;
-        }
-        double total = 0;
-        for (Guild payer : FactionManager.getAllGuilds()) {
-            if (payer.getLedger() == null) {
-                continue;
-            }
-            total += payer.getLedger().getPayableHubFees().getOrDefault(guild.getFaction(), 0.0);
-        }
-        return total;
-    }
-
-    /** Agreement fees this guild will pay today, by host. Empty when either side moves no money. */
-    public Map<Faction, Double> getPayableHubFees() {
-        if (guild.getFaction() == null || skipsMoneyMovement() || guild.getHubAgreements() == null) {
-            return Map.of();
-        }
-        IncomePreviewContext context = IncomePreviewContext.current();
-        if (context != null && context.previewsLaw(guild.getFaction())
-                && !context.allowsHubRule(guild.getFaction(), Rules.SUPPLY_HUBS)) {
-            return Map.of();
-        }
-        Map<Faction, Double> payable = new HashMap<>();
-        for (net.tfminecraft.simplefactions.guild.hub.HubAgreement agreement : guild.getHubAgreements()) {
-            if (agreement == null || agreement.feeCents() <= 0) {
-                continue;
-            }
-            Faction host = FactionManager.getByString(agreement.hostFactionId());
-            if (host == null || RelationManager.sameRealm(host, guild.getFaction())) {
-                continue;
-            }
-            Guild receiver = mainGuild(host);
-            if (agreement.feeCents() > 0 && receiver != null && receiver.getLedger() != null
-                    && !receiver.getLedger().skipsMoneyMovement()) {
-                payable.merge(host, agreement.feeCents() / 100.0, Double::sum);
-            }
-        }
-        return payable;
-    }
-
-    /** The host's capital, if it already exists. A missing capital receives nothing. */
-    private static Guild mainGuild(Faction host) {
-        if (host == null || host.getGuildHandler() == null) {
-            return null;
-        }
-        return host.getGuildHandler().getGuild(host.getId());
     }
 
     public List<Map.Entry<String, Double>> getCitizenTaxEntriesDescending() {
@@ -595,8 +473,6 @@ public class Ledger {
                 case TRADE:
                 case CITIZENS:
                 case TARIFFS:
-                case HUB_TAX:
-                case HUB_FEE:
                 case GAMBLING:
                 case VEHICLE_FEES:
                 case GUILDS:
@@ -618,14 +494,11 @@ public class Ledger {
                 case VEHICLE_UPKEEP:
                 case MILITARY_UPKEEP:
                 case NODES:
-                case SUPPLY_HUBS:
                 case PENALTIES:
                 case GUILD_PAYMENTS:
                 case OVERLORD_TAX:
                 case TRIBUTE_PAYMENTS:
                 case TARIFF_PAYMENTS:
-                case HUB_TAX_PAYMENTS:
-                case HUB_FEE_PAYMENTS:
                 case DIVIDEND_PAYMENT:
                 case DIVIDEND_PAYOUT:
                 case WAR_REPARATIONS_PAYMENT:
@@ -676,8 +549,6 @@ public class Ledger {
                 case TRADE:
                 case CITIZENS:
                 case TARIFFS:
-                case HUB_TAX:
-                case HUB_FEE:
                 case GAMBLING:
                 case VEHICLE_FEES:
                 case GUILDS:
@@ -696,14 +567,11 @@ public class Ledger {
                 case VEHICLE_UPKEEP:
                 case MILITARY_UPKEEP:
                 case NODES:
-                case SUPPLY_HUBS:
                 case PENALTIES:
                 case GUILD_PAYMENTS:
                 case OVERLORD_TAX:
                 case TRIBUTE_PAYMENTS:
                 case TARIFF_PAYMENTS:
-                case HUB_TAX_PAYMENTS:
-                case HUB_FEE_PAYMENTS:
                 case WAR_REPARATIONS_PAYMENT:
                 case LOAN_PAYMENTS:
                 case INTEREST_PAYMENTS:
@@ -965,20 +833,6 @@ public class Ledger {
                         payer.getName(), Math.abs(ledger.getIncome(Cashflow.GUILD_PAYMENTS)));
             }
 
-            for (Map.Entry<Faction, Double> entry : ledger.getPayableHubTaxes().entrySet()) {
-                recordHistory(out, entry.getKey().getOrCreateMainGuild(), LedgerHistory.Source.HUB_TAX,
-                        f.getName(), entry.getValue());
-                recordHistory(out, payer, LedgerHistory.Source.HUB_TAX_PAYMENTS,
-                        entry.getKey().getName(), entry.getValue());
-            }
-            for (Map.Entry<Faction, Double> entry : ledger.getPayableHubFees().entrySet()) {
-                Guild receiver = entry.getKey().getGuildHandler() == null
-                        ? null : entry.getKey().getGuildHandler().getGuild(entry.getKey().getId());
-                recordHistory(out, receiver, LedgerHistory.Source.HUB_FEE,
-                        f.getName(), entry.getValue());
-                recordHistory(out, payer, LedgerHistory.Source.HUB_FEE_PAYMENTS,
-                        entry.getKey().getName(), entry.getValue());
-            }
             TradeBreakdown trade = payer.getTradeBreakdown();
             if (trade != null && trade.getTariffsByFactionMap() != null) {
                 for (Map.Entry<Faction, Double> entry : trade.getTariffsByFactionMap().entrySet()) {
@@ -1050,8 +904,6 @@ public class Ledger {
             }
         }
 
-        List<SupplyHub> removedHubs = SupplyHubService.shedUnpaid(guild);
-        SupplyHubCommands.notifyRemoved(guild, removedHubs);
         if (!skipsMoneyMovement() && !guild.isBase()) {
             double pool = getDividendBreakdown().pool();
             if (pool > 0) {
@@ -1120,8 +972,6 @@ public class Ledger {
             case CITIZENS:
             // Dowsing reports the nodes active right now, so a node is charged for each day it runs.
             case NODES:
-            // Supply hubs are a sink. Unpaid hubs were already removed, newest first.
-            case SUPPLY_HUBS:
                 buffer.addExternalDelta(guild, getIncome(cf));
                 return;
 
@@ -1203,24 +1053,6 @@ public class Ledger {
                     buffer.add(guild, receiverGuild, amount);
                 }
                 return;
-            }
-
-            case HUB_TAX_PAYMENTS: {
-                for (Map.Entry<Faction, Double> entry : getPayableHubTaxes().entrySet()) {
-                    buffer.add(guild, entry.getKey().getOrCreateMainGuild(), entry.getValue());
-                }
-                break;
-            }
-
-            case HUB_FEE_PAYMENTS: {
-                for (Map.Entry<Faction, Double> entry : getPayableHubFees().entrySet()) {
-                    Guild receiver = mainGuild(entry.getKey());
-                    if (receiver == null) {
-                        continue;
-                    }
-                    buffer.add(guild, receiver, entry.getValue());
-                }
-                break;
             }
 
             //Taxes and Tariffs
@@ -1326,8 +1158,6 @@ public class Ledger {
             case DIVIDENDS:
             case TRIBUTES:
             case TARIFFS:
-            case HUB_TAX:
-            case HUB_FEE:
             case WAR_REPARATIONS:
             case MERCENARY_CONTRACT:
             case REFUNDS:

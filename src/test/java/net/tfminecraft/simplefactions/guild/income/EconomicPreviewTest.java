@@ -25,7 +25,6 @@ import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
-import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.network.RailRoutes;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder;
@@ -165,12 +164,12 @@ class EconomicPreviewTest {
 				"foreign-station", "Foreign", InstallationKind.TRAIN_STATION, 2, 0, 0, 1L);
 		TradeGraph graph = TradeGraphBuilder.build(
 				List.of(
-						new TradeGraphBuilder.Site("home", first, 1, true),
-						new TradeGraphBuilder.Site("foreign", second, 1, true)),
+						new TradeGraphBuilder.Site("home", first, true),
+						new TradeGraphBuilder.Site("foreign", second, true)),
 				Map.of(),
 				(left, right) -> java.util.Optional.of(new RailRoutes.Route(0, List.of())),
 				point -> 0);
-		HubNetwork.setHighwayForTests(graph, Map.of());
+		TradeGraph.setLiveForTests(graph);
 
 		YamlConfiguration relationConfig = new YamlConfiguration();
 		relationConfig.set("installation-access", 1.0);
@@ -180,7 +179,7 @@ class EconomicPreviewTest {
 			assertTrue(delta.get(guild) > 0);
 			assertNull(homeDiplomacy.getTradeRelation("foreign"));
 		} finally {
-			HubNetwork.setHighwayForTests(null, null);
+			TradeGraph.setLiveForTests(null);
 		}
 	}
 

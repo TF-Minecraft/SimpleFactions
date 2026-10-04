@@ -24,18 +24,11 @@ import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
-import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
-import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
-import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport;
-import net.tfminecraft.simplefactions.guild.hub.TestGraphs;
-import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
@@ -71,7 +64,6 @@ class BranchIncomePreviewTest {
 		live.start(Map.of(capital.getId(), capital, neighbour.getId(), neighbour));
 
 		faction = mock(Faction.class);
-		when(faction.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
 		when(faction.getTaxRate(TaxTarget.GUILDS, "fields", true)).thenReturn(0.0);
 
 		guild = mock(Guild.class);
@@ -97,9 +89,6 @@ class BranchIncomePreviewTest {
 	@AfterEach
 	void tearDown() {
 		GuildModifierOverride.clear();
-		HubNetwork.setLinksForTests(null);
-		HubNetwork.setHighwayForTests(null, null);
-		HubTransport.resetConfig();
 		Cache.provincesEnabled = savedProvincesEnabled;
 		if (savedPlainsCarry == null) {
 			Cache.tradeCarry.remove(Terrain.PLAINS);
@@ -176,27 +165,4 @@ class BranchIncomePreviewTest {
 		assertEquals(2, branch.getLevel());
 		assertEquals(12.5, capital.getProsperity());
 	}
-
-	@Test
-    void hubTradeBranchNoLongerChangesIncome() {
-		YamlConfiguration rates = new YamlConfiguration();
-		rates.set("supply-hubs.transport.rail.trade", 0.90);
-		rates.set("supply-hubs.transport.rail.production", 0);
-		HubTransport.loadConfig(rates);
-		Installation from = new Installation("capital", "Capital", InstallationKind.TRAIN_STATION,
-				capital.getId(), 0, 0, 1L);
-		Installation to = new Installation("neighbour", "Neighbour", InstallationKind.TRAIN_STATION,
-				neighbour.getId(), 16, 0, 1L);
-		HubNetwork.setHighwayForTests(
-				TestGraphs.linked("home", 0, from, to),
-				Map.of("fields", java.util.Set.of(new HubSite("home", "capital"), new HubSite("home", "neighbour"))));
-		YamlConfiguration yaml = new YamlConfiguration();
-		yaml.set("name", "Supply Lines");
-		yaml.set("group", 3);
-		yaml.set("modifiers", List.of("HUB_TRADE 0 0.2"));
-		Branch supplyLines = new Branch(new Branch("supply_lines", yaml), 0);
-
-		assertEquals(0, live.previewUpgradeIncomeExact(guild, supplyLines));
-        assertEquals(0, supplyLines.getLevel());
-    }
 }

@@ -8,8 +8,7 @@ public final class InstallationKindConfig {
     public record Level(
             double dailyUpkeep,
             int constructionTimeSeconds,
-            Map<String, Integer> categorySlots,
-            int hubSlots) {
+            Map<String, Integer> categorySlots) {
         public Level {
             categorySlots = Collections.unmodifiableMap(categorySlots);
         }
@@ -61,9 +60,5 @@ public final class InstallationKindConfig {
 
     public Map<String, Integer> getCategorySlots(int level) {
         return getLevel(level).categorySlots();
-    }
-
-    public int getHubSlots(int level) {
-        return getLevel(level).hubSlots();
     }
 }

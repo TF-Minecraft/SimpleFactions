@@ -25,7 +25,6 @@ import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
-import net.tfminecraft.simplefactions.guild.hub.HubTaxBreakdown;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
@@ -49,11 +48,6 @@ import net.tfminecraft.simplefactions.army.MilitaryExpansion;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.GuildBranchData;
 import net.tfminecraft.simplefactions.database.GuildData;
-import net.tfminecraft.simplefactions.guild.hub.HubAgreement;
-import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
-import net.tfminecraft.simplefactions.guild.hub.HubOffer;
-import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
-import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.database.StabilityModifierData;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.RandomRGB;
@@ -95,7 +89,6 @@ public class Guild {
 	private List<Modifier> wealthModifiers = new ArrayList<>();
 
     private TradeBreakdown breakdown = new TradeBreakdown();
-    private volatile HubTaxBreakdown hubTaxBreakdown = HubTaxBreakdown.empty();
 
     private Stance stance;
 
@@ -109,10 +102,6 @@ public class Guild {
     private double dividendPercent = 0.0;
     private List<String> dividendEligible = new ArrayList<>();
     private MercenaryCompany company;
-    private final List<SupplyHub> supplyHubs = new ArrayList<>();
-    private final List<HubAgreement> hubAgreements = new ArrayList<>();
-    private final List<HubOffer> hubOffers = new ArrayList<>();
-    private final Set<String> supplyHubTutorialDismissals = new HashSet<>();
 
     public Guild(Faction f) {
         host = f;
@@ -194,6 +183,9 @@ public class Guild {
         this.members = data.members != null ? data.members : new ArrayList<>();
         if(!this.members.contains(leader)) this.members.add(leader);
         for (GuildBranchData bd : data.branches) {
+            if (bd != null && bd.level != null && bd.level.intValue() > 0) {
+                warnRetiredBranch(host, name, bd.id, bd.level.intValue());
+            }
             Branch base = BranchLoader.getByString(bd.id);
             if (base != null) {
                 branches.put(base.getGroup(),
@@ -251,12 +243,6 @@ public class Guild {
         if (data.company != null) {
             this.company = new MercenaryCompany(
                     this, data.company, MercenaryCompany.cloneMercenaryRegiment());
-        }
-        this.supplyHubs.addAll(SupplyHubService.fromData(data.supplyHubs));
-        this.hubAgreements.addAll(HubAgreementService.fromAgreementData(data.hubAgreements));
-        this.hubOffers.addAll(HubAgreementService.fromOfferData(data.hubOffers));
-        if (data.supplyHubTutorialDismissals != null) {
-            supplyHubTutorialDismissals.addAll(data.supplyHubTutorialDismissals);
         }
         if(data.pillageHits != null) {
             for (StabilityModifierData smd : data.pillageHits) {
@@ -436,31 +422,21 @@ public class Guild {
     }
     public String getId() { return id; }
 
-    public List<SupplyHub> getSupplyHubs() {
-        return supplyHubs;
-    }
-
-    public List<HubAgreement> getHubAgreements() {
-        return hubAgreements;
-    }
-
-    public List<HubOffer> getHubOffers() {
-        return hubOffers;
-    }
-
-    public boolean hasDismissedSupplyHubTutorial(String playerId) {
-        return playerId != null && supplyHubTutorialDismissals.contains(playerId);
-    }
-
-    public void dismissSupplyHubTutorial(String playerId) {
-        if (playerId != null) {
-            supplyHubTutorialDismissals.add(playerId);
+    /** A removed branch still saved above level 0. The level is not refunded. */
+    static void warnRetiredBranch(Faction host, String guildName, String branchId, int level) {
+        if (level <= 0 || branchId == null) {
+            return;
         }
+        if (!branchId.equalsIgnoreCase("supply_lines") && !branchId.equalsIgnoreCase("infrastructure")) {
+            return;
+        }
+        String factionName = host == null || host.getName() == null ? "unknown faction" : host.getName();
+        String shownGuild = guildName == null || guildName.isBlank() ? "unknown guild" : guildName;
+        java.util.logging.Logger.getLogger("SimpleFactions").warning(
+                factionName + " guild " + shownGuild + " has retired branch " + branchId
+                        + " at level " + level + ". Compensate with the guild bank grant command.");
     }
 
-    public List<String> getSupplyHubTutorialDismissals() {
-        return new ArrayList<>(supplyHubTutorialDismissals);
-    }
     public String getName() { return isBase() ? host.getName() : name; }
 
     /** Backing name, even while this guild is a faction base (display name follows the host). */
@@ -763,14 +739,6 @@ public class Guild {
         return scratch != null ? scratch : breakdown;
     }
     public void setTradeBreakdown(TradeBreakdown breakdown) { this.breakdown = breakdown; }
-
-    public HubTaxBreakdown getHubTaxBreakdown() {
-        return hubTaxBreakdown;
-    }
-
-    public void setHubTaxBreakdown(HubTaxBreakdown hubTaxBreakdown) {
-        this.hubTaxBreakdown = hubTaxBreakdown;
-    }
 
     public double getRepressFavourCost() {
         return Formatter.formatDouble(getStabilityEffect()*0.5);

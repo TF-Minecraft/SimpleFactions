@@ -22,8 +22,6 @@ import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
 import net.tfminecraft.simplefactions.guild.Guild;
-import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
-import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
 import net.tfminecraft.simplefactions.loaders.BranchLoader;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
@@ -305,7 +303,6 @@ public class Database {
                 e.printStackTrace();
             }
         }
-        SupplyHubService.dropMissingLoaded();
         FactionManager.loading = false;
     }
 
@@ -340,7 +337,6 @@ public class Database {
             data.vassalTax = f.getTaxHandler().getVassalTax();
             data.dividendTax = f.getTaxHandler().getDividendTax();
             data.tariffs = f.getTaxHandler().getTariffs();
-            data.hubTax = null;
             data.specificTaxes = serializeSpecificTaxes(f.getTaxHandler());
             data.vehicleFees = new HashMap<>(f.getVehicleFeeHandler().serializeRates());
             data.vehicleTypeFees = new HashMap<>();
@@ -358,7 +354,6 @@ public class Database {
 
             data.settlements = f.getSettlementHandler().serialize();
             data.installations = f.getInstallationHandler().serialize();
-            data.hubPermits = null;
             data.installationQueue = f.getInstallationHandler().serializeConstruction();
 
             for (int p : f.getProvinces()) data.provinces.add(p);
@@ -437,10 +432,6 @@ public class Database {
                 Map<String, Double> depositsToday = history.getDepositsTodayCopy();
                 gd.depositsToday = depositsToday.isEmpty() ? null : depositsToday;
                 gd.company = g.getCompany() != null ? g.getCompany().serialize() : null;
-                gd.supplyHubs = SupplyHubService.toData(g.getSupplyHubs());
-                gd.hubAgreements = HubAgreementService.toAgreementData(g.getHubAgreements());
-                gd.hubOffers = HubAgreementService.toOfferData(g.getHubOffers());
-                gd.supplyHubTutorialDismissals = g.getSupplyHubTutorialDismissals();
 
                 // --- Bank ---
                 if (g.getBank() != null) {

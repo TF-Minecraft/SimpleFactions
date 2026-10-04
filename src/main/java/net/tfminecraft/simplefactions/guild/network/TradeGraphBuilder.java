@@ -24,7 +24,7 @@ import net.tfminecraft.simplefactions.map.infra.TrackProvinceLookup.Point;
 /** Graph decisions use only supplied data, with no live world or faction reads. */
 public final class TradeGraphBuilder {
     /** Finished means registered as an installation, rather than pending construction. */
-    public record Site(String ownerFactionId, Installation installation, int hubSlots, boolean finished) { }
+    public record Site(String ownerFactionId, Installation installation, boolean finished) { }
 
     public record ProvinceData(Terrain terrain, Set<Integer> neighbours) {
         public ProvinceData {
@@ -51,9 +51,9 @@ public final class TradeGraphBuilder {
         List<Node> nodes = new ArrayList<>();
         for (Site site : finished) {
             Installation installation = site.installation();
-            nodes.add(new Node(site.ownerFactionId(), installation.getId(), installation.getKind(),
-                    installation.getProvince(), installation.getCenterX(), installation.getCenterZ(),
-                    installation.getLevel(), site.hubSlots(), -1));
+            nodes.add(new Node(site.ownerFactionId(), installation.getId(), installation.getName(),
+                    installation.getKind(), installation.getProvince(), installation.getCenterX(),
+                    installation.getCenterZ(), installation.getLevel(), -1));
         }
         List<Edge> edges = new ArrayList<>();
         Map<Node, Set<Integer>> access = new HashMap<>();
@@ -185,8 +185,8 @@ public final class TradeGraphBuilder {
         for (int i = 0; i < groups.size(); i++) {
             List<Node> group = new ArrayList<>();
             for (Node node : groups.get(i)) {
-                Node replacement = new Node(node.ownerFactionId(), node.installationId(), node.kind(),
-                        node.provinceId(), node.centerX(), node.centerZ(), node.level(), node.hubSlots(), i);
+                Node replacement = new Node(node.ownerFactionId(), node.installationId(), node.name(),
+                        node.kind(), node.provinceId(), node.centerX(), node.centerZ(), node.level(), i);
                 indexed.put(node, replacement);
                 group.add(replacement);
             }

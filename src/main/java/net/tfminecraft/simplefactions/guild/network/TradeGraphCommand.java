@@ -1,16 +1,18 @@
 package net.tfminecraft.simplefactions.guild.network;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 
 import org.bukkit.command.CommandSender;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph.Edge;
-import net.tfminecraft.simplefactions.guild.network.TradeGraph.Network;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
 import net.tfminecraft.simplefactions.utils.Permissions;
 
-/** Staff inspection of the current snapshot, also available from the console. */
+/** Staff inspection of the current trade graph, also available from the console. */
 public final class TradeGraphCommand {
     private TradeGraphCommand() { }
 
@@ -25,32 +27,44 @@ public final class TradeGraphCommand {
             return true;
         }
         TradeGraph graph = TradeGraph.live();
-        if (graph.networks().isEmpty()) sender.sendMessage("§7There are no trade networks.");
-        for (int i = 0; i < graph.networks().size(); i++) {
-            Network network = graph.networks().get(i);
-            sender.sendMessage("§6Network " + (i + 1) + ". §7" + count(network.size(), "node")
-                    + ", " + (network.global() ? "global" : "not global") + ".");
-            for (Node node : network.nodes()) {
-                sender.sendMessage("§e" + label(node) + " §7" + node.kind().getDisplayName()
-                        + ", province " + node.provinceId() + ", level " + node.level()
-                        + ", " + count(node.hubSlots(), "hub slot") + ".");
-                for (Edge edge : graph.edgesAt(node)) {
-                    if (!edge.first().equals(node)) continue;
-                    sender.sendMessage("§7" + label(edge.first()) + " to " + label(edge.second())
-                            + ". " + edge.mode().getKey() + ", "
-                            + String.format(Locale.ROOT, "%.1f", edge.length()) + " blocks, "
-                            + count(edge.provinces().size(), "province") + ".");
-                }
+        int connections = graph.edges().size();
+        sender.sendMessage("§6Trade graph. §e" + graph.nodes().size() + "§7 "
+                + plural(graph.nodes().size(), "installation") + ", §e" + connections + "§7 "
+                + plural(connections, "connection") + ".");
+        List<Node> nodes = new ArrayList<>(graph.nodes());
+        nodes.sort(Comparator.comparing((Node node) -> shown(node.name()), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(Node::ownerFactionId, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(Node::installationId, String.CASE_INSENSITIVE_ORDER));
+        for (Node node : nodes) {
+            sender.sendMessage("§e" + shown(node.name()) + " §7" + node.ownerFactionId() + ", "
+                    + node.kind().getDisplayName());
+            List<Edge> edges = new ArrayList<>(graph.edgesAt(node));
+            edges.sort(Comparator.comparing(
+                    (Edge edge) -> shown(edge.other(node).name()), String.CASE_INSENSITIVE_ORDER));
+            for (Edge edge : edges) {
+                Node other = edge.other(node);
+                sender.sendMessage("§7  " + shown(other.name()) + ", " + edge.mode().getKey() + ", "
+                        + blocks(edge.length()) + ", " + edge.provinces().size() + " "
+                        + plural(edge.provinces().size(), "province"));
             }
         }
         return true;
     }
 
-    private static String count(int amount, String singular) {
-        return amount + " " + singular + (amount == 1 ? "" : "s");
+    private static String shown(String name) {
+        return name == null || name.isBlank() ? "unnamed" : name;
     }
 
-    private static String label(Node node) {
-        return node.ownerFactionId() + "/" + node.installationId();
+    private static String plural(int amount, String singular) {
+        return singular + (amount == 1 ? "" : "s");
+    }
+
+    private static String blocks(double length) {
+        double distance = Double.isFinite(length) ? Math.max(0, length) : 0;
+        long whole = Math.round(distance);
+        if (Math.abs(distance - whole) < 0.05) {
+            return whole + " blocks";
+        }
+        return String.format(Locale.ROOT, "%.1f blocks", distance);
     }
 }
