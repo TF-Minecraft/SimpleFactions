@@ -114,7 +114,7 @@ public class SupplyHubView {
             if (noHubs) {
                 information.add("§7Choose §eCreate main hub §7to place the first one in your territory.");
             } else {
-                information.add("§7Choose §ePropose a hub §7to see where one would pay.");
+                information.add("§7Choose §ePropose a hub §7to see where your hubs can reach.");
             }
         }
         inventory.setItem(49, SupplyHubCreator.item(Material.PAPER, "§eSupply Hub Information", information));
@@ -136,7 +136,7 @@ public class SupplyHubView {
                 inventory.setItem(22, main);
             } else {
                 ItemStack propose = SupplyHubCreator.item(Material.EMERALD, "§aPropose a hub", List.of(
-                        "§7Where a hub would pay, from today's estimates.",
+                        "§7Places your existing hubs can already reach.",
                         "§eClick to choose a destination"));
                 ItemMeta proposeMeta = propose.getItemMeta();
                 proposeMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "propose");

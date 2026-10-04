@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -22,6 +23,8 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 
 /** Chat entry for a hub agreement's rate and fee. The chest stays closed until the number is typed. */
 public final class HubTermsPrompt implements Listener {
+    private static final long PROMPT_TIMEOUT_MS = 60_000L;
+
     private record Pending(
             String guildId,
             String hostId,
@@ -30,7 +33,8 @@ public final class HubTermsPrompt implements Listener {
             long feeCents,
             int baseRate,
             long baseFeeCents,
-            boolean rateField) {
+            boolean rateField,
+            long askedAtMillis) {
     }
 
     private static final Map<UUID, Pending> WAITING = new ConcurrentHashMap<>();
@@ -45,7 +49,8 @@ public final class HubTermsPrompt implements Listener {
             return;
         }
         WAITING.put(player.getUniqueId(), new Pending(
-                guild.getId(), hostId, installationId, rate, feeCents, baseRate, baseFeeCents, rateField));
+                guild.getId(), hostId, installationId, rate, feeCents, baseRate, baseFeeCents, rateField,
+                System.currentTimeMillis()));
         player.closeInventory();
         if (rateField) {
             Faction host = FactionManager.getByString(hostId);
@@ -64,6 +69,13 @@ public final class HubTermsPrompt implements Listener {
         }
     }
 
+    @EventHandler
+    public void onInventoryOpen(InventoryOpenEvent event) {
+        if (event.getPlayer() != null) {
+            WAITING.remove(event.getPlayer().getUniqueId());
+        }
+    }
+
     // Retain Bukkit chat-event ordering and String message semantics for existing integrations.
     @SuppressWarnings("deprecation")
     @EventHandler
@@ -74,6 +86,9 @@ public final class HubTermsPrompt implements Listener {
         }
         Pending pending = WAITING.remove(player.getUniqueId());
         if (pending == null) {
+            return;
+        }
+        if (isExpired(pending.askedAtMillis, System.currentTimeMillis())) {
             return;
         }
         event.setCancelled(true);
@@ -104,7 +119,7 @@ public final class HubTermsPrompt implements Listener {
             Faction host = FactionManager.getByString(pending.hostId);
             RateRange range = HubAgreementService.allowedRateRange(host);
             if (typed == null || typed < range.minPercent() || typed > range.maxPercent()) {
-                WAITING.put(player.getUniqueId(), pending);
+                WAITING.put(player.getUniqueId(), askedAgain(pending));
                 player.sendMessage("§cType a whole percent from §e" + range.minPercent()
                         + "§c to §e" + range.maxPercent() + "§c, or §ecancel§c.");
                 return;
@@ -115,7 +130,7 @@ public final class HubTermsPrompt implements Listener {
         Long cents = wholeCents(text);
         long maxCents = Math.round(Math.max(0, Cache.supplyHubMaxFee) * 100.0);
         if (cents == null || cents > maxCents) {
-            WAITING.put(player.getUniqueId(), pending);
+            WAITING.put(player.getUniqueId(), askedAgain(pending));
             player.sendMessage("§cThe daily fee must be at least zero, in whole cents, and at most §e"
                     + Formatter.formatMoney(Cache.supplyHubMaxFee) + "§c. Type §ecancel§c to go back.");
             return;
@@ -157,5 +172,15 @@ public final class HubTermsPrompt implements Listener {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    static boolean isExpired(long askedAtMillis, long nowMillis) {
+        return nowMillis - askedAtMillis > PROMPT_TIMEOUT_MS;
+    }
+
+    private static Pending askedAgain(Pending pending) {
+        return new Pending(pending.guildId, pending.hostId, pending.installationId,
+                pending.rate, pending.feeCents, pending.baseRate, pending.baseFeeCents,
+                pending.rateField, System.currentTimeMillis());
     }
 }
