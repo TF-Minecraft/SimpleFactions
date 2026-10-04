@@ -575,7 +575,8 @@ public class SimpleFactions extends JavaPlugin{
 			return net.tfminecraft.simplefactions.guild.hub.VehicleFrameworkTrackProvinces.sample(
 					Cache.worldName, provinceGrid, provinces);
 		}, () -> {
-			// Track changes the shared graph. Recalculation rebuilds it again before hub links.
+			// Forget cached rail routes first; that also drops the graph's routes.
+			net.tfminecraft.simplefactions.guild.hub.HubNetwork.forgetRoutes();
 			net.tfminecraft.simplefactions.guild.network.TradeGraph.refresh(provinceManager);
 			recalculate.run();
 		},
