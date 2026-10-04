@@ -221,7 +221,7 @@ public class LawCreator {
 						));
 
 						for (FactionModifier mod : regionEntry.getValue()) {
-							lore.add(indent + "  " + mod.getString());
+							lore.add(indent + "  " + mod.getString(null, region));
 						}
 					}
 				}
