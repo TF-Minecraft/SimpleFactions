@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.guild.hub;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -33,6 +34,7 @@ import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
+import net.tfminecraft.simplefactions.map.infra.TrackProvinceLookup.Point;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -176,6 +178,41 @@ class HighwayTest {
         assertEquals(Mode.SEA, Highway.bestLink(graph, graph.nodes().get(0), graph.nodes().get(1)).mode());
     }
 
+    @Test
+    void overlappingRailLinesSettleAndDoNotGrowWhenRunAgain() {
+        TradeGraph graph = railRoutes(
+                List.of(station("a", 1), station("b", 2), station("c", 3)),
+                Map.of("a-b", List.of(1, 10, 11, 2), "b-c", List.of(2, 11, 12, 3)));
+        ProvinceManager provinces = isolated(1, 2, 3, 10, 11, 12);
+        placeTrade(provinces, 1, 100);
+
+        Highway.deliver(provinces, guild, graph, Map.of("home", 1.0));
+        Map<Integer, Double> settled = rawAt(provinces, 1, 2, 3, 10, 11, 12);
+
+        assertTrue(settled.get(3) > 0);
+        Highway.deliver(provinces, guild, graph, Map.of("home", 1.0));
+        assertEquals(settled, rawAt(provinces, 1, 2, 3, 10, 11, 12));
+    }
+
+    @Test
+    void ringOfLinesDoesNotGrowWhenRunAgain() {
+        TradeGraph graph = railRoutes(
+                List.of(station("a", 1), station("b", 2), station("c", 3), station("d", 4)),
+                Map.of(
+                        "a-b", List.of(1, 2),
+                        "b-c", List.of(2, 3),
+                        "c-d", List.of(3, 4),
+                        "a-d", List.of(1, 4)));
+        ProvinceManager provinces = isolated(1, 2, 3, 4);
+        HubNetwork.setHighwayForTests(graph, Map.of());
+
+        provinces.recalculateForSingleGuild(guild, false);
+        Map<Integer, Double> settled = rawAt(provinces, 1, 2, 3, 4);
+
+        provinces.recalculateForSingleGuild(guild, false);
+        assertEquals(settled, rawAt(provinces, 1, 2, 3, 4));
+    }
+
     private static TradeGraph edge(String firstOwner, String secondOwner, double length) {
         Installation first = station("a", 1);
         Installation second = station("b", 2);
@@ -206,6 +243,30 @@ class HighwayTest {
                 provinces,
                 (left, right) -> Optional.of(new RailRoutes.Route(0, List.of())),
                 point -> 0);
+    }
+
+    private static TradeGraph railRoutes(
+            List<Installation> installations, Map<String, List<Integer>> routes) {
+        Map<Integer, ProvinceData> data = new HashMap<>();
+        for (Installation installation : installations) {
+            data.put(installation.getProvince(), new ProvinceData(Terrain.PLAINS, Set.of()));
+        }
+        for (List<Integer> route : routes.values()) {
+            for (int provinceId : route) {
+                data.putIfAbsent(provinceId, new ProvinceData(Terrain.PLAINS, Set.of()));
+            }
+        }
+        List<Site> sites = installations.stream()
+                .map(installation -> new Site("home", installation, 1, true))
+                .toList();
+        return TradeGraphBuilder.build(sites, data, (from, to) -> {
+            List<Integer> route = routes.get(from.getId() + "-" + to.getId());
+            if (route == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new RailRoutes.Route(1000,
+                    route.stream().map(id -> new Point(id, 0, 0)).toList()));
+        }, point -> (int) point.x());
     }
 
     private ProvinceManager isolated(int... ids) {
@@ -244,6 +305,14 @@ class HighwayTest {
 
     private double production(ProvinceManager provinces, int id) {
         return provinces.get(id).getGuildProduction(guild);
+    }
+
+    private Map<Integer, Double> rawAt(ProvinceManager provinces, int... ids) {
+        Map<Integer, Double> values = new HashMap<>();
+        for (int id : ids) {
+            values.put(id, raw(provinces, id));
+        }
+        return values;
     }
 
     private static Installation station(String id, int province) {

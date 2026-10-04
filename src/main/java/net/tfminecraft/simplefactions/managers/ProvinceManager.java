@@ -304,19 +304,10 @@ public class ProvinceManager {
             if (entry != null) walked.put(province.getId(), entry.getDistance());
         }
         Highway.deliver(this, guild, graphFor(), accessFor(guild));
-        depositCorridors(guild);
         for (Map.Entry<Integer, Integer> distance : walked.entrySet()) {
             ProvinceDataEntry entry = provinces.get(distance.getKey()).getAllData().get(guild.getId());
             if (entry != null) entry.setDistance(distance.getValue());
         }
-    }
-
-    /** Sea and rail corridor deposits. Runs only after the highway has settled, and does not run it again. */
-    private void depositCorridors(Guild guild) {
-        if (guild == null) {
-            return;
-        }
-        Highway.deposit(this, guild, graphFor(), accessFor(guild));
     }
 
     private void carryProductionThroughGraph(Guild guild) {
