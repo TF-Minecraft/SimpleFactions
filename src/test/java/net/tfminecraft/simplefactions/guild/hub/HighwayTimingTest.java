@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -20,8 +21,14 @@ import net.tfminecraft.simplefactions.enums.Scope;
 import net.tfminecraft.simplefactions.enums.Region;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
+import net.tfminecraft.simplefactions.guild.network.RailRoutes;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
+import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder;
+import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.ProvinceData;
+import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.Site;
 import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.map.infra.TrackProvinceLookup.Point;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
@@ -43,12 +50,14 @@ class HighwayTimingTest {
     private boolean savedProvinces;
     private Double savedPlains;
     private double savedStrength;
+    private double savedCorridor;
 
     @AfterEach
     void tearDown() {
         HubNetwork.setHighwayForTests(null, null);
         Cache.provincesEnabled = savedProvinces;
         Cache.supplyHubNoHubStrength = savedStrength;
+        Cache.supplyHubCorridorShare = savedCorridor;
         if (savedPlains == null) {
             Cache.tradeCarry.remove(Terrain.PLAINS);
         } else {
@@ -66,7 +75,9 @@ class HighwayTimingTest {
         Cache.provincesEnabled = true;
         savedPlains = Cache.tradeCarry.get(Terrain.PLAINS);
         savedStrength = Cache.supplyHubNoHubStrength;
+        savedCorridor = Cache.supplyHubCorridorShare;
         Cache.supplyHubNoHubStrength = 0.5;
+        Cache.supplyHubCorridorShare = 0.5;
         Cache.tradeCarry.put(Terrain.PLAINS, 0.85);
 
         ProvinceManager provinces = grid();
@@ -78,9 +89,10 @@ class HighwayTimingTest {
             nodes.add(new Installation(
                     "n" + index, "n" + index, InstallationKind.AIRPORT, id, col * 200, row * 200, 1L));
         }
-        TradeGraph graph = TestGraphs.rail("realm", nodes, (from, to) -> false, 0);
+        TradeGraph graph = timedGraph(nodes);
         assertEquals(1, graph.networks().size());
         assertEquals(NODES, graph.networks().get(0).size());
+        assertTrue(graph.edges().stream().anyMatch(edge -> edge.mode() == Mode.RAIL && !edge.provinces().isEmpty()));
 
         ObjenesisStd objects = new ObjenesisStd();
         QuietFaction faction = objects.newInstance(QuietFaction.class);
@@ -109,7 +121,7 @@ class HighwayTimingTest {
         }
         long capitalMedian = median(capital);
         long fullMedian = median(full);
-        System.out.println("highway timing: capital "
+        System.out.println("highway timing, corridors on: capital "
                 + ms(capital[0]) + " ms, " + ms(capital[1]) + " ms, " + ms(capital[2])
                 + " ms (median " + ms(capitalMedian) + "); full "
                 + ms(full[0]) + " ms, " + ms(full[1]) + " ms, " + ms(full[2])
@@ -141,6 +153,32 @@ class HighwayTimingTest {
 
     private static String ms(long nanos) {
         return String.format("%.1f", nanos / 1_000_000.0);
+    }
+
+    /** Air joins every airport. Rail between provinces ten apart carries the corridor. */
+    private static TradeGraph timedGraph(List<Installation> nodes) {
+        Map<Integer, ProvinceData> data = new HashMap<>();
+        List<Site> sites = new ArrayList<>();
+        for (int id = 1; id <= PROVINCES; id++) {
+            data.put(id, new ProvinceData(Terrain.PLAINS, java.util.Set.of()));
+        }
+        for (Installation node : nodes) {
+            sites.add(new Site("realm", node, 1, true));
+        }
+        return TradeGraphBuilder.build(sites, data, (from, to) -> {
+            int start = from.getProvince();
+            int end = to.getProvince();
+            if (Math.abs(start - end) != 10) {
+                return Optional.empty();
+            }
+            int step = start < end ? 1 : -1;
+            List<Point> points = new ArrayList<>();
+            for (int id = start; id != end; id += step) {
+                points.add(new Point(id, 0, 0));
+            }
+            points.add(new Point(end, 0, 0));
+            return Optional.of(new RailRoutes.Route(1000, points));
+        }, point -> (int) point.x());
     }
 
     private static ProvinceManager grid() {

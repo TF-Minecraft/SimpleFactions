@@ -30,7 +30,9 @@ import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
 import net.tfminecraft.simplefactions.guild.network.RailRoutes;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder;
+import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.ProvinceData;
 import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.Site;
+import net.tfminecraft.simplefactions.map.infra.TrackProvinceLookup.Point;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
@@ -342,6 +344,85 @@ class HubTaxServiceTest {
             Cache.tradeCarry.clear();
             Cache.tradeCarry.putAll(carry);
         }
+    }
+
+    @Test
+    void corridorGainIsCountedOnce() {
+        boolean enabled = Cache.provincesEnabled;
+        Map<Terrain, Double> carry = new HashMap<>(Cache.tradeCarry);
+        double strength = Cache.supplyHubNoHubStrength;
+        double corridor = Cache.supplyHubCorridorShare;
+        Cache.provincesEnabled = true;
+        Cache.supplyHubNoHubStrength = 0.5;
+        Cache.tradeCarry.put(Terrain.PLAINS, 0.85);
+        try {
+            YamlConfiguration rates = new YamlConfiguration();
+            rates.set("supply-hubs.transport.rail.trade", 0.95);
+            rates.set("supply-hubs.transport.rail.production", 0);
+            HubTransport.loadConfig(rates);
+            ProvinceManager road = road();
+            Guild guild = capitalGuild();
+            Faction home = guild.getFaction();
+            Installation capital = new Installation("a", "A", InstallationKind.TRAIN_STATION, 1, 0, 0, 0L);
+            Installation near = new Installation("near", "Near", InstallationKind.TRAIN_STATION, 2, 0, 0, 0L);
+            SupplyHub hub = new SupplyHub("home", "a", 1);
+            when(guild.getSupplyHubs()).thenReturn(List.of(hub));
+            TradeGraph graph = railThrough(capital, near, 4);
+
+            try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+                    MockedStatic<TitleManager> titles = mockStatic(TitleManager.class)) {
+                factions.when(() -> FactionManager.getByString("home")).thenReturn(home);
+                factions.when(() -> FactionManager.getGuildByString("guild")).thenReturn(guild);
+                factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+                titles.when(() -> TitleManager.getByProvince(anyInt())).thenReturn(null);
+
+                Set<HubSite> active = Set.of(new HubSite("home", "a"));
+                Cache.supplyHubCorridorShare = 0;
+                HubNetwork.setHighwayForTests(graph, Map.of("guild", active));
+                HubTaxBreakdown closed = HubTaxService.assess(road, guild, List.of(guild));
+                assertEquals(0, closed.forHub(hub).taxableIncome(), 1e-6);
+
+                Cache.supplyHubCorridorShare = 1;
+                HubNetwork.setHighwayForTests(graph, Map.of("guild", active));
+                road.recalculateForSingleGuild(guild, false);
+                double full = road.getGrossTradeIncome(guild);
+                double withHub = road.get(4).getRawGuildTrade(guild);
+                ProvinceManager bare = road.createSnapshotShell();
+                bare.copyAllDataFrom(road);
+                bare.setHighwayOverride(graph, Map.of("guild", Set.of()));
+                bare.recalculateForSingleGuild(guild, false);
+                double without = bare.getGrossTradeIncome(guild);
+
+                HubTaxBreakdown added = HubTaxService.assess(road, guild, List.of(guild));
+                assertTrue(withHub > bare.get(4).getRawGuildTrade(guild));
+                assertTrue(added.forHub(hub).taxableIncome() > 0);
+                assertEquals(full - without, added.forHub(hub).taxableIncome(), 1e-6);
+                assertEquals(0, added.forHub(hub).tax());
+            }
+        } finally {
+            HubNetwork.setHighwayForTests(null, null);
+            HubTransport.resetConfig();
+            Cache.provincesEnabled = enabled;
+            Cache.supplyHubNoHubStrength = strength;
+            Cache.supplyHubCorridorShare = corridor;
+            Cache.tradeCarry.clear();
+            Cache.tradeCarry.putAll(carry);
+        }
+    }
+
+    private static TradeGraph railThrough(Installation from, Installation to, int corridor) {
+        Map<Integer, ProvinceData> data = new HashMap<>();
+        data.put(from.getProvince(), new ProvinceData(Terrain.PLAINS, Set.of()));
+        data.put(to.getProvince(), new ProvinceData(Terrain.PLAINS, Set.of()));
+        data.put(corridor, new ProvinceData(Terrain.PLAINS, Set.of()));
+        return TradeGraphBuilder.build(
+                List.of(new Site("home", from, 1, true), new Site("home", to, 1, true)),
+                data,
+                (left, right) -> Optional.of(new RailRoutes.Route(0, List.of(
+                        new Point(from.getProvince(), 0, 0),
+                        new Point(corridor, 0, 0),
+                        new Point(to.getProvince(), 0, 0)))),
+                point -> (int) point.x());
     }
 
     private static TradeGraph rail(Installation from, Installation to) {

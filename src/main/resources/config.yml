@@ -98,6 +98,9 @@ supply-hubs:
   # Trade without your hub at a stop is carried at this strength. Both ends
   # without a hub multiply it twice. 1 is full strength.
   no-hub-strength: 0.5
+  # Sea and rail leave this share of the delivery in the provinces along the way.
+  # Air leaves nothing. 1 leaves the full delivery.
+  corridor-share: 0.5
   # A stop delivers a share of the guild's trade there to the next stop.
   #   trade / production: share delivered before distance loss (capped at 0.95)
   #   kept-per-1000-blocks: share that survives each 1000 blocks

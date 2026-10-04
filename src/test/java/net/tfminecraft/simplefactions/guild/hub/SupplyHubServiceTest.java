@@ -435,6 +435,29 @@ class SupplyHubServiceTest {
     }
 
     @Test
+    void corridorShareClamps() {
+        double previous = Cache.supplyHubCorridorShare;
+        try {
+            YamlConfiguration high = new YamlConfiguration();
+            high.set("supply-hubs.corridor-share", 4);
+            SupplyHubService.loadConfig(high);
+            assertEquals(1, Cache.supplyHubCorridorShare, 1e-9);
+            assertEquals(1, Highway.corridorShare(), 1e-9);
+            YamlConfiguration low = new YamlConfiguration();
+            low.set("supply-hubs.corridor-share", -2);
+            SupplyHubService.loadConfig(low);
+            assertEquals(0, Cache.supplyHubCorridorShare, 1e-9);
+            assertEquals(0, Highway.corridorShare(), 1e-9);
+            SupplyHubService.loadConfig(null);
+            assertEquals(0.5, Cache.supplyHubCorridorShare, 1e-9);
+            Cache.supplyHubCorridorShare = Double.NaN;
+            assertEquals(0.5, Highway.corridorShare(), 1e-9);
+        } finally {
+            Cache.supplyHubCorridorShare = previous;
+        }
+    }
+
+    @Test
     void remove_isAmbiguousAcrossFactionsUntilQualified() {
         List<SupplyHub> hubs = List.of(hub("rome", "harbour", 1), hub("venice", "harbour", 2));
         assertEquals(RemoveOutcome.AMBIGUOUS, SupplyHubService.matchRemove(hubs, "harbour").outcome());
