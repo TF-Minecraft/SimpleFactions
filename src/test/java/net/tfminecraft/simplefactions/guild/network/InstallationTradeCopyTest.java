@@ -106,6 +106,29 @@ class InstallationTradeCopyTest {
 		assertNull(InstallationTradeCopy.agreementLine((RelationType) null));
 	}
 
+	@Test
+	void unresolvedLinkOmitsTheInstallationLine() {
+		register("""
+				broken:
+				  name: Broken
+				  mutual: true
+				  link: missing_agreement
+				  installation-access: 1.0
+				pointed:
+				  name: Pointed
+				  link: also_missing
+				  installation-access: 0.25
+				back:
+				  name: Back
+				  link: pointed
+				  installation-access: 0.75
+				""");
+
+		assertNull(InstallationTradeCopy.agreementLine(RelationLoader.getType("broken")));
+		assertEquals("Installations: we use theirs at 25%, they use ours at 75%",
+				InstallationTradeCopy.agreementLine(RelationLoader.getType("pointed")));
+	}
+
 	private static void register(String types) {
 		YamlConfiguration yaml = new YamlConfiguration();
 		try {

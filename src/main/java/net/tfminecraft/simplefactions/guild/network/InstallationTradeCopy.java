@@ -32,16 +32,25 @@ public final class InstallationTradeCopy {
 			return null;
 		}
 		RelationType other = counterpart(type);
+		if (other == null) {
+			return null;
+		}
 		boolean blocked = type.blocksInstallations() || other.blocksInstallations();
 		return agreementLine(type.getInstallationAccess(), other.getInstallationAccess(), blocked);
 	}
 
+	/**
+	 * The other side of an agreement. Null when a link id is configured but does not
+	 * resolve and no loaded type links back, so the installation line must be omitted.
+	 * The same type is used only when the agreement is mutual or has no link configured.
+	 */
 	private static RelationType counterpart(RelationType type) {
 		if (type.hasLink()) {
 			RelationType linked = type.getLink();
-			return linked != null ? linked : type;
-		}
-		if (type.isMutual()) {
+			if (linked != null) {
+				return linked;
+			}
+		} else if (type.isMutual()) {
 			return type;
 		}
 		String id = type.getId();
@@ -51,7 +60,10 @@ public final class InstallationTradeCopy {
 				return candidate;
 			}
 		}
-		return type;
+		if (!type.hasLink()) {
+			return type;
+		}
+		return null;
 	}
 
 	private static boolean near(double value, double target) {
