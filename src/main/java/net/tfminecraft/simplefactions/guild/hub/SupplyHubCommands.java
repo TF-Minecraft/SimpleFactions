@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.managers.inventory.NetworkViewer;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -34,6 +35,19 @@ public final class SupplyHubCommands {
             return gotIt(player);
         }
         player.sendMessage(MENU_HINT);
+        return true;
+    }
+
+    /** Opens the trade network list for the player's guild. */
+    public static boolean networks(Player player) {
+        if (player == null) return true;
+        if (!Cache.requireProvinces(player)) return true;
+        Guild guild = FactionManager.getGuildByMember(player.getName());
+        if (guild == null) {
+            player.sendMessage("§cYou are not in a guild");
+            return true;
+        }
+        NetworkViewer.open(player, guild, 0);
         return true;
     }
 

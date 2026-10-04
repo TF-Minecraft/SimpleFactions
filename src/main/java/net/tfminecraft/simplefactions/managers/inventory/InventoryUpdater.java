@@ -63,7 +63,10 @@ public class InventoryUpdater {
 			SFGUI.CAUSES_VIEW,
 			SFGUI.CAUSE_VIEW,
 			SFGUI.LEDGER_VIEW,
-			SFGUI.COMPANY_VIEW);
+			SFGUI.COMPANY_VIEW,
+			// The network viewer reads the snapshot when it opens.
+			SFGUI.TRADE_NETWORK_LIST,
+			SFGUI.TRADE_NETWORK_NODES);
 
 	static boolean skipsPeriodicRefresh(SFGUI type) {
 		return type != null && SKIP_PERIODIC_REFRESH.contains(type);

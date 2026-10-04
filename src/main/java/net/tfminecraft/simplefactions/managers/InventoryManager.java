@@ -1324,6 +1324,9 @@ public class InventoryManager implements Listener{
 					|| h.getType() == SFGUI.HUB_NEGOTIATION
 					|| h.getType() == SFGUI.HUB_OFFER_LIST) {
 				net.tfminecraft.simplefactions.managers.inventory.HubProposalMenu.click(e, inv, p, this);
+			} else if (h.getType() == SFGUI.TRADE_NETWORK_LIST
+					|| h.getType() == SFGUI.TRADE_NETWORK_NODES) {
+				net.tfminecraft.simplefactions.managers.inventory.NetworkViewer.click(e, inv, p, this);
 			} else if(h.getType() == SFGUI.GOVERNMENT_VIEW 
 				|| h.getType() == SFGUI.PROPOSAL_VIEW
 				|| h.getType() == SFGUI.PROPOSALS

@@ -120,6 +120,13 @@ public class SupplyHubView {
             }
         }
         inventory.setItem(49, SupplyHubCreator.item(Material.PAPER, "§eSupply Hub Information", information));
+        ItemStack networks = SupplyHubCreator.item(Material.COMPASS, "§eTrade networks", List.of(
+                "§7Ports, airports and stations, and who uses them.",
+                "§eClick to view"));
+        ItemMeta networkMeta = networks.getItemMeta();
+        networkMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "networks");
+        networks.setItemMeta(networkMeta);
+        inventory.setItem(47, networks);
         if (noHubs && noInstallation) {
             inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7You have no installation", List.of(
                     "§7Build a port, airport, or train station in your territory.")));
@@ -224,16 +231,19 @@ public class SupplyHubView {
                 // InventoryManager's back button handling opens the guild menu.
                 return;
             }
+            ItemStack item = event.getCurrentItem();
+            String data = item == null || !item.hasItemMeta() ? null
+                    : item.getItemMeta().getPersistentDataContainer()
+                            .get(Keys.STRING_KEY, PersistentDataType.STRING);
+            if ("networks".equals(data)) {
+                NetworkViewer.open(player, guild, 0);
+                player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+                return;
+            }
             if (!isLeader(guild, player)) {
                 return;
             }
-            ItemStack item = event.getCurrentItem();
-            if (item == null || !item.hasItemMeta()) {
-                return;
-            }
-            String data = item.getItemMeta().getPersistentDataContainer()
-                    .get(Keys.STRING_KEY, PersistentDataType.STRING);
-            if (data == null) {
+            if (item == null || !item.hasItemMeta() || data == null) {
                 return;
             }
             if (data.equals("propose") || data.equals("main")) {
