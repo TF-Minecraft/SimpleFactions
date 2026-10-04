@@ -27,6 +27,11 @@ class HubProposalCopyTest {
     }
 
     @Test
+    void aJoinRowNamesTheNetwork() {
+        assertEquals("§7Joins: §fThe Vardera Network", HubProposalCopy.joinsLine("The Vardera Network"));
+    }
+
+    @Test
     void aFirstHubShowsTradePowerWithoutAnArrival() {
         Site own = site(true, 18, 0);
         List<String> lore = HubProposalCopy.destinationLore(own, false);

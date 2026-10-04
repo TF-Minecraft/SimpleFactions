@@ -84,23 +84,27 @@ class SupplyHubServiceTest {
     }
 
     @Test
-    void firstHubMustBeInOwnTerritory() {
+    void placeRefusesANodeInANetworkTheGuildHasNotJoined() {
         Guild guild = mock(Guild.class);
         Faction home = mock(Faction.class);
         Player player = mock(Player.class);
-        Installation installation = mock(Installation.class);
+        Installation port = new Installation("port", "Port", InstallationKind.PORT, 1, 0, 0, 1L);
+        Installation station = new Installation("station", "Station", InstallationKind.TRAIN_STATION, 2, 1000, 0, 1L);
         when(player.getName()).thenReturn("leader");
         when(guild.getLeader()).thenReturn("leader");
         when(guild.getFaction()).thenReturn(home);
         when(home.getId()).thenReturn("home");
         when(home.hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(true);
         when(guild.getSupplyHubs()).thenReturn(new ArrayList<>());
+        HubNetwork.setHighwayForTests(TestGraphs.linked("other", 0, port, station), java.util.Map.of());
         try (MockedStatic<SupplyHubService> hubs = mockStatic(SupplyHubService.class, CALLS_REAL_METHODS);
                 MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-            hubs.when(() -> SupplyHubService.findInstallation("other", "port")).thenReturn(installation);
+            hubs.when(() -> SupplyHubService.findInstallation("other", "port")).thenReturn(port);
             factions.when(() -> FactionManager.getByString("other")).thenReturn(null);
             assertFalse(SupplyHubCommands.place(player, guild, "other", "port"));
-            verify(player).sendMessage("§cYour first hub has to be in your own territory");
+            verify(player).sendMessage(HubPlacement.refusal());
+        } finally {
+            HubNetwork.setHighwayForTests(null, null);
         }
     }
 

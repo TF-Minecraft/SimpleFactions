@@ -40,6 +40,7 @@ import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.HubPlacement;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.objects.Modifier;
@@ -65,11 +66,17 @@ public class GuildCreator {
 	FactionRanker r = new FactionRanker();
 
 	@SuppressWarnings("deprecation")
-	public ItemStack createSupplyHubsItem() {
+	public ItemStack createSupplyHubsItem(Guild guild) {
 		ItemStack item = new ItemStack(Material.CHEST);
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex("#b5835a§lSupply Hubs"));
-		meta.setLore(List.of("§7View your guild's supply hubs"));
+		List<String> lore = new ArrayList<>();
+		lore.add("§7View your guild's supply hubs");
+		String empty = HubPlacement.display(HubPlacement.forGuild(guild));
+		if (empty != null) {
+			lore.add(empty);
+		}
+		meta.setLore(lore);
 		item.setItemMeta(meta);
 		return item;
 	}

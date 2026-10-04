@@ -211,7 +211,7 @@ public class GuildView {
 		i.setItem(13, creator.createMenuItem(player, guild, MenuItemType.TRADE_BREAKDOWN));
 		i.setItem(14, creator.createLedgerItem(player, guild));
 		// Slots 20 to 24 are the branch upgrade buttons, so this sits past Loans.
-		i.setItem(26, creator.createSupplyHubsItem());
+		i.setItem(26, creator.createSupplyHubsItem(guild));
 		if (!guild.isBase()) {
 			i.setItem(17, creator.createDividendItem(player, guild));
 		}

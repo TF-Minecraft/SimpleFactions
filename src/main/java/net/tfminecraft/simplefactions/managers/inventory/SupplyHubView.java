@@ -19,7 +19,7 @@ import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
-import net.tfminecraft.simplefactions.guild.hub.HubEstimates;
+import net.tfminecraft.simplefactions.guild.hub.HubPlacement;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
@@ -101,20 +101,12 @@ public class SupplyHubView {
                 "§7Upkeep per hub: §e" + Formatter.formatDouble(SupplyHubService.upkeepPerHub(guild)) + "d/day",
                 "§7Daily upkeep: §e" + Formatter.formatDouble(SupplyHubService.dailyCost(guild)) + "d/day"));
         boolean noHubs = hubs.isEmpty();
-        boolean noInstallation = false;
-        boolean noTrade = false;
-        if (noHubs) {
-            var territory = HubEstimates.territory(HubEstimates.sites(guild));
-            noInstallation = territory.isEmpty();
-            noTrade = !noInstallation && HubEstimates.withTrade(territory).isEmpty();
-        }
-        if (noHubs && noInstallation) {
-            information.add("§7You have no installation for a hub.");
-        } else if (noHubs && noTrade) {
-            information.add("§7None of your installations have trade power.");
+        String empty = HubPlacement.display(HubPlacement.forGuild(guild));
+        if (empty != null) {
+            information.add(empty);
         } else if (isLeader(guild, player)) {
             if (noHubs) {
-                information.add("§7Choose §eCreate main hub §7to place the first one in your territory.");
+                information.add("§7Choose §eJoin a network §7to place a hub on your land.");
             } else {
                 information.add("§7Choose §ePropose a hub §7to see where your hubs can reach.");
             }
@@ -127,26 +119,21 @@ public class SupplyHubView {
         networkMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "networks");
         networks.setItemMeta(networkMeta);
         inventory.setItem(47, networks);
-        if (noHubs && noInstallation) {
-            inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7You have no installation", List.of(
-                    "§7Build a port, airport, or train station in your territory.")));
-        } else if (noHubs && noTrade) {
-            inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No trade power in your territory", List.of(
-                    "§7A main hub is placed where your guild already has trade power.")));
+        if (empty != null) {
+            inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, empty, List.of()));
         } else if (isLeader(guild, player)) {
             if (noHubs) {
-                ItemStack main = SupplyHubCreator.item(Material.EMERALD, "§aCreate main hub", List.of(
-                        "§7The first hub has to be in your territory.",
-                        "§7It starts where your trade power is highest.",
-                        "§eClick to choose the site"));
-                ItemMeta mainMeta = main.getItemMeta();
-                mainMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "main");
-                main.setItemMeta(mainMeta);
-                inventory.setItem(22, main);
+                ItemStack join = SupplyHubCreator.item(Material.EMERALD, "§aJoin a network", List.of(
+                        "§7Stops in your land, and the network each one joins.",
+                        "§eClick to choose a stop"));
+                ItemMeta joinMeta = join.getItemMeta();
+                joinMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "join");
+                join.setItemMeta(joinMeta);
+                inventory.setItem(22, join);
             } else {
                 ItemStack propose = SupplyHubCreator.item(Material.EMERALD, "§aPropose a hub", List.of(
-                        "§7Places your existing hubs can already reach.",
-                        "§eClick to choose a destination"));
+                        "§7Add a hub in a network you have joined.",
+                        "§eClick to choose a network"));
                 ItemMeta proposeMeta = propose.getItemMeta();
                 proposeMeta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, "propose");
                 propose.setItemMeta(proposeMeta);
@@ -246,7 +233,7 @@ public class SupplyHubView {
             if (item == null || !item.hasItemMeta() || data == null) {
                 return;
             }
-            if (data.equals("propose") || data.equals("main")) {
+            if (data.equals("propose") || data.equals("main") || data.equals("join")) {
                 HubProposalMenu.openProposals(player, guild, 0);
                 player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
                 return;

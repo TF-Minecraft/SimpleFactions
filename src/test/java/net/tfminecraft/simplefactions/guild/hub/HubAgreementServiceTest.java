@@ -33,6 +33,9 @@ import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.AgreementRes
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.HubNotice;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.PendingMatter;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.RateRange;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Network;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
@@ -132,6 +135,20 @@ class HubAgreementServiceTest {
         assertEquals(14, agreement.daysRemaining());
         assertTrue(agreement.guildRenews());
         assertTrue(agreement.hostRenews());
+    }
+
+    @Test
+    void acceptingAHubInANetworkTheGuildHasNotJoinedIsRefused() {
+        Facts facts = new Facts();
+        Node node = new Node("host", "port", InstallationKind.PORT, 1, 0, 0, 1, 2, 0);
+        facts.placement = new HubPlacement.Inputs(new Network(List.of(node), false), Set.of(), false);
+        Guild guild = guild();
+        assertTrue(HubAgreementService.propose(guild, "Leader", "host", "port", 10, 1.0, facts, 0L).succeeded());
+        AgreementResult accepted = HubAgreementService.accept(guild, "Council", "host", "port", facts, 1L);
+        assertFalse(accepted.succeeded());
+        assertFalse(accepted.builtHub());
+        assertEquals(HubPlacement.refusal(), accepted.message());
+        assertTrue(guild.getSupplyHubs().isEmpty());
     }
 
     @Test
@@ -531,6 +548,7 @@ class HubAgreementServiceTest {
         double trade = 12;
         boolean dormant;
         String leader = "Leader";
+        HubPlacement.Inputs placement;
 
         Facts() {
             councils.put("host", List.of("Council"));
@@ -643,6 +661,11 @@ class HubAgreementServiceTest {
         @Override
         public String installationLabel(String factionId, String installationId) {
             return installationId == null ? "installation" : installationId;
+        }
+
+        @Override
+        public HubPlacement.Inputs placementInputs(Guild guild, String hostFactionId, String installationId) {
+            return placement == null ? HubPlacement.Inputs.ownLand() : placement;
         }
     }
 }

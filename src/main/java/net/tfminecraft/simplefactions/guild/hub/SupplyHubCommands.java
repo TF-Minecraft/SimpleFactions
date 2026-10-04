@@ -11,13 +11,13 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
-import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.BuildFailure;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.inventory.NetworkViewer;
-import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 
@@ -30,9 +30,6 @@ public final class SupplyHubCommands {
     public static boolean guild(Player player, String[] args) {
         if (!Cache.requireProvinces(player)) {
             return true;
-        }
-        if (args.length >= 2 && args[1].equalsIgnoreCase("gotit")) {
-            return gotIt(player);
         }
         player.sendMessage(MENU_HINT);
         return true;
@@ -104,20 +101,13 @@ public final class SupplyHubCommands {
             player.sendMessage("§cThat installation is not there");
             return false;
         }
-        if ((guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty())
-                && !inOwnTerritory(guild, ownerFactionId)) {
-            player.sendMessage("§cYour first hub has to be in your own territory");
-            return false;
-        }
-        boolean capitalHub = hasCapitalHub(guild);
-        SupplyHubTutorial.Decision tutorial = SupplyHubTutorial.decision(
-                guild.hasCapital(), capitalHub, installation.getProvince() == guild.getCapital(),
-                guild.hasDismissedSupplyHubTutorial(player.getUniqueId().toString()));
-        if (tutorial == SupplyHubTutorial.Decision.SHOW) {
-            Installation capitalInstallation = capitalPlacement(guild);
-            Faction capitalOwner = capitalInstallation == null ? capitalOwner(guild) : null;
-            SupplyHubTutorial.show(player, SupplyHubTutorial.placementLine(
-                    capitalInstallation, capitalOwner == null ? null : capitalOwner.getName()));
+        TradeGraph graph = HighwaySnapshot.current().graph();
+        Node node = graph == null ? null : graph.node(ownerFactionId, installation.getId());
+        if (!HubPlacement.mayPlace(
+                graph == null ? null : graph.networkOf(node),
+                HubPlacement.joinedNetworks(graph, guild.getSupplyHubs()),
+                HubPlacement.ownLand(guild, ownerFactionId))) {
+            player.sendMessage(HubPlacement.refusal());
             return false;
         }
         int slots;
@@ -153,88 +143,9 @@ public final class SupplyHubCommands {
         if (connections.isEmpty() && guild.getSupplyHubs().size() == 1) {
             player.sendMessage("§7A hub does nothing alone. Build a second one where you want trade to arrive.");
         } else if (connections.isEmpty()) {
-            player.sendMessage("§7This hub is not linked to any of your other hubs. Train track links any two hubs; ports also link by sea and airports by air.");
-        }
-        if (tutorial == SupplyHubTutorial.Decision.NOTE) {
-            player.sendMessage("§7Your guild still has no hub in its capital province, so this hub has little to pass on.");
+            player.sendMessage("§7Trade now leaves and arrives here at full strength. Production needs a second hub of yours on the same network.");
         }
         return true;
-    }
-
-    private static boolean gotIt(Player player) {
-        Guild guild = FactionManager.getGuildByMember(player.getName());
-        if (guild == null) {
-            player.sendMessage("§cYou are not in a guild");
-            return true;
-        }
-        guild.dismissSupplyHubTutorial(player.getUniqueId().toString());
-        new Database().saveFaction(guild.getFaction());
-        player.sendMessage("§aGot it. §7Open your guild's Supply Hubs menu when you want to build one.");
-        return true;
-    }
-
-    private static boolean inOwnTerritory(Guild guild, String ownerFactionId) {
-        Faction guildFaction = guild == null ? null : guild.getFaction();
-        if (guildFaction == null || ownerFactionId == null || guildFaction.getId() == null) {
-            return false;
-        }
-        if (guildFaction.getId().equalsIgnoreCase(ownerFactionId)) {
-            return true;
-        }
-        Faction owner = FactionManager.getByString(ownerFactionId);
-        return owner != null && RelationManager.sameRealm(owner, guildFaction);
-    }
-
-    private static boolean hasCapitalHub(Guild guild) {
-        if (guild == null || !guild.hasCapital()) return false;
-        for (SupplyHub hub : guild.getSupplyHubs()) {
-            Installation installation = SupplyHubService.findInstallation(
-                    hub.ownerFactionId(), hub.installationId());
-            if (installation != null && installation.getProvince() == guild.getCapital()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static Installation capitalPlacement(Guild guild) {
-        if (guild == null || !guild.hasCapital()) {
-            return null;
-        }
-        if (FactionManager.factions == null) {
-            return null;
-        }
-        for (Faction faction : FactionManager.factions) {
-            if (faction == null || faction.getInstallationHandler() == null) {
-                continue;
-            }
-            for (Installation installation : faction.getInstallationHandler().getAll()) {
-                if (installation == null || installation.getProvince() != guild.getCapital()) {
-                    continue;
-                }
-                if (!SupplyHubService.hubPermitted(guild, faction.getId(), installation.getId())) {
-                    continue;
-                }
-                int slots = InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel());
-                if (slots <= SupplyHubService.countLoaded(faction.getId(), installation.getId())) continue;
-                if (SupplyHubService.hasHub(guild.getSupplyHubs(), faction.getId(), installation.getId())) continue;
-                if (Math.max(
-                        tradeInProvince(installation.getProvince(), guild.getId()),
-                        reachableTrade(guild, installation)) < 0.5) continue;
-                return installation;
-            }
-        }
-        return null;
-    }
-
-    private static Faction capitalOwner(Guild guild) {
-        if (guild == null || !guild.hasCapital()) return null;
-        SimpleFactions plugin = SimpleFactions.getInstance();
-        if (plugin == null || plugin.getProvinceManager() == null) {
-            return null;
-        }
-        Province province = plugin.getProvinceManager().get(guild.getCapital());
-        return province == null ? null : province.getOwner();
     }
 
     private static String label(SupplyHub hub) {
