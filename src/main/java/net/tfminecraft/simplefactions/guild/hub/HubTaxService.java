@@ -7,10 +7,10 @@ import java.util.Map;
 import java.util.Set;
 
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
 import net.tfminecraft.simplefactions.guild.hub.HubTaxBreakdown.Assessment;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
-import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
@@ -30,32 +30,30 @@ public final class HubTaxService {
     }
 
     public static HubTaxBreakdown assess(ProvinceManager provinces, Guild guild, List<Guild> guilds) {
-        List<Link> links = HubNetwork.linksFor(guild);
-        if (links.isEmpty() || !guild.hasCapital()) {
+        if (guild == null || !guild.hasCapital() || guild.getSupplyHubs() == null) {
             return HubTaxBreakdown.empty();
         }
-        double base = incomeWith(provinces, guild, List.of());
-        double full = incomeWith(provinces, guild, links);
+        // Active hubs were chosen at the last refresh, standing included, and stored with the graph.
+        TradeGraph graph = HighwaySnapshot.current().graph();
+        Set<HubSite> active = new HashSet<>(HubNetwork.hubbedNodes(guild));
+        if (active.isEmpty()) {
+            return HubTaxBreakdown.empty();
+        }
+        double base = incomeWith(provinces, guild, graph, Set.of());
+        double full = incomeWith(provinces, guild, graph, active);
         Map<SupplyHub, Double> without = new HashMap<>();
         Map<SupplyHub, Faction> hosts = new HashMap<>();
         for (SupplyHub hub : guild.getSupplyHubs()) {
-            Installation installation = SupplyHubService.findInstallation(
-                    hub.ownerFactionId(), hub.installationId());
+            if (hub == null || !contains(active, hub)) {
+                continue;
+            }
             Faction host = FactionManager.getByString(hub.ownerFactionId());
-            if (installation == null || host == null) {
+            if (host == null) {
                 continue;
             }
-            boolean allowed = SupplyHubService.hubPermitted(guild, host.getId(), installation.getId());
-            if (!SupplyHubService.standing(
-                    guild, hub, true, allowed,
-                    InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
-                    SupplyHubService.atInstallation(host.getId(), installation.getId(), guilds)).active()) {
-                continue;
-            }
-            List<Link> remaining = links.stream()
-                    .filter(link -> !touches(link, hub))
-                    .toList();
-            without.put(hub, incomeWith(provinces, guild, remaining));
+            Set<HubSite> remaining = new HashSet<>(active);
+            remaining.remove(new HubSite(hub.ownerFactionId(), hub.installationId()));
+            without.put(hub, incomeWith(provinces, guild, graph, remaining));
             hosts.put(hub, host);
         }
         Map<SupplyHub, Double> taxable = taxableIncome(base, full, without);
@@ -108,10 +106,14 @@ public final class HubTaxService {
                 && installationId.equalsIgnoreCase(hub.installationId());
     }
 
-    private static double incomeWith(ProvinceManager source, Guild guild, List<Link> links) {
+    private static boolean contains(Set<HubSite> active, SupplyHub hub) {
+        return active.contains(new HubSite(hub.ownerFactionId(), hub.installationId()));
+    }
+
+    private static double incomeWith(ProvinceManager source, Guild guild, TradeGraph graph, Set<HubSite> hubbed) {
         ProvinceManager snapshot = source.createSnapshotShell();
         snapshot.copyAllDataFrom(source);
-        snapshot.setHubLinksOverride(Map.of(guild.getId(), links));
+        snapshot.setHighwayOverride(graph, Map.of(guild.getId(), hubbed));
         snapshot.recalculateForSingleGuild(guild, false);
         return snapshot.getGrossTradeIncome(guild);
     }

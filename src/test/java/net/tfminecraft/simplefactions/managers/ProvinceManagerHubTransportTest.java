@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,10 +28,14 @@ import net.tfminecraft.simplefactions.guild.income.IncomePreviewContext;
 import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 import org.bukkit.configuration.file.YamlConfiguration;
+import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
+import net.tfminecraft.simplefactions.guild.hub.HubTransport;
+import net.tfminecraft.simplefactions.guild.hub.TestGraphs;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
+import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 
@@ -82,13 +87,14 @@ class ProvinceManagerHubTransportTest {
     @AfterEach
     void tearDown() {
         titles.close();
-        HubNetwork.setLinksForTests(null);
+        HubNetwork.setHighwayForTests(null, null);
+        HubTransport.resetConfig();
         Cache.provincesEnabled = provincesWereEnabled;
     }
 
     @Test
-    void forbiddenSupplyHubsCarryNothingAndLawPreviewSuppressesCachedLinks() {
-        link(new Link(1, 22, Mode.RAIL, 0, 0.4, 0.8));
+    void forbiddenHubsStillCarryTradeAtNoHubStrength() {
+        connect(1, 22);
         List<Link> cached = HubNetwork.linksFor(guild);
         recalculate();
         assertEquals(8, trade(22), 1e-9);
@@ -101,7 +107,7 @@ class ProvinceManagerHubTransportTest {
             snapshot.copyAllDataFrom(provinces);
             snapshot.recalculateForSingleGuild(guild, false);
             assertTrue(HubNetwork.linksFor(guild).isEmpty());
-            assertEquals(0, snapshot.get(22).getStoredGuildTrade(guild));
+            assertEquals(2, snapshot.get(22).getStoredGuildTrade(guild), 1e-9);
             assertEquals(0, snapshot.get(22).getGuildProduction(guild));
             assertEquals(8, trade(22), 1e-9);
         } finally {
@@ -110,7 +116,7 @@ class ProvinceManagerHubTransportTest {
         assertEquals(cached, HubNetwork.linksFor(guild));
         when(guild.getFaction().hasFactionRule(Rules.SUPPLY_HUBS)).thenReturn(false);
         recalculate();
-        assertEquals(0, trade(22));
+        assertEquals(2, trade(22), 1e-9);
         assertEquals(0, production(22));
     }
 
@@ -126,7 +132,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void hubDeliversAShareAndItSpreadsFromThere() {
-        link(new Link(1, 22, Mode.RAIL, 0, 0.4, 0.8));
+        connect(1, 22);
 
         recalculate();
 
@@ -144,7 +150,7 @@ class ProvinceManagerHubTransportTest {
     @Test
     void hubTradeModifierBoostsTheShareDuringRecalculation() {
         when(guild.getModifier(GuildModifier.HUB_TRADE)).thenReturn(0.30);
-        link(new Link(1, 22, Mode.RAIL, 0, 0.4, 0.8));
+        connect(1, 22);
 
         recalculate();
 
@@ -155,7 +161,7 @@ class ProvinceManagerHubTransportTest {
     void tradeOnlyDeliveryKeepsTheWalkedDistanceForProductionThatWalked() {
         // Province 4 is three steps from the capital. An air link brings more trade there but no
         // production, so the production that walked in is still weighed as three steps away.
-        link(new Link(1, 4, Mode.AIR, 0, 0.9, 0));
+        connect(0.90, 0, 1, 4);
 
         recalculate();
 
@@ -170,7 +176,7 @@ class ProvinceManagerHubTransportTest {
     void productionDeliveredByAHubIsMeasuredFromThatHub() {
         recalculate();
         double walkedProduction = production(4);
-        link(new Link(1, 4, Mode.RAIL, 0, 0.9, 0.9));
+        connect(0.90, 0.90, 1, 4);
 
         recalculate();
 
@@ -181,7 +187,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void hubNeverLowersWhatAlreadyArrives() {
-        link(new Link(1, 2, Mode.RAIL, 0, 0.5, 0.25));
+        connect(0.50, 0.25, 1, 2);
 
         recalculate();
 
@@ -198,7 +204,7 @@ class ProvinceManagerHubTransportTest {
         when(owner.getDiplomacyHandler()).thenReturn(mock(DiplomacyHandler.class));
         when(government.getStability()).thenReturn(0.0);
         titles.when(() -> TitleManager.getByProvince(2)).thenReturn(owner);
-        link(new Link(1, 2, Mode.RAIL, 0, 0.9, 0));
+        connect(0.90, 0, 1, 2);
 
         try (MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
             recalculate();
@@ -211,7 +217,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void powerTravelsAlongAChainAndLosesAShareAtEachHub() {
-        link(new Link(1, 8, Mode.RAIL, 0, 0.4, 0.8), new Link(8, 14, Mode.RAIL, 0, 0.4, 0.8));
+        connect(1, 8, 14);
 
         recalculate();
 
@@ -223,7 +229,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void chainSettlesWhateverOrderTheLinksAreIn() {
-        link(new Link(8, 14, Mode.RAIL, 0, 0.4, 0.8), new Link(1, 8, Mode.RAIL, 0, 0.4, 0.8));
+        connect(1, 8, 14);
 
         recalculate();
 
@@ -232,9 +238,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void aRingOfHubsCannotGrowPower() {
-        link(
-                new Link(1, 12, Mode.RAIL, 0, 0.95, 0.95),
-                new Link(12, 1, Mode.RAIL, 0, 0.95, 0.95));
+        connect(0.95, 0.95, 1, 12);
 
         recalculate();
 
@@ -246,7 +250,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void deliveriesTooSmallToTradeAreDropped() {
-        link(new Link(1, 12, Mode.AIR, 0, 0.02, 0.005));
+        connect(0.02, 0.005, 1, 12);
 
         recalculate();
 
@@ -256,7 +260,7 @@ class ProvinceManagerHubTransportTest {
 
     @Test
     void recalculatingAgainGivesTheSameResult() {
-        link(new Link(1, 12, Mode.RAIL, 0, 0.4, 0.8));
+        connect(1, 12);
 
         recalculate();
         double first = trade(12);
@@ -265,8 +269,41 @@ class ProvinceManagerHubTransportTest {
         assertEquals(first, trade(12), 1e-9);
     }
 
-    private void link(Link... links) {
-        HubNetwork.setLinksForTests(Map.of("guild", List.of(links)));
+    /** Stations at these provinces, hubbed at each, joined in list order. */
+    private void connect(int... provinces) {
+        connect(0.40, 0.80, provinces);
+    }
+
+    private void connect(double trade, double production, int... provinces) {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("supply-hubs.transport.rail.trade", trade);
+        config.set("supply-hubs.transport.rail.production", production);
+        HubTransport.loadConfig(config);
+        List<Installation> sites = new ArrayList<>();
+        for (int province : provinces) {
+            sites.add(new Installation(
+                    "p" + province, "p" + province, InstallationKind.TRAIN_STATION, province, 0, 0, 1L));
+        }
+        TradeGraph graph = TestGraphs.rail("host", sites, (from, to) -> adjacent(provinces, from, to), 0);
+        java.util.Set<HubSite> hubs = new java.util.HashSet<>();
+        for (Installation site : sites) {
+            hubs.add(new HubSite("host", site.getId()));
+        }
+        HubNetwork.setHighwayForTests(graph, Map.of("guild", hubs));
+    }
+
+    private static boolean adjacent(int[] provinces, Installation from, Installation to) {
+        int left = -1;
+        int right = -1;
+        for (int index = 0; index < provinces.length; index++) {
+            if (provinces[index] == from.getProvince()) {
+                left = index;
+            }
+            if (provinces[index] == to.getProvince()) {
+                right = index;
+            }
+        }
+        return left >= 0 && Math.abs(left - right) == 1;
     }
 
     private void recalculate() {

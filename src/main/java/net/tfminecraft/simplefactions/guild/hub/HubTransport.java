@@ -10,11 +10,10 @@ import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 
 /**
- * How much of a guild's trade power and production one supply hub passes to another.
+ * How much of a guild's trade power and production one hop passes to the next stop.
  *
- * <p>A hub takes what the guild has in its own province and delivers a share of it to each
- * connected hub: the mode's base share, less a loss for distance. Nothing is added along the
- * way. Every share is below 1, so passing power round a ring of hubs can never grow it.
+ * <p>The mode's base share is reduced by distance. Nothing is added along the way. Every share
+ * is below 1, so passing power round a ring of stops can never grow it.
  */
 public final class HubTransport {
     /** Shares are capped here so a chain of hubs always loses power. */
@@ -46,9 +45,8 @@ public final class HubTransport {
      * @param trade share of trade power delivered before distance loss
      * @param production share of production delivered before distance loss
      * @param keptPer1000 share that survives each 1000 blocks travelled
-     * @param maxRange longest link in blocks, 0 for no limit
      */
-    public record Rates(double trade, double production, double keptPer1000, double maxRange) {
+    public record Rates(double trade, double production, double keptPer1000) {
     }
 
     /**
@@ -90,9 +88,9 @@ public final class HubTransport {
     private static volatile Map<Mode, Rates> rates;
 
     static {
-        DEFAULTS.put(Mode.RAIL, new Rates(0.40, 0.80, 0.90, 0));
-        DEFAULTS.put(Mode.SEA, new Rates(0.30, 0.70, 0.85, 4000));
-        DEFAULTS.put(Mode.AIR, new Rates(0.20, 0.50, 0.80, 2500));
+        DEFAULTS.put(Mode.RAIL, new Rates(0.40, 0.80, 0.90));
+        DEFAULTS.put(Mode.SEA, new Rates(0.30, 0.70, 0.85));
+        DEFAULTS.put(Mode.AIR, new Rates(0.20, 0.50, 0.80));
         rates = new EnumMap<>(DEFAULTS);
     }
 
@@ -113,8 +111,7 @@ public final class HubTransport {
                 loaded.put(mode, new Rates(
                         share(section.getDouble("trade", fallback.trade())),
                         share(section.getDouble("production", fallback.production())),
-                        share(section.getDouble("kept-per-1000-blocks", fallback.keptPer1000())),
-                        Math.max(0, section.getDouble("max-range", fallback.maxRange()))));
+                        share(section.getDouble("kept-per-1000-blocks", fallback.keptPer1000()))));
             }
         }
         rates = loaded;
@@ -139,10 +136,6 @@ public final class HubTransport {
             }
         }
         return null;
-    }
-
-    public static boolean inRange(Rates rates, double distance) {
-        return rates.maxRange() <= 0 || distance <= rates.maxRange();
     }
 
     /** Share delivered over {@code distance} blocks, given the share delivered at no distance. */

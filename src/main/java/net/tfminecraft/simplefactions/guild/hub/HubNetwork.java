@@ -1,79 +1,78 @@
 package net.tfminecraft.simplefactions.guild.hub;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalDouble;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 
 import org.bukkit.Bukkit;
 
-import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
-import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
+import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Rates;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService.HubStanding;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
 import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
-import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
-import net.tfminecraft.simplefactions.map.SeaConnectivity;
-import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 
 /**
- * The connections between each guild's active supply hubs.
+ * Each guild's active hubs on the shared trade graph.
  *
- * <p>Working out a connection reads installations, permits and train track, which is only safe
- * on the server thread. The trade calculation also runs off that thread for income previews, so
- * it never works connections out itself: it reads the last set built by {@link #refresh}.
+ * <p>Which hubs are active is worked out once per refresh, on the server thread, and kept with
+ * the graph. Trade calculation and income previews read that snapshot. They do not measure
+ * track or look up installations.
  */
 public final class HubNetwork {
-    /** Along-track distance between two stations, or empty when no track joins them. */
-    @FunctionalInterface
-    public interface RailRoutes {
-        OptionalDouble distance(Installation from, Installation to);
-    }
-
-    private static volatile Map<String, List<Link>> links = Map.of();
-    private record CachedRoute(OptionalDouble distance, long expiresAt) { }
-    private static final Map<String, CachedRoute> railDistances = new ConcurrentHashMap<>();
-    private static final long ROUTE_MISS_TTL_MILLIS = 30_000L;
-    private static RailRoutes railRoutes = HubNetwork::trackDistance;
+    private static volatile Map<String, List<Link>> linksOverride;
 
     private HubNetwork() {
     }
 
-    /** Connections that carry this guild's power, in both directions. Safe on any thread. */
+    /**
+     * Connections between this guild's active hubs, in both directions. Empty when the guild
+     * may not have hubs. Safe on any thread.
+     */
     public static List<Link> linksFor(Guild guild) {
-        if (guild == null || guild.getId() == null) {
+        if (guild == null || guild.getId() == null || !SupplyHubService.allowsSupplyHubs(guild)) {
             return List.of();
         }
-        List<Link> cached = links.getOrDefault(guild.getId(), List.of());
-        return cached.isEmpty() || SupplyHubService.allowsSupplyHubs(guild) ? cached : List.of();
+        Map<String, List<Link>> override = linksOverride;
+        if (override != null) {
+            return override.getOrDefault(guild.getId(), List.of());
+        }
+        return HighwaySnapshot.current().links(guild.getId());
     }
 
-    /** Rebuilds every guild's connections. Server thread only. */
+    /** Nodes where this guild's hubs are active right now. Empty when the guild may not have hubs. */
+    public static Set<HubSite> hubbedNodes(Guild guild) {
+        if (guild == null || guild.getId() == null || !SupplyHubService.allowsSupplyHubs(guild)) {
+            return Set.of();
+        }
+        return HighwaySnapshot.current().hubbed(guild.getId());
+    }
+
+    /** Rebuilds the graph, then each guild's active hubs. Server thread only. */
     public static void refresh(ProvinceManager provinces) {
         TradeGraph.refresh(provinces);
-        Map<String, List<Link>> built = new HashMap<>();
+        TradeGraph graph = TradeGraph.live();
+        Map<String, Set<HubSite>> hubbed = new HashMap<>();
         List<Guild> guilds = SupplyHubService.allGuilds();
         for (Guild guild : guilds) {
-            if (guild == null || guild.getId() == null || guild.getSupplyHubs().size() < 2) {
+            if (guild == null || guild.getId() == null) {
                 continue;
             }
-            List<Link> found = linksBetween(activeSites(guild, guilds), provinces);
-            if (!found.isEmpty()) {
-                built.put(guild.getId(), List.copyOf(found));
+            Set<HubSite> sites = activeHubs(guild, guilds, graph);
+            if (!sites.isEmpty()) {
+                hubbed.put(guild.getId(), sites);
             }
         }
-        links = Map.copyOf(built);
+        HighwaySnapshot.install(graph, hubbed);
     }
 
     /** Refreshes when called for the live province data on the server thread; otherwise no-op. */
@@ -93,124 +92,98 @@ public final class HubNetwork {
     }
 
     /**
-     * Forgets measured track distances, so the next refresh measures the track again. Called once
-     * a day, which is when cut track stops carrying a link.
+     * Forgets measured track routes, so the next refresh reads the track again. Called once a day,
+     * which is when cut track stops carrying an edge.
      */
     public static void forgetRoutes() {
-        railDistances.clear();
         TradeGraph.forgetRoutes();
     }
 
     /**
-     * Trade power a new hub at {@code target} would receive from the guild's existing hubs,
-     * given the guild's power at each of them. Server thread only.
+     * Trade power a new hub at {@code target} would receive from the guild's active hubs.
+     * Reads the shared graph. Server thread only.
      */
-    public static double potentialTrade(
-            Guild guild, Installation target, ProvinceManager provinces) {
+    public static double potentialTrade(Guild guild, Installation target, ProvinceManager provinces) {
         if (guild == null || target == null || provinces == null) {
+            return 0;
+        }
+        HighwaySnapshot snapshot = HighwaySnapshot.current();
+        Node targetNode = findNode(snapshot.graph(), target);
+        if (targetNode == null) {
             return 0;
         }
         double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE);
         double best = 0;
-        for (Installation source : activeSites(guild, SupplyHubService.allGuilds())) {
-            Link link = connect(source, target, provinces);
-            if (link == null) {
+        for (HubSite site : hubbedNodes(guild)) {
+            Node source = snapshot.graph().node(site.ownerFactionId(), site.installationId());
+            if (source == null || source.equals(targetNode)) {
                 continue;
             }
-            double power = provinces.get(source.getProvince()).getRawGuildTrade(guild);
+            Link link = Highway.bestLink(snapshot.graph(), source, targetNode);
+            if (link == null || !provinces.contains(source.provinceId())) {
+                continue;
+            }
+            double power = provinces.get(source.provinceId()).getRawGuildTrade(guild);
             best = Math.max(best, power * link.boostedTradeFactor(bonus));
         }
         return best;
     }
 
-    /** The connection from one installation to another, or null when nothing joins them. */
+    /** The graph edge from one installation to the other, or null when the graph has none. */
     public static Link connect(Installation from, Installation to, ProvinceManager provinces) {
-        if (from == null || to == null || from == to || from.getProvince() == to.getProvince()) {
+        if (from == null || to == null || from == to) {
             return null;
         }
-        if (!hubKind(from) || !hubKind(to)) {
+        TradeGraph graph = HighwaySnapshot.current().graph();
+        Node source = findNode(graph, from);
+        Node target = findNode(graph, to);
+        if (source == null || target == null) {
             return null;
         }
-        String fromFactionId = SupplyHubService.owningFactionId(from);
-        String toFactionId = SupplyHubService.owningFactionId(to);
-        if (fromFactionId == null) {
-            fromFactionId = "";
-        }
-        if (toFactionId == null) {
-            toFactionId = "";
-        }
-        Link best = modeLink(from, fromFactionId, to, toFactionId, Mode.RAIL, provinces);
-        Mode ownMode = HubTransport.modeBetween(from.getKind(), to.getKind());
-        if (ownMode != null && ownMode != Mode.RAIL) {
-            Link own = modeLink(from, fromFactionId, to, toFactionId, ownMode, provinces);
-            if (own != null && (best == null || own.tradeFactor() > best.tradeFactor())) {
-                best = own;
-            }
-        }
-        return best;
+        return Highway.bestLink(graph, source, target);
     }
 
-    private static boolean hubKind(Installation installation) {
-        return installation.getKind() == InstallationKind.PORT
-                || installation.getKind() == InstallationKind.AIRPORT
-                || installation.getKind() == InstallationKind.TRAIN_STATION;
+    /** Replaces the shared graph and hubbed nodes tests read. Null clears both. */
+    public static void setHighwayForTests(TradeGraph graph, Map<String, Set<HubSite>> hubbed) {
+        linksOverride = null;
+        if (graph == null && hubbed == null) {
+            TradeGraph.setLiveForTests(null);
+            HighwaySnapshot.install(TradeGraph.live(), Map.of());
+            return;
+        }
+        TradeGraph chosen = graph == null ? TradeGraph.live() : graph;
+        TradeGraph.setLiveForTests(chosen);
+        HighwaySnapshot.install(chosen, hubbed == null ? Map.of() : hubbed);
     }
 
-    private static Link modeLink(
-            Installation from, String fromFactionId, Installation to, String toFactionId,
-            Mode mode, ProvinceManager provinces) {
-        Rates rates = HubTransport.rates(mode);
-        double distance;
-        if (mode == Mode.RAIL) {
-            OptionalDouble track = railDistance(from, to);
-            if (track.isEmpty()) {
-                return null;
-            }
-            distance = track.getAsDouble();
-        } else if (mode == Mode.SEA) {
-            if (SeaConnectivity.sharedSeaProvinces(
-                    provinces, List.of(from.getProvince()), List.of(to.getProvince())).isEmpty()) {
-                return null;
-            }
-            distance = straightLine(from, to);
-        } else {
-            distance = straightLine(from, to);
-        }
-        if (!Double.isFinite(distance) || distance < 0 || !HubTransport.inRange(rates, distance)) {
-            return null;
-        }
-        return HubTransport.link(from, fromFactionId, to, toFactionId, mode, distance);
-    }
-
+    /** Snapshot-only link list for menus. Null clears it. Does not move trade. */
     public static void setLinksForTests(Map<String, List<Link>> replacement) {
-        links = replacement == null ? Map.of() : Map.copyOf(replacement);
-    }
-
-    public static void setRailRoutesForTests(RailRoutes routes) {
-        railRoutes = routes == null ? HubNetwork::trackDistance : routes;
-        railDistances.clear();
-    }
-
-    static List<Link> linksBetween(List<Installation> sites, ProvinceManager provinces) {
-        List<Link> found = new ArrayList<>();
-        for (Installation from : sites) {
-            for (Installation to : sites) {
-                Link link = connect(from, to, provinces);
-                if (link != null) {
-                    found.add(link);
-                }
+        if (replacement == null) {
+            linksOverride = null;
+            return;
+        }
+        Map<String, List<Link>> copied = new HashMap<>();
+        for (Map.Entry<String, List<Link>> entry : replacement.entrySet()) {
+            if (entry.getKey() != null && entry.getValue() != null) {
+                copied.put(entry.getKey(), List.copyOf(entry.getValue()));
             }
         }
-        return found;
+        linksOverride = Map.copyOf(copied);
     }
 
-    /** Installations of the guild's hubs that are active right now. */
-    private static List<Installation> activeSites(Guild guild, List<Guild> guilds) {
-        List<Installation> sites = new ArrayList<>();
+    /** Hubs that pass the same standing test the network used before the graph. */
+    static Set<HubSite> activeHubs(Guild guild, List<Guild> guilds, TradeGraph graph) {
+        Set<HubSite> sites = new HashSet<>();
+        if (guild == null || guild.getSupplyHubs() == null || graph == null) {
+            return sites;
+        }
         for (SupplyHub hub : guild.getSupplyHubs()) {
-            Installation installation =
-                    SupplyHubService.findInstallation(hub.ownerFactionId(), hub.installationId());
-            if (installation == null) {
+            if (hub == null) {
+                continue;
+            }
+            Installation installation = SupplyHubService.findInstallation(
+                    hub.ownerFactionId(), hub.installationId());
+            if (installation == null || graph.node(hub.ownerFactionId(), hub.installationId()) == null) {
                 continue;
             }
             HubStanding standing = SupplyHubService.standing(
@@ -220,42 +193,34 @@ public final class HubNetwork {
                     InstallationConfigLoader.getHubSlots(installation.getKind(), installation.getLevel()),
                     SupplyHubService.atInstallation(hub.ownerFactionId(), hub.installationId(), guilds));
             if (standing.active()) {
-                sites.add(installation);
+                sites.add(new HubSite(hub.ownerFactionId(), hub.installationId()));
             }
         }
         return sites;
     }
 
-    private static OptionalDouble railDistance(Installation from, Installation to) {
-        String a = SupplyHubService.owningFactionId(from) + ":" + from.getProvince() + ":" + from.getId();
-        String b = SupplyHubService.owningFactionId(to) + ":" + to.getProvince() + ":" + to.getId();
-        String key = a.compareTo(b) <= 0 ? a + "|" + b : b + "|" + a;
-        long now = System.currentTimeMillis();
-        CachedRoute known = railDistances.get(key);
-        if (known != null && (known.distance().isPresent() || known.expiresAt() > now)) {
-            return known.distance();
+    static Node findNode(TradeGraph graph, Installation installation) {
+        if (graph == null || installation == null || installation.getId() == null) {
+            return null;
         }
-        OptionalDouble measured = railRoutes.distance(from, to);
-        railDistances.put(key, new CachedRoute(
-                measured, measured.isPresent() ? Long.MAX_VALUE : now + ROUTE_MISS_TTL_MILLIS));
-        return measured;
-    }
-
-    /** Asks VehicleFramework. Empty when it is missing or too old to answer. */
-    private static OptionalDouble trackDistance(Installation from, Installation to) {
-        try {
-            if (!Bukkit.getPluginManager().isPluginEnabled("VehicleFramework")) {
-                return OptionalDouble.empty();
+        String owner = SupplyHubService.owningFactionId(installation);
+        if (owner != null) {
+            Node node = graph.node(owner, installation.getId());
+            if (node != null) {
+                return node;
             }
-            return VehicleFrameworkTracks.distance(Cache.worldName, from, to);
-        } catch (RuntimeException | LinkageError e) {
-            return OptionalDouble.empty();
         }
-    }
-
-    private static double straightLine(Installation from, Installation to) {
-        double dx = from.getCenterX() - to.getCenterX();
-        double dz = from.getCenterZ() - to.getCenterZ();
-        return Math.sqrt(dx * dx + dz * dz);
+        Node found = null;
+        for (Node node : graph.nodes()) {
+            if (node.provinceId() != installation.getProvince()
+                    || !node.installationId().equalsIgnoreCase(installation.getId())) {
+                continue;
+            }
+            if (found != null) {
+                return null;
+            }
+            found = node;
+        }
+        return found;
     }
 }

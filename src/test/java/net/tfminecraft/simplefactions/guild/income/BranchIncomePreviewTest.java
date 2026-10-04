@@ -31,9 +31,12 @@ import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.guild.hub.Highway.HubSite;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
+import net.tfminecraft.simplefactions.guild.hub.HubTransport;
+import net.tfminecraft.simplefactions.guild.hub.TestGraphs;
+import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
@@ -97,6 +100,8 @@ class BranchIncomePreviewTest {
 	void tearDown() {
 		GuildModifierOverride.clear();
 		HubNetwork.setLinksForTests(null);
+		HubNetwork.setHighwayForTests(null, null);
+		HubTransport.resetConfig();
 		Cache.provincesEnabled = savedProvincesEnabled;
 		if (savedPlainsCarry == null) {
 			Cache.tradeCarry.remove(Terrain.PLAINS);
@@ -176,8 +181,17 @@ class BranchIncomePreviewTest {
 
 	@Test
     void branchPreviewUsesHypotheticalHubTradeLevel() {
-		HubNetwork.setLinksForTests(Map.of("fields", List.of(
-				new Link(capital.getId(), neighbour.getId(), Mode.RAIL, 0, 0.9, 0))));
+		YamlConfiguration rates = new YamlConfiguration();
+		rates.set("supply-hubs.transport.rail.trade", 0.90);
+		rates.set("supply-hubs.transport.rail.production", 0);
+		HubTransport.loadConfig(rates);
+		Installation from = new Installation("capital", "Capital", InstallationKind.TRAIN_STATION,
+				capital.getId(), 0, 0, 1L);
+		Installation to = new Installation("neighbour", "Neighbour", InstallationKind.TRAIN_STATION,
+				neighbour.getId(), 16, 0, 1L);
+		HubNetwork.setHighwayForTests(
+				TestGraphs.linked("home", 0, from, to),
+				Map.of("fields", java.util.Set.of(new HubSite("home", "capital"), new HubSite("home", "neighbour"))));
 		YamlConfiguration yaml = new YamlConfiguration();
 		yaml.set("name", "Supply Lines");
 		yaml.set("group", 3);
