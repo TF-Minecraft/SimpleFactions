@@ -210,6 +210,7 @@ public class TabCompletion implements TabCompleter{
 				List<String> completions = new ArrayList<>();
 				if(FactionManager.getGuildByMember(p.getName()) != null && Cache.provincesEnabled) {
 					completions.add("hub");
+					completions.add("networks");
 				}
 				completions.add("create");
 				completions.add("join");

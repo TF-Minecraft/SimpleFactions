@@ -14,8 +14,13 @@ import com.google.gson.JsonObject;
 import net.md_5.bungee.api.ChatColor;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.hub.HighwaySnapshot;
 import net.tfminecraft.simplefactions.guild.hub.HubNetwork;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
+import net.tfminecraft.simplefactions.guild.network.CurrentNetworks;
+import net.tfminecraft.simplefactions.guild.network.NetworkSummary;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Edge;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
@@ -89,6 +94,10 @@ public final class Markers {
             hubLinks.addAll(hubLinkRows(guild, HubNetwork.linksFor(guild)));
         }
         root.add("hub_links", hubLinks);
+
+        HighwaySnapshot snapshot = HighwaySnapshot.current();
+        root.add("trade_networks", tradeNetworkRows(CurrentNetworks.from(snapshot)));
+        root.add("trade_edges", tradeEdgeRows(snapshot.graph().edges()));
 
         JsonArray forts = new JsonArray();
         for (Faction faction : FactionManager.factions) {
@@ -183,6 +192,52 @@ public final class Markers {
                     hubEndpoint(to, toFaction)));
         }
         return rows;
+    }
+
+    static JsonArray tradeNetworkRows(List<NetworkSummary.Summary> summaries) {
+        JsonArray rows = new JsonArray();
+        if (summaries == null) return rows;
+        for (NetworkSummary.Summary summary : summaries) {
+            if (summary == null || summary.network() == null) continue;
+            JsonObject row = new JsonObject();
+            row.addProperty("name", summary.name());
+            row.addProperty("global", summary.global());
+            JsonArray nodes = new JsonArray();
+            for (Node node : summary.network().nodes()) {
+                JsonObject stop = new JsonObject();
+                stop.addProperty("installation_id", node.installationId());
+                stop.addProperty("owner", node.ownerFactionId());
+                stop.addProperty("province_id", node.provinceId());
+                nodes.add(stop);
+            }
+            row.add("nodes", nodes);
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    static JsonArray tradeEdgeRows(List<Edge> edges) {
+        JsonArray rows = new JsonArray();
+        if (edges == null) return rows;
+        for (Edge edge : edges) {
+            if (edge == null || edge.first() == null || edge.second() == null || edge.mode() == null) continue;
+            JsonObject row = new JsonObject();
+            row.add("from", tradeStop(edge.first()));
+            row.add("to", tradeStop(edge.second()));
+            row.addProperty("mode", edge.mode().getKey());
+            JsonArray provinces = new JsonArray();
+            for (int provinceId : edge.provinces()) provinces.add(provinceId);
+            row.add("provinces", provinces);
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private static JsonObject tradeStop(Node node) {
+        JsonObject row = new JsonObject();
+        row.addProperty("installation_id", node.installationId());
+        row.addProperty("owner", node.ownerFactionId());
+        return row;
     }
 
     static JsonObject hubLinkRow(

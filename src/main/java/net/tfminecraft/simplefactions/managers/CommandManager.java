@@ -185,6 +185,8 @@ public class CommandManager implements Listener, CommandExecutor{
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("hub")) {
 				return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.guild(p, args);
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("networks")) {
+				return net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands.networks(p);
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("invite") && args.length >= 2) {
 				Guild guild = FactionManager.getGuildByLeader(p.getName());
 				if(guild == null) {
