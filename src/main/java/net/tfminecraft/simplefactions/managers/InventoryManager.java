@@ -37,7 +37,6 @@ import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.WarInventoryHolder;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignInstallationPickView;
-import net.tfminecraft.simplefactions.managers.inventory.InstallationBuildConfirm;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignRaidLaunchView;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignView;
 import net.tfminecraft.simplefactions.managers.inventory.CompanyView;
@@ -1002,8 +1001,6 @@ public class InventoryManager implements Listener{
 		if (pendingCompanyFounds.remove(e.getPlayer()) != null) {
 			confirming.remove(e.getPlayer());
 		}
-		InstallationBuildConfirm.forget(e.getPlayer());
-		confirming.remove(e.getPlayer());
 		slotChanges.remove(e.getPlayer());
 	}
 
@@ -1486,17 +1483,6 @@ public class InventoryManager implements Listener{
 					factionView(p, returnView);
 					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				}
-				return;
-			}
-			key = new NamespacedKey(SimpleFactions.plugin, "installation_build");
-			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
-			if (data != null) {
-				if (item.getType().equals(Material.RED_CONCRETE)) {
-					InstallationBuildConfirm.cancel(p);
-				} else {
-					InstallationBuildConfirm.accept(p);
-				}
-				confirming.remove(p);
 				return;
 			}
 			key = new NamespacedKey(SimpleFactions.plugin, "installation");

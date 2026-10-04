@@ -14,7 +14,6 @@ import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
-import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHub;
 import net.tfminecraft.simplefactions.guild.hub.HubTaxBreakdown;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubCommands;
@@ -34,7 +33,6 @@ import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.PostSettlementPayouts.PlayerUuidLookup;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
-import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
@@ -377,9 +375,6 @@ public class Ledger {
             case SUPPLY_HUBS:
                 amount = -SupplyHubService.dailyCost(guild);
                 break;
-            case INFRASTRUCTURE_UPKEEP:
-                amount = -Math.max(0, GuildModifierOverride.resolve(guild, GuildModifier.INFRASTRUCTURE_UPKEEP));
-                break;
             //Mercenary contracts
             case MERCENARY_CONTRACT:
                 amount = getAggregatedContractEarnings();
@@ -624,7 +619,6 @@ public class Ledger {
                 case MILITARY_UPKEEP:
                 case NODES:
                 case SUPPLY_HUBS:
-                case INFRASTRUCTURE_UPKEEP:
                 case PENALTIES:
                 case GUILD_PAYMENTS:
                 case OVERLORD_TAX:
@@ -703,7 +697,6 @@ public class Ledger {
                 case MILITARY_UPKEEP:
                 case NODES:
                 case SUPPLY_HUBS:
-                case INFRASTRUCTURE_UPKEEP:
                 case PENALTIES:
                 case GUILD_PAYMENTS:
                 case OVERLORD_TAX:
@@ -1129,7 +1122,6 @@ public class Ledger {
             case NODES:
             // Supply hubs are a sink. Unpaid hubs were already removed, newest first.
             case SUPPLY_HUBS:
-            case INFRASTRUCTURE_UPKEEP:
                 buffer.addExternalDelta(guild, getIncome(cf));
                 return;
 

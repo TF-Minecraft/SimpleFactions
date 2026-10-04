@@ -6,7 +6,7 @@ import java.util.Set;
 import net.tfminecraft.simplefactions.map.ProvinceGrid;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 
-/** Track infrastructure sampling uses the same VehicleFramework boundary as hub routes. */
+/** Provinces crossed by railway track. Hub routes use the same VehicleFramework boundary. */
 public final class VehicleFrameworkTrackProvinces {
     private VehicleFrameworkTrackProvinces() {}
 

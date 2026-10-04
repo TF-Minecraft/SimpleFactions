@@ -526,28 +526,6 @@ class SupplyHubServiceTest {
     }
 
     @Test
-    void ledger_infrastructureUpkeepIsShownAndSettledWithoutShedding() {
-        Guild guild = mock(Guild.class);
-        Faction faction = mock(Faction.class);
-        Bank bank = mock(Bank.class);
-        when(bank.getWealth()).thenReturn(0.0);
-        when(guild.getModifier(GuildModifier.INFRASTRUCTURE_UPKEEP)).thenReturn(4.0);
-        Ledger ledger = ledger(faction, guild, bank);
-
-        assertTrue(Cashflow.INFRASTRUCTURE_UPKEEP.getDisplay().contains("Infrastructure"));
-        assertEquals(-4.0, ledger.getIncome(Cashflow.INFRASTRUCTURE_UPKEEP), 1e-9);
-        assertEquals(-4.0, ledger.getNetIncome(), 1e-9);
-        DailyGuildTransfers buffer = new DailyGuildTransfers();
-        ledger.populateDailyTransfers(buffer);
-        assertEquals(-4.0, buffer.getExternalDeltas().get(guild), 1e-9);
-
-        Guild withoutInfrastructure = mock(Guild.class);
-        when(withoutInfrastructure.getModifier(GuildModifier.INFRASTRUCTURE_UPKEEP)).thenReturn(0.0);
-        Ledger noInfrastructureLedger = ledger(faction, withoutInfrastructure, bank);
-        assertEquals(0.0, noInfrastructureLedger.getIncome(Cashflow.INFRASTRUCTURE_UPKEEP), 1e-9);
-    }
-
-    @Test
     void ledger_removesEveryHubWhenNoneCanBePaid() {
         Guild guild = mock(Guild.class);
         Faction faction = mock(Faction.class);

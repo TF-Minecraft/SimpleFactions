@@ -190,18 +190,6 @@ elevation-size-multiplier: 1.0
 elevation-exponent: 1.1
 eviction-multiplier: 2.0
 
-# Infrastructure closes the gap from raw land terrain to target at full strength.
-infrastructure:
-    full: 20
-    target: 0.75
-    wilderness-spread: 0.25
-    spread-floor: 0.5
-    station: 10
-    port: 10
-    airport: 5
-    track: 10
-    track-refresh-seconds: 300
-
 terrain-modifiers:
     - FARMLAND 0.95
     - PLAINS 0.85

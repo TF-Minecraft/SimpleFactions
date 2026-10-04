@@ -171,7 +171,8 @@ public class SimpleFactions extends JavaPlugin{
 			new net.tfminecraft.simplefactions.mercenary.contract.AttendanceService.Hook();
 	private ProvinceManager provinceSnapshot = new ProvinceManager();
 	private ProvinceGrid provinceGrid;
-	private BukkitTask trackInfrastructureRefreshTask;
+	private static final long TRACK_REFRESH_TICKS = 300L * 20L;
+	private BukkitTask trackRefreshTask;
 	private final PlayerVehicleRegistry vehicleRegistry = new PlayerVehicleRegistry();
 	private VehicleRegistryPersistence vehicleRegistryPersistence;
 	private final InstallationVehicleOwnerSync installationVehicleOwnerSync =
@@ -364,16 +365,15 @@ public class SimpleFactions extends JavaPlugin{
 			if (Cache.supplyHubAutoAccept) {
 				getLogger().info("Hub auto-accept is on.");
 			}
-			long refreshTicks = Cache.infrastructureTrackRefreshSeconds * 20L;
-			trackInfrastructureRefreshTask = getServer().getScheduler().runTaskTimer(
-					this, () -> { refreshTrackProvinces(); }, refreshTicks, refreshTicks);
+			trackRefreshTask = getServer().getScheduler().runTaskTimer(
+					this, () -> { refreshTrackProvinces(); }, TRACK_REFRESH_TICKS, TRACK_REFRESH_TICKS);
 		}
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
 	}
 	@Override
 	public void onDisable() {
-		if (trackInfrastructureRefreshTask != null) trackInfrastructureRefreshTask.cancel();
+		if (trackRefreshTask != null) trackRefreshTask.cancel();
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.unregister();
 		MercenaryStatService.clearAll();
 		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.reset();

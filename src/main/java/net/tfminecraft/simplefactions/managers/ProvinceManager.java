@@ -25,8 +25,6 @@ import net.tfminecraft.simplefactions.guild.network.InstallationAccess;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
-import net.tfminecraft.simplefactions.map.infra.InfrastructureSources;
-import net.tfminecraft.simplefactions.map.infra.InfrastructureSpread;
 import net.tfminecraft.simplefactions.objects.Bracket;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.Cache;
@@ -48,8 +46,6 @@ public class ProvinceManager {
     /** Set on a copy so a preview keeps the graph and hubs it was given, off the server thread. */
     private HighwaySnapshot highwayCapture;
     private Map<Guild, Map<String, Double>> installationAccess = new HashMap<>();
-    private boolean infrastructureSuppressed;
-    private Map<Integer, Double> extraInfrastructure;
     private long stateVersion = 0;
     private long lastCalculatedVersion = -1;
 
@@ -106,19 +102,6 @@ public class ProvinceManager {
                 hubbedByGuild == null ? Map.of() : hubbedByGuild);
     }
 
-    /** Snapshot-only. The next recalculation writes 0 infrastructure on every province. */
-    public void setInfrastructureSuppressed(boolean suppressed) {
-        infrastructureSuppressed = suppressed;
-    }
-
-    /**
-     * Snapshot-only source added before the spread. Sea and water provinces are ignored.
-     * A null or empty map adds nothing. Copies do not inherit this.
-     */
-    public void setExtraInfrastructure(Map<Integer, Double> extra) {
-        extraInfrastructure = extra == null || extra.isEmpty() ? null : Map.copyOf(extra);
-    }
-
     private HighwaySnapshot highway() {
         return highwayCapture != null ? highwayCapture : HighwaySnapshot.current();
     }
@@ -151,7 +134,6 @@ public class ProvinceManager {
         try {
             installationAccess = new HashMap<>();
             HubNetwork.refreshIfLive(this);
-            recalculateInfrastructure();
             dropMissingGuilds();
             for(Guild g : FactionManager.getAllGuilds()) {
                 if (!g.hasCapital()) continue;
@@ -182,7 +164,6 @@ public class ProvinceManager {
         try {
             installationAccess = new HashMap<>();
             HubNetwork.refreshIfLive(this);
-            recalculateInfrastructure();
             dropExcept(previewGuilds);
             for (Guild guild : previewGuilds) {
                 if (guild != null && guild.hasCapital()) {
@@ -213,7 +194,6 @@ public class ProvinceManager {
         InstallationAccess.beginRecalculation();
         try {
             installationAccess = new HashMap<>();
-            recalculateInfrastructure();
             if (!g.hasCapital()) return;
             HubNetwork.refreshIfLive(this);
             dropMissingGuilds();
@@ -227,43 +207,6 @@ public class ProvinceManager {
             recalculateProsperity();
         } finally {
             InstallationAccess.endRecalculation();
-        }
-    }
-
-    private void recalculateInfrastructure() {
-        if (infrastructureSuppressed) {
-            for (Province province : provinces.values()) {
-                province.setInfrastructure(0);
-            }
-            return;
-        }
-        Map<Integer, InfrastructureSpread.Node> graph = new HashMap<>();
-        for (Province province : provinces.values()) {
-            Faction realm = InstallationAccess.topRealm(
-                    previewFactions != null ? ownerOf(province.getId()) : province.getOwner());
-            String origin = realm == null ? null : realm.getId().toLowerCase(Locale.ROOT);
-            graph.put(province.getId(), new InfrastructureSpread.Node(
-                    province.getTradeCarry(), !province.isSea(), origin, province.getNeighbours()));
-        }
-        Map<Integer, Double> sources = InfrastructureSources.collect(
-                provinces,
-                previewGuilds != null ? previewGuilds : FactionManager.getAllGuilds(),
-                previewFactions != null ? previewFactions : FactionManager.getCopy(),
-                net.tfminecraft.simplefactions.map.infra.TrackProvinceCache.live().provinces());
-        if (extraInfrastructure != null) {
-            for (Map.Entry<Integer, Double> extra : extraInfrastructure.entrySet()) {
-                Province province = provinces.get(extra.getKey());
-                if (province == null || province.isSea() || extra.getValue() == null || extra.getValue() <= 0) {
-                    continue;
-                }
-                sources.merge(extra.getKey(), extra.getValue(), Double::sum);
-            }
-        }
-        Map<Integer, InfrastructureSpread.Arrival> infrastructure = InfrastructureSpread.spread(
-                graph, sources, Cache.infrastructureWildernessSpread, Cache.infrastructureSpreadFloor);
-        for (Province province : provinces.values()) {
-            InfrastructureSpread.Arrival arrival = infrastructure.get(province.getId());
-            province.setInfrastructure(arrival == null ? 0 : arrival.amount());
         }
     }
 
@@ -489,7 +432,6 @@ public class ProvinceManager {
             }
 
             dst.setProsperity(src.getProsperity());
-            dst.setInfrastructure(src.getInfrastructure());
         }
     }
 
