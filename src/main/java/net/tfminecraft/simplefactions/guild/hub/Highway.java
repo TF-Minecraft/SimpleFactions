@@ -20,11 +20,7 @@ import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 
-/**
- * Trade and production along the shared graph. A hop is one edge, in one direction, and it repeats
- * until nothing larger arrives. Sea and rail then leave a share in the provinces along each edge.
- * That does not start another hop.
- */
+/** Trade and production along the shared graph. Sea and rail edges include their corridor stops. */
 public final class Highway {
     /** A trade node where the guild has an active hub. Ids are compared ignoring case. */
     public record HubSite(String ownerFactionId, String installationId) {
@@ -38,14 +34,11 @@ public final class Highway {
         }
     }
 
-    private static final class Hop {
-        private final Node to;
-        private final double factor;
+    private record Stop(int provinceId, double position, double strength) {
+    }
 
-        private Hop(Node to, double factor) {
-            this.to = to;
-            this.factor = factor;
-        }
+    private record Line(
+            int[] provinceIds, double[] positions, double[] strengths, Rates rates, double access) {
     }
 
     private Highway() {
@@ -60,37 +53,20 @@ public final class Highway {
         return Math.max(0, Math.min(1, value));
     }
 
-    /** Seeds trade from each node that can send, highest raw trade first, until a pass moves nothing. */
+    /** Seeds trade from every line stop until a pass moves nothing. */
     public static void deliver(
             ProvinceManager provinces, Guild guild, TradeGraph graph, Map<String, Double> accessByOwner) {
         if (provinces == null || guild == null || guild.getId() == null || graph == null || graph.nodes().isEmpty()) {
             return;
         }
-        List<Node> nodes = graph.nodes();
-        Map<Node, List<Hop>> hops = new HashMap<>();
-        for (Node from : nodes) {
-            List<Hop> outgoing = new ArrayList<>();
-            for (Map.Entry<Node, Link> entry : bestByDestination(graph, from).entrySet()) {
-                Node to = entry.getKey();
-                if (!provinces.contains(to.provinceId())) {
-                    continue;
-                }
-                double factor = hopFactor(
-                        entry.getValue(), access(accessByOwner, from), access(accessByOwner, to));
-                if (factor > 0) {
-                    outgoing.add(new Hop(to, factor));
-                }
-            }
-            if (!outgoing.isEmpty()) {
-                hops.put(from, outgoing);
-            }
-        }
-        if (hops.isEmpty()) {
+        List<Line> lines = lines(provinces, graph, accessByOwner);
+        if (lines.isEmpty()) {
             return;
         }
-        int guard = nodes.size() * nodes.size() + 1;
+        int stopCount = distinctStopCount(lines);
+        int guard = stopCount * stopCount + 1;
         for (int pass = 0; pass < guard; pass++) {
-            if (!onePass(provinces, guild, nodes, hops)) {
+            if (!onePass(provinces, guild, lines, false)) {
                 return;
             }
         }
@@ -102,96 +78,16 @@ public final class Highway {
         if (provinces == null || guild == null || guild.getId() == null || graph == null || graph.nodes().isEmpty()) {
             return;
         }
-        List<Node> nodes = graph.nodes();
-        Map<Node, List<Hop>> hops = new HashMap<>();
-        for (Node from : nodes) {
-            List<Hop> outgoing = new ArrayList<>();
-            for (Map.Entry<Node, Link> entry : bestByDestination(graph, from, true).entrySet()) {
-                Node to = entry.getKey();
-                if (!provinces.contains(to.provinceId())) {
-                    continue;
-                }
-                double factor = productionFactor(
-                        entry.getValue(), access(accessByOwner, from), access(accessByOwner, to));
-                if (factor > 0) {
-                    outgoing.add(new Hop(to, factor));
-                }
-            }
-            if (!outgoing.isEmpty()) {
-                hops.put(from, outgoing);
-            }
-        }
-        if (hops.isEmpty()) {
+        List<Line> lines = lines(provinces, graph, accessByOwner);
+        if (lines.isEmpty()) {
             return;
         }
-        int guard = nodes.size() * nodes.size() + 1;
+        int stopCount = distinctStopCount(lines);
+        int guard = stopCount * stopCount + 1;
         for (int pass = 0; pass < guard; pass++) {
-            if (!oneProductionPass(provinces, guild, nodes, hops)) {
+            if (!onePass(provinces, guild, lines, true)) {
                 return;
             }
-        }
-    }
-
-    /**
-     * Seeds sea and rail provinces along each edge, in both directions. Call this only after
-     * {@link #deliver} has settled. Each sending node's raw trade is read before any seed, so one
-     * deposit's spread cannot raise the next deposit's source. Air leaves nothing.
-     */
-    public static void deposit(
-            ProvinceManager provinces, Guild guild, TradeGraph graph, Map<String, Double> accessByOwner) {
-        if (provinces == null || guild == null || guild.getId() == null || graph == null || graph.edges().isEmpty()) {
-            return;
-        }
-        double corridor = corridorShare();
-        if (corridor <= 0) {
-            return;
-        }
-        Map<Node, Double> rawAt = new HashMap<>();
-        for (Node node : graph.nodes()) {
-            rawAt.put(node, raw(provinces, guild, node));
-        }
-        for (Edge edge : graph.edges()) {
-            if (edge.mode() == Mode.AIR || edge.provinces().isEmpty()) {
-                continue;
-            }
-            double edgeAccess = Math.min(
-                    access(accessByOwner, edge.first()), access(accessByOwner, edge.second()));
-            if (edgeAccess <= 0) {
-                continue;
-            }
-            depositDirection(provinces, guild, edge, edge.first(), edgeAccess, corridor, rawAt);
-            depositDirection(provinces, guild, edge, edge.second(), edgeAccess, corridor, rawAt);
-        }
-    }
-
-    private static void depositDirection(
-            ProvinceManager provinces, Guild guild, Edge edge, Node from,
-            double edgeAccess, double corridor, Map<Node, Double> rawAt) {
-        List<Integer> along = edge.provincesFrom(from);
-        int count = along.size();
-        if (count == 0) {
-            return;
-        }
-        double rawFrom = rawAt.getOrDefault(from, 0.0);
-        if (rawFrom < 0.5) {
-            return;
-        }
-        Rates rates = HubTransport.rates(edge.mode());
-        double share = tradeShare(rates.trade());
-        // Kept-per-1000 is at most 0.95, so distance only shrinks the deposit.
-        if (rawFrom * edgeAccess * share * corridor < 0.5) {
-            return;
-        }
-        double length = Math.max(0, edge.length());
-        for (int index = 0; index < count; index++) {
-            int provinceId = along.get(index);
-            if (!provinces.contains(provinceId)) {
-                continue;
-            }
-            double distance = length * (index + 1.0) / (count + 1.0);
-            double amount = rawFrom * edgeAccess
-                    * HubTransport.delivered(share, rates.keptPer1000(), distance) * corridor;
-            provinces.get(provinceId).seedTrade(provinces, guild, amount);
         }
     }
 
@@ -273,61 +169,148 @@ public final class Highway {
         return best;
     }
 
-    private static boolean onePass(
-            ProvinceManager provinces, Guild guild, List<Node> nodes, Map<Node, List<Hop>> hops) {
-        List<Node> senders = new ArrayList<>(nodes.size());
-        for (Node node : nodes) {
-            if (hops.containsKey(node) && provinces.contains(node.provinceId())) {
-                senders.add(node);
-            }
-        }
-        senders.sort(Comparator.comparingDouble((Node node) -> raw(provinces, guild, node)).reversed()
-                .thenComparingInt(Node::provinceId));
-        boolean moved = false;
-        for (Node from : senders) {
-            double rawFrom = raw(provinces, guild, from);
-            if (rawFrom < 0.5) {
+    private static List<Line> lines(
+            ProvinceManager provinces, TradeGraph graph, Map<String, Double> accessByOwner) {
+        List<Line> lines = new ArrayList<>();
+        double corridor = corridorShare();
+        for (Edge edge : graph.edges()) {
+            double edgeAccess = Math.min(
+                    access(accessByOwner, edge.first()), access(accessByOwner, edge.second()));
+            if (edgeAccess <= 0) {
                 continue;
             }
-            for (Hop hop : hops.get(from)) {
-                double delivered = rawFrom * hop.factor;
-                if (delivered < 0.5 || delivered <= raw(provinces, guild, hop.to)) {
-                    continue;
-                }
-                provinces.get(hop.to.provinceId()).seedTrade(provinces, guild, delivered);
-                moved = true;
+            double length = Math.max(0, edge.length());
+            List<Stop> stops = new ArrayList<>();
+            if (provinces.contains(edge.first().provinceId())) {
+                stops.add(new Stop(edge.first().provinceId(), 0, 1));
             }
+            if (edge.mode() != Mode.AIR && corridor > 0) {
+                int count = edge.provinces().size();
+                for (int index = 0; index < count; index++) {
+                    int provinceId = edge.provinces().get(index);
+                    if (provinces.contains(provinceId)) {
+                        stops.add(new Stop(
+                                provinceId, length * (index + 1.0) / (count + 1.0), corridor));
+                    }
+                }
+            }
+            if (provinces.contains(edge.second().provinceId())) {
+                stops.add(new Stop(edge.second().provinceId(), length, 1));
+            }
+            if (stops.size() > 1) {
+                int[] provinceIds = new int[stops.size()];
+                double[] positions = new double[stops.size()];
+                double[] strengths = new double[stops.size()];
+                for (int index = 0; index < stops.size(); index++) {
+                    Stop stop = stops.get(index);
+                    provinceIds[index] = stop.provinceId();
+                    positions[index] = stop.position();
+                    strengths[index] = stop.strength();
+                }
+                lines.add(new Line(
+                        provinceIds, positions, strengths, HubTransport.rates(edge.mode()), edgeAccess));
+            }
+        }
+        return List.copyOf(lines);
+    }
+
+    private static int distinctStopCount(List<Line> lines) {
+        Set<Integer> stops = new HashSet<>();
+        for (Line line : lines) {
+            for (int provinceId : line.provinceIds()) {
+                stops.add(provinceId);
+            }
+        }
+        return stops.size();
+    }
+
+    private static boolean onePass(
+            ProvinceManager provinces, Guild guild, List<Line> lines, boolean production) {
+        Map<Integer, Double> rawAt = new HashMap<>();
+        for (Line line : lines) {
+            for (int provinceId : line.provinceIds()) {
+                rawAt.computeIfAbsent(provinceId, id -> production
+                        ? production(provinces, guild, id) : raw(provinces, guild, id));
+            }
+        }
+        Map<Integer, Double> offered = new HashMap<>();
+        for (Line line : lines) {
+            int size = line.provinceIds().length;
+            double[] values = new double[size];
+            for (int index = 0; index < size; index++) {
+                values[index] = rawAt.getOrDefault(line.provinceIds()[index], 0.0);
+            }
+            double share = production ? line.rates().production() : line.rates().trade();
+            double[] deliveries = lineDeliveries(
+                    line.positions(), values, line.strengths(),
+                    share, line.rates().keptPer1000(), line.access());
+            for (int index = 0; index < size; index++) {
+                offered.merge(line.provinceIds()[index], deliveries[index], Math::max);
+            }
+        }
+        double threshold = production ? 0.1 : 0.5;
+        boolean moved = false;
+        List<Integer> destinations = new ArrayList<>(offered.keySet());
+        destinations.sort(Integer::compareTo);
+        for (int provinceId : destinations) {
+            double amount = offered.get(provinceId);
+            double current = production
+                    ? production(provinces, guild, provinceId) : raw(provinces, guild, provinceId);
+            if (amount < threshold || amount <= current) {
+                continue;
+            }
+            if (production) {
+                provinces.get(provinceId).seedProduction(provinces, guild, amount);
+            } else {
+                provinces.get(provinceId).seedTrade(provinces, guild, amount);
+            }
+            moved = true;
         }
         return moved;
     }
 
-    private static boolean oneProductionPass(
-            ProvinceManager provinces, Guild guild, List<Node> nodes, Map<Node, List<Hop>> hops) {
-        List<Node> senders = new ArrayList<>(nodes.size());
-        for (Node node : nodes) {
-            if (hops.containsKey(node) && provinces.contains(node.provinceId())) {
-                senders.add(node);
-            }
+    /**
+     * Best delivery to every stop from all other stops. Two sweeps are equivalent to checking
+     * every ordered pair because distance loss multiplies along the line.
+     */
+    static double[] lineDeliveries(
+            double[] positions, double[] raw, double[] stops,
+            double share, double keptPer1000, double access) {
+        if (positions.length != raw.length || raw.length != stops.length) {
+            throw new IllegalArgumentException("Line arrays must have the same length");
         }
-        senders.sort(Comparator.comparingDouble(
-                (Node node) -> production(provinces, guild, node)).reversed()
-                .thenComparingInt(Node::provinceId));
-        boolean moved = false;
-        for (Node from : senders) {
-            double fromProduction = production(provinces, guild, from);
-            if (fromProduction < 0.1) {
-                continue;
-            }
-            for (Hop hop : hops.get(from)) {
-                double delivered = fromProduction * hop.factor;
-                if (delivered < 0.1 || delivered <= production(provinces, guild, hop.to)) {
-                    continue;
-                }
-                provinces.get(hop.to.provinceId()).seedProduction(provinces, guild, delivered);
-                moved = true;
-            }
+        double[] delivered = new double[raw.length];
+        double modeShare = tradeShare(share);
+        double lineAccess = clampAccess(access);
+        double kept = tradeShare(keptPer1000);
+        if (modeShare <= 0 || lineAccess <= 0) {
+            return delivered;
         }
-        return moved;
+        sweep(positions, raw, stops, modeShare * lineAccess, kept, delivered, 0, raw.length, 1);
+        sweep(positions, raw, stops, modeShare * lineAccess, kept, delivered, raw.length - 1, -1, -1);
+        return delivered;
+    }
+
+    private static void sweep(
+            double[] positions, double[] raw, double[] stops, double factor, double kept,
+            double[] delivered, int start, int end, int step) {
+        double carry = 0;
+        int previous = start;
+        for (int index = start; index != end; index += step) {
+            if (index != start) {
+                double distance = Math.abs(positions[index] - positions[previous]);
+                carry *= Math.pow(kept, Math.max(0, distance) / 1000.0);
+            }
+            double strength = clampAccess(stops[index]);
+            double boarding = finitePositive(raw[index]) * strength * factor;
+            carry = Math.max(carry, boarding);
+            delivered[index] = Math.max(delivered[index], carry * strength);
+            previous = index;
+        }
+    }
+
+    private static double finitePositive(double value) {
+        return Double.isFinite(value) && value > 0 ? value : 0;
     }
 
     private static Map<Node, Link> bestByDestination(TradeGraph graph, Node from) {
@@ -392,20 +375,17 @@ public final class Highway {
     }
 
     private static double raw(ProvinceManager provinces, Guild guild, Node node) {
-        Province province = provinces.get(node.provinceId());
+        return raw(provinces, guild, node.provinceId());
+    }
+
+    private static double raw(ProvinceManager provinces, Guild guild, int provinceId) {
+        Province province = provinces.get(provinceId);
         return province == null ? 0 : province.getRawGuildTrade(guild);
     }
 
-    private static double production(ProvinceManager provinces, Guild guild, Node node) {
-        Province province = provinces.get(node.provinceId());
+    private static double production(ProvinceManager provinces, Guild guild, int provinceId) {
+        Province province = provinces.get(provinceId);
         return province == null ? 0 : province.getGuildProduction(guild);
-    }
-
-    private static double productionFactor(Link link, double accessFrom, double accessTo) {
-        if (link == null) {
-            return 0;
-        }
-        return link.productionFactor() * Math.min(clampAccess(accessFrom), clampAccess(accessTo));
     }
 
     private static double access(Map<String, Double> accessByOwner, Node node) {

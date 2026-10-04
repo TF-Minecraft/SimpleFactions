@@ -95,8 +95,8 @@ supply-hubs:
   offer-days: 7
   # Days a hub agreement runs.
   agreement-days: 14
-  # Sea and rail leave this share of the delivery in the provinces along the way.
-  # Air leaves nothing. 1 leaves the full delivery.
+  # Strength of sea and rail corridor provinces as boarding and arrival stops.
+  # Air has no corridor stops. 1 makes a corridor stop as strong as an installation.
   corridor-share: 0.5
   # A stop delivers a share of the guild's trade there to the next stop.
   #   trade / production: share delivered before distance loss (capped at 0.95)
