@@ -27,6 +27,12 @@ public final class HubProposalCopy {
         return Math.max(0, Math.min(maxCents, cents));
     }
 
+    /** {@code Joins: The Vardera Network}, with the same colours as the other proposal lines. */
+    public static String joinsLine(String networkName) {
+        String name = networkName == null || networkName.isBlank() ? "a network" : networkName;
+        return "§7Joins: §f" + name;
+    }
+
     public static List<String> destinationLore(Site site, boolean showArrival) {
         List<String> lore = new ArrayList<>();
         if (site == null) {

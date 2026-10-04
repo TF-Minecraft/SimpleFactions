@@ -80,20 +80,17 @@ public final class Highway {
         }
         List<Node> nodes = graph.nodes();
         Set<Node> hubNodes = hubNodes(graph, hubbed);
-        double strength = noHubStrength();
         double bonus = Math.max(0, hubTradeBonus);
         Map<Node, List<Hop>> hops = new HashMap<>();
         for (Node from : nodes) {
             boolean fromHub = hubNodes.contains(from);
-            double endFrom = fromHub ? 1 : strength;
             List<Hop> outgoing = new ArrayList<>();
             for (Map.Entry<Node, Link> entry : bestByDestination(graph, from).entrySet()) {
                 Node to = entry.getKey();
                 if (!provinces.contains(to.provinceId())) {
                     continue;
                 }
-                double endTo = hubNodes.contains(to) ? 1 : strength;
-                double factor = endFrom * entry.getValue().boostedTradeFactor(fromHub ? bonus : 0) * endTo;
+                double factor = hopFactor(entry.getValue(), fromHub, hubNodes.contains(to), bonus);
                 if (factor > 0) {
                     outgoing.add(new Hop(to, factor));
                 }
@@ -220,6 +217,52 @@ public final class Highway {
             return null;
         }
         return bestByDestination(graph, from).get(to);
+    }
+
+    /**
+     * One hop's multiplier: end(from) times the boosted share times distance times end(to).
+     * The share is raised by {@code hubTradeBonus} only when the sending end is hubbed.
+     */
+    public static double hopFactor(Link link, boolean hubAtFrom, boolean hubAtTo, double hubTradeBonus) {
+        if (link == null) {
+            return 0;
+        }
+        double strength = noHubStrength();
+        double endFrom = hubAtFrom ? 1 : strength;
+        double endTo = hubAtTo ? 1 : strength;
+        double bonus = hubAtFrom ? Math.max(0, hubTradeBonus) : 0;
+        return endFrom * link.boostedTradeFactor(bonus) * endTo;
+    }
+
+    /**
+     * Trade that would arrive at {@code node} if the guild had a hub there.
+     * The best edge wins: raw trade at the other end, times {@link #hopFactor} with this end hubbed.
+     */
+    public static double wouldArrive(
+            ProvinceManager provinces, Guild guild, TradeGraph graph,
+            Set<HubSite> hubbed, Node node, double hubTradeBonus) {
+        if (provinces == null || guild == null || guild.getId() == null || graph == null || node == null) {
+            return 0;
+        }
+        Set<Node> hubs = hubNodes(graph, hubbed);
+        double best = 0;
+        Set<Node> seen = new HashSet<>();
+        for (Edge edge : graph.edgesAt(node)) {
+            Node other = edge.other(node);
+            if (!seen.add(other)) {
+                continue;
+            }
+            Link link = bestLink(graph, other, node);
+            if (link == null) {
+                continue;
+            }
+            double delivered = raw(provinces, guild, other)
+                    * hopFactor(link, hubs.contains(other), true, hubTradeBonus);
+            if (delivered > best) {
+                best = delivered;
+            }
+        }
+        return best;
     }
 
     private static boolean onePass(

@@ -96,6 +96,33 @@ class HighwayTest {
     }
 
     @Test
+    void wouldArriveAssumesAHubAtTheNode() {
+        TradeGraph graph = edge(0);
+        ProvinceManager provinces = isolated(1, 2);
+        place(provinces, 1, 100);
+        Node destination = node(graph, "b");
+        assertEquals(40, Highway.wouldArrive(provinces, guild, graph, Set.of(site("a")), destination, 0), 1e-9);
+        assertEquals(20, Highway.wouldArrive(provinces, guild, graph, Set.of(), destination, 0), 1e-9);
+        assertEquals(20, Highway.wouldArrive(provinces, guild, graph, Set.of(site("b")), destination, 0), 1e-9);
+        assertEquals(52, Highway.wouldArrive(provinces, guild, graph, Set.of(site("a")), destination, 0.30), 1e-9);
+        assertEquals(20, Highway.wouldArrive(provinces, guild, graph, Set.of(), destination, 0.30), 1e-9);
+
+        TradeGraph longer = edge(1000);
+        assertEquals(18, Highway.wouldArrive(provinces, guild, longer, Set.of(), node(longer, "b"), 0), 1e-9);
+
+        Installation rich = station("a", 1);
+        Installation here = station("b", 2);
+        Installation quiet = station("c", 3);
+        TradeGraph fork = TestGraphs.rail("owner", List.of(rich, here, quiet),
+                (from, to) -> "b".equals(from.getId()) || "b".equals(to.getId()), 0);
+        ProvinceManager forkProvinces = isolated(1, 2, 3);
+        place(forkProvinces, 1, 100);
+        place(forkProvinces, 3, 10);
+        assertEquals(40, Highway.wouldArrive(
+                forkProvinces, guild, fork, TestGraphs.hubs("owner", rich, quiet), fork.node("owner", "b"), 0), 1e-9);
+    }
+
+    @Test
     void fourStrengthsOnOneEdge() {
         TradeGraph graph = edge(0);
         assertEquals(40, deliver(graph, both(), 100), 1e-9);

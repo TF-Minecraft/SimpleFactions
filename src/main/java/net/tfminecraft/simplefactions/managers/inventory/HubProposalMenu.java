@@ -1,7 +1,9 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -23,11 +25,18 @@ import net.tfminecraft.simplefactions.guild.hub.HubAgreementService;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.AgreementResult;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.PendingMatter;
 import net.tfminecraft.simplefactions.guild.hub.HubAgreementService.RateRange;
+import net.tfminecraft.simplefactions.guild.hub.HighwaySnapshot;
 import net.tfminecraft.simplefactions.guild.hub.HubEstimates;
 import net.tfminecraft.simplefactions.guild.hub.HubEstimates.Site;
 import net.tfminecraft.simplefactions.guild.hub.HubOffer;
+import net.tfminecraft.simplefactions.guild.hub.HubPlacement;
 import net.tfminecraft.simplefactions.guild.hub.HubProposalCopy;
 import net.tfminecraft.simplefactions.guild.hub.SupplyHubService;
+import net.tfminecraft.simplefactions.guild.network.CurrentNetworks;
+import net.tfminecraft.simplefactions.guild.network.NetworkSummary.Summary;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Network;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
 import net.tfminecraft.simplefactions.guild.hub.OfferSide;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -41,16 +50,13 @@ import net.tfminecraft.simplefactions.utils.Formatter;
  */
 public final class HubProposalMenu {
     private static final String SEP = "\u001f";
+    private static final String TERRITORY = "territory";
     private static final int PAGE_SIZE = 45;
 
     private HubProposalMenu() {
     }
 
     public static void openProposals(Player player, Guild guild, int page) {
-        openProposals(player, guild, page, false);
-    }
-
-    static void openProposals(Player player, Guild guild, int page, boolean showAll) {
         if (player == null || guild == null) {
             return;
         }
@@ -58,73 +64,11 @@ public final class HubProposalMenu {
             player.sendMessage("§cOnly the guild leader can propose a hub");
             return;
         }
-        List<Site> sites = HubEstimates.sites(guild);
-        boolean noHubs = guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty();
-        boolean focused = noHubs && !showAll;
-        List<Site> territory = noHubs ? HubEstimates.territory(sites) : sites;
-        List<Site> tradable = noHubs ? HubEstimates.withTrade(territory) : territory;
-        List<Site> listed = noHubs
-                ? (focused ? HubEstimates.bestTerritory(tradable) : tradable)
-                : HubEstimates.connected(sites);
-        listed = noHubs ? HubEstimates.byTradePower(listed) : HubEstimates.byArrival(listed);
-        int pages = Math.max(1, (listed.size() + PAGE_SIZE - 1) / PAGE_SIZE);
-        int shown = Math.max(0, Math.min(page, pages - 1));
-        Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
-                new SFInventoryHolder(guild.getId(), SFGUI.HUB_PROPOSAL_LIST, shown, showAll && noHubs),
-                54, noHubs ? "§7Main Hub" : "§7Propose a Hub");
-        if (listed.isEmpty()) {
-            if (noHubs && territory.isEmpty()) {
-                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7You have no installation", List.of(
-                        "§7Build a port, airport, or train station in your territory.")));
-            } else if (noHubs) {
-                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No trade power in your territory", List.of(
-                        "§7A main hub is placed where your guild already has trade power.")));
-            } else if (!sites.isEmpty()) {
-                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No connections can be made", List.of(
-                        "§7You might need a rail")));
-            } else {
-                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No installation can take a hub", List.of(
-                        "§7Every open port, airport, and train station already has your hub, or has no free slot.")));
-            }
+        if (noHubs(guild)) {
+            openNodes(player, guild, page, TERRITORY, true);
+        } else {
+            openNetworks(player, guild, page);
         }
-        int start = shown * PAGE_SIZE;
-        for (int index = 0; index < PAGE_SIZE && start + index < listed.size(); index++) {
-            Site destination = listed.get(start + index);
-            Faction host = FactionManager.getByString(destination.hostFactionId());
-            List<String> lore = new ArrayList<>();
-            lore.add("§7Host: §f" + (host == null ? destination.hostFactionId() : host.getName()));
-            lore.addAll(HubProposalCopy.destinationLore(destination, !noHubs));
-            if (focused) {
-                lore.add(listed.size() > 1
-                        ? "§7Tied for the most trade power in your territory"
-                        : "§7The most trade power in your territory");
-            }
-            ItemStack item = SupplyHubCreator.item(Material.CHEST, "§e" + destination.label(), lore);
-            ItemMeta meta = item.getItemMeta();
-            String installation = destination.installationId() == null ? "" : destination.installationId();
-            meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING,
-                    destination.hostFactionId() + SEP + installation
-                            + SEP + destination.provinceId() + SEP + (destination.ownRealm() ? "own" : "foreign"));
-            item.setItemMeta(meta);
-            inventory.setItem(index, item);
-        }
-        if (shown > 0) {
-            inventory.setItem(48, SupplyHubCreator.item(Material.ARROW, "§ePrevious page", List.of()));
-        }
-        if (shown + 1 < pages) {
-            inventory.setItem(50, SupplyHubCreator.item(Material.ARROW, "§eNext page", List.of()));
-        }
-        if (noHubs && !tradable.isEmpty() && (focused ? tradable.size() > listed.size() : true)) {
-            if (focused) {
-                inventory.setItem(49, action(Material.BOOK, "§eView all", "view:all", List.of(
-                        "§7Every place in your territory with trade power")));
-            } else {
-                inventory.setItem(49, action(Material.COMPASS, "§eBest in your territory", "view:best", List.of(
-                        "§7Only the installations with the most trade power")));
-            }
-        }
-        inventory.setItem(53, backButton(SFGUI.HUB_PROPOSAL_LIST));
-        player.openInventory(inventory);
     }
 
     public static void openOffers(Player player) {
@@ -233,6 +177,8 @@ public final class HubProposalMenu {
         }
         if (holder.getType() == SFGUI.HUB_PROPOSAL_LIST) {
             clickProposals(event, holder, player, menus);
+        } else if (holder.getType() == SFGUI.HUB_NETWORK_CHOICE) {
+            clickNetworks(event, holder, player, menus);
         } else if (holder.getType() == SFGUI.HUB_NEGOTIATION) {
             clickNegotiation(event, holder, player, menus);
         } else if (holder.getType() == SFGUI.HUB_OFFER_LIST) {
@@ -250,10 +196,15 @@ public final class HubProposalMenu {
             if (!(top.getHolder() instanceof SFInventoryHolder holder)) {
                 return;
             }
-            if (holder.getType() == SFGUI.HUB_PROPOSAL_LIST) {
+            if (holder.getType() == SFGUI.HUB_NETWORK_CHOICE) {
                 Guild guild = FactionManager.getGuildByString(holder.getId());
                 if (guild != null) {
-                    openProposals(player, guild, holder.getPage(), holder.getFlag());
+                    openNetworks(player, guild, holder.getPage());
+                }
+            } else if (holder.getType() == SFGUI.HUB_PROPOSAL_LIST) {
+                Guild guild = FactionManager.getGuildByString(holder.getId());
+                if (guild != null) {
+                    openNodes(player, guild, holder.getPage(), holder.getSecondaryId(), holder.getFlag());
                 }
             } else if (holder.getType() == SFGUI.HUB_OFFER_LIST) {
                 String[] filter = offerFilter(holder.getSecondaryId());
@@ -281,27 +232,23 @@ public final class HubProposalMenu {
             return;
         }
         if (event.getSlot() == 53) {
-            menus.supplyHubView.guildView(player, guild);
+            if (holder.getSecondaryId() == null || TERRITORY.equals(holder.getSecondaryId())) {
+                menus.supplyHubView.guildView(player, guild);
+            } else {
+                openNetworks(player, guild, 0);
+            }
             return;
         }
         if (event.getSlot() == 48) {
-            openProposals(player, guild, holder.getPage() - 1, holder.getFlag());
+            openNodes(player, guild, holder.getPage() - 1, holder.getSecondaryId(), holder.getFlag());
             return;
         }
         if (event.getSlot() == 50) {
-            openProposals(player, guild, holder.getPage() + 1, holder.getFlag());
+            openNodes(player, guild, holder.getPage() + 1, holder.getSecondaryId(), holder.getFlag());
             return;
         }
         String data = key(event.getCurrentItem());
         if (data == null) {
-            return;
-        }
-        if (data.equals("view:all")) {
-            openProposals(player, guild, 0, true);
-            return;
-        }
-        if (data.equals("view:best")) {
-            openProposals(player, guild, 0, false);
             return;
         }
         String[] parts = data.split(SEP, -1);
@@ -309,24 +256,68 @@ public final class HubProposalMenu {
             return;
         }
         player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-        boolean noHubs = guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty();
-        boolean ownRealm = parts[3].equals("own");
-        if (noHubs && !ownRealm) {
-            player.sendMessage("§cYour first hub has to be in your own territory");
-            return;
-        }
         if (SupplyHubService.hasHub(guild.getSupplyHubs(), parts[0], parts[1])) {
             player.sendMessage("§cYour guild already has a supply hub there");
-            openProposals(player, guild, holder.getPage(), holder.getFlag());
+            openNodes(player, guild, holder.getPage(), holder.getSecondaryId(), holder.getFlag());
             return;
         }
-        Site destination = findDestination(guild, parts[0], parts[1]);
-        if (ownRealm || (destination != null && destination.ownRealm())) {
+        TradeGraph graph = HighwaySnapshot.current().graph();
+        Node node = graph == null ? null : graph.node(parts[0], parts[1]);
+        boolean own = HubPlacement.ownLand(guild, parts[0]);
+        if (!HubPlacement.mayPlace(
+                graph == null ? null : graph.networkOf(node),
+                HubPlacement.joinedNetworks(graph, guild.getSupplyHubs()),
+                own)) {
+            player.sendMessage(HubPlacement.refusal());
+            return;
+        }
+        if (own) {
             menus.confirmSupplyHub(player, guild.getFaction(),
                     "build|" + guild.getId() + "|" + parts[0] + "|" + parts[1]);
             return;
         }
         openFromExisting(player, guild, parts[0], parts[1]);
+    }
+
+    private static void clickNetworks(
+            InventoryClickEvent event, SFInventoryHolder holder, Player player, InventoryManager menus) {
+        Guild guild = FactionManager.getGuildByString(holder.getId());
+        if (guild == null) {
+            return;
+        }
+        if (event.getSlot() == 53) {
+            menus.supplyHubView.guildView(player, guild);
+            return;
+        }
+        if (event.getSlot() == 48) {
+            openNetworks(player, guild, holder.getPage() - 1);
+            return;
+        }
+        if (event.getSlot() == 50) {
+            openNetworks(player, guild, holder.getPage() + 1);
+            return;
+        }
+        String data = key(event.getCurrentItem());
+        if (data == null) {
+            return;
+        }
+        player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+        TradeGraph graph = HighwaySnapshot.current().graph();
+        Network network = networkOfAnchor(graph, data);
+        if (network == null) {
+            player.sendMessage("§cThat network is no longer there.");
+            openNetworks(player, guild, holder.getPage());
+            return;
+        }
+        if (HubPlacement.joinedNetworks(graph, guild.getSupplyHubs()).contains(network)) {
+            openNodes(player, guild, 0, data, false);
+            return;
+        }
+        if (territorySites(guild, graph, network).isEmpty()) {
+            player.sendMessage(HubPlacement.refusal());
+            return;
+        }
+        openNodes(player, guild, 0, data, true);
     }
 
     private static void clickNegotiation(
@@ -550,6 +541,275 @@ public final class HubProposalMenu {
             return new String[] {null, null};
         }
         return new String[] {parts[0], parts[1]};
+    }
+
+    private static void openNetworks(Player player, Guild guild, int page) {
+        if (player == null || guild == null) {
+            return;
+        }
+        HighwaySnapshot snapshot = HighwaySnapshot.current();
+        TradeGraph graph = snapshot.graph();
+        List<Summary> summaries = CurrentNetworks.from(snapshot);
+        List<Site> sites = HubEstimates.sites(guild);
+        Set<Network> joined = HubPlacement.joinedNetworks(graph, guild.getSupplyHubs());
+        List<Row> rows = new ArrayList<>();
+        for (Summary summary : summaries) {
+            if (summary == null || summary.network() == null) {
+                continue;
+            }
+            boolean member = joined.contains(summary.network());
+            double further = member ? bestFurther(sites, graph, summary.network()) : 0;
+            boolean onLand = !member && hasTerritory(sites, graph, summary.network());
+            rows.add(new Row(summary, member, further, onLand, anchor(summary.network())));
+        }
+        rows.sort(Comparator
+                .comparingInt((Row row) -> row.joined() ? 0 : 1)
+                .thenComparing(Comparator.comparingDouble(Row::further).reversed())
+                .thenComparing(Comparator.comparingInt((Row row) -> row.summary().nodes()).reversed())
+                .thenComparing(row -> row.summary().name() == null ? "" : row.summary().name(),
+                        String.CASE_INSENSITIVE_ORDER));
+        int pages = Math.max(1, (rows.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int shown = Math.max(0, Math.min(page, pages - 1));
+        Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
+                new SFInventoryHolder(guild.getId(), SFGUI.HUB_NETWORK_CHOICE, shown),
+                54, "§7Choose a Network");
+        if (rows.isEmpty()) {
+            String empty = HubPlacement.display(HubPlacement.forGuild(guild));
+            inventory.setItem(22, SupplyHubCreator.item(Material.PAPER,
+                    empty == null ? "§7No trade networks" : empty, List.of()));
+        }
+        int start = shown * PAGE_SIZE;
+        for (int index = 0; index < PAGE_SIZE && start + index < rows.size(); index++) {
+            inventory.setItem(index, networkItem(rows.get(start + index)));
+        }
+        if (shown > 0) {
+            inventory.setItem(48, SupplyHubCreator.item(Material.ARROW, "§ePrevious page", List.of()));
+        }
+        if (shown + 1 < pages) {
+            inventory.setItem(50, SupplyHubCreator.item(Material.ARROW, "§eNext page", List.of()));
+        }
+        inventory.setItem(53, backButton(SFGUI.HUB_NETWORK_CHOICE));
+        player.openInventory(inventory);
+    }
+
+    private static void openNodes(Player player, Guild guild, int page, String secondary, boolean territoryOnly) {
+        if (player == null || guild == null) {
+            return;
+        }
+        boolean joining = TERRITORY.equals(secondary);
+        HighwaySnapshot snapshot = HighwaySnapshot.current();
+        TradeGraph graph = snapshot.graph();
+        List<Summary> summaries = CurrentNetworks.from(snapshot);
+        Network network = joining ? null : networkOfAnchor(graph, secondary);
+        if (!joining && network == null) {
+            player.sendMessage("§cThat network is no longer there.");
+            openNetworks(player, guild, 0);
+            return;
+        }
+        List<Site> listed = new ArrayList<>();
+        for (Site site : HubEstimates.sites(guild)) {
+            if (site == null) {
+                continue;
+            }
+            Node node = graph == null ? null : graph.node(site.hostFactionId(), site.installationId());
+            if (node == null) {
+                continue;
+            }
+            if (joining) {
+                if (site.ownRealm()) {
+                    listed.add(site);
+                }
+                continue;
+            }
+            if (!network.equals(graph.networkOf(node))) {
+                continue;
+            }
+            if (territoryOnly && !site.ownRealm()) {
+                continue;
+            }
+            listed.add(site);
+        }
+        listed = joining ? HubEstimates.byTradePower(listed) : HubEstimates.byArrival(listed);
+        int pages = Math.max(1, (listed.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int shown = Math.max(0, Math.min(page, pages - 1));
+        String stored = joining ? TERRITORY : secondary;
+        String heading = joining ? "§7Join a Network" : title("§7" + networkName(summaries, network));
+        Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
+                new SFInventoryHolder(guild.getId(), SFGUI.HUB_PROPOSAL_LIST, shown, territoryOnly, stored),
+                54, heading);
+        if (listed.isEmpty()) {
+            String empty = HubPlacement.display(HubPlacement.forGuild(guild));
+            if (empty != null) {
+                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, empty, List.of()));
+            } else {
+                inventory.setItem(22, SupplyHubCreator.item(Material.PAPER, "§7No stop can take a hub", List.of(
+                        "§7Every open stop already has your hub, or has no free slot.")));
+            }
+        }
+        int start = shown * PAGE_SIZE;
+        for (int index = 0; index < PAGE_SIZE && start + index < listed.size(); index++) {
+            inventory.setItem(index, siteItem(listed.get(start + index), joining, summaries, graph));
+        }
+        if (shown > 0) {
+            inventory.setItem(48, SupplyHubCreator.item(Material.ARROW, "§ePrevious page", List.of()));
+        }
+        if (shown + 1 < pages) {
+            inventory.setItem(50, SupplyHubCreator.item(Material.ARROW, "§eNext page", List.of()));
+        }
+        inventory.setItem(53, backButton(SFGUI.HUB_PROPOSAL_LIST));
+        player.openInventory(inventory);
+    }
+
+    private static ItemStack networkItem(Row row) {
+        Summary summary = row.summary();
+        List<String> lore = new ArrayList<>();
+        if (row.joined()) {
+            lore.add("§7A further hub could bring §e" + Formatter.formatDouble(row.further()));
+            lore.add("§eClick to choose a stop");
+        } else if (!row.onLand()) {
+            lore.add("§7You need a hub in that network first.");
+            lore.add("§7Place one on your own land.");
+        } else {
+            lore.add("§7You have a stop on your land in this network.");
+            lore.add("§eClick to choose it");
+        }
+        Material material = row.joined() ? Material.EMERALD : Material.GRAY_DYE;
+        String name = (row.joined() ? "§e" : "§8") + summary.name();
+        ItemStack item = SupplyHubCreator.item(material, name, lore);
+        Node anchor = row.anchor();
+        if (anchor != null) {
+            ItemMeta meta = item.getItemMeta();
+            meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING,
+                    anchor.ownerFactionId() + SEP + anchor.installationId());
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private static ItemStack siteItem(Site destination, boolean joining, List<Summary> summaries, TradeGraph graph) {
+        Faction host = FactionManager.getByString(destination.hostFactionId());
+        List<String> lore = new ArrayList<>();
+        lore.add("§7Host: §f" + (host == null ? destination.hostFactionId() : host.getName()));
+        if (joining) {
+            lore.add(HubProposalCopy.joinsLine(networkName(summaries, graph, destination)));
+        }
+        lore.addAll(HubProposalCopy.destinationLore(destination, !joining));
+        ItemStack item = SupplyHubCreator.item(Material.CHEST, "§e" + destination.label(), lore);
+        ItemMeta meta = item.getItemMeta();
+        String installation = destination.installationId() == null ? "" : destination.installationId();
+        meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING,
+                destination.hostFactionId() + SEP + installation
+                        + SEP + destination.provinceId() + SEP + (destination.ownRealm() ? "own" : "foreign"));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private static List<Site> territorySites(Guild guild, TradeGraph graph, Network network) {
+        List<Site> own = new ArrayList<>();
+        if (guild == null || graph == null || network == null) {
+            return own;
+        }
+        for (Site site : HubEstimates.sites(guild)) {
+            if (site == null || !site.ownRealm()) {
+                continue;
+            }
+            Node node = graph.node(site.hostFactionId(), site.installationId());
+            if (node != null && network.equals(graph.networkOf(node))) {
+                own.add(site);
+            }
+        }
+        return own;
+    }
+
+    private static boolean hasTerritory(List<Site> sites, TradeGraph graph, Network network) {
+        if (sites == null || graph == null || network == null) {
+            return false;
+        }
+        for (Site site : sites) {
+            if (site == null || !site.ownRealm()) {
+                continue;
+            }
+            Node node = graph.node(site.hostFactionId(), site.installationId());
+            if (node != null && network.equals(graph.networkOf(node))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static double bestFurther(List<Site> sites, TradeGraph graph, Network network) {
+        double best = 0;
+        if (sites == null || graph == null || network == null) {
+            return 0;
+        }
+        for (Site site : sites) {
+            if (site == null) {
+                continue;
+            }
+            Node node = graph.node(site.hostFactionId(), site.installationId());
+            if (node != null && network.equals(graph.networkOf(node)) && site.arrivesHere() > best) {
+                best = site.arrivesHere();
+            }
+        }
+        return best;
+    }
+
+    private static Network networkOfAnchor(TradeGraph graph, String stored) {
+        if (graph == null || stored == null) {
+            return null;
+        }
+        String[] parts = stored.split(SEP, -1);
+        if (parts.length < 2 || parts[1].isEmpty()) {
+            return null;
+        }
+        return graph.networkOf(graph.node(parts[0], parts[1]));
+    }
+
+    private static String networkName(List<Summary> summaries, TradeGraph graph, Site site) {
+        if (graph == null || site == null) {
+            return null;
+        }
+        return networkName(summaries, graph.networkOf(graph.node(site.hostFactionId(), site.installationId())));
+    }
+
+    private static String networkName(List<Summary> summaries, Network network) {
+        Summary summary = null;
+        if (summaries != null && network != null) {
+            for (Summary candidate : summaries) {
+                if (candidate != null && network.equals(candidate.network())) {
+                    summary = candidate;
+                    break;
+                }
+            }
+        }
+        return summary == null || summary.name() == null ? "a network" : summary.name();
+    }
+
+    private static Node anchor(Network network) {
+        Node best = null;
+        if (network == null) {
+            return null;
+        }
+        for (Node node : network.nodes()) {
+            if (best == null || node.provinceId() < best.provinceId()
+                    || (node.provinceId() == best.provinceId()
+                            && node.installationId().compareToIgnoreCase(best.installationId()) < 0)) {
+                best = node;
+            }
+        }
+        return best;
+    }
+
+    private static boolean noHubs(Guild guild) {
+        return guild.getSupplyHubs() == null || guild.getSupplyHubs().isEmpty();
+    }
+
+    private static String title(String text) {
+        String value = text == null || text.isEmpty() ? "§7Network" : text;
+        return value.length() <= 128 ? value : value.substring(0, 128);
+    }
+
+    private record Row(Summary summary, boolean joined, double further, boolean onLand, Node anchor) {
     }
 
     private static Site findDestination(Guild guild, String hostId, String installationId) {

@@ -8,7 +8,6 @@ import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
-import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
@@ -24,9 +23,9 @@ import net.tfminecraft.simplefactions.objects.Faction;
  */
 public final class HubEstimates {
     /**
-     * One existing installation. {@code arrivesHere} is the most trade power an existing
-     * hub would deliver here on a link that already exists. {@code connected} is false when
-     * the only way to reach this site is new track.
+     * One existing installation. {@code arrivesHere} is the most trade that would arrive
+     * here with a hub, best over the node's edges. {@code connected} is true when one of
+     * the guild's active hubs already has an edge to this site.
      */
     public record Site(
             String hostFactionId,
@@ -92,34 +91,37 @@ public final class HubEstimates {
         return List.copyOf(sites);
     }
 
-    /** Trade power that would be placed at {@code target} by the guild's existing hubs. */
+    /**
+     * Trade that would arrive at {@code target} with a hub there, from the current snapshot.
+     * {@code sources} only decides {@link Site#connected()}.
+     */
     static double arrives(Guild guild, Installation target, List<Installation> sources, ProvinceManager provinces) {
         return arrival(guild, target, sources, provinces).trade();
     }
 
     private static Arrival arrival(
             Guild guild, Installation target, List<Installation> sources, ProvinceManager provinces) {
-        if (guild == null || target == null || sources == null || sources.isEmpty() || provinces == null) {
-            return new Arrival(0, false);
-        }
-        double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE);
-        double best = 0;
         boolean connected = false;
-        for (Installation source : sources) {
-            if (source == null || source.getProvince() == target.getProvince()) {
-                continue;
-            }
-            Link link = HubNetwork.connect(source, target, provinces);
-            if (link == null) {
-                continue;
-            }
-            connected = true;
-            double delivered = tradeHere(provinces, guild, source.getProvince()) * link.boostedTradeFactor(bonus);
-            if (delivered > best) {
-                best = delivered;
+        if (guild != null && target != null && sources != null && provinces != null) {
+            for (Installation source : sources) {
+                if (source == null || source.getProvince() == target.getProvince()) {
+                    continue;
+                }
+                if (HubNetwork.connect(source, target, provinces) != null) {
+                    connected = true;
+                    break;
+                }
             }
         }
-        return new Arrival(best, connected);
+        double trade = 0;
+        if (guild != null && guild.getId() != null && target != null && provinces != null) {
+            HighwaySnapshot snapshot = HighwaySnapshot.current();
+            double bonus = GuildModifierOverride.resolve(guild, GuildModifier.HUB_TRADE);
+            trade = Highway.wouldArrive(
+                    provinces, guild, snapshot.graph(), snapshot.hubbed(guild.getId()),
+                    HubNetwork.findNode(snapshot.graph(), target), bonus);
+        }
+        return new Arrival(trade, connected);
     }
 
     public static List<Site> territory(List<Site> sites) {

@@ -316,6 +316,11 @@ public final class HubAgreementService {
                     "§aThose terms will apply on renewal, and auto-renewal is on for both sides",
                     notices, false);
         }
+        HubPlacement.Inputs placement = facts.placementInputs(guild, hostFactionId, installationId);
+        if (placement == null || !HubPlacement.mayPlace(
+                placement.network(), placement.joined(), placement.ownTerritory())) {
+            return AgreementResult.fail(HubPlacement.refusal());
+        }
         String buildProblem = buildProblem(guild, hostFactionId, installationId, facts, false);
         if (buildProblem != null) {
             return AgreementResult.fail(buildProblem);

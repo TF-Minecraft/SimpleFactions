@@ -6,6 +6,9 @@ import java.util.List;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Network;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -56,6 +59,14 @@ public interface HubAgreementFacts {
     boolean hubDormant(Guild guild, SupplyHub hub);
 
     String installationLabel(String factionId, String installationId);
+
+    /**
+     * What {@link HubPlacement#mayPlace} needs for this installation.
+     * The default is own land, so a test that is not about networks still builds.
+     */
+    default HubPlacement.Inputs placementInputs(Guild guild, String hostFactionId, String installationId) {
+        return HubPlacement.Inputs.ownLand();
+    }
 
     HubAgreementFacts LIVE = new LiveHubAgreementFacts();
 }
@@ -144,6 +155,16 @@ final class LiveHubAgreementFacts implements HubAgreementFacts {
     @Override
     public int hubsAtInstallation(String factionId, String installationId) {
         return SupplyHubService.countLoaded(factionId, installationId);
+    }
+
+    @Override
+    public HubPlacement.Inputs placementInputs(Guild guild, String hostFactionId, String installationId) {
+        TradeGraph graph = HighwaySnapshot.current().graph();
+        Node node = graph == null ? null : graph.node(hostFactionId, installationId);
+        Network network = graph == null || node == null ? null : graph.networkOf(node);
+        List<SupplyHub> hubs = guild == null || guild.getSupplyHubs() == null ? List.of() : guild.getSupplyHubs();
+        return new HubPlacement.Inputs(
+                network, HubPlacement.joinedNetworks(graph, hubs), HubPlacement.ownLand(guild, hostFactionId));
     }
 
     @Override
