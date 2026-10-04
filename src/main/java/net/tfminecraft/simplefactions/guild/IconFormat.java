@@ -2,6 +2,11 @@ package net.tfminecraft.simplefactions.guild;
 
 import java.util.Locale;
 
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+
+import net.tfminecraft.tlibs.TLibs;
+
 /** Guild icon strings are either {@code material.customModelData} or a TLibs item path. */
 public final class IconFormat {
     public enum Kind {
@@ -40,5 +45,18 @@ public final class IconFormat {
             return Kind.MALFORMED;
         }
         return Kind.MATERIAL;
+    }
+
+    /** A fresh copy of the TLibs item, or plain black dye when the path cannot be built. */
+    public static ItemStack itemFromPath(String icon) {
+        try {
+            ItemStack resolved = TLibs.getItemAPI().getCreator().getItemFromPath(icon);
+            if (resolved != null) {
+                return resolved.clone();
+            }
+        } catch (Exception e) {
+            // A missing or broken item path still has to produce an icon.
+        }
+        return new ItemStack(Material.BLACK_DYE, 1);
     }
 }
