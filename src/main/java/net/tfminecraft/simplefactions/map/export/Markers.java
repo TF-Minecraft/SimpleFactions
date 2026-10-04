@@ -11,7 +11,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import net.md_5.bungee.api.ChatColor;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.hub.HighwaySnapshot;
@@ -318,7 +317,7 @@ public final class Markers {
     }
 
     private static String stripColor(String value) {
-        return ChatColor.stripColor(value == null ? "" : value);
+        return NetworkSummary.plain(value);
     }
 
     private static double roundShare(double share) {

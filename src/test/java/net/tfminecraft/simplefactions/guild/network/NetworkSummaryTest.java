@@ -49,6 +49,23 @@ class NetworkSummaryTest {
     }
 
     @Test
+    void plainRemovesGradientLegacyAndTrailingSectionSigns() {
+        assertEquals("The", NetworkSummary.plain(
+                "§x§a§3§a§1§8§4§§x§3§9§6§E§4§7T§§x§3§9§6§F§4§Dh§§x§3§9§6§F§5§2e"));
+        assertEquals("Gold", NetworkSummary.plain("§6Gold"));
+        assertEquals("Green", NetworkSummary.plain("§AGreen"));
+        assertEquals("zName", NetworkSummary.plain("§§zName"));
+        assertEquals("Gold", NetworkSummary.plain("Gold§"));
+    }
+
+    @Test
+    void gradientGuildNameStartingWithTheIsNotPrefixedAgain() {
+        assertEquals("The Bog Freehold Network", nameOf(
+                "§x§a§3§a§1§8§4§§x§3§9§6§E§4§7T§§x§3§9§6§F§4§Dh§§x§3§9§6§F§5§2e "
+                        + "§x§3§9§6§F§5§8B§§x§3§9§6§F§5§eog Freehold"));
+    }
+
+    @Test
     void noTradeUsesTheFactionWithTheMostStops() {
         Node bigA = node("big", "a", 1, 1, 0);
         Node bigB = node("big", "b", 2, 1, 0);
