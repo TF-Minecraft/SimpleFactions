@@ -67,7 +67,7 @@ storehouses:
     - prestige 0 5
 counting_houses:
   name: "#a9744fCounting Houses"
-  icon: "chest_minecart.0"
+  icon: "m.currency.stack_of_coins"
   group: 3
   description:
     - "#a9744fCounting Houses #d4c9aekeep the"
