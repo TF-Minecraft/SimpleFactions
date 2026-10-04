@@ -15,7 +15,7 @@
         <denareconomy.version>0.2.4</denareconomy.version>
         <rpcharacters.version>2.0.1</rpcharacters.version>
         <tlibs.version>2.0.0</tlibs.version>
-        <vehicleframework.version>2.8.0</vehicleframework.version>
+        <vehicleframework.version>2.10.0</vehicleframework.version>
         <vfbuilders.version>2.1.0</vfbuilders.version>
     </properties>
 

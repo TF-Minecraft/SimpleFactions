@@ -381,6 +381,7 @@ public class TabCompletion implements TabCompleter{
 						completions.add("granttitle");
 						completions.add("usurp");
 						completions.add(TitleAdminCommand.SUBCOMMAND);
+						completions.add("tradegraph");
 					}
 					completions.add("reloadconfigs");
 					completions.add("transfersubject");

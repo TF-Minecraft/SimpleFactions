@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
@@ -60,6 +61,7 @@ public final class HubNetwork {
 
     /** Rebuilds every guild's connections. Server thread only. */
     public static void refresh(ProvinceManager provinces) {
+        TradeGraph.refresh(provinces);
         Map<String, List<Link>> built = new HashMap<>();
         List<Guild> guilds = SupplyHubService.allGuilds();
         for (Guild guild : guilds) {
@@ -96,6 +98,7 @@ public final class HubNetwork {
      */
     public static void forgetRoutes() {
         railDistances.clear();
+        TradeGraph.forgetRoutes();
     }
 
     /**
