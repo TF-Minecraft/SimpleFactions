@@ -527,6 +527,8 @@ public class SimpleFactions extends JavaPlugin{
 		plugin.loadConfigs();
 		FactionManager.rebindRanks();
 		FactionManager.rebindDiplomacy();
+		// loadConfigs rebuilds every Title, so point factions at the new copies or hasTitle stops matching.
+		FactionManager.reloadTitles();
 		FactionManager.updateAllPrestigeConverged();
 	}
 
