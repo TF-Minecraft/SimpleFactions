@@ -69,7 +69,7 @@ class FactionTitleDedupeTest {
 
 	private static Faction faction(List<Title> titles) throws Exception {
 		Faction faction = mock(Faction.class, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
-		doNothing().when(faction).updatePrestige();
+		doNothing().when(faction).updateTier();
 		Field field = Faction.class.getDeclaredField("titles");
 		field.setAccessible(true);
 		field.set(faction, titles);

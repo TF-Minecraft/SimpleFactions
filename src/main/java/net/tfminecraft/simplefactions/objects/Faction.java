@@ -911,7 +911,7 @@ public class Faction {
 	}
 	public void resetTitles(List<Title> list) {
 		titles = distinctTitles(list);
-		updatePrestige();
+		updateTier();
 	}
 
 	/** Keeps the first copy of each title id; saves written before the reload fix can list a title twice. */
