@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -270,7 +271,7 @@ public class Faction {
 		this.prestigeModifiers = prestigeModifiers;
 		this.rgb = rgb;
 		this.provinceHandler = new ProvinceHandler(this, capital, provinces);
-		this.titles = titles;
+		this.titles = distinctTitles(titles);
 		this.military = new Military(this);
 		this.guildHandler = new GuildHandler(this);
 		this.taxHandler = new TaxHandler(this, citizenTax, guildTax, vassalTax, dividendTax, tariffs);
@@ -909,8 +910,18 @@ public class Faction {
 		}
 	}
 	public void resetTitles(List<Title> list) {
-		titles = list;
+		titles = distinctTitles(list);
 		updatePrestige();
+	}
+
+	/** Keeps the first copy of each title id; saves written before the reload fix can list a title twice. */
+	static List<Title> distinctTitles(List<Title> list) {
+		List<Title> distinct = new ArrayList<>();
+		Set<String> seen = new HashSet<>();
+		for (Title t : list) {
+			if (t != null && seen.add(t.getId().toLowerCase(Locale.ROOT))) distinct.add(t);
+		}
+		return distinct;
 	}
 	
 	public List<Integer> getUntitledProvinces() {
