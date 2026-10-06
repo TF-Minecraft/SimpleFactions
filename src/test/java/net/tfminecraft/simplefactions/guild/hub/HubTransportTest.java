@@ -27,16 +27,19 @@ class HubTransportTest {
         Rates air = HubTransport.rates(Mode.AIR);
 
         assertEquals(0.40, rail.trade());
-        assertEquals(0.80, rail.production());
+        assertEquals(0.40, rail.production());
         assertEquals(0.30, sea.trade());
-        assertEquals(0.70, sea.production());
+        assertEquals(0.20, sea.production());
         assertEquals(0.20, air.trade());
-        assertEquals(0.50, air.production());
+        assertEquals(0.0, air.production());
         assertTrue(rail.trade() > sea.trade() && sea.trade() > air.trade());
 
         Link railLink = HubTransport.link(1, 2, Mode.RAIL, 0);
         assertEquals(0.40, railLink.tradeFactor());
-        assertEquals(0.80, railLink.productionFactor());
+        assertEquals(0.40, railLink.productionFactor());
+        Link airLink = HubTransport.link(1, 2, Mode.AIR, 1000);
+        assertEquals(0, airLink.productionFactor());
+        assertEquals(0, airLink.boostedProductionFactor(1.5));
     }
 
     @Test
@@ -64,7 +67,7 @@ class HubTransportTest {
         assertEquals(3, link.fromProvince());
         assertEquals(9, link.toProvince());
         assertEquals(0.30 * 0.85, link.tradeFactor(), 1e-9);
-        assertEquals(0.70 * 0.85, link.productionFactor(), 1e-9);
+        assertEquals(0.20 * 0.85, link.productionFactor(), 1e-9);
     }
 
     @Test
@@ -72,13 +75,15 @@ class HubTransportTest {
         Link link = HubTransport.link(3, 9, Mode.RAIL, 1000);
 
         assertEquals(0.40 * 1.3 * 0.90, link.boostedTradeFactor(0.30), 1e-9);
-        assertEquals(HubTransport.MAX_SHARE * 0.90, link.boostedProductionFactor(0.30), 1e-9);
+        assertEquals(0.40 * 1.3 * 0.90, link.boostedProductionFactor(0.30), 1e-9);
 
         YamlConfiguration config = new YamlConfiguration();
         config.set("supply-hubs.transport.rail.trade", 0.90);
+        config.set("supply-hubs.transport.rail.production", 0.90);
         HubTransport.loadConfig(config);
         Link capped = HubTransport.link(3, 9, Mode.RAIL, 0);
         assertEquals(HubTransport.MAX_SHARE, capped.boostedTradeFactor(0.5), 1e-9);
+        assertEquals(HubTransport.MAX_SHARE, capped.boostedProductionFactor(0.5), 1e-9);
     }
 
     @Test
@@ -117,6 +122,9 @@ class HubTransportTest {
         HubTransport.loadConfig(new YamlConfiguration());
 
         assertEquals(0.40, HubTransport.rates(Mode.RAIL).trade());
+        assertEquals(0.40, HubTransport.rates(Mode.RAIL).production());
+        assertEquals(0.20, HubTransport.rates(Mode.SEA).production());
+        assertEquals(0.0, HubTransport.rates(Mode.AIR).production());
         assertEquals(0.85, HubTransport.rates(Mode.SEA).keptPer1000());
     }
 }

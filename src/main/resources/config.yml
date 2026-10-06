@@ -84,26 +84,37 @@ mercenary-default-breach-refund: 500.0
 # smaller refund would make no-showing more profitable per head than fighting.
 
 installation-trade:
-  # Strength of sea and rail corridor provinces as boarding and arrival stops.
+  # Strength of sea and rail corridor provinces as boarding and arrival stops,
+  # before the guild's access to that province's owner. Unowned land keeps this
+  # strength. Access 0 means the stop neither boards nor receives.
   # Air has no corridor stops. 1 makes a corridor stop as strong as an installation.
   corridor-share: 0.5
-  # A stop delivers a share of the guild's trade there to the next stop.
+  # A stop delivers a share of the guild's trade or production there to the next stop.
   #   trade / production: share delivered before distance loss (capped at 0.95)
   #   kept-per-1000-blocks: share that survives each 1000 blocks
   # Rail length is the track route. Sea and air are a straight line.
+  # Air production 0 carries no production.
   transport:
     rail:
       trade: 0.40
-      production: 0.80
+      production: 0.40
       kept-per-1000-blocks: 0.90
     sea:
       trade: 0.30
-      production: 0.70
+      production: 0.20
       kept-per-1000-blocks: 0.85
     air:
       trade: 0.20
-      production: 0.50
+      production: 0.0
       kept-per-1000-blocks: 0.80
+  # A finished train station pushes trade along every connected track, whether or
+  # not another station is linked. Production is not pushed. The share is multiplied
+  # by the rail trade share, then capped at 0.95.
+  open-track:
+    enabled: true
+    share: 0.75
+    kept-per-1000-blocks: 0.85
+    range-blocks: 2500
 
 bank-block: iaf(tfmc:bank)
 voting-block: iaf(tfmc:voting_booth)

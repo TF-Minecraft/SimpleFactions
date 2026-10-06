@@ -6,20 +6,26 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.ToIntFunction;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.guild.hub.OpenTrackSettings;
 import net.tfminecraft.simplefactions.guild.hub.VehicleFrameworkTracks;
 import net.tfminecraft.simplefactions.guild.network.RailRoutes.Route;
 import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.ProvinceData;
 import net.tfminecraft.simplefactions.guild.network.TradeGraphBuilder.Site;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
+import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.ProvinceGrid;
+import net.tfminecraft.simplefactions.map.infra.TrackProvinceLookup.Point;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 
@@ -53,13 +59,42 @@ final class LiveTradeGraph {
         SimpleFactions plugin = SimpleFactions.getInstance();
         ProvinceGrid grid = plugin == null ? null : plugin.getProvinceGrid();
         String world = Cache.worldName;
-        return TradeGraphBuilder.build(sites, map, (from, to) -> {
+        ToIntFunction<Point> provinceAt = point -> grid == null ? 0 : grid.getAt(
+                (int) Math.floor(point.x()), (int) Math.floor(point.z()));
+        TradeGraph graph = TradeGraphBuilder.build(sites, map, (from, to) -> {
             String left = identities.get(from);
             String right = identities.get(to);
             if (left == null || right == null) return Optional.empty();
             return routes.route(left, right, () -> trackRoute(world, from, to));
-        }, point -> grid == null ? 0 : grid.getAt(
-                (int) Math.floor(point.x()), (int) Math.floor(point.z())));
+        }, provinceAt);
+        return graph.withOpenTracks(openTracks(world, graph, provinceAt));
+    }
+
+    /**
+     * Reaches are measured in this call, on the same thread as the route read.
+     * The track registry is not a snapshot, so the walk stays with the graph build.
+     */
+    private static List<TradeGraph.OpenTrack> openTracks(
+            String world, TradeGraph graph, ToIntFunction<Point> provinceAt) {
+        if (!OpenTrackSettings.enabled() || world == null) return List.of();
+        try {
+            if (!Bukkit.getPluginManager().isPluginEnabled("VehicleFramework")) return List.of();
+            double radius = stationRadius();
+            return VehicleFrameworkTracks.openTracks(
+                    world, graph.nodes(), radius, OpenTrackSettings.rangeBlocks(),
+                    (x, z) -> provinceAt.applyAsInt(new Point(x, 0, z)));
+        } catch (RuntimeException | LinkageError e) {
+            Logger.getLogger("SimpleFactions").log(Level.WARNING, "[SimpleFactions] Open-track reach failed", e);
+            return List.of();
+        }
+    }
+
+    private static double stationRadius() {
+        try {
+            return InstallationConfigLoader.getRadius(InstallationKind.TRAIN_STATION);
+        } catch (RuntimeException e) {
+            return 80;
+        }
     }
 
     /**

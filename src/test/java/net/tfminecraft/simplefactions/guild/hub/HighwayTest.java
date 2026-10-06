@@ -145,6 +145,9 @@ class HighwayTest {
 
     @Test
     void productionMovesDuringRecalculationWithoutHubs() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("supply-hubs.transport.rail.production", 0.80);
+        HubTransport.loadConfig(config);
         TradeGraph graph = edge("home", "home", 0);
         ProvinceManager provinces = road();
         TradeGraph.setLiveForTests(graph);

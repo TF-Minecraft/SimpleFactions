@@ -170,6 +170,7 @@ public class FactionManager implements Listener{
 				applyStoredTreatyRelation(f, s);
 			}
 		}
+		migrateMisplacedTradeRelations();
 		for (Faction f : factions) {
 			logRelationSnapshot("afterLoad", f);
 		}
@@ -282,6 +283,61 @@ public class FactionManager implements Listener{
 			LogManager.relations("APPLY treaty %s -> %s %s", factionId(f), target.getId(), r.getId());
 		} catch (Exception exception) {
 			LogManager.relations("ERROR treaty %s raw='%s' %s", factionId(f), s, exception.getMessage());
+		}
+	}
+
+	/**
+	 * Accepted trade agreements used to be written into the diplomatic map. Move any
+	 * trade-agreement type out of that map, keep the attitude and opinion, and reset
+	 * the diplomatic type to the default. A second load finds nothing to move.
+	 */
+	static void migrateMisplacedTradeRelations() {
+		if (factions == null || RelationLoader.getTypes().isEmpty()) return;
+		RelationType neutral = RelationLoader.getDefaultType();
+		if (neutral == null) return;
+		for (Faction faction : new ArrayList<>(factions)) {
+			if (faction == null || faction.getDiplomacyHandler() == null || faction.getRelations() == null) continue;
+			List<Map.Entry<String, Relation>> entries = new ArrayList<>(faction.getRelations().entrySet());
+			for (Map.Entry<String, Relation> entry : entries) {
+				Relation relation = entry.getValue();
+				if (relation == null || relation.getType() == null || !relation.getType().isTradeAgreement()) continue;
+				Faction target = getByString(entry.getKey());
+				if (target == null || target.getDiplomacyHandler() == null
+						|| target.getId().equalsIgnoreCase(faction.getId())) {
+					LogManager.relations("SKIP migrate %s -> %s targetMissing", factionId(faction), entry.getKey());
+					continue;
+				}
+				RelationType trade = relation.getType();
+				RelationType existing = faction.getDiplomacyHandler().getTradeRelation(target.getId());
+				if (existing == null) {
+					faction.getDiplomacyHandler().setTradeRelation(target, trade);
+				} else if (!existing.getId().equalsIgnoreCase(trade.getId())) {
+					LogManager.relations("KEEP trade %s -> %s stored=%s diplomatic=%s",
+							factionId(faction), target.getId(), existing.getId(), trade.getId());
+				}
+				relation.setType(neutral);
+				LogManager.relations("MIGRATE trade %s -> %s %s kept %s.%d",
+						factionId(faction), target.getId(), trade.getId(),
+						relation.getAttitude() == null ? "?" : relation.getAttitude().getId(),
+						relation.getOpinion());
+			}
+		}
+		for (Faction faction : new ArrayList<>(factions)) {
+			if (faction == null || faction.getDiplomacyHandler() == null) continue;
+			List<Map.Entry<String, RelationType>> trades =
+					new ArrayList<>(faction.getDiplomacyHandler().getTradeRelations().entrySet());
+			for (Map.Entry<String, RelationType> entry : trades) {
+				RelationType type = entry.getValue();
+				if (type == null || !type.isMutual()) continue;
+				Faction target = getByString(entry.getKey());
+				if (target == null || target.getDiplomacyHandler() == null) continue;
+				if (target.getDiplomacyHandler().getTradeRelation(faction.getId()) != null) continue;
+				RelationType link = type.getLink();
+				if (link == null || !link.isTradeAgreement()) link = type;
+				target.getDiplomacyHandler().setTradeRelation(faction, link);
+				LogManager.relations("MIGRATE trade fill %s -> %s %s",
+						target.getId(), factionId(faction), link.getId());
+			}
 		}
 	}
 
