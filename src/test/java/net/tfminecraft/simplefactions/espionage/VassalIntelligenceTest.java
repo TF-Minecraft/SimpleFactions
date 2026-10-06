@@ -193,13 +193,14 @@ class VassalIntelligenceTest {
         when(overlord.getEspionage()).thenReturn(overlordState);
         when(vassal.getEspionage()).thenReturn(new EspionageState());
         try (var databases = mockConstruction(Database.class, (database, context) ->
-                when(database.saveFactionChecked(faction)).thenReturn(true))) {
+                when(database.saveFactionChecked(any())).thenReturn(true))) {
             assertFalse(EspionageService.setSharing(member, faction, SharingPartner.OVERLORD, IntelligenceTier.BROAD));
             assertEquals(IntelligenceTier.UNKNOWN, state.sharing(SharingPartner.OVERLORD));
             assertTrue(EspionageService.setSharing(spy, faction, SharingPartner.OVERLORD, IntelligenceTier.BROAD));
             assertEquals(IntelligenceTier.BROAD, state.sharing(SharingPartner.OVERLORD));
             assertNull(overlordState.cachedReport("faction", 0, 1));
-            verify(databases.constructed().get(1)).saveFaction(overlord);
+            verify(databases.constructed().get(0)).saveFactionChecked(overlord);
+            verify(databases.constructed().get(1)).saveFactionChecked(faction);
             assertTrue(EspionageService.setSharing(spy, faction, SharingPartner.VASSALS, IntelligenceTier.DETAILED));
             assertEquals(3, databases.constructed().size(), "A partner without a cached report needs no save");
             assertTrue(EspionageService.setSharing(spy, faction, SharingPartner.OVERLORD, IntelligenceTier.UNKNOWN));
@@ -228,7 +229,32 @@ class VassalIntelligenceTest {
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.setSharing(spy, faction, SharingPartner.VASSALS, IntelligenceTier.DETAILED));
             assertEquals(IntelligenceTier.RUMOURS, state.sharing(SharingPartner.VASSALS));
-            verify(faction, never()).getVassals();
+        }
+    }
+
+    @Test void failedPartnerSaveCancelsTheChange() {
+        Faction faction = mock(Faction.class), vassal = mock(Faction.class);
+        Player spy = mock(Player.class);
+        var state = new EspionageState();
+        var holder = new SpecialPositionAssignment();
+        holder.playerName = "Spy";
+        holder.playerId = UUID.randomUUID();
+        state.appoint(holder, 60);
+        when(faction.getId()).thenReturn("faction");
+        when(faction.getEspionage()).thenReturn(state);
+        when(faction.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(faction.getVassals()).thenReturn(List.of(vassal));
+        var vassalState = new EspionageState();
+        vassalState.report("faction", 0, 1, IntelligenceReport::new);
+        when(vassal.getEspionage()).thenReturn(vassalState);
+        when(spy.getName()).thenReturn("Spy");
+        when(spy.getUniqueId()).thenReturn(holder.playerId);
+        try (var databases = mockConstruction(Database.class, (database, context) ->
+                when(database.saveFactionChecked(faction)).thenReturn(true))) {
+            assertFalse(EspionageService.setSharing(spy, faction, SharingPartner.VASSALS, IntelligenceTier.DETAILED));
+            assertEquals(IntelligenceTier.UNKNOWN, state.sharing(SharingPartner.VASSALS));
+            assertEquals(1, databases.constructed().size(), "The faction is not saved once a partner save fails");
+            verify(spy).sendMessage(contains("could not be saved"));
         }
     }
 

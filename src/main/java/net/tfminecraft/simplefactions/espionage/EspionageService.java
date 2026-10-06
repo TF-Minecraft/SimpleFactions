@@ -373,15 +373,21 @@ public final class EspionageService {
         }
         var state = faction.getEspionage();
         IntelligenceTier previous = state.sharing(partner);
+        // Partners rebuild today's report on their next menu, under the same daily rolls. Their saves come
+        // first, so a restart can never bring back a report built under the old choice.
+        for (Faction other : partners(faction, partner)) {
+            if (other.getEspionage() != null && other.getEspionage().forgetReport(faction.getId())
+                    && !new Database().saveFactionChecked(other)) {
+                actor.sendMessage("§cYour choice could not be saved. Your previous sharing remains in effect.");
+                return false;
+            }
+        }
         state.share(partner, tier);
         if (!new Database().saveFactionChecked(faction)) {
             state.share(partner, previous);
             actor.sendMessage("§cYour choice could not be saved. Your previous sharing remains in effect.");
             return false;
         }
-        // Partners rebuild today's report on their next menu, under the same daily rolls.
-        for (Faction other : partners(faction, partner))
-            if (other.getEspionage() != null && other.getEspionage().forgetReport(faction.getId())) new Database().saveFaction(other);
         actor.sendMessage(tier == IntelligenceTier.UNKNOWN ? "§7Your court no longer shares information with " + partner.label() + "."
                 : "§7Your court now shares everything up to §e" + tier.label() + "§7 with " + partner.label()
                         + ". Those details reach them exactly.");
