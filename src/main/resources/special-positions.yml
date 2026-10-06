@@ -11,10 +11,17 @@ espionage:
   bypass-permission: simplefactions.espionage.bypass
   reload-permission: simplefactions.espionage.reload
   appointments:
-    # First deliberate appointment is free. The automatic founding appointment does not count.
-    repeat-cost: 250.0
+    # Appointments are free. Replacing an appointed Spymaster brings unrest that fades over penalty-days.
+    # The automatic founding appointment does not count as a replacement.
     stability-penalty: 10.0
     penalty-days: 7.0
+    # A newly appointed Spymaster starts at this share of their aptitude (0-1) and reaches
+    # full aptitude after build-up-days. Zero days disables the build-up.
+    build-up-days: 7.0
+    starting-aptitude: 0.25
+    # Days after an appointment before the leader can appoint another Spymaster. Removing one is
+    # always allowed. A holder's character death waives the wait. Zero disables it.
+    change-cooldown-days: 2.0
   # Each character rolls once for life. Attribute/formula changes affect only new characters.
   aptitude:
     base: 50.0

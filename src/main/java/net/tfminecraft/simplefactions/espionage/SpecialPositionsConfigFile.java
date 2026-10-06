@@ -13,7 +13,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 /** Migrates the old espionage section once; existing dedicated settings always win. */
 public final class SpecialPositionsConfigFile {
     // Settings whose rule no longer exists; their comments would mislead staff.
-    private static final java.util.List<String> RETIRED_KEYS = java.util.List.of("espionage.aptitude.solo-leader-multiplier");
+    private static final java.util.List<String> RETIRED_KEYS = java.util.List.of(
+            "espionage.aptitude.solo-leader-multiplier", "espionage.appointments.repeat-cost");
     private SpecialPositionsConfigFile() {}
 
     public static void load(JavaPlugin plugin) {

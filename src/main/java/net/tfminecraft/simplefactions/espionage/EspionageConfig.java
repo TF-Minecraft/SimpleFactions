@@ -11,9 +11,9 @@ public final class EspionageConfig {
             "intelligence", 3.0, "wisdom", 2.5, "charisma", 1.5,
             "dexterity", 1.0, "constitution", -2.0, "strength", -2.0);
     private static Map<String, Double> weights = DEFAULT_WEIGHTS;
-    private static double repeatCost = 250;
     private static double stabilityPenalty = 10;
     private static double penaltyDays = 7;
+    private static double buildUpDays = 7, startingAptitude = .25, changeCooldownDays = 2;
     private static String reloadPermission = "simplefactions.espionage.reload";
     private static double base = 50, extraPositionPenalty = .25, rollMultiplier = 1.25;
     private static int center = 6, cap = 16, aptitudeSpread = 20, luckSpread = 75, luckDraws = 3, rosterLimit = 23;
@@ -54,9 +54,11 @@ public final class EspionageConfig {
             loaded.put(attribute, Double.isFinite(value) && Math.abs(value) <= 1000 ? value : fallback);
         });
         weights = Map.copyOf(loaded);
-        repeatCost = nonnegative(config, "espionage.appointments.repeat-cost", 250);
         stabilityPenalty = Math.min(100, nonnegative(config, "espionage.appointments.stability-penalty", 10));
         penaltyDays = Math.min(3650, nonnegative(config, "espionage.appointments.penalty-days", 7));
+        buildUpDays = bounded(config, "espionage.appointments.build-up-days", 7, 0, 3650);
+        startingAptitude = bounded(config, "espionage.appointments.starting-aptitude", .25, 0, 1);
+        changeCooldownDays = bounded(config, "espionage.appointments.change-cooldown-days", 2, 0, 3650);
         vacancyPenalties.clear();
         for (SpecialPosition office : SpecialPosition.values()) vacancyPenalties.put(office,
                 Math.min(100, nonnegative(config, "positions." + office.name().toLowerCase(java.util.Locale.ROOT)
@@ -144,9 +146,13 @@ public final class EspionageConfig {
     public static int luckDraws() { return luckDraws; }
     public static int rosterLimit() { return rosterLimit; }
 
-    public static double repeatCost() { return repeatCost; }
     public static double stabilityPenalty() { return stabilityPenalty; }
     public static double penaltyDays() { return penaltyDays; }
+    public static double buildUpDays() { return buildUpDays; }
+    public static double startingAptitude() { return startingAptitude; }
+    public static double changeCooldownDays() { return changeCooldownDays; }
+    /** False when a new Spymaster serves at full aptitude from the start. */
+    public static boolean buildsUp() { return buildUpDays > 0 && startingAptitude < 1; }
     public static double vacancyPenalty(SpecialPosition office) { return vacancyPenalties.getOrDefault(office, 10.0); }
 
     public static Map<String, Double> weights() { return weights; }

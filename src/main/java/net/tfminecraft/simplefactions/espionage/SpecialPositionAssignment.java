@@ -8,6 +8,8 @@ public class SpecialPositionAssignment {
     public String characterId;
     public int aptitude;
     public boolean automatic;
+    // Epoch millis of a deliberate appointment; zero (founders, older saves) means fully established.
+    public long appointedAt;
     // Private, voluntary penalties. Zero means sabotage is disabled.
     public int offenseReduction;
     public int defenseReduction;

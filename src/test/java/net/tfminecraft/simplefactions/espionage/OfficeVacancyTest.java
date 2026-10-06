@@ -64,7 +64,7 @@ class OfficeVacancyTest {
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
         var holder = new SpecialPositionAssignment(); holder.playerName = "Spy"; holder.characterId = "appointed";
-        state.appoint(holder, 80);
+        state.appoint(holder, 80, 1000);
         var character = mock(RPCharacter.class);
         when(character.getId()).thenReturn("other");
         when(character.getStatus()).thenReturn(Status.DEAD);
@@ -72,10 +72,12 @@ class OfficeVacancyTest {
             factions.when(FactionManager::getCopy).thenReturn(List.of(faction));
             EspionageService.characterDied(null, character.getId(), "Spy");
             assertSame(holder, state.getSpymaster());
+            assertEquals(1000, state.lastAppointedAt(SpecialPosition.SPYMASTER));
             when(character.getId()).thenReturn("appointed");
             EspionageService.characterDied(null, character.getId(), "Spy");
             assertNull(state.getSpymaster());
             assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
+            assertEquals(0, state.lastAppointedAt(SpecialPosition.SPYMASTER), "Death waives the wait for a successor");
             verify(databases.constructed().getFirst()).saveFaction(faction);
         }
     }

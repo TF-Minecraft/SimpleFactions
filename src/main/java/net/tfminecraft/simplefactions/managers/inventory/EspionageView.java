@@ -259,9 +259,11 @@ public final class EspionageView {
         Inventory inventory = Bukkit.createInventory(new SFInventoryHolder(faction.getId(), SFGUI.SPYMASTER_VIEW),
                 27, "\u00a77Spymaster's Office");
         SpecialPositionAssignment holder = EspionageService.spymaster(faction);
+        long now = System.currentTimeMillis();
         int held = EspionageService.positionsHeld(faction, holder);
         ItemStack head = item(Material.PLAYER_HEAD, "Spymaster: " + (holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)),
                 "§7Aptitude: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
+                buildUpLine(holder, now),
                 holder == null ? "§7Falls to the faction leader once they have an active character."
                         : held > 1 ? "§7Holds " + held + " offices: " + Math.round(EspionageService.positionMultiplier(held) * 100)
                                 + "% aptitude in each (base " + holder.aptitude + ")."
@@ -279,13 +281,16 @@ public final class EspionageView {
         }
         inventory.setItem(13, head);
         if (faction.isLeader(viewer.getName())) {
-            double cost = EspionageService.appointmentCost(faction);
+            long next = EspionageService.nextAppointmentAt(faction);
             inventory.setItem(11, item(Material.NAME_TAG, "Appoint Spymaster", "§7Choose a member of your faction.",
+                    buildUpTerms(),
                     faction.getEspionage().appointmentCount(SpecialPosition.SPYMASTER) == 0
-                            ? "\u00a7aFirst appointment: free" : "\u00a77Treasury cost: \u00a7e" + cost + "d",
-                    faction.getEspionage().appointmentCount(SpecialPosition.SPYMASTER) == 0
-                            ? "\u00a77The founder's assignment does not use your free appointment."
-                            : "\u00a77Unrest: -" + EspionageConfig.stabilityPenalty() + " points, fading over " + EspionageConfig.penaltyDays() + " days."));
+                            ? "\u00a77The first appointment brings no unrest."
+                            : EspionageConfig.stabilityPenalty() <= 0 || EspionageConfig.penaltyDays() <= 0
+                            ? "\u00a77Changing Spymaster brings no unrest."
+                            : "\u00a77Unrest: -" + EspionageConfig.stabilityPenalty() + " points, fading over " + EspionageConfig.penaltyDays() + " days.",
+                    now < next ? "\u00a7cNext appointment in " + EspionageService.duration(next - now) + "."
+                            : "\u00a7aAn appointment can be made now."));
             inventory.setItem(15, item(Material.REDSTONE, "Remove Spymaster",
                     "\u00a77Dismisses the appointee. The office returns to you."));
         }
@@ -300,6 +305,7 @@ public final class EspionageView {
                 27, "§7Spymaster's Private Conduct");
         inventory.setItem(4, item(Material.PAPER, "Your sealed instructions",
                 "§7Aptitude: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
+                buildUpLine(holder, System.currentTimeMillis()),
                 "§7Sabotage is voluntary and disabled on appointment.",
                 "§7Only you can see or change these choices.",
                 "§7Changes affect your next daily rolls.", "§7Existing daily rolls and reports never reroll."));
@@ -307,6 +313,18 @@ public final class EspionageView {
         inventory.setItem(15, conduct("Defensive sabotage", holder.defenseReduction));
         inventory.setItem(26, manager.createBackButton(SFGUI.SPYMASTER_SETTINGS));
         viewer.openInventory(inventory);
+    }
+
+    private static String buildUpLine(SpecialPositionAssignment holder, long now) {
+        long remaining = EspionageService.buildUpRemaining(holder, now);
+        return remaining <= 0 ? "\u00a77Network: \u00a7aestablished"
+                : "\u00a77Network: \u00a7ebuilding\u00a77, full aptitude in " + EspionageService.duration(remaining);
+    }
+
+    private static String buildUpTerms() {
+        if (!EspionageConfig.buildsUp()) return "\u00a77A new Spymaster serves at full aptitude at once.";
+        return "\u00a77A new Spymaster starts at " + Math.round(EspionageConfig.startingAptitude() * 100)
+                + "% aptitude, reaching full over " + EspionageService.duration(Math.round(EspionageConfig.buildUpDays() * 86_400_000)) + ".";
     }
 
     private static ItemStack conduct(String title, int reduction) {
@@ -327,7 +345,7 @@ public final class EspionageView {
             String name = members.get(index);
             ItemStack head = item(Material.PLAYER_HEAD, CharacterNames.display(viewer, name),
                     "§7Guild: " + net.tfminecraft.simplefactions.utils.Represents.represents(faction, name),
-                    "\u00a77Treasury cost: " + EspionageService.appointmentCost(faction) + "d",
+                    buildUpTerms(),
                     Bukkit.getPlayerExact(name) == null ? "§8Must be online with an active character." : "§aClick to appoint as Spymaster.");
             var meta = head.getItemMeta();
             meta.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "spy-candidate"),
