@@ -51,14 +51,19 @@ class VassalIntelligenceTest {
     }
 
     @Test void disablingSharingHidesSharedValuesInCachedReports() {
-        var report = EspionageService.createReport(Map.of("Wealth", 500.0, "Prosperity", 50.0), -50, IntelligenceTier.BROAD, new Random(1));
+        var report = EspionageService.createReport(Map.of("Members", 500.0, "Prosperity", 50.0), -50, IntelligenceTier.BROAD, new Random(1));
         assertEquals("50", report.display("Prosperity"));
         var config = new YamlConfiguration();
         config.set("espionage.vassalage.allow-sharing", false);
         EspionageConfig.load(config);
         assertFalse(report.allows("prosperity"));
         assertNull(report.estimate("Prosperity"));
-        assertNull(report.estimate("Wealth"));
+        var wealth = report.estimate("Members");
+        assertNotNull(wealth, "Fields the rolled tier allows fall back to their range");
+        assertFalse(wealth.isExact());
+        assertTrue(wealth.lower() <= 500 && wealth.upper() >= 500);
+        var restored = JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(report), IntelligenceReport.class);
+        assertEquals(wealth, restored.estimate("Members"));
     }
 
     @Test void endingVassalageForgetsTodaysReportsInBothDirections() {

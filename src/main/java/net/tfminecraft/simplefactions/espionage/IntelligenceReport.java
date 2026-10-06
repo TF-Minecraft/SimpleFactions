@@ -13,6 +13,8 @@ public class IntelligenceReport {
     /** Highest tier the target's Spymaster opened to this observer; fields at or below it are exact. */
     public String shared;
     public Map<String, EspionageMath.Estimate> estimates = new LinkedHashMap<>();
+    /** The rolled ranges behind shared exact values. */
+    public Map<String, EspionageMath.Estimate> unshared = new LinkedHashMap<>();
     public java.util.List<String> members = new java.util.ArrayList<>();
     public Map<String, java.util.List<String>> guildMembers = new LinkedHashMap<>();
     public java.util.List<RosterMember> roster = new java.util.ArrayList<>();
@@ -39,8 +41,11 @@ public class IntelligenceReport {
 
     public EspionageMath.Estimate estimate(String metric) {
         var raw = estimates == null ? null : estimates.get(metric);
-        // A field that left the shared tiers after a reload falls back to the range rules, which reject exact values.
-        if (exact(metric) && raw != null && raw.isExact()) return raw;
+        if (raw != null && raw.isExact()) {
+            if (exact(metric)) return raw;
+            // No longer shared after a reload: fall back to the rolled range, never the exact value.
+            raw = unshared == null ? null : unshared.get(metric);
+        }
         if (!EspionageConfig.allows(tier(), metric)) return null;
         Long maximum = maximums == null ? null : maximums.get(metric);
         if (raw != null && maximum != null) {

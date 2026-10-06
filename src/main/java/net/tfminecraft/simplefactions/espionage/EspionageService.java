@@ -535,17 +535,21 @@ public final class EspionageService {
         report.quality = EspionageMath.quality(margin);
         if (shared != IntelligenceTier.UNKNOWN) report.shared = shared.key();
         metrics.forEach((key, value) -> {
-            if (report.exact(key)) {
-                if (Double.isFinite(value)) report.estimates.put(key, EspionageMath.Estimate.exact(value));
-                return;
-            }
-            if (!report.allows(key)) return;
+            if (!EspionageConfig.allows(report.tier(), key) && !report.exact(key)) return;
             boolean signed = !IntelligenceRanges.nonnegative(key);
             var estimate = EspionageMath.estimate(value, margin, signed, random);
             estimate = IntelligenceRanges.reasonable(key, estimate, report.tier());
-            if (estimate != null) report.estimates.put(key, estimate);
+            if (report.exact(key)) share(report, key, value, estimate);
+            else if (estimate != null) report.estimates.put(key, estimate);
         });
         return report;
+    }
+
+    /** Keeps the rolled range too, for when sharing is switched off during the day. */
+    private static void share(IntelligenceReport report, String key, double value, EspionageMath.Estimate rolled) {
+        if (!Double.isFinite(value)) return;
+        report.estimates.put(key, EspionageMath.Estimate.exact(value));
+        if (rolled != null && EspionageConfig.allows(report.tier(), key)) report.unshared.put(key, rolled);
     }
 
     static void captureOffices(IntelligenceReport report, Faction target, RandomGenerator random) {
@@ -557,13 +561,10 @@ public final class EspionageService {
             if (!report.allows(key)) continue;
             double aptitude = office == SpecialPosition.SPYMASTER ? effectiveAptitude(target, holder)
                     : holder == null ? 0 : holder.aptitude;
-            if (report.exact(key)) {
-                report.estimates.put(key, EspionageMath.Estimate.exact(aptitude));
-                continue;
-            }
             var range = EspionageMath.estimate(aptitude, EspionageConfig.settings(report.tier()).minimumMargin(), false, random);
             range = IntelligenceRanges.reasonable(key, range, report.tier());
-            if (range != null) report.estimates.put(key, range);
+            if (report.exact(key)) share(report, key, aptitude, range);
+            else if (range != null) report.estimates.put(key, range);
         }
     }
 
