@@ -394,6 +394,17 @@ public final class EspionageService {
         return overlord == null ? java.util.List.of() : java.util.List.of(overlord);
     }
 
+    /** Former partners lose today's reports on each other, including anything shared. */
+    public static void forgetReports(Faction first, Faction second) {
+        forgetReport(first, second);
+        forgetReport(second, first);
+    }
+
+    private static void forgetReport(Faction observer, Faction target) {
+        if (observer == null || target == null || observer.getEspionage() == null) return;
+        if (observer.getEspionage().forgetReport(target.getId())) new Database().saveFaction(observer);
+    }
+
     /** The tier the target opened to the observer as its direct overlord or vassal. */
     public static IntelligenceTier sharedTier(Faction target, Faction observer) {
         if (!EspionageConfig.sharingAllowed() || target == null || observer == null || target.getEspionage() == null)

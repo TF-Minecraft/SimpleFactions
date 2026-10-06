@@ -56,7 +56,10 @@ public class IntelligenceReport {
 
     public IntelligenceTier tier() { return IntelligenceTier.parse(quality); }
     public IntelligenceTier sharedTier() { return shared == null ? IntelligenceTier.UNKNOWN : IntelligenceTier.parse(shared); }
-    public boolean exact(String field) { return EspionageConfig.allows(sharedTier(), field); }
+    /** Turning sharing off hides shared values in today's reports too. */
+    public boolean exact(String field) {
+        return EspionageConfig.sharingAllowed() && EspionageConfig.allows(sharedTier(), field);
+    }
     public boolean allows(String field) { return EspionageConfig.allows(tier(), field) || exact(field); }
     public String officeHolder(SpecialPosition office) {
         return !allows("office-holder") || officeHolders == null ? UNKNOWN : officeHolders.getOrDefault(office, UNKNOWN);

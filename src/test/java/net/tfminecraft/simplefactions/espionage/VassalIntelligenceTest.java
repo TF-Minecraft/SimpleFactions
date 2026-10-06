@@ -50,6 +50,38 @@ class VassalIntelligenceTest {
         assertNull(report.estimate("Prosperity"), "An exact value is never shown through the range rules");
     }
 
+    @Test void disablingSharingHidesSharedValuesInCachedReports() {
+        var report = EspionageService.createReport(Map.of("Wealth", 500.0, "Prosperity", 50.0), -50, IntelligenceTier.BROAD, new Random(1));
+        assertEquals("50", report.display("Prosperity"));
+        var config = new YamlConfiguration();
+        config.set("espionage.vassalage.allow-sharing", false);
+        EspionageConfig.load(config);
+        assertFalse(report.allows("prosperity"));
+        assertNull(report.estimate("Prosperity"));
+        assertNull(report.estimate("Wealth"));
+    }
+
+    @Test void endingVassalageForgetsTodaysReportsInBothDirections() {
+        Faction overlord = mock(Faction.class), vassal = mock(Faction.class), stranger = mock(Faction.class);
+        var overlordState = new EspionageState();
+        var vassalState = new EspionageState();
+        when(overlord.getId()).thenReturn("overlord");
+        when(vassal.getId()).thenReturn("vassal");
+        when(overlord.getEspionage()).thenReturn(overlordState);
+        when(vassal.getEspionage()).thenReturn(vassalState);
+        overlordState.report("vassal", 0, 1, IntelligenceReport::new);
+        overlordState.report("other", 0, 1, IntelligenceReport::new);
+        try (var databases = mockConstruction(Database.class)) {
+            EspionageService.forgetReports(overlord, vassal);
+            assertNull(overlordState.cachedReport("vassal", 0, 1));
+            assertNotNull(overlordState.cachedReport("other", 0, 1));
+            assertEquals(1, databases.constructed().size(), "Only the faction that lost a report is saved");
+            verify(databases.constructed().getFirst()).saveFaction(overlord);
+            EspionageService.forgetReports(stranger, null);
+            assertEquals(1, databases.constructed().size());
+        }
+    }
+
     @Test void sharedRosterAndOfficesAreComplete() {
         var target = mock(Faction.class, RETURNS_DEEP_STUBS);
         var members = java.util.stream.IntStream.range(0, 10).mapToObj(index -> "Account" + index).toList();
