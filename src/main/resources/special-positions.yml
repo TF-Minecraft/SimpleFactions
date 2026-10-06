@@ -21,8 +21,10 @@ espionage:
     attribute-center: 6
     attribute-cap: 16
     random-spread: 20
-    # A leader can only hold this office in a one-person faction; they retain 25% aptitude.
-    solo-leader-multiplier: 0.25
+    # The faction leader holds every vacant office by default. Each office a character holds
+    # beyond their first costs this fraction of their aptitude in all of them:
+    # 1 office 100%, 2 offices 75%, 3 offices 50%... Never below 0%. Zero disables this penalty.
+    extra-position-penalty: 0.25
     attribute-weights:
       intelligence: 3.0
       wisdom: 2.5

@@ -95,7 +95,7 @@ class UnguardedFactionTest {
         }
     }
 
-    @Test void soloFounderProtectsUntilAnotherMemberJoinsAndPendingFounderIsUnguarded() {
+    @Test void leaderKeepsProtectingAfterOthersJoinAndPendingFounderIsUnguarded() {
         var target = faction("target");
         target.getEspionage().pendingFounder(SpecialPosition.SPYMASTER);
         assertTrue(EspionageService.canViewExact(viewer, target));
@@ -104,7 +104,7 @@ class UnguardedFactionTest {
         when(target.getMembers()).thenReturn(List.of("Leader"));
         assertFalse(EspionageService.canViewExact(viewer, target));
         when(target.getMembers()).thenReturn(List.of("Leader", "Member"));
-        assertTrue(EspionageService.canViewExact(viewer, target));
+        assertFalse(EspionageService.canViewExact(viewer, target));
     }
 
     @Test void publicMenusNeverGrantMembershipOfficeManagementOrSabotage() {

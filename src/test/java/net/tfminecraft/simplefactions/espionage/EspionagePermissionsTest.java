@@ -155,40 +155,104 @@ class EspionagePermissionsTest {
     }
 
     @Test
-    void leaderIsIneligibleUnlessAloneAndSoloAptitudeIsReducedBySeventyFivePercent() {
+    void leaderIsAlwaysEligibleAndOneOfficeKeepsFullAptitude() {
         Faction faction = mock(Faction.class);
         when(faction.isLeader("Leader")).thenReturn(true);
         when(faction.isMemberIgnoreCase(anyString())).thenReturn(true);
         when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "Spy"));
-        assertFalse(EspionageService.eligible(faction, "Leader"));
+        assertTrue(EspionageService.eligible(faction, "Leader"));
         assertTrue(EspionageService.eligible(faction, "Spy"));
+        var state = new EspionageState();
+        when(faction.getEspionage()).thenReturn(state);
         var holder = new SpecialPositionAssignment();
         holder.playerName = "Leader";
-        holder.aptitude = 100;
-        assertEquals(0, EspionageService.effectiveAptitude(faction, holder));
-        when(faction.getMembers()).thenReturn(java.util.List.of("Leader"));
-        assertTrue(EspionageService.eligible(faction, "Leader"));
-        assertEquals(25, EspionageService.effectiveAptitude(faction, holder));
-        assertEquals(100, holder.aptitude, "Permanent base aptitude must remain unchanged");
-        holder.aptitude = 79;
-        assertEquals(19, EspionageService.effectiveAptitude(faction, holder));
+        state.assignFounder(SpecialPosition.SPYMASTER, holder, 79);
+        assertEquals(1, EspionageService.positionsHeld(faction, holder));
+        assertEquals(79, EspionageService.effectiveAptitude(faction, holder));
+        assertEquals(79, holder.aptitude, "Permanent base aptitude must remain unchanged");
     }
 
     @Test
-    void soloLeaderLosesOfficeWhenAnotherMemberJoins() {
+    void eachExtraOfficeCostsTheConfiguredShareOfAptitude() {
+        try {
+            assertEquals(1.0, EspionageService.positionMultiplier(1));
+            assertEquals(0.75, EspionageService.positionMultiplier(2));
+            assertEquals(0.5, EspionageService.positionMultiplier(3));
+            assertEquals(0.0, EspionageService.positionMultiplier(5));
+            assertEquals(0.0, EspionageService.positionMultiplier(9), "Aptitude never goes negative");
+            var config = new org.bukkit.configuration.file.YamlConfiguration();
+            config.set("espionage.aptitude.extra-position-penalty", 0.1);
+            EspionageConfig.load(config);
+            assertEquals(0.7, EspionageService.positionMultiplier(4), 1e-9);
+            config.set("espionage.aptitude.extra-position-penalty", 0);
+            EspionageConfig.load(config);
+            assertEquals(1.0, EspionageService.positionMultiplier(4));
+            config.set("espionage.aptitude.extra-position-penalty", 2);
+            EspionageConfig.load(config);
+            assertEquals(0.75, EspionageService.positionMultiplier(2), "Out-of-range values fall back to the default");
+        } finally { EspionageConfig.load(new org.bukkit.configuration.file.YamlConfiguration()); }
+    }
+
+    @Test
+    void leaderKeepsOfficeWhenAnotherMemberJoins() {
         Faction faction = mock(Faction.class);
         when(faction.isLeader("Leader")).thenReturn(true);
+        when(faction.getLeader()).thenReturn("Leader");
         when(faction.getMembers()).thenReturn(java.util.List.of("Leader"));
         var state = new EspionageState();
         var holder = new SpecialPositionAssignment();
         holder.playerName = "Leader";
-        state.appoint(holder, 100);
+        state.assignFounder(SpecialPosition.SPYMASTER, holder, 100);
         when(faction.getEspionage()).thenReturn(state);
-        assertSame(holder, EspionageService.spymaster(faction));
         when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "GuildMember"));
         try (var databases = mockConstruction(Database.class)) {
+            assertSame(holder, EspionageService.spymaster(faction));
+            assertTrue(EspionageService.hasSpymaster(faction));
+            assertEquals(100, EspionageService.effectiveAptitude(faction, holder));
+            assertTrue(databases.constructed().isEmpty());
+        }
+    }
+
+    @Test
+    void defaultHoldingFollowsANewLeaderButAppointmentsStay() {
+        Faction faction = mock(Faction.class);
+        when(faction.getLeader()).thenReturn("NewLeader");
+        when(faction.isLeader("NewLeader")).thenReturn(true);
+        when(faction.isMemberIgnoreCase("OldLeader")).thenReturn(true);
+        var state = new EspionageState();
+        when(faction.getEspionage()).thenReturn(state);
+        var appointed = new SpecialPositionAssignment();
+        appointed.playerName = "OldLeader";
+        state.appoint(appointed, 80);
+        try (var databases = mockConstruction(Database.class)) {
+            assertSame(appointed, EspionageService.spymaster(faction), "A deliberate appointment survives a change of leader");
+            assertTrue(databases.constructed().isEmpty());
+        }
+        state.removeSpymaster();
+        var automatic = new SpecialPositionAssignment();
+        automatic.playerName = "OldLeader";
+        state.assignFounder(SpecialPosition.SPYMASTER, automatic, 80);
+        assertFalse(EspionageService.hasSpymaster(faction));
+        try (var databases = mockConstruction(Database.class)) {
+            // Without a server the new leader's character is unknown, so the office waits for them.
             assertNull(EspionageService.spymaster(faction));
-            assertNull(state.getSpymaster());
+            assertTrue(state.isPendingFounder(SpecialPosition.SPYMASTER));
+            assertEquals(1, databases.constructed().size());
+            verify(databases.constructed().getFirst()).saveFaction(faction);
+            assertNull(EspionageService.spymaster(faction));
+            assertEquals(1, databases.constructed().size(), "A waiting office is not saved again");
+        }
+    }
+
+    @Test
+    void anyVacancyFallsBackToTheLeader() {
+        Faction faction = mock(Faction.class);
+        when(faction.getLeader()).thenReturn("Leader");
+        var state = new EspionageState();
+        when(faction.getEspionage()).thenReturn(state);
+        try (var databases = mockConstruction(Database.class)) {
+            assertNull(EspionageService.spymaster(faction));
+            assertTrue(state.isPendingFounder(SpecialPosition.SPYMASTER));
             verify(databases.constructed().getFirst()).saveFaction(faction);
         }
     }

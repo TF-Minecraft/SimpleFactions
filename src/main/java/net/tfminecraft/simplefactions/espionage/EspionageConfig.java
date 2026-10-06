@@ -15,7 +15,7 @@ public final class EspionageConfig {
     private static double stabilityPenalty = 10;
     private static double penaltyDays = 7;
     private static String reloadPermission = "simplefactions.espionage.reload";
-    private static double base = 50, soloMultiplier = .25, rollMultiplier = 1.25;
+    private static double base = 50, extraPositionPenalty = .25, rollMultiplier = 1.25;
     private static int center = 6, cap = 16, aptitudeSpread = 20, luckSpread = 75, luckDraws = 3, rosterLimit = 23;
     private static final Map<IntelligenceTier, TierSettings> tiers = new java.util.EnumMap<>(IntelligenceTier.class);
     private static final Map<String, IntelligenceTier> minimums = new LinkedHashMap<>();
@@ -68,7 +68,7 @@ public final class EspionageConfig {
         cap = (int) bounded(config, "espionage.aptitude.attribute-cap", 16, 1, 1000);
         center = (int) bounded(config, "espionage.aptitude.attribute-center", 6, 0, cap);
         aptitudeSpread = (int) bounded(config, "espionage.aptitude.random-spread", 20, 0, 100);
-        soloMultiplier = bounded(config, "espionage.aptitude.solo-leader-multiplier", .25, 0, 1);
+        extraPositionPenalty = bounded(config, "espionage.aptitude.extra-position-penalty", .25, 0, 1);
         rollMultiplier = bounded(config, "espionage.checks.aptitude-multiplier", 1.25, .01, 10);
         luckSpread = (int) bounded(config, "espionage.checks.luck-spread", 75, 0, 1000);
         luckDraws = (int) bounded(config, "espionage.checks.luck-draws", 3, 1, 20);
@@ -138,7 +138,7 @@ public final class EspionageConfig {
     public static int center() { return center; }
     public static int cap() { return cap; }
     public static int aptitudeSpread() { return aptitudeSpread; }
-    public static double soloMultiplier() { return soloMultiplier; }
+    public static double extraPositionPenalty() { return extraPositionPenalty; }
     public static double rollMultiplier() { return rollMultiplier; }
     public static int luckSpread() { return luckSpread; }
     public static int luckDraws() { return luckDraws; }

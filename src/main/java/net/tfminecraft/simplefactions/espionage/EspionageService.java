@@ -41,23 +41,28 @@ public final class EspionageService {
     }
 
     public static boolean eligible(Faction faction, String playerName) {
-        if (!faction.isMemberIgnoreCase(playerName) && !faction.isLeader(playerName)) return false;
-        return !faction.isLeader(playerName) || faction.getMembers().stream()
-                .allMatch(name -> name.equalsIgnoreCase(playerName));
+        return faction.isMemberIgnoreCase(playerName) || faction.isLeader(playerName);
     }
 
-    /** Only new factions pass through addFaction; loading saves never reassigns offices. */
+    /** The leader's default holding follows the leadership; deliberate appointments stay. */
+    private static boolean validHolder(Faction faction, SpecialPositionAssignment holder) {
+        return holder != null && eligible(faction, holder.playerName) && !deadCharacter(holder)
+                && !(holder.automatic && !faction.isLeader(holder.playerName));
+    }
+
+    /** New factions and every later vacancy fall to the leader; it waits for their active character. */
     public static void initializeFounder(Faction faction) {
         initializeFounder(faction, null);
     }
 
     private static void initializeFounder(Faction faction, java.util.Set<Faction> dirty) {
-        if (faction.getEspionage() == null || org.bukkit.Bukkit.getServer() == null) return;
+        if (faction.getEspionage() == null || faction.getLeader() == null || org.bukkit.Bukkit.getServer() == null) return;
         var founder = org.bukkit.Bukkit.getPlayerExact(faction.getLeader());
         String characterId = OfficeCharacters.activeCharacterId(founder);
+        // A dead character would be revoked again on the next check.
+        if (characterId != null && founder != null && OfficeCharacters.isDead(founder.getUniqueId(), characterId)) characterId = null;
         for (SpecialPosition office : SpecialPosition.values()) {
             if (faction.getEspionage().holder(office) != null) continue;
-            if (office == SpecialPosition.SPYMASTER && !eligible(faction, faction.getLeader())) continue;
             if (characterId == null) {
                 faction.getEspionage().pendingFounder(office);
                 continue;
@@ -124,7 +129,23 @@ public final class EspionageService {
 
     public static int effectiveAptitude(Faction faction, SpecialPositionAssignment holder) {
         if (holder == null || !eligible(faction, holder.playerName)) return 0;
-        return faction.isLeader(holder.playerName) ? (int) Math.floor(holder.aptitude * EspionageConfig.soloMultiplier()) : holder.aptitude;
+        // The epsilon keeps 1 - 0.1 * 3 from flooring a whole result one point low.
+        return (int) Math.floor(holder.aptitude * positionMultiplier(positionsHeld(faction, holder)) + 1e-9);
+    }
+
+    /** Offices held by the same person; an assignment not saved yet still counts as one. */
+    public static int positionsHeld(Faction faction, SpecialPositionAssignment holder) {
+        if (holder == null || holder.playerName == null || faction.getEspionage() == null) return 1;
+        int held = 0;
+        for (SpecialPosition office : SpecialPosition.values()) {
+            var other = faction.getEspionage().holder(office);
+            if (other != null && holder.playerName.equalsIgnoreCase(other.playerName)) held++;
+        }
+        return Math.max(1, held);
+    }
+
+    public static double positionMultiplier(int held) {
+        return Math.max(0, 1 - EspionageConfig.extraPositionPenalty() * Math.max(0, held - 1));
     }
 
     public static boolean isOwn(Player viewer, Faction target) {
@@ -145,8 +166,7 @@ public final class EspionageService {
     /** A vacant, ineligible or deceased holder leaves every guild's information unguarded. */
     public static boolean hasSpymaster(Faction faction) {
         if (faction == null || faction.getEspionage() == null) return false;
-        var holder = faction.getEspionage().getSpymaster();
-        return holder != null && eligible(faction, holder.playerName) && !deadCharacter(holder);
+        return validHolder(faction, faction.getEspionage().getSpymaster());
     }
 
     public static SpecialPositionAssignment spymaster(Faction faction) {
@@ -159,17 +179,24 @@ public final class EspionageService {
     }
 
     private static SpecialPositionAssignment spymaster(Faction faction, java.util.Set<Faction> dirty) {
-        if (faction.getEspionage().hasPendingFounder()) {
+        var state = faction.getEspionage();
+        boolean changed = false;
+        SpecialPositionAssignment holder = state.getSpymaster();
+        if (holder != null && !validHolder(faction, holder)) {
+            state.removeSpymaster();
+            changed = true;
+        }
+        // Whatever emptied the office, it falls back to the current leader.
+        if (state.getSpymaster() == null && !state.isPendingFounder(SpecialPosition.SPYMASTER) && faction.getLeader() != null) {
+            state.pendingFounder(SpecialPosition.SPYMASTER);
+            changed = true;
+        }
+        if (state.hasPendingFounder()) {
             initializeFounder(faction, dirty);
-            if (!faction.getEspionage().hasPendingFounder()) saveOrMark(faction, dirty);
+            if (!state.hasPendingFounder()) changed = true;
         }
-        SpecialPositionAssignment holder = faction.getEspionage().getSpymaster();
-        if (holder != null && (!eligible(faction, holder.playerName) || deadCharacter(holder))) {
-            faction.getEspionage().removeSpymaster();
-            saveOrMark(faction, dirty);
-            return null;
-        }
-        return holder;
+        if (changed) saveOrMark(faction, dirty);
+        return state.getSpymaster();
     }
 
     private static boolean deadCharacter(SpecialPositionAssignment holder) {
@@ -190,7 +217,7 @@ public final class EspionageService {
             state.removeSpymaster();
             new Database().saveFaction(faction);
             if (owner != null) owner.sendMessage("\u00a78\u00a7oWith the passing of " + characterName
-                    + ", the keys to the Spymaster's office return to the faction. The office awaits a successor.");
+                    + ", the keys to the Spymaster's office return to the faction leader until a successor is appointed.");
         }
     }
 
@@ -198,8 +225,7 @@ public final class EspionageService {
         var result = new java.util.ArrayList<>(faction.getEspionage().unrestModifiers(now));
         for (SpecialPosition office : SpecialPosition.values()) {
             var holder = faction.getEspionage().holder(office);
-            boolean occupied = holder != null && (office != SpecialPosition.SPYMASTER
-                    || eligible(faction, holder.playerName) && !deadCharacter(holder));
+            boolean occupied = office != SpecialPosition.SPYMASTER ? holder != null : validHolder(faction, holder);
             double penalty = EspionageConfig.vacancyPenalty(office);
             if (!occupied && penalty > 0) result.add(new net.tfminecraft.simplefactions.government.StabilityModifier(
                     "Vacant " + office.label(), -penalty, 0));
@@ -216,18 +242,13 @@ public final class EspionageService {
             actor.sendMessage("§cChoose an online member of your own faction.");
             return false;
         }
-        if (!eligible(faction, candidate.getName())) {
-            actor.sendMessage("§cThe faction leader cannot be Spymaster unless the faction has only one member.");
-            return false;
-        }
         String characterId = OfficeCharacters.activeCharacterId(candidate);
         if (characterId == null) {
             actor.sendMessage("§cThat member needs an active roleplay character.");
             return false;
         }
         SpecialPositionAssignment current = spymaster(faction);
-        if (current != null && !current.automatic && current.isHolder(candidate.getUniqueId())
-                && characterId.equals(current.characterId)) {
+        if (current != null && current.isHolder(candidate.getUniqueId()) && characterId.equals(current.characterId)) {
             actor.sendMessage("§7That member is already your Spymaster.");
             return false;
         }
@@ -259,8 +280,9 @@ public final class EspionageService {
                 + "§8§o's unseen network are now yours. You have been appointed Spymaster.");
         candidate.sendMessage("§7Your aptitude for this office is §e" + effectiveAptitude(faction, assignment)
                 + "/100§7. Inspect Special Positions in the faction menu, or use §a/faction espionage§7.");
-        if (faction.isLeader(candidate.getName()))
-            candidate.sendMessage("§7Leading a one-person faction retains " + Math.round(EspionageConfig.soloMultiplier() * 100) + "% aptitude (base: " + assignment.aptitude + ").");
+        int held = positionsHeld(faction, assignment);
+        if (held > 1) candidate.sendMessage("§7Holding " + held + " offices leaves you " + Math.round(positionMultiplier(held) * 100)
+                + "% of your aptitude in each (base: " + assignment.aptitude + ").");
         if (!actor.getUniqueId().equals(candidate.getUniqueId())) actor.sendMessage("§aSpymaster appointed.");
         if (repeat) actor.sendMessage("\u00a77Appointment: " + cost + "d from the treasury. The change of office brings "
                 + EspionageConfig.stabilityPenalty() + " points of unrest, fading over " + EspionageConfig.penaltyDays() + " days.");
@@ -278,6 +300,11 @@ public final class EspionageService {
             actor.sendMessage("§cOnly your faction leader can remove the Spymaster.");
             return false;
         }
+        var current = spymaster(faction);
+        if (current == null || current.automatic) {
+            actor.sendMessage("§7No Spymaster has been appointed. The office already rests with you as faction leader.");
+            return false;
+        }
         var previous = faction.getEspionage().snapshotOffices();
         faction.getEspionage().removeSpymaster();
         if (!new Database().saveFactionChecked(faction)) {
@@ -285,7 +312,8 @@ public final class EspionageService {
             actor.sendMessage("\u00a7cThe office removal could not be saved. The Spymaster remains appointed.");
             return false;
         }
-        actor.sendMessage("§aThe Spymaster office is now vacant.");
+        actor.sendMessage("§aThe Spymaster has been dismissed. The office returns to you as faction leader.");
+        spymaster(faction);
         return true;
     }
 
