@@ -748,6 +748,11 @@ public class InventoryManager implements Listener{
 			p.sendMessage("§4Type 'cancel' to cancel.");
 			return;
 		}
+		if (!Double.isFinite(amount)) {
+			p.sendMessage("§cDonation must be a number of denars.");
+			p.sendMessage("§4Type 'cancel' to cancel.");
+			return;
+		}
 		amount = Math.round(amount * 100.0) / 100.0;
 		if (amount < 0) {
 			p.sendMessage("§cDonation must be §e0 §cor more.");
