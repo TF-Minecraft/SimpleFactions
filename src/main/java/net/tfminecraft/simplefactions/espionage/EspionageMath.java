@@ -62,9 +62,15 @@ public final class EspionageMath {
     }
 
     public record Estimate(long lower, long upper) {
+        /** Shared information: one rounded value instead of a range. */
+        public static Estimate exact(double value) {
+            long rounded = Math.round(value);
+            return new Estimate(rounded, rounded);
+        }
+        public boolean isExact() { return lower == upper; }
         public double midpoint() { return lower / 2.0 + upper / 2.0; }
         public String display() {
-            return lower + " to " + upper;
+            return isExact() ? Long.toString(lower) : lower + " to " + upper;
         }
     }
 }

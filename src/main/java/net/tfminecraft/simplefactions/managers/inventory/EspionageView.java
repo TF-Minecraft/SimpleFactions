@@ -5,6 +5,8 @@ import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.espionage.IntelligenceLedger;
 import net.tfminecraft.simplefactions.espionage.SpecialPosition;
 import net.tfminecraft.simplefactions.espionage.EspionageConfig;
+import net.tfminecraft.simplefactions.espionage.IntelligenceTier;
+import net.tfminecraft.simplefactions.espionage.SharingPartner;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import java.util.ArrayList;
@@ -72,10 +74,12 @@ public final class EspionageView {
         boolean missingSpymaster = !EspionageService.hasSpymaster(observer);
         String last = missingSpymaster ? "\u00a77The Spymaster's office stands vacant; no findings reach your court."
                 : "\u00a77These are today\u2019s findings, delivered by your spymaster, " + CharacterNames.of(spy.playerName) + ".";
-        return item(Material.SPYGLASS, "Foreign intelligence",
-                "\u00a77Report quality: \u00a7e" + (missingSpymaster ? "Absent"
-                        : report == null ? net.tfminecraft.simplefactions.espionage.IntelligenceTier.UNKNOWN.label() : report.qualityLabel()),
-                report == null ? "\u00a77No dated account has yet reached your court." : "\u00a77Dated " + report.loreDate(), last);
+        List<String> lore = new ArrayList<>(List.of("\u00a77Report quality: \u00a7e" + (missingSpymaster ? "Absent"
+                        : report == null ? IntelligenceTier.UNKNOWN.label() : report.qualityLabel()),
+                report == null ? "\u00a77No dated account has yet reached your court." : "\u00a77Dated " + report.loreDate(), last));
+        if (!missingSpymaster && report != null && report.sharedTier() != IntelligenceTier.UNKNOWN)
+            lore.add("\u00a7aTheir Spymaster shares everything up to " + report.sharedTier().label() + " exactly.");
+        return item(Material.SPYGLASS, "Foreign intelligence", lore.toArray(String[]::new));
     }
 
     public static ItemStack ledgerItem(IntelligenceReport report, Guild guild) {
@@ -306,9 +310,17 @@ public final class EspionageView {
                 buildUpLine(holder, System.currentTimeMillis()),
                 "§7Sabotage is voluntary and disabled on appointment.",
                 "§7Only you can see or change these choices.",
-                "§7Changes affect your next daily rolls.", "§7Existing daily rolls and reports never reroll."));
+                "§7Sabotage changes affect your next daily rolls.", "§7Existing daily rolls and reports never reroll."));
         inventory.setItem(11, conduct("Offensive sabotage", holder.offenseReduction));
         inventory.setItem(15, conduct("Defensive sabotage", holder.defenseReduction));
+        if (EspionageConfig.sharingAllowed()) {
+            var overlord = faction.getOverlord();
+            inventory.setItem(SHARE_OVERLORD_SLOT, sharing("Share with your overlord", faction.getEspionage().sharing(SharingPartner.OVERLORD),
+                    overlord == null ? "\u00a78Your faction has no overlord." : "\u00a77Overlord: \u00a7f" + overlord.getName()));
+            int vassals = faction.getVassals().size();
+            inventory.setItem(SHARE_VASSALS_SLOT, sharing("Share with your vassals", faction.getEspionage().sharing(SharingPartner.VASSALS),
+                    vassals == 0 ? "\u00a78Your faction has no vassals." : "\u00a77Vassals: \u00a7f" + vassals));
+        }
         inventory.setItem(26, manager.createBackButton(SFGUI.SPYMASTER_SETTINGS));
         viewer.openInventory(inventory);
     }
@@ -323,6 +335,20 @@ public final class EspionageView {
         if (!EspionageConfig.buildsUp()) return "\u00a77A new Spymaster serves at full aptitude at once.";
         return "\u00a77A new Spymaster starts at " + Math.round(EspionageConfig.startingAptitude() * 100)
                 + "% aptitude, reaching full over " + EspionageService.duration(Math.round(EspionageConfig.buildUpDays() * 86_400_000)) + ".";
+    }
+
+    private static final int SHARE_OVERLORD_SLOT = 21, SHARE_VASSALS_SLOT = 23;
+
+    private static ItemStack sharing(String title, IntelligenceTier tier, String partner) {
+        return item(tier == IntelligenceTier.UNKNOWN ? Material.BOOK : Material.WRITABLE_BOOK, title, partner,
+                tier == IntelligenceTier.UNKNOWN ? "\u00a7cSharing nothing" : "\u00a7aSharing up to " + tier.label(),
+                "\u00a77Information shown at this tier or lower", "\u00a77reaches them exactly, not as ranges.",
+                "\u00a77Click to cycle: nothing, rumours, broad, reliable, detailed.");
+    }
+
+    static IntelligenceTier nextSharing(IntelligenceTier tier) {
+        var tiers = IntelligenceTier.values();
+        return tiers[(tier.ordinal() + 1) % tiers.length];
     }
 
     private static ItemStack conduct(String title, int reduction) {
@@ -411,6 +437,10 @@ public final class EspionageView {
                 if (EspionageService.setSabotage(viewer, faction, slot == 11, (current + 25) % 125)) {
                     settings(viewer, faction, manager);
                 }
+            } else if (slot == SHARE_OVERLORD_SLOT || slot == SHARE_VASSALS_SLOT) {
+                var partner = slot == SHARE_OVERLORD_SLOT ? SharingPartner.OVERLORD : SharingPartner.VASSALS;
+                if (EspionageService.setSharing(viewer, faction, partner, nextSharing(faction.getEspionage().sharing(partner))))
+                    settings(viewer, faction, manager);
             }
         } else {
             if (!faction.isLeader(viewer.getName())) { viewer.closeInventory(); return; }
