@@ -151,6 +151,8 @@ public final class EspionageConfig {
     public static double buildUpDays() { return buildUpDays; }
     public static double startingAptitude() { return startingAptitude; }
     public static double changeCooldownDays() { return changeCooldownDays; }
+    /** False when a new Spymaster serves at full aptitude from the start. */
+    public static boolean buildsUp() { return buildUpDays > 0 && startingAptitude < 1; }
     public static double vacancyPenalty(SpecialPosition office) { return vacancyPenalties.getOrDefault(office, 10.0); }
 
     public static Map<String, Double> weights() { return weights; }

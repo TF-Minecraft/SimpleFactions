@@ -149,6 +149,12 @@ class OfficeAppointmentsTest {
             EspionageConfig.load(config);
             assertEquals(80, EspionageService.effectiveAptitude(faction, holder, 10 * day));
             assertEquals(0, EspionageService.buildUpRemaining(holder, 10 * day));
+            config.set("espionage.appointments.build-up-days", 7.0);
+            config.set("espionage.appointments.starting-aptitude", 1.0);
+            EspionageConfig.load(config);
+            assertFalse(EspionageConfig.buildsUp());
+            assertEquals(80, EspionageService.effectiveAptitude(faction, holder, 10 * day));
+            assertEquals(0, EspionageService.buildUpRemaining(holder, 10 * day), "Full from the start leaves nothing to build");
         } finally { EspionageConfig.load(new org.bukkit.configuration.file.YamlConfiguration()); }
     }
 

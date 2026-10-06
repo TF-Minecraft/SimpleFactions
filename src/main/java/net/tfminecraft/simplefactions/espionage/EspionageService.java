@@ -149,7 +149,7 @@ public final class EspionageService {
 
     /** Millis until the holder reaches full aptitude; zero once built up. */
     public static long buildUpRemaining(SpecialPositionAssignment holder, long now) {
-        if (holder == null || holder.appointedAt <= 0 || EspionageConfig.buildUpDays() <= 0) return 0;
+        if (holder == null || holder.appointedAt <= 0 || !EspionageConfig.buildsUp()) return 0;
         return Math.max(0, holder.appointedAt + Math.round(EspionageConfig.buildUpDays() * 86_400_000) - now);
     }
 

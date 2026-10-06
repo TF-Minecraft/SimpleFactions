@@ -322,7 +322,7 @@ public final class EspionageView {
     }
 
     private static String buildUpTerms() {
-        if (EspionageConfig.buildUpDays() <= 0) return "\u00a77A new Spymaster serves at full aptitude at once.";
+        if (!EspionageConfig.buildsUp()) return "\u00a77A new Spymaster serves at full aptitude at once.";
         return "\u00a77A new Spymaster starts at " + Math.round(EspionageConfig.startingAptitude() * 100)
                 + "% aptitude, reaching full over " + EspionageService.duration(Math.round(EspionageConfig.buildUpDays() * 86_400_000)) + ".";
     }
