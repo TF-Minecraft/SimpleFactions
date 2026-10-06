@@ -100,6 +100,8 @@ public class Guild {
     private boolean repressed = false;
     private final List<StabilityModifier> pillageHits = new ArrayList<>();
     private double dividendPercent = 0.0;
+    /** Denars sent to the realm each day. The fee is extra and is not stored here. */
+    private double donationAmount = 0.0;
     private List<String> dividendEligible = new ArrayList<>();
     private MercenaryCompany company;
 
@@ -234,6 +236,9 @@ public class Guild {
         if(data.repressed != null) this.repressed = data.repressed;
         if (data.dividendPercent != null) {
             this.dividendPercent = clampDividendPercent(data.dividendPercent);
+        }
+        if (data.donation != null && !isBase()) {
+            this.donationAmount = clampDonation(data.donation);
         }
         if (data.dividendEligible != null) {
             this.dividendEligible = new ArrayList<>(data.dividendEligible);
@@ -1027,6 +1032,23 @@ public class Guild {
     public double setDividendPercent(double percent) {
         dividendPercent = clampDividendPercent(percent);
         return dividendPercent;
+    }
+
+    public double getDonationAmount() {
+        return donationAmount;
+    }
+
+    /** {@code amount} is what the realm receives. Zero clears the pledge. Realm guilds cannot donate. */
+    public double setDonationAmount(double amount) {
+        donationAmount = isBase() ? 0.0 : clampDonation(amount);
+        return donationAmount;
+    }
+
+    private static double clampDonation(double amount) {
+        if (Double.isNaN(amount) || Double.isInfinite(amount) || amount <= 0) {
+            return 0.0;
+        }
+        return Formatter.formatDouble(amount);
     }
 
     public List<String> getDividendEligibleSnapshot() {

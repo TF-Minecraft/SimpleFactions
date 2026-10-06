@@ -29,6 +29,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.GuildDonation;
+import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.managers.holder.CampaignInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.CampaignRaidLaunchHolder;
@@ -45,6 +47,7 @@ import net.tfminecraft.simplefactions.managers.inventory.ContractView;
 import net.tfminecraft.simplefactions.managers.inventory.MercenaryMarketView;
 import net.tfminecraft.simplefactions.managers.inventory.DeclareWarView;
 import net.tfminecraft.simplefactions.managers.inventory.DividendChange;
+import net.tfminecraft.simplefactions.managers.inventory.DonationChange;
 import net.tfminecraft.simplefactions.managers.inventory.ElectionView;
 import net.tfminecraft.simplefactions.managers.inventory.FactionView;
 import net.tfminecraft.simplefactions.managers.inventory.GovernmentView;
@@ -72,7 +75,6 @@ import net.tfminecraft.simplefactions.war.battle.campaign.warband.BattleWarbandR
 import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
-import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.war.core.Participant;
@@ -106,6 +108,7 @@ public class InventoryManager implements Listener{
 	public HashMap<Player, FeeRateInput> feeChange = new HashMap<>();
 	public HashMap<Player, LoanPayment> loanPayments = new HashMap<>();
 	public HashMap<Player, DividendChange> dividendChange = new HashMap<>();
+	public HashMap<Player, DonationChange> donationChange = new HashMap<>();
 	public HashMap<Player, SlotChangePrompt> slotChanges = new HashMap<>();
 	
 	InventoryUpdater updater = new InventoryUpdater(this);
@@ -144,6 +147,12 @@ public class InventoryManager implements Listener{
 					if(entry.getValue().tick()) {
 						dividendChange.remove(entry.getKey());
 						entry.getKey().sendMessage("§cDividend change timed out.");
+					}
+				}
+				for(Map.Entry<Player, DonationChange> entry : ((HashMap<Player, DonationChange>) donationChange.clone()).entrySet()) {
+					if(entry.getValue().tick()) {
+						donationChange.remove(entry.getKey());
+						entry.getKey().sendMessage("§cDonation change timed out.");
 					}
 				}
 				for(Map.Entry<Player, SlotChangePrompt> entry : ((HashMap<Player, SlotChangePrompt>) slotChanges.clone()).entrySet()) {
@@ -406,7 +415,7 @@ public class InventoryManager implements Listener{
 
 	public boolean chatTrigger(Player p) {
 		return taxChange.containsKey(p) || feeChange.containsKey(p) || loanPayments.containsKey(p) || dividendChange.containsKey(p)
-				|| slotChanges.containsKey(p);
+				|| donationChange.containsKey(p) || slotChanges.containsKey(p);
 	}
 
 	public void setChanging(Faction faction, Player p, TaxTarget target, String id) {
@@ -429,6 +438,25 @@ public class InventoryManager implements Listener{
 		p.sendMessage(StringFormatter.formatHex("#d6cf69Enter the amount you want to pay (you have #87d65c" + 
 			String.format("%.2f", loan.getBorrower().getBank().getWealth()) + "d#d6cf69, loan owes #d65c5c" + 
 			String.format("%.2f", loan.getTotalOwed()) + "d#d6cf69):"));
+	}
+
+	public void setChangingDonation(Player p, Guild guild) {
+		if (guild == null || p == null || guild.isBase()) {
+			return;
+		}
+		donationChange.put(p, new DonationChange(guild));
+		p.closeInventory();
+		double sent = guild.getDonationAmount();
+		p.sendMessage(StringFormatter.formatHex(
+				"#d6cf69Enter how many denars to send your realm each day (currently #87d65c"
+				+ String.format("%.2f", sent)
+				+ "d#d6cf69)."));
+		p.sendMessage(StringFormatter.formatHex(
+				"#d6cf69Sending #87d65c100d #d6cf69also costs a #cf493a"
+				+ Formatter.formatMoney(GuildDonation.fee(100))
+				+ "d #d6cf69fee, so you need #ccbb76"
+				+ Formatter.formatMoney(GuildDonation.cost(100))
+				+ "d #d6cf69on hand. Type #87d65c0 #d6cf69to stop, or #c74d32cancel #d6cf69to abort."));
 	}
 
 	public void setChangingDividend(Player p, Guild guild) {
@@ -457,6 +485,7 @@ public class InventoryManager implements Listener{
 				if(feeChange.containsKey(p)) feeChat(p, e);
 				if(loanPayments.containsKey(p)) loanPaymentChat(p, e);
 				if(dividendChange.containsKey(p)) dividendChat(p, e);
+				if(donationChange.containsKey(p)) donationChat(p, e);
 				if(slotChanges.containsKey(p)) slotChat(p, e);
 			}
 		}.runTask(SimpleFactions.plugin);
@@ -688,6 +717,56 @@ public class InventoryManager implements Listener{
 				"#d6cf69Dividend rate set to #87d65c" + String.format("%.2f", guild.getDividendPercent()) + "%"));
 		p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 		dividendChange.remove(p);
+		guildView(p, guild);
+	}
+
+	// Retain Bukkit chat-event ordering and String message semantics for existing integrations.
+	@SuppressWarnings("deprecation")
+	public void donationChat(Player p, AsyncPlayerChatEvent e) {
+		DonationChange change = donationChange.get(p);
+		Guild guild = change == null ? null : change.getGuild();
+		if (guild == null) {
+			donationChange.remove(p);
+			return;
+		}
+		if (e.getMessage().equalsIgnoreCase("cancel")) {
+			p.sendMessage("§cDonation change cancelled.");
+			donationChange.remove(p);
+			guildView(p, guild);
+			return;
+		}
+		if (!guild.isLeader(p) || guild.isBase()) {
+			p.sendMessage("§cOnly the guild leader can set donations.");
+			donationChange.remove(p);
+			return;
+		}
+		double amount;
+		try {
+			amount = Double.parseDouble(e.getMessage());
+		} catch (Exception ex) {
+			p.sendMessage("§cError inputting the amount, use the format §e100 §cfor 100 denars (example)");
+			p.sendMessage("§4Type 'cancel' to cancel.");
+			return;
+		}
+		amount = Math.round(amount * 100.0) / 100.0;
+		if (amount < 0) {
+			p.sendMessage("§cDonation must be §e0 §cor more.");
+			p.sendMessage("§4Type 'cancel' to cancel.");
+			return;
+		}
+		guild.setDonationAmount(amount);
+		double sent = guild.getDonationAmount();
+		if (sent <= 0) {
+			p.sendMessage(StringFormatter.formatHex("#d6cf69Daily donation cleared."));
+		} else {
+			p.sendMessage(StringFormatter.formatHex(
+					"#d6cf69Daily donation set to #87d65c" + Formatter.formatMoney(sent)
+					+ "d#d6cf69. Fee #cf493a" + Formatter.formatMoney(GuildDonation.fee(sent))
+					+ "d#d6cf69, so you need #ccbb76" + Formatter.formatMoney(GuildDonation.cost(sent))
+					+ "d #d6cf69on hand."));
+		}
+		p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+		donationChange.remove(p);
 		guildView(p, guild);
 	}
 

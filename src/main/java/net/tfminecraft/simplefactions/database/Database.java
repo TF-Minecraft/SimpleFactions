@@ -419,6 +419,7 @@ public class Database {
                 gd.repressed = g.isRepressed();
                 gd.favoured = g.isFavoured();
                 gd.dividendPercent = g.getDividendPercent();
+                gd.donation = g.getDonationAmount();
                 gd.dividendEligible = g.getDividendEligibleSnapshot();
                 gd.casinoProfit = g.getLedger().getCasinoProfit();
                 gd.vehicleFeeIncome = g.getLedger().getVehicleFeeIncome();

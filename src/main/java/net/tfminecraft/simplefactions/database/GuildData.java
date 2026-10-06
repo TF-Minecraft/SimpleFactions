@@ -57,6 +57,8 @@ public class GuildData {
     public List<StabilityModifierData> pillageHits = new ArrayList<>();
 
     public Double dividendPercent;
+    /** Denars this guild sends to the realm each day, before the fee. */
+    public Double donation;
     public List<String> dividendEligible = new ArrayList<>();
 
     @SerializedName("casino profit")

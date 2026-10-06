@@ -365,6 +365,23 @@ public class Ledger {
             case WAGE_PAYMENTS:
                 amount = -getAggregatedPendingWages();
                 break;
+            case DONATIONS:
+                if (!guild.isBase()) return 0;
+                if (f.getGuildHandler() == null || f.getGuildHandler().getGuilds() == null) break;
+                for (Guild other : f.getGuildHandler().getGuilds()) {
+                    if (other == null || other.isBase() || other.getLedger() == null) continue;
+                    if (other.getLedger().skipsMoneyMovement()) continue;
+                    amount += Math.max(0, other.getDonationAmount());
+                }
+                break;
+            case DONATION_PAYMENTS:
+                if (guild.isBase()) return 0;
+                amount = -Math.max(0, guild.getDonationAmount());
+                break;
+            case DONATION_FEE:
+                if (guild.isBase()) return 0;
+                amount = -GuildDonation.fee(guild.getDonationAmount());
+                break;
             case PENALTIES:
                 if(!guild.isBase()) return 0;
                 amount = -f.getPenalty();
@@ -484,6 +501,7 @@ public class Ledger {
                 case INTEREST:
                 case MERCENARY_CONTRACT:
                 case REFUNDS:
+                case DONATIONS:
                     net += getIncome(cf);
                     break;
 
@@ -507,6 +525,8 @@ public class Ledger {
                 case MERCENARY_PAYMENTS:
                 case REFUND_PAYMENTS:
                 case WAGE_PAYMENTS:
+                case DONATION_PAYMENTS:
+                case DONATION_FEE:
                     net += getIncome(cf); // already negative
                     break;
 
@@ -578,6 +598,8 @@ public class Ledger {
                 case MERCENARY_PAYMENTS:
                 case REFUND_PAYMENTS:
                 case WAGE_PAYMENTS:
+                case DONATION_PAYMENTS:
+                case DONATION_FEE:
                     net += getIncome(cf);
                     break;
                 default:
@@ -896,6 +918,9 @@ public class Ledger {
     }
 
     public void populateDailyTransfers(DailyGuildTransfers buffer) {
+        // Drop the gift before anything else is committed. Other costs may then still fit,
+        // so a guild that was short only because of the donation stays solvent.
+        cancelDonationIfUnaffordable();
         if(guild.isBankrupt() && guild.getLoanHandler() != null && guild.getLoanHandler().getLoansTaken() != null) {
             for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
                 if(loan == null || !loan.isAutoPay()) continue;
@@ -952,6 +977,37 @@ public class Ledger {
             c.clearAccrued();
         }
         company.clearPendingWages();
+    }
+
+    /**
+     * True when today's settlement, including the donation and its fee, would finish below zero.
+     * Dividends and loan payments are left out: both stop at the money that remains, so they
+     * cannot be what makes the guild insolvent. Lines already in the bank, or already withdrawn
+     * earlier today, are left out too.
+     */
+    private boolean donationOverdraws() {
+        double net = getNetIncome();
+        net -= getIncome(Cashflow.DIVIDEND_PAYOUT);
+        net -= getIncome(Cashflow.DIVIDEND_PAYMENT);
+        net -= getIncome(Cashflow.LOAN_PAYMENTS);
+        net -= getIncome(Cashflow.INTEREST_PAYMENTS);
+        net -= getIncome(Cashflow.GAMBLING);
+        net -= getIncome(Cashflow.VEHICLE_FEES);
+        net -= getIncome(Cashflow.INSTALLATIONS);
+        net -= getIncome(Cashflow.VEHICLE_UPKEEP);
+        return Formatter.formatDouble(wealthOf(guild) + net) < 0;
+    }
+
+    private void cancelDonationIfUnaffordable() {
+        if (guild.isBase() || guild.getDonationAmount() <= 0) {
+            return;
+        }
+        if (!skipsMoneyMovement() && !donationOverdraws()) {
+            return;
+        }
+        double sent = guild.getDonationAmount();
+        guild.setDonationAmount(0);
+        GuildDonation.notifyCancelled(guild, sent);
     }
 
     private void applySettlementFor(Cashflow cf, DailyGuildTransfers buffer) {
@@ -1134,6 +1190,26 @@ public class Ledger {
                 return;
             }
 
+            case DONATION_PAYMENTS: {
+                if (guild.isBase()) return;
+                double amount = guild.getDonationAmount();
+                if (amount <= 0) return;
+                Faction faction = guild.getFaction();
+                if (faction == null) return;
+                Guild capital = faction.getOrCreateMainGuild();
+                if (capital == null || capital == guild) return;
+                buffer.add(guild, capital, amount);
+                return;
+            }
+
+            case DONATION_FEE: {
+                if (guild.isBase()) return;
+                double fee = GuildDonation.fee(guild.getDonationAmount());
+                if (fee <= 0) return;
+                buffer.addExternalDelta(guild, -fee);
+                return;
+            }
+
             case WAGE_PAYMENTS: {
                 MercenaryCompany company = getFormedCompany();
                 if (company == null) return;
@@ -1161,6 +1237,7 @@ public class Ledger {
             case WAR_REPARATIONS:
             case MERCENARY_CONTRACT:
             case REFUNDS:
+            case DONATIONS:
             default:
                 return;
         }
