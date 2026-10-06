@@ -60,6 +60,8 @@ public class GuildView {
 
 	/** Mercenary company entry. Slot 13 of the guild view already holds the trade breakdown. */
 	public static final int COMPANY_SLOT = 19;
+	/** Daily gift to the realm. Same column as dividends. Realm guilds do not have one. */
+	public static final int DONATION_SLOT = 8;
 	public static final int BANNER_RANDOM_SLOT = 28;
 	public static final int HOST_FACTION_SLOT = 37;
 
@@ -224,6 +226,7 @@ public class GuildView {
 		i.setItem(14, creator.createLedgerItem(player, guild));
 		if (!guild.isBase()) {
 			i.setItem(17, creator.createDividendItem(player, guild));
+			i.setItem(DONATION_SLOT, creator.createDonationItem(player, guild));
 		}
 		i.setItem(HOST_FACTION_SLOT, creator.createHostFactionItem(guild));
 		i.setItem(COMPANY_SLOT, inv.companyView.creator.createCompanyEntryItem(guild));
@@ -457,6 +460,12 @@ public class GuildView {
 					return;
 				}
 				inv.setChangingDividend(p, guild);
+				return;
+			} else if(e.getSlot() == DONATION_SLOT) {
+				if (guild.isBase() || !guild.isLeader(p)) {
+					return;
+				}
+				inv.setChangingDonation(p, guild);
 				return;
 			}
 			ItemStack item = e.getCurrentItem();

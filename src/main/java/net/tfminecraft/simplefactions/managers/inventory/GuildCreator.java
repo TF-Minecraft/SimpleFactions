@@ -28,6 +28,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.branch.BranchModifier;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
+import net.tfminecraft.simplefactions.guild.income.GuildDonation;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.LedgerHistory;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
@@ -512,6 +513,37 @@ public class GuildCreator {
 		lore.add("");
 		if (g.isLeader(p)) {
 			lore.add(StringFormatter.formatHex("#28ed70Click to set the percentage in chat"));
+		} else {
+			lore.add(StringFormatter.formatHex("#7a706aOnly the guild leader can change this."));
+		}
+		meta.setLore(lore);
+		i.setItemMeta(meta);
+		return i;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createDonationItem(Player p, Guild g) {
+		ItemStack i = IconGetter.getIconOrDefault("tributary", Material.BLACK_DYE);
+		ItemMeta meta = i.getItemMeta();
+		meta.setDisplayName(StringFormatter.formatHex("#cfc97cDonations"));
+		List<String> lore = new ArrayList<>();
+		double sent = g.getDonationAmount();
+		lore.add(StringFormatter.formatHex("#d4c9aeSent to your realm each day."));
+		if (sent <= 0) {
+			lore.add(StringFormatter.formatHex("#d4c9aeNothing is sent right now."));
+		} else {
+			lore.add(StringFormatter.formatHex("#d4c9aeSent: #7fbd73" + Formatter.formatMoney(sent) + "d"));
+			lore.add(StringFormatter.formatHex("#d4c9aeFee (" + (int) Math.round(GuildDonation.FEE_RATE * 100)
+					+ "%): #cf493a" + Formatter.formatMoney(GuildDonation.fee(sent)) + "d"));
+			lore.add(StringFormatter.formatHex("#d4c9aeNeeded on hand: #ccbb76"
+					+ Formatter.formatMoney(GuildDonation.cost(sent)) + "d"));
+		}
+		lore.add(StringFormatter.formatHex("#7a706aSending 100d costs 110d. The extra is a fee."));
+		lore.add(StringFormatter.formatHex("#7a706aCancelled at the new day if the guild cannot cover it."));
+		lore.add("");
+		if (g.isLeader(p)) {
+			lore.add(StringFormatter.formatHex("#28ed70Click to set the amount in chat"));
 		} else {
 			lore.add(StringFormatter.formatHex("#7a706aOnly the guild leader can change this."));
 		}

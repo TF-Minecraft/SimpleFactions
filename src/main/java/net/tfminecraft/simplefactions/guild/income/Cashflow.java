@@ -18,6 +18,9 @@ public enum Cashflow {
     INTEREST("#63cf71Interest", false, true),
     TRIBUTE_PAYMENTS("#ab8568Tribute Payments", false, false),
     TRIBUTES("#ab8568Tribute Payments", false, true),
+    // Voluntary gift to the realm. Not gross income: the denars were already taxed where they were earned.
+    DONATION_PAYMENTS("#cfc97cDonations", false, false),
+    DONATIONS("#cfc97cDonations", false, false),
     OVERLORD_TAX("#b55e94Overlord Taxes", false, false),
     WAR_REPARATIONS("#8a433bWar Reparations", false, true),
     WAR_REPARATIONS_PAYMENT("#8a433bWar Reparations", false, false),
@@ -47,7 +50,8 @@ public enum Cashflow {
     INSTALLATIONS("#706964Installations", true, false),
     VEHICLE_UPKEEP("#a6659fVehicle Upkeep", true, false),
     MILITARY_UPKEEP("#a6659fMilitary Upkeep", true, false),
-    NODES("#8a7a5cNodes", true, false);
+    NODES("#8a7a5cNodes", true, false),
+    DONATION_FEE("#cfc97cDonation Fee", true, false);
 
     private final String display;
     private final boolean affectsInflation;
