@@ -157,7 +157,7 @@ public final class VehicleFrameworkTracks {
             }
         }
         for (TrackJunction junction : junctions) {
-            if (junction == null || junction.branchSplineId == null
+            if (junction == null || junction.stemSplineId == null || junction.branchSplineId == null
                     || junction.stemSplineId.equals(junction.branchSplineId)) {
                 continue;
             }
