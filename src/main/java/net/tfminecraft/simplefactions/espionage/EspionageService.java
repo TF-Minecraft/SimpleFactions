@@ -96,41 +96,40 @@ public final class EspionageService {
         }
     }
 
-    public static double appointmentCost(Faction faction) {
-        return faction.getEspionage().appointmentCount(SpecialPosition.SPYMASTER) == 0 ? 0 : EspionageConfig.repeatCost();
+    /** Epoch millis from which the leader may appoint another Spymaster; zero means no wait. */
+    public static long nextAppointmentAt(Faction faction) {
+        long last = faction.getEspionage().lastAppointedAt(SpecialPosition.SPYMASTER);
+        double days = EspionageConfig.changeCooldownDays();
+        return last <= 0 || days <= 0 ? 0 : last + Math.round(days * 86_400_000);
     }
 
-    static boolean canAffordAppointment(Faction faction) {
-        double cost = appointmentCost(faction);
-        if (cost == 0) return true;
-        return faction.getBank() != null && Double.isFinite(faction.getBank().getWealth()) && faction.getBank().getWealth() >= cost;
-    }
-
-    static boolean completeAppointment(Faction faction, SpecialPositionAssignment assignment, int aptitude) {
-        if (!canAffordAppointment(faction)) return false;
+    static boolean completeAppointment(Faction faction, SpecialPositionAssignment assignment, int aptitude, long now) {
+        if (now < nextAppointmentAt(faction)) return false;
         boolean repeat = faction.getEspionage().appointmentCount(SpecialPosition.SPYMASTER) > 0;
-        double cost = appointmentCost(faction);
-        if (cost > 0) faction.getBank().withdraw(cost);
-        faction.getEspionage().appoint(assignment, aptitude);
+        faction.getEspionage().appoint(assignment, aptitude, now);
         if (repeat) faction.getEspionage().addUnrest(SpecialPosition.SPYMASTER,
-                EspionageConfig.stabilityPenalty(), EspionageConfig.penaltyDays(), System.currentTimeMillis());
+                EspionageConfig.stabilityPenalty(), EspionageConfig.penaltyDays(), now);
         return true;
     }
 
-    static boolean completeAndSaveAppointment(Faction faction, SpecialPositionAssignment assignment, int aptitude) {
+    static boolean completeAndSaveAppointment(Faction faction, SpecialPositionAssignment assignment, int aptitude, long now) {
         var previous = faction.getEspionage().snapshotOffices();
-        double cost = appointmentCost(faction);
-        if (!completeAppointment(faction, assignment, aptitude)) return false;
+        if (!completeAppointment(faction, assignment, aptitude, now)) return false;
         if (new Database().saveFactionChecked(faction)) return true;
         faction.getEspionage().restoreOffices(previous);
-        if (cost > 0) faction.getBank().deposit(cost);
         return false;
     }
 
     public static int effectiveAptitude(Faction faction, SpecialPositionAssignment holder) {
+        return effectiveAptitude(faction, holder, System.currentTimeMillis());
+    }
+
+    /** A new holder builds up to their permanent aptitude; a solo leader keeps only part of it. */
+    static int effectiveAptitude(Faction faction, SpecialPositionAssignment holder, long now) {
         if (holder == null || !eligible(faction, holder.playerName)) return 0;
         // The epsilon keeps 1 - 0.1 * 3 from flooring a whole result one point low.
-        return (int) Math.floor(holder.aptitude * positionMultiplier(positionsHeld(faction, holder)) + 1e-9);
+        return (int) Math.floor(holder.aptitude * EspionageMath.buildUp(holder.appointedAt, now)
+                * positionMultiplier(positionsHeld(faction, holder)) + 1e-9);
     }
 
     /** Offices held by the same person; an assignment not saved yet still counts as one. */
@@ -146,6 +145,17 @@ public final class EspionageService {
 
     public static double positionMultiplier(int held) {
         return Math.max(0, 1 - EspionageConfig.extraPositionPenalty() * Math.max(0, held - 1));
+    }
+
+    /** Millis until the holder reaches full aptitude; zero once built up. */
+    public static long buildUpRemaining(SpecialPositionAssignment holder, long now) {
+        if (holder == null || holder.appointedAt <= 0 || EspionageConfig.buildUpDays() <= 0) return 0;
+        return Math.max(0, holder.appointedAt + Math.round(EspionageConfig.buildUpDays() * 86_400_000) - now);
+    }
+
+    public static String duration(long millis) {
+        long minutes = Math.max(1, (millis + 59_999) / 60_000);
+        return net.tfminecraft.tlibs.utils.TimeFormatter.formatTime((int) Math.min(Integer.MAX_VALUE / 60, minutes) * 60);
     }
 
     public static boolean isOwn(Player viewer, Faction target) {
@@ -183,7 +193,9 @@ public final class EspionageService {
         boolean changed = false;
         SpecialPositionAssignment holder = state.getSpymaster();
         if (holder != null && !validHolder(faction, holder)) {
+            boolean died = eligible(faction, holder.playerName) && deadCharacter(holder);
             state.removeSpymaster();
+            if (died) state.waiveAppointmentWait(SpecialPosition.SPYMASTER);
             changed = true;
         }
         // Whatever emptied the office, it falls back to the current leader.
@@ -215,6 +227,7 @@ public final class EspionageService {
                     && characterId.equals(state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
             if (!matching && !pending) continue;
             state.removeSpymaster();
+            state.waiveAppointmentWait(SpecialPosition.SPYMASTER);
             new Database().saveFaction(faction);
             if (owner != null) owner.sendMessage("\u00a78\u00a7oWith the passing of " + characterName
                     + ", the keys to the Spymaster's office return to the faction leader until a successor is appointed.");
@@ -252,11 +265,11 @@ public final class EspionageService {
             actor.sendMessage("§7That member is already your Spymaster.");
             return false;
         }
-        if (!canAffordAppointment(faction)) {
-            actor.sendMessage("\u00a7cThe faction treasury needs " + appointmentCost(faction) + "d for this appointment.");
+        long now = System.currentTimeMillis();
+        if (now < nextAppointmentAt(faction)) {
+            actor.sendMessage("\u00a7cA new Spymaster can be appointed in " + duration(nextAppointmentAt(faction) - now) + ".");
             return false;
         }
-        double cost = appointmentCost(faction);
         boolean repeat = faction.getEspionage().appointmentCount(SpecialPosition.SPYMASTER) > 0;
         SpecialPositionAssignment assignment = new SpecialPositionAssignment();
         assignment.playerId = candidate.getUniqueId();
@@ -265,8 +278,8 @@ public final class EspionageService {
         try {
             if (characterAptitudes == null) throw new java.io.IOException("Character aptitude registry is unavailable");
             int aptitude = characterAptitude(candidate, characterId);
-            if (!completeAndSaveAppointment(faction, assignment, aptitude)) {
-                actor.sendMessage("\u00a7cThe appointment could not be saved. The office and treasury are unchanged.");
+            if (!completeAndSaveAppointment(faction, assignment, aptitude, now)) {
+                actor.sendMessage("\u00a7cThe appointment could not be saved. The office is unchanged.");
                 return false;
             }
         } catch (java.io.IOException exception) {
@@ -278,14 +291,18 @@ public final class EspionageService {
         // Address only the appointee. Sabotage preferences are never broadcast.
         candidate.sendMessage("§8§oA sealed letter reaches your hands. The keys to " + faction.getName()
                 + "§8§o's unseen network are now yours. You have been appointed Spymaster.");
-        candidate.sendMessage("§7Your aptitude for this office is §e" + effectiveAptitude(faction, assignment)
+        candidate.sendMessage("§7Your aptitude for this office is §e" + effectiveAptitude(faction, assignment, now)
                 + "/100§7. Inspect Special Positions in the faction menu, or use §a/faction espionage§7.");
+        if (buildUpRemaining(assignment, now) > 0)
+            candidate.sendMessage("§7Your network is still taking shape. Full aptitude (§e" + assignment.aptitude
+                    + "§7) in §e" + duration(buildUpRemaining(assignment, now)) + "§7.");
         int held = positionsHeld(faction, assignment);
         if (held > 1) candidate.sendMessage("§7Holding " + held + " offices leaves you " + Math.round(positionMultiplier(held) * 100)
                 + "% of your aptitude in each (base: " + assignment.aptitude + ").");
         if (!actor.getUniqueId().equals(candidate.getUniqueId())) actor.sendMessage("§aSpymaster appointed.");
-        if (repeat) actor.sendMessage("\u00a77Appointment: " + cost + "d from the treasury. The change of office brings "
-                + EspionageConfig.stabilityPenalty() + " points of unrest, fading over " + EspionageConfig.penaltyDays() + " days.");
+        if (repeat && EspionageConfig.stabilityPenalty() > 0 && EspionageConfig.penaltyDays() > 0)
+            actor.sendMessage("\u00a77The change of office brings " + EspionageConfig.stabilityPenalty()
+                    + " points of unrest, fading over " + EspionageConfig.penaltyDays() + " days.");
         return true;
     }
 

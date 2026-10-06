@@ -2,10 +2,8 @@ package net.tfminecraft.simplefactions.espionage;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.database.JsonUtil;
-import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 class OfficeAppointmentsTest {
@@ -78,48 +76,80 @@ class OfficeAppointmentsTest {
     }
 
     @Test
-    void founderDoesNotConsumeFreeAppointmentAndRemovalCannotResetPaidHistory() {
+    void appointmentsAreFreeAndOnlyReplacementsBringUnrest() {
+        long day = 86_400_000L;
         var state = new EspionageState();
         state.assignFounder(SpecialPosition.SPYMASTER, assignment("Founder"), 80);
         assertTrue(state.getSpymaster().automatic);
         assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
         var faction = mock(Faction.class);
-        var bank = mock(Bank.class);
-        var balance = new AtomicReference<>(1000.0);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.getBank()).thenReturn(bank);
-        when(bank.getWealth()).thenAnswer(ignored -> balance.get());
-        doAnswer(call -> { balance.updateAndGet(value -> value - (Double) call.getArgument(0)); return null; }).when(bank).withdraw(anyDouble());
-        assertTrue(EspionageService.completeAppointment(faction, assignment("First"), 90));
-        assertEquals(1000.0, balance.get());
-        assertTrue(state.unrestModifiers(System.currentTimeMillis()).isEmpty());
+        assertEquals(0, EspionageService.nextAppointmentAt(faction), "A founder never delays the first appointment");
+        assertTrue(EspionageService.completeAppointment(faction, assignment("First"), 90, 10 * day));
+        assertTrue(state.unrestModifiers(10 * day).isEmpty());
         state.removeSpymaster();
-        assertEquals(250.0, EspionageService.appointmentCost(faction));
-        assertTrue(EspionageService.completeAppointment(faction, assignment("Second"), 65));
-        assertEquals(750.0, balance.get());
-        assertEquals(-10, state.unrestModifiers(System.currentTimeMillis()).getFirst().getModifier(), 0.001);
+        assertTrue(EspionageService.completeAppointment(faction, assignment("Second"), 65, 12 * day));
+        assertEquals(-10, state.unrestModifiers(12 * day).getFirst().getModifier(), 0.001);
         state.removeSpymaster();
         var restored = JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(state), EspionageState.class);
         assertEquals(2, restored.appointmentCount(SpecialPosition.SPYMASTER));
-        assertEquals(-10, restored.unrestModifiers(System.currentTimeMillis()).getFirst().getModifier(), 0.001);
-        verify(bank, times(1)).withdraw(250.0);
+        assertEquals(-10, restored.unrestModifiers(12 * day).getFirst().getModifier(), 0.001);
+        verify(faction, never()).getBank();
     }
 
     @Test
-    void unaffordableAppointmentDoesNotChangeOfficeBalanceHistoryOrStability() {
+    void anotherAppointmentWaitsForTheCooldownEvenAfterRemoval() {
+        long day = 86_400_000L;
         var state = new EspionageState();
         var first = assignment("First");
-        state.appoint(first, 82);
         var faction = mock(Faction.class);
-        var bank = mock(Bank.class);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.getBank()).thenReturn(bank);
-        when(bank.getWealth()).thenReturn(249.0);
-        assertFalse(EspionageService.completeAppointment(faction, assignment("Second"), 20));
+        assertTrue(EspionageService.completeAppointment(faction, first, 82, 10 * day));
+        assertEquals(12 * day, EspionageService.nextAppointmentAt(faction));
+        assertFalse(EspionageService.completeAppointment(faction, assignment("Second"), 20, 12 * day - 1));
         assertSame(first, state.getSpymaster());
         assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
-        assertTrue(state.unrestModifiers(System.currentTimeMillis()).isEmpty());
-        verify(bank, never()).withdraw(anyDouble());
+        assertTrue(state.unrestModifiers(12 * day - 1).isEmpty());
+        state.removeSpymaster();
+        var restored = JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(state), EspionageState.class);
+        when(faction.getEspionage()).thenReturn(restored);
+        assertFalse(EspionageService.completeAppointment(faction, assignment("Second"), 20, 11 * day),
+                "Removing the holder and restarting must not skip the wait");
+        assertTrue(EspionageService.completeAppointment(faction, assignment("Second"), 20, 12 * day));
+        assertEquals(14 * day, EspionageService.nextAppointmentAt(faction));
+        restored.waiveAppointmentWait(SpecialPosition.SPYMASTER);
+        assertEquals(0, EspionageService.nextAppointmentAt(faction));
+    }
+
+    @Test
+    void newHolderBuildsUpToFullAptitudeOverTheConfiguredDays() {
+        long day = 86_400_000L;
+        var faction = mock(Faction.class);
+        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "Spy"));
+        var holder = assignment("Spy");
+        new EspionageState().appoint(holder, 80, 10 * day);
+        assertEquals(10 * day, holder.appointedAt);
+        assertEquals(20, EspionageService.effectiveAptitude(faction, holder, 10 * day));
+        assertEquals(50, EspionageService.effectiveAptitude(faction, holder, 10 * day + 7 * day / 2));
+        assertEquals(80, EspionageService.effectiveAptitude(faction, holder, 17 * day));
+        assertEquals(80, EspionageService.effectiveAptitude(faction, holder, 30 * day));
+        assertEquals(20, EspionageService.effectiveAptitude(faction, holder, 9 * day), "Clock skew never drops below the start");
+        assertEquals(7 * day / 2, EspionageService.buildUpRemaining(holder, 10 * day + 7 * day / 2));
+        assertEquals(0, EspionageService.buildUpRemaining(holder, 17 * day));
+        var founder = assignment("Spy");
+        new EspionageState().assignFounder(SpecialPosition.SPYMASTER, founder, 80);
+        assertEquals(80, EspionageService.effectiveAptitude(faction, founder, 10 * day), "Founders and older saves start established");
+        when(faction.isLeader("Spy")).thenReturn(true);
+        when(faction.getMembers()).thenReturn(java.util.List.of("Spy"));
+        assertEquals(20, EspionageService.effectiveAptitude(faction, holder, 10 * day), "An appointed leader builds up like anyone else");
+        var config = new org.bukkit.configuration.file.YamlConfiguration();
+        try {
+            config.set("espionage.appointments.build-up-days", 0.0);
+            EspionageConfig.load(config);
+            assertEquals(80, EspionageService.effectiveAptitude(faction, holder, 10 * day));
+            assertEquals(0, EspionageService.buildUpRemaining(holder, 10 * day));
+        } finally { EspionageConfig.load(new org.bukkit.configuration.file.YamlConfiguration()); }
     }
 
     @Test
@@ -135,27 +165,43 @@ class OfficeAppointmentsTest {
     }
 
     @Test
-    void existingSavedOfficeCountsAsAlreadyAppointedAndConfigRejectsInvalidCosts() {
+    void existingSavedOfficeCountsAsAlreadyAppointedAndConfigRejectsInvalidValues() {
         var state = JsonUtil.GSON.fromJson("{\"positions\":{\"SPYMASTER\":{\"playerName\":\"OldSpy\",\"aptitude\":80}}}", EspionageState.class);
         assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
         state.removeSpymaster();
         assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
+        assertEquals(0, state.lastAppointedAt(SpecialPosition.SPYMASTER));
         var config = new org.bukkit.configuration.file.YamlConfiguration();
         try {
-            config.set("espionage.appointments.repeat-cost", 500.0);
             config.set("espionage.appointments.stability-penalty", 12.0);
             config.set("espionage.appointments.penalty-days", 3.0);
+            config.set("espionage.appointments.build-up-days", 3.5);
+            config.set("espionage.appointments.starting-aptitude", 0.5);
+            config.set("espionage.appointments.change-cooldown-days", 1.0);
             EspionageConfig.load(config);
-            assertEquals(500, EspionageConfig.repeatCost());
             assertEquals(12, EspionageConfig.stabilityPenalty());
             assertEquals(3, EspionageConfig.penaltyDays());
-            config.set("espionage.appointments.repeat-cost", -1.0);
+            assertEquals(3.5, EspionageConfig.buildUpDays());
+            assertEquals(0.5, EspionageConfig.startingAptitude());
+            assertEquals(1, EspionageConfig.changeCooldownDays());
             config.set("espionage.appointments.stability-penalty", Double.NaN);
             config.set("espionage.appointments.penalty-days", 0.0);
+            config.set("espionage.appointments.build-up-days", -1.0);
+            config.set("espionage.appointments.starting-aptitude", 2.0);
+            config.set("espionage.appointments.change-cooldown-days", Double.NaN);
             EspionageConfig.load(config);
-            assertEquals(250, EspionageConfig.repeatCost());
             assertEquals(10, EspionageConfig.stabilityPenalty());
             assertEquals(0, EspionageConfig.penaltyDays());
+            assertEquals(7, EspionageConfig.buildUpDays());
+            assertEquals(0.25, EspionageConfig.startingAptitude());
+            assertEquals(2, EspionageConfig.changeCooldownDays());
+            config.set("espionage.appointments.change-cooldown-days", 0.0);
+            EspionageConfig.load(config);
+            var faction = mock(Faction.class);
+            var waiting = new EspionageState();
+            waiting.appoint(assignment("Spy"), 50, 1000);
+            when(faction.getEspionage()).thenReturn(waiting);
+            assertEquals(0, EspionageService.nextAppointmentAt(faction));
         } finally { EspionageConfig.load(new org.bukkit.configuration.file.YamlConfiguration()); }
     }
 }

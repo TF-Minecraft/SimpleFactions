@@ -31,37 +31,42 @@ class SpecialPositionsConfigFileTest {
 
     @Test void migrationPreservesCustomWeightsPermissionCostsAndMainConfiguration() throws Exception {
         var legacy = directory.resolve("config.yml");
-        String original = "unrelated: value\nespionage:\n  bypass-permission: staff.spy\n  aptitude:\n    attribute-weights:\n      strength: -4.0\n  appointments:\n    repeat-cost: 333.0\n";
+        String original = "unrelated: value\nespionage:\n  bypass-permission: staff.spy\n  aptitude:\n    attribute-weights:\n      strength: -4.0\n  appointments:\n    stability-penalty: 33.0\n";
         Files.writeString(legacy, original);
         var file = directory.resolve("special-positions.yml");
         var defaults = defaults();
         var migrated = SpecialPositionsConfigFile.prepare(file.toFile(), legacy.toFile(), defaults);
         assertEquals("staff.spy", migrated.getString("espionage.bypass-permission"));
         assertEquals(-4, migrated.getDouble("espionage.aptitude.attribute-weights.strength"));
-        assertEquals(333, migrated.getDouble("espionage.appointments.repeat-cost"));
+        assertEquals(33, migrated.getDouble("espionage.appointments.stability-penalty"));
         assertEquals("reliable", migrated.getString("espionage.intelligence.minimum-tiers.professional-army"));
         assertEquals(original, Files.readString(legacy));
         // Existing dedicated settings always win over stale legacy values; missing new fields are added.
-        migrated.set("espionage.appointments.repeat-cost", 250);
+        migrated.set("espionage.appointments.stability-penalty", 25);
         migrated.set("espionage.intelligence.minimum-tiers.professional-army", null);
         migrated.save(file.toFile());
         var reloaded = SpecialPositionsConfigFile.prepare(file.toFile(), legacy.toFile(), defaults);
-        assertEquals(250, reloaded.getDouble("espionage.appointments.repeat-cost"));
+        assertEquals(25, reloaded.getDouble("espionage.appointments.stability-penalty"));
         assertEquals(-4, reloaded.getDouble("espionage.aptitude.attribute-weights.strength"));
         assertEquals("reliable", reloaded.getString("espionage.intelligence.minimum-tiers.professional-army"));
         assertEquals(original, Files.readString(legacy));
     }
 
-    @Test void retiredSoloLeaderSettingIsRemovedAndExtraPositionPenaltyAdded() throws Exception {
+    @Test void retiredSettingsAreRemovedAndTheirReplacementsAdded() throws Exception {
         var file = directory.resolve("special-positions.yml");
-        Files.writeString(file, "espionage:\n  aptitude:\n    # A leader can only hold this office in a one-person faction.\n"
+        Files.writeString(file, "espionage:\n  appointments:\n    repeat-cost: 250.0\n    stability-penalty: 0.0\n"
+                + "  aptitude:\n    # A leader can only hold this office in a one-person faction.\n"
                 + "    solo-leader-multiplier: 0.25\n    base: 40.0\n");
         var prepared = SpecialPositionsConfigFile.prepare(file.toFile(), directory.resolve("config.yml").toFile(), defaults());
         assertFalse(prepared.contains("espionage.aptitude.solo-leader-multiplier"));
+        assertFalse(prepared.contains("espionage.appointments.repeat-cost"));
+        assertEquals(0, prepared.getDouble("espionage.appointments.stability-penalty"));
+        assertEquals(7, prepared.getDouble("espionage.appointments.build-up-days"));
+        assertEquals(2, prepared.getDouble("espionage.appointments.change-cooldown-days"));
         assertEquals(0.25, prepared.getDouble("espionage.aptitude.extra-position-penalty"));
         assertEquals(40, prepared.getDouble("espionage.aptitude.base"));
         String saved = Files.readString(file);
-        assertFalse(saved.contains("solo-leader") || saved.contains("one-person"), saved);
+        assertFalse(saved.contains("solo-leader") || saved.contains("one-person") || saved.contains("repeat-cost"), saved);
         assertTrue(saved.contains("extra-position-penalty"), saved);
     }
 

@@ -4,12 +4,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.JsonUtil;
-import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 class OfficePersistenceTest {
@@ -56,31 +54,27 @@ class OfficePersistenceTest {
         }
     }
 
-    @Test void failedPaidAppointmentRefundsTreasuryAndRestoresOfficeHistoryAndUnrest() {
+    @Test void failedAppointmentRestoresOfficeHistoryUnrestAndWait() {
+        long now = 30 * 86_400_000L;
         var faction = mock(Faction.class);
-        var bank = mock(Bank.class);
         var state = new EspionageState();
         var previous = holder("OldSpy");
-        state.appoint(previous, 90);
-        var balance = new AtomicReference<>(1000.0);
+        state.appoint(previous, 90, now - 3 * 86_400_000L);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.getBank()).thenReturn(bank);
-        when(bank.getWealth()).thenAnswer(ignored -> balance.get());
-        doAnswer(call -> { balance.updateAndGet(value -> value - (Double) call.getArgument(0)); return null; }).when(bank).withdraw(anyDouble());
-        doAnswer(call -> { balance.updateAndGet(value -> value + (Double) call.getArgument(0)); return null; }).when(bank).deposit(anyDouble());
         try (var databases = mockConstruction(Database.class)) {
-            assertFalse(EspionageService.completeAndSaveAppointment(faction, holder("NewSpy"), 70));
+            assertFalse(EspionageService.completeAndSaveAppointment(faction, holder("NewSpy"), 70, now));
             assertSame(previous, state.getSpymaster());
-            assertEquals(1000.0, balance.get());
             assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
-            assertTrue(state.unrestModifiers(System.currentTimeMillis()).isEmpty());
+            assertEquals(now - 3 * 86_400_000L, state.lastAppointedAt(SpecialPosition.SPYMASTER));
+            assertTrue(state.unrestModifiers(now).isEmpty());
         }
         try (var databases = mockConstruction(Database.class, (database, context) -> when(database.saveFactionChecked(faction)).thenReturn(true))) {
-            assertTrue(EspionageService.completeAndSaveAppointment(faction, holder("NewSpy"), 70));
-            assertEquals(750.0, balance.get());
+            assertTrue(EspionageService.completeAndSaveAppointment(faction, holder("NewSpy"), 70, now));
+            assertEquals(now, state.lastAppointedAt(SpecialPosition.SPYMASTER));
             assertEquals("NewSpy", state.getSpymaster().playerName);
             assertEquals(2, state.appointmentCount(SpecialPosition.SPYMASTER));
-            assertEquals(-10.0, state.unrestModifiers(System.currentTimeMillis()).getFirst().getModifier(), 0.001);
+            assertEquals(-10.0, state.unrestModifiers(now).getFirst().getModifier(), 0.001);
+            verify(faction, never()).getBank();
         }
     }
 

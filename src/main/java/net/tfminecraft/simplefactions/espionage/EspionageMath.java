@@ -22,6 +22,16 @@ public final class EspionageMath {
         return clamp(attributes.getOrDefault(key, 0), 0, EspionageConfig.cap()) - EspionageConfig.center();
     }
 
+    /** Share of aptitude a holder has built up, rising linearly from the starting share to full. */
+    public static double buildUp(long appointedAt, long now) {
+        double days = EspionageConfig.buildUpDays();
+        if (appointedAt <= 0 || days <= 0) return 1;
+        double progress = (now - appointedAt) / (days * 86_400_000);
+        if (progress >= 1) return 1;
+        double start = EspionageConfig.startingAptitude();
+        return start + (1 - start) * Math.max(0, progress);
+    }
+
     public static int dailyRoll(int aptitude, int reduction, RandomGenerator random) {
         // Several independent draws concentrate luck around zero while retaining rare extremes.
         int luck = 0;

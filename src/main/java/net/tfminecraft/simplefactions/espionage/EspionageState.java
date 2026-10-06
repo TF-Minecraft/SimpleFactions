@@ -16,6 +16,8 @@ public class EspionageState {
     private java.util.List<OfficeUnrest> unrest = new java.util.ArrayList<>();
     private java.util.Set<SpecialPosition> pendingFounders = java.util.EnumSet.noneOf(SpecialPosition.class);
     private Map<SpecialPosition, String> pendingFounderCharacters = new EnumMap<>(SpecialPosition.class);
+    // Last deliberate appointment per office; starts the wait before the next one.
+    private Map<SpecialPosition, Long> lastAppointments = new EnumMap<>(SpecialPosition.class);
 
     void pendingFounder(SpecialPosition office) { pendingFounders.add(office); }
     void pendingFounder(SpecialPosition office, String characterId) {
@@ -28,7 +30,8 @@ public class EspionageState {
 
     record OfficeSnapshot(Map<SpecialPosition, SpecialPositionAssignment> positions,
             Map<SpecialPosition, Integer> appointments, java.util.List<OfficeUnrest> unrest,
-            java.util.Set<SpecialPosition> pendingFounders, Map<SpecialPosition, String> pendingFounderCharacters) {}
+            java.util.Set<SpecialPosition> pendingFounders, Map<SpecialPosition, String> pendingFounderCharacters,
+            Map<SpecialPosition, Long> lastAppointments) {}
 
     OfficeSnapshot snapshotOffices() {
         var savedPositions = new EnumMap<SpecialPosition, SpecialPositionAssignment>(SpecialPosition.class);
@@ -36,7 +39,8 @@ public class EspionageState {
         var savedAppointments = new EnumMap<SpecialPosition, Integer>(SpecialPosition.class);
         savedAppointments.putAll(appointments);
         return new OfficeSnapshot(savedPositions, savedAppointments,
-                new java.util.ArrayList<>(unrest), new java.util.HashSet<>(pendingFounders), new HashMap<>(pendingFounderCharacters));
+                new java.util.ArrayList<>(unrest), new java.util.HashSet<>(pendingFounders), new HashMap<>(pendingFounderCharacters),
+                new HashMap<>(lastAppointments));
     }
 
     void restoreOffices(OfficeSnapshot snapshot) {
@@ -45,6 +49,7 @@ public class EspionageState {
         unrest.clear(); unrest.addAll(snapshot.unrest());
         pendingFounders.clear(); pendingFounders.addAll(snapshot.pendingFounders());
         pendingFounderCharacters.clear(); pendingFounderCharacters.putAll(snapshot.pendingFounderCharacters());
+        lastAppointments.clear(); lastAppointments.putAll(snapshot.lastAppointments());
     }
 
     public SpecialPositionAssignment holder(SpecialPosition office) { return positions.get(office); }
@@ -105,7 +110,15 @@ public class EspionageState {
         appoint(assignment, assignment.aptitude);
     }
 
+    /** Appoints without a build-up or change wait, as for offices saved before either existed. */
     public void appoint(SpecialPositionAssignment assignment, int permanentAptitude) {
+        appoint(assignment, permanentAptitude, 0);
+    }
+
+    /** A positive time starts the holder's build-up and the wait before the next appointment. */
+    public void appoint(SpecialPositionAssignment assignment, int permanentAptitude, long now) {
+        if (now > 0) lastAppointments.put(SpecialPosition.SPYMASTER, now);
+        assignment.appointedAt = Math.max(0, now);
         pendingFounders.remove(SpecialPosition.SPYMASTER);
         pendingFounderCharacters.remove(SpecialPosition.SPYMASTER);
         appointments.put(SpecialPosition.SPYMASTER, appointmentCount(SpecialPosition.SPYMASTER) + 1);
@@ -113,6 +126,13 @@ public class EspionageState {
         assignment.aptitude = EspionageMath.clamp(permanentAptitude, 0, 100);
         positions.put(SpecialPosition.SPYMASTER, assignment);
     }
+
+    public long lastAppointedAt(SpecialPosition office) {
+        return lastAppointments.getOrDefault(office, 0L);
+    }
+
+    /** Losing a holder to character death is not a leader's choice, so the next appointment need not wait. */
+    void waiveAppointmentWait(SpecialPosition office) { lastAppointments.remove(office); }
 
     public Map<String, Integer> legacyAptitudes() { return Map.copyOf(appointmentAptitudes); }
 
