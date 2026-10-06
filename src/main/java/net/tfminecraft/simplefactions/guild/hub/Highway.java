@@ -14,11 +14,14 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Link;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Mode;
 import net.tfminecraft.simplefactions.guild.hub.HubTransport.Rates;
+import net.tfminecraft.simplefactions.guild.network.InstallationAccess;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph.Edge;
 import net.tfminecraft.simplefactions.guild.network.TradeGraph.Node;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
+import net.tfminecraft.simplefactions.objects.Faction;
 
 /** Trade and production along the shared graph. Sea and rail edges include their corridor stops. */
 public final class Highway {
@@ -34,11 +37,13 @@ public final class Highway {
         }
     }
 
-    private record Stop(int provinceId, double position, double strength) {
+    /** {@code station} is set only for a train-station endpoint. Corridor stops leave it null. */
+    private record Stop(int provinceId, double position, double strength, Node station) {
     }
 
     private record Line(
-            int[] provinceIds, double[] positions, double[] strengths, Rates rates, double access) {
+            int[] provinceIds, double[] positions, double[] strengths, Node[] stations,
+            Rates rates, double access) {
     }
 
     private Highway() {
@@ -59,14 +64,16 @@ public final class Highway {
         if (provinces == null || guild == null || guild.getId() == null || graph == null || graph.nodes().isEmpty()) {
             return;
         }
-        List<Line> lines = lines(provinces, graph, accessByOwner);
-        if (lines.isEmpty()) {
+        Map<String, Double> owners = new HashMap<>();
+        List<Line> lines = lines(provinces, guild, graph, accessByOwner, owners);
+        boolean pushing = openTrackActive(graph);
+        if (lines.isEmpty() && !pushing) {
             return;
         }
-        int stopCount = distinctStopCount(lines);
+        int stopCount = offerCount(lines, graph, pushing);
         int guard = stopCount * stopCount + 1;
         for (int pass = 0; pass < guard; pass++) {
-            if (!onePass(provinces, guild, lines, false)) {
+            if (!onePass(provinces, guild, graph, lines, accessByOwner, owners, false)) {
                 return;
             }
         }
@@ -78,14 +85,15 @@ public final class Highway {
         if (provinces == null || guild == null || guild.getId() == null || graph == null || graph.nodes().isEmpty()) {
             return;
         }
-        List<Line> lines = lines(provinces, graph, accessByOwner);
+        Map<String, Double> owners = new HashMap<>();
+        List<Line> lines = lines(provinces, guild, graph, accessByOwner, owners);
         if (lines.isEmpty()) {
             return;
         }
-        int stopCount = distinctStopCount(lines);
+        int stopCount = offerCount(lines, graph, false);
         int guard = stopCount * stopCount + 1;
         for (int pass = 0; pass < guard; pass++) {
-            if (!onePass(provinces, guild, lines, true)) {
+            if (!onePass(provinces, guild, graph, lines, accessByOwner, owners, true)) {
                 return;
             }
         }
@@ -170,7 +178,8 @@ public final class Highway {
     }
 
     private static List<Line> lines(
-            ProvinceManager provinces, TradeGraph graph, Map<String, Double> accessByOwner) {
+            ProvinceManager provinces, Guild guild, TradeGraph graph, Map<String, Double> accessByOwner,
+            Map<String, Double> owners) {
         List<Line> lines = new ArrayList<>();
         double corridor = corridorShare();
         for (Edge edge : graph.edges()) {
@@ -182,50 +191,77 @@ public final class Highway {
             double length = Math.max(0, edge.length());
             List<Stop> stops = new ArrayList<>();
             if (provinces.contains(edge.first().provinceId())) {
-                stops.add(new Stop(edge.first().provinceId(), 0, 1));
+                stops.add(endpoint(edge.first(), 0));
             }
             if (edge.mode() != Mode.AIR && corridor > 0) {
                 int count = edge.provinces().size();
                 for (int index = 0; index < count; index++) {
                     int provinceId = edge.provinces().get(index);
                     if (provinces.contains(provinceId)) {
+                        double strength = corridor * ownerAccess(guild, provinces.get(provinceId), owners);
                         stops.add(new Stop(
-                                provinceId, length * (index + 1.0) / (count + 1.0), corridor));
+                                provinceId, length * (index + 1.0) / (count + 1.0), strength, null));
                     }
                 }
             }
             if (provinces.contains(edge.second().provinceId())) {
-                stops.add(new Stop(edge.second().provinceId(), length, 1));
+                stops.add(endpoint(edge.second(), length));
             }
             if (stops.size() > 1) {
                 int[] provinceIds = new int[stops.size()];
                 double[] positions = new double[stops.size()];
                 double[] strengths = new double[stops.size()];
+                Node[] stations = new Node[stops.size()];
                 for (int index = 0; index < stops.size(); index++) {
                     Stop stop = stops.get(index);
                     provinceIds[index] = stop.provinceId();
                     positions[index] = stop.position();
                     strengths[index] = stop.strength();
+                    stations[index] = stop.station();
                 }
                 lines.add(new Line(
-                        provinceIds, positions, strengths, HubTransport.rates(edge.mode()), edgeAccess));
+                        provinceIds, positions, strengths, stations,
+                        HubTransport.rates(edge.mode()), edgeAccess));
             }
         }
         return List.copyOf(lines);
     }
 
-    private static int distinctStopCount(List<Line> lines) {
+    private static Stop endpoint(Node node, double position) {
+        Node station = node.kind() == InstallationKind.TRAIN_STATION ? node : null;
+        return new Stop(node.provinceId(), position, 1, station);
+    }
+
+    private static int offerCount(List<Line> lines, TradeGraph graph, boolean pushing) {
         Set<Integer> stops = new HashSet<>();
         for (Line line : lines) {
             for (int provinceId : line.provinceIds()) {
                 stops.add(provinceId);
             }
         }
+        if (pushing) {
+            for (Node node : graph.nodes()) {
+                if (node.kind() != InstallationKind.TRAIN_STATION) continue;
+                stops.addAll(graph.openTrack(node.ownerFactionId(), node.installationId()).keySet());
+            }
+        }
         return stops.size();
     }
 
+    private static boolean openTrackActive(TradeGraph graph) {
+        if (!OpenTrackSettings.enabled()) return false;
+        for (Node node : graph.nodes()) {
+            if (node.kind() == InstallationKind.TRAIN_STATION
+                    && !graph.openTrack(node.ownerFactionId(), node.installationId()).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean onePass(
-            ProvinceManager provinces, Guild guild, List<Line> lines, boolean production) {
+            ProvinceManager provinces, Guild guild, TradeGraph graph, List<Line> lines,
+            Map<String, Double> accessByOwner, Map<String, Double> owners, boolean production) {
         Map<Integer, Double> rawAt = new HashMap<>();
         for (Line line : lines) {
             for (int provinceId : line.provinceIds()) {
@@ -236,17 +272,43 @@ public final class Highway {
         Map<Integer, Double> offered = new HashMap<>();
         for (Line line : lines) {
             int size = line.provinceIds().length;
-            double[] values = new double[size];
+            double[] stored = new double[size];
+            double[] boarding = new double[size];
+            boolean stationBoarding = false;
             for (int index = 0; index < size; index++) {
-                values[index] = rawAt.getOrDefault(line.provinceIds()[index], 0.0);
+                stored[index] = rawAt.getOrDefault(line.provinceIds()[index], 0.0);
+                Node station = line.stations()[index];
+                if (!production && station != null) {
+                    boarding[index] = stationInput(provinces, guild, station);
+                    stationBoarding = true;
+                } else {
+                    boarding[index] = stored[index];
+                }
             }
             double share = production ? line.rates().production() : line.rates().trade();
-            double[] deliveries = lineDeliveries(
-                    line.positions(), values, line.strengths(),
-                    share, line.rates().keptPer1000(), line.access());
+            double kept = line.rates().keptPer1000();
+            double[] deliveries = stationBoarding
+                    ? lineDeliveries(line.positions(), boarding, stored, line.strengths(),
+                            share, kept, line.access())
+                    : lineDeliveries(line.positions(), boarding, line.strengths(),
+                            share, kept, line.access());
+            if (stationBoarding) {
+                // A station boards a neighbour's trade for everyone else. What returns to that
+                // station ignores trade the neighbour boarding itself accounts for, so the
+                // station province is not seeded with its own outbound goods.
+                for (int index = 0; index < size; index++) {
+                    if (line.stations()[index] != null) {
+                        deliveries[index] = withheldArrival(
+                                line, stored, boarding, index, share, kept);
+                    }
+                }
+            }
             for (int index = 0; index < size; index++) {
                 offered.merge(line.provinceIds()[index], deliveries[index], Math::max);
             }
+        }
+        if (!production) {
+            pushOpenTrack(provinces, guild, graph, accessByOwner, owners, offered);
         }
         double threshold = production ? 0.1 : 0.5;
         boolean moved = false;
@@ -276,36 +338,118 @@ public final class Highway {
     static double[] lineDeliveries(
             double[] positions, double[] raw, double[] stops,
             double share, double keptPer1000, double access) {
-        if (positions.length != raw.length || raw.length != stops.length) {
+        return lineDeliveries(positions, raw, raw, stops, share, keptPer1000, access);
+    }
+
+    /**
+     * {@code boardingRaw} is what gets on at the stop. {@code selfRaw} is what that stop may
+     * keep from its own boarding. A train station boards neighbouring trade without writing
+     * that higher figure back onto the station province.
+     */
+    static double[] lineDeliveries(
+            double[] positions, double[] boardingRaw, double[] selfRaw, double[] stops,
+            double share, double keptPer1000, double access) {
+        if (positions.length != boardingRaw.length || boardingRaw.length != stops.length
+                || selfRaw.length != boardingRaw.length) {
             throw new IllegalArgumentException("Line arrays must have the same length");
         }
-        double[] delivered = new double[raw.length];
+        double[] delivered = new double[boardingRaw.length];
         double modeShare = tradeShare(share);
         double lineAccess = clampAccess(access);
         double kept = tradeShare(keptPer1000);
         if (modeShare <= 0 || lineAccess <= 0) {
             return delivered;
         }
-        sweep(positions, raw, stops, modeShare * lineAccess, kept, delivered, 0, raw.length, 1);
-        sweep(positions, raw, stops, modeShare * lineAccess, kept, delivered, raw.length - 1, -1, -1);
+        sweep(positions, boardingRaw, selfRaw, stops, modeShare * lineAccess, kept, delivered, 0, boardingRaw.length, 1);
+        sweep(positions, boardingRaw, selfRaw, stops, modeShare * lineAccess, kept, delivered, boardingRaw.length - 1, -1, -1);
         return delivered;
     }
 
+    /**
+     * Arrival at one train station when the rest of the line boards, excluding trade that this
+     * station's neighbour boarding accounts for. Compared again on a later recalculation, where
+     * that trade is already stored and would otherwise travel back.
+     */
+    private static double withheldArrival(
+            Line line, double[] stored, double[] boarding, int station, double share, double kept) {
+        double[] fromInput = isolatedArrival(line, station, boarding[station], share, kept);
+        double[] fromOwn = isolatedArrival(line, station, stored[station], share, kept);
+        double[] board = new double[stored.length];
+        for (int index = 0; index < stored.length; index++) {
+            if (index == station) {
+                board[index] = stored[index];
+                continue;
+            }
+            if (line.stations()[index] != null && boarding[index] > stored[index]) {
+                board[index] = boarding[index];
+                continue;
+            }
+            double explained = fromInput[index];
+            if (stored[index] <= explained + 1e-6) {
+                board[index] = Math.min(stored[index], Math.max(0, fromOwn[index]));
+            } else {
+                board[index] = stored[index];
+            }
+        }
+        return lineDeliveries(line.positions(), board, stored, line.strengths(),
+                share, kept, line.access())[station];
+    }
+
+    /** What {@code amount} from one stop delivers to the others when nobody else boards. */
+    private static double[] isolatedArrival(
+            Line line, int station, double amount, double share, double kept) {
+        double[] raw = new double[line.positions().length];
+        raw[station] = amount;
+        return lineDeliveries(line.positions(), raw, raw, line.strengths(), share, kept, line.access());
+    }
+
     private static void sweep(
-            double[] positions, double[] raw, double[] stops, double factor, double kept,
-            double[] delivered, int start, int end, int step) {
+            double[] positions, double[] boardingRaw, double[] selfRaw, double[] stops,
+            double factor, double kept, double[] delivered, int start, int end, int step) {
         double carry = 0;
         int previous = start;
         for (int index = start; index != end; index += step) {
+            double incoming = carry;
             if (index != start) {
                 double distance = Math.abs(positions[index] - positions[previous]);
-                carry *= Math.pow(kept, Math.max(0, distance) / 1000.0);
+                incoming = carry * Math.pow(kept, Math.max(0, distance) / 1000.0);
             }
             double strength = clampAccess(stops[index]);
-            double boarding = finitePositive(raw[index]) * strength * factor;
-            carry = Math.max(carry, boarding);
-            delivered[index] = Math.max(delivered[index], carry * strength);
+            double boarding = finitePositive(boardingRaw[index]) * strength * factor;
+            double self = finitePositive(selfRaw[index]) * strength * factor;
+            delivered[index] = Math.max(delivered[index], Math.max(incoming, self) * strength);
+            carry = Math.max(incoming, boarding);
             previous = index;
+        }
+    }
+
+    private static void pushOpenTrack(
+            ProvinceManager provinces, Guild guild, TradeGraph graph, Map<String, Double> accessByOwner,
+            Map<String, Double> owners, Map<Integer, Double> offered) {
+        if (!OpenTrackSettings.enabled()) return;
+        Rates rail = HubTransport.rates(Mode.RAIL);
+        double modeShare = tradeShare(rail.trade() * OpenTrackSettings.share());
+        double kept = tradeShare(OpenTrackSettings.keptPer1000());
+        if (modeShare <= 0 || kept <= 0) return;
+        for (Node node : graph.nodes()) {
+            if (node.kind() != InstallationKind.TRAIN_STATION) continue;
+            Map<Integer, Double> reach = graph.openTrack(node.ownerFactionId(), node.installationId());
+            if (reach.isEmpty()) continue;
+            double stationAccess = clampAccess(access(accessByOwner, node));
+            if (stationAccess <= 0) continue;
+            double input = stationInput(provinces, guild, node);
+            if (input <= 0) continue;
+            double base = input * modeShare * stationAccess;
+            for (Map.Entry<Integer, Double> entry : reach.entrySet()) {
+                int provinceId = entry.getKey();
+                if (provinceId == node.provinceId() || !provinces.contains(provinceId)) continue;
+                double distance = entry.getValue();
+                if (!Double.isFinite(distance) || distance < 0) continue;
+                double owner = ownerAccess(guild, provinces.get(provinceId), owners);
+                if (owner <= 0) continue;
+                double amount = base * Math.pow(kept, distance / 1000.0) * owner;
+                offered.merge(provinceId, amount, Math::max);
+            }
         }
     }
 
@@ -372,6 +516,46 @@ public final class Highway {
             }
         }
         return nodes;
+    }
+
+    /**
+     * Trade a train station may board: its own province, or a neighbouring land province
+     * in the same top realm, whichever is higher. The station's stored trade is unchanged.
+     */
+    private static double stationInput(ProvinceManager provinces, Guild guild, Node station) {
+        double best = raw(provinces, guild, station.provinceId());
+        Province home = provinces.get(station.provinceId());
+        if (home == null) return best;
+        Faction stationOwner = home.getOwner();
+        if (stationOwner == null) return best;
+        Faction realm = InstallationAccess.topRealm(stationOwner);
+        if (realm == null || realm.getId() == null) return best;
+        for (int neighbourId : home.getNeighbours()) {
+            Province neighbour = provinces.get(neighbourId);
+            if (neighbour == null || neighbour.isSea()) continue;
+            Faction owner = neighbour.getOwner();
+            if (owner == null) continue;
+            Faction neighbourRealm = InstallationAccess.topRealm(owner);
+            if (neighbourRealm == null || neighbourRealm.getId() == null) continue;
+            if (realm != neighbourRealm && !realm.getId().equalsIgnoreCase(neighbourRealm.getId())) continue;
+            best = Math.max(best, raw(provinces, guild, neighbourId));
+        }
+        return best;
+    }
+
+    /** Access to the province owner, cached per owner for this guild. Unowned land is fully open. */
+    private static double ownerAccess(Guild guild, Province province, Map<String, Double> cache) {
+        if (province == null) return 1;
+        Faction owner = province.getOwner();
+        if (owner == null || owner.getId() == null) return 1;
+        String id = owner.getId().toLowerCase(Locale.ROOT);
+        Double known = cache.get(id);
+        if (known != null) return known;
+        double value = InstallationAccess.of(guild == null ? null : guild.getFaction(), owner);
+        if (!Double.isFinite(value)) value = 0;
+        value = Math.max(0, Math.min(1, value));
+        cache.put(id, value);
+        return value;
     }
 
     private static double raw(ProvinceManager provinces, Guild guild, Node node) {

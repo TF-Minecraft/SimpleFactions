@@ -33,6 +33,7 @@ public class ConfigLoader {
 		double corridor = section == null ? 0.5 : section.getDouble("corridor-share", 0.5);
 		Cache.supplyHubCorridorShare = Double.isFinite(corridor) ? Math.max(0, Math.min(1, corridor)) : 0.5;
 		net.tfminecraft.simplefactions.guild.hub.HubTransport.loadConfig(config);
+		net.tfminecraft.simplefactions.guild.hub.OpenTrackSettings.load(config);
 	}
 
 	public void loadConfig(File configFile) {

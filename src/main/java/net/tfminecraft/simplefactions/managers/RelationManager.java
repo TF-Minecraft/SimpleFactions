@@ -646,7 +646,7 @@ public class RelationManager {
 		Faction sender = req.getFaction();
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request and set trade to "+req.getType().getName());
-		setRelation(p, req.getType(), reciever, sender, false);
+		setTradeRelation(p, req.getType(), reciever, sender, false);
 	}
 
 	private static void sendTreatyRequest(Player sender, Faction f, RelationType type) {

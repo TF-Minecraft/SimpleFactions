@@ -174,7 +174,7 @@ class CorridorTest {
 
         Highway.deliverProduction(provinces, guild, graph, Map.of("owner", 1.0));
 
-        double expected = 100 * 0.5 * 0.8 * Math.pow(0.9, 0.5);
+        double expected = 100 * 0.5 * 0.4 * Math.pow(0.9, 0.5);
         assertEquals(expected, production(provinces, 1), 1e-9);
         assertEquals(expected, production(provinces, 2), 1e-9);
     }
