@@ -10,7 +10,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 
 class OfficeAppointmentsTest {
     @Test
-    void newSoloFactionWaitsForACharacterWithoutUsingTheFreeAppointment() {
+    void newFactionWaitsForTheLeadersCharacterWithoutUsingTheFreeAppointment() {
         var faction = mock(Faction.class);
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
@@ -31,7 +31,43 @@ class OfficeAppointmentsTest {
             when(faction.getMembers()).thenReturn(java.util.List.of("Founder", "Member"));
             EspionageService.initializeFounder(faction);
             assertNull(state.getSpymaster());
+            assertTrue(state.hasPendingFounder(), "The leader still takes the office once others have joined");
         }
+    }
+
+    @Test
+    void vacantOfficeInALargerFactionFallsToTheLeadersCharacterAtFullAptitude() throws Exception {
+        var faction = mock(Faction.class);
+        var leader = mock(org.bukkit.entity.Player.class);
+        var state = new EspionageState();
+        when(faction.getEspionage()).thenReturn(state);
+        when(faction.getLeader()).thenReturn("Leader");
+        when(faction.isLeader("Leader")).thenReturn(true);
+        when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "Member", "Other"));
+        when(leader.getUniqueId()).thenReturn(java.util.UUID.randomUUID());
+        var registry = mock(CharacterAptitudes.class);
+        when(registry.aptitude(eq("leader-character"), any())).thenReturn(72);
+        var field = EspionageService.class.getDeclaredField("characterAptitudes");
+        field.setAccessible(true);
+        var previous = field.get(null);
+        try (var bukkit = mockStatic(org.bukkit.Bukkit.class);
+             var characters = mockStatic(OfficeCharacters.class);
+             var databases = mockConstruction(net.tfminecraft.simplefactions.database.Database.class)) {
+            field.set(null, registry);
+            bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
+            bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Leader")).thenReturn(leader);
+            characters.when(() -> OfficeCharacters.activeCharacterId(leader)).thenReturn("leader-character");
+            var holder = EspionageService.spymaster(faction);
+            assertNotNull(holder);
+            assertEquals("Leader", holder.playerName);
+            assertEquals("leader-character", holder.characterId);
+            assertTrue(holder.automatic);
+            assertEquals(72, EspionageService.effectiveAptitude(faction, holder));
+            assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER), "The default holding keeps the free appointment");
+            assertFalse(state.hasPendingFounder());
+            verify(databases.constructed().getFirst()).saveFaction(faction);
+            verify(leader).sendMessage(contains("you hold the keys"));
+        } finally { field.set(null, previous); }
     }
 
     private SpecialPositionAssignment assignment(String name) {

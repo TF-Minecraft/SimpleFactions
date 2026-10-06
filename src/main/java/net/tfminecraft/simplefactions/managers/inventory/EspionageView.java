@@ -259,10 +259,14 @@ public final class EspionageView {
         Inventory inventory = Bukkit.createInventory(new SFInventoryHolder(faction.getId(), SFGUI.SPYMASTER_VIEW),
                 27, "\u00a77Spymaster's Office");
         SpecialPositionAssignment holder = EspionageService.spymaster(faction);
+        int held = EspionageService.positionsHeld(faction, holder);
         ItemStack head = item(Material.PLAYER_HEAD, "Spymaster: " + (holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)),
                 "§7Aptitude: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
-                holder != null && faction.isLeader(holder.playerName) ? "§7Solo leader: " + Math.round(EspionageConfig.soloMultiplier() * 100)
-                        + "% aptitude retained (base " + holder.aptitude + ")." : "§7Faction leaders are ineligible while other members belong.",
+                holder == null ? "§7Falls to the faction leader once they have an active character."
+                        : held > 1 ? "§7Holds " + held + " offices: " + Math.round(EspionageService.positionMultiplier(held) * 100)
+                                + "% aptitude in each (base " + holder.aptitude + ")."
+                        : holder.automatic ? "§7Held by the faction leader until a member is appointed."
+                        : "§7Appointed by the faction leader.",
                 "§7Gathers foreign intelligence and guards your secrets.",
                 holder == null ? "\u00a7cWithout a Spymaster, all faction and guild information is public."
                         : "\u00a77An eligible Spymaster protects your faction and guild information.",
@@ -283,7 +287,7 @@ public final class EspionageView {
                             ? "\u00a77The founder's assignment does not use your free appointment."
                             : "\u00a77Unrest: -" + EspionageConfig.stabilityPenalty() + " points, fading over " + EspionageConfig.penaltyDays() + " days."));
             inventory.setItem(15, item(Material.REDSTONE, "Remove Spymaster",
-                    "\u00a7cMakes all faction and guild information public."));
+                    "\u00a77Dismisses the appointee. The office returns to you."));
         }
         inventory.setItem(26, manager.createBackButton(SFGUI.SPYMASTER_VIEW));
         viewer.openInventory(inventory);

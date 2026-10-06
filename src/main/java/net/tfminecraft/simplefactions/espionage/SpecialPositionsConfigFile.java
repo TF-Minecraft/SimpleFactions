@@ -12,6 +12,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 /** Migrates the old espionage section once; existing dedicated settings always win. */
 public final class SpecialPositionsConfigFile {
+    // Settings whose rule no longer exists; their comments would mislead staff.
+    private static final java.util.List<String> RETIRED_KEYS = java.util.List.of("espionage.aptitude.solo-leader-multiplier");
     private SpecialPositionsConfigFile() {}
 
     public static void load(JavaPlugin plugin) {
@@ -54,6 +56,12 @@ public final class SpecialPositionsConfigFile {
         }
         boolean changed = !file.exists();
         if (changed) settings.options().setHeader(defaults.options().getHeader());
+        for (String retired : RETIRED_KEYS) {
+            if (settings.contains(retired)) {
+                settings.set(retired, null);
+                changed = true;
+            }
+        }
         for (var entry : defaults.getValues(true).entrySet()) {
             if (!(entry.getValue() instanceof org.bukkit.configuration.ConfigurationSection) && !settings.contains(entry.getKey())) {
                 settings.set(entry.getKey(), entry.getValue());

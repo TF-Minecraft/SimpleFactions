@@ -22,17 +22,37 @@ class OfficePersistenceTest {
         when(faction.getEspionage()).thenReturn(state);
         when(actor.getName()).thenReturn("Leader");
         when(faction.isLeader("Leader")).thenReturn(true);
+        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.remove(actor, faction));
             assertSame(holder, state.getSpymaster());
             assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
             verify(actor).sendMessage(contains("could not be saved"));
-            verify(actor, never()).sendMessage(contains("now vacant"));
+            verify(actor, never()).sendMessage(contains("dismissed"));
         }
         try (var databases = mockConstruction(Database.class, (database, context) -> when(database.saveFactionChecked(faction)).thenReturn(true))) {
             assertTrue(EspionageService.remove(actor, faction));
             assertNull(state.getSpymaster());
             assertEquals(1, state.appointmentCount(SpecialPosition.SPYMASTER));
+            verify(actor).sendMessage(contains("returns to you"));
+        }
+    }
+
+    @Test void leaderCannotDismissTheirOwnDefaultHolding() {
+        var faction = mock(Faction.class);
+        var actor = mock(Player.class);
+        var state = new EspionageState();
+        var leader = holder("Leader");
+        state.assignFounder(SpecialPosition.SPYMASTER, leader, 80);
+        when(faction.getEspionage()).thenReturn(state);
+        when(faction.getLeader()).thenReturn("Leader");
+        when(actor.getName()).thenReturn("Leader");
+        when(faction.isLeader("Leader")).thenReturn(true);
+        try (var databases = mockConstruction(Database.class)) {
+            assertFalse(EspionageService.remove(actor, faction));
+            assertSame(leader, state.getSpymaster());
+            assertTrue(databases.constructed().isEmpty());
+            verify(actor).sendMessage(contains("already rests with you"));
         }
     }
 
