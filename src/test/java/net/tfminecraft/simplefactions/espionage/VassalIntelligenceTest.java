@@ -110,6 +110,27 @@ class VassalIntelligenceTest {
         assertEquals("70", report.display(IntelligenceReport.officeAptitudeKey(SpecialPosition.SPYMASTER)));
     }
 
+    @Test void sharedRostersKeepTheRolledSampleForWhenSharingStops() {
+        var target = mock(Faction.class, RETURNS_DEEP_STUBS);
+        var guild = mock(net.tfminecraft.simplefactions.guild.Guild.class);
+        var members = java.util.stream.IntStream.range(0, 10).mapToObj(index -> "Account" + index).toList();
+        when(target.getMembers()).thenReturn(members);
+        when(target.getGuildHandler().getGuilds()).thenReturn(List.of(guild));
+        when(target.getEspionage()).thenReturn(new EspionageState());
+        when(guild.getId()).thenReturn("guild");
+        when(guild.getMembers()).thenReturn(members);
+        when(guild.isMember(anyString())).thenReturn(true);
+        var report = EspionageService.createReport(Map.of(), -50, IntelligenceTier.RUMOURS, new Random(3));
+        try (var names = mockStatic(CharacterNames.class); var represents = mockStatic(Represents.class)) {
+            names.when(() -> CharacterNames.forForeign(anyString())).thenAnswer(call -> call.getArgument(0));
+            represents.when(() -> Represents.represents(eq(target), anyString())).thenReturn("Guild");
+            EspionageService.captureMembers(report, target, -50, new Random(3));
+        }
+        assertEquals(10, report.roster.size(), "The shared roster lists everyone");
+        assertEquals(2, report.roster.stream().filter(IntelligenceReport.RosterMember::sampled).count(),
+                "Only the rolled Rumours sample (20%) stays once sharing stops");
+    }
+
     @Test void onlyDirectPartnersReceiveTheirChosenTier() {
         Faction vassal = mock(Faction.class), overlord = mock(Faction.class), stranger = mock(Faction.class);
         var vassalState = new EspionageState();

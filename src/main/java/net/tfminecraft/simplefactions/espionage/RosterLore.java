@@ -41,7 +41,7 @@ public final class RosterLore {
                             }).toList())).toList();
             else entries = report == null || report.roster == null ? List.of() : report.roster.stream()
                     .filter(entry -> entry.guildId().equals(guild.getId()))
-                    .filter(entry -> entry.sampled() && report.allows("guild-members") && report.allows("roster")
+                    .filter(entry -> (entry.sampled() || report.exact("roster")) && report.allows("guild-members") && report.allows("roster")
                             || entry.guildLeader() && report.allows("guild-leader")
                             || !entry.offices().isEmpty() && report.allows("office-holder")).toList();
             lore.add("");

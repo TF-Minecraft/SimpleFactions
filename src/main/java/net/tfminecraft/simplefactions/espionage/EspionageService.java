@@ -479,23 +479,38 @@ public final class EspionageService {
     }
 
     static java.util.List<String> sample(java.util.List<String> members, int margin, RandomGenerator random) {
+        return sampleFraction(members, rosterFraction(margin), random);
+    }
+
+    private static double rosterFraction(int margin) {
         var tier = EspionageConfig.tier(margin);
-        return sampleFraction(members, EspionageConfig.allows(tier, "roster") ? EspionageConfig.settings(tier).rosterFraction() : 0, random);
+        return EspionageConfig.allows(tier, "roster") ? EspionageConfig.settings(tier).rosterFraction() : 0;
     }
 
     static java.util.List<String> sampleFraction(java.util.List<String> members, double fraction, RandomGenerator random) {
+        return prefix(shuffle(members, random), fraction);
+    }
+
+    private static java.util.List<String> shuffle(java.util.List<String> members, RandomGenerator random) {
         java.util.List<String> shuffled = new java.util.ArrayList<>(members);
         for (int i = shuffled.size() - 1; i > 0; i--) {
             int other = random.nextInt(i + 1);
             java.util.Collections.swap(shuffled, i, other);
         }
+        return shuffled;
+    }
+
+    private static java.util.List<String> prefix(java.util.List<String> shuffled, double fraction) {
         int count = (int) Math.floor(shuffled.size() * fraction);
         return shuffled.subList(0, Math.min(EspionageConfig.rosterLimit(), count)).stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
     }
 
     static void captureMembers(IntelligenceReport report, Faction target, int margin, RandomGenerator random) {
         var members = target.getMembers().stream().distinct().filter(name -> !target.isLeader(name)).toList();
-        var sample = report.exact("roster") ? sampleFraction(members, 1, random) : sample(members, margin, random);
+        var shuffled = shuffle(members, random);
+        // The rolled sample is a prefix of the shared roster, so it still holds if sharing is switched off.
+        var rolled = prefix(shuffled, rosterFraction(margin));
+        var sample = report.exact("roster") ? prefix(shuffled, 1) : rolled;
         report.members = sample.stream().map(name -> CharacterNames.forForeign(name) + " §7— "
                 + net.tfminecraft.simplefactions.utils.Represents.represents(target, name)).toList();
         for (var guild : target.getGuildHandler().getGuilds()) {
@@ -513,7 +528,7 @@ public final class EspionageService {
                 boolean knownLeader = guild.isLeader(name) && report.allows("guild-leader");
                 boolean knownOffice = !offices.isEmpty() && report.allows("office-holder");
                 if (!knownLeader && !knownOffice && (!report.allows("guild-members") || !sample.contains(name))) continue;
-                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.forForeign(name), guild.getId(), guild.getName(), sample.contains(name),
+                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.forForeign(name), guild.getId(), guild.getName(), rolled.contains(name),
                         knownLeader, knownOffice ? offices : java.util.List.of()));
             }
         }

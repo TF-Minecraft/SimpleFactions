@@ -77,7 +77,7 @@ public final class EspionageView {
         List<String> lore = new ArrayList<>(List.of("\u00a77Report quality: \u00a7e" + (missingSpymaster ? "Absent"
                         : report == null ? IntelligenceTier.UNKNOWN.label() : report.qualityLabel()),
                 report == null ? "\u00a77No dated account has yet reached your court." : "\u00a77Dated " + report.loreDate(), last));
-        if (!missingSpymaster && report != null && report.sharedTier() != IntelligenceTier.UNKNOWN)
+        if (!missingSpymaster && report != null && EspionageConfig.sharingAllowed() && report.sharedTier() != IntelligenceTier.UNKNOWN)
             lore.add("\u00a7aTheir Spymaster shares everything up to " + report.sharedTier().label() + " exactly.");
         return item(Material.SPYGLASS, "Foreign intelligence", lore.toArray(String[]::new));
     }
