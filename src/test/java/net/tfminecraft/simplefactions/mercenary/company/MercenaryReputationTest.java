@@ -183,4 +183,11 @@ class MercenaryReputationTest {
         when(contract.hasCleanAttendance()).thenReturn(clean);
         return contract;
     }
+
+    @Test
+    void anUnrecoverableBreachContractUsesTheMaximumPenalty() {
+        assertEquals(-40, MercenaryReputationCalculator.calculateBreachPenalty(null));
+        assertEquals(-40, MercenaryReputationCalculator.calculateBankruptcyPenalty(null));
+    }
+
 }

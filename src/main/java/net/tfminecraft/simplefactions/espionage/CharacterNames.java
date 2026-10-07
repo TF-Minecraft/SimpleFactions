@@ -89,13 +89,20 @@ public final class CharacterNames {
         if (Files.isDirectory(folder)) {
             try (var files = Files.list(folder)) {
                 for (Path file : files.filter(path -> path.toString().endsWith(".json")).sorted().toList()) {
-                    JsonObject json = JsonUtil.GSON.fromJson(Files.readString(file), JsonObject.class);
-                    if (json != null && json.has("active") && json.get("active").getAsBoolean() && json.has("name")) {
-                        result = json.get("name").getAsString();
-                        break;
+                    try {
+                        JsonObject json = JsonUtil.GSON.fromJson(Files.readString(file), JsonObject.class);
+                        if (json != null && json.has("active") && json.get("active").isJsonPrimitive()
+                                && json.get("active").getAsBoolean() && json.has("name")
+                                && json.get("name").isJsonPrimitive() && json.getAsJsonPrimitive("name").isString()
+                                && !json.get("name").getAsString().isBlank()) {
+                            result = json.get("name").getAsString();
+                            break;
+                        }
+                    } catch (java.io.IOException | com.google.gson.JsonParseException | IllegalStateException ignored) {
+                        // A damaged older record must not hide a later active character.
                     }
                 }
-            } catch (java.io.IOException | com.google.gson.JsonParseException | IllegalStateException ignored) {
+            } catch (java.io.IOException ignored) {
                 // Cache the absence too; account-oriented callers supply their own fallback.
             }
         }

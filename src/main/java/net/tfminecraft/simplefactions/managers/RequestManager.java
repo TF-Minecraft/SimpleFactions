@@ -27,7 +27,8 @@ import net.tfminecraft.simplefactions.objects.request.WarRequest;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryInvites;
 
-public class RequestManager {
+public final class RequestManager {
+	private RequestManager() {}
 	private static HashMap<Player, Request> requests = new HashMap<>();
 	
 	public static void start() {
@@ -126,6 +127,10 @@ public class RequestManager {
 	public static void accept(Player p) {
 		if(!hasRequest(p)) return;
 		Request req = requests.get(p);
+		if (req.timedOut()) {
+			expireTimedOutRequests();
+			return;
+		}
 		if(req instanceof RelationRequest rreq) {
 			if(rreq.isTrade()) {
 				RelationManager.acceptTradeRequest(p);

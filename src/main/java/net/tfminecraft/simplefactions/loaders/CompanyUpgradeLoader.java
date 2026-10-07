@@ -37,14 +37,16 @@ public class CompanyUpgradeLoader {
 
     public void load(File configFile) {
         FileConfiguration config = new YamlConfiguration();
+        Map<String, Upgrade> loaded = new java.util.LinkedHashMap<>();
         try {
             config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
+            for (String key : config.getKeys(false)) {
+                loaded.put(key, new Upgrade(key, config.getConfigurationSection(key)));
+            }
+        } catch (IOException | InvalidConfigurationException | RuntimeException e) {
+            throw new IllegalStateException("Cannot load definitions from " + configFile, e);
         }
         map.clear();
-        for (String key : new ArrayList<>(config.getKeys(false))) {
-            map.put(key, new Upgrade(key, config.getConfigurationSection(key)));
-        }
+        map.putAll(loaded);
     }
 }

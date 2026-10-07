@@ -17,6 +17,8 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleLootMode;
 import net.tfminecraft.simplefactions.war.battle.enums.DefenderRespawnMode;
 
 public class Cache {
+    private Cache() {}
+
 	public static String mapRef;
 	/** Chapter slug for a future Archive prefill. Not the live upload folder. */
 	public static String chapterId = "unknown";

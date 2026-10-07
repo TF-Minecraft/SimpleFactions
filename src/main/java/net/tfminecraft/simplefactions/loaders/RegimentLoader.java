@@ -31,19 +31,17 @@ public class RegimentLoader {
 		return null;
 	}
 	public void loadRegiments(File configFile) {
-		FileConfiguration config = new YamlConfiguration();
+        FileConfiguration config = new YamlConfiguration();
+        List<Regiment> loaded = new ArrayList<>();
         try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
+            config.load(configFile);
+            for (String key : config.getKeys(false)) {
+                loaded.add(new Regiment(key, config.getConfigurationSection(key)));
+            }
+        } catch (IOException | InvalidConfigurationException | RuntimeException e) {
+            throw new IllegalStateException("Cannot load definitions from " + configFile, e);
         }
-		Set<String> set = config.getKeys(false);
-
-		List<String> list = new ArrayList<String>(set);
-		
-		for(String key : list) {
-			Regiment r = new Regiment(key, config.getConfigurationSection(key));
-			oList.add(r);
-		}
-	}
+        oList.clear();
+        oList.addAll(loaded);
+    }
 }

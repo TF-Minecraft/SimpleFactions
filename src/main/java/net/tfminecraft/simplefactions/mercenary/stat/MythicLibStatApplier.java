@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.mercenary.stat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,7 +56,7 @@ public final class MythicLibStatApplier implements MercenaryStatApplier {
     @Override
     public void strip(Player player) {
         List<StatModifier> modifiers = registered.remove(player.getUniqueId());
-        if (modifiers != null && !modifiers.isEmpty()) {
+        if (modifiers != null && !modifiers.isEmpty() && pluginEnabled("MythicLib")) {
             MMOPlayerData data = MMOPlayerData.getOrNull(player);
             if (data != null) {
                 for (StatModifier modifier : modifiers) {
@@ -68,7 +69,7 @@ public final class MythicLibStatApplier implements MercenaryStatApplier {
 
     private static StatModifier register(MMOPlayerData data, String stat, double amount) {
         StatModifier modifier = new StatModifier(
-                KEY_PREFIX + stat.toLowerCase(), stat, amount, ModifierType.FLAT);
+                KEY_PREFIX + stat.toLowerCase(Locale.ROOT), stat, amount, ModifierType.FLAT);
         modifier.register(data);
         return modifier;
     }

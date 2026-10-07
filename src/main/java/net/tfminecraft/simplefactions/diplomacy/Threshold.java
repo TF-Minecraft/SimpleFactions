@@ -10,6 +10,10 @@ public class Threshold {
 	
 	public Threshold(ConfigurationSection config) {
 		type = config.getString("mode", "higher_than_or_equal_to");
+		if (!type.equalsIgnoreCase("lower_than_or_equal_to")
+				&& !type.equalsIgnoreCase("higher_than_or_equal_to")) {
+			throw new IllegalArgumentException("Unknown opinion threshold mode: " + type);
+		}
 		opinion = config.getInt("amount", 20);
 		mutual = config.getBoolean("mutual", false);
 	}
@@ -23,26 +27,14 @@ public class Threshold {
 	}
 	
 	public boolean fulfilled(int i) {
-		if(type.equalsIgnoreCase("lower_than_or_equal_to")) {
-			if(i > opinion) return false;
-		}
-		else if(type.equalsIgnoreCase("higher_than_or_equal_to")) {
-			if(i < opinion) return false;
-		}
-		return true;
+		return type.equalsIgnoreCase("lower_than_or_equal_to") ? i <= opinion : i >= opinion;
 	}
-	
+
 	public String getFormattedType() {
 		return (new String(type)).replace("_", " ");
 	}
 	
 	public String getFormattedShort() {
-		if(type.equalsIgnoreCase("lower_than_or_equal_to")) {
-			return "<=";
-		}
-		else if(type.equalsIgnoreCase("higher_than_or_equal_to")) {
-			return ">=";
-		}
-		return "=";
+		return type.equalsIgnoreCase("lower_than_or_equal_to") ? "<=" : ">=";
 	}
 }

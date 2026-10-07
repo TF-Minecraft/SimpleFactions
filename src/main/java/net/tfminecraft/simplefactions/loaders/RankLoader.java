@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -30,7 +29,7 @@ public class RankLoader {
 	}
 	public static PrestigeRank getByLevel(Integer i) {
 		for(PrestigeRank r : ranks) {
-			if(r.getLevel() == i) return r;
+			if(java.util.Objects.equals(r.getLevel(), i)) return r;
 		}
 		return null;
 	}
@@ -42,18 +41,23 @@ public class RankLoader {
 	}
 	public void loadRanks(File configFile) {
 		FileConfiguration config = new YamlConfiguration();
-        try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
-        }
-		Set<String> set = config.getKeys(false);
-
-		List<String> list = new ArrayList<String>(set);
-		ranks.clear();
-		for(String key : list) {
-			PrestigeRank r = new PrestigeRank(key, config.getConfigurationSection(key));
-			ranks.add(r);
+		List<PrestigeRank> loaded = new ArrayList<>();
+		try {
+			config.load(configFile);
+			for (String key : config.getKeys(false)) {
+				var section = config.getConfigurationSection(key);
+				if (section == null) {
+					throw new IllegalArgumentException("Rank " + key + " must be a section");
+				}
+				loaded.add(new PrestigeRank(key, section));
+			}
+			if (loaded.isEmpty()) {
+				throw new IllegalArgumentException("At least one rank is required");
+			}
+		} catch (IOException | InvalidConfigurationException | RuntimeException error) {
+			throw new IllegalStateException("Cannot load ranks from " + configFile, error);
 		}
+		ranks.clear();
+		ranks.addAll(loaded);
 	}
 }

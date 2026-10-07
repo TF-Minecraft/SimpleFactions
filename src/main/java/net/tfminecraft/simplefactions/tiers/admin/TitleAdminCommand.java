@@ -99,10 +99,7 @@ public final class TitleAdminCommand {
 	}
 
 	private static String usage(String sub) {
-		for (String line : USAGE) {
-			if (line.startsWith("§6/faction title " + sub + " ")) return line;
-		}
-		return USAGE[0];
+		return USAGE[SUBCOMMANDS.indexOf(sub)];
 	}
 
 	private static boolean provinceExists(int id) {

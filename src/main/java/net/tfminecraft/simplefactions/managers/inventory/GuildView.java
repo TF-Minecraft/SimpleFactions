@@ -205,9 +205,10 @@ public class GuildView {
 			tradePreview = BranchIncomePreview.prepare(manager);
 		}
 		int group = 0;
-		while(group < 10 && guild.getBranch(group) != null) {
+		while(group < 10) {
 			Branch b = guild.getBranch(group);
 			group++;
+			if (b == null) continue;
 			i.setItem(group+28, creator.createBranchItem(player, guild, b));
 			if(guild.isLeader(player)) {
 				int upgradeSlot = group + 19;
@@ -354,6 +355,7 @@ public class GuildView {
 					return;
 				}
 				BannerFetcher.fetch("guild:" + guild.getId(), patterns -> {
+					if(FactionManager.getGuildByString(guild.getId()) != guild || !guild.isLeader(p) || guild.isBase()) return;
 					if (patterns == null) {
 						if (p.isOnline()) p.sendMessage("§cCould not generate a banner right now. Try again later.");
 						return;
@@ -364,7 +366,7 @@ public class GuildView {
 					if (p.isOnline()) p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				});
 			} else if(e.getSlot() == 1) {
-				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
+				if(!guild.isMember(p)) return;
 				ItemStack i = new ItemStack(guild.getBanner());
 				p.getInventory().addItem(i);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -385,7 +387,7 @@ public class GuildView {
 					Province prov = SimpleFactions.getInstance().getProvinceManager().get(province);
 					if(prov == null || !prov.isValid() || prov.isSea()) return;
 					double cost = guild.getRelocationCost(province);
-					if(guild.getBank().getWealth() < cost) {	
+					if(guild.getBank() == null || !Double.isFinite(cost) || cost < 0 || guild.getBank().getWealth() < cost) {
 						p.sendMessage("§cCannot afford to relocate");
 						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 						return;
@@ -411,16 +413,17 @@ public class GuildView {
 						p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 						return;
 					}
+					Faction originalHost = guild.getFaction();
 					double cost = guild.getEvictionCost();
-					if(guild.getFaction().getGovernment().getPower() < cost) {
+					if(originalHost.getGovernment().getPower() < cost) {
 						p.sendMessage("§cCannot afford to evict");
 						p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 						return;
 					}
-					StabilityModifier modifier = new StabilityModifier("Evicted Guild", guild.getStabilityEffect(), 1); // stability effect lasts 6 hours
-					guild.getFaction().getGovernment().addStabilityModifier(modifier);
+					StabilityModifier modifier = new StabilityModifier("Evicted Guild", -guild.getStabilityEffect(), 1); // stability effect lasts 6 hours
+					originalHost.getGovernment().addStabilityModifier(modifier);
 					guild.toLandless(false);
-					guild.getFaction().getGovernment().spendPower(cost);
+					originalHost.getGovernment().spendPower(cost);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					p.closeInventory();
 				}
@@ -476,15 +479,21 @@ public class GuildView {
 				if(upgrade == null) return;
 				if(!guild.isLeader(p)) return;
 				Branch b = guild.getBranch(data);
+				if(b == null) return;
+				if (guild.getBank() == null) {
+					p.sendMessage("§cYour guild needs a bank to change a branch level.");
+					return;
+				}
 				if(!upgrade) {
 					if(b.getLevel() == 0) return;
-					guild.getBank().deposit(guild.getRefund());
+					double refund = guild.getRefund();
 					b.levelDown();
+					guild.getBank().deposit(refund);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					p.sendMessage("§cDowngraded "+b.getName()+ "§c to level §e"+b.getLevel());
 				} else {
 					double cost = guild.getExpansionCost();
-					if(guild.getBank().getWealth() < cost) {
+					if(guild.getBank() == null || !Double.isFinite(cost) || cost < 0 || guild.getBank().getWealth() < cost) {
 						p.sendMessage("§cCannot afford to upgrade");
 						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 						return;
@@ -494,8 +503,7 @@ public class GuildView {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					guild.getBank().withdraw(cost);
 				}
-				// Downgrade refunds before the level drops, so the wealth pass still
-				// sees the old branch prestige. Refresh once the level is final.
+				// Refresh prestige after the final branch and bank state has been applied.
 				if (!upgrade && guild.getFaction() != null) {
 					guild.getFaction().updatePrestige();
 				}

@@ -509,6 +509,7 @@ public class InventoryManager implements Listener{
 		double amount = 0;
 		try {
 			amount = Double.parseDouble(e.getMessage());
+			if (!Double.isFinite(amount)) throw new NumberFormatException("Amount must be finite");
 		} catch (Exception ex) {
 			p.sendMessage("§cError inputting the amount, use the format §e15.67 §cfor 15.67% tax (example)");
 			p.sendMessage("§4Type 'cancel' to cancel.");
@@ -598,6 +599,7 @@ public class InventoryManager implements Listener{
 		double amount;
 		try {
 			amount = Double.parseDouble(e.getMessage());
+			if (!Double.isFinite(amount)) throw new NumberFormatException("Amount must be finite");
 		} catch (Exception ex) {
 			p.sendMessage(kind.isPercent()
 					? "§cError inputting the amount, use the format §e15.5 §cfor 15.5% of upkeep (example)"
@@ -701,6 +703,7 @@ public class InventoryManager implements Listener{
 		double amount;
 		try {
 			amount = Double.parseDouble(e.getMessage());
+			if (!Double.isFinite(amount)) throw new NumberFormatException("Amount must be finite");
 		} catch (Exception ex) {
 			p.sendMessage("§cError inputting the amount, use the format §e20 §cfor 20% (example)");
 			p.sendMessage("§4Type 'cancel' to cancel.");
@@ -895,30 +898,34 @@ public class InventoryManager implements Listener{
 		}
 	}
 
-	private boolean executeQueueCancel(QueueCancelPayload.Parsed parsed) {
+	private boolean executeQueueCancel(Player player, QueueCancelPayload.Parsed parsed) {
 		return switch (parsed.type()) {
 			case MILITARY -> {
 				Faction f = FactionManager.getByString(parsed.ownerId());
-				yield f != null && f.getMilitary().cancelQueue(parsed.index());
+				yield f != null && player.getName().equalsIgnoreCase(f.getLeader())
+						&& f.getMilitary().cancelQueue(parsed.index());
 			}
 			case GUILD_UPGRADE -> {
 				Guild guild = FactionManager.getGuildByString(parsed.ownerId());
-				yield guild != null && guild.cancelUpgradeQueue(parsed.index());
+				yield guild != null && guild.isLeader(player) && guild.cancelUpgradeQueue(parsed.index());
 			}
 			case INSTALLATION -> {
 				Faction f = FactionManager.getByString(parsed.ownerId());
-				yield f != null && f.getInstallationHandler().cancelPending(parsed.detail());
+				yield f != null && player.getName().equalsIgnoreCase(f.getLeader())
+						&& f.getInstallationHandler().cancelPending(parsed.detail());
 			}
 			case COMPANY_SLOT -> {
 				Guild guild = FactionManager.getGuildByString(parsed.ownerId());
 				yield guild != null
 						&& guild.getCompany() != null
+						&& guild.getCompany().isLeader(player.getName())
 						&& guild.getCompany().cancelSlotQueue(parsed.index());
 			}
 			case COMPANY_UPGRADE -> {
 				Guild guild = FactionManager.getGuildByString(parsed.ownerId());
 				yield guild != null
 						&& guild.getCompany() != null
+						&& guild.getCompany().isLeader(player.getName())
 						&& guild.getCompany().cancelUpgradeQueue(parsed.index());
 			}
 		};
@@ -1051,21 +1058,10 @@ public class InventoryManager implements Listener{
 	@EventHandler
 	public void dragInWarGui(InventoryDragEvent e) {
 		Inventory inv = e.getView().getTopInventory();
-		if (inv.getHolder() instanceof WarInventoryHolder
-				|| inv.getHolder() instanceof CampaignInventoryHolder
-				|| inv.getHolder() instanceof CampaignRaidLaunchHolder
-				|| inv.getHolder() instanceof SFCombinedInventoryHolder
-				|| inv.getHolder() instanceof DeclareWarHolder) {
-			e.setCancelled(true);
-		}
-		if (inv.getHolder() instanceof SFInventoryHolder
-				&& (((SFInventoryHolder) inv.getHolder()).getType() == SFGUI.PLAYER_LEDGER_VIEW
-				|| EspionageView.handles(((SFInventoryHolder) inv.getHolder()).getType()))) {
-			e.setCancelled(true);
-		}
-		// Confirm screens have no holder; an item dragged into one is lost when it closes.
-		if (e.getView().getTitle().equalsIgnoreCase("§7Confirm Action")
-				&& e.getRawSlots().stream().anyMatch(slot -> slot < inv.getSize())) {
+		// Menu contents are replaced on redraw. Keep player items out of every menu,
+		// including holderless confirmations, while allowing drags within their own inventory.
+		if ((isPluginMenu(inv) || e.getView().getTitle().equalsIgnoreCase("§7Confirm Action"))
+				&& e.getRawSlots().stream().anyMatch(slot -> isTopInventoryClick(slot, inv.getSize()))) {
 			e.setCancelled(true);
 		}
 	}
@@ -1230,9 +1226,9 @@ public class InventoryManager implements Listener{
 						break;
 					case WAR_PEACE_SELECT:
 						if (h.getFlag()) {
-							Movement causeMovement = f.getGovernment().getMovementByMember(p.getName());
-							if (causeMovement != null && h.getPage() >= 0 && h.getPage() < causeMovement.getCauses().size()) {
-								movementView.causeView(p, f, causeMovement, causeMovement.getCauses().get(h.getPage()), null);
+							Cause selectedCause = governmentView.displayedWarPeaceCause(p, f, inv);
+							if (selectedCause != null) {
+								movementView.causeView(p, f, selectedCause.getMovement(), selectedCause, null);
 							} else {
 								governmentView(p, f, null);
 							}
@@ -1274,24 +1270,18 @@ public class InventoryManager implements Listener{
 						break;
 					case CAUSES_VIEW:
 						if (movement != null && f != null) movementView(p, f, movement, null);
-						else if (f != null) governmentView(p, f, null);
 						break;
 					case CAUSE_VIEW:
 						if (movement != null && f != null) causesView(p, f, movement, null);
-						else if (f != null) governmentView(p, f, null);
 						break;			
 					case TARGET_SELECT:
 						if (movement != null && f != null) {
-							if(h.getPage() != -1) {
-								Cause cause = movement.getCauses().get(h.getPage());
-								if(cause != null) {
-									causeView(p, f, movement, cause, inv);
-								}
+							Cause cause = movementView.displayedCause(inv, movement);
+							if(cause != null) {
+								causeView(p, f, movement, cause, null);
 							} else {
 								movementView(p, f, movement, null);
 							}
-						} else if (f != null) {
-							governmentView(p, f, null);
 						}
 						break;			
 					case LEDGER_VIEW:
@@ -1481,7 +1471,7 @@ public class InventoryManager implements Listener{
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					return;
 				}
-				if (executeQueueCancel(cancel)) {
+				if (executeQueueCancel(p, cancel)) {
 					p.sendMessage("§aQueue item cancelled.");
 					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				} else {
@@ -1514,6 +1504,11 @@ public class InventoryManager implements Listener{
 			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			if(data != null) {
 				Faction f = confirming.get(p);
+				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+					confirming.remove(p);
+					p.closeInventory();
+					return;
+				}
 				if(item.getType().equals(Material.RED_CONCRETE)) {
 					factionView(p, f);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -1535,6 +1530,11 @@ public class InventoryManager implements Listener{
 				Faction f = confirming.get(p);
 				boolean fromCommand = installationConfirmFromCommand.getOrDefault(p, false);
 				installationConfirmFromCommand.remove(p);
+				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+					confirming.remove(p);
+					p.closeInventory();
+					return;
+				}
 				if(item.getType().equals(Material.RED_CONCRETE)) {
 					if(fromCommand) {
 						installationsView(null, p, f, true);
@@ -1558,6 +1558,11 @@ public class InventoryManager implements Listener{
 			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			if(data != null) {
 				Faction f = confirming.get(p);
+				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+					confirming.remove(p);
+					p.closeInventory();
+					return;
+				}
 				if(item.getType().equals(Material.RED_CONCRETE)) {
 					installationDetailView(p, f, data);
 					return;
@@ -1578,6 +1583,11 @@ public class InventoryManager implements Listener{
 			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			if (data != null) {
 				Faction f = confirming.get(p);
+				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+					confirming.remove(p);
+					p.closeInventory();
+					return;
+				}
 				if (item.getType().equals(Material.RED_CONCRETE)) {
 					installationDetailView(p, f, data);
 					return;

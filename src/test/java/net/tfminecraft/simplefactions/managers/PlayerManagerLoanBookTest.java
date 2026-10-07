@@ -72,6 +72,7 @@ class PlayerManagerLoanBookTest {
 		when(borrower.getId()).thenReturn("borrower");
 		when(borrower.getBank()).thenReturn(borrowerBank);
 		when(player.getName()).thenReturn("Borrower");
+		when(player.getInventory()).thenReturn(mock(org.bukkit.inventory.PlayerInventory.class));
 	}
 
 	@AfterEach

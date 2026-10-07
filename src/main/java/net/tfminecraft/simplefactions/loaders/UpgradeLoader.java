@@ -30,19 +30,17 @@ public class UpgradeLoader {
 		return null;
 	}
 	public void load(File configFile) {
-		FileConfiguration config = new YamlConfiguration();
+        FileConfiguration config = new YamlConfiguration();
+        Map<String, Upgrade> loaded = new java.util.LinkedHashMap<>();
         try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
+            config.load(configFile);
+            for (String key : config.getKeys(false)) {
+                loaded.put(key, new Upgrade(key, config.getConfigurationSection(key)));
+            }
+        } catch (IOException | InvalidConfigurationException | RuntimeException e) {
+            throw new IllegalStateException("Cannot load definitions from " + configFile, e);
         }
-		Set<String> set = config.getKeys(false);
-
-		List<String> list = new ArrayList<>(set);
-		
-		for(String key : list) {
-			Upgrade r = new Upgrade(key, config.getConfigurationSection(key));
-			map.put(key, r);
-		}
-	}
+        map.clear();
+        map.putAll(loaded);
+    }
 }

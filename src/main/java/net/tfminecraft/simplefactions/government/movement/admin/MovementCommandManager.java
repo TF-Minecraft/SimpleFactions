@@ -27,7 +27,7 @@ public class MovementCommandManager implements CommandExecutor {
 			player.sendMessage(MovementAdminService.USAGE);
 			return true;
 		}
-		String sub = args[1].toLowerCase();
+		String sub = args[1].toLowerCase(java.util.Locale.ROOT);
 		return switch (sub) {
 			case "list" -> {
 				for (String line : MovementAdminService.listLines()) {
@@ -78,7 +78,7 @@ public class MovementCommandManager implements CommandExecutor {
 			return true;
 		}
 		String movementId = args[2];
-		String slot = args[3].toLowerCase();
+		String slot = args[3].toLowerCase(java.util.Locale.ROOT);
 		MovementAdminService.Result result;
 		if (slot.equals("backer")) {
 			if (args.length < 5) {

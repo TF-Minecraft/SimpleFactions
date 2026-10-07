@@ -37,51 +37,50 @@ public final class VehiclesConfigLoader {
             config.load(vehiclesYaml);
         } catch (IOException | InvalidConfigurationException e) {
             e.printStackTrace();
-            fail("Failed to load vehicles.yml");
+            throw failure("Failed to load vehicles.yml");
         }
 
-        personalSlotLimit = config.getInt("personal-slot-limit", 1);
-        if (personalSlotLimit < 0) {
-            fail("vehicles.yml personal-slot-limit must be >= 0");
+        int nextPersonalSlotLimit = config.getInt("personal-slot-limit", 1);
+        if (nextPersonalSlotLimit < 0) {
+            throw failure("vehicles.yml personal-slot-limit must be >= 0");
         }
 
-        defaultPerPerson = config.getInt("default-per-person", 1);
-        if (defaultPerPerson < 1) {
-            fail("vehicles.yml default-per-person must be >= 1");
+        int nextDefaultPerPerson = config.getInt("default-per-person", 1);
+        if (nextDefaultPerPerson < 1) {
+            throw failure("vehicles.yml default-per-person must be >= 1");
         }
 
         boolean hasDefaultUpkeep = config.contains("default-upkeep");
         double defaultUpkeep = hasDefaultUpkeep ? config.getDouble("default-upkeep") : 0.0;
-        if (hasDefaultUpkeep && defaultUpkeep < 0) {
-            fail("vehicles.yml default-upkeep must be >= 0");
+        if (hasDefaultUpkeep && (!Double.isFinite(defaultUpkeep) || defaultUpkeep < 0)) {
+            throw failure("vehicles.yml default-upkeep must be finite and >= 0");
         }
 
-        maintenanceHourlyDamagePercent = config.getInt("maintenance-hourly-damage-percent", 20);
-        if (maintenanceHourlyDamagePercent < 0 || maintenanceHourlyDamagePercent > 100) {
-            fail("vehicles.yml maintenance-hourly-damage-percent must be between 0 and 100");
+        int nextMaintenanceHourlyDamagePercent = config.getInt("maintenance-hourly-damage-percent", 20);
+        if (nextMaintenanceHourlyDamagePercent < 0 || nextMaintenanceHourlyDamagePercent > 100) {
+            throw failure("vehicles.yml maintenance-hourly-damage-percent must be between 0 and 100");
         }
-        maintenanceMinHealthPercent = config.getInt("maintenance-min-health-percent", 3);
-        if (maintenanceMinHealthPercent < 0 || maintenanceMinHealthPercent > 100) {
-            fail("vehicles.yml maintenance-min-health-percent must be between 0 and 100");
+        int nextMaintenanceMinHealthPercent = config.getInt("maintenance-min-health-percent", 3);
+        if (nextMaintenanceMinHealthPercent < 0 || nextMaintenanceMinHealthPercent > 100) {
+            throw failure("vehicles.yml maintenance-min-health-percent must be between 0 and 100");
         }
-        maintenanceIntervalTicks = config.getLong("maintenance-interval-ticks", 72000L);
-        if (maintenanceIntervalTicks < 1L) {
-            fail("vehicles.yml maintenance-interval-ticks must be >= 1");
+        long nextMaintenanceIntervalTicks = config.getLong("maintenance-interval-ticks", 72000L);
+        if (nextMaintenanceIntervalTicks < 1L) {
+            throw failure("vehicles.yml maintenance-interval-ticks must be >= 1");
         }
 
         Set<String> excluded = new HashSet<>();
         for (String category : config.getStringList("fee-excluded-categories")) {
             excluded.add(category.toLowerCase(java.util.Locale.ROOT));
         }
-        feeExcludedCategories = Collections.unmodifiableSet(excluded);
 
         if (config.isConfigurationSection("upkeep")) {
-            fail("vehicles.yml uses legacy upkeep block; use categories.<category>.<type>.upkeep instead");
+            throw failure("vehicles.yml uses legacy upkeep block; use categories.<category>.<type>.upkeep instead");
         }
 
         ConfigurationSection categoriesSection = config.getConfigurationSection("categories");
         if (categoriesSection == null) {
-            fail("vehicles.yml missing required categories section");
+            throw failure("vehicles.yml missing required categories section");
         }
 
         Set<String> categories = new HashSet<>();
@@ -90,8 +89,10 @@ public final class VehiclesConfigLoader {
         Map<String, String> displayNames = new HashMap<>();
 
         for (String categoryId : categoriesSection.getKeys(false)) {
-            String normalizedCategoryId = categoryId.toLowerCase();
-            categories.add(normalizedCategoryId);
+            String normalizedCategoryId = categoryId.toLowerCase(java.util.Locale.ROOT);
+            if (!categories.add(normalizedCategoryId)) {
+                throw failure("vehicles.yml duplicate category id: " + categoryId);
+            }
 
             ConfigurationSection categorySection = categoriesSection.getConfigurationSection(categoryId);
             Map<String, VehicleTypeConfig> types = new HashMap<>();
@@ -107,7 +108,7 @@ public final class VehiclesConfigLoader {
                     }
                     String path = "categories." + categoryId + "." + vehicleTypeId;
                     if (!config.contains(path + ".size")) {
-                        fail("vehicles.yml " + path + ".size is required");
+                        throw failure("vehicles.yml " + path + ".size is required");
                     }
 
                     double upkeep;
@@ -116,21 +117,20 @@ public final class VehiclesConfigLoader {
                     } else if (hasDefaultUpkeep) {
                         upkeep = defaultUpkeep;
                     } else {
-                        fail("vehicles.yml " + path + ".upkeep is required");
-                        upkeep = 0;
+                        throw failure("vehicles.yml " + path + ".upkeep is required");
                     }
-                    if (upkeep < 0) {
-                        fail("vehicles.yml " + path + ".upkeep must be >= 0");
+                    if (!Double.isFinite(upkeep) || upkeep < 0) {
+                        throw failure("vehicles.yml " + path + ".upkeep must be finite and >= 0");
                     }
 
                     int size = config.getInt(path + ".size");
                     if (size <= 0) {
-                        fail("vehicles.yml " + path + ".size must be > 0");
+                        throw failure("vehicles.yml " + path + ".size must be > 0");
                     }
 
-                    int perPerson = config.getInt(path + ".per-person", defaultPerPerson);
+                    int perPerson = config.getInt(path + ".per-person", nextDefaultPerPerson);
                     if (perPerson < 1) {
-                        fail("vehicles.yml " + path + ".per-person must be >= 1");
+                        throw failure("vehicles.yml " + path + ".per-person must be >= 1");
                     }
 
                     boolean ignoreLimit = config.getBoolean(path + ".ignore-limit", false);
@@ -138,9 +138,9 @@ public final class VehiclesConfigLoader {
                             ? config.getBoolean(path + ".show-on-upcoming-battle-icon")
                             : categoryShowIcon;
 
-                    String normalizedTypeId = vehicleTypeId.toLowerCase();
+                    String normalizedTypeId = vehicleTypeId.toLowerCase(java.util.Locale.ROOT);
                     if (typeToCategory.containsKey(normalizedTypeId)) {
-                        fail("vehicles.yml duplicate vehicle type id: " + vehicleTypeId);
+                        throw failure("vehicles.yml duplicate vehicle type id: " + vehicleTypeId);
                     }
                     types.put(
                             normalizedTypeId,
@@ -151,6 +151,12 @@ public final class VehiclesConfigLoader {
             byCategory.put(normalizedCategoryId, Collections.unmodifiableMap(types));
         }
 
+        personalSlotLimit = nextPersonalSlotLimit;
+        defaultPerPerson = nextDefaultPerPerson;
+        maintenanceHourlyDamagePercent = nextMaintenanceHourlyDamagePercent;
+        maintenanceMinHealthPercent = nextMaintenanceMinHealthPercent;
+        maintenanceIntervalTicks = nextMaintenanceIntervalTicks;
+        feeExcludedCategories = Collections.unmodifiableSet(excluded);
         categoryIds = Collections.unmodifiableSet(categories);
         typesByCategory = Collections.unmodifiableMap(byCategory);
         categoryByVehicleTypeId = Collections.unmodifiableMap(typeToCategory);
@@ -219,7 +225,7 @@ public final class VehiclesConfigLoader {
         if (vehicleTypeId == null || vehicleTypeId.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(categoryByVehicleTypeId.get(vehicleTypeId.toLowerCase()));
+        return Optional.ofNullable(categoryByVehicleTypeId.get(vehicleTypeId.toLowerCase(java.util.Locale.ROOT)));
     }
 
     public static int getSize(String vehicleTypeId) {
@@ -235,14 +241,14 @@ public final class VehiclesConfigLoader {
         if (categoryId == null || categoryId.isEmpty()) {
             return null;
         }
-        return categoryDisplayNames.get(categoryId.toLowerCase());
+        return categoryDisplayNames.get(categoryId.toLowerCase(java.util.Locale.ROOT));
     }
 
     public static Map<String, VehicleTypeConfig> getTypesInCategory(String categoryId) {
         if (categoryId == null || categoryId.isEmpty()) {
             return Map.of();
         }
-        Map<String, VehicleTypeConfig> types = typesByCategory.get(categoryId.toLowerCase());
+        Map<String, VehicleTypeConfig> types = typesByCategory.get(categoryId.toLowerCase(java.util.Locale.ROOT));
         return types == null ? Map.of() : types;
     }
 
@@ -250,17 +256,17 @@ public final class VehiclesConfigLoader {
         if (vehicleTypeId == null || vehicleTypeId.isEmpty()) {
             return null;
         }
-        String categoryId = categoryByVehicleTypeId.get(vehicleTypeId.toLowerCase());
+        String categoryId = categoryByVehicleTypeId.get(vehicleTypeId.toLowerCase(java.util.Locale.ROOT));
         if (categoryId == null) {
             return null;
         }
-        return typesByCategory.get(categoryId).get(vehicleTypeId.toLowerCase());
+        return typesByCategory.get(categoryId).get(vehicleTypeId.toLowerCase(java.util.Locale.ROOT));
     }
 
-    private static void fail(String message) {
+    private static IllegalStateException failure(String message) {
         if (Bukkit.getServer() != null) {
             Bukkit.getLogger().severe("[SimpleFactions] " + message);
         }
-        throw new IllegalStateException(message);
+        return new IllegalStateException(message);
     }
 }

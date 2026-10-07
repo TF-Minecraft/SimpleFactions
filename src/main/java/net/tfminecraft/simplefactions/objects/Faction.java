@@ -209,7 +209,7 @@ public class Faction {
 		this.governmentType = "Community";
 		this.culture = guild.getFaction().getCulture();
 		this.religion = guild.getFaction().getReligion();
-		this.wealth = 0.0;
+		this.wealth = guild.getWealth();
 		this.prestige = 0.0;
 		this.extraNodeCapacity = 0;
 		this.rgb = guild.getRGB();
@@ -227,6 +227,7 @@ public class Faction {
 		guildHandler.addGuild(guild);
 		guild.setHost(this);
 		guild.convert(GuildLoader.getBaseType());
+		lawHandler.apply();
 		createBanner(bannerPatterns);
 		updatePrestige();
 		updateTier();
@@ -408,7 +409,10 @@ public class Faction {
 	}
 
 	public Bracket getBracket(Brackets bracket) {
-		return null;
+		if (bracket == null) return null;
+		FeeKind fee = FeeKind.fromBracket(bracket);
+		if (fee != null) return vehicleFeeHandler.getBracket(fee);
+		return taxHandler.getBracket(BracketToTaxTarget.convert(bracket));
 	}
 
 	public void giveTax(String player, double amount) {
@@ -1000,16 +1004,8 @@ public class Faction {
 	    } else if (provinceHandler.getProvinces().size() > 0 && titles.size() == 0) {
 	    	temp = TierLoader.getByString("province");
 	    } else {
-	        Title highest = titles.stream()
-	            .sorted((a, b) -> Integer.compare(b.getTier().getTier(), a.getTier().getTier()))
-	            .findFirst()
-	            .orElse(null);
-
-	        if (highest != null) {
-	        	temp = highest.getTier();
-	        } else {
-	        	temp = TierLoader.getLowest();
-	        }
+	        // Both empty-title cases were handled above.
+	        temp = getHighestTitle().getTier();
 	    }
 	    if(tier == null || !tier.getId().equalsIgnoreCase(temp.getId())) tier = new Tier(temp, -1);
 		Player p = Bukkit.getPlayerExact(leader);

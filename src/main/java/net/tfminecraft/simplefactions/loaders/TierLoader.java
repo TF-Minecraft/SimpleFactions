@@ -42,19 +42,17 @@ public class TierLoader {
 		return null;
 	}
 	public void load(File configFile) {
-		FileConfiguration config = new YamlConfiguration();
+        FileConfiguration config = new YamlConfiguration();
+        List<Tier> loaded = new ArrayList<>();
         try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
+            config.load(configFile);
+            for (String key : config.getKeys(false)) {
+                loaded.add(new Tier(key, config.getConfigurationSection(key)));
+            }
+        } catch (IOException | InvalidConfigurationException | RuntimeException e) {
+            throw new IllegalStateException("Cannot load definitions from " + configFile, e);
         }
-		Set<String> set = config.getKeys(false);
-
-		List<String> list = new ArrayList<String>(set);
-		
-		for(String key : list) {
-			Tier r = new Tier(key, config.getConfigurationSection(key));
-			oList.add(r);
-		}
-	}
+        oList.clear();
+        oList.addAll(loaded);
+    }
 }

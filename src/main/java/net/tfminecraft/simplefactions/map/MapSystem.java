@@ -34,6 +34,7 @@ public class MapSystem {
 	
 	private int lastUpdate = 300;
 	private int fullUpdate = 0;
+	private boolean mapUploadInProgress;
 	
 	private HashMap<String, List<String>> queues = new HashMap<>();
 	
@@ -115,6 +116,7 @@ public class MapSystem {
 	}
 	
 	public void updateMap() {
+		if (mapUploadInProgress) return;
 		lastUpdate = 0;
 		compiler.exportQueue(queues);
 		Database db = new Database();
@@ -124,11 +126,17 @@ public class MapSystem {
 		prepareUploadFiles();
 		File queueFile = new File("plugins/SimpleFactions/MapAPI/queue.json");
 		SimpleFactions plugin = SimpleFactions.getInstance();
+		// New changes belong to the next publication, including another change to the same nation.
+		queues = new HashMap<>();
+		mapUploadInProgress = true;
 		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-			RestServer.upload("queue", queueFile);
-			uploadPreparedFiles();
-			RestServer.commenceRegen("queued");
-			Bukkit.getScheduler().runTask(plugin, this::clear);
+			try {
+				RestServer.upload("queue", queueFile);
+				uploadPreparedFiles();
+				RestServer.commenceRegen("queued");
+			} finally {
+				Bukkit.getScheduler().runTask(plugin, () -> mapUploadInProgress = false);
+			}
 		});
 	}
 
@@ -246,10 +254,6 @@ public class MapSystem {
 			}
 		}
 		claimProvince(p, f, owner, pid, stolen, forCapital);
-	}
-
-	private void claimProvince(Player p, Faction f, Faction owner, int province, boolean stolen) {
-		claimProvince(p, f, owner, province, stolen, false);
 	}
 
 	private void claimProvince(

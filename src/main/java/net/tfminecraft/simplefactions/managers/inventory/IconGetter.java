@@ -9,6 +9,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import net.tfminecraft.simplefactions.Cache;
 
 public class IconGetter {
+    private IconGetter() {}
+
 	public static boolean hasIcon(String s) {
 		if(Cache.icons.containsKey(s.toLowerCase())) return true;
 		return false;

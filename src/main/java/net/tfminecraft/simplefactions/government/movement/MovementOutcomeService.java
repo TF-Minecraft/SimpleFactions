@@ -17,16 +17,16 @@ public final class MovementOutcomeService {
 		if (movement == null || source == null) {
 			return;
 		}
-		LogManager.movement(
-				"OUTCOME movementId=%s faction=%s source=%s power=%.1f",
-				movement.getId(),
-				movement.getFaction() != null ? movement.getFaction().getId() : "-",
-				source.name(),
-				movement.getPower());
 		Faction faction = movement.getFaction();
 		if (faction == null) {
 			return;
 		}
+		LogManager.movement(
+				"OUTCOME movementId=%s faction=%s source=%s power=%.1f",
+				movement.getId(),
+				faction.getId(),
+				source.name(),
+				movement.getPower());
 		Government government = faction.getGovernment();
 		if (government != null) {
 			StabilityModifier modifier = stabilityFor(movement, source);
@@ -36,9 +36,6 @@ public final class MovementOutcomeService {
 		}
 		for (Cause cause : orderedCauses(movement)) {
 			Proposal proposal = cause.getProposal();
-			if (proposal == null) {
-				continue;
-			}
 			proposal.apply(cause);
 		}
 		if (government != null) {
@@ -120,7 +117,7 @@ public final class MovementOutcomeService {
 
 	private static Action actionOf(Cause cause) {
 		Proposal proposal = cause.getProposal();
-		if (proposal == null || proposal.getPoliticalAction() == null) {
+		if (proposal.getPoliticalAction() == null) {
 			return null;
 		}
 		return proposal.getPoliticalAction().getAction();

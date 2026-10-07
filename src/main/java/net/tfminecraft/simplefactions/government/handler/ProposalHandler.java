@@ -8,7 +8,9 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-import net.tfminecraft.simplefactions.loaders.LawLoader;
+import net.tfminecraft.simplefactions.loaders.PoliticalActionLoader;
+import net.tfminecraft.simplefactions.government.movement.Action;
+import net.tfminecraft.simplefactions.government.movement.PoliticalAction;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.proposal.FeeChange;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
@@ -68,7 +70,8 @@ public class ProposalHandler {
             for(Proposal p : proposals) {
                 if(!p.isTaxProposal()) continue;
                 TaxLawChange c = p.getTaxChange();
-                if(c.getTarget().equals(change.getTarget()) && c.getId().equalsIgnoreCase(change.getId())) return false;
+                if(c.getTarget().equals(change.getTarget()) && (c.getId() == null
+                        ? change.getId() == null : c.getId().equalsIgnoreCase(change.getId()))) return false;
             }
         }
         return true;
@@ -107,6 +110,9 @@ public class ProposalHandler {
                 FeeChange fee = p.getFeeChange();
                 result.add(p.getProposer() + ":fee:" + fee.getKind().name() + ":"
                         + (fee.isGeneral() ? ALL_VEHICLES : fee.getVehicleTypeId()) + ":" + fee.getNewRate());
+            } else if (p.isPoliticalActionProposal()) {
+                result.add(p.getProposer() + ":action:" + p.getPoliticalAction().getAction().name()
+                        + ":" + (p.getTarget() == null ? "" : p.getTarget()));
             }
         }
         return result;
@@ -115,8 +121,11 @@ public class ProposalHandler {
     public void restoreProposals(net.tfminecraft.simplefactions.objects.Faction faction, List<String> serialized) {
         proposals.clear();
         for (String s : serialized) {
-            String proposer = s.split(":", 2)[0];
-            s = s.substring(proposer.length() + 1);
+            if (s == null) continue;
+            int separator = s.indexOf(':');
+            if (separator <= 0) continue;
+            String proposer = s.substring(0, separator);
+            s = s.substring(separator + 1);
             if (s.startsWith("law:")) {
                 String[] parts = s.substring(4).split(":");
                 if (parts.length >= 2) {
@@ -143,20 +152,35 @@ public class ProposalHandler {
                         FeeKind kind = FeeKind.valueOf(body.substring(0, first));
                         String typeField = body.substring(first + 1, last);
                         String type = ALL_VEHICLES.equals(typeField) ? null : typeField;
+                        double newRate = Double.parseDouble(body.substring(last + 1));
+                        if (!Double.isFinite(newRate)) continue;
                         Proposal p = new Proposal(proposer, gov);
-                        p.setFeeProposal(new FeeChange(kind, type, Double.parseDouble(body.substring(last + 1))));
+                        p.setFeeProposal(new FeeChange(kind, type, newRate));
                         proposals.add(p);
                     } catch (Exception e) {
                         // Skip malformed proposals
                     }
+                }
+            } else if (s.startsWith("action:")) {
+                String[] parts = s.substring(7).split(":", 2);
+                try {
+                    Action kind = Action.valueOf(parts[0]);
+                    PoliticalAction action = PoliticalActionLoader.getByAction(kind);
+                    Proposal proposal = new Proposal(proposer, gov);
+                    proposal.setPoliticalActionProposal(action != null ? action : new PoliticalAction(kind));
+                    if (parts.length == 2 && !parts[1].isEmpty()) proposal.setTarget(parts[1]);
+                    proposals.add(proposal);
+                } catch (IllegalArgumentException e) {
+                    // Skip actions that do not exist in this version.
                 }
             } else if (s.startsWith("tax:")) {
                 String[] parts = s.substring(4).split(":");
                 if (parts.length >= 3) {
                     try {
                         net.tfminecraft.simplefactions.government.proposal.TaxTarget target = net.tfminecraft.simplefactions.government.proposal.TaxTarget.valueOf(parts[0]);
-                        String taxId = parts[1];
+                        String taxId = "null".equals(parts[1]) ? null : parts[1];
                         double newRate = Double.parseDouble(parts[2]);
+                        if (!Double.isFinite(newRate)) continue;
                         
                         TaxLawChange tax = new TaxLawChange(target, taxId, newRate);
                         Proposal p = new Proposal(proposer, gov);

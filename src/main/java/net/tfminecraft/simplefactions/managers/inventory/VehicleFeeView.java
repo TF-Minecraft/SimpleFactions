@@ -129,7 +129,8 @@ public class VehicleFeeView {
             case FEE_PROPOSAL_VIEW -> inv.governmentView.proposalView(player, f, null);
             case FEE_CATEGORY_VIEW -> feeProposalView(player, f, null);
             case FEE_VEHICLE_VIEW -> {
-                FeeKind kind = parseKind(h.getSecondaryId());
+                String secondary = h.getSecondaryId();
+                FeeKind kind = secondary == null ? null : parseKind(secondary.split(":", 2)[0]);
                 if (kind == null) {
                     feeProposalView(player, f, null);
                 } else {
@@ -167,7 +168,8 @@ public class VehicleFeeView {
                 }
             }
             case FEE_CATEGORY_VIEW -> {
-                FeeKind kind = parseKind(h.getSecondaryId());
+                String secondary = h.getSecondaryId();
+                FeeKind kind = secondary == null ? null : parseKind(secondary.split(":", 2)[0]);
                 if (kind == null) {
                     return;
                 }
@@ -357,9 +359,6 @@ public class VehicleFeeView {
     }
 
     private static FeeKind parseKind(String name) {
-        if (name == null) {
-            return null;
-        }
         try {
             return FeeKind.valueOf(name);
         } catch (IllegalArgumentException e) {

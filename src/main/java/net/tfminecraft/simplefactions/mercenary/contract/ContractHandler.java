@@ -146,6 +146,12 @@ public class ContractHandler {
      * The hiring faction accepts. Capacity is not re-checked because the offer has
      * been holding those slots all along; loyalty is, because the world moves.
      */
+    public MercenaryResult acceptAtHall(String contractId, Faction hirer, Player signer) {
+        MercenaryResult permission = MercenaryMarket.canSign(company, signer);
+        if (!permission.ok()) return permission;
+        return accept(contractId, hirer, signer.getName());
+    }
+
     public MercenaryResult accept(String contractId, Faction hirer, String signer) {
         MercenaryContract contract = getById(contractId);
         if (contract == null) {
@@ -178,9 +184,7 @@ public class ContractHandler {
             expire(contract);
             return alongside;
         }
-        if (!contract.activate()) {
-            return MercenaryResult.deny("That offer is no longer open.");
-        }
+        contract.activate();
         return MercenaryResult.ok(company.getName() + " has entered your service.");
     }
 
@@ -309,9 +313,7 @@ public class ContractHandler {
                     + hirer.getName() + " was dropped. The company no longer has room for it.");
             return MercenaryResult.deny("The company no longer has room for that many slots.");
         }
-        if (!contract.applyPendingSlots(now)) {
-            return MercenaryResult.deny("That slot change has lapsed.");
-        }
+        contract.applyPendingSlots(now);
         tell(company.getLeader(), "§a" + hirer.getName()
                 + " accepted the slot change. The contract now hires " + slots + " slots.");
         return MercenaryResult.ok("The contract now hires " + slots + " slots.");

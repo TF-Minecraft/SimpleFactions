@@ -256,7 +256,7 @@ public final class EspionageService {
             return false;
         }
         String characterId = OfficeCharacters.activeCharacterId(candidate);
-        if (characterId == null) {
+        if (characterId == null || OfficeCharacters.isDead(candidate.getUniqueId(), characterId)) {
             actor.sendMessage("§cThat member needs an active roleplay character.");
             return false;
         }

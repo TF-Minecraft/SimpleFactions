@@ -58,4 +58,27 @@ class LoanBookTermsTest {
 
 		assertNotNull(loan.getId());
 	}
+
+	@Test
+	void malformedNumericTermsCannotSilentlyBecomeAnInterestFreeOrFeeFreeAgreement() {
+		assertNull(LoanBook.createLoanFromString(page("invalid", "30", "6", "2"), null, null));
+		assertNull(LoanBook.createLoanFromString(page("1000", "invalid", "6", "2"), null, null));
+		assertNull(LoanBook.createLoanFromString(page("1000", "30", "invalid", "2"), null, null));
+		assertNull(LoanBook.createLoanFromString(page("1000", "30", "6", "invalid"), null, null));
+		assertNull(LoanBook.createLoanFromString(page("1000", "30", "", "2"), null, null));
+	}
+
+
+	@Test
+	void aBookWithoutItsTermsPageCannotIssueALoan() {
+		try (var fixture = new net.tfminecraft.simplefactions.testsupport.FactionDomainFixture()) {
+			var guild = fixture.saved("issuer", "Alice").getOrCreateMainGuild();
+			var item = new org.bukkit.inventory.ItemStack(org.bukkit.Material.WRITABLE_BOOK);
+			var meta = (org.bukkit.inventory.meta.BookMeta) item.getItemMeta();
+			meta.addPage("Instructions only");
+			meta.getPersistentDataContainer().set(net.tfminecraft.simplefactions.keys.Keys.STRING_KEY, org.bukkit.persistence.PersistentDataType.STRING, guild.getId());
+			assertNull(LoanBook.createLoanFromBook(meta, null));
+		}
+	}
+
 }

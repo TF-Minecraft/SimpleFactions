@@ -73,8 +73,6 @@ public class Council {
                 case ELECTED_COUNCIL:
                     // keep until next election
                     break;
-                default:
-                    break;
             }
 
             proposalHandler.clearProposals();
@@ -144,10 +142,13 @@ public class Council {
         for(Guild guild : f.getGuildHandler().getGuilds()) {
             if(guild.isLeader(name)) return true;
         }
-        return true;
+        return false;
     }
 
     public boolean canRemainMember(String name) {
+        if (refuses.contains(name)) {
+            return false;
+        }
         if (f.getLeader().equalsIgnoreCase(name)) {
             return false;
         }
@@ -272,7 +273,7 @@ public class Council {
                 getMembers().remove(member);
             }
         }
-        for(String refuser : refuses) {
+        for(String refuser : new ArrayList<>(refuses)) {
             if(!canBeMember(refuser, true, true)) {
                 refuses.remove(refuser);
             }

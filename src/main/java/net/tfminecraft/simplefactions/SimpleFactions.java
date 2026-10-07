@@ -3,6 +3,8 @@ package net.tfminecraft.simplefactions;
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleHealthDecayApi.Vf;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.EventHandler;
@@ -252,15 +254,24 @@ public class SimpleFactions extends JavaPlugin{
 	private final VehicleMaintenanceDecayTask vehicleMaintenanceDecayTask =
 			new VehicleMaintenanceDecayTask();
 	
+	private boolean startupComplete;
+
 	@Override
 	public void onEnable() {
+		startupComplete = false;
 		config = getConfig();
 		plugin = this;
 		FactionManager.inv = inventoryManager;
 		createFolders();
 		createConfigs();
+		try {
+			loadConfigs();
+		} catch (RuntimeException error) {
+			getLogger().log(java.util.logging.Level.SEVERE, "Cannot load SimpleFactions configuration; disabling before restoring saved state", error);
+			getServer().getPluginManager().disablePlugin(this);
+			return;
+		}
 		registerListeners();
-		loadConfigs();
 		registerRpCharactersIntegrationHooks();
 		vehicleRegistryPersistence = new VehicleRegistryPersistence(
 			new File(getDataFolder(), "Cache"),
@@ -365,6 +376,7 @@ public class SimpleFactions extends JavaPlugin{
 		}
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
+		startupComplete = true;
 	}
 	@Override
 	public void onDisable() {
@@ -376,8 +388,12 @@ public class SimpleFactions extends JavaPlugin{
 		CampaignViewRefreshService.stop();
 		BattleManager.shutdown();
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.stopAutosave();
-		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		sessionManager.end();
+		if (!startupComplete) {
+			net.tfminecraft.simplefactions.identity.LeaderCharacters.reset();
+			return;
+		}
+		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
 		saveFactionsForShutdown();
 		for(War w : WarManager.get()){
@@ -524,7 +540,39 @@ public class SimpleFactions extends JavaPlugin{
 	}
 
 	public static void reloadConfigs() {
-		plugin.loadConfigs();
+		var previousRanks = new ArrayList<>(RankLoader.getRanks());
+		var previousTypes = new ArrayList<>(RelationLoader.getTypes());
+		var previousAttitudes = new ArrayList<>(RelationLoader.getAttitudes());
+		var previousTiers = new ArrayList<>(TierLoader.get());
+		var previousTitles = new ArrayList<>(TitleLoader.getTitles());
+		var previousGuildTypes = new LinkedHashMap<>(GuildLoader.get());
+		var previousBranches = new LinkedHashMap<>(BranchLoader.get());
+		var previousUpgrades = new LinkedHashMap<>(UpgradeLoader.get());
+		var previousCompanyUpgrades = new LinkedHashMap<>(CompanyUpgradeLoader.get());
+		try {
+			plugin.loadConfigs();
+		} catch (RuntimeException failure) {
+			// Live factions still reference these definitions until every loader succeeds.
+			RankLoader.getRanks().clear();
+			RankLoader.getRanks().addAll(previousRanks);
+			RelationLoader.getTypes().clear();
+			RelationLoader.getTypes().addAll(previousTypes);
+			RelationLoader.getAttitudes().clear();
+			RelationLoader.getAttitudes().addAll(previousAttitudes);
+			TierLoader.get().clear();
+			TierLoader.get().addAll(previousTiers);
+			TitleLoader.getTitles().clear();
+			TitleLoader.getTitles().addAll(previousTitles);
+			GuildLoader.get().clear();
+			GuildLoader.get().putAll(previousGuildTypes);
+			BranchLoader.get().clear();
+			BranchLoader.get().putAll(previousBranches);
+			UpgradeLoader.get().clear();
+			UpgradeLoader.get().putAll(previousUpgrades);
+			CompanyUpgradeLoader.get().clear();
+			CompanyUpgradeLoader.get().putAll(previousCompanyUpgrades);
+			throw failure;
+		}
 		FactionManager.rebindRanks();
 		FactionManager.rebindDiplomacy();
 		// loadConfigs rebuilds every Title, so point factions at the new copies or hasTitle stops matching.

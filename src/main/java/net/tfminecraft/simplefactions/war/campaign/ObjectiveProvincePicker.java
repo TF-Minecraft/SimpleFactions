@@ -74,7 +74,7 @@ public class ObjectiveProvincePicker {
 	}
 
 	private OptionalInt pickForPillage(War war) {
-		Settlement settlement = PillageEligibility.findSettlement(war.getTargetSettlementId());
+		Settlement settlement = PillageEligibility.findSettlement(war.getTargetSettlementId(), war.getDefenders().getLeader());
 		if (settlement == null || settlement.getCenterProvince() <= 0) {
 			return OptionalInt.empty();
 		}

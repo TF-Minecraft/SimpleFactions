@@ -52,7 +52,7 @@ public final class ProvinceGrid {
             throw new IOException("invalid province_id_grid dimensions: " + width + "x" + height);
         }
 
-        int expectedBody = width * height * 2;
+        long expectedBody = (long) width * height * 2;
         int bodyOffset = HEADER_SIZE;
         if (payload.length - bodyOffset != expectedBody) {
             throw new IOException(
@@ -66,8 +66,8 @@ public final class ProvinceGrid {
                             + height);
         }
 
-        short[] ids = new short[width * height];
-        ByteBuffer body = ByteBuffer.wrap(payload, bodyOffset, expectedBody).order(ByteOrder.LITTLE_ENDIAN);
+        short[] ids = new short[(int) (expectedBody / 2)];
+        ByteBuffer body = ByteBuffer.wrap(payload, bodyOffset, (int) expectedBody).order(ByteOrder.LITTLE_ENDIAN);
         for (int i = 0; i < ids.length; i++) {
             ids[i] = body.getShort();
         }

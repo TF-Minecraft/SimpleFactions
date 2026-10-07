@@ -4,11 +4,11 @@ import org.bukkit.entity.Player;
 
 /** Where a plan actually meets MythicLib, MMOCore and the health attribute. */
 public interface MercenaryStatApplier {
-    /** False when the soft dependencies are missing, which makes every call a no-op. */
+    /** False when the soft dependencies needed to apply a plan are missing. */
     boolean isAvailable();
 
     void apply(Player player, MercenaryStatPlan plan);
 
-    /** Must be safe to call when nothing was ever applied. */
+    /** Safe even without soft dependencies; still removes owned Bukkit attributes. */
     void strip(Player player);
 }

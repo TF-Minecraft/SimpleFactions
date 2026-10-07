@@ -41,7 +41,7 @@ public final class MovementAdminService {
 			return lines;
 		}
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getGovernment() == null) {
+			if (faction == null) {
 				continue;
 			}
 			for (Movement movement : faction.getGovernment().getMovements()) {
@@ -131,7 +131,9 @@ public final class MovementAdminService {
 		if (cause == null) {
 			return new Result(false, "§cUnknown cause index: " + causeIndex);
 		}
-		if (cause.getProposal() == null || !cause.getProposal().needsTarget()) {
+		if (cause.getProposal() == null || !cause.getProposal().isPoliticalActionProposal()
+				|| cause.getProposal().getPoliticalAction().getAction()
+						!= net.tfminecraft.simplefactions.government.movement.Action.CHANGE_LEADER) {
 			return new Result(false, "§cThat cause does not take a wanted leader.");
 		}
 		if (player == null || player.isBlank()) {
@@ -147,16 +149,13 @@ public final class MovementAdminService {
 	}
 
 	private static String missingTargetReason(Movement movement) {
-		if (movement.getCauses() == null) {
-			return null;
-		}
 		for (Cause cause : movement.getCauses()) {
-			if (cause == null || cause.getProposal() == null) {
+			if (cause == null) {
 				continue;
 			}
-			if (cause.getProposal().isPoliticalActionProposal() && cause.getProposal().needsTarget()
-					&& !cause.getProposal().hasTarget()) {
-				return "§cOne or more causes lack a target.";
+			if (cause.getProposal().isPoliticalActionProposal() && cause.getProposal().needsTarget()) {
+				if (!cause.getProposal().hasTarget()) return "§cOne or more causes lack a target.";
+				if (!cause.getProposal().checkTarget()) return "§cOne or more causes have a target that is no longer valid.";
 			}
 		}
 		return null;
@@ -277,7 +276,7 @@ public final class MovementAdminService {
 		if (type == null || target == null || target.isBlank()) {
 			return null;
 		}
-		return switch (type.toLowerCase()) {
+		return switch (type.toLowerCase(java.util.Locale.ROOT)) {
 			case "citizen" -> target;
 			case "guild" -> FactionManager.getGuildByString(target);
 			case "vassal" -> FactionManager.getByString(target);
@@ -293,10 +292,7 @@ public final class MovementAdminService {
 		if (obj instanceof Guild guild) {
 			return pool.getGuilds().contains(guild);
 		}
-		if (obj instanceof Faction faction) {
-			return pool.getFactions().contains(faction);
-		}
-		return false;
+		return pool.getFactions().contains((Faction) obj);
 	}
 
 	private static String formatListLine(Faction host, Movement movement) {
@@ -335,7 +331,7 @@ public final class MovementAdminService {
 			return ids;
 		}
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getGovernment() == null) {
+			if (faction == null) {
 				continue;
 			}
 			for (Movement movement : faction.getGovernment().getMovements()) {

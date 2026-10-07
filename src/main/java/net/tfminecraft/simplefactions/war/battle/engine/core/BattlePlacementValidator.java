@@ -37,7 +37,8 @@ public final class BattlePlacementValidator {
 	}
 
 	public static int provinceAt(Location location) {
-		if (location == null || location.getWorld() == null) {
+		if (location == null || location.getWorld() == null
+				|| !location.getWorld().getName().equals(net.tfminecraft.simplefactions.Cache.worldName)) {
 			return -1;
 		}
 		SimpleFactions plugin = SimpleFactions.getInstance();

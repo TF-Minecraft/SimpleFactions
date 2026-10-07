@@ -126,14 +126,8 @@ public final class MercenaryLoyalty {
         for (Faction ally : RelationManager.getAllies(host)) {
             if (sameFaction(ally, other)) return true;
         }
-        String overlord = RelationManager.getOverlord(host);
-        if (overlord != null && other.getId() != null && overlord.equalsIgnoreCase(other.getId())) {
-            return true;
-        }
-        for (Faction subject : RelationManager.getSubjects(host)) {
-            if (sameFaction(subject, other)) return true;
-        }
-        return false;
+        return RelationManager.isOnOverlordPath(host, other)
+                || RelationManager.isOnOverlordPath(other, host);
     }
 
     private static List<Faction> factionsOn(Side side) {

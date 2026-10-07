@@ -293,9 +293,6 @@ public class GovernmentCreator {
             lines.add(stanceLine(body.name, body.stance, body.members, false, room, population, tuning));
         }
         for (Body vassal : facts.vassals) {
-            if (vassal == null) {
-                continue;
-            }
             lines.add(stanceLine(vassal.name, vassal.stance, vassal.members, true, room, population, tuning));
         }
         return lines;
@@ -404,15 +401,20 @@ public class GovernmentCreator {
     }
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
-    @SuppressWarnings("deprecation")
     public ItemStack createStanceItem(Faction f, Guild guild) {
+        return createStanceItem(f, guild, true);
+    }
+
+    @SuppressWarnings("deprecation")
+    public ItemStack createStanceItem(Faction f, Guild guild, boolean canChange) {
         Stance stance = guild.getStance(f);
         ItemStack item = new ItemStack(Material.YELLOW_CONCRETE);
         if(stance == Stance.OPPOSE) item = new ItemStack(Material.RED_CONCRETE);
         else if(stance == Stance.SUPPORT) item = new ItemStack(Material.GREEN_CONCRETE);
         ItemMeta m = item.getItemMeta();
         List<String> lore = new ArrayList<String>();
-        lore.add("#28ed70Click to change");
+        lore.add(canChange ? "#28ed70Click to change"
+                : "#c74d32Only the guild leader can change this stance.");
         paint(m, stance.getDisplay(), lore);
         m.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, guild.getId());
         item.setItemMeta(m);
@@ -495,12 +497,19 @@ public class GovernmentCreator {
         List<String> lore = new ArrayList<String>();
         TaxHandler taxHandler = f.getTaxHandler();
         double taxRate = taxHandler.getTaxRate(target, id, false);
-        if(taxHandler.hasSpecificTax(target, null)) {
+        TaxTarget baseTarget = switch(target) {
+            case GUILD_ID -> TaxTarget.GUILDS;
+            case VASSAL_ID -> TaxTarget.VASSALS;
+            case TARIFF_ID -> TaxTarget.TARIFFS;
+            default -> target;
+        };
+        double baseRate = taxHandler.getTaxRate(baseTarget, null, false);
+        if(taxHandler.hasSpecificTax(baseTarget, id)) {
             lore.add(StringFormatter.formatHex("#525d5dCurrent Rate: #e3d5a1"+taxRate+"%"+ " §8(§7"+f.getTaxRate(target, id, true)+"% effective§8)"));
-            lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+taxRate+"%#3f4040)"));
+            lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+baseRate+"%#3f4040)"));
         } else {
             lore.add(StringFormatter.formatHex("#812222No specific "+(target == TaxTarget.TARIFF_ID ? "tariff" : "tax")+" set."));
-            lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+taxRate+"%#3f4040)"));
+            lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+baseRate+"%#3f4040)"));
         }
         Government gov = f.getGovernment();
         Proposal proposal = new Proposal(p.getName(), gov);

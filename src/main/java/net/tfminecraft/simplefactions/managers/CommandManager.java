@@ -133,6 +133,21 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cYou cannot delete the base guild of a faction");
 					return true;
 				}
+				// Administrators may remove an unsettled guild, but leaders must settle it first.
+				if(!Permissions.isAdmin(sender)) {
+					if(guild.isBankrupt()) {
+						p.sendMessage("§cCannot delete a guild that is in bankruptcy!");
+						return true;
+					}
+					if(guild.getBank() != null && guild.getBank().getWealth() > 0) {
+						p.sendMessage("§cCannot delete a guild while the bank balance is above 0");
+						return true;
+					}
+					if(!guild.getLoanHandler().getLoansTaken().isEmpty()) {
+						p.sendMessage("§cCannot delete a guild with active loans");
+						return true;
+					}
+				}
 				guild.getFaction().getGuildHandler().removeGuild(guild.getId());
 				guild.getFaction().getProvinceHandler().revalidateClaims();
 				for(String member : guild.getMembers()) {
@@ -246,6 +261,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				Guild g = FactionManager.getGuildByString(args[1]);
+				if(g == null) {
+					p.sendMessage("§cNo guild by the id "+args[1]);
+					return true;
+				}
 				if(!g.consumeInvite(p.getName())) {
 					p.sendMessage("§cYou need to be invited to this guild by the leader first!");
 					return true;
@@ -302,39 +321,6 @@ public class CommandManager implements Listener, CommandExecutor{
 						pl.sendMessage("§a"+p.getName()+ " kicked you from "+guild.getName());
 					}
 				}
-				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("delete") && args.length == 2) {
-				Guild g = FactionManager.getGuildByString(args[1]);
-				if(g == null) {
-					p.sendMessage("§a[SimpleFactions]§c Error! guild does not exist!");
-					return true;
-				}
-				if(!Permissions.isAdmin(sender)) {
-					if(!g.getMembers().contains(p.getName())) {
-						p.sendMessage("§cCannot delete a guild you are not part of!");
-						return true;
-					}
-					if(g.isBankrupt()) {
-						p.sendMessage("§cCannot delete a guild that is in bankruptcy!");
-						return true;
-					}
-					if(!p.getName().equalsIgnoreCase(g.getLeader())) {
-						p.sendMessage("§cOnly the guild leader can delete the guild!");
-						return true;
-					}
-					if(g.getBank() != null && g.getBank().getWealth() > 0){
-						p.sendMessage("§cCannot delete a guild while the bank balance is above 0");
-						return true;
-					}
-					if(g.getLoanHandler().getLoansTaken().size() > 0) {
-						p.sendMessage("§cCannot delete a guild with active loans");
-						return true;
-					}
-				}
-
-				Faction host = g.getFaction();
-				host.getGuildHandler().removeGuild(g.getId());
-				p.sendMessage("§aGuild "+g.getName()+" §adeleted!");
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("setbank") && args.length == 1) {
 				if(FactionManager.getGuildByLeader(p.getName()) != null) {
@@ -643,7 +629,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cYou need to be a faction leader to deconstruct installations");
 					return true;
 				}
-				InventoryManager inv = new InventoryManager();
+				InventoryManager inv = FactionManager.getInv();
 				if(args.length == 1) {
 					inv.installationsView(null, p, f, true);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -681,7 +667,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cNo installation with id §f" + args[1]);
 					return true;
 				}
-				InventoryManager inv = new InventoryManager();
+				InventoryManager inv = FactionManager.getInv();
 				inv.confirming.put(p, f);
 				inv.confirmView(p, f, "installation_upgrade", args[1]);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -746,7 +732,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.sendInstallationVehicles(
 						p, installation);
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("unclaim") && args.length >= 1) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("unclaim") && (args.length == 1 || args.length == 2)) {
 				if(!Cache.requireProvinces(p)) {
 					return true;
 				}
@@ -970,6 +956,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				Faction f = FactionManager.getByString(args[1]);
+				if(f == null) {
+					p.sendMessage("§cNo faction with that name exists");
+					return true;
+				}
 				if(!f.consumeInvite(p.getName())) {
 					p.sendMessage("§cYou need to be invited to this faction by the leader first!");
 					return true;
@@ -1233,7 +1223,17 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				String type = args[2];
-				Double amount = Double.parseDouble(args[3]);
+				double amount;
+				try {
+					amount = Double.parseDouble(args[3]);
+				} catch (NumberFormatException exception) {
+					p.sendMessage("§cAmount must be a finite number");
+					return false;
+				}
+				if (!Double.isFinite(amount)) {
+					p.sendMessage("§cAmount must be a finite number");
+					return false;
+				}
 				Modifier m = new Modifier(type, amount, true);
 				f.addPersistentPrestigeModifier(m);
 				f.updatePrestige();
@@ -1476,25 +1476,28 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§a[SimpleFactions]§c Error! faction does not exist!");
 					return true;
 				}
-				double amount = 0.0;
-				try {
-					amount = Double.parseDouble(args[2]);
-				} catch (Exception e) {
-					p.sendMessage("Error reading amount, setting it to 0");
-				}
-				if(amount <= 0) {
-					p.sendMessage("§cAmount must be greater than 0");
+				Double parsed = BankAmount.parse(args[2]);
+				if(parsed == null) {
+					p.sendMessage("§cEnter a positive amount in whole cents, such as 10 or 2.50");
 					return false;
 				}
+				double amount = parsed;
+				Bank bank = f.getBank();
+				if(bank == null) {
+					p.sendMessage("§cThis faction has not established a bank");
+					return true;
+				}
 
-				if(f.getBank().getWealth() < amount) {
+				if(bank.getWealth() < amount) {
 					p.sendMessage("§cBank does not have enough wealth");
 					return true;
 				}
-				f.getBank().withdraw(amount);
+				bank.withdraw(amount);
 				List<ItemStack> items = DenarEconomy.getMoneyManager().amountToItems(amount);
 				for(ItemStack i : items) {
-					p.getInventory().addItem(i);
+					for(ItemStack leftover : p.getInventory().addItem(i).values()) {
+						p.getWorld().dropItemNaturally(p.getLocation(), leftover);
+					}
 				}
 				p.sendMessage("§6"+amount+" §cwas withdrawn from the bank of "+f.getName());
 				for(String s : f.getMembers()) {
@@ -1631,16 +1634,26 @@ public class CommandManager implements Listener, CommandExecutor{
 				if(!Cache.requireProvinces(p)) {
 					return true;
 				}
-				SimpleFactions.reloadTitles();
-				p.sendMessage("§eReloaded titles!");
+				try {
+					SimpleFactions.reloadTitles();
+					p.sendMessage("§eReloaded titles!");
+				} catch (RuntimeException error) {
+					p.sendMessage("§cCould not reload titles: " + error.getMessage());
+					Bukkit.getLogger().log(java.util.logging.Level.WARNING, "SimpleFactions title reload failed", error);
+				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("reloadconfigs") && args.length == 1) {
 				if(!Permissions.isAdmin(sender)) {
 					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
 					return true;
 				}
-				SimpleFactions.reloadConfigs();
-				p.sendMessage("§eReloaded configs!");
+				try {
+					SimpleFactions.reloadConfigs();
+					p.sendMessage("§eReloaded configs!");
+				} catch (RuntimeException error) {
+					p.sendMessage("§cCould not reload configs: " + error.getMessage());
+					Bukkit.getLogger().log(java.util.logging.Level.WARNING, "SimpleFactions configuration reload failed", error);
+				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("destroytitle") && args.length == 2) {
 				if(!Permissions.isAdmin(sender)) {
@@ -1796,6 +1809,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					amount = Double.parseDouble(args[2]);
 				} catch (NumberFormatException exception) {
 					p.sendMessage("§cAmount must be a number");
+					return false;
+				}
+				if (!Double.isFinite(amount)) {
+					p.sendMessage("§cAmount must be a finite number");
 					return false;
 				}
 				faction.getGovernment().setPower(amount);

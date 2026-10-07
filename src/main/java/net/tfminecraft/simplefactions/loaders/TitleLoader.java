@@ -23,10 +23,10 @@ public class TitleLoader {
     }
 
     public void loadAll() {
-        titles.clear();
+        List<Title> loaded = new ArrayList<>();
 
         for (Tier tier : TierLoader.get()) {
-            String filename = tier.getId().toLowerCase() + ".json";
+            String filename = tier.getId().toLowerCase(Locale.ROOT) + ".json";
             File file = new File(inputFolder, filename);
 
             if (!file.exists()) {
@@ -40,13 +40,15 @@ public class TitleLoader {
                     String id = entry.getKey();
                     JsonObject data = entry.getValue().getAsJsonObject();
                     Title title = new Title(tier, id, data);
-                    titles.add(title);
+                    loaded.add(title);
                 }
 
             } catch (Exception e) {
-                e.printStackTrace();
+                throw new IllegalStateException("Cannot load titles from " + file, e);
             }
         }
+        titles.clear();
+        titles.addAll(loaded);
     }
 
     public static List<Title> getTitles() {
@@ -88,7 +90,7 @@ public class TitleLoader {
     }
 
     static boolean saveTitle(Title title, File folder) {
-        File file = new File(folder, title.getTier().getId().toLowerCase() + ".json");
+        File file = new File(folder, title.getTier().getId().toLowerCase(Locale.ROOT) + ".json");
         JsonObject root = new JsonObject();
         if (file.exists()) {
             try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
@@ -141,18 +143,6 @@ public class TitleLoader {
     //Create new
     
     public static Title createNewTitle(Tier tier, String id, String name, String rgb, List<Integer> provinces, List<String> usedTitles, boolean titleComplete) {
-        File file = new File(inputFolder, tier.getId().toLowerCase() + ".json");
-        JsonObject root = new JsonObject();
-
-        // Load existing file content if exists
-        if (file.exists()) {
-            try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
-                root = JsonParser.parseReader(reader).getAsJsonObject();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
         JsonObject newTitle = new JsonObject();
         newTitle.addProperty("name", name);
         newTitle.addProperty("rgb", rgb);
@@ -174,23 +164,12 @@ public class TitleLoader {
             newTitle.add("titles", titleArray);
         }
 
-        // Insert into the root JSON under the new ID
-        root.add(id, newTitle);
-
-        // Save the updated file
-        try (Writer writer = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            gson.toJson(root, writer);
-            writer.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        // Optionally load it into the TitleLoader's memory now
         Title title = new Title(tier, id, newTitle);
+        if (!saveTitle(title)) {
+            return null;
+        }
         titles.add(title);
         return title;
     }
 
 }
-

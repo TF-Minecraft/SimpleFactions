@@ -216,7 +216,7 @@ public class LoanView {
                     String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
                     String gid = meta.getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     Guild issuer = FactionManager.getGuildByString(gid);
-                    Loan loan = issuer.getLoanHandler().getLoanById(id);
+                    Loan loan = borrowedBy(guild, issuer, id);
                     if(loan == null) return;
                     loanDetailView(p, guild, loan, true);
                     p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -265,7 +265,7 @@ public class LoanView {
                     String gid = detailItem.getItemMeta().getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     Guild issuer = FactionManager.getGuildByString(gid);
                     Loan loan = borrowedBy(guild, issuer, id);
-                    if(loan == null) return;
+                    if(loan == null || loan.isPaidOff()) return;
                     loan.setDefaulted(!loan.hasDefaulted());
                     if(loan.hasDefaulted()) {
                         loan.setAutoPay(false);

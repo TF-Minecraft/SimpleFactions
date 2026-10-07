@@ -132,6 +132,7 @@ class TradeRelationMigrationTest {
                 MockedStatic<RequestManager> requests = mockStatic(RequestManager.class);
                 MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             factions.when(() -> FactionManager.getByLeader("receiver-leader")).thenReturn(receiverFaction);
+            factions.when(() -> FactionManager.getByString("sender")).thenReturn(senderFaction);
             requests.when(() -> RequestManager.getRequest(player))
                     .thenReturn(new RelationRequest(guild, trade, true));
             bukkit.when(() -> Bukkit.getPlayerExact("sender-leader")).thenReturn(null);

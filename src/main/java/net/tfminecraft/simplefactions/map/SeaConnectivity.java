@@ -41,13 +41,9 @@ public final class SeaConnectivity {
 		if (startSeas.isEmpty() || goalSeas.isEmpty()) {
 			return Set.of();
 		}
-		Set<Integer> visited = floodSea(provinceManager, startSeas);
-		for (int seaId : visited) {
-			if (goalSeas.contains(seaId)) {
-				return visited;
-			}
-		}
-		return Set.of();
+		Set<Integer> shared = floodSea(provinceManager, startSeas);
+		shared.retainAll(floodSea(provinceManager, goalSeas));
+		return shared;
 	}
 
 	private static Set<Integer> floodSea(ProvinceManager provinceManager, Set<Integer> startSeas) {
@@ -56,9 +52,6 @@ public final class SeaConnectivity {
 		while (!queue.isEmpty()) {
 			int currentId = queue.poll();
 			Province current = provinceManager.get(currentId);
-			if (current == null || !current.isValid()) {
-				continue;
-			}
 			for (int neighbourId : current.getNeighbours()) {
 				if (visited.contains(neighbourId)) {
 					continue;

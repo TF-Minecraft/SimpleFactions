@@ -214,8 +214,9 @@ public final class EspionageView {
                     ? holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)
                     : report == null ? "Unknown" : report.officeHolder(office);
             String aptitude = EspionageService.canViewExact(viewer, faction)
-                    ? Integer.toString(office == SpecialPosition.SPYMASTER ? EspionageService.effectiveAptitude(faction, holder)
-                            : holder == null ? 0 : holder.aptitude)
+                    ? Integer.toString(switch (office) {
+                        case SPYMASTER -> EspionageService.effectiveAptitude(faction, holder);
+                    })
                     : report == null ? "Unknown" : report.display(IntelligenceReport.officeAptitudeKey(office));
             lore.add("\u00a77" + office.label() + ": " + name);
             lore.add("\u00a77Aptitude: " + aptitude + (aptitude.equals("Unknown") ? "" : "/100"));
@@ -260,13 +261,10 @@ public final class EspionageView {
                 27, "\u00a77Spymaster's Office");
         SpecialPositionAssignment holder = EspionageService.spymaster(faction);
         long now = System.currentTimeMillis();
-        int held = EspionageService.positionsHeld(faction, holder);
         ItemStack head = item(Material.PLAYER_HEAD, "Spymaster: " + (holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)),
                 "§7Aptitude: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
                 buildUpLine(holder, now),
                 holder == null ? "§7Falls to the faction leader once they have an active character."
-                        : held > 1 ? "§7Holds " + held + " offices: " + Math.round(EspionageService.positionMultiplier(held) * 100)
-                                + "% aptitude in each (base " + holder.aptitude + ")."
                         : holder.automatic ? "§7Held by the faction leader until a member is appointed."
                         : "§7Appointed by the faction leader.",
                 "§7Gathers foreign intelligence and guards your secrets.",

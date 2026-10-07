@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 public class JsonUtil {
+    private JsonUtil() {}
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static <T> T readJson(File file, Class<T> type) throws IOException {

@@ -24,7 +24,7 @@ public final class StateStability {
 			return facts;
 		}
 		facts.government = law(faction, "government", "autocracy");
-		facts.electedLeadership = "elected".equals(law(faction, "leadership", "fixed"));
+		facts.electedLeadership = "elected".equalsIgnoreCase(law(faction, "leadership", "fixed"));
 		facts.provinces = faction.getProvinces() == null ? 0 : faction.getProvinces().size();
 		facts.bankrupt = faction.getOrCreateMainGuild() != null && faction.getOrCreateMainGuild().isBankrupt();
 		if (faction.getGovernment() != null && faction.getGovernment().getStabilityModifiers() != null) {
@@ -51,9 +51,7 @@ public final class StateStability {
 			Body body = new Body();
 			body.name = vassal.getName() == null ? vassal.getId() : vassal.getName();
 			body.members = vassal.getMembers() == null ? 0 : vassal.getMembers().size();
-			body.stance = main == null || main.getStance(faction) == null
-					? "SUPPORT"
-					: main.getStance(faction).name();
+			body.stance = main.getStance(faction).name();
 			facts.vassals.add(body);
 		}
 		return facts;

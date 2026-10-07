@@ -129,10 +129,8 @@ public final class EconomicImpactService {
         if (located == null) {
             return;
         }
+        // find() validated this item's metadata on the same server-thread turn.
         ItemMeta meta = located.item.getItemMeta();
-        if (meta == null) {
-            return;
-        }
         applyImpact(meta, pending, deltas);
         located.item.setItemMeta(meta);
         if (located.inventory != null) {
@@ -199,9 +197,6 @@ public final class EconomicImpactService {
     }
 
     private static Located find(Inventory inventory, long token) {
-        if (inventory == null) {
-            return null;
-        }
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             ItemStack item = inventory.getItem(slot);
             if (matches(item, token)) {

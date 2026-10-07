@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -111,38 +110,54 @@ public class RelationLoader {
 		return null;
 	}
 	public void loadRelationTypes(File configFile) {
-		SimpleFactions plugin = SimpleFactions.getInstance();
-		Logger logger = plugin != null ? plugin.getLogger() : Logger.getLogger(RelationLoader.class.getName());
-		FileConfiguration config = new YamlConfiguration();
-        try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
-        }
-		Set<String> set = config.getConfigurationSection("types").getKeys(false);
-
-		List<String> list = new ArrayList<String>(set);
-		types.clear();
-		for(String key : list) {
-			RelationType r = new RelationType(key, config.getConfigurationSection("types."+key));
-			logger.info("loaded relationtype "+r.getId());
-			types.add(r);
+		FileConfiguration config = readConfiguration(configFile);
+		try {
+			var section = config.getConfigurationSection("types");
+			if (section == null) throw new IllegalArgumentException("Missing relation types section");
+			List<RelationType> staged = new ArrayList<>();
+			for (String key : section.getKeys(false)) {
+				var row = section.getConfigurationSection(key);
+				if (row == null) throw new IllegalArgumentException("Invalid relation type: " + key);
+				staged.add(new RelationType(key, row));
+			}
+			types.clear();
+			types.addAll(staged);
+			for (RelationType relation : staged) logger().info("loaded relationtype " + relation.getId());
+		} catch (IllegalArgumentException e) {
+			throw new IllegalStateException("Cannot load relation types from " + configFile, e);
 		}
 	}
-	public void loadAttitudes(File configFile) {
-		FileConfiguration config = new YamlConfiguration();
-        try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
-        }
-		Set<String> set = config.getConfigurationSection("attitudes").getKeys(false);
 
-		List<String> list = new ArrayList<String>(set);
-		attitudes.clear();
-		for(String key : list) {
-			Attitude a = new Attitude(key, config.getConfigurationSection("attitudes."+key));
-			attitudes.add(a);
+	public void loadAttitudes(File configFile) {
+		FileConfiguration config = readConfiguration(configFile);
+		try {
+			var section = config.getConfigurationSection("attitudes");
+			if (section == null) throw new IllegalArgumentException("Missing attitudes section");
+			List<Attitude> staged = new ArrayList<>();
+			for (String key : section.getKeys(false)) {
+				var row = section.getConfigurationSection(key);
+				if (row == null) throw new IllegalArgumentException("Invalid attitude: " + key);
+				staged.add(new Attitude(key, row));
+			}
+			attitudes.clear();
+			attitudes.addAll(staged);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalStateException("Cannot load attitudes from " + configFile, e);
 		}
+	}
+
+	private static FileConfiguration readConfiguration(File file) {
+		FileConfiguration config = new YamlConfiguration();
+		try {
+			config.load(file);
+			return config;
+		} catch (IOException | InvalidConfigurationException | IllegalArgumentException e) {
+			throw new IllegalStateException("Cannot read diplomacy configuration from " + file, e);
+		}
+	}
+
+	private static Logger logger() {
+		SimpleFactions plugin = SimpleFactions.getInstance();
+		return plugin != null ? plugin.getLogger() : Logger.getLogger(RelationLoader.class.getName());
 	}
 }

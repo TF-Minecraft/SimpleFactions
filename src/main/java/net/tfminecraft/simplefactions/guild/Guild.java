@@ -120,10 +120,10 @@ public class Guild {
         members.add(leader);
         type = GuildLoader.getBaseType();
         this.wealth = 0.0;
-        int group = 0;
-        while(BranchLoader.getByGroup(this, group) != null) {
-            branches.put(group, new Branch(BranchLoader.getByGroup(this, group), 0));
-            group++;
+        for (Branch branch : BranchLoader.getList()) {
+            if (branch.isAllowed(type)) {
+                branches.putIfAbsent(branch.getGroup(), new Branch(branch, 0));
+            }
         }
         for(Upgrade u : UpgradeLoader.getList()) {
             upgrades.put(u.getId(), new Upgrade(u, 0));
@@ -151,10 +151,10 @@ public class Guild {
         this.type = GuildLoader.getDefaultType();
         this.capital = province;
         this.wealth = 0.0;
-        int group = 0;
-        while(BranchLoader.getByGroup(this, group) != null) {
-            branches.put(group, new Branch(BranchLoader.getByGroup(this, group), 0));
-            group++;
+        for (Branch branch : BranchLoader.getList()) {
+            if (branch.isAllowed(type)) {
+                branches.putIfAbsent(branch.getGroup(), new Branch(branch, 0));
+            }
         }
         for(Upgrade u : UpgradeLoader.getList()) {
             upgrades.put(u.getId(), new Upgrade(u, 0));
@@ -301,6 +301,7 @@ public class Guild {
                     .onGuildRelocateTo(actor, this, newCapital, settlementNameOpt);
             actor.sendMessage(result.getMessage());
         }
+        newFaction.updateWealth();
     }
 
     public CapitalResult relocateWithinFaction(Player actor, int newCapital, String settlementNameOpt) {
@@ -309,10 +310,9 @@ public class Guild {
         }
         Faction faction = host;
 
-        setCapital(newCapital);
-
         CapitalResult result = faction.getSettlementHandler()
                 .onGuildRelocateTo(actor, this, newCapital, settlementNameOpt);
+        if (result.isSuccess()) setCapital(newCapital);
         if(actor != null) {
             actor.sendMessage(result.getMessage());
         }
@@ -488,7 +488,8 @@ public class Guild {
         this.leader = leader;
     }
     public boolean isLeader(String p) {
-        return leader.equalsIgnoreCase(p);
+        String currentLeader = getLeader();
+        return currentLeader != null && currentLeader.equalsIgnoreCase(p);
     }
     public boolean isLeader(Player p) { return isLeader(p.getName()); }
     public Map<Integer, Branch> getBranches() { return branches; }
@@ -633,11 +634,10 @@ public class Guild {
 	}
 
     public void updateWealth() {
-        if(bank == null) return;
 		wealth = 0.0;
-		addWealthModifier(new Modifier("Bank", bank.getWealth(), false));
+		addWealthModifier(new Modifier("Bank", bank == null ? 0.0 : bank.getWealth(), false));
         double spent = getTotalExpansionSpent();
-        if(spent > 0) addWealthModifier(new Modifier("Expansions", spent, false));
+        addWealthModifier(new Modifier("Expansions", spent, false));
 		for(Modifier p : wealthModifiers) {
 			wealth = wealth + p.getAmount();
 		}
@@ -702,7 +702,7 @@ public class Guild {
         double baseCost = Cache.branchUpgradeCost;
         double r = Cache.branchUpgradeExponent;
 
-        double total = baseCost * (Math.pow(r, size) - 1) / (r - 1);
+        double total = r == 1.0 ? baseCost * size : baseCost * (Math.pow(r, size) - 1) / (r - 1);
         return Math.round(total * 100.0) / 100.0;
     }
 
@@ -713,7 +713,7 @@ public class Guild {
         double baseCost = Cache.branchUpgradeCost;
         double r = Cache.branchUpgradeExponent;
 
-        double totalRefund = 0.8 * baseCost * (Math.pow(r, size) - 1) / (r - 1);
+        double totalRefund = r == 1.0 ? 0.8 * baseCost * size : 0.8 * baseCost * (Math.pow(r, size) - 1) / (r - 1);
         return Math.round(totalRefund * 100.0) / 100.0;
     }
 
@@ -929,7 +929,7 @@ public class Guild {
     }
 
     public void convert(GuildType type) {
-        if (this.type == GuildLoader.getBaseType()) {
+        if (isBase()) {
             this.capital = getCapital();
             this.id = getId();
             this.leader = getLeader();
@@ -973,8 +973,8 @@ public class Guild {
         setCapital(-1);
         host.getGuildHandler().removeGuild(id);
         clearFavoursAndRepressions();
-        Faction landless = new Faction(this);
         Faction old = host;
+        Faction landless = new Faction(this);
         host = landless;
         FactionManager.addFaction(landless);
         if(subjugate) RelationManager.setRelation(null, RelationLoader.getElevationTarget(), landless, old, false);
@@ -1006,8 +1006,8 @@ public class Guild {
         if(!canBeElevated(null)) return null;
         host.getGuildHandler().removeGuild(id);
         clearFavoursAndRepressions();
-        Faction elevated = new Faction(this);
         Faction old = host;
+        Faction elevated = new Faction(this);
         host = elevated;
         elevated.getProvinceHandler().addProvince(capital);
         InstallationTransferService.transfer(old, elevated, capital);
@@ -1091,11 +1091,10 @@ public class Guild {
 
     public void liquidateRandom() {
         if (!canLiquidate() || bank == null) return;
-        int target = (int) Math.floor(Math.random()*branches.size());
-        Branch b = branches.values().stream().filter(br -> br.getGroup() == target && br.getLevel() > 0).findFirst().orElse(null);
-        if(b == null) return;
-        b.levelDown();
+        List<Branch> expanded = branches.values().stream().filter(br -> br.getLevel() > 0).toList();
+        Branch b = expanded.get((int) (Math.random() * expanded.size()));
         double refund = getRefund();
+        b.levelDown();
         bank.deposit(refund);
     }
 

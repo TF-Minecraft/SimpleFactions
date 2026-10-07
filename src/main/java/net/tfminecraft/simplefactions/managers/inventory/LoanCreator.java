@@ -217,10 +217,6 @@ public class LoanCreator {
                 lore.add(StringFormatter.formatHex("#87d65cPaying off this loan now would give "));
                 lore.add(StringFormatter.formatHex("#87d65cyou a credit score bonus of #19be2a" + bonus));
                 lore.add(StringFormatter.formatHex("#454343(Currently "+loan.getBorrower().getLoanHandler().getCreditScoreString()+"#454343)"));
-            } else if(bonus < 0) {
-                lore.add(StringFormatter.formatHex("#87d65cPaying off this loan now would give "));
-                lore.add(StringFormatter.formatHex("#87d65cyou a credit score penalty of #b51717" + bonus));
-                lore.add(StringFormatter.formatHex("#454343(Currently "+loan.getBorrower().getLoanHandler().getCreditScoreString()+"#454343)"));
             } else {
                 lore.add(StringFormatter.formatHex("#6f776aPaying off this loan now would"));
                 lore.add(StringFormatter.formatHex("#6f776ahave no effect on your credit score"));
