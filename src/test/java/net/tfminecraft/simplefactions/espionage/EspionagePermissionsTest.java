@@ -79,6 +79,9 @@ class EspionagePermissionsTest {
             assertTrue(EspionageService.setSabotage(holder, faction, true, 75));
             assertEquals(75, assignment.offenseReduction);
             assertEquals(0, assignment.defenseReduction);
+            verify(holder).sendMessage(contains("blur every figure"));
+            verify(holder).sendMessage(contains("Spying roll -75."));
+            verify(holder).sendMessage(contains("Existing reports stay unchanged."));
             assertTrue(EspionageService.setSabotage(holder, faction, false, 100));
             assertTrue(EspionageService.setSabotage(holder, faction, true, 0));
             assertEquals(0, assignment.offenseReduction);

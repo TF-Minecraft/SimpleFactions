@@ -68,6 +68,10 @@ class SpecialPositionsConfigFileTest {
         String saved = Files.readString(file);
         assertFalse(saved.contains("solo-leader") || saved.contains("one-person") || saved.contains("repeat-cost"), saved);
         assertTrue(saved.contains("extra-position-penalty"), saved);
+        assertEquals("&aFaithful service", prepared.getString("espionage.sabotage.offense.levels.0.name"));
+        assertTrue(saved.contains("Roleplay text for the Spymaster"), saved);
+        assertEquals("&4Opening the vaults", YamlConfiguration.loadConfiguration(file.toFile())
+                .getString("espionage.sabotage.defense.levels.100.name"));
     }
 
     @Test void malformedDedicatedYamlIsRejectedWithoutOverwritingEitherFile() throws Exception {
