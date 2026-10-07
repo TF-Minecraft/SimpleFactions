@@ -929,7 +929,7 @@ public class Guild {
     }
 
     public void convert(GuildType type) {
-        if (this.type == GuildLoader.getBaseType()) {
+        if (isBase()) {
             this.capital = getCapital();
             this.id = getId();
             this.leader = getLeader();

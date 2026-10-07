@@ -4,6 +4,7 @@ package net.tfminecraft.simplefactions;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleHealthDecayApi.Vf;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.EventHandler;
@@ -544,6 +545,7 @@ public class SimpleFactions extends JavaPlugin{
 		var previousAttitudes = new ArrayList<>(RelationLoader.getAttitudes());
 		var previousTiers = new ArrayList<>(TierLoader.get());
 		var previousTitles = new ArrayList<>(TitleLoader.getTitles());
+		var previousGuildTypes = new LinkedHashMap<>(GuildLoader.get());
 		try {
 			plugin.loadConfigs();
 		} catch (RuntimeException failure) {
@@ -558,6 +560,8 @@ public class SimpleFactions extends JavaPlugin{
 			TierLoader.get().addAll(previousTiers);
 			TitleLoader.getTitles().clear();
 			TitleLoader.getTitles().addAll(previousTitles);
+			GuildLoader.get().clear();
+			GuildLoader.get().putAll(previousGuildTypes);
 			throw failure;
 		}
 		FactionManager.rebindRanks();
