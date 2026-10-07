@@ -307,6 +307,9 @@ class EspionageMenusCoverageTest {
     assertSame(report, EspionageService.report(leader, target));
     assertEquals(Material.RED_DYE, top(spy).getItem(15).getType());
     assertEquals(Material.LIME_DYE, top(spy).getItem(11).getType());
+    assertTrue(text(top(spy).getItem(11)).contains("Faithful service"));
+    assertTrue(text(top(spy).getItem(15)).contains("Loose lips"));
+    assertTrue(text(top(spy).getItem(15)).contains("Guarding roll: -25"));
   }
 
   @Test

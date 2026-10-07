@@ -7,6 +7,7 @@ import net.tfminecraft.simplefactions.espionage.SpecialPosition;
 import net.tfminecraft.simplefactions.espionage.EspionageConfig;
 import net.tfminecraft.simplefactions.espionage.IntelligenceTier;
 import net.tfminecraft.simplefactions.espionage.SharingPartner;
+import net.tfminecraft.simplefactions.espionage.SabotageText;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import java.util.ArrayList;
@@ -311,8 +312,8 @@ public final class EspionageView {
                 "§7Sabotage is voluntary and disabled on appointment.",
                 "§7Only you can see or change these choices.",
                 "§7Sabotage changes affect your next daily rolls.", "§7Existing daily rolls and reports never reroll."));
-        inventory.setItem(11, conduct("Offensive sabotage", holder.offenseReduction));
-        inventory.setItem(15, conduct("Defensive sabotage", holder.defenseReduction));
+        inventory.setItem(11, conduct(true, holder.offenseReduction));
+        inventory.setItem(15, conduct(false, holder.defenseReduction));
         if (EspionageConfig.sharingAllowed()) {
             var overlord = faction.getOverlord();
             inventory.setItem(SHARE_OVERLORD_SLOT, sharing("Share with your overlord", faction.getEspionage().sharing(SharingPartner.OVERLORD),
@@ -351,10 +352,17 @@ public final class EspionageView {
         return tiers[(tier.ordinal() + 1) % tiers.length];
     }
 
-    private static ItemStack conduct(String title, int reduction) {
-        return item(reduction == 0 ? Material.LIME_DYE : Material.RED_DYE, title,
-                reduction == 0 ? "§aDisabled" : "§cRoll reduced by " + reduction,
-                "§7Click to cycle: disabled, -25, -50, -75, -100.", "§8A private choice for roleplay betrayal.");
+    private static ItemStack conduct(boolean offense, int reduction) {
+        var level = SabotageText.level(offense, reduction);
+        List<String> lore = new ArrayList<>(SabotageText.lore(offense));
+        if (!lore.isEmpty()) lore.add("");
+        lore.add(level.name());
+        lore.addAll(level.lore());
+        List<String> footer = SabotageText.footer();
+        if (!footer.isEmpty()) lore.add("");
+        lore.addAll(footer);
+        return item(reduction == 0 ? Material.LIME_DYE : Material.RED_DYE, SabotageText.title(offense),
+                lore.toArray(String[]::new));
     }
 
     private static void candidates(Player viewer, Faction faction, InventoryManager manager, int page) {

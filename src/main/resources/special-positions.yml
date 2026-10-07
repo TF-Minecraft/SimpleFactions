@@ -53,6 +53,99 @@ espionage:
     # Lets each Spymaster share information with their overlord and with their vassals, chosen by tier.
     # Every field visible at the shared tier or below then reaches that partner exactly instead of as a range.
     allow-sharing: true
+  sabotage:
+    # Roleplay text for the Spymaster's private sabotage. Only the Spymaster sees it, in Private
+    # Conduct and in chat when they change a setting. Offensive sabotage weakens their own
+    # faction's spying on others; defensive sabotage lets other factions' spies learn more.
+    # Levels are the roll reduction (0 = off). Each has a name, lore lines and a chat message.
+    # & colour codes and #rrggbb hex colours work. {reduction} is replaced with the level.
+    note: "&8This affects your next daily rolls. Existing reports stay unchanged."
+    footer:
+      - "&7Click to cycle: off, -25, -50, -75, -100."
+      - "&8A private choice for roleplay betrayal."
+    offense:
+      title: "Offensive sabotage"
+      lore:
+        - "&7Undermines your own faction's spying"
+        - "&7on other factions."
+      levels:
+        "0":
+          name: "&aFaithful service"
+          lore:
+            - "&7Your agents abroad follow honest orders,"
+            - "&7and all they learn reaches your leader."
+            - "&8Spying roll: no penalty"
+          message: "&7You send your agents abroad with honest orders. Whatever they learn, your leader will learn too. &8(Offensive sabotage off.)"
+        "25":
+          name: "&eStray dispatches"
+          lore:
+            - "&7You let the odd dispatch go astray"
+            - "&7and leave a few promising leads unfollowed."
+            - "&cSpying roll: -{reduction}"
+          message: "&7You begin letting the odd dispatch go astray. Your leader will hear a little less of foreign courts. &8(Spying roll -{reduction}.)"
+        "50":
+          name: "&6Idle informants"
+          lore:
+            - "&7You pay your informants late and"
+            - "&7send them after the wrong secrets."
+            - "&cSpying roll: -{reduction}"
+          message: "&7You pay your informants late and point them at the wrong doors. Reports from abroad will come back thin and vague. &8(Spying roll -{reduction}.)"
+        "75":
+          name: "&cDoctored reports"
+          lore:
+            - "&7You rewrite your agents' letters before"
+            - "&7your leader reads them, blurring figures"
+            - "&7and dropping names."
+            - "&cSpying roll: -{reduction}"
+          message: "&7You take up the pen yourself and blur every figure before your leader sees it. Foreign courts will seem murkier than they are. &8(Spying roll -{reduction}.)"
+        "100":
+          name: "&4Blinding your masters"
+          lore:
+            - "&7You recall your best agents and feed"
+            - "&7your leader little but rumour."
+            - "&cSpying roll: -{reduction}"
+          message: "&7You quietly recall your best agents. Your leader will see rivals only through rumour, and only you know why. &8(Spying roll -{reduction}.)"
+    defense:
+      title: "Defensive sabotage"
+      lore:
+        - "&7Undermines your own faction's guard"
+        - "&7against other factions' spies."
+      levels:
+        "0":
+          name: "&aVigilant watch"
+          lore:
+            - "&7Your counter-agents guard the archives"
+            - "&7and turn foreign spies away at the gate."
+            - "&8Guarding roll: no penalty"
+          message: "&7You set your counter-agents to watch the archives and the gates. Foreign spies will find little to take. &8(Defensive sabotage off.)"
+        "25":
+          name: "&eLoose lips"
+          lore:
+            - "&7You let gossip run unchecked"
+            - "&7in taverns and halls."
+            - "&cGuarding roll: -{reduction}"
+          message: "&7You stop hushing the gossip in taverns and halls. Foreign spies will overhear a little more than they should. &8(Guarding roll -{reduction}.)"
+        "50":
+          name: "&6Unguarded doors"
+          lore:
+            - "&7You pull the watch from the archives"
+            - "&7and look away from strangers at court."
+            - "&cGuarding roll: -{reduction}"
+          message: "&7You pull the watch from the archives and look the other way at court. Rival networks will learn far more than they should. &8(Guarding roll -{reduction}.)"
+        "75":
+          name: "&cForeign silver"
+          lore:
+            - "&7You take foreign coin and steer"
+            - "&7rival agents to the right ledgers."
+            - "&cGuarding roll: -{reduction}"
+          message: "&7You pocket foreign silver and steer rival agents toward the right ledgers. Your faction's secrets will drain away. &8(Guarding roll -{reduction}.)"
+        "100":
+          name: "&4Opening the vaults"
+          lore:
+            - "&7You hand rival spymasters the keys"
+            - "&7to the archive. Almost nothing stays hidden."
+            - "&cGuarding roll: -{reduction}"
+          message: "&7You hand rival spymasters the keys to the archive. Little about your faction stays hidden, and no one suspects whose hand opened the doors. &8(Guarding roll -{reduction}.)"
   intelligence:
     # Margin = observing faction's offense minus target's defense. Rumours is the minimum report quality.
     # Negative margins return Rumours; individual fields stay Unknown below their required tier.

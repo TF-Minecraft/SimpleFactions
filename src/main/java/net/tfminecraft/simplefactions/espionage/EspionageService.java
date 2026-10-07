@@ -8,6 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.random.RandomGenerator;
 
 import org.bukkit.entity.Player;
+import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -354,9 +355,9 @@ public final class EspionageService {
             actor.sendMessage("\u00a7cYour private conduct could not be saved. Your previous choice remains in effect.");
             return false;
         }
-        actor.sendMessage("§7Private " + (offense ? "offensive" : "defensive") + " sabotage: "
-                + (reduction == 0 ? "§adisabled" : "§c-" + reduction + " to your roll")
-                + "§7. This affects your next daily rolls; existing reports stay unchanged.");
+        actor.sendMessage(StringFormatter.formatHex(SabotageText.level(offense, reduction).message()));
+        String note = SabotageText.note();
+        if (!note.isBlank()) actor.sendMessage(StringFormatter.formatHex(note));
         return true;
     }
 

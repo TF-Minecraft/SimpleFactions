@@ -80,6 +80,7 @@ public final class EspionageConfig {
         overlordOffenseBonus = (int) bounded(config, "espionage.vassalage.overlord-offense-bonus", 25, 0, 1000);
         overlordDefenseBonus = (int) bounded(config, "espionage.vassalage.overlord-defense-bonus", 25, 0, 1000);
         sharingAllowed = config.getBoolean("espionage.vassalage.allow-sharing", true);
+        SabotageText.load(config);
         tiers.clear();
         int previous = -1;
         for (var tier : IntelligenceTier.values()) {
