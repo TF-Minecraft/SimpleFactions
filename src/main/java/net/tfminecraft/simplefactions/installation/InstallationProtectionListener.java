@@ -12,6 +12,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.war.battle.ui.BattlePermissions;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
@@ -27,32 +28,48 @@ public final class InstallationProtectionListener implements Listener {
 
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
 	public void onBlockBreak(BlockBreakEvent event) {
-		Player player = event.getPlayer();
-		if (isStaffBypass(player)) {
-			return;
-		}
-		Installation installation = InstallationLookup.findCovering(event.getBlock().getLocation());
-		if (installation == null) {
-			return;
-		}
-		if (!InstallationVulnerabilityService.isInstallationVulnerable(installation, Instant.now())) {
+		if (isBlockChangeProtected(event.getPlayer(), event.getBlock().getLocation())) {
 			event.setCancelled(true);
 		}
 	}
 
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
 	public void onBlockPlace(BlockPlaceEvent event) {
-		Player player = event.getPlayer();
-		if (isStaffBypass(player)) {
-			return;
-		}
-		Installation installation = InstallationLookup.findCovering(event.getBlock().getLocation());
-		if (installation == null) {
-			return;
-		}
-		if (!InstallationVulnerabilityService.isInstallationVulnerable(installation, Instant.now())) {
+		if (isBlockChangeProtected(event.getPlayer(), event.getBlock().getLocation())) {
 			event.setCancelled(true);
 		}
+	}
+
+	/**
+	 * Blocks inside an installation's radius are locked to everyone but the owning faction,
+	 * until a battle or raid puts the installation in play. Blocked players are told why.
+	 */
+	private static boolean isBlockChangeProtected(Player player, Location location) {
+		if (isStaffBypass(player)) {
+			return false;
+		}
+		Installation installation = InstallationLookup.findCovering(location);
+		if (installation == null
+				|| InstallationVulnerabilityService.isInstallationVulnerable(installation, Instant.now())
+				|| isOwnerMember(player, installation)) {
+			return false;
+		}
+		player.sendMessage(blockedMessage(installation));
+		return true;
+	}
+
+	static boolean isOwnerMember(Player player, Installation installation) {
+		Faction owner = InstallationOwners.ownerOf(installation);
+		if (owner == null) {
+			return false;
+		}
+		String name = player.getName();
+		return owner.isMemberIgnoreCase(name) || name.equalsIgnoreCase(owner.getLeader());
+	}
+
+	private static String blockedMessage(Installation installation) {
+		return "§cOnly its faction can build or dig near the "
+				+ installation.getKind().getDisplayName() + " §f" + installation.getName() + "§c.";
 	}
 
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
