@@ -253,6 +253,33 @@ class InstallationProtectionCoverageTest {
     verifyNoInteractions(vehicles);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"break", "place"})
+  void theOwningFactionsLeaderAndMembersBuildInsideTheirInstallationAtPeace(String eventType) {
+    Location inside = new Location(fixture.ui.world, 0, 64, 0);
+    player = fixture.player("NEUTRAL");
+    assertFalse(protectedAt(eventType, inside, neutral), "The leader counts as a member");
+    neutral.addMember("Builder");
+    player = fixture.player("builder");
+    assertFalse(protectedAt(eventType, inside, neutral), "Membership ignores name case");
+    verify(player, never()).sendMessage(anyString());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"break", "place"})
+  void anotherFactionsMemberIsBlockedAndToldWhichInstallationProtectsTheArea(String eventType) {
+    Faction other = faction("other", "Other", 43);
+    other.addMember("Visitor");
+    assertTrue(protectedAt(eventType, new Location(fixture.ui.world, 0, 64, 0), neutral));
+    verify(player).sendMessage("§cOnly its faction can build or dig near the port §fharbor§c.");
+  }
+
+  @Test
+  void anInstallationNoFactionHoldsHasNoOwningMembers() {
+    Installation detached = new Installation("loose", "loose", InstallationKind.FORT, 42, 0, 0, 0);
+    assertFalse(InstallationProtectionListener.isOwnerMember(fixture.player("Neutral"), detached));
+  }
+
   @Test
   void aMissingExplosionLocationDoesNotChangeItsRequestedBlockDamage() {
     VFExplosionEvent explosion = new VFExplosionEvent(null);
