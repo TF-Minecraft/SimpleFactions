@@ -51,8 +51,8 @@ public final class VehicleFactionCommands {
             return;
         }
         if (!Permissions.isAdmin(player)
-                && VehicleInstallationLockService.isVehicleLocked(
-                        installation.getId(), java.time.Instant.now())) {
+                && VehicleInstallationLockService.isInstallationLocked(
+                        installation, java.time.Instant.now())) {
             player.sendMessage(VehicleInstallationLockService.BERTH_BLOCKED);
             return;
         }

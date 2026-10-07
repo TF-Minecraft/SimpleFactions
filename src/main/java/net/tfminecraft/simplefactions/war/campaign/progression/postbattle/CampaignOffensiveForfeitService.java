@@ -39,7 +39,9 @@ public final class CampaignOffensiveForfeitService {
 
 		CampaignCoalition winner = offensive.opposing();
 		BelligerentRole winnerRole = CampaignCoalitionService.coalitionToBelligerentRole(winner);
-		if (winnerRole == null) {
+
+		Battle existing = BattleManager.getByWarId(war.getId());
+		if (existing != null && existing.hasStarted()) {
 			return false;
 		}
 

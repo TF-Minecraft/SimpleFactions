@@ -306,7 +306,7 @@ class MapExportLifecycleCoverageTest {
     war.setGoal(WarGoalType.SUBJUGATE);
     war.setCampaignProvinces(List.of(1, 2, 4));
     war.setObjectiveProvinceId(4);
-    war.putFortController("fort", CampaignCoalition.DEFENDER);
+    war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
     WarManager.get().add(war);
     return new WorldState(home, enemy, subject, traders, fort, war);
   }

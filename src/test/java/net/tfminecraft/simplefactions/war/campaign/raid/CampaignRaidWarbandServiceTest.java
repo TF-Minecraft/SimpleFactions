@@ -5,6 +5,8 @@ import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidMuster
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -15,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -107,10 +110,11 @@ class CampaignRaidWarbandServiceTest {
 	}
 
 	@Test
-	void beginMuster_createsAttackerWarbandOnly() {
+	void beginMuster_reservesBothRaidWarbands() {
 		assertNotNull(CampaignRaidWarbandService.getAttackerWarband(raid));
-		assertNull(CampaignRaidWarbandService.getDefenderWarband(raid));
-		assertEquals(1, WarbandManager.get().size());
+		assertNotNull(CampaignRaidWarbandService.getDefenderWarband(raid));
+		assertEquals(0, CampaignRaidWarbandService.getDefenderWarband(raid).getRealMemberCount());
+		assertEquals(2, WarbandManager.get().size());
 	}
 
 	@Test
@@ -132,6 +136,39 @@ class CampaignRaidWarbandServiceTest {
 		assertNotNull(def);
 		assertEquals(BattleTemplate.DEFENDER_SIDE, def.getCampaignSideId());
 		assertEquals(2, WarbandManager.get().size());
+	}
+
+	@Test
+	void createAttackerWarband_repairsAMissingShellWithoutChangingTheDefenderOrMuster() {
+		Warband missing = CampaignRaidWarbandService.getAttackerWarband(raid);
+		Warband defenders = CampaignRaidWarbandService.getDefenderWarband(raid);
+		defenders.addMember(CAROL_ID);
+		defenders.setLeaderId(CAROL_ID);
+		Instant musterEnd = raid.getMusterEndsAt();
+		WarbandManager.deleteWarband(missing);
+		assertNull(CampaignRaidWarbandService.getAttackerWarband(raid));
+
+		CampaignRaidWarbandService.createAttackerWarband(war, raid);
+		Warband repaired = CampaignRaidWarbandService.getAttackerWarband(raid);
+		CampaignRaidWarbandService.createAttackerWarband(war, raid);
+
+		assertNotNull(repaired);
+		assertNotSame(missing, repaired);
+		assertSame(repaired, CampaignRaidWarbandService.getAttackerWarband(raid));
+		assertEquals(1, WarbandManager.get().stream()
+				.filter(band -> band.getId().equalsIgnoreCase(repaired.getId())).count());
+		assertEquals(2, WarbandManager.get().size());
+		assertTrue(repaired.getMemberIds().isEmpty());
+		assertTrue(repaired.isLocked());
+		assertTrue(repaired.isPendingLeader());
+		assertTrue(repaired.isFaction());
+		assertEquals(BattleTemplate.ATTACKER_SIDE, repaired.getCampaignSideId());
+		assertSame(defenders, CampaignRaidWarbandService.getDefenderWarband(raid));
+		assertEquals(Set.of(CAROL_ID), defenders.getMemberIds());
+		assertEquals(CAROL_ID, defenders.getLeaderId());
+		assertSame(raid, CampaignRaidService.getActive(war));
+		assertEquals(CampaignRaidState.MUSTER, raid.getState());
+		assertEquals(musterEnd, raid.getMusterEndsAt());
 	}
 
 	@Test

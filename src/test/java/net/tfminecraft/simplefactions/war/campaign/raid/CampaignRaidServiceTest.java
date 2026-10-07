@@ -44,9 +44,15 @@ class CampaignRaidServiceTest {
 	private Instant raidWindow;
 	private InstallationHandler attackerHandler;
 	private InstallationHandler defenderHandler;
+	private List<net.tfminecraft.simplefactions.war.battle.engine.core.Battle> savedBattles;
+	private List<net.tfminecraft.simplefactions.war.battle.warband.Warband> savedWarbands;
 
 	@BeforeEach
 	void setUp() {
+		savedBattles = new ArrayList<>(net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get());
+		savedWarbands = new ArrayList<>(net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get());
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get().clear();
+		net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get().clear();
 		Cache.warVoteCloseHour = 16;
 		Cache.warRaidWindowStartHour = 19;
 		Cache.warRaidWindowEndHour = 20;
@@ -67,6 +73,8 @@ class CampaignRaidServiceTest {
 		when(defender.getInstallationHandler()).thenReturn(defenderHandler);
 		when(attackerHandler.getById("port-atk")).thenReturn(atkPort);
 		when(defenderHandler.getById("port-def")).thenReturn(defPort);
+		when(attackerHandler.getAll()).thenReturn(List.of(atkPort));
+		when(defenderHandler.getAll()).thenReturn(List.of(defPort));
 
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
@@ -84,6 +92,10 @@ class CampaignRaidServiceTest {
 
 	@AfterEach
 	void tearDown() {
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get().clear();
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get().addAll(savedBattles);
+		net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get().clear();
+		net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get().addAll(savedWarbands);
 		FactionManager.factions.remove(attacker);
 		FactionManager.factions.remove(defender);
 	}
@@ -144,6 +156,8 @@ class CampaignRaidServiceTest {
 		Installation defPort = new Installation("port-def", "Def Port", InstallationKind.PORT, 20, 0, 0, 0L);
 		Installation atkPortTarget = new Installation("port-atk", "Atk Port", InstallationKind.PORT, 10, 0, 0, 0L);
 		when(defenderHandler.getById("port-def")).thenReturn(defPort);
+		when(attackerHandler.getAll()).thenReturn(List.of(atkPortTarget));
+		when(defenderHandler.getAll()).thenReturn(List.of(defPort));
 		when(attackerHandler.getById("port-atk")).thenReturn(atkPortTarget);
 
 		CampaignRaidService.beginMuster(war, attacker, "port-atk", "port-def", raidWindow);

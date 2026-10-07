@@ -100,9 +100,6 @@ public final class BattleFactory {
 	}
 
 	private static void applyModeSettings(Battle battle, BattleModeTemplate config) {
-		if (config == null) {
-			return;
-		}
 		battle.setFriendlyFire(config.getFriendlyFire());
 		battle.setKeepInventory(config.getKeepInventory());
 		if (config.getLootEnabled() != null) {

@@ -61,8 +61,11 @@ documentation.
 
 The suite in `src/test` uses JUnit 5 and Mockito, mocking the Paper and plugin
 APIs rather than starting a server. It checks plugin logic, not behaviour on a
-live Paper server. Surefire writes reports to `target/surefire-reports/`. No
-coverage gate is enforced.
+live Paper server. Surefire writes reports to `target/surefire-reports/`. JaCoCo
+writes HTML and XML reports to `target/site/jacoco/`; `verify` requires 100%
+production line coverage with no
+class or package exclusions. This is a line coverage gate, not a branch coverage
+guarantee. CI uploads both test and coverage reports.
 
 ## License
 

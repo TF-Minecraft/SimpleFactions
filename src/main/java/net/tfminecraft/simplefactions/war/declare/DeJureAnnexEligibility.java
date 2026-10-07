@@ -40,7 +40,7 @@ public final class DeJureAnnexEligibility {
 	}
 
 	public static DeJureTitleOption evaluate(Faction attacker, Faction defender, Title title) {
-		if (attacker == null || defender == null || title == null) {
+		if (attacker == null || defender == null || title == null || title.getId() == null || title.getId().isBlank()) {
 			return new DeJureTitleOption(title, false, "§cThat title does not exist.");
 		}
 
@@ -113,9 +113,6 @@ public final class DeJureAnnexEligibility {
 
 	private static boolean attackerOwnsTitle(Faction attacker, Title title) {
 		List<Title> titles = attacker.getTitles();
-		if (titles == null || title.getId() == null) {
-			return false;
-		}
 		for (Title held : titles) {
 			if (held != null && held.getId() != null && held.getId().equalsIgnoreCase(title.getId())) {
 				return true;
@@ -127,9 +124,6 @@ public final class DeJureAnnexEligibility {
 	private static boolean attackerOwnsProvinceInTitle(Faction attacker, Title title) {
 		List<Integer> attackerProvinces = attacker.getProvinces();
 		List<Integer> titleProvinces = TitleManager.getProvinces(title);
-		if (attackerProvinces == null || titleProvinces == null) {
-			return false;
-		}
 		for (Integer provinceId : titleProvinces) {
 			if (provinceId != null && attackerProvinces.contains(provinceId)) {
 				return true;
@@ -192,9 +186,6 @@ public final class DeJureAnnexEligibility {
 				continue;
 			}
 			SettlementHandler handler = faction.getSettlementHandler();
-			if (handler == null) {
-				continue;
-			}
 			handler.getAll().forEach(s -> probes.add(new WarGoalValidator.SettlementProbe(s.getCenterProvince())));
 		}
 		return probes;

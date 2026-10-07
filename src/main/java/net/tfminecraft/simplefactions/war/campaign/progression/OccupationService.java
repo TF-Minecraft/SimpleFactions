@@ -79,9 +79,6 @@ public class OccupationService {
 
 		BelligerentTerritory territory = BelligerentTerritory.fromWar(war, owners);
 		OccupationZone zone = computeOccupationZone(war, battleProvinceId, winner);
-		if (zone.provinceIds().isEmpty()) {
-			return false;
-		}
 
 		OccupationZone enemyZone = enemyOwnedZone(zone, winner, territory);
 
@@ -107,21 +104,6 @@ public class OccupationService {
 		WartimeInstallationService.occupyLastBattle(war, winner);
 		FactionManager.getMap().enqueueOccupationFromWar(war);
 		return true;
-	}
-
-	static boolean qualifiesNeighbor(
-			War war,
-			int battleProvinceId,
-			int neighborId,
-			BelligerentRole winner,
-			BelligerentTerritory territory) {
-		return qualifiesNeighbor(
-				war,
-				battleProvinceId,
-				neighborId,
-				winner,
-				territory,
-				FortZocIndex.fromGameState());
 	}
 
 	static boolean qualifiesNeighbor(
@@ -168,8 +150,10 @@ public class OccupationService {
 			if (slotMatchesBattle(slot, battleProvinceId)) {
 				continue;
 			}
-			return slot.provinceId() == provinceId
-					|| Objects.equals(slot.chronologyProvinceId(), provinceId);
+			if (slot.provinceId() == provinceId
+					|| Objects.equals(slot.chronologyProvinceId(), provinceId)) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -185,9 +169,6 @@ public class OccupationService {
 			int battleProvinceId,
 			BelligerentRole winner,
 			FortZocIndex forts) {
-		if (provinceId == battleProvinceId || forts == null) {
-			return false;
-		}
 		CampaignCoalition advancing = winner == BelligerentRole.ATTACKER
 				? CampaignCoalition.AGGRESSOR
 				: CampaignCoalition.DEFENDER;
@@ -196,7 +177,7 @@ public class OccupationService {
 			return false;
 		}
 		for (OperationalFort fort : covering) {
-			if (FortControlService.isEnemyControlled(war, fort.id(), advancing)) {
+			if (FortControlService.isEnemyControlledForFort(war, fort, advancing)) {
 				return true;
 			}
 		}

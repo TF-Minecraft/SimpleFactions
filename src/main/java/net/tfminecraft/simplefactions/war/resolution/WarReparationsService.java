@@ -32,7 +32,7 @@ public final class WarReparationsService {
 		if (payer.getId().equalsIgnoreCase(payee.getId())) {
 			return false;
 		}
-		if (days <= 0 || percent <= 0) {
+		if (!Double.isFinite(percent) || days <= 0 || percent <= 0) {
 			return false;
 		}
 		for (Faction includedPayer : payerAndVassals(payer)) {
@@ -43,7 +43,7 @@ public final class WarReparationsService {
 	}
 
 	/** Returns the defeated faction and its full vassal tree, once each. */
-	private static List<Faction> payerAndVassals(Faction root) {
+	public static List<Faction> payerAndVassals(Faction root) {
 		Set<String> visitedIds = new LinkedHashSet<>();
 		List<Faction> result = new ArrayList<>();
 		collectPayers(root, visitedIds, result);
@@ -51,20 +51,11 @@ public final class WarReparationsService {
 	}
 
 	private static void collectPayers(Faction faction, Set<String> visitedIds, List<Faction> result) {
-		if (faction == null || faction.getId() == null || !visitedIds.add(faction.getId().toLowerCase())) {
+		if (faction == null || faction.getId() == null || !visitedIds.add(faction.getId().toLowerCase(java.util.Locale.ROOT))) {
 			return;
 		}
 		result.add(faction);
-		List<Faction> subjects;
-		try {
-			subjects = RelationManager.getSubjects(faction);
-		} catch (RuntimeException ignored) {
-			// A faction being removed during settlement has no subjects to process.
-			return;
-		}
-		if (subjects == null) {
-			return;
-		}
+		List<Faction> subjects = RelationManager.getSubjects(faction);
 		for (Faction subject : subjects) {
 			collectPayers(subject, visitedIds, result);
 		}

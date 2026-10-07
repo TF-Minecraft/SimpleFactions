@@ -127,6 +127,7 @@ public class CampaignView {
 	}
 
 	private void populateCampaignInventory(Inventory inventory, Player player, War war, Faction viewerFaction) {
+		inventory.clear();
 		List<CampaignRouteEntry> routeEntries = CampaignRouteRenderer.buildRouteEntries(war);
 
 		for (int slot : Arrays.asList(0, 1, 2, 6, 7, 8, 45, 52)) {
@@ -370,9 +371,6 @@ public class CampaignView {
 				return;
 			}
 			Faction leader = FactionManager.getByLeader(player.getName());
-			if (leader == null) {
-				return;
-			}
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_retreat", String.valueOf(war.getId()));
@@ -389,9 +387,6 @@ public class CampaignView {
 				return;
 			}
 			Faction leader = FactionManager.getByLeader(player.getName());
-			if (leader == null) {
-				return;
-			}
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_surrender", String.valueOf(war.getId()));
@@ -408,9 +403,6 @@ public class CampaignView {
 				return;
 			}
 			Faction leader = FactionManager.getByLeader(player.getName());
-			if (leader == null) {
-				return;
-			}
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_accept_peace", String.valueOf(war.getId()));
@@ -427,9 +419,6 @@ public class CampaignView {
 				return;
 			}
 			Faction leader = FactionManager.getByLeader(player.getName());
-			if (leader == null) {
-				return;
-			}
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_push", String.valueOf(war.getId()));
@@ -446,9 +435,6 @@ public class CampaignView {
 				return;
 			}
 			Faction leader = FactionManager.getByLeader(player.getName());
-			if (leader == null) {
-				return;
-			}
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_hold", String.valueOf(war.getId()));
@@ -465,9 +451,6 @@ public class CampaignView {
 				return;
 			}
 			Faction leader = FactionManager.getByLeader(player.getName());
-			if (leader == null) {
-				return;
-			}
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_attack", String.valueOf(war.getId()));
@@ -484,9 +467,6 @@ public class CampaignView {
 				return;
 			}
 			Faction leader = FactionManager.getByLeader(player.getName());
-			if (leader == null) {
-				return;
-			}
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_loser_peace", String.valueOf(war.getId()));

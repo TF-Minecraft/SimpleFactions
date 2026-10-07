@@ -5,6 +5,7 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import java.util.Optional;
 
 import org.bukkit.Bukkit;
@@ -50,7 +51,7 @@ public final class BattleVehicleEligibilityService {
 	static BattleVehicleEligibilityResult decide(
 			War war, String factionId, String vehicleTypeId, PlayerVehicleRecord record) {
 		if (record != null && record.getMode() == OwnershipMode.POOL) {
-			return poolOnPlayerSide(war, factionId, record.getFactionId())
+			return factionOnPlayerSide(war, factionId, record.getFactionId())
 					? BattleVehicleEligibilityResult.ALLOWED
 					: BattleVehicleEligibilityResult.DENIED_POOL_SIDE;
 		}
@@ -59,7 +60,9 @@ public final class BattleVehicleEligibilityService {
 			if (installationId == null || installationId.isBlank()) {
 				return BattleVehicleEligibilityResult.DENIED_NOT_BERTHED;
 			}
-			if (!BattleInstallationInPlayService.isInPlay(war, factionId, installationId)) {
+			Faction holder = FactionVehiclePoolService.payingFaction(record);
+			if (holder == null || !factionOnPlayerSide(war, factionId, holder.getId())
+					|| !BattleInstallationInPlayService.isInPlay(war, holder.getId(), installationId)) {
 				return BattleVehicleEligibilityResult.DENIED_NOT_COMMITTED;
 			}
 			return BattleVehicleEligibilityResult.ALLOWED;
@@ -67,7 +70,7 @@ public final class BattleVehicleEligibilityService {
 		return BattleVehicleEligibilityResult.DENIED_NOT_FACTION_VEHICLE;
 	}
 
-	private static boolean poolOnPlayerSide(War war, String playerFactionId, String vehicleFactionId) {
+	private static boolean factionOnPlayerSide(War war, String playerFactionId, String vehicleFactionId) {
 		if (vehicleFactionId == null || vehicleFactionId.isBlank()) {
 			return false;
 		}

@@ -98,6 +98,10 @@ public final class VehicleTransferMessages {
         return "§cThe vehicle owner must be within " + blocks + " blocks of the vehicle.";
     }
 
+    public static String saveFailed() {
+        return "§cCould not save the vehicle transfer. Ownership has not changed. Please try again.";
+    }
+
     public static String consentExpired() {
         return "§cVehicle transfer request expired or was cancelled.";
     }

@@ -51,14 +51,8 @@ public final class CampaignBattleSignupReminderService {
 		WarManager.persist(war);
 	}
 
-	static int findNextDueReminderOffset(War war, Instant scheduledAt, Instant now) {
-		if (war == null || scheduledAt == null || now == null) {
-			return -1;
-		}
+	private static int findNextDueReminderOffset(War war, Instant scheduledAt, Instant now) {
 		List<Integer> offsets = Cache.battleSignupReminderSecondsBefore;
-		if (offsets == null || offsets.isEmpty()) {
-			return -1;
-		}
 		int nextOffset = -1;
 		for (int offset : offsets) {
 			if (war.getSignupRemindersSent().contains(offset)) {
@@ -91,9 +85,6 @@ public final class CampaignBattleSignupReminderService {
 	private static void broadcastToUnassignedSide(
 			net.tfminecraft.simplefactions.war.core.Side side,
 			String message) {
-		if (side == null || message == null) {
-			return;
-		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
 			Player player = Bukkit.getPlayerExact(memberName);
 			if (player == null || !player.isOnline()) {

@@ -232,6 +232,8 @@ class VehicleInstallationLockServiceTest {
 	private void setActiveRaid(CampaignRaidState state) {
 		CampaignRaid raid = new CampaignRaid();
 		raid.setWarId(war.getId());
+		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setLauncherFactionId(attacker.getId());
 		raid.setBattleDay(BATTLE_DAY);
 		raid.setSourceInstallationId("port-atk");
 		raid.setTargetInstallationId("port-def");

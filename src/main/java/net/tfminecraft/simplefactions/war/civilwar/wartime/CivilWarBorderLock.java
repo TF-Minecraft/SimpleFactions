@@ -140,9 +140,6 @@ public final class CivilWarBorderLock {
 		if (side.getLeader() != null) {
 			add(ids, side.getLeader().getId());
 		}
-		if (side.getMainParticipants() == null) {
-			return;
-		}
 		for (Participant participant : side.getMainParticipants()) {
 			if (participant != null && participant.getLeader() != null) {
 				add(ids, participant.getLeader().getId());

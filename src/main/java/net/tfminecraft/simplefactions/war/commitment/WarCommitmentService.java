@@ -69,7 +69,7 @@ public final class WarCommitmentService {
 		Set<String> sideFighterIds = new HashSet<>();
 		for (Faction participating : BattleSideMembers.collectParticipatingFactions(side)) {
 			if (participating != null && participating.getId() != null) {
-				sideFighterIds.add(participating.getId().toLowerCase());
+				sideFighterIds.add(participating.getId().toLowerCase(java.util.Locale.ROOT));
 			}
 		}
 		return insertLevyRows(war, LevySnapshotCalculator.collectLevyRowsForFighter(fighter, sideFighterIds));
@@ -94,11 +94,11 @@ public final class WarCommitmentService {
 			return;
 		}
 		if (net.tfminecraft.simplefactions.managers.RelationManager.isOverlord(origin, target)) {
-			removeLevySubtree(target);
+			removeLevySubtree(origin);
 			return;
 		}
 		if (net.tfminecraft.simplefactions.managers.RelationManager.isOverlord(target, origin)) {
-			removeLevySubtree(origin);
+			removeLevySubtree(target);
 		}
 	}
 
@@ -116,7 +116,7 @@ public final class WarCommitmentService {
 					return true;
 				}
 				String sourceId = commitment.sourceFactionId();
-				return sourceId != null && subtreeIds.contains(sourceId.toLowerCase());
+				return sourceId != null && subtreeIds.contains(sourceId.toLowerCase(java.util.Locale.ROOT));
 			});
 		}
 	}
@@ -134,7 +134,7 @@ public final class WarCommitmentService {
 	}
 
 	public static void restoreCommitments(int warId, List<WarCommitment> commitments) {
-		if (warId <= 0) {
+		if (warId < 0) {
 			return;
 		}
 		if (commitments == null || commitments.isEmpty()) {
@@ -216,12 +216,12 @@ public final class WarCommitmentService {
 		Set<String> normalizedIds = new HashSet<>();
 		for (String factionId : factionIds) {
 			if (factionId != null) {
-				normalizedIds.add(factionId.toLowerCase());
+				normalizedIds.add(factionId.toLowerCase(java.util.Locale.ROOT));
 			}
 		}
 		int total = 0;
 		for (WarCommitment commitment : getCommitmentsForWar(warId)) {
-			if (commitment.factionId() == null || !normalizedIds.contains(commitment.factionId().toLowerCase())) {
+			if (commitment.factionId() == null || !normalizedIds.contains(commitment.factionId().toLowerCase(java.util.Locale.ROOT))) {
 				continue;
 			}
 			if (regimentFilter != null && !regimentFilter.test(commitment)) {

@@ -138,16 +138,6 @@ public class BattleManager implements Listener{
 		BattleCasualtyLedger.resetForTests();
 		BattleRespawnRouting.resetForTests();
 	}
-	private BattleSide getBySidePlayer(Player p) {
-		for(Battle b : battles) {
-			for(BattleSide s : b.getSides()) {
-				for(Warband w : s.getBands()) {
-					if (w.hasMember(p)) return s;
-				}
-			}
-		}
-		return null;
-	}
 	public static Battle getBattleByMemberId(java.util.UUID memberId) {
 		for (Battle b : battles) {
 			if (b.getSideByMemberId(memberId) != null) return b;
@@ -165,17 +155,13 @@ public class BattleManager implements Listener{
 	@SuppressWarnings("deprecation")
 	private Battle getBattleByItem(ItemStack item) {
 		ItemMeta m = item.getItemMeta();
+		if (m == null) return null;
+		String id = m.getPersistentDataContainer().get(
+				new org.bukkit.NamespacedKey(SimpleFactions.plugin, "battle_id"),
+				org.bukkit.persistence.PersistentDataType.STRING);
+		if (id != null) return getByString(id);
 		for(Battle b : battles) {
 			if(m.getDisplayName().equals("§e"+b.getId())) return b;
-		}
-		return null;
-	}
-	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
-	@SuppressWarnings("deprecation")
-	private CapturePoint getPointByItem(Battle b, ItemStack item) {
-		ItemMeta m = item.getItemMeta();
-		for(CapturePoint p : b.getPointManager().getPoints()) {
-			if(m.getDisplayName().equals("§a"+p.getId())) return p;
 		}
 		return null;
 	}
@@ -201,7 +187,7 @@ public class BattleManager implements Listener{
 		{
 			public void run()
 			{
-				for(Battle b : battles) {
+				for(Battle b : new ArrayList<>(battles)) {
 					if(b.hasStarted()){
 						b.tick();
 					}
@@ -211,12 +197,14 @@ public class BattleManager implements Listener{
 	}
 
 	public void end() {
-		for(Battle b : battles) {
+		for(Battle b : new ArrayList<>(battles)) {
 			if(b.hasStarted()) b.end();
 		}
 	}
 	
 	public void spawnTeleport(Player p, CapturePoint point) {
+		Battle battle = getBattleByPlayer(p);
+		if (battle == null || point == null) return;
 		new BukkitRunnable()
 		{
 			int i = 15;
@@ -224,9 +212,19 @@ public class BattleManager implements Listener{
 			@SuppressWarnings("deprecation")
 			public void run()
 			{
+				BattleSide side = battle.getSideByPlayer(p);
+				if (!p.isOnline() || !battle.hasStarted() || getBattleByPlayer(p) != battle
+						|| side == null || !battle.getPointManager().getPoints().contains(point)
+						|| point.getController() == null
+						|| !point.getController().getId().equalsIgnoreCase(side.getId())
+						|| point.getCaptureProgress() < 50) {
+					this.cancel();
+					return;
+				}
 				if(i == 0) {
 					p.teleport(point.getLoc());
 					this.cancel();
+					return;
 				}
 				p.sendTitle(" ", "§eTeleporting... §a"+i+"s", 0, 30, 0);
 				i--;
@@ -238,18 +236,18 @@ public class BattleManager implements Listener{
 		Location loc = e.getLocation();
 		for(Battle b : battles) {
 			for(CapturePoint p : b.getPointManager().getPoints()) {
-				if(loc.distanceSquared(p.getLoc()) < 36) {
+				if(sameWorldNearby(loc, p.getLoc())) {
 					e.setBlockDamage(false);
 				}
 			}
 			for(BattleSide s : b.getSides()) {
 				if(s.getSpawn() != null) {
-					if(loc.distanceSquared(s.getSpawn()) < 36) {
+					if(sameWorldNearby(loc, s.getSpawn())) {
 						e.setBlockDamage(false);
 					}
 				}
 				if(s.getJail() != null) {
-					if(loc.distanceSquared(s.getJail()) < 36) {
+					if(sameWorldNearby(loc, s.getJail())) {
 						e.setBlockDamage(false);
 					}
 				}
@@ -257,6 +255,11 @@ public class BattleManager implements Listener{
 		}
 	}
 	
+	private static boolean sameWorldNearby(Location origin, Location target) {
+		return origin.getWorld() != null && origin.getWorld().equals(target.getWorld())
+				&& origin.distanceSquared(target) < 36;
+	}
+
 	public static final String KEEP_POUCH_METADATA = "simplefactions.keep-pouch";
 
 	@EventHandler(priority = EventPriority.LOWEST)
@@ -268,8 +271,7 @@ public class BattleManager implements Listener{
 		Battle b = getBattleByPlayer(p);
 		if(b == null) return;
 		if(!b.hasStarted()) return;
-		BattleSide s = getBySidePlayer(p);
-		if(s == null) return;
+		BattleSide s = b.getSideByPlayer(p);
 		e.setKeepInventory(b.hasKeepInventory());
 		if (b.hasKeepInventory()) {
 			e.getDrops().clear();
@@ -315,10 +317,7 @@ public class BattleManager implements Listener{
 		if (b == null || !b.hasStarted()) {
 			return;
 		}
-		BattleSide s = getBySidePlayer(p);
-		if (s == null) {
-			return;
-		}
+		BattleSide s = b.getSideByPlayer(p);
 		if (b.getBattleType() == BattleType.RAID) {
 			if (!BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(s.getId())) {
 				return;
@@ -338,12 +337,13 @@ public class BattleManager implements Listener{
 		Battle b = getBattleByPlayer(p);
 		if(b == null) return;
 		if(!b.hasStarted()) return;
-		BattleSide s = getBySidePlayer(p);
-		if(s == null) return;
+		BattleSide s = b.getSideByPlayer(p);
 		new BukkitRunnable()
 		{
 			public void run()
 			{
+				if (!p.isOnline() || !b.hasStarted() || getBattleByPlayer(p) != b
+						|| b.getSideByPlayer(p) != s) return;
 				p.setFoodLevel(20);
 
 				// Run console commands for resource restoration
@@ -380,8 +380,7 @@ public class BattleManager implements Listener{
 		if(b == null) return;
 		if(!b.hasStarted()) return;
 		if(b.hasFriendlyFire()) return;
-		BattleSide s = getBySidePlayer(p);
-		if(s == null) return;
+		BattleSide s = b.getSideByPlayer(p);
 		if(s.hasPlayer(target)) e.setCancelled(true);
 	}
 	
@@ -389,7 +388,26 @@ public class BattleManager implements Listener{
 	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void invenClick(InventoryClickEvent e) {
+		if (BattleInventoryManager.handlePageClick(e)) return;
 		Player p = (Player) e.getWhoClicked();
+		String title = e.getView().getTitle().toLowerCase(java.util.Locale.ROOT);
+		boolean editor = switch (title) {
+			case "§7battle view", "§7side view", "§7side edit", "§7point view", "§7contest view",
+					"§7raid target view", "§7template selection" -> true;
+			default -> false;
+		};
+		if (!editor && !title.equals("§7battle list") && !title.equals("§7respawn points")
+				&& !title.equals("§7side selection")) return;
+		e.setCancelled(true);
+		if (e.getRawSlot() < 0 || e.getRawSlot() >= e.getView().getTopInventory().getSize()
+				|| (e.getClick() != org.bukkit.event.inventory.ClickType.LEFT
+						&& e.getClick() != org.bukkit.event.inventory.ClickType.RIGHT)) return;
+		if (editor && !net.tfminecraft.simplefactions.war.battle.ui.BattlePermissions.isAdmin(p)) {
+			currentBattle.remove(p);
+			currentSideEdit.remove(p);
+			p.sendMessage("§cYou no longer have permission to edit battles.");
+			return;
+		}
 		if(e.getView().getTitle().equalsIgnoreCase("§7Battle View")) {
 			if(!currentBattle.containsKey(p)) return;
 			Battle b = currentBattle.get(p);
@@ -508,12 +526,6 @@ public class BattleManager implements Listener{
 					p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 					return;
 				}
-				if (b.hasStarted()) {
-					p.sendMessage("§cCannot delete a battle while it is running.");
-					p.sendMessage("§7Stop it first via §e/battle edit §7-> End Battle.");
-					p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-					return;
-				}
 				BattlePersistenceService.deleteManualBattle(b);
 				clearEditorSessions(b);
 				currentBattle.remove(p);
@@ -573,38 +585,23 @@ public class BattleManager implements Listener{
 				return;
 			}
 			if(e.getSlot() == 10) {
-				try {
-					BattleSideSetupService.setSpawn(b, side, p.getLocation());
-					BattlePersistenceService.persistBattle(b);
-					p.sendMessage("§aSide §e" + side.getId() + " §aspawn set!");
-					p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					inv.updateSideEditView(p, b, side, e.getClickedInventory());
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-				}
+				BattleSideSetupService.setSpawn(b, side, p.getLocation());
+				BattlePersistenceService.persistBattle(b);
+				p.sendMessage("§aSide §e" + side.getId() + " §aspawn set!");
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.updateSideEditView(p, b, side, e.getClickedInventory());
 			} else if(e.getSlot() == 12) {
-				try {
-					BattleSideSetupService.setJail(b, side, p.getLocation());
-					BattlePersistenceService.persistBattle(b);
-					p.sendMessage("§aSide §e" + side.getId() + " §ajail set!");
-					p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					inv.updateSideEditView(p, b, side, e.getClickedInventory());
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-				}
+				BattleSideSetupService.setJail(b, side, p.getLocation());
+				BattlePersistenceService.persistBattle(b);
+				p.sendMessage("§aSide §e" + side.getId() + " §ajail set!");
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.updateSideEditView(p, b, side, e.getClickedInventory());
 			} else if(e.getSlot() == 14 && b.isCapturePointsEnabled()) {
-				try {
-					CapturePoint point = BattleSideSetupService.addCapturePoint(b, side, p.getLocation());
-					BattlePersistenceService.persistBattle(b);
-					p.sendMessage("§aPoint §e" + point.getId() + " §acreated!");
-					p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					inv.updateSideEditView(p, b, side, e.getClickedInventory());
-				} catch (IllegalArgumentException | IllegalStateException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-				}
+				CapturePoint point = BattleSideSetupService.addCapturePoint(b, side, p.getLocation());
+				BattlePersistenceService.persistBattle(b);
+				p.sendMessage("§aPoint §e" + point.getId() + " §acreated!");
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.updateSideEditView(p, b, side, e.getClickedInventory());
 			} else if (e.getSlot() == BattleInventoryManager.SIDE_EDIT_LIVES_SLOT) {
 				try {
 					int current = side.getMaxLives() > 0 ? side.getMaxLives() : side.getLives();
@@ -637,7 +634,7 @@ public class BattleManager implements Listener{
 			if (pointId == null) {
 				return;
 			}
-			CapturePoint point = b.getPointById(pointId);
+			CapturePoint point = BattleInventoryManager.selectedPoint(e.getView().getTopInventory(), e.getCurrentItem(), b.getPoints());
 			if (point == null) {
 				return;
 			}
@@ -660,31 +657,22 @@ public class BattleManager implements Listener{
 				return;
 			}
 			if(e.getSlot() == 0) {
-				try {
-					BattleContestSetup.setContestMin(b, p.getLocation());
-					BattlePersistenceService.persistBattle(b);
-					p.sendMessage("§aContest area min set!");
-					p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					inv.contestView(p, b);
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-				}
+				BattleContestSetup.setContestMin(b, p.getLocation());
+				BattlePersistenceService.persistBattle(b);
+				p.sendMessage("§aContest area min set!");
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.contestView(p, b);
 			} else if(e.getSlot() == 1) {
-				try {
-					BattleContestSetup.setContestMax(b, p.getLocation());
-					BattlePersistenceService.persistBattle(b);
-					p.sendMessage("§aContest area max set!");
-					p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					inv.contestView(p, b);
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-				}
+				BattleContestSetup.setContestMax(b, p.getLocation());
+				BattlePersistenceService.persistBattle(b);
+				p.sendMessage("§aContest area max set!");
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.contestView(p, b);
 			} else if(e.getSlot() == 2) {
 				int next = BattleInventoryManager.cycleContestDuration(
 						BattleContestSetup.getEffectiveDurationSeconds(b));
 				b.setContestDurationSeconds(next);
+				BattlePersistenceService.persistBattle(b);
 				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				inv.contestView(p, b);
 			}
@@ -744,7 +732,7 @@ public class BattleManager implements Listener{
 			if(pointItem.getType().equals(Material.GREEN_CONCRETE)) {
 				Battle b = getBattleByPlayer(p);
 				if(b == null) return;
-				CapturePoint point = getPointByItem(b, pointItem);
+				CapturePoint point = BattleInventoryManager.selectedPoint(e.getView().getTopInventory(), pointItem, b.getPointManager().getPoints());
 				spawnTeleport(p, point);
 				p.closeInventory();
 			} else {

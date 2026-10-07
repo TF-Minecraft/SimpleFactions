@@ -46,7 +46,8 @@ public final class BattleProvinceBlockProtectionService {
 	}
 
 	static int resolveProvinceId(Location location) {
-		if (!Cache.mapEnabled || location == null) {
+		if (!Cache.mapEnabled || location == null || location.getWorld() == null
+				|| !location.getWorld().getName().equals(Cache.worldName)) {
 			return -1;
 		}
 		SimpleFactions plugin = SimpleFactions.getInstance();

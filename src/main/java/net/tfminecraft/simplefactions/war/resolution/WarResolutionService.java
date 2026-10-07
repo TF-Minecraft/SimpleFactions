@@ -165,9 +165,6 @@ public final class WarResolutionService {
 	}
 
 	private static int capitalProvinceId(Faction faction) {
-		if (faction == null) {
-			return 0;
-		}
 		return faction.getCapital();
 	}
 

@@ -44,6 +44,7 @@ import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
 
 public class WarManager {
+	private WarManager() {}
 	private static List<War> wars = new ArrayList<>();
 	private static String lastDeclareError;
 	// The goat-horn enum needs a live registry, so tests can substitute this.
@@ -243,18 +244,17 @@ public class WarManager {
 			lastDeclareError = navy.getMessage();
 			return null;
 		}
-		WarCommitmentService.commitAllParticipants(war);
-		addWar(war);
 		// Anything that touched the rebels since the regiment split may have handed their law slots back.
+		// Register the snapshot before refreshing, so the military recognizes the active rebellion.
+		wars.add(war);
 		refreshTempRebelSlots(war);
+		WarCommitmentService.commitAllParticipants(war);
+		announceAndPersist(war);
 		logWarDeclared(war, attacker, defender);
 		return war;
 	}
 
 	private static void logWarDeclared(War war, Faction attacker, Faction defender) {
-		if (war == null) {
-			return;
-		}
 		LogManager.war(
 				"DECLARE warId=%d type=%s goal=%s attacker=%s defender=%s movementId=%s",
 				war.getId(),
@@ -317,10 +317,14 @@ public class WarManager {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	public static War addWar(War w) {
 		wars.add(w);
+		announceAndPersist(w);
+		return w;
+	}
+
+	private static void announceAndPersist(War w) {
 		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getAttackers()));
 		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getDefenders()));
 		persist(w);
-		return w;
 	}
 
 	@SuppressWarnings("deprecation")
@@ -466,7 +470,7 @@ public class WarManager {
 	
 	public static int newId() {
 		int i = 0;
-		while(getById(i) != null) i++;
+		while(getById(i) != null || new java.io.File("plugins/SimpleFactions/Wars", "war_" + i + ".json").exists()) i++;
 		return i;
 	}
 	
@@ -497,7 +501,9 @@ public class WarManager {
 	}
 	
 	public static void acceptRequest(Player p) {
-		WarRequest req = (WarRequest) RequestManager.getRequest(p);
+		if (!(RequestManager.getRequest(p) instanceof WarRequest req)) {
+			return;
+		}
 		Faction reciever = FactionManager.getByLeader(p.getName());
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
@@ -505,7 +511,14 @@ public class WarManager {
 		}
 		Faction origin = req.getFaction();
 		War war = req.getWar();
-		if (!war.call(origin, reciever)) {
+		String requestedFaction = req.getTargetFactionId();
+		if (war == null || !war.isActive() || getById(war.getId()) != war
+				|| origin == null || FactionManager.getByString(origin.getId()) != origin
+				|| FactionManager.getByString(reciever.getId()) != reciever
+				|| (requestedFaction != null && !requestedFaction.equalsIgnoreCase(reciever.getId()))
+				|| !RelationManager.getAllies(origin).contains(reciever)
+				|| !CallToArmsEligibility.canCall(war, origin, reciever).allowed()
+				|| !war.call(origin, reciever)) {
 			p.sendMessage("§cCould not join the war.");
 			return;
 		}

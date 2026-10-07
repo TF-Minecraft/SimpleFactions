@@ -200,4 +200,17 @@ class WarDebugFormatterTest {
 		assertTrue(json.contains("\"kind\":\"siege\""));
 		assertTrue(json.contains("\"fortInstallationId\":\"fort_a\""));
 	}
+
+	@Test
+	void aPersistedCursorOutsideTheAxisRemainsVisibleWithoutAnInventedProvince() {
+		try (var fixture = new net.tfminecraft.simplefactions.testsupport.FactionDomainFixture()) {
+			War war = new War(13, fixture.saved("atk", "Alice"), fixture.saved("def", "Bob"));
+			war.setCampaignProvinces(List.of(10, 20));
+			war.setCursorIndex(4);
+			String json = WarDebugFormatter.formatStatusLines(war).getFirst();
+			assertTrue(json.contains("\"cursorProvinceId\":null"));
+			assertEquals(4, war.getCursorIndex());
+		}
+	}
+
 }

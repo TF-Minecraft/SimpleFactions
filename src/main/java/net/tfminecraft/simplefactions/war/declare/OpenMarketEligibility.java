@@ -17,13 +17,7 @@ public final class OpenMarketEligibility {
 			return false;
 		}
 		LawHandler handler = faction.getLawHandler();
-		if (handler == null) {
-			return false;
-		}
 		List<Law> current = handler.getCurrentLaws();
-		if (current == null) {
-			return false;
-		}
 		for (Law law : current) {
 			if (law == null || law.getId() == null) {
 				continue;
@@ -42,17 +36,8 @@ public final class OpenMarketEligibility {
 			return null;
 		}
 		LawHandler handler = faction.getLawHandler();
-		if (handler == null) {
-			return null;
-		}
 		List<LawGroup> groups = handler.getGroupList();
-		if (groups == null) {
-			return null;
-		}
 		for (LawGroup group : groups) {
-			if (group == null || group.getLaws() == null) {
-				continue;
-			}
 			for (Law law : group.getLaws().values()) {
 				if (law != null && law.getId() != null && law.getId().equalsIgnoreCase(lawId.trim())) {
 					return new ResolvedLaw(law, group);

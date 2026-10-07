@@ -73,11 +73,10 @@ public final class PillageApplyService {
 			return;
 		}
 		Faction attacker = war.getAttackers().getLeader();
-		if (attacker == null) {
-			return;
-		}
 		Bank bank = attacker.getBank();
 		if (bank == null) {
+			java.util.logging.Logger.getLogger(PillageApplyService.class.getName()).warning(
+					"Skipping pillage loot for faction " + attacker.getId() + ": its bank was removed.");
 			return;
 		}
 		bank.deposit(loot);

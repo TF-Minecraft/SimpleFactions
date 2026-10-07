@@ -66,9 +66,6 @@ public final class CampaignRouteRenderer {
 	}
 
 	private static int firstLandInvasionIndex(List<ScheduledCampaignBattle> invasion) {
-		if (invasion == null) {
-			return -1;
-		}
 		for (int index = 0; index < invasion.size(); index++) {
 			CampaignBattleKind kind = invasion.get(index).kind();
 			if (kind != CampaignBattleKind.NAVAL && kind != CampaignBattleKind.NAVAL_INVASION) {

@@ -200,4 +200,12 @@ class WarCombatTeardownServiceTest {
 			assertFalse(war.isActive());
 		}
 	}
+
+	@Test
+	void noWarToTearDownLeavesTheBattleRegistryUntouched() {
+		var before = new java.util.ArrayList<>(BattleManager.getAllByWarId(1));
+		WarCombatTeardownService.teardownCombatForWar(null);
+		org.junit.jupiter.api.Assertions.assertEquals(before, BattleManager.getAllByWarId(1));
+	}
+
 }

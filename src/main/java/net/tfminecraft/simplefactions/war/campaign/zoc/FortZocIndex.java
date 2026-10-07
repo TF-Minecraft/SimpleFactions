@@ -15,14 +15,11 @@ import net.tfminecraft.simplefactions.installation.InstallationKind;
 
 public final class FortZocIndex {
 	public record OperationalFort(String id, Faction owner, int province, long completedAt) {
+		public String stableKey() { return "province:" + province + ":fort:" + completedAt; }
 	}
 
 	private final Map<Integer, OperationalFort> provinceToFort;
 	private final Map<Integer, List<OperationalFort>> provinceToAllForts;
-
-	FortZocIndex(Map<Integer, OperationalFort> provinceToFort) {
-		this(provinceToFort, Map.of());
-	}
 
 	FortZocIndex(
 			Map<Integer, OperationalFort> provinceToFort,
@@ -64,7 +61,10 @@ public final class FortZocIndex {
 			return new FortZocIndex(Map.of(), Map.of());
 		}
 
-		List<OperationalFort> sorted = new ArrayList<>(forts);
+		List<OperationalFort> sorted = new ArrayList<>();
+		for (OperationalFort fort : forts) {
+			if (fort != null && fort.owner() != null && fort.id() != null) sorted.add(fort);
+		}
 		sorted.sort(Comparator
 				.comparingLong(OperationalFort::completedAt)
 				.thenComparing(OperationalFort::id));
@@ -72,9 +72,6 @@ public final class FortZocIndex {
 		Map<Integer, OperationalFort> provinceToFort = new HashMap<>();
 		Map<Integer, List<OperationalFort>> provinceToAllForts = new HashMap<>();
 		for (OperationalFort fort : sorted) {
-			if (fort == null || fort.owner() == null || fort.id() == null) {
-				continue;
-			}
 			for (int provinceId : ZocRealm.computeZocProvinces(fort.owner(), fort.province())) {
 				provinceToFort.putIfAbsent(provinceId, fort);
 				provinceToAllForts.computeIfAbsent(provinceId, ignored -> new ArrayList<>()).add(fort);

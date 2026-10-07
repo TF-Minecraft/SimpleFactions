@@ -101,50 +101,34 @@ public final class CampaignBattleRosterService {
 	}
 
 	private static boolean hasCampaignFactionShells(Battle battle) {
-		if (battle == null) {
-			return false;
-		}
-		BattleSide attacker = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
-		BattleSide defender = battle.getSideById(BattleTemplate.DEFENDER_SIDE);
-		return hasFactionShell(attacker) && hasFactionShell(defender);
+		return getCampaignWarband(battle, BattleTemplate.ATTACKER_SIDE) != null
+				&& getCampaignWarband(battle, BattleTemplate.DEFENDER_SIDE) != null;
 	}
 
-	private static boolean hasFactionShell(BattleSide side) {
-		if (side == null) {
-			return false;
-		}
-		for (Warband warband : side.getBands()) {
-			if (warband != null && warband.isFaction() && warband.getCampaignSideId() != null) {
-				return true;
+	public static Warband getCampaignWarband(Battle battle, String battleSideId) {
+		if (battle == null || battleSideId == null) return null;
+		BattleSide side = battle.getSideById(battleSideId);
+		if (side == null) return null;
+		for (Warband band : side.getBands()) {
+			if (band.isFaction() && battleSideId.equalsIgnoreCase(band.getCampaignSideId())) {
+				return band;
 			}
 		}
-		return false;
+		return null;
 	}
 
 	private static void enrollSide(War war, Battle battle, Side side, String battleSideId) {
-		if (side == null || side.getLeader() == null) {
-			if (side == null) {
-				SimpleFactions.plugin.getLogger().warning(
-						"[SimpleFactions] Skipping campaign warband enroll for missing side " + battleSideId);
-			} else {
-				SimpleFactions.plugin.getLogger().warning(
-						"[SimpleFactions] Skipping campaign warband enroll for side "
-								+ battleSideId
-								+ " (no war side leader)");
-			}
-			return;
+		if (getCampaignWarband(battle, battleSideId) != null) return;
+		// Keep attached legacy shells, but give new shells stable battle-specific identities.
+		String baseId = "campaign_" + battle.getId() + "_" + battleSideId;
+		String warbandId = baseId;
+		for (int suffix = 2; WarbandManager.getByString(warbandId) != null; suffix++) {
+			warbandId = baseId + "_" + suffix;
 		}
-		String warbandId = BattleNamingService.campaignWarbandId(battle.getDisplayName(), battleSideId);
-		Warband warband = WarbandManager.getByString(warbandId);
-		if (warband == null) {
-			warband = Warband.createCampaignSideShell(warbandId, war, side, battleSideId);
-			WarbandManager.addWarband(warband);
-		}
-		if (isWarbandOnBattleSide(warband, battle, battleSideId)) {
-			return;
-		}
+		Warband warband = Warband.createCampaignSideShell(warbandId, war, side, battleSideId);
+		WarbandManager.addWarband(warband);
 		String joinError = BattleJoinService.join(warband, battle, battleSideId);
-		if (joinError != null && !isWarbandOnBattleSide(warband, battle, battleSideId)) {
+		if (joinError != null) {
 			if (SimpleFactions.plugin != null) {
 				SimpleFactions.plugin.getLogger().warning(
 						"[SimpleFactions] Campaign warband join failed for "
@@ -158,22 +142,6 @@ public final class CampaignBattleRosterService {
 				battleSide.addBand(warband);
 			}
 		}
-	}
-
-	private static boolean isWarbandOnBattleSide(Warband warband, Battle battle, String battleSideId) {
-		if (warband == null || battle == null || battleSideId == null) {
-			return false;
-		}
-		BattleSide side = battle.getSideById(battleSideId);
-		if (side == null) {
-			return false;
-		}
-		for (Warband band : side.getBands()) {
-			if (band != null && band.getId().equalsIgnoreCase(warband.getId())) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	private static void broadcastJoinReady(War war, Battle battle) {

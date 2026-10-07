@@ -116,13 +116,13 @@ public final class BattleMapper {
 		}
 		battle.setRaidTarget(data.raidTarget);
 
-		for (BattleSideData sideData : data.sides) {
-			BattleSide side = fromSideData(sideData, battle.getLifeType(), battle.getLives());
+		for (BattleSideData sideData : java.util.Objects.requireNonNullElse(data.sides, List.<BattleSideData>of())) {
+			BattleSide side = fromSideData(sideData, battle.getLives());
 			if (side != null) {
 				battle.addSide(side);
 			}
 		}
-		for (CapturePointData pointData : data.points) {
+		for (CapturePointData pointData : java.util.Objects.requireNonNullElse(data.points, List.<CapturePointData>of())) {
 			CapturePoint point = fromPointData(pointData, battle);
 			if (point != null) {
 				battle.addPoint(point);
@@ -154,19 +154,16 @@ public final class BattleMapper {
 		return data;
 	}
 
-	private static BattleSide fromSideData(BattleSideData data, LifeType defaultLifeType, int defaultLives) {
+	private static BattleSide fromSideData(BattleSideData data, int defaultLives) {
 		if (data == null || data.id == null) {
 			return null;
 		}
 		LifeType lifeType = parseLifeType(data.lifeType);
-		if (lifeType == null) {
-			lifeType = defaultLifeType != null ? defaultLifeType : LifeType.COLLECTIVE;
-		}
 		int initialLives = data.maxLives > 0 ? data.maxLives : defaultLives;
 		BattleSide side = new BattleSide(data.id, lifeType, initialLives);
 		side.setSpawn(toLocation(data.spawn));
 		side.setJail(toLocation(data.jail));
-		for (BattleLocation respawn : data.respawnPoints) {
+		for (BattleLocation respawn : java.util.Objects.requireNonNullElse(data.respawnPoints, List.<BattleLocation>of())) {
 			Location location = toLocation(respawn);
 			if (location != null) {
 				side.addRespawnPoint(location);
@@ -228,7 +225,7 @@ public final class BattleMapper {
 			return LifeType.COLLECTIVE;
 		}
 		try {
-			return LifeType.valueOf(value.toUpperCase());
+			return LifeType.valueOf(value.toUpperCase(java.util.Locale.ROOT));
 		} catch (IllegalArgumentException e) {
 			return LifeType.COLLECTIVE;
 		}
@@ -239,7 +236,7 @@ public final class BattleMapper {
 			return null;
 		}
 		try {
-			return DefenderRespawnMode.valueOf(value.toUpperCase());
+			return DefenderRespawnMode.valueOf(value.toUpperCase(java.util.Locale.ROOT));
 		} catch (IllegalArgumentException e) {
 			return null;
 		}

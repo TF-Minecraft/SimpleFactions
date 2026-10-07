@@ -3,12 +3,9 @@ package net.tfminecraft.simplefactions.war.battle.engine.core;
 import org.bukkit.Location;
 
 import net.tfminecraft.simplefactions.map.ProvinceGrid;
-import net.tfminecraft.simplefactions.map.provinces.Province;
-import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
-import net.tfminecraft.simplefactions.enums.Terrain;
 
 public final class BattleBoundsService {
 	private BattleBoundsService() {
@@ -65,27 +62,12 @@ public final class BattleBoundsService {
 			BattleSide attacker = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
 			spawn = attacker != null ? attacker.getSpawn() : null;
 		}
-		if (spawn == null || spawn.getWorld() == null) {
+		if (spawn == null || spawn.getWorld() == null
+				|| !spawn.getWorld().getName().equals(net.tfminecraft.simplefactions.Cache.worldName)) {
 			return null;
 		}
 		int provinceId = grid.getAt(spawn.getBlockX(), spawn.getBlockZ());
 		return provinceId > 0 ? provinceId : null;
 	}
 
-	static Integer findAdjacentSeaProvince(ProvinceManager pm, int provinceId) {
-		if (pm == null) {
-			return null;
-		}
-		Province province = pm.get(provinceId);
-		if (province == null || province.getId() == 0) {
-			return null;
-		}
-		for (int neighbourId : province.getNeighbours()) {
-			Province neighbour = pm.get(neighbourId);
-			if (neighbour != null && neighbour.getTerrain() == Terrain.SEA) {
-				return neighbourId;
-			}
-		}
-		return null;
-	}
 }

@@ -90,13 +90,14 @@ class FortControlServiceTest {
 
 		FortControlService.initializeAtDeclare(war);
 
-		assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get("fort_def"));
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get("fort_atk"));
-		assertFalse(war.getFortControllers().containsKey("fort_neutral"));
+		assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get(defenderFort.getStableKey()));
+		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get(attackerFort.getStableKey()));
+		assertFalse(war.getFortControllers().containsKey(neutralFort.getStableKey()));
 	}
 
 	@Test
 	void setController_updatesEntry() {
+		registerFortA();
 		FortControlService.setController(war, "fort_a", CampaignCoalition.DEFENDER);
 		assertEquals(CampaignCoalition.DEFENDER, FortControlService.controller(war, "fort_a").orElseThrow());
 
@@ -106,6 +107,7 @@ class FortControlServiceTest {
 
 	@Test
 	void isEnemyControlled_trueWhenControllerDiffersFromAdvancing() {
+		registerFortA();
 		FortControlService.setController(war, "fort_a", CampaignCoalition.DEFENDER);
 
 		assertTrue(FortControlService.isEnemyControlled(war, "fort_a", CampaignCoalition.AGGRESSOR));
@@ -116,4 +118,12 @@ class FortControlServiceTest {
 	void isEnemyControlled_falseWhenNoController() {
 		assertFalse(FortControlService.isEnemyControlled(war, "missing", CampaignCoalition.AGGRESSOR));
 	}
+	private void registerFortA() {
+		Installation fort = new Installation("fort_a", "Fort A", InstallationKind.FORT, 10, 0, 0, 100L);
+		InstallationHandler handler = mock(InstallationHandler.class);
+		when(handler.getAll()).thenReturn(List.of(fort));
+		when(attacker.getInstallationHandler()).thenReturn(handler);
+		FactionManager.factions.add(attacker);
+	}
+
 }

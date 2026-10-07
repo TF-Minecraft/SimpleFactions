@@ -57,7 +57,7 @@ public final class InstallationVehicleService {
             return CanRegisterResult.NOT_IN_REGISTRY;
         }
 
-        if (VehicleInstallationLockService.isVehicleLocked(installation.getId(), Instant.now())) {
+        if (VehicleInstallationLockService.isInstallationLocked(installation, Instant.now())) {
             return CanRegisterResult.REPAIR_LOCKED;
         }
 
@@ -102,11 +102,16 @@ public final class InstallationVehicleService {
         register(installation, adapt(vehicle), faction, originalOwnerUuid);
     }
 
-    void register(
-            Installation installation,
-            VehicleBerthTarget vehicle,
-            Faction faction,
-            UUID originalOwnerUuid) {
+    void register(Installation installation, VehicleBerthTarget vehicle, Faction faction, UUID originalOwnerUuid) {
+        tryRegister(installation, vehicle, faction, originalOwnerUuid);
+    }
+
+    public boolean tryRegister(Installation installation, ActiveVehicle vehicle, Faction faction, UUID originalOwnerUuid) {
+        return tryRegister(installation, adapt(vehicle), faction, originalOwnerUuid);
+    }
+
+    boolean tryRegister(Installation installation, VehicleBerthTarget vehicle, Faction faction, UUID originalOwnerUuid) {
+        PlayerVehicleRecord previous = registry.getByVehicleUuid(vehicle.getVehicleUuid()).orElse(null);
         registry.register(new PlayerVehicleRecord(
                 originalOwnerUuid,
                 vehicle.getVehicleUuid(),
@@ -114,8 +119,14 @@ public final class InstallationVehicleService {
                 OwnershipMode.INSTALLATION,
                 installation.getId(),
                 faction != null ? faction.getId() : null));
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin != null && !plugin.saveVehicleRegistry()) {
+            registry.unregister(vehicle.getVehicleUuid());
+            registry.register(previous);
+            return false;
+        }
         ownerSync.applyLeaderOwner(vehicle.getOwnerData(), faction);
-        SimpleFactions.getInstance().saveVehicleRegistry();
+        return true;
     }
 
     private static VehicleBerthTarget adapt(ActiveVehicle vehicle) {

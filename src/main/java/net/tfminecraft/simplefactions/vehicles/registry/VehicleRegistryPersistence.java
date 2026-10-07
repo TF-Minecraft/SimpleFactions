@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 
 public final class VehicleRegistryPersistence {
@@ -22,6 +23,7 @@ public final class VehicleRegistryPersistence {
 
     private final File file;
     private final PlayerVehicleRegistry registry;
+    private boolean saveBlocked;
 
     public VehicleRegistryPersistence(File cacheFolder, PlayerVehicleRegistry registry) {
         this.file = new File(cacheFolder, "vehicles_registry.json");
@@ -30,32 +32,33 @@ public final class VehicleRegistryPersistence {
 
     public void load() {
         if (!file.exists()) {
+            saveBlocked = false;
             return;
         }
         try (Reader reader = new FileReader(file)) {
             List<VehicleRecordData> data = GSON.fromJson(
                 reader,
                 new TypeToken<List<VehicleRecordData>>() {}.getType());
-            if (data == null) {
-                return;
-            }
+            if (data == null) throw new JsonParseException("Vehicle registry must be a list");
             List<PlayerVehicleRecord> records = new ArrayList<>();
             for (VehicleRecordData row : data) {
-                PlayerVehicleRecord record = row.toRecord();
-                if (record != null
-                        && (record.getMode() == OwnershipMode.INSTALLATION
-                                || record.getMode() == OwnershipMode.POOL)) {
+                PlayerVehicleRecord record = row == null ? null : row.toRecord();
+                if (record == null) throw new JsonParseException("Invalid vehicle registry row");
+                if (record.getMode() == OwnershipMode.INSTALLATION || record.getMode() == OwnershipMode.POOL) {
                     records.add(record);
                 }
             }
             registry.replaceAll(records);
-        } catch (IOException e) {
+            saveBlocked = false;
+        } catch (IOException | JsonParseException e) {
+            saveBlocked = true;
             e.printStackTrace();
         }
     }
 
     /** Writes a temp file and moves it into place, so a failed save never leaves a half-written registry. */
     public boolean save() {
+        if (saveBlocked) return false;
         List<VehicleRecordData> data = new ArrayList<>();
         for (PlayerVehicleRecord record : registry.getAll()) {
             data.add(VehicleRecordData.from(record));
@@ -104,13 +107,13 @@ public final class VehicleRegistryPersistence {
         }
 
         PlayerVehicleRecord toRecord() {
-            if (playerUuid == null || vehicleUuid == null || vehicleTypeId == null || mode == null) {
+            if (vehicleUuid == null || vehicleTypeId == null || mode == null) {
                 return null;
             }
             try {
                 OwnershipMode ownershipMode = OwnershipMode.valueOf(mode);
                 return new PlayerVehicleRecord(
-                    UUID.fromString(playerUuid),
+                    playerUuid == null ? null : UUID.fromString(playerUuid),
                     vehicleUuid,
                     vehicleTypeId,
                     ownershipMode,

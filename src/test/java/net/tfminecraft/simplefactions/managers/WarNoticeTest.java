@@ -141,6 +141,8 @@ class WarNoticeTest {
 					.thenAnswer(invocation -> online.get(invocation.getArgument(0)));
 
 			War war = new War(42, attacker, defender);
+			WarManager.addWar(war);
+			org.mockito.Mockito.clearInvocations(sender, allyLeader, allyGrunt);
 			WarManager.sendRequest(sender, attacker, ally, war);
 
 			verify(allyLeader).sendMessage("§7Type §c/faction decline §7to decline");

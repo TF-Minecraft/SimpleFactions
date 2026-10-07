@@ -51,6 +51,7 @@ public final class WarMapper {
 
 	public static WarData toData(War war) {
 		WarData data = new WarData();
+		data.installationReferenceVersion = 1;
 		data.schemaVersion = CampaignCoalitionService.SCHEMA_VERSION;
 		data.id = war.getId();
 		data.status = war.getStatus().toJson();
@@ -139,9 +140,7 @@ public final class WarMapper {
 		if (!war.getConcededScheduleSlots().isEmpty()) {
 			data.concededScheduleSlots = new ArrayList<>(war.getConcededScheduleSlots());
 		}
-		data.locationBattleCounts = war.getLocationBattleCounts() == null
-				? new HashMap<>()
-				: new HashMap<>(war.getLocationBattleCounts());
+		data.locationBattleCounts = new HashMap<>(war.getLocationBattleCounts());
 		data.battleSchedulePhase = war.getBattleSchedulePhase() != null
 				? war.getBattleSchedulePhase().toJson()
 				: BattleSchedulePhase.IDLE.toJson();
@@ -193,6 +192,8 @@ public final class WarMapper {
 
 	public static War fromData(WarData data) {
 		if (data == null || data.attackers == null || data.defenders == null) return null;
+		WarStatus status = WarStatus.fromJson(data.status);
+		if (status == null) return null;
 
 		Faction atkLeader = FactionManager.getByString(data.attackers.leader);
 		Faction defLeader = FactionManager.getByString(data.defenders.leader);
@@ -207,7 +208,7 @@ public final class WarMapper {
 				data.defenderCounterRelationTypeId);
 		war.setFirstBattleStarted(data.firstBattleStarted);
 		war.setWarType(WarType.fromJson(data.warType));
-		war.setStatus(WarStatus.fromJson(data.status));
+		war.setStatus(status);
 		if (data.attackerLeaderId != null) {
 			war.setAttackerLeaderId(data.attackerLeaderId);
 		}
@@ -431,13 +432,14 @@ public final class WarMapper {
 			if (leader == null) continue;
 
 			List<Faction> subjects = new ArrayList<>();
-			for (String id : participantData.subjects) {
+			for (String id : participantData.subjects != null ? participantData.subjects : List.<String>of()) {
 				Faction faction = FactionManager.getByString(id);
 				if (faction != null) subjects.add(faction);
 			}
 
 			Map<Faction, Boolean> allies = new HashMap<>();
-			for (Map.Entry<String, Boolean> entry : participantData.allies.entrySet()) {
+			for (Map.Entry<String, Boolean> entry : participantData.allies != null
+					? participantData.allies.entrySet() : java.util.Set.<Map.Entry<String, Boolean>>of()) {
 				Faction faction = FactionManager.getByString(entry.getKey());
 				if (faction != null) allies.put(faction, entry.getValue());
 			}
@@ -541,9 +543,6 @@ public final class WarMapper {
 	private static Map<String, List<String>> serializeInstallationPicks(
 			Map<String, LinkedHashSet<String>> picks) {
 		Map<String, List<String>> serialized = new LinkedHashMap<>();
-		if (picks == null) {
-			return serialized;
-		}
 		for (Map.Entry<String, LinkedHashSet<String>> entry : picks.entrySet()) {
 			if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null
 					|| entry.getValue().isEmpty()) {
@@ -580,9 +579,6 @@ public final class WarMapper {
 
 	private static Map<String, String> serializeRepairLocks(Map<String, Instant> locks) {
 		Map<String, String> serialized = new LinkedHashMap<>();
-		if (locks == null) {
-			return serialized;
-		}
 		for (Map.Entry<String, Instant> entry : locks.entrySet()) {
 			if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
 				continue;
@@ -602,16 +598,18 @@ public final class WarMapper {
 					|| entry.getValue() == null || entry.getValue().isBlank()) {
 				continue;
 			}
-			deserialized.put(entry.getKey(), Instant.parse(entry.getValue()));
+			try {
+				deserialized.put(entry.getKey(), Instant.parse(entry.getValue()));
+			} catch (java.time.format.DateTimeParseException invalidTimestamp) {
+				java.util.logging.Logger.getLogger(WarMapper.class.getName()).warning(
+						"Ignoring invalid raid repair lock timestamp for installation " + entry.getKey());
+			}
 		}
 		return deserialized;
 	}
 
 	private static Map<String, List<Integer>> serializeBattleVotes(Map<UUID, Set<Integer>> votes) {
 		Map<String, List<Integer>> serialized = new LinkedHashMap<>();
-		if (votes == null) {
-			return serialized;
-		}
 		for (Map.Entry<UUID, Set<Integer>> entry : votes.entrySet()) {
 			if (entry.getKey() == null || entry.getValue() == null || entry.getValue().isEmpty()) {
 				continue;

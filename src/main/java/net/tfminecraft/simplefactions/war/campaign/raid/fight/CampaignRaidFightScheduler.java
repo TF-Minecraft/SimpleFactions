@@ -100,7 +100,8 @@ public final class CampaignRaidFightScheduler {
 			return;
 		}
 		Battle battle = BattleManager.getByString(battleId);
-		if (battle == null || !battle.hasStarted()) {
+		if (battle == null || !battle.hasStarted()
+				|| !CampaignRaidBattleService.isCampaignRaidBattle(war, battle)) {
 			return;
 		}
 		BattleEndSupport.endBattle(battle, null, BattleEndReason.TIMER);

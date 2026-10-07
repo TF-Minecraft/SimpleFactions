@@ -227,4 +227,19 @@ class FieldWinServiceTest {
 				.thenReturn(bossBar);
 		return bukkit;
 	}
+
+	@Test
+	void clearingBattleTrackingCancelsAnElapsedAbsenceWithoutRecreatingIt() {
+		try (MockedStatic<org.bukkit.Bukkit> bukkit = mockBossBar()) {
+			Instant start = Instant.parse("2026-08-21T10:00:00Z");
+			Battle battle = startedField("cleared_tracking", start);
+			BattleSide side = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
+			side.setLives(5);
+			assertFalse(FieldWinService.isSideEliminated(battle, side, start));
+			assertTrue(FieldWinService.emptyLongEnough(battle, side, start.plusSeconds(301)));
+			FieldWinService.clearEmptySideTracking(battle);
+			assertFalse(FieldWinService.emptyLongEnough(battle, side, start.plusSeconds(301)));
+		}
+	}
+
 }

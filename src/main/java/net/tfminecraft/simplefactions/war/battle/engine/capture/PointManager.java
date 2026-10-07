@@ -28,10 +28,9 @@ public class PointManager {
 		return points;
 	}
 	public void setPoints(List<CapturePoint> points) {
+		List<CapturePoint> snapshot = points.stream().map(CapturePoint::new).toList();
 		this.points.clear();
-		for(CapturePoint p : points) {
-			this.points.add(new CapturePoint(p));
-		}
+		this.points.addAll(snapshot);
 	}
 	public PointManager(Battle b) {
 		this.b = b;

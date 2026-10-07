@@ -64,7 +64,7 @@ public final class BattleScheduleLookups {
 			return null;
 		}
 		return UUID.nameUUIDFromBytes(
-				("sf-battle-vote:" + memberName.toLowerCase()).getBytes(StandardCharsets.UTF_8));
+				("sf-battle-vote:" + memberName.toLowerCase(java.util.Locale.ROOT)).getBytes(StandardCharsets.UTF_8));
 	}
 
 	public static Function<String, UUID> spoofMemberNameToUuid() {
@@ -74,9 +74,6 @@ public final class BattleScheduleLookups {
 	private static Faction resolveFactionFromRoster(War war, UUID uuid) {
 		for (BelligerentRole role : BelligerentRole.values()) {
 			Side side = role == BelligerentRole.ATTACKER ? war.getAttackers() : war.getDefenders();
-			if (side == null) {
-				continue;
-			}
 			for (Faction faction : BattleSideMembers.collectParticipatingFactions(side)) {
 				for (String memberName : faction.getMembers()) {
 					if (memberName == null || memberName.isBlank()) {

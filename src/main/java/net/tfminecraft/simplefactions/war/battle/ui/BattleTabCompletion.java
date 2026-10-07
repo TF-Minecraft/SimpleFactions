@@ -154,19 +154,9 @@ public class BattleTabCompletion implements TabCompleter{
         		completions.add("<battleId>");
         		return completions;
         	} else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 2 && 
-            		!(args[0].equalsIgnoreCase("create")
-            				|| args[0].equalsIgnoreCase("edit") 
-            				|| args[0].equalsIgnoreCase("addside") 
-            				|| args[0].equalsIgnoreCase("addpoint") 
-            				|| args[0].equalsIgnoreCase("setlives") 
-            				|| args[0].equalsIgnoreCase("setspawn") 
-            				|| args[0].equalsIgnoreCase("setjail")
-            				|| args[0].equalsIgnoreCase("setcontestmin")
-            				|| args[0].equalsIgnoreCase("setcontestmax")
-            				|| args[0].equalsIgnoreCase("setcontestduration")
-            				|| args[0].equalsIgnoreCase("setraidtarget")
-            				|| args[0].equalsIgnoreCase("setdefenderlives")
-            		)){
+                isKnownSubcommand(args, "edit", "delete", "addside", "addpoint", "setlives",
+                    "setspawn", "setjail", "setcontestmin", "setcontestmax", "setcontestduration",
+                    "setraidtarget", "setdefenderlives")) {
                 if(sender instanceof Player){
                     List<String> completions = new ArrayList<>();
                     for(Battle b : BattleManager.get()) {
@@ -174,33 +164,8 @@ public class BattleTabCompletion implements TabCompleter{
                     }
                     return completions;
                 }
-            } else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 2 && args[0].equalsIgnoreCase("edit")) {
-            	List<String> completions = new ArrayList<>();
-            	for(Battle b : BattleManager.get()) {
-            		completions.add(b.getId());
-            	}
-            	return completions;
-            } else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 2 && args[0].equalsIgnoreCase("delete")) {
-            	List<String> completions = new ArrayList<>();
-            	for(Battle b : BattleManager.get()) {
-            		completions.add(b.getId());
-            	}
-            	return completions;
-            } else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 3 && 
-            		!(args[0].equalsIgnoreCase("create")
-            				|| args[0].equalsIgnoreCase("setspawn") 
-            				|| args[0].equalsIgnoreCase("setjail") 
-            		)){
-                if(sender instanceof Player){
-                    List<String> completions = new ArrayList<>();
-                    Battle b = BattleManager.getByString(args[1]);
-                    if(b != null) {
-                    	for(BattleSide s : b.getSides()) {
-                        	completions.add(s.getId());
-                        }
-                    }
-                    return completions;
-                }
+            } else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 3 && args[0].equalsIgnoreCase("addside")) {
+                return List.of("<sideId>");
             } else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 3 && args[0].equalsIgnoreCase("setlives")){
                 if(sender instanceof Player){
                 	List<String> completions = new ArrayList<String>();

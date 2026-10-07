@@ -178,6 +178,15 @@ class BattleScheduleTickServiceTest {
 	}
 
 	@Test
+	void processWar_ignoresMissingAndEndedWarsWithoutChangingTheirSchedule() {
+		assertFalse(BattleScheduleTickService.processWar(null, voteCloseInstant()));
+		War ended = votingWar();
+		ended.end(net.tfminecraft.simplefactions.war.enums.WarEndReason.ADMIN_END);
+		assertFalse(BattleScheduleTickService.processWar(ended, voteCloseInstant()));
+		assertEquals(BattleSchedulePhase.VOTING, ended.getBattleSchedulePhase());
+	}
+
+	@Test
 	void processWar_skipsNonVotingPhase() {
 		War war = votingWar();
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);

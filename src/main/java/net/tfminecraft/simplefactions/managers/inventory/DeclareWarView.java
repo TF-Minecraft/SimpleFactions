@@ -321,6 +321,15 @@ public class DeclareWarView {
 	}
 
 	public void handleConfirm(Player player, WarDeclareRequest request, boolean confirmed) {
+		Faction attacker = request.getAttacker();
+		Faction defender = request.getDefender();
+		if (FactionManager.getByString(attacker.getId()) != attacker
+				|| FactionManager.getByString(defender.getId()) != defender
+				|| !attacker.isLeader(player.getName())) {
+			WarDeclareCodeService.clearSession(player);
+			player.sendMessage("§cThis war declaration is no longer available.");
+			return;
+		}
 		if (!confirmed) {
 			returnToPreviousPicker(player, request);
 			return;
@@ -490,9 +499,6 @@ public class DeclareWarView {
 	}
 
 	private static Law lawInGroup(LawGroup group, String lawId) {
-		if (group == null || group.getLaws() == null || lawId == null) {
-			return null;
-		}
 		for (Law law : group.getLaws().values()) {
 			if (law != null && law.getId() != null && law.getId().equalsIgnoreCase(lawId)) {
 				return law;

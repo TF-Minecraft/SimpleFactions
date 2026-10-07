@@ -93,20 +93,14 @@ public final class CampaignRetreatService {
 		ObjectiveHolder preBattleObjectiveHeldBy = war.getObjectiveHeldBy();
 		ScheduleLeg leg = CampaignScheduleService.activeLeg(war);
 		int index = CampaignScheduleService.getActiveScheduleIndex(war);
-		ScheduledCampaignBattle slot = CampaignScheduleService.slotAtActiveIndex(war).orElse(null);
-		if (slot == null) {
-			return ConcedeResult.rejected(RetreatResult.REJECTED_NO_ACTIVE_SLOT);
-		}
+		ScheduledCampaignBattle slot = CampaignScheduleService.slotAtActiveIndex(war).orElseThrow();
 
 		int provinceId = slot.provinceId();
 		CampaignCoalition pusher = CampaignCapabilityService.battleOffensiveCoalition(war);
-		if (pusher == null) {
-			return ConcedeResult.rejected(RetreatResult.REJECTED_NOT_ELIGIBLE);
-		}
 		BelligerentRole winnerRole = CampaignCoalitionService.coalitionToBelligerentRole(pusher);
 
 		if (slot.kind() == CampaignBattleKind.SIEGE && slot.fortInstallationId() != null) {
-			FortControlService.setController(war, slot.fortInstallationId(), pusher);
+			FortControlService.setControllerAtProvince(war, slot.fortInstallationId(), slot.provinceId(), pusher);
 		}
 
 		occupationService().applyBattleWin(war, provinceId, winnerRole);
@@ -170,11 +164,8 @@ public final class CampaignRetreatService {
 	}
 
 	private static OccupationService occupationService() {
-		if (SimpleFactions.plugin != null) {
-			return new OccupationService(
-					SimpleFactions.plugin.getProvinceManager(),
-					new TitleManagerProvinceOwnerLookup());
-		}
-		return new OccupationService(null, new TitleManagerProvinceOwnerLookup());
+		return new OccupationService(
+				SimpleFactions.plugin.getProvinceManager(),
+				new TitleManagerProvinceOwnerLookup());
 	}
 }

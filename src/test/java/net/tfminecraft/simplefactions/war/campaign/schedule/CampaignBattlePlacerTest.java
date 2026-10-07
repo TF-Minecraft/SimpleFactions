@@ -96,12 +96,12 @@ class CampaignBattlePlacerTest {
 		link(pm.get(20), pm.get(21));
 		titleManager.when(() -> TitleManager.getByProvince(20)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(21)).thenReturn(defender);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(
 				List.of(5, 20, 21, 30), 21, 1, 3, index);
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
 				ctx, war, ScheduleLeg.INVASION, 21, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_a", null);
@@ -109,19 +109,19 @@ class CampaignBattlePlacerTest {
 		assertEquals(1, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.SIEGE, ctx.invasion().get(0).kind());
 		assertEquals(20, ctx.invasion().get(0).provinceId());
-		assertTrue(ctx.scheduledFortIds().contains("fort_a"));
+		assertTrue(ctx.scheduledFortIds().contains(fort.stableKey()));
 	}
 
 	@Test
 	void placeBattle_fortZoc_skipsDuplicateFort() {
 		pm.start(Map.of(20, province(20)));
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(
 				List.of(20, 30), 20, 0, 1, index);
-		ctx.scheduledFortIds().add("fort_a");
+		ctx.scheduledFortIds().add(fort.stableKey());
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
 				ctx, war, ScheduleLeg.INVASION, 20, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_a", null);
@@ -192,11 +192,11 @@ class CampaignBattlePlacerTest {
 		link(pm.get(713), pm.get(706));
 		titleManager.when(() -> TitleManager.getByProvince(713)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(706)).thenReturn(defender);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 100L)));
+		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 709, 0, 3, index);
 		War war = war();
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
 				ctx, war, ScheduleLeg.INVASION, 706, BattleTrigger.CADENCE, CampaignCoalition.AGGRESSOR, null, null);
@@ -222,11 +222,11 @@ class CampaignBattlePlacerTest {
 		titleManager.when(() -> TitleManager.getByProvince(704)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(713)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(705)).thenReturn(defender);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 100L)));
+		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 704, 0, 1, index);
 		War war = war();
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
 				ctx, war, ScheduleLeg.INVASION, 704, BattleTrigger.BORDER, CampaignCoalition.AGGRESSOR, null, null);
@@ -263,11 +263,11 @@ class CampaignBattlePlacerTest {
 		List<Integer> axis = List.of(5, 705, 30);
 		pm.start(Map.of(705, province(705)));
 		titleManager.when(() -> TitleManager.getByProvince(705)).thenReturn(defender);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_cap", defender, 705, 100L)));
+		OperationalFort fort = new OperationalFort("fort_cap", defender, 705, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 705, 1, 1, index);
 		War war = war();
-		war.putFortController("fort_cap", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
 				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_cap", null);
@@ -296,11 +296,11 @@ class CampaignBattlePlacerTest {
 		titleManager.when(() -> TitleManager.getByProvince(706)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(713)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(705)).thenReturn(defender);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Lan_Airfield", defender, 704, 100L)));
+		OperationalFort fort = new OperationalFort("Lan_Airfield", defender, 704, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 706, 0, 2, index);
 		War war = war();
-		war.putFortController("Lan_Airfield", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
 				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.OBJECTIVE, CampaignCoalition.AGGRESSOR, null, null);
@@ -327,11 +327,11 @@ class CampaignBattlePlacerTest {
 		titleManager.when(() -> TitleManager.getByProvince(706)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(705)).thenReturn(defender);
 		titleManager.when(() -> TitleManager.getByProvince(708)).thenReturn(defender);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_past", defender, 708, 100L)));
+		OperationalFort fort = new OperationalFort("fort_past", defender, 708, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 706, 0, 1, index);
 		War war = war();
-		war.putFortController("fort_past", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
 				ctx, war, ScheduleLeg.INVASION, 708, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_past", null);

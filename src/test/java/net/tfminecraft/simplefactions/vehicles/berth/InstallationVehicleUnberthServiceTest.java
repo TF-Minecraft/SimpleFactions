@@ -171,7 +171,7 @@ class InstallationVehicleUnberthServiceTest {
                         "red"));
 
         try (MockedStatic<VehicleInstallationLockService> lock = mockStatic(VehicleInstallationLockService.class)) {
-            lock.when(() -> VehicleInstallationLockService.isVehicleLocked(eq(port.getId()), any()))
+            lock.when(() -> VehicleInstallationLockService.isInstallationLocked(eq(port), any()))
                     .thenReturn(true);
 
             InstallationVehicleUnberthService.UnberthOutcome outcome =

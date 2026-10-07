@@ -155,6 +155,7 @@ class CampaignWarbandSignupServiceTest {
 		War war = battleDayWar();
 		CampaignRaid raid = new CampaignRaid();
 		raid.setId("harbor_raid");
+		raid.setAttackerCoalition(net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition.AGGRESSOR);
 		raid.setDisplayName("Harbor Raid");
 		raid.setWarId(1);
 		raid.setState(CampaignRaidState.MUSTER);

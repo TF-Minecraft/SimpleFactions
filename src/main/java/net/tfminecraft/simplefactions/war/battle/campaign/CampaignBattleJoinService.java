@@ -58,7 +58,7 @@ public final class CampaignBattleJoinService {
 		if (war == null || battle == null || warband == null) {
 			return "Invalid campaign battle join";
 		}
-		if (!warbandSideMatches(warband, sideId)) {
+		if (!warbandSideMatches(war, battle, warband, sideId)) {
 			return "Warband is not on this battle side";
 		}
 		return validateRosterHasRoom(war, battle, sideId, warband, warband.getMemberCount());
@@ -110,11 +110,9 @@ public final class CampaignBattleJoinService {
 		}
 		Side playerSide = rosterSideFor(war, joiningPlayerName, faction);
 		if (playerSide == null || playerSide != battleSide) {
-			return MercenaryEngagements.forPlayer(war, joiningPlayerName) != null
-					? "You are under contract to the other host"
-					: "Your faction is not on this battle side";
+			return "Your faction is not on this battle side";
 		}
-		if (!warbandSideMatches(warband, sideId)) {
+		if (!warbandSideMatches(war, battle, warband, sideId)) {
 			return "Warband is not on this battle side";
 		}
 		if (battle.hasStarted()) {
@@ -182,6 +180,15 @@ public final class CampaignBattleJoinService {
 			return sideId.equalsIgnoreCase(warband.getCampaignSideId());
 		}
 		return true;
+	}
+
+	private static boolean warbandSideMatches(War war, Battle battle, Warband warband, String sideId) {
+		if (battle.isCampaignRaid() && warband.isFaction() && warband.getCampaignSideId() != null) {
+			// Raid shells retain the war coalition; a counter-raid reverses the battle roles.
+			Side coalition = resolveWarSide(war, null, warband.getCampaignSideId());
+			return coalition != null && coalition == resolveWarSide(war, battle, sideId);
+		}
+		return warbandSideMatches(warband, sideId);
 	}
 
 	public static String validateRosterHasRoom(

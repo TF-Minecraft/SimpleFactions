@@ -7,11 +7,18 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
+import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
+import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
+import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidFightScheduler;
+import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.installation.Installation;
@@ -33,7 +40,7 @@ public final class CampaignRaidService {
 		}
 		LocalDate battleDay = war.getBattleDay();
 		CampaignRaid active = war.getActiveCampaignRaid();
-		if (active != null && battleDay != null && active.getBattleDay() != null
+		if (active != null && active.getBattleDay() != null
 				&& !active.getBattleDay().equals(battleDay)) {
 			clearActiveRaid(war);
 		}
@@ -89,12 +96,9 @@ public final class CampaignRaidService {
 		}
 
 		CampaignCoalition coalition = coalitionForFaction(war, faction);
-		if (coalition == null) {
-			return LaunchResult.REJECTED_NOT_PARTICIPANT;
-		}
 
 		LocalDate battleDay = war.getBattleDay();
-		Installation target = InstallationLookup.findById(targetInstallationId);
+		Installation target = CampaignRaidEligibilityService.resolveTargetInstallation(war, faction.getId(), targetInstallationId);
 		String displayName = BattleNamingService.buildRaidDisplayName(war, target);
 		String raidId = resolveUniqueRaidId(displayName, war.getId());
 
@@ -112,7 +116,7 @@ public final class CampaignRaidService {
 		raid.setMusterEndsAt(now.plusSeconds(Cache.campaignRaidMusterSeconds));
 		raid.clearMusterRemindersSent();
 		war.setActiveCampaignRaid(raid);
-		CampaignRaidWarbandService.createAttackerWarband(war, raid);
+		CampaignRaidWarbandService.createRaidWarbands(war, raid);
 		CampaignRaidMusterScheduler.onMusterStarted(war, now);
 		return LaunchResult.STARTED;
 	}
@@ -152,21 +156,12 @@ public final class CampaignRaidService {
 			return;
 		}
 		syncBattleDay(war);
-		CampaignRaid raid = war.getActiveCampaignRaid();
-		if (raid != null) {
-			CampaignRaidWarbandService.destroyRaidWarbands(war, raid);
-			raid.setState(CampaignRaidState.ENDED);
-		}
 		clearActiveRaid(war);
 	}
 
 	public static void clearForNewBattleDay(War war) {
 		if (war == null) {
 			return;
-		}
-		CampaignRaid raid = war.getActiveCampaignRaid();
-		if (raid != null) {
-			CampaignRaidWarbandService.destroyRaidWarbands(war, raid);
 		}
 		clearActiveRaid(war);
 		war.getCampaignRaidsUsed().clear();
@@ -210,14 +205,31 @@ public final class CampaignRaidService {
 		if (war == null || installationId == null || installationId.isBlank() || until == null) {
 			return;
 		}
-		war.getRaidRepairLockUntil().put(installationId, until);
+		var matches = matchingInstallations(installationId);
+		if (matches.size() == 1) war.getRaidRepairLockUntil().put(matches.getFirst().getStableKey(), until);
 	}
 
 	public static boolean isRepairLocked(War war, String installationId, Instant now) {
 		if (war == null || installationId == null || installationId.isBlank() || now == null) {
 			return false;
 		}
-		Instant until = war.getRaidRepairLockUntil().get(installationId);
+		var matches = matchingInstallations(installationId);
+		return matches.size() == 1 && isInstallationRepairLocked(war, matches.getFirst(), now);
+	}
+
+	private static java.util.List<Installation> matchingInstallations(String key) {
+		return InstallationLookup.all().stream()
+				.filter(installation -> key.equals(installation.getStableKey()) || key.equals(installation.getId()))
+				.toList();
+	}
+
+	public static void setInstallationRepairLockUntil(War war, Installation installation, Instant until) {
+		if (installation != null) setRepairLockUntil(war, installation.getStableKey(), until);
+	}
+
+	public static boolean isInstallationRepairLocked(War war, Installation installation, Instant now) {
+		if (war == null || installation == null || now == null) return false;
+		Instant until = war.getRaidRepairLockUntil().get(installation.getStableKey());
 		return until != null && now.isBefore(until);
 	}
 
@@ -229,7 +241,20 @@ public final class CampaignRaidService {
 	}
 
 	private static void clearActiveRaid(War war) {
+		CampaignRaid raid = war.getActiveCampaignRaid();
 		war.setActiveCampaignRaid(null);
+		CampaignRaidMusterScheduler.cancelForWar(war.getId());
+		CampaignRaidFightScheduler.cancelForWar(war.getId());
+		if (raid == null) return;
+		String battleId = raid.getBattleId() != null ? raid.getBattleId() : raid.getId();
+		Battle battle = BattleManager.getByString(battleId);
+		if (battle != null && battle.isCampaignRaid() && battle.getBattleType() == BattleType.RAID
+				&& Objects.equals(battle.getWarId(), war.getId())) {
+			battle.end();
+			BattlePersistenceService.deleteRaidBattle(battle);
+		}
+		CampaignRaidWarbandService.destroyRaidWarbands(war, raid);
+		raid.setState(CampaignRaidState.ENDED);
 	}
 
 	static String resolveUniqueRaidId(String displayName, int warId) {
@@ -245,8 +270,10 @@ public final class CampaignRaidService {
 	}
 
 	private static boolean isRaidIdInUse(String raidId) {
-		if (raidId == null || raidId.isBlank()) {
-			return false;
+		if (BattleManager.getByString(raidId) != null
+				|| WarbandManager.getByString(raidId + "_attacker") != null
+				|| WarbandManager.getByString(raidId + "_defender") != null) {
+			return true;
 		}
 		for (War activeWar : WarManager.getActive()) {
 			CampaignRaid raid = activeWar.getActiveCampaignRaid();
@@ -267,6 +294,9 @@ public final class CampaignRaidService {
 	}
 
 	public static CampaignCoalition coalitionForFaction(War war, Faction faction) {
+		if (war == null || faction == null) {
+			return null;
+		}
 		Side side = war.getSide(faction);
 		if (side == null) {
 			return null;
@@ -274,16 +304,10 @@ public final class CampaignRaidService {
 		if (side == war.getAttackers()) {
 			return CampaignCoalition.AGGRESSOR;
 		}
-		if (side == war.getDefenders()) {
-			return CampaignCoalition.DEFENDER;
-		}
-		return null;
+		return CampaignCoalition.DEFENDER;
 	}
 
 	private static LaunchResult mapValidateLaunchResult(ValidateLaunchResult result) {
-		if (result == null) {
-			return LaunchResult.REJECTED_WAR_INACTIVE;
-		}
 		return switch (result) {
 			case OK -> LaunchResult.STARTED;
 			case REJECTED_WAR_INACTIVE -> LaunchResult.REJECTED_WAR_INACTIVE;

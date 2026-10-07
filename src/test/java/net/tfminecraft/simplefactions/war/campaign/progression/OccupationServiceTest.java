@@ -55,8 +55,8 @@ class OccupationServiceTest {
 				pm,
 				new TitleManagerProvinceOwnerLookup(),
 				FortZocIndex.fromForts(List.of()));
-		attacker = mock(Faction.class);
-		defender = mock(Faction.class);
+		attacker = factionWithInstallations();
+		defender = factionWithInstallations();
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
 	}
@@ -286,7 +286,7 @@ class OccupationServiceTest {
 			titleManager.when(() -> TitleManager.getByProvince(20)).thenReturn(defender);
 			titleManager.when(() -> TitleManager.getByProvince(21)).thenReturn(defender);
 			War war = baseWar(List.of(5, 10, 30));
-			war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+			war.putFortController(new OperationalFort("fort_a", defender, 20, 100L).stableKey(), CampaignCoalition.DEFENDER);
 			FortZocIndex forts = FortZocIndex.fromForts(List.of(
 					new OperationalFort("fort_a", defender, 20, 100L)));
 			OccupationService zocService = new OccupationService(
@@ -309,7 +309,7 @@ class OccupationServiceTest {
 			simpleFactions.when(SimpleFactions::getInstance).thenReturn(plugin);
 			titleManager.when(() -> TitleManager.getByProvince(20)).thenReturn(defender);
 			War war = baseWar(List.of(5, 10, 20, 30));
-			war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+			war.putFortController(new OperationalFort("fort_a", defender, 20, 100L).stableKey(), CampaignCoalition.DEFENDER);
 			FortZocIndex forts = FortZocIndex.fromForts(List.of(
 					new OperationalFort("fort_a", defender, 20, 100L)));
 			OccupationService zocService = new OccupationService(
@@ -341,8 +341,8 @@ class OccupationServiceTest {
 			titleManager.when(() -> TitleManager.getByProvince(21)).thenReturn(defender);
 			titleManager.when(() -> TitleManager.getByProvince(22)).thenReturn(defender);
 			War war = baseWar(List.of(5, 10, 30));
-			war.putFortController("fort_old", CampaignCoalition.AGGRESSOR);
-			war.putFortController("fort_young", CampaignCoalition.DEFENDER);
+			war.putFortController(new OperationalFort("fort_old", defender, 20, 100L).stableKey(), CampaignCoalition.AGGRESSOR);
+			war.putFortController(new OperationalFort("fort_young", defender, 22, 200L).stableKey(), CampaignCoalition.DEFENDER);
 			FortZocIndex forts = FortZocIndex.fromForts(List.of(
 					new OperationalFort("fort_old", defender, 20, 100L),
 					new OperationalFort("fort_young", defender, 22, 200L)));
@@ -437,7 +437,7 @@ class OccupationServiceTest {
 	}
 
 	private static Faction mockIndependent(String id) {
-		Faction faction = mock(Faction.class);
+		Faction faction = factionWithInstallations();
 		when(faction.getId()).thenReturn(id);
 		when(faction.getRelations()).thenReturn(new HashMap<>());
 		when(faction.getMembers()).thenReturn(new ArrayList<>());
@@ -457,4 +457,11 @@ class OccupationServiceTest {
 		when(faction.getRelation(overlordId)).thenReturn(relation);
 		return faction;
 	}
+	private static Faction factionWithInstallations() {
+		Faction faction = mock(Faction.class);
+		when(faction.getInstallationHandler()).thenReturn(
+				new net.tfminecraft.simplefactions.installation.handler.InstallationHandler(faction));
+		return faction;
+	}
+
 }

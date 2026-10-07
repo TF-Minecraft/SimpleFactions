@@ -30,7 +30,7 @@ import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.installation.InstallationLookup;
+import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidEligibilityService;
 
 public final class CampaignRaidIntruderService {
 	private static final Set<UUID> intruderDeathPending = ConcurrentHashMap.newKeySet();
@@ -79,9 +79,6 @@ public final class CampaignRaidIntruderService {
 				continue;
 			}
 			for (Player player : Bukkit.getOnlinePlayers()) {
-				if (player == null) {
-					continue;
-				}
 				int provinceId = ProvincePresenceService.getInstance().getCurrentProvince(player.getUniqueId());
 				if (!shouldPenalize(war, raid, player.getUniqueId(), player.getName(), provinceId)) {
 					continue;
@@ -107,7 +104,7 @@ public final class CampaignRaidIntruderService {
 		if (raid.getBattleId() == null || raid.getBattleId().isBlank()) {
 			return false;
 		}
-		Installation target = InstallationLookup.findById(raid.getTargetInstallationId());
+		Installation target = CampaignRaidEligibilityService.resolveTargetInstallation(war, raid);
 		if (target == null || playerProvinceId != target.getProvince()) {
 			return false;
 		}
@@ -129,7 +126,7 @@ public final class CampaignRaidIntruderService {
 	}
 
 	private static void warnOnEnter(Player player, CampaignRaid raid) {
-		if (player == null || raid == null || raid.getId() == null) {
+		if (raid.getId() == null) {
 			return;
 		}
 		String key = raid.getId() + ":" + player.getUniqueId();
@@ -140,9 +137,6 @@ public final class CampaignRaidIntruderService {
 	}
 
 	private static void applyDamage(Player player) {
-		if (player == null || !player.isOnline()) {
-			return;
-		}
 		double amount = Cache.campaignRaidIntruderDamageAmount;
 		if (player.getHealth() - amount <= 0.0) {
 			intruderDeathPending.add(player.getUniqueId());

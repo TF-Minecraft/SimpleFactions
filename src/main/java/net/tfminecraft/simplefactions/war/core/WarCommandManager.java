@@ -49,9 +49,6 @@ public class WarCommandManager implements CommandExecutor {
 	}
 
 	private boolean handle(Player player, String[] args) {
-		if (args.length < 1) {
-			return true;
-		}
 		if (args[0].equalsIgnoreCase("list") && args.length == 1) {
 			InventoryManager inventory = new InventoryManager();
 			inventory.warList(player);
@@ -73,7 +70,7 @@ public class WarCommandManager implements CommandExecutor {
 			player.sendMessage("§cUsage: /war admin end|win|status|path|time|schedule|devmode|raid|reparations|factions ...");
 			return true;
 		}
-		String subcommand = args[1].toLowerCase();
+		String subcommand = args[1].toLowerCase(java.util.Locale.ROOT);
 		return switch (subcommand) {
 			case "end" -> handleEnd(player, args);
 			case "win" -> handleWin(player, args);
@@ -140,7 +137,7 @@ public class WarCommandManager implements CommandExecutor {
 				? WarEndReason.ATTACKER_VICTORY
 				: WarEndReason.DEFENDER_VICTORY;
 		WarManager.endWar(w, reason);
-		player.sendMessage("§aEnded war " + w.getId() + " (" + winner.name().toLowerCase() + " victory).");
+		player.sendMessage("§aEnded war " + w.getId() + " (" + winner.name().toLowerCase(java.util.Locale.ROOT) + " victory).");
 		return true;
 	}
 
@@ -153,7 +150,7 @@ public class WarCommandManager implements CommandExecutor {
 			player.sendMessage("§cUsage: /war admin factions [filter]");
 			return true;
 		}
-		String filter = args.length == 3 ? args[2].toLowerCase() : "";
+		String filter = args.length == 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "";
 		List<Faction> matches = new ArrayList<>();
 		for (Faction faction : FactionManager.factions) {
 			if (faction == null || faction.getId() == null) {
@@ -163,8 +160,8 @@ public class WarCommandManager implements CommandExecutor {
 					? ""
 					: Formatter.formatId(faction.getName());
 			if (filter.isEmpty()
-					|| faction.getId().toLowerCase().contains(filter)
-					|| plainName.toLowerCase().contains(filter)) {
+					|| faction.getId().toLowerCase(java.util.Locale.ROOT).contains(filter)
+					|| plainName.toLowerCase(java.util.Locale.ROOT).contains(filter)) {
 				matches.add(faction);
 			}
 		}
@@ -258,7 +255,7 @@ public class WarCommandManager implements CommandExecutor {
 			player.sendMessage("§cUsage: /war admin time status|reset|add|skip-to-battle-day ...");
 			return true;
 		}
-		String subcommand = args[2].toLowerCase();
+		String subcommand = args[2].toLowerCase(java.util.Locale.ROOT);
 		switch (subcommand) {
 			case "status" -> {
 				for (String line : CampaignTimeCommandService.statusLines()) {
@@ -303,7 +300,7 @@ public class WarCommandManager implements CommandExecutor {
 			player.sendMessage("§cUsage: /war admin devmode on|off|status");
 			return true;
 		}
-		switch (args[2].toLowerCase()) {
+		switch (args[2].toLowerCase(java.util.Locale.ROOT)) {
 			case "on" -> {
 				int filled = WarDevMode.setEnabled(true);
 				if (filled > 0) {
@@ -386,7 +383,7 @@ public class WarCommandManager implements CommandExecutor {
 			player.sendMessage("§cNo war by that id");
 			return true;
 		}
-		String subcommand = args[3].toLowerCase();
+		String subcommand = args[3].toLowerCase(java.util.Locale.ROOT);
 		WarScheduleAdminResult result = switch (subcommand) {
 			case "opencvote" -> WarScheduleAdminService.openVote(w);
 			case "closevote" -> WarScheduleAdminService.closeVote(w, CampaignClock.now());
@@ -442,12 +439,8 @@ public class WarCommandManager implements CommandExecutor {
 			WarManager.persist(w);
 			player.sendMessage("§a" + result.message());
 			Integer castHour = null;
-			if ("castvote".equals(subcommand) && args.length >= 5) {
-				try {
-					castHour = Integer.parseInt(args[4]);
-				} catch (NumberFormatException ignored) {
-					// castvote branch already validated hour
-				}
+			if ("castvote".equals(subcommand)) {
+				castHour = Integer.parseInt(args[4]);
 			}
 			for (String line : WarScheduleFeedbackFormatter.format(subcommand, w, castHour)) {
 				player.sendMessage(line);

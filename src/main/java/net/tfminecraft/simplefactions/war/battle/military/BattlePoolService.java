@@ -1,10 +1,8 @@
 package net.tfminecraft.simplefactions.war.battle.military;
 
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.managers.TitleManager;
@@ -14,7 +12,6 @@ import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
-import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
@@ -54,12 +51,11 @@ public final class BattlePoolService {
 			return Map.of();
 		}
 		List<Faction> fighters = BattleSideMembers.collectParticipatingFactions(side);
-		Set<String> fighterIds = toIdSet(fighters);
 		Map<String, Map<String, Integer>> eligible = new LinkedHashMap<>();
 
 		for (Faction fighter : fighters) {
 			Map<String, Integer> regimentCounts = collectOwnRegiments(war, fighter, battleProvinceId, mode);
-			addLevyRows(war, fighter.getId(), fighterIds, regimentCounts);
+			addLevyRows(war, fighter.getId(), regimentCounts);
 			if (!regimentCounts.isEmpty()) {
 				eligible.put(fighter.getId(), regimentCounts);
 			}
@@ -77,13 +73,13 @@ public final class BattlePoolService {
 			int battleProvinceId,
 			Side side,
 			PoolMode mode) {
-		int total = 0;
+		long total = 0;
 		for (Map<String, Integer> regimentCounts : eligibleRegiments(war, battleProvinceId, side, mode).values()) {
 			for (int count : regimentCounts.values()) {
 				total += count;
 			}
 		}
-		return total;
+		return (int) Math.min(Integer.MAX_VALUE, total);
 	}
 
 	private static Map<String, Integer> collectOwnRegiments(
@@ -92,9 +88,6 @@ public final class BattlePoolService {
 			int battleProvinceId,
 			PoolMode mode) {
 		Map<String, Integer> regimentCounts = new LinkedHashMap<>();
-		if (faction == null || faction.getMilitary() == null) {
-			return regimentCounts;
-		}
 		for (Regiment regiment : faction.getMilitary().getRegiments()) {
 			if (regiment.isLevy() || regiment.isEquipment()) {
 				continue;
@@ -133,13 +126,9 @@ public final class BattlePoolService {
 	private static void addLevyRows(
 			War war,
 			String holderFactionId,
-			Set<String> fighterIds,
 			Map<String, Integer> regimentCounts) {
-		if (holderFactionId == null || !fighterIds.contains(holderFactionId.toLowerCase())) {
-			return;
-		}
 		// Levies reinforce both the offensive and the defensive pool.
-		int levyTotal = 0;
+		long levyTotal = 0;
 		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
 			if (!commitment.isLevyRow()) {
 				continue;
@@ -153,22 +142,8 @@ public final class BattlePoolService {
 			levyTotal += commitment.count();
 		}
 		if (levyTotal > 0) {
-			regimentCounts.put(WarCommitment.LEVY_REGIMENT_ID, levyTotal);
+			regimentCounts.put(WarCommitment.LEVY_REGIMENT_ID, (int) Math.min(Integer.MAX_VALUE, levyTotal));
 		}
 	}
 
-	private static BelligerentRole resolveSideRole(War war, Side side) {
-		CampaignCoalition coalition = CampaignCoalitionService.coalitionOf(war, side);
-		return coalition != null ? CampaignCoalitionService.coalitionToBelligerentRole(coalition) : null;
-	}
-
-	private static Set<String> toIdSet(List<Faction> factions) {
-		Set<String> ids = new HashSet<>();
-		for (Faction faction : factions) {
-			if (faction != null && faction.getId() != null) {
-				ids.add(faction.getId().toLowerCase());
-			}
-		}
-		return ids;
-	}
 }

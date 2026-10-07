@@ -68,6 +68,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 
 class CampaignBattleLaunchServiceTest {
+	private java.util.List<Faction> previousFactions;
 	private Faction attacker;
 	private Faction defender;
 
@@ -89,6 +90,12 @@ class CampaignBattleLaunchServiceTest {
 		defender = mock(Faction.class);
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
+		previousFactions = net.tfminecraft.simplefactions.managers.FactionManager.factions;
+		net.tfminecraft.simplefactions.managers.FactionManager.factions = new java.util.ArrayList<>(java.util.List.of(attacker, defender));
+		when(attacker.getInstallationHandler()).thenReturn(new InstallationHandler(attacker));
+		when(defender.getInstallationHandler()).thenReturn(new InstallationHandler(defender));
+		when(attacker.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(attacker));
+		when(defender.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(defender));
 		when(attacker.getLeader()).thenReturn("Alice");
 		when(defender.getLeader()).thenReturn("Bob");
 		mockMilitary(attacker);
@@ -115,6 +122,7 @@ class CampaignBattleLaunchServiceTest {
 	@AfterEach
 	void restorePlugin() {
 		SimpleFactions.plugin = pluginBackup;
+		net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
 	}
 
 	@Test
@@ -513,6 +521,7 @@ class CampaignBattleLaunchServiceTest {
 
 	private War scheduledNavalWar() {
 		War war = scheduledWar();
+		war.setOccupiedByAttacker(new java.util.ArrayList<>(List.of(5)));
 		Installation port = new Installation("port-atk", "Harbour", InstallationKind.PORT, 5, 0, 0, 1L);
 		InstallationHandler attackerHandler = mock(InstallationHandler.class);
 		when(attacker.getInstallationHandler()).thenReturn(attackerHandler);

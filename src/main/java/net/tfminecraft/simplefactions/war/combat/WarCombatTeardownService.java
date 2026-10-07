@@ -42,9 +42,6 @@ public final class WarCombatTeardownService {
 	}
 
 	private static void purgeBattle(Battle battle) {
-		if (battle == null) {
-			return;
-		}
 		BattleManager.clearEditorSessions(battle);
 		if (battle.hasStarted()) {
 			SiegeContestService.clearBattleState(battle);

@@ -162,8 +162,12 @@ public final class BattlePersistenceService {
 		if (battle == null || battle.getWarId() != null) {
 			return;
 		}
-		Set<String> remainingReferences = new HashSet<>(collectReferencedWarbandIds());
-		remainingReferences.removeAll(warbandIdsOnBattle(battle));
+		Set<String> remainingReferences = new HashSet<>();
+		for (Battle other : BattleManager.get()) {
+			if (other != battle) {
+				remainingReferences.addAll(warbandIdsOnBattle(other));
+			}
+		}
 		removeBattleWarbands(battle, remainingReferences);
 		BattleManager.deleteBattle(battle);
 		DATABASE.deleteBattleFile(battle.getId());
@@ -173,7 +177,6 @@ public final class BattlePersistenceService {
 		if (battle == null || battle.getWarId() == null) {
 			return;
 		}
-		removeAutoBattleWarbands(battle);
 		purgeCampaignWarbandsForBattle(battle);
 		purgeLegacyCampaignWarbandsForWar(battle.getWarId());
 		BattleManager.deleteBattle(battle);
@@ -191,13 +194,13 @@ public final class BattlePersistenceService {
 	}
 
 	public static void purgeCampaignWarbandsForBattle(Battle battle) {
-		if (battle == null) {
+		if (battle == null || battle.getWarId() == null) {
 			return;
 		}
-		purgeCampaignWarband(BattleNamingService.campaignWarbandId(
-				battle.getDisplayName(), BattleTemplate.ATTACKER_SIDE));
-		purgeCampaignWarband(BattleNamingService.campaignWarbandId(
-				battle.getDisplayName(), BattleTemplate.DEFENDER_SIDE));
+		removeAutoBattleWarbands(battle);
+		for (BattleSide side : battle.getSides()) {
+			side.getBands().clear();
+		}
 	}
 
 	public static void purgeCampaignWarbandsForWar(int warId) {
@@ -209,14 +212,18 @@ public final class BattlePersistenceService {
 	}
 
 	private static void purgeLegacyCampaignWarbandsForWar(int warId) {
-		purgeCampaignWarband(Warband.campaignSideWarbandId(warId, BattleTemplate.ATTACKER_SIDE));
-		purgeCampaignWarband(Warband.campaignSideWarbandId(warId, BattleTemplate.DEFENDER_SIDE));
+		Set<String> referenced = collectReferencedWarbandIds();
+		for (String sideId : List.of(BattleTemplate.ATTACKER_SIDE, BattleTemplate.DEFENDER_SIDE)) {
+			String id = Warband.campaignSideWarbandId(warId, sideId);
+			Warband band = WarbandManager.getByString(id);
+			if (band != null && band.isFaction() && sideId.equals(band.getCampaignSideId())
+					&& referenced.stream().noneMatch(reference -> reference.equalsIgnoreCase(id))) {
+				purgeCampaignWarband(id);
+			}
+		}
 	}
 
 	private static void purgeCampaignWarband(String warbandId) {
-		if (warbandId == null) {
-			return;
-		}
 		Warband warband = WarbandManager.getByString(warbandId);
 		if (warband != null) {
 			WarbandManager.deleteWarband(warband);
@@ -256,8 +263,14 @@ public final class BattlePersistenceService {
 	}
 
 	private static void removeAutoBattleWarbands(Battle battle) {
+		Set<String> remainingReferences = new HashSet<>();
+		for (Battle other : BattleManager.get()) {
+			if (other != battle) remainingReferences.addAll(warbandIdsOnBattle(other));
+		}
 		for (String warbandId : warbandIdsOnBattle(battle)) {
-			purgeCampaignWarband(warbandId);
+			if (remainingReferences.stream().noneMatch(reference -> reference.equalsIgnoreCase(warbandId))) {
+				purgeCampaignWarband(warbandId);
+			}
 		}
 	}
 
@@ -276,9 +289,6 @@ public final class BattlePersistenceService {
 
 	private static Set<String> warbandIdsOnBattle(Battle battle) {
 		Set<String> ids = new LinkedHashSet<>();
-		if (battle == null) {
-			return ids;
-		}
 		for (BattleSide side : battle.getSides()) {
 			for (Warband warband : side.getBands()) {
 				if (warband != null) {
@@ -290,7 +300,7 @@ public final class BattlePersistenceService {
 	}
 
 	private static void linkWarbands(Battle battle, BattleData data) {
-		if (battle == null || data == null || data.sides == null) {
+		if (data.sides == null) {
 			return;
 		}
 		for (BattleSideData sideData : data.sides) {
@@ -298,10 +308,7 @@ public final class BattlePersistenceService {
 				continue;
 			}
 			BattleSide side = battle.getSideById(sideData.id);
-			if (side == null) {
-				continue;
-			}
-			for (String warbandId : sideData.warbandIds) {
+			for (String warbandId : Objects.requireNonNullElse(sideData.warbandIds, List.<String>of())) {
 				Warband warband = WarbandManager.getByString(warbandId);
 				if (warband != null) {
 					side.addBand(warband);
@@ -341,7 +348,7 @@ public final class BattlePersistenceService {
 			return files;
 		}
 		for (File file : listed) {
-			if (file.getName().endsWith(".json")) {
+			if (file.isFile() && file.getName().startsWith("battle_") && file.getName().endsWith(".json")) {
 				files.add(file);
 			}
 		}
@@ -358,7 +365,7 @@ public final class BattlePersistenceService {
 		File battleFolder = new File("plugins/SimpleFactions/Battles");
 		if (battleFolder.exists() && battleFolder.isDirectory()) {
 			for (File file : Objects.requireNonNullElse(battleFolder.listFiles(), new File[0])) {
-				if (!file.getName().endsWith(".json")) {
+				if (!file.isFile() || !file.getName().startsWith("battle_") || !file.getName().endsWith(".json")) {
 					continue;
 				}
 				String id = file.getName().substring("battle_".length(), file.getName().length() - ".json".length());
@@ -370,7 +377,7 @@ public final class BattlePersistenceService {
 		File warbandFolder = new File("plugins/SimpleFactions/Warbands");
 		if (warbandFolder.exists() && warbandFolder.isDirectory()) {
 			for (File file : Objects.requireNonNullElse(warbandFolder.listFiles(), new File[0])) {
-				if (!file.getName().endsWith(".json")) {
+				if (!file.isFile() || !file.getName().startsWith("warband_") || !file.getName().endsWith(".json")) {
 					continue;
 				}
 				String id = file.getName().substring("warband_".length(), file.getName().length() - ".json".length());

@@ -9,12 +9,16 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -77,57 +81,146 @@ public class BattleInventoryManager {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void battleList(Player player) {
-		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Battle List");
-		populateBattleList(i);
-		player.openInventory(i);
+		openCollection(player, "§7Battle List", false, this::battleItems);
 	}
 
-	public void populateBattleList(Inventory i) {
-		i.clear();
-		for (int y = 0; y < BattleManager.get().size(); y++) {
-			i.setItem(y, createBattleItem(BattleManager.get().get(y)));
+	private List<ItemStack> battleItems() {
+		return BattleManager.get().stream().map(this::createBattleItem).toList();
+	}
+
+	public void populateBattleList(Inventory inventory) {
+		if (inventory.getHolder() instanceof CollectionPage page) {
+			page.render();
+		} else {
+			populateLegacyList(inventory, battleItems());
 		}
 	}
-	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
-	@SuppressWarnings("deprecation")
-	public void spawnList(Player player, Battle b) {
-		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Respawn Points");
-		for(int y = 0; y<b.getPointManager().getPoints().size();y++) {
-			i.setItem(y, createSpawnPointItem(b.getPointManager().getPoints().get(y), b.getSideByPlayer(player)));
-		}
-		player.openInventory(i);
+
+	public void spawnList(Player player, Battle battle) {
+		Map<String, CapturePoint> displayed = new java.util.HashMap<>();
+		openCollection(player, "§7Respawn Points", false, () -> {
+			displayed.clear();
+			BattleSide side = battle.getSideByPlayer(player);
+			return side == null ? List.of() : battle.getPointManager().getPoints().stream()
+					.map(point -> {
+						displayed.put(point.getId(), point);
+						return createSpawnPointItem(point, side);
+					}).toList();
+		}).points = displayed;
 	}
 	public static final String WARBAND_LIST_TITLE = "§7Warband List";
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void warbandList(Player player) {
-		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, WARBAND_LIST_TITLE);
-		populateWarbandList(i, player);
-		player.openInventory(i);
+		openCollection(player, WARBAND_LIST_TITLE, false, () -> warbandItems(player));
 	}
 
-	public void populateWarbandList(Inventory i) {
-		populateWarbandList(i, null);
+	private List<ItemStack> warbandItems(Player viewer) {
+		return WarbandManager.get().stream()
+				.filter(warband -> !CampaignRaidWarbandService.isRaidWarbandHiddenFromPlayer(warband, viewer))
+				.map(this::createWarbandItem).toList();
 	}
 
-	public void populateWarbandList(Inventory i, Player viewer) {
-		for (int slot = 0; slot < i.getSize(); slot++) {
-			i.setItem(slot, null);
-		}
-		int slot = 0;
-		for (Warband warband : WarbandManager.get()) {
-			if (slot >= i.getSize()) {
-				break;
-			}
-			if (net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService
-					.isRaidWarbandHiddenFromPlayer(warband, viewer)) {
-				continue;
-			}
-			i.setItem(slot, createWarbandItem(warband));
-			slot++;
+	public void populateWarbandList(Inventory inventory) {
+		populateWarbandList(inventory, null);
+	}
+
+	public void populateWarbandList(Inventory inventory, Player viewer) {
+		if (inventory.getHolder() instanceof CollectionPage page) {
+			page.render();
+		} else {
+			populateLegacyList(inventory, warbandItems(viewer));
 		}
 	}
+
+	private static void populateLegacyList(Inventory inventory, List<ItemStack> items) {
+		inventory.clear();
+		for (int slot = 0; slot < Math.min(inventory.getSize(), items.size()); slot++) {
+			inventory.setItem(slot, items.get(slot));
+		}
+	}
+
+	private CollectionPage openCollection(Player viewer, String title, boolean back, Supplier<List<ItemStack>> items) {
+		CollectionPage page = new CollectionPage(viewer, back, items);
+		page.inventory = SimpleFactions.plugin.getServer().createInventory(page, 27, title);
+		page.render();
+		viewer.openInventory(page.inventory);
+		return page;
+	}
+
+	/** Handles only navigation and unsafe transfers; ordinary entries retain their existing title routing. */
+	public static boolean handlePageClick(InventoryClickEvent event) {
+		Inventory top = event.getView().getTopInventory();
+		if (!(top.getHolder() instanceof CollectionPage page)) return false;
+		if (page.lastNavigation == event) return true;
+		if (!page.viewer.equals(event.getWhoClicked().getUniqueId())
+				|| event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()
+				|| (event.getClick() != ClickType.LEFT && event.getClick() != ClickType.RIGHT)) {
+			event.setCancelled(true);
+			return true;
+		}
+		if (page.paginated && (event.getRawSlot() == 24 || event.getRawSlot() == 25)) {
+			// Both listeners can see this event, even if rendering shrinks the menu to one page.
+			page.lastNavigation = event;
+			if (!event.isCancelled()) {
+				page.page += event.getRawSlot() == 24 ? -1 : 1;
+				page.render();
+			}
+			event.setCancelled(true);
+			return true;
+		}
+		return false;
+	}
+
+	private final class CollectionPage implements InventoryHolder {
+		private final java.util.UUID viewer;
+		private final boolean back;
+		private final Supplier<List<ItemStack>> items;
+		private Inventory inventory;
+		private int page;
+		private boolean paginated;
+		private InventoryClickEvent lastNavigation;
+		private Map<String, CapturePoint> points = Map.of();
+
+		private CollectionPage(Player viewer, boolean back, Supplier<List<ItemStack>> items) {
+			this.viewer = viewer.getUniqueId();
+			this.back = back;
+			this.items = items;
+		}
+
+		@Override
+		public Inventory getInventory() {
+			return inventory;
+		}
+
+		private void render() {
+			List<ItemStack> current = items.get();
+			paginated = current.size() > (back ? 26 : 27);
+			int capacity = paginated ? 24 : (back ? 26 : 27);
+			page = Math.max(0, Math.min(page, Math.max(0, (current.size() - 1) / capacity)));
+			inventory.clear();
+			int start = page * capacity;
+			for (int slot = 0; slot < Math.min(capacity, current.size() - start); slot++) {
+				inventory.setItem(slot, current.get(start + slot));
+			}
+			if (paginated) {
+				if (page > 0) inventory.setItem(24, pageButton("§aPrevious page"));
+				if (start + capacity < current.size()) inventory.setItem(25, pageButton("§aNext page"));
+			}
+			if (back) inventory.setItem(26, createBackButton());
+		}
+	}
+
+	@SuppressWarnings("deprecation")
+	private static ItemStack pageButton(String label) {
+		ItemStack item = new ItemStack(Material.ARROW);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(label);
+		item.setItemMeta(meta);
+		return item;
+	}
+
 	public void updateView(Player player, Battle b, Inventory i) {
 		populateBattleView(i, b);
 	}
@@ -277,22 +370,14 @@ public class BattleInventoryManager {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void sideSelection(Player player, Battle b) {
-		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Side Selection");
-		for(int y = 0; y<b.getSides().size();y++) {
-			i.setItem(y, createSideItem(b, b.getSides().get(y)));
-		}
-		i.setItem(26, createBackButton());
-		player.openInventory(i);
+		openCollection(player, "§7Side Selection", true,
+				() -> b.getSides().stream().map(side -> createSideItem(b, side)).toList());
 	}
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void sideView(Player player, Battle b) {
-		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Side View");
-		for(int y = 0; y<b.getSides().size();y++) {
-			i.setItem(y, createSideItem(b, b.getSides().get(y)));
-		}
-		i.setItem(26, createBackButton());
-		player.openInventory(i);
+		openCollection(player, "§7Side View", true,
+				() -> b.getSides().stream().map(side -> createSideItem(b, side)).toList());
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -325,35 +410,39 @@ public class BattleInventoryManager {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void pointView(Player player, Battle b) {
-		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Point View");
-		List<CapturePoint> sorted = new ArrayList<>(b.getPoints());
-		sorted.sort(Comparator.comparingInt(CapturePoint::getSequenceIndex));
-		for (int y = 0; y < sorted.size(); y++) {
-			i.setItem(y, createPointItem(sorted.get(y), b));
-		}
-		i.setItem(26, createBackButton());
-		player.openInventory(i);
+		Map<String, CapturePoint> displayed = new java.util.HashMap<>();
+		openCollection(player, "§7Point View", true, () -> {
+			displayed.clear();
+			return b.getPoints().stream()
+					.sorted(Comparator.comparingInt(CapturePoint::getSequenceIndex))
+					.map(point -> {
+						displayed.put(point.getId(), point);
+						return createPointItem(point, b);
+					}).toList();
+		}).points = displayed;
 	}
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void templateView(Player player, Battle b) {
-		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Template Selection");
-		i.setItem(0, createNoneTemplateItem());
-		int slot = 1;
-		if (b.getBattleType() != null) {
-			for (Map.Entry<String, BattleTemplate> entry : BattleTemplateLoader.getAll().entrySet()) {
-				if (entry.getValue().getType() != b.getBattleType()) {
-					continue;
-				}
-				if (slot >= 26) {
-					break;
-				}
-				i.setItem(slot++, createTemplateItem(entry.getKey()));
+		openCollection(player, "§7Template Selection", true, () -> {
+			List<ItemStack> items = new ArrayList<>();
+			items.add(createNoneTemplateItem());
+			if (b.getBattleType() != null) {
+				BattleTemplateLoader.getAll().entrySet().stream()
+						.filter(entry -> entry.getValue().getType() == b.getBattleType())
+						.sorted(Map.Entry.comparingByKey())
+						.forEach(entry -> items.add(createTemplateItem(entry.getKey())));
 			}
-		}
-		i.setItem(26, createBackButton());
-		player.openInventory(i);
+			return items;
+		});
 	}
+	/** The displayed letters can be reused after deletion; only the displayed object may be selected. */
+	public static CapturePoint selectedPoint(Inventory inventory, ItemStack item, List<CapturePoint> livePoints) {
+		if (!(inventory.getHolder() instanceof CollectionPage page)) return null;
+		CapturePoint point = page.points.get(getPointIdFromItem(item));
+		return point != null && livePoints.contains(point) ? point : null;
+	}
+
 	public ItemStack createSequentialCaptureButton(Battle b) {
 		return createGameRuleButton("Sequential capture", b.isSequentialCapture());
 	}
@@ -445,6 +534,9 @@ public class BattleInventoryManager {
 				i.setItemMeta(meta);
 			}
 		}
+		ItemMeta pointMeta = i.getItemMeta();
+		pointMeta.getPersistentDataContainer().set(pointKey(), PersistentDataType.STRING, point.getId());
+		i.setItemMeta(pointMeta);
 		return i;
 	}
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -522,6 +614,8 @@ public class BattleInventoryManager {
 		ItemStack i = new ItemStack(Material.IRON_SWORD, 1);
 		ItemMeta meta = i.getItemMeta();
 		meta.setDisplayName("§e"+b.getDisplayName());
+		meta.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "battle_id"),
+				PersistentDataType.STRING, b.getId());
 		List<String> lore = new ArrayList<String>();
 		lore.add("§7Id: "+b.getId());
 		int rosterCount = 0;
@@ -632,9 +726,6 @@ public class BattleInventoryManager {
 	}
 
 	private static String formatLocation(Location location) {
-		if (location == null) {
-			return "-";
-		}
 		return "x" + Math.round(location.getX())
 				+ ", y" + Math.round(location.getY())
 				+ ", z" + Math.round(location.getZ());
@@ -1001,21 +1092,15 @@ public class BattleInventoryManager {
 	@SuppressWarnings("deprecation")
 	ItemStack createLockButton(Battle b) {
 		ItemAPI api = TLibs.getItemAPI();
-		ItemStack i = api.getCreator().getItemsAdderItem("mcicons:icon_unlock");;
-		ItemMeta m = i.getItemMeta();
-		m.setDisplayName("§aUnlocked");
-		List<String> lore = new ArrayList<String>();
-		if(b.isLocked()) {
-			i = api.getCreator().getItemsAdderItem("mcicons:icon_lock");
-			m = i.getItemMeta();
-			m.setDisplayName("§cLocked");
-			lore.add("§7Warbands cannot join sides");
-		} else {
-			lore.add("§7Warbands can join sides");
-		}
-		m.setLore(lore);
-		i.setItemMeta(m);
-		return i;
+		ItemStack template = api.getCreator().getItemsAdderItem(
+				b.isLocked() ? "mcicons:icon_lock" : "mcicons:icon_unlock");
+		ItemStack item = template == null || template.isEmpty()
+				? new ItemStack(Material.TRIPWIRE_HOOK) : template.clone();
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(b.isLocked() ? "§cLocked" : "§aUnlocked");
+		meta.setLore(List.of(b.isLocked() ? "§7Warbands cannot join sides" : "§7Warbands can join sides"));
+		item.setItemMeta(meta);
+		return item;
 	}
 	
 }

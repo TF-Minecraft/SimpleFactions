@@ -96,7 +96,7 @@ public class CampaignBattleOutcomeService implements Listener {
 	}
 
 	public static void finalizeCampaignBattleAfterOutcome(War war) {
-		finalizeCampaignBattleAfterOutcome(war, BattleManager.getByWarId(war != null ? war.getId() : null));
+		finalizeCampaignBattleAfterOutcome(war, war != null ? BattleManager.getByWarId(war.getId()) : null);
 	}
 
 	public static CampaignBattleApplyResult applyCampaignBattleOutcome(
@@ -158,7 +158,7 @@ public class CampaignBattleOutcomeService implements Listener {
 					&& foughtSlot.kind() == CampaignBattleKind.SIEGE
 					&& foughtSlot.fortInstallationId() != null
 					&& winner != null) {
-				FortControlService.setController(war, foughtSlot.fortInstallationId(), winner);
+				FortControlService.setControllerAtProvince(war, foughtSlot.fortInstallationId(), foughtSlot.provinceId(), winner);
 			}
 
 			occupationService().applyBattleWin(war, battleProvinceId, winnerRole);
@@ -171,7 +171,8 @@ public class CampaignBattleOutcomeService implements Listener {
 			progressionApplied = true;
 		}
 
-		CampaignCoalition winner = CampaignCoalitionService.belligerentRoleToCoalition(winnerRole);
+		CampaignCoalition winner = winnerRole == null ? null
+				: CampaignCoalitionService.belligerentRoleToCoalition(winnerRole);
 		if (winner != null && battleProvinceId != null) {
 			Optional<WarEndReason> battleVictory = WarResolutionService.tryEndAfterBattle(
 					war,
@@ -240,12 +241,9 @@ public class CampaignBattleOutcomeService implements Listener {
 	}
 
 	private static OccupationService occupationService() {
-		if (SimpleFactions.plugin != null) {
-			return new OccupationService(
-					SimpleFactions.plugin.getProvinceManager(),
-					new TitleManagerProvinceOwnerLookup());
-		}
-		return new OccupationService(null, new TitleManagerProvinceOwnerLookup());
+		return new OccupationService(
+				SimpleFactions.plugin.getProvinceManager(),
+				new TitleManagerProvinceOwnerLookup());
 	}
 
 	private static void broadcastBattleEnded(

@@ -62,7 +62,10 @@ public final class PortSeaZocIndex {
 			return new PortSeaZocIndex(Map.of());
 		}
 
-		List<OperationalPort> sorted = new ArrayList<>(ports);
+		List<OperationalPort> sorted = new ArrayList<>();
+		for (OperationalPort port : ports) {
+			if (port != null && port.id() != null) sorted.add(port);
+		}
 		sorted.sort(Comparator
 				.comparingLong(OperationalPort::completedAt)
 				.thenComparing(OperationalPort::id));
@@ -70,9 +73,6 @@ public final class PortSeaZocIndex {
 		ProvinceManager provinceManager = SimpleFactions.getInstance().getProvinceManager();
 		Map<Integer, OperationalPort> seaProvinceToPort = new HashMap<>();
 		for (OperationalPort port : sorted) {
-			if (port == null || port.id() == null) {
-				continue;
-			}
 			for (int seaProvinceId : computeSeaCoverage(port.province(), provinceManager)) {
 				seaProvinceToPort.putIfAbsent(seaProvinceId, port);
 			}
@@ -131,9 +131,6 @@ public final class PortSeaZocIndex {
 			}
 
 			Province province = provinceManager.get(current.provinceId());
-			if (province == null || !province.isValid()) {
-				continue;
-			}
 			for (int neighbourId : province.getNeighbours()) {
 				Province neighbour = provinceManager.get(neighbourId);
 				if (neighbour == null || !neighbour.isValid() || neighbour.getTerrain() != Terrain.SEA) {

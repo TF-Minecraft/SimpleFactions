@@ -18,14 +18,8 @@ public final class CivilWarRegimentSplitService {
 		}
 		Military hostMilitary = host.getMilitary();
 		Military rebelMilitary = rebels.getMilitary();
-		if (hostMilitary == null || rebelMilitary == null) {
-			return moved;
-		}
 		double percent = Math.max(0, Math.min(100, powerPercent));
 		if (percent <= 0) {
-			return moved;
-		}
-		if (hostMilitary.getRegiments() == null) {
 			return moved;
 		}
 		zeroRebelGrant(rebelMilitary);
@@ -69,9 +63,6 @@ public final class CivilWarRegimentSplitService {
 	}
 
 	private static void zeroRebelGrant(Military rebelMilitary) {
-		if (rebelMilitary.getRegiments() == null) {
-			return;
-		}
 		for (Regiment rebelRegiment : rebelMilitary.getRegiments()) {
 			if (rebelRegiment == null || rebelRegiment.isLevy()) {
 				continue;
@@ -87,9 +78,6 @@ public final class CivilWarRegimentSplitService {
 		}
 		Military hostMilitary = host.getMilitary();
 		Military rebelMilitary = rebels.getMilitary();
-		if (hostMilitary == null || rebelMilitary == null) {
-			return;
-		}
 		for (Map.Entry<String, Integer> entry : moved.entrySet()) {
 			if (entry.getKey() == null || entry.getValue() == null || entry.getValue() <= 0) {
 				continue;
@@ -112,9 +100,6 @@ public final class CivilWarRegimentSplitService {
 		}
 		Military fromMilitary = from.getMilitary();
 		Military toMilitary = to.getMilitary();
-		if (fromMilitary == null || toMilitary == null || fromMilitary.getRegiments() == null) {
-			return;
-		}
 		for (Regiment fromRegiment : fromMilitary.getRegiments()) {
 			if (fromRegiment == null || fromRegiment.isLevy() || fromRegiment.getId() == null) {
 				continue;

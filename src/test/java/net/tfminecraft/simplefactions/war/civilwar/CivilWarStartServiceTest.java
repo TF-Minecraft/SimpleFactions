@@ -28,6 +28,7 @@ import org.mockito.MockedStatic;
 import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
+import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
@@ -127,6 +128,7 @@ class CivilWarStartServiceTest {
 		when(proposal.hasTarget()).thenReturn(false);
 
 		Faction rebels = mock(Faction.class);
+		when(rebels.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(rebels));
 		when(rebels.getId()).thenReturn("host_rebels");
 		InstallationHandler hostHandler = new InstallationHandler(host);
 		InstallationHandler rebelHandler = new InstallationHandler(rebels);
@@ -196,6 +198,7 @@ class CivilWarStartServiceTest {
 
 		Faction vassal = mock(Faction.class);
 		when(vassal.getId()).thenReturn("vassal");
+		when(vassal.getDiplomacyHandler()).thenReturn(new DiplomacyHandler(vassal));
 		Faction nested = mock(Faction.class);
 		when(nested.getId()).thenReturn("nested");
 		Relation vassalRelation = relation("vassal_type", true, false);
@@ -204,6 +207,7 @@ class CivilWarStartServiceTest {
 		when(movement.getAllSupportingFactions()).thenReturn(List.of(vassal, nested));
 
 		Faction rebels = mock(Faction.class);
+		when(rebels.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(rebels));
 		when(rebels.getId()).thenReturn("host_rebels");
 		InstallationHandler hostHandler = new InstallationHandler(host);
 		InstallationHandler rebelHandler = new InstallationHandler(rebels);
@@ -267,6 +271,7 @@ class CivilWarStartServiceTest {
 		when(movement.getAllSupportingGuilds()).thenReturn(List.of());
 		Faction vassal = mock(Faction.class);
 		when(vassal.getId()).thenReturn("vassal");
+		when(vassal.getDiplomacyHandler()).thenReturn(new DiplomacyHandler(vassal));
 		Relation vassalRelation = relation("vassal_type", true, false);
 		when(host.getRelation("vassal")).thenReturn(vassalRelation);
 		Relation overlordRelation = relation("overlord", false, true);
@@ -338,6 +343,7 @@ class CivilWarStartServiceTest {
 		attachMilitary(host, List.of(hostProfessional));
 
 		Faction rebels = mock(Faction.class);
+		when(rebels.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(rebels));
 		when(rebels.getId()).thenReturn("host_rebels");
 		attachMilitary(rebels, List.of(rebelProfessional));
 		InstallationHandler hostHandler = new InstallationHandler(host);
@@ -409,6 +415,7 @@ class CivilWarStartServiceTest {
 	@Test
 	void applyConfiguredVassalage_setsLawFromCacheIds() {
 		Faction rebels = mock(Faction.class);
+		when(rebels.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(rebels));
 		stubRebelVassalage(rebels);
 		assertNull(CivilWarStartService.applyConfiguredVassalage(rebels));
 		verify(rebels.getLawHandler().getGroup("vassalage")).switchTo(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong());
@@ -417,8 +424,10 @@ class CivilWarStartServiceTest {
 	private static Movement baseMovement(Action action, Member leaderRelation) {
 		Movement movement = mock(Movement.class);
 		Faction host = mock(Faction.class);
+		when(host.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(host));
 		Government government = mock(Government.class);
 		when(host.getId()).thenReturn("host");
+		when(host.getDiplomacyHandler()).thenReturn(new DiplomacyHandler(host));
 		when(host.getGovernment()).thenReturn(government);
 		when(host.getRelationToFaction("Alice")).thenReturn(leaderRelation);
 		when(movement.getFaction()).thenReturn(host);

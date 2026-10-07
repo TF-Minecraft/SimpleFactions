@@ -28,7 +28,7 @@ public final class CampaignProgressionService {
 	}
 
 	public static boolean holdsInitiative(War war, CampaignCoalition coalition) {
-		return coalition != null
+		return CampaignCapabilityService.isValidWar(war) && coalition != null
 				&& coalition == CampaignCoalitionService.getInitiativeHolderCoalition(war);
 	}
 

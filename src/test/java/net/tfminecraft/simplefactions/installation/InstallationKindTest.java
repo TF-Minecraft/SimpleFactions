@@ -9,6 +9,32 @@ import net.tfminecraft.simplefactions.database.InstallationData;
 
 class InstallationKindTest {
     @Test
+    void loadingBeforeConfigurationKeepsTheSavedPositiveLevel() throws Exception {
+        var field = InstallationConfigLoader.class.getDeclaredField("byKind");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        var definitions = (java.util.Map<InstallationKind, Object>) field.get(null);
+        var previous = new java.util.HashMap<>(definitions);
+        definitions.clear();
+        try {
+            InstallationData data = new InstallationData();
+            data.id = "unloaded";
+            data.name = "Unloaded Station";
+            data.kind = "train_station";
+            data.province = 1;
+            data.level = 8;
+            Installation installation = new Installation(data);
+            assertEquals(8, installation.getLevel());
+            assertEquals(8, installation.toData().level);
+            installation.setLevel(5);
+            assertEquals(5, installation.getLevel());
+        } finally {
+            definitions.clear();
+            definitions.putAll(previous);
+        }
+    }
+
+    @Test
     void trainStationParsesFromCommandName() {
         assertEquals(InstallationKind.TRAIN_STATION, InstallationKind.fromCommand("train_station"));
     }

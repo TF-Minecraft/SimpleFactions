@@ -34,7 +34,7 @@ public final class RaidWinService {
 				&& BattleRaidSetup.getEffectiveDefenderRespawnMode(battle) == DefenderRespawnMode.LIVES
 				&& FieldWinService.isSideEliminated(defender);
 
-		if (targetCaptured && (attackersOut || defenderEliminated)) {
+		if (attackersOut && (targetCaptured || defenderEliminated)) {
 			BattleEndSupport.endBattle(battle, null);
 			return;
 		}

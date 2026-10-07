@@ -41,6 +41,9 @@ public class CampaignRaidLaunchView {
 	private static final int LIST_START_SLOT = 12;
 	private static final int LIST_END_SLOT = 44;
 	private static final int BACK_SLOT = 53;
+	private static final int PREVIOUS_SLOT = 45;
+	private static final int NEXT_SLOT = 52;
+	private static final int PAGE_SIZE = LIST_END_SLOT - LIST_START_SLOT + 1;
 
 	public InventoryManager inv;
 	public CampaignCreator creator = new CampaignCreator();
@@ -77,17 +80,17 @@ public class CampaignRaidLaunchView {
 		inventory.setItem(SUMMARY_SLOT, creator.createRaidLaunchSummaryItem(
 				war, viewerFaction, null, sources.isEmpty(), now));
 
-		for (int index = 0; index < sources.size(); index++) {
-			int slot = LIST_START_SLOT + index;
-			if (slot > LIST_END_SLOT) {
-				break;
-			}
+		CampaignRaidLaunchHolder holder = (CampaignRaidLaunchHolder) inventory.getHolder();
+		int start = preparePage(inventory, holder, sources.size());
+		int end = Math.min(start + PAGE_SIZE, sources.size());
+		for (int index = start; index < end; index++) {
+			int slot = LIST_START_SLOT + index - start;
 			Installation installation = sources.get(index);
 			inventory.setItem(
 					slot,
 					creator.createRaidLaunchInstallationItem(war, installation, null, true));
 		}
-		clearUnusedListSlots(inventory, sources.size());
+		clearUnusedListSlots(inventory, end - start);
 		inventory.setItem(BACK_SLOT, inv.createBackButton(SFGUI.CAMPAIGN_VIEW));
 		if (openInventory) {
 			player.openInventory(inventory);
@@ -134,11 +137,11 @@ public class CampaignRaidLaunchView {
 		inventory.setItem(SUMMARY_SLOT, creator.createRaidLaunchSummaryItem(
 				war, viewerFaction, source, targets.isEmpty(), now));
 
-		for (int index = 0; index < targets.size(); index++) {
-			int slot = LIST_START_SLOT + index;
-			if (slot > LIST_END_SLOT) {
-				break;
-			}
+		CampaignRaidLaunchHolder holder = (CampaignRaidLaunchHolder) inventory.getHolder();
+		int start = preparePage(inventory, holder, targets.size());
+		int end = Math.min(start + PAGE_SIZE, targets.size());
+		for (int index = start; index < end; index++) {
+			int slot = LIST_START_SLOT + index - start;
 			RaidTargetCandidate candidate = targets.get(index);
 			Faction owner = FactionManager.getByString(candidate.ownerFactionId());
 			String ownerName = owner != null ? owner.getName() : candidate.ownerFactionId();
@@ -147,7 +150,7 @@ public class CampaignRaidLaunchView {
 					creator.createRaidLaunchInstallationItem(
 							war, candidate.installation(), ownerName, false));
 		}
-		clearUnusedListSlots(inventory, targets.size());
+		clearUnusedListSlots(inventory, end - start);
 		inventory.setItem(BACK_SLOT, inv.createBackButton(SFGUI.CAMPAIGN_RAID_LAUNCH_VIEW));
 		if (openInventory) {
 			player.openInventory(inventory);
@@ -183,6 +186,16 @@ public class CampaignRaidLaunchView {
 			return;
 		}
 
+		if (slot == PREVIOUS_SLOT || slot == NEXT_SLOT) {
+			holder.setPage(holder.getPage() + (slot == NEXT_SLOT ? 1 : -1));
+			if (holder.isSourcePage()) {
+				openSourcePage(player, war, viewerFaction, false, inventory);
+			} else {
+				openTargetPage(player, war, viewerFaction, holder.getSourceInstallationId(), false, inventory);
+			}
+			return;
+		}
+
 		if (!viewerFaction.isLeader(player.getName())) {
 			player.sendMessage(CampaignRaidMessages.NOT_LEADER);
 			return;
@@ -207,7 +220,7 @@ public class CampaignRaidLaunchView {
 		Instant now = CampaignClock.now();
 		if (holder.isSourcePage()) {
 			if (CampaignRaidService.canLaunch(war, viewerFaction, now) != LaunchResult.STARTED) {
-				sendLaunchFailure(player, war, viewerFaction, now, null);
+				sendLaunchFailure(player, war, viewerFaction, now);
 				return;
 			}
 			openTargetPage(player, war, viewerFaction, installationId, true);
@@ -226,15 +239,11 @@ public class CampaignRaidLaunchView {
 			return;
 		}
 
-		LaunchResult launch = CampaignRaidService.beginMuster(
-				war, viewerFaction, sourceId, installationId, now);
-		if (launch != LaunchResult.STARTED) {
-			sendLaunchFailure(player, war, viewerFaction, now, outcome);
-			return;
-		}
+		// The same source, target and instant passed validation above on this server thread.
+		CampaignRaidService.beginMuster(war, viewerFaction, sourceId, installationId, now);
 
 		WarManager.persist(war);
-		Installation target = resolveTargetInstallation(war, viewerFaction, installationId);
+		Installation target = CampaignRaidEligibilityService.resolveTargetInstallation(war, viewerFaction.getId(), installationId);
 		broadcastRaidCalled(war, viewerFaction, target);
 		player.sendMessage("§aCampaign raid muster started.");
 		player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
@@ -245,8 +254,7 @@ public class CampaignRaidLaunchView {
 			Player player,
 			War war,
 			Faction faction,
-			Instant now,
-			ValidateLaunchOutcome ignored) {
+			Instant now) {
 		LaunchResult launch = CampaignRaidService.canLaunch(war, faction, now);
 		String message = CampaignRaidMessages.messageForLaunchResult(launch);
 		if (message != null) {
@@ -256,40 +264,14 @@ public class CampaignRaidLaunchView {
 
 	private void broadcastRaidCalled(War war, Faction launcher, Installation target) {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
-		if (raid == null) {
-			return;
-		}
 		String message = CampaignRaidMessages.buildRaidCalledMessage(launcher, target, raid.getId());
 		Side side = war.getSide(launcher);
-		if (side == null) {
-			return;
-		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
 			Player online = Bukkit.getPlayerExact(memberName);
 			if (online != null && online.isOnline()) {
 				online.sendMessage(message);
 			}
 		}
-	}
-
-	private Installation resolveTargetInstallation(War war, Faction launcher, String targetInstallationId) {
-		if (war == null || launcher == null || targetInstallationId == null) {
-			return null;
-		}
-		Side enemySide = war.getOppositeSide(launcher);
-		if (enemySide == null) {
-			return null;
-		}
-		for (Faction enemy : BattleSideMembers.collectParticipatingFactions(enemySide)) {
-			if (enemy == null || enemy.getInstallationHandler() == null) {
-				continue;
-			}
-			Installation installation = enemy.getInstallationHandler().getById(targetInstallationId);
-			if (installation != null) {
-				return installation;
-			}
-		}
-		return null;
 	}
 
 	private boolean validateParticipation(Player player, War war, Faction viewerFaction) {
@@ -314,6 +296,18 @@ public class CampaignRaidLaunchView {
 			return memberFaction;
 		}
 		return null;
+	}
+
+	private int preparePage(Inventory inventory, CampaignRaidLaunchHolder holder, int count) {
+		int lastPage = Math.max(0, (count - 1) / PAGE_SIZE);
+		holder.setPage(Math.min(holder.getPage(), lastPage));
+		if (holder.getPage() > 0) {
+			inventory.setItem(PREVIOUS_SLOT, DefaultCreator.createPreviousPageButton());
+		}
+		if (holder.getPage() < lastPage) {
+			inventory.setItem(NEXT_SLOT, DefaultCreator.createNextPageButton());
+		}
+		return holder.getPage() * PAGE_SIZE;
 	}
 
 	private void clearUnusedListSlots(Inventory inventory, int usedCount) {

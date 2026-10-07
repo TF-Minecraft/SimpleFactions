@@ -53,7 +53,7 @@ public final class CampaignRaidBossBarService {
 			}
 		}
 
-		String label = resolveRaidLabel(battle);
+		String label = battle.getDisplayName();
 		BossBar timeBar = Bukkit.createBossBar(label, BarColor.BLUE, BarStyle.SOLID);
 		BossBar raidersBar = Bukkit.createBossBar("Raiders remaining: " + rosterSize, BarColor.RED, BarStyle.SOLID);
 		BARS.put(battle.getId(), new RaidBossBars(timeBar, raidersBar, rosterSize, totalSeconds));
@@ -67,10 +67,7 @@ public final class CampaignRaidBossBarService {
 		RaidBossBars bars = BARS.get(battle.getId());
 		if (bars == null) {
 			onFightStarted(battle, raid);
-			bars = BARS.get(battle.getId());
-			if (bars == null) {
-				return;
-			}
+			return;
 		}
 
 		List<Player> viewers = battle.getAllParticipants();
@@ -83,7 +80,7 @@ public final class CampaignRaidBossBarService {
 		}
 		double timeProgress = Math.min(1.0, Math.max(0.0, (double) remainingSeconds / (double) bars.totalSeconds()));
 		bars.timeBar().setProgress(timeProgress);
-		bars.timeBar().setTitle(resolveRaidLabel(battle) + " - "
+		bars.timeBar().setTitle(battle.getDisplayName() + " - "
 				+ formatRemaining(remainingSeconds));
 
 		int remainingRaiders = RaidAttackerEliminationService.countActiveAttackers(battle);
@@ -124,17 +121,6 @@ public final class CampaignRaidBossBarService {
 		update(battle, raid);
 	}
 
-	private static String resolveRaidLabel(Battle battle) {
-		if (battle == null) {
-			return "Campaign raid";
-		}
-		String displayName = battle.getDisplayName();
-		if (displayName != null && !displayName.isBlank()) {
-			return displayName;
-		}
-		return "Campaign raid";
-	}
-
 	private static String formatRemaining(long remainingSeconds) {
 		if (remainingSeconds <= 0L) {
 			return "0s";
@@ -149,15 +135,9 @@ public final class CampaignRaidBossBarService {
 			long totalSeconds) {
 
 		void syncViewers(List<Player> viewers) {
-			if (timeBar == null || raidersBar == null) {
-				return;
-			}
 			timeBar.setVisible(true);
 			raidersBar.setVisible(true);
 			for (Player player : viewers) {
-				if (player == null) {
-					continue;
-				}
 				if (!timeBar.getPlayers().contains(player)) {
 					timeBar.addPlayer(player);
 				}
@@ -178,14 +158,10 @@ public final class CampaignRaidBossBarService {
 		}
 
 		void removeAll() {
-			if (timeBar != null) {
-				timeBar.removeAll();
-				timeBar.setVisible(false);
-			}
-			if (raidersBar != null) {
-				raidersBar.removeAll();
-				raidersBar.setVisible(false);
-			}
+			timeBar.removeAll();
+			timeBar.setVisible(false);
+			raidersBar.removeAll();
+			raidersBar.setVisible(false);
 		}
 	}
 }

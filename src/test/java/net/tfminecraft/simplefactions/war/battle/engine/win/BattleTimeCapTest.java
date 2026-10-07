@@ -155,4 +155,20 @@ class BattleTimeCapTest {
 			action.run();
 		}
 	}
+
+	@Test
+	void missingImportedSideDoesNotChangeTheWinnerChosenFromValidSides() {
+		withBossBar(() -> {
+			Cache.battleTimeCapEnabled = true;
+			Battle battle = campaignBattle(BattleType.FIELD, "cap_partial");
+			battle.getSideById(BattleTemplate.ATTACKER_SIDE).setLives(2);
+			battle.getSideById(BattleTemplate.DEFENDER_SIDE).setLives(7);
+			battle.addSide(null);
+			try (MockedStatic<BattleEndSupport> end = mockStatic(BattleEndSupport.class)) {
+				BattleTimeCap.check(battle, battle.getStartedAt().plusSeconds(120 * 60L));
+				end.verify(() -> BattleEndSupport.endBattle(battle, BattleTemplate.DEFENDER_SIDE, BattleEndReason.TIMER));
+			}
+		});
+	}
+
 }

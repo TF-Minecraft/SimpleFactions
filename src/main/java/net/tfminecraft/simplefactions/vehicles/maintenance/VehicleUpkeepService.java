@@ -62,6 +62,10 @@ public final class VehicleUpkeepService {
         for (OwnedVehicleSummary vehicle : VehicleOwnershipQueries.allPersonalVehicles(registry)) {
             double upkeep = VehiclesConfigLoader.getUpkeep(vehicle.getTypeId());
             if (upkeep <= 0.0) {
+                if (maintenanceStore.isUnpaid(vehicle.getUuid())) {
+                    maintenanceStore.clearUnpaid(vehicle.getUuid());
+                    persistMaintenance();
+                }
                 continue;
             }
             String playerName = VehicleOwnershipQueries.playerNameFromOwner(vehicle.getOwner());
@@ -155,9 +159,6 @@ public final class VehicleUpkeepService {
             String vehicleTypeId,
             String vehicleUuid,
             long nowMillis) {
-        if (playerUuid == null || upkeep <= 0.0) {
-            return;
-        }
         double total = tax == null ? upkeep : Formatter.formatDouble(upkeep + tax.amount());
         if (!playerBank.withdrawFromBank(playerUuid, total)) {
             markUnpaid(vehicleUuid, vehicleTypeId, playerUuid, total, nowMillis);

@@ -34,7 +34,7 @@ public final class BattleItemDurability {
 		double scaled = damage * factor;
 		if (scaled < 1.0) {
 			double roll = random == null ? 1.0 : random.getAsDouble();
-			return roll < scaled ? damage : 0;
+			return roll < scaled ? 1 : 0;
 		}
 		return Math.max(1, (int) Math.round(scaled));
 	}

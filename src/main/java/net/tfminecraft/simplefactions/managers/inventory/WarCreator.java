@@ -169,7 +169,8 @@ public class WarCreator {
 				lore.add(StringFormatter.formatHex("#28ed70§lClick to call!"));
 			}
 		}
-		if (w.getGoal() == null && pf != null && !w.getSide(pf).equals(w.getSide(f)) && w.getSide(f) != null) {
+		if (w.getGoal() == null && pf != null && w.getSide(pf) != null
+				&& w.getSide(f) != null && !w.getSide(pf).equals(w.getSide(f))) {
 			lore.add(" ");
 			lore.add(StringFormatter.formatHex("#8a4152§o§lClick to set a war goal!"));
 		}

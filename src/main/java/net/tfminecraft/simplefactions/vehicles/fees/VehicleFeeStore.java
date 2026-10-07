@@ -140,7 +140,7 @@ public final class VehicleFeeStore {
         }
 
         PaidBuild toBuild() {
-            if (payerUuid == null || amount <= 0.0) {
+            if (payerUuid == null || !Double.isFinite(amount) || amount <= 0.0) {
                 return null;
             }
             try {

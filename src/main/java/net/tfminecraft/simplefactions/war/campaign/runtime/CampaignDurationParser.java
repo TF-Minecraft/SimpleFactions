@@ -32,7 +32,11 @@ public final class CampaignDurationParser {
 				if (matcher.start() != end) {
 					throw invalidDuration("unknown unit in '" + trimmed + "'");
 				}
-				total = total.plus(toDuration(matcher.group(1), matcher.group(2)));
+				try {
+					total = total.plus(toDuration(matcher.group(1), matcher.group(2)));
+				} catch (ArithmeticException error) {
+					throw invalidDuration("duration is too large");
+				}
 				tokenMatched = true;
 				end = matcher.end();
 			}
@@ -53,8 +57,7 @@ public final class CampaignDurationParser {
 			case "s" -> Duration.ofSeconds(value);
 			case "m" -> Duration.ofMinutes(value);
 			case "h" -> Duration.ofHours(value);
-			case "d" -> Duration.ofDays(value);
-			default -> throw invalidDuration("unknown unit '" + unit + "'");
+			default -> Duration.ofDays(value); // The token regex admits only s, m, h and d.
 		};
 	}
 

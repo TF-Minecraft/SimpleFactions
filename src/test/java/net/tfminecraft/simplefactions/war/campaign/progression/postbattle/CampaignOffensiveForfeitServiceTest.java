@@ -59,6 +59,8 @@ class CampaignOffensiveForfeitServiceTest {
 		defender = mock(Faction.class);
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
+		when(attacker.getMilitary()).thenReturn(new net.tfminecraft.simplefactions.army.Military(attacker));
+		when(defender.getMilitary()).thenReturn(new net.tfminecraft.simplefactions.army.Military(defender));
 		when(attacker.getMembers()).thenReturn(List.of());
 		when(defender.getMembers()).thenReturn(List.of());
 

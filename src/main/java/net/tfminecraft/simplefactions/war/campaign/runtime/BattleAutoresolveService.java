@@ -83,9 +83,6 @@ public final class BattleAutoresolveService {
 		}
 
 		Faction opposingLeaderFaction = opposingLeaderFaction(war, side);
-		if (opposingLeaderFaction == null) {
-			return SendResult.NOT_ALLOWED;
-		}
 
 		Player target = Bukkit.getPlayerExact(opposingLeaderFaction.getLeader());
 		if (target == null || !target.isOnline()) {
@@ -108,8 +105,8 @@ public final class BattleAutoresolveService {
 			return;
 		}
 
-		War war = WarManager.getById(req.getWar().getId());
-		if (war == null || !war.isActive()) {
+		War war = req.getWar();
+		if (war == null || !war.isActive() || WarManager.getById(war.getId()) != war) {
 			acceptor.sendMessage("§cThat war is no longer active.");
 			return;
 		}
@@ -169,16 +166,13 @@ public final class BattleAutoresolveService {
 		WarManager.persist(war);
 
 		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
-		if (offensive == null) {
-			offensive = CampaignCoalition.AGGRESSOR;
-		}
 		CampaignCoalition defensive = offensive.opposing();
 		Side offensiveSide = CampaignCoalitionService.toSide(war, offensive);
 		Side defensiveSide = CampaignCoalitionService.toSide(war, defensive);
 		int livesPerRegiment = Math.max(0, Cache.warBattleLivesPerRegiment);
 		// Mercenary slots only count members on a battle roster. There is no roster here, so they are omitted.
-		int offensiveLives = livesPerRegiment * committedRegiments(war, provinceId, offensiveSide);
-		int defensiveLives = livesPerRegiment * committedRegiments(war, provinceId, defensiveSide);
+		double offensiveLives = (double) livesPerRegiment * committedRegiments(war, provinceId, offensiveSide);
+		double defensiveLives = (double) livesPerRegiment * committedRegiments(war, provinceId, defensiveSide);
 		Prediction prediction = predict(
 				offensiveLives,
 				defensiveLives,
@@ -213,10 +207,15 @@ public final class BattleAutoresolveService {
 			double luck,
 			double loserLossFraction,
 			Random random) {
-		int offensiveReal = Math.max(0, offensiveLives);
-		int defensiveReal = Math.max(0, defensiveLives);
+		return predict((double) offensiveLives, defensiveLives, luck, loserLossFraction, random);
+	}
+
+	private static Prediction predict(
+			double offensiveLives, double defensiveLives, double luck, double loserLossFraction, Random random) {
+		double offensiveReal = Math.max(0, offensiveLives);
+		double defensiveReal = Math.max(0, defensiveLives);
 		double luckSpan = clampLuck(luck);
-		double fraction = loserLossFraction < 0 ? 0 : loserLossFraction;
+		double fraction = Math.max(0, Math.min(1, loserLossFraction));
 		if (offensiveReal == 0 || defensiveReal == 0) {
 			boolean offensiveWins = offensiveReal > 0;
 			return new Prediction(offensiveWins, 0, 0, 0, 0);
@@ -227,16 +226,10 @@ public final class BattleAutoresolveService {
 		boolean offensiveWins = offensiveEffective > defensiveEffective;
 		double winnerEffective = offensiveWins ? offensiveEffective : defensiveEffective;
 		double loserEffective = offensiveWins ? defensiveEffective : offensiveEffective;
-		int winnerReal = offensiveWins ? offensiveReal : defensiveReal;
-		int loserReal = offensiveWins ? defensiveReal : offensiveReal;
+		double winnerReal = offensiveWins ? offensiveReal : defensiveReal;
+		double loserReal = offensiveWins ? defensiveReal : offensiveReal;
 		int winnerDeaths = lanchesterWinnerDeaths(winnerEffective, loserEffective, winnerReal);
-		int loserDeaths = (int) Math.round(loserReal * fraction);
-		if (loserDeaths < 0) {
-			loserDeaths = 0;
-		}
-		if (loserDeaths > loserReal) {
-			loserDeaths = loserReal;
-		}
+		int loserDeaths = (int) Math.min(Integer.MAX_VALUE, Math.round(loserReal * fraction));
 		int offensiveDeaths = offensiveWins ? winnerDeaths : loserDeaths;
 		int defensiveDeaths = offensiveWins ? loserDeaths : winnerDeaths;
 		return new Prediction(
@@ -247,19 +240,10 @@ public final class BattleAutoresolveService {
 				BattleCasualtyService.regimentLossesForDeaths(defensiveDeaths));
 	}
 
-	private static int lanchesterWinnerDeaths(double winnerEffective, double loserEffective, int winnerRealLives) {
+	private static int lanchesterWinnerDeaths(double winnerEffective, double loserEffective, double winnerRealLives) {
 		double gap = winnerEffective * winnerEffective - loserEffective * loserEffective;
-		if (gap < 0) {
-			gap = 0;
-		}
-		int deaths = (int) Math.round(winnerEffective - Math.sqrt(gap));
-		if (deaths < 0) {
-			deaths = 0;
-		}
-		if (deaths > winnerRealLives) {
-			deaths = winnerRealLives;
-		}
-		return deaths;
+		long deaths = Math.round(winnerEffective - Math.sqrt(gap));
+		return (int) Math.max(0, Math.min(Integer.MAX_VALUE, Math.min(winnerRealLives, deaths)));
 	}
 
 	private static double clampLuck(double luck) {
@@ -282,9 +266,6 @@ public final class BattleAutoresolveService {
 	}
 
 	private static int committedRegiments(War war, int provinceId, Side side) {
-		if (side == null) {
-			return 0;
-		}
 		return Math.max(0, BattlePoolService.totalCommittedRegiments(war, provinceId, side));
 	}
 
@@ -356,18 +337,12 @@ public final class BattleAutoresolveService {
 	}
 
 	private static Faction opposingLeaderFaction(War war, BelligerentRole proposerSide) {
-		if (war == null || proposerSide == null) {
-			return null;
-		}
 		return proposerSide == BelligerentRole.ATTACKER
 				? war.getDefenders().getLeader()
 				: war.getAttackers().getLeader();
 	}
 
 	private static boolean isWarLeader(Faction faction, War war, BelligerentRole side) {
-		if (faction == null || war == null || side == null) {
-			return false;
-		}
 		String leaderId = side == BelligerentRole.ATTACKER
 				? war.getAttackerLeaderId()
 				: war.getDefenderLeaderId();

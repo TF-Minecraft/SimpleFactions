@@ -102,6 +102,7 @@ public class WarView {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new WarInventoryHolder(w.getId(), SFGUI.WAR_VIEW), 54, w.getName());
 		}
+		i.clear();
 		List<Integer> gray = Arrays.asList(0, 1, 2, 6, 7, 8, 45, 46, 47, 48, 50, 51, 52);
 		List<Integer> red = Arrays.asList(13, 22, 31, 40, 49);
 		
@@ -318,6 +319,7 @@ public class WarView {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFCombinedInventoryHolder(w.getId(), p.getLeader().getId(), SFGUI.PARTICIPANT_VIEW), 54, w.getName());
 		}
+		i.clear();
 		List<Integer> gray = Arrays.asList(0, 1, 2, 3, 5, 6, 7, 8, 45, 46, 47, 48, 49, 50, 51, 52);
 		
 		i.setItem(4, creator.createParticipantItem(player, p, w.getType(p.getLeader()), w, false, true));
@@ -403,6 +405,7 @@ public class WarView {
 			e.setCancelled(true);
 			WarInventoryHolder h = (WarInventoryHolder) inventory.getHolder();
 			War w = WarManager.getById(h.getId());
+			if (w == null) return;
 			if(e.getSlot() == 53) {
 				warList(p);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -470,6 +473,7 @@ public class WarView {
 			e.setCancelled(true);
 			SFCombinedInventoryHolder h = (SFCombinedInventoryHolder) inventory.getHolder();
 			War w = WarManager.getById(h.getWarId());
+			if (w == null) return;
 			if(e.getSlot() == 53) {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				warView(null, p, w, true);

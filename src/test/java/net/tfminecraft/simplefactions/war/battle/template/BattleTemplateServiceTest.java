@@ -91,4 +91,13 @@ class BattleTemplateServiceTest {
 		assertTrue(service.hasTemplate("raid_template"));
 		assertEquals(BattleType.RAID, service.getTemplate("raid_template").getType());
 	}
+
+	@Test
+	void missingModeOrTypeDoesNotInventAConfiguration() {
+		assertNull(service.applyDefaults(null, BattleType.FIELD));
+		BattleModeTemplate mode = new BattleModeTemplate();
+		org.junit.jupiter.api.Assertions.assertSame(mode, service.applyDefaults(mode, null));
+		assertEquals(0, mode.getLives());
+	}
+
 }

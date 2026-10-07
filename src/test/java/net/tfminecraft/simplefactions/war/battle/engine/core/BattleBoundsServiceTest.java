@@ -28,12 +28,20 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 class BattleBoundsServiceTest {
 	private ProvinceManager provinceManager;
 	private SimpleFactions plugin;
+	private String oldWorldName;
 
 	@BeforeEach
 	void setUp() {
+		oldWorldName = net.tfminecraft.simplefactions.Cache.worldName;
+		net.tfminecraft.simplefactions.Cache.worldName = "world";
 		provinceManager = new ProvinceManager();
 		plugin = mock(SimpleFactions.class);
 		when(plugin.getProvinceManager()).thenReturn(provinceManager);
+	}
+
+	@org.junit.jupiter.api.AfterEach
+	void restoreWorld() {
+		net.tfminecraft.simplefactions.Cache.worldName = oldWorldName;
 	}
 
 	@Test
@@ -53,7 +61,9 @@ class BattleBoundsServiceTest {
 
 		Battle battle = fieldBattle("test");
 		BattleSide defender = battle.getSideById(BattleTemplate.DEFENDER_SIDE);
-		defender.setSpawn(new Location(mock(World.class), 5, 64, 5));
+		World world = mock(World.class);
+		when(world.getName()).thenReturn("world");
+		defender.setSpawn(new Location(world, 5, 64, 5));
 
 		BattleBoundsService.resolveAllowedProvinces(battle, plugin);
 

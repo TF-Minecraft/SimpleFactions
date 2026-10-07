@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.runtime;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.DateTimeException;
 
 /**
  * Volatile in-memory offset on {@link Instant#now()} for campaign schedule dev/QA.
@@ -33,7 +34,14 @@ public final class CampaignClock {
 		if (delta == null) {
 			throw new IllegalArgumentException("Duration must not be null");
 		}
-		offset = offset.plus(delta);
+		try {
+			Duration candidate = offset.plus(delta);
+			// Validate the schedule's time zone before publishing an offset used by every tick.
+			Instant.now().plus(candidate).atZone(BattleWindowService.SCHEDULE_ZONE);
+			offset = candidate;
+		} catch (ArithmeticException | DateTimeException error) {
+			throw new IllegalArgumentException("Campaign time is outside the supported range", error);
+		}
 	}
 
 	public static void reset() {

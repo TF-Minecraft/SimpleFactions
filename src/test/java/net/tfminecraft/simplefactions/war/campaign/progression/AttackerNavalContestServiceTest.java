@@ -54,6 +54,7 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 
 class AttackerNavalContestServiceTest {
+	private java.util.List<Faction> previousFactions;
 	private Faction attacker;
 	private Faction defender;
 	private InstallationHandler attackerHandler;
@@ -74,6 +75,14 @@ class AttackerNavalContestServiceTest {
 		defender = mock(Faction.class);
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
+		when(attacker.getMilitary()).thenReturn(new net.tfminecraft.simplefactions.army.Military(attacker));
+		when(defender.getMilitary()).thenReturn(new net.tfminecraft.simplefactions.army.Military(defender));
+		previousFactions = net.tfminecraft.simplefactions.managers.FactionManager.factions;
+		net.tfminecraft.simplefactions.managers.FactionManager.factions = new java.util.ArrayList<>(java.util.List.of(attacker, defender));
+		when(attacker.getInstallationHandler()).thenReturn(new InstallationHandler(attacker));
+		when(defender.getInstallationHandler()).thenReturn(new InstallationHandler(defender));
+		when(attacker.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(attacker));
+		when(defender.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(defender));
 		when(attacker.getMembers()).thenReturn(List.of());
 		when(defender.getMembers()).thenReturn(List.of());
 		when(attacker.getLeader()).thenReturn("Alice");
@@ -127,6 +136,7 @@ class AttackerNavalContestServiceTest {
 		vehiclesMock.close();
 		simpleFactionsMock.close();
 		SimpleFactions.plugin = pluginBackup;
+		net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
 		BattleManager.resetForTests();
 	}
 
@@ -199,7 +209,8 @@ class AttackerNavalContestServiceTest {
 	void hasBerthedNavalAtInPlayPort_trueWhenOffensiveDefenderHasShip() {
 		War war = navalWar();
 		war.setInitiativeHolder(BelligerentRole.DEFENDER);
-		Installation port = new Installation("port-def", "Harbour", InstallationKind.PORT, 5, 0, 0, 1L);
+		war.setOccupiedByDefender(new java.util.ArrayList<>(List.of(6)));
+		Installation port = new Installation("port-def", "Harbour", InstallationKind.PORT, 6, 0, 0, 1L);
 		InstallationHandler defenderHandler = mock(InstallationHandler.class);
 		when(defender.getInstallationHandler()).thenReturn(defenderHandler);
 		when(defenderHandler.getAll()).thenReturn(List.of(port));
@@ -225,6 +236,7 @@ class AttackerNavalContestServiceTest {
 
 	private War navalWar() {
 		War war = new War(1, attacker, defender);
+		war.setOccupiedByAttacker(new java.util.ArrayList<>(List.of(5)));
 		war.setGoal(WarGoalType.SUBJUGATE);
 		war.setWarType(WarType.SUBJUGATE);
 		war.setObjectiveProvinceId(30);

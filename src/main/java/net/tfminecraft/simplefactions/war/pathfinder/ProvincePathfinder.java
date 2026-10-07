@@ -93,7 +93,11 @@ public class ProvincePathfinder {
 				best = choice;
 			}
 		}
-		if (!best.isFound() && objectiveSelfFallback.isFound()) {
+		// An enclave beyond the objective must not make the campaign march past its goal and back.
+		boolean objectiveBeforeBorder = best.isFound() && attackerCapital > 0
+				&& findRouteWithFallback(attackerCapital, best.startProvinceId(), territory)
+						.getPath().contains(objectiveProvinceId);
+		if (objectiveSelfFallback.isFound() && (!best.isFound() || objectiveBeforeBorder)) {
 			LogManager.line(
 					"pathfinder selected objective self-path borderStart=%d path=%s",
 					objectiveSelfFallback.startProvinceId(),
@@ -156,9 +160,6 @@ public class ProvincePathfinder {
 	}
 
 	private int resolveAttackerCapital(War war) {
-		if (war == null || war.getAttackers() == null || war.getAttackers().getLeader() == null) {
-			return -1;
-		}
 		return war.getAttackers().getLeader().getCapital();
 	}
 
@@ -182,24 +183,11 @@ public class ProvincePathfinder {
 			BelligerentTerritory territory,
 			boolean seaContactFallback,
 			PathfinderResult currentBest) {
-		if (!currentBest.isFound()) {
-			return true;
-		}
 		if (candidateResult.getTotalCost() < currentBest.getTotalCost()) {
 			return true;
 		}
 		if (candidateResult.getTotalCost() > currentBest.getTotalCost()) {
 			return false;
-		}
-		if (seaContactFallback) {
-			boolean candidateSea = territory.isAdjacentToSea(pm, candidateStart);
-			boolean bestSea = territory.isAdjacentToSea(pm, currentBest.getStartProvinceId());
-			if (candidateSea && !bestSea) {
-				return true;
-			}
-			if (!candidateSea && bestSea) {
-				return false;
-			}
 		}
 		return candidateStart < currentBest.getStartProvinceId();
 	}
@@ -237,9 +225,6 @@ public class ProvincePathfinder {
 			}
 
 			Province current = pm.get(currentId);
-			if (current.getId() == 0) {
-				continue;
-			}
 
 			for (int neighbourId : current.getNeighbours()) {
 				Province neighbour = pm.get(neighbourId);
@@ -290,23 +275,20 @@ public class ProvincePathfinder {
 
 	private boolean canTraverse(Province province, PathfinderPass pass, BelligerentTerritory territory) {
 		Terrain terrain = province.getTerrain();
-		switch (pass) {
-			case LAND_NO_NEUTRAL:
-				return terrain != Terrain.SEA && !territory.isForeignNation(province.getId());
-			case SEA_NO_NEUTRAL:
-				if (terrain == Terrain.SEA) {
-					return true;
-				}
-				return !territory.isForeignNation(province.getId());
-			case LAND_NEUTRAL_PENALTY:
-				return terrain != Terrain.SEA;
-			default:
-				return false;
-		}
+		return switch (pass) {
+			case LAND_NO_NEUTRAL -> terrain != Terrain.SEA && !territory.isForeignNation(province.getId());
+			case SEA_NO_NEUTRAL -> terrain == Terrain.SEA || !territory.isForeignNation(province.getId());
+			case LAND_NEUTRAL_PENALTY -> terrain != Terrain.SEA;
+		};
 	}
 
 	private double enterCost(Province province, PathfinderPass pass, BelligerentTerritory territory) {
-		return terrainEnterCost(province.getTerrain());
+		double cost = terrainEnterCost(province.getTerrain());
+		if (pass == PathfinderPass.LAND_NEUTRAL_PENALTY && territory.isForeignNation(province.getId())) {
+			double penalty = Cache.warPathfinderNeutralPenalty;
+			cost += Double.isFinite(penalty) ? Math.max(0.0, penalty) : 0.0;
+		}
+		return cost;
 	}
 
 	static double terrainEnterCost(Terrain terrain) {

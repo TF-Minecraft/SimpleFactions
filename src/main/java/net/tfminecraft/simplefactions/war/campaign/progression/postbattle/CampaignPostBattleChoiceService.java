@@ -54,9 +54,7 @@ public final class CampaignPostBattleChoiceService {
 		if (!CampaignCapabilityService.canMountOffensiveAfterPush(war, winner)) {
 			return false;
 		}
-		if (!CampaignBattleEndService.applyPush(war)) {
-			return false;
-		}
+		CampaignBattleEndService.applyPush(war);
 		afterChoiceResolved(war);
 		return true;
 	}
@@ -83,9 +81,7 @@ public final class CampaignPostBattleChoiceService {
 			return false;
 		}
 		war.setPostBattleWinnerCoalition(winner);
-		if (!CampaignBattleEndService.applyHold(war)) {
-			return false;
-		}
+		CampaignBattleEndService.applyHold(war);
 		WarManager.persist(war);
 		return true;
 	}

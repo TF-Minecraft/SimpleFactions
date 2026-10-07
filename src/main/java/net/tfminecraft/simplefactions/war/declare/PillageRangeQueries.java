@@ -103,9 +103,6 @@ public final class PillageRangeQueries {
 
 	private static Set<Integer> landProvinces(ProvinceManager provinceManager, List<Integer> ids) {
 		Set<Integer> land = new HashSet<>();
-		if (ids == null) {
-			return land;
-		}
 		for (int id : ids) {
 			Province province = provinceManager.get(id);
 			if (province != null && province.isValid() && province.getTerrain() != Terrain.SEA) {
@@ -117,9 +114,6 @@ public final class PillageRangeQueries {
 
 	private static boolean isCoastal(ProvinceManager provinceManager, int landId) {
 		Province land = provinceManager.get(landId);
-		if (land == null || !land.isValid() || land.getTerrain() == Terrain.SEA) {
-			return false;
-		}
 		for (int neighbourId : land.getNeighbours()) {
 			Province neighbour = provinceManager.get(neighbourId);
 			if (neighbour != null && neighbour.isValid() && neighbour.getTerrain() == Terrain.SEA) {
@@ -145,9 +139,6 @@ public final class PillageRangeQueries {
 				return OptionalInt.of(currentDistance);
 			}
 			Province province = provinceManager.get(current);
-			if (province == null || !province.isValid()) {
-				continue;
-			}
 			for (int neighbourId : province.getNeighbours()) {
 				if (distance.containsKey(neighbourId)) {
 					continue;

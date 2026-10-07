@@ -85,6 +85,11 @@ public class ObjectiveProvincePicker {
 		if (provinceSet == null || provinceSet.isEmpty()) {
 			return OptionalInt.empty();
 		}
+		provinceSet = new HashSet<>(provinceSet);
+		provinceSet.removeIf(id -> id == null || id <= 0);
+		if (provinceSet.isEmpty()) {
+			return OptionalInt.empty();
+		}
 
 		int capital = targetFaction.getCapital();
 		if (capital > 0 && provinceSet.contains(capital)) {
@@ -101,38 +106,16 @@ public class ObjectiveProvincePicker {
 
 	private OptionalInt pickLargestSettlement(Set<Integer> provinceSet, Faction targetFaction) {
 		SettlementHandler handler = targetFaction.getSettlementHandler();
-		if (handler == null) {
-			return OptionalInt.empty();
-		}
 
-		int capital = targetFaction.getCapital();
 		Settlement best = null;
 		int bestPopulation = -1;
-		boolean bestIsCapitalSettlement = false;
 
 		for (Settlement settlement : handler.getAll()) {
 			if (!provinceSet.contains(settlement.getCenterProvince())) {
 				continue;
 			}
 
-			boolean isCapitalSettlement = capital > 0 && settlement.getCenterProvince() == capital;
 			int population = handler.getPopulation(settlement).size();
-
-			if (isCapitalSettlement) {
-				if (!bestIsCapitalSettlement
-						|| population > bestPopulation
-						|| (population == bestPopulation
-								&& settlement.getCenterProvince() < best.getCenterProvince())) {
-					best = settlement;
-					bestPopulation = population;
-					bestIsCapitalSettlement = true;
-				}
-				continue;
-			}
-
-			if (bestIsCapitalSettlement) {
-				continue;
-			}
 
 			if (best == null
 					|| population > bestPopulation
@@ -185,9 +168,6 @@ public class ObjectiveProvincePicker {
 			}
 		}
 
-		if (bestId > 0) {
-			return bestId;
-		}
-		return provinceSet.stream().min(Integer::compareTo).orElse(0);
+		return bestId;
 	}
 }

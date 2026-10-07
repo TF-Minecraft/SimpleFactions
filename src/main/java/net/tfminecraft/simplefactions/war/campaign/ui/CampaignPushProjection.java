@@ -7,11 +7,14 @@ import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalition
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignNavyGate;
 import java.util.OptionalInt;
+import java.util.Optional;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
+import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
+import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 
 /**
  * Dry-run projection of campaign state after a winner chooses Push.
@@ -31,7 +34,11 @@ public final class CampaignPushProjection {
 		if (!CampaignCapabilityService.hasOffensiveArmy(war, winner, next.getAsInt())) {
 			return false;
 		}
-		return CampaignNavyGate.winnerCanContestNextNaval(war, winner);
+		return scheduledSlot(war, projected)
+				.filter(slot -> CampaignNavyGate.isNavalKind(slot.kind()))
+				.map(slot -> CampaignNavyGate.canChallengeNaval(
+						CampaignCoalitionService.toSide(war, winner).getLeader()))
+				.orElse(true);
 	}
 
 	static ProjectedState afterPush(War war, CampaignCoalition winner) {
@@ -76,16 +83,13 @@ public final class CampaignPushProjection {
 		return new ProjectedState(cursor, pushTarget, objectiveHeldBy, winner, war.getCampaignBattlesFought());
 	}
 
-	static OptionalInt nextBattleProvince(War war, ProjectedState state) {
-		if (!CampaignCapabilityService.isValidWar(war) || state == null || state.initiativeHolder() == null) {
-			return OptionalInt.empty();
-		}
+	private static OptionalInt nextBattleProvince(War war, ProjectedState state) {
 		if (CampaignCoalitionService.getFuel(war, state.initiativeHolder()) <= 0) {
 			return OptionalInt.empty();
 		}
 
-		if (CampaignScheduleService.hasActiveSchedule(war)) {
-			return CampaignScheduleService.currentSlot(war)
+		if (CampaignScheduleService.hasScheduleForLeg(war, scheduleLeg(state))) {
+			return scheduledSlot(war, state)
 					.map(slot -> OptionalInt.of(slot.provinceId()))
 					.orElse(OptionalInt.empty());
 		}
@@ -95,6 +99,17 @@ public final class CampaignPushProjection {
 			case TOWARD_AGGRESSOR_CAPITAL -> provinceAtIndex(war, state.cursorIndex() - 1);
 			case TOWARD_OBJECTIVE -> invasionTargetProvince(war, state);
 		};
+	}
+
+	private static ScheduleLeg scheduleLeg(ProjectedState state) {
+		return state.pushTarget() == CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL
+				? ScheduleLeg.COUNTER : ScheduleLeg.INVASION;
+	}
+
+	private static Optional<ScheduledCampaignBattle> scheduledSlot(War war, ProjectedState state) {
+		ScheduleLeg leg = scheduleLeg(state);
+		return CampaignScheduleService.slotAt(
+				war, CampaignScheduleService.scheduleIndexForLeg(war, leg), leg);
 	}
 
 	private static OptionalInt objectiveProvince(War war) {

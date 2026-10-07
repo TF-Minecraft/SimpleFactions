@@ -86,8 +86,9 @@ class VehicleTransferConsentServiceTest {
         }
     }
 
-    @Test
-    void acceptRequest_registersVehicleWhenValidationPasses() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"Leader", "lEaDeR"})
+    void acceptRequest_registersVehicleWhenValidationPasses(String leaderName) {
         UUID ownerUuid = UUID.randomUUID();
         UUID leaderUuid = UUID.randomUUID();
         List<String> ownerMessages = new ArrayList<>();
@@ -105,8 +106,10 @@ class VehicleTransferConsentServiceTest {
 
         Faction faction = mock(Faction.class);
         Guild guild = mock(Guild.class);
+        when(faction.getId()).thenReturn("home");
+        when(guild.getFaction()).thenReturn(faction);
         when(faction.getOrCreateMainGuild()).thenReturn(guild);
-        when(faction.getLeader()).thenReturn("Leader");
+        when(faction.getLeader()).thenReturn(leaderName);
         when(faction.getInstallationHandler()).thenReturn(handler);
         FactionManager.factions.add(faction);
 
@@ -139,17 +142,19 @@ class VehicleTransferConsentServiceTest {
             requestManager.when(() -> RequestManager.getRequest(owner)).thenReturn(request);
             bukkit.when(() -> org.bukkit.Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
             factionManager.when(() -> FactionManager.getByLeader("Leader")).thenReturn(faction);
+            factionManager.when(() -> FactionManager.getByString("home")).thenReturn(faction);
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(installation), any())).thenReturn(true);
             bounds.when(() -> InstallationBounds.isCorrectProvince(eq(installation), any())).thenReturn(true);
             net.tfminecraft.simplefactions.SimpleFactions plugin =
                     mock(net.tfminecraft.simplefactions.SimpleFactions.class);
+            when(plugin.saveVehicleRegistry()).thenReturn(true);
             sf.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(plugin);
 
             spiedService.acceptRequest(owner);
 
             PlayerVehicleRecord updated = registry.getByVehicleUuid("vehicle-1").orElseThrow();
             assertEquals(OwnershipMode.INSTALLATION, updated.getMode());
-            assertEquals("player_Leader", ownerData.getOwner());
+            assertEquals("player_" + leaderName, ownerData.getOwner());
             assertEquals(
                     List.of(VehicleTransferMessages.berthSuccess(installation)),
                     ownerMessages);
@@ -176,6 +181,8 @@ class VehicleTransferConsentServiceTest {
 
         Faction faction = mock(Faction.class);
         Guild guild = mock(Guild.class);
+        when(faction.getId()).thenReturn("home");
+        when(guild.getFaction()).thenReturn(faction);
         when(faction.getOrCreateMainGuild()).thenReturn(guild);
         when(faction.getLeader()).thenReturn("Leader");
         when(faction.getInstallationHandler()).thenReturn(handler);
@@ -211,6 +218,7 @@ class VehicleTransferConsentServiceTest {
             requestManager.when(() -> RequestManager.getRequest(owner)).thenReturn(request);
             bukkit.when(() -> org.bukkit.Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
             factionManager.when(() -> FactionManager.getByLeader("Leader")).thenReturn(faction);
+            factionManager.when(() -> FactionManager.getByString("home")).thenReturn(faction);
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(installation), any())).thenReturn(true);
             bounds.when(() -> InstallationBounds.isCorrectProvince(eq(installation), any())).thenReturn(true);
             net.tfminecraft.simplefactions.SimpleFactions plugin =

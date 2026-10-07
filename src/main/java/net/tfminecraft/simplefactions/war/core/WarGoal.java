@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -28,10 +29,9 @@ public class WarGoal {
 		id = key;
 		name = StringFormatter.formatHex(config.getString("name", key));
 		try {
-			type = Goal.valueOf(key.toUpperCase());
-		} catch(Exception e){
-			e.printStackTrace();
-			type = Goal.ANNEX;
+			type = Goal.valueOf(key.toUpperCase(Locale.ROOT));
+		} catch(IllegalArgumentException e){
+			throw new IllegalArgumentException("Unknown war goal: " + key, e);
 		}
 		cost = config.getInt("cost", 1);
 		if(config.contains("target")) {

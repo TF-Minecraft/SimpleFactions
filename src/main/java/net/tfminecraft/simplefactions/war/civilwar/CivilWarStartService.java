@@ -17,6 +17,9 @@ import java.util.Map;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.GuildType;
+import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -31,6 +34,7 @@ import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.enums.Member;
 import net.tfminecraft.simplefactions.enums.Scope;
+import net.tfminecraft.simplefactions.enums.Stance;
 import net.tfminecraft.simplefactions.government.movement.Action;
 import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
@@ -175,19 +179,29 @@ public final class CivilWarStartService {
 		applied.host = host;
 		applied.plan = plan;
 		applied.hostOldCapital = host.getCapital();
+		String changeLeaderTarget = eligibleChangeLeaderTarget(movement, host);
 
 		List<Faction> supporting = supportingVassals(movement, host);
 		List<Faction> direct = directSupportingVassals(supporting, host);
+		for (Faction vassal : direct) {
+			String typeId = CivilWarUntangleService.snapshotVassalageTypeId(vassal, host);
+			if (typeId == null) {
+				applied.error = CivilWarCopy.COULD_NOT_START;
+				return applied;
+			}
+			applied.vassalEnds.add(new CivilWarWartimeVassalEnd(vassal.getId(), host.getId(), typeId));
+			applied.originalVassalRelations.put(vassal, vassal.getDiplomacyHandler().getRelations().get(host.getId()));
+			applied.originalHostRelations.put(vassal, host.getDiplomacyHandler().getRelations().get(vassal.getId()));
+		}
 		if (needsTempRebels) {
+			for (Guild guild : hostRebelGuilds) {
+				applied.originalGuilds.put(guild, new GuildBeforeStart(guild));
+			}
 			Guild main = pickRebelMainGuild(movement, hostRebelGuilds);
 			Map<String, Integer> rebelGuildOldCapitals = snapshotGuildCapitals(hostRebelGuilds);
 			Faction rebels;
 			if (main != null) {
 				Guild.RebelNation nation = CivilWarTempRebelFactory.createFromMainGuild(host, main, movement.getLeader());
-				if (nation == null || nation.faction() == null) {
-					applied.error = CivilWarCopy.COULD_NOT_START;
-					return applied;
-				}
 				rebels = nation.faction();
 				applied.rebelMainGuildOwnName = nation.ownName();
 			} else {
@@ -205,11 +219,8 @@ public final class CivilWarStartService {
 				int capital = guild.hasCapital() ? guild.getCapital() : -1;
 				guild.relocateKeepingSettlements(rebels, capital);
 			}
-			if (main != null && GuildLoader.getBaseType() != null && !main.isBase()) {
-				main.convert(GuildLoader.getBaseType());
-			}
 			moveCitizenSupporters(movement, host, rebels, applied);
-			applyChangeLeaderTarget(movement, host, rebels, applied);
+			applyChangeLeaderTarget(changeLeaderTarget, host, rebels, applied);
 			CivilWarLandSplitService.apply(host, rebels, plan);
 			applied.splitApplied = true;
 			int rebelCapital = CivilWarCapitalAssignService.assign(
@@ -239,7 +250,7 @@ public final class CivilWarStartService {
 			}
 		}
 
-		endWartimeVassalage(host, direct, applied);
+		endWartimeVassalage(host, direct);
 
 		if (applied.tempRebels != null && !leaderIsVassal) {
 			foldDirectUnderRebels(applied);
@@ -259,11 +270,6 @@ public final class CivilWarStartService {
 							|| !applied.tempRebels.getId().equalsIgnoreCase(applied.warLeader.getId()))) {
 				applied.extraAttackers.add(applied.tempRebels);
 			}
-		}
-		if (applied.warLeader == null) {
-			applied.error = CivilWarCopy.COULD_NOT_START;
-			rollback(applied);
-			return applied;
 		}
 
 		applied.snapshot = buildSnapshot(applied);
@@ -309,22 +315,14 @@ public final class CivilWarStartService {
 		return snapshot;
 	}
 
-	private static void endWartimeVassalage(Faction host, List<Faction> vassals, AppliedStart applied) {
+	private static void endWartimeVassalage(Faction host, List<Faction> vassals) {
 		for (Faction vassal : vassals) {
-			String typeId = CivilWarUntangleService.snapshotVassalageTypeId(vassal, host);
-			applied.vassalEnds.add(new CivilWarWartimeVassalEnd(vassal.getId(), host.getId(), typeId));
 			RelationManager.endVassalage(vassal, host, false);
 		}
 	}
 
 	private static void foldDirectUnderRebels(AppliedStart applied) {
-		if (applied == null || applied.tempRebels == null) {
-			return;
-		}
 		for (CivilWarWartimeVassalEnd end : applied.vassalEnds) {
-			if (end == null || end.relationTypeId() == null) {
-				continue;
-			}
 			CivilWarUntangleService.restoreVassalRelation(
 					end.factionId(),
 					applied.tempRebels.getId(),
@@ -348,17 +346,21 @@ public final class CivilWarStartService {
 		}
 	}
 
-	private static void applyChangeLeaderTarget(Movement movement, Faction host, Faction rebels, AppliedStart applied) {
+	private static String eligibleChangeLeaderTarget(Movement movement, Faction host) {
 		Cause first = movement.getCauses().isEmpty() ? null : movement.getCauses().get(0);
 		if (first == null || first.getAction() != Action.CHANGE_LEADER) {
-			return;
+			return null;
 		}
 		Proposal proposal = first.getProposal();
 		if (proposal == null || !proposal.hasTarget()) {
-			return;
+			return null;
 		}
 		String target = proposal.getTarget();
-		if (host == null || !host.canBecomeLeader(target)) {
+		return host.canBecomeLeader(target) ? target : null;
+	}
+
+	private static void applyChangeLeaderTarget(String target, Faction host, Faction rebels, AppliedStart applied) {
+		if (target == null) {
 			return;
 		}
 		applied.wantedLeaderName = target;
@@ -374,20 +376,14 @@ public final class CivilWarStartService {
 		if (origin == null) {
 			origin = findGuild(rebels, player);
 		}
-		if (origin == null) {
-			return;
+		if (origin.getFaction() == host) {
+			applied.originalGuilds.computeIfAbsent(origin, GuildBeforeStart::new);
 		}
 		boolean wasLeader = !origin.isBase() && origin.isLeader(player);
 		recordMemberMove(applied, new CivilWarMemberMove(player, origin.getId(), wasLeader));
 		Guild rebelMain = rebels.getOrCreateMainGuild();
-		if (rebelMain != null && rebelMain.isMember(player)) {
+		if (origin == rebelMain) {
 			return;
-		}
-		if (wasLeader) {
-			String successor = successorExcept(origin, player);
-			if (successor != null) {
-				origin.setLeader(successor);
-			}
 		}
 		origin.kick(player);
 		if (rebelMain != null) {
@@ -396,9 +392,6 @@ public final class CivilWarStartService {
 	}
 
 	private static void recordMemberMove(AppliedStart applied, CivilWarMemberMove move) {
-		if (applied == null || move == null || move.player() == null) {
-			return;
-		}
 		for (CivilWarMemberMove existing : applied.memberMoves) {
 			if (existing != null && move.player().equalsIgnoreCase(existing.player())) {
 				return;
@@ -408,22 +401,7 @@ public final class CivilWarStartService {
 	}
 
 	private static Guild findGuild(Faction faction, String player) {
-		if (faction == null || faction.getGuildHandler() == null || player == null) {
-			return null;
-		}
 		return faction.getGuildHandler().getGuildByMember(player);
-	}
-
-	private static String successorExcept(Guild guild, String leaving) {
-		if (guild == null || guild.getMembers() == null) {
-			return null;
-		}
-		for (String member : guild.getMembers()) {
-			if (member != null && !member.equalsIgnoreCase(leaving)) {
-				return member;
-			}
-		}
-		return null;
 	}
 
 	static Guild pickRebelMainGuild(Movement movement, List<Guild> hostRebelGuilds) {
@@ -461,9 +439,6 @@ public final class CivilWarStartService {
 	}
 
 	private static void rollback(AppliedStart applied) {
-		if (applied == null) {
-			return;
-		}
 		if (applied.regimentMoves != null && !applied.regimentMoves.isEmpty()) {
 			CivilWarRegimentSplitService.rollback(applied.host, applied.tempRebels, applied.regimentMoves);
 		}
@@ -486,7 +461,23 @@ public final class CivilWarStartService {
 					RelationManager.endVassalage(vassal, applied.tempRebels, false);
 				}
 			}
-			CivilWarUntangleService.restoreVassalRelation(end.factionId(), end.formerOverlordId(), end.relationTypeId());
+		}
+		applied.originalVassalRelations.forEach((vassal, relation) -> {
+			if (relation == null) vassal.getDiplomacyHandler().getRelations().remove(applied.host.getId());
+			else vassal.setRelation(applied.host, relation);
+		});
+		applied.originalHostRelations.forEach((vassal, relation) -> {
+			if (relation == null) applied.host.getDiplomacyHandler().getRelations().remove(vassal.getId());
+			else applied.host.setRelation(vassal, relation);
+		});
+		// Promotion and relocation reuse the guild objects. Put those objects and their
+		// pre-start state back before deleting the temporary faction that now owns them.
+		for (GuildBeforeStart original : applied.originalGuilds.values()) {
+			original.restore();
+		}
+		for (GuildBeforeStart original : applied.originalGuilds.values()) {
+			original.guild.setCapital(original.capital, false);
+			original.guild.updateWealth();
 		}
 		if (applied.tempRebels != null) {
 			try {
@@ -515,6 +506,77 @@ public final class CivilWarStartService {
 		String movedTitleId;
 		CivilWarSnapshot snapshot;
 		Map<String, Integer> regimentMoves = new LinkedHashMap<>();
+		Map<Guild, GuildBeforeStart> originalGuilds = new LinkedHashMap<>();
+		Map<Faction, net.tfminecraft.simplefactions.diplomacy.Relation> originalVassalRelations = new LinkedHashMap<>();
+		Map<Faction, net.tfminecraft.simplefactions.diplomacy.Relation> originalHostRelations = new LinkedHashMap<>();
+	}
+
+	/** The state changed by promotion, relocation, or moving a citizen into the rebel main guild. */
+	private static final class GuildBeforeStart {
+		private final Guild guild;
+		private final Faction host;
+		private final GuildType type;
+		private final int capital;
+		private final String name;
+		private final String leader;
+		private final String leaderCharacter;
+		private final String leaderCharacterOf;
+		private final String rgb;
+		private final List<String> banner;
+		private final List<String> members;
+		private final List<String> invites;
+		private final boolean favoured;
+		private final boolean repressed;
+		private final Stance stance;
+		private final Map<Integer, Branch> branches;
+		private final Map<Upgrade, Integer> upgradeLevels = new LinkedHashMap<>();
+
+		private GuildBeforeStart(Guild guild) {
+			this.guild = guild;
+			host = guild.getFaction();
+			type = guild.getType();
+			capital = guild.getCapital();
+			name = guild.getOwnName();
+			leader = guild.getLeader();
+			leaderCharacter = guild.getLeaderCharacter();
+			leaderCharacterOf = guild.getLeaderCharacterOf();
+			rgb = guild.getRGB();
+			banner = new ArrayList<>(guild.getBannerPatterns());
+			members = new ArrayList<>(guild.getMembers());
+			invites = new ArrayList<>(guild.getInvites());
+			favoured = guild.isFavoured();
+			repressed = guild.isRepressed();
+			stance = guild.getStance(host);
+			branches = new LinkedHashMap<>(guild.getBranches());
+			for (Upgrade upgrade : guild.getUpgrades()) {
+				upgradeLevels.put(upgrade, upgrade.getLevel());
+			}
+		}
+
+		private void restore() {
+			Faction currentHost = guild.getFaction();
+			if (currentHost != host) {
+				currentHost.getGuildHandler().removeGuild(guild.getId(), false, false);
+			}
+			if (guild.getType() != type) guild.convert(type);
+			guild.setHost(host);
+			host.getGuildHandler().addGuild(guild);
+			guild.setName(name);
+			guild.setLeader(leader);
+			guild.rememberLeaderCharacter(leaderCharacter, leaderCharacterOf);
+			guild.setRGB(rgb);
+			guild.setBannerPatterns(new ArrayList<>(banner));
+			guild.getMembers().clear();
+			guild.getMembers().addAll(members);
+			guild.getInvites().clear();
+			guild.getInvites().addAll(invites);
+			guild.setFavoured(favoured);
+			guild.setRepressed(repressed);
+			guild.setStance(stance);
+			guild.getBranches().clear();
+			guild.getBranches().putAll(branches);
+			upgradeLevels.forEach(Upgrade::setLevel);
+		}
 	}
 
 	private static boolean vassalageConfigMissing() {
@@ -532,9 +594,6 @@ public final class CivilWarStartService {
 			return CivilWarCopy.VASSALAGE_LAW_MISSING;
 		}
 		LawHandler handler = rebels.getLawHandler();
-		if (handler == null) {
-			return CivilWarCopy.VASSALAGE_LAW_MISSING;
-		}
 		LawGroup group = handler.getGroup(Cache.civilWarVassalageGroup);
 		Law law = group == null ? null : group.getLaw(Cache.civilWarVassalageLaw);
 		if (group == null || law == null) {

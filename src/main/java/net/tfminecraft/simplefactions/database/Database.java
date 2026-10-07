@@ -612,18 +612,30 @@ public class Database {
 		for (File file : files) {
 			if (!file.getName().endsWith(".json")) continue;
 
+			WarData data;
+			War war;
 			try {
-				WarData data = JsonUtil.readJson(file, WarData.class);
+				data = JsonUtil.readJson(file, WarData.class);
 				if (data == null) continue;
-
-				War war = WarMapper.fromData(data);
-				if (war != null) {
-					wars.add(war);
-				}
-
+				war = WarMapper.fromData(data);
 			} catch (Exception e) {
 				e.printStackTrace();
+				continue;
 			}
+			if (war == null) {
+				java.util.logging.Logger.getLogger(Database.class.getName()).warning(
+						"Cannot restore war from " + file + "; keeping its file for recovery");
+				continue;
+			}
+			if (data.installationReferenceVersion < 1) {
+				net.tfminecraft.simplefactions.installation.WarInstallationMigration.migrate(war);
+				try {
+					JsonUtil.writeJsonAtomic(file, WarMapper.toData(war));
+				} catch (java.io.IOException e) {
+					throw new IllegalStateException("Cannot save migrated war " + war.getId(), e);
+				}
+			}
+			wars.add(war);
 		}
 
 		return wars;

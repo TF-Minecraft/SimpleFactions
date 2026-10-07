@@ -19,7 +19,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.installation.InstallationLookup;
+import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidEligibilityService;
 
 public class CampaignRaidBattleEndService implements Listener {
 	@EventHandler
@@ -39,26 +39,22 @@ public class CampaignRaidBattleEndService implements Listener {
 			return;
 		}
 		CampaignRaid raid = CampaignRaidService.getActive(war);
-		if (raid == null) {
+		if (raid == null || raid.getState() != net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState.FIGHTING
+				|| !CampaignRaidBattleService.matchesRaidBattle(raid, event.getBattleId())) {
 			return;
 		}
 		Battle battle = BattleManager.getByString(event.getBattleId());
-		Installation target = InstallationLookup.findById(raid.getTargetInstallationId());
+		Installation target = CampaignRaidEligibilityService.resolveTargetInstallation(war, raid);
 		String displayName = raid.getDisplayName();
 		if (battle != null && battle.getDisplayName() != null && !battle.getDisplayName().isBlank()) {
 			displayName = battle.getDisplayName();
 		}
 		CampaignRaidService.endRaid(war, CampaignClock.now());
-		if (battle != null) {
-			BattlePersistenceService.deleteRaidBattle(battle);
-		}
+		WarManager.persist(war);
 		broadcastRaidEnded(war, target, displayName);
 	}
 
 	private static void broadcastRaidEnded(War war, Installation target, String displayName) {
-		if (war == null) {
-			return;
-		}
 		String message = CampaignRaidMessages.buildRaidEndedMessage(target, displayName);
 		broadcastToSide(war.getAttackers(), message);
 		broadcastToSide(war.getDefenders(), message);

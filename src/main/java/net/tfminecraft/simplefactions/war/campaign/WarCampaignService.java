@@ -108,10 +108,6 @@ public class WarCampaignService {
 		LogManager.line("finalObjective=%d", objective);
 
 		PathfinderResult rightSegment = pathfinder.findRouteWithFallback(borderStart, objective, territory);
-		if (!rightSegment.isFound()) {
-			LogManager.line("FAIL no route border->objective");
-			return false;
-		}
 
 		PathfinderResult leftSegment = pathfinder.findRouteWithFallback(attackerCapital, borderStart, territory);
 		if (!leftSegment.isFound()) {
@@ -122,9 +118,6 @@ public class WarCampaignService {
 
 		List<Integer> axis = mergeAxisPaths(leftSegment.getPath(), rightSegment.getPath());
 		int cursorIndex = axis.indexOf(borderStart);
-		if (cursorIndex < 0) {
-			return false;
-		}
 
 		war.setObjectiveProvinceId(objective);
 		war.setCampaignStartProvinceId(borderStart);
@@ -132,9 +125,6 @@ public class WarCampaignService {
 		war.setCursorIndex(cursorIndex);
 
 		int objectiveIndex = axis.indexOf(objective);
-		if (objectiveIndex < 0) {
-			return false;
-		}
 		FortControlService.initializeAtDeclare(war);
 		FortZocIndex fortIndex = FortZocIndex.fromGameState();
 		PortSeaZocIndex portIndex = PortSeaZocIndex.fromGameState();
@@ -171,11 +161,7 @@ public class WarCampaignService {
 		CampaignScheduleLogger.logSchedule("Counter trimmed", war, ScheduleLeg.COUNTER, axis, counterTrimmed);
 		war.setCampaignBattleSchedule(invasionTrimmed);
 		war.setCampaignCounterSchedule(counterTrimmed);
-		boolean validInvasion = CampaignScheduleValidator.isValidInvasionSchedule(war, axis, invasionTrimmed);
-		LogManager.line("invasionValidator=%s", validInvasion);
-		if (!validInvasion) {
-			LOGGER.warning("Invasion schedule violates chronological invariants for war " + war.getId());
-		}
+		logInvasionScheduleValidity(war, axis, invasionTrimmed);
 		war.setCampaignScheduleIndex(0);
 		war.setCampaignCounterScheduleIndex(0);
 		applyInitiativeFromLegs(war, invasionTrimmed, counterTrimmed);
@@ -183,6 +169,14 @@ public class WarCampaignService {
 		initProgressionState(war);
 		initScheduleState(war);
 		return true;
+	}
+
+	static void logInvasionScheduleValidity(War war, List<Integer> axis, List<ScheduledCampaignBattle> schedule) {
+		boolean valid = CampaignScheduleValidator.isValidInvasionSchedule(war, axis, schedule);
+		LogManager.line("invasionValidator=%s", valid);
+		if (!valid) {
+			LOGGER.warning("Invasion schedule violates chronological invariants for war " + war.getId());
+		}
 	}
 
 	static int resolveFinalObjective(

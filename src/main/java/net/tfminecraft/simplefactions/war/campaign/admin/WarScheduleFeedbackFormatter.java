@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.admin;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import net.tfminecraft.simplefactions.war.core.War;
@@ -10,6 +11,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
@@ -27,7 +29,7 @@ public final class WarScheduleFeedbackFormatter {
 			return List.of();
 		}
 		List<String> lines = new ArrayList<>();
-		switch (subcommand.toLowerCase()) {
+		switch (subcommand.toLowerCase(Locale.ROOT)) {
 			case "opencvote" -> lines.add(formatOpenVote(war));
 			case "closevote" -> lines.add(formatCloseVote(war));
 			case "castvote" -> lines.add(formatCastVote(war, castVoteHour));
@@ -120,7 +122,7 @@ public final class WarScheduleFeedbackFormatter {
 
 	private static String formatWinBattle(War war) {
 		String line = "§7Initiative: §e"
-				+ (war.getInitiativeHolder() != null ? war.getInitiativeHolder().name().toLowerCase() : "attacker")
+				+ (war.getInitiativeHolder() != null ? war.getInitiativeHolder().name().toLowerCase(Locale.ROOT) : "attacker")
 				+ " §7· Campaign phase: §e"
 				+ (war.getCampaignPhase() != null ? war.getCampaignPhase().toJson() : "invasion");
 		if (CampaignPostBattleChoiceService.needsAnyChoice(war)) {
@@ -131,15 +133,9 @@ public final class WarScheduleFeedbackFormatter {
 
 	private static String formatBattleChoice(War war) {
 		return "§7Initiative: §e"
-				+ (war.getInitiativeHolderCoalition() != null
-						? war.getInitiativeHolderCoalition().name().toLowerCase()
-						: "aggressor")
+				+ CampaignCoalitionService.getInitiativeHolderCoalition(war).toJson()
 				+ " §7· Push target: §e"
 				+ (war.getPushTarget() != null ? war.getPushTarget().toJson() : "toward_objective");
-	}
-
-	private static String formatDefenderChoice(War war) {
-		return formatBattleChoice(war);
 	}
 
 	private static void appendCampaignBattleLine(War war, List<String> lines) {
@@ -182,9 +178,6 @@ public final class WarScheduleFeedbackFormatter {
 	}
 
 	private static String formatPhase(War war) {
-		if (war.getBattleSchedulePhase() == null) {
-			return "-";
-		}
 		return war.getBattleSchedulePhase().toJson();
 	}
 
@@ -209,10 +202,7 @@ public final class WarScheduleFeedbackFormatter {
 		return String.valueOf(provinceId);
 	}
 
-	static int countVotesAtHour(War war, int hour) {
-		if (war == null || war.getBattleVotes() == null) {
-			return 0;
-		}
+	private static int countVotesAtHour(War war, int hour) {
 		int count = 0;
 		for (Set<Integer> hours : war.getBattleVotes().values()) {
 			if (hours != null && hours.contains(hour)) {

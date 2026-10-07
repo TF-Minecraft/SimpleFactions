@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.database;
 public class CampaignRaidData {
 	public String id;
 	public String displayName;
+	public String warbandIdPrefix;
 	public int warId;
 	public String battleDay;
 	public String attackerCoalition;

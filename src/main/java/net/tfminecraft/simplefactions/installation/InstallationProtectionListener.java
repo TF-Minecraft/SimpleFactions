@@ -15,6 +15,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.war.battle.ui.BattlePermissions;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
+import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vehicleframework.events.VFEntityDamageEvent;
@@ -34,7 +35,7 @@ public final class InstallationProtectionListener implements Listener {
 		if (installation == null) {
 			return;
 		}
-		if (!InstallationVulnerabilityService.isVulnerable(installation.getId(), Instant.now())) {
+		if (!InstallationVulnerabilityService.isInstallationVulnerable(installation, Instant.now())) {
 			event.setCancelled(true);
 		}
 	}
@@ -49,7 +50,7 @@ public final class InstallationProtectionListener implements Listener {
 		if (installation == null) {
 			return;
 		}
-		if (!InstallationVulnerabilityService.isVulnerable(installation.getId(), Instant.now())) {
+		if (!InstallationVulnerabilityService.isInstallationVulnerable(installation, Instant.now())) {
 			event.setCancelled(true);
 		}
 	}
@@ -66,7 +67,7 @@ public final class InstallationProtectionListener implements Listener {
 					|| !InstallationBounds.isCorrectProvince(installation, location)) {
 				continue;
 			}
-			if (!InstallationVulnerabilityService.isVulnerable(installation.getId(), now)) {
+			if (!InstallationVulnerabilityService.isInstallationVulnerable(installation, now)) {
 				event.setBlockDamage(false);
 				return;
 			}
@@ -83,28 +84,26 @@ public final class InstallationProtectionListener implements Listener {
 			return;
 		}
 		Instant now = Instant.now();
-		String installationId = resolveInstallationId(vehicle);
-		if (installationId != null && !InstallationVulnerabilityService.isVulnerable(installationId, now)) {
-			event.setCancelled(true);
-			return;
+		PlayerVehicleRecord record = resolveInstallationRecord(vehicle);
+		if (record != null) {
+			var owner = FactionVehiclePoolService.payingFaction(record);
+			Installation installation = owner != null
+					? owner.getInstallationHandler().getById(record.getInstallationId()) : null;
+			if (!InstallationVulnerabilityService.isInstallationVulnerable(installation, now)) {
+				event.setCancelled(true);
+				return;
+			}
 		}
 		Installation covering = InstallationLookup.findCovering(vehicle.getLocation());
-		if (covering != null && !InstallationVulnerabilityService.isVulnerable(covering.getId(), now)) {
+		if (covering != null && !InstallationVulnerabilityService.isInstallationVulnerable(covering, now)) {
 			event.setCancelled(true);
 		}
 	}
 
-	private static String resolveInstallationId(ActiveVehicle vehicle) {
-		if (vehicle == null) {
-			return null;
-		}
+	private static PlayerVehicleRecord resolveInstallationRecord(ActiveVehicle vehicle) {
 		PlayerVehicleRegistry registry = SimpleFactions.getVehicleRegistry();
-		if (registry == null) {
-			return null;
-		}
 		return registry.getByVehicleUuid(vehicle.getUUID())
 				.filter(record -> record.getMode() == OwnershipMode.INSTALLATION)
-				.map(PlayerVehicleRecord::getInstallationId)
 				.orElse(null);
 	}
 

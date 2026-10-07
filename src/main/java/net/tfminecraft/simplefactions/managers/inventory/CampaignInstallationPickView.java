@@ -35,6 +35,9 @@ public class CampaignInstallationPickView {
 	private static final int LIST_START_SLOT = 12;
 	private static final int LIST_END_SLOT = 44;
 	private static final int BACK_SLOT = 53;
+	private static final int PREVIOUS_SLOT = 45;
+	private static final int NEXT_SLOT = 52;
+	private static final int PAGE_SIZE = LIST_END_SLOT - LIST_START_SLOT + 1;
 
 	public InventoryManager inv;
 	public CampaignCreator creator = new CampaignCreator();
@@ -78,11 +81,19 @@ public class CampaignInstallationPickView {
 		List<Installation> installations = new ArrayList<>(
 				BattleInstallationPickEligibility.listPickableInstallations(war, viewerFaction));
 
-		for (int index = 0; index < installations.size(); index++) {
-			int slot = LIST_START_SLOT + index;
-			if (slot > LIST_END_SLOT) {
-				break;
-			}
+		CampaignInventoryHolder holder = (CampaignInventoryHolder) inventory.getHolder();
+		int lastPage = Math.max(0, (installations.size() - 1) / PAGE_SIZE);
+		holder.setPage(Math.min(holder.getPage(), lastPage));
+		int start = holder.getPage() * PAGE_SIZE;
+		int end = Math.min(start + PAGE_SIZE, installations.size());
+		if (holder.getPage() > 0) {
+			inventory.setItem(PREVIOUS_SLOT, DefaultCreator.createPreviousPageButton());
+		}
+		if (holder.getPage() < lastPage) {
+			inventory.setItem(NEXT_SLOT, DefaultCreator.createNextPageButton());
+		}
+		for (int index = start; index < end; index++) {
+			int slot = LIST_START_SLOT + index - start;
 			Installation installation = installations.get(index);
 			boolean selected = picks.contains(installation.getId());
 			boolean zocLocked = BattleInstallationPickService.isDefenderZocPort(
@@ -91,7 +102,7 @@ public class CampaignInstallationPickView {
 					slot,
 					creator.createInstallationPickToggleItem(war, installation, selected, locked, zocLocked));
 		}
-		for (int slot = LIST_START_SLOT + installations.size(); slot <= LIST_END_SLOT; slot++) {
+		for (int slot = LIST_START_SLOT + end - start; slot <= LIST_END_SLOT; slot++) {
 			inventory.setItem(slot, new ItemStack(Material.AIR, 1));
 		}
 
@@ -123,6 +134,17 @@ public class CampaignInstallationPickView {
 			return;
 		}
 
+		Faction viewerFaction = resolveViewerFaction(player, war);
+		if (viewerFaction == null) {
+			player.sendMessage("§cYou are not a belligerent in this war.");
+			return;
+		}
+		if (slot == PREVIOUS_SLOT || slot == NEXT_SLOT) {
+			holder.setPage(holder.getPage() + (slot == NEXT_SLOT ? 1 : -1));
+			open(player, war, viewerFaction, false, inventory);
+			return;
+		}
+
 		ItemStack clicked = e.getCurrentItem();
 		if (clicked == null || clicked.getItemMeta() == null) {
 			return;
@@ -136,12 +158,6 @@ public class CampaignInstallationPickView {
 				CampaignCreator.installationPickIdKey(),
 				PersistentDataType.STRING);
 		if (pickWarId == null || installationId == null || pickWarId != war.getId()) {
-			return;
-		}
-
-		Faction viewerFaction = resolveViewerFaction(player, war);
-		if (viewerFaction == null) {
-			player.sendMessage("§cYou are not a belligerent in this war.");
 			return;
 		}
 
@@ -161,25 +177,26 @@ public class CampaignInstallationPickView {
 		InstallationPickToggleResult result = BattleInstallationPickService.togglePick(
 				war, viewerFaction, player.getName(), installationId);
 
-		switch (result) {
-			case ADDED -> player.sendMessage("§aCommitted " + installationName + " for this battle.");
-			case REMOVED -> player.sendMessage("§7Uncommitted " + installationName + ".");
-			case REJECTED_LOCKED -> player.sendMessage("§cInstallation choices are locked until the next battle day.");
-			case REJECTED_ZOC_PORT -> player.sendMessage("§cThe ZOC port is required for this naval battle.");
-			case REJECTED_NOT_LEADER -> player.sendMessage("§cOnly your faction leader can select installations for this battle.");
-			case REJECTED_NOT_PARTICIPANT -> player.sendMessage("§cYou are not a belligerent in this war.");
-			case REJECTED_INVALID_INSTALLATION -> player.sendMessage("§cThat installation is not available.");
-			case REJECTED_WAR_INACTIVE -> player.sendMessage("§cWar not found.");
-			default -> {
-				return;
-			}
-		}
+		player.sendMessage(toggleMessage(result, installationName));
 
 		if (result == InstallationPickToggleResult.ADDED || result == InstallationPickToggleResult.REMOVED) {
 			WarManager.persist(war);
 			player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-			open(player, war, viewerFaction, true);
+			open(player, war, viewerFaction, false, inventory);
 		}
+	}
+
+	static String toggleMessage(InstallationPickToggleResult result, String installationName) {
+		return switch (result) {
+			case ADDED -> "§aCommitted " + installationName + " for this battle.";
+			case REMOVED -> "§7Uncommitted " + installationName + ".";
+			case REJECTED_LOCKED -> "§cInstallation choices are locked until the next battle day.";
+			case REJECTED_ZOC_PORT -> "§cThe ZOC port is required for this naval battle.";
+			case REJECTED_NOT_LEADER -> "§cOnly your faction leader can select installations for this battle.";
+			case REJECTED_NOT_PARTICIPANT -> "§cYou are not a belligerent in this war.";
+			case REJECTED_INVALID_INSTALLATION -> "§cThat installation is not available.";
+			case REJECTED_WAR_INACTIVE -> "§cWar not found.";
+		};
 	}
 
 	private Faction resolveViewerFaction(Player player, War war) {

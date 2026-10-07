@@ -82,9 +82,6 @@ public final class CampaignRaidLaunchAvailability {
 		if (side == war.getAttackers()) {
 			return CampaignCoalition.AGGRESSOR;
 		}
-		if (side == war.getDefenders()) {
-			return CampaignCoalition.DEFENDER;
-		}
-		return null;
+		return CampaignCoalition.DEFENDER;
 	}
 }

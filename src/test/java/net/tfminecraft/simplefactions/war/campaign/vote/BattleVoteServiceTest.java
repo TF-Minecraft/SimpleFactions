@@ -52,6 +52,7 @@ class BattleVoteServiceTest {
 		when(defender.getId()).thenReturn("def");
 
 		war = new War(1, attacker, defender);
+		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		war.setGoal(WarGoalType.SUBJUGATE);
 		war.setWarType(WarType.SUBJUGATE);
 

@@ -119,7 +119,8 @@ public final class CampaignRaidMusterReminderService {
 
 	static boolean tryFireReminder(War war, int offsetSeconds, Instant now) {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
-		if (raid == null || raid.getState() != CampaignRaidState.MUSTER || now == null) {
+		if (raid == null || raid.getState() != CampaignRaidState.MUSTER || now == null
+				|| raid.getAttackerCoalition() == null) {
 			return false;
 		}
 		Instant musterEndsAt = raid.getMusterEndsAt();
@@ -140,9 +141,6 @@ public final class CampaignRaidMusterReminderService {
 
 	private static void scheduleFutureReminders(War war, Instant now) {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
-		if (raid == null || raid.getMusterEndsAt() == null) {
-			return;
-		}
 		List<Integer> offsets = Cache.campaignRaidMusterReminderSecondsBefore;
 		if (offsets == null || offsets.isEmpty()) {
 			return;
@@ -184,9 +182,6 @@ public final class CampaignRaidMusterReminderService {
 	}
 
 	private static void broadcastToAttackerCoalition(War war, CampaignRaid raid, String message) {
-		if (war == null || raid == null || raid.getAttackerCoalition() == null || message == null) {
-			return;
-		}
 		Side side = raid.getAttackerCoalition() == CampaignCoalition.AGGRESSOR
 				? war.getAttackers()
 				: war.getDefenders();

@@ -74,7 +74,8 @@ public final class CampaignScheduleBuilder {
 		if (war == null || axis == null || axis.isEmpty() || fortIndex == null) {
 			return new BuiltSchedules(List.of(), List.of());
 		}
-		if (borderStartIndex < 0 || borderStartIndex >= axis.size()) {
+		if (borderStartIndex < 0 || borderStartIndex >= axis.size()
+				|| (objectiveIndex >= 0 && objectiveIndex < borderStartIndex)) {
 			return new BuiltSchedules(List.of(), List.of());
 		}
 
@@ -101,7 +102,7 @@ public final class CampaignScheduleBuilder {
 		LogManager.section("Phase 1 border anchor");
 		OperationalFort borderFort = fortIndex.fortForProvince(borderProvinceId).orElse(null);
 		boolean enemyBorderFort = borderFort != null
-				&& FortControlService.isEnemyControlled(war, borderFort.id(), CampaignCoalition.AGGRESSOR);
+				&& FortControlService.isEnemyControlledForFort(war, borderFort, CampaignCoalition.AGGRESSOR);
 		boolean fortHomeOffAxis = enemyBorderFort && axis.indexOf(borderFort.province()) < 0;
 		boolean borderIsObjective = objectiveIndex >= 0
 				&& objectiveIndex < axis.size()
@@ -204,7 +205,7 @@ public final class CampaignScheduleBuilder {
 	}
 
 	private static int resolveCapitalIndex(List<Integer> axis, War war) {
-		if (war == null || war.getAttackers() == null || war.getAttackers().getLeader() == null) {
+		if (axis == null || war == null || war.getAttackers() == null || war.getAttackers().getLeader() == null) {
 			return -1;
 		}
 		int capital = war.getAttackers().getLeader().getCapital();
@@ -212,7 +213,7 @@ public final class CampaignScheduleBuilder {
 	}
 
 	private static int resolveObjectiveIndex(List<Integer> axis, War war) {
-		if (war == null || war.getObjectiveProvinceId() == null) {
+		if (axis == null || war == null || war.getObjectiveProvinceId() == null) {
 			return -1;
 		}
 		return axis.indexOf(war.getObjectiveProvinceId());
@@ -236,12 +237,6 @@ public final class CampaignScheduleBuilder {
 			if (leg == ScheduleLeg.INVASION && i == ctx.cursorIndex()) {
 				LogManager.line(
 						"walk leg=%s axisIndex=%d province=%d (border already handled in phase 1)",
-						leg,
-						i,
-						provinceId);
-			} else if (leg == ScheduleLeg.COUNTER && i == ctx.cursorIndex()) {
-				LogManager.line(
-						"walk leg=%s axisIndex=%d province=%d (skip border on counter)",
 						leg,
 						i,
 						provinceId);
@@ -315,13 +310,7 @@ public final class CampaignScheduleBuilder {
 
 			List<Integer> seaRun = collectSeaRun(axis, i, rangeEnd, step, provinceManager);
 			for (OperationalPort port : portIndex.portsCoveringSeaProvinces(seaRun)) {
-				if (port == null || port.id() == null) {
-					continue;
-				}
 				if (!isEnemyPort(war, port, advancing)) {
-					continue;
-				}
-				if (seaRun.isEmpty()) {
 					continue;
 				}
 				CampaignBattlePlacer.placeBattle(
@@ -346,9 +335,6 @@ public final class CampaignScheduleBuilder {
 			int axisIndex,
 			int step,
 			ProvinceManager provinceManager) {
-		if (axisIndex < 0 || axisIndex >= axis.size()) {
-			return false;
-		}
 		Province province = provinceManager.get(axis.get(axisIndex));
 		if (province == null || province.getTerrain() != Terrain.SEA) {
 			return false;
@@ -369,9 +355,6 @@ public final class CampaignScheduleBuilder {
 			ProvinceManager provinceManager) {
 		List<Integer> seaRun = new ArrayList<>();
 		for (int i = startIndex; ; i += step) {
-			if (i < 0 || i >= axis.size()) {
-				break;
-			}
 			Province province = provinceManager.get(axis.get(i));
 			if (province == null || province.getTerrain() != Terrain.SEA) {
 				break;

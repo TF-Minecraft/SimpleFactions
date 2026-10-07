@@ -275,8 +275,9 @@ class FactionVehicleReleaseServiceTest {
                 new Installation("port-1", "Harbour", InstallationKind.PORT, 1, 0, 0, 0L));
         registry.register(berthed("ship-1", "ironclad", "port-1"));
 
+        Installation installation = handler.getById("port-1");
         try (MockedStatic<VehicleInstallationLockService> lock = mockStatic(VehicleInstallationLockService.class)) {
-            lock.when(() -> VehicleInstallationLockService.isVehicleLocked(org.mockito.ArgumentMatchers.eq("port-1"), org.mockito.ArgumentMatchers.any()))
+            lock.when(() -> VehicleInstallationLockService.isInstallationLocked(org.mockito.ArgumentMatchers.same(installation), org.mockito.ArgumentMatchers.any()))
                     .thenReturn(true);
             Outcome outcome = service.take(faction, "Leader", "ship-1");
             assertEquals(Status.INSTALLATION_LOCKED, outcome.status());
@@ -327,8 +328,9 @@ class FactionVehicleReleaseServiceTest {
                 new Installation("port-1", "Harbour", InstallationKind.PORT, 1, 0, 0, 0L));
         registry.register(berthed("ship-1", "ironclad", "port-1"));
 
+        Installation installation = handler.getById("port-1");
         try (MockedStatic<VehicleInstallationLockService> lock = mockStatic(VehicleInstallationLockService.class)) {
-            lock.when(() -> VehicleInstallationLockService.isVehicleLocked(org.mockito.ArgumentMatchers.eq("port-1"), org.mockito.ArgumentMatchers.any()))
+            lock.when(() -> VehicleInstallationLockService.isInstallationLocked(org.mockito.ArgumentMatchers.same(installation), org.mockito.ArgumentMatchers.any()))
                     .thenReturn(true);
             Outcome outcome = service.evaluateGive(faction, "Leader", "Bob", "ship-1");
             assertEquals(Status.INSTALLATION_LOCKED, outcome.status());

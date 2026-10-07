@@ -171,4 +171,13 @@ class CampaignRaidIntruderServiceTest {
 		assertFalse(CampaignRaidIntruderService.shouldPenalize(
 				war, raid, BOB_ID, "Bob", TARGET_PROVINCE));
 	}
+
+	@Test
+	void incompletePenaltyContextNeverAuthorizesDamage() {
+		assertFalse(CampaignRaidIntruderService.shouldPenalize(null, raid, BOB_ID, "Bob", TARGET_PROVINCE));
+		assertFalse(CampaignRaidIntruderService.shouldPenalize(war, null, BOB_ID, "Bob", TARGET_PROVINCE));
+		assertFalse(CampaignRaidIntruderService.shouldPenalize(war, raid, null, "Bob", TARGET_PROVINCE));
+		assertFalse(CampaignRaidIntruderService.shouldPenalize(war, raid, BOB_ID, null, TARGET_PROVINCE));
+	}
+
 }

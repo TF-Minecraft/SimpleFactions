@@ -42,6 +42,8 @@ class BattleInstallationInPlayServiceTest {
 		defender = mock(Faction.class);
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
+		when(attacker.getInstallationHandler()).thenReturn(new InstallationHandler(attacker));
+		when(defender.getInstallationHandler()).thenReturn(new InstallationHandler(defender));
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
 	}
@@ -55,6 +57,8 @@ class BattleInstallationInPlayServiceTest {
 	@Test
 	void isInPlay_trueForCommittedPick() {
 		War war = baseWar();
+		attacker.getInstallationHandler().acceptTransferred(new Installation("port-1", "Port", InstallationKind.PORT, 18, 0, 0, 1L));
+		war.setOccupiedByAttacker(new java.util.ArrayList<>(List.of(18)));
 		setPicks(war, "atk", "port-1");
 
 		assertTrue(BattleInstallationInPlayService.isInPlay(war, "atk", "port-1"));
@@ -136,8 +140,6 @@ class BattleInstallationInPlayServiceTest {
 
 	private static void mockFort(Faction faction, String fortId) {
 		Installation fort = new Installation(fortId, "Fort", InstallationKind.FORT, 18, 0, 0, 0L);
-		InstallationHandler handler = mock(InstallationHandler.class);
-		when(faction.getInstallationHandler()).thenReturn(handler);
-		when(handler.getById(fortId)).thenReturn(fort);
+		faction.getInstallationHandler().acceptTransferred(fort);
 	}
 }

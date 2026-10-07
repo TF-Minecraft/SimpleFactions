@@ -165,7 +165,7 @@ public final class CivilWarCapitalAssignService {
 		}
 		Province from = plugin.getProvinceManager().get(fromProvince);
 		Province to = plugin.getProvinceManager().get(toProvince);
-		if (from == null || to == null) {
+		if (!from.isValid() || !to.isValid()) {
 			return Math.abs(fromProvince - toProvince);
 		}
 		double dx = from.getCenterX() - to.getCenterX();

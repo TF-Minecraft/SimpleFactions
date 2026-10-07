@@ -14,7 +14,6 @@ import net.tfminecraft.simplefactions.war.battle.engine.win.SiegeWinService;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleInventoryManager;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
-import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 
 public final class CampaignWarbandBattleService {
@@ -52,9 +51,7 @@ public final class CampaignWarbandBattleService {
 		net.tfminecraft.simplefactions.war.core.Side playerSide =
 				CampaignBattleJoinService.rosterSideFor(war, joiningPlayerName, faction);
 		if (playerSide == null || playerSide != battleSide) {
-			return MercenaryEngagements.forPlayer(war, joiningPlayerName) != null
-					? "You are under contract to the other host"
-					: "Your faction is not on this battle side";
+			return "Your faction is not on this battle side";
 		}
 		if (playerId != null
 				&& CampaignWarbandLeaveBlock.isBlocked(battle.getId(), warband.getId(), playerId)) {
@@ -97,6 +94,11 @@ public final class CampaignWarbandBattleService {
 			new org.bukkit.scheduler.BukkitRunnable() {
 				@Override
 				public void run() {
+					if (!player.isOnline() || !battle.hasStarted()
+							|| BattleManager.currentBattle.get(player) != battle
+							|| !warband.hasMember(player.getUniqueId())) {
+						return;
+					}
 					BattleInventoryManager inv = new BattleInventoryManager();
 					inv.spawnList(player, battle);
 				}
@@ -138,12 +140,11 @@ public final class CampaignWarbandBattleService {
 	}
 
 	private static void checkSideAutoLose(Battle battle, String sideId) {
-		if (battle == null || !battle.hasStarted() || sideId == null) {
-			return;
-		}
 		BattleSide side = battle.getSideById(sideId);
-		if (side == null) {
-			return;
+		for (Warband band : side.getBands()) {
+			if (band.getRealMemberCount() > 0) {
+				return;
+			}
 		}
 		side.setLives(0);
 		if (battle.getBattleType() == BattleType.SIEGE) {
@@ -183,7 +184,10 @@ public final class CampaignWarbandBattleService {
 		if (sideId == null) {
 			return false;
 		}
-		net.tfminecraft.simplefactions.war.core.Side side = CampaignBattleJoinService.resolveWarSide(war, sideId);
+		net.tfminecraft.simplefactions.war.core.Side side =
+				net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService.isRaidWarband(warband)
+						? CampaignBattleJoinService.resolveWarSide(war, null, sideId)
+						: CampaignBattleJoinService.resolveWarSide(war, sideId);
 		if (side == null) {
 			return false;
 		}
