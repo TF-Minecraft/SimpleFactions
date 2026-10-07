@@ -45,6 +45,14 @@ espionage:
     aptitude-multiplier: 1.25
     luck-spread: 75
     luck-draws: 3
+  vassalage:
+    # Added to an overlord's margin when its network spies on a vassal (direct or further down).
+    overlord-offense-bonus: 25
+    # Taken from a vassal's margin when its network spies on any overlord above it.
+    overlord-defense-bonus: 25
+    # Lets each Spymaster share information with their overlord and with their vassals, chosen by tier.
+    # Every field visible at the shared tier or below then reaches that partner exactly instead of as a range.
+    allow-sharing: true
   intelligence:
     # Margin = observing faction's offense minus target's defense. Rumours is the minimum report quality.
     # Negative margins return Rumours; individual fields stay Unknown below their required tier.

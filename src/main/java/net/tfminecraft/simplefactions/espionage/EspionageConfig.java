@@ -17,6 +17,8 @@ public final class EspionageConfig {
     private static String reloadPermission = "simplefactions.espionage.reload";
     private static double base = 50, extraPositionPenalty = .25, rollMultiplier = 1.25;
     private static int center = 6, cap = 16, aptitudeSpread = 20, luckSpread = 75, luckDraws = 3, rosterLimit = 23;
+    private static int overlordOffenseBonus = 25, overlordDefenseBonus = 25;
+    private static boolean sharingAllowed = true;
     private static final Map<IntelligenceTier, TierSettings> tiers = new java.util.EnumMap<>(IntelligenceTier.class);
     private static final Map<String, IntelligenceTier> minimums = new LinkedHashMap<>();
     private static final Map<String, IntelligenceTier> cashflows = new LinkedHashMap<>();
@@ -75,6 +77,9 @@ public final class EspionageConfig {
         luckSpread = (int) bounded(config, "espionage.checks.luck-spread", 75, 0, 1000);
         luckDraws = (int) bounded(config, "espionage.checks.luck-draws", 3, 1, 20);
         rosterLimit = (int) bounded(config, "espionage.intelligence.maximum-roster-size", 23, 0, 1000);
+        overlordOffenseBonus = (int) bounded(config, "espionage.vassalage.overlord-offense-bonus", 25, 0, 1000);
+        overlordDefenseBonus = (int) bounded(config, "espionage.vassalage.overlord-defense-bonus", 25, 0, 1000);
+        sharingAllowed = config.getBoolean("espionage.vassalage.allow-sharing", true);
         tiers.clear();
         int previous = -1;
         for (var tier : IntelligenceTier.values()) {
@@ -145,6 +150,9 @@ public final class EspionageConfig {
     public static int luckSpread() { return luckSpread; }
     public static int luckDraws() { return luckDraws; }
     public static int rosterLimit() { return rosterLimit; }
+    public static int overlordOffenseBonus() { return overlordOffenseBonus; }
+    public static int overlordDefenseBonus() { return overlordDefenseBonus; }
+    public static boolean sharingAllowed() { return sharingAllowed; }
 
     public static double stabilityPenalty() { return stabilityPenalty; }
     public static double penaltyDays() { return penaltyDays; }

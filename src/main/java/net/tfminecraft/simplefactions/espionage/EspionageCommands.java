@@ -52,7 +52,14 @@ public final class EspionageCommands {
                 EspionageView.settings(player, faction, manager);
             } else if (args[0].equalsIgnoreCase("positions")) EspionageView.positions(player, faction, manager);
             else EspionageView.spymasterOffice(player, faction, manager);
-        } else if (args[0].equalsIgnoreCase("spymaster") && args.length >= 2 && !args[1].equalsIgnoreCase("sabotage")) {
+        } else if (args[0].equalsIgnoreCase("spymaster") && args.length == 4 && args[1].equalsIgnoreCase("share")) {
+            var partner = args[2].equalsIgnoreCase("overlord") ? SharingPartner.OVERLORD
+                    : args[2].equalsIgnoreCase("vassals") ? SharingPartner.VASSALS : null;
+            var tier = args[3].equalsIgnoreCase("none") ? IntelligenceTier.UNKNOWN : IntelligenceTier.parse(args[3]);
+            if (partner == null || tier == IntelligenceTier.UNKNOWN && !args[3].equalsIgnoreCase("none")) usage(player);
+            else EspionageService.setSharing(player, faction, partner, tier);
+        } else if (args[0].equalsIgnoreCase("spymaster") && args.length >= 2 && !args[1].equalsIgnoreCase("sabotage")
+                && !args[1].equalsIgnoreCase("share")) {
             if (args[1].equalsIgnoreCase("remove")) {
                 if (args.length == 2) EspionageService.remove(player, faction);
                 else usage(player);
@@ -75,6 +82,7 @@ public final class EspionageCommands {
     private static void usage(Player player) {
         player.sendMessage("§7/faction positions §8| §7/faction espionage §8| §7/faction spymaster <player|remove>");
         player.sendMessage("§7/faction spymaster sabotage <offense|defense> <0|25|50|75|100>");
+        player.sendMessage("§7/faction spymaster share <overlord|vassals> <none|rumours|broad|reliable|detailed>");
     }
 
     public static List<String> complete(Player player, String[] args) {
@@ -90,9 +98,13 @@ public final class EspionageCommands {
                     if (Bukkit.getPlayerExact(name) != null && EspionageService.eligible(faction, name)) choices.add(name);
             }
             if (isHolder) choices.add("sabotage");
+            if (isHolder && EspionageConfig.sharingAllowed()) choices.add("share");
         } else if (isHolder && args[1].equalsIgnoreCase("sabotage")) {
             if (args.length == 3) choices.addAll(List.of("offense", "defense"));
             if (args.length == 4) choices.addAll(List.of("0", "25", "50", "75", "100"));
+        } else if (isHolder && args[1].equalsIgnoreCase("share")) {
+            if (args.length == 3) choices.addAll(List.of("overlord", "vassals"));
+            if (args.length == 4) choices.addAll(List.of("none", "rumours", "broad", "reliable", "detailed"));
         }
         String prefix = args[args.length - 1];
         choices.removeIf(choice -> !choice.regionMatches(true, 0, prefix, 0, prefix.length()));

@@ -19,6 +19,20 @@ public class EspionageState {
     // Last deliberate appointment per office; starts the wait before the next one.
     private Map<SpecialPosition, Long> lastAppointments = new EnumMap<>(SpecialPosition.class);
 
+    // Chosen by the Spymaster. Unknown shares nothing; older saves have no entry.
+    private Map<SharingPartner, IntelligenceTier> sharing = new EnumMap<>(SharingPartner.class);
+
+    public IntelligenceTier sharing(SharingPartner partner) {
+        var tier = sharing == null ? null : sharing.get(partner);
+        return tier == null ? IntelligenceTier.UNKNOWN : tier;
+    }
+
+    void share(SharingPartner partner, IntelligenceTier tier) {
+        if (sharing == null) sharing = new EnumMap<>(SharingPartner.class);
+        if (tier == null || tier == IntelligenceTier.UNKNOWN) sharing.remove(partner);
+        else sharing.put(partner, tier);
+    }
+
     void pendingFounder(SpecialPosition office) { pendingFounders.add(office); }
     void pendingFounder(SpecialPosition office, String characterId) {
         pendingFounder(office);
@@ -140,6 +154,9 @@ public class EspionageState {
         IntelligenceReport report = reports.get(targetId);
         return report != null && report.day == day && report.targetFoundedAt == foundedAt ? report : null;
     }
+
+    /** Drops today's report on one target so the next menu rebuilds it under the same daily rolls. */
+    boolean forgetReport(String targetId) { return reports.remove(targetId) != null; }
 
     public void resetReportsAndRolls() {
         reports.clear();

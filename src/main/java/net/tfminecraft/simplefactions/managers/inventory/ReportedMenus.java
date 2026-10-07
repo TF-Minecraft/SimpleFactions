@@ -65,7 +65,8 @@ public final class ReportedMenus {
             if (levels != null) {
                 double first = modifier.getCurrent((int) Math.min(Integer.MAX_VALUE, levels.lower()));
                 double second = modifier.getCurrent((int) Math.min(Integer.MAX_VALUE, levels.upper()));
-                estimate = (key.isPositive() ? "#4fd945" : "#cf493a") + Math.floor(Math.min(first, second)) + " to " + Math.ceil(Math.max(first, second));
+                estimate = (key.isPositive() ? "#4fd945" : "#cf493a") + (levels.isExact() ? first
+                        : Math.floor(Math.min(first, second)) + " to " + Math.ceil(Math.max(first, second)));
             }
             lore.add("\u00a7f - " + key.getName() + ": " + estimate);
         }

@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 public final class EspionageService {
@@ -359,6 +360,73 @@ public final class EspionageService {
         return true;
     }
 
+    /** Only the Spymaster opens their faction's information to its overlord or vassals, tier by tier. */
+    public static boolean setSharing(Player actor, Faction faction, SharingPartner partner, IntelligenceTier tier) {
+        SpecialPositionAssignment holder = spymaster(faction);
+        if (!isOwn(actor, faction) || holder == null || !holder.isHolder(actor.getUniqueId())) {
+            actor.sendMessage("§cOnly the Spymaster can choose what to share with allied courts.");
+            return false;
+        }
+        if (!EspionageConfig.sharingAllowed()) {
+            actor.sendMessage("§cSharing intelligence with overlords and vassals is disabled.");
+            return false;
+        }
+        var state = faction.getEspionage();
+        IntelligenceTier previous = state.sharing(partner);
+        // Partners rebuild today's report on their next menu, under the same daily rolls. Their saves come
+        // first, so a restart can never bring back a report built under the old choice.
+        for (Faction other : partners(faction, partner)) {
+            if (other.getEspionage() != null && other.getEspionage().forgetReport(faction.getId())
+                    && !new Database().saveFactionChecked(other)) {
+                actor.sendMessage("§cYour choice could not be saved. Your previous sharing remains in effect.");
+                return false;
+            }
+        }
+        state.share(partner, tier);
+        if (!new Database().saveFactionChecked(faction)) {
+            state.share(partner, previous);
+            actor.sendMessage("§cYour choice could not be saved. Your previous sharing remains in effect.");
+            return false;
+        }
+        actor.sendMessage(tier == IntelligenceTier.UNKNOWN ? "§7Your court no longer shares information with " + partner.label() + "."
+                : "§7Your court now shares everything up to §e" + tier.label() + "§7 with " + partner.label()
+                        + ". Those details reach them exactly.");
+        return true;
+    }
+
+    static java.util.List<Faction> partners(Faction faction, SharingPartner partner) {
+        if (partner == SharingPartner.VASSALS) return faction.getVassals();
+        Faction overlord = faction.getOverlord();
+        return overlord == null ? java.util.List.of() : java.util.List.of(overlord);
+    }
+
+    /** Former partners lose today's reports on each other, including anything shared. */
+    public static void forgetReports(Faction first, Faction second) {
+        forgetReport(first, second);
+        forgetReport(second, first);
+    }
+
+    private static void forgetReport(Faction observer, Faction target) {
+        if (observer == null || target == null || observer.getEspionage() == null) return;
+        if (observer.getEspionage().forgetReport(target.getId())) new Database().saveFaction(observer);
+    }
+
+    /** The tier the target opened to the observer as its direct overlord or vassal. */
+    public static IntelligenceTier sharedTier(Faction target, Faction observer) {
+        if (!EspionageConfig.sharingAllowed() || target == null || observer == null || target.getEspionage() == null)
+            return IntelligenceTier.UNKNOWN;
+        if (RelationManager.isOverlord(target, observer)) return target.getEspionage().sharing(SharingPartner.OVERLORD);
+        if (RelationManager.isOverlord(observer, target)) return target.getEspionage().sharing(SharingPartner.VASSALS);
+        return IntelligenceTier.UNKNOWN;
+    }
+
+    /** Overlords spy better on every vassal below them and guard better against them. */
+    static int vassalageBonus(Faction observer, Faction target) {
+        if (RelationManager.isOnOverlordPath(target, observer)) return EspionageConfig.overlordOffenseBonus();
+        if (RelationManager.isOnOverlordPath(observer, target)) return -EspionageConfig.overlordDefenseBonus();
+        return 0;
+    }
+
     /** Reading or clicking menus never generates intelligence. */
     public static IntelligenceReport report(Player viewer, Faction target) {
         if (viewer == null || canViewExact(viewer, target)) return null;
@@ -401,8 +469,9 @@ public final class EspionageService {
         IntelligenceReport report = observer.getEspionage().report(target.getId(), target.getFoundedAt(), day, () -> {
             created[0] = true;
             int margin = observer.getEspionage().rolls(day, effectiveAptitude(observer, attacker), random).offense()
-                    - target.getEspionage().rolls(day, effectiveAptitude(target, defender), random).defense();
-            IntelligenceReport generated = createReport(metrics(target), margin, random);
+                    - target.getEspionage().rolls(day, effectiveAptitude(target, defender), random).defense()
+                    + vassalageBonus(observer, target);
+            IntelligenceReport generated = createReport(metrics(target), margin, sharedTier(target, observer), random);
             captureMembers(generated, target, margin, random);
             captureOffices(generated, target, random);
             ReportDetails.capture(generated, target);
@@ -416,20 +485,38 @@ public final class EspionageService {
     }
 
     static java.util.List<String> sample(java.util.List<String> members, int margin, RandomGenerator random) {
+        return sampleFraction(members, rosterFraction(margin), random);
+    }
+
+    private static double rosterFraction(int margin) {
+        var tier = EspionageConfig.tier(margin);
+        return EspionageConfig.allows(tier, "roster") ? EspionageConfig.settings(tier).rosterFraction() : 0;
+    }
+
+    static java.util.List<String> sampleFraction(java.util.List<String> members, double fraction, RandomGenerator random) {
+        return prefix(shuffle(members, random), fraction);
+    }
+
+    private static java.util.List<String> shuffle(java.util.List<String> members, RandomGenerator random) {
         java.util.List<String> shuffled = new java.util.ArrayList<>(members);
         for (int i = shuffled.size() - 1; i > 0; i--) {
             int other = random.nextInt(i + 1);
             java.util.Collections.swap(shuffled, i, other);
         }
-        var tier = EspionageConfig.tier(margin);
-        double fraction = EspionageConfig.allows(tier, "roster") ? EspionageConfig.settings(tier).rosterFraction() : 0;
+        return shuffled;
+    }
+
+    private static java.util.List<String> prefix(java.util.List<String> shuffled, double fraction) {
         int count = (int) Math.floor(shuffled.size() * fraction);
         return shuffled.subList(0, Math.min(EspionageConfig.rosterLimit(), count)).stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
     }
 
     static void captureMembers(IntelligenceReport report, Faction target, int margin, RandomGenerator random) {
-        var sample = sample(target.getMembers().stream().distinct()
-                .filter(name -> !target.isLeader(name)).toList(), margin, random);
+        var members = target.getMembers().stream().distinct().filter(name -> !target.isLeader(name)).toList();
+        var shuffled = shuffle(members, random);
+        // The rolled sample is a prefix of the shared roster, so it still holds if sharing is switched off.
+        var rolled = prefix(shuffled, rosterFraction(margin));
+        var sample = report.exact("roster") ? prefix(shuffled, 1) : rolled;
         report.members = sample.stream().map(name -> CharacterNames.forForeign(name) + " §7— "
                 + net.tfminecraft.simplefactions.utils.Represents.represents(target, name)).toList();
         for (var guild : target.getGuildHandler().getGuilds()) {
@@ -447,7 +534,7 @@ public final class EspionageService {
                 boolean knownLeader = guild.isLeader(name) && report.allows("guild-leader");
                 boolean knownOffice = !offices.isEmpty() && report.allows("office-holder");
                 if (!knownLeader && !knownOffice && (!report.allows("guild-members") || !sample.contains(name))) continue;
-                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.forForeign(name), guild.getId(), guild.getName(), sample.contains(name),
+                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.forForeign(name), guild.getId(), guild.getName(), rolled.contains(name),
                         knownLeader, knownOffice ? offices : java.util.List.of()));
             }
         }
@@ -461,16 +548,29 @@ public final class EspionageService {
     }
 
     static IntelligenceReport createReport(Map<String, Double> metrics, int margin, RandomGenerator random) {
+        return createReport(metrics, margin, IntelligenceTier.UNKNOWN, random);
+    }
+
+    static IntelligenceReport createReport(Map<String, Double> metrics, int margin, IntelligenceTier shared, RandomGenerator random) {
         IntelligenceReport report = new IntelligenceReport();
         report.quality = EspionageMath.quality(margin);
+        if (shared != IntelligenceTier.UNKNOWN) report.shared = shared.key();
         metrics.forEach((key, value) -> {
-            if (!report.allows(key)) return;
+            if (!EspionageConfig.allows(report.tier(), key) && !report.exact(key)) return;
             boolean signed = !IntelligenceRanges.nonnegative(key);
             var estimate = EspionageMath.estimate(value, margin, signed, random);
             estimate = IntelligenceRanges.reasonable(key, estimate, report.tier());
-            if (estimate != null) report.estimates.put(key, estimate);
+            if (report.exact(key)) share(report, key, value, estimate);
+            else if (estimate != null) report.estimates.put(key, estimate);
         });
         return report;
+    }
+
+    /** Keeps the rolled range too, for when sharing is switched off during the day. */
+    private static void share(IntelligenceReport report, String key, double value, EspionageMath.Estimate rolled) {
+        if (!Double.isFinite(value)) return;
+        report.estimates.put(key, EspionageMath.Estimate.exact(value));
+        if (rolled != null && EspionageConfig.allows(report.tier(), key)) report.unshared.put(key, rolled);
     }
 
     static void captureOffices(IntelligenceReport report, Faction target, RandomGenerator random) {
@@ -484,7 +584,8 @@ public final class EspionageService {
                     : holder == null ? 0 : holder.aptitude;
             var range = EspionageMath.estimate(aptitude, EspionageConfig.settings(report.tier()).minimumMargin(), false, random);
             range = IntelligenceRanges.reasonable(key, range, report.tier());
-            if (range != null) report.estimates.put(key, range);
+            if (report.exact(key)) share(report, key, aptitude, range);
+            else if (range != null) report.estimates.put(key, range);
         }
     }
 

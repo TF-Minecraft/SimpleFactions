@@ -482,6 +482,36 @@ class EspionageOperationsCoverageTest {
         EspionageCommands.complete(leader, new String[] {"spymaster", "sabotage", "defense", "5"}));
   }
 
+  @Test
+  void spymastersShareByCommandAndInvalidSharingArgumentsChangeNothing() throws Exception {
+    offices();
+    assertTrue(
+        EspionageCommands.handle(leader, new String[] {"spymaster", "share", "vassals", "broad"}));
+    assertEquals(IntelligenceTier.BROAD, home.getEspionage().sharing(SharingPartner.VASSALS));
+    assertTrue(
+        EspionageCommands.handle(
+            leader, new String[] {"spymaster", "share", "overlord", "reliable"}));
+    assertEquals(IntelligenceTier.RELIABLE, home.getEspionage().sharing(SharingPartner.OVERLORD));
+    assertTrue(
+        EspionageCommands.handle(leader, new String[] {"spymaster", "share", "vassals", "none"}));
+    assertEquals(IntelligenceTier.UNKNOWN, home.getEspionage().sharing(SharingPartner.VASSALS));
+    clearInvocations(leader);
+    assertTrue(
+        EspionageCommands.handle(leader, new String[] {"spymaster", "share", "allies", "broad"}));
+    assertTrue(
+        EspionageCommands.handle(
+            leader, new String[] {"spymaster", "share", "overlord", "everything"}));
+    assertEquals(IntelligenceTier.RELIABLE, home.getEspionage().sharing(SharingPartner.OVERLORD));
+    verify(leader, times(2)).sendMessage(contains("<overlord|vassals>"));
+    assertTrue(EspionageCommands.complete(leader, new String[] {"spymaster", ""}).contains("share"));
+    assertEquals(
+        List.of("overlord", "vassals"),
+        EspionageCommands.complete(leader, new String[] {"spymaster", "share", ""}));
+    assertEquals(
+        List.of("rumours", "reliable"),
+        EspionageCommands.complete(leader, new String[] {"spymaster", "share", "vassals", "r"}));
+  }
+
   @ParameterizedTest
   @ValueSource(
       strings = {"null", "offline", "foreign", "no-character", "already-holder", "cooldown"})

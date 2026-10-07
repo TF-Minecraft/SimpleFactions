@@ -51,6 +51,7 @@ public class RelationManager {
 		if(isOverlord(origin, target) || isOverlord(target, origin)) {
 			net.tfminecraft.simplefactions.war.commitment.WarCommitmentService.onVassalageEnded(origin, target);
 			reset(origin, target, hostile);
+			net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(origin, target);
 			MercenaryLoyaltyWatcher.onRelationChanged(origin, target);
 			return true;
 		}
@@ -274,6 +275,7 @@ public class RelationManager {
 				FactionManager.getMap().enqueue("nation", target.getRGB());
 			}
 		}
+		boolean wasVassalage = isOverlord(origin, target) || isOverlord(target, origin);
 		relation.setType(r);
 		origin.setRelation(target, relation);
 		if(reverseChange) {
@@ -287,6 +289,9 @@ public class RelationManager {
 			reverse.setType(r.getLink());
 			target.setRelation(origin, reverse);
 		}
+		// Former partners must not keep what they shared today
+		if(wasVassalage && !isOverlord(origin, target) && !isOverlord(target, origin))
+			net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(origin, target);
 		if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Set relation to "+r.getName()));
 		//An alliance or vassalage can make a signed mercenary contract treachery
 		MercenaryLoyaltyWatcher.onRelationChanged(origin, target);

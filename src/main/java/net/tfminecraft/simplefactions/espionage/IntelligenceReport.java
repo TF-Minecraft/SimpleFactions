@@ -10,7 +10,11 @@ public class IntelligenceReport {
     public long day;
     public long targetFoundedAt;
     public String quality;
+    /** Highest tier the target's Spymaster opened to this observer; fields at or below it are exact. */
+    public String shared;
     public Map<String, EspionageMath.Estimate> estimates = new LinkedHashMap<>();
+    /** The rolled ranges behind shared exact values. */
+    public Map<String, EspionageMath.Estimate> unshared = new LinkedHashMap<>();
     public java.util.List<String> members = new java.util.ArrayList<>();
     public Map<String, java.util.List<String>> guildMembers = new LinkedHashMap<>();
     public java.util.List<RosterMember> roster = new java.util.ArrayList<>();
@@ -36,8 +40,13 @@ public class IntelligenceReport {
     }
 
     public EspionageMath.Estimate estimate(String metric) {
-        if (!EspionageConfig.allows(tier(), metric)) return null;
         var raw = estimates == null ? null : estimates.get(metric);
+        if (raw != null && raw.isExact()) {
+            if (exact(metric)) return raw;
+            // No longer shared after a reload: fall back to the rolled range, never the exact value.
+            raw = unshared == null ? null : unshared.get(metric);
+        }
+        if (!EspionageConfig.allows(tier(), metric)) return null;
         Long maximum = maximums == null ? null : maximums.get(metric);
         if (raw != null && maximum != null) {
             raw = new EspionageMath.Estimate(Math.max(0, raw.lower()), Math.min(maximum, raw.upper()));
@@ -51,7 +60,12 @@ public class IntelligenceReport {
     }
 
     public IntelligenceTier tier() { return IntelligenceTier.parse(quality); }
-    public boolean allows(String field) { return EspionageConfig.allows(tier(), field); }
+    public IntelligenceTier sharedTier() { return shared == null ? IntelligenceTier.UNKNOWN : IntelligenceTier.parse(shared); }
+    /** Turning sharing off hides shared values in today's reports too. */
+    public boolean exact(String field) {
+        return EspionageConfig.sharingAllowed() && EspionageConfig.allows(sharedTier(), field);
+    }
+    public boolean allows(String field) { return EspionageConfig.allows(tier(), field) || exact(field); }
     public String officeHolder(SpecialPosition office) {
         return !allows("office-holder") || officeHolders == null ? UNKNOWN : officeHolders.getOrDefault(office, UNKNOWN);
     }

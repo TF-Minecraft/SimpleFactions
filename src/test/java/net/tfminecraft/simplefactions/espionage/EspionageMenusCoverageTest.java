@@ -310,6 +310,37 @@ class EspionageMenusCoverageTest {
   }
 
   @Test
+  void sharingCyclesEachPartnerAndReportsNameTheSharedTierWhileSharingIsAllowed() {
+    EspionageView.settings(spy, home, manager);
+    assertTrue(text(top(spy).getItem(21)).contains("Sharing nothing"));
+    for (IntelligenceTier expected :
+        new IntelligenceTier[] {
+          IntelligenceTier.RUMOURS,
+          IntelligenceTier.BROAD,
+          IntelligenceTier.RELIABLE,
+          IntelligenceTier.DETAILED,
+          IntelligenceTier.UNKNOWN
+        }) {
+      click(spy, 21);
+      assertEquals(expected, home.getEspionage().sharing(SharingPartner.OVERLORD));
+    }
+    click(spy, 23);
+    assertEquals(IntelligenceTier.RUMOURS, home.getEspionage().sharing(SharingPartner.VASSALS));
+    assertTrue(text(top(spy).getItem(23)).contains("Sharing up to Rumours"));
+    report.shared = "broad";
+    EspionageView.foreignPositions(leader, target, manager);
+    assertTrue(
+        text(top(leader).getItem(4)).contains("shares everything up to Broad estimates exactly"));
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("espionage.vassalage.allow-sharing", false);
+    EspionageConfig.load(config);
+    EspionageView.foreignPositions(leader, target, manager);
+    assertFalse(text(top(leader).getItem(4)).contains("shares everything"));
+    EspionageView.settings(spy, home, manager);
+    assertNull(top(spy).getItem(21));
+  }
+
+  @Test
   void staleOfficeOwnershipAndFactionMembershipClosePrivateMenus() {
     EspionageView.settings(spy, home, manager);
     assign(home, leader, false, 0);
