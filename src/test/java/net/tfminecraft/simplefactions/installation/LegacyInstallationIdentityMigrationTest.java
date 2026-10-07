@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -21,6 +22,7 @@ import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.database.WarData;
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
@@ -31,6 +33,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleSiegeFortS
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
+import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarMapper;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
@@ -38,6 +41,7 @@ import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import org.bukkit.Bukkit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 
@@ -255,6 +259,9 @@ class LegacyInstallationIdentityMigrationTest {
       boolean explicitChronology) throws Exception {
     try (Context context = new Context()) {
       install(context.defender, "keep", InstallationKind.FORT, 20);
+      context.province(context.defender, 20, 31);
+      context.province(context.defender, 31, 20);
+      assertEquals(20, FortZocIndex.fromGameState().fortForProvince(31).orElseThrow().province());
       War war = context.war(990305);
       var field = new ScheduledCampaignBattle(10, CampaignBattleKind.FIELD, true, null);
       var old =
@@ -361,23 +368,171 @@ class LegacyInstallationIdentityMigrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void anUnresolvableOldAxisSiegeAbortsWithoutPublishingOrRewritingTheWar(boolean ambiguous)
-      throws Exception {
+  @CsvSource({
+    "missing,false,0", "missing,true,0", "ambiguous,false,0", "ambiguous,true,0",
+    "missing,false,1", "missing,true,1", "ambiguous,false,1", "ambiguous,true,1"
+  })
+  void anUnresolvableSiegePreservesHistoryAndDoesNotPreventAnyWarFromLoading(
+      String reason, boolean previouslyFought, int version) throws Exception {
     try (Context context = new Context()) {
-      if (ambiguous) {
-        install(context.defender, "keep", InstallationKind.FORT, 20);
+      Installation original = install(context.defender, "keep", InstallationKind.FORT, 20);
+      context.province(context.defender, 20, 31);
+      context.province(context.defender, 31, 20);
+      if (reason.equals("ambiguous")) {
         install(context.attacker, "keep", InstallationKind.FORT, 10);
+        context.province(context.attacker, 10);
+        assertEquals(
+            original.getStableKey(),
+            FortZocIndex.fromGameState().fortForProvince(31).orElseThrow().stableKey(),
+            "Even when one duplicate covers the axis, an old local ID is ambiguous");
+      } else {
+        assertTrue(
+            context.defender.getInstallationHandler().deconstruct(original.getId()).isSuccess());
+        assertTrue(InstallationLookup.all().isEmpty());
       }
       War war = context.war(990310);
-      war.setCampaignBattleSchedule(
-          List.of(new ScheduledCampaignBattle(31, CampaignBattleKind.SIEGE, false, "keep")));
-      Path file = context.saveLegacy(war, false);
-      byte[] original = Files.readAllBytes(file);
-      assertThrows(IllegalStateException.class, WarManager::start);
-      assertNull(WarManager.getById(war.getId()));
-      assertArrayEquals(original, Files.readAllBytes(file));
+      var siege = new ScheduledCampaignBattle(31, CampaignBattleKind.SIEGE, true, "keep", null, 12);
+      var next = new ScheduledCampaignBattle(40, CampaignBattleKind.FIELD, true, null);
+      war.setCampaignBattleSchedule(List.of(siege, next));
+      war.setCampaignCounterSchedule(List.of(siege, next));
+      war.setCampaignScheduleIndex(previouslyFought ? 1 : 0);
+      war.setCampaignCounterScheduleIndex(previouslyFought ? 1 : 0);
+      war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
+      war.setScheduledBattleProvinceId(previouslyFought ? 40 : 31);
+      war.setFirstBattleStarted(previouslyFought);
+      if (previouslyFought) war.recordLocationBattle("fort:keep");
+      Path file = context.save(war, version);
+      byte[] originalBytes = Files.readAllBytes(file);
+      War unaffected = context.war(990320);
+      Path otherFile = context.save(unaffected, 1);
+      byte[] otherBytes = Files.readAllBytes(otherFile);
+      context.warnings.clear();
+
+      War loaded = assertPreservedOnRepeatedLoad(context, war, file, version == 0);
+
+      assertNotNull(WarManager.getById(unaffected.getId()));
+      assertEquals(2, WarManager.get().size());
+      assertEquals(previouslyFought ? 1 : 0, loaded.getLocationBattleCount("fort:keep"));
+      assertArrayEquals(otherBytes, Files.readAllBytes(otherFile));
+      if (version == 1) assertArrayEquals(originalBytes, Files.readAllBytes(file));
     }
+  }
+
+  @Test
+  void aRenamedFortCannotRedirectItsOldSiegeToAnUnrelatedFortReusingItsId() throws Exception {
+    try (Context context = new Context()) {
+      Installation original = install(context.defender, "keep", InstallationKind.FORT, 20);
+      Faction receiver = context.domain.saved("receiving_realm", "Cara");
+      install(receiver, "keep", InstallationKind.PORT, 30);
+      var siege = new ScheduledCampaignBattle(20, CampaignBattleKind.SIEGE, true, "keep", null, 31);
+      War war = context.war(990321);
+      war.setCampaignBattleSchedule(List.of(siege));
+      war.setCampaignCounterSchedule(List.of(siege));
+      war.setScheduledBattleProvinceId(20);
+      Path file = context.saveLegacy(war, false);
+      // Reproduce a rename which happened before this old saved war was restored.
+      InstallationTransferService.transfer(context.defender, receiver, 20);
+      Installation moved =
+          receiver.getInstallationHandler().getByProvince(InstallationKind.FORT, 20);
+      assertNotNull(moved);
+      assertEquals("keep_20_1", moved.getId());
+      assertEquals(original.getStableKey(), moved.getStableKey());
+      Installation unrelated = install(context.attacker, "keep", InstallationKind.FORT, 55);
+      context.province(receiver, 20);
+      context.province(context.attacker, 55);
+      assertEquals(
+          moved.getStableKey(),
+          FortZocIndex.fromGameState().fortForProvince(20).orElseThrow().stableKey());
+      context.warnings.clear();
+
+      War loaded = assertPreservedOnRepeatedLoad(context, war, file, true);
+
+      assertEquals(20, loaded.getScheduledBattleProvinceId());
+      assertNotEquals(
+          unrelated.getProvince(), loaded.getCampaignBattleSchedule().getFirst().provinceId());
+      assertSame(receiver, InstallationOwners.ownerOf(moved));
+      assertSame(context.attacker, InstallationOwners.ownerOf(unrelated));
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void aUniqueMatchingIdDoesNotRelocateASiegeUnlessThatPhysicalFortControlsTheOldAxis(
+      boolean anotherFortControlsAxis) throws Exception {
+    try (Context context = new Context()) {
+      Installation named = install(context.defender, "keep", InstallationKind.FORT, 55);
+      context.province(context.defender, 55);
+      context.province(context.defender, 31);
+      if (anotherFortControlsAxis) {
+        Installation actual = install(context.defender, "other_keep", InstallationKind.FORT, 20);
+        context.province(context.defender, 20, 31);
+        context.province(context.defender, 31, 20);
+        assertEquals(
+            actual.getStableKey(),
+            FortZocIndex.fromGameState().fortForProvince(31).orElseThrow().stableKey());
+      } else {
+        assertTrue(FortZocIndex.fromGameState().fortForProvince(31).isEmpty());
+      }
+      var siege = new ScheduledCampaignBattle(31, CampaignBattleKind.SIEGE, false, "keep");
+      War war = context.war(990322);
+      war.setCampaignBattleSchedule(List.of(siege));
+      war.setCampaignCounterSchedule(List.of(siege));
+      war.setScheduledBattleProvinceId(31);
+      Path file = context.saveLegacy(war, false);
+
+      War loaded = assertPreservedOnRepeatedLoad(context, war, file, true);
+
+      assertNotEquals(named.getProvince(), loaded.getScheduledBattleProvinceId());
+    }
+  }
+
+  private static War assertPreservedOnRepeatedLoad(
+      Context context, War original, Path file, boolean expectWarning) throws Exception {
+    assertDoesNotThrow(WarManager::start, "An unresolved historical fort cannot block startup");
+    War loaded = WarManager.getById(original.getId());
+    assertNotNull(loaded);
+    assertAll(
+        () ->
+            assertEquals(original.getCampaignBattleSchedule(), loaded.getCampaignBattleSchedule()),
+        () ->
+            assertEquals(
+                original.getCampaignCounterSchedule(), loaded.getCampaignCounterSchedule()),
+        () -> assertEquals(original.getCampaignScheduleIndex(), loaded.getCampaignScheduleIndex()),
+        () ->
+            assertEquals(
+                original.getCampaignCounterScheduleIndex(),
+                loaded.getCampaignCounterScheduleIndex()),
+        () ->
+            assertEquals(
+                original.getScheduledBattleProvinceId(), loaded.getScheduledBattleProvinceId()),
+        () -> assertEquals(original.hasFirstBattleStarted(), loaded.hasFirstBattleStarted()),
+        () -> assertEquals(original.getLocationBattleCounts(), loaded.getLocationBattleCounts()));
+    WarData persisted = JsonUtil.readJson(file.toFile(), WarData.class);
+    assertEquals(1, persisted.installationReferenceVersion);
+    War restored = WarMapper.fromData(persisted);
+    assertEquals(original.getCampaignBattleSchedule(), restored.getCampaignBattleSchedule());
+    assertEquals(original.getCampaignCounterSchedule(), restored.getCampaignCounterSchedule());
+    assertEquals(original.getScheduledBattleProvinceId(), restored.getScheduledBattleProvinceId());
+    if (expectWarning) {
+      assertTrue(
+          context.warnings.stream()
+              .anyMatch(
+                  message ->
+                      message.contains(String.valueOf(original.getId()))
+                          && message.contains("keep")
+                          && message.toLowerCase(java.util.Locale.ROOT).contains("siege")),
+          "An unresolved legacy siege must be reported while its saved reference is retained");
+    }
+    byte[] firstLoad = Files.readAllBytes(file);
+    context.warnings.clear();
+    assertDoesNotThrow(WarManager::start);
+    assertArrayEquals(firstLoad, Files.readAllBytes(file), "Versioned migration is not repeated");
+    assertTrue(context.warnings.isEmpty());
+    War reloaded = WarManager.getById(original.getId());
+    assertNotNull(reloaded);
+    assertEquals(original.getCampaignBattleSchedule(), reloaded.getCampaignBattleSchedule());
+    assertEquals(original.getScheduledBattleProvinceId(), reloaded.getScheduledBattleProvinceId());
+    return reloaded;
   }
 
   @Test
@@ -511,6 +666,16 @@ class LegacyInstallationIdentityMigrationTest {
       War war = new War(id, attacker, defender);
       war.setGoal(WarGoalType.WAR);
       return war;
+    }
+
+    void province(Faction owner, int id, Integer... neighbors) {
+      Province province = mock(Province.class);
+      when(province.getId()).thenReturn(id);
+      when(province.isValid()).thenReturn(true);
+      when(province.isSea()).thenReturn(false);
+      when(province.getOwner()).thenReturn(owner);
+      when(province.getNeighbours()).thenReturn(Set.of(neighbors));
+      domain.provinceData.put(id, province);
     }
 
     Path saveLegacy(War war, boolean omitVersion) throws IOException {

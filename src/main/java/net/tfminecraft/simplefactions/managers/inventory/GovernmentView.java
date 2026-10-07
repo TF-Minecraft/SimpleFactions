@@ -82,7 +82,7 @@ public class GovernmentView {
 		}
 		Guild viewer = FactionManager.getGuildByMember(player.getName());
 		if(viewer != null && gov.canAffectStability(viewer)) {
-			i.setItem(28, creator.createStanceItem(f, viewer));
+			i.setItem(28, creator.createStanceItem(f, viewer, viewer.isLeader(player)));
 		}
 		
 		i.setItem(53, inv.createBackButton(SFGUI.GOVERNMENT_VIEW));

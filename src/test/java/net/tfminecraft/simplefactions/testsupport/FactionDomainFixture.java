@@ -70,9 +70,22 @@ public final class FactionDomainFixture implements AutoCloseable {
   private final Map<Field, Object> originalGlobals = new LinkedHashMap<>();
   private final Map<Map<Object, Object>, Map<Object, Object>> originalMapContents =
       new java.util.IdentityHashMap<>();
-  private final MockedStatic<BannerFetcher> banners;
+  private MockedStatic<BannerFetcher> banners;
 
   public FactionDomainFixture() {
+    try {
+      initialise();
+    } catch (RuntimeException | Error failure) {
+      try {
+        close();
+      } catch (RuntimeException | Error cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      throw failure;
+    }
+  }
+
+  private void initialise() {
     replace(FactionManager.class, "factions", new ArrayList<Faction>());
     replace(FactionManager.class, "map", map);
     replace(FactionManager.class, "inv", inventory);
@@ -354,7 +367,7 @@ public final class FactionDomainFixture implements AutoCloseable {
   @Override
   public void close() {
     try {
-      banners.close();
+      if (banners != null) banners.close();
     } finally {
       try {
         originalMapContents.forEach(

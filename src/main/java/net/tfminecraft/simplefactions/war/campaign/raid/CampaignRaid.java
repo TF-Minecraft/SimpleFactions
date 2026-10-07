@@ -3,15 +3,18 @@ package net.tfminecraft.simplefactions.war.campaign.raid;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import net.tfminecraft.simplefactions.database.CampaignRaidData;
+import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.raid.RaidTargetService.RaidKind;
 
 public class CampaignRaid {
 	private String id;
 	private String displayName;
+	private String warbandIdPrefix;
 	private int warId;
 	private LocalDate battleDay;
 	private CampaignCoalition attackerCoalition;
@@ -34,6 +37,10 @@ public class CampaignRaid {
 		raid.id = data.id;
 		raid.displayName = data.displayName;
 		raid.warId = data.warId;
+		raid.warbandIdPrefix = data.warbandIdPrefix;
+		if (raid.warbandIdPrefix == null || raid.warbandIdPrefix.isBlank()) {
+			raid.warbandIdPrefix = legacyWarbandIdPrefix(data);
+		}
 		if (data.battleDay != null && !data.battleDay.isBlank()) {
 			raid.battleDay = LocalDate.parse(data.battleDay);
 		}
@@ -63,10 +70,31 @@ public class CampaignRaid {
 		return raid;
 	}
 
+	private static String legacyWarbandIdPrefix(CampaignRaidData data) {
+		if (data.displayName == null || data.displayName.isBlank()) return data.id;
+		String asciiName = Formatter.formatId(data.displayName);
+		String rootSlug = legacySlug(asciiName, Locale.ROOT);
+		String turkishSlug = legacySlug(asciiName, Locale.forLanguageTag("tr"));
+		// ASCII I was the only locale-dependent letter after the old formatter.
+		// Exact matches win: truncation can make a natural slug end in _w<warId>.
+		if (data.id.equals(rootSlug) || data.id.equals(turkishSlug)) return data.id;
+		String candidate = data.id.replaceFirst("_w" + data.warId + "(?:_[0-9]+)?$", "");
+		return candidate.equals(rootSlug) || candidate.equals(turkishSlug) ? candidate : data.id;
+	}
+
+	private static String legacySlug(String asciiName, Locale locale) {
+		// Keep the legacy 48-character naming rules independent of new raid naming.
+		String slug = asciiName.toLowerCase(locale).replaceAll("[^a-z0-9]+", "_")
+				.replaceAll("^_|_$", "");
+		if (slug.isEmpty()) return "wilderness";
+		return slug.substring(0, Math.min(48, slug.length())).replaceAll("_+$", "");
+	}
+
 	public CampaignRaidData toData() {
 		CampaignRaidData data = new CampaignRaidData();
 		data.id = id;
 		data.displayName = displayName;
+		data.warbandIdPrefix = getWarbandIdPrefix();
 		data.warId = warId;
 		if (battleDay != null) {
 			data.battleDay = battleDay.toString();
@@ -116,6 +144,11 @@ public class CampaignRaid {
 
 	public void setId(String id) {
 		this.id = id;
+	}
+
+	/** Stable saved binding; newly created raids use their collision-safe ID. */
+	public String getWarbandIdPrefix() {
+		return warbandIdPrefix != null ? warbandIdPrefix : id;
 	}
 
 	public String getDisplayName() {

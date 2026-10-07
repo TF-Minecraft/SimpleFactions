@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
+import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 
@@ -36,9 +37,12 @@ public final class WarInstallationMigration {
                         .toList();
                 // A home-province match already identifies the intended physical fort.
                 if (matches.stream().anyMatch(i -> i.getProvince() == slot.provinceId())) continue;
-                if (matches.size() != 1) {
-                    throw new IllegalStateException("Cannot migrate siege for war " + war.getId()
-                            + ": fort " + slot.fortInstallationId() + " is missing or ambiguous");
+                if (matches.size() != 1 || FortZocIndex.fromGameState().fortForProvince(slot.provinceId())
+                        .filter(covering -> covering.stableKey().equals(matches.getFirst().getStableKey()))
+                        .isEmpty()) {
+                    LOGGER.warning("War " + war.getId() + ": preserving unresolved legacy siege at province "
+                            + slot.provinceId() + " for fort '" + slot.fortInstallationId() + "'");
+                    continue;
                 }
                 Installation fort = matches.getFirst();
                 schedule.set(index, new ScheduledCampaignBattle(fort.getProvince(), slot.kind(), slot.required(),

@@ -401,15 +401,20 @@ public class GovernmentCreator {
     }
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
-    @SuppressWarnings("deprecation")
     public ItemStack createStanceItem(Faction f, Guild guild) {
+        return createStanceItem(f, guild, true);
+    }
+
+    @SuppressWarnings("deprecation")
+    public ItemStack createStanceItem(Faction f, Guild guild, boolean canChange) {
         Stance stance = guild.getStance(f);
         ItemStack item = new ItemStack(Material.YELLOW_CONCRETE);
         if(stance == Stance.OPPOSE) item = new ItemStack(Material.RED_CONCRETE);
         else if(stance == Stance.SUPPORT) item = new ItemStack(Material.GREEN_CONCRETE);
         ItemMeta m = item.getItemMeta();
         List<String> lore = new ArrayList<String>();
-        lore.add("#28ed70Click to change");
+        lore.add(canChange ? "#28ed70Click to change"
+                : "#c74d32Only the guild leader can change this stance.");
         paint(m, stance.getDisplay(), lore);
         m.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, guild.getId());
         item.setItemMeta(m);

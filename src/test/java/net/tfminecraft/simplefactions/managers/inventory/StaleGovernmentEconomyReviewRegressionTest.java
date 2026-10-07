@@ -212,11 +212,30 @@ class StaleGovernmentEconomyReviewRegressionTest {
   }
 
   @Test
+  void membersSeeTheStanceWithoutBeingOfferedALeaderOnlyAction() {
+    guild.addMember("Charlie");
+    Player member = domain.player("Charlie");
+    guild.setStance(Stance.NEUTRAL);
+    assertFalse(guild.isLeader(member));
+    government.governmentView(member, home, null);
+    Inventory menu = member.getOpenInventory().getTopInventory();
+    ItemStack stance = menu.getItem(28);
+    assertNotNull(stance);
+    assertEquals(Material.YELLOW_CONCRETE, stance.getType());
+    String description = String.join(" ", stance.getItemMeta().getLore());
+    assertTrue(description.contains("Only the guild leader can change this stance."));
+    assertFalse(description.contains("Click to change"));
+    government.click(domain.ui.click(member, 28), menu, member);
+    assertEquals(Stance.NEUTRAL, guild.getStance(home));
+  }
+
+  @Test
   void theCurrentGuildLeaderCanStillUseTheDisplayedStanceButton() {
     guild.setStance(Stance.NEUTRAL);
     government.governmentView(alice, home, null);
     Inventory menu = alice.getOpenInventory().getTopInventory();
     assertNotNull(menu.getItem(28));
+    assertTrue(String.join(" ", menu.getItem(28).getItemMeta().getLore()).contains("Click to change"));
     government.click(domain.ui.click(alice, 28), menu, alice);
     assertEquals(Stance.SUPPORT, guild.getStance(home));
   }

@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.vehicles.handover;
 
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 
@@ -128,7 +129,7 @@ public final class VehicleHandoverService {
             return;
         }
         Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, req.getOwnerName(), outcome.vehicleTypeId());
-        if (!req.getVehicleTypeId().equals(outcome.vehicleTypeId()) || !req.matchesFee(quote)) {
+        if (!Objects.equals(req.getVehicleTypeId(), outcome.vehicleTypeId()) || !req.matchesFee(quote)) {
             tellBoth(req, recipient, VehicleHandoverMessages.feeChanged());
             return;
         }

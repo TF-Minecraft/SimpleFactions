@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
@@ -932,6 +933,51 @@ class VehicleInteractionsCoverageTest {
     assertNull(feeStore.getLastOwner("vehicle-1"));
     assertFalse(RequestManager.hasRequest(recipient));
     verify(recipient).sendMessage(startsWith("§c"));
+  }
+
+  @Test
+  void publicHandoverWithNullTypeRejectsWithoutChargingChangingOwnershipOrSaving()
+      throws Exception {
+    Player recipient = fixture.player("Recipient");
+    enableTransferFee();
+    balances.put(owner.getUniqueId(), 100.0);
+    assertEquals(40.0, VehicleFeeService.quote(FeeKind.TRANSFER_FEE, "Owner", "ironclad").amount());
+    AtomicInteger saves = new AtomicInteger();
+    handoverService =
+        new VehicleHandoverService(
+            registry,
+            feeStore,
+            () -> {
+              saves.incrementAndGet();
+              feeStore.save();
+            });
+    when(fixture.ui.plugin.getVehicleHandoverService()).thenReturn(handoverService);
+    feeStore.setLastOwner("vehicle-1", "Owner");
+    feeStore.save();
+    Path feesFile = files.root.resolve("vehicle_fees.json");
+    byte[] savedFees = Files.readAllBytes(feesFile);
+
+    handoverService.offer(owner, recipient, "vehicle-1", null);
+    VehicleHandoverRequest request =
+        assertInstanceOf(VehicleHandoverRequest.class, RequestManager.getRequest(recipient));
+    assertNull(request.getVehicleTypeId());
+    try (MockedStatic<VehiclePersistence> persistence = mockStatic(VehiclePersistence.class)) {
+      assertDoesNotThrow(() -> RequestManager.accept(recipient));
+      persistence.verifyNoInteractions();
+    }
+
+    assertFalse(RequestManager.hasRequest(recipient));
+    assertEquals("player_Owner", ownerData.getOwner());
+    assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
+    assertEquals(100.0, balances.get(owner.getUniqueId()));
+    assertEquals(1000.0, faction.getBank().getWealth());
+    assertEquals(
+        0.0, economy.getLedger(owner.getUniqueId()).getAmount(PlayerCashflow.VEHICLE_FEES));
+    assertEquals("Owner", feeStore.getLastOwner("vehicle-1"));
+    assertEquals(0, saves.get());
+    assertArrayEquals(savedFees, Files.readAllBytes(feesFile));
+    verify(recipient).sendMessage(VehicleHandoverMessages.feeChanged());
+    verify(owner).sendMessage(VehicleHandoverMessages.feeChanged());
   }
 
   @Test

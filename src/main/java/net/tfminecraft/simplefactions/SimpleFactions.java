@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions;
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleHealthDecayApi.Vf;
 import java.io.File;
+import java.util.ArrayList;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.EventHandler;
@@ -538,7 +539,27 @@ public class SimpleFactions extends JavaPlugin{
 	}
 
 	public static void reloadConfigs() {
-		plugin.loadConfigs();
+		var previousRanks = new ArrayList<>(RankLoader.getRanks());
+		var previousTypes = new ArrayList<>(RelationLoader.getTypes());
+		var previousAttitudes = new ArrayList<>(RelationLoader.getAttitudes());
+		var previousTiers = new ArrayList<>(TierLoader.get());
+		var previousTitles = new ArrayList<>(TitleLoader.getTitles());
+		try {
+			plugin.loadConfigs();
+		} catch (RuntimeException failure) {
+			// Live factions still reference these definitions until every loader succeeds.
+			RankLoader.getRanks().clear();
+			RankLoader.getRanks().addAll(previousRanks);
+			RelationLoader.getTypes().clear();
+			RelationLoader.getTypes().addAll(previousTypes);
+			RelationLoader.getAttitudes().clear();
+			RelationLoader.getAttitudes().addAll(previousAttitudes);
+			TierLoader.get().clear();
+			TierLoader.get().addAll(previousTiers);
+			TitleLoader.getTitles().clear();
+			TitleLoader.getTitles().addAll(previousTitles);
+			throw failure;
+		}
 		FactionManager.rebindRanks();
 		FactionManager.rebindDiplomacy();
 		// loadConfigs rebuilds every Title, so point factions at the new copies or hasTitle stops matching.

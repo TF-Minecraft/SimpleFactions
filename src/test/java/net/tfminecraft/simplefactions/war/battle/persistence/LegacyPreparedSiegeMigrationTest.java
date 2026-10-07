@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -24,6 +25,7 @@ import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
@@ -44,6 +46,7 @@ import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
+import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarMapper;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
@@ -217,6 +220,10 @@ class LegacyPreparedSiegeMigrationTest {
           .getInstallationHandler()
           .acceptTransferred(
               new Installation("keep", "Keep", InstallationKind.FORT, FORT_HOME, 200, 200, 100L));
+      province(defender, FORT_HOME, AXIS);
+      province(defender, AXIS, FORT_HOME);
+      assertEquals(
+          FORT_HOME, FortZocIndex.fromGameState().fortForProvince(AXIS).orElseThrow().province());
       War original = new War(990340, attacker, defender);
       original.setGoal(WarGoalType.WAR);
       original.setCampaignProvinces(List.of(10, AXIS, 40));
@@ -314,6 +321,16 @@ class LegacyPreparedSiegeMigrationTest {
       Regiment regiment = new Regiment("professional", config);
       faction.getMilitary().getRegiments().add(regiment);
       assertTrue(faction.getMilitary().adminAdjustSlots(regiment.getId(), 2).allowed());
+    }
+
+    private void province(Faction owner, int id, Integer... neighbors) {
+      Province province = mock(Province.class);
+      when(province.getId()).thenReturn(id);
+      when(province.isValid()).thenReturn(true);
+      when(province.isSea()).thenReturn(false);
+      when(province.getOwner()).thenReturn(owner);
+      when(province.getNeighbours()).thenReturn(Set.of(neighbors));
+      domain.provinceData.put(id, province);
     }
 
     JsonObject geometry() {

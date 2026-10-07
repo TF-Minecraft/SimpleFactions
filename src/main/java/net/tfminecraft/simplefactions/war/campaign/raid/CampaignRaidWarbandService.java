@@ -28,17 +28,17 @@ public final class CampaignRaidWarbandService {
 	private CampaignRaidWarbandService() {}
 
 	public static String attackerWarbandId(CampaignRaid raid) {
-		if (raid == null || raid.getId() == null || raid.getId().isBlank()) {
+		if (raid == null || raid.getWarbandIdPrefix() == null || raid.getWarbandIdPrefix().isBlank()) {
 			return null;
 		}
-		return raid.getId() + "_attacker";
+		return raid.getWarbandIdPrefix() + "_attacker";
 	}
 
 	public static String defenderWarbandId(CampaignRaid raid) {
-		if (raid == null || raid.getId() == null || raid.getId().isBlank()) {
+		if (raid == null || raid.getWarbandIdPrefix() == null || raid.getWarbandIdPrefix().isBlank()) {
 			return null;
 		}
-		return raid.getId() + "_defender";
+		return raid.getWarbandIdPrefix() + "_defender";
 	}
 
 	public static boolean isRaidWarbandHiddenFromPlayer(Warband warband, org.bukkit.entity.Player player) {
