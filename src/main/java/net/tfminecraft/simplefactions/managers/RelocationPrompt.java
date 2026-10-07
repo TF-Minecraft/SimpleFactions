@@ -87,7 +87,7 @@ public class RelocationPrompt implements Listener {
             player.sendMessage("§cYour guild changed while you were deciding. Start relocation again.");
             return false;
         }
-        if (!Double.isFinite(cost) || cost < 0 || guild.getBank().getWealth() < cost) {
+        if (guild.getBank() == null || !Double.isFinite(cost) || cost < 0 || guild.getBank().getWealth() < cost) {
             player.sendMessage("§cCannot afford to relocate");
             return false;
         }

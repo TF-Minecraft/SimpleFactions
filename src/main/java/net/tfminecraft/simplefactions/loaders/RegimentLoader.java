@@ -39,8 +39,7 @@ public class RegimentLoader {
                 loaded.add(new Regiment(key, config.getConfigurationSection(key)));
             }
         } catch (IOException | InvalidConfigurationException | RuntimeException e) {
-            e.printStackTrace();
-            return;
+            throw new IllegalStateException("Cannot load definitions from " + configFile, e);
         }
         oList.clear();
         oList.addAll(loaded);

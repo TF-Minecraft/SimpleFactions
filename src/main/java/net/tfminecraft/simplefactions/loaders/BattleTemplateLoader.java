@@ -60,8 +60,7 @@ public class BattleTemplateLoader {
 			if (Bukkit.getServer() != null) {
 				Bukkit.getLogger().warning("[SimpleFactions] Failed to load battle-templates.yml: " + e.getMessage());
 			}
-			e.printStackTrace();
-			return;
+			throw new IllegalStateException("Cannot load battle templates from " + configFile, e);
 		}
 		Map<String, BattleTemplate> loaded = new HashMap<>();
 		Set<String> keys = config.getKeys(false);
@@ -72,8 +71,7 @@ public class BattleTemplateLoader {
 				if (Bukkit.getServer() != null) {
 					Bukkit.getLogger().warning("[SimpleFactions] Failed to load battle template '" + key + "': " + e.getMessage());
 				}
-				e.printStackTrace();
-				return;
+				throw new IllegalStateException("Cannot load battle template " + key + " from " + configFile, e);
 			}
 		}
 		templates.clear();

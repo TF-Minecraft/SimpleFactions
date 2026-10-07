@@ -39,7 +39,8 @@ public class ConfigLoader {
 
 	public void loadConfig(File configFile) {
 		FileConfiguration config = loadYaml(configFile);
-		if (config == null) return;
+		validateBattlePresenceConfig(config);
+		validateBattleTemplateDefaultsConfig(config);
 		Cache.mapRef = config.getString("map-reference", "main");
 		Cache.chapterId = ChapterIdentity.normalizeId(config.getString("map-id"));
 		Cache.chapterName = ChapterIdentity.normalizeName(config.getString("map-name"));
@@ -118,8 +119,6 @@ public class ConfigLoader {
 		Cache.battleEmptySideGraceSeconds = Math.max(0, config.getInt("battle.empty_side_grace_seconds", 300));
 		Cache.battleTimeCapEnabled = config.getBoolean("battle.time_cap_enabled", false);
 		Cache.battleTimeCapMinutes = config.getInt("battle.time_cap_minutes", 120);
-		validateBattlePresenceConfig();
-		validateBattleTemplateDefaultsConfig();
 
 		Cache.branchUpgradeCost = config.getDouble("branch-upgrade-cost", 100.0);
 		Cache.branchUpgradeExponent = config.getDouble("branch-upgrade-exponent", 1.1);
@@ -173,13 +172,15 @@ public class ConfigLoader {
 
 	public void loadWar(File warFile) {
 		FileConfiguration config = loadYaml(warFile);
-		if (config == null) return;
 		if (!config.contains("war") && warFile != null && warFile.getParentFile() != null) {
 			FileConfiguration fromConfig = loadYaml(new File(warFile.getParentFile(), "config.yml"));
 			if (fromConfig != null && fromConfig.contains("war")) {
 				config = fromConfig;
 			}
 		}
+		validateBattleScheduleConfig(config);
+		validateCampaignRaidConfig(config);
+		validateWarDevmodeConfig(config);
 		Cache.warRequireDeclareCode = config.getBoolean("war.require_declare_code", false);
 		Cache.warDeclareCodeTimeoutSeconds =
 				Math.max(1, config.getInt("war.declare_code_timeout_seconds", 10));
@@ -260,7 +261,6 @@ public class ConfigLoader {
 		double loserLossFraction = config.getDouble("war.autoresolve.loser_loss_fraction", 0.5);
 		Cache.warAutoresolveLoserLossFraction = loserLossFraction < 0 ? 0 : loserLossFraction;
 		Cache.warDevmodePhantomCount = config.getInt("war.devmode.phantom_count", 10);
-		validateBattleScheduleConfig();
 
 		Cache.warBattleLivesPerRegiment = config.getInt("war.battle_military.lives_per_regiment", 5);
 		Cache.warBattleMinSideLives = config.getInt("war.battle_military.min_side_lives", 1);
@@ -284,8 +284,6 @@ public class ConfigLoader {
 				config.getInt("war.campaign_raid.intruder_damage_interval_ticks", 10);
 		Cache.campaignRaidIntruderDamageAmount =
 				config.getInt("war.campaign_raid.intruder_damage_amount", 4);
-		validateCampaignRaidConfig();
-		validateWarDevmodeConfig();
 	}
 
 	private static double nonNegative(double value, double fallback) {
@@ -302,20 +300,19 @@ public class ConfigLoader {
 				config.load(file);
 			}
 		} catch (IOException | InvalidConfigurationException e) {
-			e.printStackTrace();
-			return null;
+			throw new IllegalStateException("Cannot load configuration from " + file, e);
 		}
 		return config;
 	}
 
-	private static void validateBattleScheduleConfig() {
+	private static void validateBattleScheduleConfig(FileConfiguration config) {
 		// Hours in war.battle_schedule are Europe/Paris (CET/CEST), not UTC.
-		int defenderDeadline = Cache.warDefenderChoiceDeadlineHour;
-		int voteClose = Cache.warVoteCloseHour;
-		int raidStart = Cache.warRaidWindowStartHour;
-		int raidEnd = Cache.warRaidWindowEndHour;
-		int windowStart = Cache.warBattleWindowStartHour;
-		int windowEnd = Cache.warBattleWindowEndHour;
+		int defenderDeadline = config.getInt("war.battle_schedule.defender_choice_deadline_hour", 12);
+		int voteClose = config.getInt("war.battle_schedule.vote_close_hour", 16);
+		int raidStart = config.getInt("war.battle_schedule.raid_window_start_hour", 19);
+		int raidEnd = config.getInt("war.battle_schedule.raid_window_end_hour", 20);
+		int windowStart = config.getInt("war.battle_schedule.window_start_hour", 21);
+		int windowEnd = config.getInt("war.battle_schedule.window_end_hour", 24);
 
 		if (defenderDeadline < 0 || defenderDeadline >= voteClose) {
 			throw invalidBattleConfiguration("war.battle_schedule.defender_choice_deadline_hour must be >= 0 and < vote_close_hour");
@@ -332,10 +329,11 @@ public class ConfigLoader {
 		if (windowStart > windowEnd || windowEnd > 24) {
 			throw invalidBattleConfiguration("war.battle_schedule requires window_start_hour <= window_end_hour <= 24");
 		}
-		if (Cache.warBattleVotingMinPlayers < 1) {
+		if (config.getInt("war.battle_voting.min_players", 4) < 1) {
 			throw invalidBattleConfiguration("war.battle_voting.min_players must be >= 1");
 		}
-		if (Cache.warBattleVotingDevMinPlayersEnabled && Cache.warBattleVotingDevMinPlayers < 1) {
+		if (config.contains("war.battle_voting.dev_min_players")
+				&& config.getInt("war.battle_voting.dev_min_players") < 1) {
 			throw invalidBattleConfiguration("war.battle_voting.dev_min_players must be >= 1");
 		}
 	}
@@ -347,52 +345,54 @@ public class ConfigLoader {
 		return new IllegalStateException(message);
 	}
 
-	private static void validateCampaignRaidConfig() {
-		if (Cache.campaignRaidMusterSeconds < 1) {
+	private static void validateCampaignRaidConfig(FileConfiguration config) {
+		if (config.getInt("war.campaign_raid.muster_seconds", 60) < 1) {
 			throw invalidBattleConfiguration("war.campaign_raid.muster_seconds must be >= 1");
 		}
-		if (Cache.campaignRaidDurationSeconds < 1) {
+		if (config.getInt("war.campaign_raid.duration_seconds", 600) < 1) {
 			throw invalidBattleConfiguration("war.campaign_raid.duration_seconds must be >= 1");
 		}
-		if (Cache.campaignRaidRepairLockHours < 1) {
+		if (config.getInt("war.campaign_raid.repair_lock_hours", 48) < 1) {
 			throw invalidBattleConfiguration("war.campaign_raid.repair_lock_hours must be >= 1");
 		}
-		if (Cache.campaignRaidIntruderDamageIntervalTicks < 1) {
+		if (config.getInt("war.campaign_raid.intruder_damage_interval_ticks", 10) < 1) {
 			throw invalidBattleConfiguration("war.campaign_raid.intruder_damage_interval_ticks must be >= 1");
 		}
-		if (Cache.campaignRaidIntruderDamageAmount < 1) {
+		if (config.getInt("war.campaign_raid.intruder_damage_amount", 4) < 1) {
 			throw invalidBattleConfiguration("war.campaign_raid.intruder_damage_amount must be >= 1");
 		}
-		for (int offset : Cache.campaignRaidMusterReminderSecondsBefore) {
+		for (int offset : loadReminderOffsets(config,
+				"war.campaign_raid.muster_reminder_seconds_before", List.of(45, 30, 15, 10))) {
 			if (offset < 1) {
 				throw invalidBattleConfiguration("war.campaign_raid.muster_reminder_seconds_before values must be >= 1");
 			}
 		}
 	}
 
-	private static void validateBattlePresenceConfig() {
-		if (Cache.battleProvincePollIntervalTicks < 1) {
+	private static void validateBattlePresenceConfig(FileConfiguration config) {
+		if (config.getInt("battle.province_poll_interval_ticks", 20) < 1) {
 			throw invalidBattleConfiguration("battle.province_poll_interval_ticks must be >= 1");
 		}
-		if (Cache.battleCaptureMinPlayers < 1) {
+		if (config.getInt("battle.capture_min_players", 1) < 1) {
 			throw invalidBattleConfiguration("battle.capture_min_players must be >= 1");
 		}
 	}
 
-	private static void validateWarDevmodeConfig() {
-		if (Cache.warDevmodePhantomCount < 0) {
+	private static void validateWarDevmodeConfig(FileConfiguration config) {
+		if (config.getInt("war.devmode.phantom_count", 10) < 0) {
 			throw invalidBattleConfiguration("war.devmode.phantom_count must be >= 0");
 		}
 	}
 
-	private static void validateBattleTemplateDefaultsConfig() {
-		if (Cache.battleProvinceLeaveCountdownSeconds < 1) {
+	private static void validateBattleTemplateDefaultsConfig(FileConfiguration config) {
+		if (config.getInt("battle.province_leave_countdown_seconds", 10) < 1) {
 			throw invalidBattleConfiguration("battle.province_leave_countdown_seconds must be >= 1");
 		}
-		if (Cache.battleSiegeContestDurationSeconds < 1) {
+		if (config.getInt("battle.siege.contest_duration_seconds", 180) < 1) {
 			throw invalidBattleConfiguration("battle.siege.contest_duration_seconds must be >= 1");
 		}
-		for (int offset : Cache.battleSignupReminderSecondsBefore) {
+		for (int offset : loadReminderOffsets(config,
+				"battle.signup_reminder_seconds_before", List.of(1800, 600, 300, 60))) {
 			if (offset < 1) {
 				throw invalidBattleConfiguration("battle.signup_reminder_seconds_before values must be >= 1");
 			}

@@ -22,7 +22,7 @@ public final class PillageApplyService {
 		if (war == null || war.getTargetSettlementId() == null || war.getTargetSettlementId().isBlank()) {
 			return;
 		}
-		Settlement settlement = PillageEligibility.findSettlement(war.getTargetSettlementId());
+		Settlement settlement = PillageEligibility.findSettlement(war.getTargetSettlementId(), war.getDefenders().getLeader());
 		if (settlement == null) {
 			return;
 		}

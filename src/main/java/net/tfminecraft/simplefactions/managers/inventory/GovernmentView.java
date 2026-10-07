@@ -346,11 +346,12 @@ public class GovernmentView {
 			int slot = e.getSlot();
 			ItemStack item = e.getCurrentItem();
 			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
+			if (f == null) return;
 			if(slot == 28 && item != null && item.getItemMeta() != null) {
 				String id = item.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
 				if(id != null) {
 					Guild guild = FactionManager.getGuildByString(id);
-					if(guild != null) {
+					if(guild != null && guild.isLeader(p) && f.getGovernment().canAffectStability(guild)) {
 						guild.switchStance();
 						governmentView(p, f, inventory);
 						p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -402,6 +403,7 @@ public class GovernmentView {
 			e.setCancelled(true);
 			int slot = e.getSlot();
 			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
+			if (f == null) return;
 			if(slot == 0) {
 				lawProposalView(p, f, null);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -766,7 +768,7 @@ public class GovernmentView {
 			
 			if(isGuilds) {
 				Guild guild = FactionManager.getGuildByString(id);
-				if(guild == null) return;
+				if(guild == null || guild.getFaction() != f || guild.isBase()) return;
 				
 				if(isFavourMode) {
 					if(gov.canFavour(guild)) {
@@ -787,7 +789,7 @@ public class GovernmentView {
 				}
 			} else {
 				Faction vassal = FactionManager.getByString(id);
-				if(vassal == null) return;
+				if(vassal == null || !f.getSubjects().contains(vassal)) return;
 				Guild mainGuild = vassal.getOrCreateMainGuild();
 				
 				if(isFavourMode) {

@@ -40,8 +40,7 @@ public class LawLoader {
                 loaded.put(key, new LawGroup(key, config.getConfigurationSection(key)));
             }
         } catch (IOException | InvalidConfigurationException | RuntimeException e) {
-            e.printStackTrace();
-            return;
+            throw new IllegalStateException("Cannot load definitions from " + configFile, e);
         }
         map.clear();
         map.putAll(loaded);

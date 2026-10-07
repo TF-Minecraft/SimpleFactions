@@ -1006,7 +1006,7 @@ public class FactionManager implements Listener{
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
 		sender.sendMessage("§aRelocation request sent to "+target.getName());
-		RequestManager.addRequest(sender, p, new RelocateRequest(g, capital, settlementName));
+		RequestManager.addRequest(sender, p, new RelocateRequest(g, capital, settlementName, target));
 	}
 
 	public static void acceptRelocateRequest(Player p) {
@@ -1017,6 +1017,10 @@ public class FactionManager implements Listener{
 			return;
 		}
 		Guild sender = req.getSender();
+		if (!req.isCurrentFor(reciever)) {
+			p.sendMessage("§cThis relocation request is no longer valid. Ask the guild to send a new request.");
+			return;
+		}
 		int capital = req.getNewCapital();
 		if(reciever.getSettlementHandler().requiresFoundingName(capital)
 				&& (req.getSettlementName() == null || req.getSettlementName().isBlank())) {
@@ -1029,15 +1033,25 @@ public class FactionManager implements Listener{
 		}
 		double cost = sender.getRelocationCost(capital);
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
-		if(sender.getBank().getWealth() < cost) {
+		if(sender.getBank() == null || !Double.isFinite(cost) || cost < 0 || sender.getBank().getWealth() < cost) {
 			p.sendMessage("§c"+sender.getName()+" does not have enough funds to relocate (Cost: "+Formatter.formatDouble(cost)+"d)");
 			if(sp != null && sp.isOnline()) sp.sendMessage("§cYour guild does not have enough funds to relocate (Cost: "+Formatter.formatDouble(cost)+"d)");
 			return;
 		}
+		Player actor = (sp != null && sp.isOnline()) ? sp : p;
+		if (!reciever.hasProvince(capital)) {
+			p.sendMessage("§cYour faction no longer owns the relocation province.");
+			return;
+		}
+		var validation = reciever.getSettlementHandler()
+				.validateRelocationCapital(actor, capital, req.getSettlementName());
+		if (!validation.isSuccess()) {
+			p.sendMessage(validation.getMessage());
+			return;
+		}
+		sender.relocate(reciever, capital, actor, req.getSettlementName());
 		sender.getBank().withdraw(cost);
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request to relocate to their faction");
-		Player actor = (sp != null && sp.isOnline()) ? sp : p;
-		sender.relocate(reciever, capital, actor, req.getSettlementName());
 		p.sendMessage(sender.getName()+"§a has been relocated to your faction");
 	}
 

@@ -5,8 +5,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.*;
@@ -79,9 +82,16 @@ class RegionLoaderBoundaryCoverageTest {
   @Test
   void defaultInputPathPublishesTheFileContent() throws Exception {
     Path file = Path.of("plugins/SimpleFactions/Input/regions.json");
-    byte[] previous = Files.exists(file) ? Files.readAllBytes(file) : null;
-    Files.createDirectories(file.getParent());
+    byte[] previous =
+        Files.exists(file, LinkOption.NOFOLLOW_LINKS) ? Files.readAllBytes(file) : null;
+    List<Path> createdDirectories = new ArrayList<>();
+    for (Path ancestor = file.getParent();
+        ancestor != null && !Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS);
+        ancestor = ancestor.getParent()) {
+      createdDirectories.add(ancestor);
+    }
     try {
+      Files.createDirectories(file.getParent());
       Files.writeString(file, "{\"default_path\":{\"provinces\":[31]}}");
       RegionLoader.loadAll();
       assertEquals("default_path", RegionLoader.getByProvince(31).getId());
@@ -89,6 +99,14 @@ class RegionLoaderBoundaryCoverageTest {
     } finally {
       if (previous == null) Files.deleteIfExists(file);
       else Files.write(file, previous);
+      for (Path created : createdDirectories) {
+        if (!Files.isDirectory(created, LinkOption.NOFOLLOW_LINKS)) continue;
+        try {
+          Files.deleteIfExists(created);
+        } catch (DirectoryNotEmptyException retained) {
+          // Preserve contents added by another fixture; ancestors are visited deepest first.
+        }
+      }
     }
   }
 

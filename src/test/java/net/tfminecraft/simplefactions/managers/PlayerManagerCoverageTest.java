@@ -633,13 +633,14 @@ class PlayerManagerCoverageTest {
     }
   }
 
-  @Test
-  void loanBookSignedInTheOffHandNeverReplacesTheMainHandItem() {
+  @ParameterizedTest
+  @ValueSource(ints = {-1, 40})
+  void loanBookSignedInTheOffHandNeverReplacesTheMainHandItem(int eventSlot) {
     ItemStack book = LoanBook.getBaseBook(lender);
     leader.getInventory().setItem(0, new ItemStack(Material.NETHERITE_SWORD));
     leader.getInventory().setItem(40, book);
     BookMeta meta = (BookMeta) book.getItemMeta();
-    PlayerEditBookEvent event = new PlayerEditBookEvent(leader, 40, meta, meta, true);
+    PlayerEditBookEvent event = new PlayerEditBookEvent(leader, eventSlot, meta, meta, true);
     listener.signBook(event);
     assertTrue(event.isCancelled());
     fixture.ui.runTasks();

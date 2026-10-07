@@ -55,9 +55,7 @@ public class RankLoader {
 				throw new IllegalArgumentException("At least one rank is required");
 			}
 		} catch (IOException | InvalidConfigurationException | RuntimeException error) {
-			java.util.logging.Logger.getLogger(RankLoader.class.getName())
-					.warning("Could not load ranks from " + configFile + ": " + error.getMessage());
-			return;
+			throw new IllegalStateException("Cannot load ranks from " + configFile, error);
 		}
 		ranks.clear();
 		ranks.addAll(loaded);

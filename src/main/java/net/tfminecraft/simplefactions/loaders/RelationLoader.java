@@ -111,7 +111,6 @@ public class RelationLoader {
 	}
 	public void loadRelationTypes(File configFile) {
 		FileConfiguration config = readConfiguration(configFile);
-		if (config == null) return;
 		try {
 			var section = config.getConfigurationSection("types");
 			if (section == null) throw new IllegalArgumentException("Missing relation types section");
@@ -125,13 +124,12 @@ public class RelationLoader {
 			types.addAll(staged);
 			for (RelationType relation : staged) logger().info("loaded relationtype " + relation.getId());
 		} catch (IllegalArgumentException e) {
-			logger().warning("Could not load relation types: " + e.getMessage());
+			throw new IllegalStateException("Cannot load relation types from " + configFile, e);
 		}
 	}
 
 	public void loadAttitudes(File configFile) {
 		FileConfiguration config = readConfiguration(configFile);
-		if (config == null) return;
 		try {
 			var section = config.getConfigurationSection("attitudes");
 			if (section == null) throw new IllegalArgumentException("Missing attitudes section");
@@ -144,7 +142,7 @@ public class RelationLoader {
 			attitudes.clear();
 			attitudes.addAll(staged);
 		} catch (IllegalArgumentException e) {
-			logger().warning("Could not load attitudes: " + e.getMessage());
+			throw new IllegalStateException("Cannot load attitudes from " + configFile, e);
 		}
 	}
 
@@ -154,8 +152,7 @@ public class RelationLoader {
 			config.load(file);
 			return config;
 		} catch (IOException | InvalidConfigurationException | IllegalArgumentException e) {
-			logger().warning("Could not read diplomacy configuration: " + e.getMessage());
-			return null;
+			throw new IllegalStateException("Cannot read diplomacy configuration from " + file, e);
 		}
 	}
 

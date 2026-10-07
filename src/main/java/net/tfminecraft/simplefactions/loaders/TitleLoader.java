@@ -44,8 +44,7 @@ public class TitleLoader {
                 }
 
             } catch (Exception e) {
-                e.printStackTrace();
-                return;
+                throw new IllegalStateException("Cannot load titles from " + file, e);
             }
         }
         titles.clear();

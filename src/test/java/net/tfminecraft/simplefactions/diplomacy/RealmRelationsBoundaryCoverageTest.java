@@ -423,8 +423,8 @@ class RealmRelationsBoundaryCoverageTest {
           """);
     RelationLoader loader = new RelationLoader();
     assertAll(
-        () -> assertDoesNotThrow(() -> loader.loadRelationTypes(config.toFile())),
-        () -> assertDoesNotThrow(() -> loader.loadAttitudes(config.toFile())),
+        () -> assertThrows(IllegalStateException.class, () -> loader.loadRelationTypes(config.toFile())),
+        () -> assertThrows(IllegalStateException.class, () -> loader.loadAttitudes(config.toFile())),
         () -> assertEquals(oldTypes, RelationLoader.types),
         () -> assertEquals(oldAttitudes, RelationLoader.attitudes));
   }
@@ -444,7 +444,7 @@ class RealmRelationsBoundaryCoverageTest {
               mode: greater_then
               amount: 20
         """);
-    assertDoesNotThrow(() -> new RelationLoader().loadRelationTypes(config.toFile()));
+    assertThrows(IllegalStateException.class, () -> new RelationLoader().loadRelationTypes(config.toFile()));
     assertEquals(oldTypes, RelationLoader.types);
   }
 
@@ -454,7 +454,7 @@ class RealmRelationsBoundaryCoverageTest {
     Path config = temp.resolve("diplomacy.yml");
     RelationLoader loader = new RelationLoader();
     RelationType previous = RelationLoader.getDefaultType();
-    loader.loadRelationTypes(config.toFile());
+    assertThrows(IllegalStateException.class, () -> loader.loadRelationTypes(config.toFile()));
     assertSame(previous, RelationLoader.getDefaultType());
     Files.writeString(
         config,

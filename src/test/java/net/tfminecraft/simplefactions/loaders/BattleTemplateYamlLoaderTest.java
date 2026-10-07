@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.loaders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -72,16 +73,22 @@ class BattleTemplateYamlLoaderTest {
 	}
 
 	@Test
-	void load_invalidType_skipsTemplate() throws IOException {
+	void load_invalidType_rejectsTheWholeInitialFile() throws IOException {
 		Path yamlFile = tempDir.resolve("battle-templates.yml");
 		Files.writeString(yamlFile, """
+				valid_sibling:
+				  type: field
 				broken:
 				  type: not_a_type
 				  friendly_fire: true
 				""");
 
-		new BattleTemplateLoader().load(yamlFile.toFile());
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+				() -> new BattleTemplateLoader().load(yamlFile.toFile()));
 
+		assertTrue(failure.getMessage().contains(yamlFile.toString()));
+		assertNotNull(failure.getCause());
+		assertTrue(failure.getCause().getMessage().contains("broken"));
 		assertTrue(BattleTemplateLoader.getAll().isEmpty());
 	}
 }
