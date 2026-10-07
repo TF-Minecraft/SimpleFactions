@@ -60,7 +60,7 @@ public final class CampaignRaidResumeService {
 		if (raid.getMusterEndsAt() == null) {
 			return;
 		}
-		CampaignRaidWarbandService.createAttackerWarband(war, raid);
+		CampaignRaidWarbandService.createRaidWarbands(war, raid);
 		if (now.isBefore(raid.getMusterEndsAt())) {
 			CampaignRaidMusterScheduler.onMusterStarted(war, now);
 		} else {

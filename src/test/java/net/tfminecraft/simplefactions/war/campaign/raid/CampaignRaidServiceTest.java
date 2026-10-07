@@ -73,6 +73,8 @@ class CampaignRaidServiceTest {
 		when(defender.getInstallationHandler()).thenReturn(defenderHandler);
 		when(attackerHandler.getById("port-atk")).thenReturn(atkPort);
 		when(defenderHandler.getById("port-def")).thenReturn(defPort);
+		when(attackerHandler.getAll()).thenReturn(List.of(atkPort));
+		when(defenderHandler.getAll()).thenReturn(List.of(defPort));
 
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
@@ -154,6 +156,8 @@ class CampaignRaidServiceTest {
 		Installation defPort = new Installation("port-def", "Def Port", InstallationKind.PORT, 20, 0, 0, 0L);
 		Installation atkPortTarget = new Installation("port-atk", "Atk Port", InstallationKind.PORT, 10, 0, 0, 0L);
 		when(defenderHandler.getById("port-def")).thenReturn(defPort);
+		when(attackerHandler.getAll()).thenReturn(List.of(atkPortTarget));
+		when(defenderHandler.getAll()).thenReturn(List.of(defPort));
 		when(attackerHandler.getById("port-atk")).thenReturn(atkPortTarget);
 
 		CampaignRaidService.beginMuster(war, attacker, "port-atk", "port-def", raidWindow);

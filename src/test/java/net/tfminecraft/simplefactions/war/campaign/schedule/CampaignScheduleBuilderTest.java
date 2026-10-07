@@ -88,10 +88,10 @@ class CampaignScheduleBuilderTest {
 	@Test
 	void build_fortOnRoute_insertsSiegeBeforeFields() {
 		setupMap(List.of(5, 10, 20, 30), 10, 20, 30);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -135,10 +135,10 @@ class CampaignScheduleBuilderTest {
 		stubOwnership(10, attacker);
 		stubOwnership(new int[] {20, 21, 25}, defender);
 
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -161,10 +161,10 @@ class CampaignScheduleBuilderTest {
 	@Test
 	void build_attackerOwnedFort_skipsSiege() {
 		setupMap(List.of(5, 10, 20, 30), 10, 20, 30);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", attacker, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", attacker, 20, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -180,10 +180,10 @@ class CampaignScheduleBuilderTest {
 	@Test
 	void build_manuallyFlippedController_skipsSiege() {
 		setupMap(List.of(5, 10, 20, 30), 10, 20, 30);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -379,10 +379,10 @@ class CampaignScheduleBuilderTest {
 		stubOwnership(10, attacker);
 		stubOwnership(new int[] {20, 21, 30}, defender);
 
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -414,10 +414,10 @@ class CampaignScheduleBuilderTest {
 		stubOwnership(10, attacker);
 		stubOwnership(new int[] {20, 21, 30}, defender);
 
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -445,10 +445,10 @@ class CampaignScheduleBuilderTest {
 		stubOwnership(5, attacker);
 		stubOwnership(new int[] {713, 705}, defender);
 
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 100L)));
+		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<Integer> axis = List.of(5, 795, 705);
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
@@ -485,10 +485,10 @@ class CampaignScheduleBuilderTest {
 		stubOwnership(10, attacker);
 		stubOwnership(new int[] {704, 713, 705}, defender);
 
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 100L)));
+		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<Integer> axis = List.of(10, 704, 705);
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
@@ -523,10 +523,10 @@ class CampaignScheduleBuilderTest {
 		stubOwnership(5, attacker);
 		stubOwnership(new int[] {20, 21, 25}, defender);
 
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", defender, 20, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -574,10 +574,10 @@ class CampaignScheduleBuilderTest {
 
 		PortSeaZocIndex portIndex = PortSeaZocIndex.fromPorts(List.of(
 				new OperationalPort("Lan_Harbour", defender, 695, 100L)));
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 200L)));
+		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 200L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<Integer> axis = List.of(452, 795, 709, 713, 705);
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
@@ -655,10 +655,10 @@ class CampaignScheduleBuilderTest {
 	@Test
 	void buildCounter_fortOnRoute_insertsSiege() {
 		setupMap(List.of(5, 10, 20, 30), 5, 20, 30);
-		FortZocIndex index = FortZocIndex.fromForts(List.of(
-				new OperationalFort("fort_a", attacker, 10, 100L)));
+		OperationalFort fort = new OperationalFort("fort_a", attacker, 10, 100L);
+		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.buildCounter(
 				war,
@@ -769,10 +769,10 @@ class CampaignScheduleBuilderTest {
 		Cache.warProvincesBetweenBattles = 3;
 		List<Integer> axis = List.of(452, 782, 758, 757, 672, 709, 713, 705);
 		setupMap(axis, 452, 709, 713, 705);
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 100L)));
+		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -801,10 +801,10 @@ class CampaignScheduleBuilderTest {
 	void build_borderAtFortHome_placesSiegeNotBorderField() {
 		List<Integer> axis = List.of(452, 709, 713, 705);
 		setupMap(axis, 452, 709, 713, 705);
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 100L)));
+		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -840,13 +840,13 @@ class CampaignScheduleBuilderTest {
 		stubOwnership(452, attacker);
 		stubOwnership(new int[] {709, 713, 705, 704}, defender);
 
-		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(
-				new OperationalFort("Greenfort", defender, 713, 1787472176192L),
-				new OperationalFort("Lan_Airfield", defender, 704, 1787472195192L)));
+		OperationalFort greenfort = new OperationalFort("Greenfort", defender, 713, 1787472176192L);
+		OperationalFort airfield = new OperationalFort("Lan_Airfield", defender, 704, 1787472195192L);
+		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(greenfort, airfield));
 		War war = war();
 		war.setObjectiveProvinceId(705);
-		war.putFortController("Greenfort", CampaignCoalition.DEFENDER);
-		war.putFortController("Lan_Airfield", CampaignCoalition.DEFENDER);
+		war.putFortController(greenfort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(airfield.stableKey(), CampaignCoalition.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,

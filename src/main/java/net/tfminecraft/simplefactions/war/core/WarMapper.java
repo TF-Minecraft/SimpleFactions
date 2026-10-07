@@ -51,6 +51,7 @@ public final class WarMapper {
 
 	public static WarData toData(War war) {
 		WarData data = new WarData();
+		data.installationReferenceVersion = 1;
 		data.schemaVersion = CampaignCoalitionService.SCHEMA_VERSION;
 		data.id = war.getId();
 		data.status = war.getStatus().toJson();

@@ -599,6 +599,9 @@ class FactionManagerCoverageTest {
     Player leader = fixture.player("Bob");
     Faction home = faction("home", "Alice");
     Faction target = faction("target", "Bob");
+    when(target.hasProvince(7)).thenReturn(true);
+    when(target.getSettlementHandler().validateRelocationCapital(any(), eq(7), nullable(String.class)))
+        .thenReturn(net.tfminecraft.simplefactions.settlement.handler.CapitalResult.ok("Ready"));
     Guild guild = guild(home, "Artisans", "Alice");
     RequestManager.addRequest(sender, leader, new RelocateRequest(guild, 7, null));
     FactionManager.factions.remove(target);
@@ -629,6 +632,9 @@ class FactionManagerCoverageTest {
     Player leader = fixture.player("Bob");
     Faction home = faction("home", "Alice");
     Faction target = faction("target", "Bob");
+    when(target.hasProvince(7)).thenReturn(true);
+    when(target.getSettlementHandler().validateRelocationCapital(any(), eq(7), nullable(String.class)))
+        .thenReturn(net.tfminecraft.simplefactions.settlement.handler.CapitalResult.ok("Ready"));
     Guild guild = guild(home, "Artisans", "Alice");
     RequestManager.addRequest(leader, leader, new RelocateRequest(guild, 7, null));
     when(guild.getRelocationCost(7)).thenReturn(10.0);

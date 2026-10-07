@@ -187,7 +187,7 @@ public class BattleManager implements Listener{
 		{
 			public void run()
 			{
-				for(Battle b : battles) {
+				for(Battle b : new ArrayList<>(battles)) {
 					if(b.hasStarted()){
 						b.tick();
 					}
@@ -197,7 +197,7 @@ public class BattleManager implements Listener{
 	}
 
 	public void end() {
-		for(Battle b : battles) {
+		for(Battle b : new ArrayList<>(battles)) {
 			if(b.hasStarted()) b.end();
 		}
 	}

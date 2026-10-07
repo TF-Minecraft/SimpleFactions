@@ -117,7 +117,7 @@ class CampaignScheduleServiceTest {
 	void ensureReSiegeInsert_addsSiegeWhenEnemyFortOnPath() {
 		War war = warWithSchedule(field(30));
 		war.setCampaignCounterSchedule(List.of(field(5)));
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(new OperationalFort("fort_a", attacker, 10, 100L).stableKey(), CampaignCoalition.AGGRESSOR);
 		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 
@@ -135,7 +135,7 @@ class CampaignScheduleServiceTest {
 	void ensureReSiegeInsert_skipsWhenCurrentSlotAlreadySiegeForFort() {
 		War war = warWithSchedule(field(30));
 		war.setCampaignCounterSchedule(List.of(siege(10, "fort_a"), field(5)));
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(new OperationalFort("fort_a", attacker, 10, 100L).stableKey(), CampaignCoalition.AGGRESSOR);
 		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 

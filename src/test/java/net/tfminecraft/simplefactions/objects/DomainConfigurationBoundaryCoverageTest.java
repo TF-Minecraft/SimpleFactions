@@ -221,7 +221,7 @@ class DomainConfigurationBoundaryCoverageTest {
     var previous = new ArrayList<>(RankLoader.getRanks());
     Path file = directory.resolve("ranks.yml");
     if (malformed) Files.writeString(file, "rank: [unterminated\n");
-    new RankLoader().loadRanks(file.toFile());
+    assertThrows(IllegalStateException.class, () -> new RankLoader().loadRanks(file.toFile()));
     assertEquals(previous, RankLoader.getRanks());
     assertSame(previous.getFirst(), RankLoader.getLowest());
   }
@@ -374,7 +374,7 @@ class DomainConfigurationBoundaryCoverageTest {
     Files.writeString(
         file, "novice:\n  name: Novice\n  level: 1\n  minimum-prestige: 0\nbroken: scalar\n");
     RankLoader loader = new RankLoader();
-    loader.loadRanks(file.toFile());
+    assertThrows(IllegalStateException.class, () -> loader.loadRanks(file.toFile()));
     assertEquals(previous, RankLoader.getRanks());
     assertNull(
         RankLoader.getByString("novice"), "An earlier valid row must not leak from a failed load");
@@ -401,7 +401,7 @@ class DomainConfigurationBoundaryCoverageTest {
     var previous = new ArrayList<>(RankLoader.getRanks());
     Path file = directory.resolve("empty-ranks.yml");
     Files.writeString(file, "# accidental empty replacement\n");
-    new RankLoader().loadRanks(file.toFile());
+    assertThrows(IllegalStateException.class, () -> new RankLoader().loadRanks(file.toFile()));
     assertAll(
         () -> assertEquals(previous, RankLoader.getRanks()),
         () -> assertSame(previous.getFirst(), fixture.saved("after_reload", "Leader").getRank()));

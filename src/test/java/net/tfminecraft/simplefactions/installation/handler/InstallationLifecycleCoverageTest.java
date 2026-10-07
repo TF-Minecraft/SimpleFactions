@@ -780,7 +780,7 @@ class InstallationLifecycleCoverageTest {
   }
 
   @Test
-  void legacyWartimeSnapshotStillReturnsAnUnambiguousInstallation() {
+  void migratedLegacyWartimeSnapshotReturnsAnUnambiguousInstallation() {
     Faction attacker = faction("attacker", "Attacker", 43);
     Installation port = install(attacker, "port", InstallationKind.PORT, 42, 0, 0, 1, 1);
     War war = new War(7, attacker, home);
@@ -790,7 +790,26 @@ class InstallationLifecycleCoverageTest {
     legacy.put("missing-port", "deleted-faction");
     legacy.put("port", home.getId());
     war.setWartimeInstallationOwners(legacy);
+    net.tfminecraft.simplefactions.installation.WarInstallationMigration.migrate(war);
     WartimeInstallationService.revert(war);
+    assertSame(port, home.getInstallationHandler().getById("port"));
+    assertTrue(attacker.getInstallationHandler().getAll().isEmpty());
+    assertTrue(war.getWartimeInstallationOwners().isEmpty());
+  }
+
+  @Test
+  void malformedSnapshotEntriesDoNotPreventReturningTheValidPhysicalInstallation() {
+    Faction attacker = faction("attacker", "Attacker", 43);
+    Installation port = install(attacker, "port", InstallationKind.PORT, 42, 0, 0, 1, 1);
+    War war = new War(11, attacker, home);
+    Map<String, String> snapshot = new LinkedHashMap<>();
+    snapshot.put(null, home.getId());
+    snapshot.put("missing-owner", null);
+    snapshot.put(port.getStableKey(), home.getId());
+    war.setWartimeInstallationOwners(snapshot);
+
+    WartimeInstallationService.revert(war);
+
     assertSame(port, home.getInstallationHandler().getById("port"));
     assertTrue(attacker.getInstallationHandler().getAll().isEmpty());
     assertTrue(war.getWartimeInstallationOwners().isEmpty());

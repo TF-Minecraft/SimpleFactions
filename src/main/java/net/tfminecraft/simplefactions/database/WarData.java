@@ -8,6 +8,7 @@ import java.util.Map;
 
 public class WarData {
     public int schemaVersion = 2;
+    public int installationReferenceVersion;
     public int id;
     public String status;
     public String goal;

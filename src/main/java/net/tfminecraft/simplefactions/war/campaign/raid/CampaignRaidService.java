@@ -116,7 +116,7 @@ public final class CampaignRaidService {
 		raid.setMusterEndsAt(now.plusSeconds(Cache.campaignRaidMusterSeconds));
 		raid.clearMusterRemindersSent();
 		war.setActiveCampaignRaid(raid);
-		CampaignRaidWarbandService.createAttackerWarband(war, raid);
+		CampaignRaidWarbandService.createRaidWarbands(war, raid);
 		CampaignRaidMusterScheduler.onMusterStarted(war, now);
 		return LaunchResult.STARTED;
 	}
@@ -205,19 +205,22 @@ public final class CampaignRaidService {
 		if (war == null || installationId == null || installationId.isBlank() || until == null) {
 			return;
 		}
-		war.getRaidRepairLockUntil().put(installationId, until);
+		var matches = matchingInstallations(installationId);
+		if (matches.size() == 1) war.getRaidRepairLockUntil().put(matches.getFirst().getStableKey(), until);
 	}
 
 	public static boolean isRepairLocked(War war, String installationId, Instant now) {
 		if (war == null || installationId == null || installationId.isBlank() || now == null) {
 			return false;
 		}
-		Instant until = war.getRaidRepairLockUntil().get(installationId);
-		if (until != null && now.isBefore(until)) return true;
-		for (Installation installation : InstallationLookup.all()) {
-			if (installationId.equals(installation.getId()) && isInstallationRepairLocked(war, installation, now)) return true;
-		}
-		return false;
+		var matches = matchingInstallations(installationId);
+		return matches.size() == 1 && isInstallationRepairLocked(war, matches.getFirst(), now);
+	}
+
+	private static java.util.List<Installation> matchingInstallations(String key) {
+		return InstallationLookup.all().stream()
+				.filter(installation -> key.equals(installation.getStableKey()) || key.equals(installation.getId()))
+				.toList();
 	}
 
 	public static void setInstallationRepairLockUntil(War war, Installation installation, Instant until) {
@@ -227,12 +230,7 @@ public final class CampaignRaidService {
 	public static boolean isInstallationRepairLocked(War war, Installation installation, Instant now) {
 		if (war == null || installation == null || now == null) return false;
 		Instant until = war.getRaidRepairLockUntil().get(installation.getStableKey());
-		if (until != null && now.isBefore(until)) return true;
-		// Old saves only stored the local id. Limit that fallback to this war's holders.
-		var owner = net.tfminecraft.simplefactions.installation.InstallationOwners.ownerOf(installation);
-		if (owner == null || war.getSide(owner) == null) return false;
-		Instant legacy = war.getRaidRepairLockUntil().get(installation.getId());
-		return legacy != null && now.isBefore(legacy);
+		return until != null && now.isBefore(until);
 	}
 
 	public static Instant repairLockUntilFromStart(Instant fightStart) {

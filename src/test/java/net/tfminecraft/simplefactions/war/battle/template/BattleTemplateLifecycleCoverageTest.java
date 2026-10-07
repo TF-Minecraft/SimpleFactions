@@ -4,9 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.google.gson.Gson;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -76,19 +73,11 @@ class BattleTemplateLifecycleCoverageTest {
       Files.writeString(
           replacement, "replacement:\n  type: raid\nbroken:\n  type: unknown_battle_kind\n");
     }
-    PrintStream previousError = System.err;
-    ByteArrayOutputStream errors = new ByteArrayOutputStream();
-    try (PrintStream capture = new PrintStream(errors, true, StandardCharsets.UTF_8)) {
-      System.setErr(capture);
-      loader.load(replacement.toFile());
-    } finally {
-      System.setErr(previousError);
-    }
+    loadAndAssertFailure(loader, replacement);
     assertSame(original, BattleTemplateLoader.getByName("field_default"));
     assertEquals(Map.of("field_default", original), BattleTemplateLoader.getAll());
     assertEquals(17, original.getConfig().getLives());
     verify(logger, atLeastOnce()).warning(contains("Failed to load"));
-    assertFalse(errors.toString(StandardCharsets.UTF_8).isBlank());
   }
 
   @ParameterizedTest
@@ -133,10 +122,10 @@ class BattleTemplateLifecycleCoverageTest {
     loader.load(file.toFile());
     BattleTemplate original = BattleTemplateLoader.getByName("ready");
     Files.writeString(file, "invalid: [broken\n");
-    assertFalse(loadAndCaptureErrors(loader, file).isBlank());
+    loadAndAssertFailure(loader, file);
     assertSame(original, BattleTemplateLoader.getByName("ready"));
     Files.writeString(file, "invalid: scalar\n");
-    assertFalse(loadAndCaptureErrors(loader, file).isBlank());
+    loadAndAssertFailure(loader, file);
     assertSame(original, BattleTemplateLoader.getByName("ready"));
     verifyNoInteractions(logger);
   }
@@ -353,15 +342,12 @@ class BattleTemplateLifecycleCoverageTest {
     return yaml;
   }
 
-  private static String loadAndCaptureErrors(BattleTemplateLoader loader, Path file) {
-    PrintStream old = System.err;
-    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-    try (PrintStream capture = new PrintStream(buffer, true, StandardCharsets.UTF_8)) {
-      System.setErr(capture);
-      loader.load(file.toFile());
-    } finally {
-      System.setErr(old);
-    }
-    return buffer.toString(StandardCharsets.UTF_8);
+  private static void loadAndAssertFailure(BattleTemplateLoader loader, Path file) {
+    IllegalStateException failure =
+        assertThrows(IllegalStateException.class, () -> loader.load(file.toFile()));
+    assertTrue(failure.getMessage().contains(file.toString()));
+    assertNotNull(failure.getCause());
+    assertNotNull(failure.getCause().getMessage());
+    assertFalse(failure.getCause().getMessage().isBlank());
   }
 }

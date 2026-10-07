@@ -184,7 +184,7 @@ public class CampaignRaidLifecycleCoverageTest {
     assertEquals(rig.source.getId(), raid.getSourceInstallationId());
     assertEquals(rig.target.getId(), raid.getTargetInstallationId());
     assertEquals(rig.attacker.getId(), raid.getLauncherFactionId());
-    assertEquals(1, WarbandManager.get().size());
+    assertEquals(2, WarbandManager.get().size());
     assertTrue(CampaignRaidWarbandService.getAttackerWarband(raid).isPendingLeader());
     assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignCoalition.AGGRESSOR));
     assertTrue(rig.warWrites() > before);
@@ -486,7 +486,8 @@ public class CampaignRaidLifecycleCoverageTest {
     listener.onJoin(
         new org.bukkit.event.player.PlayerJoinEvent(
             late, net.kyori.adventure.text.Component.empty()));
-    assertNull(CampaignRaidWarbandService.getDefenderWarband(raid));
+    assertNotNull(CampaignRaidWarbandService.getDefenderWarband(raid));
+    assertEquals(0, CampaignRaidWarbandService.getDefenderWarband(raid).getRealMemberCount());
     CampaignRaidLaunchService.startFight(rig.war, raid.getMusterEndsAt());
     Warband defenders = CampaignRaidWarbandService.getDefenderWarband(raid);
     assertFalse(defenders.hasMember(late));
@@ -915,6 +916,7 @@ public class CampaignRaidLifecycleCoverageTest {
   @Test
   void aPlayerWarbandCreatedDuringMusterCannotBeEnrolledOrDeletedAsRaidDefenders() {
     CampaignRaid raid = muster();
+    WarbandManager.get().remove(CampaignRaidWarbandService.getDefenderWarband(raid));
     Player owner = rig.player("PrivateOwner");
     Warband manual = new Warband(CampaignRaidWarbandService.defenderWarbandId(raid), owner);
     WarbandManager.addWarband(manual);

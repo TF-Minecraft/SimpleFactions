@@ -752,6 +752,7 @@ class GovernmentMenusCoverageTest {
   @Test
   void stanceToggleUsesItsEncodedGuildAndRefreshesTheCurrentMenu() {
     Guild guild = guild("artisans", "Artisans");
+    when(guild.isLeader(player)).thenReturn(true);
     factionLookup.when(() -> FactionManager.getGuildByMember("Alice")).thenReturn(guild);
     when(government.canAffectStability(guild)).thenReturn(true);
     view.governmentView(player, faction, null);

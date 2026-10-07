@@ -50,6 +50,7 @@ public class CampaignRaidBattleEndService implements Listener {
 			displayName = battle.getDisplayName();
 		}
 		CampaignRaidService.endRaid(war, CampaignClock.now());
+		WarManager.persist(war);
 		broadcastRaidEnded(war, target, displayName);
 	}
 

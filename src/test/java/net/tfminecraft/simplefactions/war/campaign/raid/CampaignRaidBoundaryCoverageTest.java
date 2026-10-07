@@ -194,10 +194,12 @@ class CampaignRaidBoundaryCoverageTest {
   }
 
   @Test
-  void legacyRepairLocksApplyOnlyToInstallationsHeldByThisWarsParticipants() {
+  void ambiguousLocalRepairLockIdsAreRejectedAndPhysicalLocksRemainIndependent() {
     var neutral = rig.domain.saved("legacy_lock_neutral", "Neutral");
     var foreign = rig.install(neutral, rig.target.getId(), InstallationKind.PORT, 40);
     CampaignRaidService.setRepairLockUntil(rig.war, rig.target.getId(), rig.now().plusSeconds(60));
+    assertTrue(rig.war.getRaidRepairLockUntil().isEmpty());
+    CampaignRaidService.setInstallationRepairLockUntil(rig.war, rig.target, rig.now().plusSeconds(60));
     assertTrue(CampaignRaidService.isInstallationRepairLocked(rig.war, rig.target, rig.now()));
     assertFalse(CampaignRaidService.isInstallationRepairLocked(rig.war, foreign, rig.now()));
     assertFalse(CampaignRaidService.isRepairLocked(rig.war, "unregistered_port", rig.now()));

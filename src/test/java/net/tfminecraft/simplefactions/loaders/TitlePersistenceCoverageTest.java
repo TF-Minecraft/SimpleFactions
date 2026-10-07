@@ -105,7 +105,7 @@ class TitlePersistenceCoverageTest {
     assertNotNull(original);
     Files.writeString(
         path, "{\"replacement\":{\"name\":\"Replacement\",\"provinces\":[2]},\"invalid\":42}");
-    new TitleLoader().reload();
+    assertThrows(IllegalStateException.class, () -> new TitleLoader().reload());
     assertEquals(List.of(original), TitleLoader.getTitles());
     assertSame(original, TitleLoader.getById("first"));
     assertNull(TitleLoader.getById("replacement"));

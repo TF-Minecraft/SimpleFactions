@@ -28,29 +28,17 @@ public final class FortControlService {
 	public static Optional<CampaignCoalition> controller(War war, String fortInstallationId) {
 		if (war == null || fortInstallationId == null || fortInstallationId.isBlank()) return Optional.empty();
 		var matches = matchingForts(fortInstallationId, null);
-		if (matches.size() > 1) return Optional.empty();
-		return matches.isEmpty() ? Optional.ofNullable(war.getFortControllers().get(fortInstallationId))
-				: controllerForFort(war, matches.getFirst());
+		return matches.size() == 1 ? controllerForFort(war, matches.getFirst()) : Optional.empty();
 	}
 
 	public static Optional<CampaignCoalition> controllerForInstallation(War war, Installation fort) {
 		if (war == null || fort == null) return Optional.empty();
-		return physicalController(war, fort.getStableKey(), fort.getId());
+		return Optional.ofNullable(war.getFortControllers().get(fort.getStableKey()));
 	}
 
 	public static Optional<CampaignCoalition> controllerForFort(War war, OperationalFort fort) {
 		if (war == null || fort == null) return Optional.empty();
-		return physicalController(war, fort.stableKey(), fort.id());
-	}
-
-	private static Optional<CampaignCoalition> physicalController(War war, String stableKey, String localId) {
-		CampaignCoalition current = war.getFortControllers().get(stableKey);
-		if (current != null) return Optional.of(current);
-		// Old saves used holder-local IDs. Never apply an ambiguous entry to either fort.
-		if (matchingForts(localId, null).stream().anyMatch(fort -> !stableKey.equals(fort.stableKey()))) {
-			return Optional.empty();
-		}
-		return Optional.ofNullable(war.getFortControllers().get(localId));
+		return Optional.ofNullable(war.getFortControllers().get(fort.stableKey()));
 	}
 
 	public static void setController(War war, String fortInstallationId, CampaignCoalition coalition) {
@@ -62,15 +50,9 @@ public final class FortControlService {
 			CampaignCoalition coalition) {
 		if (war == null || fortInstallationId == null || fortInstallationId.isBlank() || coalition == null) return;
 		var matches = matchingForts(fortInstallationId, province);
-		if (matches.size() > 1) return;
-		if (matches.isEmpty()) {
-			if (province != null) return;
-			war.putFortController(fortInstallationId, coalition);
-			return;
-		}
+		if (matches.size() != 1) return;
 		OperationalFort fort = matches.getFirst();
 		var controllers = new HashMap<>(war.getFortControllers());
-		if (matchingForts(fort.id(), null).size() == 1) controllers.remove(fort.id());
 		controllers.put(fort.stableKey(), coalition);
 		war.setFortControllers(controllers);
 	}

@@ -277,7 +277,7 @@ public class PlayerManager implements Listener{
     /** Keep delayed updates bound to the original inventory slot and its unchanged book. */
     private Consumer<ItemStack> bookReplacement(PlayerEditBookEvent event) {
         Player player = event.getPlayer();
-        int slot = event.getSlot();
+        int slot = event.getSlot() == -1 ? 40 : event.getSlot();
         ItemStack original = player.getInventory().getItem(slot);
         ItemStack expected = original == null ? null : original.clone();
         return replacement -> {

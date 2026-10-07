@@ -1634,16 +1634,26 @@ public class CommandManager implements Listener, CommandExecutor{
 				if(!Cache.requireProvinces(p)) {
 					return true;
 				}
-				SimpleFactions.reloadTitles();
-				p.sendMessage("§eReloaded titles!");
+				try {
+					SimpleFactions.reloadTitles();
+					p.sendMessage("§eReloaded titles!");
+				} catch (RuntimeException error) {
+					p.sendMessage("§cCould not reload titles: " + error.getMessage());
+					Bukkit.getLogger().log(java.util.logging.Level.WARNING, "SimpleFactions title reload failed", error);
+				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("reloadconfigs") && args.length == 1) {
 				if(!Permissions.isAdmin(sender)) {
 					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
 					return true;
 				}
-				SimpleFactions.reloadConfigs();
-				p.sendMessage("§eReloaded configs!");
+				try {
+					SimpleFactions.reloadConfigs();
+					p.sendMessage("§eReloaded configs!");
+				} catch (RuntimeException error) {
+					p.sendMessage("§cCould not reload configs: " + error.getMessage());
+					Bukkit.getLogger().log(java.util.logging.Level.WARNING, "SimpleFactions configuration reload failed", error);
+				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("destroytitle") && args.length == 2) {
 				if(!Permissions.isAdmin(sender)) {

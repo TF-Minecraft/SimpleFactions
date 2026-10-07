@@ -387,7 +387,7 @@ public class GuildView {
 					Province prov = SimpleFactions.getInstance().getProvinceManager().get(province);
 					if(prov == null || !prov.isValid() || prov.isSea()) return;
 					double cost = guild.getRelocationCost(province);
-					if(guild.getBank().getWealth() < cost) {	
+					if(guild.getBank() == null || !Double.isFinite(cost) || cost < 0 || guild.getBank().getWealth() < cost) {
 						p.sendMessage("§cCannot afford to relocate");
 						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 						return;
@@ -480,6 +480,10 @@ public class GuildView {
 				if(!guild.isLeader(p)) return;
 				Branch b = guild.getBranch(data);
 				if(b == null) return;
+				if (guild.getBank() == null) {
+					p.sendMessage("§cYour guild needs a bank to change a branch level.");
+					return;
+				}
 				if(!upgrade) {
 					if(b.getLevel() == 0) return;
 					double refund = guild.getRefund();
@@ -489,7 +493,7 @@ public class GuildView {
 					p.sendMessage("§cDowngraded "+b.getName()+ "§c to level §e"+b.getLevel());
 				} else {
 					double cost = guild.getExpansionCost();
-					if(guild.getBank().getWealth() < cost) {
+					if(guild.getBank() == null || !Double.isFinite(cost) || cost < 0 || guild.getBank().getWealth() < cost) {
 						p.sendMessage("§cCannot afford to upgrade");
 						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 						return;

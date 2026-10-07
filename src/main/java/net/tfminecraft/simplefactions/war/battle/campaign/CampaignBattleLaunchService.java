@@ -54,6 +54,12 @@ public final class CampaignBattleLaunchService {
 		}
 		Battle existing = BattleManager.getByWarId(war.getId());
 		if (existing != null) {
+			String mismatch = preparedSiegeMismatch(war, existing);
+			if (mismatch != null) {
+				logWarning(mismatch);
+				broadcastStartFailure(war, existing, mismatch);
+				return null;
+			}
 			CampaignBattleRosterService.ensureEnrolled(war, existing);
 			return existing;
 		}
@@ -92,6 +98,14 @@ public final class CampaignBattleLaunchService {
 			return false;
 		}
 
+		Battle battle = BattleManager.getByWarId(war.getId());
+		String mismatch = preparedSiegeMismatch(war, battle);
+		if (mismatch != null) {
+			logWarning(mismatch);
+			broadcastStartFailure(war, battle, mismatch);
+			return false;
+		}
+
 		Integer provinceId = war.getScheduledBattleProvinceId();
 		if (provinceId == null) {
 			provinceId = BattleScheduleService.resolveScheduledProvinceId(war);
@@ -105,7 +119,6 @@ public final class CampaignBattleLaunchService {
 			return true;
 		}
 
-		Battle battle = BattleManager.getByWarId(war.getId());
 		if (battle == null) {
 			battle = prepareScheduledBattle(war);
 		}
@@ -126,6 +139,8 @@ public final class CampaignBattleLaunchService {
 		if (battle.hasStarted()) {
 			return "Battle already started.";
 		}
+		String mismatch = preparedSiegeMismatch(war, battle);
+		if (mismatch != null) return mismatch;
 		CampaignBattleRosterService.ensureEnrolledForced(war, battle);
 		String error = battle.start();
 		if (error == null) {
@@ -133,6 +148,19 @@ public final class CampaignBattleLaunchService {
 			WarManager.persist(war);
 		}
 		return error;
+	}
+
+	/** Keep saved staff placement intact until an administrator explicitly resets a migrated siege. */
+	private static String preparedSiegeMismatch(War war, Battle battle) {
+		if (war == null || battle == null || battle.hasStarted()) return null;
+		ScheduledCampaignBattle slot = CampaignScheduleService.currentSlot(war).orElse(null);
+		if (slot != null && slot.kind() == CampaignBattleKind.SIEGE
+				&& (!java.util.Objects.equals(battle.getProvinceId(), slot.provinceId())
+						|| battle.getBattleType() != BattleType.SIEGE)) {
+			return "The prepared siege no longer matches its scheduled province or type. "
+					+ "Reset and re-place this war's battle before starting it.";
+		}
+		return null;
 	}
 
 	private static Battle createCampaignBattle(War war, int provinceId, boolean immediateStart) {

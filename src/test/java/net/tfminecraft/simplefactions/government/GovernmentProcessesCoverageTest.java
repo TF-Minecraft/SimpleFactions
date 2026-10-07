@@ -421,6 +421,15 @@ class GovernmentProcessesCoverageTest {
     report.addResult(tax(faction, target, "deleted_faction", 15), VoteResult.PASSED, 3, 0, 1);
     BookMeta book = (BookMeta) assertDoesNotThrow(report::generateReportBook).getItemMeta();
     assertTrue(book.getPages().get(1).contains("deleted_faction"));
+    TaxTarget baseTarget = switch (target) {
+      case GUILD_ID -> TaxTarget.GUILDS;
+      case VASSAL_ID -> TaxTarget.VASSALS;
+      case TARIFF_ID -> TaxTarget.TARIFFS;
+      default -> throw new AssertionError(target);
+    };
+    double baseRate = faction.getTaxRate(baseTarget, null, false);
+    assertTrue(baseRate >= 0);
+    assertTrue(book.getPages().get(1).contains(String.format("%.0f", baseRate) + "% §0→ 15.0%"));
   }
 
   @Test

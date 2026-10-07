@@ -3,9 +3,12 @@ package net.tfminecraft.simplefactions.integration;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -157,14 +160,30 @@ class IntegrationBoundaryCoverageTest {
     when(offline.getUniqueId()).thenReturn(uuid);
     when(Bukkit.getOfflinePlayerIfCached("Cached")).thenReturn(offline);
     Path directory = Path.of("plugins/RPCharacters/data/characterdata", uuid.toString());
-    Files.createDirectories(directory);
     Path saved = directory.resolve("active.json");
+    byte[] previous =
+        Files.exists(saved, LinkOption.NOFOLLOW_LINKS) ? Files.readAllBytes(saved) : null;
+    List<Path> createdDirectories = new ArrayList<>();
+    for (Path ancestor = directory;
+        ancestor != null && !Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS);
+        ancestor = ancestor.getParent()) {
+      createdDirectories.add(ancestor);
+    }
     try {
+      Files.createDirectories(directory);
       Files.writeString(saved, "{\"active\":true,\"name\":\"Brann\"}");
       assertEquals("Brann", probe.activeCharacterName("Cached"));
     } finally {
-      Files.deleteIfExists(saved);
-      Files.deleteIfExists(directory);
+      if (previous == null) Files.deleteIfExists(saved);
+      else Files.write(saved, previous);
+      for (Path created : createdDirectories) {
+        if (!Files.isDirectory(created, LinkOption.NOFOLLOW_LINKS)) continue;
+        try {
+          Files.deleteIfExists(created);
+        } catch (DirectoryNotEmptyException retained) {
+          // Preserve contents added by another fixture; ancestors are visited deepest first.
+        }
+      }
     }
   }
 

@@ -12,6 +12,7 @@ import net.tfminecraft.simplefactions.database.WarData;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.WartimeInstallationService;
+import net.tfminecraft.simplefactions.installation.WarInstallationMigration;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.map.export.ZocRealm;
 import net.tfminecraft.simplefactions.map.provinces.Province;
@@ -57,12 +58,13 @@ class BattleMilitaryBoundaryCoverageTest {
   }
 
   @Test
-  void aLegacyControllerFollowsItsPhysicalFortWhenOccupationRenamesItAroundAPortCollision()
+  void aMigratedControllerFollowsItsPhysicalFortWhenOccupationRenamesItAroundAPortCollision()
       throws Exception {
     try (Fixture rig = new Fixture()) {
       Installation port = rig.install(rig.attacker, "shared", InstallationKind.PORT, 10);
       Installation fort = rig.install(rig.defender, "shared", InstallationKind.FORT, 20);
       rig.war.setFortControllers(Map.of("shared", CampaignCoalition.AGGRESSOR));
+      WarInstallationMigration.migrate(rig.war);
       assertEquals(
           CampaignCoalition.AGGRESSOR,
           FortControlService.controllerForInstallation(rig.war, fort).orElseThrow());
@@ -96,7 +98,7 @@ class BattleMilitaryBoundaryCoverageTest {
       Faction defender = domain.saved("fort_river", "Bob");
       Installation fort = fort(defender, "shared", 20);
       War war = war(attacker, defender);
-      war.setFortControllers(Map.of("shared", CampaignCoalition.DEFENDER));
+      war.setFortControllers(Map.of(fort.getStableKey(), CampaignCoalition.DEFENDER));
 
       FortControlService.setControllerAtProvince(war, "shared", 30, CampaignCoalition.AGGRESSOR);
 
@@ -104,7 +106,7 @@ class BattleMilitaryBoundaryCoverageTest {
       assertEquals(
           CampaignCoalition.DEFENDER,
           FortControlService.controllerForInstallation(restored, fort).orElseThrow());
-      assertEquals(Map.of("shared", CampaignCoalition.DEFENDER), restored.getFortControllers());
+      assertEquals(Map.of(fort.getStableKey(), CampaignCoalition.DEFENDER), restored.getFortControllers());
       assertSame(
           defender, ZocRealm.resolveExportControllerFaction(fort, defender, List.of(restored)));
     }
@@ -308,13 +310,14 @@ class BattleMilitaryBoundaryCoverageTest {
   }
 
   @Test
-  void anUnambiguousLegacyControllerSurvivesReadCaptureAndJsonRoundTrip() {
+  void aMigratedLegacyControllerSurvivesReadCaptureAndJsonRoundTrip() {
     try (FactionDomainFixture domain = new FactionDomainFixture()) {
       Faction attacker = domain.saved("fort_iron", "Alice");
       Faction defender = domain.saved("fort_river", "Bob");
       Installation defenderFort = fort(defender, "unique", 20);
       War war = war(attacker, defender);
       war.setFortControllers(Map.of("unique", CampaignCoalition.AGGRESSOR));
+      WarInstallationMigration.migrate(war);
       assertSame(
           attacker, ZocRealm.resolveExportControllerFaction(defenderFort, defender, List.of(war)));
       assertTrue(FortControlService.isEnemyControlled(war, "unique", CampaignCoalition.DEFENDER));

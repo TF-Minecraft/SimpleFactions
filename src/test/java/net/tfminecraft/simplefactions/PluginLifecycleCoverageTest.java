@@ -14,7 +14,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.logging.Logger;
+import net.tfminecraft.simplefactions.database.BattleData;
 import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.database.JsonUtil;
+import net.tfminecraft.simplefactions.database.WarbandData;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.espionage.SpecialPositionsConfigFile;
 import net.tfminecraft.simplefactions.guild.hub.VehicleFrameworkTrackProvinces;
@@ -26,7 +29,9 @@ import net.tfminecraft.simplefactions.loaders.ConfigLoader;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.loaders.ProvinceLoader;
+import net.tfminecraft.simplefactions.loaders.RegimentLoader;
 import net.tfminecraft.simplefactions.loaders.RegionLoader;
+import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.managers.CommandManager;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -57,6 +62,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplateService;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleCommandManager;
+import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.campaign.raid.RaidCommandManager;
 import net.tfminecraft.simplefactions.war.campaign.raid.intruder.CampaignRaidIntruderService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleTickService;
@@ -261,13 +267,95 @@ class PluginLifecycleCoverageTest {
     verify(dependency("sessionManager", SessionManager.class)).end();
     assertTrue(Files.isRegularFile(disk.root.resolve("Cache/vehicles_registry.json")));
     scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll);
+    scoped(BattlePersistenceService.class).verify(BattlePersistenceService::stopAutosave);
+    scoped(BattleManager.class).verify(BattleManager::shutdown);
+    scoped(CampaignViewRefreshService.class).verify(CampaignViewRefreshService::stop);
+  }
+
+  private Map<Path, String> unloadedSavedState() throws Exception {
+    var faction = domain.data("prior", "PriorLeader");
+    faction.titles = List.of("prior_county");
+    faction.military = List.of("guard.12.3");
+    BattleData battle = new BattleData();
+    battle.id = "prior_battle";
+    battle.battleType = "field";
+    WarbandData warband = new WarbandData();
+    warband.id = "prior_warband";
+    warband.leaderId = UUID.randomUUID().toString();
+    warband.memberIds.add(warband.leaderId);
+    Map<Path, String> saved = new LinkedHashMap<>();
+    for (var entry :
+        Map.of(
+                "Data/prior.json", JsonUtil.GSON.toJson(faction),
+                "Battles/battle_prior_battle.json", JsonUtil.GSON.toJson(battle),
+                "Warbands/warband_prior_warband.json", JsonUtil.GSON.toJson(warband),
+                "Cache/data.json", "{\"time\":450,\"day\":12}")
+            .entrySet()) {
+      saved.put(disk.write(entry.getKey(), entry.getValue()), entry.getValue());
+    }
+    return saved;
+  }
+
+  private void assertSavedStateUnchanged(Map<Path, String> saved) {
+    assertAll(
+        saved.entrySet().stream()
+            .map(
+                entry ->
+                    () -> {
+                      assertTrue(
+                          Files.isRegularFile(entry.getKey()),
+                          "Startup failure removed " + entry.getKey());
+                      assertEquals(
+                          entry.getValue(),
+                          Files.readString(entry.getKey()),
+                          "Startup failure rewrote " + entry.getKey());
+                    }));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"titles", "regiments"})
+  void malformedInitialDefinitionsAbortBeforeGameplayAndPreserveSavedState(String catalog)
+      throws Exception {
+    Map<Path, String> saved = unloadedSavedState();
+    if (catalog.equals("titles")) {
+      disk.write("Input/county.json", "{ malformed");
+    } else {
+      field("regimentLoader", new RegimentLoader());
+      disk.write("regiments.yml", "guard: [unterminated\n");
+    }
+    scoped(BattlePersistenceService.class)
+        .when(BattlePersistenceService::saveAll)
+        .thenCallRealMethod();
+    try (var bands = mockStatic(WarbandManager.class)) {
+      assertDoesNotThrow(plugin::onEnable);
+      assertDoesNotThrow(plugin::onDisable);
+      assertAll(
+          () -> verify(plugins).disablePlugin(plugin),
+          () ->
+              assertTrue(
+                  listeners.isEmpty(), "Gameplay listeners must wait for valid configuration"),
+          () -> verify(dependency("db", Database.class), never()).loadFactions(),
+          () -> verify(dependency("factionManager", FactionManager.class), never()).run(),
+          () -> verify(dependency("inventoryManager", InventoryManager.class), never()).start(),
+          () ->
+              scoped(BattlePersistenceService.class)
+                  .verify(BattlePersistenceService::saveAll, never()),
+          () -> scoped(InactivityService.class).verify(InactivityService::save, never()),
+          () -> assertSavedStateUnchanged(saved));
+    }
+    assertTrue(TitleLoader.getTitles().isEmpty());
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"aptitudes", "provinces", "grid"})
   void failedStartupDisablesThePluginBeforeStartingRuntimeLoops(String step) throws Exception {
     Cache.provincesEnabled = true;
-    try (var grids = mockStatic(ProvinceGrid.class)) {
+    Map<Path, String> saved = unloadedSavedState();
+    scoped(BattlePersistenceService.class)
+        .when(BattlePersistenceService::saveAll)
+        .thenCallRealMethod();
+    try (var grids = mockStatic(ProvinceGrid.class);
+        var bands = mockStatic(WarbandManager.class)) {
       if (step.equals("aptitudes"))
         scoped(EspionageService.class)
             .when(() -> EspionageService.loadAptitudes(any()))
@@ -282,9 +370,91 @@ class PluginLifecycleCoverageTest {
       verify(dependency("factionManager", FactionManager.class), never()).run();
       verify(dependency("inventoryManager", InventoryManager.class), never()).start();
       plugin.onDisable();
+      assertSavedStateUnchanged(saved);
       verify(dependency("db", Database.class), never()).saveTimer(anyInt(), anyInt());
       verify(dependency("db", Database.class), never()).saveFaction(any());
+      verify(dependency("db", Database.class), never()).saveWar(any());
+      scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
+      scoped(InactivityService.class).verify(InactivityService::save, never());
+      scoped(BattlePersistenceService.class).verify(BattlePersistenceService::stopAutosave);
+      verify(dependency("sessionManager", SessionManager.class)).end();
     }
+  }
+
+  @Test
+  void earlyStartupFailureCannotPruneFilesThatHaveNotBeenLoaded() throws Exception {
+    Map<Path, String> saved = unloadedSavedState();
+    statics.remove(BattlePersistenceService.class).close();
+    scoped(EspionageService.class)
+        .when(() -> EspionageService.loadAptitudes(any()))
+        .thenThrow(new IllegalStateException("bad aptitude file"));
+    try (var bands = mockStatic(WarbandManager.class)) {
+      plugin.onEnable();
+      verify(plugins).disablePlugin(plugin);
+      plugin.onDisable();
+      assertSavedStateUnchanged(saved);
+    }
+  }
+
+  @Test
+  void failedTitleReloadRetainsTheLiveDefinitionAndKeepsTheRunningPluginEnabled() throws Exception {
+    Path title =
+        disk.write(
+            "Input/county.json",
+            "{\"prior_county\":{\"name\":\"Prior County\",\"provinces\":[3]}}");
+    plugin.onEnable();
+    var original = TitleLoader.getById("prior_county");
+    assertNotNull(original);
+    Files.writeString(title, "{ malformed");
+    var admin = domain.player("Admin");
+    when(admin.hasPermission("simplefactions.admin")).thenReturn(true);
+    PluginCommand command = commands.get("faction");
+    when(command.getName()).thenReturn("faction");
+    Cache.provincesEnabled = true;
+
+    assertTrue(
+        assertDoesNotThrow(
+            () ->
+                dependency("commands", CommandManager.class)
+                    .onCommand(admin, command, "faction", new String[] {"reloadtitles"})));
+
+    assertSame(original, TitleLoader.getById("prior_county"));
+    assertEquals("{ malformed", Files.readString(title));
+    verify(admin).sendMessage(contains("Could not reload titles"));
+    verify(admin, never()).sendMessage("§eReloaded titles!");
+    verify(plugins, never()).disablePlugin(plugin);
+    plugin.onDisable();
+    scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll);
+  }
+
+  @Test
+  void failedConfigurationReloadPreservesRegimentsWithoutDisablingNormalShutdownSaving()
+      throws Exception {
+    field("regimentLoader", new RegimentLoader());
+    Path regiments =
+        disk.write("regiments.yml", "guard:\n  default-slots: 3\n  item:\n    material: PAPER\n");
+    plugin.onEnable();
+    var original = RegimentLoader.getByString("guard");
+    assertNotNull(original);
+    Files.writeString(regiments, "guard: [unterminated\n");
+    var admin = domain.player("Admin");
+    when(admin.hasPermission("simplefactions.admin")).thenReturn(true);
+    PluginCommand command = commands.get("faction");
+    when(command.getName()).thenReturn("faction");
+
+    assertTrue(
+        assertDoesNotThrow(
+            () ->
+                dependency("commands", CommandManager.class)
+                    .onCommand(admin, command, "faction", new String[] {"reloadconfigs"})));
+
+    assertSame(original, RegimentLoader.getByString("guard"));
+    assertEquals(3, original.getCurrentSlots());
+    verify(admin).sendMessage(contains("Could not reload configs"));
+    verify(admin, never()).sendMessage("§eReloaded configs!");
+    verify(plugins, never()).disablePlugin(plugin);
+    plugin.onDisable();
+    scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll);
   }
 
   @Test
@@ -426,7 +596,8 @@ class PluginLifecycleCoverageTest {
     plugin.onEnable();
     plugin.getVehicleMaintenanceStore().markUnpaid("cart-1", 1234L);
     plugin.recordVehicleOwner("cart-1", "Alice");
-    plugin.recordVehicleOwners(); // A disabled VehicleFramework leaves existing owner history intact.
+    plugin
+        .recordVehicleOwners(); // A disabled VehicleFramework leaves existing owner history intact.
     plugin.saveVehicleFees();
     assertTrue(plugin.saveVehicleRegistry());
     VehicleFeeStore fees = new VehicleFeeStore();

@@ -252,15 +252,24 @@ public class SimpleFactions extends JavaPlugin{
 	private final VehicleMaintenanceDecayTask vehicleMaintenanceDecayTask =
 			new VehicleMaintenanceDecayTask();
 	
+	private boolean startupComplete;
+
 	@Override
 	public void onEnable() {
+		startupComplete = false;
 		config = getConfig();
 		plugin = this;
 		FactionManager.inv = inventoryManager;
 		createFolders();
 		createConfigs();
+		try {
+			loadConfigs();
+		} catch (RuntimeException error) {
+			getLogger().log(java.util.logging.Level.SEVERE, "Cannot load SimpleFactions configuration; disabling before restoring saved state", error);
+			getServer().getPluginManager().disablePlugin(this);
+			return;
+		}
 		registerListeners();
-		loadConfigs();
 		registerRpCharactersIntegrationHooks();
 		vehicleRegistryPersistence = new VehicleRegistryPersistence(
 			new File(getDataFolder(), "Cache"),
@@ -365,6 +374,7 @@ public class SimpleFactions extends JavaPlugin{
 		}
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
+		startupComplete = true;
 	}
 	@Override
 	public void onDisable() {
@@ -376,8 +386,12 @@ public class SimpleFactions extends JavaPlugin{
 		CampaignViewRefreshService.stop();
 		BattleManager.shutdown();
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.stopAutosave();
-		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		sessionManager.end();
+		if (!startupComplete) {
+			net.tfminecraft.simplefactions.identity.LeaderCharacters.reset();
+			return;
+		}
+		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
 		saveFactionsForShutdown();
 		for(War w : WarManager.get()){

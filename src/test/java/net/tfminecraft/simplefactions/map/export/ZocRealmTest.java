@@ -74,7 +74,7 @@ class ZocRealmTest {
 	void resolveExportControllerFaction_flippedController_returnsCoalitionLeader() {
 		Installation fort = fort("fort_a", 20);
 		War war = war(1, List.of(5, 10, 20, 30));
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
 
 		Faction resolved = ZocRealm.resolveExportControllerFaction(fort, defender, List.of(war));
 
@@ -94,7 +94,7 @@ class ZocRealmTest {
 
 		Installation fort = fort("fort_a", 20);
 		War war = war(1, List.of(5, 10, 20, 30));
-		war.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
 
 		List<Integer> zoc = ZocRealm.computeZocProvincesForExport(fort, defender, List.of(war));
 
@@ -107,9 +107,9 @@ class ZocRealmTest {
 	void selectPrimaryWarForFort_multipleWars_prefersAxisWar() {
 		Installation fort = fort("fort_a", 20);
 		War offAxis = war(2, List.of(5, 10, 30));
-		offAxis.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		offAxis.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
 		War onAxis = war(1, List.of(5, 10, 20, 30));
-		onAxis.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		onAxis.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
 
 		War selected = ZocRealm.selectPrimaryWarForFort(fort, List.of(offAxis, onAxis));
 
@@ -120,9 +120,9 @@ class ZocRealmTest {
 	void selectPrimaryWarForFort_multipleWarsNoAxis_returnsNull() {
 		Installation fort = fort("fort_a", 20);
 		War warA = war(1, List.of(5, 10, 30));
-		warA.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		warA.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
 		War warB = war(2, List.of(5, 15, 25));
-		warB.putFortController("fort_a", CampaignCoalition.AGGRESSOR);
+		warB.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
 
 		assertNull(ZocRealm.selectPrimaryWarForFort(fort, List.of(warA, warB)));
 		assertEquals(defender, ZocRealm.resolveExportControllerFaction(fort, defender, List.of(warA, warB)));

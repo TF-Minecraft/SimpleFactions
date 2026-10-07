@@ -175,7 +175,7 @@ class CampaignScheduleLifecycleCoverageTest {
   @Test
   void reSiegingAnOffAxisFortKeepsItsHomeProvinceAndChronologyAnchor() {
     var fort = rig.install(rig.defender, "off-axis-fort", InstallationKind.FORT, 21);
-    rig.war.putFortController(fort.getId(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
     rig.war.setCampaignBattleSchedule(
         List.of(new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, true, null)));
 
@@ -257,14 +257,14 @@ class CampaignScheduleLifecycleCoverageTest {
       strings = {"terminal", "retake", "no-objective", "already-later", "friendly", "counter"})
   void reSiegeChecksRespectTheLivePushAndDoNotDuplicateOrAttackFriendlyForts(String state) {
     var fort = rig.install(rig.defender, "defender-fort", InstallationKind.FORT, 20);
-    rig.war.putFortController(fort.getId(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
     rig.war.setCampaignBattleSchedule(List.of(field(20, true)));
     rig.war.setCampaignCounterSchedule(List.of(field(10, true)));
     if (state.equals("terminal")) rig.war.setCursorIndex(3);
     if (state.equals("retake")) rig.war.setPushTarget(CampaignPushTarget.RETAKE_OBJECTIVE);
     if (state.equals("no-objective")) rig.war.setObjectiveProvinceId(999);
     if (state.equals("friendly"))
-      rig.war.putFortController(fort.getId(), CampaignCoalition.AGGRESSOR);
+      rig.war.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
     if (state.equals("already-later"))
       rig.war.setCampaignBattleSchedule(
           List.of(
@@ -343,7 +343,7 @@ class CampaignScheduleLifecycleCoverageTest {
   @Test
   void fortPlacementChecksIdentityAndReplacesOnlyOptionalFieldsAtItsChronologyTile() {
     var fort = rig.install(rig.defender, "off-axis", InstallationKind.FORT, 21);
-    rig.war.putFortController(fort.getId(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
     CampaignScheduleBuildContext ctx = context(FortZocIndex.fromGameState());
     place(ctx, 10, BattleTrigger.FORT_ZOC, "absent", null);
     place(ctx, 12, BattleTrigger.FORT_ZOC, "different-fort", null);
@@ -734,7 +734,7 @@ class CampaignScheduleLifecycleCoverageTest {
   @Test
   void placementKeepsAnObjectiveUntilItIsUpgradedAndOrdersLegacyNavalKinds() {
     var fort = rig.install(rig.defender, "objective-fort", InstallationKind.FORT, 20);
-    rig.war.putFortController(fort.getId(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
     var ctx = context(FortZocIndex.fromGameState());
     place(ctx, 20, BattleTrigger.CADENCE, null, null);
     place(ctx, 20, BattleTrigger.FORT_ZOC, fort.getId(), null);

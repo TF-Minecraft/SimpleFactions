@@ -9,7 +9,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
-import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
+import net.tfminecraft.simplefactions.war.campaign.zoc.PortSeaZocIndex;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
@@ -33,27 +33,19 @@ public final class InstallationTransferService {
 		InstallationHandler toHandler = to.getInstallationHandler();
 		List<War> activeWars = WarManager.getActive();
 		Set<War> changedWars = new LinkedHashSet<>();
-		// Resolve old holder-local IDs while every fort is still in its original registry.
-		for (Installation installation : fromHandler.getAll()) {
-			if (installation.getProvince() == province && installation.getKind() == InstallationKind.FORT) {
-				for (War war : activeWars) {
-					FortControlService.controllerForInstallation(war, installation).ifPresent(controller -> {
-						var previous = war.getFortControllers();
-						FortControlService.setControllerAtProvince(war, installation.getId(), province, controller);
-						if (!previous.equals(war.getFortControllers())) changedWars.add(war);
-					});
-				}
-			}
-		}
+		// Capture sea coverage before removing or renaming any port.
+		PortSeaZocIndex portIndex = PortSeaZocIndex.fromPorts(
+				!activeWars.isEmpty() && fromHandler.getByProvince(InstallationKind.PORT, province) != null
+						? PortSeaZocIndex.listOperationalPorts() : List.of());
 
 		fromHandler.cancelPendingConstructionOnProvince(province);
 		for (Installation installation : fromHandler.detachOnProvince(province)) {
 			Installation transferred = availableId(toHandler, installation);
 			toHandler.acceptTransferred(transferred);
-			if (installation.getKind() == InstallationKind.FORT && !installation.getId().equals(transferred.getId())) {
+			if (!installation.getId().equals(transferred.getId())) {
 				for (War war : activeWars) {
-					boolean invasionChanged = rebindFort(war.getCampaignBattleSchedule(), installation, transferred);
-					boolean counterChanged = rebindFort(war.getCampaignCounterSchedule(), installation, transferred);
+					boolean invasionChanged = rebindInstallation(war.getCampaignBattleSchedule(), installation, transferred, portIndex);
+					boolean counterChanged = rebindInstallation(war.getCampaignCounterSchedule(), installation, transferred, portIndex);
 					if (invasionChanged || counterChanged) changedWars.add(war);
 				}
 			}
@@ -62,14 +54,22 @@ public final class InstallationTransferService {
 		changedWars.forEach(WarManager::persist);
 	}
 
-	private static boolean rebindFort(List<ScheduledCampaignBattle> schedule, Installation original, Installation moved) {
+	private static boolean rebindInstallation(List<ScheduledCampaignBattle> schedule, Installation original,
+			Installation moved, PortSeaZocIndex portIndex) {
 		boolean changed = false;
 		for (int index = 0; index < schedule.size(); index++) {
 			ScheduledCampaignBattle slot = schedule.get(index);
-			if (slot != null && slot.kind() == CampaignBattleKind.SIEGE
-					&& slot.provinceId() == original.getProvince() && original.getId().equals(slot.fortInstallationId())) {
+			if (slot == null) continue;
+			boolean fort = original.getKind() == InstallationKind.FORT && slot.kind() == CampaignBattleKind.SIEGE
+					&& slot.provinceId() == original.getProvince() && original.getId().equals(slot.fortInstallationId());
+			boolean port = original.getKind() == InstallationKind.PORT && original.getId().equals(slot.portInstallationId())
+					&& portIndex.portForSeaProvince(slot.provinceId())
+							.filter(p -> p.province() == original.getProvince() && p.completedAt() == original.getCompletedAt())
+							.isPresent();
+			if (fort || port) {
 				schedule.set(index, new ScheduledCampaignBattle(slot.provinceId(), slot.kind(), slot.required(),
-						moved.getId(), slot.portInstallationId(), slot.chronologyProvinceId()));
+						fort ? moved.getId() : slot.fortInstallationId(),
+						port ? moved.getId() : slot.portInstallationId(), slot.chronologyProvinceId()));
 				changed = true;
 			}
 		}

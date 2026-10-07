@@ -109,7 +109,7 @@ class FortTransferReferencesCoverageTest {
   }
 
   @Test
-  void occupationPreservesTheUniqueLegacyControllerOfAnotherActiveWarBeforeRenamingItsFort()
+  void occupationPreservesTheMigratedControllerOfAnotherActiveWarWhenRenamingItsFort()
       throws Exception {
     try (Fixture rig = new Fixture()) {
       Installation port = installation(rig.attacker, "shared", InstallationKind.PORT, 10);
@@ -118,6 +118,7 @@ class FortTransferReferencesCoverageTest {
       War otherWar = activeWar(998803, otherAttacker, rig.defender);
       rig.war.setFortControllers(Map.of(fort.getStableKey(), CampaignCoalition.AGGRESSOR));
       otherWar.setFortControllers(Map.of("shared", CampaignCoalition.AGGRESSOR));
+      WarInstallationMigration.migrate(otherWar);
       assertEquals(
           CampaignCoalition.AGGRESSOR,
           FortControlService.controllerForInstallation(otherWar, fort).orElseThrow());
@@ -131,8 +132,8 @@ class FortTransferReferencesCoverageTest {
       assertNotEquals(fort.getId(), moved.getId());
       assertEquals(fort.getStableKey(), moved.getStableKey());
       assertSame(port, rig.attacker.getInstallationHandler().getById("shared"));
-      assertEquals(List.of(otherWar.getId()), savedWarIds(rig));
-      War restored = savedWar(rig, otherWar);
+      assertTrue(savedWarIds(rig).isEmpty(), "An already migrated physical controller needs no rewrite on transfer");
+      War restored = roundTrip(otherWar);
       assertAll(
           () ->
               assertEquals(

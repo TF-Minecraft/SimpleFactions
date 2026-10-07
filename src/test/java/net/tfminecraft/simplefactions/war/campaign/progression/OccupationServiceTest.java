@@ -286,7 +286,7 @@ class OccupationServiceTest {
 			titleManager.when(() -> TitleManager.getByProvince(20)).thenReturn(defender);
 			titleManager.when(() -> TitleManager.getByProvince(21)).thenReturn(defender);
 			War war = baseWar(List.of(5, 10, 30));
-			war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+			war.putFortController(new OperationalFort("fort_a", defender, 20, 100L).stableKey(), CampaignCoalition.DEFENDER);
 			FortZocIndex forts = FortZocIndex.fromForts(List.of(
 					new OperationalFort("fort_a", defender, 20, 100L)));
 			OccupationService zocService = new OccupationService(
@@ -309,7 +309,7 @@ class OccupationServiceTest {
 			simpleFactions.when(SimpleFactions::getInstance).thenReturn(plugin);
 			titleManager.when(() -> TitleManager.getByProvince(20)).thenReturn(defender);
 			War war = baseWar(List.of(5, 10, 20, 30));
-			war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+			war.putFortController(new OperationalFort("fort_a", defender, 20, 100L).stableKey(), CampaignCoalition.DEFENDER);
 			FortZocIndex forts = FortZocIndex.fromForts(List.of(
 					new OperationalFort("fort_a", defender, 20, 100L)));
 			OccupationService zocService = new OccupationService(
@@ -341,8 +341,8 @@ class OccupationServiceTest {
 			titleManager.when(() -> TitleManager.getByProvince(21)).thenReturn(defender);
 			titleManager.when(() -> TitleManager.getByProvince(22)).thenReturn(defender);
 			War war = baseWar(List.of(5, 10, 30));
-			war.putFortController("fort_old", CampaignCoalition.AGGRESSOR);
-			war.putFortController("fort_young", CampaignCoalition.DEFENDER);
+			war.putFortController(new OperationalFort("fort_old", defender, 20, 100L).stableKey(), CampaignCoalition.AGGRESSOR);
+			war.putFortController(new OperationalFort("fort_young", defender, 22, 200L).stableKey(), CampaignCoalition.DEFENDER);
 			FortZocIndex forts = FortZocIndex.fromForts(List.of(
 					new OperationalFort("fort_old", defender, 20, 100L),
 					new OperationalFort("fort_young", defender, 22, 200L)));

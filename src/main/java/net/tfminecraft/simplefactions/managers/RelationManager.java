@@ -624,6 +624,10 @@ public class RelationManager {
 			return;
 		}
 		Faction sender = req.getFaction();
+		if (sender == null || FactionManager.getByString(sender.getId()) != sender) {
+			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
+			return;
+		}
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
 		// The war may have started after the request was sent
 		String blocked = wartimeBlock(req.getType(), reciever, sender);
@@ -658,6 +662,10 @@ public class RelationManager {
 			return;
 		}
 		Faction sender = req.getFaction();
+		if (sender == null || FactionManager.getByString(sender.getId()) != sender) {
+			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
+			return;
+		}
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
 		if (applyTradeRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
 			sp.sendMessage(reciever.getName()+" §aaccepted your request and set trade to "+req.getType().getName());
@@ -685,6 +693,10 @@ public class RelationManager {
 			return;
 		}
 		Faction sender = req.getFaction();
+		if (sender == null || FactionManager.getByString(sender.getId()) != sender) {
+			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
+			return;
+		}
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
 		if (applyTreatyRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
 			sp.sendMessage(reciever.getName()+" §aaccepted your request and set treaty to "+req.getType().getName());

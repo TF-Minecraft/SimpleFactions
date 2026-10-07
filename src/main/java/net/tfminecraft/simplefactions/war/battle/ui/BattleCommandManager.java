@@ -19,6 +19,7 @@ import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinServ
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.core.WarDevMode;
+import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.capture.BattleCapturePoints;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSideSetupService;
@@ -81,6 +82,14 @@ public class BattleCommandManager implements CommandExecutor{
 				return true;
 			}
 			if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("create") && args.length == 2) {
+				boolean reserved = net.tfminecraft.simplefactions.managers.WarManager.getActive().stream()
+						.map(war -> war.getActiveCampaignRaid()).filter(java.util.Objects::nonNull)
+						.anyMatch(raid -> args[1].equalsIgnoreCase(CampaignRaidWarbandService.attackerWarbandId(raid))
+								|| args[1].equalsIgnoreCase(CampaignRaidWarbandService.defenderWarbandId(raid)));
+				if (reserved) {
+					p.sendMessage("§cThis warband id is reserved for an active raid.");
+					return true;
+				}
 				if(WarbandManager.getByPlayer(p) != null) {
 					p.sendMessage("§cYou already have a warband!");
 					return true;

@@ -1149,4 +1149,64 @@ class BattleEngineListenersCoverageTest {
     persistence.verifyNoInteractions();
   }
 
+
+  @ParameterizedTest
+  @ValueSource(ints = {1, 2})
+  void removingAnEndedRaidDuringItsTickStillTicksEveryOtherBattle(int followingCount) {
+    Battle ending = battle("ended-during-tick", BattleType.RAID);
+    band(ending, "attacker", alice);
+    List<Battle> following = new ArrayList<>();
+    for (int i = 0; i < followingCount; i++) {
+      following.add(battle("following-" + i, BattleType.RAID));
+    }
+    assertNull(ending.start());
+    for (Battle battle : following) assertNull(battle.start());
+    RaidAttackerEliminationService.markOut(ending, alice.getUniqueId());
+    PluginManager callbacks = Bukkit.getPluginManager();
+    doAnswer(call -> {
+      if (call.getArgument(0) instanceof net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent event
+          && event.getBattleId().equals(ending.getId())) {
+        BattleManager.deleteBattle(ending);
+      }
+      return null;
+    }).when(callbacks).callEvent(any(org.bukkit.event.Event.class));
+    bars.forEach(org.mockito.Mockito::clearInvocations);
+    listener.start();
+
+    assertDoesNotThrow(() -> ui.repeatingTasks.getFirst().run());
+
+    assertFalse(ending.hasStarted());
+    assertEquals(following, BattleManager.get());
+    for (int i = 0; i < followingCount; i++) {
+      assertTrue(following.get(i).hasStarted());
+      verify(bars.get((i + 1) * 2)).setVisible(true);
+      verify(bars.get((i + 1) * 2 + 1)).setVisible(true);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1, 2})
+  void removingABattleFromADisplayCleanupCallbackStillEndsEveryOtherBattle(int followingCount) {
+    Battle ending = battle("removed-during-stop", BattleType.RAID);
+    List<Battle> following = new ArrayList<>();
+    for (int i = 0; i < followingCount; i++) {
+      following.add(battle("following-stop-" + i, BattleType.RAID));
+    }
+    assertNull(ending.start());
+    for (Battle battle : following) assertNull(battle.start());
+    doAnswer(call -> {
+      BattleManager.deleteBattle(ending);
+      return null;
+    }).when(bars.getFirst()).removeAll();
+
+    assertDoesNotThrow(listener::end);
+
+    assertFalse(ending.hasStarted());
+    assertEquals(following, BattleManager.get());
+    for (int i = 0; i < followingCount; i++) {
+      assertFalse(following.get(i).hasStarted());
+      verify(bars.get((i + 1) * 2)).removeAll();
+      verify(bars.get((i + 1) * 2 + 1)).removeAll();
+    }
+  }
 }

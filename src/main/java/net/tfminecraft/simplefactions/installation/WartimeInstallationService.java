@@ -9,7 +9,6 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
-import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
@@ -39,11 +38,11 @@ public final class WartimeInstallationService {
 		if (slot.kind() != CampaignBattleKind.SIEGE || slot.fortInstallationId() == null) {
 			return;
 		}
-		Faction holder = InstallationLookup.findHolderOnProvince(slot.provinceId());
-		Installation fort = holder != null
-				? holder.getInstallationHandler().getByProvince(InstallationKind.FORT, slot.provinceId())
-				: null;
-		if (fort == null || !slot.fortInstallationId().equals(fort.getId())) {
+		Installation fort = InstallationLookup.all().stream()
+				.filter(i -> i.getKind() == InstallationKind.FORT && i.getProvince() == slot.provinceId()
+						&& slot.fortInstallationId().equals(i.getId()))
+				.findFirst().orElse(null);
+		if (fort == null) {
 			return;
 		}
 		int province = fort.getProvince();
@@ -52,7 +51,7 @@ public final class WartimeInstallationService {
 			return;
 		}
 		Faction occupyingLeader = occupyingLeader(war, winner);
-		occupy(war, occupyingLeader, province);
+		occupyFrom(war, occupyingLeader, InstallationOwners.ownerOf(fort), province);
 	}
 
 	public static void occupy(War war, Faction occupyingLeader, int province) {
@@ -63,6 +62,10 @@ public final class WartimeInstallationService {
 		if (holder == null) {
 			return;
 		}
+		occupyFrom(war, occupyingLeader, holder, province);
+	}
+
+	private static void occupyFrom(War war, Faction occupyingLeader, Faction holder, int province) {
 		snapshotProvince(war, holder, province);
 		Faction original = snapshotOriginal(war, holder, province);
 		Faction target = occupyingLeader;
@@ -97,17 +100,7 @@ public final class WartimeInstallationService {
 
 	private static void snapshotProvince(War war, Faction holder, int province) {
 		for (Installation installation : installationsOnProvince(holder, province)) {
-			if (installation.getKind() == InstallationKind.FORT) {
-				// Preserve a legacy controller before a holder-local ID collision can rename the fort.
-				FortControlService.controllerForInstallation(war, installation).ifPresent(controller ->
-						FortControlService.setControllerAtProvince(war, installation.getId(), province, controller));
-			}
-			String key = installation.getStableKey();
-			Map<String, String> snapshot = war.getWartimeInstallationOwners();
-			// Upgrade an unambiguous legacy id before transfer can rename it.
-			String original = snapshotInstallation(installation.getId()) == installation
-					? snapshot.remove(installation.getId()) : null;
-			war.putWartimeInstallationOwner(key, original != null ? original : holder.getId());
+			war.putWartimeInstallationOwner(installation.getStableKey(), holder.getId());
 		}
 	}
 
@@ -128,7 +121,7 @@ public final class WartimeInstallationService {
 	private static Installation snapshotInstallation(String key) {
 		Installation found = null;
 		for (Installation installation : InstallationLookup.all()) {
-			if (key.equals(installation.getStableKey()) || key.equals(installation.getId())) {
+			if (key.equals(installation.getStableKey())) {
 				if (found != null) return null;
 				found = installation;
 			}

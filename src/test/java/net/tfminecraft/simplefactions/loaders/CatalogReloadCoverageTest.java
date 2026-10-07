@@ -136,15 +136,15 @@ class CatalogReloadCoverageTest {
     catalog.load().accept(file.toFile());
     Object original = catalog.find().apply("alpha");
     Files.writeString(file, "broken: [\n");
-    assertDoesNotThrow(() -> catalog.load().accept(file.toFile()));
+    assertThrows(IllegalStateException.class, () -> catalog.load().accept(file.toFile()));
     assertEquals(List.of("alpha"), catalog.ids().get());
     assertSame(original, catalog.find().apply("alpha"));
     Files.writeString(file, row(catalog, "replacement", "Replacement") + "invalid: 42\n");
-    assertDoesNotThrow(() -> catalog.load().accept(file.toFile()));
+    assertThrows(IllegalStateException.class, () -> catalog.load().accept(file.toFile()));
     assertEquals(List.of("alpha"), catalog.ids().get());
     assertSame(original, catalog.find().apply("alpha"));
     Files.delete(file);
-    catalog.load().accept(file.toFile());
+    assertThrows(IllegalStateException.class, () -> catalog.load().accept(file.toFile()));
     assertSame(original, catalog.find().apply("alpha"));
   }
 
@@ -161,10 +161,10 @@ class CatalogReloadCoverageTest {
     assertNull(PoliticalActionLoader.getByAction(Action.CHANGE_LEADER));
     Object original = PoliticalActionLoader.getByAction(Action.SURRENDER);
     Files.writeString(file, "SURRENDER: {}\ninvalid-action: {}\n");
-    assertDoesNotThrow(() -> loader.load(file.toFile()));
+    assertThrows(IllegalStateException.class, () -> loader.load(file.toFile()));
     assertSame(original, PoliticalActionLoader.getByAction(Action.SURRENDER));
     Files.writeString(file, "broken: [\n");
-    loader.load(file.toFile());
+    assertThrows(IllegalStateException.class, () -> loader.load(file.toFile()));
     assertSame(original, PoliticalActionLoader.getByAction(Action.SURRENDER));
   }
 

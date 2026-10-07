@@ -86,8 +86,9 @@ class VehicleTransferConsentServiceTest {
         }
     }
 
-    @Test
-    void acceptRequest_registersVehicleWhenValidationPasses() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"Leader", "lEaDeR"})
+    void acceptRequest_registersVehicleWhenValidationPasses(String leaderName) {
         UUID ownerUuid = UUID.randomUUID();
         UUID leaderUuid = UUID.randomUUID();
         List<String> ownerMessages = new ArrayList<>();
@@ -108,7 +109,7 @@ class VehicleTransferConsentServiceTest {
         when(faction.getId()).thenReturn("home");
         when(guild.getFaction()).thenReturn(faction);
         when(faction.getOrCreateMainGuild()).thenReturn(guild);
-        when(faction.getLeader()).thenReturn("Leader");
+        when(faction.getLeader()).thenReturn(leaderName);
         when(faction.getInstallationHandler()).thenReturn(handler);
         FactionManager.factions.add(faction);
 
@@ -153,7 +154,7 @@ class VehicleTransferConsentServiceTest {
 
             PlayerVehicleRecord updated = registry.getByVehicleUuid("vehicle-1").orElseThrow();
             assertEquals(OwnershipMode.INSTALLATION, updated.getMode());
-            assertEquals("player_Leader", ownerData.getOwner());
+            assertEquals("player_" + leaderName, ownerData.getOwner());
             assertEquals(
                     List.of(VehicleTransferMessages.berthSuccess(installation)),
                     ownerMessages);

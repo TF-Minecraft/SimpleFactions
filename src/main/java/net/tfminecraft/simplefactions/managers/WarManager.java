@@ -470,7 +470,7 @@ public class WarManager {
 	
 	public static int newId() {
 		int i = 0;
-		while(getById(i) != null) i++;
+		while(getById(i) != null || new java.io.File("plugins/SimpleFactions/Wars", "war_" + i + ".json").exists()) i++;
 		return i;
 	}
 	
