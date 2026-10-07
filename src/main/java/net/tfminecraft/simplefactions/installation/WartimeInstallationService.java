@@ -1,7 +1,6 @@
 package net.tfminecraft.simplefactions.installation;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -10,6 +9,7 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
+import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
@@ -39,8 +39,11 @@ public final class WartimeInstallationService {
 		if (slot.kind() != CampaignBattleKind.SIEGE || slot.fortInstallationId() == null) {
 			return;
 		}
-		Installation fort = InstallationLookup.findById(slot.fortInstallationId());
-		if (fort == null) {
+		Faction holder = InstallationLookup.findHolderOnProvince(slot.provinceId());
+		Installation fort = holder != null
+				? holder.getInstallationHandler().getByProvince(InstallationKind.FORT, slot.provinceId())
+				: null;
+		if (fort == null || !slot.fortInstallationId().equals(fort.getId())) {
 			return;
 		}
 		int province = fort.getProvince();
@@ -82,11 +85,9 @@ public final class WartimeInstallationService {
 				continue;
 			}
 			Faction original = FactionManager.getByString(entry.getValue());
-			Faction holder = InstallationLookup.findHolder(entry.getKey());
-			Installation installation = holder != null
-					? holder.getInstallationHandler().getById(entry.getKey())
-					: InstallationLookup.findById(entry.getKey());
-			if (original == null || holder == null || installation == null) {
+			Installation installation = snapshotInstallation(entry.getKey());
+			Faction holder = InstallationOwners.ownerOf(installation);
+			if (original == null || holder == null) {
 				continue;
 			}
 			InstallationTransferService.transfer(holder, original, installation.getProvince());
@@ -95,21 +96,25 @@ public final class WartimeInstallationService {
 	}
 
 	private static void snapshotProvince(War war, Faction holder, int province) {
-		if (holder.getId() == null) {
-			return;
-		}
 		for (Installation installation : installationsOnProvince(holder, province)) {
-			war.putWartimeInstallationOwner(installation.getId(), holder.getId());
+			if (installation.getKind() == InstallationKind.FORT) {
+				// Preserve a legacy controller before a holder-local ID collision can rename the fort.
+				FortControlService.controllerForInstallation(war, installation).ifPresent(controller ->
+						FortControlService.setControllerAtProvince(war, installation.getId(), province, controller));
+			}
+			String key = installation.getStableKey();
+			Map<String, String> snapshot = war.getWartimeInstallationOwners();
+			// Upgrade an unambiguous legacy id before transfer can rename it.
+			String original = snapshotInstallation(installation.getId()) == installation
+					? snapshot.remove(installation.getId()) : null;
+			war.putWartimeInstallationOwner(key, original != null ? original : holder.getId());
 		}
 	}
 
 	private static Faction snapshotOriginal(War war, Faction holder, int province) {
 		Map<String, String> snapshot = war.getWartimeInstallationOwners();
-		if (snapshot == null) {
-			snapshot = new LinkedHashMap<>();
-		}
 		for (Installation installation : installationsOnProvince(holder, province)) {
-			String originalId = snapshot.get(installation.getId());
+			String originalId = snapshot.get(installation.getStableKey());
 			if (originalId != null) {
 				Faction original = FactionManager.getByString(originalId);
 				if (original != null) {
@@ -120,10 +125,18 @@ public final class WartimeInstallationService {
 		return holder;
 	}
 
-	private static boolean onOccupyingSide(War war, Faction occupyingLeader, Faction original) {
-		if (occupyingLeader == null || original == null) {
-			return false;
+	private static Installation snapshotInstallation(String key) {
+		Installation found = null;
+		for (Installation installation : InstallationLookup.all()) {
+			if (key.equals(installation.getStableKey()) || key.equals(installation.getId())) {
+				if (found != null) return null;
+				found = installation;
+			}
 		}
+		return found;
+	}
+
+	private static boolean onOccupyingSide(War war, Faction occupyingLeader, Faction original) {
 		if (occupyingLeader.getId() != null
 				&& occupyingLeader.getId().equalsIgnoreCase(original.getId())) {
 			return true;
@@ -143,9 +156,6 @@ public final class WartimeInstallationService {
 	private static List<Installation> installationsOnProvince(Faction holder, int province) {
 		List<Installation> found = new ArrayList<>();
 		InstallationHandler handler = holder.getInstallationHandler();
-		if (handler == null) {
-			return found;
-		}
 		for (Installation installation : handler.getAll()) {
 			if (installation.getProvince() == province) {
 				found.add(installation);
@@ -155,9 +165,6 @@ public final class WartimeInstallationService {
 	}
 
 	private static Faction occupyingLeader(War war, BelligerentRole winner) {
-		if (war == null || winner == null) {
-			return null;
-		}
 		if (winner == BelligerentRole.ATTACKER) {
 			return war.getAttackers() != null ? war.getAttackers().getLeader() : null;
 		}

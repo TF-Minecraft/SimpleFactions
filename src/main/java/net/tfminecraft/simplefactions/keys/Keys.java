@@ -5,6 +5,8 @@ import org.bukkit.NamespacedKey;
 import net.tfminecraft.simplefactions.SimpleFactions;
 
 public class Keys {
+    private Keys() {}
+
     public static final NamespacedKey BRANCH_ID = new NamespacedKey(SimpleFactions.plugin, "branch_id");
     /** Latest async branch income preview written onto an upgrade or downgrade button. */
     public static final NamespacedKey BRANCH_PREVIEW = new NamespacedKey(SimpleFactions.plugin, "branch_preview");

@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -104,206 +103,217 @@ public class Database {
         // Suppressed for the whole load: each faction and guild calls updateWealth, which
         // cascades into a full-server prestige pass over a partial list. FactionManager.run
         // recomputes once everything is in.
+        File[] files = folder.listFiles();
+        if (files == null) {
+            throw new IllegalStateException("Cannot read faction directory: " + folder.getAbsolutePath());
+        }
+        boolean wasLoading = FactionManager.loading;
         FactionManager.loading = true;
-        for (File file : Objects.requireNonNull(folder.listFiles())) {
-            if (!file.getName().endsWith(".json")) continue;
+        try {
+            for (File file : files) {
+                if (!file.getName().endsWith(".json")) continue;
 
-            try {
-                FactionData data = JsonUtil.readJson(file, FactionData.class);
-                if (data == null || data.id == null) continue;
+                try {
+                    FactionData data = JsonUtil.readJson(file, FactionData.class);
+                    if (data == null || data.id == null) continue;
 
-                // --- Provinces ---
-                List<Integer> provinces = new ArrayList<>();
-                for (Number n : data.provinces) provinces.add(n.intValue());
+                    // --- Provinces ---
+                    List<Integer> provinces = new ArrayList<>();
+                    for (Number n : data.provinces) provinces.add(n.intValue());
 
-                // --- Titles ---
-                List<Title> titles = new ArrayList<>();
-                for (String tid : data.titles) {
-                    Title t = TitleLoader.getById(tid);
-                    if (t != null) titles.add(t);
-                }
+                    // --- Titles ---
+                    List<Title> titles = new ArrayList<>();
+                    for (String tid : data.titles) {
+                        Title t = TitleLoader.getById(tid);
+                        if (t != null) titles.add(t);
+                    }
 
-                int capital = data.capital != null ? data.capital : -1;
-                int extraCap = data.extraNodeCapacity != null ? data.extraNodeCapacity.intValue() : 0;
+                    int capital = data.capital != null ? data.capital : -1;
+                    int extraCap = data.extraNodeCapacity != null ? data.extraNodeCapacity.intValue() : 0;
 
-                double citizenTax = data.citizenTax != null ? data.citizenTax : 5.0;
-                double guildTax = data.guildTax != null ? data.guildTax : 5.0;
-                double vassalTax = data.vassalTax != null ? data.vassalTax : 5.0;
-                double dividendTax = data.dividendTax != null ? data.dividendTax : 5.0;
-                double tariffs = data.tariffs != null ? data.tariffs : 5.0;
+                    double citizenTax = data.citizenTax != null ? data.citizenTax : 5.0;
+                    double guildTax = data.guildTax != null ? data.guildTax : 5.0;
+                    double vassalTax = data.vassalTax != null ? data.vassalTax : 5.0;
+                    double dividendTax = data.dividendTax != null ? data.dividendTax : 5.0;
+                    double tariffs = data.tariffs != null ? data.tariffs : 5.0;
                 
-                // Deep copy specific taxes
-                HashMap<String, HashMap<String, Double>> specificTaxes = new HashMap<>();
-                if (data.specificTaxes != null) {
-                    for (HashMap.Entry<String, HashMap<String, Double>> entry : data.specificTaxes.entrySet()) {
-                        if (entry.getValue() != null) {
-                            specificTaxes.put(entry.getKey(), new HashMap<>(entry.getValue()));
-                        }
-                    }
-                }
-
-                Faction f = new Faction(
-                        data.id,
-                        data.rgb,
-                        provinces,
-                        titles,
-                        data.leader,
-                        data.name,
-                        data.rulerTitle,
-                        data.banner,
-                        data.government,
-                        data.culture,
-                        data.religion,
-                        extraCap,
-                        loadModifiers(data.prestigeModifiers),
-                        citizenTax,
-                        guildTax,
-                        vassalTax,
-                        dividendTax,
-                        tariffs,
-                        specificTaxes,
-                        capital,
-                        data.laws,
-                        data.governmentData
-                );
-                f.getVehicleFeeHandler().load(data.vehicleFees, data.vehicleTypeFees);
-                if (data.lawChangedAt != null) {
-                    for (Map.Entry<String, Long> entry : data.lawChangedAt.entrySet()) {
-                        LawGroup group = f.getLawHandler().getGroup(entry.getKey());
-                        if (group != null && entry.getValue() != null) group.setChangedAt(entry.getValue());
-                    }
-                }
-
-                // --- Rank / founding ---
-                // Rank is derived state that only climbs one level per updatePrestige, so it
-                // has to be restored rather than re-derived from a cold ladder on every boot.
-                if (data.rank != null) {
-                    PrestigeRank restored = RankLoader.getByString(data.rank);
-                    if (restored != null) f.setRank(restored);
-                }
-                f.setFoundedAt(data.foundedAt != null ? data.foundedAt : System.currentTimeMillis()/1000L);
-                f.setCapitalMoves(data.capitalMoves != null ? data.capitalMoves : 0);
-                f.setEspionage(data.espionage);
-                f.rememberLeaderCharacter(data.leaderCharacter, data.leaderCharacterOf);
-
-                if (data.settlements != null) {
-                    f.getSettlementHandler().load(data.settlements);
-                }
-
-                if (data.installations != null) {
-                    f.getInstallationHandler().load(data.installations);
-                }
-                if (data.installationQueue != null) {
-                    f.getInstallationHandler().loadConstruction(data.installationQueue);
-                }
-
-                // --- Relations ---
-                if (data.relations == null) {
-                    LogManager.relations("JSON %s relations=null", f.getId());
-                } else {
-                    LogManager.relations("JSON %s relations=%s", f.getId(), data.relations);
-                    for (String r : data.relations) {
-                        FactionManager.addDBRelation(f, r);
-                    }
-                }
-
-                if(data.tradeRelations != null) {
-                    for (String r : data.tradeRelations) {
-                        FactionManager.addDBTradeRelation(f, r);
-                    }
-                }
-
-                if(data.treatyRelations != null) {
-                    for (String r : data.treatyRelations) {
-                        FactionManager.addDBTreatyRelation(f, r);
-                    }
-                }
-
-                // --- Tier ---
-                if (data.tierIndex != null) {
-                    f.getTier().setIndex(data.tierIndex.intValue());
-                }
-
-                // --- Military ---
-                Military m = f.getMilitary();
-                for (String s : data.military) {
-                    String[] split = s.split("\\.");
-                    Regiment r = m.getRegiment(split[0]);
-                    if (r == null) continue;
-                    r.setCurrentSlots(Integer.parseInt(split[1]));
-                    // "id.current.free"; older "id.current" saves always had the regiments.yml default free.
-                    Regiment prototype = RegimentLoader.getByString(split[0]);
-                    r.setFreeSlots(split.length > 2 ? Integer.parseInt(split[2])
-                            : prototype == null ? 0 : prototype.getFreeSlots());
-                }
-                // Laws are already applied; overlord grants are re-derived once relations load.
-                m.refreshLawSlots();
-
-                for (String s : data.militaryQueue) {
-                    String[] split = s.split("\\.");
-                    m.addQueueItem(m.getRegiment(split[0]), Integer.parseInt(split[1]));
-                }
-
-                // --- Guild ---
-                if (data.guilds != null) {
-                    for (GuildData gd : data.guilds) {
-
-                        if(gd.loans != null) {
-                            for (LoanData ld : gd.loans) {
-                                FactionManager.addDBLoan(ld);
+                    // Deep copy specific taxes
+                    HashMap<String, HashMap<String, Double>> specificTaxes = new HashMap<>();
+                    if (data.specificTaxes != null) {
+                        for (HashMap.Entry<String, HashMap<String, Double>> entry : data.specificTaxes.entrySet()) {
+                            if (entry.getValue() != null) {
+                                specificTaxes.put(entry.getKey(), new HashMap<>(entry.getValue()));
                             }
                         }
+                    }
 
-                        Guild g = new Guild(gd, f);
-                        g.rememberLeaderCharacter(gd.leaderCharacter, gd.leaderCharacterOf);
-
-                        // --- Bank ---
-                        if ("true".equalsIgnoreCase(gd.bank)) {
-                            Chunk c = Bukkit.getWorld(gd.world)
-                                    .getChunkAt(gd.xPos.intValue(), gd.zPos.intValue());
-                            g.setBank(new Bank(g, gd.balance != null ? gd.balance : 0.0, c));
-                            g.updateWealth();
+                    Faction f = new Faction(
+                            data.id,
+                            data.rgb,
+                            provinces,
+                            titles,
+                            data.leader,
+                            data.name,
+                            data.rulerTitle,
+                            data.banner,
+                            data.government,
+                            data.culture,
+                            data.religion,
+                            extraCap,
+                            loadModifiers(data.prestigeModifiers),
+                            citizenTax,
+                            guildTax,
+                            vassalTax,
+                            dividendTax,
+                            tariffs,
+                            specificTaxes,
+                            capital,
+                            data.laws,
+                            data.governmentData
+                    );
+                    f.getVehicleFeeHandler().load(data.vehicleFees, data.vehicleTypeFees);
+                    if (data.lawChangedAt != null) {
+                        for (Map.Entry<String, Long> entry : data.lawChangedAt.entrySet()) {
+                            LawGroup group = f.getLawHandler().getGroup(entry.getKey());
+                            if (group != null && entry.getValue() != null) group.setChangedAt(entry.getValue());
                         }
+                    }
 
-                        // --- Upgrade Queue ---
-                        if (gd.upgradeQueue != null) {
-                            for (UpgradeExpansionData ued : gd.upgradeQueue) {
-                                Upgrade upgrade = g.getUpgrade(ued.upgrade);
-                                if (upgrade != null) {
-                                    g.addQueuedUpgrade(upgrade, ued.timeLeft);
+                    // --- Rank / founding ---
+                    // Rank is derived state that only climbs one level per updatePrestige, so it
+                    // has to be restored rather than re-derived from a cold ladder on every boot.
+                    if (data.rank != null) {
+                        PrestigeRank restored = RankLoader.getByString(data.rank);
+                        if (restored != null) f.setRank(restored);
+                    }
+                    f.setFoundedAt(data.foundedAt != null ? data.foundedAt : System.currentTimeMillis()/1000L);
+                    f.setCapitalMoves(data.capitalMoves != null ? data.capitalMoves : 0);
+                    f.setEspionage(data.espionage);
+                    f.rememberLeaderCharacter(data.leaderCharacter, data.leaderCharacterOf);
+
+                    if (data.settlements != null) {
+                        f.getSettlementHandler().load(data.settlements);
+                    }
+
+                    if (data.installations != null) {
+                        f.getInstallationHandler().load(data.installations);
+                    }
+                    if (data.installationQueue != null) {
+                        f.getInstallationHandler().loadConstruction(data.installationQueue);
+                    }
+
+                    // --- Relations ---
+                    if (data.relations == null) {
+                        LogManager.relations("JSON %s relations=null", f.getId());
+                    } else {
+                        LogManager.relations("JSON %s relations=%s", f.getId(), data.relations);
+                        for (String r : data.relations) {
+                            FactionManager.addDBRelation(f, r);
+                        }
+                    }
+
+                    if(data.tradeRelations != null) {
+                        for (String r : data.tradeRelations) {
+                            FactionManager.addDBTradeRelation(f, r);
+                        }
+                    }
+
+                    if(data.treatyRelations != null) {
+                        for (String r : data.treatyRelations) {
+                            FactionManager.addDBTreatyRelation(f, r);
+                        }
+                    }
+
+                    // --- Tier ---
+                    if (data.tierIndex != null) {
+                        f.getTier().setIndex(data.tierIndex.intValue());
+                    }
+
+                    // --- Military ---
+                    Military m = f.getMilitary();
+                    for (String s : data.military) {
+                        String[] split = s.split("\\.");
+                        Regiment r = m.getRegiment(split[0]);
+                        if (r == null) continue;
+                        r.setCurrentSlots(Integer.parseInt(split[1]));
+                        // "id.current.free"; older "id.current" saves always had the regiments.yml default free.
+                        Regiment prototype = RegimentLoader.getByString(split[0]);
+                        r.setFreeSlots(split.length > 2 ? Integer.parseInt(split[2])
+                                : prototype == null ? 0 : prototype.getFreeSlots());
+                    }
+                    // Laws are already applied; overlord grants are re-derived once relations load.
+                    m.refreshLawSlots();
+
+                    for (String s : data.militaryQueue) {
+                        String[] split = s.split("\\.");
+                        m.addQueueItem(m.getRegiment(split[0]), Integer.parseInt(split[1]));
+                    }
+
+                    // --- Guild ---
+                    if (data.guilds != null) {
+                        for (GuildData gd : data.guilds) {
+
+                            if(gd.loans != null) {
+                                for (LoanData ld : gd.loans) {
+                                    FactionManager.addDBLoan(ld);
                                 }
                             }
-                        }
 
-                        f.getGuildHandler().addGuild(g);
+                            Guild g = new Guild(gd, f);
+                            g.rememberLeaderCharacter(gd.leaderCharacter, gd.leaderCharacterOf);
+
+                            // --- Bank ---
+                            if ("true".equalsIgnoreCase(gd.bank)) {
+                                Chunk c = Bukkit.getWorld(gd.world)
+                                        .getChunkAt(gd.xPos.intValue(), gd.zPos.intValue());
+                                g.setBank(new Bank(g, gd.balance != null ? gd.balance : 0.0, c));
+                            } else if ("false".equalsIgnoreCase(gd.bank)) {
+                                g.setBank(null);
+                            }
+
+                            // --- Upgrade Queue ---
+                            if (gd.upgradeQueue != null) {
+                                for (UpgradeExpansionData ued : gd.upgradeQueue) {
+                                    Upgrade upgrade = g.getUpgrade(ued.upgrade);
+                                    if (upgrade != null) {
+                                        g.addQueuedUpgrade(upgrade, ued.timeLeft);
+                                    }
+                                }
+                            }
+
+                            f.getGuildHandler().addGuild(g);
+                            // Restored upgrades and persistent modifiers count even without a saved bank.
+                            g.updateWealth();
+                        }
                     }
-                }
 
-                if (data.warReparationsObligations != null) {
-                    for (WarReparationsObligationData obligationData : data.warReparationsObligations) {
-                        if (obligationData == null
-                                || obligationData.payeeFactionId == null
-                                || obligationData.payeeFactionId.isBlank()) {
-                            continue;
+                    if (data.warReparationsObligations != null) {
+                        for (WarReparationsObligationData obligationData : data.warReparationsObligations) {
+                            if (obligationData == null
+                                    || obligationData.payeeFactionId == null
+                                    || obligationData.payeeFactionId.isBlank()) {
+                                continue;
+                            }
+                            double percent = obligationData.incomePercent != null ? obligationData.incomePercent : 0.0;
+                            int days = obligationData.daysRemaining != null ? obligationData.daysRemaining : 0;
+                            if (percent <= 0 || days <= 0) {
+                                continue;
+                            }
+                            f.addWarReparationsObligation(new WarReparationsObligation(
+                                    obligationData.payeeFactionId, percent, days));
                         }
-                        double percent = obligationData.incomePercent != null ? obligationData.incomePercent : 0.0;
-                        int days = obligationData.daysRemaining != null ? obligationData.daysRemaining : 0;
-                        if (percent <= 0 || days <= 0) {
-                            continue;
-                        }
-                        f.addWarReparationsObligation(new WarReparationsObligation(
-                                obligationData.payeeFactionId, percent, days));
                     }
+
+                    FactionManager.factions.add(f);
+                    f.updateWealth();
+
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-
-                FactionManager.factions.add(f);
-                f.updateWealth();
-
-            } catch (Exception e) {
-                e.printStackTrace();
             }
+        } finally {
+            FactionManager.loading = wasLoading;
         }
-        FactionManager.loading = false;
     }
 
     /* =====================================================

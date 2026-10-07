@@ -85,14 +85,12 @@ public final class ZocRealm {
         if (fortId == null || fortId.isBlank()) {
             return installationOwner;
         }
-        CampaignCoalition coalition = war.getFortControllers().get(fortId);
+        CampaignCoalition coalition = net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService
+                .controllerForInstallation(war, fort).orElse(null);
         if (coalition == null) {
             return installationOwner;
         }
         Side side = CampaignCoalitionService.toSide(war, coalition);
-        if (side == null || side.getLeader() == null) {
-            return installationOwner;
-        }
         return side.getLeader();
     }
 
@@ -136,7 +134,7 @@ public final class ZocRealm {
             return false;
         }
         String fortId = fort.getId();
-        if (fortId != null && !fortId.isBlank() && war.getFortControllers().containsKey(fortId)) {
+        if (fortId != null && !fortId.isBlank() && net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService.controllerForInstallation(war, fort).isPresent()) {
             return true;
         }
         if (axisContains(war, fort.getProvince())) {
@@ -146,11 +144,8 @@ public final class ZocRealm {
             return false;
         }
         List<ScheduledCampaignBattle> schedule = war.getCampaignBattleSchedule();
-        if (schedule == null) {
-            return false;
-        }
         for (ScheduledCampaignBattle slot : schedule) {
-            if (fortId.equals(slot.fortInstallationId())) {
+            if (fortId.equals(slot.fortInstallationId()) && fort.getProvince() == slot.provinceId()) {
                 return true;
             }
         }

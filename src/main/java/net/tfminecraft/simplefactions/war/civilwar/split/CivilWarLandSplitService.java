@@ -60,6 +60,7 @@ public final class CivilWarLandSplitService {
 		}
 
 		if (provinces.size() == 2) {
+			if (capital <= 0 || !provinces.contains(capital)) return null;
 			Integer other = null;
 			for (int provinceId : provinces) {
 				if (provinceId != capital) {
@@ -67,7 +68,7 @@ public final class CivilWarLandSplitService {
 					break;
 				}
 			}
-			if (other == null || capital <= 0) {
+			if (other == null) {
 				return null;
 			}
 			return new LandSplitPlan(List.of(other), List.of(capital));
@@ -141,22 +142,13 @@ public final class CivilWarLandSplitService {
 				return 0;
 			}
 			Province province = pm.get(provinceId);
-			if (province == null) {
-				return 0;
-			}
 			return province.getIncome(guild) * province.getTradeFactor(guild);
 		};
 	}
 
 	private static void transferSettlement(Faction from, Faction to, int provinceId) {
-		if (from == null || to == null) {
-			return;
-		}
 		SettlementHandler fromHandler = from.getSettlementHandler();
 		SettlementHandler toHandler = to.getSettlementHandler();
-		if (fromHandler == null || toHandler == null) {
-			return;
-		}
 		Settlement settlement = fromHandler.detachOnProvince(provinceId);
 		if (settlement != null) {
 			toHandler.acceptTransferred(settlement);

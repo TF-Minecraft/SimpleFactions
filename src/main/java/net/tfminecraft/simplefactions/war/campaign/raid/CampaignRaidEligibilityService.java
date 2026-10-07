@@ -67,9 +67,6 @@ public final class CampaignRaidEligibilityService {
 			return List.of();
 		}
 		InstallationHandler handler = faction.getInstallationHandler();
-		if (handler == null) {
-			return List.of();
-		}
 		List<Installation> sources = new ArrayList<>();
 		for (Installation installation : handler.getAll()) {
 			if (installation == null || installation.getId() == null) {
@@ -102,18 +99,9 @@ public final class CampaignRaidEligibilityService {
 			return List.of();
 		}
 		Side enemySide = war.getOppositeSide(attacker);
-		if (enemySide == null) {
-			return List.of();
-		}
 		List<RaidTargetCandidate> candidates = new ArrayList<>();
 		for (Faction enemy : BattleSideMembers.collectParticipatingFactions(enemySide)) {
-			if (enemy == null || enemy.getId() == null) {
-				continue;
-			}
 			InstallationHandler handler = enemy.getInstallationHandler();
-			if (handler == null) {
-				continue;
-			}
 			for (Installation installation : handler.getAll()) {
 				if (installation == null || installation.getId() == null) {
 					continue;
@@ -162,7 +150,7 @@ public final class CampaignRaidEligibilityService {
 		if (source == null || !isValidSourceKind(source.getKind())) {
 			return false;
 		}
-		Faction owner = findOwnerFaction(targetInstallationId);
+		Faction owner = findOwnerFaction(war, attacker, targetInstallationId);
 		if (owner == null || !war.isParticipating(owner)) {
 			return false;
 		}
@@ -198,7 +186,7 @@ public final class CampaignRaidEligibilityService {
 			return ValidateLaunchOutcome.of(ValidateLaunchResult.REJECTED_INVALID_SOURCE);
 		}
 		Installation source = resolveOwnedInstallation(launcher, sourceInstallationId);
-		Faction targetOwner = findOwnerFaction(targetInstallationId);
+		Faction targetOwner = findOwnerFaction(war, launcher, targetInstallationId);
 		if (targetOwner == null) {
 			return ValidateLaunchOutcome.of(ValidateLaunchResult.REJECTED_INVALID_TARGET);
 		}
@@ -214,9 +202,6 @@ public final class CampaignRaidEligibilityService {
 			return ValidateLaunchOutcome.of(ValidateLaunchResult.REJECTED_INVALID_TARGET);
 		}
 		RaidKind raidKind = inferRaidKind(source.getKind(), target.getKind());
-		if (raidKind == null) {
-			return ValidateLaunchOutcome.of(ValidateLaunchResult.REJECTED_KIND_MISMATCH);
-		}
 		return ValidateLaunchOutcome.ok(raidKind);
 	}
 
@@ -243,7 +228,7 @@ public final class CampaignRaidEligibilityService {
 		if (attacker == null || !war.isParticipating(attacker)) {
 			return false;
 		}
-		Faction owner = findOwnerFaction(installationId);
+		Faction owner = findOwnerFaction(war, attacker, installationId);
 		if (owner == null || !war.isParticipating(owner)) {
 			return false;
 		}
@@ -278,37 +263,41 @@ public final class CampaignRaidEligibilityService {
 			return null;
 		}
 		InstallationHandler handler = faction.getInstallationHandler();
-		if (handler == null) {
-			return null;
-		}
 		return handler.getById(installationId);
 	}
 
-	private static Faction findOwnerFaction(String installationId) {
-		for (Faction faction : FactionManager.factions) {
-			InstallationHandler handler = faction.getInstallationHandler();
-			if (handler == null) {
-				continue;
-			}
-			if (handler.getById(installationId) != null) {
-				return faction;
+	public static Installation resolveSourceInstallation(CampaignRaid raid) {
+		if (raid == null) return null;
+		return resolveOwnedInstallation(FactionManager.getByString(raid.getLauncherFactionId()), raid.getSourceInstallationId());
+	}
+
+	public static Installation resolveTargetInstallation(War war, CampaignRaid raid) {
+		if (raid == null) return null;
+		return resolveTargetInstallation(war, raid.getLauncherFactionId(), raid.getTargetInstallationId());
+	}
+
+	public static Installation resolveTargetInstallation(War war, String launcherId, String targetId) {
+		Faction owner = findOwnerFaction(war, FactionManager.getByString(launcherId), targetId);
+		return resolveOwnedInstallation(owner, targetId);
+	}
+
+	private static Faction findOwnerFaction(War war, Faction attacker, String installationId) {
+		if (war == null || attacker == null || installationId == null || installationId.isBlank()) return null;
+		Side opposing = war.getOppositeSide(attacker);
+		Faction found = null;
+		for (Faction faction : BattleSideMembers.collectParticipatingFactions(opposing)) {
+			if (resolveOwnedInstallation(faction, installationId) != null) {
+				// The public raid command supplies a local id. Never choose between
+				// distinct enemy installations that have the same id.
+				if (found != null) return null;
+				found = faction;
 			}
 		}
-		return null;
+		return found;
 	}
 
 	private static ValidateLaunchResult mapLaunchResult(LaunchResult gate) {
-		if (gate == null) {
-			return ValidateLaunchResult.REJECTED_WAR_INACTIVE;
-		}
-		return switch (gate) {
-			case STARTED -> ValidateLaunchResult.OK;
-			case REJECTED_WAR_INACTIVE -> ValidateLaunchResult.REJECTED_WAR_INACTIVE;
-			case REJECTED_NOT_PARTICIPANT -> ValidateLaunchResult.REJECTED_NOT_PARTICIPANT;
-			case REJECTED_OUTSIDE_WINDOW -> ValidateLaunchResult.REJECTED_OUTSIDE_WINDOW;
-			case REJECTED_QUOTA_SPENT -> ValidateLaunchResult.REJECTED_QUOTA_SPENT;
-			case REJECTED_RAID_IN_PROGRESS -> ValidateLaunchResult.REJECTED_RAID_IN_PROGRESS;
-			case REJECTED_INVALID_INPUT -> ValidateLaunchResult.REJECTED_INVALID_SOURCE;
-		};
+		// canLaunch returns STARTED or the shared eligibility rejection statuses.
+		return gate == LaunchResult.STARTED ? ValidateLaunchResult.OK : ValidateLaunchResult.valueOf(gate.name());
 	}
 }

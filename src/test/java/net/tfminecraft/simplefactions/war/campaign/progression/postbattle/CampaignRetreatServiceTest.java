@@ -31,6 +31,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
+import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
+import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
@@ -72,6 +76,10 @@ class CampaignRetreatServiceTest {
 		defender = mock(Faction.class);
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
+		when(attacker.getMilitary()).thenReturn(new net.tfminecraft.simplefactions.army.Military(attacker));
+		when(defender.getMilitary()).thenReturn(new net.tfminecraft.simplefactions.army.Military(defender));
+		when(attacker.getInstallationHandler()).thenReturn(new InstallationHandler(attacker));
+		when(defender.getInstallationHandler()).thenReturn(new InstallationHandler(defender));
 
 		ProvinceManager pm = new ProvinceManager();
 		Province battleProvince = new Province(20, Terrain.PLAINS.name(), 50, 200, 200);
@@ -81,6 +89,7 @@ class CampaignRetreatServiceTest {
 		pluginBackup = SimpleFactions.plugin;
 		SimpleFactions plugin = mock(SimpleFactions.class);
 		when(plugin.getProvinceManager()).thenReturn(pm);
+		when(plugin.getLogger()).thenReturn(java.util.logging.Logger.getLogger("campaign-test"));
 		SimpleFactions.plugin = plugin;
 
 		titleManagerMock = mockStatic(TitleManager.class);
@@ -93,6 +102,7 @@ class CampaignRetreatServiceTest {
 
 	@AfterEach
 	void tearDown() {
+		FactionManager.factions.remove(defender);
 		warManagerMock.close();
 		titleManagerMock.close();
 		SimpleFactions.plugin = pluginBackup;
@@ -265,12 +275,15 @@ class CampaignRetreatServiceTest {
 		War war = retreatableWar();
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(20, CampaignBattleKind.SIEGE, false, "fort_a")));
+		Installation fort = new Installation("fort_a", "Fort", InstallationKind.FORT, 20, 0, 0, 100L);
+		defender.getInstallationHandler().acceptTransferred(fort);
+		FactionManager.factions.add(defender);
 		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		CampaignRetreatService.concedeActiveSlot(war, defender, beforeVoteClose);
 
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get("fort_a"));
+		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get(fort.getStableKey()));
 		assertEquals(1, war.getCampaignScheduleIndex());
 		assertEquals(0, war.getCampaignBattlesFought());
 	}

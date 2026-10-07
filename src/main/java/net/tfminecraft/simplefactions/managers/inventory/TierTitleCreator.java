@@ -180,24 +180,29 @@ public class TierTitleCreator {
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName(StringFormatter.formatHex("#c49760Create a new "+t.getName()));
 		List<String> lore = new ArrayList<String>();
-		int cost = getNewTitleCost(f, TierLoader.getByLevel(t.getTier()));
-		int current = 0;
-		if(t.getId().equalsIgnoreCase("county")) {
-			current = f.getUntitledProvinces().size();
-			int percent = (int) Math.round((current * 1.0) / (cost * 1.0) * 100);
-			lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aeuntitled provinces to form a new "+t.getName()+"#d4c9ae!"));
-			lore.add(StringFormatter.formatHex("#767a77Currently: #a1aba3" + current + " #535955[" + percent + "%]"));
-		} else {
-			current = f.getFreeTitles(TierLoader.getByLevel(t.getTier()-1)).size();
-			int percent = (int) Math.round((current * 1.0) / (cost * 1.0) * 100);
-			lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aefree titles of the type "+TierLoader.getByLevel(t.getTier()-1).getName()+" #d4c9aeto form a "+t.getName()+"#d4c9ae!"));
-			lore.add(StringFormatter.formatHex("#767a77Currently: #a1aba3" + current + " #535955[" + percent + "%]"));
-		}
-		lore.add("");
-		if(current >= cost) {
-			lore.add(StringFormatter.formatHex("#28ed70Click to create"));
-		} else {
+		Tier lower = TierLoader.getByLevel(t.getTier()-1);
+		if (!t.canForm() || (!t.getId().equalsIgnoreCase("county") && lower == null)) {
 			lore.add(StringFormatter.formatHex("#9e4c4fUnavailable"));
+		} else {
+			int cost = getNewTitleCost(f, TierLoader.getByLevel(t.getTier()));
+			int current = 0;
+			if(t.getId().equalsIgnoreCase("county")) {
+				current = f.getUntitledProvinces().size();
+				int percent = (int) Math.round((current * 1.0) / (cost * 1.0) * 100);
+				lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aeuntitled provinces to form a new "+t.getName()+"#d4c9ae!"));
+				lore.add(StringFormatter.formatHex("#767a77Currently: #a1aba3" + current + " #535955[" + percent + "%]"));
+			} else {
+				current = f.getFreeTitles(lower).size();
+				int percent = (int) Math.round((current * 1.0) / (cost * 1.0) * 100);
+				lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aefree titles of the type "+lower.getName()+" #d4c9aeto form a "+t.getName()+"#d4c9ae!"));
+				lore.add(StringFormatter.formatHex("#767a77Currently: #a1aba3" + current + " #535955[" + percent + "%]"));
+			}
+			lore.add("");
+			if(current >= cost) {
+				lore.add(StringFormatter.formatHex("#28ed70Click to create"));
+			} else {
+				lore.add(StringFormatter.formatHex("#9e4c4fUnavailable"));
+			}
 		}
 		m.setLore(lore);
 		NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "tier");
@@ -236,6 +241,8 @@ public class TierTitleCreator {
 		m.setLore(lore);
 		NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "index");
 		m.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, index);
+		m.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "tier"),
+				PersistentDataType.STRING, t.getId());
 		i.setItemMeta(m);
 		return i;
 	}

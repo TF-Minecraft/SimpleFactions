@@ -71,10 +71,10 @@ public final class Highway {
             return;
         }
         int stopCount = offerCount(lines, graph, pushing);
-        int guard = stopCount * stopCount + 1;
-        for (int pass = 0; pass < guard; pass++) {
+        long guard = (long) stopCount * stopCount + 1;
+        for (long pass = 0; pass < guard; pass++) {
             if (!onePass(provinces, guild, graph, lines, accessByOwner, owners, false)) {
-                return;
+                break;
             }
         }
     }
@@ -91,10 +91,10 @@ public final class Highway {
             return;
         }
         int stopCount = offerCount(lines, graph, false);
-        int guard = stopCount * stopCount + 1;
-        for (int pass = 0; pass < guard; pass++) {
+        long guard = (long) stopCount * stopCount + 1;
+        for (long pass = 0; pass < guard; pass++) {
             if (!onePass(provinces, guild, graph, lines, accessByOwner, owners, true)) {
-                return;
+                break;
             }
         }
     }
@@ -165,9 +165,6 @@ public final class Highway {
                 continue;
             }
             Link link = bestLink(graph, other, node);
-            if (link == null) {
-                continue;
-            }
             double delivered = raw(provinces, guild, other)
                     * hopFactor(link, 1, 1);
             if (delivered > best) {
@@ -490,9 +487,6 @@ public final class Highway {
 
     /** Higher trade factor wins. Equal factors keep rail, which is what a measured link did. */
     private static boolean prefer(Link candidate, Link incumbent, boolean production) {
-        if (candidate == null) {
-            return false;
-        }
         if (incumbent == null) {
             return true;
         }
@@ -506,9 +500,6 @@ public final class Highway {
     }
 
     private static Set<Node> hubNodes(TradeGraph graph, Set<HubSite> hubbed) {
-        if (hubbed == null || hubbed.isEmpty()) {
-            return Set.of();
-        }
         Set<Node> nodes = new HashSet<>();
         for (Node node : graph.nodes()) {
             if (hubbed.contains(new HubSite(node.ownerFactionId(), node.installationId()))) {

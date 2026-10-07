@@ -52,9 +52,6 @@ public final class InterVassalQueries {
 	}
 
 	private static boolean isOverlordOfSideMains(Faction faction, Side side) {
-		if (side == null || side.getMainParticipants() == null) {
-			return false;
-		}
 		for (Participant participant : side.getMainParticipants()) {
 			if (participant == null || participant.getLeader() == null) {
 				continue;

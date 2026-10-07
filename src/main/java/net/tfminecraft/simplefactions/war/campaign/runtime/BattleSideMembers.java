@@ -59,10 +59,7 @@ public final class BattleSideMembers {
 		if (side == war.getAttackers()) {
 			return BelligerentRole.ATTACKER;
 		}
-		if (side == war.getDefenders()) {
-			return BelligerentRole.DEFENDER;
-		}
-		return null;
+		return BelligerentRole.DEFENDER;
 	}
 
 	private static void addFaction(Faction faction, List<Faction> factions, Set<String> seenIds) {

@@ -29,8 +29,8 @@ public final class BattleCasualtyLedger {
 		String sideKey = side.getId().toLowerCase(Locale.ROOT);
 		Map<String, Integer> sideCasualties = CASUALTIES_BY_BATTLE.computeIfAbsent(
 				battle.getId(),
-				ignored -> copyCasualties(battle.getRecordedSideCasualties()));
-		int updated = sideCasualties.getOrDefault(sideKey, 0) + 1;
+				ignored -> new HashMap<>(battle.getRecordedSideCasualties()));
+		int updated = (int) Math.min(Integer.MAX_VALUE, (long) sideCasualties.getOrDefault(sideKey, 0) + 1);
 		sideCasualties.put(sideKey, updated);
 		battle.setRecordedSideCasualty(sideKey, updated);
 	}
@@ -51,20 +51,6 @@ public final class BattleCasualtyLedger {
 			CASUALTIES_BY_BATTLE.remove(battle.getId());
 			battle.clearRecordedSideCasualties();
 		}
-	}
-
-	private static Map<String, Integer> copyCasualties(Map<String, Integer> source) {
-		Map<String, Integer> copy = new HashMap<>();
-		if (source == null) {
-			return copy;
-		}
-		for (Map.Entry<String, Integer> entry : source.entrySet()) {
-			if (entry.getKey() == null || entry.getValue() == null || entry.getValue() <= 0) {
-				continue;
-			}
-			copy.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
-		}
-		return copy;
 	}
 
 	public static void resetForTests() {

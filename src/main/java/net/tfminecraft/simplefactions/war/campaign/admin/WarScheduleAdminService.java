@@ -127,6 +127,10 @@ public final class WarScheduleAdminService {
 
 
 
+		return formatVoteCloseResult(war, result);
+	}
+
+	static WarScheduleAdminResult formatVoteCloseResult(War war, BattleScheduleCloseResult result) {
 		return switch (result) {
 
 			case SCHEDULED -> WarScheduleAdminResult.ok(
@@ -407,33 +411,26 @@ public final class WarScheduleAdminService {
 
 		}
 
+		Integer replacementProvince = BattleScheduleService.resolveScheduledProvinceId(war);
+		if (replacementProvince == null) {
+			return WarScheduleAdminResult.error("Need a single next battle province (green on campaign map).");
+		}
+		try {
+			var type = net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleTypeResolver.resolve(war, replacementProvince);
+			Battle replacement = net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory.createBlank(type, battle.getId());
+			net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory.applyCampaignDefault(replacement);
+		} catch (IllegalArgumentException | IllegalStateException error) {
+			return WarScheduleAdminResult.error("Cannot reset campaign battle: " + error.getMessage());
+		}
+
 		String removedBattleId = battle.getId();
 
 		BattlePersistenceService.deleteCampaignBattle(battle);
 
 		BattleManager.clearEditorSessions(battle);
 
-		WarScheduleAdminResult createResult = createFreshCampaignBattle(war, "Reset campaign battle: removed "
-
-				+ removedBattleId
-
-				+ ", recreated ");
-
-		if (!createResult.success()) {
-
-			return WarScheduleAdminResult.error(
-
-					"Removed battle "
-
-							+ removedBattleId
-
-							+ " but could not recreate: "
-
-							+ createResult.message());
-
-		}
-
-		return createResult;
+		return createFreshCampaignBattle(war, "Reset campaign battle: removed "
+				+ removedBattleId + ", recreated ");
 
 	}
 
@@ -483,9 +480,6 @@ public final class WarScheduleAdminService {
 		}
 		CampaignBattleOutcomeService.CampaignBattleApplyResult result =
 				CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, winner, provinceId);
-		if (winner != null && !result.progressionApplied()) {
-			return WarScheduleAdminResult.error("Could not apply battle outcome.");
-		}
 		CampaignBattleOutcomeService.finalizeCampaignBattleAfterOutcome(war);
 		if (result.autoEndReason().isPresent()) {
 			return WarScheduleAdminResult.ok(
@@ -529,6 +523,10 @@ public final class WarScheduleAdminService {
 			return WarScheduleAdminResult.ok(
 					"Post-battle choice applied. " + formatWarEndSummary(war.getEndReason()));
 		}
+		return appliedChoiceMessage(choice);
+	}
+
+	static WarScheduleAdminResult appliedChoiceMessage(String choice) {
 		return switch (choice.toLowerCase()) {
 			case "push" -> WarScheduleAdminResult.ok("Winner pushes. Voting reopened.");
 			case "hold" -> WarScheduleAdminResult.ok("Winner holds. White peace proposed.");
@@ -545,14 +543,9 @@ public final class WarScheduleAdminService {
 		}
 
 		BattlePersistenceService.purgeCampaignWarbandsForWar(war.getId());
-		if (!BattleScheduleService.markScheduledAtProvince(war, provinceId)) {
-			return WarScheduleAdminResult.error("Could not create campaign battle.");
-		}
+		BattleScheduleService.markScheduledAtProvince(war, provinceId);
 
 		Battle battle = BattleManager.getByWarId(war.getId());
-		if (battle == null) {
-			return WarScheduleAdminResult.error("Could not create campaign battle.");
-		}
 
 		CampaignBattleRosterService.ensureEnrolledForced(war, battle);
 
@@ -607,12 +600,6 @@ public final class WarScheduleAdminService {
 
 	private static void seedCampaignSidePhantomsIfEnabled(War war, Battle battle) {
 
-		if (war == null || battle == null) {
-
-			return;
-
-		}
-
 		seedCampaignSidePhantomsIfEnabled(war, battle, BattleTemplate.ATTACKER_SIDE);
 
 		seedCampaignSidePhantomsIfEnabled(war, battle, BattleTemplate.DEFENDER_SIDE);
@@ -623,8 +610,7 @@ public final class WarScheduleAdminService {
 
 	private static void seedCampaignSidePhantomsIfEnabled(War war, Battle battle, String battleSideId) {
 
-		Warband warband = WarbandManager.getByString(
-				BattleNamingService.campaignWarbandId(battle.getDisplayName(), battleSideId));
+		Warband warband = CampaignBattleRosterService.getCampaignWarband(battle, battleSideId);
 
 		if (warband == null) {
 
@@ -649,5 +635,4 @@ public final class WarScheduleAdminService {
 	}
 
 }
-
 

@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.battle.loot;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleLootMode;
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
+import net.tfminecraft.simplefactions.war.battle.events.BattleStartedEvent;
 import net.tfminecraft.tlibs.TLibs;
 
 /**
@@ -26,6 +28,13 @@ public class BattleLootService implements Listener {
 
 	private final Set<String> paidBattleIds = Collections.synchronizedSet(new HashSet<>());
 	private boolean warnedThisBattle;
+
+	@EventHandler
+	public void onBattleStarted(BattleStartedEvent event) {
+		if (event != null && event.getBattleId() != null) {
+			paidBattleIds.remove(event.getBattleId().toLowerCase(Locale.ROOT));
+		}
+	}
 
 	@EventHandler
 	public void onBattleEnded(BattleEndedEvent event) {
@@ -41,14 +50,11 @@ public class BattleLootService implements Listener {
 		}
 		// endBattle can be reached from more than one polled win check, and it fires
 		// this event every time even though battle.end() is itself idempotent.
-		if (!paidBattleIds.add(battleId.toLowerCase())) {
+		if (!paidBattleIds.add(battleId.toLowerCase(Locale.ROOT))) {
 			return;
 		}
 		warnedThisBattle = false;
 		for (UUID id : event.getParticipantIds()) {
-			if (id == null) {
-				continue;
-			}
 			Player player = Bukkit.getPlayer(id);
 			if (player == null || !player.isOnline()) {
 				continue;

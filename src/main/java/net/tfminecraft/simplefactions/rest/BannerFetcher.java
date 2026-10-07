@@ -69,6 +69,7 @@ public final class BannerFetcher {
 				task -> Bukkit.getScheduler().runTaskAsynchronously(plugin, task),
 				task -> {
 					if (plugin.isEnabled()) Bukkit.getScheduler().runTask(plugin, task);
+					else inFlight.remove(key);
 				});
 	}
 

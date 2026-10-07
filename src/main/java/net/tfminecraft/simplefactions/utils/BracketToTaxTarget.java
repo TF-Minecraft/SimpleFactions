@@ -4,6 +4,8 @@ import net.tfminecraft.simplefactions.enums.Brackets;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 
 public class BracketToTaxTarget {
+    private BracketToTaxTarget() {}
+
     public static TaxTarget convert(Brackets bracket) {
         switch (bracket) {
             case CITIZEN_TAX:

@@ -47,8 +47,9 @@ class OpenTrackReachTest {
         Map<Integer, Double> reached = VehicleFrameworkTracks.reach(
                 List.of(stem, branch), List.of(junction),
                 0, 0, 10, 2500, (x, z) -> province(x, z), 1);
-        assertEquals(100, reached.get(2), 1e-6);
-        assertEquals(200, reached.get(3), 1e-6);
+        // Boarding begins where the intact track enters the station's ten-block radius.
+        assertEquals(90, reached.get(2), 1e-6);
+        assertEquals(190, reached.get(3), 1e-6);
         assertTrue(reached.get(4) > 100 && reached.get(4) <= 200);
         assertFalse(reached.containsKey(1));
 

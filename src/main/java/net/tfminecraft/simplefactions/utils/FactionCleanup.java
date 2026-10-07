@@ -83,7 +83,7 @@ public class FactionCleanup {
     public static void ping(String username) {
         if (username == null || username.isBlank()) return;
         try {
-            if (!ensureLoaded()) offlineDays = new HashMap<>();
+            if (!ensureLoaded()) return;
             offlineDays.put(username.toLowerCase(Locale.ROOT), 0);
             saveOfflineDays(offlineDays);
         } catch (IOException e) {

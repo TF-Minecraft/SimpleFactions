@@ -168,6 +168,7 @@ class ObjectiveProvincePickerTest {
 	void pickObjective_pillageUsesSettlementCenter() {
 		Faction attacker = mockFaction("atk");
 		Faction defender = mockFaction("def");
+		when(defender.getProvinces()).thenReturn(List.of(11));
 		Settlement settlement = new Settlement("town", "Town", 11, 0, 0);
 		SettlementHandler handler = mock(SettlementHandler.class);
 		when(defender.getSettlementHandler()).thenReturn(handler);

@@ -52,7 +52,7 @@ public class WarbandMembershipService {
 			return false;
 		}
 		Warband warband = WarbandManager.getByString(state.getWarbandId());
-		if (warband == null) {
+		if (warband == null || !state.belongsTo(warband)) {
 			return false;
 		}
 		Faction playerFaction = warband.isFaction() ? FactionManager.getByMember(playerName) : null;
@@ -165,9 +165,6 @@ public class WarbandMembershipService {
 			return;
 		}
 		BattleSide side = battle.getSideByMemberId(player.getUniqueId());
-		if (side == null) {
-			return;
-		}
 		side.addBossBarPlayer(player);
 	}
 }

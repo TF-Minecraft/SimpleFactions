@@ -100,4 +100,19 @@ class VehicleFeeHandlerTest {
         assertEquals(12.0, handler.getRate(FeeKind.VEHICLE_TAX, "cruiser"));
         assertEquals(Map.of("VEHICLE_TAX", 15.0), handler.serializeRates());
     }
+
+    @Test
+    void absentBracketsAndIncompleteSavedOverridesPreserveValidRates() {
+        handler.setRate(FeeKind.VEHICLE_TAX, "unknown", 0.0);
+        handler.applyBracket(FeeKind.VEHICLE_TAX, null);
+        assertFalse(handler.canCharge(FeeKind.VEHICLE_TAX));
+        Map<String, Map<String, Double>> saved = new HashMap<>();
+        saved.put(null, Map.of("cart", 3.0));
+        saved.put("TRANSFER_FEE", null);
+        saved.put("VEHICLE_TAX", Map.of("cart", 2.0));
+        handler.load(Map.of(), saved);
+        assertEquals(2.0, handler.getRate(FeeKind.VEHICLE_TAX, "cart"));
+        assertFalse(handler.hasTypeRate(FeeKind.TRANSFER_FEE, "cart"));
+    }
+
 }

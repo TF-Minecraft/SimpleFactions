@@ -107,7 +107,11 @@ public final class OccupationMapExport {
 		if (source == null) {
 			return;
 		}
-		ids.addAll(source);
+		for (Integer provinceId : source) {
+			if (provinceId != null) {
+				ids.add(provinceId);
+			}
+		}
 	}
 
 	private static void addRgb(Set<String> rgbs, Faction faction) {

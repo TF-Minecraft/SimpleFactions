@@ -58,9 +58,6 @@ public final class SiegeContestService {
 		int attackers = 0;
 		int defenders = 0;
 		for (Player player : battle.getAllParticipants()) {
-			if (player == null || !player.isOnline()) {
-				continue;
-			}
 			if (VehicleFramework.getVehicleManager().get(player) != null) {
 				continue;
 			}
@@ -68,9 +65,6 @@ public final class SiegeContestService {
 				continue;
 			}
 			BattleSide side = battle.getSideByPlayer(player);
-			if (side == null) {
-				continue;
-			}
 			if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(side.getId())) {
 				attackers++;
 			} else if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(side.getId())) {

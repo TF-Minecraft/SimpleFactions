@@ -90,9 +90,9 @@ class FortControlServiceTest {
 
 		FortControlService.initializeAtDeclare(war);
 
-		assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get("fort_def"));
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get("fort_atk"));
-		assertFalse(war.getFortControllers().containsKey("fort_neutral"));
+		assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get(defenderFort.getStableKey()));
+		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get(attackerFort.getStableKey()));
+		assertFalse(war.getFortControllers().containsKey(neutralFort.getStableKey()));
 	}
 
 	@Test

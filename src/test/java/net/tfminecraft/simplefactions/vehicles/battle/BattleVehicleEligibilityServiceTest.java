@@ -60,10 +60,15 @@ class BattleVehicleEligibilityServiceTest {
 		defender = mock(Faction.class);
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
+		InstallationHandler attackerInstallations = new InstallationHandler(attacker);
+		attackerInstallations.load(List.of(new Installation(
+				"airport-1", "Airport", InstallationKind.AIRPORT, 1, 0, 0, 0L).toData()));
+		when(attacker.getInstallationHandler()).thenReturn(attackerInstallations);
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
 
 		war = new War(1, attacker, defender);
+		war.setOccupiedByAttacker(new java.util.ArrayList<>(List.of(1)));
 		war.setGoal(WarGoalType.SUBJUGATE);
 		war.setWarType(WarType.SUBJUGATE);
 		war.setBattleDay(BATTLE_DAY);

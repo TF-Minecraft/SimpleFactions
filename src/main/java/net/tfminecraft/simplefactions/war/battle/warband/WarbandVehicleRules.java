@@ -12,6 +12,7 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
+import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidBattleService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.vehicleframework.VehicleFramework;
 
@@ -86,7 +87,7 @@ public final class WarbandVehicleRules {
 					return true;
 				}
 				Battle battle = BattleManager.getByString(battleId);
-				return battle == null || !battle.hasStarted();
+				return !CampaignRaidBattleService.isCampaignRaidBattle(war, battle) || !battle.hasStarted();
 			}
 		}
 		return false;

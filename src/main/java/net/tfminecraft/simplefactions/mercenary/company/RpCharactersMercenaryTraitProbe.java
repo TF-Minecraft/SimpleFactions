@@ -28,7 +28,7 @@ public final class RpCharactersMercenaryTraitProbe implements MercenaryEligibili
             return MercenaryEligibility.Status.UNKNOWN;
         }
         PlayerData data = PlayerManager.get(online);
-        if (data == null || !data.hasActiveCharacter()) {
+        if (data == null) {
             return MercenaryEligibility.Status.INELIGIBLE;
         }
         RPCharacter character = data.getActiveCharacter();

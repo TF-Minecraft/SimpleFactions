@@ -55,8 +55,8 @@ class OccupationServiceTest {
 				pm,
 				new TitleManagerProvinceOwnerLookup(),
 				FortZocIndex.fromForts(List.of()));
-		attacker = mock(Faction.class);
-		defender = mock(Faction.class);
+		attacker = factionWithInstallations();
+		defender = factionWithInstallations();
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
 	}
@@ -437,7 +437,7 @@ class OccupationServiceTest {
 	}
 
 	private static Faction mockIndependent(String id) {
-		Faction faction = mock(Faction.class);
+		Faction faction = factionWithInstallations();
 		when(faction.getId()).thenReturn(id);
 		when(faction.getRelations()).thenReturn(new HashMap<>());
 		when(faction.getMembers()).thenReturn(new ArrayList<>());
@@ -457,4 +457,11 @@ class OccupationServiceTest {
 		when(faction.getRelation(overlordId)).thenReturn(relation);
 		return faction;
 	}
+	private static Faction factionWithInstallations() {
+		Faction faction = mock(Faction.class);
+		when(faction.getInstallationHandler()).thenReturn(
+				new net.tfminecraft.simplefactions.installation.handler.InstallationHandler(faction));
+		return faction;
+	}
+
 }

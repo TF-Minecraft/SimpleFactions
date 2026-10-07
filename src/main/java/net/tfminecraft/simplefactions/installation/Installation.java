@@ -65,6 +65,11 @@ public class Installation {
         return id;
     }
 
+    /** Persistent identity across a transfer that changes the holder or local id. */
+    public String getStableKey() {
+        return "province:" + province + ":" + kind.getCommandName() + ":" + completedAt;
+    }
+
     public String getName() {
         return name;
     }

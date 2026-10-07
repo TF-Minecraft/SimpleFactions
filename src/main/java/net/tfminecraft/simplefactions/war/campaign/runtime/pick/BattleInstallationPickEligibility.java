@@ -73,9 +73,6 @@ public final class BattleInstallationPickEligibility {
 			return List.of();
 		}
 		InstallationHandler handler = faction.getInstallationHandler();
-		if (handler == null) {
-			return List.of();
-		}
 		List<Installation> pickable = new ArrayList<>();
 		for (Installation installation : handler.getAll()) {
 			if (isPickable(war, faction, installation)) {

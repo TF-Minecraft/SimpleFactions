@@ -273,9 +273,9 @@ public class Military {
 				if(total+count >= subject.getMembers().size()) {
 					count = subject.getMembers().size() - total;
 				}
-				total+=count;
-				if(count > 0) r.setSentToOverlord(count);
-				else continue;
+				count = Math.max(0, count);
+				total += count;
+				r.setSentToOverlord(count);
 			}
 			levies.add(new LevyEntry(subject, total));
 			for(LevyEntry e : subjectLevies) {

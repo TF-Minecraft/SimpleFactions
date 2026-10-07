@@ -32,19 +32,20 @@ public class PoliticalActionLoader {
 	}
 
 	public void load(File configFile) {
-		FileConfiguration config = new YamlConfiguration();
+        FileConfiguration config = new YamlConfiguration();
+        Map<Action, PoliticalAction> loaded = new java.util.LinkedHashMap<>();
         try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
+            config.load(configFile);
+            loaded.put(Action.NONE, new PoliticalAction(Action.NONE));
+            for (String key : config.getKeys(false)) {
+                PoliticalAction action = new PoliticalAction(key, config.getConfigurationSection(key));
+                loaded.put(action.getAction(), action);
+            }
+        } catch (IOException | InvalidConfigurationException | RuntimeException e) {
             e.printStackTrace();
+            return;
         }
-		Set<String> set = config.getKeys(false);
-
-		List<String> list = new ArrayList<>(set);
-		map.put(Action.NONE, new PoliticalAction(Action.NONE));
-		for(String key : list) {
-			PoliticalAction r = new PoliticalAction(key, config.getConfigurationSection(key));
-			map.put(r.getAction(), r);
-		}
-	}
+        map.clear();
+        map.putAll(loaded);
+    }
 }

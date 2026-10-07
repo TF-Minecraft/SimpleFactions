@@ -119,9 +119,6 @@ public final class CampaignScheduleService {
 	}
 
 	private static Optional<ScheduledCampaignBattle> activeSlotAt(War war, int index) {
-		if (war == null) {
-			return Optional.empty();
-		}
 		List<ScheduledCampaignBattle> schedule = activeScheduleList(war);
 		if (schedule == null || index < 0 || index >= schedule.size()) {
 			return Optional.empty();
@@ -189,9 +186,6 @@ public final class CampaignScheduleService {
 	}
 
 	private static Optional<ScheduledCampaignBattle> currentSlotWithoutReSiege(War war) {
-		if (!hasActiveSchedule(war)) {
-			return Optional.empty();
-		}
 		return activeSlotAt(war, activeScheduleIndex(war));
 	}
 
@@ -224,11 +218,15 @@ public final class CampaignScheduleService {
 		}
 		List<ScheduledCampaignBattle> schedule = new ArrayList<>(activeScheduleList(war));
 		int index = Math.max(0, Math.min(activeScheduleIndex(war), schedule.size()));
+		Integer chronologyProvinceId = (war.getCampaignProvinces() == null || !war.getCampaignProvinces().contains(fort.province()))
+				&& axisProvinceId != fort.province() ? axisProvinceId : null;
 		schedule.add(index, new ScheduledCampaignBattle(
-				axisProvinceId,
+				fort.province(),
 				CampaignBattleKind.SIEGE,
 				false,
-				fort.id()));
+				fort.id(),
+				null,
+				chronologyProvinceId));
 		setActiveScheduleList(war, schedule);
 	}
 
@@ -241,9 +239,6 @@ public final class CampaignScheduleService {
 			return;
 		}
 		CampaignCoalition advancing = CampaignCoalitionService.getInitiativeHolderCoalition(war);
-		if (advancing == null) {
-			return;
-		}
 
 		int index = activeScheduleIndex(war);
 		Optional<ScheduledCampaignBattle> current = activeSlotAt(war, index);
@@ -255,13 +250,13 @@ public final class CampaignScheduleService {
 				continue;
 			}
 			OperationalFort operationalFort = fort.get();
-			if (!FortControlService.isEnemyControlled(war, operationalFort.id(), advancing)) {
+			if (!FortControlService.isEnemyControlledForFort(war, operationalFort, advancing)) {
 				continue;
 			}
-			if (current.isPresent() && isSiegeForFort(current.get(), operationalFort.id())) {
+			if (current.isPresent() && isSiegeForFort(current.get(), operationalFort)) {
 				return;
 			}
-			if (scheduleAlreadyHasSiegeForFort(war, index, operationalFort.id())) {
+			if (scheduleAlreadyHasSiegeForFort(war, index, operationalFort)) {
 				return;
 			}
 			insertSiegeAtCurrentIndex(war, operationalFort, provinceId);
@@ -269,24 +264,21 @@ public final class CampaignScheduleService {
 		}
 	}
 
-	private static boolean scheduleAlreadyHasSiegeForFort(War war, int fromIndex, String fortInstallationId) {
+	private static boolean scheduleAlreadyHasSiegeForFort(War war, int fromIndex, OperationalFort fort) {
 		List<ScheduledCampaignBattle> schedule = activeScheduleList(war);
 		for (int i = fromIndex; i < schedule.size(); i++) {
-			if (isSiegeForFort(schedule.get(i), fortInstallationId)) {
+			if (isSiegeForFort(schedule.get(i), fort)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	private static boolean isSiegeForFort(ScheduledCampaignBattle slot, String fortInstallationId) {
+	private static boolean isSiegeForFort(ScheduledCampaignBattle slot, OperationalFort fort) {
 		if (slot == null || slot.kind() != CampaignBattleKind.SIEGE) {
 			return false;
 		}
-		if (fortInstallationId == null) {
-			return slot.fortInstallationId() != null;
-		}
-		return fortInstallationId.equals(slot.fortInstallationId());
+		return fort.id().equals(slot.fortInstallationId()) && fort.province() == slot.provinceId();
 	}
 
 	private static List<Integer> advancingAxisIndices(War war) {

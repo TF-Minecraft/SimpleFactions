@@ -18,6 +18,6 @@ public enum CampaignRaidState {
 	}
 
 	public String toJson() {
-		return name().toLowerCase();
+		return name().toLowerCase(java.util.Locale.ROOT);
 	}
 }

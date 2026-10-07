@@ -350,7 +350,7 @@ class WarCampaignServiceTest {
 			assertTrue(schedule.stream().anyMatch(slot ->
 					slot.kind() == CampaignBattleKind.SIEGE
 							&& "fort_a".equals(slot.fortInstallationId())));
-			assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get("fort_a"));
+			assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get(fort.getStableKey()));
 			ScheduledCampaignBattle last = schedule.get(schedule.size() - 1);
 			assertEquals(25, last.provinceId());
 			assertTrue(last.required());
@@ -442,6 +442,8 @@ class WarCampaignServiceTest {
 
 	@Test
 	void mergeAxisPaths_deduplicatesBorderProvince() {
+		assertEquals(List.of(5, 10), WarCampaignService.mergeAxisPaths(List.of(5, 10), List.of()));
+		assertEquals(List.of(20, 30), WarCampaignService.mergeAxisPaths(List.of(), List.of(20, 30)));
 		assertEquals(
 				List.of(5, 10, 20, 30),
 				WarCampaignService.mergeAxisPaths(List.of(5, 10), List.of(10, 20, 30)));
@@ -570,4 +572,33 @@ class WarCampaignServiceTest {
 		a.addNeighbour(b.getId());
 		b.addNeighbour(a.getId());
 	}
+
+	@Test
+	void invalidScheduleDiagnosticsIdentifyTheWarAndDoNotPublishCandidateChanges() {
+		try (var fixture = new net.tfminecraft.simplefactions.testsupport.FactionDomainFixture()) {
+			War war = new War(87, fixture.saved("atk", "Alice"), fixture.saved("def", "Bob"));
+			war.setObjectiveProvinceId(20);
+			var records = new java.util.ArrayList<java.util.logging.LogRecord>();
+			var logger = java.util.logging.Logger.getLogger(WarCampaignService.class.getName());
+			var handler = new java.util.logging.Handler() {
+				public void publish(java.util.logging.LogRecord record) { records.add(record); }
+				public void flush() {}
+				public void close() {}
+			};
+			logger.addHandler(handler);
+			try {
+				WarCampaignService.logInvasionScheduleValidity(war, java.util.List.of(10, 20), java.util.List.of(
+					new net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle(10, net.tfminecraft.simplefactions.war.enums.CampaignBattleKind.FIELD, true, null)));
+				org.junit.jupiter.api.Assertions.assertEquals(1, records.size());
+				org.junit.jupiter.api.Assertions.assertTrue(records.getFirst().getMessage().contains("war 87"));
+				org.junit.jupiter.api.Assertions.assertTrue(war.getCampaignBattleSchedule().isEmpty());
+				org.junit.jupiter.api.Assertions.assertEquals(20, WarCampaignService.resolveFinalObjective(war, null, 10, 20,
+					net.tfminecraft.simplefactions.war.pathfinder.BelligerentTerritory.fromWar(war, new net.tfminecraft.simplefactions.war.pathfinder.TitleManagerProvinceOwnerLookup()),
+					new net.tfminecraft.simplefactions.war.pathfinder.ProvincePathfinder(fixture.provinces, new net.tfminecraft.simplefactions.war.pathfinder.TitleManagerProvinceOwnerLookup())));
+			} finally {
+				logger.removeHandler(handler);
+			}
+		}
+	}
+
 }

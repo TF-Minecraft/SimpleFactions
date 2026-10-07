@@ -134,10 +134,7 @@ public final class BattleCapturePoints {
 		return null;
 	}
 
-	static Location resolveAttackerSpawn(Battle battle) {
-		if (battle == null) {
-			return null;
-		}
+	private static Location resolveAttackerSpawn(Battle battle) {
 		BattleSide attacker = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
 		if (attacker != null && attacker.getSpawn() != null) {
 			return attacker.getSpawn();

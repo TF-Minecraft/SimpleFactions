@@ -54,7 +54,7 @@ class WartimeInstallationServiceTest {
 
 		assertNull(vassal.handler.getById("port-1"));
 		assertNotNull(attacker.handler.getById("port-1"));
-		assertEquals("vassal", war.getWartimeInstallationOwners().get("port-1"));
+		assertEquals("vassal", war.getWartimeInstallationOwners().get("province:42:port:1"));
 	}
 
 	@Test
@@ -77,7 +77,7 @@ class WartimeInstallationServiceTest {
 		assertNotNull(vassal.handler.getById("port-1"));
 		assertNull(defender.handler.getById("port-1"));
 		assertNull(attacker.handler.getById("port-1"));
-		assertEquals("vassal", war.getWartimeInstallationOwners().get("port-1"));
+		assertEquals("vassal", war.getWartimeInstallationOwners().get("province:42:port:1"));
 	}
 
 	@Test

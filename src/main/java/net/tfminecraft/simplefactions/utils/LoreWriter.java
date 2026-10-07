@@ -53,28 +53,25 @@ public class LoreWriter {
             String type = "";
             if(target == TaxTarget.GUILD_ID) {
                 Guild guild = FactionManager.getGuildByString(taxChange.getId());
+                if (guild == null) {
+                    unavailableTaxTarget(lore, taxChange.getId());
+                    return;
+                }
                 name = guild.getName();
                 type = guild.getType().getName();
-            } else if(target == TaxTarget.VASSAL_ID) {
-                name = FactionManager.getByString(taxChange.getId()).getName();
-                type = "#4269a8Vassal";
-            } else if(target == TaxTarget.TARIFF_ID) {
-                name = FactionManager.getByString(taxChange.getId()).getName();
-                type = "#79bf6dTariff";
-            } else{
+            } else if(target == TaxTarget.VASSAL_ID || target == TaxTarget.TARIFF_ID) {
+                Faction targetFaction = FactionManager.getByString(taxChange.getId());
+                if (targetFaction == null) {
+                    unavailableTaxTarget(lore, taxChange.getId());
+                    return;
+                }
+                name = targetFaction.getName();
+                type = target == TaxTarget.VASSAL_ID ? "#4269a8Vassal" : "#79bf6dTariff";
+            } else {
                 name = target.getDisplayName();
             }
-            String oldRate = "";
-            if(target == TaxTarget.GUILD_ID || target == TaxTarget.VASSAL_ID || target == TaxTarget.TARIFF_ID) {
-                double rate = f.getTaxRate(target, taxChange.getId(), false);
-                if(rate == -1.0) {
-                    oldRate = String.valueOf(f.getTaxRate(target, null, false));
-                } else {
-                    oldRate = String.valueOf(rate);
-                }
-            } else {
-                oldRate = String.valueOf(f.getTaxRate(target, null, false));
-            }
+            // getTaxRate already falls back to the general rate when no override exists.
+            String oldRate = String.valueOf(f.getTaxRate(target, taxChange.getId(), false));
             double baseRate = f.getTaxRate(target, null, false);
             lore.add(StringFormatter.formatHex("#b8ae61Target: #c2bea7"+name+
                 (type.isEmpty() ? "" : " §7("+type+"§7)")));
@@ -122,6 +119,10 @@ public class LoreWriter {
                     break;
             }
         }
+    }
+
+    private static void unavailableTaxTarget(List<String> lore, String id) {
+        lore.add(StringFormatter.formatHex("#d65c5cTarget " + id + " is no longer available"));
     }
 
     public static void writeEffect(Scope scope, LawEffect effect, List<String> lore) {

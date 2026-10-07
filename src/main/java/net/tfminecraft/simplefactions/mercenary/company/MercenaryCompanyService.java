@@ -163,9 +163,7 @@ public final class MercenaryCompanyService {
         if (company.hasFreeSlot()) {
             return MercenaryResult.deny("Fill every slot before dismissing a mercenary.");
         }
-        if (!company.kick(player)) {
-            return MercenaryResult.deny(player + " does not serve in your company.");
-        }
+        company.kick(player);
         return MercenaryResult.ok(player + " was dismissed from the company.");
     }
 
@@ -199,9 +197,7 @@ public final class MercenaryCompanyService {
         if (!company.hasFreeSlot()) {
             return MercenaryResult.deny("Dismiss a mercenary before removing a slot.");
         }
-        if (!company.dropSlot()) {
-            return MercenaryResult.deny("There is no unused slot to remove.");
-        }
+        company.dropSlot();
         return MercenaryResult.ok("Removed one unused company slot.");
     }
 

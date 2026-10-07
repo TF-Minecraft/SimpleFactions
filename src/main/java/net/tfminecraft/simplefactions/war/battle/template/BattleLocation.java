@@ -31,23 +31,19 @@ public class BattleLocation {
 		if (section == null) {
 			return null;
 		}
+		java.util.Map<String, Object> values = new java.util.HashMap<>(section.getValues(false));
 		String worldName = section.getString("world");
 		if (worldName == null || worldName.isBlank()) {
-			worldName = Cache.worldName;
+			values.put("world", Cache.worldName);
 		}
-		if (!section.contains("x") || !section.contains("y") || !section.contains("z")) {
-			return null;
-		}
-		return new BattleLocation(
-				worldName,
-				section.getDouble("x"),
-				section.getDouble("y"),
-				section.getDouble("z"),
-				(float) section.getDouble("yaw", 0),
-				(float) section.getDouble("pitch", 0));
+		return fromMap(values);
 	}
 
 	public Location toBukkitLocation() {
+		if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
+				|| !Float.isFinite(yaw) || !Float.isFinite(pitch)) {
+			return null;
+		}
 		if (world == null || world.isBlank()) {
 			world = Cache.worldName;
 		}
@@ -85,13 +81,14 @@ public class BattleLocation {
 		String worldName = map.get("world") instanceof String world ? world : Cache.worldName;
 		float yaw = map.get("yaw") instanceof Number yawNum ? yawNum.floatValue() : 0f;
 		float pitch = map.get("pitch") instanceof Number pitchNum ? pitchNum.floatValue() : 0f;
-		return new BattleLocation(
-				worldName,
-				((Number) xObj).doubleValue(),
-				((Number) yObj).doubleValue(),
-				((Number) zObj).doubleValue(),
-				yaw,
-				pitch);
+		double x = ((Number) xObj).doubleValue();
+		double y = ((Number) yObj).doubleValue();
+		double z = ((Number) zObj).doubleValue();
+		if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
+				|| !Float.isFinite(yaw) || !Float.isFinite(pitch)) {
+			return null;
+		}
+		return new BattleLocation(worldName, x, y, z, yaw, pitch);
 	}
 
 	public String getWorld() {

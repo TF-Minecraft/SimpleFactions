@@ -176,9 +176,6 @@ public class Participant {
 	}
 
 	private boolean containsBacker(String factionId) {
-		if (factionId == null) {
-			return false;
-		}
 		for (Faction backer : backers) {
 			if (backer != null && backer.getId() != null && backer.getId().equalsIgnoreCase(factionId)) {
 				return true;

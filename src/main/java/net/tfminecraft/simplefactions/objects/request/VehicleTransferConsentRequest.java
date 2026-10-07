@@ -13,6 +13,7 @@ public final class VehicleTransferConsentRequest extends Request {
     private final UUID ownerUuid;
     private final UUID proposerLeaderUuid;
     private final boolean pool;
+    private final String destinationFactionId;
 
     public VehicleTransferConsentRequest(
             Guild sender,
@@ -43,6 +44,7 @@ public final class VehicleTransferConsentRequest extends Request {
         this.ownerUuid = ownerUuid;
         this.proposerLeaderUuid = proposerLeaderUuid;
         this.pool = pool;
+        this.destinationFactionId = sender.getFaction() == null ? null : sender.getFaction().getId();
         this.time = System.currentTimeMillis()
                 + InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
     }
@@ -69,6 +71,10 @@ public final class VehicleTransferConsentRequest extends Request {
 
     public UUID getProposerLeaderUuid() {
         return proposerLeaderUuid;
+    }
+
+    public String getDestinationFactionId() {
+        return destinationFactionId;
     }
 
     public boolean isPool() {

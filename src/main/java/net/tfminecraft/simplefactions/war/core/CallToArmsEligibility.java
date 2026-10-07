@@ -79,13 +79,7 @@ public final class CallToArmsEligibility {
 	}
 
 	private static boolean isMainLeaderId(Side side, String factionId) {
-		if (side == null || side.getMainParticipants() == null) {
-			return false;
-		}
 		for (Participant participant : side.getMainParticipants()) {
-			if (participant == null || participant.getLeader() == null || participant.getLeader().getId() == null) {
-				continue;
-			}
 			if (participant.getLeader().getId().equalsIgnoreCase(factionId)) {
 				return true;
 			}

@@ -36,7 +36,9 @@ public final class BattleVoteService {
 		if (playerFaction == null || war.getSide(playerFaction) == null) {
 			return VoteResults.BattleVoteToggleResult.REJECTED_NOT_PARTICIPANT;
 		}
-		if (BattleScheduleService.isVoteCloseDue(war, CampaignClock.now())) {
+		if (!war.isActive()
+				|| war.getBattleSchedulePhase() != net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.VOTING
+				|| BattleScheduleService.isVoteCloseDue(war, CampaignClock.now())) {
 			return VoteResults.BattleVoteToggleResult.REJECTED_VOTE_CLOSED;
 		}
 		if (!BattleWindowService.isValidHour(hour)) {

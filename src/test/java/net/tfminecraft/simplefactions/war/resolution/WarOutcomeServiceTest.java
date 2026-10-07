@@ -212,7 +212,7 @@ class WarOutcomeServiceTest {
 		Fixture fx = fixture();
 		fx.war.setGoal(WarGoalType.TRANSFER_SUBJECT);
 		fx.war.setSubjectFactionId("subject");
-		Faction subject = mock(Faction.class);
+		Faction subject = factionWithInstallations();
 		when(subject.getId()).thenReturn("subject");
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
@@ -391,7 +391,7 @@ class WarOutcomeServiceTest {
 		land.defenderProvinces.clear();
 		land.defenderProvinces.add(30);
 		List<Integer> vassalProvinces = new ArrayList<>(List.of(20));
-		Faction vassal = mock(Faction.class);
+		Faction vassal = factionWithInstallations();
 		when(vassal.getId()).thenReturn("vassal");
 		when(vassal.getProvinces()).thenReturn(vassalProvinces);
 		when(vassal.getCapital()).thenReturn(99);
@@ -636,7 +636,7 @@ class WarOutcomeServiceTest {
 
 	@Test
 	void tickAfterDailySettlement_decrementsThenRemoves() {
-		Faction payer = mock(Faction.class);
+		Faction payer = factionWithInstallations();
 		List<WarReparationsObligation> obligations = new ArrayList<>();
 		obligations.add(new WarReparationsObligation("def", 25, 2));
 		when(payer.getWarReparationsObligations()).thenReturn(obligations);
@@ -651,8 +651,8 @@ class WarOutcomeServiceTest {
 
 	private static Fixture fixture() {
 		Fixture fx = new Fixture();
-		fx.attacker = mock(Faction.class);
-		fx.defender = mock(Faction.class);
+		fx.attacker = factionWithInstallations();
+		fx.defender = factionWithInstallations();
 		when(fx.attacker.getId()).thenReturn("atk");
 		when(fx.defender.getId()).thenReturn("def");
 		fx.payerObligations = new ArrayList<>();
@@ -706,4 +706,11 @@ class WarOutcomeServiceTest {
 		List<Integer> defenderProvinces;
 		ProvinceHandler defenderHandler;
 	}
+	private static Faction factionWithInstallations() {
+		Faction faction = mock(Faction.class);
+		when(faction.getInstallationHandler()).thenReturn(
+				new net.tfminecraft.simplefactions.installation.handler.InstallationHandler(faction));
+		return faction;
+	}
+
 }

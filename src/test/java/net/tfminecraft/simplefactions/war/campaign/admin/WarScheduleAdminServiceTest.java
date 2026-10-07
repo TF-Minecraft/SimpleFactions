@@ -178,15 +178,11 @@ class WarScheduleAdminServiceTest {
 				assertTrue(WarScheduleAdminService.battleCreate(war).success());
 				Battle battle = BattleManager.getByWarId(war.getId());
 				net.tfminecraft.simplefactions.war.battle.warband.Warband attackerBand =
-						WarbandManager.getByString(
-								net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService.campaignWarbandId(
-										battle.getDisplayName(),
-										net.tfminecraft.simplefactions.war.battle.template.BattleTemplate.ATTACKER_SIDE));
+						battle.getSideById(
+								net.tfminecraft.simplefactions.war.battle.template.BattleTemplate.ATTACKER_SIDE).getBands().getFirst();
 				net.tfminecraft.simplefactions.war.battle.warband.Warband defenderBand =
-						WarbandManager.getByString(
-								net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService.campaignWarbandId(
-										battle.getDisplayName(),
-										net.tfminecraft.simplefactions.war.battle.template.BattleTemplate.DEFENDER_SIDE));
+						battle.getSideById(
+								net.tfminecraft.simplefactions.war.battle.template.BattleTemplate.DEFENDER_SIDE).getBands().getFirst();
 				assertNotNull(attackerBand);
 				assertNotNull(defenderBand);
 				assertTrue(attackerBand.getDummyMemberCount() > 0);
@@ -206,9 +202,9 @@ class WarScheduleAdminServiceTest {
 		withMockBossBar(() -> {
 			assertTrue(WarScheduleAdminService.battleCreate(war).success());
 			Battle battle = BattleManager.getByWarId(war.getId());
-			String attackerWarbandId = net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService.campaignWarbandId(
-					battle.getDisplayName(),
-					net.tfminecraft.simplefactions.war.battle.template.BattleTemplate.ATTACKER_SIDE);
+			String attackerWarbandId = battle.getSideById(
+					net.tfminecraft.simplefactions.war.battle.template.BattleTemplate.ATTACKER_SIDE)
+					.getBands().getFirst().getId();
 			assertNotNull(WarbandManager.getByString(attackerWarbandId));
 
 			WarScheduleAdminResult result = WarScheduleAdminService.battleDelete(war);
@@ -379,4 +375,17 @@ class WarScheduleAdminServiceTest {
 			action.run();
 		}
 	}
+
+	@Test
+	void appliedChoiceMessagesDescribeEachAcceptedAdministrativeAction() {
+		assertTrue(WarScheduleAdminService.appliedChoiceMessage("push").message().contains("Winner pushes"));
+		assertTrue(WarScheduleAdminService.appliedChoiceMessage("hold").message().contains("Winner holds"));
+		assertTrue(WarScheduleAdminService.appliedChoiceMessage("attack").message().contains("Loser attacks"));
+		for (String choice : java.util.List.of("accept", "peace", "acceptpeace", "accept-peace")) {
+			var result = WarScheduleAdminService.appliedChoiceMessage(choice);
+			assertTrue(result.success());
+			assertEquals("Loser accepted white peace.", result.message());
+		}
+	}
+
 }

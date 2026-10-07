@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.utils;
 
 public class OpinionColourMapper {
+    private OpinionColourMapper() {}
+
 
     public static String getOpinionColor(int opinion) {
         // Clamp the opinion between -80 and +80

@@ -9,6 +9,8 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBat
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
+import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
 
 public final class BattleSiegeFortService {
 	private BattleSiegeFortService() {}
@@ -36,20 +38,24 @@ public final class BattleSiegeFortService {
 		if (factionId == null || factionId.isBlank() || !isSiegeFortInPlay(war, installationId)) {
 			return false;
 		}
-		Faction owner = findOwnerFaction(installationId);
+		Faction owner = currentSiegeFortOwner(war).orElse(null);
 		return owner != null && factionId.equalsIgnoreCase(owner.getId());
 	}
 
-	private static Faction findOwnerFaction(String installationId) {
+	public static Optional<Faction> currentSiegeFortOwner(War war) {
+		if (war == null) return Optional.empty();
+		Optional<ScheduledCampaignBattle> slot = CampaignScheduleService.slotAtActiveIndex(war)
+				.filter(value -> value.kind() == CampaignBattleKind.SIEGE)
+				.filter(value -> value.fortInstallationId() != null);
+		if (slot.isEmpty()) return Optional.empty();
 		for (Faction faction : FactionManager.factions) {
 			InstallationHandler handler = faction.getInstallationHandler();
-			if (handler == null) {
-				continue;
-			}
-			if (handler.getById(installationId) != null) {
-				return faction;
+			Installation fort = handler.getById(slot.get().fortInstallationId());
+			if (fort != null && fort.getKind() == InstallationKind.FORT
+					&& fort.getProvince() == slot.get().provinceId()) {
+				return Optional.of(faction);
 			}
 		}
-		return null;
+		return Optional.empty();
 	}
 }

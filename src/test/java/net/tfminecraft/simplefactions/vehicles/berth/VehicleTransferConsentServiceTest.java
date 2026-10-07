@@ -105,6 +105,8 @@ class VehicleTransferConsentServiceTest {
 
         Faction faction = mock(Faction.class);
         Guild guild = mock(Guild.class);
+        when(faction.getId()).thenReturn("home");
+        when(guild.getFaction()).thenReturn(faction);
         when(faction.getOrCreateMainGuild()).thenReturn(guild);
         when(faction.getLeader()).thenReturn("Leader");
         when(faction.getInstallationHandler()).thenReturn(handler);
@@ -139,10 +141,12 @@ class VehicleTransferConsentServiceTest {
             requestManager.when(() -> RequestManager.getRequest(owner)).thenReturn(request);
             bukkit.when(() -> org.bukkit.Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
             factionManager.when(() -> FactionManager.getByLeader("Leader")).thenReturn(faction);
+            factionManager.when(() -> FactionManager.getByString("home")).thenReturn(faction);
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(installation), any())).thenReturn(true);
             bounds.when(() -> InstallationBounds.isCorrectProvince(eq(installation), any())).thenReturn(true);
             net.tfminecraft.simplefactions.SimpleFactions plugin =
                     mock(net.tfminecraft.simplefactions.SimpleFactions.class);
+            when(plugin.saveVehicleRegistry()).thenReturn(true);
             sf.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(plugin);
 
             spiedService.acceptRequest(owner);
@@ -176,6 +180,8 @@ class VehicleTransferConsentServiceTest {
 
         Faction faction = mock(Faction.class);
         Guild guild = mock(Guild.class);
+        when(faction.getId()).thenReturn("home");
+        when(guild.getFaction()).thenReturn(faction);
         when(faction.getOrCreateMainGuild()).thenReturn(guild);
         when(faction.getLeader()).thenReturn("Leader");
         when(faction.getInstallationHandler()).thenReturn(handler);
@@ -211,6 +217,7 @@ class VehicleTransferConsentServiceTest {
             requestManager.when(() -> RequestManager.getRequest(owner)).thenReturn(request);
             bukkit.when(() -> org.bukkit.Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
             factionManager.when(() -> FactionManager.getByLeader("Leader")).thenReturn(faction);
+            factionManager.when(() -> FactionManager.getByString("home")).thenReturn(faction);
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(installation), any())).thenReturn(true);
             bounds.when(() -> InstallationBounds.isCorrectProvince(eq(installation), any())).thenReturn(true);
             net.tfminecraft.simplefactions.SimpleFactions plugin =

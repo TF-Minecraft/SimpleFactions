@@ -42,9 +42,6 @@ public final class FactionVehiclePoolService {
             return 0;
         }
         Military military = faction.getMilitary();
-        if (military == null) {
-            return 0;
-        }
         Regiment regiment = military.getRegiment(ARTILLERY_REGIMENT_ID);
         if (regiment == null) {
             return 0;
@@ -162,6 +159,15 @@ public final class FactionVehiclePoolService {
     }
 
     public void register(Faction faction, PoolTarget vehicle, UUID originalOwnerUuid) {
+        tryRegister(faction, vehicle, originalOwnerUuid);
+    }
+
+    public boolean tryRegister(Faction faction, ActiveVehicle vehicle, UUID originalOwnerUuid) {
+        return tryRegister(faction, adapt(vehicle), originalOwnerUuid);
+    }
+
+    public boolean tryRegister(Faction faction, PoolTarget vehicle, UUID originalOwnerUuid) {
+        PlayerVehicleRecord previous = registry.getByVehicleUuid(vehicle.getVehicleUuid()).orElse(null);
         registry.register(new PlayerVehicleRecord(
                 originalOwnerUuid,
                 vehicle.getVehicleUuid(),
@@ -169,11 +175,14 @@ public final class FactionVehiclePoolService {
                 OwnershipMode.POOL,
                 null,
                 faction.getId()));
-        ownerSync.applyLeaderOwner(vehicle.getOwnerData(), faction);
         SimpleFactions plugin = SimpleFactions.getInstance();
-        if (plugin != null) {
-            plugin.saveVehicleRegistry();
+        if (plugin != null && !plugin.saveVehicleRegistry()) {
+            registry.unregister(vehicle.getVehicleUuid());
+            registry.register(previous);
+            return false;
         }
+        ownerSync.applyLeaderOwner(vehicle.getOwnerData(), faction);
+        return true;
     }
 
     public static boolean isArtillery(String vehicleTypeId) {

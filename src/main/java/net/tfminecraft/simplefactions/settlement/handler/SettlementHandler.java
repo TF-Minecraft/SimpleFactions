@@ -127,6 +127,11 @@ public class SettlementHandler {
         return resolveCapital(player, newCapital, nameOpt, -1, true, false);
     }
 
+    /** Checks the destination before relocation claims an unowned province. */
+    public CapitalResult validateRelocationCapital(Player player, int province, String nameOpt) {
+        return resolveCapital(player, province, nameOpt, -1, true, true);
+    }
+
     private CapitalResult resolveCapital(
             Player player,
             int province,
@@ -250,6 +255,16 @@ public class SettlementHandler {
         if (settlement == null) {
             return;
         }
+        String id = settlement.getId();
+        int suffix = 1;
+        while (byId.containsKey(id) && byId.get(id) != settlement) {
+            id = settlement.getId() + "_" + settlement.getCenterProvince() + "_" + suffix++;
+        }
+        if (!id.equals(settlement.getId())) {
+            SettlementData data = settlement.toData();
+            data.id = id;
+            settlement = new Settlement(data);
+        }
         register(settlement);
     }
 
@@ -318,14 +333,8 @@ public class SettlementHandler {
     }
 
     static void clearCapitalsPointingAt(Faction owner, Settlement destroyed) {
-        if (destroyed == null) {
-            return;
-        }
         int center = destroyed.getCenterProvince();
         clearFactionCapitals(owner, destroyed, center);
-        if (FactionManager.factions == null) {
-            return;
-        }
         for (Faction other : FactionManager.getCopy()) {
             if (other == owner) {
                 continue;
@@ -335,9 +344,6 @@ public class SettlementHandler {
     }
 
     private static void clearFactionCapitals(Faction other, Settlement destroyed, int center) {
-        if (other == null) {
-            return;
-        }
         if (other.getGuildHandler() != null) {
             for (Guild g : other.getGuildHandler().getGuilds()) {
                 if (g == null || g.isBase()) {

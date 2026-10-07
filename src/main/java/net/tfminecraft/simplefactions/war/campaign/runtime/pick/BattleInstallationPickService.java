@@ -7,6 +7,12 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.zoc.PortSeaZocIndex;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -116,7 +122,7 @@ public final class BattleInstallationPickService {
 		pruneIneligiblePicks(war);
 		Map<String, Set<String>> copy = new LinkedHashMap<>();
 		for (Map.Entry<String, LinkedHashSet<String>> entry : war.getBattleInstallationPicks().entrySet()) {
-			if (entry.getKey() == null || entry.getValue() == null || entry.getValue().isEmpty()) {
+			if (entry.getKey() == null) {
 				continue;
 			}
 			copy.put(entry.getKey(), Collections.unmodifiableSet(new LinkedHashSet<>(entry.getValue())));
@@ -143,14 +149,8 @@ public final class BattleInstallationPickService {
 			return Map.of();
 		}
 		Side enemySide = war.getOppositeSide(viewer);
-		if (enemySide == null) {
-			return Map.of();
-		}
 		Map<String, Set<String>> result = new LinkedHashMap<>();
 		for (Faction enemy : BattleSideMembers.collectParticipatingFactions(enemySide)) {
-			if (enemy == null || enemy.getId() == null) {
-				continue;
-			}
 			result.put(enemy.getId(), getPicks(war, enemy.getId()));
 		}
 		return Collections.unmodifiableMap(result);
@@ -177,12 +177,12 @@ public final class BattleInstallationPickService {
 		if (portId == null) {
 			return;
 		}
-		Faction defenderLeader = war.getDefenders() != null ? war.getDefenders().getLeader() : null;
-		if (defenderLeader == null || defenderLeader.getId() == null || defenderLeader.getId().isBlank()) {
+		Faction owner = defenderZocPortOwner(war, portId);
+		if (owner == null || owner.getId() == null || owner.getId().isBlank()) {
 			return;
 		}
 		LinkedHashSet<String> factionPicks = war.getBattleInstallationPicks()
-				.computeIfAbsent(defenderLeader.getId(), ignored -> new LinkedHashSet<>());
+				.computeIfAbsent(owner.getId(), ignored -> new LinkedHashSet<>());
 		factionPicks.add(portId);
 		if (war.getBattleDay() != null) {
 			war.setBattleInstallationPicksBattleDay(war.getBattleDay());
@@ -193,12 +193,27 @@ public final class BattleInstallationPickService {
 		if (war == null || faction == null || installationId == null || installationId.isBlank()) {
 			return false;
 		}
-		Side defenders = war.getDefenders();
-		if (defenders == null || war.getSide(faction) != defenders) {
-			return false;
-		}
 		String portId = defenderZocPortId(war);
-		return portId != null && portId.equals(installationId);
+		if (portId == null || !portId.equals(installationId)) return false;
+		Faction owner = defenderZocPortOwner(war, portId);
+		return owner != null && owner.getId().equalsIgnoreCase(faction.getId());
+	}
+
+	private static Faction defenderZocPortOwner(War war, String portId) {
+		Side defending = CampaignCoalitionService.toSide(
+				war, CampaignCapabilityService.battleDefensiveCoalition(war));
+		List<Faction> candidates = new ArrayList<>();
+		for (Faction faction : BattleSideMembers.collectParticipatingFactions(defending)) {
+			Installation port = faction.getInstallationHandler().getById(portId);
+			if (port != null && port.getKind() == InstallationKind.PORT) candidates.add(faction);
+		}
+		if (candidates.size() == 1) return candidates.getFirst();
+		if (candidates.isEmpty()) return null;
+		// Local installation IDs can repeat. Resolve an ambiguous ID using the scheduled sea tile.
+		ScheduledCampaignBattle slot = CampaignScheduleService.slotAtActiveIndex(war).orElseThrow();
+		var covering = PortSeaZocIndex.fromGameState().portForSeaProvince(slot.provinceId()).orElse(null);
+		return covering != null && portId.equals(covering.id()) && candidates.contains(covering.owner())
+				? covering.owner() : null;
 	}
 
 	public static String defenderZocPortId(War war) {
@@ -236,12 +251,10 @@ public final class BattleInstallationPickService {
 			}
 			Faction faction = FactionManager.getByString(factionId);
 			if (faction == null) {
+				factionPicks.clear();
 				continue;
 			}
 			InstallationHandler handler = faction.getInstallationHandler();
-			if (handler == null) {
-				continue;
-			}
 			factionPicks.removeIf(installationId -> {
 				if (isDefenderZocPort(war, faction, installationId)) {
 					return false;

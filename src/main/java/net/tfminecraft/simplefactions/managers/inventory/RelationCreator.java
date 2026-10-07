@@ -72,6 +72,7 @@ public class RelationCreator {
 	@SuppressWarnings("deprecation")
 	public ItemStack createRelationItem(Faction target, Faction origin) {
 		ItemStack i = target.getBanner();
+		i = i == null || i.isEmpty() ? new ItemStack(Material.WHITE_BANNER) : i.clone();
 		Relation r = origin.getRelation(target.getId());
 		Relation ofR = target.getRelation(origin.getId());
 		ItemMeta m = i.getItemMeta();
@@ -251,6 +252,7 @@ public class RelationCreator {
 			lore.add(StringFormatter.formatHex("#28ed70Click to change"));
 		}
 		m.setLore(lore);
+		m.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "id"), PersistentDataType.STRING, a.getId());
 		i.setItemMeta(m);
 		return i;
 	}

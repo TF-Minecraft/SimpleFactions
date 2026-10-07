@@ -88,12 +88,8 @@ public class MilitaryCreator {
 			if(r.sentToOverlord() > 0) {
 				lore.add(StringFormatter.formatHex("#877e7c("+r.sentToOverlord()+" sent as levies)"));
 			}
-			if(f.getModifier(FactionModifiers.MILITARY_UPKEEP) != null){
-				double mod = 1.0 + f.getModifier(FactionModifiers.MILITARY_UPKEEP).getAmount()/100.0;
-				lore.add("§7Current Upkeep: §e"+Formatter.formatMoney(r.getTotalUpkeep()*mod)+"d §7("+Formatter.formatMoney(r.getUpkeep()*mod)+"d per slot)");
-			} else {
-				lore.add("§7Current Upkeep: §e"+Formatter.formatMoney(r.getTotalUpkeep())+"d §7("+Formatter.formatMoney(r.getUpkeep())+"d per slot)");
-			}
+			double mod = 1.0 + f.getModifier(FactionModifiers.MILITARY_UPKEEP).getAmount()/100.0;
+			lore.add("§7Current Upkeep: §e"+Formatter.formatMoney(r.getTotalUpkeep()*mod)+"d §7("+Formatter.formatMoney(r.getUpkeep()*mod)+"d per slot)");
 		} else {
 			int total = 0;
 			for(LevyEntry e : r.getEntries()) {

@@ -12,6 +12,8 @@ import java.util.Optional;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
+import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
@@ -29,6 +31,10 @@ public final class CampaignMilitaryWalkoverService {
 		if (war == null || !war.isActive() || CampaignPostBattleChoiceService.needsAnyChoice(war)) {
 			return;
 		}
+		Battle existing = BattleManager.getByWarId(war.getId());
+		if (existing != null && existing.hasStarted()) {
+			return;
+		}
 		for (int i = 0; i < MAX_CHAIN && war.isActive(); i++) {
 			if (CampaignPostBattleChoiceService.needsAnyChoice(war)) {
 				return;
@@ -41,6 +47,9 @@ public final class CampaignMilitaryWalkoverService {
 				return;
 			}
 			int battleProvince = province.get();
+			if (battleProvince <= 0) {
+				return;
+			}
 			CampaignCoalition holder = CampaignCoalitionService.getInitiativeHolderCoalition(war);
 			CampaignCoalition opponent = holder.opposing();
 			boolean holderCanAttack = CampaignCapabilityService.canAttack(war, holder);
@@ -52,10 +61,8 @@ public final class CampaignMilitaryWalkoverService {
 				return;
 			}
 			if (!holderCanAttack) {
-				if (CampaignOffensiveForfeitService.applyIfBattleOffensiveCannotAttack(war, battleProvince)) {
-					continue;
-				}
-				return;
+				CampaignOffensiveForfeitService.applyIfBattleOffensiveCannotAttack(war, battleProvince);
+				continue;
 			}
 			if (opponentCanDefend) {
 				return;
@@ -70,8 +77,9 @@ public final class CampaignMilitaryWalkoverService {
 		ObjectiveHolder preBattleObjectiveHeldBy = war.getObjectiveHeldBy();
 		war.setLastBattleOffensiveCoalition(CampaignCoalitionService.getInitiativeHolderCoalition(war));
 		CampaignBattleEndService.spendOffensiveFuel(war);
-		CampaignBattleEndService.advanceAlongPushTarget(war);
 		ScheduledCampaignBattle foughtSlot = CampaignScheduleService.slotAtActiveIndex(war).orElse(null);
+		if (foughtSlot != null) CampaignScheduleService.advanceIndex(war);
+		CampaignBattleEndService.advanceAlongPushTarget(war);
 		BattleNamingService.recordLocationBattle(war, battleProvinceId, foughtSlot);
 		occupationService().applyBattleWin(
 				war,
@@ -93,11 +101,8 @@ public final class CampaignMilitaryWalkoverService {
 	}
 
 	private static OccupationService occupationService() {
-		if (SimpleFactions.plugin != null) {
-			return new OccupationService(
-					SimpleFactions.plugin.getProvinceManager(),
-					new TitleManagerProvinceOwnerLookup());
-		}
-		return new OccupationService(null, new TitleManagerProvinceOwnerLookup());
+		return new OccupationService(
+				SimpleFactions.plugin.getProvinceManager(),
+				new TitleManagerProvinceOwnerLookup());
 	}
 }

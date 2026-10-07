@@ -5,6 +5,7 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
 import java.time.Instant;
+import java.util.Objects;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -23,12 +24,13 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
+import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.installation.InstallationLookup;
+import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidEligibilityService;
 import net.tfminecraft.simplefactions.installation.InstallationSpawnService;
 
 public final class CampaignRaidBattleService {
@@ -42,14 +44,17 @@ public final class CampaignRaidBattleService {
 	}
 
 	public static boolean isCampaignRaidBattle(War war, Battle battle) {
-		if (battle == null) {
+		if (battle == null || battle.getBattleType() != BattleType.RAID) {
+			return false;
+		}
+		if (war == null) {
+			return battle.isCampaignRaid();
+		}
+		if (!Objects.equals(battle.getWarId(), war.getId())) {
 			return false;
 		}
 		if (battle.isCampaignRaid()) {
 			return true;
-		}
-		if (war == null || battle.getBattleType() != BattleType.RAID) {
-			return false;
 		}
 		CampaignRaid raid = CampaignRaidService.getActive(war);
 		return matchesRaidBattle(raid, battle.getId());
@@ -71,7 +76,8 @@ public final class CampaignRaidBattleService {
 		}
 		battle.setCampaignRaid(true);
 		CampaignRaid raid = CampaignRaidService.getActive(war);
-		if (raid != null && (raid.getBattleId() == null || raid.getBattleId().isBlank())) {
+		if (matchesRaidBattle(raid, battle.getId())
+				&& (raid.getBattleId() == null || raid.getBattleId().isBlank())) {
 			raid.setBattleId(battle.getId());
 		}
 	}
@@ -91,8 +97,8 @@ public final class CampaignRaidBattleService {
 		if (war == null || raid == null || now == null) {
 			return null;
 		}
-		Installation source = InstallationLookup.findById(raid.getSourceInstallationId());
-		Installation target = InstallationLookup.findById(raid.getTargetInstallationId());
+		Installation source = CampaignRaidEligibilityService.resolveSourceInstallation(raid);
+		Installation target = CampaignRaidEligibilityService.resolveTargetInstallation(war, raid);
 		if (source == null || target == null) {
 			return null;
 		}
@@ -103,7 +109,13 @@ public final class CampaignRaidBattleService {
 		}
 
 		String battleId = raidBattleId(raid);
+		if (battleId == null) return null;
 		Battle existing = BattleManager.getByString(battleId);
+		if (existing != null && (!existing.isCampaignRaid()
+				|| existing.getBattleType() != BattleType.RAID
+				|| !Objects.equals(existing.getWarId(), war.getId()))) {
+			return null;
+		}
 		if (existing != null && existing.hasStarted()) {
 			CampaignRaidBossBarService.onFightStarted(existing, raid);
 			return existing;
@@ -112,6 +124,7 @@ public final class CampaignRaidBattleService {
 		Battle battle = existing != null ? existing : BattleFactory.createBlank(BattleType.RAID, battleId);
 		battle.setCampaignRaid(true);
 		battle.setWarId(war.getId());
+		battle.setOffensiveCoalition(raid.getAttackerCoalition());
 		battle.setProvinceId(target.getProvince());
 		battle.setLocked(false);
 		battle.setTeleport(false);
@@ -119,8 +132,14 @@ public final class CampaignRaidBattleService {
 				? raid.getDisplayName()
 				: "Campaign raid at " + target.getName());
 		if (existing == null) {
-			BattleFactory.applyTemplate(battle, Cache.battleCampaignTemplateRaid);
-			BattleManager.addBattle(battle);
+			try {
+				BattleFactory.applyTemplate(battle, Cache.battleCampaignTemplateRaid);
+			} catch (IllegalArgumentException e) {
+				net.tfminecraft.simplefactions.SimpleFactions.getInstance().getLogger().warning(
+						"Cannot start campaign raid with template '" + Cache.battleCampaignTemplateRaid
+						+ "': " + e.getMessage());
+				return null;
+			}
 		}
 		// applyTemplate resets layout first, which clears campaignRaid before reading it
 		// back off the template. Restate both flags so a hand-edited template cannot
@@ -128,25 +147,32 @@ public final class CampaignRaidBattleService {
 		battle.setCampaignRaid(true);
 		battle.setLootEnabled(false);
 
+		if (battle.getSideById(BattleTemplate.ATTACKER_SIDE) == null
+				|| battle.getSideById(BattleTemplate.DEFENDER_SIDE) == null) {
+			return null;
+		}
+
 		CampaignRaidWarbandService.createRaidWarbands(war, raid);
 		Warband attackerWarband = CampaignRaidWarbandService.getAttackerWarband(raid);
 		Warband defenderWarband = CampaignRaidWarbandService.getDefenderWarband(raid);
 		if (attackerWarband == null || defenderWarband == null) {
 			return null;
 		}
+		if (existing == null) {
+			BattleManager.addBattle(battle);
+		}
 
-		applySpawn(battle, attackerWarband.getCampaignSideId(), sourceCenter, true);
-		applySpawn(battle, defenderWarband.getCampaignSideId(), targetCenter, false);
+		applySpawn(battle, BattleTemplate.ATTACKER_SIDE, sourceCenter, true);
+		applySpawn(battle, BattleTemplate.DEFENDER_SIDE, targetCenter, false);
 		enrollRaidWarbands(raid, battle, attackerWarband, defenderWarband);
 
-		if (battle.hasStarted()) {
-			return battle;
-		}
-
-		String startError = battle.start();
-		if (startError != null) {
+		battle.start();
+		// A BattleStartedEvent listener can end this raid or replace it with a new muster.
+		if (!war.isActive() || CampaignRaidService.getActive(war) != raid
+				|| !battle.hasStarted() || BattleManager.getByString(battleId) != battle) {
 			return null;
 		}
+		battle.setStartedAt(now);
 		war.setFirstBattleStarted(true);
 		WarManager.persist(war);
 
@@ -172,11 +198,11 @@ public final class CampaignRaidBattleService {
 		if (defenderWarband == null) {
 			defenderWarband = CampaignRaidWarbandService.getDefenderWarband(raid);
 		}
-		if (attackerWarband != null && attackerWarband.getCampaignSideId() != null) {
-			joinWarband(attackerWarband, battle, attackerWarband.getCampaignSideId());
+		if (attackerWarband != null) {
+			joinWarband(attackerWarband, battle, BattleTemplate.ATTACKER_SIDE);
 		}
-		if (defenderWarband != null && defenderWarband.getCampaignSideId() != null) {
-			joinWarband(defenderWarband, battle, defenderWarband.getCampaignSideId());
+		if (defenderWarband != null) {
+			joinWarband(defenderWarband, battle, BattleTemplate.DEFENDER_SIDE);
 		}
 	}
 
@@ -192,9 +218,6 @@ public final class CampaignRaidBattleService {
 
 	private static void applySpawn(Battle battle, String sideId, Location location, boolean setJail) {
 		BattleSide side = battle.getSideById(sideId);
-		if (side == null || location == null) {
-			return;
-		}
 		side.setSpawn(location);
 		if (setJail) {
 			side.setJail(location);
@@ -202,9 +225,6 @@ public final class CampaignRaidBattleService {
 	}
 
 	private static void teleportAttackerWarband(Warband warband, Location destination) {
-		if (warband == null || destination == null) {
-			return;
-		}
 		for (Player player : warband.getPlayers()) {
 			if (player != null && player.isOnline()) {
 				player.teleport(destination);
@@ -215,16 +235,11 @@ public final class CampaignRaidBattleService {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	private static void alertDefenders(War war, CampaignRaid raid, Installation target) {
-		CampaignCoalition defendingCoalition = raid.getAttackerCoalition() != null
-				? raid.getAttackerCoalition().opposing()
-				: null;
-		if (defendingCoalition == null) {
-			return;
-		}
+		CampaignCoalition defendingCoalition = raid.getAttackerCoalition().opposing();
 		Side defendingSide = defendingCoalition == CampaignCoalition.AGGRESSOR
 				? war.getAttackers()
 				: war.getDefenders();
-		String targetName = target != null ? target.getName() : "the installation";
+		String targetName = target.getName();
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(defendingSide)) {
 			Player player = Bukkit.getPlayerExact(memberName);
 			if (player != null && player.isOnline()) {

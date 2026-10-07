@@ -14,7 +14,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
@@ -29,17 +28,17 @@ public final class CampaignRaidWarbandService {
 	private CampaignRaidWarbandService() {}
 
 	public static String attackerWarbandId(CampaignRaid raid) {
-		if (raid == null || raid.getDisplayName() == null || raid.getDisplayName().isBlank()) {
+		if (raid == null || raid.getId() == null || raid.getId().isBlank()) {
 			return null;
 		}
-		return BattleNamingService.campaignWarbandId(raid.getDisplayName(), BattleTemplate.ATTACKER_SIDE);
+		return raid.getId() + "_attacker";
 	}
 
 	public static String defenderWarbandId(CampaignRaid raid) {
-		if (raid == null || raid.getDisplayName() == null || raid.getDisplayName().isBlank()) {
+		if (raid == null || raid.getId() == null || raid.getId().isBlank()) {
 			return null;
 		}
-		return BattleNamingService.campaignWarbandId(raid.getDisplayName(), BattleTemplate.DEFENDER_SIDE);
+		return raid.getId() + "_defender";
 	}
 
 	public static boolean isRaidWarbandHiddenFromPlayer(Warband warband, org.bukkit.entity.Player player) {
@@ -78,9 +77,7 @@ public final class CampaignRaidWarbandService {
 			if (raid == null) {
 				continue;
 			}
-			String attackerId = attackerWarbandId(raid);
-			String defenderId = defenderWarbandId(raid);
-			if (warband.getId().equalsIgnoreCase(attackerId) || warband.getId().equalsIgnoreCase(defenderId)) {
+			if (warband == getAttackerWarband(raid) || warband == getDefenderWarband(raid)) {
 				return true;
 			}
 		}
@@ -103,13 +100,18 @@ public final class CampaignRaidWarbandService {
 	}
 
 	public static Warband getAttackerWarband(CampaignRaid raid) {
-		String id = attackerWarbandId(raid);
-		return id != null ? WarbandManager.getByString(id) : null;
+		if (raid == null || raid.getAttackerCoalition() == null) return null;
+		return raidWarband(attackerWarbandId(raid), campaignSideIdForCoalition(raid.getAttackerCoalition()));
 	}
 
 	public static Warband getDefenderWarband(CampaignRaid raid) {
-		String id = defenderWarbandId(raid);
-		return id != null ? WarbandManager.getByString(id) : null;
+		if (raid == null || raid.getAttackerCoalition() == null) return null;
+		return raidWarband(defenderWarbandId(raid), campaignSideIdForCoalition(raid.getAttackerCoalition().opposing()));
+	}
+
+	private static Warband raidWarband(String id, String sideId) {
+		Warband band = id != null ? WarbandManager.getByString(id) : null;
+		return band != null && band.isFaction() && sideId.equals(band.getCampaignSideId()) ? band : null;
 	}
 
 	public static void signupAttacker(War war, CampaignRaid raid, UUID playerId, String playerName) {
@@ -214,8 +216,8 @@ public final class CampaignRaidWarbandService {
 		if (raid == null) {
 			return;
 		}
-		deleteIfPresent(attackerWarbandId(raid));
-		deleteIfPresent(defenderWarbandId(raid));
+		deleteIfPresent(getAttackerWarband(raid));
+		deleteIfPresent(getDefenderWarband(raid));
 	}
 
 	private static void ensureWarband(War war, CampaignRaid raid, boolean attacker) {
@@ -258,11 +260,7 @@ public final class CampaignRaidWarbandService {
 		return coalition == CampaignCoalition.AGGRESSOR ? war.getAttackers() : war.getDefenders();
 	}
 
-	private static void deleteIfPresent(String warbandId) {
-		if (warbandId == null) {
-			return;
-		}
-		Warband warband = WarbandManager.getByString(warbandId);
+	private static void deleteIfPresent(Warband warband) {
 		if (warband != null) {
 			BattlePersistenceService.deleteWarband(warband);
 		}
@@ -300,8 +298,5 @@ public final class CampaignRaidWarbandService {
 			}
 		}
 
-		void resetForTests() {
-			pendingLeaderPromotion.clear();
-		}
 	}
 }

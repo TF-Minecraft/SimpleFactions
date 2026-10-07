@@ -99,8 +99,7 @@ public final class WarDevMode {
 	}
 
 	private static int refreshCampaignSideWarband(War war, Battle battle, String battleSideId) {
-		Warband warband = WarbandManager.getByString(
-				BattleNamingService.campaignWarbandId(battle.getDisplayName(), battleSideId));
+		Warband warband = CampaignBattleRosterService.getCampaignWarband(battle, battleSideId);
 		if (warband == null) {
 			return 0;
 		}
@@ -185,7 +184,6 @@ public final class WarDevMode {
 		}
 		Side side = CampaignBattleSides.warSideFor(war, battle, battleSideId);
 		if (side == null) {
-			seedDummyMembers(warband, Cache.warDevmodePhantomCount);
 			return;
 		}
 		int committedRegiments = BattlePoolService.totalCommittedRegiments(war, provinceId, side);

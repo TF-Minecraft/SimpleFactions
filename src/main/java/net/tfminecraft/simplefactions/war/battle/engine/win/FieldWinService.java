@@ -106,7 +106,7 @@ public final class FieldWinService {
 			if (!grace) {
 				return side.getLives() <= 0;
 			}
-			return emptyLongEnough(key, clock);
+			return emptyLongEnough(battle, side, clock);
 		}
 		if (side.getLives() > 0) {
 			return false;
@@ -135,8 +135,8 @@ public final class FieldWinService {
 		return now;
 	}
 
-	private static boolean emptyLongEnough(String key, Instant now) {
-		Instant since = emptySince.get(key);
+	static boolean emptyLongEnough(Battle battle, BattleSide side, Instant now) {
+		Instant since = emptySince.get(trackingKey(battle, side));
 		if (since == null) {
 			return false;
 		}

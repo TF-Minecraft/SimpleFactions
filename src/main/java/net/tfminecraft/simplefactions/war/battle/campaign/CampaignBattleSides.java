@@ -44,9 +44,6 @@ public final class CampaignBattleSides {
 			return null;
 		}
 		CampaignCoalition coalition = CampaignCoalitionService.coalitionOf(war, side);
-		if (coalition == null) {
-			return null;
-		}
 		return CampaignCoalitionService.coalitionToBelligerentRole(coalition);
 	}
 

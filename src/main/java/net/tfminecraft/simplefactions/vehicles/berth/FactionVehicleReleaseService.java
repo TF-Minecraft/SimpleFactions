@@ -125,7 +125,8 @@ public final class FactionVehicleReleaseService {
             return outcome(Status.IN_BATTLE, null, typeId);
         }
         if (record.getMode() == OwnershipMode.INSTALLATION
-                && VehicleInstallationLockService.isVehicleLocked(record.getInstallationId(), Instant.now())) {
+                && VehicleInstallationLockService.isInstallationLocked(
+                        faction.getInstallationHandler().getById(record.getInstallationId()), Instant.now())) {
             return outcome(Status.INSTALLATION_LOCKED, null, typeId);
         }
 

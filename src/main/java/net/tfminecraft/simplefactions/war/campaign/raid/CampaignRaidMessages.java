@@ -32,7 +32,7 @@ public final class CampaignRaidMessages {
 	private CampaignRaidMessages() {}
 
 	public static String messageForLaunchResult(LaunchResult result) {
-		if (result == null || result == LaunchResult.STARTED) {
+		if (result == null) {
 			return null;
 		}
 		return switch (result) {
@@ -42,12 +42,12 @@ public final class CampaignRaidMessages {
 			case REJECTED_QUOTA_SPENT -> SIDE_QUOTA_SPENT;
 			case REJECTED_RAID_IN_PROGRESS -> RAID_IN_PROGRESS;
 			case REJECTED_INVALID_INPUT -> INVALID_INPUT;
-			default -> null;
+			case STARTED -> null;
 		};
 	}
 
 	public static String messageForValidateResult(ValidateLaunchResult result) {
-		if (result == null || result == ValidateLaunchResult.OK) {
+		if (result == null) {
 			return null;
 		}
 		return switch (result) {
@@ -59,7 +59,7 @@ public final class CampaignRaidMessages {
 			case REJECTED_INVALID_SOURCE -> INVALID_SOURCE;
 			case REJECTED_INVALID_TARGET -> INVALID_TARGET;
 			case REJECTED_KIND_MISMATCH -> KIND_MISMATCH;
-			default -> null;
+			case OK -> null;
 		};
 	}
 
@@ -91,7 +91,7 @@ public final class CampaignRaidMessages {
 	}
 
 	public static String messageForJoinResult(JoinResult result) {
-		if (result == null || result == JoinResult.OK) {
+		if (result == null) {
 			return null;
 		}
 		return switch (result) {
@@ -102,7 +102,7 @@ public final class CampaignRaidMessages {
 			case REJECTED_IN_WARBAND -> IN_WARBAND;
 			case REJECTED_ALREADY_JOINED -> ALREADY_JOINED;
 			case REJECTED_MOUNTED_ON_VEHICLE -> MOUNTED_ON_VEHICLE;
-			default -> null;
+			case OK -> null;
 		};
 	}
 }

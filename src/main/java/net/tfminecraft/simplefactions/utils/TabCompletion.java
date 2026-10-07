@@ -661,7 +661,7 @@ public class TabCompletion implements TabCompleter{
 				List<String> completions = new ArrayList<>();
 				completions.add("1");
 				return completions;
-			} else if (args.length == 2 && args[0].equalsIgnoreCase("forcejoin")) {
+			} else if (cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("forcejoin")) {
 				List<String> completions = new ArrayList<String>();
 				// Suggest faction names
 				for (Faction f : FactionManager.factions) {
@@ -671,7 +671,7 @@ public class TabCompletion implements TabCompleter{
 				}
 				return completions;
 			} 
-			else if (args.length == 3 && args[0].equalsIgnoreCase("forcejoin")) {
+			else if (cmd.getName().equalsIgnoreCase("faction") && args.length == 3 && args[0].equalsIgnoreCase("forcejoin")) {
 				List<String> completions = new ArrayList<String>();
 				// Suggest players who are valid to be forcejoined
 				Faction f = FactionManager.getByString(args[1]);
@@ -727,20 +727,6 @@ public class TabCompletion implements TabCompleter{
 					for(Faction f : FactionManager.factions) {
 						completions.add(f.getId());
 					}
-					
-					return completions;
-				}
-			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("addwealthmodifier")){
-				if(sender instanceof Player){
-					List<String> completions = new ArrayList<String>();
-					completions.add("<type>");
-					
-					return completions;
-				}
-			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 3 && args[0].equalsIgnoreCase("addwealthmodifier")){
-				if(sender instanceof Player){
-					List<String> completions = new ArrayList<String>();
-					completions.add("<amount>");
 					
 					return completions;
 				}

@@ -22,7 +22,7 @@ public final class PillageApplyService {
 		if (war == null || war.getTargetSettlementId() == null || war.getTargetSettlementId().isBlank()) {
 			return;
 		}
-		Settlement settlement = PillageEligibility.findSettlement(war.getTargetSettlementId());
+		Settlement settlement = PillageEligibility.findSettlement(war.getTargetSettlementId(), war.getDefenders().getLeader());
 		if (settlement == null) {
 			return;
 		}
@@ -73,13 +73,7 @@ public final class PillageApplyService {
 			return;
 		}
 		Faction attacker = war.getAttackers().getLeader();
-		if (attacker == null) {
-			return;
-		}
 		Bank bank = attacker.getBank();
-		if (bank == null) {
-			return;
-		}
 		bank.deposit(loot);
 	}
 

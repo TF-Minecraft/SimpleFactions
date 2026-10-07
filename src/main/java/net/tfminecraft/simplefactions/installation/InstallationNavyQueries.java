@@ -11,9 +11,6 @@ public final class InstallationNavyQueries {
 			return false;
 		}
 		InstallationHandler handler = faction.getInstallationHandler();
-		if (handler == null) {
-			return false;
-		}
 		for (Installation installation : handler.getAll()) {
 			if (installation != null && installation.getKind() == InstallationKind.PORT) {
 				return true;

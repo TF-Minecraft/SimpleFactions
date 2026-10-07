@@ -24,13 +24,18 @@ public final class CampaignRaidJoinService {
 		if (raidId == null || raidId.isBlank()) {
 			return null;
 		}
+		War aliasMatch = null;
+		boolean ambiguous = false;
 		for (War war : WarManager.getActive()) {
 			CampaignRaid raid = CampaignRaidService.getActive(war);
-			if (raid != null && matchesRaidJoinId(raid, raidId)) {
-				return war;
+			if (raid == null) continue;
+			if (raidId.equalsIgnoreCase(raid.getId())) return war;
+			if (matchesRaidJoinId(raid, raidId)) {
+				ambiguous |= aliasMatch != null;
+				aliasMatch = war;
 			}
 		}
-		return null;
+		return ambiguous ? null : aliasMatch;
 	}
 
 	public static boolean matchesRaidJoinId(CampaignRaid raid, String raidId) {
@@ -86,12 +91,17 @@ public final class CampaignRaidJoinService {
 		if (raid == null || !matchesRaidJoinId(raid, raidId)) {
 			return JoinResult.REJECTED_RAID_NOT_FOUND;
 		}
-		if (raid.getState() != CampaignRaidState.MUSTER) {
+		if (raid.getState() != CampaignRaidState.MUSTER || now == null
+				|| (raid.getMusterEndsAt() != null && !now.isBefore(raid.getMusterEndsAt()))) {
 			return JoinResult.REJECTED_NOT_MUSTER;
 		}
 		CampaignCoalition coalition = CampaignRaidService.coalitionForFaction(war, faction);
 		if (coalition != raid.getAttackerCoalition()) {
 			return JoinResult.REJECTED_NOT_ATTACKER_COALITION;
+		}
+		String playerKey = playerId.toString();
+		if (raid.getMusterParticipantIds().contains(playerKey)) {
+			return JoinResult.REJECTED_ALREADY_JOINED;
 		}
 		if (WarbandManager.getByMemberId(playerId) != null) {
 			return JoinResult.REJECTED_IN_WARBAND;
@@ -99,10 +109,6 @@ public final class CampaignRaidJoinService {
 		Player player = Bukkit.getPlayer(playerId);
 		if (player != null && player.isOnline() && WarbandVehicleRules.joinBlockedReason(player) != null) {
 			return JoinResult.REJECTED_MOUNTED_ON_VEHICLE;
-		}
-		String playerKey = playerId.toString();
-		if (raid.getMusterParticipantIds().contains(playerKey)) {
-			return JoinResult.REJECTED_ALREADY_JOINED;
 		}
 		raid.getMusterParticipantIds().add(playerKey);
 		CampaignRaidWarbandService.signupAttacker(war, raid, playerId, playerName);

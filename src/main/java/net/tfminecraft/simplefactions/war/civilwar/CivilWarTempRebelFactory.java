@@ -38,10 +38,7 @@ public final class CivilWarTempRebelFactory {
 		return nation;
 	}
 
-	static void applyRebelIdentity(Faction rebels, Faction host) {
-		if (rebels == null) {
-			return;
-		}
+	private static void applyRebelIdentity(Faction rebels, Faction host) {
 		rebels.setName(StringFormatter.formatHex(Formatter.formatName(plainName(host) + " Rebels")));
 		rebels.setRGB(uniqueMutedRed());
 		LogManager.civilwar(
@@ -59,6 +56,9 @@ public final class CivilWarTempRebelFactory {
 			offset++;
 			int green = Math.min(255, 48 + offset);
 			rgb = "138," + green + ",48";
+		}
+		while (!RandomRGB.isFree(rgb)) {
+			rgb = RandomRGB.random();
 		}
 		return rgb;
 	}

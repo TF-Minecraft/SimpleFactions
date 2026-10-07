@@ -44,7 +44,7 @@ public class BattleCommandManager implements CommandExecutor{
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if(sender instanceof Player) {
 			Player p = (Player) sender;
-			if(cmd.getName().equalsIgnoreCase(cmd1) && args.length < 1) {
+			if((cmd.getName().equalsIgnoreCase(cmd1) || cmd.getName().equalsIgnoreCase(cmd2)) && args.length < 1) {
 				p.sendMessage("§a[Battle]§c Error with command format, use the gameplay guide for a list of commands");
 				return true;
 			}
@@ -85,6 +85,10 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cYou already have a warband!");
 					return true;
 				}
+				if (WarbandManager.getByString(args[1]) != null) {
+					p.sendMessage("§cA warband with this id already exists");
+					return true;
+				}
 				Warband w = new Warband(args[1], p);
 				WarDevMode.seedDummyMembersIfEnabled(w);
 				WarbandManager.addWarband(w);
@@ -113,6 +117,7 @@ public class BattleCommandManager implements CommandExecutor{
 				}
 				BattlePersistenceService.deleteWarband(w);
 				p.sendMessage("§aWarband "+w.getId()+" §adeleted!");
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("toggleopen") && args.length == 1) {
 				Warband w = WarbandManager.getByLeader(p);
 				if(w == null) {
@@ -126,6 +131,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§aWarband is now open");
 				}
 				BattlePersistenceService.persistWarband(w);
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("list") && args.length == 1) {
 				BattleInventoryManager inv = new BattleInventoryManager();
 				inv.warbandList(p);
@@ -195,11 +201,16 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cOnly the leader can invite new members!");
 					return true;
 				}
-				if (w.hasMember(Bukkit.getPlayerExact(args[1]))) {
+				Player invitee = Bukkit.getPlayerExact(args[1]);
+				if (invitee == null) {
+					p.sendMessage("§cPlayer must be online to receive an invitation");
+					return true;
+				}
+				if (w.hasMember(invitee)) {
 					p.sendMessage("§cPlayer is already a member");
 					return true;
 				}
-				w.invite(Bukkit.getPlayerExact(args[1]));
+				w.invite(invitee);
 				BattlePersistenceService.persistWarband(w);
 				p.sendMessage("§aInvited "+args[1]);
 				for(Player pl : Bukkit.getOnlinePlayers()) {
@@ -224,7 +235,6 @@ public class BattleCommandManager implements CommandExecutor{
 						p.sendMessage("§cYou need to be invited to this warband by the leader first!");
 						return true;
 					}
-					w.uninvite(p);
 				}
 				Faction playerFaction = FactionManager.getByMember(p.getName());
 				if (w.isFaction()) {
@@ -356,14 +366,12 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cNo side with this id");
 					return true;
 				}
-				CapturePoint point;
-				try {
-					point = BattleSideSetupService.addCapturePoint(
-							b, b.getSideById(args[2]), p.getLocation());
-				} catch (IllegalArgumentException | IllegalStateException ex) {
-					p.sendMessage("§c" + ex.getMessage());
+				if (!b.isCapturePointsEnabled()) {
+					p.sendMessage("§cCapture points are not enabled for this battle");
 					return true;
 				}
+				CapturePoint point = BattleSideSetupService.addCapturePoint(
+						b, b.getSideById(args[2]), p.getLocation());
 				BattlePersistenceService.persistBattle(b);
 				p.sendMessage("§aPoint §e"+point.getId()+" §acreated!");
 				return true;
@@ -381,7 +389,13 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§7Adjust regiments in the war pool or roster signups instead.");
 					return true;
 				}
-				b.setLives(Integer.parseInt(args[2]));
+				Integer lives = parseInteger(p, args[2]);
+				if (lives == null) return true;
+				if (lives < 1) {
+					p.sendMessage("§cLives must be at least 1");
+					return true;
+				}
+				b.setLives(lives);
 				BattlePersistenceService.persistBattle(b);
 				p.sendMessage("§aLives set to "+args[2]);
 				return true;
@@ -396,12 +410,7 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				BattleSide s = b.getSideById(args[2]);
-				try {
-					BattleSideSetupService.setSpawn(b, s, p.getLocation());
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					return true;
-				}
+				BattleSideSetupService.setSpawn(b, s, p.getLocation());
 				BattlePersistenceService.persistBattle(b);
 				p.sendMessage("§aSide §e"+s.getId()+" §aspawn set!");
 				return true;
@@ -416,12 +425,7 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				BattleSide s = b.getSideById(args[2]);
-				try {
-					BattleSideSetupService.setJail(b, s, p.getLocation());
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					return true;
-				}
+				BattleSideSetupService.setJail(b, s, p.getLocation());
 				BattlePersistenceService.persistBattle(b);
 				p.sendMessage("§aSide §e"+s.getId()+" §ajail set!");
 				return true;
@@ -432,12 +436,7 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				warnIfNotSiege(p, b);
-				try {
-					BattleContestSetup.setContestMin(b, p.getLocation());
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					return true;
-				}
+				BattleContestSetup.setContestMin(b, p.getLocation());
 				BattlePersistenceService.persistBattle(b);
 				p.sendMessage("§aContest area min set!");
 				return true;
@@ -448,12 +447,7 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				warnIfNotSiege(p, b);
-				try {
-					BattleContestSetup.setContestMax(b, p.getLocation());
-				} catch (IllegalArgumentException ex) {
-					p.sendMessage("§c" + ex.getMessage());
-					return true;
-				}
+				BattleContestSetup.setContestMax(b, p.getLocation());
 				BattlePersistenceService.persistBattle(b);
 				p.sendMessage("§aContest area max set!");
 				return true;
@@ -464,7 +458,8 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				warnIfNotSiege(p, b);
-				int seconds = Integer.parseInt(args[2]);
+				Integer seconds = parseInteger(p, args[2]);
+				if (seconds == null) return true;
 				if (seconds < 1) {
 					p.sendMessage("§cDuration must be at least 1 second");
 					return true;
@@ -491,7 +486,8 @@ public class BattleCommandManager implements CommandExecutor{
 					return true;
 				}
 				warnIfNotRaid(p, b);
-				int lives = Integer.parseInt(args[2]);
+				Integer lives = parseInteger(p, args[2]);
+				if (lives == null) return true;
 				if (lives < 1) {
 					p.sendMessage("§cDefender lives must be at least 1");
 					return true;
@@ -504,6 +500,15 @@ public class BattleCommandManager implements CommandExecutor{
 			p.sendMessage("§a[Battle]§c Error with command format, use the gameplay guide for a list of commands");
 		}
 		return false;
+	}
+
+	private static Integer parseInteger(Player player, String value) {
+		try {
+			return Integer.valueOf(value);
+		} catch (NumberFormatException invalid) {
+			player.sendMessage("§cEnter a whole number between 1 and 2147483647");
+			return null;
+		}
 	}
 
 	private void warnIfNotSiege(Player p, Battle b) {

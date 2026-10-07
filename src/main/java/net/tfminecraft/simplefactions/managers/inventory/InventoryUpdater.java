@@ -31,7 +31,6 @@ import net.tfminecraft.simplefactions.government.movement.Action;
 import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
-import net.tfminecraft.simplefactions.laws.LawGroup;
 
 public class InventoryUpdater {
 	InventoryManager inv;
@@ -129,20 +128,12 @@ public class InventoryUpdater {
 			inv.factionView.populateFactionList(i, p);
 			return;
 		}
-		if (type == SFGUI.GUILD_LIST) {
-			inv.guildView.populateGuildList(i, p);
-			return;
-		}
 		if (type == SFGUI.WAR_LIST) {
 			inv.warView.populateWarList(i);
 			return;
 		}
 		if (type == SFGUI.MERCENARY_MARKET_LIST) {
 			inv.mercenaryMarketView.populateMarketList(i, p);
-			return;
-		}
-		if (type == SFGUI.PLAYER_LEDGER_VIEW) {
-			inv.playerLedgerView.open(p, i);
 			return;
 		}
 
@@ -178,10 +169,7 @@ public class InventoryUpdater {
 
 	private void refreshGuildHolder(Player p, Inventory i, SFInventoryHolder h, Guild guild) {
 		switch (h.getType()) {
-			case GUILD_VIEW -> inv.guildView(p, guild, i);
 			case UPGRADE_VIEW -> inv.upgradeView(p, guild, i);
-			case LEDGER_VIEW -> inv.ledgerView(p, guild, i);
-			case COMPANY_VIEW -> inv.companyView(p, guild, i);
 			case COMPANY_SLOTS_VIEW -> inv.companySlotsView(p, guild, i);
 			case COMPANY_ROSTER_VIEW -> inv.companyRosterView(p, guild, i);
 			case COMPANY_UPGRADE_VIEW -> inv.companyUpgradeView(p, guild, i);
@@ -192,7 +180,7 @@ public class InventoryUpdater {
 				if (guild.getCompany() == null
 						|| guild.getCompany().getContractHandler().getById(contractId) == null) {
 					// Contract gone - bounce to parent list
-					inv.contractListView(p, guild, i);
+					inv.contractListView(p, guild);
 					return;
 				}
 				inv.contractDetailView(p, guild, i, contractId);
@@ -206,7 +194,7 @@ public class InventoryUpdater {
 				Loan loan = guild.getLoanHandler().getLoanById(loanId);
 				if (loan == null) {
 					// Loan gone - bounce to parent list
-					inv.loansTakenView(p, guild, i);
+					inv.loansTakenView(p, guild);
 					return;
 				}
 				inv.loanDetailView(p, guild, loan, true, i);
@@ -216,7 +204,7 @@ public class InventoryUpdater {
 				if (loanId == null) return;
 				Loan loan = guild.getLoanHandler().getLoanById(loanId);
 				if (loan == null) {
-					inv.loansGivenView(p, guild, i);
+					inv.loansGivenView(p, guild);
 					return;
 				}
 				inv.loanDetailView(p, guild, loan, false, i);
@@ -227,11 +215,8 @@ public class InventoryUpdater {
 
 	private void refreshFactionHolder(Player p, Inventory i, SFInventoryHolder h, Faction f) {
 		switch (h.getType()) {
-			case FACTION_VIEW -> inv.factionView.factionView(p, f, i);
-			case FACTION_GUILDS -> inv.factionView.factionGuildsView(p, f, i);
 			case GOVERNMENT_VIEW -> inv.governmentView(p, f, i);
 			case COUNCIL_VIEW -> inv.governmentView.councilView(p, f, i);
-			case PROPOSALS -> inv.governmentView.proposalList(p, f, i);
 			case PROPOSAL_VIEW -> inv.proposalView(p, f, i);
 			case POLITICAL_PROPOSAL_VIEW -> inv.governmentView.politicalProposalView(p, f, i);
 			case WAR_PEACE_SELECT -> {
@@ -254,19 +239,8 @@ public class InventoryUpdater {
 				} catch (IllegalArgumentException ex) { /* stale */ }
 			}
 			case LAW_PROPOSAL_VIEW -> inv.governmentView.lawProposalView(p, f, i);
-			case LAW_PROPOSAL_SELECT -> {
-				String sid = h.getSecondaryId();
-				if (sid == null) return;
-				LawGroup group = f.getLawHandler().getGroup(sid);
-				if (group == null) {
-					inv.governmentView.lawProposalView(p, f, i);
-					return;
-				}
-				inv.governmentView.lawProposalSelect(p, f, group, i);
-			}
 			case FAVOUR_REPRESS_MAIN -> inv.governmentView.favourRepressMainView(p, f, i);
 			case FAVOUR_REPRESS_TYPE -> inv.governmentView.favourRepressTypeView(p, f, h.getFlag(), i);
-			case FAVOUR_REPRESS_SELECT -> inv.governmentView.favourRepressSelectView(p, f, h.getFlag(), h.getPage() == 1, i);
 			case MILITARY_VIEW -> inv.militaryView(i, p, f, false);
 			case INSTALLATIONS_VIEW -> inv.installationsView(i, p, f, false);
 			case INSTALLATION_DETAIL_VIEW -> {
@@ -288,16 +262,6 @@ public class InventoryUpdater {
 				} catch (IllegalArgumentException ex) { /* stale */ }
 			}
 			case LAW_VIEW -> inv.lawView(p, f, i);
-			case LAW_SELECT -> {
-				String sid = h.getSecondaryId();
-				if (sid == null) return;
-				LawGroup group = f.getLawHandler().getGroup(sid);
-				if (group == null) {
-					inv.lawView(p, f, i);
-					return;
-				}
-				inv.lawView.lawSelect(p, f, group, i);
-			}
 			case ELECTION_VIEW -> inv.electionView.electionView(p, f, i);
 			case ELECTION_VOTING_VIEW -> {
 				String sid = h.getSecondaryId();
@@ -323,21 +287,13 @@ public class InventoryUpdater {
 	private void refreshMovementHolder(Player p, Inventory i, SFInventoryHolder h, Faction f, Movement movement) {
 		switch (h.getType()) {
 			case MOVEMENT_VIEW -> inv.movementView(p, f, movement, i);
-			case CAUSES_VIEW -> inv.causesView(p, f, movement, i);
-			case CAUSE_VIEW -> {
-				int index = h.getPage();
-				java.util.List<Cause> causes = movement.getCauses();
-				if (index < 0 || index >= causes.size()) {
-					inv.causesView(p, f, movement, i);
+			case TARGET_SELECT -> {
+				Cause cause = inv.movementView.displayedCause(i, movement);
+				if (cause == null) {
+					inv.causesView(p, f, movement, null);
 					return;
 				}
-				inv.causeView(p, f, movement, causes.get(index), i);
-			}
-			case TARGET_SELECT -> {
-				int index = h.getPage();
-				java.util.List<Cause> causes = movement.getCauses();
-				if (index < 0 || index >= causes.size()) return;
-				inv.movementView.targetSelectionView(p, f, movement, causes.get(index), i);
+				inv.movementView.targetSelectionView(p, f, movement, cause, i);
 			}
 			case MOVEMENT_DEMANDS -> inv.movementView.demandsView(p, f, movement, i);
 			case MOVEMENT_CRACKDOWN -> inv.movementView.crackdownView(p, f, movement, i);

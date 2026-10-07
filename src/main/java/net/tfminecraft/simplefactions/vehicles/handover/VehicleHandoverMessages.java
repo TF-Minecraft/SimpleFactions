@@ -47,6 +47,10 @@ public final class VehicleHandoverMessages {
         return "§cCould not hand over that vehicle. Try again while it is spawned.";
     }
 
+    public static String feeChanged() {
+        return "§cThe vehicle handover fee changed. Please make a new offer and confirm the current fee.";
+    }
+
     public static String forOutcome(Outcome outcome, String recipientName) {
         if (outcome == null) {
             return null;

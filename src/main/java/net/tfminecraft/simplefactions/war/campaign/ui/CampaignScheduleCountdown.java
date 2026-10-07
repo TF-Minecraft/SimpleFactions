@@ -68,13 +68,16 @@ public final class CampaignScheduleCountdown {
 	}
 
 	private static Optional<String> formatCountdown(String label, Instant target, Instant now) {
-		if (target == null) {
-			return Optional.empty();
-		}
 		long seconds = Math.max(0L, target.getEpochSecond() - now.getEpochSecond());
 		if (seconds == 0L) {
 			return Optional.of("Starting now");
 		}
-		return Optional.of(String.format(label, TimeFormatter.formatTime((int) seconds)));
+		long days = seconds / 86_400;
+		int remainder = (int) (seconds % 86_400);
+		String formatted = days > 0 ? days + "d" : "";
+		if (remainder > 0 || days == 0) {
+			formatted += (days > 0 ? " " : "") + TimeFormatter.formatTime(remainder);
+		}
+		return Optional.of(String.format(label, formatted));
 	}
 }

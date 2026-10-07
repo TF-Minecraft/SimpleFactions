@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleServ
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationLookup;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.settlement.Settlement;
 
@@ -41,12 +42,12 @@ public final class BattleNamingService {
 			return;
 		}
 		if (slot != null && slot.kind() == CampaignBattleKind.SIEGE && slot.fortInstallationId() != null) {
-			String fortName = CampaignScheduleService.resolveInstallationName(slot.fortInstallationId());
+			Installation fort = findScheduledFort(slot);
+			String fortName = fort != null ? fort.getName() : slot.fortInstallationId();
 			String location = fortName != null && !fortName.isBlank()
 					? fortName
 					: resolveLocationDisplayName(provinceId);
-			String key = locationKeyForSlot(slot, provinceId);
-			int ordinal = war != null ? war.getLocationBattleCount(key) + 1 : 1;
+			int ordinal = war != null ? foughtForSlot(war, slot, provinceId) + 1 : 1;
 			battle.setDisplayName(buildDisplayName(BattleType.SIEGE, location, ordinal));
 			return;
 		}
@@ -71,16 +72,43 @@ public final class BattleNamingService {
 		if (war == null) {
 			return;
 		}
-		war.recordLocationBattle(locationKeyForSlot(slot, provinceId));
+		war.getLocationBattleCounts().put(locationKeyForSlot(slot, provinceId), foughtForSlot(war, slot, provinceId) + 1);
 	}
 
 	public static String locationKeyForSlot(ScheduledCampaignBattle slot, int provinceId) {
 		if (slot != null
 				&& slot.kind() == CampaignBattleKind.SIEGE
 				&& slot.fortInstallationId() != null) {
-			return "fort:" + slot.fortInstallationId();
+			Installation fort = findScheduledFort(slot);
+			return "fort:" + (fort != null ? fort.getStableKey() : slot.provinceId() + ":" + slot.fortInstallationId());
 		}
 		return resolveLocationKey(provinceId);
+	}
+
+	private static Installation findScheduledFort(ScheduledCampaignBattle slot) {
+		for (Installation installation : InstallationLookup.all()) {
+			if (installation.getKind() == InstallationKind.FORT && installation.getProvince() == slot.provinceId()
+					&& slot.fortInstallationId().equals(installation.getId())) return installation;
+		}
+		return null;
+	}
+
+	private static int foughtForSlot(War war, ScheduledCampaignBattle slot, int provinceId) {
+		String key = locationKeyForSlot(slot, provinceId);
+		if (slot == null || slot.kind() != CampaignBattleKind.SIEGE || slot.fortInstallationId() == null
+				|| war.getLocationBattleCounts().containsKey(key)) return war.getLocationBattleCount(key);
+		Installation fort = findScheduledFort(slot);
+		if (fort == null) return war.getLocationBattleCount(key);
+		// Old counters used faction-local IDs. Import one only when its fort is unambiguous.
+		return hasUniqueLocalId(fort, true) ? war.getLocationBattleCount("fort:" + fort.getId()) : 0;
+	}
+
+	private static boolean hasUniqueLocalId(Installation installation, boolean fortsOnly) {
+		for (Installation other : InstallationLookup.all()) {
+			if (other != installation && (!fortsOnly || other.getKind() == InstallationKind.FORT)
+					&& installation.getId().equals(other.getId())) return false;
+		}
+		return true;
 	}
 
 	public static int resolveScheduledOrdinal(
@@ -92,7 +120,7 @@ public final class BattleNamingService {
 			return 1;
 		}
 		String key = locationKeyForSlot(slot, slot.provinceId());
-		int fought = war.getLocationBattleCount(key);
+		int fought = foughtForSlot(war, slot, slot.provinceId());
 		int prior = 0;
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleService.scheduleListForLeg(war, leg);
 		for (int i = 0; i < slotIndex && i < schedule.size(); i++) {
@@ -114,7 +142,8 @@ public final class BattleNamingService {
 			return buildDisplayName(BattleType.FIELD, resolveLocationDisplayName(provinceId), 1);
 		}
 		if (slot.kind() == CampaignBattleKind.SIEGE && slot.fortInstallationId() != null) {
-			String fortName = CampaignScheduleService.resolveInstallationName(slot.fortInstallationId());
+			Installation fort = findScheduledFort(slot);
+			String fortName = fort != null ? fort.getName() : slot.fortInstallationId();
 			String location = fortName != null && !fortName.isBlank()
 					? fortName
 					: resolveLocationDisplayName(provinceId);
@@ -131,15 +160,19 @@ public final class BattleNamingService {
 				? target.getName()
 				: WILDERNESS;
 		String key = raidLocationKey(target);
-		int ordinal = war != null ? war.getLocationBattleCount(key) + 1 : 1;
-		return buildDisplayName(BattleType.RAID, location, ordinal);
+		int fought = war != null ? war.getLocationBattleCount(key) : 0;
+		if (war != null && target != null && target.getId() != null && !target.getId().isBlank()
+				&& hasUniqueLocalId(target, false)) {
+			fought += war.getLocationBattleCount("raid:" + target.getId());
+		}
+		return buildDisplayName(BattleType.RAID, location, fought + 1);
 	}
 
 	public static String raidLocationKey(Installation target) {
 		if (target == null || target.getId() == null || target.getId().isBlank()) {
 			return "raid:unknown";
 		}
-		return "raid:" + target.getId();
+		return "raid:" + target.getStableKey();
 	}
 
 	public static String slugifyDisplayName(String displayName) {
@@ -151,17 +184,14 @@ public final class BattleNamingService {
 			return "wilderness";
 		}
 		String slug = stripped
-				.toLowerCase()
+				.toLowerCase(java.util.Locale.ROOT)
 				.replaceAll("[^a-z0-9]+", "_")
 				.replaceAll("_+", "_")
 				.replaceAll("^_|_$", "");
-		if (slug.isBlank()) {
-			return "wilderness";
-		}
 		if (slug.length() > MAX_SLUG_LENGTH) {
 			slug = slug.substring(0, MAX_SLUG_LENGTH).replaceAll("_+$", "");
 		}
-		return slug.isBlank() ? "wilderness" : slug;
+		return slug;
 	}
 
 	public static String campaignWarbandId(String displayName, String battleSideId) {
@@ -223,7 +253,7 @@ public final class BattleNamingService {
 
 	private static Settlement findSettlement(int provinceId) {
 		for (Faction faction : FactionManager.getCopy()) {
-			if (faction == null || faction.getSettlementHandler() == null) {
+			if (faction == null) {
 				continue;
 			}
 			Settlement settlement = faction.getSettlementHandler().getByProvince(provinceId);

@@ -26,6 +26,8 @@ class CivilWarLandSplitApplyTest {
 	void apply_transfersInstallsNotDissolved() {
 		Faction host = mock(Faction.class);
 		Faction rebels = mock(Faction.class);
+		when(host.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(host));
+		when(rebels.getSettlementHandler()).thenReturn(new net.tfminecraft.simplefactions.settlement.handler.SettlementHandler(rebels));
 		InstallationHandler hostHandler = new InstallationHandler(host);
 		InstallationHandler rebelHandler = new InstallationHandler(rebels);
 		when(host.getId()).thenReturn("host");

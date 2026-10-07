@@ -50,7 +50,6 @@ public class BattleTemplateLoader {
 	}
 
 	public void load(File configFile) {
-		templates.clear();
 		if (configFile == null) {
 			return;
 		}
@@ -64,17 +63,21 @@ public class BattleTemplateLoader {
 			e.printStackTrace();
 			return;
 		}
+		Map<String, BattleTemplate> loaded = new HashMap<>();
 		Set<String> keys = config.getKeys(false);
 		for (String key : keys) {
 			try {
-				templates.put(key, new BattleTemplate(key, config.getConfigurationSection(key)));
+				loaded.put(key, new BattleTemplate(key, config.getConfigurationSection(key)));
 			} catch (Exception e) {
 				if (Bukkit.getServer() != null) {
 					Bukkit.getLogger().warning("[SimpleFactions] Failed to load battle template '" + key + "': " + e.getMessage());
 				}
 				e.printStackTrace();
+				return;
 			}
 		}
+		templates.clear();
+		templates.putAll(loaded);
 		if (Bukkit.getServer() != null) {
 			Bukkit.getLogger().info("[SimpleFactions] Loaded " + templates.size() + " battle template(s) from battle-templates.yml");
 		}

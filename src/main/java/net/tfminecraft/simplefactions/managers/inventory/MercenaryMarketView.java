@@ -76,6 +76,8 @@ public class MercenaryMarketView {
 
         inventory.clear();
         int perPage = usableSlots.size();
+        page = Math.max(0, Math.min(page, Math.max(0, (companies.size() - 1) / perPage)));
+        currentPage.put(p, page);
         int start = page * perPage;
         int end = Math.min(start + perPage, companies.size());
         for (int i = start; i < end; i++) {

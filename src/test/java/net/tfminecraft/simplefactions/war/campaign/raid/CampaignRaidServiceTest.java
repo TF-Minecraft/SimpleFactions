@@ -44,9 +44,15 @@ class CampaignRaidServiceTest {
 	private Instant raidWindow;
 	private InstallationHandler attackerHandler;
 	private InstallationHandler defenderHandler;
+	private List<net.tfminecraft.simplefactions.war.battle.engine.core.Battle> savedBattles;
+	private List<net.tfminecraft.simplefactions.war.battle.warband.Warband> savedWarbands;
 
 	@BeforeEach
 	void setUp() {
+		savedBattles = new ArrayList<>(net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get());
+		savedWarbands = new ArrayList<>(net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get());
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get().clear();
+		net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get().clear();
 		Cache.warVoteCloseHour = 16;
 		Cache.warRaidWindowStartHour = 19;
 		Cache.warRaidWindowEndHour = 20;
@@ -84,6 +90,10 @@ class CampaignRaidServiceTest {
 
 	@AfterEach
 	void tearDown() {
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get().clear();
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get().addAll(savedBattles);
+		net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get().clear();
+		net.tfminecraft.simplefactions.war.battle.warband.WarbandManager.get().addAll(savedWarbands);
 		FactionManager.factions.remove(attacker);
 		FactionManager.factions.remove(defender);
 	}

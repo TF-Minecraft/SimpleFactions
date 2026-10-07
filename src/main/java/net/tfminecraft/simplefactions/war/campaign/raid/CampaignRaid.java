@@ -104,7 +104,7 @@ public class CampaignRaid {
 			return null;
 		}
 		try {
-			return RaidKind.valueOf(value.toUpperCase());
+			return RaidKind.valueOf(value.toUpperCase(java.util.Locale.ROOT));
 		} catch (IllegalArgumentException ignored) {
 			return null;
 		}

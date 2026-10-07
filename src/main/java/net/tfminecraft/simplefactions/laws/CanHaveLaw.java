@@ -97,9 +97,6 @@ public final class CanHaveLaw {
 
 	private static String requirementReason(Faction faction, String line) {
 		String[] parts = line.split("\\s+");
-		if (parts.length == 0 || parts[0].isBlank()) {
-			return null;
-		}
 		String verb = parts[0].toLowerCase();
 		if ("has_law".equals(verb)) {
 			if (parts.length < 2) {
@@ -129,9 +126,6 @@ public final class CanHaveLaw {
 			return false;
 		}
 		List<Law> current = faction.getLawHandler().getCurrentLaws();
-		if (current == null) {
-			return false;
-		}
 		for (Law law : current) {
 			if (law != null && law.getId() != null && law.getId().equalsIgnoreCase(lawId)) {
 				return true;

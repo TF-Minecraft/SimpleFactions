@@ -50,10 +50,9 @@ public final class GovernmentIncompatibility {
 
 	private static String law(Faction faction, String groupId, String fallback) {
 		LawHandler laws = faction.getLawHandler();
-		if (laws == null) return fallback;
 		LawGroup group = laws.getGroup(groupId);
 		if (group == null || group.getCurrent() == null || group.getCurrent().getId() == null) return fallback;
 		Law current = group.getCurrent();
-		return current.getId().toLowerCase();
+		return current.getId().toLowerCase(java.util.Locale.ROOT);
 	}
 }

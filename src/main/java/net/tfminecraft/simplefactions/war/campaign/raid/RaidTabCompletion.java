@@ -20,7 +20,7 @@ public class RaidTabCompletion implements TabCompleter {
 		}
 		if (args.length == 1) {
 			List<String> completions = new ArrayList<>();
-			if ("join".startsWith(args[0].toLowerCase())) {
+			if ("join".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
 				completions.add("join");
 			}
 			return completions;
@@ -33,10 +33,10 @@ public class RaidTabCompletion implements TabCompleter {
 			if (faction == null) {
 				return List.of();
 			}
-			String prefix = args[1].toLowerCase();
+			String prefix = args[1].toLowerCase(java.util.Locale.ROOT);
 			List<String> completions = new ArrayList<>();
 			for (String raidId : CampaignRaidJoinService.listJoinableRaidIds(faction)) {
-				if (raidId.toLowerCase().startsWith(prefix)) {
+				if (raidId.toLowerCase(java.util.Locale.ROOT).startsWith(prefix)) {
 					completions.add(raidId);
 				}
 			}

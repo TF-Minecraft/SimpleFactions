@@ -3,6 +3,8 @@ package net.tfminecraft.simplefactions.war.battle.ui;
 import org.bukkit.command.CommandSender;
 
 public class BattlePermissions {
+    private BattlePermissions() {}
+
 public static String Permission_Admin;
     
     static {

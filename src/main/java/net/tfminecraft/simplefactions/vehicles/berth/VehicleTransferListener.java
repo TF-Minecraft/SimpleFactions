@@ -95,7 +95,11 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        installationVehicleService.register(installation, vehicle, faction, leader.getUniqueId());
+        if (!installationVehicleService.tryRegister(installation, vehicle, faction, leader.getUniqueId())) {
+            leader.sendMessage(VehicleTransferMessages.saveFailed());
+            event.setCancelled(true);
+            return;
+        }
         sessionManager.clear(leader.getUniqueId());
         leader.sendMessage(VehicleTransferMessages.berthSuccess(installation));
         event.setCancelled(true);
@@ -120,7 +124,9 @@ public final class VehicleTransferListener implements Listener {
                 owner.getLocation().getBlockX(),
                 owner.getLocation().getBlockZ(),
                 vehicle.getLocation());
-        if (distance > proximityBlocks) {
+        if (vehicle.getLocation() == null
+                || !java.util.Objects.equals(owner.getLocation().getWorld(), vehicle.getLocation().getWorld())
+                || distance > proximityBlocks) {
             leader.sendMessage(VehicleTransferMessages.ownerTooFar(proximityBlocks));
             event.setCancelled(true);
             return;
@@ -137,8 +143,9 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        consentService.sendConsentRequest(leader, owner, faction, installation, vehicle);
-        sessionManager.clear(leader.getUniqueId());
+        if (consentService.trySendConsentRequest(leader, owner, faction, installation, vehicle)) {
+            sessionManager.clear(leader.getUniqueId());
+        }
         event.setCancelled(true);
     }
 
@@ -168,7 +175,11 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        poolService.register(faction, vehicle, leader.getUniqueId());
+        if (!poolService.tryRegister(faction, vehicle, leader.getUniqueId())) {
+            leader.sendMessage(VehicleTransferMessages.saveFailed());
+            event.setCancelled(true);
+            return;
+        }
         sessionManager.clear(leader.getUniqueId());
         leader.sendMessage(VehicleTransferMessages.poolSuccess());
         event.setCancelled(true);
@@ -192,7 +203,9 @@ public final class VehicleTransferListener implements Listener {
                 owner.getLocation().getBlockX(),
                 owner.getLocation().getBlockZ(),
                 vehicle.getLocation());
-        if (distance > proximityBlocks) {
+        if (vehicle.getLocation() == null
+                || !java.util.Objects.equals(owner.getLocation().getWorld(), vehicle.getLocation().getWorld())
+                || distance > proximityBlocks) {
             leader.sendMessage(VehicleTransferMessages.ownerTooFar(proximityBlocks));
             event.setCancelled(true);
             return;
@@ -208,8 +221,9 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        consentService.sendPoolConsentRequest(leader, owner, faction, vehicle);
-        sessionManager.clear(leader.getUniqueId());
+        if (consentService.trySendPoolConsentRequest(leader, owner, faction, vehicle)) {
+            sessionManager.clear(leader.getUniqueId());
+        }
         event.setCancelled(true);
     }
 }

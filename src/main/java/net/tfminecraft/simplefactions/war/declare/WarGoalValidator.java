@@ -193,9 +193,9 @@ public class WarGoalValidator {
 		if (settlementId == null || settlementId.isBlank()) {
 			return WarValidationResult.fail("§cSpecify a settlement to pillage.");
 		}
-		Settlement settlement = PillageEligibility.findSettlement(settlementId);
+		Settlement settlement = PillageEligibility.findSettlement(settlementId, request.getDefender());
 		if (settlement == null) {
-			return WarValidationResult.fail("§cThat settlement does not exist.");
+			return WarValidationResult.fail("§cThat settlement does not exist or its id is ambiguous in their realm.");
 		}
 		PillageEligibility.PillageSettlementOption option =
 				PillageEligibility.evaluate(request.getAttacker(), request.getDefender(), settlement);
@@ -228,21 +228,9 @@ public class WarGoalValidator {
 			return WarValidationResult.fail("§cInvalid war target.");
 		}
 
-		String attackerOverlord = RelationManager.getOverlord(attacker);
-		if (attackerOverlord != null && attackerOverlord.equalsIgnoreCase(defender.getId())) {
-			return WarValidationResult.fail("§cYou cannot subjugate your overlord.");
-		}
-
 		String overlord = RelationManager.getOverlord(defender);
-		if (overlord != null && overlord.equalsIgnoreCase(attacker.getId())) {
-			return WarValidationResult.fail("§cThat faction is already your subject.");
-		}
 		if (overlord != null && !InterVassalQueries.isInternalPeer(attacker, defender)) {
 			return WarValidationResult.fail("§cThat faction is already a subject of someone else.");
-		}
-
-		if (RelationManager.isOnOverlordPath(attacker, defender)) {
-			return WarValidationResult.fail("§cThis relation would cause a loop.");
 		}
 
 		String relationTypeId = request.getRelationTypeId();

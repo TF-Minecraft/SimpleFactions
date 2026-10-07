@@ -121,7 +121,7 @@ public final class IncomePreviewContext {
         RelationType targetRelation = targetCurrent;
         boolean overrideTarget = false;
         if (agreement != null) {
-            if (agreement.hasLink()) {
+            if (agreement.isMutual()) {
                 targetRelation = agreement.getLink();
                 overrideTarget = true;
             }
@@ -305,7 +305,6 @@ public final class IncomePreviewContext {
             case VASSALS, VASSAL_ID -> Rules.VASSAL_TAX;
             case DIVIDENDS -> Rules.DIVIDEND_TAX;
             case TARIFFS, TARIFF_ID -> Rules.TARIFFS;
-            default -> null;
         };
     }
 

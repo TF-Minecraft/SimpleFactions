@@ -109,13 +109,7 @@ public final class AttackerNavalContestService {
 			War war,
 			Faction faction,
 			PlayerVehicleRegistry registry) {
-		if (faction == null || faction.getId() == null) {
-			return false;
-		}
 		InstallationHandler handler = faction.getInstallationHandler();
-		if (handler == null) {
-			return false;
-		}
 		for (Installation installation : handler.getAll()) {
 			if (installation == null || installation.getKind() != InstallationKind.PORT) {
 				continue;

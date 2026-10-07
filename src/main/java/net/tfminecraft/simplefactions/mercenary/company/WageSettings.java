@@ -114,14 +114,14 @@ public class WageSettings {
     private static void put(Map<String, Double> map, String player, Double value) {
         if (player == null || player.isBlank()) return;
         if (value == null) {
-            map.remove(player.toLowerCase());
+            map.remove(player.toLowerCase(java.util.Locale.ROOT));
             return;
         }
-        map.put(player.toLowerCase(), value);
+        map.put(player.toLowerCase(java.util.Locale.ROOT), value);
     }
 
     private static Double get(Map<String, Double> map, String player) {
         if (player == null) return null;
-        return map.get(player.toLowerCase());
+        return map.get(player.toLowerCase(java.util.Locale.ROOT));
     }
 }

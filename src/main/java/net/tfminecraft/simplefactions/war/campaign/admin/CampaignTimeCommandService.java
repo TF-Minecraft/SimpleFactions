@@ -42,10 +42,10 @@ public final class CampaignTimeCommandService {
 		Duration duration;
 		try {
 			duration = CampaignDurationParser.parse(durationTokens);
+			CampaignClock.add(duration);
 		} catch (IllegalArgumentException ex) {
 			return CampaignTimeResult.error(INVALID_DURATION);
 		}
-		CampaignClock.add(duration);
 		int ticked = applyClockChange();
 		String paris = CampaignClock.now().atZone(BattleWindowService.SCHEDULE_ZONE).format(SCHEDULE_FORMAT);
 		String message = "§aCampaign time advanced by §e" + formatOffset(duration)
@@ -101,7 +101,13 @@ public final class CampaignTimeCommandService {
 			return "real time";
 		}
 		long seconds = duration.getSeconds();
-		String formatted = TimeFormatter.formatTime((int) Math.abs(seconds));
+		long magnitude = Math.abs(seconds);
+		long days = magnitude / 86_400;
+		int remainder = (int) (magnitude % 86_400);
+		String formatted = days > 0 ? days + "d" : "";
+		if (remainder > 0 || days == 0) {
+			formatted += (days > 0 ? " " : "") + TimeFormatter.formatTime(remainder);
+		}
 		return seconds < 0 ? "-" + formatted : "+" + formatted;
 	}
 }

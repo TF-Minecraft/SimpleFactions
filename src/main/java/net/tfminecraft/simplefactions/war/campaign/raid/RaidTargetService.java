@@ -73,19 +73,10 @@ public final class RaidTargetService {
 		}
 
 		Side enemySide = war.getOppositeSide(attacker);
-		if (enemySide == null) {
-			return List.of();
-		}
 
 		List<RaidTargetCandidate> candidates = new ArrayList<>();
 		for (Faction enemy : BattleSideMembers.collectParticipatingFactions(enemySide)) {
-			if (enemy == null || enemy.getId() == null) {
-				continue;
-			}
 			InstallationHandler handler = enemy.getInstallationHandler();
-			if (handler == null) {
-				continue;
-			}
 			for (Installation installation : handler.getAll()) {
 				if (installation == null || installation.getId() == null) {
 					continue;

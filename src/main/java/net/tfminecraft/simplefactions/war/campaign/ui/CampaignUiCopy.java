@@ -31,14 +31,14 @@ public final class CampaignUiCopy {
 	private CampaignUiCopy() {}
 
 	public static String formatBattleKind(CampaignBattleKind kind) {
-		if (kind == null || kind == CampaignBattleKind.FIELD) {
+		if (kind == null) {
 			return "Field Battle";
 		}
 		return switch (kind) {
+			case FIELD -> "Field Battle";
 			case SIEGE -> "Siege";
 			case NAVAL -> "Naval Battle";
 			case NAVAL_INVASION -> "Naval Invasion";
-			default -> null;
 		};
 	}
 

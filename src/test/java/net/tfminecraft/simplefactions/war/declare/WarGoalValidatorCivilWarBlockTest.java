@@ -101,6 +101,7 @@ class WarGoalValidatorCivilWarBlockTest {
 
 	private static Faction mockFaction(String id, int tierLevel) {
 		Faction faction = mock(Faction.class);
+		when(faction.getDiplomacyHandler()).thenReturn(new net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler(faction));
 		when(faction.getId()).thenReturn(id);
 		when(faction.getName()).thenReturn(id);
 		when(faction.getRelations()).thenReturn(new HashMap<>());

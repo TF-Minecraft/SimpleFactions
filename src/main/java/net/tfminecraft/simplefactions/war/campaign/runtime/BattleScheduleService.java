@@ -216,9 +216,6 @@ public final class BattleScheduleService {
 		int added = 0;
 		for (BelligerentRole side : sides) {
 			Side belligerentSide = side == BelligerentRole.ATTACKER ? war.getAttackers() : war.getDefenders();
-			if (belligerentSide == null) {
-				continue;
-			}
 			for (String memberName : BattleSideMembers.collectEligibleMemberNames(belligerentSide)) {
 				UUID playerId = memberNameToUuid.apply(memberName);
 				if (playerId == null) {
@@ -282,18 +279,12 @@ public final class BattleScheduleService {
 		if (war == null || scheduledAt == null) {
 			return false;
 		}
-		war.clearSignupRemindersSent();
 		LocalDate battleDay = war.getBattleDay();
 		Integer scheduleHour = BattleWindowService.resolveScheduleHour(battleDay, scheduledAt);
 		if (scheduleHour == null || !BattleWindowService.isValidHour(scheduleHour)) {
 			return false;
 		}
-		if (battleDay == null) {
-			battleDay = scheduleHour == 24
-					? scheduledAt.atZone(BattleWindowService.SCHEDULE_ZONE).toLocalDate().minusDays(1)
-					: scheduledAt.atZone(BattleWindowService.SCHEDULE_ZONE).toLocalDate();
-			war.setBattleDay(battleDay);
-		}
+		war.clearSignupRemindersSent();
 		war.setScheduledBattleHour(scheduleHour);
 		war.setScheduledBattleAt(scheduledAt);
 		war.setScheduledBattleProvinceId(provinceId);

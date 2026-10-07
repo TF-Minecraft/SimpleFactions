@@ -26,6 +26,8 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 final class CampaignBattleIconLore {
 	private static final List<String> VEHICLE_CATEGORY_ORDER = List.of("ships", "aircraft", "land_vehicles");
+	private static final Map<String, String> VEHICLE_CATEGORY_LABELS = Map.of(
+			"ships", "Ships", "aircraft", "Aircraft", "land_vehicles", "Land");
 
 	private CampaignBattleIconLore() {}
 
@@ -86,7 +88,7 @@ final class CampaignBattleIconLore {
 			if (byType == null || byType.isEmpty()) {
 				continue;
 			}
-			lore.add(StringFormatter.formatHex(CampaignUiCopy.LABEL + categoryLabel(category)));
+			lore.add(StringFormatter.formatHex(CampaignUiCopy.LABEL + VEHICLE_CATEGORY_LABELS.get(category)));
 			for (Map.Entry<String, Integer> entry : byType.entrySet()) {
 				lore.add(StringFormatter.formatHex(
 						CampaignUiCopy.MUTED + "  " + entry.getKey() + ": " + CampaignUiCopy.VALUE + entry.getValue()));
@@ -100,9 +102,6 @@ final class CampaignBattleIconLore {
 		}
 		int total = 0;
 		for (Participant participant : side.getMainParticipants()) {
-			if (participant == null) {
-				continue;
-			}
 			total += countMilitary(participant.getLeader());
 			if (participant.getSubjects() != null) {
 				for (Faction subject : participant.getSubjects()) {
@@ -121,9 +120,6 @@ final class CampaignBattleIconLore {
 			return 0;
 		}
 		Military military = faction.getMilitary();
-		if (military.getRegiments() == null) {
-			return 0;
-		}
 		int total = 0;
 		for (Regiment regiment : military.getRegiments()) {
 			if (regiment == null || regiment.isLevy() || regiment.isEquipment()) {
@@ -134,7 +130,7 @@ final class CampaignBattleIconLore {
 		return total;
 	}
 
-	/** Faction id and installation id pairs. The siege fort has no faction key, so it is not filtered. */
+	/** Faction id and installation id pairs, including the fort on the scheduled province. */
 	private static Set<Map.Entry<String, String>> inPlayInstallations(War war) {
 		Set<Map.Entry<String, String>> picked = new LinkedHashSet<>();
 		if (war.getBattleInstallationPicks() != null) {
@@ -147,17 +143,10 @@ final class CampaignBattleIconLore {
 				}
 			}
 		}
-		BattleSiegeFortService.currentSiegeFortInstallationId(war)
-				.ifPresent(id -> picked.add(new java.util.AbstractMap.SimpleImmutableEntry<>(null, id)));
+		BattleSiegeFortService.currentSiegeFortOwner(war).ifPresent(owner ->
+				BattleSiegeFortService.currentSiegeFortInstallationId(war).ifPresent(id ->
+						picked.add(new java.util.AbstractMap.SimpleImmutableEntry<>(owner.getId(), id))));
 		return picked;
 	}
 
-	private static String categoryLabel(String categoryId) {
-		return switch (categoryId) {
-			case "ships" -> "Ships";
-			case "aircraft" -> "Aircraft";
-			case "land_vehicles" -> "Land";
-			default -> categoryId;
-		};
-	}
 }

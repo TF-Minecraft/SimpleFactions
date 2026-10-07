@@ -57,12 +57,14 @@ public class CapturePoint {
 			return;
 		}
 		int maxValueInMap = Collections.max(playerSide.values());
-
+		BattleSide capturing = null;
 		for (Entry<BattleSide, Integer> entry : playerSide.entrySet()) {
 			if (entry.getValue() == maxValueInMap && entry.getValue() >= Cache.battleCaptureMinPlayers) {
-				tickCapture(entry.getKey());
+				if (capturing != null) return;
+				capturing = entry.getKey();
 			}
 		}
+		if (capturing != null) tickCapture(capturing);
 	}
 	public BattleSide getController() {
 		return controller;
@@ -182,10 +184,7 @@ public class CapturePoint {
 		return false;
 	}
 
-	static int[] resolveFrontlineIndices(List<CapturePoint> points, String attackerId, String defenderId) {
-		if (points == null || points.isEmpty()) {
-			return new int[0];
-		}
+	private static int[] resolveFrontlineIndices(List<CapturePoint> points, String attackerId, String defenderId) {
 		List<CapturePoint> ordered = new ArrayList<>(points);
 		ordered.sort(Comparator.comparingInt(CapturePoint::getSequenceIndex));
 
@@ -267,7 +266,7 @@ public class CapturePoint {
 		this.id = id;
 		this.loc = l;
 		this.controller = c;
-		this.captureProgress = prog;
+		setCaptureProgress(prog);
 	}
 	public CapturePoint(CapturePoint another) {
 		this.id = another.getId();

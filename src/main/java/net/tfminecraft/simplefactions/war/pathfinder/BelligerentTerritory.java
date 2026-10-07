@@ -82,9 +82,7 @@ public class BelligerentTerritory {
 
 	private static Set<String> collectSideFactionIds(Side side) {
 		Set<String> ids = new HashSet<>();
-		if (side == null) {
-			return ids;
-		}
+		ids.add(normalizeId(side.getLeader().getId()));
 		for (Participant participant : side.getMainParticipants()) {
 			addParticipantIds(ids, participant);
 		}
@@ -93,9 +91,6 @@ public class BelligerentTerritory {
 
 	private static Set<String> collectLeaderParticipantIds(Side side) {
 		Set<String> ids = new HashSet<>();
-		if (side == null || side.getLeader() == null) {
-			return ids;
-		}
 		String leaderId = normalizeId(side.getLeader().getId());
 		Participant leaderParticipant = null;
 		for (Participant participant : side.getMainParticipants()) {
@@ -105,9 +100,8 @@ public class BelligerentTerritory {
 				break;
 			}
 		}
-		if (leaderParticipant == null && !side.getMainParticipants().isEmpty()) {
-			leaderParticipant = side.getMainParticipants().get(0);
-		}
+		// A missing saved participant row cannot make an ally the campaign objective.
+		ids.add(leaderId);
 		addParticipantIds(ids, leaderParticipant);
 		return ids;
 	}

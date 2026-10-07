@@ -43,14 +43,17 @@ public final class WarReparationsAdminService {
 				return new ApplyResult(false, "§cDays must be a whole number greater than 0.");
 			}
 		}
-		if (percent <= 0 || days <= 0) {
+		if (!Double.isFinite(percent) || percent <= 0 || days <= 0) {
 			return new ApplyResult(false, "§cPercent and days must be greater than 0.");
 		}
 
 		if (!WarReparationsService.apply(payer, payee, percent, days)) {
 			return new ApplyResult(false, "§cCould not add reparations (same faction or invalid).");
 		}
-		new Database().saveFaction(payer);
+		Database database = new Database();
+		for (Faction affected : WarReparationsService.payerAndVassals(payer)) {
+			database.saveFaction(affected);
+		}
 		return new ApplyResult(
 				true,
 				"§aAdded reparations: "

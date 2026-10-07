@@ -81,9 +81,6 @@ public final class CampaignCapabilityService {
 		if (war.getPostBattleChoicePhase() != PostBattleChoicePhase.NONE) {
 			return OptionalInt.empty();
 		}
-		if (needsPostBattleChoice(war)) {
-			return OptionalInt.empty();
-		}
 
 		CampaignPushTarget pushTarget = effectivePushTarget(war);
 		CampaignCoalition holder = CampaignCoalitionService.getInitiativeHolderCoalition(war);
@@ -111,9 +108,6 @@ public final class CampaignCapabilityService {
 		if (war.getPostBattleChoicePhase() != PostBattleChoicePhase.NONE) {
 			return false;
 		}
-		if (needsPostBattleChoice(war)) {
-			return false;
-		}
 		if (coalition != CampaignCoalitionService.getInitiativeHolderCoalition(war)) {
 			return false;
 		}
@@ -129,6 +123,9 @@ public final class CampaignCapabilityService {
 
 	public static boolean canReachTarget(War war, CampaignCoalition coalition) {
 		if (!isValidWar(war) || coalition == null) {
+			return false;
+		}
+		if (capitulationTargetIndex(war, coalition) < 0) {
 			return false;
 		}
 		int steps = stepsToCapitulationTarget(war, coalition);

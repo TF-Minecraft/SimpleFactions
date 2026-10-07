@@ -26,9 +26,6 @@ public final class CoupService {
 
 	private static void adjustCouncil(Faction faction) {
 		LawHandler laws = faction.getLawHandler();
-		if (laws == null) {
-			return;
-		}
 		LawGroup group = laws.getGroup(GOVERNMENT_GROUP);
 		if (group == null || group.getCurrent() == null || group.getCurrent().getId() == null) {
 			return;
@@ -52,9 +49,6 @@ public final class CoupService {
 
 	private static void clearCouncil(Faction faction) {
 		Government government = faction.getGovernment();
-		if (government == null || government.getCouncil() == null) {
-			return;
-		}
 		Council council = government.getCouncil();
 		council.clearMembers();
 	}

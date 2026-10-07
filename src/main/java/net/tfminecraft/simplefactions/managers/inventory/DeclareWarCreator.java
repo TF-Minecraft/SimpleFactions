@@ -281,7 +281,7 @@ public class DeclareWarCreator {
 			addResolvedLawLore(lore, request.getDefender(), request.getLeadershipLawId(), "Leadership");
 		}
 		if (request.getGoal() == WarGoalType.PILLAGE) {
-			Settlement settlement = PillageEligibility.findSettlement(request.getTargetSettlementId());
+			Settlement settlement = PillageEligibility.findSettlement(request.getTargetSettlementId(), request.getDefender());
 			if (settlement != null && settlement.getName() != null) {
 				lore.add(StringFormatter.formatHex("#a89977Settlement: "+settlement.getName()));
 			}

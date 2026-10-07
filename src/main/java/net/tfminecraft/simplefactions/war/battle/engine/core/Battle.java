@@ -281,6 +281,9 @@ public class Battle {
 		this.started = true;
 		this.startedAt = Instant.now();
 		fireStartedEvent();
+		if (!this.started) {
+			return "Battle ended during its start event.";
+		}
 		if (battleType == BattleType.RAID) {
 			BattleRaidSetup.onStart(this);
 		} else {

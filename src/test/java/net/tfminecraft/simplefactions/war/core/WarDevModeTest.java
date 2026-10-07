@@ -272,12 +272,8 @@ class WarDevModeTest {
 
 			CampaignBattleRosterService.enrollWarbands(war, battle);
 
-			Warband attackerBand = WarbandManager.getByString(
-					net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService.campaignWarbandId(
-							battle.getDisplayName(), BattleTemplate.ATTACKER_SIDE));
-			Warband defenderBand = WarbandManager.getByString(
-					net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService.campaignWarbandId(
-							battle.getDisplayName(), BattleTemplate.DEFENDER_SIDE));
+			Warband attackerBand = battle.getSideById(BattleTemplate.ATTACKER_SIDE).getBands().getFirst();
+			Warband defenderBand = battle.getSideById(BattleTemplate.DEFENDER_SIDE).getBands().getFirst();
 			assertEquals(0, attackerBand.getDummyMemberCount());
 			assertEquals(0, defenderBand.getDummyMemberCount());
 

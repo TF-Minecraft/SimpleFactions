@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
@@ -56,9 +57,10 @@ public class PlayerManager implements Listener{
         if(id == null) return;
         Guild issuer = FactionManager.getGuildByString(id);
         if(issuer == null) return;
+        Consumer<ItemStack> replacement = bookReplacement(e);
         Integer contractStage = ContractBook.stage(meta);
         if(contractStage != null) {
-            signContractBook(e, p, issuer, contractStage, newMeta);
+            signContractBook(e, p, issuer, contractStage, newMeta, replacement);
             return;
         }
         Integer stage = meta.getPersistentDataContainer().get(Keys.INT, PersistentDataType.INTEGER);
@@ -77,7 +79,7 @@ public class PlayerManager implements Listener{
                     Long time = newMeta.getPersistentDataContainer().get(Keys.LONG, PersistentDataType.LONG);
                     if(time != null && time < System.currentTimeMillis()) {
                         p.sendMessage("§cThis loan contract has expired! Unable to process.");
-                        p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
+                        replacement.accept(new ItemStack(Material.WRITABLE_BOOK));
                         return;
                     }
                     Loan draft = LoanBook.createLoanFromBook(newMeta, null);
@@ -85,7 +87,7 @@ public class PlayerManager implements Listener{
                         p.sendMessage(LoanBook.INVALID_TERMS_MESSAGE);
                         return;
                     }
-                    p.getInventory().setItemInMainHand(LoanBook.getEstimatedBook(draft));
+                    replacement.accept(LoanBook.getEstimatedBook(draft));
                 }
             }.runTaskLater(SimpleFactions.plugin, 1L);
         }
@@ -97,7 +99,7 @@ public class PlayerManager implements Listener{
                     Long time = newMeta.getPersistentDataContainer().get(Keys.LONG, PersistentDataType.LONG);
                     if(time != null && time < System.currentTimeMillis()) {
                         p.sendMessage("§cThis loan contract has expired! Unable to process.");
-                        p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
+                        replacement.accept(new ItemStack(Material.WRITABLE_BOOK));
                         return;
                     }
                     Loan draft = LoanBook.createLoanFromBook(newMeta, null);
@@ -105,7 +107,7 @@ public class PlayerManager implements Listener{
                         p.sendMessage(LoanBook.INVALID_TERMS_MESSAGE);
                         return;
                     }
-                    p.getInventory().setItemInMainHand(LoanBook.getLoanBook(draft));
+                    replacement.accept(LoanBook.getLoanBook(draft));
                 }
             }.runTaskLater(SimpleFactions.plugin, 1L);
         } else if(stage == 3) {
@@ -117,7 +119,7 @@ public class PlayerManager implements Listener{
             Long time = newMeta.getPersistentDataContainer().get(Keys.LONG, PersistentDataType.LONG);
             if(time != null && time < System.currentTimeMillis()) {
                 p.sendMessage("§cThis loan contract has expired! Unable to process.");
-                p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
+                replacement.accept(new ItemStack(Material.WRITABLE_BOOK));
                 return;
             }
             if(offerId == null) {
@@ -129,7 +131,7 @@ public class PlayerManager implements Listener{
                 new BukkitRunnable() {
                 @Override
                     public void run() {
-                        p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
+                        replacement.accept(new ItemStack(Material.WRITABLE_BOOK));
                     }
                 }.runTaskLater(SimpleFactions.plugin, 1L);
                 return;
@@ -140,7 +142,7 @@ public class PlayerManager implements Listener{
                 new BukkitRunnable() {
                 @Override
                     public void run() {
-                        p.getInventory().setItemInMainHand(new ItemStack(Material.WRITABLE_BOOK));
+                        replacement.accept(new ItemStack(Material.WRITABLE_BOOK));
                     }
                 }.runTaskLater(SimpleFactions.plugin, 1L);
                 return;
@@ -188,7 +190,7 @@ public class PlayerManager implements Listener{
                     m.setTitle("§6Loan Agreement §7"+Cache.getFantasyDate(System.currentTimeMillis()));
                     m.setAuthor(issuer.getLeader()+" and "+p.getName());
                     i.setItemMeta(m);
-                    p.getInventory().setItemInMainHand(i);
+                    replacement.accept(i);
                 }
             }.runTaskLater(SimpleFactions.plugin, 5L);
         }
@@ -200,7 +202,7 @@ public class PlayerManager implements Listener{
      * and a government member of the hiring faction signs the agreement to accept.
      */
     private void signContractBook(
-            PlayerEditBookEvent e, Player p, Guild host, int stage, BookMeta newMeta) {
+            PlayerEditBookEvent e, Player p, Guild host, int stage, BookMeta newMeta, Consumer<ItemStack> replacement) {
         e.setCancelled(true);
         MercenaryCompany company = host.getCompany();
         if(company == null || !company.isFormed()) {
@@ -210,7 +212,7 @@ public class PlayerManager implements Listener{
         Long expiry = ContractBook.expiry(newMeta);
         if(expiry != null && expiry < System.currentTimeMillis()) {
             p.sendMessage("§cThis contract has expired! Unable to process.");
-            replaceHeldBook(p, new ItemStack(Material.WRITABLE_BOOK));
+            replaceHeldBook(replacement, new ItemStack(Material.WRITABLE_BOOK));
             return;
         }
         ContractTerms terms = ContractBook.parseTerms(newMeta);
@@ -229,7 +231,7 @@ public class PlayerManager implements Listener{
                 p.sendMessage("§c"+valid.message());
                 return;
             }
-            replaceHeldBook(p, ContractBook.reviewBook(company, terms));
+            replaceHeldBook(replacement, ContractBook.reviewBook(company, terms));
             return;
         }
         if(stage == ContractBook.STAGE_REVIEW) {
@@ -239,11 +241,11 @@ public class PlayerManager implements Listener{
             }
             if(!ContractBook.matchesSnapshot(newMeta)) {
                 p.sendMessage("§cThis contract has been tampered with! Unable to process.");
-                replaceHeldBook(p, new ItemStack(Material.WRITABLE_BOOK));
+                replaceHeldBook(replacement, new ItemStack(Material.WRITABLE_BOOK));
                 return;
             }
             p.sendMessage("§7Choose who to offer this to with §e/company offer <faction>");
-            replaceHeldBook(p, ContractBook.reviewBook(company, terms));
+            replaceHeldBook(replacement, ContractBook.reviewBook(company, terms));
             return;
         }
         if(stage == ContractBook.STAGE_AGREEMENT) {
@@ -255,11 +257,11 @@ public class PlayerManager implements Listener{
             }
             if(!ContractBook.matchesSnapshot(newMeta)) {
                 p.sendMessage("§cThis contract has been tampered with! Unable to process.");
-                replaceHeldBook(p, new ItemStack(Material.WRITABLE_BOOK));
+                replaceHeldBook(replacement, new ItemStack(Material.WRITABLE_BOOK));
                 return;
             }
             MercenaryResult result = company.getContractHandler()
-                    .accept(contractId, contract.getHirer(), p.getName());
+                    .acceptAtHall(contractId, contract.getHirer(), p);
             p.sendMessage((result.ok() ? "§a" : "§c")+result.message());
             if(!result.ok()) return;
             p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
@@ -268,16 +270,31 @@ public class PlayerManager implements Listener{
                 leader.sendMessage("§a"+result.message());
                 leader.playSound(leader, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
             }
-            replaceHeldBook(p, signedAgreement(company, contract, p.getName()));
+            replaceHeldBook(replacement, signedAgreement(company, contract, p.getName()));
         }
     }
 
+    /** Keep delayed updates bound to the original inventory slot and its unchanged book. */
+    private Consumer<ItemStack> bookReplacement(PlayerEditBookEvent event) {
+        Player player = event.getPlayer();
+        int slot = event.getSlot();
+        ItemStack original = player.getInventory().getItem(slot);
+        ItemStack expected = original == null ? null : original.clone();
+        return replacement -> {
+            if (!player.isOnline() || expected == null || expected.getType() != Material.WRITABLE_BOOK) return;
+            ItemStack current = player.getInventory().getItem(slot);
+            if (current != null && current.getAmount() == expected.getAmount() && current.isSimilar(expected)) {
+                player.getInventory().setItem(slot, replacement);
+            }
+        };
+    }
+
     /** A signed book cannot be replaced in the same tick, so this waits one. */
-    private void replaceHeldBook(Player p, ItemStack book) {
+    private void replaceHeldBook(Consumer<ItemStack> replacement, ItemStack book) {
         new BukkitRunnable() {
             @Override
             public void run() {
-                p.getInventory().setItemInMainHand(book);
+                replacement.accept(book);
             }
         }.runTaskLater(SimpleFactions.plugin, 1L);
     }

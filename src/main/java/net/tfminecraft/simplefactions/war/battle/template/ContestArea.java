@@ -41,7 +41,7 @@ public class ContestArea {
 	}
 
 	public boolean contains(Location location) {
-		if (location == null || !isConfigured()) {
+		if (location == null || min == null || max == null) {
 			return false;
 		}
 		Location minLoc = min.toBukkitLocation();

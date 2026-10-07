@@ -207,7 +207,7 @@ class InstallationVehicleServiceTest {
         VehicleBerthTarget vehicle = ownedTarget("vehicle-1", "ironclad");
 
         try (MockedStatic<VehicleInstallationLockService> lock = mockStatic(VehicleInstallationLockService.class)) {
-            lock.when(() -> VehicleInstallationLockService.isVehicleLocked(eq("port-1"), any()))
+            lock.when(() -> VehicleInstallationLockService.isInstallationLocked(eq(port), any()))
                     .thenReturn(true);
 
             assertEquals(
@@ -262,6 +262,7 @@ class InstallationVehicleServiceTest {
         when(faction.getLeader()).thenReturn("Alice");
 
         SimpleFactions plugin = mock(SimpleFactions.class);
+        when(plugin.saveVehicleRegistry()).thenReturn(true);
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(plugin);
 

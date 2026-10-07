@@ -73,9 +73,9 @@ public final class BattleLivesService {
 			committedRegiments = BattlePoolService.totalCommittedRegiments(war, provinceId, warSide);
 		}
 		int mercenarySlots = mercenarySlots(war, warSide, battleSide);
-		committedRegiments += mercenarySlots;
+		committedRegiments = (int) Math.min(Integer.MAX_VALUE, (long) committedRegiments + mercenarySlots);
 		int rosterFighters = countRosterFighters(battleSide);
-		int poolLives = Cache.warBattleLivesPerRegiment * committedRegiments;
+		int poolLives = (int) Math.min(Integer.MAX_VALUE, (long) Cache.warBattleLivesPerRegiment * committedRegiments);
 		int sideLives = computeSideLives(committedRegiments, rosterFighters);
 		return new SideLivesPreview(committedRegiments, poolLives, rosterFighters, sideLives, mercenarySlots);
 	}
@@ -84,8 +84,8 @@ public final class BattleLivesService {
 		if (committedRegiments <= 0) {
 			return 0;
 		}
-		int raw = Cache.warBattleLivesPerRegiment * committedRegiments - rosterFighters;
-		return Math.max(Cache.warBattleMinSideLives, raw);
+		long raw = (long) Cache.warBattleLivesPerRegiment * committedRegiments - rosterFighters;
+		return (int) Math.min(Integer.MAX_VALUE, Math.max(Cache.warBattleMinSideLives, raw));
 	}
 
 	public static int countRosterFighters(BattleSide side) {
@@ -122,7 +122,7 @@ public final class BattleLivesService {
 		}
 		int committedRegiments = BattlePoolService.totalCommittedRegiments(war, provinceId, warSide);
 		int mercenarySlots = mercenarySlots(war, warSide, battleSide);
-		committedRegiments += mercenarySlots;
+		committedRegiments = (int) Math.min(Integer.MAX_VALUE, (long) committedRegiments + mercenarySlots);
 		if (committedRegiments <= 0) {
 			LOGGER.info(
 					"Campaign battle " + battle.getId() + " side " + battleSideId
@@ -133,23 +133,17 @@ public final class BattleLivesService {
 		battleSide.setLives(sideLives);
 	}
 
-	static int mercenarySlots(War war, Side warSide, BattleSide battleSide) {
-		if (war == null || warSide == null || battleSide == null) {
-			return 0;
-		}
-		int total = 0;
+	private static int mercenarySlots(War war, Side warSide, BattleSide battleSide) {
+		long total = 0;
 		for (net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements.Engagement engagement
 				: net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements.on(war, warSide)) {
 			total += net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements
 					.coveringMembers(engagement, battleSide);
 		}
-		return total;
+		return (int) Math.min(Integer.MAX_VALUE, total);
 	}
 
-	static Integer resolveProvinceId(War war, Battle battle) {
-		if (battle == null) {
-			return null;
-		}
+	private static Integer resolveProvinceId(War war, Battle battle) {
 		Integer provinceId = battle.getProvinceId();
 		if (provinceId == null && war != null) {
 			provinceId = war.getScheduledBattleProvinceId();

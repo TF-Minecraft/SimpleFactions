@@ -46,12 +46,9 @@ public final class CapturePointMarkerService {
 			return;
 		}
 		List<CapturePoint> points = pointManager.getPoints();
-		org.bukkit.World world = resolveWorld(points);
-		if (world == null) {
-			return;
-		}
-		for (Player player : world.getPlayers()) {
-			for (CapturePoint point : points) {
+		for (CapturePoint point : points) {
+			Location anchor = point.getLoc();
+			for (Player player : anchor.getWorld().getPlayers()) {
 				renderPoint(player, battle, point, points, pointManager);
 			}
 		}
@@ -94,9 +91,6 @@ public final class CapturePointMarkerService {
 			List<CapturePoint> points,
 			PointManager pointManager) {
 		Location anchor = point.getLoc();
-		if (anchor == null || anchor.getWorld() == null) {
-			return;
-		}
 		if (!isChunkLoaded(anchor)) {
 			return;
 		}
@@ -125,26 +119,7 @@ public final class CapturePointMarkerService {
 		player.spawnParticle(Particle.DUST, x, y, z, 1, 0, 0, 0, 0, dust, true);
 	}
 
-	private static org.bukkit.World resolveWorld(List<CapturePoint> points) {
-		if (points == null) {
-			return null;
-		}
-		for (CapturePoint point : points) {
-			Location location = point.getLoc();
-			if (location != null && location.getWorld() != null) {
-				return location.getWorld();
-			}
-		}
-		return null;
-	}
-
 	private static boolean isWithinViewRange(Player player, Location location) {
-		if (player == null || location == null || location.getWorld() == null) {
-			return false;
-		}
-		if (!player.getWorld().equals(location.getWorld())) {
-			return false;
-		}
 		return player.getLocation().distanceSquared(location) <= VIEW_RANGE_SQ;
 	}
 

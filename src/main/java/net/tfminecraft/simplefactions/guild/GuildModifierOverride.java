@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.guild;
 
 import java.util.Map;
+import java.util.HashMap;
 
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 
@@ -16,7 +17,7 @@ public final class GuildModifierOverride {
 
     private GuildModifierOverride(Guild guild, Map<GuildModifier, Double> amounts) {
         this.guild = guild;
-        this.amounts = amounts;
+        this.amounts = new HashMap<>(amounts);
     }
 
     public static void use(Guild guild, Map<GuildModifier, Double> amounts) {

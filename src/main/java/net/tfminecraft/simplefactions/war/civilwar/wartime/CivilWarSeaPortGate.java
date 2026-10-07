@@ -94,9 +94,6 @@ public final class CivilWarSeaPortGate {
 			ProvinceManager pm,
 			Set<Integer> sharedSea) {
 		InstallationHandler handler = host.getInstallationHandler();
-		if (handler == null) {
-			return false;
-		}
 		Set<Integer> rebelSet = new HashSet<>(rebelProvinces);
 		for (Installation installation : handler.getAll()) {
 			if (installation == null || installation.getKind() != InstallationKind.PORT) {

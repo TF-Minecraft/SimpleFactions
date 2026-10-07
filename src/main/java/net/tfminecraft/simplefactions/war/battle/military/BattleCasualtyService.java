@@ -138,13 +138,10 @@ public final class BattleCasualtyService {
 			String factionId = factionEntry.getKey();
 			Map<String, Integer> regimentCounts = factionEntry.getValue();
 			Integer militiaCount = regimentCounts.get(BattlePoolService.MILITIA_REGIMENT_ID);
-			if (militiaCount == null || militiaCount <= 0) {
+			if (militiaCount == null) {
 				continue;
 			}
 			int take = Math.min(remaining, militiaCount);
-			if (take <= 0) {
-				continue;
-			}
 			debitOwnRegiment(war, factionId, BattlePoolService.MILITIA_REGIMENT_ID, take, affectedFactions);
 			remaining -= take;
 			if (remaining <= 0) {
@@ -160,9 +157,6 @@ public final class BattleCasualtyService {
 					continue;
 				}
 				int weight = regimentEntry.getValue();
-				if (weight <= 0) {
-					continue;
-				}
 				targets.add(new RegimentTarget(factionId, regimentEntry.getKey(), weight));
 			}
 		}
@@ -174,24 +168,22 @@ public final class BattleCasualtyService {
 			if (amount <= 0) {
 				continue;
 			}
+			remaining -= amount;
 			if (WarCommitment.LEVY_REGIMENT_ID.equalsIgnoreCase(target.regimentId())) {
 				debitLevyForHolder(war, target.factionId(), amount, affectedFactions);
 			} else {
 				debitOwnRegiment(war, target.factionId(), target.regimentId(), amount, affectedFactions);
 			}
 		}
-		return casualties;
+		return casualties - remaining;
 	}
 
-	static void debitOwnRegiment(
+	private static void debitOwnRegiment(
 			War war,
 			String factionId,
 			String regimentId,
 			int amount,
 			Set<Faction> affectedFactions) {
-		if (amount <= 0 || factionId == null || regimentId == null) {
-			return;
-		}
 		WarCommitmentService.debitCount(war.getId(), factionId, null, regimentId, amount);
 		Faction faction = FactionManager.getByString(factionId);
 		if (faction == null || faction.getMilitary() == null) {
@@ -207,14 +199,11 @@ public final class BattleCasualtyService {
 		affectedFactions.add(faction);
 	}
 
-	static void debitLevyForHolder(
+	private static void debitLevyForHolder(
 			War war,
 			String holderFactionId,
 			int amount,
 			Set<Faction> affectedFactions) {
-		if (amount <= 0 || holderFactionId == null) {
-			return;
-		}
 		List<LevyRowTarget> levyRows = new ArrayList<>();
 		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
 			if (!commitment.isLevyRow()) {
@@ -231,10 +220,6 @@ public final class BattleCasualtyService {
 					commitment.sourceFactionId(),
 					commitment.count()));
 		}
-		if (levyRows.isEmpty()) {
-			return;
-		}
-
 		List<RegimentTarget> rowTargets = new ArrayList<>();
 		for (LevyRowTarget row : levyRows) {
 			rowTargets.add(new RegimentTarget(row.holderId(), row.sourceId(), row.weight()));
@@ -250,15 +235,12 @@ public final class BattleCasualtyService {
 		}
 	}
 
-	static void debitLevyRow(
+	private static void debitLevyRow(
 			War war,
 			String holderFactionId,
 			String sourceFactionId,
 			int amount,
 			Set<Faction> affectedFactions) {
-		if (amount <= 0) {
-			return;
-		}
 		WarCommitmentService.debitCount(
 				war.getId(),
 				holderFactionId,
@@ -268,14 +250,11 @@ public final class BattleCasualtyService {
 		debitSourceForLevy(war, sourceFactionId, amount, affectedFactions);
 	}
 
-	static void debitSourceForLevy(
+	private static void debitSourceForLevy(
 			War war,
 			String sourceFactionId,
 			int amount,
 			Set<Faction> affectedFactions) {
-		if (amount <= 0 || sourceFactionId == null) {
-			return;
-		}
 		List<RegimentTarget> sourceTargets = new ArrayList<>();
 		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
 			if (commitment.isLevyRow()) {
@@ -292,11 +271,19 @@ public final class BattleCasualtyService {
 			}
 			sourceTargets.add(new RegimentTarget(sourceFactionId, commitment.regimentId(), commitment.count()));
 		}
-		if (sourceTargets.isEmpty()) {
-			return;
+		Faction source = FactionManager.getByString(sourceFactionId);
+		if (sourceTargets.isEmpty() && source != null && source.getMilitary() != null) {
+			// A subject lending levies need not be a direct fighter with its own snapshot rows.
+			for (Regiment regiment : source.getMilitary().getRegiments()) {
+				if (regiment.isLevy() || regiment.isOffensive() || regiment.isEquipment()) continue;
+				int sent = Math.min(regiment.sentToOverlord(), regiment.getCurrentSlots());
+				if (sent > 0) sourceTargets.add(new RegimentTarget(sourceFactionId, regiment.getId(), sent));
+			}
 		}
+		if (sourceTargets.isEmpty()) return;
 
 		Map<RegimentTarget, Integer> allocation = allocateProportionally(amount, sourceTargets);
+		amount = allocation.values().stream().mapToInt(Integer::intValue).sum();
 		for (Map.Entry<RegimentTarget, Integer> entry : allocation.entrySet()) {
 			RegimentTarget target = entry.getKey();
 			int debit = entry.getValue();
@@ -306,7 +293,6 @@ public final class BattleCasualtyService {
 			debitOwnRegiment(war, target.factionId(), target.regimentId(), debit, affectedFactions);
 		}
 
-		Faction source = FactionManager.getByString(sourceFactionId);
 		if (source == null || source.getMilitary() == null) {
 			return;
 		}
@@ -328,18 +314,16 @@ public final class BattleCasualtyService {
 		}
 	}
 
-	static Map<RegimentTarget, Integer> allocateProportionally(int total, List<RegimentTarget> targets) {
+	private static Map<RegimentTarget, Integer> allocateProportionally(int total, List<RegimentTarget> targets) {
 		if (total <= 0 || targets == null || targets.isEmpty()) {
 			return Map.of();
 		}
-		int weightSum = 0;
+		long weightSum = 0;
 		for (RegimentTarget target : targets) {
 			weightSum += target.weight();
 		}
-		if (weightSum <= 0) {
-			return Map.of();
-		}
 
+		total = (int) Math.min((long) total, weightSum);
 		Map<RegimentTarget, Integer> allocation = new LinkedHashMap<>();
 		List<RemainderEntry> remainders = new ArrayList<>();
 		int assigned = 0;

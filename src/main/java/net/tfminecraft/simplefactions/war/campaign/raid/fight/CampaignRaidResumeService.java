@@ -26,26 +26,18 @@ public final class CampaignRaidResumeService {
 		if (war == null || !war.isActive()) {
 			return;
 		}
-		CampaignRaidBattleService.markAsCampaignRaidIfActive(war, battle);
-		if (!battle.isCampaignRaid()) {
-			return;
-		}
 		CampaignRaid raid = CampaignRaidService.getActive(war);
-		if (raid == null) {
+		if (!CampaignRaidBattleService.isCampaignRaidBattle(war, battle)
+				|| !CampaignRaidBattleService.matchesRaidBattle(raid, battle.getId())) {
 			return;
 		}
-		if (raid.getBattleId() == null || raid.getBattleId().isBlank()) {
-			raid.setBattleId(battle.getId());
-		}
+		CampaignRaidBattleService.markAsCampaignRaidIfActive(war, battle);
 		restoreFightStartedAt(battle, raid);
 	}
 
 	public static void resumeAll() {
 		Instant now = CampaignClock.now();
 		for (War war : WarManager.getActive()) {
-			if (war == null || !war.isActive()) {
-				continue;
-			}
 			resumeWar(war, now);
 		}
 	}
@@ -77,8 +69,25 @@ public final class CampaignRaidResumeService {
 	}
 
 	private static void resumeFight(War war, CampaignRaid raid, Instant now) {
+		if (raid.getFightEndsAt() == null) {
+			String savedId = raid.getBattleId() != null ? raid.getBattleId() : raid.getId();
+			Battle saved = BattleManager.getByString(savedId);
+			if (saved != null && CampaignRaidBattleService.isCampaignRaidBattle(war, saved)
+					&& CampaignRaidBattleService.matchesRaidBattle(raid, saved.getId())) {
+				saved.end();
+				net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.deleteRaidBattle(saved);
+			}
+			CampaignRaidService.endRaid(war, now);
+			WarManager.persist(war);
+			return;
+		}
 		Battle battle = resolveBattle(war, raid, now);
-		if (battle != null && battle.hasStarted()) {
+		if (battle == null) {
+			CampaignRaidService.endRaid(war, now);
+			WarManager.persist(war);
+			return;
+		}
+		if (battle.hasStarted()) {
 			battle.setCampaignRaid(true);
 			battle.setLootEnabled(false);
 			restoreFightStartedAt(battle, raid);
@@ -87,9 +96,6 @@ public final class CampaignRaidResumeService {
 			Warband defender = CampaignRaidWarbandService.getDefenderWarband(raid);
 			CampaignRaidBattleService.enrollRaidWarbands(raid, battle, attacker, defender);
 			CampaignRaidBossBarService.onFightStarted(battle, raid);
-		}
-		if (raid.getFightEndsAt() == null) {
-			return;
 		}
 		if (now.isBefore(raid.getFightEndsAt())) {
 			CampaignRaidFightScheduler.onFightStarted(war, now);
@@ -108,7 +114,8 @@ public final class CampaignRaidResumeService {
 		}
 		Battle battle = BattleManager.getByString(battleId);
 		if (battle != null) {
-			return battle;
+			return CampaignRaidBattleService.isCampaignRaidBattle(war, battle)
+					&& CampaignRaidBattleService.matchesRaidBattle(raid, battle.getId()) ? battle : null;
 		}
 		return CampaignRaidBattleService.createAndStart(war, raid, now);
 	}

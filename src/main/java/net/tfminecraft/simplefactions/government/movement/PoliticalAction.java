@@ -21,7 +21,7 @@ public class PoliticalAction {
 
     public PoliticalAction(String key, ConfigurationSection config) {
         try {
-            action = Action.valueOf(key.toUpperCase());
+            action = Action.valueOf(key.toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid political action key: " + key);
         }

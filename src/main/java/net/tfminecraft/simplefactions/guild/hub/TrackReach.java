@@ -46,7 +46,7 @@ public final class TrackReach {
         }
         while (!queue.isEmpty()) {
             Step step = queue.poll();
-            if (step.distance != distance[step.node] || step.distance > range) {
+            if (step.distance != distance[step.node]) {
                 continue;
             }
             for (Edge edge : adjacent.get(step.node)) {

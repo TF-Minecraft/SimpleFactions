@@ -57,9 +57,6 @@ public final class BattleWarbandRetreatService {
 			}
 			return RetreatResult.REJECTED_NOT_IN_WARBAND;
 		}
-		if (!player.getUniqueId().equals(warband.getLeaderId())) {
-			return RetreatResult.REJECTED_NOT_LEADER;
-		}
 		if (warband.isPendingLeader()) {
 			return RetreatResult.REJECTED_PENDING_LEADER;
 		}
@@ -70,16 +67,9 @@ public final class BattleWarbandRetreatService {
 			return RetreatResult.REJECTED_NOT_IN_BATTLE;
 		}
 
-		War war = ctx.war();
 		Battle battle = ctx.battle();
-		if (war == null || !war.isActive()) {
-			return RetreatResult.REJECTED_WAR_INACTIVE;
-		}
 		if (!battle.hasStarted()) {
 			return RetreatResult.REJECTED_BATTLE_NOT_STARTED;
-		}
-		if (battle.getWarId() == null) {
-			return RetreatResult.REJECTED_NOT_CAMPAIGN_BATTLE;
 		}
 		if (battle.isCampaignRaid() || battle.getBattleType() == BattleType.RAID) {
 			return RetreatResult.REJECTED_RAID;
@@ -175,10 +165,11 @@ public final class BattleWarbandRetreatService {
 		}
 
 		public static String messageForResult(RetreatResult result, Player player, Instant now) {
-			if (result == null || result == RetreatResult.SUCCESS) {
-				return result == RetreatResult.SUCCESS ? SUCCESS : null;
+			if (result == null) {
+				return null;
 			}
 			return switch (result) {
+				case SUCCESS -> SUCCESS;
 				case REJECTED_NOT_IN_WARBAND -> NOT_IN_WARBAND;
 				case REJECTED_NOT_LEADER -> NOT_LEADER;
 				case REJECTED_PENDING_LEADER -> PENDING_LEADER;
@@ -190,7 +181,6 @@ public final class BattleWarbandRetreatService {
 				case REJECTED_WAR_INACTIVE -> WAR_INACTIVE;
 				case REJECTED_NO_OPPONENT -> NO_OPPONENT;
 				case REJECTED_TOO_EARLY -> buildTooEarlyMessage(player, now);
-				default -> null;
 			};
 		}
 

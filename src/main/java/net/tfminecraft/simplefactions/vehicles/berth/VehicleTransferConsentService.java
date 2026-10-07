@@ -43,60 +43,44 @@ public final class VehicleTransferConsentService {
         this.poolService = poolService;
     }
 
-    public void sendConsentRequest(
-            Player leader,
-            Player owner,
-            Faction faction,
-            Installation installation,
-            ActiveVehicle vehicle) {
-        if (leader == null || owner == null || faction == null
-                || installation == null || vehicle == null) {
-            return;
-        }
-
-        RequestManager.addRequest(
-                leader,
-                owner,
-                new VehicleTransferConsentRequest(
-                        faction.getOrCreateMainGuild(),
-                        installation.getId(),
-                        installation.getName(),
-                        vehicle.getUUID(),
-                        vehicle.getId(),
-                        owner.getUniqueId(),
-                        leader.getUniqueId()));
-
-        owner.sendMessage(VehicleTransferMessages.consentPrompt(
-                leader.getName(),
-                vehicle.getId(),
-                installation.getName()));
-        leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+    public void sendConsentRequest(Player leader, Player owner, Faction faction,
+            Installation installation, ActiveVehicle vehicle) {
+        trySendConsentRequest(leader, owner, faction, installation, vehicle);
     }
 
-    public void sendPoolConsentRequest(
-            Player leader,
-            Player owner,
-            Faction faction,
-            ActiveVehicle vehicle) {
-        if (leader == null || owner == null || faction == null || vehicle == null) {
-            return;
+    public boolean trySendConsentRequest(Player leader, Player owner, Faction faction,
+            Installation installation, ActiveVehicle vehicle) {
+        if (leader == null || owner == null || faction == null
+                || installation == null || vehicle == null) {
+            return false;
         }
+        VehicleTransferConsentRequest request = new VehicleTransferConsentRequest(
+                faction.getOrCreateMainGuild(), installation.getId(), installation.getName(),
+                vehicle.getUUID(), vehicle.getId(), owner.getUniqueId(), leader.getUniqueId());
+        RequestManager.addRequest(leader, owner, request);
+        if (RequestManager.getRequest(owner) != request) return false;
+        owner.sendMessage(VehicleTransferMessages.consentPrompt(
+                leader.getName(), vehicle.getId(), installation.getName()));
+        leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+        return true;
+    }
 
-        RequestManager.addRequest(
-                leader,
-                owner,
-                new VehicleTransferConsentRequest(
-                        faction.getOrCreateMainGuild(),
-                        null,
-                        "faction vehicle pool",
-                        vehicle.getUUID(),
-                        vehicle.getId(),
-                        owner.getUniqueId(),
-                        leader.getUniqueId(),
-                        true));
+    public void sendPoolConsentRequest(Player leader, Player owner, Faction faction, ActiveVehicle vehicle) {
+        trySendPoolConsentRequest(leader, owner, faction, vehicle);
+    }
 
+    public boolean trySendPoolConsentRequest(Player leader, Player owner, Faction faction, ActiveVehicle vehicle) {
+        if (leader == null || owner == null || faction == null || vehicle == null) {
+            return false;
+        }
+        VehicleTransferConsentRequest request = new VehicleTransferConsentRequest(
+                faction.getOrCreateMainGuild(), null, "faction vehicle pool", vehicle.getUUID(),
+                vehicle.getId(), owner.getUniqueId(), leader.getUniqueId(), true);
+        RequestManager.addRequest(leader, owner, request);
+        if (RequestManager.getRequest(owner) != request) return false;
         owner.sendMessage(VehicleTransferMessages.poolConsentPrompt(leader.getName(), vehicle.getId()));
         leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+        return true;
     }
 
     public void acceptRequest(Player owner) {
@@ -106,6 +90,11 @@ public final class VehicleTransferConsentService {
 
         if (!owner.getUniqueId().equals(req.getOwnerUuid())) {
             owner.sendMessage("§cYou cannot accept this request.");
+            return;
+        }
+
+        if (req.timedOut()) {
+            notifyExpired(req, owner);
             return;
         }
 
@@ -147,8 +136,12 @@ public final class VehicleTransferConsentService {
             return;
         }
 
-        installationVehicleService.register(
-                installation, vehicle, faction, req.getOwnerUuid());
+        if (!installationVehicleService.tryRegister(installation, vehicle, faction, req.getOwnerUuid())) {
+            String message = VehicleTransferMessages.saveFailed();
+            owner.sendMessage(message);
+            notifyProposer(req, message);
+            return;
+        }
         sessionManager.clear(req.getProposerLeaderUuid());
 
         String success = VehicleTransferMessages.berthSuccess(installation);
@@ -173,7 +166,12 @@ public final class VehicleTransferConsentService {
             return;
         }
 
-        poolService.register(faction, vehicle, req.getOwnerUuid());
+        if (!poolService.tryRegister(faction, vehicle, req.getOwnerUuid())) {
+            String message = VehicleTransferMessages.saveFailed();
+            owner.sendMessage(message);
+            notifyProposer(req, message);
+            return;
+        }
         sessionManager.clear(req.getProposerLeaderUuid());
         String success = VehicleTransferMessages.poolSuccess();
         owner.sendMessage(success);
@@ -269,27 +267,14 @@ public final class VehicleTransferConsentService {
 
     private static Faction resolveProposerFaction(VehicleTransferConsentRequest req) {
         Player proposer = Bukkit.getPlayer(req.getProposerLeaderUuid());
-        if (proposer != null) {
-            Faction faction = FactionManager.getByLeader(proposer.getName());
-            if (faction != null) {
-                return faction;
-            }
-        }
-        for (Faction faction : FactionManager.factions) {
-            if (faction.getLeader() != null) {
-                Player leader = Bukkit.getPlayerExact(faction.getLeader());
-                if (leader != null && leader.getUniqueId().equals(req.getProposerLeaderUuid())) {
-                    return faction;
-                }
-            }
+        Faction faction = FactionManager.getByString(req.getDestinationFactionId());
+        if (proposer != null && faction != null && proposer.getName().equals(faction.getLeader())) {
+            return faction;
         }
         return null;
     }
 
     private static void notifyProposer(VehicleTransferConsentRequest req, String message) {
-        if (message == null) {
-            return;
-        }
         Player proposer = Bukkit.getPlayer(req.getProposerLeaderUuid());
         if (proposer != null && proposer.isOnline()) {
             proposer.sendMessage(message);

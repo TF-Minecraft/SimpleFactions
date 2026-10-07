@@ -177,7 +177,7 @@ public class Government {
 
     public Movement getMovementByLeader(String leader) {
         for (Movement movement : movements) {
-            if (movement.getLeader().equalsIgnoreCase(leader)) {
+            if (movement.getLeader() != null && movement.getLeader().equalsIgnoreCase(leader)) {
                 return movement;
             }
         }
@@ -709,14 +709,10 @@ public class Government {
 
 
     public boolean hasElections(Candidate type) {
-        switch (type) {
-            case LEADER:
-                return hasLeaderElections();
-            case COUNCIL:
-                return hasCouncilElections();
-            default:
-                return false;
-        }
+        return switch (type) {
+            case LEADER -> hasLeaderElections();
+            case COUNCIL -> hasCouncilElections();
+        };
     }
 
     public boolean hasElection() {
@@ -1010,21 +1006,16 @@ public class Government {
     }
 
     public void validateFavoursAndRepressions() {
+        // Repression takes precedence if saved state contains both mutually exclusive flags.
         for(Guild guild : f.getGuildHandler().getGuilds()) {
             if(guild.isFavoured() && !canFavour(guild)) {
                 guild.setFavoured(false);
-            }
-            if(guild.isRepressed() && !canRepress(guild)) {
-                guild.setRepressed(false);
             }
         }
         for(Faction vassal : f.getSubjects()) {
             Guild main = vassal.getOrCreateMainGuild();
             if(main.isFavoured() && !canFavour(main)) {
                 main.setFavoured(false);
-            }
-            if(main.isRepressed() && !canRepress(main)) {
-                main.setRepressed(false);
             }
         }
     }

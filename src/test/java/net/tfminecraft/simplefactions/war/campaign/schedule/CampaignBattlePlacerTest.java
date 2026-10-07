@@ -109,7 +109,7 @@ class CampaignBattlePlacerTest {
 		assertEquals(1, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.SIEGE, ctx.invasion().get(0).kind());
 		assertEquals(20, ctx.invasion().get(0).provinceId());
-		assertTrue(ctx.scheduledFortIds().contains("fort_a"));
+		assertTrue(ctx.scheduledFortIds().contains(new OperationalFort("fort_a", defender, 20, 100L).stableKey()));
 	}
 
 	@Test
@@ -119,7 +119,7 @@ class CampaignBattlePlacerTest {
 				new OperationalFort("fort_a", defender, 20, 100L)));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(
 				List.of(20, 30), 20, 0, 1, index);
-		ctx.scheduledFortIds().add("fort_a");
+		ctx.scheduledFortIds().add(new OperationalFort("fort_a", defender, 20, 100L).stableKey());
 		War war = war();
 		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
 

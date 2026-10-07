@@ -74,11 +74,12 @@ public final class CampaignScheduleLogger {
 		}
 		int sortProvinceId = slot.sortProvinceId();
 		int axisIndex = ctx.axis().indexOf(sortProvinceId);
+		String label = axisLabel(axisIndex);
 		if (axisIndex < 0) {
 			axisIndex = Integer.MAX_VALUE;
 		}
 		int key = leg == ScheduleLeg.INVASION ? axisIndex : -axisIndex;
-		return String.format("sortProvince=%d axisIndex=%s fightKey=%d", sortProvinceId, axisLabel(axisIndex), key);
+		return String.format("sortProvince=%d axisIndex=%s fightKey=%d", sortProvinceId, label, key);
 	}
 
 	private static int axisIndex(List<Integer> axis, int provinceId) {

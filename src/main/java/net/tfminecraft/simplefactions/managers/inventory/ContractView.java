@@ -143,7 +143,9 @@ public class ContractView {
     private void clickList(InventoryClickEvent e, Player p, Guild guild, MercenaryCompany company) {
         if (e.getSlot() == DRAFT_BUTTON) {
             if (!company.isLeader(p.getName())) return;
-            p.getInventory().addItem(ContractBook.draftBook(company));
+            for (ItemStack leftover : p.getInventory().addItem(ContractBook.draftBook(company)).values()) {
+                p.getWorld().dropItemNaturally(p.getLocation(), leftover);
+            }
             report(p, MercenaryResult.ok("Draft written. Fill in the terms and sign."));
             return;
         }
@@ -162,7 +164,7 @@ public class ContractView {
             if (!canSign(p, contract)) return;
             switch (e.getSlot()) {
                 case ACCEPT_BUTTON -> report(p, company.getContractHandler()
-                        .accept(contractId, contract.getHirer(), p.getName()));
+                        .acceptAtHall(contractId, contract.getHirer(), p));
                 case DECLINE_BUTTON -> report(p, company.getContractHandler().decline(contractId));
                 default -> {
                     return;

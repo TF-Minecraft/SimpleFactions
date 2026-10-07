@@ -212,9 +212,16 @@ public final class ReportedMenus {
             case INSTALLATIONS_VIEW -> {
                 var report = EspionageService.report(viewer, faction);
                 var entries = report == null ? List.<String>of() : report.details("installation-details", "installations");
-                if (slot >= 12 && slot - 12 < entries.size()) {
-                    String[] fields = entries.get(slot - 12).split("\n", 3);
-                    if (fields.length == 3) manager.installationDetailView(viewer, faction, fields[0]);
+                if (slot >= 12 && slot <= 38) {
+                    int position = 12;
+                    for (String entry : entries) {
+                        String[] fields = entry.split("\n", 3);
+                        if (fields.length != 3) continue;
+                        if (position++ == slot) {
+                            manager.installationDetailView(viewer, faction, fields[0]);
+                            break;
+                        }
+                    }
                 }
             }
             case TAX_VIEW -> {

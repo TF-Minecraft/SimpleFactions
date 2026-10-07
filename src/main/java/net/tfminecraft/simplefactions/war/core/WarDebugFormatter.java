@@ -95,13 +95,7 @@ public final class WarDebugFormatter {
 			War war,
 			CampaignScheduleService.ScheduleLeg leg) {
 		List<Map<String, Object>> rows = new ArrayList<>();
-		if (war == null) {
-			return rows;
-		}
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleService.scheduleListForLeg(war, leg);
-		if (schedule == null) {
-			return rows;
-		}
 		for (int index = 0; index < schedule.size(); index++) {
 			ScheduledCampaignBattle slot = schedule.get(index);
 			Map<String, Object> row = new LinkedHashMap<>();

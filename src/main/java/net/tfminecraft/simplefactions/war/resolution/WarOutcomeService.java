@@ -112,14 +112,8 @@ public final class WarOutcomeService {
 	}
 
 	private static void applyTributary(War war) {
-		if (war.getAttackers() == null || war.getDefenders() == null) {
-			return;
-		}
 		Faction attacker = war.getAttackers().getLeader();
 		Faction defender = war.getDefenders().getLeader();
-		if (attacker == null || defender == null) {
-			return;
-		}
 		RelationType tributary = RelationLoader.getType("tributary");
 		if (tributary == null) {
 			return;
@@ -128,14 +122,8 @@ public final class WarOutcomeService {
 	}
 
 	private static void applySubjugate(War war) {
-		if (war.getAttackers() == null || war.getDefenders() == null) {
-			return;
-		}
 		Faction attacker = war.getAttackers().getLeader();
 		Faction defender = war.getDefenders().getLeader();
-		if (attacker == null || defender == null) {
-			return;
-		}
 		String typeId = war.getRelationTypeId();
 		if (typeId == null || typeId.isBlank()) {
 			return;
@@ -155,9 +143,6 @@ public final class WarOutcomeService {
 	}
 
 	private static boolean chosenTypeAlreadySet(Faction attacker, Faction defender, RelationType type) {
-		if (attacker == null || defender == null || type == null || type.getId() == null) {
-			return false;
-		}
 		Relation relation = attacker.getRelation(defender.getId());
 		if (relation == null || relation.getType() == null || relation.getType().getId() == null) {
 			return false;
@@ -166,12 +151,9 @@ public final class WarOutcomeService {
 	}
 
 	private static void applyTransferSubject(War war) {
-		if (war.getAttackers() == null) {
-			return;
-		}
 		Faction attacker = war.getAttackers().getLeader();
 		String subjectId = war.getSubjectFactionId();
-		if (attacker == null || subjectId == null || subjectId.isBlank()) {
+		if (subjectId == null || subjectId.isBlank()) {
 			return;
 		}
 		Faction subject = FactionManager.getByString(subjectId);
@@ -182,25 +164,16 @@ public final class WarOutcomeService {
 	}
 
 	private static void applyUsurp(War war) {
-		if (war.getAttackers() == null || war.getDefenders() == null) {
-			return;
-		}
 		Faction attacker = war.getAttackers().getLeader();
 		Faction defender = war.getDefenders().getLeader();
-		if (attacker == null || defender == null) {
-			return;
-		}
 		FactionManager.usurp(null, attacker, defender);
 	}
 
 	private static void applyDeJureAnnex(War war) {
-		if (war.getAttackers() == null || war.getDefenders() == null) {
-			return;
-		}
 		Faction attacker = war.getAttackers().getLeader();
 		Faction defender = war.getDefenders().getLeader();
 		String titleId = war.getTargetTitleId();
-		if (attacker == null || defender == null || titleId == null || titleId.isBlank()) {
+		if (titleId == null || titleId.isBlank()) {
 			return;
 		}
 		Title title = TitleLoader.getById(titleId);
@@ -209,13 +182,7 @@ public final class WarOutcomeService {
 		}
 		Set<Faction> formerHolders = new LinkedHashSet<>();
 		for (Integer provinceId : DeJureAnnexEligibility.incomingProvinces(attacker, defender, title)) {
-			if (provinceId == null) {
-				continue;
-			}
 			Faction holder = DeJureAnnexEligibility.ownerOfProvince(provinceId);
-			if (holder == null || holder.getId().equalsIgnoreCase(attacker.getId())) {
-				continue;
-			}
 			if (holder.getCapital() == provinceId) {
 				continue;
 			}
@@ -233,13 +200,7 @@ public final class WarOutcomeService {
 	}
 
 	private static void applyOpenMarket(War war) {
-		if (war.getAttackers() == null || war.getDefenders() == null) {
-			return;
-		}
 		Faction defender = war.getDefenders().getLeader();
-		if (defender == null) {
-			return;
-		}
 		OpenMarketEligibility.ResolvedLaw resolved =
 				OpenMarketEligibility.resolve(defender, Cache.openMarketApplyDefenderLaw);
 		if (resolved == null || resolved.law() == null || resolved.group() == null) {
@@ -253,13 +214,7 @@ public final class WarOutcomeService {
 	}
 
 	private static void applyChangeGovernment(War war) {
-		if (war.getAttackers() == null || war.getDefenders() == null) {
-			return;
-		}
 		Faction defender = war.getDefenders().getLeader();
-		if (defender == null) {
-			return;
-		}
 		boolean resolvedAny = applyLawIfChanged(defender, war.getGovernmentLawId());
 		resolvedAny = applyLawIfChanged(defender, war.getLeadershipLawId()) || resolvedAny;
 		if (resolvedAny && defender.getGovernment() != null) {

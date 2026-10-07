@@ -78,10 +78,7 @@ public class Proposal {
             Faction faction = gov.getFaction();
             return faction != null && faction.canBecomeLeader(target);
         }
-        if (isPoliticalActionProposal() && CouncilPeaceQueries.isWarEndAction(action.getAction())) {
-            return CouncilPeaceQueries.isValidTarget(gov.getFaction(), target);
-        }
-        return false;
+        return CouncilPeaceQueries.isValidTarget(gov.getFaction(), target);
     }
 
     public boolean hasTarget() {

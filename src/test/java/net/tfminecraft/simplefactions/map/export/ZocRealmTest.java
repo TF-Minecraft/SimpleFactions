@@ -134,6 +134,9 @@ class ZocRealmTest {
 		War war = war(1, List.of(5, 10, 30));
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(18, CampaignBattleKind.SIEGE, false, "fort_a")));
+		assertNull(ZocRealm.selectPrimaryWarForFort(fort, List.of(war)));
+		war.setCampaignBattleSchedule(List.of(
+				new ScheduledCampaignBattle(20, CampaignBattleKind.SIEGE, false, "fort_a")));
 
 		assertEquals(war, ZocRealm.selectPrimaryWarForFort(fort, List.of(war)));
 	}

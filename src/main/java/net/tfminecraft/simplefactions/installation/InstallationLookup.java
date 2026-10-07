@@ -18,9 +18,6 @@ public final class InstallationLookup {
 			return null;
 		}
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getInstallationHandler() == null) {
-				continue;
-			}
 			Installation installation = faction.getInstallationHandler().getById(installationId);
 			if (installation != null) {
 				return installation;
@@ -34,9 +31,6 @@ public final class InstallationLookup {
 			return null;
 		}
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getInstallationHandler() == null) {
-				continue;
-			}
 			if (faction.getInstallationHandler().getById(installationId) != null) {
 				return faction;
 			}
@@ -49,9 +43,6 @@ public final class InstallationLookup {
 			return null;
 		}
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getInstallationHandler() == null) {
-				continue;
-			}
 			for (Installation installation : faction.getInstallationHandler().getAll()) {
 				if (installation.getProvince() == province) {
 					return faction;
@@ -77,9 +68,6 @@ public final class InstallationLookup {
 	public static List<Installation> all() {
 		List<Installation> installations = new ArrayList<>();
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getInstallationHandler() == null) {
-				continue;
-			}
 			InstallationHandler handler = faction.getInstallationHandler();
 			installations.addAll(handler.getAll());
 		}

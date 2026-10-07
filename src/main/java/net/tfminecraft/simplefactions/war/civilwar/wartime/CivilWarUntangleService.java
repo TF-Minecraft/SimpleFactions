@@ -66,14 +66,16 @@ public final class CivilWarUntangleService {
 		try {
 			FactionManager.deleteFaction(rebels);
 		} catch (Exception ignored) {
+			// A failed map publication must not leave relations pointing at the removed realm.
+			for (Faction faction : FactionManager.factions) {
+				faction.getDiplomacyHandler().removeRelation(rebels.getId());
+			}
 			FactionManager.factions.remove(rebels);
+			new net.tfminecraft.simplefactions.database.Database().deleteFaction(rebels);
 		}
 	}
 
 	private static void relocateNonBaseGuilds(Faction rebels, Faction host) {
-		if (rebels.getGuildHandler() == null) {
-			return;
-		}
 		for (Guild guild : new ArrayList<>(rebels.getGuildHandler().getGuilds())) {
 			if (guild == null || guild.isBase()) {
 				continue;
@@ -85,9 +87,7 @@ public final class CivilWarUntangleService {
 
 	private static void restoreLand(Faction host, Faction rebels, CivilWarSnapshot snapshot) {
 		Set<Integer> tiles = new LinkedHashSet<>();
-		if (snapshot.getTransferredProvinces() != null) {
-			tiles.addAll(snapshot.getTransferredProvinces().keySet());
-		}
+		tiles.addAll(snapshot.getTransferredProvinces().keySet());
 		if (rebels.getProvinces() != null) {
 			tiles.addAll(rebels.getProvinces());
 		}
@@ -114,13 +114,7 @@ public final class CivilWarUntangleService {
 	}
 
 	private static void absorbRebelMainGuild(Faction rebels, Faction host, CivilWarSnapshot snapshot) {
-		if (rebels.getGuildHandler() == null || host.getGuildHandler() == null) {
-			return;
-		}
 		Guild base = rebels.getOrCreateMainGuild();
-		if (base == null) {
-			return;
-		}
 		if (GuildLoader.getDefaultType() != null) {
 			base.convert(GuildLoader.getDefaultType());
 		}
@@ -129,7 +123,10 @@ public final class CivilWarUntangleService {
 			base.setName(ownName);
 		}
 		if (base.isBase()) {
+			rebels.getGuildHandler().removeGuild(base.getId(), false, false);
+			base.setHost(host);
 			host.getGuildHandler().addGuild(base);
+			host.updateWealth();
 			return;
 		}
 		int capital = base.hasCapital() ? base.getCapital() : -1;
@@ -137,9 +134,6 @@ public final class CivilWarUntangleService {
 	}
 
 	private static void restoreVassals(CivilWarSnapshot snapshot) {
-		if (snapshot.getWartimeVassalEnds() == null) {
-			return;
-		}
 		for (CivilWarWartimeVassalEnd end : snapshot.getWartimeVassalEnds()) {
 			if (end == null) {
 				continue;
@@ -149,7 +143,7 @@ public final class CivilWarUntangleService {
 	}
 
 	private static void restoreMembers(Faction host, CivilWarSnapshot snapshot, WarEndReason reason) {
-		if (snapshot.getMemberMoves() == null || snapshot.getMemberMoves().isEmpty()) {
+		if (snapshot.getMemberMoves().isEmpty()) {
 			return;
 		}
 		boolean attackerWin = reason == WarEndReason.ATTACKER_VICTORY;
@@ -161,16 +155,12 @@ public final class CivilWarUntangleService {
 			boolean wantedLeader = attackerWin
 					&& wanted != null
 					&& wanted.equalsIgnoreCase(move.player());
-			if (host.getGuildHandler() != null) {
-				host.getGuildHandler().forceKick(move.player());
-			}
+			host.getGuildHandler().forceKick(move.player());
 			if (wantedLeader) {
 				host.getOrCreateMainGuild().addMember(move.player());
 				continue;
 			}
-			Guild origin = host.getGuildHandler() == null
-					? null
-					: host.getGuildHandler().getGuild(move.originGuildId());
+			Guild origin = host.getGuildHandler().getGuild(move.originGuildId());
 			if (origin == null) {
 				origin = host.getOrCreateMainGuild();
 			}

@@ -32,9 +32,6 @@ public final class BattleQuorumService {
 		}
 		Side attackers = war.getAttackers();
 		Side defenders = war.getDefenders();
-		if (attackers == null || defenders == null) {
-			return false;
-		}
 
 		int attackerEligible = BattleSideMembers.countEligibleMembers(attackers);
 		int defenderEligible = BattleSideMembers.countEligibleMembers(defenders);

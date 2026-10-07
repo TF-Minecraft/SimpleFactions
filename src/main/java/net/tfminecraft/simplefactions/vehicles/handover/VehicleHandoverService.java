@@ -128,6 +128,10 @@ public final class VehicleHandoverService {
             return;
         }
         Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, req.getOwnerName(), outcome.vehicleTypeId());
+        if (!req.getVehicleTypeId().equals(outcome.vehicleTypeId()) || !req.matchesFee(quote)) {
+            tellBoth(req, recipient, VehicleHandoverMessages.feeChanged());
+            return;
+        }
         UUID payer = null;
         if (quote != null) {
             payer = VehicleFeeService.resolve(req.getOwnerName());
@@ -163,9 +167,6 @@ public final class VehicleHandoverService {
     }
 
     private static void tellBoth(VehicleHandoverRequest req, Player recipient, String message) {
-        if (message == null) {
-            return;
-        }
         if (recipient != null && recipient.isOnline()) {
             recipient.sendMessage(message);
         }

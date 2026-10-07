@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
@@ -44,6 +45,32 @@ public class MovementView {
     
     public MovementView(InventoryManager inv) {
         this.inv = inv;
+    }
+
+    // A menu's ordinal describes the displayed snapshot, not a later reordered list.
+    private static final class CauseInventoryHolder extends SFInventoryHolder {
+        private List<Cause> causes;
+
+        CauseInventoryHolder(String id, SFGUI type) {
+            super(id, type);
+        }
+
+        void bind(Movement movement, int index) {
+            causes = new ArrayList<>(movement.getCauses());
+            setPage(index);
+        }
+    }
+
+    private Cause causeAt(Inventory inventory, Movement movement, int index) {
+        if (!(inventory.getHolder() instanceof CauseInventoryHolder holder)
+                || index < 0 || index >= holder.causes.size()) return null;
+        Cause cause = holder.causes.get(index);
+        return movement.getCauses().contains(cause) ? cause : null;
+    }
+
+    public Cause displayedCause(Inventory inventory, Movement movement) {
+        if (!(inventory.getHolder() instanceof CauseInventoryHolder holder)) return null;
+        return causeAt(inventory, movement, holder.getPage());
     }
     
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -95,10 +122,12 @@ public class MovementView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void causesView(Player player, Faction f, Movement movement, Inventory i) {
-        boolean open = i == null;
-        if (i == null) {
-            i = Bukkit.createInventory(new SFInventoryHolder(movement.getId(), SFGUI.CAUSES_VIEW), 54, "Causes");
+        boolean open = i == null || !(i.getHolder() instanceof CauseInventoryHolder)
+                || ((SFInventoryHolder) i.getHolder()).getType() != SFGUI.CAUSES_VIEW;
+        if (open) {
+            i = Bukkit.createInventory(new CauseInventoryHolder(movement.getId(), SFGUI.CAUSES_VIEW), 54, "Causes");
         }
+        ((CauseInventoryHolder) i.getHolder()).bind(movement, 0);
         i.clear();
         
         List<Cause> causes = movement.getCauses();
@@ -131,10 +160,12 @@ public class MovementView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void causeView(Player player, Faction f, Movement movement, Cause cause, Inventory i) {
-        boolean open = i == null;
-        if (i == null) {
-            i = Bukkit.createInventory(new SFInventoryHolder(movement.getId(), SFGUI.CAUSE_VIEW, cause.getIndex()), 54, "Cause Details");
+        boolean open = i == null || !(i.getHolder() instanceof CauseInventoryHolder)
+                || ((SFInventoryHolder) i.getHolder()).getType() != SFGUI.CAUSE_VIEW;
+        if (open) {
+            i = Bukkit.createInventory(new CauseInventoryHolder(movement.getId(), SFGUI.CAUSE_VIEW), 54, "Cause Details");
         }
+        ((CauseInventoryHolder) i.getHolder()).bind(movement, cause.getIndex());
         i.clear();
         
         // Cause leader icon
@@ -163,10 +194,12 @@ public class MovementView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void targetSelectionView(Player player, Faction f, Movement movement, Cause cause, Inventory i) {
-        boolean open = i == null;
-        if (i == null) {
-            i = Bukkit.createInventory(new SFInventoryHolder(movement.getId(), SFGUI.TARGET_SELECT, cause.getIndex()), 54, "§7Select New Leader");
+        boolean open = i == null || !(i.getHolder() instanceof CauseInventoryHolder)
+                || ((SFInventoryHolder) i.getHolder()).getType() != SFGUI.TARGET_SELECT;
+        if (open) {
+            i = Bukkit.createInventory(new CauseInventoryHolder(movement.getId(), SFGUI.TARGET_SELECT), 54, "§7Select New Leader");
         }
+        ((CauseInventoryHolder) i.getHolder()).bind(movement, cause.getIndex());
         i.clear();
         
         int x = 0;
@@ -464,7 +497,7 @@ public class MovementView {
         // Phase buttons (slots 28-31)
         else if (slot >= 28 && slot <= 31) {
             ItemStack item = e.getCurrentItem();
-            if (item != null && item.getType() == Material.YELLOW_CONCRETE && movement.getLeader().equalsIgnoreCase(p.getName())) {
+            if (item != null && item.getType() == Material.YELLOW_CONCRETE && movement.isLeader(p.getName())) {
                 if (meta.getPersistentDataContainer().has(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING)) {
                     String phaseName = meta.getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     try {
@@ -510,12 +543,10 @@ public class MovementView {
         // Check if a cause was clicked
         if (meta.getPersistentDataContainer().has(Keys.INT, PersistentDataType.INTEGER)) {
             int index = meta.getPersistentDataContainer().get(Keys.INT, PersistentDataType.INTEGER);
-            if (index < movement.getCauses().size()) {
-                Cause cause = movement.getCauses().get(index);
-                if (cause != null) {
-                    causeView(p, f, movement, cause, null);
-                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1, 1);
-                }
+            Cause cause = causeAt(inventory, movement, index);
+            if (cause != null) {
+                causeView(p, f, movement, cause, null);
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1, 1);
             }
         }
     }
@@ -525,7 +556,7 @@ public class MovementView {
         Cause cause = null;
         if (meta.getPersistentDataContainer().has(Keys.INT, PersistentDataType.INTEGER)) {
             int index = meta.getPersistentDataContainer().get(Keys.INT, PersistentDataType.INTEGER);
-            cause = movement.getCauses().get(index);
+            cause = causeAt(inventory, movement, index);
         }
         if (cause == null) {
             return;
@@ -560,7 +591,7 @@ public class MovementView {
                 p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
                 return;
             }
-            FactionManager.requestMovementJoin(p, movement, "member", null);
+            FactionManager.requestMovementJoin(p, movement, "member", cause);
             causeView(p, f, movement, cause, inventory);
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1, 1);
         }
@@ -588,8 +619,7 @@ public class MovementView {
         String targetName = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
         int causeIndex = meta.getPersistentDataContainer().get(Keys.INT, PersistentDataType.INTEGER);
         
-        if (causeIndex >= movement.getCauses().size()) return;
-        Cause cause = movement.getCauses().get(causeIndex);
+        Cause cause = causeAt(inventory, movement, causeIndex);
         
         if (cause == null) return;
         if (!cause.hasLeader() || !cause.getLeader().equals(p.getName())) return;

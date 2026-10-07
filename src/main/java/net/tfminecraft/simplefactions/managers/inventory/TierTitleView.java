@@ -136,15 +136,22 @@ public class TierTitleView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
+		ItemStack clicked = e.getCurrentItem();
+		if (clicked == null || clicked.getItemMeta() == null) return;
 		if(e.getView().getTitle().equalsIgnoreCase("§7Tier View")) {
 			e.setCancelled(true);
-			Material type = e.getCurrentItem().getType();
+			Material type = clicked.getType();
 			if(!type.equals(Material.YELLOW_CONCRETE)) return;
 			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 			Faction f = FactionManager.getByString(h.getId());
+			if (f == null || !f.isLeader(p.getName())) return;
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "index");
-			int index = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
+			Integer index = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
+			String tierId = clicked.getItemMeta().getPersistentDataContainer().get(
+					new NamespacedKey(SimpleFactions.plugin, "tier"), PersistentDataType.STRING);
+			if (!f.getTier().getId().equals(tierId) || index == null
+					|| index < -1 || index >= f.getTier().getAliases().size()) return;
 			f.getTier().setIndex(index);
 			tierView(inventory, p, f, false);
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -155,8 +162,9 @@ public class TierTitleView {
 			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 			Faction f = FactionManager.getByString(h.getId());
+			if (f == null) return;
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
-			String s = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			String s = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			Tier t = TierLoader.getByString(s);
 			if(t == null) return;
 			titleTypeView(null, p, f, t, true, 0);
@@ -165,13 +173,21 @@ public class TierTitleView {
 			
 		} else if(inventory.getHolder() instanceof SFInventoryHolder && ((SFInventoryHolder) inventory.getHolder()).getType().equals(SFGUI.TITLE_TYPE_VIEW)) {
 			e.setCancelled(true);
-			Material type = e.getCurrentItem().getType();
+			Material type = clicked.getType();
 			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 			Faction f = FactionManager.getByString(h.getId());
+			if (f == null) return;
 			if(type.equals(Material.WRITABLE_BOOK)) {
+				if (!f.isLeader(p.getName())) return;
+				if (!f.getGovernment().stateReport().status.canFormTitles()) {
+					p.sendMessage("§cA " + f.getGovernment().stateReport().status.getLabel() + " cannot form titles.");
+					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+					return;
+				}
 				NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "tier");
-				String tierString = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
+				String tierString = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 				Tier tier = TierLoader.getByString(tierString);
+				if (tier == null || !tier.canForm()) return;
 				int needed = creator.getNewTitleCost(f, tier);
 				int current = 0;
 				Tier lower = TierLoader.getByLevel(tier.getTier()-1);
@@ -188,7 +204,7 @@ public class TierTitleView {
 				if(current < needed) {
 					return;
 				}
-				if(RelationManager.getOverlord(f) != null && FactionManager.getByString(RelationManager.getOverlord(f)).getTier().getTier() < f.getTier().getTier()+1) {
+				if(RelationManager.getOverlord(f) != null && FactionManager.getByString(RelationManager.getOverlord(f)).getTier().getTier() < tier.getTier()) {
 					p.sendMessage("§cForming a new "+tier.getName()+" title would make you a higher tier than your liege!");
 					return;
 				}
@@ -198,24 +214,27 @@ public class TierTitleView {
 				return;
 			}
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "page");
-			Integer page = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
+			Integer page = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
 			if(page != null) {
-				key = new NamespacedKey(SimpleFactions.plugin, "id");
-				String s = inventory.getContents()[0].getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
-				titleTypeView(inventory, p, f, TitleLoader.getById(s).getTier(), false, page);
+				Tier tier = TierLoader.getByString(h.getSecondaryId());
+				if (tier == null) return;
+				titleTypeView(inventory, p, f, tier, false, page);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				// The redraw can leave the clicked slot empty, so it is no longer a title button.
 				return;
 			}
 			key = new NamespacedKey(SimpleFactions.plugin, "id");
-			String s = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			String s = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			Title t = TitleLoader.getById(s);
 			if(t == null) return;
 			key = new NamespacedKey(SimpleFactions.plugin, "type");
-			String action = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
+			String action = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			
-			if(action.equalsIgnoreCase("claim")) {
+			if("claim".equalsIgnoreCase(action)) {
 				if(!type.equals(Material.YELLOW_CONCRETE)) return;
+				if (!f.isLeader(p.getName()) || FactionManager.getTitleOwner(t) != null
+						|| !t.canBeCreatedBy(f, TitleManager.getProvinces(f), TitleManager.getTitles(f),
+								f.getGovernment().deJureScore())) return;
 				if (f.getGovernment() != null && !f.getGovernment().stateReport().status.canFormTitles()) {
 					p.sendMessage("§cA " + f.getGovernment().stateReport().status.getLabel() + " cannot form titles.");
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
@@ -237,14 +256,15 @@ public class TierTitleView {
 				titleTypeView(inventory, p, f, t.getTier(), false, h.getPage());
 				p.sendMessage("§aClaimed the title "+t.getName());
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-			} else if(action.equalsIgnoreCase("grant")) {
+			} else if("grant".equalsIgnoreCase(action)) {
 				if(!type.equals(Material.GREEN_CONCRETE)) return;
 				Faction pf = FactionManager.getByLeader(p.getName());
-				if(pf == null) return;
+				if(pf == null || !pf.getId().equalsIgnoreCase(RelationManager.getOverlord(f))
+						|| !TitleManager.getGrantableTitles(pf, f, t.getTier()).contains(t)) return;
 				
 				f.addTitle(t);
 				pf.removeTitle(t);
-				if(TitleManager.getGrantableTitles(f, pf, t.getTier()).size() > 0) titleTypeView(inventory, p, f, t.getTier(), false, h.getPage());
+				if(TitleManager.getGrantableTitles(pf, f, t.getTier()).size() > 0) titleTypeView(inventory, p, f, t.getTier(), false, h.getPage());
 				else titleView(null, p, f, true);
 				p.sendMessage("§aGranted "+f.getName()+" the title "+t.getName());
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);

@@ -140,7 +140,9 @@ public final class MercenaryCommandManager implements CommandExecutor {
             p.sendMessage("§cOnly a company leader may draft a contract.");
             return;
         }
-        p.getInventory().addItem(ContractBook.draftBook(company));
+        for (ItemStack leftover : p.getInventory().addItem(ContractBook.draftBook(company)).values()) {
+            p.getWorld().dropItemNaturally(p.getLocation(), leftover);
+        }
         p.sendMessage("§aDraft written. Fill in the terms page and sign it.");
     }
 
@@ -157,13 +159,23 @@ public final class MercenaryCommandManager implements CommandExecutor {
         }
         ItemStack held = p.getInventory().getItemInMainHand();
         if (held == null || !(held.getItemMeta() instanceof BookMeta meta)
-                || ContractBook.stage(meta) == null) {
+                || !Integer.valueOf(ContractBook.STAGE_REVIEW).equals(ContractBook.stage(meta))
+                || !company.getGuild().getId().equalsIgnoreCase(ContractBook.companyGuildId(meta))) {
             p.sendMessage("§cHold a reviewed contract book to offer it.");
+            return;
+        }
+        Long expiry = ContractBook.expiry(meta);
+        if (expiry == null || expiry <= System.currentTimeMillis()) {
+            p.sendMessage("§cThis contract has expired! Unable to process.");
             return;
         }
         ContractTerms terms = ContractBook.parseTerms(meta);
         if (terms == null) {
             p.sendMessage("§cThe terms page could not be read.");
+            return;
+        }
+        if (!ContractBook.matchesSnapshot(meta)) {
+            p.sendMessage("§cThis contract has been tampered with! Unable to process.");
             return;
         }
         Faction hirer = resolveFaction(factionName);

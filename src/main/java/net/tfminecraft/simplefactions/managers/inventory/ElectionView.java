@@ -24,6 +24,9 @@ import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.keys.Keys;
 
 public class ElectionView {
+    private static final int PAGE_SIZE = 45;
+    private static final int PREVIOUS_SLOT = 45;
+    private static final int NEXT_SLOT = 53;
     public InventoryManager inv;
 
     ElectionCreator creator = new ElectionCreator();
@@ -65,12 +68,16 @@ public class ElectionView {
         i.clear();
         Election election = f.getGovernment().getElection();
         List<String> candidates = election.getCandidates(candidateType);
-        int x = 0;
-        for(String candidateName : candidates) {
-            if(x >= 54) break;
-            i.setItem(x, creator.createCandidateItem(f, candidateType, candidateName));
-            x++;
+        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+        int lastPage = Math.max(0, (candidates.size() - 1) / PAGE_SIZE);
+        holder.setPage(Math.min(holder.getPage(), lastPage));
+        int start = holder.getPage() * PAGE_SIZE;
+        int end = Math.min(start + PAGE_SIZE, candidates.size());
+        for(int index = start; index < end; index++) {
+            i.setItem(index - start, creator.createCandidateItem(f, candidateType, candidates.get(index)));
         }
+        if(holder.getPage() > 0) i.setItem(PREVIOUS_SLOT, DefaultCreator.createPreviousPageButton());
+        if(holder.getPage() < lastPage) i.setItem(NEXT_SLOT, DefaultCreator.createNextPageButton());
         if(open) p.openInventory(i);
     }
 
@@ -79,6 +86,12 @@ public class ElectionView {
 		SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
         Faction f = FactionManager.getByString(holder.getId());
         if(f == null) return;
+        if(holder.getType() == SFGUI.ELECTION_VOTING_VIEW
+                && (e.getSlot() == PREVIOUS_SLOT || e.getSlot() == NEXT_SLOT)) {
+            holder.setPage(holder.getPage() + (e.getSlot() == NEXT_SLOT ? 1 : -1));
+            votingView(p, f, Candidate.valueOf(holder.getSecondaryId()), inventory);
+            return;
+        }
 		ItemStack item = e.getCurrentItem();
 		if(item == null || item.getItemMeta() == null) return;
 		ItemMeta meta = item.getItemMeta();

@@ -665,9 +665,6 @@ public class War {
 	}
 
 	public Map<UUID, Set<Integer>> getBattleVotes() {
-		if (battleVotes == null) {
-			battleVotes = new HashMap<>();
-		}
 		return battleVotes;
 	}
 
@@ -676,9 +673,6 @@ public class War {
 	}
 
 	public Map<String, LinkedHashSet<String>> getBattleInstallationPicks() {
-		if (battleInstallationPicks == null) {
-			battleInstallationPicks = new LinkedHashMap<>();
-		}
 		return battleInstallationPicks;
 	}
 
@@ -706,9 +700,6 @@ public class War {
 	}
 
 	public Map<String, String> getCampaignRaidsUsed() {
-		if (campaignRaidsUsed == null) {
-			campaignRaidsUsed = new LinkedHashMap<>();
-		}
 		return campaignRaidsUsed;
 	}
 
@@ -729,9 +720,6 @@ public class War {
 	}
 
 	public Map<String, Instant> getRaidRepairLockUntil() {
-		if (raidRepairLockUntil == null) {
-			raidRepairLockUntil = new LinkedHashMap<>();
-		}
 		return raidRepairLockUntil;
 	}
 
@@ -947,8 +935,7 @@ public class War {
 		Side same = getSide(f);
 		if (same == null) return null;
 		if (same.equals(attackers)) return defenders;
-		if (same.equals(defenders)) return attackers;
-		return null;
+		return attackers;
 	}
 
 	public HashMap<Faction, WarGoal> getWarGoalsOn(Faction p) {

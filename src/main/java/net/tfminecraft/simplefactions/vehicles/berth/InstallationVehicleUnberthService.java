@@ -50,9 +50,6 @@ public final class InstallationVehicleUnberthService {
     }
 
     private static UnberthResult map(Status status) {
-        if (status == null) {
-            return UnberthResult.NOT_BERTHED;
-        }
         return switch (status) {
             case OK -> UnberthResult.OK;
             case NOT_LEADER -> UnberthResult.NOT_LEADER;

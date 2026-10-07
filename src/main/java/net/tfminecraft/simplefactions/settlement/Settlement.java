@@ -25,7 +25,7 @@ public class Settlement {
     }
 
     public Settlement(SettlementData data) {
-        if (data.id == null || data.name == null || data.centerProvince == null) {
+        if (data == null || data.id == null || data.name == null || data.centerProvince == null) {
             throw new IllegalArgumentException("Settlement data missing required fields");
         }
         this.id = data.id;
@@ -35,7 +35,7 @@ public class Settlement {
         this.centerZ = data.centerZ != null ? data.centerZ : 0;
         if (data.provinces != null) {
             for (Number p : data.provinces) {
-                provinces.add(p.intValue());
+                if (p != null) provinces.add(p.intValue());
             }
         }
         if (!provinces.contains(centerProvince)) {

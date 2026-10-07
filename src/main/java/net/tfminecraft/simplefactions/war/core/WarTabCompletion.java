@@ -22,10 +22,10 @@ public class WarTabCompletion implements TabCompleter {
 		}
 		if (args.length == 1) {
 			List<String> completions = new ArrayList<>();
-			if ("list".startsWith(args[0].toLowerCase())) {
+			if ("list".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
 				completions.add("list");
 			}
-			if (Permissions.isAdmin(sender) && "admin".startsWith(args[0].toLowerCase())) {
+			if (Permissions.isAdmin(sender) && "admin".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
 				completions.add("admin");
 			}
 			return completions;
@@ -176,7 +176,7 @@ public class WarTabCompletion implements TabCompleter {
 
 	private static List<String> activeWarIds(String prefix) {
 		List<String> completions = new ArrayList<>();
-		String lower = prefix.toLowerCase();
+		String lower = prefix.toLowerCase(java.util.Locale.ROOT);
 		for (War war : WarManager.getActive()) {
 			String id = String.valueOf(war.getId());
 			if (id.startsWith(lower)) {
@@ -188,13 +188,13 @@ public class WarTabCompletion implements TabCompleter {
 
 	private static List<String> factionIds(String prefix) {
 		List<String> completions = new ArrayList<>();
-		String lower = prefix == null ? "" : prefix.toLowerCase();
+		String lower = prefix == null ? "" : prefix.toLowerCase(java.util.Locale.ROOT);
 		for (Faction faction : FactionManager.factions) {
 			if (faction == null || faction.getId() == null) {
 				continue;
 			}
 			String id = faction.getId();
-			if (id.toLowerCase().startsWith(lower)) {
+			if (id.toLowerCase(java.util.Locale.ROOT).startsWith(lower)) {
 				completions.add(id);
 			}
 		}
@@ -202,7 +202,7 @@ public class WarTabCompletion implements TabCompleter {
 	}
 
 	private static void addIfPrefix(List<String> completions, String typed, String candidate) {
-		if (candidate.toLowerCase().startsWith(typed.toLowerCase())) {
+		if (candidate.toLowerCase(java.util.Locale.ROOT).startsWith(typed.toLowerCase(java.util.Locale.ROOT))) {
 			completions.add(candidate);
 		}
 	}

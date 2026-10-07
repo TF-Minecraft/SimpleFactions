@@ -30,7 +30,7 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.enums.SFGUI;
-import net.tfminecraft.simplefactions.loaders.TitleLoader;
+import net.tfminecraft.simplefactions.loaders.TierLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
@@ -72,7 +72,7 @@ class TierTitleViewPageClickTest {
 		ItemStack firstTitle = itemWith(PersistentDataType.STRING, "county-a");
 
 		Inventory inventory = mock(Inventory.class);
-		when(inventory.getHolder()).thenReturn(new SFInventoryHolder("faction-1", SFGUI.TITLE_TYPE_VIEW));
+		when(inventory.getHolder()).thenReturn(new SFInventoryHolder("faction-1", SFGUI.TITLE_TYPE_VIEW, 0, false, "county"));
 		when(inventory.getContents()).thenReturn(new ItemStack[] { firstTitle });
 
 		InventoryView inventoryView = mock(InventoryView.class);
@@ -82,9 +82,9 @@ class TierTitleViewPageClickTest {
 		when(event.getCurrentItem()).thenReturn(pageItem, pageItem, null);
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
-				MockedStatic<TitleLoader> titles = mockStatic(TitleLoader.class)) {
+				MockedStatic<TierLoader> tiers = mockStatic(TierLoader.class)) {
 			factions.when(() -> FactionManager.getByString("faction-1")).thenReturn(faction);
-			titles.when(() -> TitleLoader.getById("county-a")).thenReturn(title);
+			tiers.when(() -> TierLoader.getByString("county")).thenReturn(tier);
 
 			assertDoesNotThrow(() -> view.click(event, inventory, player));
 

@@ -75,9 +75,6 @@ public final class LevySnapshotCalculator {
 				return 0;
 			}
 			Faction overlord = FactionManager.getByString(overlordId);
-			if (overlord == null) {
-				return 0;
-			}
 			if (sameId(overlord, holder)) {
 				break;
 			}
@@ -115,11 +112,8 @@ public final class LevySnapshotCalculator {
 	private static Map<String, LevyRow> buildRows(Set<Faction> candidateSources, Set<String> fighterIds) {
 		Map<String, LevyRow> rows = new LinkedHashMap<>();
 		for (Faction source : candidateSources) {
-			if (source == null || containsId(fighterIds, source.getId())) {
-				continue;
-			}
 			Faction holder = findNearestFighterHolder(source, fighterIds);
-			if (holder == null || !RelationManager.sameRealm(source, holder)) {
+			if (holder == null) {
 				continue;
 			}
 			int count = levyContribution(source, holder);
@@ -136,13 +130,7 @@ public final class LevySnapshotCalculator {
 			Faction root,
 			Set<String> fighterIds,
 			Set<Faction> out) {
-		if (root == null) {
-			return;
-		}
 		for (Faction subject : RelationManager.getSubjects(root)) {
-			if (subject == null) {
-				continue;
-			}
 			if (!containsId(fighterIds, subject.getId())) {
 				out.add(subject);
 			}
@@ -155,7 +143,7 @@ public final class LevySnapshotCalculator {
 		if (root == null || root.getId() == null) {
 			return ids;
 		}
-		ids.add(root.getId().toLowerCase());
+		ids.add(root.getId().toLowerCase(java.util.Locale.ROOT));
 		for (Faction subject : RelationManager.getSubjects(root)) {
 			ids.addAll(collectSubjectSubtreeIds(subject));
 		}
@@ -163,21 +151,21 @@ public final class LevySnapshotCalculator {
 	}
 
 	public static String levyKey(String holderId, String sourceId) {
-		return holderId.toLowerCase() + "|" + sourceId.toLowerCase();
+		return holderId.toLowerCase(java.util.Locale.ROOT) + "|" + sourceId.toLowerCase(java.util.Locale.ROOT);
 	}
 
 	private static Set<String> toIdSet(List<Faction> factions) {
 		Set<String> ids = new HashSet<>();
 		for (Faction faction : factions) {
 			if (faction != null && faction.getId() != null) {
-				ids.add(faction.getId().toLowerCase());
+				ids.add(faction.getId().toLowerCase(java.util.Locale.ROOT));
 			}
 		}
 		return ids;
 	}
 
 	private static boolean containsId(Set<String> ids, String factionId) {
-		return factionId != null && ids.contains(factionId.toLowerCase());
+		return factionId != null && ids.contains(factionId.toLowerCase(java.util.Locale.ROOT));
 	}
 
 	private static boolean sameId(Faction a, Faction b) {

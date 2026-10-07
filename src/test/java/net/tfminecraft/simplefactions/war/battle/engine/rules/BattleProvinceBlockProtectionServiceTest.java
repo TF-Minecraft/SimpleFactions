@@ -36,9 +36,12 @@ class BattleProvinceBlockProtectionServiceTest {
 
 	private SimpleFactions plugin;
 	private Location battleLocation;
+	private String oldWorldName;
 
 	@BeforeEach
 	void setUp() throws Exception {
+		oldWorldName = Cache.worldName;
+		Cache.worldName = "world";
 		BattleManager.resetForTests();
 		Cache.mapEnabled = true;
 		Cache.battleProvinceBlockProtectionEnabled = true;
@@ -48,11 +51,13 @@ class BattleProvinceBlockProtectionServiceTest {
 		when(plugin.getProvinceGrid()).thenReturn(grid);
 
 		World world = mock(World.class);
+		when(world.getName()).thenReturn("world");
 		battleLocation = new Location(world, 50, 64, 50);
 	}
 
 	@AfterEach
 	void tearDown() {
+		Cache.worldName = oldWorldName;
 		BattleManager.resetForTests();
 		Cache.battleProvinceBlockProtectionEnabled = false;
 		Cache.mapEnabled = true;

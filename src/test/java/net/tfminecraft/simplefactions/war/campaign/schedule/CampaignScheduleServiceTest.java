@@ -107,7 +107,8 @@ class CampaignScheduleServiceTest {
 
 		assertEquals(3, war.getCampaignBattleSchedule().size());
 		assertEquals(CampaignBattleKind.SIEGE, war.getCampaignBattleSchedule().get(0).kind());
-		assertEquals(20, war.getCampaignBattleSchedule().get(0).provinceId());
+		assertEquals(18, war.getCampaignBattleSchedule().get(0).provinceId());
+		assertEquals(20, war.getCampaignBattleSchedule().get(0).sortProvinceId());
 		assertEquals("fort_a", war.getCampaignBattleSchedule().get(0).fortInstallationId());
 		assertEquals(20, war.getCampaignBattleSchedule().get(1).provinceId());
 	}

@@ -104,9 +104,6 @@ public class WarbandManager implements Listener {
 	private void refreshOpenWarbandLists() {
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			Inventory top = player.getOpenInventory().getTopInventory();
-			if (top == null) {
-				continue;
-			}
 			if (!BattleInventoryManager.WARBAND_LIST_TITLE.equalsIgnoreCase(
 					player.getOpenInventory().getTitle())) {
 				continue;
@@ -146,6 +143,7 @@ public class WarbandManager implements Listener {
 	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void invenClick(InventoryClickEvent e) {
+		if (BattleInventoryManager.handlePageClick(e)) return;
 		Player p = (Player) e.getWhoClicked();
 		if (e.getView().getTitle().equalsIgnoreCase(BattleInventoryManager.WARBAND_LIST_TITLE)) {
 			e.setCancelled(true);

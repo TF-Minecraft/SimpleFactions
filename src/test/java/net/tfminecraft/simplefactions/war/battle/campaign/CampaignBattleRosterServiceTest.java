@@ -90,8 +90,7 @@ class CampaignBattleRosterServiceTest {
 
 			CampaignBattleRosterService.enrollWarbands(war, battle);
 
-			Warband shell = WarbandManager.getByString(
-					BattleNamingService.campaignWarbandId(battle.getDisplayName(), BattleTemplate.ATTACKER_SIDE));
+			Warband shell = battle.getSideById(BattleTemplate.ATTACKER_SIDE).getBands().getFirst();
 			assertTrue(shell != null);
 			assertEquals(0, shell.getMemberCount());
 			assertTrue(shell.isPendingLeader());

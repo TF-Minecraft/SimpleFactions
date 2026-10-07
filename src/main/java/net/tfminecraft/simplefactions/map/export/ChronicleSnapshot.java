@@ -221,9 +221,6 @@ public final class ChronicleSnapshot {
 	private static JsonObject wealthBreakdown(Faction faction) {
 		Guild main = faction.getOrCreateMainGuild();
 		JsonObject object = breakdown(main != null ? main.getWealthModifiers() : null);
-		if (faction.getGuildHandler() == null) {
-			return object;
-		}
 		for (Guild guild : faction.getGuildHandler().getGuilds()) {
 			if (guild == null || guild.isBase() || guild.getWealth() == 0) continue;
 			if (guild.getId() == null) continue;
@@ -263,9 +260,6 @@ public final class ChronicleSnapshot {
 	}
 
 	private static void collect(Side side, Set<String> ids) {
-		if (side == null) {
-			return;
-		}
 		for (Participant participant : side.getMainParticipants()) {
 			for (Faction faction : participant.getAllParticipatingFactions()) {
 				if (faction != null && faction.getId() != null) ids.add(faction.getId());
@@ -274,12 +268,7 @@ public final class ChronicleSnapshot {
 	}
 
 	private static List<War> activeWars() {
-		try {
-			List<War> active = WarManager.getActive();
-			return active != null ? active : List.of();
-		} catch (Throwable t) {
-			return List.of();
-		}
+		return WarManager.getActive();
 	}
 
 	/**

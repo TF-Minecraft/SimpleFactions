@@ -1,7 +1,8 @@
 package net.tfminecraft.simplefactions.war.declare;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -28,11 +29,12 @@ public class DeclareCodePrompt implements Listener {
 
 	private static final long PROMPT_TIMEOUT_TICKS = 20L * 60;
 
-	private static final Map<Player, Pending> pending = new HashMap<>();
+	private static final Map<Player, Pending> pending = new ConcurrentHashMap<>();
 
 	private static class Pending {
 		private final String attackerId;
 		private final String defenderId;
+		private final AtomicBoolean submitted = new AtomicBoolean();
 
 		private Pending(String attackerId, String defenderId) {
 			this.attackerId = attackerId;
@@ -46,13 +48,15 @@ public class DeclareCodePrompt implements Listener {
 			return;
 		}
 		player.closeInventory();
-		pending.put(player, new Pending(attacker.getId(), defender.getId()));
+		Pending state = new Pending(attacker.getId(), defender.getId());
+		pending.put(player, state);
+		WarDeclareCodeService.clearSession(player);
 		player.sendMessage("§eEnter your war declaration code in chat:");
 		player.sendMessage("§7Staff mint one in Discord. Type §fcancel §7to back out.");
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				if (pending.remove(player) != null && player.isOnline()) {
+				if (!state.submitted.get() && pending.remove(player, state) && player.isOnline()) {
 					player.sendMessage("§cWar declaration timed out");
 				}
 			}
@@ -64,19 +68,23 @@ public class DeclareCodePrompt implements Listener {
 	@EventHandler
 	public void onPlayerChat(AsyncPlayerChatEvent event) {
 		Player player = event.getPlayer();
-		Pending state = pending.remove(player);
-		if (state == null) {
+		Pending state = pending.get(player);
+		if (state == null || !state.submitted.compareAndSet(false, true)) {
 			return;
 		}
 
 		event.setCancelled(true);
 		String code = event.getMessage().trim();
 		if (code.isBlank()) {
-			player.sendMessage("§cA war code is required to declare here");
+			if (pending.remove(player, state)) {
+				player.sendMessage("§cA war code is required to declare here");
+			}
 			return;
 		}
 		if (code.equalsIgnoreCase("cancel")) {
-			player.sendMessage("§7War declaration cancelled");
+			if (pending.remove(player, state)) {
+				player.sendMessage("§7War declaration cancelled");
+			}
 			return;
 		}
 
@@ -92,14 +100,12 @@ public class DeclareCodePrompt implements Listener {
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		// A hung backend must not leave the leader staring at nothing, so the giving-up
 		// message is scheduled up front and the late reply is dropped if it fires.
-		boolean[] answered = new boolean[1];
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				if (answered[0]) {
+				if (!pending.remove(player, state)) {
 					return;
 				}
-				answered[0] = true;
 				if (player.isOnline()) {
 					player.sendMessage("§cThe war code service did not answer in time.");
 				}
@@ -110,10 +116,9 @@ public class DeclareCodePrompt implements Listener {
 			WarDeclareCodeService.Result result = WarDeclareCodeService.validate(
 					code, state.attackerId, state.defenderId);
 			Bukkit.getScheduler().runTask(plugin, () -> {
-				if (answered[0]) {
+				if (!pending.remove(player, state)) {
 					return;
 				}
-				answered[0] = true;
 				apply(player, state, code, result);
 			});
 		});

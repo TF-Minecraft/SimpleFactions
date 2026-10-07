@@ -53,8 +53,9 @@ public final class PostSettlementPayouts {
 		double pool = buffer.getPendingDividendPools().getOrDefault(guild, 0.0);
 		Map<UUID, Double> payouts = buffer.getPlayerPayouts().getOrDefault(guild, Map.of());
 		double wages = 0.0;
-		for (double amount : payouts.values()) {
-			if (amount > 0) {
+		for (Map.Entry<UUID, Double> entry : payouts.entrySet()) {
+			Double amount = entry.getValue();
+			if (entry.getKey() != null && amount != null && Double.isFinite(amount) && amount > 0) {
 				wages += amount;
 			}
 		}
@@ -103,8 +104,8 @@ public final class PostSettlementPayouts {
 				if (uuid == null) {
 					continue;
 				}
-				if (playerBank != null) {
-					playerBank.depositToBank(uuid, perMember);
+				if (playerBank == null || !playerBank.depositToBank(uuid, perMember)) {
+					continue;
 				}
 				if (economy != null) {
 					economy.getLedger(uuid).add(PlayerCashflow.DIVIDEND_PAYOUT, perMember);
@@ -133,14 +134,16 @@ public final class PostSettlementPayouts {
 		}
 		double withdrawn = 0.0;
 		for (Map.Entry<UUID, Double> entry : payouts.entrySet()) {
-			if (entry.getKey() == null || entry.getValue() == null || entry.getValue() <= 0) {
+			if (entry.getKey() == null || entry.getValue() == null || !Double.isFinite(entry.getValue()) || entry.getValue() <= 0) {
 				continue;
 			}
 			double amount = Formatter.formatDouble(entry.getValue() * scale);
 			if (amount <= 0) {
 				continue;
 			}
-			playerBank.depositToBank(entry.getKey(), amount);
+			if (!playerBank.depositToBank(entry.getKey(), amount)) {
+				continue;
+			}
 			// Wages are deliberately not taxed as citizen income for now; the seam is
 			// the PlayerCashflow entry, so taxing them later means reading this one line.
 			if (economy != null) {

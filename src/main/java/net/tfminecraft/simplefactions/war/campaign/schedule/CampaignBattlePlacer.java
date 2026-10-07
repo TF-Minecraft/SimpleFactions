@@ -126,14 +126,14 @@ public final class CampaignBattlePlacer {
 					triggerProvinceId);
 			return;
 		}
-		if (ctx.scheduledFortIds().contains(fort.id())) {
+		if (ctx.scheduledFortIds().contains(fort.stableKey())) {
 			LogManager.line(
 					"  SKIP SIEGE fort already scheduled id=%s trigger=%d",
 					fort.id(),
 					triggerProvinceId);
 			return;
 		}
-		if (!FortControlService.isEnemyControlled(war, fort.id(), advancing)) {
+		if (!FortControlService.isEnemyControlledForFort(war, fort, advancing)) {
 			LogManager.line(
 					"  SKIP SIEGE fort not enemy-controlled id=%s trigger=%d",
 					fort.id(),
@@ -160,7 +160,7 @@ public final class CampaignBattlePlacer {
 				chronologyProvinceId);
 		insertOrdered(ctx, leg, siege, "SIEGE");
 		removeOptionalFieldsReplacedBySiege(ctx, leg, siege);
-		ctx.scheduledFortIds().add(fort.id());
+		ctx.scheduledFortIds().add(fort.stableKey());
 	}
 
 	private static void placeOrUpgradeObjective(

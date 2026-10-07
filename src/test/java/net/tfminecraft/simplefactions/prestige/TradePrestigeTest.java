@@ -76,4 +76,11 @@ class TradePrestigeTest {
 		Cache.prestigePerTradePower = 0;
 		assertEquals(0.0, TradePrestige.fromTradePower(50000), 1e-9);
 	}
+
+	@Test
+	void diminishDoesNotTurnNegativeOrZeroIncomeIntoPrestige() {
+		assertEquals(0, TradePrestige.diminish(-1, 2000, .1));
+		assertEquals(0, TradePrestige.diminish(0, 2000, .1));
+	}
+
 }

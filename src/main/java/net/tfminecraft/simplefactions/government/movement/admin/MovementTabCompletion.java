@@ -30,7 +30,7 @@ public class MovementTabCompletion implements TabCompleter {
 		if (args.length == 2) {
 			return prefix(args[1], "list", "join", "leave", "demands", "target");
 		}
-		String action = args[1].toLowerCase();
+		String action = args[1].toLowerCase(java.util.Locale.ROOT);
 		if (action.equals("target")) {
 			if (args.length == 3) {
 				return prefixList(args[2], MovementAdminService.allMovementIds());
@@ -75,7 +75,7 @@ public class MovementTabCompletion implements TabCompleter {
 		if (movement == null) {
 			return List.of();
 		}
-		String slot = args[3].toLowerCase();
+		String slot = args[3].toLowerCase(java.util.Locale.ROOT);
 		if (slot.equals("backer")) {
 			if (args.length == 5) {
 				return prefixList(args[4], MovementAdminService.otherFactionIds(movement));
@@ -106,10 +106,7 @@ public class MovementTabCompletion implements TabCompleter {
 	}
 
 	private static List<String> targets(Movement movement, String memberType) {
-		if (memberType == null) {
-			return List.of();
-		}
-		return switch (memberType.toLowerCase()) {
+		return switch (memberType.toLowerCase(java.util.Locale.ROOT)) {
 			case "citizen" -> MovementAdminService.hostCitizenNames(movement);
 			case "guild" -> MovementAdminService.hostGuildIds(movement);
 			case "vassal" -> MovementAdminService.hostSubjectIds(movement);
@@ -119,9 +116,9 @@ public class MovementTabCompletion implements TabCompleter {
 
 	private static List<String> prefix(String typed, String... candidates) {
 		List<String> completions = new ArrayList<>();
-		String lower = typed == null ? "" : typed.toLowerCase();
+		String lower = typed == null ? "" : typed.toLowerCase(java.util.Locale.ROOT);
 		for (String candidate : candidates) {
-			if (candidate.toLowerCase().startsWith(lower)) {
+			if (candidate.toLowerCase(java.util.Locale.ROOT).startsWith(lower)) {
 				completions.add(candidate);
 			}
 		}
@@ -130,9 +127,9 @@ public class MovementTabCompletion implements TabCompleter {
 
 	private static List<String> prefixList(String typed, List<String> candidates) {
 		List<String> completions = new ArrayList<>();
-		String lower = typed == null ? "" : typed.toLowerCase();
+		String lower = typed == null ? "" : typed.toLowerCase(java.util.Locale.ROOT);
 		for (String candidate : candidates) {
-			if (candidate != null && candidate.toLowerCase().startsWith(lower)) {
+			if (candidate != null && candidate.toLowerCase(java.util.Locale.ROOT).startsWith(lower)) {
 				completions.add(candidate);
 			}
 		}

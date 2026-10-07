@@ -20,6 +20,9 @@ import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.keys.Keys;
 
 public class TaxView {
+    private static final int PAGE_SIZE = 45;
+    private static final int PREVIOUS_SLOT = 45;
+    private static final int NEXT_SLOT = 52;
     private InventoryManager inv;
     private GovernmentCreator creator = new GovernmentCreator();
 
@@ -61,29 +64,30 @@ public class TaxView {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TAX_VIEW_SPECIFIC, target.name()), 54, "§7"+target.getDisplayName());
 		i.clear();
-		int x = 0;
+		java.util.List<String> targets = new java.util.ArrayList<>();
 		if(target == TaxTarget.GUILD_ID) {
-			for(Guild g : f.getGuildHandler().getGuilds()) {
-				if(g.isBase()) continue;
-				i.setItem(x, creator.createSpecificTaxItem(player, f, g.getId(), target));
-				if(x >= 53) break;
-				x++;
+			for(Guild guild : f.getGuildHandler().getGuilds()) {
+				if(!guild.isBase()) targets.add(guild.getId());
 			}
 		} else if(target == TaxTarget.VASSAL_ID) {
-			for(Faction s : RelationManager.getSubjects(f)) {
-				i.setItem(x, creator.createSpecificTaxItem(player, f, s.getId(), target));
-				if(x >= 53) break;
-				x++;
-			}
+			for(Faction subject : RelationManager.getSubjects(f)) targets.add(subject.getId());
 		} else if(target == TaxTarget.TARIFF_ID) {
-			for(Faction fac : FactionManager.factions) {
-				if(fac.getId().equalsIgnoreCase(f.getId())) continue;
-				if(RelationManager.sameRealm(fac, f)) continue;
-				if(x >= 53) break;
-				i.setItem(x, creator.createSpecificTaxItem(player, f, fac.getId(), target));
-				x++;
+			for(Faction foreign : FactionManager.factions) {
+				if(!foreign.getId().equalsIgnoreCase(f.getId()) && !RelationManager.sameRealm(foreign, f)) {
+					targets.add(foreign.getId());
+				}
 			}
 		}
+		SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+		int lastPage = Math.max(0, (targets.size() - 1) / PAGE_SIZE);
+		holder.setPage(Math.min(holder.getPage(), lastPage));
+		int start = holder.getPage() * PAGE_SIZE;
+		int end = Math.min(start + PAGE_SIZE, targets.size());
+		for(int index = start; index < end; index++) {
+			i.setItem(index - start, creator.createSpecificTaxItem(player, f, targets.get(index), target));
+		}
+		if(holder.getPage() > 0) i.setItem(PREVIOUS_SLOT, DefaultCreator.createPreviousPageButton());
+		if(holder.getPage() < lastPage) i.setItem(NEXT_SLOT, DefaultCreator.createNextPageButton());
 		i.setItem(53, inv.createBackButton(SFGUI.TAX_VIEW_SPECIFIC));
 		if(open) player.openInventory(i);
 	}
@@ -94,6 +98,12 @@ public class TaxView {
         Faction f = FactionManager.getByString(holder.getId());
         if(f == null) {
             p.closeInventory();
+            return;
+        }
+        if(holder.getType() == SFGUI.TAX_VIEW_SPECIFIC
+                && (e.getSlot() == PREVIOUS_SLOT || e.getSlot() == NEXT_SLOT)) {
+            holder.setPage(holder.getPage() + (e.getSlot() == NEXT_SLOT ? 1 : -1));
+            specificTaxView(p, f, TaxTarget.valueOf(holder.getSecondaryId()), inventory);
             return;
         }
 		if(holder.getType() == SFGUI.TAX_VIEW) {

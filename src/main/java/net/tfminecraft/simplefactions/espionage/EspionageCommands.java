@@ -53,7 +53,10 @@ public final class EspionageCommands {
             } else if (args[0].equalsIgnoreCase("positions")) EspionageView.positions(player, faction, manager);
             else EspionageView.spymasterOffice(player, faction, manager);
         } else if (args[0].equalsIgnoreCase("spymaster") && args.length >= 2 && !args[1].equalsIgnoreCase("sabotage")) {
-            if (args[1].equalsIgnoreCase("remove")) EspionageService.remove(player, faction);
+            if (args[1].equalsIgnoreCase("remove")) {
+                if (args.length == 2) EspionageService.remove(player, faction);
+                else usage(player);
+            }
             else {
                 var candidate = CharacterNames.resolveOnline(player, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
                 if (candidate != null) EspionageService.appoint(player, faction, candidate);

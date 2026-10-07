@@ -5,6 +5,7 @@ import java.util.Locale;
 import org.bukkit.Location;
 
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattlePlacementValidator;
 
 public final class InstallationBounds {
@@ -24,7 +25,7 @@ public final class InstallationBounds {
     }
 
     public static boolean isWithinRadius(Installation installation, Location location) {
-        if (installation == null || location == null) {
+        if (installation == null || !inInstallationWorld(location)) {
             return false;
         }
         int radius = InstallationConfigLoader.getRadius(installation.getKind());
@@ -42,6 +43,12 @@ public final class InstallationBounds {
     }
 
     public static int provinceAt(Location location) {
+        if (!inInstallationWorld(location)) return 0;
         return BattlePlacementValidator.provinceAt(location);
+    }
+
+    private static boolean inInstallationWorld(Location location) {
+        return location != null && location.getWorld() != null
+                && Cache.worldName != null && Cache.worldName.equals(location.getWorld().getName());
     }
 }

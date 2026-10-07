@@ -130,9 +130,6 @@ public final class PlayerVehicleRegistry {
 
     void replaceAll(List<PlayerVehicleRecord> records) {
         byVehicleUuid.clear();
-        if (records == null) {
-            return;
-        }
         for (PlayerVehicleRecord record : records) {
             register(record);
         }

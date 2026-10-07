@@ -197,9 +197,6 @@ public final class CampaignBattleLaunchService {
 	}
 
 	private static void alertStaffOfScheduledBattle(War war, Battle battle) {
-		if (battle == null) {
-			return;
-		}
 		List<String> missing = BattlePlacementValidator.validate(battle);
 		String missingText = missing.isEmpty() ? "none" : String.join("; ", missing);
 		String when = formatScheduledTime(war != null ? war.getScheduledBattleAt() : null);
@@ -243,9 +240,6 @@ public final class CampaignBattleLaunchService {
 	}
 
 	private static void sendToOnlineAdmins(String message) {
-		if (Bukkit.getOnlinePlayers() == null) {
-			return;
-		}
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			if (player != null && player.isOnline() && Permissions.isAdmin(player)) {
 				player.sendMessage(message);

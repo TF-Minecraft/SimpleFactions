@@ -307,9 +307,6 @@ public class Ledger {
                 if (!guild.isBase()) {
                     return 0;
                 }
-                if (f.getInstallationHandler() == null || f.getInstallationHandler().getAll() == null) {
-                    break;
-                }
                 for (Installation installation : f.getInstallationHandler().getAll()) {
                     if (installation == null) continue;
                     amount -= InstallationConfigLoader.getDailyUpkeep(
@@ -645,13 +642,8 @@ public class Ledger {
     }
 
     private double getDividendTaxReceived() {
-        if (!guild.isBase()) {
-            return 0.0;
-        }
+        // getIncome(DIVIDENDS) has already checked the base guild and its faction.
         Faction faction = guild.getFaction();
-        if (faction == null || faction.getGuildHandler() == null) {
-            return 0.0;
-        }
         double total = 0.0;
         for (Guild g : faction.getGuildHandler().getGuilds()) {
             if (g == null || g.isBase()) {
@@ -729,17 +721,11 @@ public class Ledger {
             if (f == null || f.getId().equals(self.getId())) {
                 continue;
             }
-            if (f.getGuildHandler() == null) {
-                continue;
-            }
             for (WarReparationsObligation obligation : WarReparationsService.activeObligations(f)) {
                 if (!self.getId().equalsIgnoreCase(obligation.getPayeeFactionId())) {
                     continue;
                 }
                 for (Guild payerGuild : f.getGuildHandler().getGuilds()) {
-                    if (payerGuild == null) {
-                        continue;
-                    }
                     Ledger payerLedger = payerGuild.getLedger();
                     if (payerLedger == null || payerLedger.skipsMoneyMovement()) {
                         continue;

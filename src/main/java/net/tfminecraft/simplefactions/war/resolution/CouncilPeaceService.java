@@ -33,9 +33,6 @@ public final class CouncilPeaceService {
 			return;
 		}
 		CampaignCoalition coalition = CampaignCoalitionService.coalitionOf(war, war.getSide(actor));
-		if (coalition == null) {
-			return;
-		}
 		if (coalition == CampaignCoalition.AGGRESSOR) {
 			war.setForcedWhitePeaceByAttacker(true);
 		} else {

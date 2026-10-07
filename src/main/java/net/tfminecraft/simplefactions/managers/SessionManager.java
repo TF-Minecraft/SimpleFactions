@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.managers;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -33,7 +34,7 @@ public class SessionManager implements Listener{
     }
 
     public void end() {
-        for(Session session : sessions.values()) {
+        for(Session session : new ArrayList<>(sessions.values())) {
             session.kill();
         }
     }
@@ -42,7 +43,7 @@ public class SessionManager implements Listener{
         new BukkitRunnable() {
             @Override
             public void run() {
-                for(Session session : sessions.values()) {
+                for(Session session : new ArrayList<>(sessions.values())) {
                     session.tick();
                 }
             }
@@ -50,7 +51,10 @@ public class SessionManager implements Listener{
     }
     
     public void newSession(Player player, Faction f) {
-        sessions.put(f.getGovernment().getCouncil(), new Session(player, f));
+        Council council = f.getGovernment().getCouncil();
+        Session previous = sessions.get(council);
+        if (previous != null) previous.kill();
+        sessions.put(council, new Session(player, f));
     }
     
     public void endSession(Council council) {
@@ -125,6 +129,17 @@ public class SessionManager implements Listener{
         if (vote == null) return; // Not a vote command
         
         Player player = event.getPlayer();
+        // Chat may be asynchronous; faction state, world access and holograms belong on the server thread.
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                recordChatVote(player, vote);
+            }
+        }.runTask(SimpleFactions.getInstance());
+    }
+
+    private void recordChatVote(Player player, Vote vote) {
+        if (!player.isOnline()) return;
         String playerName = player.getName();
         
         Faction faction = FactionManager.getByMember(playerName);
@@ -135,36 +150,25 @@ public class SessionManager implements Listener{
         
         if (session != null && session.isStarted()) {
             // Check if player is within 10 blocks of the lantern
-            if (session.getLantern() != null && player.getLocation().distance(session.getLantern().getLocation()) > 10) {
-                player.sendMessage("§cYou must be within 10 blocks of the lantern to vote!");
-                return;
+            if (session.getLantern() != null) {
+                org.bukkit.Location playerLocation = player.getLocation();
+                org.bukkit.Location lanternLocation = session.getLantern().getLocation();
+                if (!java.util.Objects.equals(playerLocation.getWorld(), lanternLocation.getWorld())
+                        || playerLocation.distanceSquared(lanternLocation) > 100) {
+                    player.sendMessage("§cYou must be within 10 blocks of the lantern to vote!");
+                    return;
+                }
             }
             
             if (session.recordVote(playerName, vote)) {
-                //event.setCancelled(true); cooler if you actually say it in chat
                 player.sendMessage("§aYour vote (" + vote.getDisplay() + ") has been recorded!");
-                Sound sound;
-                switch (vote) {
-                    case YAY:
-                        sound = Sound.BLOCK_NOTE_BLOCK_CHIME;
-                        break;
-                    case NAY:
-                        sound = Sound.BLOCK_NOTE_BLOCK_BASS;
-                        break;
-                    case ABSTAIN:
-                        sound = Sound.ITEM_BOOK_PAGE_TURN;
-                        break;
-                    default:
-                        sound = Sound.ITEM_BOOK_PAGE_TURN;
-                        break;
-                }
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        player.getWorld().playSound(player.getLocation(), sound, 1f, 1f);
-                        player.swingMainHand();
-                    }
-                }.runTask(SimpleFactions.getInstance());
+                Sound sound = switch (vote) {
+                    case YAY -> Sound.BLOCK_NOTE_BLOCK_CHIME;
+                    case NAY -> Sound.BLOCK_NOTE_BLOCK_BASS;
+                    case ABSTAIN -> Sound.ITEM_BOOK_PAGE_TURN;
+                };
+                player.getWorld().playSound(player.getLocation(), sound, 1f, 1f);
+                player.swingMainHand();
             }
         }
     }
