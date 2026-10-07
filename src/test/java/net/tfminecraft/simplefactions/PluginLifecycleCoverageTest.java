@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.database.BattleData;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.database.WarbandData;
+import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.espionage.SpecialPositionsConfigFile;
 import net.tfminecraft.simplefactions.guild.hub.VehicleFrameworkTrackProvinces;
@@ -25,12 +26,16 @@ import net.tfminecraft.simplefactions.guild.network.TradeGraph;
 import net.tfminecraft.simplefactions.identity.LeaderCharacterListener;
 import net.tfminecraft.simplefactions.inactivity.InactivityService;
 import net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration;
+import net.tfminecraft.simplefactions.loaders.BattleTemplateLoader;
 import net.tfminecraft.simplefactions.loaders.ConfigLoader;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.loaders.ProvinceLoader;
+import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.loaders.RegimentLoader;
 import net.tfminecraft.simplefactions.loaders.RegionLoader;
+import net.tfminecraft.simplefactions.loaders.RelationLoader;
+import net.tfminecraft.simplefactions.loaders.TierLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.managers.CommandManager;
@@ -60,6 +65,7 @@ import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleRegistryPersistence;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
+import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplateService;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleCommandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
@@ -455,6 +461,215 @@ class PluginLifecycleCoverageTest {
     verify(plugins, never()).disablePlugin(plugin);
     plugin.onDisable();
     scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"battle-templates.yml", "Guilds/guild-types.yml", "Input/county.json"})
+  void laterCatalogFailureRestoresCanonicalRegistriesAndSuccessfulRetryRebinds(String rejectedFile)
+      throws Exception {
+    Map<String, BattleTemplate> originalTemplates = BattleTemplateLoader.getAll();
+    try {
+      field("rankLoader", new RankLoader());
+      field("relationLoader", new RelationLoader());
+      field("tierLoader", new TierLoader());
+      field("battleTemplateLoader", new BattleTemplateLoader());
+      field("guildLoader", new GuildLoader());
+      statics.remove(FactionManager.class).close();
+      statics.put(FactionManager.class, mockStatic(FactionManager.class, CALLS_REAL_METHODS));
+      writeIdentityCatalogs(false);
+      plugin.loadConfigs();
+      var factionData = domain.data("realm", "Alice");
+      factionData.titles = List.of("county_owned");
+      Faction faction = domain.saved(factionData);
+      Faction neighbor = domain.saved("neighbor", "Bob");
+      Relation relation =
+          new Relation(RelationLoader.getType("ally"), RelationLoader.getAttitude("friendly"), 9);
+      faction.getRelations().put(neighbor.getId(), relation);
+      faction
+          .getDiplomacyHandler()
+          .getTradeRelations()
+          .put(neighbor.getId(), RelationLoader.getType("trade"));
+      faction
+          .getDiplomacyHandler()
+          .getTreatyRelations()
+          .put(neighbor.getId(), RelationLoader.getType("treaty"));
+      List<List<?>> registries = identityRegistries();
+      List<List<?>> entries = new ArrayList<>();
+      for (List<?> registry : registries) entries.add(new ArrayList<>(registry));
+      var originalRank = faction.getRank();
+      var originalType = relation.getType();
+      var originalAttitude = relation.getAttitude();
+      var originalTitle = faction.getTitles().getFirst();
+      var originalTier = originalTitle.getTier();
+      var originalTierTitles = new ArrayList<>(TitleLoader.getByTier(originalTier));
+      assertEquals(2, originalTierTitles.size());
+      writeIdentityCatalogs(true);
+      Path broken =
+          disk.write(
+              rejectedFile, rejectedFile.endsWith("json") ? "{ malformed" : "bad: [unterminated\n");
+      var emitted = new java.util.concurrent.atomic.AtomicReference<RuntimeException>();
+      doAnswer(
+              call -> {
+                try {
+                  return call.callRealMethod();
+                } catch (RuntimeException failure) {
+                  emitted.set(failure);
+                  throw failure;
+                }
+              })
+          .when(plugin)
+          .loadConfigs();
+
+      IllegalStateException failure =
+          assertThrows(IllegalStateException.class, SimpleFactions::reloadConfigs);
+
+      assertSame(emitted.get(), failure, "The original loader exception must reach the caller");
+      assertNotNull(failure.getCause());
+      assertTrue(failure.getMessage().contains(broken.getFileName().toString()));
+      assertAll(
+          () -> assertRegistryIdentities(registries, entries),
+          () -> assertSame(originalRank, RankLoader.getByString("common")),
+          () -> assertSame(RankLoader.getByString("common"), faction.getRank()),
+          () -> assertSame(originalType, RelationLoader.getType("ally")),
+          () -> assertSame(RelationLoader.getType("ally"), relation.getType()),
+          () -> assertSame(originalAttitude, RelationLoader.getAttitude("friendly")),
+          () -> assertSame(RelationLoader.getAttitude("friendly"), relation.getAttitude()),
+          () -> assertSame(originalTitle, TitleLoader.getById("county_owned")),
+          () -> assertSame(TitleLoader.getById("county_owned"), faction.getTitles().getFirst()),
+          () -> assertSame(originalTier, TierLoader.getByString("county")),
+          () -> assertSame(TierLoader.getByString("county"), originalTitle.getTier()),
+          () ->
+              assertEquals(
+                  originalTierTitles, TitleLoader.getByTier(TierLoader.getByString("county"))),
+          () ->
+              assertSame(
+                  RelationLoader.getType("trade"),
+                  faction.getDiplomacyHandler().getTradeRelation(neighbor.getId())),
+          () ->
+              assertSame(
+                  RelationLoader.getType("treaty"),
+                  faction.getDiplomacyHandler().getTreatyRelations().get(neighbor.getId())),
+          () -> assertEquals(9, relation.getOpinion()));
+      scoped(FactionManager.class).verify(FactionManager::rebindRanks, never());
+      scoped(FactionManager.class).verify(FactionManager::rebindDiplomacy, never());
+      scoped(FactionManager.class).verify(FactionManager::reloadTitles, never());
+      scoped(FactionManager.class).verify(FactionManager::updateAllPrestigeConverged, never());
+
+      writeIdentityCatalogs(true);
+      assertDoesNotThrow(SimpleFactions::reloadConfigs);
+
+      for (int i = 0; i < registries.size(); i++)
+        assertSame(registries.get(i), identityRegistries().get(i));
+      assertNotSame(originalRank, faction.getRank());
+      assertSame(RankLoader.getByString("common"), faction.getRank());
+      assertEquals("Updated Common", faction.getRank().getName());
+      assertNotSame(originalType, relation.getType());
+      assertSame(RelationLoader.getType("ally"), relation.getType());
+      assertEquals(25, relation.getType().getTarget());
+      assertNotSame(originalAttitude, relation.getAttitude());
+      assertSame(RelationLoader.getAttitude("friendly"), relation.getAttitude());
+      assertEquals(35, relation.getAttitude().getTarget());
+      assertNotSame(originalTitle, faction.getTitles().getFirst());
+      assertSame(TitleLoader.getById("county_owned"), faction.getTitles().getFirst());
+      assertNotSame(originalTier, faction.getTitles().getFirst().getTier());
+      assertSame(TierLoader.getByString("county"), faction.getTitles().getFirst().getTier());
+      assertEquals("Updated County", TierLoader.getByString("county").getName());
+      assertEquals(
+          List.of("county_other", "county_owned"),
+          TitleLoader.getByTier(TierLoader.getByString("county")).stream()
+              .map(t -> t.getId())
+              .toList());
+      assertSame(
+          RelationLoader.getType("trade"),
+          faction.getDiplomacyHandler().getTradeRelation(neighbor.getId()));
+      assertSame(
+          RelationLoader.getType("treaty"),
+          faction.getDiplomacyHandler().getTreatyRelations().get(neighbor.getId()));
+      assertEquals(9, relation.getOpinion());
+      scoped(FactionManager.class).verify(FactionManager::rebindRanks);
+      scoped(FactionManager.class).verify(FactionManager::rebindDiplomacy);
+      scoped(FactionManager.class).verify(FactionManager::reloadTitles);
+      scoped(FactionManager.class).verify(FactionManager::updateAllPrestigeConverged);
+    } finally {
+      BattleTemplateLoader.resetForTests();
+      originalTemplates.values().forEach(BattleTemplateLoader::putForTests);
+    }
+  }
+
+  private static List<List<?>> identityRegistries() {
+    return List.of(
+        RankLoader.getRanks(),
+        RelationLoader.getTypes(),
+        RelationLoader.getAttitudes(),
+        TierLoader.get(),
+        TitleLoader.getTitles());
+  }
+
+  private static void assertRegistryIdentities(List<List<?>> references, List<List<?>> entries) {
+    List<List<?>> current = identityRegistries();
+    for (int i = 0; i < references.size(); i++) {
+      assertSame(references.get(i), current.get(i), "Registry collection " + i);
+      assertEquals(entries.get(i).size(), current.get(i).size(), "Registry size " + i);
+      for (int j = 0; j < entries.get(i).size(); j++)
+        assertSame(entries.get(i).get(j), current.get(i).get(j), "Registry " + i + " entry " + j);
+    }
+  }
+
+  private void writeIdentityCatalogs(boolean updated) throws Exception {
+    String common =
+        "common:\n  name: "
+            + (updated ? "Updated Common" : "Common")
+            + "\n  level: 1\n  minimum-prestige: 0\n";
+    String renowned = "renowned:\n  name: Renowned\n  level: 2\n  minimum-prestige: 100000\n";
+    disk.write("ranks.yml", updated ? renowned + common : common + renowned);
+    disk.write(
+        "diplomacy.yml",
+        """
+        types:
+          neutral:
+            default: true
+          ally:
+            target: %d
+          trade:
+            trade-agreement: true
+          treaty:
+            treaty: true
+        attitudes:
+          neutral:
+            default: true
+          friendly:
+            target: %d
+        """
+            .formatted(updated ? 25 : 5, updated ? 35 : 10));
+    disk.write(
+        "tiers.yml",
+        """
+        landless:
+          name: Landless
+          tier: 0
+        province:
+          name: Province
+          tier: 1
+          prestige: 10
+        county:
+          name: %s
+          tier: 2
+          prestige: 50
+        duchy:
+          name: Duchy
+          tier: 3
+          prestige: 100
+        """
+            .formatted(updated ? "Updated County" : "County"));
+    disk.write("battle-templates.yml", "field_default:\n  type: field\n");
+    disk.write("Guilds/guild-types.yml", "realm:\n  base: true\nguild:\n  default: true\n");
+    String owned =
+        "\"county_owned\":{\"name\":\""
+            + (updated ? "Updated Title" : "Old Title")
+            + "\",\"provinces\":[12]}";
+    String other = "\"county_other\":{\"name\":\"Other Title\",\"provinces\":[13]}";
+    disk.write(
+        "Input/county.json", "{" + (updated ? other + "," + owned : owned + "," + other) + "}");
   }
 
   @Test
