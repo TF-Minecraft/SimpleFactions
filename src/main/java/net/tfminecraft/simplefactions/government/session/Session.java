@@ -26,9 +26,11 @@ public class Session {
     private Faction f;
     private Council c;
     private boolean started = false;
+    private boolean terminated;
     private int time = 0;
 
     private Map<Proposal, VoteResult> proposals = new LinkedHashMap<>();
+    private final Map<Proposal, int[]> decidedVoteCounts = new HashMap<>();
     private SessionHologram hologram;
     private Map<String, Vote> currentVotes = new HashMap<>(); // Player name -> Vote
     private Set<String> eligibleVoters = new HashSet<>(); // Council members + leader
@@ -43,6 +45,7 @@ public class Session {
     }
 
     public void tick() {
+        if (terminated) return;
         time++;
         if (time >= 60 && !started) {
             cancel();
@@ -50,7 +53,7 @@ public class Session {
     }
     
     public void onLanternClick(Block lanternBlock) {
-        if (started) return;
+        if (started || terminated) return;
         
         this.lantern = lanternBlock;
         start();
@@ -61,6 +64,7 @@ public class Session {
     }
 
     private void nextProposal() {
+        if (terminated) return;
         Proposal proposal = c.getProposalHandler().pop();
         if (proposal == null) {
             end();
@@ -93,7 +97,7 @@ public class Session {
     }
     
     public boolean recordVote(String playerName, Vote vote) {
-        if (!eligibleVoters.contains(playerName)) {
+        if (!started || terminated || getCurrentProposal() == null || !eligibleVoters.contains(playerName)) {
             return false;
         }
         currentVotes.put(playerName, vote);
@@ -128,12 +132,14 @@ public class Session {
     }
 
     public void countVotes() {
+        if (terminated) return;
         int[] counts = getVoteCounts();
         int yay = counts[0];
         int nay = counts[1];
         
         Proposal currentProposal = getCurrentProposal();
         if (currentProposal == null) return;
+        decidedVoteCounts.put(currentProposal, counts);
         
         VoteResult result;
         if (yay > nay) {
@@ -182,6 +188,7 @@ public class Session {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void start() {
+        if (started || terminated) return;
         if (!c.hasEnoughValidVoters()) {
             leader.sendMessage("§cNot enough council members online! At least 75% must be present.");
             cancel();
@@ -192,19 +199,19 @@ public class Session {
         leader.playSound(leader, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
         hologram = new SessionHologram(lantern);
         hologram.create();
-        nextProposal();
         started = true;
+        nextProposal();
     }
 
     public void kill() {
-        if (hologram != null) {
-            hologram.destroy();
-        }
+        endSession();
     }
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void end() {
+        if (terminated) return;
+        endSession();
         // Create session report
         SessionReport report = new SessionReport(leader.getName(), f);
         
@@ -212,9 +219,7 @@ public class Session {
         for(Proposal p : proposals.keySet()) {
             VoteResult result = proposals.get(p);
             if (!result.equals(VoteResult.IN_PROGRESS)) {
-                // Find votes for this proposal (reconstruct from currentVotes if needed)
-                // For now we'll get them from the last counts when the proposal was decided
-                int[] counts = getVoteCounts();
+                int[] counts = decidedVoteCounts.get(p);
                 report.addResult(p, result, counts[0], counts[1], counts[2]);
             }
         }
@@ -243,11 +248,15 @@ public class Session {
         
         // Give leader the report book
         if (leader != null && leader.isOnline()) {
-            leader.getInventory().addItem(book);
-            leader.sendMessage("§aSession report added to your inventory!");
+            Map<Integer, ItemStack> leftovers = leader.getInventory().addItem(book);
+            for (ItemStack remaining : leftovers.values()) {
+                leader.getWorld().dropItemNaturally(leader.getLocation(), remaining);
+            }
+            leader.sendMessage(leftovers.isEmpty()
+                    ? "§aSession report added to your inventory!"
+                    : "§aYour inventory was full; the session report was dropped at your feet.");
         }
         
-        endSession();
     }
     
     private void updateHologram() {
@@ -262,11 +271,14 @@ public class Session {
     }
     
     private void endSession() {
+        if (terminated) return;
+        terminated = true;
+        started = false;
         if (hologram != null) {
             hologram.destroy();
         }
         SessionManager sessionManager = SimpleFactions.getInstance().getSessionManager();
-        sessionManager.endSession(f.getGovernment().getCouncil());
+        if (sessionManager.getSession(c) == this) sessionManager.endSession(c);
     }
     
     private void cancel() {

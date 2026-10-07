@@ -12,6 +12,8 @@ import net.tfminecraft.simplefactions.enums.RankType;
 import net.tfminecraft.tlibs.TLibs;
 
 public class DefaultCreator {
+    private DefaultCreator() {}
+
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public static ItemStack createNextPageButton() {

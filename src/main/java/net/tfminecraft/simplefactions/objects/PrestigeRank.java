@@ -72,10 +72,6 @@ public class PrestigeRank {
 		} else {
 			this.an = false;
 		}
-		if(config.contains("modifiers")) {
-			for(String s : config.getStringList("modifiers")) {
-				modifiers.add(new FactionModifier(s));
-			}
-		}
+		FactionModifier.addFromConfig(config, "modifiers", modifiers);
 	}
 }

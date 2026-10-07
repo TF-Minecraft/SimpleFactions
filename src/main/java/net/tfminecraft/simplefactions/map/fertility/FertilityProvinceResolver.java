@@ -26,7 +26,8 @@ public final class FertilityProvinceResolver {
     }
 
     public static int fertilityAt(Location location) {
-        if (location == null || location.getWorld() == null) {
+        if (location == null || location.getWorld() == null
+                || !location.getWorld().getName().equals(Cache.worldName)) {
             return 0;
         }
         SimpleFactions plugin = SimpleFactions.getInstance();

@@ -34,14 +34,20 @@ public final class ProvinceSpatial {
             return false;
         }
         ProvinceManager manager = SimpleFactions.getInstance().getProvinceManager();
-        int radiusSq = radiusBlocks * radiusBlocks;
+        long radiusSq = (long) radiusBlocks * radiusBlocks;
+        long minX = Math.max(0L, (long) x - radiusBlocks);
+        long maxX = Math.min(grid.getWidth() - 1L, (long) x + radiusBlocks);
+        long minZ = Math.max(0L, (long) z - radiusBlocks);
+        long maxZ = Math.min(grid.getHeight() - 1L, (long) z + radiusBlocks);
 
-        for (int dz = -radiusBlocks; dz <= radiusBlocks; dz++) {
-            for (int dx = -radiusBlocks; dx <= radiusBlocks; dx++) {
+        for (long sampleZ = minZ; sampleZ <= maxZ; sampleZ++) {
+            long dz = sampleZ - z;
+            for (long sampleX = minX; sampleX <= maxX; sampleX++) {
+                long dx = sampleX - x;
                 if (dx * dx + dz * dz > radiusSq) {
                     continue;
                 }
-                int provinceId = grid.getAt(x + dx, z + dz);
+                int provinceId = grid.getAt((int) sampleX, (int) sampleZ);
                 if (provinceId <= 0) {
                     continue;
                 }

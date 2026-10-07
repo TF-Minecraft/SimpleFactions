@@ -260,7 +260,8 @@ class MovementAdminServiceTest {
 		when(movement.getFaction()).thenReturn(host);
 		when(movement.getCauses()).thenReturn(List.of(cause));
 		when(cause.getProposal()).thenReturn(proposal);
-		when(proposal.needsTarget()).thenReturn(true);
+		when(proposal.isPoliticalActionProposal()).thenReturn(true);
+		when(proposal.getPoliticalAction()).thenReturn(new net.tfminecraft.simplefactions.government.movement.PoliticalAction(net.tfminecraft.simplefactions.government.movement.Action.CHANGE_LEADER));
 		when(host.canBecomeLeader("dummy_11")).thenReturn(true);
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);

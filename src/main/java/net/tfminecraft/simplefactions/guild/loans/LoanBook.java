@@ -21,6 +21,7 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
 
 public class LoanBook {
+    private LoanBook() {}
 
     /** The highest weekly interest a loan may charge, in percent. */
     public static final double MAX_INTEREST = 100.0;
@@ -241,10 +242,10 @@ public class LoanBook {
     private static double parseDoubleAfterColon(String line) {
         try {
             String[] split = line.split(":");
-            if (split.length < 2) return 0;
+            if (split.length < 2) return Double.NaN;
             return Double.parseDouble(split[1].trim());
-        } catch (Exception e) {
-            return 0;
+        } catch (NumberFormatException e) {
+            return Double.NaN;
         }
     }
 }

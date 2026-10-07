@@ -126,9 +126,6 @@ public class RelationView {
 			return;
 		}
 		ItemStack item = e.getCurrentItem();
-		if (item == null || item.getItemMeta() == null) {
-			return;
-		}
 		NamespacedKey id = new NamespacedKey(SimpleFactions.plugin, "id");
 		String factionId = item.getItemMeta().getPersistentDataContainer().get(id, PersistentDataType.STRING);
 		if (factionId == null) {
@@ -267,6 +264,7 @@ public class RelationView {
 			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 			Faction f = FactionManager.getByString(h.getId());
 			if(!h.getType().equals(SFGUI.DIPLOMACY_VIEW)) return;
+			if(f == null || FactionManager.getByMember(p.getName()) == null) return;
 			if(e.getSlot() == 30) {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				attitudeView(null, p, f, true);
@@ -312,7 +310,10 @@ public class RelationView {
 			Faction f = FactionManager.getByString(h.getId());
 			if(!h.getType().equals(SFGUI.ATTITUDE_VIEW)) return;
 			Faction origin = FactionManager.getByMember(p.getName());
-			Attitude a = RelationLoader.getAttitudes().get(e.getSlot()-10);
+			if(f == null || origin == null) return;
+			String attitudeId = meta.getPersistentDataContainer().get(new NamespacedKey(SimpleFactions.plugin, "id"), PersistentDataType.STRING);
+			Attitude a = RelationLoader.getAttitude(attitudeId);
+			if(a == null) return;
 			if (!RelationManager.setAttitude(p, a, f, origin)) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				return;
@@ -332,6 +333,7 @@ public class RelationView {
 			Faction origin = FactionManager.getByMember(p.getName());
 			
 			RelationType r = RelationLoader.getType(rid);
+			if(f == null || origin == null || r == null) return;
 			
 			if(origin.getRelation(f.getId()).getType().hasLock()) {
 				p.sendMessage("§cYou are bound to "+f.getName()+"§c and cannot change this relationship yourself.");
@@ -384,6 +386,7 @@ public class RelationView {
 			Faction origin = FactionManager.getByMember(p.getName());
 			
 			RelationType r = RelationLoader.getType(rid);
+			if(f == null || origin == null || r == null) return;
 			RelationType current = origin.getDiplomacyHandler().getTradeRelation(f.getId());
 			RelationType theirCurrent = f.getDiplomacyHandler().getTradeRelation(origin.getId());
 			if(current != null && current.hasLock()) {
@@ -412,6 +415,7 @@ public class RelationView {
 			Faction origin = FactionManager.getByMember(p.getName());
 			
 			RelationType r = RelationLoader.getType(rid);
+			if(f == null || origin == null || r == null) return;
 			RelationType current = origin.getDiplomacyHandler().getTreatyRelation(f.getId());
 			RelationType theirCurrent = f.getDiplomacyHandler().getTreatyRelation(origin.getId());
 			if(current != null && current.hasLock()) {

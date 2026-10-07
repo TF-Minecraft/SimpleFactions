@@ -29,8 +29,9 @@ public final class MercenaryInvites {
             return;
         }
         MercenaryCompany company = guild.getCompany();
-        RequestManager.addRequest(leader, target, new MercenaryInviteRequest(company));
-        if (!(RequestManager.getRequest(target) instanceof MercenaryInviteRequest)) {
+        MercenaryInviteRequest invitation = new MercenaryInviteRequest(company);
+        RequestManager.addRequest(leader, target, invitation);
+        if (RequestManager.getRequest(target) != invitation) {
             return;
         }
         leader.sendMessage("§aInvited " + target.getName() + " to " + company.getName() + ".");
@@ -45,7 +46,13 @@ public final class MercenaryInvites {
             player.sendMessage("§cYou have no company invite to accept.");
             return;
         }
-        MercenaryResult result = MercenaryCompanyService.join(request.getCompany(), player.getName());
+        MercenaryCompany company = request.getCompany();
+        if (company.getGuild().getCompany() != company) {
+            RequestManager.remove(player);
+            player.sendMessage("§cThat company invite has expired.");
+            return;
+        }
+        MercenaryResult result = MercenaryCompanyService.join(company, player.getName());
         player.sendMessage((result.ok() ? "§a" : "§c") + result.message());
         RequestManager.remove(player);
         if (!result.ok()) {

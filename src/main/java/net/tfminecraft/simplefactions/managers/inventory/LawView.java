@@ -47,10 +47,17 @@ public class LawView {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_VIEW), 54, "§7Laws");
 		i.clear();
-		for(int x = 0; x<f.getLawHandler().getGroupList().size(); x++) {
-			LawGroup group = f.getLawHandler().getGroupList().get(x);
-			i.setItem(LAW_SLOTS.get(x), creator.createLawGroupItem(player, f, group));
-		}
+        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+        List<LawGroup> groups = f.getLawHandler().getGroupList();
+        int lastPage = Math.max(0, (groups.size() - 1) / LAW_SLOTS.size());
+        holder.setPage(Math.min(holder.getPage(), lastPage));
+        int start = holder.getPage() * LAW_SLOTS.size();
+        int end = Math.min(start + LAW_SLOTS.size(), groups.size());
+        for(int index = start; index < end; index++) {
+            i.setItem(LAW_SLOTS.get(index - start), creator.createLawGroupItem(player, f, groups.get(index)));
+        }
+        if(holder.getPage() > 0) i.setItem(45, DefaultCreator.createPreviousPageButton());
+        if(holder.getPage() < lastPage) i.setItem(52, DefaultCreator.createNextPageButton());
 		i.setItem(53, inv.createBackButton(SFGUI.LAW_VIEW));
 		if(open) player.openInventory(i);
 	}
@@ -62,11 +69,17 @@ public class LawView {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_SELECT, group.getId()), 27, "§7Law View");
 		i.clear();
-		int slot = 0;
-		for(Law law : group.getLaws().values()) {
-			i.setItem(slot, creator.createLawItem(player, f, group, law, false));
-			slot++;
-		}
+        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+        List<Law> laws = new java.util.ArrayList<>(group.getLaws().values());
+        int lastPage = Math.max(0, (laws.size() - 1) / 24);
+        holder.setPage(Math.min(holder.getPage(), lastPage));
+        int start = holder.getPage() * 24;
+        int end = Math.min(start + 24, laws.size());
+        for(int index = start; index < end; index++) {
+            i.setItem(index - start, creator.createLawItem(player, f, group, laws.get(index), false));
+        }
+        if(holder.getPage() > 0) i.setItem(24, DefaultCreator.createPreviousPageButton());
+        if(holder.getPage() < lastPage) i.setItem(25, DefaultCreator.createNextPageButton());
 		i.setItem(26, inv.createBackButton(SFGUI.LAW_SELECT));
 		if(open) player.openInventory(i);
 	}
@@ -74,6 +87,24 @@ public class LawView {
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 		SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+        if(holder.getType() == SFGUI.LAW_VIEW || holder.getType() == SFGUI.LAW_SELECT) {
+            boolean select = holder.getType() == SFGUI.LAW_SELECT;
+            int previous = select ? 24 : 45;
+            int next = select ? 25 : 52;
+            if(e.getSlot() == previous || e.getSlot() == next) {
+                e.setCancelled(true);
+                Faction faction = FactionManager.getByString(holder.getId());
+                if(faction == null) return;
+                holder.setPage(holder.getPage() + (e.getSlot() == next ? 1 : -1));
+                if(select) {
+                    LawGroup group = faction.getLawHandler().getGroup(holder.getSecondaryId());
+                    if(group != null) lawSelect(p, faction, group, inventory);
+                } else {
+                    lawView(p, faction, inventory);
+                }
+                return;
+            }
+        }
 		if (holder.getType() == SFGUI.LAW_VIEW) {
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();

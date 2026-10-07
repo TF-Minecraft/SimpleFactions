@@ -23,6 +23,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.api.GatewayClient;
 
 public class RestServer {
+	private RestServer() {}
 	private static final Gson gson = new Gson();
 	private static final String REGEN_HASH = "47a4921f7506514aec2d1471b424d8ae";
 
@@ -49,11 +50,13 @@ public class RestServer {
 
 	public static int getProvince(Player p) {
 		if (!Cache.provincesEnabled || !Cache.mapEnabled) return -2;
+		org.bukkit.Location location = p.getLocation();
+		if (location.getWorld() == null || !location.getWorld().getName().equals(Cache.worldName)) return -2;
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		if (plugin == null) return -2;
 		ProvinceGrid grid = plugin.getProvinceGrid();
 		if (grid == null) return -2;
-		return grid.getAt(p.getLocation().getBlockX(), p.getLocation().getBlockZ());
+		return grid.getAt(location.getBlockX(), location.getBlockZ());
 	}
 
 	public static void upload(String mode, File file) {

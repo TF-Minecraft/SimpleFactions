@@ -220,9 +220,11 @@ public class MovementCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createCauseProposalItem(Cause cause, Player p, Faction f) {
-        ItemStack item = cause.getProposal().getPoliticalAction().getIcon();
+        ItemStack icon = cause.getProposal().getPoliticalAction().getIcon();
+        ItemStack item = icon == null || icon.isEmpty() ? new ItemStack(Material.PAPER) : icon.clone();
         ItemMeta m = item.getItemMeta();
         if (m == null) {
+            item = new ItemStack(Material.PAPER);
             m = item.getItemMeta();
         }
         m.setDisplayName(StringFormatter.formatHex("#85c265Proposal"));
@@ -331,9 +333,9 @@ public class MovementCreator {
         ItemStack item = new ItemStack(Material.RED_CONCRETE);
         if(phase == movement.getPhase()) {
             item = new ItemStack(Material.GREEN_CONCRETE);
-        } else if(phase.getIndex() == movement.getPhase().getIndex()-1 && movement.getLeader().equalsIgnoreCase(p.getName())) {
+        } else if(phase.getIndex() == movement.getPhase().getIndex()-1 && movement.isLeader(p.getName())) {
             item = new ItemStack(Material.YELLOW_CONCRETE);
-        } else if(phase.getIndex() < 4 && phase.getIndex() == movement.getPhase().getIndex()+1 && movement.getOrganization() >= movement.getPhase().getMaxOrganization() && movement.getLeader().equalsIgnoreCase(p.getName())) {
+        } else if(phase.getIndex() < 4 && phase.getIndex() == movement.getPhase().getIndex()+1 && movement.getOrganization() >= movement.getPhase().getMaxOrganization() && movement.isLeader(p.getName())) {
             item = new ItemStack(Material.YELLOW_CONCRETE);
         }
         ItemMeta m = item.getItemMeta();
@@ -345,7 +347,7 @@ public class MovementCreator {
         lore.add(StringFormatter.formatHex("#7a7a7aThe current phase of the movement"));
         lore.add(StringFormatter.formatHex("#7a7a7awhich determines its max organization level"));
         lore.add("");
-        if(movement.getLeader().equalsIgnoreCase(p.getName())) {
+        if(movement.isLeader(p.getName())) {
             if(item.getType().equals(Material.RED_CONCRETE)) {
                 lore.add(StringFormatter.formatHex("#c74d32Unavailable"));
                 if(phase.getIndex() > 0 && movement.getPhase().getIndex() == phase.getIndex()-1) {

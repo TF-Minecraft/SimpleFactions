@@ -26,7 +26,7 @@ public class SessionReport {
         Proposal proposal;
         VoteResult result;
         int yay, nay, abstain;
-        
+
         ProposalResult(Proposal proposal, VoteResult result, int yay, int nay, int abstain) {
             this.proposal = proposal;
             this.result = result;
@@ -35,26 +35,26 @@ public class SessionReport {
             this.abstain = abstain;
         }
     }
-    
+
     private List<ProposalResult> results = new ArrayList<>();
     private String leaderName;
     private Faction faction;
-    
+
     public SessionReport(String leaderName, Faction faction) {
         this.leaderName = leaderName;
         this.faction = faction;
     }
-    
+
     public void addResult(Proposal proposal, VoteResult result, int yay, int nay, int abstain) {
         results.add(new ProposalResult(proposal, result, yay, nay, abstain));
     }
-    
+
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack generateReportBook() {
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
         BookMeta meta = (BookMeta) item.getItemMeta();
-        
+
         // Format date: dd/mm/yyyy
         Calendar cal = Calendar.getInstance();
         int day = cal.get(Calendar.DAY_OF_MONTH);
@@ -63,77 +63,69 @@ public class SessionReport {
         meta.setDisplayName(StringFormatter.formatHex("#68ab6fCouncil Session #819483" + dateStr));
         meta.setTitle(StringFormatter.formatHex("#68ab6fCouncil Session #819483" + dateStr));
         meta.setAuthor(faction.getRulerTitle() + " " + leaderName);
-        
+
         List<String> pages = new ArrayList<>();
         StringBuilder currentPage = new StringBuilder();
-        
+
         // Title page
         currentPage.append("§6§lCouncil Session§r§0\n");
         currentPage.append(dateStr + "§r\n\n");
         currentPage.append("Total Proposals\n");
         currentPage.append("" + results.size() + "\n\n");
-        
+
         int passed = 0, failed = 0, tied = 0;
         for (ProposalResult pr : results) {
             if (pr.result == VoteResult.PASSED) passed++;
             else if (pr.result == VoteResult.FAILED) failed++;
             else if (pr.result == VoteResult.TIE) tied++;
         }
-        
+
         currentPage.append("§aPassed§0: " + passed + "\n");
         currentPage.append("§cFailed§0: " + failed + "\n");
         currentPage.append("§7Tied§0: " + tied);
-        
+
         pages.add(currentPage.toString());
-        
+
         // Proposal detail pages
         int proposalNum = 1;
         for (ProposalResult pr : results) {
             currentPage = new StringBuilder();
-            
-            String resultText = pr.result == VoteResult.PASSED ? "§aPASSED" : 
+
+            String resultText = pr.result == VoteResult.PASSED ? "§aPASSED" :
                                pr.result == VoteResult.FAILED ? "§cFAILED" : "§7TIED";
-            
+
             currentPage.append("§6§lProposal " + proposalNum + " - " + resultText + "§r\n\n");
-            
+
             // Get proposal details
             if (pr.proposal.isLawProposal()) {
                 Law law = pr.proposal.getLaw();
-                if (law != null) {
-                    LawGroup group = faction.getLawHandler().getGroup(law.getGroup());
-                    String groupName = group != null ? group.getName() : law.getGroup();
-                    String oldLaw = group != null && group.getCurrent() != null ? group.getCurrent().getName() : "Unknown";
-                    String newLaw = law.getName();
-                    
-                    currentPage.append("Type: Law\n");
-                    currentPage.append("Group: ").append(groupName).append("§r\n\n");
-                    currentPage.append(oldLaw).append(" §0→ ").append(newLaw);
-                }
+                LawGroup group = faction.getLawHandler().getGroup(law.getGroup());
+                String groupName = group != null ? group.getName() : law.getGroup();
+                String oldLaw = group != null && group.getCurrent() != null ? group.getCurrent().getName() : "Unknown";
+                String newLaw = law.getName();
+
+                currentPage.append("Type: Law\n");
+                currentPage.append("Group: ").append(groupName).append("§r\n\n");
+                currentPage.append(oldLaw).append(" §0→ ").append(newLaw);
             } else if (pr.proposal.isTaxProposal()) {
                 TaxLawChange taxChange = pr.proposal.getTaxChange();
-                if (taxChange != null) {
-                    TaxTarget target = taxChange.getTarget();
-                    String name = target != null ? target.getDisplayName() : "Unknown";
-                    String type = "";
-                    
-                    if (target == TaxTarget.GUILD_ID) {
-                        Guild guild = FactionManager.getGuildByString(taxChange.getId());
-                        if (guild != null) name = guild.getName();
-                    } else if (target == TaxTarget.VASSAL_ID) {
-                        name = FactionManager.getByString(taxChange.getId()).getName();
-                    } else if (target == TaxTarget.TARIFF_ID) {
-                        name = FactionManager.getByString(taxChange.getId()).getName();
-                    }
-                    
-                    double oldRate = faction.getTaxRate(target, taxChange.getId(), false);
-                    if (oldRate == -1.0) {
-                        oldRate = faction.getTaxRate(target, null, false);
-                    }
-                    
-                    currentPage.append("Type: Tax\n");
-                    currentPage.append("Target: ").append(name).append("§r\n\n");
-                    currentPage.append(String.format("%.0f", oldRate)).append("% §0→ ").append(taxChange.getNewTax()).append("%");
+                TaxTarget target = taxChange.getTarget();
+                String name = target != null ? target.getDisplayName() : "Unknown";
+                String type = "";
+
+                if (target == TaxTarget.GUILD_ID) {
+                    Guild guild = FactionManager.getGuildByString(taxChange.getId());
+                    name = guild != null ? guild.getName() : taxChange.getId();
+                } else if (target == TaxTarget.VASSAL_ID || target == TaxTarget.TARIFF_ID) {
+                    Faction targetFaction = FactionManager.getByString(taxChange.getId());
+                    name = targetFaction != null ? targetFaction.getName() : taxChange.getId();
                 }
+
+                double oldRate = faction.getTaxRate(target, taxChange.getId(), false);
+
+                currentPage.append("Type: Tax\n");
+                currentPage.append("Target: ").append(name).append("§r\n\n");
+                currentPage.append(String.format("%.0f", oldRate)).append("% §0→ ").append(taxChange.getNewTax()).append("%");
             } else if (pr.proposal.isFeeProposal()) {
                 FeeChange fee = pr.proposal.getFeeChange();
                 double oldRate = faction.getVehicleFeeHandler().getRate(fee.getKind(), fee.getVehicleTypeId());
@@ -143,16 +135,16 @@ public class SessionReport {
                 currentPage.append(fee.getKind().formatRate(oldRate)).append(" §0→ ")
                         .append(fee.getKind().formatRate(fee.getNewRate()));
             }
-            
+
             currentPage.append("\n\n§6Votes\n");
             currentPage.append("§a").append(pr.yay).append(" §aYay\n");
             currentPage.append("§c").append(pr.nay).append(" §cNay\n");
             currentPage.append("§7").append(pr.abstain).append(" §7Abstain");
-            
+
             pages.add(currentPage.toString());
             proposalNum++;
         }
-        
+
         meta.setPages(pages);
         item.setItemMeta(meta);
         return item;

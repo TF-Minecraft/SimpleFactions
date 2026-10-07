@@ -118,13 +118,13 @@ public class Cause {
 
         for (Guild guild : new ArrayList<>(pool.getGuilds())) {
             if (!canGuildJoin(guild, false, false)) {
-                pool.remove("guild", guild.getName());
+                pool.removeGuild(guild);
             }
         }
 
         for (Faction faction : new ArrayList<>(pool.getFactions())) {
             if (!canFactionJoin(faction, false, false)) {
-                pool.remove("faction", faction.getName());
+                pool.removeFaction(faction);
             }
         }
     }

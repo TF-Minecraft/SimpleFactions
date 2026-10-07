@@ -110,4 +110,28 @@ class TradeGraphCommandTest {
                 new Site("beta", new Installation("b", "b", InstallationKind.PORT, 4, 300, 400, 1L), true)),
                 provinces, (from, to) -> Optional.empty(), point -> 0);
     }
+
+    @Test
+    void multipleConnectionsAreSortedAndFractionalDistancesRemainReadable() {
+        Map<Integer, ProvinceData> provinces = Map.of(
+            1, new ProvinceData(Terrain.PLAINS, java.util.Set.of(2)),
+            2, new ProvinceData(Terrain.SEA, java.util.Set.of(1, 3)),
+            3, new ProvinceData(Terrain.SEA, java.util.Set.of(2, 4)),
+            4, new ProvinceData(Terrain.PLAINS, java.util.Set.of(3)));
+        TradeGraph.setLiveForTests(TradeGraphBuilder.build(List.of(
+            new Site("alpha", new Installation("a", "a", InstallationKind.PORT, 1, 0, 0, 1L), true),
+            new Site("gamma", new Installation("c", "c", InstallationKind.PORT, 4, 400, 0, 1L), true),
+            new Site("beta", new Installation("b", "b", InstallationKind.PORT, 4, 300, 401, 1L), true)),
+            provinces, (from, to) -> Optional.empty(), point -> 0));
+        CommandSender sender = admin();
+        assertTrue(TradeGraphCommand.handle(sender, new String[] {"tradegraph"}));
+        ArgumentCaptor<String> messages = ArgumentCaptor.forClass(String.class);
+        verify(sender, org.mockito.Mockito.atLeastOnce()).sendMessage(messages.capture());
+        List<String> lines = messages.getAllValues();
+        int b = lines.indexOf("§7  b, sea, 500.8 blocks, 2 provinces");
+        int c = lines.indexOf("§7  c, sea, 400 blocks, 2 provinces");
+        assertTrue(b >= 0, lines.toString());
+        assertTrue(c > b, lines.toString());
+    }
+
 }

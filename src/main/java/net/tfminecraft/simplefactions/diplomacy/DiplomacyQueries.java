@@ -26,9 +26,6 @@ public final class DiplomacyQueries {
 			return true;
 		}
 		DiplomacyHandler handler = origin.getDiplomacyHandler();
-		if (handler == null) {
-			return false;
-		}
 		return handler.hasTradeRelation(target.getId()) || handler.hasTreatyRelation(target.getId());
 	}
 

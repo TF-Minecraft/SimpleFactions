@@ -198,7 +198,12 @@ public class TaxHandler {
     }
 
     public Bracket getBracket(TaxTarget target) {
-        return taxBrackets.get(target);
+        return taxBrackets.get(switch (target) {
+            case GUILD_ID -> TaxTarget.GUILDS;
+            case VASSAL_ID -> TaxTarget.VASSALS;
+            case TARIFF_ID -> TaxTarget.TARIFFS;
+            default -> target;
+        });
     }
 
     public double getMin(TaxTarget target) {
@@ -216,23 +221,13 @@ public class TaxHandler {
     }
 
     public boolean canCollectTax(TaxTarget target) {
-        switch(target) {
-            case CITIZENS:
-                return f.hasFactionRule(Rules.CITIZEN_TAX);
-            case GUILDS:
-            case GUILD_ID:
-                return f.hasFactionRule(Rules.GUILD_TAX);
-            case VASSALS:
-            case VASSAL_ID:
-                return f.hasFactionRule(Rules.VASSAL_TAX);
-            case DIVIDENDS:
-                return f.hasFactionRule(Rules.DIVIDEND_TAX);
-            case TARIFFS:
-            case TARIFF_ID:
-                return f.hasFactionRule(Rules.TARIFFS);
-            default:
-                return false;
-        }
+        return f.hasFactionRule(switch (target) {
+            case CITIZENS -> Rules.CITIZEN_TAX;
+            case GUILDS, GUILD_ID -> Rules.GUILD_TAX;
+            case VASSALS, VASSAL_ID -> Rules.VASSAL_TAX;
+            case DIVIDENDS -> Rules.DIVIDEND_TAX;
+            case TARIFFS, TARIFF_ID -> Rules.TARIFFS;
+        });
     }
 
     public void setSpecificTax(TaxTarget target, String id, double rate) {
@@ -327,7 +322,6 @@ public class TaxHandler {
             case VASSALS, VASSAL_ID -> vassalTax;
             case DIVIDENDS -> dividendTax;
             case TARIFFS, TARIFF_ID -> tariffs;
-            default -> 0.0;
         };
     }
 

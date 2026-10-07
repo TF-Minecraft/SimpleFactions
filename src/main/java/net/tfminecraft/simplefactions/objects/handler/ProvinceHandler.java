@@ -132,12 +132,12 @@ public class ProvinceHandler {
     //claims
 
 	public boolean canClaim(int provinceId, boolean sea) {
-		if (provinces.size() == 0) return true;
 		if (provinces.contains(provinceId)) return false;
 
 		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
 		Province target = pm.get(provinceId);
 		if (target == null || !target.isValid()) return false;
+		if (provinces.isEmpty()) return true;
 
 		// Effective adjacency: land, one water tile, or one sea tile from the capital's land blob
 		Set<Integer> capitalBlob = capitalLandBlob(pm);
@@ -166,12 +166,12 @@ public class ProvinceHandler {
 	 * @return true if the province can be claimed without relying on the guild's capital
 	 */
 	public boolean canClaim(int provinceId, boolean sea, Guild guild) {
-		if(provinces.size() == 0) return true;
 		if(provinces.contains(provinceId)) return false;
 
 		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
 		Province target = pm.get(provinceId);
 		if (target == null || !target.isValid()) return false;
+		if (provinces.isEmpty()) return true;
 
 		if(guild.getCapital() == guild.getFaction().getCapital()) {
 			// Guild capital is the faction capital - no need to exclude it
@@ -181,10 +181,14 @@ public class ProvinceHandler {
 		// Calculate which provinces would still be legal without this guild's capital
 		Set<Integer> legalWithoutGuildCapital = calculateLegalProvincesExcludingGuildCapital(pm, guild);
 
-		// 1) Normal land adjacency (only check against legal provinces)
+		// Apply the same river/coastal adjacency as normal claims, without the old guild capital.
+		Set<Integer> capitalBlob = new HashSet<>();
+		if (hasCapital() && capital != guild.getCapital()) {
+			capitalBlob.add(capital);
+			floodLandExcluding(pm, capital, capitalBlob, guild.getCapital());
+		}
 		for (int ownedId : legalWithoutGuildCapital) {
-			Province owned = pm.get(ownedId);
-			if (owned != null && owned.getNeighbours().contains(provinceId)) {
+			if (isEffectivelyAdjacent(pm, ownedId, provinceId, capitalBlob)) {
 				return true;
 			}
 		}
@@ -454,10 +458,6 @@ public class ProvinceHandler {
 		return legal;
 	}
 
-	private boolean isCapitalStillLegal(ProvinceManager pm, int capitalId) {
-		return isCapitalStillLegal(pm, capitalId, capital);
-	}
-
 	private boolean isCapitalStillLegal(ProvinceManager pm, int guildCapitalId, int factionCapitalId) {
 		Province guildCapital = pm.get(guildCapitalId);
 		if (!provinces.contains(guildCapitalId) || guildCapital == null || !guildCapital.isValid()
@@ -509,6 +509,7 @@ public class ProvinceHandler {
 		if (provinces.contains(provinceId)) {
 			return "§cThis province is already part of your realm.";
 		}
+		if (provinces.isEmpty()) return "Success";
 
 		boolean adjacent = false;
 		Set<Integer> capitalBlob = capitalLandBlob(pm);

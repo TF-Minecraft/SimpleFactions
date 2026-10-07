@@ -56,15 +56,16 @@ public class Upgrade {
         }
         if(config.contains("modifiers")) {
             for(String s : config.getStringList("modifiers")) {
-                String[] args = s.split("\\s+");
-                if(args.length < 2) continue;
+                String[] args = s.trim().split("\\s+");
+                if(args.length < 2 || args.length > 3) continue;
                 try {
                     double base = Double.parseDouble(args[1]);
                     double perLevel = base;
                     if(args.length == 3) {
                         perLevel = Double.parseDouble(args[2]);
                     }
-                    modifiers.put(GuildModifier.valueOf(args[0].toUpperCase()), new BranchModifier(base, perLevel));
+                    if (!Double.isFinite(base) || !Double.isFinite(perLevel)) continue;
+                    modifiers.put(GuildModifier.valueOf(args[0].toUpperCase(java.util.Locale.ROOT)), new BranchModifier(base, perLevel));
                 } catch (Exception e) {
                     Bukkit.getLogger().info("[SimpleFactions] could not parse modifier "+s);
                     // TODO: handle exception
@@ -120,7 +121,7 @@ public class Upgrade {
         String[] args = icon.split("\\.");
         ItemStack item = new ItemStack(Material.DIRT, 1);
         try {
-            item = new ItemStack(Material.valueOf(args[0].toUpperCase()), 1);
+            item = new ItemStack(Material.valueOf(args[0].toUpperCase(java.util.Locale.ROOT)), 1);
             ItemMeta m = item.getItemMeta();
             LegacyModelData.set(m, Integer.parseInt(args[1]));
             item.setItemMeta(m);

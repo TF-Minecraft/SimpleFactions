@@ -182,12 +182,12 @@ public class ProvinceManager {
             dropMissingGuilds();
             recalculateGuild(g);
             recalculateProduction(g);
+            recalculateProsperity();
             if(save) {
                 for(Guild guild : FactionManager.getAllGuilds()) {
                     getIncome(guild);
                 }
             }
-            recalculateProsperity();
         } finally {
             InstallationAccess.endRecalculation();
         }
@@ -305,10 +305,10 @@ public class ProvinceManager {
             }
             income += provinceIncome;
         }
+        income = PillageTradeHit.applyToIncome(guild, income);
         if(save) {
             guild.getTradeBreakdown().setTariffs(tariffs);
             guild.getTradeBreakdown().setUpkeep(upkeep);
-            income = PillageTradeHit.applyToIncome(guild, income);
             guild.getTradeBreakdown().setIncome(income);
             guild.getTradeBreakdown().setTradePower(getTotalTrade(guild));
         }

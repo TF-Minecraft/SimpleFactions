@@ -43,11 +43,8 @@ public final class RegionLoader {
 	}
 
 	public static void loadAll(File file) {
-		regions = new ArrayList<>();
-		byId = new HashMap<>();
-		byProvince = new HashMap<>();
-
 		if (file == null || !file.isFile()) {
+			loadFrom(null);
 			return;
 		}
 
@@ -64,12 +61,10 @@ public final class RegionLoader {
 	}
 
 	static void loadFrom(JsonObject root) {
-		regions = new ArrayList<>();
-		byId = new HashMap<>();
-		byProvince = new HashMap<>();
-		if (root == null) {
-			return;
-		}
+		List<MapRegion> loadedRegions = new ArrayList<>();
+		Map<String, MapRegion> loadedById = new HashMap<>();
+		Map<Integer, MapRegion> loadedByProvince = new HashMap<>();
+		if (root == null) root = new JsonObject();
 
 		for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
 			String id = entry.getKey() == null ? "" : entry.getKey().trim();
@@ -96,11 +91,11 @@ public final class RegionLoader {
 			}
 
 			MapRegion region = new MapRegion(id, name, provinces);
-			regions.add(region);
-			byId.put(id.toLowerCase(Locale.ROOT), region);
+			loadedRegions.add(region);
+			loadedById.put(id.toLowerCase(Locale.ROOT), region);
 			for (int provinceId : provinces) {
-				if (byProvince.containsKey(provinceId)) {
-					MapRegion existing = byProvince.get(provinceId);
+				if (loadedByProvince.containsKey(provinceId)) {
+					MapRegion existing = loadedByProvince.get(provinceId);
 					logger().warning(
 							"Province "
 									+ provinceId
@@ -113,9 +108,12 @@ public final class RegionLoader {
 									+ "'");
 					continue;
 				}
-				byProvince.put(provinceId, region);
+				loadedByProvince.put(provinceId, region);
 			}
 		}
+		regions = loadedRegions;
+		byId = loadedById;
+		byProvince = loadedByProvince;
 	}
 
 	public static List<MapRegion> getRegions() {

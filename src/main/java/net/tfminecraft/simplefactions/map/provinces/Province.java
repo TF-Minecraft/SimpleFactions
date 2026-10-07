@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -47,7 +48,7 @@ public class Province {
     public Province(int id, String terrain, int fertility, int centerX, int centerZ) {
         this.id = id;
         try {
-            this.terrain = Terrain.valueOf(terrain.toUpperCase());
+            this.terrain = Terrain.valueOf(terrain.toUpperCase(Locale.ROOT));
         } catch (Exception e) {
             this.terrain = Terrain.UNKNOWN;
         }
@@ -103,7 +104,7 @@ public class Province {
         ProvinceDataEntry entry = data.get(guild.getId());
 
         // Stop if we already have equal or better trade
-        if (entry != null && entry.getTrade() >= amount) {
+        if (entry != null && getRawGuildTrade(guild) >= amount) {
             return;
         }
 
@@ -358,19 +359,20 @@ public class Province {
     public double getTotalTrade() {
         double total = 0;
         for (ProvinceDataEntry entry : data.values()) {
-            total += entry.getTrade();
+            total += getGuildTrade(entry.getGuild());
         }
         return total;
     }
 
     public double getGuildTrade(Guild guild) {
         ProvinceDataEntry entry = data.get(guild.getId());
-        return entry == null ? 0 : entry.getTrade()*getModifierForGuild(guild, FactionModifiers.TRADE_POWER, getModifiersForGuild(guild));
+        return entry == null ? 0 : Math.max(0, entry.getTrade()*getModifierForGuild(guild, FactionModifiers.TRADE_POWER, getModifiersForGuild(guild)));
     }
 
     public double getTradeShare(Guild guild) {
         if(!data.containsKey(guild.getId())) return 0;
-        return getGuildTrade(guild)/getTotalTrade();
+        double total = getTotalTrade();
+        return total <= 0 ? 0 : getGuildTrade(guild) / total;
     }
 
     public double getProsperity() {

@@ -27,30 +27,30 @@ public final class InstallationConfigLoader {
     private InstallationConfigLoader() {}
 
     public static void load(File installationsYaml) {
-        byKind.clear();
+        Map<InstallationKind, InstallationKindConfig> nextKinds = new EnumMap<>(InstallationKind.class);
 
         FileConfiguration config = new YamlConfiguration();
         try {
             config.load(installationsYaml);
         } catch (IOException | InvalidConfigurationException e) {
             e.printStackTrace();
-            fail("Failed to load installations.yml");
+            throw failure("Failed to load installations.yml");
         }
 
         if (!config.contains("consent-proximity-blocks")) {
-            fail("installations.yml consent-proximity-blocks is required");
+            throw failure("installations.yml consent-proximity-blocks is required");
         }
         if (!config.contains("transfer-request-timeout-seconds")) {
-            fail("installations.yml transfer-request-timeout-seconds is required");
+            throw failure("installations.yml transfer-request-timeout-seconds is required");
         }
 
-        consentProximityBlocks = config.getInt("consent-proximity-blocks");
-        transferRequestTimeoutSeconds = config.getInt("transfer-request-timeout-seconds");
-        if (consentProximityBlocks < 0) {
-            fail("installations.yml consent-proximity-blocks must be >= 0");
+        int nextConsentProximityBlocks = config.getInt("consent-proximity-blocks");
+        int nextTransferRequestTimeoutSeconds = config.getInt("transfer-request-timeout-seconds");
+        if (nextConsentProximityBlocks < 0) {
+            throw failure("installations.yml consent-proximity-blocks must be >= 0");
         }
-        if (transferRequestTimeoutSeconds <= 0) {
-            fail("installations.yml transfer-request-timeout-seconds must be > 0");
+        if (nextTransferRequestTimeoutSeconds <= 0) {
+            throw failure("installations.yml transfer-request-timeout-seconds must be > 0");
         }
 
         Set<String> knownCategories = VehiclesConfigLoader.getCategoryIds();
@@ -60,7 +60,7 @@ public final class InstallationConfigLoader {
             ConfigurationSection section = config.getConfigurationSection(key);
             if (section == null) {
                 if (kind == InstallationKind.TRAIN_STATION) {
-                    byKind.put(
+                    nextKinds.put(
                             kind,
                             new InstallationKindConfig(
                                     80,
@@ -70,36 +70,36 @@ public final class InstallationConfigLoader {
                                             3, new Level(100, 432000, Map.of("static_emplacements", 4)))));
                     continue;
                 }
-                fail("installations.yml missing required section: " + key);
+                throw failure("installations.yml missing required section: " + key);
             }
 
             if (!section.contains("daily-upkeep")) {
-                fail("installations.yml " + key + ".daily-upkeep is required");
+                throw failure("installations.yml " + key + ".daily-upkeep is required");
             }
             if (!section.contains("construction-time")) {
-                fail("installations.yml " + key + ".construction-time is required");
+                throw failure("installations.yml " + key + ".construction-time is required");
             }
             if (!section.contains("radius")) {
-                fail("installations.yml " + key + ".radius is required");
+                throw failure("installations.yml " + key + ".radius is required");
             }
 
             double dailyUpkeep = section.getDouble("daily-upkeep");
             int constructionTimeSeconds = section.getInt("construction-time");
             int radius = section.getInt("radius");
 
-            if (dailyUpkeep < 0) {
-                fail("installations.yml " + key + ".daily-upkeep must be >= 0");
+            if (!Double.isFinite(dailyUpkeep) || dailyUpkeep < 0) {
+                throw failure("installations.yml " + key + ".daily-upkeep must be finite and >= 0");
             }
             if (constructionTimeSeconds <= 0) {
-                fail("installations.yml " + key + ".construction-time must be > 0");
+                throw failure("installations.yml " + key + ".construction-time must be > 0");
             }
             if (radius <= 0) {
-                fail("installations.yml " + key + ".radius must be > 0");
+                throw failure("installations.yml " + key + ".radius must be > 0");
             }
 
             ConfigurationSection slotsSection = section.getConfigurationSection("slots");
             if (slotsSection == null) {
-                fail("installations.yml " + key + ".slots is required");
+                throw failure("installations.yml " + key + ".slots is required");
             }
 
             Map<String, Integer> categorySlots = readSlots(key, slotsSection, knownCategories);
@@ -107,7 +107,7 @@ public final class InstallationConfigLoader {
             levels.put(1, new Level(dailyUpkeep, constructionTimeSeconds, categorySlots));
             ConfigurationSection levelsSection = section.getConfigurationSection("levels");
             if (section.contains("levels") && levelsSection == null) {
-                fail("installations.yml " + key + ".levels must be a section");
+                throw failure("installations.yml " + key + ".levels must be a section");
             }
             if (levelsSection != null) {
                 Map<Integer, ConfigurationSection> parsedLevels = new HashMap<>();
@@ -116,39 +116,38 @@ public final class InstallationConfigLoader {
                     try {
                         level = Integer.parseInt(levelKey);
                     } catch (NumberFormatException e) {
-                        fail("installations.yml " + key + ".levels." + levelKey
+                        throw failure("installations.yml " + key + ".levels." + levelKey
                                 + " must be a level number >= 2");
-                        return;
                     }
                     if (level < 2
                             || parsedLevels.put(
                                     level, levelsSection.getConfigurationSection(levelKey)) != null) {
-                        fail("installations.yml " + key + ".levels must start at 2 with no gaps");
+                        throw failure("installations.yml " + key + ".levels must start at 2 with no gaps");
                     }
                 }
                 for (int level = 2; level <= parsedLevels.size() + 1; level++) {
                     ConfigurationSection levelSection = parsedLevels.get(level);
                     if (levelSection == null) {
-                        fail("installations.yml " + key + ".levels must start at 2 with no gaps");
+                        throw failure("installations.yml " + key + ".levels must start at 2 with no gaps");
                     }
                     String prefix = key + ".levels." + level;
                     if (!levelSection.contains("daily-upkeep")) {
-                        fail("installations.yml " + prefix + ".daily-upkeep is required");
+                        throw failure("installations.yml " + prefix + ".daily-upkeep is required");
                     }
                     if (!levelSection.contains("construction-time")) {
-                        fail("installations.yml " + prefix + ".construction-time is required");
+                        throw failure("installations.yml " + prefix + ".construction-time is required");
                     }
                     double levelUpkeep = levelSection.getDouble("daily-upkeep");
                     int levelConstruction = levelSection.getInt("construction-time");
-                    if (levelUpkeep < 0) {
-                        fail("installations.yml " + prefix + ".daily-upkeep must be >= 0");
+                    if (!Double.isFinite(levelUpkeep) || levelUpkeep < 0) {
+                        throw failure("installations.yml " + prefix + ".daily-upkeep must be finite and >= 0");
                     }
                     if (levelConstruction <= 0) {
-                        fail("installations.yml " + prefix + ".construction-time must be > 0");
+                        throw failure("installations.yml " + prefix + ".construction-time must be > 0");
                     }
                     ConfigurationSection levelSlots = levelSection.getConfigurationSection("slots");
                     if (levelSlots == null) {
-                        fail("installations.yml " + prefix + ".slots is required");
+                        throw failure("installations.yml " + prefix + ".slots is required");
                     }
                     levels.put(
                             level,
@@ -159,8 +158,12 @@ public final class InstallationConfigLoader {
                 }
             }
 
-            byKind.put(kind, new InstallationKindConfig(radius, levels));
+            nextKinds.put(kind, new InstallationKindConfig(radius, levels));
         }
+        byKind.clear();
+        byKind.putAll(nextKinds);
+        consentProximityBlocks = nextConsentProximityBlocks;
+        transferRequestTimeoutSeconds = nextTransferRequestTimeoutSeconds;
     }
 
     private static Map<String, Integer> readSlots(
@@ -169,14 +172,14 @@ public final class InstallationConfigLoader {
             Set<String> knownCategories) {
         Map<String, Integer> categorySlots = new HashMap<>();
         for (String categoryId : slotsSection.getKeys(false)) {
-            String normalizedCategoryId = categoryId.toLowerCase();
+            String normalizedCategoryId = categoryId.toLowerCase(java.util.Locale.ROOT);
             if (!knownCategories.contains(normalizedCategoryId)) {
-                fail("installations.yml " + key + ".slots." + categoryId
+                throw failure("installations.yml " + key + ".slots." + categoryId
                         + " references unknown vehicle category (check vehicles.yml categories)");
             }
             int capacity = slotsSection.getInt(categoryId);
             if (capacity < 0) {
-                fail("installations.yml " + key + ".slots." + categoryId + " must be >= 0");
+                throw failure("installations.yml " + key + ".slots." + categoryId + " must be >= 0");
             }
             categorySlots.put(normalizedCategoryId, capacity);
         }
@@ -219,7 +222,7 @@ public final class InstallationConfigLoader {
         if (categoryId == null || categoryId.isEmpty()) {
             return 0;
         }
-        Integer capacity = require(kind).getCategorySlots(level).get(categoryId.toLowerCase());
+        Integer capacity = require(kind).getCategorySlots(level).get(categoryId.toLowerCase(java.util.Locale.ROOT));
         return capacity == null ? 0 : capacity;
     }
 
@@ -248,10 +251,10 @@ public final class InstallationConfigLoader {
         return config;
     }
 
-    private static void fail(String message) {
+    private static IllegalStateException failure(String message) {
         if (Bukkit.getServer() != null) {
             Bukkit.getLogger().severe("[SimpleFactions] " + message);
         }
-        throw new IllegalStateException(message);
+        return new IllegalStateException(message);
     }
 }

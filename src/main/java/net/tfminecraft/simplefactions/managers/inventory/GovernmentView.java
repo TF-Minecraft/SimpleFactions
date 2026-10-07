@@ -30,6 +30,7 @@ import net.tfminecraft.simplefactions.government.Council;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.movement.Action;
 import net.tfminecraft.simplefactions.government.movement.Movement;
+import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.simplefactions.government.movement.PoliticalAction;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
@@ -106,19 +107,28 @@ public class GovernmentView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void councilSelect(Player player, Faction f, Inventory i, int slot) {
-        boolean open = i == null;
-		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.COUNCIL_SELECT), 54, "§7Select Member");
-		i.clear();
-		int x = 0;
-		List<String> members = f.getMembers();
+		int page = i != null && i.getHolder() instanceof SFInventoryHolder holder ? holder.getPage() : 0;
+		councilSelect(player, f, i, slot, page);
+	}
+
+	private void councilSelect(Player player, Faction f, Inventory i, int slot, int page) {
+		List<String> members = new java.util.ArrayList<>(f.getMembers());
 		Council council = f.getGovernment().getCouncil();
-		members.removeAll(f.getGovernment().getCouncil().getMembers());
+		members.removeAll(council.getMembers());
 		members.addAll(f.getVassalMembers());
-		for(String member : members) {
-			if(!council.canBeMember(member, true, false)) continue;
-			i.setItem(x, creator.createPotentialMemberItem(player, f, member, slot));
-			x++;
+		members.removeIf(member -> !council.canBeMember(member, true, false));
+		page = Math.max(0, Math.min(page, Math.max(0, (members.size() - 1) / 45)));
+		boolean open = i == null;
+		if(open) i = SimpleFactions.plugin.getServer().createInventory(
+				new SFInventoryHolder(f.getId(), SFGUI.COUNCIL_SELECT, page, false, Integer.toString(slot)), 54, "§7Select Member");
+		((SFInventoryHolder)i.getHolder()).setPage(page);
+		i.clear();
+		int start = page * 45;
+		for(int x = start; x < Math.min(start + 45, members.size()); x++) {
+			i.setItem(x - start, creator.createPotentialMemberItem(player, f, members.get(x), slot));
 		}
+		if(page > 0) i.setItem(45, DefaultCreator.createPreviousPageButton());
+		if(start + 45 < members.size()) i.setItem(52, DefaultCreator.createNextPageButton());
 		i.setItem(53, inv.createBackButton(SFGUI.COUNCIL_SELECT));
         if(open) player.openInventory(i);
 	}
@@ -173,10 +183,10 @@ public class GovernmentView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void warPeaceSelectView(Player player, Faction f, Action action, boolean fromCause, int causeIndex, Inventory i) {
-		boolean open = i == null;
-		if (i == null) {
+		boolean open = i == null || !(i.getHolder() instanceof WarPeaceHolder);
+		if (open) {
 			i = SimpleFactions.plugin.getServer().createInventory(
-					new SFInventoryHolder(f.getId(), SFGUI.WAR_PEACE_SELECT, causeIndex, fromCause, action.name()),
+					new WarPeaceHolder(player, f, action, fromCause, causeIndex),
 					54,
 					"§7Select War");
 		}
@@ -367,6 +377,10 @@ public class GovernmentView {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(slot == 23) {
 				if(!f.getGovernment().hasCouncil()) return;
+				if(!f.isLeader(p.getName()) || !f.getGovernment().getCouncil().canHostSession()) {
+					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+					return;
+				}
 				if(!f.getGovernment().getCouncil().hasEnoughValidVoters()) {
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 					p.sendMessage("§cNot enough council members online! At least 75% must be present.");
@@ -447,7 +461,16 @@ public class GovernmentView {
 			String t = meta.getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
 			if(t == null) return;
 			TaxTarget target = TaxTarget.valueOf(t);
-			String name = target == TaxTarget.GUILD_ID ? FactionManager.getGuildByString(id).getName() : FactionManager.getByString(id).getName();
+			String name;
+			if(target == TaxTarget.GUILD_ID) {
+				Guild guild = FactionManager.getGuildByString(id);
+				if(guild == null) return;
+				name = guild.getName();
+			} else {
+				Faction targetFaction = FactionManager.getByString(id);
+				if(targetFaction == null) return;
+				name = targetFaction.getName();
+			}
 			inv.setChanging(f, p, target, id);
 			p.sendTitle("§aTax Change", "§eType a new tax for "+name+" §ein chat.", 20, 40, 20);
 			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
@@ -623,7 +646,7 @@ public class GovernmentView {
 			} catch (RuntimeException ex) {
 				return;
 			}
-			submitWarEnd(p, faction, action, warId, h.getFlag(), h.getPage());
+			submitWarEnd(p, faction, action, warId, h.getFlag(), inventory);
 		} else if (h.getType() == SFGUI.PROPOSALS) {
 			e.setCancelled(true);
 		} else if (h.getType() == SFGUI.COUNCIL_VIEW) {
@@ -662,6 +685,11 @@ public class GovernmentView {
 			if(f == null) return;
 			boolean isLeader = p.getName().equalsIgnoreCase(f.getLeader());
 			if(!isLeader) return;
+			if(e.getSlot() == 45 || e.getSlot() == 52) {
+				int seat = Integer.parseInt(h.getSecondaryId());
+				councilSelect(p, f, null, seat, h.getPage() + (e.getSlot() == 45 ? -1 : 1));
+				return;
+			}
 			// Handle council member click for replace/appoint
 			ItemMeta meta = item.getItemMeta();
 			if(meta == null) return;
@@ -672,6 +700,7 @@ public class GovernmentView {
 			Council council = f.getGovernment().getCouncil();
 			
 			// Verify slot can be appointed/modified
+			if(!council.canBeMember(member, true, false)) return;
 			List<String> members = council.getMembers();
 			boolean isOccupied = s < members.size() && members.get(s) != null && !members.get(s).isEmpty();
 			boolean isNextEmpty = s == members.size();
@@ -782,7 +811,26 @@ public class GovernmentView {
 		}
 	}
 
-	private void submitWarEnd(Player p, Faction f, Action action, String warId, boolean fromCause, int causeIndex) {
+	private static final class WarPeaceHolder extends SFInventoryHolder {
+		private final Movement movement;
+		private final Cause cause;
+
+		WarPeaceHolder(Player player, Faction faction, Action action, boolean fromCause, int index) {
+			super(faction.getId(), SFGUI.WAR_PEACE_SELECT, index, fromCause, action.name());
+			movement = fromCause ? faction.getGovernment().getMovementByMember(player.getName()) : null;
+			cause = movement != null && index >= 0 && index < movement.getCauses().size()
+					? movement.getCauses().get(index) : null;
+		}
+	}
+
+	public Cause displayedWarPeaceCause(Player player, Faction faction, Inventory inventory) {
+		if (!(inventory.getHolder() instanceof WarPeaceHolder holder) || holder.cause == null
+				|| faction.getGovernment().getMovementByMember(player.getName()) != holder.movement
+				|| !holder.movement.getCauses().contains(holder.cause)) return null;
+		return holder.cause;
+	}
+
+	private void submitWarEnd(Player p, Faction f, Action action, String warId, boolean fromCause, Inventory inventory) {
 		Government gov = f.getGovernment();
 		if (!gov.canProposePolitical(p, action) && !fromCause) {
 			p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
@@ -794,12 +842,12 @@ public class GovernmentView {
 			return;
 		}
 		if (fromCause) {
-			Movement movement = gov.getMovementByMember(p.getName());
-			if (movement == null || causeIndex < 0 || causeIndex >= movement.getCauses().size()) {
+			Cause cause = displayedWarPeaceCause(p, f, inventory);
+			if (cause == null) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				return;
 			}
-			net.tfminecraft.simplefactions.government.movement.cause.Cause cause = movement.getCauses().get(causeIndex);
+			Movement movement = cause.getMovement();
 			if (!cause.hasLeader() || !cause.getLeader().equals(p.getName())) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				return;

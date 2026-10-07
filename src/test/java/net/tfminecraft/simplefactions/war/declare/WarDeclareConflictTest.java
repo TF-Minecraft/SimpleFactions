@@ -139,6 +139,7 @@ class WarDeclareConflictTest {
 
 	private static Faction faction(String id) {
 		Faction faction = mock(Faction.class);
+		when(faction.getDiplomacyHandler()).thenReturn(new net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler(faction));
 		when(faction.getId()).thenReturn(id);
 		when(faction.getRelations()).thenReturn(new HashMap<>());
 		when(faction.canHaveVassals()).thenReturn(true);

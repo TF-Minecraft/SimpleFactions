@@ -41,7 +41,9 @@ class WarManagerDeclareTest {
 	@Test
 	void declareWar_doesNotCallEndVassalage() {
 		Faction attacker = mock(Faction.class);
+		when(attacker.getDiplomacyHandler()).thenReturn(new net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler(attacker));
 		Faction defender = mock(Faction.class);
+		when(defender.getDiplomacyHandler()).thenReturn(new net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler(defender));
 		when(attacker.getId()).thenReturn("atk");
 		when(defender.getId()).thenReturn("def");
 		when(attacker.getRelations()).thenReturn(new HashMap<>());

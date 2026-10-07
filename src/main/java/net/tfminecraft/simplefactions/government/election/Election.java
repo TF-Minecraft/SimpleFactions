@@ -54,6 +54,7 @@ public class Election {
         this.active = false;
         validateVotes();
         for(Candidate c : Candidate.values()) {
+            previousVotes.get(c).clear();
             for(String candidate : candidates.get(c)) {
                 previousVotes.get(c).put(candidate, getVotes(c, candidate));
             }
@@ -98,7 +99,8 @@ public class Election {
             if(!gov.hasElections(c)) continue;
             Map<String, String> voteMap = votes.get(c);
             for(String voter : new ArrayList<>(voteMap.keySet())) {
-                if(!canVote(voter)) {
+                // Existing ballots are valid even though their voter cannot submit a second ballot.
+                if(!eligibleVoters.contains(voter) || !gov.getFaction().canVote(voter)) {
                     voteMap.remove(voter);
                 } else {
                     String candidate = voteMap.get(voter);
@@ -249,10 +251,9 @@ public class Election {
                 break;
             case COUNCIL:
                 if(candidates.get(Candidate.COUNCIL).contains(player) && includeAlreadySignedUp) return false;
+                if(!gov.getCouncil().canRemainMember(player)) return false;
                 if(otherCandidateExists(Candidate.COUNCIL, player)) return false;
                 break;
-            default:
-                return true;
         }
         return true;
     }

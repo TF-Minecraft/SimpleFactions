@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.laws;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
@@ -37,7 +38,10 @@ public class LawEffect {
                     String[] args = s.split("\\s+");
                     if (args.length != 2) continue;
 
-                    Rules rule = Rules.valueOf(args[0].toUpperCase());
+                    Rules rule = Rules.valueOf(args[0].toUpperCase(Locale.ROOT));
+                    if (!"true".equalsIgnoreCase(args[1]) && !"false".equalsIgnoreCase(args[1])) {
+                        throw new IllegalArgumentException("Invalid rule value: " + args[1]);
+                    }
                     rules.put(rule, Boolean.parseBoolean(args[1]));
                 } catch (Exception e) {
                     Bukkit.getLogger().warning(
@@ -55,6 +59,7 @@ public class LawEffect {
                     if (args.length != 2) continue;
 
                     Regiment reg = RegimentLoader.getByString(args[0]);
+                    if (reg == null) throw new IllegalArgumentException("Unknown regiment: " + args[0]);
                     regiments.put(reg, Integer.parseInt(args[1]));
                 } catch (Exception e) {
                     Bukkit.getLogger().warning(
@@ -67,7 +72,7 @@ public class LawEffect {
         if (config.contains("brackets")) {
             for (String key : config.getConfigurationSection("brackets").getKeys(false)) {
                 try {
-                    Brackets type = Brackets.valueOf(key.toUpperCase());
+                    Brackets type = Brackets.valueOf(key.toUpperCase(Locale.ROOT));
                     String value = config.getString("brackets." + key);
 
                     String[] split = value.split("-");
@@ -75,6 +80,9 @@ public class LawEffect {
 
                     double min = Double.parseDouble(split[0]);
                     double max = Double.parseDouble(split[1]);
+                    if (!Double.isFinite(min) || !Double.isFinite(max) || min > max) {
+                        throw new IllegalArgumentException("Invalid bracket bounds: " + value);
+                    }
 
                     brackets.put(type, new Bracket(min, max));
 
@@ -104,7 +112,7 @@ public class LawEffect {
              || key.equalsIgnoreCase("modifiers")) continue;
 
             try {
-                Region region = Region.valueOf(key.toUpperCase());
+                Region region = Region.valueOf(key.toUpperCase(Locale.ROOT));
 
                 for (String mod : config.getStringList(key)) {
                     try {

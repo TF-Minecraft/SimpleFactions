@@ -54,6 +54,7 @@ public class GuildHandler {
         if (revalidateClaims && f.getProvinceHandler() != null) {
             f.getProvinceHandler().revalidateClaims();
         }
+        f.updateWealth();
     }
 
     public Guild getGuildByMember(String member) {

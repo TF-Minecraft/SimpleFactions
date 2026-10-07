@@ -34,6 +34,7 @@ public final class InactivityService {
 	private static final Map<String, DecayClock> factionClocks = new HashMap<>();
 	private static long earliestDue = Long.MAX_VALUE;
 	private static boolean loaded;
+	private static boolean saveBlocked;
 
 	private InactivityService() {}
 
@@ -48,33 +49,40 @@ public final class InactivityService {
 	}
 
 	public static void load() {
-		loaded = true;
-		guildClocks.clear();
-		factionClocks.clear();
-		if (!FILE.exists()) {
-			recomputeEarliest();
+		Map<String, DecayClock> nextGuilds = new HashMap<>();
+		Map<String, DecayClock> nextFactions = new HashMap<>();
+		try {
+			if (FILE.exists()) {
+				SavedState state = JsonUtil.readJson(FILE, SavedState.class);
+				if (state == null) throw new IOException("Inactivity timer file contains no state");
+				readInto(state.guilds, nextGuilds);
+				readInto(state.factions, nextFactions);
+			}
+		} catch (IOException | RuntimeException ex) {
+			// Preserve both the last good snapshot and the unreadable source until an explicit reload succeeds.
+			loaded = true;
+			saveBlocked = true;
+			log(Level.WARNING, "Could not read inactivity timers", ex);
 			return;
 		}
-		try {
-			SavedState state = JsonUtil.readJson(FILE, SavedState.class);
-			if (state != null) {
-				readInto(state.guilds, guildClocks);
-				readInto(state.factions, factionClocks);
-			}
-		} catch (IOException ex) {
-			log(Level.WARNING, "Could not read inactivity timers", ex);
-		}
+		guildClocks.clear();
+		guildClocks.putAll(nextGuilds);
+		factionClocks.clear();
+		factionClocks.putAll(nextFactions);
+		loaded = true;
+		saveBlocked = false;
 		recomputeEarliest();
 	}
 
 	public static void save() {
+		if (!loaded || saveBlocked) return;
 		try {
 			File parent = FILE.getParentFile();
 			if (parent != null && !parent.exists()) parent.mkdirs();
 			SavedState state = new SavedState();
 			writeFrom(guildClocks, state.guilds);
 			writeFrom(factionClocks, state.factions);
-			JsonUtil.writeJson(FILE, state);
+			JsonUtil.writeJsonAtomic(FILE, state);
 		} catch (IOException ex) {
 			log(Level.WARNING, "Could not save inactivity timers", ex);
 		}

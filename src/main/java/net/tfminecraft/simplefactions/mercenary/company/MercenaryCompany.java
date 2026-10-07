@@ -317,14 +317,12 @@ public class MercenaryCompany {
             }
             return MercenaryResult.ok("Added " + delta + " slot" + (delta == 1 ? "" : "s") + ".");
         }
-        int remove = -delta;
+        long remove = -(long) delta;
         if (getSlots() < remove) {
             return MercenaryResult.deny("Not enough slots to remove.");
         }
         for (int i = 0; i < remove; i++) {
-            if (!dropSlot()) {
-                return MercenaryResult.deny("Not enough slots to remove.");
-            }
+            dropSlot();
         }
         return MercenaryResult.ok("Removed " + remove + " slot" + (remove == 1 ? "" : "s") + ".");
     }

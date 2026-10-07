@@ -207,9 +207,6 @@ public class Movement {
         if (RelationManager.sameRealm(faction, f)) {
             return MovementJoinCopy.backerSameRealm(staff, faction, f);
         }
-        if (faction.getId().equalsIgnoreCase(f.getId())) {
-            return MovementJoinCopy.backerOwnFaction(staff, f);
-        }
         for (Movement otherMovement : f.getGovernment().getMovements()) {
             if (otherMovement.getId().equals(this.id)) continue;
             if (otherMovement.getForeignBackers().contains(faction)) {
@@ -328,6 +325,9 @@ public class Movement {
 
     public void join(Object obj, Cause cause) {
         if (frozen) return;
+        if (obj instanceof String citizen && isMember(citizen)) return;
+        if (obj instanceof Guild guild && isMember(guild.getLeader())) return;
+        if (obj instanceof Faction faction && isMember(faction.getLeader())) return;
         double power = getPower();
         if(cause == null) {
             // Joining as general supporter
@@ -370,13 +370,7 @@ public class Movement {
     }
 
     public void joinAsForeignBacker(Faction backer) {
-        if (!canForeignBackerJoin(backer, false)) return;
-        
-        // Check if already backing another movement in this faction
-        for (Movement otherMovement : f.getGovernment().getMovements()) {
-            if (otherMovement.getId().equals(this.id)) continue;
-            if (otherMovement.getForeignBackers().contains(backer)) return;
-        }
+        if (foreignBackers.contains(backer) || !canForeignBackerJoin(backer, false)) return;
         
         foreignBackers.add(backer);
     }
@@ -426,7 +420,7 @@ public class Movement {
 
     public Cause getCauseByLeader(String leaderName) {
         for (Cause cause : causes) {
-            if (cause.getLeader().equalsIgnoreCase(leaderName)) {
+            if (cause.getLeader() != null && cause.getLeader().equalsIgnoreCase(leaderName)) {
                 return cause;
             }
         }

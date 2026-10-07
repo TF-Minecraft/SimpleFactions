@@ -25,6 +25,16 @@ import net.tfminecraft.simplefactions.government.proposal.Proposal;
 class MovementOutcomeServiceTest {
 
 	@Test
+	void incompleteImportedMovementQueriesStayEmpty() {
+		assertEquals(List.of(), MovementOutcomeService.orderedCauses(null));
+		assertNull(MovementOutcomeService.stabilityFor(null, MovementOutcomeSource.WAR));
+		Movement movement = new Movement(null, new net.tfminecraft.simplefactions.database.MovementData());
+		movement.getCauses().add(null);
+		assertEquals(List.of(), MovementOutcomeService.orderedCauses(movement));
+		assertNull(MovementOutcomeService.stabilityFor(movement, MovementOutcomeSource.WAR));
+	}
+
+	@Test
 	void appliesLeaderChangeBeforeLaw() {
 		Proposal lawProposal = mock(Proposal.class);
 		Proposal leaderProposal = mock(Proposal.class);

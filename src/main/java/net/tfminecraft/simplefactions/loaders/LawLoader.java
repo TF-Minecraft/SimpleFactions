@@ -32,19 +32,18 @@ public class LawLoader {
 	}
 
 	public void load(File configFile) {
-		FileConfiguration config = new YamlConfiguration();
+        FileConfiguration config = new YamlConfiguration();
+        Map<String, LawGroup> loaded = new java.util.LinkedHashMap<>();
         try {
-        	config.load(configFile);
-        } catch (IOException | InvalidConfigurationException e) {
+            config.load(configFile);
+            for (String key : config.getKeys(false)) {
+                loaded.put(key, new LawGroup(key, config.getConfigurationSection(key)));
+            }
+        } catch (IOException | InvalidConfigurationException | RuntimeException e) {
             e.printStackTrace();
+            return;
         }
-		Set<String> set = config.getKeys(false);
-
-		List<String> list = new ArrayList<>(set);
-		
-		for(String key : list) {
-			LawGroup r = new LawGroup(key, config.getConfigurationSection(key));
-			map.put(key, r);
-		}
-	}
+        map.clear();
+        map.putAll(loaded);
+    }
 }

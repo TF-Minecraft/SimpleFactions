@@ -387,6 +387,7 @@ public class FactionView {
 				Faction f = FactionManager.getByString(h.getId());
 				if(!f.isLeader(p.getName())) return;
 				BannerFetcher.fetch("faction:" + f.getId(), patterns -> {
+					if (FactionManager.getByString(f.getId()) != f || !f.isLeader(p.getName())) return;
 					if (patterns == null) {
 						if (p.isOnline()) p.sendMessage("§cCould not generate a banner right now. Try again later.");
 						return;
@@ -400,6 +401,7 @@ public class FactionView {
 				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 				Faction f = FactionManager.getByString(h.getId());
+				if (f == null || !f.isMemberIgnoreCase(p.getName())) return;
 				ItemStack i = new ItemStack(f.getBanner());
 				p.getInventory().addItem(i);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

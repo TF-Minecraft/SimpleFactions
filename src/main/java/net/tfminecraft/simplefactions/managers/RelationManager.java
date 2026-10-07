@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class RelationManager {
+	private RelationManager() {}
 	
 	private static int tick = 0;
 	
@@ -48,8 +49,8 @@ public class RelationManager {
 
 	public static boolean endVassalage(Faction origin, Faction target, boolean hostile) {
 		if(isOverlord(origin, target) || isOverlord(target, origin)) {
-			reset(origin, target, hostile);
 			net.tfminecraft.simplefactions.war.commitment.WarCommitmentService.onVassalageEnded(origin, target);
+			reset(origin, target, hostile);
 			MercenaryLoyaltyWatcher.onRelationChanged(origin, target);
 			return true;
 		}
@@ -184,7 +185,7 @@ public class RelationManager {
 		if(!r.hasLimit()) return false;
 		int count = 0;
 		for(Map.Entry<String, Relation> entry : f.getRelations().entrySet()) {
-			if(entry.getValue().getType().getId().equalsIgnoreCase(r.getId())) count++;
+			if(entry.getValue().getType() != null && r.getId().equalsIgnoreCase(entry.getValue().getType().getId())) count++;
 		}
 		return count >= r.getLimit();
 	}
@@ -192,7 +193,7 @@ public class RelationManager {
 	public static int getRelationCount(Faction f, RelationType r) {
 		int count = 0;
 		for(Map.Entry<String, Relation> entry : f.getRelations().entrySet()) {
-			if(entry.getValue().getType().getId().equalsIgnoreCase(r.getId())) count++;
+			if(entry.getValue().getType() != null && r.getId().equalsIgnoreCase(entry.getValue().getType().getId())) count++;
 		}
 		return count;
 	}
@@ -215,6 +216,10 @@ public class RelationManager {
 		if (r == null || target == null || origin == null) {
 			return false;
 		}
+		if (origin.getId().equalsIgnoreCase(target.getId())) {
+			if (p != null) p.sendMessage("§cYou cannot set a relation with your own faction");
+			return false;
+		}
 		Relation relation = new Relation(origin.getRelation(target.getId()));
 		Relation reverse = new Relation(target.getRelation(origin.getId()));
 		boolean reverseChange = reverseChange(target, origin, r);
@@ -231,10 +236,6 @@ public class RelationManager {
 			String topLiege = getTopLiege(origin);
 			if(topLiege != null && topLiege.equalsIgnoreCase(target.getId())) {
 				if(p != null) p.sendMessage("§cThis faction is your top overlord");
-				return false;
-			}
-			if(isOnOverlordPath(origin, target)){
-				if(p != null) p.sendMessage("§cThis relation would cause a loop");
 				return false;
 			}
 		}
@@ -267,7 +268,7 @@ public class RelationManager {
 			sendRequest(p, target, r);
 			return false;
 		}
-		if(r.shouldUpdateMap() || relation.getType().shouldUpdateMap()) {
+		if(r.shouldUpdateMap() || (relation.getType() != null && relation.getType().shouldUpdateMap())) {
 			if (FactionManager.getMap() != null) {
 				FactionManager.getMap().enqueue("nation", origin.getRGB());
 				FactionManager.getMap().enqueue("nation", target.getRGB());
@@ -320,6 +321,10 @@ public class RelationManager {
 	}
 
 	public static void setTradeRelation(Player p, RelationType r, Faction target, Faction origin, boolean check) {
+		applyTradeRelation(p, r, target, origin, check);
+	}
+
+	private static boolean applyTradeRelation(Player p, RelationType r, Faction target, Faction origin, boolean check) {
 		if(r.hasThreshold()) {
 			Threshold h = r.getThreshold();
 			int opinion = origin.getRelation(target.getId()).getOpinion();
@@ -338,21 +343,26 @@ public class RelationManager {
 				}
 			}
 			if(!fulfilled) {
-				return;
+				return false;
 			}
 		}
 		if(r.isMutual() && check) {
 			sendTradeRequest(p, target, r);
-			return;
+			return false;
 		}
 		origin.getDiplomacyHandler().setTradeRelation(target, r);
 		if(r.isMutual()) {
 			target.getDiplomacyHandler().setTradeRelation(origin, r.getLink());
 		}
 		if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Set trade to "+r.getName()));
+		return true;
 	}
 
 	public static void setTreatyRelation(Player p, RelationType r, Faction target, Faction origin, boolean check) {
+		applyTreatyRelation(p, r, target, origin, check);
+	}
+
+	private static boolean applyTreatyRelation(Player p, RelationType r, Faction target, Faction origin, boolean check) {
 		if(r.hasThreshold()) {
 			Threshold h = r.getThreshold();
 			int opinion = origin.getRelation(target.getId()).getOpinion();
@@ -371,24 +381,25 @@ public class RelationManager {
 				}
 			}
 			if(!fulfilled) {
-				return;
+				return false;
 			}
 		}
 		if(r.isClearTreaty()) {
 			origin.getDiplomacyHandler().removeTreatyRelation(target.getId());
 			target.getDiplomacyHandler().removeTreatyRelation(origin.getId());
 			if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Cleared treaty"));
-			return;
+			return true;
 		}
 		if(r.isMutual() && check) {
 			sendTreatyRequest(p, target, r);
-			return;
+			return false;
 		}
 		origin.getDiplomacyHandler().setTreatyRelation(target, r);
 		if(r.isMutual()) {
 			target.getDiplomacyHandler().setTreatyRelation(origin, r.getLink());
 		}
 		if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Set treaty to "+r.getName()));
+		return true;
 	}
 
 	public static void setTreatyRelationForced(RelationType r, Faction target, Faction origin) {
@@ -420,12 +431,13 @@ public class RelationManager {
 		RelationType linked = t.getLink() != null ? t.getLink() : RelationLoader.getDefaultType();
 		RelationType outgoing = origin.getRelation(target.getId()).getType();
 		RelationType incoming = target.getRelation(origin.getId()).getType();
-		return (outgoing.willReset() || incoming.willReset()) && !incoming.getId().equalsIgnoreCase(linked.getId());
+		return ((outgoing != null && outgoing.willReset()) || (incoming != null && incoming.willReset()))
+				&& linked != null && (incoming == null || !linked.getId().equalsIgnoreCase(incoming.getId()));
 	}
 	
 	public static String getOverlord(Faction f) {
 		for(Map.Entry<String, Relation> entry : f.getRelations().entrySet()) {
-			if(entry.getValue().getType().isOverlord()) return entry.getKey();
+			if(entry.getValue().getType() != null && entry.getValue().getType().isOverlord()) return entry.getKey();
 		}
 		return null;
 	}
@@ -454,9 +466,6 @@ public class RelationManager {
 	}
 
 	private static boolean treatyBlocksWar(Faction from, Faction to) {
-		if (from.getDiplomacyHandler() == null) {
-			return false;
-		}
 		RelationType treaty = from.getDiplomacyHandler().getTreatyRelation(to.getId());
 		return treaty != null && treaty.blocksWar();
 	}
@@ -536,6 +545,10 @@ public class RelationManager {
 			return;
 		}
 		RelationType type = relation.getType();
+		// Validate every forced-transfer constraint before ending the existing relationship.
+		if (reciever.getId().equalsIgnoreCase(o.getId())
+				|| reciever.getId().equalsIgnoreCase(subject.getId())
+				|| atLimit(reciever, type) || isOnOverlordPath(reciever, subject)) return;
 		endVassalage(o, subject, false);
 		setRelationForced(type, subject, reciever);
 	}
@@ -619,8 +632,9 @@ public class RelationManager {
 			if(sp != null && sp.isOnline()) sp.sendMessage(blocked);
 			return;
 		}
-		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request and became your "+req.getType().getName());
-		setRelation(p, req.getType(), reciever, sender, false);
+		if (setRelation(p, req.getType(), reciever, sender, false, false) && sp != null && sp.isOnline()) {
+			sp.sendMessage(reciever.getName()+" §aaccepted your request and became your "+req.getType().getName());
+		}
 	}
 
 	private static void sendTradeRequest(Player sender, Faction f, RelationType type) {
@@ -645,8 +659,9 @@ public class RelationManager {
 		}
 		Faction sender = req.getFaction();
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
-		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request and set trade to "+req.getType().getName());
-		setTradeRelation(p, req.getType(), reciever, sender, false);
+		if (applyTradeRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
+			sp.sendMessage(reciever.getName()+" §aaccepted your request and set trade to "+req.getType().getName());
+		}
 	}
 
 	private static void sendTreatyRequest(Player sender, Faction f, RelationType type) {
@@ -671,7 +686,8 @@ public class RelationManager {
 		}
 		Faction sender = req.getFaction();
 		Player sp = Bukkit.getPlayerExact(sender.getLeader());
-		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request and set treaty to "+req.getType().getName());
-		setTreatyRelation(p, req.getType(), reciever, sender, false);
+		if (applyTreatyRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
+			sp.sendMessage(reciever.getName()+" §aaccepted your request and set treaty to "+req.getType().getName());
+		}
 	}
 }

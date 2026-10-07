@@ -36,22 +36,23 @@ public final class PillageEligibility {
 		}
 		Set<Integer> realm = realmProvinces(defender);
 		Map<String, Settlement> byId = new LinkedHashMap<>();
+		Set<String> ambiguousIds = new HashSet<>();
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getSettlementHandler() == null) {
+			if (faction == null) {
 				continue;
 			}
 			for (Settlement settlement : faction.getSettlementHandler().getAll()) {
-				if (settlement == null || settlement.getId() == null) {
-					continue;
-				}
 				if (!realm.contains(settlement.getCenterProvince())) {
 					continue;
 				}
-				byId.putIfAbsent(settlement.getId(), settlement);
+				String id = settlement.getId();
+				if (byId.putIfAbsent(id, settlement) != null) ambiguousIds.add(id);
 			}
 		}
 		for (Settlement settlement : byId.values()) {
-			options.add(evaluate(provinceManager, attacker, defender, settlement, realm));
+			options.add(ambiguousIds.contains(settlement.getId())
+					? blocked(settlement, "§cMore than one settlement in their realm uses this id.")
+					: evaluate(provinceManager, attacker, defender, settlement, realm));
 		}
 		return options;
 	}
@@ -61,19 +62,30 @@ public final class PillageEligibility {
 	}
 
 	public static Settlement findSettlement(String settlementId) {
+		return findInRealm(settlementId, null);
+	}
+
+	/** Settlement IDs are unique within a faction, so war targets must be resolved in the defender's realm. */
+	public static Settlement findSettlement(String settlementId, Faction defender) {
+		return defender == null ? null : findInRealm(settlementId, realmProvinces(defender));
+	}
+
+	private static Settlement findInRealm(String settlementId, Set<Integer> realm) {
 		if (settlementId == null || settlementId.isBlank()) {
 			return null;
 		}
+		Settlement match = null;
 		for (Faction faction : FactionManager.factions) {
-			if (faction == null || faction.getSettlementHandler() == null) {
+			if (faction == null) {
 				continue;
 			}
 			Settlement settlement = faction.getSettlementHandler().getById(settlementId);
-			if (settlement != null) {
-				return settlement;
+			if (settlement != null && (realm == null || realm.contains(settlement.getCenterProvince()))) {
+				if (match != null) return null;
+				match = settlement;
 			}
 		}
-		return null;
+		return match;
 	}
 
 	public static Faction landOwner(int provinceId) {
@@ -109,10 +121,6 @@ public final class PillageEligibility {
 		if (PillageRangeQueries.canPillageSettlement(
 				provinceManager, attacker, settlement, owner, realm, range)) {
 			return new PillageSettlementOption(settlement, true, null);
-		}
-		if (provinceManager != null
-				&& PillageRangeQueries.inSeaRange(provinceManager, attacker, owner, center, range)) {
-			return blocked(settlement, "§cThat settlement is out of pillage range.");
 		}
 		OptionalInt coast = provinceManager == null
 				? OptionalInt.empty()

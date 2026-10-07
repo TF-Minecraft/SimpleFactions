@@ -52,12 +52,10 @@ public final class DisplayNameGate implements Listener {
 	private static final class Pending {
 		private final NameOperation op;
 		private final String raw;
-		private final GateKind kind;
 
-		private Pending(NameOperation op, String raw, GateKind kind) {
+		private Pending(NameOperation op, String raw) {
 			this.op = op;
 			this.raw = raw;
-			this.kind = kind;
 		}
 	}
 
@@ -134,26 +132,24 @@ public final class DisplayNameGate implements Listener {
 		if (player == null || op == null) {
 			return Result.OK;
 		}
+		UUID id = player.getUniqueId();
+		Pending prev = pending.get(id);
+		if (prev != null && prev.op == op && prev.raw.equals(raw)) {
+			pending.remove(id);
+			return Result.OK;
+		}
 		if (looksLikeMissingSpaces(raw)) {
-			Result spaceResult = tryConfirmOrBlock(
-					player, op, raw, GateKind.MISSING_SPACES, chatConfirm, Optional.empty());
-			if (spaceResult != Result.OK) {
-				return spaceResult;
-			}
+			return blockWithHint(player, op, raw, GateKind.MISSING_SPACES, chatConfirm, Optional.empty());
 		}
 		Optional<String> uncapitalized = findUncapitalizedWord(raw);
 		if (uncapitalized.isPresent()) {
-			Result capResult = tryConfirmOrBlock(
-					player, op, raw, GateKind.CAPITALIZATION, chatConfirm, uncapitalized);
-			if (capResult != Result.OK) {
-				return capResult;
-			}
+			return blockWithHint(player, op, raw, GateKind.CAPITALIZATION, chatConfirm, uncapitalized);
 		}
 		pending.remove(player.getUniqueId());
 		return Result.OK;
 	}
 
-	private static Result tryConfirmOrBlock(
+	private static Result blockWithHint(
 			Player player,
 			NameOperation op,
 			String raw,
@@ -161,12 +157,7 @@ public final class DisplayNameGate implements Listener {
 			boolean chatConfirm,
 			Optional<String> offendingWord) {
 		UUID id = player.getUniqueId();
-		Pending prev = pending.get(id);
-		if (prev != null && prev.op == op && prev.raw.equals(raw) && prev.kind == kind) {
-			pending.remove(id);
-			return Result.OK;
-		}
-		Pending next = new Pending(op, raw, kind);
+		Pending next = new Pending(op, raw);
 		pending.put(id, next);
 		if (kind == GateKind.MISSING_SPACES) {
 			sendSpaceHint(player, raw, chatConfirm);

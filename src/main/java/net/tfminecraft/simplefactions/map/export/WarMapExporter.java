@@ -127,9 +127,6 @@ public final class WarMapExporter {
 	}
 
 	private static void collectBelligerentIds(Side side, Set<String> ids) {
-		if (side == null) {
-			return;
-		}
 		for (Participant participant : side.getMainParticipants()) {
 			for (Faction faction : participant.getAllParticipatingFactions()) {
 				if (faction != null && faction.getId() != null) {

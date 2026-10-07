@@ -128,7 +128,7 @@ public final class StabilityMath {
 
 	public static double weight(String stance, StabilityTuning tuning) {
 		if (stance == null) return 1;
-		return switch (stance.toUpperCase()) {
+		return switch (stance.toUpperCase(java.util.Locale.ROOT)) {
 			case "OPPOSE" -> 0;
 			case "NEUTRAL" -> tuning.neutralWeight;
 			default -> 1;
@@ -196,7 +196,7 @@ public final class StabilityMath {
 	}
 
 	private static String id(String value) {
-		return value == null ? "" : value.toLowerCase();
+		return value == null ? "" : value.toLowerCase(java.util.Locale.ROOT);
 	}
 
 	private static double clamp(double value) {

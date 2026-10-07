@@ -1,7 +1,8 @@
 package net.tfminecraft.simplefactions.managers;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 
 import org.apache.commons.lang.WordUtils;
@@ -9,6 +10,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.scheduler.BukkitRunnable;
+import net.tfminecraft.simplefactions.SimpleFactions;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.loaders.TierLoader;
@@ -21,7 +24,7 @@ import net.tfminecraft.simplefactions.utils.RandomRGB;
 
 public class TitleManager implements Listener{
 	Formatter format = new Formatter();
-	public static HashMap<Player, Tier> isFormingTitle = new HashMap<>();
+	public static Map<Player, Tier> isFormingTitle = new ConcurrentHashMap<>();
 
 	public static boolean overProvinceCap(Faction f) {
 		return f.getPrestige() <  Math.max(0, f.getProvinces().size()-1)*Cache.provinceCost;
@@ -32,17 +35,40 @@ public class TitleManager implements Listener{
 	@EventHandler
 	public void formTitle(AsyncPlayerChatEvent e) {
 		Player p = e.getPlayer();
-		if(!isFormingTitle.containsKey(p)) return;
+		Tier pending = isFormingTitle.get(p);
+		if (pending == null) return;
 		e.setCancelled(true);
-		Faction f = FactionManager.getByLeader(p.getName());
-		if(f == null) {
-			isFormingTitle.remove(p);
-			return;
-		}
-		
 		String message = e.getMessage().replace(" ", "_");
-		Tier tier = isFormingTitle.get(p);
-		
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				if (isFormingTitle.remove(p, pending)) completeTitle(p, pending, message);
+			}
+		}.runTask(SimpleFactions.plugin);
+	}
+
+	private void completeTitle(Player p, Tier pending, String message) {
+		if (!p.isOnline()) return;
+		Faction f = FactionManager.getByLeader(p.getName());
+		Tier tier = TierLoader.getByString(pending.getId());
+		if (f == null || tier != pending || !tier.canForm()
+				|| !f.getGovernment().stateReport().status.canFormTitles()) return;
+		Tier required = TierLoader.getByLevel(tier.getTier() - 1);
+		int available;
+		if (tier.getId().equalsIgnoreCase("county")) {
+			if (f.getTitles(tier).size() >= f.getMembers().size()) return;
+			available = f.getUntitledProvinces().size();
+		} else {
+			if (required == null) return;
+			available = f.getFreeTitles(required).size();
+		}
+		if (available < tier.getFormCost()) return;
+		String overlord = RelationManager.getOverlord(f);
+		if (overlord != null) {
+			Faction liege = FactionManager.getByString(overlord);
+			if (liege == null || liege.getTier().getTier() < tier.getTier()) return;
+		}
+
 		List<String> titleStringList = new ArrayList<>();
 		Tier lower = TierLoader.getByLevel(tier.getTier()-1);
 		if(lower != null) {
@@ -51,21 +77,22 @@ public class TitleManager implements Listener{
 			}
 		}
 		String id = format.formatId(message);
+		if (id.isBlank()) {
+			p.sendMessage("§cA title name must contain letters or numbers.");
+			return;
+		}
 		if(TitleLoader.getById(id) != null) {
 			p.sendMessage("§cA title with that ID already exists!");
-			isFormingTitle.remove(p);
 			return;
 		}
 		String name = WordUtils.capitalize(format.formatId(message).replace("_", " "));
 		Title newTitle = TitleLoader.createNewTitle(tier, id, name, RandomRGB.similarButDistinct(f.getRGB()), f.getUntitledProvinces(), titleStringList, false);
 		if(newTitle == null) {
-			isFormingTitle.remove(p);
 			return;
 		}
 		p.sendMessage("§aFormed the "+tier.getName()+" §7"+name);
 		f.addTitle(newTitle);
 		FactionManager.getMap().enqueue(tier.getId(), newTitle.getRgb());
-		isFormingTitle.remove(p);
 	}
 	
 	public static double getClaimCost(Faction f) {
@@ -111,11 +138,6 @@ public class TitleManager implements Listener{
 		for(int p : getProvinces(f)) {
 			if(TitleLoader.getByProvince(p) == null) provinces.add(p);
 		}
-		for(Faction subject : RelationManager.getSubjects(f)) {
-			for(int p : subject.getProvinces()) {
-				if(TitleLoader.getByProvince(p) == null) provinces.add(p);
-			}
-		}
 		return provinces;
 	}
 	
@@ -148,7 +170,7 @@ public class TitleManager implements Listener{
 
 	public static Faction getOwner(Title title){
 		for(Faction f : FactionManager.factions) {
-			if(getTitles(f).contains(title)) return f;
+			if(f.getTitles().contains(title)) return f;
 		}
 		return null;
 	}
@@ -189,7 +211,7 @@ public class TitleManager implements Listener{
 	public static Title getParent(Title t) {
 		for(Title c : TitleLoader.getTitles()) {
 			for(String s : c.getTitles()) {
-				if(TitleLoader.getById(s).equals(t)) return c;
+				if(t.equals(TitleLoader.getById(s))) return c;
 			}
 		}
 		return null;

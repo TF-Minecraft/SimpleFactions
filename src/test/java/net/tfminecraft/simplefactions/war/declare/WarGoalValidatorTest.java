@@ -958,7 +958,7 @@ class WarGoalValidatorTest {
 
 		WarValidationResult result = validator.validate(pillageRequest(attacker, defender, "missing"));
 		assertFalse(result.isValid());
-		assertEquals("§cThat settlement does not exist.", result.getMessage());
+		assertEquals("§cThat settlement does not exist or its id is ambiguous in their realm.", result.getMessage());
 	}
 
 	@Test
@@ -1100,6 +1100,7 @@ class WarGoalValidatorTest {
 
 	private static Faction mockFaction(String id, int tierLevel) {
 		Faction faction = mock(Faction.class);
+		when(faction.getDiplomacyHandler()).thenReturn(new net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler(faction));
 		Tier tier = mock(Tier.class);
 		when(faction.getId()).thenReturn(id);
 		when(faction.getTier()).thenReturn(tier);

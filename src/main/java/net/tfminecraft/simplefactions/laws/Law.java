@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
@@ -47,7 +48,7 @@ public class Law {
         if(config.contains("effects")) {
             for(String s : config.getConfigurationSection("effects").getKeys(false)) {
                 try {
-                    Scope scope = Scope.valueOf(s.toUpperCase());
+                    Scope scope = Scope.valueOf(s.toUpperCase(Locale.ROOT));
                     scopedEffects.put(scope, new LawEffect(scope, config.getConfigurationSection("effects."+s)));
                 } catch (Exception e) {
                     Bukkit.getLogger().info("[SimpleFactions] could not parse modifier for scope "+s+" in law "+key);

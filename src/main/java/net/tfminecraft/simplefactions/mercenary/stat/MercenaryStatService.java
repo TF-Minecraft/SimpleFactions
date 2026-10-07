@@ -88,7 +88,6 @@ public final class MercenaryStatService {
     public static void clear(Player player) {
         if (player == null) return;
         applied.remove(player.getUniqueId());
-        if (!applier.isAvailable()) return;
         applier.strip(player);
     }
 

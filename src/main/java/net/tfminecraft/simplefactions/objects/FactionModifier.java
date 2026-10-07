@@ -20,13 +20,16 @@ public class FactionModifier {
 	private double atStronger;
 
 	public FactionModifier(String m) {
-	    try {
-	        amount = Double.parseDouble(m.split("\\(")[1].replace(")", ""));
-	        type = modifierType(m.split("\\(")[0]);
-			atEqual = amount;
-	    } catch(Exception e) {
-	        e.printStackTrace();
-	    }
+		if (m == null || m.indexOf('(') < 1 || !m.endsWith(")")) {
+			throw new IllegalArgumentException("Invalid faction modifier: " + m);
+		}
+		int open = m.indexOf('(');
+		amount = Double.parseDouble(m.substring(open + 1, m.length() - 1));
+		if (!Double.isFinite(amount)) {
+			throw new IllegalArgumentException("Modifier amount must be finite: " + m);
+		}
+		type = modifierType(m.substring(0, open));
+		atEqual = amount;
 	}
 
 	public FactionModifier(FactionModifiers type, double amount) {
@@ -54,7 +57,11 @@ public class FactionModifier {
 
 	public static FactionModifier fromYamlEntry(Object entry) {
 		if (entry instanceof String s) {
-			return new FactionModifier(s);
+			try {
+				return new FactionModifier(s);
+			} catch (IllegalArgumentException invalid) {
+				return null;
+			}
 		}
 		if (entry instanceof Map<?, ?> map) {
 			return fromMap(map);
@@ -68,9 +75,6 @@ public class FactionModifier {
 		}
 		List<?> list = config.getList(key);
 		if (list == null || list.isEmpty()) {
-			for (String s : config.getStringList(key)) {
-				out.add(new FactionModifier(s));
-			}
 			return;
 		}
 		for (Object entry : list) {
@@ -109,7 +113,7 @@ public class FactionModifier {
 	}
 
 	private static FactionModifiers modifierType(String value) {
-		String id = value.toUpperCase();
+		String id = value.toUpperCase(java.util.Locale.ROOT);
 		if (id.equals("INFRASTRUCTURE_ACCESS")) {
 			id = "INSTALLATION_ACCESS";
 		}
@@ -118,11 +122,13 @@ public class FactionModifier {
 
 	private static double doubleVal(Object o, double fallback) {
 		if (o instanceof Number n) {
-			return n.doubleValue();
+			double value = n.doubleValue();
+			return Double.isFinite(value) ? value : fallback;
 		}
 		if (o instanceof String s) {
 			try {
-				return Double.parseDouble(s);
+				double value = Double.parseDouble(s);
+				return Double.isFinite(value) ? value : fallback;
 			} catch (NumberFormatException ignored) {
 				return fallback;
 			}
@@ -140,65 +146,28 @@ public class FactionModifier {
 	}
 
 	private void fix() {
-		amount = Math.round(amount*100)/100;
+		amount = Math.round(amount*100)/100.0;
 	}
 
 	private String prefix() {
-		String prefix = "";
-		switch(type) {
-			case LEVY:
-				prefix = "#d45131Levy Contribution";
-				break;
-			case MILITARY_UPKEEP:
-				prefix = "#b39088Military Upkeep";
-				break;
-			case NODE_SPEED:
-				prefix = "#92d96cNode Speed";
-				break;
-			case PRESTIGE:
-				prefix = "#3e7fb5Prestige to Overlord";
-				break;
-			case PRESTIGE_BONUS:
-				prefix = "#409dc2Prestige Bonus";
-				break;
-			case PRESTIGE_MALUS:
-				prefix = "#d46a6aPrestige Malus";
-				break;
-			case TRIBUTE:
-				prefix = "#d49024Tribute";
-				break;
-			case TAX_MULTIPLIER:
-				prefix = "#5acca2Tax Multiplier";
-				break;
-			case DE_JURE:
-				prefix = "#7bd481De Jure Requirement";
-				break;
-			case STABILITY_INFLUENCE:
-				prefix = "#d64d66Stability Influence";
-				break;
-			case TRADE_POWER:
-				prefix = "#92d665Trade Power";
-				break;
-			case PRODUCTION:
-				prefix = "#f2c94cProduction";
-				break;
-			case INSTALLATION_ACCESS:
-				prefix = "#92d6baInstallation Access";
-				break;
-			case DIPLOMATIC_CAPACITY_MULTIPLIER:
-				prefix = "#56ccf2Diplomatic Capacity Multiplier";
-				break;
-			case ADMIN_POWER_MULTIPLIER:
-				prefix = "#ebde54Admin Power Multiplier";
-				break;
-			case ADMIN_POWER_GAIN_MULTIPLIER:
-				prefix = "#d1b347Admin Power Gain Multiplier";
-				break;
-			default:
-				prefix = "#c7b381Unknown Modifier";
-				break;
-		}
-		return StringFormatter.formatHex(prefix);
+		return StringFormatter.formatHex(switch (type) {
+			case LEVY -> "#d45131Levy Contribution";
+			case MILITARY_UPKEEP -> "#b39088Military Upkeep";
+			case NODE_SPEED -> "#92d96cNode Speed";
+			case PRESTIGE -> "#3e7fb5Prestige to Overlord";
+			case PRESTIGE_BONUS -> "#409dc2Prestige Bonus";
+			case PRESTIGE_MALUS -> "#d46a6aPrestige Malus";
+			case TRIBUTE -> "#d49024Tribute";
+			case TAX_MULTIPLIER -> "#5acca2Tax Multiplier";
+			case DE_JURE -> "#7bd481De Jure Requirement";
+			case STABILITY_INFLUENCE -> "#d64d66Stability Influence";
+			case TRADE_POWER -> "#92d665Trade Power";
+			case PRODUCTION -> "#f2c94cProduction";
+			case INSTALLATION_ACCESS -> "#92d6baInstallation Access";
+			case DIPLOMATIC_CAPACITY_MULTIPLIER -> "#56ccf2Diplomatic Capacity Multiplier";
+			case ADMIN_POWER_MULTIPLIER -> "#ebde54Admin Power Multiplier";
+			case ADMIN_POWER_GAIN_MULTIPLIER -> "#d1b347Admin Power Gain Multiplier";
+		});
 	}
 
 	private String suffix(double displayed, Region region) {

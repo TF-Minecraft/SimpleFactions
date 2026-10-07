@@ -140,10 +140,7 @@ public class FactionManager implements Listener{
 		for(Map.Entry<Faction, List<String>> entry : dbRelations.entrySet()) {
 			Faction f = entry.getKey();
 			List<String> relations = entry.getValue();
-			LogManager.relations("load %s rawCount=%d", factionId(f), relations == null ? 0 : relations.size());
-			if (relations == null) {
-				continue;
-			}
+			LogManager.relations("load %s rawCount=%d", factionId(f), relations.size());
 			for(String s : relations) {
 				applyStoredRelation(f, s);
 			}
@@ -151,10 +148,7 @@ public class FactionManager implements Listener{
 		for(Map.Entry<Faction, List<String>> entry : dbTradeRelations.entrySet()) {
 			Faction f = entry.getKey();
 			List<String> relations = entry.getValue();
-			LogManager.relations("loadTrade %s rawCount=%d", factionId(f), relations == null ? 0 : relations.size());
-			if (relations == null) {
-				continue;
-			}
+			LogManager.relations("loadTrade %s rawCount=%d", factionId(f), relations.size());
 			for(String s : relations) {
 				applyStoredTradeRelation(f, s);
 			}
@@ -162,10 +156,7 @@ public class FactionManager implements Listener{
 		for(Map.Entry<Faction, List<String>> entry : dbTreatyRelations.entrySet()) {
 			Faction f = entry.getKey();
 			List<String> relations = entry.getValue();
-			LogManager.relations("loadTreaty %s rawCount=%d", factionId(f), relations == null ? 0 : relations.size());
-			if (relations == null) {
-				continue;
-			}
+			LogManager.relations("loadTreaty %s rawCount=%d", factionId(f), relations.size());
 			for(String s : relations) {
 				applyStoredTreatyRelation(f, s);
 			}
@@ -247,7 +238,7 @@ public class FactionManager implements Listener{
 			}
 			String info = s.split("\\(")[1].replace(")", "");
 			RelationType r = RelationLoader.getType(info);
-			if(r == null) {
+			if(r == null || !r.isTradeAgreement()) {
 				LogManager.relations("SKIP trade %s -> %s type=%s", factionId(f), targetId, info);
 				return;
 			}
@@ -758,6 +749,8 @@ public class FactionManager implements Listener{
 	public static void addFaction(Faction f) {
 		net.tfminecraft.simplefactions.espionage.EspionageService.initializeFounder(f);
 		factions.add(f);
+		// A new faction changes the global wealth denominator; calculate against the full registry.
+		updateAllPrestige();
 		if (f.getProvinces() == null || f.getProvinces().isEmpty()) {
 			return;
 		}
@@ -1062,13 +1055,17 @@ public class FactionManager implements Listener{
 	}
 
 	public static void acceptElevationRequest(Player p) {
-		ElevateRequest req = (ElevateRequest) RequestManager.getRequest(p);
+		if (!(RequestManager.getRequest(p) instanceof ElevateRequest req)) return;
 		Guild guild = FactionManager.getGuildByLeader(p.getName());
 		if(guild == null) {
 			p.sendMessage("§cYou are not the leader of a guild");
 			return;
 		}
-		Guild sender = req.getSender();
+		Faction sponsoringFaction = req.getSponsoringFaction();
+		if (guild != req.getSender() || guild.getFaction() != sponsoringFaction) {
+			p.sendMessage("§cThat elevation request is no longer valid.");
+			return;
+		}
 		double cost = guild.getElevationCost();
 		if(guild.getFaction().getGovernment().getPower() < cost) {
 			p.sendMessage("§cCannot afford to elevate");
@@ -1080,7 +1077,7 @@ public class FactionManager implements Listener{
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 			return;
 		}
-		sender.getFaction().getGovernment().spendPower(cost);
+		sponsoringFaction.getGovernment().spendPower(cost);
 		p.sendMessage("§aGuild elevated to Faction!");
 		p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 	}
@@ -1095,11 +1092,11 @@ public class FactionManager implements Listener{
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
 		sender.sendMessage("§aJoin request sent to "+movement.getLeader());
-		RequestManager.addRequest(sender, p, new MovementJoinRequest(null, sender.getName(), type, movement.getFaction().getId(), cause == null ? -1 : cause.getIndex()));
+		RequestManager.addRequest(sender, p, new MovementJoinRequest(null, sender.getName(), type, movement, cause));
 	}
 
 	public static void acceptMovementJoinRequest(Player p) {
-		MovementJoinRequest req = (MovementJoinRequest) RequestManager.getRequest(p);
+		if (!(RequestManager.getRequest(p) instanceof MovementJoinRequest req)) return;
 		String sender = req.getPlayer();
 		Player sp = Bukkit.getPlayerExact(sender);
 		if(sp == null || !sp.isOnline()) {
@@ -1116,14 +1113,15 @@ public class FactionManager implements Listener{
 			p.sendMessage("§cYou are not the leader of a movement");
 			return;
 		}
+		if (target != req.getMovement()) {
+			p.sendMessage("§cThe requested movement is no longer available.");
+			return;
+		}
 		Object o = target.getJoiningAs(sp);
-		Cause cause = null;
-		if(req.getCauseIndex() != -1) {
-			cause = target.getCauses().get(req.getCauseIndex());
-			if(cause == null) {
-				p.sendMessage("§cSpecified cause no longer exists");
-				return;
-			}
+		Cause cause = req.getCause();
+		if (cause != null && !target.getCauses().contains(cause)) {
+			p.sendMessage("§cSpecified cause no longer exists");
+			return;
 		}
 		if ("foreign_backer".equalsIgnoreCase(req.getType())) {
 			Faction fac = getByMember(sender);
@@ -1182,32 +1180,30 @@ public class FactionManager implements Listener{
 				new MovementLeaderTargetRequest(
 						null,
 						sender.getName(),
-						movement.getId(),
-						cause.getIndex(),
+						movement,
+						cause,
 						targetName));
 	}
 
 	public static void acceptMovementLeaderTargetRequest(Player p) {
-		MovementLeaderTargetRequest req = (MovementLeaderTargetRequest) RequestManager.getRequest(p);
-		if (req == null) {
-			return;
-		}
+		if (!(RequestManager.getRequest(p) instanceof MovementLeaderTargetRequest req)) return;
 		if (!p.getName().equalsIgnoreCase(req.getProposedName())) {
 			p.sendMessage("§cThat request is not for you.");
 			return;
 		}
 		Movement movement = getMovementById(req.getMovementId());
-		if (movement == null || movement.isFrozen()) {
+		if (movement == null || movement != req.getMovement() || movement.isFrozen()) {
 			p.sendMessage("§cThat movement is no longer available.");
 			return;
 		}
-		if (req.getCauseIndex() < 0 || req.getCauseIndex() >= movement.getCauses().size()) {
+		Cause cause = req.getCause();
+		if (cause == null || !movement.getCauses().contains(cause)
+				|| cause.getProposal() == null || !cause.getProposal().needsTarget()) {
 			p.sendMessage("§cSpecified cause no longer exists");
 			return;
 		}
-		Cause cause = movement.getCauses().get(req.getCauseIndex());
-		if (cause == null || cause.getProposal() == null || !cause.getProposal().needsTarget()) {
-			p.sendMessage("§cSpecified cause no longer exists");
+		if (!cause.hasLeader() || !cause.getLeader().equalsIgnoreCase(req.getRequester())) {
+			p.sendMessage("§cThe requester no longer leads that cause.");
 			return;
 		}
 		Faction host = movement.getFaction();

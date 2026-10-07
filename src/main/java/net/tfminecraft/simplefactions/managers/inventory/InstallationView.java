@@ -68,12 +68,13 @@ public class InstallationView {
 
         for (int index = 0; index < installations.size(); index++) {
             int slot = index + 12;
+            if (slot >= 39) slot++;
             if (slot > 44) {
                 break;
             }
             inventory.setItem(slot, creator.createInstallationIcon(installations.get(index)));
         }
-        for (int slot = 12 + installations.size(); slot <= 44; slot++) {
+        for (int slot = 12 + installations.size() + (installations.size() >= 27 ? 1 : 0); slot <= 44; slot++) {
             inventory.setItem(slot, new ItemStack(Material.AIR, 1));
         }
 
@@ -247,11 +248,11 @@ public class InstallationView {
                 player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
                 return;
             }
-            if (slot >= 0 && slot <= 44) {
+            if (slot >= 0 && slot <= 44 && slot != 11) {
                 handleBerthedVehicleClick(event, inventory, player, f);
                 return;
             }
-            if (slot != 11) {
+            if (slot != 11 || !f.getLeader().equalsIgnoreCase(player.getName())) {
                 return;
             }
             ItemStack item = event.getCurrentItem();

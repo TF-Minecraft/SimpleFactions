@@ -36,28 +36,16 @@ public final class LeaderCharacters {
         public static final Remembered NONE = new Remembered(null, null);
     }
 
-    private static final Probe UNAVAILABLE = new Probe() {
-        @Override
-        public String activeCharacterName(String player) {
-            return null;
-        }
-
-        @Override
-        public boolean available() {
-            return false;
-        }
-    };
-
-    private static volatile Probe probe = UNAVAILABLE;
+    private static volatile Probe probe;
 
     private LeaderCharacters() {}
 
     public static void setProbe(Probe next) {
-        probe = next == null ? UNAVAILABLE : next;
+        probe = next;
     }
 
     public static void reset() {
-        probe = UNAVAILABLE;
+        probe = null;
     }
 
     /**
@@ -68,7 +56,7 @@ public final class LeaderCharacters {
     public static Remembered resolve(String leader, String rememberedName, String rememberedFor) {
         if (leader == null || leader.isBlank()) return Remembered.NONE;
         Probe current = probe;
-        if (!current.available()) return Remembered.NONE;
+        if (current == null || !current.available()) return Remembered.NONE;
         String active = clean(current.activeCharacterName(leader));
         if (active != null) return new Remembered(active, leader);
         if (rememberedName != null && leader.equalsIgnoreCase(rememberedFor)) {

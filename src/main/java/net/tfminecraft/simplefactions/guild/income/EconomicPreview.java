@@ -112,9 +112,6 @@ public final class EconomicPreview {
     private static Map<Guild, Double> nets(boolean capitalsOnly) {
         Map<Guild, Double> nets = new HashMap<>();
         for (Guild guild : FactionManager.getAllGuilds()) {
-            if (guild == null || guild.getLedger() == null) {
-                continue;
-            }
             if (capitalsOnly && !guild.hasCapital()) {
                 continue;
             }
