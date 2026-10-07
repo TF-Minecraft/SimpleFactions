@@ -596,6 +596,75 @@ class PluginLifecycleCoverageTest {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void guildConversionRetainsCapitalAfterConfigurationReload(boolean reloadSucceeds)
+      throws Exception {
+    field("guildLoader", new GuildLoader());
+    statics.remove(FactionManager.class).close();
+    statics.put(FactionManager.class, mockStatic(FactionManager.class, CALLS_REAL_METHODS));
+    Path guildTypes =
+        disk.write("Guilds/guild-types.yml", "realm:\n  base: true\nguild:\n  default: true\n");
+    plugin.loadConfigs();
+    Faction ruler = domain.saved("ruler", "Alice");
+    Faction source = domain.saved("subject", "Bob");
+    for (int id : List.of(7, 8))
+      domain.provinceData.put(
+          id, new net.tfminecraft.simplefactions.map.provinces.Province(id, "PLAINS", 1));
+    ruler.addProvince(7);
+    ruler.setCapital(7);
+    source.addProvince(8);
+    source.setCapital(8);
+    domain.subject(ruler, source);
+    var mainGuild = source.getOrCreateMainGuild();
+    mainGuild.addMember("Cara");
+    source.getBank().deposit(20.0);
+    var originalBank = source.getBank();
+    var originalGuildTypes = GuildLoader.get();
+    var originalEntries = new LinkedHashMap<>(originalGuildTypes);
+    Files.writeString(
+        guildTypes,
+        "realm:\n  base: true\n  name: Updated Realm\nguild:\n  default: true\nnew_type: {}\n");
+    if (reloadSucceeds) {
+      assertDoesNotThrow(SimpleFactions::reloadConfigs);
+      assertNotSame(originalEntries.get("realm"), GuildLoader.getBaseType());
+      assertEquals("Updated Realm", GuildLoader.getBaseType().getName());
+      assertNotNull(GuildLoader.getByString("new_type"));
+    } else {
+      Path title = disk.write("Input/county.json", "{ malformed");
+      IllegalStateException failure =
+          assertThrows(IllegalStateException.class, SimpleFactions::reloadConfigs);
+      assertTrue(failure.getMessage().contains("county.json"));
+      assertEquals("{ malformed", Files.readString(title));
+    }
+
+    try (var databases = mockConstruction(Database.class)) {
+      assertSame(ruler, source.dissolve(source.getVassals(), source.getGuildHandler().getGuilds()));
+      verify(databases.constructed().getFirst()).deleteFaction(source);
+    }
+
+    assertAll(
+        () -> {
+          if (!reloadSucceeds) {
+            assertSame(originalGuildTypes, GuildLoader.get());
+            assertEquals(
+                new ArrayList<>(originalEntries.keySet()),
+                new ArrayList<>(GuildLoader.get().keySet()));
+            originalEntries.forEach((id, type) -> assertSame(type, GuildLoader.getByString(id)));
+          }
+        },
+        () -> assertSame(ruler, mainGuild.getFaction()),
+        () -> assertFalse(mainGuild.isBase()),
+        () ->
+            assertEquals(8, mainGuild.getCapital(), "Dissolution must retain the subject capital"),
+        () -> assertSame(originalBank, mainGuild.getBank()),
+        () -> assertEquals(20.0, mainGuild.getBank().getWealth()),
+        () -> assertEquals("Bob", mainGuild.getLeader()),
+        () -> assertTrue(mainGuild.getMembers().containsAll(List.of("Bob", "Cara"))),
+        () -> assertEquals(Set.of(7, 8), Set.copyOf(ruler.getProvinces())),
+        () -> assertFalse(FactionManager.factions.contains(source)));
+  }
+
   private static List<List<?>> identityRegistries() {
     return List.of(
         RankLoader.getRanks(),
