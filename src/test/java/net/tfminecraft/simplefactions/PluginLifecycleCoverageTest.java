@@ -27,6 +27,8 @@ import net.tfminecraft.simplefactions.identity.LeaderCharacterListener;
 import net.tfminecraft.simplefactions.inactivity.InactivityService;
 import net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration;
 import net.tfminecraft.simplefactions.loaders.BattleTemplateLoader;
+import net.tfminecraft.simplefactions.loaders.BranchLoader;
+import net.tfminecraft.simplefactions.loaders.CompanyUpgradeLoader;
 import net.tfminecraft.simplefactions.loaders.ConfigLoader;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
@@ -37,6 +39,7 @@ import net.tfminecraft.simplefactions.loaders.RegionLoader;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.loaders.TierLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
+import net.tfminecraft.simplefactions.loaders.UpgradeLoader;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.managers.CommandManager;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -663,6 +666,130 @@ class PluginLifecycleCoverageTest {
         () -> assertTrue(mainGuild.getMembers().containsAll(List.of("Bob", "Cara"))),
         () -> assertEquals(Set.of(7, 8), Set.copyOf(ruler.getProvinces())),
         () -> assertFalse(FactionManager.factions.contains(source)));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "Guilds/branches.yml",
+        "Guilds/upgrades.yml",
+        "Guilds/company-upgrades.yml",
+        "Input/county.json"
+      })
+  void rejectedReloadRetainsDependentGuildDefinitions(String rejectedFile) throws Exception {
+    var priorCompanyUpgrades = new LinkedHashMap<>(CompanyUpgradeLoader.get());
+    try {
+      field("guildLoader", new GuildLoader());
+      field("branchLoader", new BranchLoader());
+      field("upgradeLoader", new UpgradeLoader());
+      field("companyUpgradeLoader", new CompanyUpgradeLoader());
+      statics.remove(FactionManager.class).close();
+      statics.put(FactionManager.class, mockStatic(FactionManager.class, CALLS_REAL_METHODS));
+      disk.write("Guilds/guild-types.yml", "realm:\n  base: true\nguild:\n  default: true\n");
+      disk.write(
+          "Guilds/branches.yml",
+          """
+          bureaucracy:
+            group: 0
+            allowed-types: [realm]
+          guild_halls:
+            group: 0
+            allowed-types: [guild]
+          workshops:
+            group: 1
+            allowed-types: [realm, guild]
+          """);
+      disk.write("Guilds/upgrades.yml", "storehouse:\n  allowed-types: [realm, guild]\n");
+      disk.write("Guilds/company-upgrades.yml", "company_storehouse:\n  allowed-types: [guild]\n");
+      plugin.loadConfigs();
+      List<Map<String, ?>> registries =
+          List.of(
+              GuildLoader.get(),
+              BranchLoader.get(),
+              UpgradeLoader.get(),
+              CompanyUpgradeLoader.get());
+      List<Map<String, ?>> entries = new ArrayList<>();
+      for (var registry : registries) entries.add(new LinkedHashMap<>(registry));
+      Faction ruler = domain.saved("ruler", "Alice");
+      Faction source = domain.saved("subject", "Bob");
+      for (int id : List.of(7, 8))
+        domain.provinceData.put(
+            id, new net.tfminecraft.simplefactions.map.provinces.Province(id, "PLAINS", 1));
+      ruler.addProvince(7);
+      ruler.setCapital(7);
+      source.addProvince(8);
+      source.setCapital(8);
+      domain.subject(ruler, source);
+      var mainGuild = source.getOrCreateMainGuild();
+      mainGuild.getBranches().get(0).levelUp();
+      mainGuild.getBranches().get(0).levelUp();
+      mainGuild.getUpgrades().getFirst().setLevel(3);
+      mainGuild.addMember("Cara");
+      source.getBank().deposit(20.0);
+      var originalBank = source.getBank();
+      Path broken =
+          disk.write(
+              rejectedFile, rejectedFile.endsWith("json") ? "{ malformed" : "bad: [unterminated\n");
+
+      IllegalStateException failure =
+          assertThrows(IllegalStateException.class, SimpleFactions::reloadConfigs);
+      assertTrue(failure.getMessage().contains(broken.getFileName().toString()));
+      var freshBase = new net.tfminecraft.simplefactions.guild.Guild(ruler);
+      var freshGuild = domain.guild(ruler, "fresh_guild", "Dana");
+      assertAll(
+          () -> {
+            List<Map<String, ?>> current =
+                List.of(
+                    GuildLoader.get(),
+                    BranchLoader.get(),
+                    UpgradeLoader.get(),
+                    CompanyUpgradeLoader.get());
+            for (int i = 0; i < registries.size(); i++) {
+              assertSame(registries.get(i), current.get(i));
+              assertEquals(
+                  new ArrayList<>(entries.get(i).keySet()),
+                  new ArrayList<>(current.get(i).keySet()));
+              for (var entry : entries.get(i).entrySet())
+                assertSame(entry.getValue(), current.get(i).get(entry.getKey()));
+            }
+          },
+          () -> assertEquals(Set.of(0, 1), freshBase.getBranches().keySet()),
+          () -> assertEquals(Set.of(0, 1), freshGuild.getBranches().keySet()),
+          () -> assertNotNull(BranchLoader.getByGroup(GuildLoader.getBaseType(), 0)),
+          () -> assertNotNull(BranchLoader.getByGroup(GuildLoader.getDefaultType(), 0)),
+          () -> assertTrue(UpgradeLoader.getByString("storehouse").isAllowed(freshGuild.getType())),
+          () ->
+              assertTrue(
+                  CompanyUpgradeLoader.getByString("company_storehouse")
+                      .isAllowed(freshGuild.getType())),
+          () -> {
+            try (var databases = mockConstruction(Database.class)) {
+              assertSame(
+                  ruler,
+                  assertDoesNotThrow(
+                      () ->
+                          source.dissolve(
+                              source.getVassals(), source.getGuildHandler().getGuilds())));
+              verify(databases.constructed().getFirst()).deleteFaction(source);
+            }
+            assertSame(ruler, mainGuild.getFaction());
+            assertFalse(mainGuild.isBase());
+            assertEquals(8, mainGuild.getCapital());
+            assertSame(originalBank, mainGuild.getBank());
+            assertEquals(20.0, mainGuild.getBank().getWealth());
+            assertEquals("Bob", mainGuild.getLeader());
+            assertTrue(mainGuild.getMembers().containsAll(List.of("Bob", "Cara")));
+            assertEquals("guild_halls", mainGuild.getBranches().get(0).getId());
+            assertEquals(2, mainGuild.getBranches().get(0).getLevel());
+            assertEquals("workshops", mainGuild.getBranches().get(1).getId());
+            assertEquals(3, mainGuild.getUpgrades().getFirst().getLevel());
+            assertEquals(Set.of(7, 8), Set.copyOf(ruler.getProvinces()));
+            assertFalse(FactionManager.factions.contains(source));
+          });
+    } finally {
+      CompanyUpgradeLoader.get().clear();
+      CompanyUpgradeLoader.get().putAll(priorCompanyUpgrades);
+    }
   }
 
   private static List<List<?>> identityRegistries() {

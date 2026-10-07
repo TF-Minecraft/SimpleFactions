@@ -546,6 +546,9 @@ public class SimpleFactions extends JavaPlugin{
 		var previousTiers = new ArrayList<>(TierLoader.get());
 		var previousTitles = new ArrayList<>(TitleLoader.getTitles());
 		var previousGuildTypes = new LinkedHashMap<>(GuildLoader.get());
+		var previousBranches = new LinkedHashMap<>(BranchLoader.get());
+		var previousUpgrades = new LinkedHashMap<>(UpgradeLoader.get());
+		var previousCompanyUpgrades = new LinkedHashMap<>(CompanyUpgradeLoader.get());
 		try {
 			plugin.loadConfigs();
 		} catch (RuntimeException failure) {
@@ -562,6 +565,12 @@ public class SimpleFactions extends JavaPlugin{
 			TitleLoader.getTitles().addAll(previousTitles);
 			GuildLoader.get().clear();
 			GuildLoader.get().putAll(previousGuildTypes);
+			BranchLoader.get().clear();
+			BranchLoader.get().putAll(previousBranches);
+			UpgradeLoader.get().clear();
+			UpgradeLoader.get().putAll(previousUpgrades);
+			CompanyUpgradeLoader.get().clear();
+			CompanyUpgradeLoader.get().putAll(previousCompanyUpgrades);
 			throw failure;
 		}
 		FactionManager.rebindRanks();
