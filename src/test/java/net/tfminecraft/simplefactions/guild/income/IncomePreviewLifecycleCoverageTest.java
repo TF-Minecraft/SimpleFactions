@@ -431,13 +431,14 @@ class IncomePreviewLifecycleCoverageTest {
         Map<GuildModifier, Double> lowered = BranchIncomePreview.adjust(current, branch, 2, -10);
         assertEquals(8.0, raised.get(GuildModifier.PRODUCTION));
         assertEquals(2.0, lowered.get(GuildModifier.PRODUCTION));
-        double beforeTax = BranchIncomePreview.estimate(prepared, guild, current, raised, 0);
+        BranchIncomePreview.Estimate raisedEstimate =
+            BranchIncomePreview.estimate(prepared, guild, current, raised);
         double afterTax = BranchIncomePreview.estimate(prepared, guild, branch, 1);
-        assertTrue(beforeTax > 0);
+        assertTrue(afterTax > 0);
+        assertEquals(raisedEstimate.own(), afterTax);
         double effectiveTax = home.getTaxRate(TaxTarget.GUILDS, guild.getId(), true) / 100.0;
         assertTrue(effectiveTax > 0 && effectiveTax < 1);
-        assertTrue(afterTax < beforeTax);
-        assertEquals(Math.round(beforeTax * (1 - effectiveTax) * 100.0) / 100.0, afterTax, 0.02);
+        assertTrue(raisedEstimate.realm() > afterTax, "the treasury keeps the guild tax");
         assertTrue(BranchIncomePreview.estimate(live, guild, branch, -1) < 0);
         neighbor.setProsperity(1000);
         live.start(Map.of());

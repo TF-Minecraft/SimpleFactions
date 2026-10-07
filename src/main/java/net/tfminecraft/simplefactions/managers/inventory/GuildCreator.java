@@ -40,6 +40,7 @@ import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.objects.Modifier;
@@ -317,14 +318,14 @@ public class GuildCreator {
 	}
 
 	@SuppressWarnings("deprecation")
-	public void writeUpgradeEstimate(ItemStack item, Guild guild, Branch branch, double delta) {
+	public void writeUpgradeEstimate(ItemStack item, Guild guild, Branch branch, BranchIncomePreview.Estimate estimate) {
 		ItemMeta meta = item.getItemMeta();
-		meta.setLore(upgradeLore(guild, branch, delta));
+		meta.setLore(upgradeLore(guild, branch, estimate));
 		item.setItemMeta(meta);
 	}
 
 	@SuppressWarnings("deprecation")
-	private List<String> upgradeLore(Guild guild, Branch branch, Double delta) {
+	private List<String> upgradeLore(Guild guild, Branch branch, BranchIncomePreview.Estimate estimate) {
 		List<String> lore = new ArrayList<>();
 		lore.add(StringFormatter.formatHex("#575150Current Level: #d6cf69" + branch.getLevel()));
 		lore.add("");
@@ -338,7 +339,7 @@ public class GuildCreator {
 			lore.add("");
 			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
 					guild.getTradeBreakdown().getNetTradeIncome())));
-			lore.add(incomeChangeLine(delta));
+			lore.addAll(incomeChangeLines(estimate));
 		}
 		lore.add("");
 		lore.add(StringFormatter.formatHex("#50e846§lClick to Upgrade"));
@@ -359,14 +360,14 @@ public class GuildCreator {
 	}
 
 	@SuppressWarnings("deprecation")
-	public void writeDowngradeEstimate(ItemStack item, Guild guild, Branch branch, double delta) {
+	public void writeDowngradeEstimate(ItemStack item, Guild guild, Branch branch, BranchIncomePreview.Estimate estimate) {
 		ItemMeta meta = item.getItemMeta();
-		meta.setLore(downgradeLore(guild, branch, delta));
+		meta.setLore(downgradeLore(guild, branch, estimate));
 		item.setItemMeta(meta);
 	}
 
 	@SuppressWarnings("deprecation")
-	private List<String> downgradeLore(Guild guild, Branch branch, Double delta) {
+	private List<String> downgradeLore(Guild guild, Branch branch, BranchIncomePreview.Estimate estimate) {
 		List<String> lore = new ArrayList<>();
 		if (branch.getLevel() <= 0) {
 			lore.add(StringFormatter.formatHex("#575150Current Level: #d6cf69Lowest Level"));
@@ -385,7 +386,7 @@ public class GuildCreator {
 		} else {
 			lore.add(StringFormatter.formatHex("#d4c9aeCurrent Net Trade Income: #7fbd73"+net.tfminecraft.simplefactions.utils.Formatter.formatDouble(
 					guild.getTradeBreakdown().getNetTradeIncome())));
-			lore.add(incomeChangeLine(delta));
+			lore.addAll(incomeChangeLines(estimate));
 		}
 		lore.add("");
 		lore.add(StringFormatter.formatHex(
@@ -396,19 +397,25 @@ public class GuildCreator {
 		return lore;
 	}
 
-	private String incomeChangeLine(Double delta) {
-		if (delta == null) {
-			return StringFormatter.formatHex("#f2e5c2Estimated Income Change#d6cf69: #7a706aCalculating...");
+	/** The guild's own change, then the realm-wide one when sister guilds or the treasury move too. */
+	private List<String> incomeChangeLines(BranchIncomePreview.Estimate estimate) {
+		if (estimate == null) {
+			return List.of(StringFormatter.formatHex("#f2e5c2Estimated Income Change#d6cf69: #7a706aCalculating..."));
 		}
-		if (delta.isNaN()) {
-			return StringFormatter.formatHex("#cf493aIncome estimate unavailable");
+		if (Double.isNaN(estimate.own())) {
+			return List.of(StringFormatter.formatHex("#cf493aIncome estimate unavailable"));
 		}
-		return StringFormatter.formatHex(
-			"#f2e5c2Estimated Income Change#d6cf69: "
-			+ (delta >= 0 ? "#4fd945+" : "#cf493a")
-			+ String.format("%.2f", delta)
-			+ "d/day"
-		);
+		List<String> lines = new ArrayList<>();
+		lines.add(StringFormatter.formatHex("#f2e5c2Estimated Income Change#d6cf69: " + signedPerDay(estimate.own())));
+		if (estimate.realm() != estimate.own()) {
+			lines.add(StringFormatter.formatHex("#f2e5c2Realm-wide Change#d6cf69: " + signedPerDay(estimate.realm())));
+			lines.add(StringFormatter.formatHex("#7a706aAll guilds of the realm, after tax, plus its treasury"));
+		}
+		return lines;
+	}
+
+	private static String signedPerDay(double delta) {
+		return (delta >= 0 ? "#4fd945+" : "#cf493a") + String.format("%.2f", delta) + "d/day";
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.

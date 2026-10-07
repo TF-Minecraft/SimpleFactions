@@ -14,6 +14,8 @@ import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
+import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
+import net.tfminecraft.simplefactions.guild.income.TradeIncome;
 import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
@@ -279,10 +281,37 @@ public class ProvinceManager {
             return 0;
         }
         if(save) guild.getTradeBreakdown().clear();
+        TradeIncome trade = measureIncome(guild, save ? guild.getTradeBreakdown() : null);
+        if(save) {
+            guild.getTradeBreakdown().setTariffs(trade.tariffs());
+            guild.getTradeBreakdown().setUpkeep(trade.upkeep());
+            guild.getTradeBreakdown().setIncome(trade.gross());
+            guild.getTradeBreakdown().setTradePower(getTotalTrade(guild));
+        }
+        double income = trade.gross() - trade.upkeep();
+
+        // Optional rounding for display
+        return Math.round(income * 100.0) / 100.0;
+    }
+
+    /**
+     * The guild's gross trade, trade upkeep, and tariffs on these provinces, without writing its
+     * trade breakdown. Settlement taxes the gross line and deducts upkeep and tariffs from it.
+     */
+    public TradeIncome getTradeIncome(Guild guild) {
+        if (!Cache.provincesEnabled) {
+            return TradeIncome.NONE;
+        }
+        return measureIncome(guild, null);
+    }
+
+    /** One pass over the provinces. A non-null breakdown also receives the per-owner lines. */
+    private TradeIncome measureIncome(Guild guild, TradeBreakdown breakdown) {
         double income = 0;
         double upkeep = 0;
         double upkeepFactor = GuildModifierOverride.resolve(guild, GuildModifier.TRADE_UPKEEP);
         double tariffs = 0;
+        Map<String, Double> tariffsByOwner = new HashMap<>();
 
         for (Province province : provinces.values()) {
             if(!province.getTerrain().generatesIncome()) continue;
@@ -294,28 +323,20 @@ public class ProvinceManager {
                     ? ownerOf(province.getId())
                     : TitleManager.getByProvince(province.getId());
             if(owner != null) {
-                if(save) guild.getTradeBreakdown().registerIncome(owner, provinceIncome);
+                if(breakdown != null) breakdown.registerIncome(owner, provinceIncome);
                 if(!RelationManager.sameRealm(owner, guild.getFaction())){
                     double provinceTariffs = provinceIncome*owner.getTaxRate(TaxTarget.TARIFFS, guild.getFaction().getId(), true)/100.0;
                     tariffs+=provinceTariffs;
-                    if(save && provinceTariffs > 0) {
-                        guild.getTradeBreakdown().registerTariffs(owner, provinceTariffs);
+                    if(provinceTariffs > 0) {
+                        tariffsByOwner.merge(java.util.Objects.toString(owner.getId(), ""), provinceTariffs, Double::sum);
+                        if(breakdown != null) breakdown.registerTariffs(owner, provinceTariffs);
                     }
                 }
             }
             income += provinceIncome;
         }
         income = PillageTradeHit.applyToIncome(guild, income);
-        if(save) {
-            guild.getTradeBreakdown().setTariffs(tariffs);
-            guild.getTradeBreakdown().setUpkeep(upkeep);
-            guild.getTradeBreakdown().setIncome(income);
-            guild.getTradeBreakdown().setTradePower(getTotalTrade(guild));
-        }
-        income-=upkeep;
-
-        // Optional rounding for display
-        return Math.round(income * 100.0) / 100.0;
+        return new TradeIncome(income, upkeep, tariffs, tariffsByOwner);
     }
 
     /** The gross trade line, before upkeep and tariffs, without writing a guild breakdown. */

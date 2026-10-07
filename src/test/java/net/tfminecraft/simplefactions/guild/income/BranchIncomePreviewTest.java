@@ -114,15 +114,30 @@ class BranchIncomePreviewTest {
 	}
 
 	@Test
-	void guildTaxScalesTheTradeDelta() {
+	void guildTaxMovesIncomeToTheTreasuryWithoutChangingTheRealmTotal() {
+		BranchIncomePreview.Prepared prepared = BranchIncomePreview.prepare(live);
+		Map<GuildModifier, Double> current = BranchIncomePreview.modifiers(guild);
+		Map<GuildModifier, Double> raised = BranchIncomePreview.adjust(current, branch, branch.getLevel(), 1);
+		BranchIncomePreview.Estimate untaxed = BranchIncomePreview.estimate(prepared, guild, current, raised);
+		when(faction.getTaxRate(TaxTarget.GUILDS, "fields", true)).thenReturn(50.0);
+		BranchIncomePreview.Estimate taxed = BranchIncomePreview.estimate(prepared, guild, current, raised);
+
+		assertTrue(untaxed.own() > 0);
+		assertEquals(untaxed.own(), untaxed.realm());
+		assertTrue(taxed.own() < untaxed.own());
+		assertEquals(untaxed.realm(), taxed.realm(), 0.01);
+		assertEquals(2, branch.getLevel());
+	}
+
+	@Test
+	void theRealmGuildPaysNoGuildTaxOnItsOwnTrade() {
 		when(faction.getTaxRate(TaxTarget.GUILDS, "fields", true)).thenReturn(0.0);
 		double untaxed = live.previewUpgradeIncomeExact(guild, branch);
 		when(faction.getTaxRate(TaxTarget.GUILDS, "fields", true)).thenReturn(50.0);
-		double taxed = live.previewUpgradeIncomeExact(guild, branch);
+		when(guild.isBase()).thenReturn(true);
 
-		assertTrue(untaxed > 0);
-		assertEquals(Math.round(untaxed * 0.5 * 100.0) / 100.0, taxed, 0.02);
-		assertEquals(2, branch.getLevel());
+		assertEquals(0.0, BranchIncomePreview.taxFraction(guild));
+		assertEquals(untaxed, live.previewUpgradeIncomeExact(guild, branch));
 	}
 
 	@Test
@@ -142,19 +157,19 @@ class BranchIncomePreviewTest {
 		Map<GuildModifier, Double> raised = BranchIncomePreview.adjust(current, branch, branch.getLevel(), 1);
 		Map<GuildModifier, Double> lowered = BranchIncomePreview.adjust(current, branch, branch.getLevel(), -1);
 
-		double expectedRaise = BranchIncomePreview.estimate(prepared, guild, current, raised, 0);
-		double expectedLower = BranchIncomePreview.estimate(prepared, guild, current, lowered, 0);
+		BranchIncomePreview.Estimate expectedRaise = BranchIncomePreview.estimate(prepared, guild, current, raised);
+		BranchIncomePreview.Estimate expectedLower = BranchIncomePreview.estimate(prepared, guild, current, lowered);
 
 		ExecutorService pool = Executors.newFixedThreadPool(2);
 		try {
 			CountDownLatch start = new CountDownLatch(1);
-			Future<Double> raise = pool.submit(() -> {
+			Future<BranchIncomePreview.Estimate> raise = pool.submit(() -> {
 				start.await();
-				return BranchIncomePreview.estimate(prepared, guild, current, raised, 0);
+				return BranchIncomePreview.estimate(prepared, guild, current, raised);
 			});
-			Future<Double> lower = pool.submit(() -> {
+			Future<BranchIncomePreview.Estimate> lower = pool.submit(() -> {
 				start.await();
-				return BranchIncomePreview.estimate(prepared, guild, current, lowered, 0);
+				return BranchIncomePreview.estimate(prepared, guild, current, lowered);
 			});
 			start.countDown();
 			assertEquals(expectedRaise, raise.get(10, TimeUnit.SECONDS));
