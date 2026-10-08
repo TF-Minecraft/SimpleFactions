@@ -49,7 +49,6 @@ public final class BranchIncomePreviewService {
         boolean upgrade = levelDelta > 0;
         Map<GuildModifier, Double> current = BranchIncomePreview.modifiers(guild);
         Map<GuildModifier, Double> hypothetical = BranchIncomePreview.adjust(current, branch, level, levelDelta);
-        double taxFraction = BranchIncomePreview.taxFraction(guild);
         String guildId = guild.getId();
         String branchId = branch.getId();
         long token = TOKENS.incrementAndGet();
@@ -57,20 +56,20 @@ public final class BranchIncomePreviewService {
         inventory.setItem(slot, item);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            double delta;
+            BranchIncomePreview.Estimate estimate;
             try {
-                delta = BranchIncomePreview.estimate(prepared, guild, current, hypothetical, taxFraction);
+                estimate = BranchIncomePreview.estimate(prepared, guild, current, hypothetical);
             } catch (RuntimeException ex) {
                 plugin.getLogger().log(
                         Level.WARNING,
                         "Branch income preview failed for guild " + guildId + " branch " + branchId,
                         ex);
-                delta = Double.NaN;
+                estimate = BranchIncomePreview.Estimate.UNAVAILABLE;
             }
             if (!plugin.isEnabled()) {
                 return;
             }
-            double result = delta;
+            BranchIncomePreview.Estimate result = estimate;
             Bukkit.getScheduler().runTask(plugin, () -> publish(
                     player, inventory, slot, token, guild, branch, upgrade, level, result));
         });
@@ -85,7 +84,7 @@ public final class BranchIncomePreviewService {
             Branch branch,
             boolean upgrade,
             int level,
-            double delta) {
+            BranchIncomePreview.Estimate estimate) {
         if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) {
             return;
         }
@@ -97,9 +96,9 @@ public final class BranchIncomePreviewService {
             return;
         }
         if (upgrade) {
-            CREATOR.writeUpgradeEstimate(item, guild, branch, delta);
+            CREATOR.writeUpgradeEstimate(item, guild, branch, estimate);
         } else {
-            CREATOR.writeDowngradeEstimate(item, guild, branch, delta);
+            CREATOR.writeDowngradeEstimate(item, guild, branch, estimate);
         }
         inventory.setItem(slot, item);
     }
