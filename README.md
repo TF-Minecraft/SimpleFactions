@@ -12,30 +12,9 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 - **Layered diplomacy** — form alliances, establish subject and overlord relationships, negotiate treaties, and impose trade embargoes.
 - **National economies** — manage wealth and taxation, including income moving through relationships between members, nations, and overlords.
 - **Settlements and guilds** — establish named cities and capitals and organise groups within a nation.
-- **Military infrastructure** — construct forts, ports, airports, and train stations with `/faction construct <fort|port|airport|train_station> <name>`.
+- **Military infrastructure** — construct forts, ports, airports, and train stations; transport networks extend guild trade and production.
 - **Espionage** — appoint a Spymaster, protect faction secrets, and obtain shared daily intelligence estimates.
 - **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
-
-## Installation trade
-
-Ports, airports and train stations carry a guild's trade and production further, and so do the sea lanes and railways between them. Trade can board a line at any province along it, and it is strongest on and off at installations.
-
-A guild uses installations in its own realm fully. An embargo or a war closes them. Otherwise access is the better of the trade agreement and the two realms' economy laws. An isolationist host stays closed to foreigners without an agreement.
-
-| Economy law | Grants to foreign guilds | Own guilds' reach abroad |
-|---|---|---|
-| Free trade | 50% | +10% |
-| Decentralized | 35% | 0 |
-| Mercantilism | 15% | +20% |
-| Protectionism | 10% | 0 |
-| Isolationism | 0 | -25% |
-
-Config keys:
-
-- `installation-trade.transport` — rail, sea, and air, each with `trade`, `production`, and `kept-per-1000-blocks`
-- `installation-trade.corridor-share`
-- Relation types: `installation-access` and `blocks-installations`
-- Law modifier: `installation_access`
 
 ## A shared political world
 
@@ -53,7 +32,7 @@ Technical documentation is maintained in [TF-Minecraft/Docs](https://github.com/
 
 [Espionage and special positions](https://github.com/TF-Minecraft/Docs/blob/main/projects/SimpleFactions/docs/espionage.md)
 
-## Tests
+## Tests and coverage
 
 Run `mvn clean verify` with Java 21, as CI does. The build needs the private
 dependency jars and shared TF-Minecraft plugins described in the project
@@ -63,9 +42,8 @@ The suite in `src/test` uses JUnit 5 and Mockito, mocking the Paper and plugin
 APIs rather than starting a server. It checks plugin logic, not behaviour on a
 live Paper server. Surefire writes reports to `target/surefire-reports/`. JaCoCo
 writes HTML and XML reports to `target/site/jacoco/`; `verify` requires 100%
-production line coverage with no
-class or package exclusions. This is a line coverage gate, not a branch coverage
-guarantee. CI uploads both test and coverage reports.
+production line coverage with no class or package exclusions. Branch coverage
+is reported separately. CI uploads both test and coverage reports.
 
 ## License
 
