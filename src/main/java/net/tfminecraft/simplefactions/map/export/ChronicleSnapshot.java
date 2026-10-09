@@ -15,6 +15,7 @@ import com.google.gson.JsonObject;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
@@ -217,6 +218,13 @@ public final class ChronicleSnapshot {
 					branchLevels.addProperty(branch.getId(), branch.getLevel());
 				}
 				row.add("branch_levels", branchLevels);
+				JsonObject passiveCashflows = new JsonObject();
+				for (Cashflow cashflow : Cashflow.values()) {
+					if (cashflow.affectsInflation()) {
+						passiveCashflows.addProperty(cashflow.name(), guild.getLedger().getIncome(cashflow));
+					}
+				}
+				row.add("passive_cashflows", passiveCashflows);
 				rows.add(row);
 			}
 		}

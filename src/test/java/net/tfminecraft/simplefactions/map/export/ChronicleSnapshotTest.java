@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.gson.JsonObject;
 
@@ -19,6 +20,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildType;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
+import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
@@ -219,6 +221,39 @@ class ChronicleSnapshotTest {
 			assertEquals(9, next.get("size").getAsInt());
 			assertEquals(4, next.getAsJsonObject("branch_levels").get("workshops").getAsInt());
 			assertEquals(0, first.getAsJsonObject("branch_levels").get("workshops").getAsInt());
+		});
+	}
+
+	@Test
+	void snapshot_includesOnlyCurrentPassiveCashflowsWithoutASeparateNodeSave() {
+		withSnapshot((root, faction) -> {
+			Guild guild = faction.getGuildHandler().getGuilds().get(1);
+			Ledger ledger = guild.getLedger();
+			for (Cashflow cashflow : Cashflow.values()) {
+				when(ledger.getIncome(cashflow)).thenReturn(999.0);
+			}
+			when(ledger.getIncome(Cashflow.TRADE)).thenReturn(125.0);
+			when(ledger.getIncome(Cashflow.TRADE_UPKEEP)).thenReturn(-10.0);
+			when(ledger.getIncome(Cashflow.NODES)).thenReturn(-34.0);
+			JsonObject first = ChronicleSnapshot.build(List.of(faction), 143, 43200,
+					Instant.parse("2026-09-01T10:35:00Z")).getAsJsonArray("guilds").get(1)
+					.getAsJsonObject().getAsJsonObject("passive_cashflows");
+			assertEquals(Set.of("TRADE", "TRADE_UPKEEP", "UPGRADES_UPKEEP", "PENALTIES",
+					"INSTALLATIONS", "VEHICLE_UPKEEP", "MILITARY_UPKEEP", "NODES", "DONATION_FEE"),
+					first.keySet());
+			for (Cashflow cashflow : Cashflow.values()) {
+				assertEquals(cashflow.affectsInflation(), first.has(cashflow.name()), cashflow.name());
+			}
+			assertEquals(125.0, first.get("TRADE").getAsDouble(), 1e-9);
+			assertEquals(-10.0, first.get("TRADE_UPKEEP").getAsDouble(), 1e-9);
+			assertEquals(-34.0, first.get("NODES").getAsDouble(), 1e-9);
+
+			when(ledger.getIncome(Cashflow.NODES)).thenReturn(0.0);
+			JsonObject next = ChronicleSnapshot.build(List.of(faction), 143, 43500,
+					Instant.parse("2026-09-01T10:40:00Z")).getAsJsonArray("guilds").get(1)
+					.getAsJsonObject().getAsJsonObject("passive_cashflows");
+			assertEquals(0.0, next.get("NODES").getAsDouble(), 1e-9);
+			assertEquals(-34.0, first.get("NODES").getAsDouble(), 1e-9);
 		});
 	}
 
