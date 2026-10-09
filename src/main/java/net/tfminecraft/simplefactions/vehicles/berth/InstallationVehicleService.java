@@ -87,10 +87,6 @@ public final class InstallationVehicleService {
             return CanRegisterResult.OUT_OF_RADIUS;
         }
 
-        if (!InstallationBounds.isCorrectProvince(installation, vehicleLocation)) {
-            return CanRegisterResult.WRONG_PROVINCE;
-        }
-
         return CanRegisterResult.OK;
     }
 
@@ -175,7 +171,6 @@ public final class InstallationVehicleService {
         UNSUPPORTED_CATEGORY,
         NO_CAPACITY,
         OUT_OF_RADIUS,
-        WRONG_PROVINCE,
         REPAIR_LOCKED
     }
 

@@ -304,6 +304,23 @@ class VehicleInteractionsCoverageTest {
     verify(leader).sendMessage(VehicleTransferMessages.ownerTooFar(20));
   }
 
+  @Test
+  void aVehicleInAnotherProvinceWithinRadiusCanBeBerthed() {
+    arm(false);
+    when(vehicle.getLocation()).thenAnswer(call -> new Location(fixture.ui.world, -1, 64, 0));
+    assertTrue(click().isCancelled());
+    assertNull(sessions.get(leader.getUniqueId()));
+    var request =
+        assertInstanceOf(VehicleTransferConsentRequest.class, RequestManager.getRequest(owner));
+    assertEquals("Harbor", request.getInstallationName());
+    assertPersonalOwnershipUnchanged();
+    RequestManager.accept(owner);
+    PlayerVehicleRecord updated = registry.getByVehicleUuid("vehicle-1").orElseThrow();
+    assertEquals(OwnershipMode.INSTALLATION, updated.getMode());
+    assertEquals("harbor", updated.getInstallationId());
+    verify(fixture.ui.plugin).saveVehicleRegistry();
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void nearbyOwnersAcceptIntoTheRequestedFactionStoreExactlyOnce(boolean pool) {
@@ -429,7 +446,6 @@ class VehicleInteractionsCoverageTest {
         "berth_unknown",
         "pool_unknown",
         "berth_radius",
-        "berth_province",
         "berth_capacity",
         "pool_must_berth",
         "berth_unowned",
@@ -448,8 +464,6 @@ class VehicleInteractionsCoverageTest {
       when(vehicle.getLocation()).thenAnswer(call -> new Location(fixture.ui.world, 90, 64, 0));
       when(owner.getLocation()).thenAnswer(call -> new Location(fixture.ui.world, 90, 64, 0));
     }
-    if (state.endsWith("province"))
-      when(vehicle.getLocation()).thenAnswer(call -> new Location(fixture.ui.world, -1, 64, 0));
     if (state.endsWith("capacity")) fillPort();
     if (state.endsWith("unowned")) ownerData.setOwner("none");
     int count = registry.getAll().size();

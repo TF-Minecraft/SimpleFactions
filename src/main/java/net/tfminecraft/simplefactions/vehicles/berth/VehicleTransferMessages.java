@@ -32,7 +32,6 @@ public final class VehicleTransferMessages {
             case UNSUPPORTED_CATEGORY -> unsupportedCategory(installation, vehicleTypeId);
             case NO_CAPACITY -> noCapacity(installation, vehicleTypeId);
             case OUT_OF_RADIUS -> outOfRadius(installation, vehicle);
-            case WRONG_PROVINCE -> wrongProvince(installation, vehicle);
             case REPAIR_LOCKED -> VehicleInstallationLockService.BERTH_BLOCKED;
         };
     }
@@ -148,12 +147,6 @@ public final class VehicleTransferMessages {
         return "§cVehicle must be within " + radius + " blocks of "
                 + installation.getName() + " (currently "
                 + InstallationBounds.formatDistance(distance) + ").";
-    }
-
-    private static String wrongProvince(Installation installation, ActiveVehicle vehicle) {
-        int required = installation.getProvince();
-        int actual = InstallationBounds.provinceAt(vehicle == null ? null : vehicle.getLocation());
-        return "§cVehicle must be in province " + required + " (currently " + actual + ").";
     }
 
     public static String ownerChanged() {
