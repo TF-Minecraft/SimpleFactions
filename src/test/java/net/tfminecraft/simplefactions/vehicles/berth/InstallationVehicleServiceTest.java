@@ -124,7 +124,6 @@ class InstallationVehicleServiceTest {
 
         try (MockedStatic<InstallationBounds> bounds = mockStatic(InstallationBounds.class)) {
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(port), any())).thenReturn(true);
-            bounds.when(() -> InstallationBounds.isCorrectProvince(eq(port), any())).thenReturn(true);
 
             assertEquals(
                 CanRegisterResult.NO_CAPACITY,
@@ -146,7 +145,7 @@ class InstallationVehicleServiceTest {
     }
 
     @Test
-    void canRegister_wrongProvince_returnsWrongProvince() {
+    void canRegister_otherProvinceWithinRadius_returnsOk() {
         VehicleBerthTarget vehicle = ownedTarget("vehicle-1", "ironclad");
 
         try (MockedStatic<InstallationBounds> bounds = mockStatic(InstallationBounds.class)) {
@@ -154,7 +153,7 @@ class InstallationVehicleServiceTest {
             bounds.when(() -> InstallationBounds.isCorrectProvince(eq(port), any())).thenReturn(false);
 
             assertEquals(
-                CanRegisterResult.WRONG_PROVINCE,
+                CanRegisterResult.OK,
                 service.canRegister(port, vehicle));
         }
     }
@@ -180,7 +179,6 @@ class InstallationVehicleServiceTest {
 
         try (MockedStatic<InstallationBounds> bounds = mockStatic(InstallationBounds.class)) {
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(port), any())).thenReturn(true);
-            bounds.when(() -> InstallationBounds.isCorrectProvince(eq(port), any())).thenReturn(true);
 
             assertEquals(
                 CanRegisterResult.OK,
@@ -194,7 +192,6 @@ class InstallationVehicleServiceTest {
 
         try (MockedStatic<InstallationBounds> bounds = mockStatic(InstallationBounds.class)) {
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(fort), any())).thenReturn(true);
-            bounds.when(() -> InstallationBounds.isCorrectProvince(eq(fort), any())).thenReturn(true);
 
             assertEquals(
                 CanRegisterResult.OK,
@@ -235,7 +232,6 @@ class InstallationVehicleServiceTest {
 
         try (MockedStatic<InstallationBounds> bounds = mockStatic(InstallationBounds.class)) {
             bounds.when(() -> InstallationBounds.isWithinRadius(eq(fort), any())).thenReturn(true);
-            bounds.when(() -> InstallationBounds.isCorrectProvince(eq(fort), any())).thenReturn(true);
 
             assertEquals(
                 CanRegisterResult.NO_CAPACITY,

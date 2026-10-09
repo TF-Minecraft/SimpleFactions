@@ -137,21 +137,6 @@ class VehicleTransferMessagesTest {
     }
 
     @Test
-    void wrongProvince_usesLockedCopy() {
-        try (MockedStatic<InstallationBounds> bounds = mockStatic(InstallationBounds.class)) {
-            bounds.when(() -> InstallationBounds.provinceAt(null)).thenReturn(99);
-
-            String message = VehicleTransferMessages.forResult(
-                    CanRegisterResult.WRONG_PROVINCE,
-                    port,
-                    null,
-                    null);
-            assertEquals("§cVehicle must be in province 42 (currently 99).", message);
-            assertFalse(message.contains("—"));
-        }
-    }
-
-    @Test
     void noCapacity_usesLockedCopy() {
         PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
         for (int i = 0; i < 8; i++) {
