@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import com.google.gson.JsonObject;
 
@@ -17,6 +18,7 @@ import org.mockito.MockedStatic;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildType;
+import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
@@ -58,6 +60,7 @@ class ChronicleSnapshotTest {
 		when(guild.getBank()).thenReturn(bank);
 		when(guild.getTotalExpansionSpent()).thenReturn(0.0);
 		when(guild.getSize()).thenReturn(0);
+		when(guild.getBranches()).thenReturn(Map.of());
 	}
 
 	private static Faction faction() {
@@ -188,6 +191,34 @@ class ChronicleSnapshotTest {
 			assertTrue(root.has("global"));
 			assertTrue(root.get("factions").isJsonArray());
 			assertTrue(root.get("guilds").isJsonArray());
+		});
+	}
+
+	@Test
+	void snapshot_includesCurrentBranchLevelsWithoutASeparateFactionSave() {
+		withSnapshot((root, faction) -> {
+			Guild guild = faction.getGuildHandler().getGuilds().get(1);
+			Branch halls = mock(Branch.class);
+			when(halls.getId()).thenReturn("guild_halls");
+			when(halls.getLevel()).thenReturn(5);
+			Branch workshops = mock(Branch.class);
+			when(workshops.getId()).thenReturn("workshops");
+			when(workshops.getLevel()).thenReturn(0);
+			when(guild.getBranches()).thenReturn(Map.of(0, halls, 1, workshops));
+			when(guild.getSize()).thenReturn(5);
+			JsonObject first = ChronicleSnapshot.build(List.of(faction), 143, 43200,
+					Instant.parse("2026-09-01T10:35:00Z")).getAsJsonArray("guilds").get(1).getAsJsonObject();
+			assertEquals(5, first.get("size").getAsInt());
+			assertEquals(5, first.getAsJsonObject("branch_levels").get("guild_halls").getAsInt());
+			assertEquals(0, first.getAsJsonObject("branch_levels").get("workshops").getAsInt());
+
+			when(workshops.getLevel()).thenReturn(4);
+			when(guild.getSize()).thenReturn(9);
+			JsonObject next = ChronicleSnapshot.build(List.of(faction), 143, 43500,
+					Instant.parse("2026-09-01T10:40:00Z")).getAsJsonArray("guilds").get(1).getAsJsonObject();
+			assertEquals(9, next.get("size").getAsInt());
+			assertEquals(4, next.getAsJsonObject("branch_levels").get("workshops").getAsInt());
+			assertEquals(0, first.getAsJsonObject("branch_levels").get("workshops").getAsInt());
 		});
 	}
 

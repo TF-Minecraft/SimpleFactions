@@ -212,6 +212,11 @@ public final class ChronicleSnapshot {
 				row.addProperty("trade_power", guild.getTradeBreakdown().getTradePower());
 				row.addProperty("credit_score", guild.getLoanHandler().getCreditScore());
 				row.addProperty("size", guild.getSize());
+				JsonObject branchLevels = new JsonObject();
+				for (var branch : guild.getBranches().values()) {
+					branchLevels.addProperty(branch.getId(), branch.getLevel());
+				}
+				row.add("branch_levels", branchLevels);
 				rows.add(row);
 			}
 		}
