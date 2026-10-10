@@ -461,7 +461,7 @@ public class RelationManager {
 	public static List<Faction> getAllies(Faction f){
 		List<Faction> allies = new ArrayList<>();
 		for(Map.Entry<String, Relation> entry : f.getRelations().entrySet()) {
-			if(entry.getValue().getType().getId().equalsIgnoreCase("ally")) allies.add(FactionManager.getByString(entry.getKey()));
+			if(isAlly(entry.getValue())) allies.add(FactionManager.getByString(entry.getKey()));
 		}
 		return allies;
 	}

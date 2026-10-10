@@ -248,6 +248,22 @@ class RelationManagerSetRelationTest {
 		assertFalse(RelationManager.isAlly(fx.origin, fx.target));
 	}
 
+	@Test
+	void alliesSkipRelationsWithoutAType() {
+		Faction faction = mock(Faction.class);
+		Faction ally = mock(Faction.class);
+		RelationType allyType = mock(RelationType.class);
+		when(allyType.getId()).thenReturn("ally");
+		HashMap<String, Relation> relations = new HashMap<>();
+		relations.put("ally", new Relation(allyType, mock(Attitude.class), 0));
+		relations.put("untyped", new Relation(null, mock(Attitude.class), 0));
+		when(faction.getRelations()).thenReturn(relations);
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			factions.when(() -> FactionManager.getByString("ally")).thenReturn(ally);
+			assertEquals(java.util.List.of(ally), RelationManager.getAllies(faction));
+		}
+	}
+
 	private static void assertOriginTypeSet(Fixture fx) {
 		ArgumentCaptor<Relation> captor = ArgumentCaptor.forClass(Relation.class);
 		verify(fx.origin).setRelation(eq(fx.target), captor.capture());
