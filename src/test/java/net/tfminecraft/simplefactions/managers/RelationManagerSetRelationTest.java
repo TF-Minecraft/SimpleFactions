@@ -219,6 +219,51 @@ class RelationManagerSetRelationTest {
 		verify(targetDip).setTradeRelation(fx.origin, link);
 	}
 
+	@Test
+	void endingAnAllianceForgetsTodaysSharedReports() {
+		Fixture fx = fixture();
+		when(fx.currentType.getId()).thenReturn("ally");
+		when(fx.type.getId()).thenReturn("neutral");
+		try (MockedStatic<net.tfminecraft.simplefactions.espionage.EspionageService> espionage =
+				mockStatic(net.tfminecraft.simplefactions.espionage.EspionageService.class)) {
+			assertTrue(RelationManager.setRelationForced(fx.type, fx.target, fx.origin));
+			espionage.verify(() -> net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(fx.origin, fx.target));
+		}
+	}
+
+	@Test
+	void formingAnAllianceKeepsReports() {
+		Fixture fx = fixture();
+		try (MockedStatic<net.tfminecraft.simplefactions.espionage.EspionageService> espionage =
+				mockStatic(net.tfminecraft.simplefactions.espionage.EspionageService.class)) {
+			assertTrue(RelationManager.setRelationForced(fx.type, fx.target, fx.origin));
+			espionage.verify(() -> net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(any(), any()), never());
+		}
+		assertFalse(RelationManager.isAlly(fx.origin, fx.target), "The mocked stored relation is unchanged");
+		when(fx.origin.getRelation("target")).thenReturn(new Relation(fx.type, mock(Attitude.class), 0));
+		assertTrue(RelationManager.isAlly(fx.origin, fx.target));
+		assertFalse(RelationManager.isAlly(null, fx.target));
+		assertFalse(RelationManager.isAlly(fx.origin, null));
+		when(fx.origin.getRelation("target")).thenReturn(null);
+		assertFalse(RelationManager.isAlly(fx.origin, fx.target));
+	}
+
+	@Test
+	void alliesSkipRelationsWithoutAType() {
+		Faction faction = mock(Faction.class);
+		Faction ally = mock(Faction.class);
+		RelationType allyType = mock(RelationType.class);
+		when(allyType.getId()).thenReturn("ally");
+		HashMap<String, Relation> relations = new HashMap<>();
+		relations.put("ally", new Relation(allyType, mock(Attitude.class), 0));
+		relations.put("untyped", new Relation(null, mock(Attitude.class), 0));
+		when(faction.getRelations()).thenReturn(relations);
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+			factions.when(() -> FactionManager.getByString("ally")).thenReturn(ally);
+			assertEquals(java.util.List.of(ally), RelationManager.getAllies(faction));
+		}
+	}
+
 	private static void assertOriginTypeSet(Fixture fx) {
 		ArgumentCaptor<Relation> captor = ArgumentCaptor.forClass(Relation.class);
 		verify(fx.origin).setRelation(eq(fx.target), captor.capture());

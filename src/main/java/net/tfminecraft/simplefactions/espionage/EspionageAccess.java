@@ -19,10 +19,30 @@ public final class EspionageAccess {
             SFGUI.LAW_VIEW, SFGUI.LAW_SELECT, SFGUI.TAX_VIEW, SFGUI.TAX_VIEW_SPECIFIC,
             SFGUI.SPECIAL_POSITIONS, SFGUI.SPYMASTER_VIEW, SFGUI.SPYMASTER_SETTINGS, SFGUI.SPYMASTER_SELECT);
 
+    // Regiments, training and the vehicle pool. Installation berths are hidden inside their menu.
+    private static final Set<SFGUI> COVERT_MENUS = EnumSet.of(SFGUI.MILITARY_VIEW);
+
+    // Ledger lines that reveal army or vehicle numbers; totals still include them.
+    private static final Set<net.tfminecraft.simplefactions.guild.income.Cashflow> COVERT_CASHFLOWS = EnumSet.of(
+            net.tfminecraft.simplefactions.guild.income.Cashflow.MILITARY_UPKEEP,
+            net.tfminecraft.simplefactions.guild.income.Cashflow.VEHICLE_UPKEEP,
+            net.tfminecraft.simplefactions.guild.income.Cashflow.VEHICLE_FEES,
+            net.tfminecraft.simplefactions.guild.income.Cashflow.MERCENARY_PAYMENTS);
+
     private EspionageAccess() {}
+
+    public static boolean covert(net.tfminecraft.simplefactions.guild.income.Cashflow flow) {
+        return COVERT_CASHFLOWS.contains(flow);
+    }
 
     public static boolean requiresOwn(SFGUI type) {
         return type != null && PRIVATE_MENUS.contains(type);
+    }
+
+    /** Covert menus stay guarded even when the rest of a faction is public. */
+    public static boolean canView(Player player, Faction faction, SFGUI type) {
+        return COVERT_MENUS.contains(type) ? EspionageService.canViewCovert(player, faction)
+                : EspionageService.canViewExact(player, faction);
     }
 
     public static Faction owner(SFInventoryHolder holder) {
@@ -38,7 +58,7 @@ public final class EspionageAccess {
         boolean office = holder.getType() == SFGUI.SPECIAL_POSITIONS
                 || holder.getType() == SFGUI.SPYMASTER_VIEW
                 || holder.getType() == SFGUI.SPYMASTER_SETTINGS || holder.getType() == SFGUI.SPYMASTER_SELECT;
-        if (office ? !EspionageService.isOwn(player, faction) : !EspionageService.canViewExact(player, faction)) return true;
+        if (office ? !EspionageService.isOwn(player, faction) : !canView(player, faction, holder.getType())) return true;
         if (holder.getType() == SFGUI.SPYMASTER_SETTINGS) {
             var spymaster = EspionageService.spymaster(faction);
             return spymaster == null || !spymaster.isHolder(player.getUniqueId());

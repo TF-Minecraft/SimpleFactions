@@ -339,6 +339,15 @@ class EspionageOperationsCoverageTest {
     EspionageService.refreshReports(candidate);
     assertSame(report, EspionageService.report(candidate, target));
     assertEquals(wealthEstimate, report.estimate("Wealth"));
+    assertTrue(report.estimates.containsKey("Army"));
+    // Today's report from before army and vehicle intelligence is rebuilt under the same rolls.
+    report.version = 1;
+    EspionageService.refreshReports(candidate);
+    IntelligenceReport rebuilt = EspionageService.report(candidate, target);
+    assertNotSame(report, rebuilt);
+    assertEquals(IntelligenceReport.VERSION, rebuilt.version);
+    assertEquals(report.tier(), rebuilt.tier());
+    report = rebuilt;
     assertEquals(2, EspionageService.regenerateReports());
     assertNotSame(report, EspionageService.report(leader, target));
     assertNotNull(EspionageService.report(foreign, home));
@@ -495,17 +504,20 @@ class EspionageOperationsCoverageTest {
     assertTrue(
         EspionageCommands.handle(leader, new String[] {"spymaster", "share", "vassals", "none"}));
     assertEquals(IntelligenceTier.UNKNOWN, home.getEspionage().sharing(SharingPartner.VASSALS));
-    clearInvocations(leader);
     assertTrue(
         EspionageCommands.handle(leader, new String[] {"spymaster", "share", "allies", "broad"}));
+    assertEquals(IntelligenceTier.BROAD, home.getEspionage().sharing(SharingPartner.ALLIES));
+    clearInvocations(leader);
+    assertTrue(
+        EspionageCommands.handle(leader, new String[] {"spymaster", "share", "friends", "broad"}));
     assertTrue(
         EspionageCommands.handle(
             leader, new String[] {"spymaster", "share", "overlord", "everything"}));
     assertEquals(IntelligenceTier.RELIABLE, home.getEspionage().sharing(SharingPartner.OVERLORD));
-    verify(leader, times(2)).sendMessage(contains("<overlord|vassals>"));
+    verify(leader, times(2)).sendMessage(contains("<overlord|vassals|allies>"));
     assertTrue(EspionageCommands.complete(leader, new String[] {"spymaster", ""}).contains("share"));
     assertEquals(
-        List.of("overlord", "vassals"),
+        List.of("overlord", "vassals", "allies"),
         EspionageCommands.complete(leader, new String[] {"spymaster", "share", ""}));
     assertEquals(
         List.of("rumours", "reliable"),

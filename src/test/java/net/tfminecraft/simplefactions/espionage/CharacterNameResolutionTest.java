@@ -7,6 +7,9 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 class CharacterNameResolutionTest {
+    @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
+    @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
+
     @org.junit.jupiter.api.io.TempDir java.nio.file.Path folder;
 
     @Test void foreignFallbackHidesAccountsOnlyWhenRoleplayIsEnabled() {

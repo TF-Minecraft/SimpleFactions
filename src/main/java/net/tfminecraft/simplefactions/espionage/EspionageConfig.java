@@ -18,7 +18,7 @@ public final class EspionageConfig {
     private static double base = 50, extraPositionPenalty = .25, rollMultiplier = 1.25;
     private static int center = 6, cap = 16, aptitudeSpread = 20, luckSpread = 75, luckDraws = 3, rosterLimit = 23;
     private static int overlordOffenseBonus = 25, overlordDefenseBonus = 25;
-    private static boolean sharingAllowed = true;
+    private static boolean sharingAllowed = true, militaryOnly = true;
     private static final Map<IntelligenceTier, TierSettings> tiers = new java.util.EnumMap<>(IntelligenceTier.class);
     private static final Map<String, IntelligenceTier> minimums = new LinkedHashMap<>();
     private static final Map<String, IntelligenceTier> cashflows = new LinkedHashMap<>();
@@ -27,8 +27,11 @@ public final class EspionageConfig {
             Map.entry("members", IntelligenceTier.RUMOURS), Map.entry("roster", IntelligenceTier.RUMOURS),
             Map.entry("wealth", IntelligenceTier.RUMOURS), Map.entry("prosperity", IntelligenceTier.BROAD),
             Map.entry("stability", IntelligenceTier.BROAD), Map.entry("administrative-power", IntelligenceTier.RELIABLE),
-            Map.entry("professional-army", IntelligenceTier.RELIABLE), Map.entry("levies", IntelligenceTier.BROAD),
-            Map.entry("mercenaries", IntelligenceTier.RELIABLE), Map.entry("installations", IntelligenceTier.BROAD),
+            Map.entry("army", IntelligenceTier.RUMOURS), Map.entry("vehicles", IntelligenceTier.RUMOURS),
+            Map.entry("professional-army", IntelligenceTier.BROAD), Map.entry("levies", IntelligenceTier.BROAD),
+            Map.entry("mercenaries", IntelligenceTier.BROAD), Map.entry("vehicle-categories", IntelligenceTier.BROAD),
+            Map.entry("berthed-vehicles", IntelligenceTier.RELIABLE), Map.entry("vehicle-types", IntelligenceTier.DETAILED),
+            Map.entry("installations", IntelligenceTier.BROAD),
             Map.entry("net-income", IntelligenceTier.BROAD), Map.entry("trade-power", IntelligenceTier.BROAD),
             Map.entry("income-total", IntelligenceTier.BROAD), Map.entry("expense-total", IntelligenceTier.BROAD),
             Map.entry("cashflow", IntelligenceTier.RELIABLE), Map.entry("dividend-rate", IntelligenceTier.RELIABLE),
@@ -80,6 +83,7 @@ public final class EspionageConfig {
         overlordOffenseBonus = (int) bounded(config, "espionage.vassalage.overlord-offense-bonus", 25, 0, 1000);
         overlordDefenseBonus = (int) bounded(config, "espionage.vassalage.overlord-defense-bonus", 25, 0, 1000);
         sharingAllowed = config.getBoolean("espionage.vassalage.allow-sharing", true);
+        militaryOnly = config.getBoolean("espionage.intelligence.military-only", true);
         SabotageText.load(config);
         tiers.clear();
         int previous = -1;
@@ -126,6 +130,8 @@ public final class EspionageConfig {
         if (metric.startsWith("Tax:")) return "taxes";
         if (metric.startsWith("Training:")) return "training";
         if (metric.startsWith("Regiment:")) return metric.endsWith(":Levies") ? "levies" : "professional-army";
+        if (metric.startsWith("Vehicles:")) return "vehicle-categories";
+        if (metric.startsWith("Installation:") && metric.endsWith(":Vehicles")) return "berthed-vehicles";
         if (metric.startsWith("Installation:")) return "installation-details";
         if (metric.startsWith("Position:")) return "office-aptitude";
         if (metric.contains(":Cashflow:")) return "cashflow";
@@ -154,6 +160,8 @@ public final class EspionageConfig {
     public static int overlordOffenseBonus() { return overlordOffenseBonus; }
     public static int overlordDefenseBonus() { return overlordDefenseBonus; }
     public static boolean sharingAllowed() { return sharingAllowed; }
+    /** True when the Spymaster guards only regiments and vehicles. */
+    public static boolean militaryOnly() { return militaryOnly; }
 
     public static double stabilityPenalty() { return stabilityPenalty; }
     public static double penaltyDays() { return penaltyDays; }

@@ -6,12 +6,12 @@ import net.tfminecraft.simplefactions.Cache;
 /** Uses public metric limits and cached estimates only, never a target's exact values. */
 public final class IntelligenceRanges {
     private static final Set<String> NONNEGATIVE = Set.of("Members", "Professional army", "Levies",
-            "Mercenaries", "Installations", "Stability", "Prosperity");
+            "Mercenaries", "Installations", "Stability", "Prosperity", "Army", VehicleIntelligence.TOTAL);
     private IntelligenceRanges() {}
 
     public static boolean nonnegative(String metric) {
         return NONNEGATIVE.contains(metric) || metric.equals("Legitimacy") || metric.equals("Council size")
-                || metric.startsWith("Regiment:") || metric.startsWith("Installation:")
+                || metric.startsWith("Regiment:") || metric.startsWith("Installation:") || metric.startsWith("Vehicles:")
                 || metric.startsWith("Tax:") || metric.startsWith("Training:")
                 || metric.contains(":Branch:") || metric.contains(":Upgrade:")
                 || metric.endsWith(":Members") || metric.endsWith(":Trade power")

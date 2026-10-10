@@ -169,8 +169,14 @@ public final class EspionageService {
         return viewer != null && viewer.hasPermission(EspionageConfig.bypassPermission());
     }
 
-    /** Viewing permission does not grant membership or authority over faction offices. */
+    /** Everything except regiments and vehicles; public to everyone when the Spymaster guards only those. */
     public static boolean canViewExact(Player viewer, Faction target) {
+        return viewer != null && target != null && (EspionageConfig.militaryOnly() || canViewCovert(viewer, target));
+    }
+
+    /** Regiments and vehicles, which an eligible Spymaster always guards.
+     *  Viewing permission does not grant membership or authority over faction offices. */
+    public static boolean canViewCovert(Player viewer, Faction target) {
         return viewer != null && target != null
                 && (bypasses(viewer) || isOwn(viewer, target) || !hasSpymaster(target));
     }
@@ -361,7 +367,7 @@ public final class EspionageService {
         return true;
     }
 
-    /** Only the Spymaster opens their faction's information to its overlord or vassals, tier by tier. */
+    /** Only the Spymaster opens their faction's information to its overlord, vassals or allies, tier by tier. */
     public static boolean setSharing(Player actor, Faction faction, SharingPartner partner, IntelligenceTier tier) {
         SpecialPositionAssignment holder = spymaster(faction);
         if (!isOwn(actor, faction) || holder == null || !holder.isHolder(actor.getUniqueId())) {
@@ -369,7 +375,7 @@ public final class EspionageService {
             return false;
         }
         if (!EspionageConfig.sharingAllowed()) {
-            actor.sendMessage("§cSharing intelligence with overlords and vassals is disabled.");
+            actor.sendMessage("§cSharing intelligence with overlords, vassals and allies is disabled.");
             return false;
         }
         var state = faction.getEspionage();
@@ -397,6 +403,8 @@ public final class EspionageService {
 
     static java.util.List<Faction> partners(Faction faction, SharingPartner partner) {
         if (partner == SharingPartner.VASSALS) return faction.getVassals();
+        if (partner == SharingPartner.ALLIES)
+            return RelationManager.getAllies(faction).stream().filter(java.util.Objects::nonNull).toList();
         Faction overlord = faction.getOverlord();
         return overlord == null ? java.util.List.of() : java.util.List.of(overlord);
     }
@@ -412,12 +420,13 @@ public final class EspionageService {
         if (observer.getEspionage().forgetReport(target.getId())) new Database().saveFaction(observer);
     }
 
-    /** The tier the target opened to the observer as its direct overlord or vassal. */
+    /** The tier the target opened to the observer as its direct overlord, vassal or ally. */
     public static IntelligenceTier sharedTier(Faction target, Faction observer) {
         if (!EspionageConfig.sharingAllowed() || target == null || observer == null || target.getEspionage() == null)
             return IntelligenceTier.UNKNOWN;
         if (RelationManager.isOverlord(target, observer)) return target.getEspionage().sharing(SharingPartner.OVERLORD);
         if (RelationManager.isOverlord(observer, target)) return target.getEspionage().sharing(SharingPartner.VASSALS);
+        if (RelationManager.isAlly(target, observer)) return target.getEspionage().sharing(SharingPartner.ALLIES);
         return IntelligenceTier.UNKNOWN;
     }
 
@@ -430,7 +439,7 @@ public final class EspionageService {
 
     /** Reading or clicking menus never generates intelligence. */
     public static IntelligenceReport report(Player viewer, Faction target) {
-        if (viewer == null || canViewExact(viewer, target)) return null;
+        if (viewer == null || canViewCovert(viewer, target)) return null;
         Faction observer = FactionManager.getByMember(viewer.getName());
         if (!hasSpymaster(observer)) return null;
         return observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day());
@@ -451,9 +460,13 @@ public final class EspionageService {
         }
         for (Faction target : FactionManager.getCopy()) {
             if (target == observer || target.getId().equals(observer.getId())) continue;
-            if (observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day()) == null) {
-                if (generateReport(observer, target, dirty) != null) updated = true;
+            var cached = observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day());
+            // A report from an older version lacks newer fields; rebuild it under the same daily rolls.
+            if (cached != null && cached.version < IntelligenceReport.VERSION) {
+                observer.getEspionage().forgetReport(target.getId());
+                cached = null;
             }
+            if (cached == null && generateReport(observer, target, dirty) != null) updated = true;
         }
         for (Faction faction : dirty) new Database().saveFaction(faction);
         if (updated) viewer.sendMessage("§8§oYour faction's unseen network delivers today's sealed intelligence reports.");
@@ -554,6 +567,7 @@ public final class EspionageService {
 
     static IntelligenceReport createReport(Map<String, Double> metrics, int margin, IntelligenceTier shared, RandomGenerator random) {
         IntelligenceReport report = new IntelligenceReport();
+        report.version = IntelligenceReport.VERSION;
         report.quality = EspionageMath.quality(margin);
         if (shared != IntelligenceTier.UNKNOWN) report.shared = shared.key();
         metrics.forEach((key, value) -> {
@@ -617,6 +631,8 @@ public final class EspionageService {
                 .mapToInt(regiment -> regiment.getCurrentSlots()).sum());
         values.put("Levies", (double) (faction.getMilitary().getManpower(false) - faction.getMilitary().getManpowerNoLevy(false)));
         values.put("Mercenaries", (double) faction.getMilitary().getMercenaryManpower());
+        values.put("Army", values.get("Professional army") + values.get("Levies") + values.get("Mercenaries"));
+        VehicleIntelligence.capture(values, faction);
         values.put("Installations", (double) faction.getInstallationHandler().getAll().size());
         for (var tax : net.tfminecraft.simplefactions.government.proposal.TaxTarget.values())
             if (!tax.name().endsWith("_ID")) values.put("Tax:" + tax.name(), faction.getTaxHandler().getTaxRate(tax, null, false));

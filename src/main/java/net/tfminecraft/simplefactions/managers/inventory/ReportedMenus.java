@@ -51,6 +51,12 @@ public final class ReportedMenus {
         return names.isEmpty() ? "\u00a77Unknown" : names.getFirst();
     }
 
+    /** Vehicles berthed at a foreign installation, from the daily report. */
+    public static ItemStack berthedVehicles(IntelligenceReport report, String installationId) {
+        return EspionageView.item(Material.MINECART, "Berthed vehicles",
+                VehicleIntelligence.lore(report, installationId).toArray(String[]::new));
+    }
+
     public static ItemStack branch(Player viewer, Guild guild, net.tfminecraft.simplefactions.guild.branch.Branch branch) {
         var report = EspionageService.report(viewer, guild.getFaction());
         List<String> lore = new ArrayList<>();
@@ -76,6 +82,7 @@ public final class ReportedMenus {
     public static void military(Inventory inventory, Player viewer, Faction faction, InventoryManager manager) {
         var report = EspionageService.report(viewer, faction);
         prepare(inventory);
+        inventory.setItem(4, EspionageView.reportHeader(viewer, report));
         inventory.setItem(10, EspionageView.factionItem(viewer, faction, net.tfminecraft.simplefactions.enums.MenuItemType.MILITARY));
         int slot = 12;
         for (var regiment : faction.getMilitary().getRegiments()) {
@@ -87,7 +94,7 @@ public final class ReportedMenus {
             inventory.setItem(slot++, mask(regiment.getIcon(), regiment.getName(), lore));
         }
         queue(inventory, report, "training", "training", "Army training");
-        inventory.setItem(49, EspionageView.item(Material.MINECART, "Faction Vehicle Pool", "\u00a77Vehicles: Unknown"));
+        inventory.setItem(49, EspionageView.item(Material.MINECART, "Faction Vehicles", VehicleIntelligence.lore(report, null).toArray(String[]::new)));
         inventory.setItem(53, manager.createBackButton(SFGUI.MILITARY_VIEW));
     }
 
@@ -150,7 +157,7 @@ public final class ReportedMenus {
             if (fields.length < 3) continue;
             Material material = fields[1].equals("TRAIN_STATION") ? Material.MINECART : Material.GREEN_CONCRETE;
             inventory.setItem(slot++, EspionageView.item(material, fields[2], "\u00a77Level: " + report.display("Installation:" + fields[0] + ":Level"),
-                    "\u00a77Coordinates: Unknown", "\u00a77Vehicles: Unknown"));
+                    "\u00a77Coordinates: Unknown", VehicleIntelligence.lore(report, fields[0]).getFirst()));
         }
         if (report == null || !report.allows("installation-details")) inventory.setItem(12, EspionageView.item(Material.GRAY_CONCRETE, "Installations", "\u00a77Locations and levels: Unknown"));
         var construction = report == null ? List.<String>of() : report.details("installation-details", "construction");
@@ -300,7 +307,8 @@ public final class ReportedMenus {
             }
         }
         inventory.setItem(49, EspionageView.item(icon, title, "\u00a77Level: " + (report == null ? "Unknown" : report.display("Installation:" + id + ":Level")),
-                "\u00a77Coordinates: Unknown", "\u00a77Vehicles: Unknown"));
+                "\u00a77Coordinates: Unknown"));
+        inventory.setItem(0, berthedVehicles(report, id));
         inventory.setItem(53, manager.createBackButton(SFGUI.INSTALLATION_DETAIL_VIEW));
     }
 }

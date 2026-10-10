@@ -496,6 +496,22 @@ class InstallationMenusCoverageTest {
   }
 
   @Test
+  void publicInstallationDetailsKeepBerthedVehiclesCovert() {
+    Installation fort = installation("fort", InstallationKind.FORT);
+    berth("ship", "galleon", fort);
+    scope(EspionageService.class)
+        .when(() -> EspionageService.canViewExact(any(), any()))
+        .thenReturn(true);
+    view.installationDetailView(leader, faction, fort.getId());
+    Inventory detail = top();
+    assertFalse(((SFInventoryHolder) detail.getHolder()).isReported());
+    assertEquals(fort.getId(), data(detail.getItem(49), Keys.STRING_KEY));
+    assertEquals("Berthed vehicles", name(detail.getItem(0)));
+    assertTrue(lore(detail.getItem(0)).contains("Vehicles: Unknown"));
+    assertNull(detail.getItem(1));
+  }
+
+  @Test
   void reportedInstallationMenusMaskExactDataOnInitialOpenAndRefresh() {
     installation("secret", InstallationKind.FORT);
     scope(EspionageService.class)

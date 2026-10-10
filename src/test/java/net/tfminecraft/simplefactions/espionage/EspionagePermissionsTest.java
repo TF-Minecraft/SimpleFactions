@@ -22,6 +22,9 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 class EspionagePermissionsTest {
+    @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
+    @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
+
     @Test
     void outsidersOpenMaskedSubmenusWithoutBuildingExactInformation() {
         Player outsider = mock(Player.class);

@@ -6,6 +6,9 @@ import java.util.Map;
 /** A snapshot, shared by every member of the observing faction. */
 public class IntelligenceReport {
     public static final String UNKNOWN = "Unknown";
+    /** Raised when reports gain fields; older reports from today are rebuilt. 2: army and vehicles. */
+    public static final int VERSION = 2;
+    public int version;
     public Map<SpecialPosition, String> officeHolders = new LinkedHashMap<>();
     public long day;
     public long targetFoundedAt;

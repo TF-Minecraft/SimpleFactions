@@ -16,6 +16,9 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
 
 class EspionageBypassTest {
+    @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
+    @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
+
     private void protect(Faction faction) {
         var state = new EspionageState();
         var holder = new SpecialPositionAssignment();
@@ -34,6 +37,7 @@ class EspionageBypassTest {
         protect(foreign);
         when(own.isMemberIgnoreCase("Viewer")).thenReturn(true);
         var config = new org.bukkit.configuration.file.YamlConfiguration();
+        config.set(net.tfminecraft.simplefactions.testsupport.EspionageModes.MILITARY_ONLY, false);
         try {
             assertTrue(EspionageService.canViewExact(viewer, foreign));
             config.set("espionage.bypass-permission", " custom.staff.intelligence ");

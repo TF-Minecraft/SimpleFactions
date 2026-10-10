@@ -17,6 +17,9 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
 
 class IntelligenceBrowsingTest {
+    @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
+    @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
+
     private Faction faction(String id) {
         Faction faction = mock(Faction.class, RETURNS_DEEP_STUBS);
         when(faction.getId()).thenReturn(id);

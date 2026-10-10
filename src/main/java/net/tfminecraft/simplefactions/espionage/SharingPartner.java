@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.espionage;
 
 /** The allied courts a Spymaster can open their faction's information to. */
 public enum SharingPartner {
-    OVERLORD("your overlord"), VASSALS("your vassals");
+    OVERLORD("your overlord"), VASSALS("your vassals"), ALLIES("your allies");
 
     private final String label;
     SharingPartner(String label) { this.label = label; }

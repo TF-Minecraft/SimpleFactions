@@ -32,6 +32,7 @@ final class ReportDetails {
         }
         if (report.allows("guild-leader")) for (var guild : target.getGuildHandler().getGuilds())
             report.details.put("guild-leader:" + guild.getId(), List.of(CharacterNames.forForeign(guild.getLeader())));
+        VehicleIntelligence.captureTypes(report, target);
         if (report.allows("upgrades")) for (var guild : target.getGuildHandler().getGuilds())
             report.details.put("upgrading:" + guild.getId(), guild.getUpgradeQueue().stream()
                     .map(entry -> entry.getUpgrade().getName()).limit(3).toList());

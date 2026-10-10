@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.espionage.EspionageAccess;
+import net.tfminecraft.simplefactions.espionage.IntelligenceLedger;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
@@ -424,6 +426,8 @@ public class GuildCreator {
 		if (!EspionageService.canViewExact(p, g.getFaction()))
 			return EspionageView.ledgerItem(EspionageService.report(p, g.getFaction()), g);
 		Ledger ledger = g.getLedger();
+		// Military and vehicle lines stay covert even when the rest of the ledger is public.
+		boolean military = EspionageService.canViewCovert(p, g.getFaction());
 		ItemStack i = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta meta = i.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex("#d6cf69Ledger"));
@@ -436,6 +440,7 @@ public class GuildCreator {
 		lore.add(StringFormatter.formatHex("#2f3b2f────────────"));
 		boolean hasIncome = false;
 		for (Cashflow cf : Cashflow.values()) {
+			if (!military && EspionageAccess.covert(cf)) continue;
 			double value = ledger.getIncome(cf);
 			boolean showZeroPillageTrade = cf == Cashflow.TRADE
 					&& value == 0
@@ -453,12 +458,20 @@ public class GuildCreator {
 				+ suffix
 			));
 		}
+		// Foreign viewers get the daily report's ranges for the covert lines, always listed so absence reveals nothing.
+		var report = military ? null : EspionageService.report(p, g.getFaction());
+		if (!military) {
+			hasIncome = true;
+			lore.add(StringFormatter.formatHex("#cfc7a2• " + Cashflow.VEHICLE_FEES.getDisplay() + "#d6cf69: "
+					+ IntelligenceLedger.value(report, g, "Cashflow:" + Cashflow.VEHICLE_FEES.name(), "d")));
+		}
 		if (!hasIncome) lore.add(StringFormatter.formatHex("#7a706aNo income sources."));
 		lore.add("");
 		lore.add(StringFormatter.formatHex("#cf493aExpenses"));
 		lore.add(StringFormatter.formatHex("#3b2f2f────────────"));
 		boolean hasExpenses = false;
 		for (Cashflow cf : Cashflow.values()) {
+			if (!military && EspionageAccess.covert(cf)) continue;
 			double value = ledger.getIncome(cf);
 			if (value >= 0) continue;
 
@@ -471,6 +484,12 @@ public class GuildCreator {
 				+ String.format("%.2f", value)
 				+ "d"
 			));
+		}
+		if (!military) {
+			hasExpenses = true;
+			for (Cashflow cf : List.of(Cashflow.MILITARY_UPKEEP, Cashflow.VEHICLE_UPKEEP, Cashflow.MERCENARY_PAYMENTS))
+				lore.add(StringFormatter.formatHex("#cfc7a2• " + cf.getDisplay() + "#d6cf69: "
+						+ IntelligenceLedger.value(report, g, "Cashflow:" + cf.name(), "d")));
 		}
 		if (!hasExpenses) {
 			lore.add(StringFormatter.formatHex("#7a706aNo expenses."));

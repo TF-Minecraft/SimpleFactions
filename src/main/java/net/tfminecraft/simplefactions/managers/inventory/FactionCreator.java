@@ -258,8 +258,9 @@ public class FactionCreator {
 	public ItemStack createMenuItem(Player p, Faction f, MenuItemType t) {
 		if (!EspionageService.canViewExact(p, f) && java.util.Set.of(MenuItemType.GOVERNMENT,
 				MenuItemType.WEALTH, MenuItemType.PRESTIGE, MenuItemType.MEMBERS, MenuItemType.MODIFIERS,
-				MenuItemType.TAX, MenuItemType.LAWS, MenuItemType.MILITARY, MenuItemType.INSTALLATIONS,
-				MenuItemType.DIPLOMACY).contains(t)) return applyIcon(EspionageView.factionItem(p, f, t), t);
+				MenuItemType.TAX, MenuItemType.LAWS, MenuItemType.INSTALLATIONS, MenuItemType.DIPLOMACY).contains(t)
+				|| t == MenuItemType.MILITARY && !EspionageService.canViewCovert(p, f))
+			return applyIcon(EspionageView.factionItem(p, f, t), t);
 		ItemStack i = new ItemStack(Material.DIRT, 1);
 		if(t.equals(MenuItemType.BANNER)) {
 			i = new ItemStack(f.getBanner());

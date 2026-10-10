@@ -131,6 +131,21 @@ class VassalIntelligenceTest {
                 "Only the rolled Rumours sample (20%) stays once sharing stops");
     }
 
+    @Test void alliesReceiveTheTierSharedWithAllies() {
+        Faction faction = mock(Faction.class), ally = mock(Faction.class), stranger = mock(Faction.class);
+        var state = new EspionageState();
+        state.share(SharingPartner.ALLIES, IntelligenceTier.BROAD);
+        when(faction.getEspionage()).thenReturn(state);
+        try (var relations = mockStatic(RelationManager.class)) {
+            relations.when(() -> RelationManager.isAlly(faction, ally)).thenReturn(true);
+            relations.when(() -> RelationManager.getAllies(faction)).thenReturn(java.util.Arrays.asList(ally, null));
+            assertEquals(IntelligenceTier.BROAD, EspionageService.sharedTier(faction, ally));
+            assertEquals(IntelligenceTier.UNKNOWN, EspionageService.sharedTier(faction, stranger));
+            assertEquals(List.of(ally), EspionageService.partners(faction, SharingPartner.ALLIES),
+                    "Allies that no longer exist are skipped");
+        }
+    }
+
     @Test void onlyDirectPartnersReceiveTheirChosenTier() {
         Faction vassal = mock(Faction.class), overlord = mock(Faction.class), stranger = mock(Faction.class);
         var vassalState = new EspionageState();
