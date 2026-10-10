@@ -460,9 +460,13 @@ public final class EspionageService {
         }
         for (Faction target : FactionManager.getCopy()) {
             if (target == observer || target.getId().equals(observer.getId())) continue;
-            if (observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day()) == null) {
-                if (generateReport(observer, target, dirty) != null) updated = true;
+            var cached = observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day());
+            // A report from an older version lacks newer fields; rebuild it under the same daily rolls.
+            if (cached != null && cached.version < IntelligenceReport.VERSION) {
+                observer.getEspionage().forgetReport(target.getId());
+                cached = null;
             }
+            if (cached == null && generateReport(observer, target, dirty) != null) updated = true;
         }
         for (Faction faction : dirty) new Database().saveFaction(faction);
         if (updated) viewer.sendMessage("§8§oYour faction's unseen network delivers today's sealed intelligence reports.");
@@ -563,6 +567,7 @@ public final class EspionageService {
 
     static IntelligenceReport createReport(Map<String, Double> metrics, int margin, IntelligenceTier shared, RandomGenerator random) {
         IntelligenceReport report = new IntelligenceReport();
+        report.version = IntelligenceReport.VERSION;
         report.quality = EspionageMath.quality(margin);
         if (shared != IntelligenceTier.UNKNOWN) report.shared = shared.key();
         metrics.forEach((key, value) -> {
@@ -626,6 +631,8 @@ public final class EspionageService {
                 .mapToInt(regiment -> regiment.getCurrentSlots()).sum());
         values.put("Levies", (double) (faction.getMilitary().getManpower(false) - faction.getMilitary().getManpowerNoLevy(false)));
         values.put("Mercenaries", (double) faction.getMilitary().getMercenaryManpower());
+        values.put("Army", values.get("Professional army") + values.get("Levies") + values.get("Mercenaries"));
+        VehicleIntelligence.capture(values, faction);
         values.put("Installations", (double) faction.getInstallationHandler().getAll().size());
         for (var tax : net.tfminecraft.simplefactions.government.proposal.TaxTarget.values())
             if (!tax.name().endsWith("_ID")) values.put("Tax:" + tax.name(), faction.getTaxHandler().getTaxRate(tax, null, false));

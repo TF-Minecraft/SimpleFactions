@@ -148,8 +148,9 @@ espionage:
           message: "&7You hand rival spymasters the keys to the archive. Little about your faction stays hidden, and no one suspects whose hand opened the doors. &8(Guarding roll -{reduction}.)"
   intelligence:
     # true: the Spymaster guards only the military view (regiments, training, vehicle pool) and the
-    # vehicles berthed at installations. Everything else, including members, economy, laws, government,
-    # installations and offices, is exact for everyone. false: the Spymaster guards everything.
+    # vehicles berthed at installations, plus the military, vehicle and mercenary ledger lines. Everything else,
+    # including members, economy, laws, government, installations and offices, is exact for everyone.
+    # false: the Spymaster guards everything.
     military-only: true
     # Margin = observing faction's offense minus target's defense. Rumours is the minimum report quality.
     # Negative margins return Rumours; individual fields stay Unknown below their required tier.
@@ -182,7 +183,9 @@ espionage:
     # Fields stay Unknown below their minimum tier, even if an old report contains an estimate.
     # Valid values: rumours, broad, reliable, detailed. Unknown disables disclosure entirely.
     # The faction and all its guilds share one daily quality. Flavours, faction leaders, guilds and prestige stay public.
-    # With military-only, only the military fields below (professional army, levies, mercenaries, training) are used.
+    # With military-only, only the military fields are used: army, vehicles, professional-army, levies,
+    # mercenaries, vehicle-categories, training, berthed-vehicles, vehicle-types, plus cashflow for the
+    # military, vehicle and mercenary ledger lines. Everything else is public.
     minimum-tiers:
       members: rumours
       roster: rumours
@@ -190,9 +193,16 @@ espionage:
       prosperity: broad
       stability: broad
       administrative-power: reliable
-      professional-army: reliable
+      # Army is professional soldiers, levies and mercenaries together; vehicles are the pool plus berths.
+      army: rumours
+      vehicles: rumours
+      professional-army: broad
       levies: broad
-      mercenaries: reliable
+      mercenaries: broad
+      # Owned vehicles per category, per installation berth, and which vehicle types they are.
+      vehicle-categories: broad
+      berthed-vehicles: reliable
+      vehicle-types: detailed
       installations: broad
       net-income: broad
       trade-power: broad

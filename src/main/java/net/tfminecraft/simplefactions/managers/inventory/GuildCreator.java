@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
 import net.tfminecraft.simplefactions.espionage.EspionageAccess;
+import net.tfminecraft.simplefactions.espionage.IntelligenceLedger;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
@@ -457,9 +458,12 @@ public class GuildCreator {
 				+ suffix
 			));
 		}
+		// Foreign viewers get the daily report's ranges for the covert lines, always listed so absence reveals nothing.
+		var report = military ? null : EspionageService.report(p, g.getFaction());
 		if (!military) {
 			hasIncome = true;
-			lore.add(StringFormatter.formatHex("#cfc7a2• " + Cashflow.VEHICLE_FEES.getDisplay() + "#d6cf69: §7Unknown"));
+			lore.add(StringFormatter.formatHex("#cfc7a2• " + Cashflow.VEHICLE_FEES.getDisplay() + "#d6cf69: "
+					+ IntelligenceLedger.value(report, g, "Cashflow:" + Cashflow.VEHICLE_FEES.name(), "d")));
 		}
 		if (!hasIncome) lore.add(StringFormatter.formatHex("#7a706aNo income sources."));
 		lore.add("");
@@ -483,7 +487,9 @@ public class GuildCreator {
 		}
 		if (!military) {
 			hasExpenses = true;
-			lore.add(StringFormatter.formatHex("#cfc7a2• #a6659fMilitary, Vehicles & Mercenaries#d6cf69: §7Unknown"));
+			for (Cashflow cf : List.of(Cashflow.MILITARY_UPKEEP, Cashflow.VEHICLE_UPKEEP, Cashflow.MERCENARY_PAYMENTS))
+				lore.add(StringFormatter.formatHex("#cfc7a2• " + cf.getDisplay() + "#d6cf69: "
+						+ IntelligenceLedger.value(report, g, "Cashflow:" + cf.name(), "d")));
 		}
 		if (!hasExpenses) {
 			lore.add(StringFormatter.formatHex("#7a706aNo expenses."));

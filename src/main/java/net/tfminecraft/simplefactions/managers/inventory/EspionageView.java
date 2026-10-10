@@ -189,6 +189,7 @@ public final class EspionageView {
             case LAWS -> styled(Material.WRITABLE_BOOK, "#9c64b0Laws", "§7Laws: Unknown");
             // The public faction view opens military and diplomacy through the item's faction id.
             case MILITARY -> withFactionId(styled(Material.IRON_SWORD, "#a6659fMilitary",
+                    "#d4c9aeArmy: §e" + value(report, "Army", ""),
                     "#d4c9aeProfessional army: §e" + value(report, "Professional army", ""),
                     "#d4c9aeLevies: §e" + value(report, "Levies", ""),
                     "#d4c9aeMercenaries: §e" + value(report, "Mercenaries", "")), target);

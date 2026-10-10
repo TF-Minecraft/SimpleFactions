@@ -442,7 +442,9 @@ class GuildMenusCoverageTest {
     assertLore(summary, "-30.00d", false);
     assertLore(summary, "-7.00d", false);
     assertLore(summary, "Vehicle Taxes & Fees: Unknown", true);
-    assertLore(summary, "Military, Vehicles & Mercenaries: Unknown", true);
+    assertLore(summary, "Military Upkeep: Unknown", true);
+    assertLore(summary, "Vehicle Upkeep: Unknown", true);
+    assertLore(summary, "Mercenary Contracts: Unknown", true);
     assertLore(summary, "No expenses", false);
   }
 

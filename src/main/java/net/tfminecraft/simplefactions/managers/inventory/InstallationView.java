@@ -143,7 +143,7 @@ public class InstallationView {
                     creator.createDetailItem(installation, upgrading ? pending : null));
             // Berthed vehicles stay covert even when installations are public.
             boolean vehicles = EspionageService.canViewCovert(player, f);
-            if (!vehicles) inventory.setItem(0, EspionageView.item(Material.MINECART, "Berthed vehicles", "§7Vehicles: Unknown"));
+            if (!vehicles) inventory.setItem(0, ReportedMenus.berthedVehicles(EspionageService.report(player, f), installation.getId()));
             List<PlayerVehicleRecord> berthed = vehicles
                     ? SimpleFactions.getVehicleRegistry().getByInstallation(f.getId(), installation.getId())
                     : new ArrayList<>();

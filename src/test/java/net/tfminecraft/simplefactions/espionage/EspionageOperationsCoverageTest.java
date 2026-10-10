@@ -339,6 +339,15 @@ class EspionageOperationsCoverageTest {
     EspionageService.refreshReports(candidate);
     assertSame(report, EspionageService.report(candidate, target));
     assertEquals(wealthEstimate, report.estimate("Wealth"));
+    assertTrue(report.estimates.containsKey("Army"));
+    // Today's report from before army and vehicle intelligence is rebuilt under the same rolls.
+    report.version = 1;
+    EspionageService.refreshReports(candidate);
+    IntelligenceReport rebuilt = EspionageService.report(candidate, target);
+    assertNotSame(report, rebuilt);
+    assertEquals(IntelligenceReport.VERSION, rebuilt.version);
+    assertEquals(report.tier(), rebuilt.tier());
+    report = rebuilt;
     assertEquals(2, EspionageService.regenerateReports());
     assertNotSame(report, EspionageService.report(leader, target));
     assertNotNull(EspionageService.report(foreign, home));

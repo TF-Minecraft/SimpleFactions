@@ -27,8 +27,11 @@ public final class EspionageConfig {
             Map.entry("members", IntelligenceTier.RUMOURS), Map.entry("roster", IntelligenceTier.RUMOURS),
             Map.entry("wealth", IntelligenceTier.RUMOURS), Map.entry("prosperity", IntelligenceTier.BROAD),
             Map.entry("stability", IntelligenceTier.BROAD), Map.entry("administrative-power", IntelligenceTier.RELIABLE),
-            Map.entry("professional-army", IntelligenceTier.RELIABLE), Map.entry("levies", IntelligenceTier.BROAD),
-            Map.entry("mercenaries", IntelligenceTier.RELIABLE), Map.entry("installations", IntelligenceTier.BROAD),
+            Map.entry("army", IntelligenceTier.RUMOURS), Map.entry("vehicles", IntelligenceTier.RUMOURS),
+            Map.entry("professional-army", IntelligenceTier.BROAD), Map.entry("levies", IntelligenceTier.BROAD),
+            Map.entry("mercenaries", IntelligenceTier.BROAD), Map.entry("vehicle-categories", IntelligenceTier.BROAD),
+            Map.entry("berthed-vehicles", IntelligenceTier.RELIABLE), Map.entry("vehicle-types", IntelligenceTier.DETAILED),
+            Map.entry("installations", IntelligenceTier.BROAD),
             Map.entry("net-income", IntelligenceTier.BROAD), Map.entry("trade-power", IntelligenceTier.BROAD),
             Map.entry("income-total", IntelligenceTier.BROAD), Map.entry("expense-total", IntelligenceTier.BROAD),
             Map.entry("cashflow", IntelligenceTier.RELIABLE), Map.entry("dividend-rate", IntelligenceTier.RELIABLE),
@@ -127,6 +130,8 @@ public final class EspionageConfig {
         if (metric.startsWith("Tax:")) return "taxes";
         if (metric.startsWith("Training:")) return "training";
         if (metric.startsWith("Regiment:")) return metric.endsWith(":Levies") ? "levies" : "professional-army";
+        if (metric.startsWith("Vehicles:")) return "vehicle-categories";
+        if (metric.startsWith("Installation:") && metric.endsWith(":Vehicles")) return "berthed-vehicles";
         if (metric.startsWith("Installation:")) return "installation-details";
         if (metric.startsWith("Position:")) return "office-aptitude";
         if (metric.contains(":Cashflow:")) return "cashflow";

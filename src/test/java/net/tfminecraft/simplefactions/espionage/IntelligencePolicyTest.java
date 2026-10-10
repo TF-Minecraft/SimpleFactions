@@ -16,21 +16,21 @@ class IntelligencePolicyTest {
 
     @Test void armyAndCashflowsAreGatedAtGenerationAndWhenReadingOldSnapshots() {
         var values = Map.of("Professional army", 100.0, "Guild:guild:Cashflow:TRADE", 100.0, "Members", 100.0);
-        var broad = EspionageService.createReport(values, 40, new Random(1));
-        assertEquals("Unknown", broad.display("Professional army"));
-        assertEquals("Unknown", broad.display("Guild:guild:Cashflow:TRADE"));
-        assertFalse(broad.estimates.containsKey("Professional army"));
+        var rumours = EspionageService.createReport(values, 10, new Random(1));
+        assertEquals("Unknown", rumours.display("Professional army"));
+        assertEquals("Unknown", rumours.display("Guild:guild:Cashflow:TRADE"));
+        assertFalse(rumours.estimates.containsKey("Professional army"));
         // Old data cannot bypass a disclosure rule after reloading configuration.
-        broad.estimates.put("Professional army", new EspionageMath.Estimate(90, 110));
-        assertEquals("Unknown", broad.display("Professional army"));
+        rumours.estimates.put("Professional army", new EspionageMath.Estimate(90, 110));
+        assertEquals("Unknown", rumours.display("Professional army"));
         var reliable = EspionageService.createReport(values, 65, new Random(1));
         assertNotEquals("Unknown", reliable.display("Professional army"));
         var config = new YamlConfiguration();
         config.set("espionage.intelligence.minimum-tiers.professional-army", "detailed");
-        config.set("espionage.intelligence.minimum-tiers.cashflows.TRADE", "broad");
+        config.set("espionage.intelligence.minimum-tiers.cashflows.TRADE", "rumours");
         EspionageConfig.load(config);
         assertEquals("Unknown", reliable.display("Professional army"));
-        assertTrue(broad.allows("Guild:guild:Cashflow:TRADE"));
+        assertTrue(rumours.allows("Guild:guild:Cashflow:TRADE"));
         config.set("espionage.intelligence.minimum-tiers.professional-army", "typo");
         EspionageConfig.load(config);
         assertFalse(EspionageConfig.allows(IntelligenceTier.DETAILED, "Professional army"));

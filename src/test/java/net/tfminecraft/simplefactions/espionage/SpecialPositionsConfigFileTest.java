@@ -39,7 +39,7 @@ class SpecialPositionsConfigFileTest {
         assertEquals("staff.spy", migrated.getString("espionage.bypass-permission"));
         assertEquals(-4, migrated.getDouble("espionage.aptitude.attribute-weights.strength"));
         assertEquals(33, migrated.getDouble("espionage.appointments.stability-penalty"));
-        assertEquals("reliable", migrated.getString("espionage.intelligence.minimum-tiers.professional-army"));
+        assertEquals("broad", migrated.getString("espionage.intelligence.minimum-tiers.professional-army"));
         assertEquals(original, Files.readString(legacy));
         // Existing dedicated settings always win over stale legacy values; missing new fields are added.
         migrated.set("espionage.appointments.stability-penalty", 25);
@@ -48,7 +48,7 @@ class SpecialPositionsConfigFileTest {
         var reloaded = SpecialPositionsConfigFile.prepare(file.toFile(), legacy.toFile(), defaults);
         assertEquals(25, reloaded.getDouble("espionage.appointments.stability-penalty"));
         assertEquals(-4, reloaded.getDouble("espionage.aptitude.attribute-weights.strength"));
-        assertEquals("reliable", reloaded.getString("espionage.intelligence.minimum-tiers.professional-army"));
+        assertEquals("broad", reloaded.getString("espionage.intelligence.minimum-tiers.professional-army"));
         assertEquals(original, Files.readString(legacy));
     }
 
