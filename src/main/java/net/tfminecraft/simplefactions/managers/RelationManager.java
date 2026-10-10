@@ -276,6 +276,7 @@ public class RelationManager {
 			}
 		}
 		boolean wasVassalage = isOverlord(origin, target) || isOverlord(target, origin);
+		boolean wasAllied = isAlly(relation), wasAlliedBack = isAlly(reverse);
 		relation.setType(r);
 		origin.setRelation(target, relation);
 		if(reverseChange) {
@@ -290,7 +291,8 @@ public class RelationManager {
 			target.setRelation(origin, reverse);
 		}
 		// Former partners must not keep what they shared today
-		if(wasVassalage && !isOverlord(origin, target) && !isOverlord(target, origin))
+		if(wasVassalage && !isOverlord(origin, target) && !isOverlord(target, origin)
+				|| wasAllied && !isAlly(relation) || wasAlliedBack && !isAlly(reverse))
 			net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(origin, target);
 		if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Set relation to "+r.getName()));
 		//An alliance or vassalage can make a signed mercenary contract treachery
@@ -447,6 +449,15 @@ public class RelationManager {
 		return null;
 	}
 	
+	/** Whether origin's own relation to target is an alliance. */
+	public static boolean isAlly(Faction origin, Faction target) {
+		return origin != null && target != null && isAlly(origin.getRelation(target.getId()));
+	}
+
+	private static boolean isAlly(Relation relation) {
+		return relation != null && relation.getType() != null && "ally".equalsIgnoreCase(relation.getType().getId());
+	}
+
 	public static List<Faction> getAllies(Faction f){
 		List<Faction> allies = new ArrayList<>();
 		for(Map.Entry<String, Relation> entry : f.getRelations().entrySet()) {

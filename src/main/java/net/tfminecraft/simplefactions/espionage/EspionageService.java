@@ -367,7 +367,7 @@ public final class EspionageService {
         return true;
     }
 
-    /** Only the Spymaster opens their faction's information to its overlord or vassals, tier by tier. */
+    /** Only the Spymaster opens their faction's information to its overlord, vassals or allies, tier by tier. */
     public static boolean setSharing(Player actor, Faction faction, SharingPartner partner, IntelligenceTier tier) {
         SpecialPositionAssignment holder = spymaster(faction);
         if (!isOwn(actor, faction) || holder == null || !holder.isHolder(actor.getUniqueId())) {
@@ -375,7 +375,7 @@ public final class EspionageService {
             return false;
         }
         if (!EspionageConfig.sharingAllowed()) {
-            actor.sendMessage("§cSharing intelligence with overlords and vassals is disabled.");
+            actor.sendMessage("§cSharing intelligence with overlords, vassals and allies is disabled.");
             return false;
         }
         var state = faction.getEspionage();
@@ -403,6 +403,8 @@ public final class EspionageService {
 
     static java.util.List<Faction> partners(Faction faction, SharingPartner partner) {
         if (partner == SharingPartner.VASSALS) return faction.getVassals();
+        if (partner == SharingPartner.ALLIES)
+            return RelationManager.getAllies(faction).stream().filter(java.util.Objects::nonNull).toList();
         Faction overlord = faction.getOverlord();
         return overlord == null ? java.util.List.of() : java.util.List.of(overlord);
     }
@@ -418,12 +420,13 @@ public final class EspionageService {
         if (observer.getEspionage().forgetReport(target.getId())) new Database().saveFaction(observer);
     }
 
-    /** The tier the target opened to the observer as its direct overlord or vassal. */
+    /** The tier the target opened to the observer as its direct overlord, vassal or ally. */
     public static IntelligenceTier sharedTier(Faction target, Faction observer) {
         if (!EspionageConfig.sharingAllowed() || target == null || observer == null || target.getEspionage() == null)
             return IntelligenceTier.UNKNOWN;
         if (RelationManager.isOverlord(target, observer)) return target.getEspionage().sharing(SharingPartner.OVERLORD);
         if (RelationManager.isOverlord(observer, target)) return target.getEspionage().sharing(SharingPartner.VASSALS);
+        if (RelationManager.isAlly(target, observer)) return target.getEspionage().sharing(SharingPartner.ALLIES);
         return IntelligenceTier.UNKNOWN;
     }
 

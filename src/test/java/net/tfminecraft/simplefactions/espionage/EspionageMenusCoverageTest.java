@@ -327,6 +327,10 @@ class EspionageMenusCoverageTest {
       click(spy, 21);
       assertEquals(expected, home.getEspionage().sharing(SharingPartner.OVERLORD));
     }
+    assertTrue(text(top(spy).getItem(22)).contains("no allies"));
+    click(spy, 22);
+    assertEquals(IntelligenceTier.RUMOURS, home.getEspionage().sharing(SharingPartner.ALLIES));
+    assertTrue(text(top(spy).getItem(22)).contains("Sharing up to Rumours"));
     click(spy, 23);
     assertEquals(IntelligenceTier.RUMOURS, home.getEspionage().sharing(SharingPartner.VASSALS));
     assertTrue(text(top(spy).getItem(23)).contains("Sharing up to Rumours"));

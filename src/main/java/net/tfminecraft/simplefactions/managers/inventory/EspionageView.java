@@ -325,6 +325,9 @@ public final class EspionageView {
             int vassals = faction.getVassals().size();
             inventory.setItem(SHARE_VASSALS_SLOT, sharing("Share with your vassals", faction.getEspionage().sharing(SharingPartner.VASSALS),
                     vassals == 0 ? "\u00a78Your faction has no vassals." : "\u00a77Vassals: \u00a7f" + vassals));
+            int allies = net.tfminecraft.simplefactions.managers.RelationManager.getAllies(faction).size();
+            inventory.setItem(SHARE_ALLIES_SLOT, sharing("Share with your allies", faction.getEspionage().sharing(SharingPartner.ALLIES),
+                    allies == 0 ? "\u00a78Your faction has no allies." : "\u00a77Allies: \u00a7f" + allies));
         }
         inventory.setItem(26, manager.createBackButton(SFGUI.SPYMASTER_SETTINGS));
         viewer.openInventory(inventory);
@@ -342,7 +345,7 @@ public final class EspionageView {
                 + "% aptitude, reaching full over " + EspionageService.duration(Math.round(EspionageConfig.buildUpDays() * 86_400_000)) + ".";
     }
 
-    private static final int SHARE_OVERLORD_SLOT = 21, SHARE_VASSALS_SLOT = 23;
+    private static final int SHARE_OVERLORD_SLOT = 21, SHARE_ALLIES_SLOT = 22, SHARE_VASSALS_SLOT = 23;
 
     private static ItemStack sharing(String title, IntelligenceTier tier, String partner) {
         return item(tier == IntelligenceTier.UNKNOWN ? Material.BOOK : Material.WRITABLE_BOOK, title, partner,
@@ -449,8 +452,9 @@ public final class EspionageView {
                 if (EspionageService.setSabotage(viewer, faction, slot == 11, (current + 25) % 125)) {
                     settings(viewer, faction, manager);
                 }
-            } else if (slot == SHARE_OVERLORD_SLOT || slot == SHARE_VASSALS_SLOT) {
-                var partner = slot == SHARE_OVERLORD_SLOT ? SharingPartner.OVERLORD : SharingPartner.VASSALS;
+            } else if (slot == SHARE_OVERLORD_SLOT || slot == SHARE_ALLIES_SLOT || slot == SHARE_VASSALS_SLOT) {
+                var partner = slot == SHARE_OVERLORD_SLOT ? SharingPartner.OVERLORD
+                        : slot == SHARE_ALLIES_SLOT ? SharingPartner.ALLIES : SharingPartner.VASSALS;
                 if (EspionageService.setSharing(viewer, faction, partner, nextSharing(faction.getEspionage().sharing(partner))))
                     settings(viewer, faction, manager);
             }

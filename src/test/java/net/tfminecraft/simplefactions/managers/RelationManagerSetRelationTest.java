@@ -219,6 +219,35 @@ class RelationManagerSetRelationTest {
 		verify(targetDip).setTradeRelation(fx.origin, link);
 	}
 
+	@Test
+	void endingAnAllianceForgetsTodaysSharedReports() {
+		Fixture fx = fixture();
+		when(fx.currentType.getId()).thenReturn("ally");
+		when(fx.type.getId()).thenReturn("neutral");
+		try (MockedStatic<net.tfminecraft.simplefactions.espionage.EspionageService> espionage =
+				mockStatic(net.tfminecraft.simplefactions.espionage.EspionageService.class)) {
+			assertTrue(RelationManager.setRelationForced(fx.type, fx.target, fx.origin));
+			espionage.verify(() -> net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(fx.origin, fx.target));
+		}
+	}
+
+	@Test
+	void formingAnAllianceKeepsReports() {
+		Fixture fx = fixture();
+		try (MockedStatic<net.tfminecraft.simplefactions.espionage.EspionageService> espionage =
+				mockStatic(net.tfminecraft.simplefactions.espionage.EspionageService.class)) {
+			assertTrue(RelationManager.setRelationForced(fx.type, fx.target, fx.origin));
+			espionage.verify(() -> net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(any(), any()), never());
+		}
+		assertFalse(RelationManager.isAlly(fx.origin, fx.target), "The mocked stored relation is unchanged");
+		when(fx.origin.getRelation("target")).thenReturn(new Relation(fx.type, mock(Attitude.class), 0));
+		assertTrue(RelationManager.isAlly(fx.origin, fx.target));
+		assertFalse(RelationManager.isAlly(null, fx.target));
+		assertFalse(RelationManager.isAlly(fx.origin, null));
+		when(fx.origin.getRelation("target")).thenReturn(null);
+		assertFalse(RelationManager.isAlly(fx.origin, fx.target));
+	}
+
 	private static void assertOriginTypeSet(Fixture fx) {
 		ArgumentCaptor<Relation> captor = ArgumentCaptor.forClass(Relation.class);
 		verify(fx.origin).setRelation(eq(fx.target), captor.capture());

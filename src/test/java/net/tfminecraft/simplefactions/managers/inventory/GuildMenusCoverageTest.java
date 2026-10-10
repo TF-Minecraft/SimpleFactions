@@ -119,6 +119,9 @@ class GuildMenusCoverageTest {
     intelligence
         .when(() -> EspionageService.canViewExact(fixture.player, fixture.host))
         .thenReturn(true);
+    intelligence
+        .when(() -> EspionageService.canViewCovert(fixture.player, fixture.host))
+        .thenReturn(true);
     access = mockStatic(EspionageAccess.class);
     oldRanking = GuildView.currentRanking;
     oldPages = GuildView.currentPage;
@@ -419,6 +422,28 @@ class GuildMenusCoverageTest {
     ItemStack members = creator.createMenuItem(fixture.player, guild, MenuItemType.MEMBERS);
     assertTrue(ChatColor.stripColor(members.getItemMeta().getDisplayName()).contains("2/"));
     assertEquals("", guild.getBanner().getItemMeta().getDisplayName());
+  }
+
+  @Test
+  void publicLedgersKeepMilitaryAndVehicleLinesCovert() {
+    Guild display = displayGuild(guild);
+    Ledger ledger = display.getLedger();
+    when(ledger.getIncome(Cashflow.TRADE)).thenReturn(40.0);
+    when(ledger.getIncome(Cashflow.VEHICLE_FEES)).thenReturn(12.0);
+    when(ledger.getIncome(Cashflow.MILITARY_UPKEEP)).thenReturn(-30.0);
+    when(ledger.getIncome(Cashflow.MERCENARY_PAYMENTS)).thenReturn(-7.0);
+    intelligence
+        .when(() -> EspionageService.canViewCovert(fixture.player, fixture.host))
+        .thenReturn(false);
+    access.when(() -> EspionageAccess.covert(any())).thenCallRealMethod();
+    ItemStack summary = creator.createLedgerItem(fixture.player, display);
+    assertLore(summary, "+40.00d", true);
+    assertLore(summary, "+12.00d", false);
+    assertLore(summary, "-30.00d", false);
+    assertLore(summary, "-7.00d", false);
+    assertLore(summary, "Vehicle Taxes & Fees: Unknown", true);
+    assertLore(summary, "Military, Vehicles & Mercenaries: Unknown", true);
+    assertLore(summary, "No expenses", false);
   }
 
   @Test

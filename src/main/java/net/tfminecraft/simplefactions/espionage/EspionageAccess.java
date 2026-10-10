@@ -22,7 +22,18 @@ public final class EspionageAccess {
     // Regiments, training and the vehicle pool. Installation berths are hidden inside their menu.
     private static final Set<SFGUI> COVERT_MENUS = EnumSet.of(SFGUI.MILITARY_VIEW);
 
+    // Ledger lines that reveal army or vehicle numbers; totals still include them.
+    private static final Set<net.tfminecraft.simplefactions.guild.income.Cashflow> COVERT_CASHFLOWS = EnumSet.of(
+            net.tfminecraft.simplefactions.guild.income.Cashflow.MILITARY_UPKEEP,
+            net.tfminecraft.simplefactions.guild.income.Cashflow.VEHICLE_UPKEEP,
+            net.tfminecraft.simplefactions.guild.income.Cashflow.VEHICLE_FEES,
+            net.tfminecraft.simplefactions.guild.income.Cashflow.MERCENARY_PAYMENTS);
+
     private EspionageAccess() {}
+
+    public static boolean covert(net.tfminecraft.simplefactions.guild.income.Cashflow flow) {
+        return COVERT_CASHFLOWS.contains(flow);
+    }
 
     public static boolean requiresOwn(SFGUI type) {
         return type != null && PRIVATE_MENUS.contains(type);

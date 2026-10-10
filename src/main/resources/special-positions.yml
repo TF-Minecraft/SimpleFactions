@@ -50,7 +50,7 @@ espionage:
     overlord-offense-bonus: 25
     # Taken from a vassal's margin when its network spies on any overlord above it.
     overlord-defense-bonus: 25
-    # Lets each Spymaster share information with their overlord and with their vassals, chosen by tier.
+    # Lets each Spymaster share information with their overlord, their vassals and their allies, chosen by tier.
     # Every field visible at the shared tier or below then reaches that partner exactly instead of as a range.
     allow-sharing: true
   sabotage:

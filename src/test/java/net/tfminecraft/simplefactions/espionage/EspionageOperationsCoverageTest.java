@@ -495,17 +495,20 @@ class EspionageOperationsCoverageTest {
     assertTrue(
         EspionageCommands.handle(leader, new String[] {"spymaster", "share", "vassals", "none"}));
     assertEquals(IntelligenceTier.UNKNOWN, home.getEspionage().sharing(SharingPartner.VASSALS));
-    clearInvocations(leader);
     assertTrue(
         EspionageCommands.handle(leader, new String[] {"spymaster", "share", "allies", "broad"}));
+    assertEquals(IntelligenceTier.BROAD, home.getEspionage().sharing(SharingPartner.ALLIES));
+    clearInvocations(leader);
+    assertTrue(
+        EspionageCommands.handle(leader, new String[] {"spymaster", "share", "friends", "broad"}));
     assertTrue(
         EspionageCommands.handle(
             leader, new String[] {"spymaster", "share", "overlord", "everything"}));
     assertEquals(IntelligenceTier.RELIABLE, home.getEspionage().sharing(SharingPartner.OVERLORD));
-    verify(leader, times(2)).sendMessage(contains("<overlord|vassals>"));
+    verify(leader, times(2)).sendMessage(contains("<overlord|vassals|allies>"));
     assertTrue(EspionageCommands.complete(leader, new String[] {"spymaster", ""}).contains("share"));
     assertEquals(
-        List.of("overlord", "vassals"),
+        List.of("overlord", "vassals", "allies"),
         EspionageCommands.complete(leader, new String[] {"spymaster", "share", ""}));
     assertEquals(
         List.of("rumours", "reliable"),
