@@ -18,7 +18,7 @@ public final class EspionageConfig {
     private static double base = 50, extraPositionPenalty = .25, rollMultiplier = 1.25;
     private static int center = 6, cap = 16, aptitudeSpread = 20, luckSpread = 75, luckDraws = 3, rosterLimit = 23;
     private static int overlordOffenseBonus = 25, overlordDefenseBonus = 25;
-    private static boolean sharingAllowed = true;
+    private static boolean sharingAllowed = true, militaryOnly = true;
     private static final Map<IntelligenceTier, TierSettings> tiers = new java.util.EnumMap<>(IntelligenceTier.class);
     private static final Map<String, IntelligenceTier> minimums = new LinkedHashMap<>();
     private static final Map<String, IntelligenceTier> cashflows = new LinkedHashMap<>();
@@ -80,6 +80,7 @@ public final class EspionageConfig {
         overlordOffenseBonus = (int) bounded(config, "espionage.vassalage.overlord-offense-bonus", 25, 0, 1000);
         overlordDefenseBonus = (int) bounded(config, "espionage.vassalage.overlord-defense-bonus", 25, 0, 1000);
         sharingAllowed = config.getBoolean("espionage.vassalage.allow-sharing", true);
+        militaryOnly = config.getBoolean("espionage.intelligence.military-only", true);
         SabotageText.load(config);
         tiers.clear();
         int previous = -1;
@@ -154,6 +155,8 @@ public final class EspionageConfig {
     public static int overlordOffenseBonus() { return overlordOffenseBonus; }
     public static int overlordDefenseBonus() { return overlordDefenseBonus; }
     public static boolean sharingAllowed() { return sharingAllowed; }
+    /** True when the Spymaster guards only regiments and vehicles. */
+    public static boolean militaryOnly() { return militaryOnly; }
 
     public static double stabilityPenalty() { return stabilityPenalty; }
     public static double penaltyDays() { return penaltyDays; }

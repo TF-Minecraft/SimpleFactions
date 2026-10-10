@@ -147,6 +147,10 @@ espionage:
             - "&cGuarding roll: -{reduction}"
           message: "&7You hand rival spymasters the keys to the archive. Little about your faction stays hidden, and no one suspects whose hand opened the doors. &8(Guarding roll -{reduction}.)"
   intelligence:
+    # true: the Spymaster guards only the military view (regiments, training, vehicle pool) and the
+    # vehicles berthed at installations. Everything else, including members, economy, laws, government,
+    # installations and offices, is exact for everyone. false: the Spymaster guards everything.
+    military-only: true
     # Margin = observing faction's offense minus target's defense. Rumours is the minimum report quality.
     # Negative margins return Rumours; individual fields stay Unknown below their required tier.
     tiers:
@@ -178,6 +182,7 @@ espionage:
     # Fields stay Unknown below their minimum tier, even if an old report contains an estimate.
     # Valid values: rumours, broad, reliable, detailed. Unknown disables disclosure entirely.
     # The faction and all its guilds share one daily quality. Flavours, faction leaders, guilds and prestige stay public.
+    # With military-only, only the military fields below (professional army, levies, mercenaries, training) are used.
     minimum-tiers:
       members: rumours
       roster: rumours

@@ -69,7 +69,7 @@ public final class EspionageView {
         inventory.setItem(53, manager.createBackButton(SFGUI.FACTION_VIEW));
     }
 
-    private static ItemStack reportHeader(Player viewer, IntelligenceReport report) {
+    static ItemStack reportHeader(Player viewer, IntelligenceReport report) {
         var observer = FactionManager.getByMember(viewer.getName());
         var spy = observer == null ? null : observer.getEspionage().getSpymaster();
         boolean missingSpymaster = !EspionageService.hasSpymaster(observer);
@@ -187,22 +187,24 @@ public final class EspionageView {
                     "#4bb244Prosperity: #4fd945" + value(report, "Prosperity", ""), "§7Faction modifiers: Unknown");
             case TAX -> styled(Material.GOLD_INGOT, "#c77c32Tax Rates", "§7Tax rates: Unknown");
             case LAWS -> styled(Material.WRITABLE_BOOK, "#9c64b0Laws", "§7Laws: Unknown");
-            case MILITARY -> styled(Material.IRON_SWORD, "#a6659fMilitary",
+            // The public faction view opens military and diplomacy through the item's faction id.
+            case MILITARY -> withFactionId(styled(Material.IRON_SWORD, "#a6659fMilitary",
                     "#d4c9aeProfessional army: §e" + value(report, "Professional army", ""),
                     "#d4c9aeLevies: §e" + value(report, "Levies", ""),
-                    "#d4c9aeMercenaries: §e" + value(report, "Mercenaries", ""));
+                    "#d4c9aeMercenaries: §e" + value(report, "Mercenaries", "")), target);
             case INSTALLATIONS -> styled(Material.GREEN_CONCRETE, "#706964Installations",
                     "#d4c9aeInstallations: §e" + value(report, "Installations", ""));
-            case DIPLOMACY -> {
-                ItemStack item = styled(Material.WRITABLE_BOOK, "#35f2bdDiplomacy",
-                        "#7fbd73Diplomatic Capacity: §7Unknown", "§7Click to view Diplomacy");
-                var meta = item.getItemMeta();
-                meta.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "id"), PersistentDataType.STRING, target.getId());
-                item.setItemMeta(meta);
-                yield item;
-            }
+            case DIPLOMACY -> withFactionId(styled(Material.WRITABLE_BOOK, "#35f2bdDiplomacy",
+                    "#7fbd73Diplomatic Capacity: §7Unknown", "§7Click to view Diplomacy"), target);
             default -> throw new IllegalArgumentException("No private faction item for " + type);
         };
+    }
+
+    private static ItemStack withFactionId(ItemStack item, Faction target) {
+        var meta = item.getItemMeta();
+        meta.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "id"), PersistentDataType.STRING, target.getId());
+        item.setItemMeta(meta);
+        return item;
     }
 
     public static ItemStack positionButton() {
@@ -273,8 +275,10 @@ public final class EspionageView {
                         : holder.automatic ? "§7Held by the faction leader until a member is appointed."
                         : "§7Appointed by the faction leader.",
                 "§7Gathers foreign intelligence and guards your secrets.",
-                holder == null ? "\u00a7cWithout a Spymaster, all faction and guild information is public."
-                        : "\u00a77An eligible Spymaster protects your faction and guild information.",
+                holder == null ? "\u00a7cWithout a Spymaster, " + (EspionageConfig.militaryOnly()
+                        ? "your regiments and vehicles are public too." : "all faction and guild information is public.")
+                        : "\u00a77An eligible Spymaster protects your " + (EspionageConfig.militaryOnly()
+                        ? "regiments and vehicles." : "faction and guild information."),
                 holder != null && holder.isHolder(viewer.getUniqueId())
                         ? "§aClick your own head to inspect your private conduct." : "§8Private conduct is known only to the office holder.");
         if (holder != null) {

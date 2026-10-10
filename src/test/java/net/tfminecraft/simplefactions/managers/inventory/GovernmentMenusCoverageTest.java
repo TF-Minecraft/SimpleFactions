@@ -699,6 +699,14 @@ class GovernmentMenusCoverageTest {
   }
 
   @Test
+  void onlyPlayersOfferedACouncilSeatCanToggleTheirRefusal() {
+    when(council.canBeMember("Alice", true, true)).thenReturn(false);
+    view.governmentView(player, faction, null);
+    click(21);
+    verify(council, never()).toggleRefuse(anyString());
+  }
+
+  @Test
   void governmentEntryButtonsRespectCurrentProposalAndCouncilState() {
     when(council.canBeMember("Alice", true, true)).thenReturn(true);
     when(council.canHostSession()).thenReturn(true);

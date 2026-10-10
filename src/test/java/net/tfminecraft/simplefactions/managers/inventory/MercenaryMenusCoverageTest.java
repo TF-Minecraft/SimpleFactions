@@ -56,6 +56,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 class MercenaryMenusCoverageTest {
+  @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
+  @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
+
   private FactionDomainFixture fixture;
   private Guild guild;
   private Faction host;

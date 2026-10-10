@@ -76,6 +76,7 @@ public final class ReportedMenus {
     public static void military(Inventory inventory, Player viewer, Faction faction, InventoryManager manager) {
         var report = EspionageService.report(viewer, faction);
         prepare(inventory);
+        inventory.setItem(4, EspionageView.reportHeader(viewer, report));
         inventory.setItem(10, EspionageView.factionItem(viewer, faction, net.tfminecraft.simplefactions.enums.MenuItemType.MILITARY));
         int slot = 12;
         for (var regiment : faction.getMilitary().getRegiments()) {

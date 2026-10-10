@@ -1340,8 +1340,7 @@ public class InventoryManager implements Listener{
 						break;
 				}
 			}
-            if (h.isReported() && !net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(p,
-                    net.tfminecraft.simplefactions.espionage.EspionageAccess.owner(h))) {
+            if (h.isReported() && !EspionageAccess.canView(p, EspionageAccess.owner(h), h.getType())) {
                 net.tfminecraft.simplefactions.managers.inventory.ReportedMenus.navigate(e, p, h, this);
                 return;
             }

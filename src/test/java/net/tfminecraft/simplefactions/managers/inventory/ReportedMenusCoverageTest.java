@@ -94,7 +94,7 @@ class ReportedMenusCoverageTest {
     when(api.getCreator()).thenReturn(creator);
     items.when(TLibs::getItemAPI).thenReturn(api);
     when(creator.getItemFromPath(anyString())).thenAnswer(call -> new ItemStack(Material.PAPER));
-    EspionageConfig.load(new YamlConfiguration());
+    net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything();
     assertSame(report, EspionageService.report(viewer, target));
   }
 

@@ -108,7 +108,7 @@ class EspionageMenusCoverageTest {
               when(p.getUniqueId()).thenReturn(call.getArgument(0));
               return p;
             });
-    EspionageConfig.load(new YamlConfiguration());
+    net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything();
   }
 
   @AfterEach
@@ -335,6 +335,7 @@ class EspionageMenusCoverageTest {
     assertTrue(
         text(top(leader).getItem(4)).contains("shares everything up to Broad estimates exactly"));
     YamlConfiguration config = new YamlConfiguration();
+    config.set(net.tfminecraft.simplefactions.testsupport.EspionageModes.MILITARY_ONLY, false);
     config.set("espionage.vassalage.allow-sharing", false);
     EspionageConfig.load(config);
     EspionageView.foreignPositions(leader, target, manager);

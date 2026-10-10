@@ -367,6 +367,8 @@ public class GovernmentView {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(slot == 21) {
 				Government gov = f.getGovernment();
+				// Foreign viewers see this menu too; only those offered the button may use it.
+				if(!gov.getCouncil().canBeMember(p.getName(), true, true)) return;
 				gov.getCouncil().toggleRefuse(p.getName());
 				governmentView(p, f, inventory);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

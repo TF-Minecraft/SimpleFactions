@@ -94,6 +94,7 @@ class FactionMenusCoverageTest {
     creator = view.creator;
     intelligence = scoped(EspionageService.class);
     intelligence.when(() -> EspionageService.canViewExact(any(), any())).thenReturn(true);
+    intelligence.when(() -> EspionageService.canViewCovert(any(), any())).thenReturn(true);
     intelligence.when(() -> EspionageService.isOwn(player, faction)).thenReturn(true);
     scoped(CharacterNames.class)
         .when(() -> CharacterNames.display(any(), anyString(), any()))
@@ -401,6 +402,21 @@ class FactionMenusCoverageTest {
         creator.createMenuItem(player, display, MenuItemType.LAWS),
         "3.0 Administrative Power",
         true);
+  }
+
+  @Test
+  void publicFactionViewsKeepOnlyTheMilitaryItemCovert() {
+    intelligence.when(() -> EspionageService.canViewCovert(player, faction)).thenReturn(false);
+    try (MockedStatic<EspionageView> foreign = mockStatic(EspionageView.class)) {
+      ItemStack redacted = new ItemStack(Material.IRON_SWORD);
+      foreign
+          .when(() -> EspionageView.factionItem(player, faction, MenuItemType.MILITARY))
+          .thenReturn(redacted);
+      assertSame(redacted, creator.createMenuItem(player, faction, MenuItemType.MILITARY));
+      creator.createMenuItem(player, faction, MenuItemType.INSTALLATIONS);
+      foreign.verify(
+          () -> EspionageView.factionItem(player, faction, MenuItemType.INSTALLATIONS), never());
+    }
   }
 
   @Test

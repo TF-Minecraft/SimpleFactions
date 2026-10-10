@@ -118,7 +118,7 @@ public class InventoryUpdater {
 			return;
 		}
 		SFGUI type = h.getType();
-        if (h.isReported() && !net.tfminecraft.simplefactions.espionage.EspionageService.canViewExact(p, EspionageAccess.owner(h))) return;
+        if (h.isReported() && !EspionageAccess.canView(p, EspionageAccess.owner(h), type)) return;
 		if (skipsPeriodicRefresh(type)) {
 			return;
 		}

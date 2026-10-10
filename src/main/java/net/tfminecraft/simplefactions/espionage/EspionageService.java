@@ -169,8 +169,14 @@ public final class EspionageService {
         return viewer != null && viewer.hasPermission(EspionageConfig.bypassPermission());
     }
 
-    /** Viewing permission does not grant membership or authority over faction offices. */
+    /** Everything except regiments and vehicles; public to everyone when the Spymaster guards only those. */
     public static boolean canViewExact(Player viewer, Faction target) {
+        return viewer != null && target != null && (EspionageConfig.militaryOnly() || canViewCovert(viewer, target));
+    }
+
+    /** Regiments and vehicles, which an eligible Spymaster always guards.
+     *  Viewing permission does not grant membership or authority over faction offices. */
+    public static boolean canViewCovert(Player viewer, Faction target) {
         return viewer != null && target != null
                 && (bypasses(viewer) || isOwn(viewer, target) || !hasSpymaster(target));
     }
@@ -430,7 +436,7 @@ public final class EspionageService {
 
     /** Reading or clicking menus never generates intelligence. */
     public static IntelligenceReport report(Player viewer, Faction target) {
-        if (viewer == null || canViewExact(viewer, target)) return null;
+        if (viewer == null || canViewCovert(viewer, target)) return null;
         Faction observer = FactionManager.getByMember(viewer.getName());
         if (!hasSpymaster(observer)) return null;
         return observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day());

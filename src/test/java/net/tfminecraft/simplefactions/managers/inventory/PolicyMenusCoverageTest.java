@@ -23,6 +23,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 class PolicyMenusCoverageTest {
+  @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
+  @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
+
   private org.mockito.MockedStatic<net.tfminecraft.tlibs.TLibs> items;
   private FactionDomainFixture fixture;
   private InventoryManager inventory;

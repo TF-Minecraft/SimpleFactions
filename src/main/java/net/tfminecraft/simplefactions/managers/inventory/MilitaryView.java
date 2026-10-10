@@ -33,7 +33,7 @@ public class MilitaryView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void militaryView(Inventory i, Player player, Faction f, boolean open) {
-		if (!EspionageService.canViewExact(player, f)) {
+		if (!EspionageService.canViewCovert(player, f)) {
             if (open || i == null) i = ReportedMenus.open(player, f.getId(), SFGUI.MILITARY_VIEW, 54, "Military View");
             ReportedMenus.military(i, player, f, inv);
             if (open) player.openInventory(i);
