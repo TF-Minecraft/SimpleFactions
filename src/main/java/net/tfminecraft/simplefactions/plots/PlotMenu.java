@@ -70,7 +70,7 @@ public final class PlotMenu {
         }
         lore.add("§7Approach: §e" + approach.label());
         lore.add("§7Defended by: §e" + defenderName(settings));
-        lore.add("§8Rolled once for life, like a Spymaster's aptitude.");
+        lore.add("§8Rolled once for life. A Spymaster serves with it too.");
         return item(Material.SPYGLASS, "§5Intrigue: §e" + (intrigue == null ? "?" : intrigue + "/100"), lore);
     }
 
