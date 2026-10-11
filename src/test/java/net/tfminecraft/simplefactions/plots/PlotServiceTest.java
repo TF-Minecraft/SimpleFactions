@@ -68,6 +68,11 @@ class PlotServiceTest {
         return plot;
     }
 
+    /** The assassin's hunt has already taken effect. */
+    private void hunting(Plot plot, Player blade) {
+        plot.member(world.character(blade).characterId).huntingSince = world.clock.get() - PlotConfig.huntWarmup();
+    }
+
     private Faction factionGuardedBy(String characterId, int office) {
         Faction faction = mock(Faction.class);
         EspionageState state = new EspionageState();
@@ -409,7 +414,7 @@ class PlotServiceTest {
         world.pass(PlotConfig.investigation());
         PlotService.tick();
         assertEquals(PlotPhase.EXECUTION, running.phase);
-        assertTrue(world.last(assassin).contains("may now strike"));
+        assertTrue(world.last(assassin).contains("may now hunt"));
         PlotService.tick();
         world.pass(PlotConfig.execution());
         PlotService.tick();
@@ -556,6 +561,14 @@ class PlotServiceTest {
         assertEquals(PlotPhase.EXECUTION, plot.phase);
         PlotService.damaged(target, assassin);
         PlotService.died(target, null);
+        assertEquals(PlotPhase.EXECUTION, plot.phase, "only a hunting assassin's kill counts");
+        assertTrue(world.permakilled.isEmpty());
+        plot.member("c-assassin").huntingSince = world.clock.get();
+        PlotService.died(target, assassin);
+        assertEquals(PlotPhase.EXECUTION, plot.phase, "not while the hunt is warming up");
+        hunting(plot, assassin);
+        PlotService.damaged(target, assassin);
+        PlotService.died(target, null);
         assertEquals(PlotPhase.SUCCEEDED, plot.phase);
         assertEquals(List.of("c-target"), world.permakilled);
         assertTrue(world.last(master).contains("is dead. The plot has succeeded"));
@@ -571,6 +584,7 @@ class PlotServiceTest {
         PlotMember blade = new PlotMember(world.character(assassin));
         blade.role = PlotRole.ASSASSIN;
         striking.members.add(blade);
+        hunting(striking, assassin);
         PlotService.damaged(target, assassin);
         PlotService.died(target, null);
         assertEquals(PlotPhase.SUCCEEDED, striking.phase);
@@ -585,6 +599,12 @@ class PlotServiceTest {
         PlotService.accept(second, plot.code);
         PlotService.assign(master, "c-second", PlotRole.ASSASSIN, null);
         plot.phase = PlotPhase.EXECUTION;
+        PlotService.died(assassin, null);
+        PlotService.died(assassin, helper);
+        assertEquals(2, plot.withRole(PlotRole.ASSASSIN).size(), "an assassin who is not hunting dies like anyone else");
+        assertTrue(world.permakilled.isEmpty());
+        hunting(plot, assassin);
+        hunting(plot, second);
         PlotService.died(assassin, null);
         assertEquals(2, plot.withRole(PlotRole.ASSASSIN).size());
         PlotService.died(assassin, helper);
@@ -602,9 +622,70 @@ class PlotServiceTest {
         world.store().cooldowns.clear();
         Plot quiet = building();
         quiet.phase = PlotPhase.EXECUTION;
+        hunting(quiet, assassin);
         world.logOff(target);
         PlotService.died(assassin, helper);
         assertEquals(PlotPhase.FAILED, quiet.phase);
+    }
+
+    @Test
+    void assassinsHuntAndAKnowingTargetFeelsIt() {
+        assertFalse(PlotService.hunt(stranger));
+        assertFalse(PlotService.hunt(helper));
+        Plot plot = building();
+        assertFalse(PlotService.hunt(assassin));
+        assertTrue(world.last(assassin).contains("Only an assassin can hunt"));
+        plot.phase = PlotPhase.EXECUTION;
+        assertFalse(PlotService.hunt(master));
+        assertTrue(PlotService.hunt(assassin));
+        assertTrue(world.last(assassin).contains("You set out to hunt"));
+        assertFalse(PlotService.hunting(plot.member("c-assassin")));
+        assertFalse(PlotService.hunting(null));
+        PlotService.tick();
+        assertFalse(world.heard(assassin, "The hunt is on"));
+        world.pass(PlotConfig.huntWarmup());
+        PlotService.tick();
+        assertTrue(world.last(assassin).contains("The hunt is on"));
+        assertTrue(world.said(target).isEmpty(), "a target who knows nothing feels nothing");
+        PlotService.tick();
+        assertFalse(PlotService.hunt(assassin));
+        assertTrue(world.last(assassin).contains("committed to the hunt"));
+        world.pass(PlotConfig.huntMinimum());
+        assertTrue(PlotService.hunt(assassin));
+        assertTrue(world.last(assassin).contains("call off the hunt"));
+        assertTrue(world.said(target).isEmpty());
+
+        plot.discovered = true;
+        plot.secrecy = PlotConfig.huntAlertSecrecy() + 1;
+        assertFalse(PlotService.alerted(plot));
+        plot.secrecy = PlotConfig.huntAlertSecrecy();
+        assertTrue(PlotService.alerted(plot));
+        assertTrue(PlotService.hunt(assassin));
+        world.pass(PlotConfig.huntWarmup());
+        PlotService.tick();
+        assertTrue(world.last(target).contains("You feel hunted"));
+        PlotService.deliver(target);
+        assertTrue(world.last(target).contains("You feel hunted"));
+        world.pass(PlotConfig.huntMinimum());
+        assertTrue(PlotService.hunt(assassin));
+        assertTrue(world.last(target).contains("feeling of being hunted fades"));
+        int heard = world.said(target).size();
+        PlotService.deliver(target);
+        assertEquals(heard, world.said(target).size());
+
+        assertTrue(PlotService.hunt(assassin));
+        world.pass(PlotConfig.huntWarmup());
+        PlotService.tick();
+        world.logOff(assassin);
+        PlotService.tick();
+        assertEquals(0, plot.member("c-assassin").huntingSince, "logging off ends the hunt");
+        assertTrue(world.last(target).contains("fades"));
+        world.active.put(assassin.getUniqueId(), new PlotCharacter("c-assassin", assassin.getUniqueId(), "Assassin", "Char Assassin"));
+        PlotService.hunt(assassin);
+        world.logOff(target);
+        world.logOff(assassin);
+        PlotService.tick();
+        assertEquals(0, plot.member("c-assassin").huntingSince);
     }
 
     @Test

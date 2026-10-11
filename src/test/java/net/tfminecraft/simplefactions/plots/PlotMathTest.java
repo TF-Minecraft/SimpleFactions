@@ -134,6 +134,18 @@ class PlotMathTest {
     }
 
     @Test
+    void progressBandsAreConfigurable() {
+        var config = new YamlConfiguration();
+        config.set("plots.building.reveal.early-progress", 5);
+        config.set("plots.building.reveal.late-progress", 10);
+        PlotConfig.load(config);
+        Plot plot = plot();
+        plot.secrecy = 30;
+        plot.progress = 8;
+        assertTrue(PlotMath.reveal(plot, List.of("M")).contains("The plot against you is well under way."));
+    }
+
+    @Test
     void investigationRollsWeighKnowledgeBetrayalAndPosition() {
         assertEquals(15, PlotMath.investigationModifier(true, Betrayal.NONE));
         assertEquals(-55, PlotMath.investigationModifier(false, Betrayal.SPYMASTER));

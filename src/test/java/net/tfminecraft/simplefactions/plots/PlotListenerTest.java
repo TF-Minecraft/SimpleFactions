@@ -59,6 +59,7 @@ class PlotListenerTest {
         PlotService.accept(assassin, plot.code);
         PlotService.assign(master, "c-assassin", PlotRole.ASSASSIN, null);
         plot.phase = PlotPhase.EXECUTION;
+        plot.member("c-assassin").huntingSince = world.clock.get() - PlotConfig.huntWarmup();
         return plot;
     }
 

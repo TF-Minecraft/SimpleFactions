@@ -202,8 +202,19 @@ class PlotMenuTest {
         plot.phase = PlotPhase.EXECUTION;
         PlotMenu.open(master);
         assertTrue(lore(master, 22).stream().anyMatch(line -> line.contains("Time left to strike")));
+        assertTrue(lore(master, 22).contains("§7Assassins hunting: §e0"));
+        assertFalse(holder(master).actions.containsKey(24));
         PlotMenu.open(assassin);
-        assertFalse(holder(assassin).actions.containsKey(24));
+        assertTrue(name(assassin, 24).startsWith("§aHunt"));
+        click(assassin, 24);
+        assertTrue(name(assassin, 24).startsWith("§cHunting"));
+        assertEquals("§7The hunt takes effect shortly.", lore(assassin, 24).getFirst());
+        world.pass(PlotConfig.huntWarmup());
+        PlotMenu.open(assassin);
+        assertEquals("§7The hunt is on: their death or yours counts.", lore(assassin, 24).getFirst());
+        assertTrue(lore(assassin, 22).contains("§7Assassins hunting: §e1"));
+        click(assassin, 24);
+        assertTrue(world.heard(assassin, "committed to the hunt"));
 
         PlotMenu.open(target);
         assertNull(item(target, 40));

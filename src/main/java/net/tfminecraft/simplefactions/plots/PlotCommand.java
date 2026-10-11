@@ -14,7 +14,7 @@ import net.tfminecraft.simplefactions.espionage.CharacterNames;
 /** /plot: the Plots menu, the same actions by command, and staff approval. */
 public final class PlotCommand implements CommandExecutor, TabCompleter {
     private static final List<String> PLAYER = List.of("request", "accept", "decline", "invite", "inform", "role", "dismiss",
-            "start", "launch", "leave", "abandon", "approach", "defender", "investigator", "status");
+            "start", "launch", "hunt", "leave", "abandon", "approach", "defender", "investigator", "status");
     private static final List<String> STAFF = List.of("approve", "deny", "cancel", "day", "list", "info");
 
     @Override
@@ -49,6 +49,7 @@ public final class PlotCommand implements CommandExecutor, TabCompleter {
             }
             case "start" -> PlotService.begin(player);
             case "launch" -> PlotService.launch(player);
+            case "hunt" -> PlotService.hunt(player);
             case "leave" -> PlotService.leave(player);
             case "abandon" -> {
                 if (!rest.equalsIgnoreCase("confirm")) return usage(player, "abandon confirm");

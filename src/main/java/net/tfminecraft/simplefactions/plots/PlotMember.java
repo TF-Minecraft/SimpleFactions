@@ -5,6 +5,9 @@ public final class PlotMember {
     public PlotCharacter character;
     public PlotRole role = PlotRole.UNASSIGNED;
     public CollaboratorTask task;
+    /** When an assassin set out to hunt; zero when not hunting. A restart ends every hunt. */
+    public transient long huntingSince;
+    public transient boolean huntAnnounced;
 
     public PlotMember() {}
 

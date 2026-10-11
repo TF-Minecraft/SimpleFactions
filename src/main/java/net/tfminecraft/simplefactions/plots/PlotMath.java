@@ -90,8 +90,8 @@ public final class PlotMath {
         if (plot.secrecy <= PlotConfig.revealMembers())
             learn(plot, lines, "members", "The plot against you counts " + plot.conspirators() + " conspirators.");
         if (plot.secrecy <= PlotConfig.revealProgress())
-            learn(plot, lines, "progress", "The plot against you is " + (plot.progress < 34 ? "in its early days."
-                    : plot.progress < 67 ? "well under way." : "nearly complete."));
+            learn(plot, lines, "progress", "The plot against you is " + (plot.progress < PlotConfig.earlyProgress()
+                    ? "in its early days." : plot.progress < PlotConfig.lateProgress() ? "well under way." : "nearly complete."));
         if (plot.secrecy <= PlotConfig.revealAssassins()) {
             int blades = plot.withRole(PlotRole.ASSASSIN).size();
             learn(plot, lines, "assassins", blades == 1 ? "One blade has been hired against you."

@@ -91,6 +91,8 @@ class PlotCommandTest {
         run(master, "start");
         assertEquals(PlotPhase.BUILDING, plot.phase);
         run(master, "launch");
+        run(assassin, "hunt");
+        assertTrue(world.last(assassin).contains("Only an assassin can hunt"));
         run(master, "status");
         assertTrue(world.last(master).contains("Plot against"));
         plot.knowledge.put("threat", "Someone");

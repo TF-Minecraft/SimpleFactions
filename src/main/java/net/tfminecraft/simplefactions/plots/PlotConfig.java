@@ -21,9 +21,10 @@ public final class PlotConfig {
             approachHours, defenderHours, aloneShare, helperShare, buildDays, luckMin, luckMax, progressPerCollaborator,
             masterStrength, assassinStrength, strengthCollaborator, otherCollaborator, requiredBase,
             requiredPerProtection, dailyLoss, lossPerMember, hidePerCollaborator, minimumLoss, leakLoss,
-            revealMembers, revealProgress, revealAssassins, betrayalSpeed, investigationDays, radius, executionDays;
+            revealMembers, revealProgress, revealAssassins, earlyProgress, lateProgress, betrayalSpeed, investigationDays,
+            radius, executionDays, huntAlertSecrecy;
     private static int spymasterPenalty, helperPenalty, scanSeconds, maxInvestigators, knownBonus, unknownPenalty,
-            strongMargin, hitWindowSeconds;
+            strongMargin, hitWindowSeconds, maxAssassins, maxCollaborators, noticeLimit, huntWarmupSeconds, huntMinimumMinutes;
 
     static { load(BUNDLED); }
 
@@ -38,6 +39,9 @@ public final class PlotConfig {
         retargetDays = number("retarget-cooldown-days", 7, 0, 3650);
         inviteRadius = number("invite-radius", 8, 1, 256);
         inviteMinutes = number("invite-minutes", 10, 1, 10_080);
+        maxAssassins = (int) number("roles.max-assassins", 2, 1, 20);
+        maxCollaborators = (int) number("roles.max-collaborators", 2, 0, 20);
+        noticeLimit = (int) number("notice-limit", 30, 1, 1000);
         approachHours = number("approach.change-cooldown-hours", 24, 0, 87_600);
         for (PlotApproach approach : PlotApproach.values()) {
             String key = "approach." + approach.key() + ".";
@@ -65,6 +69,8 @@ public final class PlotConfig {
         revealMembers = number("building.reveal.member-count", 60, 0, 100);
         revealProgress = number("building.reveal.progress", 40, 0, 100);
         revealAssassins = number("building.reveal.assassins", 20, 0, 100);
+        earlyProgress = number("building.reveal.early-progress", 34, 0, 100);
+        lateProgress = Math.max(earlyProgress, number("building.reveal.late-progress", 67, 0, 100));
         betrayalSpeed = number("betrayal.speed-multiplier", 2, 1, 100);
         spymasterPenalty = (int) number("betrayal.spymaster-investigation-penalty", 40, 0, 1000);
         helperPenalty = (int) number("betrayal.helper-investigation-penalty", 20, 0, 1000);
@@ -79,6 +85,9 @@ public final class PlotConfig {
             difficulty.put(role, (int) number("investigation.difficulty." + role.key(), role.defaultDifficulty(), -1000, 1000));
         executionDays = number("execution.days", 7, .01, 3650);
         hitWindowSeconds = (int) number("execution.hit-window-seconds", 120, 0, 86_400);
+        huntWarmupSeconds = (int) number("execution.hunt.warmup-seconds", 60, 0, 86_400);
+        huntMinimumMinutes = (int) number("execution.hunt.minimum-minutes", 10, 0, 10_080);
+        huntAlertSecrecy = number("execution.hunt.alert-secrecy", 40, 0, 100);
     }
 
     private static double number(String key, double fallback, double min, double max) {
@@ -99,6 +108,10 @@ public final class PlotConfig {
     public static long recruiting() { return millis(recruitingDays); }
     public static long retargetCooldown() { return millis(retargetDays); }
     public static double inviteRadius() { return inviteRadius; }
+    public static int maxAssassins() { return maxAssassins; }
+    public static int maxCollaborators() { return maxCollaborators; }
+    public static int maxMembers() { return maxAssassins + maxCollaborators; }
+    public static int noticeLimit() { return noticeLimit; }
     public static long inviteDuration() { return Math.round(inviteMinutes * 60_000); }
     public static long approachCooldown() { return Math.round(approachHours * 3_600_000); }
     public static long defenderCooldown() { return Math.round(defenderHours * 3_600_000); }
@@ -128,6 +141,8 @@ public final class PlotConfig {
     public static double revealMembers() { return revealMembers; }
     public static double revealProgress() { return revealProgress; }
     public static double revealAssassins() { return revealAssassins; }
+    public static double earlyProgress() { return earlyProgress; }
+    public static double lateProgress() { return lateProgress; }
     public static double betrayalSpeed() { return betrayalSpeed; }
     public static int betrayalPenalty(Betrayal betrayal) {
         return betrayal == Betrayal.SPYMASTER ? spymasterPenalty : betrayal == Betrayal.HELPER ? helperPenalty : 0;
@@ -142,6 +157,10 @@ public final class PlotConfig {
     public static int difficulty(PlotRole role) { return difficulty.get(role); }
     public static long execution() { return millis(executionDays); }
     public static long hitWindow() { return hitWindowSeconds * 1000L; }
+    public static long huntWarmup() { return huntWarmupSeconds * 1000L; }
+    /** From the start of the hunt, including the warm-up. */
+    public static long huntMinimum() { return huntWarmup() + huntMinimumMinutes * 60_000L; }
+    public static double huntAlertSecrecy() { return huntAlertSecrecy; }
 
     private static long millis(double days) { return Math.round(days * DAY); }
 }

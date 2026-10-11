@@ -143,6 +143,8 @@ public final class PlotMenu {
             long ends = plot.phaseStartedAt + (plot.phase == PlotPhase.INVESTIGATION ? PlotConfig.investigation() : PlotConfig.execution());
             lore.add("§7" + (plot.phase == PlotPhase.INVESTIGATION ? "Assassins may strike in " : "Time left to strike: ")
                     + "§e" + EspionageService.duration(Math.max(0, ends - PlotService.now())));
+            if (plot.phase == PlotPhase.EXECUTION) lore.add("§7Assassins hunting: §e"
+                    + plot.withRole(PlotRole.ASSASSIN).stream().filter(PlotService::hunting).count());
         }
         holder.set(22, item(Material.IRON_SWORD, "§5Assassination plot", lore), null);
         List<String> roster = new ArrayList<>(List.of("§7" + plot.master.name + " §8- " + PlotRole.MASTER.label()));
@@ -171,6 +173,19 @@ public final class PlotMenu {
         if (!master && (plot.phase.organising() || plot.phase == PlotPhase.READY))
             holder.set(24, item(Material.OAK_DOOR, "§cWithdraw from the plot", "§7Shift-click to confirm."), click -> {
                 if (click.isShiftClick()) PlotService.leave(player);
+                open(player);
+            });
+        PlotMember own = plot.member(me.characterId);
+        if (own != null && own.role == PlotRole.ASSASSIN && plot.phase == PlotPhase.EXECUTION)
+            holder.set(24, own.huntingSince > 0
+                    ? item(Material.CROSSBOW, "§cHunting §e" + plot.target.name, PlotService.hunting(own)
+                            ? "§7The hunt is on: their death or yours counts." : "§7The hunt takes effect shortly.",
+                            "§7Click to call it off once you may.")
+                    : item(Material.CROSSBOW, "§aHunt §e" + plot.target.name,
+                            "§7Only deaths while hunting count, theirs and yours.",
+                            "§7Takes effect after " + EspionageService.duration(PlotConfig.huntWarmup()) + "; you can't call it off for "
+                                    + EspionageService.duration(PlotConfig.huntMinimum()) + "."), click -> {
+                PlotService.hunt(player);
                 open(player);
             });
         if (master) holder.set(31, item(Material.TNT, "§cAbandon the plot", "§7Shift-click to confirm."), click -> {

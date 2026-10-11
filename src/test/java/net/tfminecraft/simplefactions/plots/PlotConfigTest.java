@@ -63,6 +63,15 @@ class PlotConfigTest {
         assertEquals(0, PlotConfig.difficulty(PlotRole.INFORMED));
         assertEquals(7 * PlotConfig.DAY, PlotConfig.execution());
         assertEquals(120_000, PlotConfig.hitWindow());
+        assertEquals(2, PlotConfig.maxAssassins());
+        assertEquals(2, PlotConfig.maxCollaborators());
+        assertEquals(4, PlotConfig.maxMembers());
+        assertEquals(30, PlotConfig.noticeLimit());
+        assertEquals(34, PlotConfig.earlyProgress());
+        assertEquals(67, PlotConfig.lateProgress());
+        assertEquals(60_000, PlotConfig.huntWarmup());
+        assertEquals(660_000, PlotConfig.huntMinimum());
+        assertEquals(40, PlotConfig.huntAlertSecrecy());
         assertEquals("&7&oSomething about Ana unsettles you.", PlotConfig.hint(PlotRole.ASSASSIN, false, "Ana"));
     }
 
@@ -75,6 +84,9 @@ class PlotConfigTest {
         config.set("plots.building.luck-min", 2.0);
         config.set("plots.building.luck-max", 1.0);
         config.set("plots.approach.offensive.offense", 30);
+        config.set("plots.roles.max-assassins", 3);
+        config.set("plots.building.reveal.early-progress", 50);
+        config.set("plots.building.reveal.late-progress", 20);
         config.set("plots.investigation.hints.master.strong", "{name} knows.");
         PlotConfig.load(config);
         assertEquals("simplefactions.plots.staff", PlotConfig.staffPermission());
@@ -83,6 +95,8 @@ class PlotConfigTest {
         assertEquals(2, PlotConfig.luckMin());
         assertEquals(2, PlotConfig.luckMax());
         assertEquals(30, PlotConfig.offenseBonus(PlotApproach.OFFENSIVE));
+        assertEquals(5, PlotConfig.maxMembers());
+        assertEquals(50, PlotConfig.lateProgress());
         assertEquals("Ana knows.", PlotConfig.hint(PlotRole.MASTER, true, "Ana"));
         config.set("plots.staff-permission", "custom.node");
         PlotConfig.load(config);
