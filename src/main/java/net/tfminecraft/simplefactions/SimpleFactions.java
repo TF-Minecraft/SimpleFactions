@@ -300,6 +300,7 @@ public class SimpleFactions extends JavaPlugin{
 			getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
+		net.tfminecraft.simplefactions.plots.Plots.start(this);
 		getCommand(commands.cmd1).setExecutor(commands);
 		getCommand(commands.cmd2).setExecutor(commands);
 		getCommand(commands.cmd1).setTabCompleter(new TabCompletion());
@@ -381,6 +382,7 @@ public class SimpleFactions extends JavaPlugin{
 	@Override
 	public void onDisable() {
 		if (trackRefreshTask != null) trackRefreshTask.cancel();
+		net.tfminecraft.simplefactions.plots.Plots.stop();
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.unregister();
 		MercenaryStatService.clearAll();
 		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.reset();
@@ -767,6 +769,7 @@ public class SimpleFactions extends JavaPlugin{
 			getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);
 			officeCharacterDeathRegistered = true;
 		}
+		net.tfminecraft.simplefactions.plots.Plots.registerCharacters(this);
 	}
 
 	private void registerVehicleIntegrationHooks() {

@@ -227,7 +227,7 @@ public final class EspionageView {
                     })
                     : report == null ? "Unknown" : report.display(IntelligenceReport.officeAptitudeKey(office));
             lore.add("\u00a77" + office.label() + ": " + name);
-            lore.add("\u00a77Aptitude: " + aptitude + (aptitude.equals("Unknown") ? "" : "/100"));
+            lore.add("\u00a77Intrigue: " + aptitude + (aptitude.equals("Unknown") ? "" : "/100"));
         }
         lore.add("\u00a7aClick to inspect offices.");
         return item(Material.ENDER_EYE, "Special Positions", lore.toArray(String[]::new));
@@ -270,7 +270,7 @@ public final class EspionageView {
         SpecialPositionAssignment holder = EspionageService.spymaster(faction);
         long now = System.currentTimeMillis();
         ItemStack head = item(Material.PLAYER_HEAD, "Spymaster: " + (holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)),
-                "§7Aptitude: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
+                "§7Intrigue: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
                 buildUpLine(holder, now),
                 holder == null ? "§7Falls to the faction leader once they have an active character."
                         : holder.automatic ? "§7Held by the faction leader until a member is appointed."
@@ -312,7 +312,7 @@ public final class EspionageView {
         Inventory inventory = Bukkit.createInventory(new SFInventoryHolder(faction.getId(), SFGUI.SPYMASTER_SETTINGS),
                 27, "§7Spymaster's Private Conduct");
         inventory.setItem(4, item(Material.PAPER, "Your sealed instructions",
-                "§7Aptitude: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
+                "§7Intrigue: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
                 buildUpLine(holder, System.currentTimeMillis()),
                 "§7Sabotage is voluntary and disabled on appointment.",
                 "§7Only you can see or change these choices.",
@@ -337,13 +337,13 @@ public final class EspionageView {
     private static String buildUpLine(SpecialPositionAssignment holder, long now) {
         long remaining = EspionageService.buildUpRemaining(holder, now);
         return remaining <= 0 ? "\u00a77Network: \u00a7aestablished"
-                : "\u00a77Network: \u00a7ebuilding\u00a77, full aptitude in " + EspionageService.duration(remaining);
+                : "\u00a77Network: \u00a7ebuilding\u00a77, full Intrigue in " + EspionageService.duration(remaining);
     }
 
     private static String buildUpTerms() {
-        if (!EspionageConfig.buildsUp()) return "\u00a77A new Spymaster serves at full aptitude at once.";
+        if (!EspionageConfig.buildsUp()) return "\u00a77A new Spymaster serves at full Intrigue at once.";
         return "\u00a77A new Spymaster starts at " + Math.round(EspionageConfig.startingAptitude() * 100)
-                + "% aptitude, reaching full over " + EspionageService.duration(Math.round(EspionageConfig.buildUpDays() * 86_400_000)) + ".";
+                + "% Intrigue, reaching full over " + EspionageService.duration(Math.round(EspionageConfig.buildUpDays() * 86_400_000)) + ".";
     }
 
     private static final int SHARE_OVERLORD_SLOT = 21, SHARE_ALLIES_SLOT = 22, SHARE_VASSALS_SLOT = 23;

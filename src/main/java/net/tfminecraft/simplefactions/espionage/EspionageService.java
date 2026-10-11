@@ -291,7 +291,7 @@ public final class EspionageService {
                 return false;
             }
         } catch (java.io.IOException exception) {
-            actor.sendMessage("§cThe aptitude could not be saved. The appointment has not been made.");
+            actor.sendMessage("§cTheir Intrigue could not be saved. The appointment has not been made.");
             net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                     "Could not save character aptitude", exception);
             return false;
@@ -299,19 +299,29 @@ public final class EspionageService {
         // Address only the appointee. Sabotage preferences are never broadcast.
         candidate.sendMessage("§8§oA sealed letter reaches your hands. The keys to " + faction.getName()
                 + "§8§o's unseen network are now yours. You have been appointed Spymaster.");
-        candidate.sendMessage("§7Your aptitude for this office is §e" + effectiveAptitude(faction, assignment, now)
+        candidate.sendMessage("§7Your Intrigue in this office is §e" + effectiveAptitude(faction, assignment, now)
                 + "/100§7. Inspect Special Positions in the faction menu, or use §a/faction espionage§7.");
         if (buildUpRemaining(assignment, now) > 0)
-            candidate.sendMessage("§7Your network is still taking shape. Full aptitude (§e" + assignment.aptitude
+            candidate.sendMessage("§7Your network is still taking shape. Full Intrigue (§e" + assignment.aptitude
                     + "§7) in §e" + duration(buildUpRemaining(assignment, now)) + "§7.");
         int held = positionsHeld(faction, assignment);
         if (held > 1) candidate.sendMessage("§7Holding " + held + " offices leaves you " + Math.round(positionMultiplier(held) * 100)
-                + "% of your aptitude in each (base: " + assignment.aptitude + ").");
+                + "% of your Intrigue in each (base: " + assignment.aptitude + ").");
         if (!actor.getUniqueId().equals(candidate.getUniqueId())) actor.sendMessage("§aSpymaster appointed.");
         if (repeat && EspionageConfig.stabilityPenalty() > 0 && EspionageConfig.penaltyDays() > 0)
             actor.sendMessage("\u00a77The change of office brings " + EspionageConfig.stabilityPenalty()
                     + " points of unrest, fading over " + EspionageConfig.penaltyDays() + " days.");
         return true;
+    }
+
+    /** A character's Intrigue: the permanent roll first made for the Spymaster's office. Null until rolled. */
+    public static Integer knownIntrigue(String characterId) {
+        return characterAptitudes == null ? null : characterAptitudes.find(characterId);
+    }
+
+    /** Rolls the player's active character's Intrigue on first use, with the Spymaster formula. */
+    public static int intrigue(Player player, String characterId) throws java.io.IOException {
+        return characterAptitude(player, characterId);
     }
 
     private static int characterAptitude(Player player, String characterId) throws java.io.IOException {

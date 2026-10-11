@@ -26,6 +26,7 @@ public final class SpecialPositionsConfigFile {
             boolean existed = file.exists();
             var settings = prepare(file, legacy, defaults);
             EspionageConfig.load(settings);
+            net.tfminecraft.simplefactions.plots.PlotConfig.load(settings);
             if (!existed && legacy.exists()) {
                 // Preserve comments and unrelated settings. Never rewrite the entire main YAML.
                 String before = Files.readString(legacy.toPath());

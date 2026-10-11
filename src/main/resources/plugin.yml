@@ -12,6 +12,10 @@ permissions:
     description: View exact faction and guild information through the original menus and rankings.
     default: false
 
+  simplefactions.plots.staff:
+    description: Approve, deny, inspect and end character plots, and pass a plot's day for testing.
+    default: op
+
   simplefactions.espionage.reload:
     description: Reload office settings and regenerate all daily intelligence reports for testing.
     default: false
@@ -20,6 +24,10 @@ commands:
   faction:
       useage: /<command>
       description: Faction Command
+  plot:
+      useage: /<command>
+      description: Intrigue and character plots
+      aliases: [plots, intrigue]
   guild:
       useage: /<command>
       description: Guild Command

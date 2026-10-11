@@ -226,3 +226,109 @@ espionage:
       installation-details: reliable
       # Optional per-category overrides, e.g. TRADE: broad. All other categories use cashflow above.
       cashflows: {}
+# Character plots. Every character's Intrigue is the permanent roll first made for the Spymaster's
+# office (same formula); characters without one roll it the first time it is needed.
+# A player requests a plot in the Plots menu (/plot or the Character Info menu) and opens a ticket
+# with its code. Staff link the target with /plot approve <code> <target player>.
+# Times are real days. Reload with /faction reloadespionage.
+plots:
+  staff-permission: simplefactions.plots.staff
+  # An unapproved request is dropped after this many days.
+  request-expiry-days: 7.0
+  # The plot master must recruit at least one member and start the plot within this many days,
+  # or the plot dissolves and the master cannot target the same character again for retarget-cooldown-days.
+  recruiting-days: 7.0
+  retarget-cooldown-days: 7.0
+  # Invitations are proposed in person: the plot master must stand within this many blocks.
+  invite-radius: 8
+  invite-minutes: 10
+  approach:
+    # Intrigue added to a character's plotting (offense) and to their defence against plots.
+    change-cooldown-hours: 24.0
+    offensive:
+      offense: 15
+      defense: 0
+    neutral:
+      offense: 8
+      defense: 8
+    defensive:
+      offense: 0
+      defense: 15
+  defense:
+    # Protection: alone = alone-share x own Intrigue. With a chosen character =
+    # (own Intrigue + helper-share x their Intrigue) / 2. With the Spymaster = the Spymaster's office Intrigue.
+    alone-share: 0.5
+    helper-share: 0.75
+    change-cooldown-hours: 24.0
+  building:
+    # The plot bar fills in about this many days at normal speed. Each day rolls its own luck.
+    days: 7.0
+    luck-min: 0.5
+    luck-max: 1.5
+    # Speed added by each Progress collaborator at 100 Intrigue (0.5 = 50% faster).
+    progress-per-collaborator: 0.5
+    strength:
+      # Daily strength = Intrigue x weight for each member, times the day's luck.
+      master: 0.10
+      assassin: 0.06
+      strength-collaborator: 0.15
+      other-collaborator: 0.03
+      # The plot needs required-base + protection x required-per-protection by the time its bar fills.
+      required-base: 10.0
+      required-per-protection: 1.0
+    secrecy:
+      # Secrecy starts at 100 and falls every day by daily-loss + loss-per-member x members
+      # (master included), less hide-per-collaborator for each Hide collaborator at 100 Intrigue.
+      daily-loss: 4.0
+      loss-per-member: 2.0
+      hide-per-collaborator: 6.0
+      minimum-loss: 1.0
+      # Extra secrecy lost whenever the target's defender wins the daily roll.
+      leak-loss: 3.0
+    # A won defence roll tells the target more once secrecy is at or below these values.
+    # At 0 the target learns who is plotting.
+    reveal:
+      member-count: 60.0
+      progress: 40.0
+      assassins: 20.0
+  betrayal:
+    # A target's own defender inside the plot: the plot moves this much faster and always has enough strength.
+    speed-multiplier: 2.0
+    # Taken from the target's investigation rolls when their Spymaster or chosen defender betrays them.
+    spymaster-investigation-penalty: 40
+    helper-investigation-penalty: 20
+  investigation:
+    # After the plot is launched, the target and up to max-investigators characters they choose
+    # (only if the target learned of the plot) roll once per conspirator they come near.
+    days: 3.0
+    radius: 6.0
+    scan-seconds: 5
+    max-investigators: 2
+    known-bonus: 15
+    unknown-penalty: 15
+    # A roll that wins by at least this margin gives the stronger hint.
+    strong-margin: 40
+    difficulty:
+      informed: 0
+      collaborator: 10
+      assassin: 20
+      master: 30
+    # {name} is the conspirator's character name. & colour codes and #rrggbb hex colours work.
+    hints:
+      informed:
+        weak: "&7&o{name} seems to know something they are not saying."
+        strong: "&7&o{name} looks at you a moment too long, as if they know what is coming."
+      collaborator:
+        weak: "&7&o{name} is acting strangely around you."
+        strong: "&7&o{name} is hiding something, and it concerns you."
+      assassin:
+        weak: "&7&oSomething about {name} unsettles you."
+        strong: "&7&o{name} watches you the way a hunter watches prey."
+      master:
+        weak: "&7&o{name} takes an unusual interest in your movements."
+        strong: "&7&o{name} carries themselves like someone with a plan, and you are part of it."
+  execution:
+    # After the investigation the assassins have this many days to strike before the plot fails.
+    days: 7.0
+    # A target killed this many seconds after an assassin's hit counts as the assassin's kill.
+    hit-window-seconds: 120
