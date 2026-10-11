@@ -72,18 +72,87 @@ class MercenaryEligibilityTest {
     }
 
     @Test
-    void anIneligibleLeaderDisbandsAFormedCompanyAndBreachesContracts() {
+    void companyDisbandsWhenNobodyHasALivingMercenaryAndBreachesContracts() {
         ContractFixture fixture = ContractFixture.formed(2);
         MercenaryContract contract = fixture.offer(ContractFixture.validTerms(2), System.currentTimeMillis());
         contract.activate();
         MercenaryContract offer = fixture.offer(ContractFixture.validTerms(1), System.currentTimeMillis());
 
-        MercenaryEligibility.setProbe(ineligible(fixture.host.leader()));
+        MercenaryEligibility.setProbe(player -> MercenaryEligibility.Status.INELIGIBLE);
         fixture.company.tick();
 
         assertNull(fixture.host.company());
         assertEquals(ContractStatus.BREACHED, contract.getStatus());
         assertEquals(ContractStatus.TERMINATED, offer.getStatus());
+    }
+
+    @Test
+    void anIneligibleLeaderStaysWhileAnotherPlayerHasALivingMercenary() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = formed(fixture);
+        company.getRegiment().setCurrentSlots(2);
+        company.enlist("Ivar");
+        company.enlist("Sigrun");
+
+        MercenaryEligibility.setProbe(ineligible("Ivar"));
+        company.tick();
+
+        assertEquals(company, fixture.company());
+        assertEquals(List.of("Sigrun"), company.getEnlisted());
+    }
+
+    @Test
+    void switchingAwayFromAMercenaryCharacterDoesNotDisbandOrDismiss() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = formed(fixture);
+        company.enlist("Ivar");
+        MercenaryEligibility.setProbe(new MercenaryEligibility.Probe() {
+            @Override
+            public MercenaryEligibility.Status check(String player) {
+                return MercenaryEligibility.Status.INELIGIBLE;
+            }
+
+            @Override
+            public MercenaryEligibility.Status livingMercenary(String player) {
+                return MercenaryEligibility.Status.ELIGIBLE;
+            }
+        });
+
+        company.tick();
+
+        assertEquals(company, fixture.company());
+        assertEquals(List.of("Ivar"), company.getEnlisted());
+    }
+
+    @Test
+    void anUnknownPlayerKeepsTheCompanyWhenEveryoneElseHasNoLivingMercenary() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = formed(fixture);
+        company.getRegiment().setCurrentSlots(2);
+        company.enlist("ivar");
+        company.enlist("Sigrun");
+        MercenaryEligibility.setProbe(player -> "Sigrun".equalsIgnoreCase(player)
+                ? MercenaryEligibility.Status.UNKNOWN
+                : MercenaryEligibility.Status.INELIGIBLE);
+
+        company.tick();
+
+        assertEquals(company, fixture.company());
+        assertEquals(List.of("Sigrun"), company.getEnlisted());
+    }
+
+    @Test
+    void aCompanyWithNobodyToCheckIsLeftAlone() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        fixture.setLeader("  ");
+        MercenaryCompany company = formed(fixture);
+        MercenaryEligibility.setProbe(player -> MercenaryEligibility.Status.INELIGIBLE);
+
+        company.tick();
+
+        assertEquals(company, fixture.company());
+        assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.livingMercenary(null));
+        assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.livingMercenary(" "));
     }
 
     @Test

@@ -556,36 +556,75 @@ public class MercenaryCompany {
     }
 
     /**
-     * Leader without the mercenary trait dissolves the company. Enlisted fighters
-     * without it are kicked. Offline players and a missing character plugin are
-     * left alone until they can be checked.
+     * The company disbands only when every player on it — the guild leader and
+     * each enlisted fighter — has no alive character with the mercenary trait.
+     * A character they are not currently playing still counts, including one
+     * stored for an offline account. A player who can be checked and has none
+     * is dismissed. A player who cannot be checked is left in place, and that
+     * uncertainty keeps the company from disbanding.
      *
      * @return true when this company was disbanded and the rest of the tick must stop
      */
     boolean enforceCharacterGate() {
         if (!MercenaryEligibility.isEnforced()) return false;
-        if (MercenaryEligibility.check(getLeader()) == MercenaryEligibility.Status.INELIGIBLE) {
+        List<String> players = playersInCompany();
+        if (players.isEmpty()) return false;
+        List<String> withoutMercenary = new ArrayList<>();
+        boolean anyoneLiving = false;
+        boolean anyoneUnknown = false;
+        for (String player : players) {
+            MercenaryEligibility.Status status = MercenaryEligibility.livingMercenary(player);
+            if (status == MercenaryEligibility.Status.ELIGIBLE) {
+                anyoneLiving = true;
+            } else if (status == MercenaryEligibility.Status.UNKNOWN) {
+                anyoneUnknown = true;
+            } else {
+                withoutMercenary.add(player);
+            }
+        }
+        if (!anyoneLiving && !anyoneUnknown) {
             String companyName = name;
-            String leader = getLeader();
-            List<String> roster = new ArrayList<>(enlisted);
             disband();
-            tell(leader, "§c" + companyName
-                    + " disbanded because your character has no mercenary trait.");
-            for (String member : roster) {
-                if (member.equalsIgnoreCase(leader)) continue;
-                tell(member, "§c" + companyName + " has disbanded.");
+            for (String player : players) {
+                if (isLeader(player)) {
+                    tell(player, "§c" + companyName + " disbanded because nobody in the company"
+                            + " has a living character with the mercenary trait.");
+                } else {
+                    tell(player, "§c" + companyName + " has disbanded.");
+                }
             }
             return true;
         }
         for (String member : new ArrayList<>(enlisted)) {
-            if (MercenaryEligibility.check(member) != MercenaryEligibility.Status.INELIGIBLE) {
-                continue;
-            }
+            if (!containsIgnoreCase(withoutMercenary, member)) continue;
             kick(member);
             tell(member, "§cYou were dismissed from " + name
-                    + ". Your character has no mercenary trait.");
-            tell(getLeader(), "§c" + member
-                    + " was dismissed from the company. Their character has no mercenary trait.");
+                    + ". You have no living character with the mercenary trait.");
+            if (!isLeader(member)) {
+                tell(getLeader(), "§c" + member
+                        + " was dismissed from the company. They have no living character with the mercenary trait.");
+            }
+        }
+        return false;
+    }
+
+    /** Guild leader plus enlisted fighters, with case-insensitive duplicates removed. */
+    private List<String> playersInCompany() {
+        List<String> players = new ArrayList<>();
+        addPlayer(players, getLeader());
+        for (String member : enlisted) addPlayer(players, member);
+        return players;
+    }
+
+    private static void addPlayer(List<String> players, String name) {
+        if (name == null || name.isBlank()) return;
+        if (containsIgnoreCase(players, name)) return;
+        players.add(name);
+    }
+
+    private static boolean containsIgnoreCase(List<String> names, String name) {
+        for (String existing : names) {
+            if (existing.equalsIgnoreCase(name)) return true;
         }
         return false;
     }
