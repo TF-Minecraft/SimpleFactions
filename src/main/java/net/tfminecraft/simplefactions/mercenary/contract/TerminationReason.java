@@ -17,9 +17,9 @@ public enum TerminationReason {
     /** An ally joined, a vassalage landed, or a government changed. Nobody's fault. */
     LOYALTY_CONFLICT(ContractStatus.TERMINATED, false, false),
     /**
-     * The company itself vanished (leader's active character lost the mercenary
-     * trait). Same money and reputation as a slot breach: the hirer bought slots
-     * that can no longer be delivered.
+     * The company itself vanished (nobody in it has a living mercenary character).
+     * Same money and reputation as a slot breach: the hirer bought slots that
+     * can no longer be delivered.
      */
     COMPANY_DISBANDED(ContractStatus.BREACHED, true, true);
 

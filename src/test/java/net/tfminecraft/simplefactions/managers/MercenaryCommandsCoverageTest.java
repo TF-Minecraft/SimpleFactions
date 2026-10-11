@@ -620,7 +620,7 @@ class MercenaryCommandsCoverageTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  void characterChangesDismissMembersOrDisbandAndNotifyOnlinePlayers(boolean leaderChanged) {
+  void characterChangesDismissPlayersWhoHaveNoLivingMercenary(boolean leaderChanged) {
     assertTrue(company.adminAdjustSlots(1).ok());
     assertTrue(company.enlist("Recruit"));
     Player recruit = fixture.player("Recruit");
@@ -630,18 +630,33 @@ class MercenaryCommandsCoverageTest {
                 ? MercenaryEligibility.Status.INELIGIBLE
                 : MercenaryEligibility.Status.ELIGIBLE);
     company.tick();
-    assertFalse(company.isEnlisted("Recruit"));
+    assertSame(company, guild.getCompany());
     if (leaderChanged) {
-      assertNull(guild.getCompany());
-      assertTrue(company.getEnlisted().isEmpty());
-      verify(captain).sendMessage(contains("disbanded because"));
-      verify(recruit).sendMessage(contains("has disbanded"));
+      assertEquals(List.of("Recruit"), company.getEnlisted());
+      verify(captain).sendMessage(contains("dismissed from"));
+      verify(recruit, never()).sendMessage(anyString());
     } else {
-      assertSame(company, guild.getCompany());
+      assertFalse(company.isEnlisted("Recruit"));
       assertEquals(List.of("Captain"), company.getEnlisted());
       verify(recruit).sendMessage(contains("dismissed from"));
       verify(captain).sendMessage(contains("Recruit was dismissed"));
     }
+    assertEquals(1000.0, guild.getBank().getWealth());
+  }
+
+  @Test
+  void companyDisbandsWhenNobodyHasALivingMercenaryAndTellsOnlinePlayers() {
+    assertTrue(company.adminAdjustSlots(1).ok());
+    assertTrue(company.enlist("Recruit"));
+    Player recruit = fixture.player("Recruit");
+    MercenaryEligibility.setProbe(player -> MercenaryEligibility.Status.INELIGIBLE);
+
+    company.tick();
+
+    assertNull(guild.getCompany());
+    assertTrue(company.getEnlisted().isEmpty());
+    verify(captain).sendMessage(contains("disbanded because"));
+    verify(recruit).sendMessage(contains("has disbanded"));
     assertEquals(1000.0, guild.getBank().getWealth());
   }
 
