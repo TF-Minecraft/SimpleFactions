@@ -406,6 +406,47 @@ public class ExternalIntegrationsCoverageTest {
   }
 
   @Test
+  void rememberedCharactersAreJudgedWhetherOrNotTheyAreActive() {
+    RpCharactersMercenaryTraitProbe probe = new RpCharactersMercenaryTraitProbe();
+    assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.checkCharacter("Offline", "sweyn"));
+    assertNull(probe.mercenaryCharacter("Offline"));
+    try (MockedStatic<PlayerManager> manager = mockStatic(PlayerManager.class)) {
+      manager.when(() -> PlayerManager.get(player)).thenReturn(null);
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, probe.checkCharacter("Sigrun", "sweyn"));
+      assertNull(probe.mercenaryCharacter("Sigrun"));
+
+      PlayerData data = mock(PlayerData.class);
+      manager.when(() -> PlayerManager.get(player)).thenReturn(data);
+      Trait mercenary = mock(Trait.class);
+      when(mercenary.getId()).thenReturn("mercenary");
+      RPCharacter warrior = mock(RPCharacter.class);
+      when(warrior.getId()).thenReturn("warrior");
+      when(warrior.getTraits()).thenReturn(List.of());
+      RPCharacter fallen = mock(RPCharacter.class);
+      when(fallen.getStatus()).thenReturn(net.tfminecraft.rpcharacters.enums.Status.DEAD);
+      when(fallen.getTraits()).thenReturn(List.of(mercenary));
+      RPCharacter sweyn = mock(RPCharacter.class);
+      when(sweyn.getId()).thenReturn("sweyn");
+      when(sweyn.getStatus()).thenReturn(net.tfminecraft.rpcharacters.enums.Status.ALIVE);
+      when(sweyn.getTraits()).thenReturn(List.of(mercenary));
+      when(data.getCharacters()).thenReturn(List.of(warrior, fallen));
+      when(data.getActiveCharacter()).thenReturn(warrior);
+
+      assertNull(probe.mercenaryCharacter("Sigrun"));
+      when(data.getCharacters()).thenReturn(List.of(warrior, fallen, sweyn));
+      assertEquals("sweyn", probe.mercenaryCharacter("Sigrun"));
+      when(data.getActiveCharacter()).thenReturn(sweyn);
+      assertEquals("sweyn", probe.mercenaryCharacter("Sigrun"));
+
+      when(data.getCharacterById("sweyn")).thenReturn(sweyn);
+      when(data.getCharacterById("fallen")).thenReturn(fallen);
+      assertEquals(MercenaryEligibility.Status.ELIGIBLE, probe.checkCharacter("Sigrun", "sweyn"));
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, probe.checkCharacter("Sigrun", "fallen"));
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, probe.checkCharacter("Sigrun", "deleted"));
+    }
+  }
+
+  @Test
   void gatewayBridgePreservesRequestAndProviderSuccessOrFailure() throws Exception {
     Class<?> bridge = gatewayBridge();
     List<List<String>> requests = new ArrayList<>();

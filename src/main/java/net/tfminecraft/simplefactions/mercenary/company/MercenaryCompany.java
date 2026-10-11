@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -64,6 +65,12 @@ public class MercenaryCompany {
      */
     private final Map<String, Double> pendingWages = new LinkedHashMap<>();
 
+    /**
+     * Character ID each leader and mercenary serves as, keyed by player name, so
+     * the company follows that character rather than whichever one is active.
+     */
+    private final Map<String, String> characters = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
     public MercenaryCompany(Guild guild, String name, Regiment regiment, int formationSeconds) {
         this.guild = guild;
         this.name = name;
@@ -84,6 +91,11 @@ public class MercenaryCompany {
         this.formationRemaining = data.formationRemaining != null ? data.formationRemaining : 0;
         if (data.reputation != null) this.reputation = data.reputation;
         if (data.enlisted != null) this.enlisted.addAll(data.enlisted);
+        if (data.characters != null) {
+            for (Map.Entry<String, String> e : data.characters.entrySet()) {
+                if (e.getKey() != null && e.getValue() != null) characters.put(e.getKey(), e.getValue());
+            }
+        }
         if (regiment != null) {
             regiment.setCurrentSlots(parseSlots(data.slots));
         }
@@ -360,7 +372,19 @@ public class MercenaryCompany {
     public boolean enlist(String player) {
         if (player == null || isEnlisted(player) || !hasFreeSlot()) return false;
         enlisted.add(player);
+        rememberCharacter(player);
         return true;
+    }
+
+    /** The remembered character ID for a player, or null. */
+    public String getCharacter(String player) {
+        return player == null ? null : characters.get(player);
+    }
+
+    /** Remembers the player's mercenary character; nothing changes while it cannot be read. */
+    void rememberCharacter(String player) {
+        String id = MercenaryEligibility.mercenaryCharacter(player);
+        if (id != null) characters.put(player, id);
     }
 
     /**
@@ -379,6 +403,7 @@ public class MercenaryCompany {
         for (int i = 0; i < enlisted.size(); i++) {
             if (enlisted.get(i).equalsIgnoreCase(player)) {
                 enlisted.remove(i);
+                if (!isLeader(player)) characters.remove(player);
                 // Every roster or slot change funnels through the one guarded check, so no
                 // caller has to know which of the two can put the company under its promise.
                 ContractTerminationService.checkSlotCommitments(this);
@@ -556,21 +581,25 @@ public class MercenaryCompany {
     }
 
     /**
-     * Leader without the mercenary trait dissolves the company. Enlisted fighters
-     * without it are kicked. Offline players and a missing character plugin are
-     * left alone until they can be checked.
+     * Each person is judged on the character the company remembers for them, so
+     * switching to another character changes nothing. Someone with no remembered
+     * character is matched to one of theirs with the trait, and judged on their
+     * active character if they have none. A leader who fails dissolves the
+     * company; a mercenary who fails is kicked. Offline players and a missing
+     * character plugin are left alone until they can be checked.
      *
      * @return true when this company was disbanded and the rest of the tick must stop
      */
     boolean enforceCharacterGate() {
         if (!MercenaryEligibility.isEnforced()) return false;
-        if (MercenaryEligibility.check(getLeader()) == MercenaryEligibility.Status.INELIGIBLE) {
+        characters.keySet().removeIf(player -> !isLeader(player) && !isEnlisted(player));
+        String leader = getLeader();
+        if (standing(leader) == MercenaryEligibility.Status.INELIGIBLE) {
             String companyName = name;
-            String leader = getLeader();
+            String reason = reason(leader);
             List<String> roster = new ArrayList<>(enlisted);
             disband();
-            tell(leader, "§c" + companyName
-                    + " disbanded because your character has no mercenary trait.");
+            tell(leader, "§c" + companyName + " disbanded because " + reason + ".");
             for (String member : roster) {
                 if (member.equalsIgnoreCase(leader)) continue;
                 tell(member, "§c" + companyName + " has disbanded.");
@@ -578,16 +607,27 @@ public class MercenaryCompany {
             return true;
         }
         for (String member : new ArrayList<>(enlisted)) {
-            if (MercenaryEligibility.check(member) != MercenaryEligibility.Status.INELIGIBLE) {
+            if (standing(member) != MercenaryEligibility.Status.INELIGIBLE) {
                 continue;
             }
+            String reason = reason(member);
             kick(member);
-            tell(member, "§cYou were dismissed from " + name
-                    + ". Your character has no mercenary trait.");
+            tell(member, "§cYou were dismissed from " + name + " because " + reason + ".");
             tell(getLeader(), "§c" + member
-                    + " was dismissed from the company. Their character has no mercenary trait.");
+                    + " was dismissed from the company. They no longer have a mercenary character.");
         }
         return false;
+    }
+
+    private MercenaryEligibility.Status standing(String player) {
+        if (player != null && getCharacter(player) == null) rememberCharacter(player);
+        return MercenaryEligibility.check(player, getCharacter(player));
+    }
+
+    private String reason(String player) {
+        return getCharacter(player) == null
+                ? "none of your characters has the mercenary trait"
+                : "your mercenary character has died or lost the mercenary trait";
     }
 
     /**
@@ -602,6 +642,7 @@ public class MercenaryCompany {
             contract.finish(ContractStatus.TERMINATED);
         }
         enlisted.clear();
+        characters.clear();
         if (guild != null && guild.getCompany() == this) {
             guild.setCompany(null);
         }
@@ -651,6 +692,7 @@ public class MercenaryCompany {
         data.formationRemaining = formationRemaining;
         data.reputation = reputation;
         data.enlisted = new ArrayList<>(enlisted);
+        data.characters = new LinkedHashMap<>(characters);
         if (regiment != null) {
             data.slots = regiment.getId() + "." + regiment.getCurrentSlots();
             for (MilitaryExpansion e : slotQueue) {

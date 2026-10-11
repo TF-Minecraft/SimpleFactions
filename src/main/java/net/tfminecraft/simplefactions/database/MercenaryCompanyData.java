@@ -15,6 +15,8 @@ public class MercenaryCompanyData {
     /** regimentId + "." + timeLeft per queued slot. */
     public List<String> slotQueue = new ArrayList<>();
     public List<String> enlisted = new ArrayList<>();
+    /** Character ID each leader and mercenary serves as, keyed by player name. */
+    public Map<String, String> characters = new LinkedHashMap<>();
     public List<GuildBranchData> upgrades = new ArrayList<>();
     public List<UpgradeExpansionData> upgradeQueue = new ArrayList<>();
     /** Contracts live on the company, the way loans live on the issuing guild. */
