@@ -55,6 +55,7 @@ import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 import net.tfminecraft.simplefactions.utils.FactionCleanup;
+import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.utils.PostSettlementPayouts;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleUpkeepService;
 import net.tfminecraft.simplefactions.war.resolution.WarReparationsService;
@@ -1270,6 +1271,42 @@ class FactionManagerCoverageTest {
       when(home.getGovernment().isVotingBooth(block.getLocation())).thenReturn(false);
       manager.breakVotingBooth(broken);
       verify(home.getGovernment(), times(1)).removeVotingBooth(any());
+    }
+  }
+
+  @Test
+  void onlyTheLeaderOrStaffCanSetUpOrRemoveAVotingBooth() {
+    Faction home = faction("home", "Alice");
+    home.addMember("Bob");
+    home.addMember("Carol");
+    Player leader = fixture.player("Alice");
+    Player member = fixture.player("Bob");
+    Player staff = fixture.player("Carol");
+    Player outsider = fixture.player("Dave");
+    when(staff.hasPermission(Permissions.Permission_Admin)).thenReturn(true);
+    Block block = booth();
+    manager.registerVotingBooth(member, block);
+    verify(home.getGovernment(), never()).addVotingBooth(any());
+    verify(member).sendMessage("§cOnly the faction leader can set up a voting booth");
+    manager.registerVotingBooth(staff, block);
+    manager.registerVotingBooth(leader, block);
+    verify(home.getGovernment(), times(2)).addVotingBooth(block.getLocation());
+    when(home.getGovernment().isVotingBooth(block.getLocation())).thenReturn(true);
+    try (MockedStatic<TLibs> tlibs = mockStatic(TLibs.class, RETURNS_DEEP_STUBS)) {
+      when(TLibs.getBlockAPI().getChecker().checkBlock(block, Cache.votingBlock)).thenReturn(true);
+      for (Player refused : List.of(member, outsider)) {
+        BlockBreakEvent broken = new BlockBreakEvent(block, refused);
+        manager.breakVotingBooth(broken);
+        assertTrue(broken.isCancelled());
+        verify(refused).sendMessage("§cOnly the faction leader can remove this voting booth");
+      }
+      verify(home.getGovernment(), never()).removeVotingBooth(any());
+      for (Player allowed : List.of(staff, leader)) {
+        BlockBreakEvent broken = new BlockBreakEvent(block, allowed);
+        manager.breakVotingBooth(broken);
+        assertFalse(broken.isCancelled());
+      }
+      verify(home.getGovernment(), times(2)).removeVotingBooth(block.getLocation());
     }
   }
 

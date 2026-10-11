@@ -107,6 +107,33 @@ class PlayerEventsLifecycleCoverageTest {
   }
 
   @Test
+  void breakingFurnitureIsCancelledWhenThePlayerMayNotRemoveTheBooth() {
+    FactionManager manager = mock(FactionManager.class);
+    var listener = new VotingBoothListener(manager);
+    Player player = fixture.player("Bob");
+    Entity entity = mock(Entity.class);
+    Location location = mock(Location.class);
+    Block block = mock(Block.class);
+    when(entity.getLocation()).thenReturn(location);
+    when(location.getBlock()).thenReturn(block);
+    var broken = mock(FurnitureBreakEvent.class);
+    when(broken.getNamespacedID()).thenReturn("test:booth");
+    when(broken.getBukkitEntity()).thenReturn(entity);
+    when(broken.getPlayer()).thenReturn(player);
+    when(manager.mayRemoveVotingBooth(player, block)).thenReturn(false, true);
+    listener.guardVotingFurniture(broken);
+    verify(broken).setCancelled(true);
+    listener.guardVotingFurniture(broken);
+    verify(broken, times(1)).setCancelled(true);
+    when(broken.getNamespacedID()).thenReturn("test:chair");
+    listener.guardVotingFurniture(broken);
+    when(broken.getNamespacedID()).thenReturn("test:booth");
+    when(broken.getBukkitEntity()).thenReturn(null);
+    listener.guardVotingFurniture(broken);
+    verify(manager, times(2)).mayRemoveVotingBooth(player, block);
+  }
+
+  @Test
   void placingAndBreakingFurnitureMaintainTheSamePhysicalVotingBooth() {
     FactionManager manager = mock(FactionManager.class);
     var listener = new VotingBoothListener(manager);
