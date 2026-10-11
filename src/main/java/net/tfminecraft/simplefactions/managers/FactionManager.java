@@ -48,6 +48,7 @@ import net.tfminecraft.simplefactions.war.resolution.WarReparationsService;
 import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 import net.tfminecraft.simplefactions.utils.FactionCleanup;
 import net.tfminecraft.simplefactions.utils.Formatter;
+import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.utils.PostSettlementPayouts;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank;
@@ -1288,6 +1289,10 @@ public class FactionManager implements Listener{
 	void registerVotingBooth(Player p, Block b) {
 		Faction f = FactionManager.getByMember(p.getName());
 		if(f == null) return;
+		if(!mayManageVotingBooths(p, f)) {
+			p.sendMessage("§cOnly the faction leader can set up a voting booth");
+			return;
+		}
 		Government gov = f.getGovernment();
 		if(gov.isVotingBooth(b.getLocation())) return;
 		gov.addVotingBooth(b.getLocation());
@@ -1300,7 +1305,23 @@ public class FactionManager implements Listener{
 		if (VotingBlock.furnitureId(Cache.votingBlock) != null) return;
 		Block b = e.getBlock();
 		if(!TLibs.getBlockAPI().getChecker().checkBlock(b, Cache.votingBlock)) return;
+		if(!mayRemoveVotingBooth(e.getPlayer(), b)) {
+			e.setCancelled(true);
+			return;
+		}
 		unregisterVotingBooth(e.getPlayer(), b);
+	}
+
+	// Refuses, with a message, anyone but the booth's faction leader or staff.
+	boolean mayRemoveVotingBooth(Player p, Block b) {
+		Faction f = getByVotingBooth(b);
+		if(f == null || mayManageVotingBooths(p, f)) return true;
+		p.sendMessage("§cOnly the faction leader can remove this voting booth");
+		return false;
+	}
+
+	private static boolean mayManageVotingBooths(Player p, Faction f) {
+		return p.getName().equalsIgnoreCase(f.getLeader()) || Permissions.isAdmin(p);
 	}
 
 	void unregisterVotingBooth(Player p, Block b) {

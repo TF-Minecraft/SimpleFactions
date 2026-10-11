@@ -40,6 +40,16 @@ public class VotingBoothListener implements Listener {
 		factions.registerVotingBooth(event.getPlayer(), entity.getLocation().getBlock());
 	}
 
+	@EventHandler(ignoreCancelled = true)
+	public void guardVotingFurniture(FurnitureBreakEvent event) {
+		if (!VotingBlock.matches(Cache.votingBlock, event.getNamespacedID())) return;
+		Entity entity = event.getBukkitEntity();
+		if (entity == null) return;
+		if (!factions.mayRemoveVotingBooth(event.getPlayer(), entity.getLocation().getBlock())) {
+			event.setCancelled(true);
+		}
+	}
+
 	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void breakVotingFurniture(FurnitureBreakEvent event) {
 		if (!VotingBlock.matches(Cache.votingBlock, event.getNamespacedID())) return;
