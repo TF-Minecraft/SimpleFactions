@@ -28,6 +28,10 @@ public final class PlotStore {
         if (store.cooldowns == null) store.cooldowns = new LinkedHashMap<>();
         if (store.notices == null) store.notices = new LinkedHashMap<>();
         store.plots.removeIf(plot -> plot == null || plot.code == null || plot.master == null || plot.phase == null);
+        store.characters.values().removeIf(java.util.Objects::isNull);
+        store.characters.values().forEach(settings -> {
+            if (settings.investigators == null) settings.investigators = new ArrayList<>();
+        });
         store.file = file;
         return store;
     }

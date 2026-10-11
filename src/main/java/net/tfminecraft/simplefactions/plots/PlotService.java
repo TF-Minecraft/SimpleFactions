@@ -15,6 +15,7 @@ import java.util.random.RandomGenerator;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -35,7 +36,7 @@ public final class PlotService {
     private static PlotStore store = new PlotStore();
     private static final Map<UUID, Hit> hits = new HashMap<>();
 
-    private record Hit(UUID assassin, String plot, long at) {}
+    private record Hit(UUID attacker, long at) {}
     record Protection(double value, Betrayal betrayal) {}
     record Guard(String characterId, int defense) {}
 
@@ -397,12 +398,17 @@ public final class PlotService {
         return plot;
     }
 
+    /** The target's own player must never learn of the plot through another of their characters. */
+    private static boolean targetsAccount(Plot plot, PlotCharacter character) {
+        return plot.isTarget(character.characterId) || character.playerId.equals(plot.target.playerId);
+    }
+
     public static boolean invite(Player player, Player other) {
         Plot plot = organising(player);
         if (plot == null) return false;
         PlotCharacter guest = other(player, other, "propose it");
         if (guest == null) return false;
-        if (plot.isTarget(guest.characterId) || plot.involves(guest.characterId)) {
+        if (targetsAccount(plot, guest) || plot.involves(guest.characterId)) {
             player.sendMessage("§cYou cannot invite them.");
             return false;
         }
@@ -414,7 +420,7 @@ public final class PlotService {
         plot.invitations.put(guest.characterId, now() + PlotConfig.inviteDuration());
         save();
         player.sendMessage(PREFIX + "You propose to §e" + guest.name + "§7 that they join your plot.");
-        other.sendMessage(Component.text(PREFIX + "§e" + PlotCharacters.seenAs(player, plot.master)
+        other.sendMessage(LegacyComponentSerializer.legacySection().deserialize(PREFIX + "§e" + PlotCharacters.seenAs(player, plot.master)
                         + "§7 proposes that you join a plot against the life of §e" + plot.target.name + "§7. ")
                 .append(Component.text("[Accept]", NamedTextColor.GREEN).clickEvent(ClickEvent.runCommand("/plot accept " + plot.code)))
                 .append(Component.text(" "))
@@ -511,7 +517,7 @@ public final class PlotService {
         }
         PlotCharacter guest = other(player, other, "tell them");
         if (guest == null) return false;
-        if (plot.isTarget(guest.characterId) || plot.role(guest.characterId) != null) {
+        if (targetsAccount(plot, guest) || plot.role(guest.characterId) != null) {
             player.sendMessage("§cThey cannot be marked as knowing of the plot.");
             return false;
         }
@@ -605,6 +611,7 @@ public final class PlotService {
     public static void tick() {
         long now = now();
         boolean changed = false;
+        hits.values().removeIf(hit -> now - hit.at() > PlotConfig.hitWindow());
         for (Plot plot : List.copyOf(store.plots)) {
             if (!plot.phase.active()) continue;
             changed |= plot.invitations.values().removeIf(expiry -> expiry < now);
@@ -749,26 +756,30 @@ public final class PlotService {
         return member != null && member.role == PlotRole.ASSASSIN ? member : null;
     }
 
-    /** Remembers an assassin's blow on their target; a knocked-out target may die from it later. */
+    /** Remembers the last player blow on each player: a knocked-out player may die from it later. */
     public static void damaged(Player victim, Player attacker) {
-        PlotCharacter character = attacker == null ? null : PlotCharacters.active(victim);
-        if (character == null) return;
-        for (Plot plot : store.plots)
-            if (plot.phase == PlotPhase.EXECUTION && plot.isTarget(character.characterId) && assassin(plot, attacker) != null)
-                hits.put(victim.getUniqueId(), new Hit(attacker.getUniqueId(), plot.code, now()));
+        hits.put(victim.getUniqueId(), new Hit(attacker.getUniqueId(), now()));
+    }
+
+    /** Whoever killed the player, or failing that whoever struck them within the hit window. */
+    private static List<Player> culprits(Player victim, Player killer) {
+        Hit hit = hits.remove(victim.getUniqueId());
+        List<Player> culprits = new ArrayList<>();
+        if (killer != null) culprits.add(killer);
+        Player striker = hit != null && now() - hit.at() <= PlotConfig.hitWindow() ? Bukkit.getPlayer(hit.attacker()) : null;
+        if (striker != null && !striker.equals(killer)) culprits.add(striker);
+        return culprits;
     }
 
     /** The target dying to an assassin ends the plot; an assassin dying to anyone's hand is revealed. Both die for good. */
     public static void died(Player victim, Player killer) {
+        List<Player> culprits = culprits(victim, killer);
         PlotCharacter character = PlotCharacters.active(victim);
-        Hit hit = hits.remove(victim.getUniqueId());
-        if (character == null) return;
+        if (character == null || culprits.isEmpty()) return;
         for (Plot plot : List.copyOf(store.plots)) {
             if (plot.phase != PlotPhase.EXECUTION) continue;
             if (plot.isTarget(character.characterId)) {
-                Player assassin = killer != null && assassin(plot, killer) != null ? killer
-                        : hit != null && hit.plot().equals(plot.code) && now() - hit.at() <= PlotConfig.hitWindow()
-                        ? Bukkit.getPlayer(hit.assassin()) : null;
+                Player assassin = culprits.stream().filter(culprit -> assassin(plot, culprit) != null).findFirst().orElse(null);
                 if (assassin == null) continue;
                 end(plot, PlotPhase.SUCCEEDED, "The target was assassinated", false);
                 PlotCharacters.permakill(victim, character.characterId, assassin);
@@ -777,14 +788,15 @@ public final class PlotService {
                 return;
             }
             PlotMember member = assassin(plot, victim);
-            if (member == null || killer == null) continue;
+            if (member == null) continue;
+            Player killedBy = culprits.getFirst();
             plot.members.remove(member);
             save();
-            PlotCharacters.permakill(victim, character.characterId, killer);
+            PlotCharacters.permakill(victim, character.characterId, killedBy);
             String reveal = "§cThe fallen assassin is revealed as §e" + character.name + "§c.";
-            killer.sendMessage(PREFIX + reveal);
+            killedBy.sendMessage(PREFIX + reveal);
             Player target = PlotCharacters.online(plot.target);
-            if (target != null && !target.equals(killer)) target.sendMessage(PREFIX + reveal);
+            if (target != null && !target.equals(killedBy)) target.sendMessage(PREFIX + reveal);
             tell(plot.master, "Your assassin §e" + character.name + "§7 has fallen.");
             if (plot.withRole(PlotRole.ASSASSIN).isEmpty()) {
                 end(plot, PlotPhase.FAILED, "Every assassin fell", true);

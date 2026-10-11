@@ -28,8 +28,8 @@ public final class PlotListener implements Listener {
         if (event.getView().getTopInventory().getHolder() instanceof PlotMenu.Holder) event.setCancelled(true);
     }
 
-    /** Monitors cancelled blows too: a nonlethal knockout cancels the blow that downs the target. */
-    @EventHandler(priority = EventPriority.MONITOR)
+    /** Before RPCharacters cancels a downing blow into a knockout (HIGHEST); blows another plugin blocked never count. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player victim)) return;
         Player attacker = event.getDamager() instanceof Player player ? player

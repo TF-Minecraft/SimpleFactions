@@ -230,6 +230,10 @@ class PlotServiceTest {
         assertFalse(PlotService.invite(master, target));
         assertTrue(world.last(master).contains("cannot invite"));
         assertFalse(PlotService.invite(master, master));
+        Player alt = world.player("Alt", null, null);
+        world.active.put(alt.getUniqueId(), new PlotCharacter("c-alt", target.getUniqueId(), "Target", "Alt of Target"));
+        assertFalse(PlotService.invite(master, alt));
+        assertTrue(world.last(master).contains("cannot invite"));
         world.at(helper, 30);
         assertFalse(PlotService.invite(master, helper));
         world.at(helper, 0);
@@ -544,7 +548,6 @@ class PlotServiceTest {
         PlotService.died(target, null);
         PlotService.died(target, helper);
         assertEquals(PlotPhase.EXECUTION, plot.phase);
-        PlotService.damaged(target, null);
         PlotService.damaged(stranger, assassin);
         PlotService.damaged(target, helper);
         PlotService.damaged(target, assassin);
@@ -591,7 +594,9 @@ class PlotServiceTest {
         assertTrue(world.last(master).contains("has fallen"));
         assertEquals(PlotPhase.EXECUTION, plot.phase);
         int targetHeard = world.said(target).size();
-        PlotService.died(second, target);
+        PlotService.damaged(second, target);
+        PlotService.tick();
+        PlotService.died(second, null);
         assertEquals(targetHeard + 1, world.said(target).size());
         assertEquals(PlotPhase.FAILED, plot.phase);
         world.store().cooldowns.clear();

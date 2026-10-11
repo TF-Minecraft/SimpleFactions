@@ -124,6 +124,10 @@ class PlotModelTest {
         PlotStore repaired = PlotStore.load(file);
         assertTrue(repaired.plots.isEmpty());
         assertTrue(repaired.characters.isEmpty() && repaired.cooldowns.isEmpty() && repaired.notices.isEmpty());
+        Files.writeString(file, "{\"characters\":{\"a\":null,\"b\":{\"investigators\":null}}}");
+        PlotStore guarded = PlotStore.load(file);
+        assertEquals(List.of("b"), List.copyOf(guarded.characters.keySet()));
+        assertTrue(guarded.peek("b").investigators.isEmpty());
         Files.writeString(file, "{}");
         PlotStore empty = PlotStore.load(file);
         assertTrue(empty.plots.isEmpty());
