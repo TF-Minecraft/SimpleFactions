@@ -18,6 +18,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -166,6 +167,42 @@ class RpCharactersMercenaryTraitProbeTest {
             assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.check("Sigrun"));
             bukkit.when(Bukkit::getServer).thenReturn(null);
             assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.check("Sigrun"));
+        }
+    }
+
+    @Test
+    void aMissingCharacterDataRootIsUnknownAndAMissingPlayerFolderIsNot() throws IOException {
+        RpCharactersMercenaryTraitProbe probe = new RpCharactersMercenaryTraitProbe();
+        RpCharactersMercenaryTraitProbe.characterRoot = folder.resolve("absent").toFile();
+        UUID id = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        OfflinePlayer cached = mock(OfflinePlayer.class);
+        when(cached.getUniqueId()).thenReturn(id);
+
+        try (var bukkit = mockStatic(Bukkit.class)) {
+            PluginManager plugins = mock(PluginManager.class);
+            bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class));
+            bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
+            when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
+            bukkit.when(() -> Bukkit.getPlayerExact("Offline")).thenReturn(null);
+            bukkit.when(() -> Bukkit.getOfflinePlayerIfCached("Offline")).thenReturn(cached);
+            assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.livingMercenary("Offline"));
+
+            RpCharactersMercenaryTraitProbe.characterRoot = null;
+            assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.livingMercenary("Offline"));
+            Plugin plugin = mock(Plugin.class);
+            when(plugins.getPlugin("RPCharacters")).thenReturn(plugin);
+            assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.livingMercenary("Offline"));
+            when(plugin.getDataFolder()).thenReturn(folder.toFile());
+            assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.livingMercenary("Offline"));
+
+            Path root = folder.resolve("data/characterdata");
+            Files.createDirectories(root);
+            assertEquals(MercenaryEligibility.Status.INELIGIBLE, probe.livingMercenary("Offline"));
+            Files.createDirectories(root.resolve(id.toString()));
+            write(root.resolve(id.toString()), "alt.json",
+                    "{\"status\":\"ALIVE\",\"traits\":[\"mercenary\"]}");
+            RpCharactersMercenaryTraitProbe.clearDiskCache();
+            assertEquals(MercenaryEligibility.Status.ELIGIBLE, probe.livingMercenary("Offline"));
         }
     }
 

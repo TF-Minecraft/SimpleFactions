@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -27,15 +28,16 @@ import net.tfminecraft.rpcharacters.objects.trait.Trait;
  * Reads RPCharacters traits. Founding and joining use the active character.
  * A company stays while any player on it still has an alive character with
  * the mercenary trait. Online players are read from memory. Offline players
- * are read from the character files RPCharacters saves under
- * {@code plugins/RPCharacters/data/characterdata/<uuid>/}, and only when the
- * server already knows their UUID. No lookup goes to Mojang.
+ * are read from the character files RPCharacters saves under its own data
+ * folder, {@code data/characterdata/<uuid>/}, and only when the server already
+ * knows their UUID. No lookup goes to Mojang. A missing data folder is unknown,
+ * not proof that a player has no characters.
  */
 public final class RpCharactersMercenaryTraitProbe implements MercenaryEligibility.Probe {
     public static final String TRAIT_ID = "mercenary";
 
-    /** Overridable in tests. Production reads the RPCharacters data folder. */
-    static File characterRoot = new File("plugins/RPCharacters/data/characterdata");
+    /** Tests point this at a fixture. Production uses RPCharacters' data folder. */
+    static File characterRoot;
 
     /**
      * Offline character files are read on the main thread. Keep a result for a
@@ -88,15 +90,30 @@ public final class RpCharactersMercenaryTraitProbe implements MercenaryEligibili
     }
 
     private static MercenaryEligibility.Status cachedLivingOnDisk(UUID uuid) {
-        String key = characterRoot.getPath() + '\u0000' + uuid;
+        File root = resolveCharacterRoot();
+        if (root == null || !root.isDirectory()) {
+            return MercenaryEligibility.Status.UNKNOWN;
+        }
+        String key = root.getPath() + '\u0000' + uuid;
         long now = System.currentTimeMillis();
         DiskHit hit = diskCache.get(key);
         if (hit != null && now - hit.at < diskCacheMillis) {
             return hit.status;
         }
-        MercenaryEligibility.Status status = livingOnDisk(new File(characterRoot, uuid.toString()));
+        MercenaryEligibility.Status status = livingOnDisk(new File(root, uuid.toString()));
         diskCache.put(key, new DiskHit(status, now));
         return status;
+    }
+
+    private static File resolveCharacterRoot() {
+        if (characterRoot != null) {
+            return characterRoot;
+        }
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("RPCharacters");
+        if (plugin == null || plugin.getDataFolder() == null) {
+            return null;
+        }
+        return new File(plugin.getDataFolder(), "data/characterdata");
     }
 
     private static final class DiskHit {
