@@ -886,9 +886,8 @@ class PluginLifecycleCoverageTest {
       verify(logger).severe(contains("TFMCWeb is not loaded"));
       verify(logger).info(contains("VehicleFramework is not enabled"));
       scoped(ProvincePresenceTickService.class).verify(ProvincePresenceTickService::start);
-      // The plot timer, then the track refresh.
-      assertEquals(2, domain.ui.repeatingTasks.size());
-      domain.ui.repeatingTasks.getLast().run();
+      assertEquals(1, domain.ui.repeatingTasks.size());
+      domain.ui.repeatingTasks.getFirst().run();
       plugin.onDisable();
       var taskField = SimpleFactions.class.getDeclaredField("trackRefreshTask");
       taskField.setAccessible(true);

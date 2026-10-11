@@ -33,9 +33,6 @@ public final class CharacterAptitudes {
             aptitudes.putIfAbsent(characterId, EspionageMath.clamp(aptitude, 0, 100));
     }
 
-    /** The permanent roll, or null when the character has not rolled yet. */
-    public Integer find(String characterId) { return characterId == null ? null : aptitudes.get(characterId); }
-
     public int aptitude(String characterId, Supplier<Integer> roll) throws IOException {
         if (characterId == null || characterId.isBlank()) throw new IllegalArgumentException("Missing character identity");
         Integer existing = aptitudes.get(characterId);

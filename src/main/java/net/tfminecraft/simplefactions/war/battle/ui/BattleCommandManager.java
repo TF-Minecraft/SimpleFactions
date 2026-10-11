@@ -94,6 +94,10 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cYou already have a warband!");
 					return true;
 				}
+				if (net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.hunting(p)) {
+					p.sendMessage("§c" + net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.HUNTING);
+					return true;
+				}
 				if (WarbandManager.getByString(args[1]) != null) {
 					p.sendMessage("§cA warband with this id already exists");
 					return true;

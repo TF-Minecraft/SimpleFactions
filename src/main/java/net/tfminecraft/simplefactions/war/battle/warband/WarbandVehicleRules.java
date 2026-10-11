@@ -45,6 +45,10 @@ public final class WarbandVehicleRules {
 		if (isMountedOnVehicle(player)) {
 			return JOIN_BLOCKED_MOUNTED;
 		}
+		// An assassin on a hunt answers for their own deaths, not a battle's.
+		if (net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.hunting(player)) {
+			return net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.HUNTING;
+		}
 		return null;
 	}
 

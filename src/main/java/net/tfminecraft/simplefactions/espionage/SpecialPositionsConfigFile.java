@@ -15,8 +15,8 @@ public final class SpecialPositionsConfigFile {
     // Settings whose rule no longer exists; their comments would mislead staff.
     private static final java.util.List<String> RETIRED_KEYS = java.util.List.of(
             "espionage.aptitude.solo-leader-multiplier", "espionage.appointments.repeat-cost",
-            // Replaced by plots.execution.hunt-days, which counts only days the target can be found.
-            "plots.execution.days");
+            // Plots moved to RPCharacters (plots.yml); development builds left this section behind.
+            "plots");
     private SpecialPositionsConfigFile() {}
 
     public static void load(JavaPlugin plugin) {
@@ -28,7 +28,6 @@ public final class SpecialPositionsConfigFile {
             boolean existed = file.exists();
             var settings = prepare(file, legacy, defaults);
             EspionageConfig.load(settings);
-            net.tfminecraft.simplefactions.plots.PlotConfig.load(settings);
             if (!existed && legacy.exists()) {
                 // Preserve comments and unrelated settings. Never rewrite the entire main YAML.
                 String before = Files.readString(legacy.toPath());

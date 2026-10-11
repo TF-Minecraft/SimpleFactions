@@ -14,7 +14,6 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 - **Settlements and guilds** — establish named cities and capitals and organise groups within a nation.
 - **Military infrastructure** — construct forts, ports, airports, and train stations; transport networks extend guild trade and production.
 - **Espionage** — appoint a Spymaster, keep regiments and vehicles secret, and obtain shared daily intelligence estimates.
-- **Plots** — every character's Intrigue, a plot approach and defender, and staff-approved assassination plots that recruit, build, risk discovery and end in permanent death.
 - **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
 
 ## A shared political world

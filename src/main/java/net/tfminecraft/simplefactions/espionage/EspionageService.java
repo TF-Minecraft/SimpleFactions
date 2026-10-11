@@ -314,20 +314,13 @@ public final class EspionageService {
         return true;
     }
 
-    /** A character's Intrigue: the permanent roll first made for the Spymaster's office. Null until rolled. */
-    public static Integer knownIntrigue(String characterId) {
-        return characterAptitudes == null ? null : characterAptitudes.find(characterId);
-    }
-
-    /** Rolls the player's active character's Intrigue on first use, with the Spymaster formula. */
-    public static int intrigue(Player player, String characterId) throws java.io.IOException {
-        return characterAptitude(player, characterId);
-    }
-
     private static int characterAptitude(Player player, String characterId) throws java.io.IOException {
         if (characterAptitudes == null) throw new java.io.IOException("Character aptitude registry is unavailable");
-        return characterAptitudes.aptitude(characterId, () ->
-                EspionageMath.aptitude(OfficeCharacters.attributes(player), ThreadLocalRandom.current()));
+        // A character who already rolled their Intrigue in RPCharacters serves with that same roll.
+        return characterAptitudes.aptitude(characterId, () -> {
+            Integer intrigue = net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.intrigue(player);
+            return intrigue != null ? intrigue : EspionageMath.aptitude(OfficeCharacters.attributes(player), ThreadLocalRandom.current());
+        });
     }
 
     public static boolean remove(Player actor, Faction faction) {
