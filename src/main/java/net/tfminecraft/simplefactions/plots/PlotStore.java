@@ -18,6 +18,8 @@ public final class PlotStore {
     /** "master character|target character" to the epoch millis the master may target them again. */
     public Map<String, Long> cooldowns = new LinkedHashMap<>();
     public Map<String, List<String>> notices = new LinkedHashMap<>();
+    /** "participant character|target character" pairs that may never plot again: the target survived. */
+    public java.util.Set<String> bans = new java.util.LinkedHashSet<>();
     private transient Path file;
 
     public static PlotStore load(Path file) throws IOException {
@@ -27,6 +29,7 @@ public final class PlotStore {
         if (store.characters == null) store.characters = new LinkedHashMap<>();
         if (store.cooldowns == null) store.cooldowns = new LinkedHashMap<>();
         if (store.notices == null) store.notices = new LinkedHashMap<>();
+        if (store.bans == null) store.bans = new java.util.LinkedHashSet<>();
         store.plots.removeIf(plot -> plot == null || plot.code == null || plot.master == null || plot.phase == null);
         store.characters.values().removeIf(java.util.Objects::isNull);
         store.characters.values().forEach(settings -> {

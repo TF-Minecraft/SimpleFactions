@@ -270,6 +270,9 @@ plots:
   building:
     # The plot bar fills in about this many days at normal speed. Each day rolls its own luck.
     days: 7.0
+    # A ready plot keeps losing secrecy, and the defender keeps rolling, every day it waits. If the
+    # plot master doesn't begin the final phase within ready-days, the plot fails.
+    ready-days: 7.0
     luck-min: 0.5
     luck-max: 1.5
     # Speed added by each Progress collaborator at 100 Intrigue (0.5 = 50% faster).
@@ -339,8 +342,25 @@ plots:
         weak: "&7&o{name} takes an unusual interest in your movements."
         strong: "&7&o{name} carries themselves like someone with a plan, and you are part of it."
   execution:
-    # After the investigation the assassins have this many days to strike before the plot fails.
-    days: 7.0
+    # The hunt lasts this many hunt days. A day counts once the target has been findable for
+    # findable-minutes that day: online, playing the targeted character and out in the open. Days the
+    # target is offline, plays another character or stays underground don't count; days the assassins
+    # miss still do. When the hunt days run out, or max-days real days pass, the target survives and
+    # none of the plot's master and members may ever plot against that character again.
+    # A target who knows of the plot can't switch or create characters while hunted.
+    hunt-days: 4
+    findable-minutes: 30
+    max-days: 21.0
+    findable:
+      # Out in the open: no more than this many blocks below the highest block above them.
+      max-depth: 16
+      # Worlds where the target can be found. Empty means every world.
+      worlds: []
+    area:
+      # Every hunting assassin hears the target's rough area this often. 0 turns it off.
+      interval-seconds: 120
+      # The area is rounded to a grid of this many blocks.
+      size: 250
     # A player killed this many seconds after another player's hit counts as killed by them.
     hit-window-seconds: 120
     # Only deaths while an assassin hunts count: the target killed by a hunting assassin, or a hunting
@@ -350,6 +370,7 @@ plots:
     hunt:
       warmup-seconds: 60
       minimum-minutes: 10
-      # A target who learned of the plot is warned while online that they are hunted once the plot's
-      # secrecy is at or below this value. 100 warns as soon as they know of the plot; 0 only when exposed.
+      # A target who learned of the plot is warned, if online, at the moment a hunt takes effect once the
+      # plot's secrecy is at or below this value. Never on login and never when a hunt ends, so the timing
+      # can't point at the assassins. 100 warns as soon as they know of the plot; 0 only when exposed.
       alert-secrecy: 40.0

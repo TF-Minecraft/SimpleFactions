@@ -74,6 +74,11 @@ public final class PlotMath {
         plot.progress = Math.min(100, plot.progress + 100 / PlotConfig.buildDays() * speed(snapshot) * luck(random));
         plot.strength += dailyStrength(snapshot) * luck(random);
         plot.required = required(snapshot.protection(), snapshot.betrayal());
+        return watch(plot, snapshot, random);
+    }
+
+    /** Secrecy falls and the defender rolls against it, also while a ready plot waits. True on a leak. */
+    public static boolean watch(Plot plot, Snapshot snapshot, RandomGenerator random) {
         plot.secrecy = Math.max(0, plot.secrecy - secrecyLoss(snapshot));
         // A betraying Spymaster buries every trace until the final phase.
         if (snapshot.betrayal() == Betrayal.SPYMASTER) return false;

@@ -183,6 +183,54 @@ class PlotListenerTest {
         assertNull(loggedOff.getItem(24));
     }
 
+    private org.bukkit.event.player.PlayerCommandPreprocessEvent command(Player player, String line) {
+        var event = mock(org.bukkit.event.player.PlayerCommandPreprocessEvent.class);
+        when(event.getPlayer()).thenReturn(player);
+        when(event.getMessage()).thenReturn(line);
+        characters.onCommand(event);
+        return event;
+    }
+
+    @Test
+    void aKnowingHuntedTargetCannotSwitchOrCreateCharacters() {
+        Plot plot = executing();
+        Inventory free = characterInfo(target, target, PlotCharacterListener.CHARACTER_INFO, shown("c-target"));
+        free.setItem(PlotCharacterListener.SWITCH_SLOT, new ItemStack(Material.EMERALD));
+        characters.onOpen(new InventoryOpenEvent(target.getOpenInventory()));
+        assertEquals(Material.EMERALD, free.getItem(PlotCharacterListener.SWITCH_SLOT).getType(), "an unknowing target is never tipped off");
+        plot.discovered = true;
+        Inventory locked = characterInfo(target, target, PlotCharacterListener.CHARACTER_INFO, shown("c-target"));
+        locked.setItem(PlotCharacterListener.SWITCH_SLOT, new ItemStack(Material.EMERALD));
+        characters.onOpen(new InventoryOpenEvent(target.getOpenInventory()));
+        assertEquals(Material.RED_CONCRETE, locked.getItem(PlotCharacterListener.SWITCH_SLOT).getType());
+        Inventory noSwitch = characterInfo(target, target, PlotCharacterListener.CHARACTER_INFO, shown("c-target"));
+        characters.onOpen(new InventoryOpenEvent(target.getOpenInventory()));
+        assertNull(noSwitch.getItem(PlotCharacterListener.SWITCH_SLOT));
+
+        Inventory menu = world.gui.inventory(new RPCHolder(target), 27, PlotCharacterListener.CHARACTER_MENU);
+        menu.setItem(11, new ItemStack(Material.YELLOW_CONCRETE));
+        menu.setItem(12, new ItemStack(Material.ENDER_PEARL));
+        target.openInventory(menu);
+        characters.onOpen(new InventoryOpenEvent(target.getOpenInventory()));
+        assertEquals(Material.RED_CONCRETE, menu.getItem(11).getType());
+        assertEquals(Material.ENDER_PEARL, menu.getItem(12).getType());
+        Inventory own = world.gui.inventory(new RPCHolder(master), 27, PlotCharacterListener.CHARACTER_MENU);
+        own.setItem(11, new ItemStack(Material.YELLOW_CONCRETE));
+        master.openInventory(own);
+        characters.onOpen(new InventoryOpenEvent(master.getOpenInventory()));
+        assertEquals(Material.YELLOW_CONCRETE, own.getItem(11).getType());
+        world.logOff(master);
+        characters.onOpen(new InventoryOpenEvent(master.getOpenInventory()));
+        assertEquals(Material.YELLOW_CONCRETE, own.getItem(11).getType());
+
+        for (String line : new String[]{"/rpcharacter create", "/RPCharacters:rpcharacter  create"})
+            org.mockito.Mockito.verify(command(target, line)).setCancelled(true);
+        assertTrue(world.last(target).contains("Face it as this character"));
+        for (String line : new String[]{"/rpcharacter menu", "/rpcharacter", "/plot create", "/spawn create"})
+            org.mockito.Mockito.verify(command(target, line), org.mockito.Mockito.never()).setCancelled(true);
+        org.mockito.Mockito.verify(command(assassin, "/rpcharacter create"), org.mockito.Mockito.never()).setCancelled(true);
+    }
+
     @Test
     void otherMenusAndUnmarkedCharactersAreLeftAlone() {
         Inventory foreign = characterInfo(master, target, PlotCharacterListener.CHARACTER_INFO, shown("c-target"));

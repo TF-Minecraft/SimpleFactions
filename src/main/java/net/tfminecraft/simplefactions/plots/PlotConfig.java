@@ -22,9 +22,11 @@ public final class PlotConfig {
             masterStrength, assassinStrength, strengthCollaborator, otherCollaborator, requiredBase,
             requiredPerProtection, dailyLoss, lossPerMember, hidePerCollaborator, minimumLoss, leakLoss,
             revealMembers, revealProgress, revealAssassins, earlyProgress, lateProgress, betrayalSpeed, investigationDays,
-            radius, executionDays, huntAlertSecrecy;
+            radius, huntAlertSecrecy, readyDays, findableMinutes, maxDays;
     private static int spymasterPenalty, helperPenalty, scanSeconds, maxInvestigators, knownBonus, unknownPenalty,
-            strongMargin, hitWindowSeconds, maxAssassins, maxCollaborators, noticeLimit, huntWarmupSeconds, huntMinimumMinutes;
+            strongMargin, hitWindowSeconds, maxAssassins, maxCollaborators, noticeLimit, huntWarmupSeconds, huntMinimumMinutes,
+            huntDays, maxDepth, areaIntervalSeconds, areaSize;
+    private static java.util.List<String> worlds = java.util.List.of();
 
     static { load(BUNDLED); }
 
@@ -52,6 +54,7 @@ public final class PlotConfig {
         helperShare = number("defense.helper-share", .75, 0, 1);
         defenderHours = number("defense.change-cooldown-hours", 24, 0, 87_600);
         buildDays = number("building.days", 7, .01, 3650);
+        readyDays = number("building.ready-days", 7, .01, 3650);
         luckMin = number("building.luck-min", .5, 0, 10);
         luckMax = Math.max(luckMin, number("building.luck-max", 1.5, 0, 10));
         progressPerCollaborator = number("building.progress-per-collaborator", .5, 0, 10);
@@ -83,7 +86,13 @@ public final class PlotConfig {
         strongMargin = (int) number("investigation.strong-margin", 40, 0, 10_000);
         for (PlotRole role : PlotRole.values())
             difficulty.put(role, (int) number("investigation.difficulty." + role.key(), role.defaultDifficulty(), -1000, 1000));
-        executionDays = number("execution.days", 7, .01, 3650);
+        huntDays = (int) number("execution.hunt-days", 4, 1, 365);
+        findableMinutes = number("execution.findable-minutes", 30, 0, 1440);
+        maxDays = number("execution.max-days", 21, .01, 3650);
+        maxDepth = (int) number("execution.findable.max-depth", 16, 0, 4096);
+        worlds = java.util.List.copyOf(source.getStringList(ROOT + "execution.findable.worlds"));
+        areaIntervalSeconds = (int) number("execution.area.interval-seconds", 120, 0, 86_400);
+        areaSize = (int) number("execution.area.size", 250, 1, 100_000);
         hitWindowSeconds = (int) number("execution.hit-window-seconds", 120, 0, 86_400);
         huntWarmupSeconds = (int) number("execution.hunt.warmup-seconds", 60, 0, 86_400);
         huntMinimumMinutes = (int) number("execution.hunt.minimum-minutes", 10, 0, 10_080);
@@ -155,7 +164,15 @@ public final class PlotConfig {
     public static int unknownPenalty() { return unknownPenalty; }
     public static int strongMargin() { return strongMargin; }
     public static int difficulty(PlotRole role) { return difficulty.get(role); }
-    public static long execution() { return millis(executionDays); }
+    public static long ready() { return millis(readyDays); }
+    public static int huntDays() { return huntDays; }
+    public static long findable() { return Math.round(findableMinutes * 60_000); }
+    public static long maxHunt() { return millis(maxDays); }
+    public static int maxDepth() { return maxDepth; }
+    /** Worlds where a target can be found; empty means every world. */
+    public static java.util.List<String> worlds() { return worlds; }
+    public static long areaInterval() { return areaIntervalSeconds * 1000L; }
+    public static int areaSize() { return areaSize; }
     public static long hitWindow() { return hitWindowSeconds * 1000L; }
     public static long huntWarmup() { return huntWarmupSeconds * 1000L; }
     /** From the start of the hunt, including the warm-up. */

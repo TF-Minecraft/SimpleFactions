@@ -61,7 +61,14 @@ class PlotConfigTest {
         assertEquals(30, PlotConfig.difficulty(PlotRole.MASTER));
         assertEquals(10, PlotConfig.difficulty(PlotRole.UNASSIGNED));
         assertEquals(0, PlotConfig.difficulty(PlotRole.INFORMED));
-        assertEquals(7 * PlotConfig.DAY, PlotConfig.execution());
+        assertEquals(7 * PlotConfig.DAY, PlotConfig.ready());
+        assertEquals(4, PlotConfig.huntDays());
+        assertEquals(30 * 60_000, PlotConfig.findable());
+        assertEquals(21 * PlotConfig.DAY, PlotConfig.maxHunt());
+        assertEquals(16, PlotConfig.maxDepth());
+        assertEquals(java.util.List.of(), PlotConfig.worlds());
+        assertEquals(120_000, PlotConfig.areaInterval());
+        assertEquals(250, PlotConfig.areaSize());
         assertEquals(120_000, PlotConfig.hitWindow());
         assertEquals(2, PlotConfig.maxAssassins());
         assertEquals(2, PlotConfig.maxCollaborators());
@@ -85,6 +92,7 @@ class PlotConfigTest {
         config.set("plots.building.luck-max", 1.0);
         config.set("plots.approach.offensive.offense", 30);
         config.set("plots.roles.max-assassins", 3);
+        config.set("plots.execution.findable.worlds", java.util.List.of("TFMC_Map"));
         config.set("plots.building.reveal.early-progress", 50);
         config.set("plots.building.reveal.late-progress", 20);
         config.set("plots.investigation.hints.master.strong", "{name} knows.");
@@ -96,6 +104,7 @@ class PlotConfigTest {
         assertEquals(2, PlotConfig.luckMax());
         assertEquals(30, PlotConfig.offenseBonus(PlotApproach.OFFENSIVE));
         assertEquals(5, PlotConfig.maxMembers());
+        assertEquals(java.util.List.of("TFMC_Map"), PlotConfig.worlds());
         assertEquals(50, PlotConfig.lateProgress());
         assertEquals("Ana knows.", PlotConfig.hint(PlotRole.MASTER, true, "Ana"));
         config.set("plots.staff-permission", "custom.node");

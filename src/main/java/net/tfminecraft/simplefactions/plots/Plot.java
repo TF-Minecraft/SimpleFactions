@@ -20,6 +20,12 @@ public final class Plot {
     public Set<String> investigated = new LinkedHashSet<>();
     public long requestedAt, phaseStartedAt, nextDayAt;
     public int day;
+    /** Hunt days counted so far, the start of the current one, and whether it has been counted. */
+    public int huntDays;
+    public long huntDayStartedAt;
+    public boolean dayCounted;
+    /** Time the target has been findable today; a restart starts the day's count again. */
+    public transient long exposure, exposureCheckedAt;
     public double progress, strength, required, secrecy = 100;
     public boolean discovered, exposed;
     /** What the target has learned, keyed so a newer leak replaces an older line of the same kind. */

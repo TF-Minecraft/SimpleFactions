@@ -53,6 +53,10 @@ public final class PlotMenu {
 
     static ItemStack item(Material material, String name, String... lore) { return item(material, name, Arrays.asList(lore)); }
 
+    private static String left(long until) {
+        return EspionageService.duration(Math.max(0, until - PlotService.now()));
+    }
+
     static String bar(double value) {
         int filled = (int) Math.max(0, Math.min(10, Math.round(value / 10)));
         return "§a" + "|".repeat(filled) + "§8" + "|".repeat(10 - filled) + " §7" + Math.round(value) + "%";
@@ -139,12 +143,16 @@ public final class PlotMenu {
             lore.add("§7Strength: §e" + Math.round(plot.strength) + "§7 of §e" + Math.round(plot.required) + "§7 needed");
             lore.add("§7Secrecy: " + bar(plot.secrecy));
         }
-        if (plot.phase == PlotPhase.INVESTIGATION || plot.phase == PlotPhase.EXECUTION) {
-            long ends = plot.phaseStartedAt + (plot.phase == PlotPhase.INVESTIGATION ? PlotConfig.investigation() : PlotConfig.execution());
-            lore.add("§7" + (plot.phase == PlotPhase.INVESTIGATION ? "Assassins may strike in " : "Time left to strike: ")
-                    + "§e" + EspionageService.duration(Math.max(0, ends - PlotService.now())));
-            if (plot.phase == PlotPhase.EXECUTION) lore.add("§7Assassins hunting: §e"
-                    + plot.withRole(PlotRole.ASSASSIN).stream().filter(PlotService::hunting).count());
+        if (plot.phase == PlotPhase.READY) lore.add("§7Begin the final phase within §e" + left(plot.phaseStartedAt + PlotConfig.ready()));
+        if (plot.phase == PlotPhase.INVESTIGATION)
+            lore.add("§7Assassins may strike in §e" + left(plot.phaseStartedAt + PlotConfig.investigation()));
+        if (plot.phase == PlotPhase.EXECUTION) {
+            lore.add("§7Hunt days: §e" + plot.huntDays + "§7 of §e" + PlotConfig.huntDays()
+                    + (plot.dayCounted ? "§7 (today counted)" : "§7 (today not yet)"));
+            lore.add("§8A day counts once the target has been out in the open");
+            lore.add("§8for " + EspionageService.duration(PlotConfig.findable()) + " that day.");
+            lore.add("§7The plot ends at the latest in §e" + left(plot.phaseStartedAt + PlotConfig.maxHunt()));
+            lore.add("§7Assassins hunting: §e" + plot.withRole(PlotRole.ASSASSIN).stream().filter(PlotService::hunting).count());
         }
         holder.set(22, item(Material.IRON_SWORD, "§5Assassination plot", lore), null);
         List<String> roster = new ArrayList<>(List.of("§7" + plot.master.name + " §8- " + PlotRole.MASTER.label()));

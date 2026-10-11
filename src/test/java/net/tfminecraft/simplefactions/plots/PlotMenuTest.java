@@ -196,12 +196,17 @@ class PlotMenuTest {
         plot.phase = PlotPhase.READY;
         PlotMenu.open(master);
         assertEquals("§cBegin the final phase", name(master, 24));
+        assertTrue(lore(master, 22).stream().anyMatch(line -> line.startsWith("§7Begin the final phase within")));
         click(master, 24);
         assertEquals(PlotPhase.INVESTIGATION, plot.phase);
         assertTrue(lore(master, 22).stream().anyMatch(line -> line.contains("Assassins may strike in")));
         plot.phase = PlotPhase.EXECUTION;
         PlotMenu.open(master);
-        assertTrue(lore(master, 22).stream().anyMatch(line -> line.contains("Time left to strike")));
+        assertTrue(lore(master, 22).contains("§7Hunt days: §e0§7 of §e4§7 (today not yet)"));
+        assertTrue(lore(master, 22).stream().anyMatch(line -> line.contains("The plot ends at the latest in")));
+        plot.dayCounted = true;
+        PlotMenu.open(master);
+        assertTrue(lore(master, 22).contains("§7Hunt days: §e0§7 of §e4§7 (today counted)"));
         assertTrue(lore(master, 22).contains("§7Assassins hunting: §e0"));
         assertFalse(holder(master).actions.containsKey(24));
         PlotMenu.open(assassin);

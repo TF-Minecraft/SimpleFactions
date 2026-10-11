@@ -148,9 +148,6 @@ public final class PlotService {
         PlotCharacter character = PlotCharacters.active(player);
         if (character == null) return;
         intrigue(character);
-        for (Plot plot : store.against(character.characterId))
-            if (plot.phase == PlotPhase.EXECUTION && alerted(plot) && plot.members.stream().anyMatch(member -> member.huntAnnounced))
-                player.sendMessage(PREFIX + HUNTED);
         var queue = store.notices.remove(character.characterId);
         if (queue == null) return;
         queue.forEach(player::sendMessage);
@@ -313,6 +310,10 @@ public final class PlotService {
             staff.sendMessage("§cA player cannot plot against their own characters.");
             return false;
         }
+        if (banned(plot.master, target)) {
+            staff.sendMessage("§c" + plot.master.name + " once failed to kill " + target.name + " and may never target them again.");
+            return false;
+        }
         Long until = store.cooldowns.get(cooldownKey(plot.master, target));
         if (until != null && until > now()) {
             staff.sendMessage("§c" + plot.master.name + " cannot target " + target.name + " again for "
@@ -410,7 +411,7 @@ public final class PlotService {
         if (plot == null) return false;
         PlotCharacter guest = other(player, other, "propose it");
         if (guest == null) return false;
-        if (targetsAccount(plot, guest) || plot.involves(guest.characterId)) {
+        if (targetsAccount(plot, guest) || plot.involves(guest.characterId) || banned(guest, plot.target)) {
             player.sendMessage("§cYou cannot invite them.");
             return false;
         }
@@ -440,9 +441,9 @@ public final class PlotService {
             return false;
         }
         plot.invitations.remove(me.characterId);
-        if (store.plotOf(me.characterId) != null || plot.members.size() >= PlotConfig.maxMembers()) {
+        if (store.plotOf(me.characterId) != null || plot.members.size() >= PlotConfig.maxMembers() || banned(me, plot.target)) {
             save();
-            player.sendMessage("§cYou cannot join this plot: you are already part of one, or it has no room left.");
+            player.sendMessage("§cYou cannot join this plot: you are already part of one, it has no room left, or you once failed to kill this target.");
             return false;
         }
         intrigue(me);
@@ -640,24 +641,38 @@ public final class PlotService {
                         changed = true;
                     }
                 }
+                case READY -> {
+                    while (plot.phase == PlotPhase.READY && now >= plot.nextDayAt) {
+                        plot.nextDayAt += PlotConfig.DAY;
+                        var snapshot = snapshot(plot);
+                        reveal(plot, snapshot, PlotMath.watch(plot, snapshot, random.get()));
+                        changed = true;
+                    }
+                    if (now >= plot.phaseStartedAt + PlotConfig.ready()) {
+                        end(plot, PlotPhase.FAILED, "Never launched", true);
+                        tellConspirators(plot, "The plot" + against(plot) + " was never launched and has failed.");
+                        changed = true;
+                    }
+                }
                 case INVESTIGATION -> {
                     if (now >= plot.phaseStartedAt + PlotConfig.investigation()) {
                         plot.phase = PlotPhase.EXECUTION;
                         plot.phaseStartedAt += PlotConfig.investigation();
+                        plot.huntDayStartedAt = plot.phaseStartedAt;
                         String message = "§cThe time has come. The assassins may now hunt §e" + plot.target.name
-                                + "§c, with §e/plot hunt§c or the Plots menu, for " + EspionageService.duration(PlotConfig.execution())
-                                + ". Only deaths while hunting count, theirs and yours.";
+                                + "§c with §e/plot hunt§c or the Plots menu. Only deaths while hunting count, theirs and yours. The hunt lasts "
+                                + PlotConfig.huntDays() + " days on which " + plot.target.name + " can be found out in the open.";
                         tell(plot.master, message);
                         for (PlotMember assassin : plot.withRole(PlotRole.ASSASSIN)) tell(assassin.character, message);
                         changed = true;
                     }
                 }
                 case EXECUTION -> {
-                    changed |= hunts(plot);
-                    if (now >= plot.phaseStartedAt + PlotConfig.execution()) {
-                        end(plot, PlotPhase.FAILED, "The assassins never struck", true);
-                        tellConspirators(plot, "The moment has passed. The plot" + against(plot) + " has failed.");
-                        if (plot.discovered) tell(plot.target, "The danger to your life seems to have passed.");
+                    hunts(plot);
+                    changed |= huntClock(plot, now);
+                    // The last hunt day runs to its end once counted.
+                    if (plot.huntDays >= PlotConfig.huntDays() && !plot.dayCounted || now >= plot.phaseStartedAt + PlotConfig.maxHunt()) {
+                        survived(plot);
                         changed = true;
                     }
                 }
@@ -676,7 +691,10 @@ public final class PlotService {
         }
         plot.requestedAt -= PlotConfig.DAY;
         plot.phaseStartedAt -= PlotConfig.DAY;
-        if (plot.phase == PlotPhase.BUILDING) plot.nextDayAt = Math.min(plot.nextDayAt, now());
+        plot.huntDayStartedAt -= PlotConfig.DAY;
+        if (plot.phase == PlotPhase.BUILDING || plot.phase == PlotPhase.READY) plot.nextDayAt = Math.min(plot.nextDayAt, now());
+        // A staff day in the hunt counts, as if the target had been found.
+        if (plot.phase == PlotPhase.EXECUTION) plot.huntDays++;
         plot.invitations.replaceAll((id, expiry) -> expiry - PlotConfig.DAY);
         tick();
         staff.sendMessage("§aA day passes for plot " + plot.code + ". " + summary(plot));
@@ -685,7 +703,22 @@ public final class PlotService {
 
     static void buildDay(Plot plot) {
         var snapshot = snapshot(plot);
-        boolean leak = PlotMath.day(plot, snapshot, random.get());
+        reveal(plot, snapshot, PlotMath.day(plot, snapshot, random.get()));
+        if (plot.progress < 100) return;
+        if (plot.strength >= plot.required) {
+            plot.phase = PlotPhase.READY;
+            plot.phaseStartedAt = plot.nextDayAt - PlotConfig.DAY;
+            tell(plot.master, "The plot" + against(plot) + " is ready. Begin the final phase within "
+                    + EspionageService.duration(PlotConfig.ready()) + " from the Plots menu or with §e/plot launch§7. Until then it keeps losing secrecy.");
+            for (PlotMember member : plot.members) tell(member.character, "The plot" + against(plot) + " is ready to strike.");
+        } else {
+            end(plot, PlotPhase.FAILED, "Not enough strength", true);
+            tellConspirators(plot, "The plot" + against(plot) + " ran out of time without enough strength and has failed.");
+        }
+    }
+
+    /** Tells the target what a won defence roll, or secrecy reaching zero, gives away. */
+    private static void reveal(Plot plot, PlotMath.Snapshot snapshot, boolean leak) {
         boolean exposing = plot.secrecy <= 0 && !plot.exposed && snapshot.betrayal() != Betrayal.SPYMASTER;
         if (leak || exposing) {
             plot.discovered = true;
@@ -695,16 +728,6 @@ public final class PlotService {
             for (String line : lines) tell(plot.target, "§c" + line);
             if (leak) tell(plot.master, "Whispers reach you: §e" + plot.target.name + "§7 suspects that someone wants them dead.");
             if (exposing) tellConspirators(plot, "§cThe plot is exposed. §e" + plot.target.name + "§c knows who is behind it.");
-        }
-        if (plot.progress < 100) return;
-        if (plot.strength >= plot.required) {
-            plot.phase = PlotPhase.READY;
-            plot.phaseStartedAt = plot.nextDayAt - PlotConfig.DAY;
-            tell(plot.master, "The plot" + against(plot) + " is ready. Begin the final phase from the Plots menu or with §e/plot launch§7.");
-            for (PlotMember member : plot.members) tell(member.character, "The plot" + against(plot) + " is ready to strike.");
-        } else {
-            end(plot, PlotPhase.FAILED, "Not enough strength", true);
-            tellConspirators(plot, "The plot" + against(plot) + " ran out of time without enough strength and has failed.");
         }
     }
 
@@ -717,7 +740,8 @@ public final class PlotService {
 
     public static String summary(Plot plot) {
         return plot.phase.label() + ", day " + plot.day + ", progress " + Math.round(plot.progress) + "%, strength "
-                + Math.round(plot.strength) + "/" + Math.round(plot.required) + ", secrecy " + Math.round(plot.secrecy) + "%";
+                + Math.round(plot.strength) + "/" + Math.round(plot.required) + ", secrecy " + Math.round(plot.secrecy) + "%"
+                + (plot.phase == PlotPhase.EXECUTION ? ", hunt days " + plot.huntDays + "/" + PlotConfig.huntDays() : "");
     }
 
     // ---- Final phase ----------------------------------------------------------------------------
@@ -766,7 +790,7 @@ public final class PlotService {
         return member != null && member.huntingSince > 0 && now() >= member.huntingSince + PlotConfig.huntWarmup();
     }
 
-    /** The target is warned of hunters only once they know enough about the plot. */
+    /** The target is warned when a hunt takes effect, and only once they know enough about the plot. */
     static boolean alerted(Plot plot) {
         return plot.discovered && plot.secrecy <= PlotConfig.huntAlertSecrecy();
     }
@@ -787,7 +811,7 @@ public final class PlotService {
                 player.sendMessage("§cYou are committed to the hunt for another " + EspionageService.duration(left) + ".");
                 return false;
             }
-            endHunt(plot, member);
+            endHunt(member);
             player.sendMessage(PREFIX + "You call off the hunt for now.");
             return true;
         }
@@ -799,13 +823,11 @@ public final class PlotService {
         return true;
     }
 
-    private static void endHunt(Plot plot, PlotMember member) {
-        boolean announced = member.huntAnnounced;
+    /** The target is never told a hunt ended, or reminded on login: either could point at who hunts them. */
+    private static void endHunt(PlotMember member) {
         member.huntingSince = 0;
         member.huntAnnounced = false;
-        Player target = PlotCharacters.online(plot.target);
-        if (announced && target != null && alerted(plot) && plot.members.stream().noneMatch(other -> other.huntAnnounced))
-            target.sendMessage(PREFIX + "The feeling of being hunted fades.");
+        member.areaToldAt = 0;
     }
 
     /** Starts hunts whose warm-up has passed and ends those of assassins no longer played. */
@@ -815,17 +837,114 @@ public final class PlotService {
             if (member.huntingSince <= 0) continue;
             Player assassin = PlotCharacters.online(member.character);
             if (assassin == null) {
-                endHunt(plot, member);
+                endHunt(member);
                 continue;
             }
-            if (member.huntAnnounced || !hunting(member)) continue;
-            member.huntAnnounced = true;
-            changed = true;
-            assassin.sendMessage(PREFIX + "§cThe hunt is on.");
-            Player target = PlotCharacters.online(plot.target);
-            if (target != null && alerted(plot)) target.sendMessage(PREFIX + HUNTED);
+            if (!hunting(member)) continue;
+            if (!member.huntAnnounced) {
+                member.huntAnnounced = true;
+                changed = true;
+                assassin.sendMessage(PREFIX + "§cThe hunt is on.");
+                Player target = PlotCharacters.online(plot.target);
+                if (target != null && alerted(plot)) target.sendMessage(PREFIX + HUNTED);
+            }
+            if (PlotConfig.areaInterval() > 0 && (member.areaToldAt <= 0 || now() - member.areaToldAt >= PlotConfig.areaInterval())) {
+                member.areaToldAt = now();
+                assassin.sendMessage(PREFIX + area(plot, assassin));
+            }
         }
         return changed;
+    }
+
+    /** Out in the open: online in a hunting world and not deep below the surface above them. */
+    static boolean findable(Player player) {
+        var location = player.getLocation();
+        var world = location.getWorld();
+        if (world == null || !PlotConfig.worlds().isEmpty() && !PlotConfig.worlds().contains(world.getName())) return false;
+        return location.getBlockY() >= world.getHighestBlockYAt(location.getBlockX(), location.getBlockZ()) - PlotConfig.maxDepth();
+    }
+
+    /** Counts a hunt day once the target has been findable long enough that day. True when a day was counted. */
+    static boolean huntClock(Plot plot, long now) {
+        while (now >= plot.huntDayStartedAt + PlotConfig.DAY) {
+            plot.huntDayStartedAt += PlotConfig.DAY;
+            plot.exposure = 0;
+            plot.dayCounted = false;
+        }
+        long since = plot.exposureCheckedAt;
+        plot.exposureCheckedAt = now;
+        Player target = PlotCharacters.online(plot.target);
+        if (plot.dayCounted || since <= 0 || target == null || !findable(target)) return false;
+        // A stalled timer or a long pause never counts as time out in the open.
+        plot.exposure += Math.min(now - since, 60_000);
+        if (plot.exposure < PlotConfig.findable()) return false;
+        plot.dayCounted = true;
+        plot.huntDays++;
+        String message = "§e" + plot.target.name + "§7 has been out in the open today: hunt day §e" + plot.huntDays + "§7 of §e"
+                + PlotConfig.huntDays() + "§7 counts.";
+        tell(plot.master, message);
+        for (PlotMember assassin : plot.withRole(PlotRole.ASSASSIN)) tell(assassin.character, message);
+        return true;
+    }
+
+    /** Time ran out: the target lives, and nobody in the plot may ever plot against them again. */
+    private static void survived(Plot plot) {
+        end(plot, PlotPhase.FAILED, "The target survived", false);
+        store.bans.add(banKey(plot.master, plot.target));
+        for (PlotMember member : plot.members) store.bans.add(banKey(member.character, plot.target));
+        tellConspirators(plot, "Time has run out. §e" + plot.target.name + "§7 survived the plot, and none of you may ever plot against them again.");
+        if (plot.discovered) tell(plot.target, "You survived the plot against your life.");
+        save();
+    }
+
+    private static String banKey(PlotCharacter participant, PlotCharacter target) {
+        return participant.characterId + "|" + target.characterId;
+    }
+
+    static boolean banned(PlotCharacter participant, PlotCharacter target) {
+        return store.bans.contains(banKey(participant, target));
+    }
+
+    /** A target who knows they are hunted must face it as this character: no switching or new characters. */
+    public static boolean locked(String characterId) {
+        return store.against(characterId).stream().anyMatch(plot -> plot.phase == PlotPhase.EXECUTION && plot.discovered);
+    }
+
+    /** The target's rough whereabouts for a hunting assassin, if they can be found at all. */
+    static String area(Plot plot, Player assassin) {
+        Player target = PlotCharacters.online(plot.target);
+        if (target == null || !findable(target)) return "Nobody has seen §e" + plot.target.name + "§7 out in the open lately.";
+        var at = target.getLocation();
+        int size = PlotConfig.areaSize();
+        long x = Math.floorDiv(at.getBlockX(), size) * (long) size + size / 2;
+        long z = Math.floorDiv(at.getBlockZ(), size) * (long) size + size / 2;
+        StringBuilder text = new StringBuilder("Word is that §e" + plot.target.name + "§7 was seen around §ex " + x + ", z " + z + "§7");
+        if (at.getWorld().equals(assassin.getWorld())) {
+            double dx = x - assassin.getLocation().getX(), dz = z - assassin.getLocation().getZ();
+            long distance = Math.round(Math.hypot(dx, dz) / 50) * 50;
+            text.append(distance < size ? ", close to you" : ", about " + distance + " blocks " + direction(dx, dz) + " of you");
+        }
+        String lands = lands(at);
+        if (lands != null) text.append(", in the lands of §e").append(lands).append("§7");
+        return text.append('.').toString();
+    }
+
+    static String direction(double dx, double dz) {
+        String[] names = {"south", "south-west", "west", "north-west", "north", "north-east", "east", "south-east"};
+        return names[(int) Math.floorMod(Math.round(Math.toDegrees(Math.atan2(-dx, dz)) / 45), 8)];
+    }
+
+    /** The faction holding the province there, when provinces are on. */
+    static String lands(org.bukkit.Location at) {
+        var plugin = SimpleFactions.getInstance();
+        if (plugin == null || !net.tfminecraft.simplefactions.Cache.provincesEnabled
+                || !at.getWorld().getName().equals(net.tfminecraft.simplefactions.Cache.worldName)) return null;
+        var grid = plugin.getProvinceGrid();
+        var provinces = plugin.getProvinceManager();
+        if (grid == null || provinces == null) return null;
+        int id = grid.getAt(at.getBlockX(), at.getBlockZ());
+        var owner = id > 0 && provinces.contains(id) ? provinces.get(id).getOwner() : null;
+        return owner == null ? null : owner.getName();
     }
 
     /** Remembers the last player blow on each player: a knocked-out player may die from it later. */

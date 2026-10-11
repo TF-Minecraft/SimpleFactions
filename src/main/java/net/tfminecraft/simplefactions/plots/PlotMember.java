@@ -8,6 +8,7 @@ public final class PlotMember {
     /** When an assassin set out to hunt; zero when not hunting. A restart ends every hunt. */
     public transient long huntingSince;
     public transient boolean huntAnnounced;
+    public transient long areaToldAt;
 
     public PlotMember() {}
 

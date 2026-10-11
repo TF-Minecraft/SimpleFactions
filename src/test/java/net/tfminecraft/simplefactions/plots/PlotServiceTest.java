@@ -415,20 +415,7 @@ class PlotServiceTest {
         PlotService.tick();
         assertEquals(PlotPhase.EXECUTION, running.phase);
         assertTrue(world.last(assassin).contains("may now hunt"));
-        PlotService.tick();
-        world.pass(PlotConfig.execution());
-        PlotService.tick();
-        assertEquals(PlotPhase.FAILED, running.phase);
-        assertFalse(world.heard(target, "seems to have passed"));
-
-        world.store().cooldowns.clear();
-        Plot known = PlotService.request(guard);
-        PlotService.approve(staff, known.code, "Target");
-        known.phase = PlotPhase.EXECUTION;
-        known.phaseStartedAt = world.clock.get() - PlotConfig.execution();
-        known.discovered = true;
-        PlotService.tick();
-        assertTrue(world.last(target).contains("seems to have passed"));
+        assertEquals(running.phaseStartedAt, running.huntDayStartedAt);
     }
 
     @Test
@@ -645,7 +632,7 @@ class PlotServiceTest {
         assertFalse(world.heard(assassin, "The hunt is on"));
         world.pass(PlotConfig.huntWarmup());
         PlotService.tick();
-        assertTrue(world.last(assassin).contains("The hunt is on"));
+        assertTrue(world.heard(assassin, "The hunt is on"));
         assertTrue(world.said(target).isEmpty(), "a target who knows nothing feels nothing");
         PlotService.tick();
         assertFalse(PlotService.hunt(assassin));
@@ -664,14 +651,12 @@ class PlotServiceTest {
         world.pass(PlotConfig.huntWarmup());
         PlotService.tick();
         assertTrue(world.last(target).contains("You feel hunted"));
-        PlotService.deliver(target);
-        assertTrue(world.last(target).contains("You feel hunted"));
-        world.pass(PlotConfig.huntMinimum());
-        assertTrue(PlotService.hunt(assassin));
-        assertTrue(world.last(target).contains("feeling of being hunted fades"));
         int heard = world.said(target).size();
         PlotService.deliver(target);
-        assertEquals(heard, world.said(target).size());
+        assertEquals(heard, world.said(target).size(), "no reminder on login");
+        world.pass(PlotConfig.huntMinimum());
+        assertTrue(PlotService.hunt(assassin));
+        assertEquals(heard, world.said(target).size(), "no word when a hunt ends");
 
         assertTrue(PlotService.hunt(assassin));
         world.pass(PlotConfig.huntWarmup());
@@ -679,13 +664,216 @@ class PlotServiceTest {
         world.logOff(assassin);
         PlotService.tick();
         assertEquals(0, plot.member("c-assassin").huntingSince, "logging off ends the hunt");
-        assertTrue(world.last(target).contains("fades"));
+        assertEquals(heard, world.said(target).size() - 1, "only the new hunt's warning");
         world.active.put(assassin.getUniqueId(), new PlotCharacter("c-assassin", assassin.getUniqueId(), "Assassin", "Char Assassin"));
         PlotService.hunt(assassin);
         world.logOff(target);
         world.logOff(assassin);
         PlotService.tick();
         assertEquals(0, plot.member("c-assassin").huntingSince);
+    }
+
+    @Test
+    void aReadyPlotKeepsLosingSecrecyAndFailsIfNeverLaunched() {
+        Plot plot = building();
+        plot.progress = 99;
+        plot.strength = 1000;
+        world.pass(PlotConfig.DAY);
+        PlotService.tick();
+        assertEquals(PlotPhase.READY, plot.phase);
+        assertTrue(world.heard(master, "Begin the final phase within"));
+        double secrecy = plot.secrecy;
+        world.pass(PlotConfig.DAY);
+        PlotService.tick();
+        assertTrue(plot.secrecy < secrecy, "secrecy keeps falling while the plot waits");
+        assertEquals(PlotPhase.READY, plot.phase);
+        plot.secrecy = 1;
+        assertTrue(PlotService.passDay(staff, plot.code));
+        assertTrue(plot.exposed, "the defender keeps rolling, and zero secrecy still exposes the plot");
+        assertTrue(world.heard(target, "The conspirators are"));
+        world.pass(PlotConfig.ready());
+        PlotService.tick();
+        assertEquals(PlotPhase.FAILED, plot.phase);
+        assertTrue(world.last(assassin).contains("never launched"));
+        assertNotNull(world.store().cooldowns.get("c-master|c-target"));
+    }
+
+    private Plot hunting() {
+        Plot plot = building();
+        plot.phase = PlotPhase.EXECUTION;
+        plot.phaseStartedAt = plot.huntDayStartedAt = world.clock.get();
+        return plot;
+    }
+
+    @Test
+    void huntDaysCountOnlyWhileTheTargetIsOutInTheOpen() {
+        Plot plot = hunting();
+        PlotService.tick();
+        assertEquals(0, plot.exposure, "the first check only starts the clock");
+        world.pass(60_000);
+        PlotService.tick();
+        assertEquals(60_000, plot.exposure);
+        world.logOff(target);
+        world.pass(60_000);
+        PlotService.tick();
+        assertEquals(60_000, plot.exposure, "offline time doesn't count");
+        world.active.put(target.getUniqueId(), new PlotCharacter("c-target", target.getUniqueId(), "Target", "Char Target"));
+        when(world.gui.world.getHighestBlockYAt(0, 0)).thenReturn(100);
+        world.pass(60_000);
+        PlotService.tick();
+        assertEquals(60_000, plot.exposure, "time underground doesn't count");
+        when(world.gui.world.getHighestBlockYAt(0, 0)).thenReturn(70);
+        world.pass(10 * PlotConfig.DAY / 1000);
+        PlotService.tick();
+        assertTrue(plot.exposure > 60_000, "under a roof still counts");
+        world.pass(3_600_000);
+        PlotService.tick();
+        assertEquals(0, plot.huntDays, "a long gap between checks adds at most a minute");
+        for (int minute = 0; minute < 30; minute++) {
+            world.pass(60_000);
+            PlotService.tick();
+        }
+        assertEquals(1, plot.huntDays);
+        assertTrue(plot.dayCounted);
+        assertTrue(world.heard(master, "hunt day §e1§7 of §e4§7 counts"));
+        long exposure = plot.exposure;
+        world.pass(60_000);
+        PlotService.tick();
+        assertEquals(exposure, plot.exposure, "a counted day stops counting");
+        world.pass(PlotConfig.DAY);
+        PlotService.tick();
+        assertFalse(plot.dayCounted);
+        assertEquals(60_000, plot.exposure, "a new day starts counting afresh");
+        assertTrue(PlotService.passDay(staff, plot.code));
+        assertEquals(2, plot.huntDays);
+        assertEquals(PlotPhase.EXECUTION, plot.phase);
+    }
+
+    @Test
+    void findableMeansAHuntingWorldAndNearTheSurface() {
+        assertTrue(PlotService.findable(target));
+        var config = new YamlConfiguration();
+        config.set("plots.execution.findable.worlds", List.of("TFMC_Map"));
+        PlotConfig.load(config);
+        assertFalse(PlotService.findable(target));
+        when(world.gui.world.getName()).thenReturn("TFMC_Map");
+        assertTrue(PlotService.findable(target));
+        when(target.getLocation()).thenReturn(new org.bukkit.Location(null, 0, 64, 0));
+        assertFalse(PlotService.findable(target));
+    }
+
+    @Test
+    void aTargetWhoOutlastsTheHuntSurvivesAndIsSafeFromThoseConspiratorsForever() {
+        Plot plot = hunting();
+        plot.discovered = true;
+        plot.huntDays = PlotConfig.huntDays();
+        plot.dayCounted = true;
+        PlotService.tick();
+        assertEquals(PlotPhase.EXECUTION, plot.phase, "the last hunt day runs to its end");
+        plot.huntDays = PlotConfig.huntDays() - 1;
+        assertTrue(PlotService.passDay(staff, plot.code));
+        assertEquals(PlotPhase.FAILED, plot.phase);
+        assertEquals("The target survived", plot.outcome);
+        assertTrue(world.last(assassin).contains("survived the plot"));
+        assertTrue(world.last(target).contains("You survived the plot"));
+        assertTrue(PlotService.banned(world.character(master), world.character(target)));
+        assertTrue(PlotService.banned(world.character(assassin), world.character(target)));
+
+        Plot again = PlotService.request(master);
+        assertFalse(PlotService.approve(staff, again.code, "Target"));
+        assertTrue(staffSaid.getLast().contains("may never target them again"));
+        PlotService.cancel(staff, again.code);
+        Plot other = PlotService.request(guard);
+        assertTrue(PlotService.approve(staff, other.code, "Target"));
+        assertFalse(PlotService.invite(guard, assassin));
+        assertTrue(world.last(guard).contains("cannot invite"));
+        other.invitations.put("c-assassin", world.clock.get() + 1000);
+        assertFalse(PlotService.accept(assassin, other.code));
+        assertTrue(world.last(assassin).contains("once failed to kill this target"));
+        PlotService.cancel(staff, other.code);
+
+        Plot capped = PlotService.request(helper);
+        PlotService.approve(staff, capped.code, "Target");
+        capped.phase = PlotPhase.EXECUTION;
+        capped.phaseStartedAt = capped.huntDayStartedAt = world.clock.get() - PlotConfig.maxHunt();
+        int heard = world.said(target).size();
+        PlotService.tick();
+        assertEquals(PlotPhase.FAILED, capped.phase, "the hard cap ends the hunt even with no day counted");
+        assertEquals(heard, world.said(target).size(), "a target who never knew isn't told");
+    }
+
+    @Test
+    void huntingAssassinsHearTheTargetsRoughWhereabouts() {
+        Plot plot = hunting();
+        hunting(plot, assassin);
+        when(target.getLocation()).thenReturn(new org.bukkit.Location(world.gui.world, 1000, 64, -1000));
+        PlotService.tick();
+        assertTrue(world.heard(assassin, "around §ex 1125, z -875§7, about 1450 blocks north-east of you."));
+        int heard = world.said(assassin).size();
+        PlotService.tick();
+        assertEquals(heard, world.said(assassin).size(), "not again before the interval");
+        world.pass(PlotConfig.areaInterval());
+        when(target.getLocation()).thenReturn(new org.bukkit.Location(world.gui.world, 10, 64, 10));
+        PlotService.tick();
+        assertTrue(world.last(assassin).contains("close to you"));
+        world.elsewhere(assassin);
+        assertTrue(PlotService.area(plot, assassin).endsWith("around §ex 125, z 125§7."));
+        when(world.gui.world.getHighestBlockYAt(10, 10)).thenReturn(200);
+        assertTrue(PlotService.area(plot, assassin).startsWith("Nobody has seen"));
+        world.logOff(target);
+        assertTrue(PlotService.area(plot, assassin).startsWith("Nobody has seen"));
+        assertEquals("south", PlotService.direction(0, 10));
+        assertEquals("west", PlotService.direction(-10, 0));
+        assertEquals("east", PlotService.direction(10, 0));
+        var config = new YamlConfiguration();
+        config.set("plots.execution.area.interval-seconds", 0);
+        PlotConfig.load(config);
+        world.pass(PlotConfig.DAY);
+        heard = world.said(assassin).size();
+        PlotService.tick();
+        assertEquals(heard, world.said(assassin).size(), "no hints when turned off");
+    }
+
+    @Test
+    void theAreaNamesTheFactionHoldingTheProvince() {
+        var at = new org.bukkit.Location(world.gui.world, 10, 64, 20);
+        String previous = net.tfminecraft.simplefactions.Cache.worldName;
+        try {
+            net.tfminecraft.simplefactions.Cache.worldName = "elsewhere";
+            assertNull(PlotService.lands(at));
+            net.tfminecraft.simplefactions.Cache.worldName = "world";
+            assertNull(PlotService.lands(at));
+            var grid = mock(net.tfminecraft.simplefactions.map.ProvinceGrid.class);
+            var provinces = mock(net.tfminecraft.simplefactions.managers.ProvinceManager.class);
+            when(world.gui.plugin.getProvinceGrid()).thenReturn(grid);
+            when(world.gui.plugin.getProvinceManager()).thenReturn(provinces);
+            assertNull(PlotService.lands(at));
+            when(grid.getAt(10, 20)).thenReturn(7);
+            assertNull(PlotService.lands(at));
+            when(provinces.contains(7)).thenReturn(true);
+            var province = mock(net.tfminecraft.simplefactions.map.provinces.Province.class);
+            when(provinces.get(7)).thenReturn(province);
+            assertNull(PlotService.lands(at));
+            Faction owner = mock(Faction.class);
+            when(owner.getName()).thenReturn("Thalendor");
+            when(province.getOwner()).thenReturn(owner);
+            assertEquals("Thalendor", PlotService.lands(at));
+            Plot plot = hunting();
+            when(target.getLocation()).thenReturn(at);
+            assertTrue(PlotService.area(plot, assassin).endsWith(", in the lands of §eThalendor§7."));
+        } finally {
+            net.tfminecraft.simplefactions.Cache.worldName = previous;
+        }
+    }
+
+    @Test
+    void onlyAKnowingHuntedTargetIsLockedToTheirCharacter() {
+        Plot plot = hunting();
+        assertFalse(PlotService.locked("c-target"));
+        plot.discovered = true;
+        assertTrue(PlotService.locked("c-target"));
+        plot.phase = PlotPhase.INVESTIGATION;
+        assertFalse(PlotService.locked("c-target"));
     }
 
     @Test
