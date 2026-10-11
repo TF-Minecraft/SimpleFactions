@@ -11,7 +11,7 @@ import org.bukkit.entity.Player;
  * predates them; without them nobody is hunting and nobody has an Intrigue roll there.
  */
 public final class RpPlots {
-    static final String API = "net.tfminecraft.rpcharacters.plots.PlotsApi";
+    static String api = "net.tfminecraft.rpcharacters.plots.PlotsApi";
     public static final String HUNTING = "You are hunting someone. Warbands and battles must wait until the hunt is over.";
     private static MethodHandle hunting, intrigue;
     private static boolean resolved;
@@ -26,14 +26,16 @@ public final class RpPlots {
     private static synchronized void resolve() {
         if (resolved) return;
         resolved = true;
-        if (Bukkit.getServer() == null || Bukkit.getPluginManager() == null || !Bukkit.getPluginManager().isPluginEnabled("RPCharacters")) {
+        var plugin = Bukkit.getServer() == null || Bukkit.getPluginManager() == null
+                || !Bukkit.getPluginManager().isPluginEnabled("RPCharacters") ? null : Bukkit.getPluginManager().getPlugin("RPCharacters");
+        if (plugin == null) {
             resolved = false;
             return;
         }
         try {
-            Class<?> api = Class.forName(API, true, Bukkit.getPluginManager().getPlugin("RPCharacters").getClass().getClassLoader());
-            hunting = MethodHandles.publicLookup().findStatic(api, "hunting", MethodType.methodType(boolean.class, Player.class));
-            intrigue = MethodHandles.publicLookup().findStatic(api, "intrigue", MethodType.methodType(Integer.class, Player.class));
+            Class<?> type = Class.forName(api, true, plugin.getClass().getClassLoader());
+            hunting = MethodHandles.publicLookup().findStatic(type, "hunting", MethodType.methodType(boolean.class, Player.class));
+            intrigue = MethodHandles.publicLookup().findStatic(type, "intrigue", MethodType.methodType(Integer.class, Player.class));
         } catch (ReflectiveOperationException | LinkageError older) {
             hunting = intrigue = null;
         }

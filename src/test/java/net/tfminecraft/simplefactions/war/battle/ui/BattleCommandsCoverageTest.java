@@ -276,6 +276,16 @@ class BattleCommandsCoverageTest {
     verify(alice).sendMessage("§cYou already have a warband!");
   }
 
+  @Test
+  void anAssassinOnAHuntCannotCreateAWarband() {
+    try (var plots = org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.class)) {
+      plots.when(() -> net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.hunting(alice)).thenReturn(true);
+      assertTrue(run("warband", "create", "hunters"));
+    }
+    assertNull(WarbandManager.getByString("hunters"));
+    verify(alice).sendMessage("§c" + net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.HUNTING);
+  }
+
   private Warband campaignBand(Player leader) {
     Side side = mock(Side.class);
     Faction faction = mock(Faction.class);

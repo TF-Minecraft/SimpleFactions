@@ -135,6 +135,17 @@ class WarbandVehicleRulesTest {
 		}
 	}
 
+	@Test
+	void joinBlockedReason_whenHunting() {
+		Player player = mock(Player.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				var plots = mockStatic(net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.class)) {
+			mockVehicleFrameworkDisabled(bukkit);
+			plots.when(() -> net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.hunting(player)).thenReturn(true);
+			assertEquals(net.tfminecraft.simplefactions.integration.rpcharacters.RpPlots.HUNTING, WarbandVehicleRules.joinBlockedReason(player));
+		}
+	}
+
 	private void mockVehicleFrameworkDisabled(MockedStatic<Bukkit> bukkit) {
 		PluginManager pluginManager = mock(PluginManager.class);
 		bukkit.when(Bukkit::getPluginManager).thenReturn(pluginManager);
