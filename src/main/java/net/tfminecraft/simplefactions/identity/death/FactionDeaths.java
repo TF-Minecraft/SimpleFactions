@@ -133,7 +133,7 @@ final class FactionDeaths {
         for (Guild guild : faction.getGuildHandler().getGuilds()) guild.removeDeadCharacter(key);
         faction.succeedDeadLeader(key, "");
         faction.getGovernment().removeDeadCharacter(key);
-        faction.getEspionage().removeDeadCharacter(new CharacterRef(journal.ownerId, journal.characterId),
+        boolean vacatedOffice = faction.getEspionage().removeDeadCharacter(new CharacterRef(journal.ownerId, journal.characterId),
                 journal.deathId, journal.at);
         var plugin = SimpleFactions.getInstance();
         if (plugin != null && plugin.getSessionManager() != null) {
@@ -141,6 +141,12 @@ final class FactionDeaths {
             if (session != null) session.removeDeadCharacter(key);
         }
         save(faction);
+        if (vacatedOffice) {
+            var owner = org.bukkit.Bukkit.getPlayer(journal.ownerId);
+            String name = Members.info(key).map(CharacterInfo::name).orElse("your character");
+            if (owner != null) owner.sendMessage("§8§oWith the passing of " + name
+                    + ", the keys to the Spymaster's office return to the faction leader until a successor is appointed.");
+        }
         return true;
     }
 

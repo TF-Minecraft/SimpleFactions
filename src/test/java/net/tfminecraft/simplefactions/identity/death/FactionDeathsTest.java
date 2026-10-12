@@ -264,6 +264,23 @@ class FactionDeathsTest {
         assertThrows(IOException.class, () -> effects.apply(journal, new DeathJournal.Step("bad", "unknown", new JsonObject())));
     }
 
+    @Test void successfulOfficeCleanupPreservesTheExistingPrivateVacancyNotice() throws Exception {
+        Faction faction = realm(key);
+        faction.getOrCreateMainGuild().addMember(living());
+        var holder = new net.tfminecraft.simplefactions.espionage.SpecialPositionAssignment();
+        holder.playerId = dead.ownerId();
+        holder.characterId = key;
+        faction.getEspionage().assignFounder(net.tfminecraft.simplefactions.espionage.SpecialPosition.SPYMASTER, holder, 50);
+        holder.characterBoundAt = 0;
+        var owner = fixture.player("Owner");
+        when(owner.getUniqueId()).thenReturn(dead.ownerId());
+        store.record(capture());
+        assertNull(faction.getEspionage().getSpymaster());
+        verify(owner).sendMessage(contains("passing of Character"));
+        store.replayAll();
+        verify(owner).sendMessage(contains("passing of Character"));
+    }
+
     @Test void politicalCleanupRemovesOnlyTheDeadCharactersRights() {
         Faction faction = realm(living());
         var government = faction.getGovernment();
