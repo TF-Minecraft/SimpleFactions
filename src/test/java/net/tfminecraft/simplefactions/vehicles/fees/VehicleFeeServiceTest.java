@@ -88,6 +88,16 @@ class VehicleFeeServiceTest {
     }
 
     @Test
+    void balancePreviewUsesTheCapturedCharacterWithoutMutatingMoney() {
+        UUID character = UUID.randomUUID();
+        bank.balances.put(character, 12.5);
+        assertEquals(12.5, VehicleFeeService.bankBalance(character));
+        assertEquals(0, VehicleFeeService.bankBalance(null));
+        assertNull(VehicleFeeService.resolve("unresolved"));
+        assertEquals(12.5, bank.balances.get(character));
+    }
+
+    @Test
     void taxIsAPercentageAndFeesAMultipleOfUpkeep() {
         handler.applyBracket(FeeKind.VEHICLE_TAX, new Bracket(0, 50));
         handler.setRate(FeeKind.VEHICLE_TAX, null, 25);

@@ -72,6 +72,14 @@ class VehicleUpkeepProjectionTest {
     }
 
     @Test
+    void absentIdentityAndLedgerHaveNoProjectedCost() {
+        assertEquals(0, VehicleUpkeepProjection.projectedDailyUpkeep((UUID) null));
+        assertEquals(0, VehicleUpkeepProjection.displayVehicleTax(null, playerUuid));
+        assertEquals(0, VehicleUpkeepProjection.displayVehicleExpense(null, playerUuid));
+        assertEquals(0, VehicleUpkeepProjection.displayNetDaily(null, playerUuid));
+    }
+
+    @Test
     void projectedDailyUpkeep_sumsPersonalVehiclesOnly() {
         registry.register(new PlayerVehicleRecord(
                 playerUuid, "v2", "monoplane", OwnershipMode.INSTALLATION, "port-1"));

@@ -164,6 +164,7 @@ class VehicleRuntimeLifecycleCoverageTest {
         "insufficient_pouch",
         "insufficient_bank",
         "not_unpaid",
+        "unavailable",
         "unknown_type"
       })
   void anArmedPaymentConsumesOneInteractionAndReportsTheActualOutcome(String scenario) {
@@ -189,6 +190,7 @@ class VehicleRuntimeLifecycleCoverageTest {
           case "insufficient_bank" -> VehicleMaintenanceMessages.insufficientBank();
           case "not_unpaid" -> VehicleMaintenanceMessages.notUnpaid();
           case "unknown_type" -> VehicleMaintenanceMessages.unknownType();
+          case "unavailable" -> "§cVehicle payment is unavailable pending recovery.";
           default -> throw new AssertionError(scenario);
         };
     verify(player).sendMessage(message);
@@ -196,6 +198,18 @@ class VehicleRuntimeLifecycleCoverageTest {
     VehiclePreInteractEvent second = new VehiclePreInteractEvent(player, event.getVehicle());
     payListener.onVehiclePreInteract(second);
     assertFalse(second.isCancelled());
+  }
+
+  @Test
+  void paymentFromAnEarlierCharacterSessionIsDisarmedWithoutCallingTheService() {
+    var service = mock(VehicleMaintenancePayService.class);
+    var session = new VehicleMaintenancePaySession(Long.MAX_VALUE);
+    sessions.put(player.getUniqueId(), session);
+    new VehicleMaintenancePayListener(sessions, service).onVehiclePreInteract(
+        new VehiclePreInteractEvent(player, vehicle("v", "ironclad")));
+    assertNull(sessions.get(player.getUniqueId()));
+    verifyNoInteractions(service);
+    verify(player).sendMessage("§cThis payment belongs to an earlier character session.");
   }
 
   @Test

@@ -99,6 +99,13 @@ class VehicleInstallationLockServiceTest {
 	}
 
 	@Test
+	void incompleteLockQueriesCannotSelectAnInstallation() {
+		assertFalse(VehicleInstallationLockService.isVehicleLocked(null, NOW));
+		assertFalse(VehicleInstallationLockService.isVehicleLocked(" ", NOW));
+		assertFalse(VehicleInstallationLockService.isVehicleLocked("port-atk", null));
+	}
+
+	@Test
 	void sourceLocked_duringFightingOnly() {
 		setActiveRaid(CampaignRaidState.MUSTER);
 		assertFalse(VehicleInstallationLockService.isVehicleLocked("port-atk", NOW));

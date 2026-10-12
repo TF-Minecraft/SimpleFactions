@@ -172,4 +172,48 @@ class VehiclePaymentsTest {
         assertTrue(payments.complete("build:legacy", null));
         assertTrue(store.pendingBuilds().isEmpty());
     }
+
+    @Test void failedReceiptCompletionKeepsTheDurableScopeForRestartReview() throws Exception {
+        assertEquals(Result.APPLIED, payments.charge("build:s", "fee", payer, quote()));
+        Path blocked = folder.resolve("blocked");
+        Files.writeString(blocked, "not a directory");
+        store.bind(blocked.toFile());
+        assertFalse(payments.complete("build:s", null));
+        assertFalse(payments.ready());
+        var reopened = new VehicleFeeStore(); reopened.bind(folder.resolve("Cache").toFile()); reopened.load();
+        assertNotNull(reopened.receipt("build:s"));
+        assertEquals(2000, Denars.balance(Denars.bank(payer)));
+    }
+
+    @Test void failedPersonalRegistrationPreservesTheOriginalReceipt() {
+        assertEquals(Result.APPLIED, payments.charge("claim:v", "fee", payer, quote()));
+        assertFalse(payments.personal("v", "ship", null));
+        assertFalse(payments.ready());
+        assertNotNull(payments.receipt("claim:v"));
+    }
+
+    @Test void failedFreeMaintenanceSaveLeavesVehicleUnpaid() throws Exception {
+        maintenance.markUnpaid("v", 1);
+        Files.createDirectory(folder.resolve("Cache/vehicle_maintenance.json"));
+        assertEquals(Result.UNAVAILABLE, payments.maintain("free", payer, "v", true, 0));
+        assertTrue(maintenance.isUnpaid("v"));
+        assertFalse(payments.ready());
+        assertEquals(10000, Denars.balance(Denars.bank(payer)));
+    }
+
+    @Test void unsupportedPersistedActionStopsRecoveryWithoutGuessingAnEffect() throws Exception {
+        var changes = new com.google.gson.JsonObject();
+        changes.addProperty("action", "unsupported");
+        changes.addProperty("scope", "claim:v");
+        changes.add("receipt", net.tfminecraft.simplefactions.database.JsonUtil.GSON.toJsonTree(
+                new VehiclePayments.Receipt("unsupported", payer, "realm", incarnation, FeeKind.REGISTRATION_FEE, 1)));
+        var intent = new net.tfminecraft.simplefactions.economy.OperationJournal.Intent("unsupported", "test",
+                List.of(new Leg(Denars.bank(payer), -1), new Leg(Denars.guild(incarnation), 1)), changes);
+        var journal = new net.tfminecraft.simplefactions.economy.OperationJournal(folder.resolve("vehicle-payments"));
+        assertThrows(java.io.IOException.class, () -> journal.execute(intent, ignored -> { throw new java.io.IOException("interrupted"); }));
+        assertThrows(java.io.IOException.class, payments::recover);
+        assertFalse(payments.ready());
+        assertNull(payments.receipt("claim:v"));
+        assertEquals(9999, Denars.balance(Denars.bank(payer)));
+    }
 }

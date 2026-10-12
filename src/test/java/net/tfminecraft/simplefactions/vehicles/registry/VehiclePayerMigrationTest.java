@@ -81,5 +81,25 @@ class VehiclePayerMigrationTest {
         Files.createDirectories(folder.resolve("identity"));
         Files.writeString(folder.resolve("identity/vehicle-payers.json"), "{\"rows\":null}");
         assertThrows(IOException.class, () -> VehiclePayerMigration.startup(folder, new PlayerVehicleRegistry()));
+        String invalid = "{\"rows\":[{\"vehicle\":\"v\",\"type\":\"ship\"}]}";
+        Files.writeString(folder.resolve("identity/vehicle-payers.json"), invalid);
+        assertThrows(IOException.class, () -> VehiclePayerMigration.startup(folder, new PlayerVehicleRegistry()));
+        assertEquals(invalid, Files.readString(folder.resolve("identity/vehicle-payers.json")));
+    }
+
+    @Test void persistedPlayerNameResolvesAnAccountBeforeLookingUpItsHeir() throws Exception {
+        var registry = new PlayerVehicleRegistry();
+        try (var chars = mockStatic(Characters.class); var vf = mockStatic(VehicleFramework.class);
+                var ownership = mockStatic(VehicleOwnershipQueries.class, CALLS_REAL_METHODS)) {
+            chars.when(Characters::legacyHeirsReady).thenReturn(true);
+            var repository = mock(VehicleRepository.class);
+            vf.when(VehicleFramework::getVehicleRepository).thenReturn(repository);
+            when(repository.listPlayerOwnedMeta()).thenReturn(List.of(vehicle("v", "player_OldName")));
+            ownership.when(() -> VehicleOwnershipQueries.resolvePlayerUuid("OldName")).thenReturn(heir.ownerId());
+            chars.when(() -> Characters.legacyHeir(heir.ownerId())).thenReturn(Optional.of(heir));
+            VehiclePayerMigration.startup(folder, registry);
+            assertEquals(heir.characterId(), registry.getByVehicleUuid("v").orElseThrow().getPlayerUuid());
+            assertTrue(Files.readString(folder.resolve("identity/vehicle-payers.json")).contains("player_OldName"));
+        }
     }
 }

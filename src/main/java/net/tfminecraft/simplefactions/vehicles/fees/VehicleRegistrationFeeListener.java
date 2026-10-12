@@ -17,7 +17,6 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.VehicleIntegrationListener;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore.PaidBuild;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import net.tfminecraft.vfbuilders.core.ActiveStation;
 import net.tfminecraft.vfbuilders.core.Blueprint;
 import net.tfminecraft.vfbuilders.events.BeginVehicleConstructionEvent;
@@ -121,11 +120,6 @@ public final class VehicleRegistrationFeeListener implements Listener {
         if (owner == null || !payments.personal(event.getVehicle().getUUID(), event.getVehicle().getId(), UUID.fromString(owner))) return;
         store.setLastOwner(event.getVehicle().getUUID(), Members.key(UUID.fromString(owner)));
         payments.complete(scope, null);
-    }
-
-    /** The paying character, without an account fallback. */
-    static UUID payerUuid(Player player) {
-        return VehicleOwnershipQueries.characterId(player);
     }
 
     static String stationKey(ActiveStation station) {

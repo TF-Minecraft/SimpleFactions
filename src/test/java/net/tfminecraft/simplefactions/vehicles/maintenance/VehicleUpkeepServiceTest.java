@@ -102,6 +102,15 @@ class VehicleUpkeepServiceTest {
 
 
     @Test
+    void startupDefaultServiceDoesNotWarnOutsideThePrechargeWindow() {
+        var defaultService = new VehicleUpkeepService(registry, economyManager);
+        Player player = mock(Player.class);
+        defaultService.warnBankShortfalls(List.of(player), 0);
+        defaultService.warnBankShortfalls(List.of(player), -1);
+        verify(player, never()).sendMessage(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
     void warnsPlayerWhoseBankCannotCoverUpkeep() {
         UUID playerUuid = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Alice");
         bank.setBalance(playerUuid, 5.0);

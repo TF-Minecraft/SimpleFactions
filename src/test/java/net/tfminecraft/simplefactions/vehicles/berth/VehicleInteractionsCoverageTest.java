@@ -1442,8 +1442,13 @@ class VehicleInteractionsCoverageTest {
         fixture.online.remove("Owner");
         when(owner.isOnline()).thenReturn(false);
       }
-      fees.onConstructionCancel(cancelled);
-      fees.onConstructionCancel(cancelled);
+      try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+        String payer = net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref().characterId().toString();
+        members.when(() -> net.tfminecraft.simplefactions.identity.Members.online(payer))
+            .thenReturn(state.equals("offline_refund") ? Optional.empty() : Optional.of(owner));
+        fees.onConstructionCancel(cancelled);
+        fees.onConstructionCancel(cancelled);
+      }
       assertEquals(
           state.equals("partial_refund") ? 70.0 : 100.0, balance(owner));
       assertEquals(state.equals("partial_refund") ? 0.0 : 1000.0, faction.getBank().getWealth());
@@ -2356,6 +2361,50 @@ class VehicleInteractionsCoverageTest {
   }
 
   @Test
+  void unfinishedBuildAndClaimReceiptsRefuseNewPhysicalActions() {
+    var payment = net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.current();
+    var ref = net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref();
+    feeStore.putReceipt("build:world:6:64:7", new net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.Receipt(
+        "interrupted", ref, faction.getId(), faction.getOrCreateMainGuild().getIncarnationId(), FeeKind.REGISTRATION_FEE, 1));
+    var build = new BeginVehicleConstructionEvent(owner, blueprint("ironclad"), station(), station().getLocation());
+    new VehicleRegistrationFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save).onBeginVehicleConstruction(build);
+    assertTrue(build.isCancelled());
+    feeStore.putReceipt("claim:vehicle-1", payment.receipt("build:world:6:64:7"));
+    var claim = new VehicleOwnerClaimedEvent(owner, vehicle, "none", "player_Owner");
+    new VehicleReclaimFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save).onVehicleOwnerClaimed(claim);
+    assertTrue(claim.isCancelled());
+    assertEquals("player_Owner", ownerData.getOwner());
+  }
+
+  @Test
+  void handoverWithoutAFeeStillPersistsTheCapturedRecipient() {
+    Player recipient = fixture.player("Recipient");
+    handoverService.offer(owner, recipient, "vehicle-1", "ironclad");
+    handoverService.acceptRequest(recipient);
+    assertEquals("player_Recipient", ownerData.getOwner());
+    assertEquals("Recipient", feeStore.getLastOwner("vehicle-1"));
+    assertEquals(net.tfminecraft.simplefactions.identity.Members.session(recipient).orElseThrow().ref().characterId(),
+        registry.getByVehicleUuid("vehicle-1").orElseThrow().getPlayerUuid());
+  }
+
+  @Test
+  void changedCharacterAndUnavailablePaymentsRefusePendingHandovers() {
+    Player recipient = fixture.player("Recipient");
+    handoverService.offer(owner, recipient, "vehicle-1", "ironclad");
+    try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members.when(() -> net.tfminecraft.simplefactions.identity.Members.session(recipient)).thenReturn(Optional.empty());
+      handoverService.acceptRequest(recipient);
+      verify(recipient).sendMessage("§cThis request belongs to another character.");
+      handoverService.offer(owner, recipient, "vehicle-1", "ironclad");
+      verify(owner).sendMessage("§cBoth players must select a living character.");
+    }
+    net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.stop();
+    handoverService.acceptRequest(recipient);
+    verify(recipient).sendMessage("§cVehicle payment needs staff review or recovery.");
+    assertEquals("player_Owner", ownerData.getOwner());
+  }
+
+  @Test
   void publicVehicleQueriesReportFactionUpkeepAndTheAbsenceOfMilitaryOrPluginState() {
     assertEquals(0, FactionVehiclePoolService.artillerySlots(null));
     assertEquals(0, FactionVehiclePoolService.artillerySlots(faction));
@@ -2364,6 +2413,7 @@ class VehicleInteractionsCoverageTest {
     assertEquals(0.0, FactionVehiclePoolService.dailyUpkeep(registry, " "));
     assertEquals(0.0, FactionVehiclePoolService.dailyUpkeepOf("home"));
     factionVehicle(true);
+    assertSame(faction, FactionVehiclePoolService.payingFaction(registry.getByVehicleUuid("vehicle-1").orElseThrow()));
     assertEquals(
         VehiclesConfigLoader.getUpkeep("simple_locomotive"),
         FactionVehiclePoolService.dailyUpkeepOf("home"));
