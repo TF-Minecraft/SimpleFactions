@@ -134,6 +134,23 @@ class TreasuryActionsTest {
         }
         verify(replacement, never()).getLedger();
     }
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void deletedOrReusedGuildCannotPostANewIntent(boolean reused) throws IOException {
+        String id = TreasuryActions.newId();
+        var plan = new TreasuryActions.Plan(id, "stale", actor, guild)
+                .transfer(Denars.MINT, TreasuryActions.account(guild), 100);
+        Guild replacement = mock(Guild.class);
+        when(replacement.getIncarnationId()).thenReturn(UUID.randomUUID());
+        try (var factions = mockStatic(FactionManager.class, CALLS_REAL_METHODS)) {
+            factions.when(() -> FactionManager.getGuildByString(guild.getId())).thenReturn(reused ? replacement : null);
+            assertFalse(plan.commit(actor));
+        }
+        assertTrue(Denars.status(id).isEmpty());
+        assertEquals(100, guild.getBank().getWealth());
+        assertTrue(EconomyRuntime.ready());
+        try (var files = Files.list(folder)) { assertEquals(0, files.count()); }
+        verify(replacement, never()).getLedger();
+    }
     @Test void unavailableCreatesNoIntentOrEffect() throws IOException {
         when(fixture.ui.plugin.isStarted()).thenReturn(false);
         assertFalse(TreasuryActions.bank(actor, guild, 10, true));

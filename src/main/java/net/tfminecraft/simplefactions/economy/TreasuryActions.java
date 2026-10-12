@@ -94,6 +94,12 @@ public final class TreasuryActions {
         }
         public boolean commit(Player actor) {
             if (!EconomyRuntime.ready() || session != null && !Members.isCurrent(session)) return unavailable(actor);
+            for (JsonElement element : guilds) {
+                if (!currentGuild(element.getAsJsonObject())) {
+                    if (actor != null) actor.sendMessage("§cThis guild changed. Start the action again.");
+                    return false;
+                }
+            }
             try {
                 Result result = journal.execute(new OperationJournal.Intent(id, reason, legs, changes), intent -> {
                     apply(intent, physical);
@@ -201,6 +207,10 @@ public final class TreasuryActions {
         return plan.commit(actor);
     }
 
+    private static boolean currentGuild(JsonObject ref) {
+        Guild current = FactionManager.getGuildByString(ref.get("id").getAsString());
+        return current != null && current.getIncarnationId().toString().equals(ref.get("incarnation").getAsString());
+    }
     private static void apply(OperationJournal.Intent intent) throws IOException { apply(intent, null); }
     private static void apply(OperationJournal.Intent intent, OperationJournal.Effects physical) throws IOException {
         JsonObject changes = intent.changes();
