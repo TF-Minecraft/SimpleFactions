@@ -209,8 +209,8 @@ class InactivityCoverageTest {
     Faction faction = fixture.saved("home", "Alice");
     Guild base = faction.getOrCreateMainGuild();
     Guild guild = fixture.guild(faction, "merchants", "Bob");
-    base.getBank().deposit(37.0);
-    guild.getBank().deposit(19.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(base.getBank(), 37.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 19.0);
     history(Map.of("Alice", 21, "Bob", 22));
     InactivityService.armAll(null, 1000);
     InactivityService.armAll(Arrays.asList(null, faction), 1000);

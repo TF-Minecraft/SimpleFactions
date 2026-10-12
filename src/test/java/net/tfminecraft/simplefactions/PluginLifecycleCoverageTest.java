@@ -229,7 +229,7 @@ class PluginLifecycleCoverageTest {
     plugin.onEnable();
     plugin.onDisable();
     verify(plugins).disablePlugin(plugin);
-    verify(logger).severe(contains("TLibs 2.4.0"));
+    verify(logger).severe(contains("TLibs 2.4.1"));
     verify(plugin, never()).getConfig();
     scoped(BattlePersistenceService.class).verifyNoInteractions();
     scoped(InactivityService.class).verifyNoInteractions();
@@ -272,7 +272,7 @@ class PluginLifecycleCoverageTest {
     }
     verify(commands.get("battle"))
         .setExecutor(dependency("battleCommandManager", BattleCommandManager.class));
-    verify(dependency("factionManager", FactionManager.class)).run();
+    verify(dependency("factionManager", FactionManager.class)).prepare();
     verify(dependency("inventoryManager", InventoryManager.class)).start();
     verify(dependency("sessionManager", SessionManager.class)).start();
     verify(dependency("battleManager", BattleManager.class)).start();
@@ -368,7 +368,7 @@ class PluginLifecycleCoverageTest {
               assertTrue(
                   listeners.isEmpty(), "Gameplay listeners must wait for valid configuration"),
           () -> verify(dependency("db", Database.class), never()).loadFactions(),
-          () -> verify(dependency("factionManager", FactionManager.class), never()).run(),
+          () -> verify(dependency("factionManager", FactionManager.class), never()).prepare(),
           () -> verify(dependency("inventoryManager", InventoryManager.class), never()).start(),
           () ->
               scoped(BattlePersistenceService.class)
@@ -400,7 +400,7 @@ class PluginLifecycleCoverageTest {
         grids.when(() -> ProvinceGrid.load(any())).thenThrow(new IllegalStateException("bad grid"));
       plugin.onEnable();
       verify(plugins).disablePlugin(plugin);
-      verify(dependency("factionManager", FactionManager.class), never()).run();
+      verify(dependency("factionManager", FactionManager.class), never()).prepare();
       verify(dependency("inventoryManager", InventoryManager.class), never()).start();
       plugin.onDisable();
       assertSavedStateUnchanged(saved);
@@ -645,7 +645,7 @@ class PluginLifecycleCoverageTest {
     domain.subject(ruler, source);
     var mainGuild = source.getOrCreateMainGuild();
     mainGuild.addMember("Cara");
-    source.getBank().deposit(20.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(source.getBank(), 20.0);
     var originalBank = source.getBank();
     var originalGuildTypes = GuildLoader.get();
     var originalEntries = new LinkedHashMap<>(originalGuildTypes);
@@ -749,7 +749,7 @@ class PluginLifecycleCoverageTest {
       mainGuild.getBranches().get(0).levelUp();
       mainGuild.getUpgrades().getFirst().setLevel(3);
       mainGuild.addMember("Cara");
-      source.getBank().deposit(20.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(source.getBank(), 20.0);
       var originalBank = source.getBank();
       Path broken =
           disk.write(
@@ -910,7 +910,7 @@ class PluginLifecycleCoverageTest {
       verify(logger).severe(contains("TFMCWeb is not loaded"));
       verify(logger).info(contains("VehicleFramework is not enabled"));
       scoped(ProvincePresenceTickService.class).verify(ProvincePresenceTickService::start);
-      assertEquals(1, domain.ui.repeatingTasks.size());
+      assertEquals(2, domain.ui.repeatingTasks.size());
       domain.ui.repeatingTasks.getFirst().run();
       plugin.onDisable();
       var taskField = SimpleFactions.class.getDeclaredField("trackRefreshTask");
@@ -1050,28 +1050,16 @@ class PluginLifecycleCoverageTest {
             UUID.randomUUID(), "berthed", "cart", OwnershipMode.PERSONAL, "dock"));
     plugin.recordVehicleOwner("berthed", "PreviousOwner");
     when(plugins.isPluginEnabled("VehicleFramework")).thenReturn(true);
-    try (var queries = mockStatic(VehicleOwnershipQueries.class, CALLS_REAL_METHODS)) {
-      OwnedVehicleSummary personal = mock(OwnedVehicleSummary.class),
-          unowned = mock(OwnedVehicleSummary.class);
-      when(personal.getUuid()).thenReturn("personal");
-      when(personal.getOwner()).thenReturn("player_Bob");
-      when(unowned.getUuid()).thenReturn("unowned");
-      when(unowned.getOwner()).thenReturn("player_none");
-      queries
-          .when(() -> VehicleOwnershipQueries.allPersonalVehicles(registry))
-          .thenReturn(List.of(personal, unowned));
-      // The fee follows the character the owning account plays.
-      domain.player("Bob");
-      plugin.recordVehicleOwners();
-      fees.load();
-      assertEquals("Bob", fees.getLastOwner("personal"));
-      assertNull(fees.getLastOwner("berthed"));
-      queries
-          .when(() -> VehicleOwnershipQueries.allPersonalVehicles(registry))
-          .thenThrow(new LinkageError("old VehicleFramework"));
-      assertDoesNotThrow(plugin::recordVehicleOwners);
-      verify(logger).warning(contains("Could not record vehicle owners"));
-    }
+    UUID payer = UUID.randomUUID();
+    registry.register(new PlayerVehicleRecord(payer, "personal", "cart", OwnershipMode.PERSONAL, null));
+    registry.register(new PlayerVehicleRecord(UUID.randomUUID(), "pool", "cart", OwnershipMode.POOL, null));
+    plugin.recordVehicleOwner("pool", "PreviousOwner");
+    domain.player("Bob");
+    plugin.recordVehicleOwners();
+    fees.load();
+    assertEquals(payer.toString(), fees.getLastOwner("personal"));
+    assertEquals("PreviousOwner", fees.getLastOwner("berthed"));
+    assertNull(fees.getLastOwner("pool"));
     var persistence = mock(VehicleRegistryPersistence.class);
     when(persistence.save()).thenReturn(false);
     field("vehicleRegistryPersistence", persistence);
@@ -1195,7 +1183,7 @@ class PluginLifecycleCoverageTest {
     assertEquals(1, listeners.size(), "only the identity watcher listens");
     assertEquals(1, domain.ui.repeatingTasks.size(), "only the identity poll ticks");
     verify(dependency("db", Database.class), never()).loadFactions();
-    verify(dependency("factionManager", FactionManager.class), never()).run();
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
     for (String name : SimpleFactions.COMMANDS) {
       var executor = firstExecutor(name);
       var sender = domain.player("Waiter");
@@ -1208,7 +1196,7 @@ class PluginLifecycleCoverageTest {
     // Not ready yet: neither the poll nor another plugin's enable starts anything.
     domain.ui.repeatingTasks.getFirst().run();
     enableEvent("RPCharacters");
-    verify(dependency("factionManager", FactionManager.class), never()).run();
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
 
     plugin.onDisable();
     verify(dependency("sessionManager", SessionManager.class), never()).end();
@@ -1229,11 +1217,11 @@ class PluginLifecycleCoverageTest {
 
     assertTrue(plugin.isStarted());
     assertTrue(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
-    verify(dependency("factionManager", FactionManager.class)).run();
+    verify(dependency("factionManager", FactionManager.class)).prepare();
     verify(plugins).callEvent(any(net.tfminecraft.simplefactions.events.SimpleFactionsReadyEvent.class));
     poll.run();
     enableEvent("RPCharacters");
-    verify(dependency("factionManager", FactionManager.class)).run();
+    verify(dependency("factionManager", FactionManager.class)).prepare();
 
     plugin.onDisable();
     assertFalse(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
@@ -1246,9 +1234,9 @@ class PluginLifecycleCoverageTest {
     plugin.onEnable();
     identityReady(true);
     enableEvent("SomethingElse");
-    verify(dependency("factionManager", FactionManager.class), never()).run();
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
     enableEvent("RPCharacters");
-    verify(dependency("factionManager", FactionManager.class)).run();
+    verify(dependency("factionManager", FactionManager.class)).prepare();
     assertTrue(plugin.isStarted());
   }
 
@@ -1259,7 +1247,7 @@ class PluginLifecycleCoverageTest {
     verify(logger).log(eq(java.util.logging.Level.SEVERE), contains("Cannot migrate faction data"), any(Throwable.class));
     assertFalse(plugin.isStarted());
     plugin.start();
-    verify(dependency("factionManager", FactionManager.class), never()).run();
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
     plugin.onDisable();
     scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
   }
@@ -1360,7 +1348,7 @@ class PluginLifecycleCoverageTest {
       when(plugins.isPluginEnabled("VFBuilders")).thenReturn(true);
       when(plugins.isPluginEnabled("VehicleFramework")).thenReturn(true);
       legacy.onEnable();
-      verify(dependency("factionManager", FactionManager.class)).run();
+      verify(dependency("factionManager", FactionManager.class)).prepare();
       verify(plugins, never()).disablePlugin(legacy);
       verify(logger).warning(contains("VFBuilders is older than 2.1.0"));
       verify(logger).warning(contains("VFBuilders has no ConstructionFreeze API"));

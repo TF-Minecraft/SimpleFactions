@@ -83,19 +83,20 @@ class RealmSettlementCalculationTest {
         assertTrue(changes(plan).guilds.stream().filter(c -> c.incarnation.equals(capital.getIncarnationId())).findFirst().orElseThrow().citizenTaxes.isEmpty());
     }
 
-    @Test void debtIsPreservedAndLiquidationIsRecordedWithoutTouchingBranches() {
-        net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), -100.0);
+    @Test void debtIsPreservedAndDailyShortfallsLiquidateWithoutTouchingLiveBranches() {
         guild.getBranch(0).levelUp();
         guild.getBranch(0).levelUp();
+        Ledger.setNodeUpkeepLookup(g -> g == guild ? 200 : 0);
         var plan = plan(List.of());
-        assertEquals(16000, net(plan, guild.getBank().accountId()));
+        assertEquals(-4000, net(plan, guild.getBank().accountId()));
         var after = changes(plan).guilds.stream().filter(c -> c.incarnation.equals(guild.getIncarnationId())).findFirst().orElseThrow();
         assertEquals(1, after.branches.get(0));
         assertEquals(2, guild.getSize());
-        assertEquals(-100, guild.getBank().getWealth());
-        guild.getBranch(0).levelDown();
-        guild.getBranch(0).levelDown();
-        assertEquals(0, net(plan(List.of()), guild.getBank().accountId()));
+        assertEquals(100, guild.getBank().getWealth());
+        net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), -100);
+        var debt = plan(List.of());
+        assertEquals(0, net(debt, guild.getBank().accountId()));
+        assertEquals(2, changes(debt).guilds.stream().filter(c -> c.incarnation.equals(guild.getIncarnationId())).findFirst().orElseThrow().branches.get(0));
     }
 
     @Test void fixedDeathDividendsReserveNormalPoolAndPartialWagesStayOwed() {

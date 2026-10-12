@@ -59,7 +59,7 @@ class MapExportLifecycleCoverageTest {
   @BeforeEach
   void setup() throws Exception {
     fixture = new FactionDomainFixture();
-    economy = mockStatic(DenarEconomy.class);
+    economy = mockStatic(DenarEconomy.class, CALLS_REAL_METHODS);
     money = mock(MoneyManager.class);
     economy.when(DenarEconomy::getMoneyManager).thenReturn(money);
     when(money.getServerBal(Accounts.POUCH)).thenReturn(25.5);
@@ -193,7 +193,7 @@ class MapExportLifecycleCoverageTest {
   void absentOrFailingEconomyDegradesOnlyItsAggregateFigures() {
     Faction home = fixture.saved("home", "Alice");
     assertNull(WarMapExporter.exportCapitalCoords(home));
-    home.getBank().deposit(25.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(home.getBank(), 25.0);
     economy.when(DenarEconomy::getMoneyManager).thenReturn(null);
     JsonObject root = ChronicleSnapshot.build(FactionManager.factions, 1, 0, Instant.EPOCH);
     assertEquals(0, root.getAsJsonObject("global").get("pouch_wealth").getAsDouble());
@@ -286,8 +286,8 @@ class MapExportLifecycleCoverageTest {
     Guild traders = fixture.guild(home, "traders", "Bob");
     traders.setCapital(2);
     traders.addMember("Charlie");
-    home.getBank().deposit(100.0);
-    traders.getBank().deposit(50.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(home.getBank(), 100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(traders.getBank(), 50.0);
     home.getSettlementHandler().acceptTransferred(new Settlement("capital", "Capital", 1, 10, 20));
     home.getSettlementHandler().acceptTransferred(new Settlement("town", "Town", 2, 20, 40));
     Installation fort = new Installation("fort", "Fort", InstallationKind.FORT, 2, 20, 40, 1);

@@ -234,9 +234,9 @@ class GovernmentCoverageTest {
 
   @Test
   void wealthCouncilSelectsEligibleWealthiestMembersAndRespectsRefusals() {
-    try (MockedStatic<OfflineModifier> economy = mockStatic(OfflineModifier.class)) {
+    try (MockedStatic<net.tfminecraft.simplefactions.utils.Wealth> economy = mockStatic(net.tfminecraft.simplefactions.utils.Wealth.class, CALLS_REAL_METHODS)) {
       economy
-          .when(() -> OfflineModifier.balance(anyString(), any(Accounts.class)))
+          .when(() -> net.tfminecraft.simplefactions.utils.Wealth.wealth(anyString()))
           .thenAnswer(
               call ->
                   Map.of("Alice", 1000.0, "Bob", 800.0, "Cara", 500.0, "Drew", 100.0)
@@ -709,7 +709,7 @@ class GovernmentCoverageTest {
         net.tfminecraft.simplefactions.managers.FactionManager.class.getDeclaredField("loaded");
     loaded.setAccessible(true);
     boolean previous = loaded.getBoolean(null);
-    try (MockedStatic<OfflineModifier> economy = mockStatic(OfflineModifier.class)) {
+    try (MockedStatic<net.tfminecraft.simplefactions.utils.Wealth> economy = mockStatic(net.tfminecraft.simplefactions.utils.Wealth.class, CALLS_REAL_METHODS)) {
       loaded.setBoolean(null, true);
       council.addMember("Bob");
       var wealth =
@@ -722,7 +722,7 @@ class GovernmentCoverageTest {
                   "effects.faction.council-size",
                   1));
       economy
-          .when(() -> OfflineModifier.balance(anyString(), any(Accounts.class)))
+          .when(() -> net.tfminecraft.simplefactions.utils.Wealth.wealth(anyString()))
           .thenAnswer(call -> "Cara".equals(call.getArgument(0)) ? 1000.0 : 0.0);
       faction.applyLaw(wealth, faction.getLawHandler().getGroup("constitution"));
       council.reorganize();

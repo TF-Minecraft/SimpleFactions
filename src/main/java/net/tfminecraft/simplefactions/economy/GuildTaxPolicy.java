@@ -23,6 +23,6 @@ public final class GuildTaxPolicy implements TaxPolicy {
         if (!Double.isFinite(rate) || rate < 0 || rate > 100) throw new IllegalStateException("Invalid citizen tax: " + rate);
         long cents = BigDecimal.valueOf(grossCents).multiply(BigDecimal.valueOf(rate))
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP).longValueExact();
-        return Optional.of(new TaxLeg(Denars.guildTax(realm.getOrCreateMainGuild().getIncarnationId()), cents));
+        return Optional.of(new TaxLeg(Denars.guildTax(net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds.capital(realm).getIncarnationId()), cents));
     }
 }

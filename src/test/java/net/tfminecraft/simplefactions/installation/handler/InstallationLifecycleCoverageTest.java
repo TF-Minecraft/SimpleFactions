@@ -354,8 +354,8 @@ class InstallationLifecycleCoverageTest {
     Installation cheap = install(home, "station", InstallationKind.TRAIN_STATION, 42, 0, 0, 5, 1);
     Installation port = install(home, "port", InstallationKind.PORT, 42, 0, 0, 3, 1);
     install(home, "fort", InstallationKind.FORT, 42, 0, 0, 1, 1);
-    home.getBank().setWealth(45.0);
-    home.getInstallationHandler().payDailyUpkeep();
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(home.getBank(), 45.0);
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(home);
     assertEquals(25.0, home.getBank().getWealth());
     assertSame(cheap, home.getInstallationHandler().getById("station"));
     assertSame(port, home.getInstallationHandler().getById("port"));
@@ -370,8 +370,8 @@ class InstallationLifecycleCoverageTest {
   void equalUpkeepIsPaidInCompletionOrder() {
     Installation older = install(home, "older", InstallationKind.PORT, 42, 0, 0, 1, 1);
     install(home, "newer", InstallationKind.PORT, 44, 8, 0, 2, 1);
-    home.getBank().setWealth(15.0);
-    home.getInstallationHandler().payDailyUpkeep();
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(home.getBank(), 15.0);
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(home);
     assertEquals(0.0, home.getBank().getWealth());
     assertSame(older, home.getInstallationHandler().getById("older"));
     assertNull(home.getInstallationHandler().getById("newer"));
@@ -385,7 +385,7 @@ class InstallationLifecycleCoverageTest {
             80, Map.of(1, new InstallationKindConfig.Level(0, 2, Map.of()))));
     Installation free = install(home, "free", InstallationKind.FORT, 42, 0, 0, 1, 1);
     home.setBank(null);
-    home.getInstallationHandler().payDailyUpkeep();
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(home);
     assertSame(free, home.getInstallationHandler().getById("free"));
   }
 
@@ -395,14 +395,14 @@ class InstallationLifecycleCoverageTest {
     if (!online) fixture.online.remove("Leader");
     Installation station = install(home, "station", InstallationKind.TRAIN_STATION, 42, 0, 0, 1, 2);
     assertTrue(home.getInstallationHandler().upgrade("station").isSuccess());
-    home.getBank().setWealth(0.0);
-    home.getInstallationHandler().payDailyUpkeep();
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(home.getBank(), 0.0);
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(home);
     assertEquals(1, station.getLevel());
     assertNull(home.getInstallationHandler().getPendingConstruction());
     if (online)
       verify(fixture.online.get("Leader"))
           .sendMessage(argThat((String message) -> message.contains("dropped to level 1")));
-    home.getInstallationHandler().payDailyUpkeep();
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(home);
     assertTrue(home.getInstallationHandler().getAll().isEmpty());
     assertEquals(0.0, home.getBank().getWealth());
   }

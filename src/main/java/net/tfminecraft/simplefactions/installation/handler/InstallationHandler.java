@@ -79,7 +79,16 @@ public class InstallationHandler {
 
     /** Exact upkeep outcome; a queued construction is not advanced during replay. */
     public void restoreSettlement(List<InstallationData> installations, InstallationConstructionData construction) {
-        load(installations);
+        java.util.Set<String> surviving = new java.util.HashSet<>();
+        for (InstallationData data : installations) {
+            surviving.add(data.id);
+            Installation current = byId.get(data.id);
+            if (current == null) register(new Installation(data));
+            else current.setLevel(data.level);
+        }
+        for (Installation current : new ArrayList<>(getAll())) {
+            if (!surviving.contains(current.getId())) removeInstallation(current);
+        }
         pendingConstruction = null;
         pendingByProvinceKind.clear();
         if (construction != null) setPendingConstruction(new InstallationConstruction(construction));
@@ -231,44 +240,6 @@ public class InstallationHandler {
         completeConstruction(pendingConstruction);
     }
 
-    public void payDailyUpkeep() {
-        List<Installation> installations = new ArrayList<>(getAll());
-        installations.sort(
-                Comparator.comparingDouble(
-                                (Installation installation) ->
-                                        InstallationConfigLoader.getDailyUpkeep(
-                                                installation.getKind(), installation.getLevel()))
-                        .thenComparingLong(Installation::getCompletedAt));
-
-        Bank bank = faction.getBank();
-        for (Installation installation : installations) {
-            double upkeep = InstallationConfigLoader.getDailyUpkeep(
-                    installation.getKind(), installation.getLevel());
-            if (upkeep <= 0) {
-                continue;
-            }
-            if (bank == null || bank.getWealth() < upkeep) {
-                if (installation.getLevel() > 1) {
-                    cancelUpgrade(installation.getId());
-                    installation.setLevel(installation.getLevel() - 1);
-                    enqueueMapUpdate();
-                    Player leader = Members.player(faction.getLeader());
-                    if (leader != null) {
-                        leader.sendMessage(
-                                "§c" + installation.getKind().getDisplayName()
-                                        + " §f" + installation.getName()
-                                        + " §cdropped to level " + installation.getLevel()
-                                        + " §7(unable to pay upkeep)");
-                    }
-                } else {
-                    dissolveForNonPayment(installation);
-                }
-                continue;
-            }
-            bank.withdraw(upkeep);
-        }
-    }
-
     public void cancelPendingConstructionOnProvince(int province) {
         if (pendingConstruction != null && pendingConstruction.getProvince() == province) {
             clearPendingConstruction();
@@ -408,20 +379,6 @@ public class InstallationHandler {
                             + " §f"
                             + installation.getName()
                             + " §chas been destroyed");
-        }
-    }
-
-    private void dissolveForNonPayment(Installation installation) {
-        removeInstallation(installation);
-
-        Player leader = Members.player(faction.getLeader());
-        if (leader != null) {
-            leader.sendMessage(
-                    "§c"
-                            + installation.getKind().getDisplayName()
-                            + " §f"
-                            + installation.getName()
-                            + " §chas been destroyed §7(unable to pay upkeep)");
         }
     }
 

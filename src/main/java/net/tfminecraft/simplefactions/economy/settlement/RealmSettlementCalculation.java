@@ -76,6 +76,7 @@ public final class RealmSettlementCalculation {
         capture();
         accrue();
         var history = Ledger.collectHistoryDay(guilds, ledgers::get);
+        Map<String, Long> beforeIncome = new LinkedHashMap<>(balances);
         DailyGuildTransfers buffer = new DailyGuildTransfers();
         for (Guild guild : guilds) ledgers.get(guild).populateDailyTransfers(buffer);
         for (var from : buffer.getTransfers().entrySet()) {
@@ -89,7 +90,7 @@ public final class RealmSettlementCalculation {
                 transfer(Denars.guildTax(guild.getIncarnationId()), Denars.MINT, held);
             }
         }
-        for (Guild guild : guilds) liquidate(guild);
+        for (Guild guild : guilds) liquidate(guild, !java.util.Objects.equals(beforeIncome.get(account(guild)), balances.get(account(guild))));
         for (Guild guild : guilds) payouts(guild, buffer);
         payOrphanClaims();
         for (Guild guild : guilds) {
@@ -120,8 +121,12 @@ public final class RealmSettlementCalculation {
             initial.put(guild, guild.getBank() == null ? 0 : guild.getBank().getWealth());
             credits.put(guild, guild.getLoanHandler().getCreditScore());
             MercenaryCompany company = guild.getCompany();
-            if (company != null) companies.put(guild, new MercenaryCompany(guild, company.serialize(),
-                    company.getRegiment() == null ? null : new Regiment(company.getRegiment())));
+            if (company != null) {
+                MercenaryCompany copy = new MercenaryCompany(guild, company.serialize(),
+                        company.getRegiment() == null ? null : new Regiment(company.getRegiment()));
+                copy.restoreSettlement(company.serialize());
+                companies.put(guild, copy);
+            }
         }
         for (Faction faction : guilds.stream().map(Guild::getFaction).distinct().toList()) {
             FactionUpkeepPlan plan = preparedUpkeep == null ? FactionUpkeepPlan.calculate(faction)
@@ -182,13 +187,13 @@ public final class RealmSettlementCalculation {
         }
     }
 
-    private void liquidate(Guild guild) {
+    private void liquidate(Guild guild, boolean moved) {
         var change = new RealmSettlementChanges.GuildChange();
         change.id = guild.getId();
         change.incarnation = guild.getIncarnationId();
         guild.getBranches().forEach((key, branch) -> change.branches.put(key, branch.getLevel()));
         changes.guilds.add(change);
-        if (guild.getBank() == null || net.tfminecraft.simplefactions.inactivity.InactivityService.isFullyInactive(guild.getMembers())) return;
+        if (!moved || guild.getBank() == null || net.tfminecraft.simplefactions.inactivity.InactivityService.isFullyInactive(guild.getMembers())) return;
         int size = change.branches.values().stream().mapToInt(Integer::intValue).sum();
         Random random = new Random(day ^ guild.getIncarnationId().getMostSignificantBits() ^ guild.getIncarnationId().getLeastSignificantBits());
         for (int guard = 0; balances.get(account(guild)) < 0 && size > 0 && guard < 1000; guard++) {
@@ -299,8 +304,8 @@ public final class RealmSettlementCalculation {
         var change = changes.guilds.stream().filter(c -> c.incarnation.equals(guild.getIncarnationId())).findFirst().orElseThrow();
         change.donation = views.get(guild).donation();
         change.citizenTaxes = canMove(guild) ? Map.of() : guild.getLedger().getCitizenTaxesCopy();
-        change.casinoProfit = canMove(guild) ? 0 : guild.getLedger().getCasinoProfit();
-        change.vehicleFeeIncome = canMove(guild) ? 0 : guild.getLedger().getVehicleFeeIncome();
+        change.casinoProfit = 0;
+        change.vehicleFeeIncome = 0;
         change.creditScore = credits.get(guild);
         for (Loan original : guild.getLoanHandler().getLoansGiven()) change.loans.add(new LoanData(loans.get(original)));
         MercenaryCompany company = companies.get(guild);

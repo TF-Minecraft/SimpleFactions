@@ -1119,14 +1119,6 @@ public class Guild {
         return getSize() > 0;
     }
 
-    public void liquidateRandom() {
-        if (!canLiquidate() || bank == null) return;
-        List<Branch> expanded = branches.values().stream().filter(br -> br.getLevel() > 0).toList();
-        Branch b = expanded.get((int) (Math.random() * expanded.size()));
-        double refund = getRefund();
-        b.levelDown();
-        bank.deposit(refund);
-    }
 
     public boolean isFavoured() {
         Boolean overlay = IncomePreviewContext.overlayFavoured(this);

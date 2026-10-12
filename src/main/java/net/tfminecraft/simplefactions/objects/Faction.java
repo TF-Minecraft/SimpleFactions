@@ -1384,47 +1384,6 @@ public class Faction {
 	    return new FactionModifier(m, totalAmount);
 	}
 
-    public void newDay() {
-        double armyCost = military == null ? 0.0 : military.getTotalUpkeep();
-		Bank bank = getBank();
-		if(armyCost > 0 && bank == null && military != null && military.getRegiments() != null){
-			for(Regiment r : military.getRegiments()){
-				if(r == null || r.isLevy()) continue;
-				while(r.getCurrentSlots() > r.getFreeSlots()){
-					int before = r.getCurrentSlots();
-					r.sizeDecrease();
-					if(r.getCurrentSlots() >= before) break;
-				}
-			}
-			armyCost = 0.0;
-		}
-		Double wealth = bank == null ? null : bank.getWealth();
-		int guard = 0;
-		while(armyCost > 0 && wealth != null && wealth < armyCost && guard++ < 100000) {
-			boolean shrank = false;
-			if(military != null && military.getRegiments() != null) {
-				for(Regiment r : military.getRegiments()) {
-					if(r == null || r.isLevy()) continue;
-					if(r.getCurrentSlots() > r.getFreeSlots()) {
-						int before = r.getCurrentSlots();
-						r.sizeDecrease();
-						if(r.getCurrentSlots() < before) shrank = true;
-						break;
-					}
-				}
-			}
-			if(!shrank) break;
-			armyCost = military.getTotalUpkeep();
-		}
-		if(armyCost > 0 && bank != null && wealth != null) {
-			bank.withdraw(armyCost);
-		}
-		installationHandler.payDailyUpkeep();
-		provinceCap();
-		if (government != null) {
-			government.applyDailyOrganizationGain();
-		}
-    }
 
 	public void provinceCap() {
 		provinceHandler.provinceCap();

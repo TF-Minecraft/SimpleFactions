@@ -196,13 +196,7 @@ public class Ledger {
         if (operationId == null || operationId.isBlank() || !Double.isFinite(amount) || amount <= 0) return false;
         Double previous = casinoProfitOperations.get(operationId);
         if (previous != null) return Double.compare(previous, amount) == 0;
-        double before = casinoProfit;
-        casinoProfit += amount;
-        casinoProfitOperations.put(operationId, amount);
-        if (new net.tfminecraft.simplefactions.database.Database().saveFactionDurably(guild.getFaction())) return true;
-        casinoProfit = before;
-        casinoProfitOperations.remove(operationId);
-        return false;
+        return net.tfminecraft.simplefactions.economy.ExternalIncome.casino(guild, operationId, amount);
     }
 
     public Map<String, Double> getCasinoProfitOperations() {
@@ -1084,7 +1078,7 @@ public class Ledger {
             case TRADE_UPKEEP:
                 buffer.addExternalDelta(guild, getIncome(cf));
                 return;
-            // INSTALLATIONS: withdrawn in Faction.newDay(), so getIncome() is ledger GUI display only.
+            // INSTALLATIONS: charged by the pre-income upkeep plan, so getIncome() is ledger GUI display only.
             // VEHICLE_UPKEEP: withdrawn in VehicleUpkeepService for pool and installation vehicles.
             case UPGRADES_UPKEEP:
             case PENALTIES:
@@ -1102,7 +1096,7 @@ public class Ledger {
             case VEHICLE_FEES:
                 return;
 
-            // The faction share of military upkeep is withdrawn in Faction.newDay();
+            // The faction share of military upkeep is charged by the pre-income upkeep plan;
             // only the company's slot upkeep settles here.
             case MILITARY_UPKEEP: {
                 double slots = getCompanySlotUpkeep();

@@ -368,8 +368,8 @@ class FactionEconomicsCoverageTest {
       Faction faction = fundedFaction(fixture, "home", "Leader", 0);
       Guild small = fixture.guild(faction, "small", "Small");
       Guild large = fixture.guild(faction, "large", "Large");
-      small.getBank().deposit(100.0);
-      large.getBank().deposit(300.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(small.getBank(), 100.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(large.getBank(), 300.0);
       large.addMember("Additional");
       small.getTradeBreakdown().setTradePower(5);
       large.getTradeBreakdown().setTradePower(25);
@@ -461,7 +461,7 @@ class FactionEconomicsCoverageTest {
       assertEquals(1, ranker.getVisibleRank(viewer, foreign, RankType.WEALTH));
       assertEquals(
           2, ranker.getVisibleGuildRank(viewer, foreign.getOrCreateMainGuild(), RankType.WEALTH));
-      foreign.getBank().deposit(5000.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(foreign.getBank(), 5000.0);
       assertEquals(200.0, ranker.visibleValue(viewer, foreign, RankType.WEALTH));
       assertEquals(
           50.0, ranker.visibleGuildValue(viewer, foreign.getOrCreateMainGuild(), RankType.WEALTH));
@@ -507,14 +507,19 @@ class FactionEconomicsCoverageTest {
       assertEquals(80.0, bank.getWealth());
       Bank openingBalance = new Bank(faction.getOrCreateMainGuild(), 25.0, original);
       Bank empty = new Bank(faction.getOrCreateMainGuild(), original);
-      assertEquals(25.0, openingBalance.getWealth());
-      assertEquals(0.0, empty.getWealth());
+      assertEquals(25.0, openingBalance.legacyBalance());
+      assertEquals(0.0, empty.legacyBalance());
+      assertEquals(80.0, openingBalance.getWealth());
+      assertEquals(80.0, empty.getWealth());
       assertSame(original, openingBalance.getChunk());
-      bank.withdraw(12.5);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(bank, -12.5);
       assertEquals(67.5, bank.getWealth());
       assertEquals(67.5, faction.getWealth());
-      bank.setWealth(50.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(bank, 50.0);
       assertEquals(50.0, bank.getWealth());
+      assertThrows(UnsupportedOperationException.class, () -> bank.deposit(1.0));
+      assertThrows(UnsupportedOperationException.class, () -> bank.withdraw(1.0));
+      assertThrows(UnsupportedOperationException.class, () -> bank.setWealth(1.0));
     } finally {
       BankManager.banks = oldBanks;
     }
@@ -593,70 +598,29 @@ class FactionEconomicsCoverageTest {
   }
 
   @Test
-  void playerLedgersResolveAccountsWithoutSharingAnonymousEntries() {
+  void playerLedgersResolveCharactersWithoutSharingAnonymousEntries() {
     UUID alice = UUID.randomUUID();
     PlayerEconomyManager manager = new PlayerEconomyManager();
-    try (var accounts = mockStatic(OfflineModifier.class)) {
-      accounts.when(() -> OfflineModifier.playerId("Alice")).thenReturn(alice);
-      manager.getLedger("Alice").add(PlayerCashflow.EARNINGS, 50);
-      manager.getLedger(alice).add(PlayerCashflow.CITIZEN_TAX, -10);
-      assertSame(manager.getLedger(alice), manager.getLedger("Alice"));
-      assertEquals(40.0, manager.getLedger(alice).getNetDaily());
-      manager.getLedger((UUID) null).add(PlayerCashflow.EARNINGS, 999);
-      manager.getLedger("Unknown").add(PlayerCashflow.EARNINGS, 888);
-      assertEquals(0.0, manager.getLedger((UUID) null).getNetDaily());
-      assertEquals(0.0, manager.getLedger("Unknown").getNetDaily());
-      assertEquals(40.0, manager.getLedger("Alice").getNetDaily());
-      var previous = manager.getLedger(alice);
-      manager.clearAllDaily();
-      assertEquals(0.0, previous.getNetDaily());
-      assertEquals(0.0, manager.getLedger(alice).getNetDaily());
-      assertNotSame(previous, manager.getLedger(alice));
-    }
-  }
-
-  @Test
-  void denarAdapterConservesSeparateBankAndPouchBalances() {
-    UUID account = UUID.randomUUID();
-    Map<Accounts, Double> balances =
-        new HashMap<>(Map.of(Accounts.BANK, 100.0, Accounts.POUCH, 40.0));
-    try (var external = mockStatic(OfflineModifier.class)) {
-      external.when(() -> OfflineModifier.playerId("Alice")).thenReturn(account);
-      external
-          .when(() -> OfflineModifier.balance(eq(account), any(Accounts.class)))
-          .thenAnswer(call -> balances.get(call.getArgument(1)));
-      external
-          .when(() -> OfflineModifier.apply(eq(account), any(Accounts.class), anyDouble()))
-          .thenAnswer(
-              call -> {
-                Accounts type = call.getArgument(1);
-                double next = balances.get(type) + (double) call.getArgument(2);
-                if (next < 0) return false;
-                balances.put(type, next);
-                return true;
-              });
-      var bank = DenarEconomyPlayerBank.INSTANCE;
-      assertEquals(account, bank.resolve("Alice"));
-      assertEquals(100.0, bank.getBankBalance(account));
-      assertEquals(40.0, bank.getPouchBalance(account));
-      assertTrue(bank.withdrawFromBank(account, 30));
-      assertTrue(bank.depositToBank(account, 5));
-      assertTrue(bank.withdrawFromPouch(account, 8));
-      assertEquals(75.0, bank.getBankBalance(account));
-      assertEquals(32.0, bank.getPouchBalance(account));
-      assertFalse(bank.withdrawFromBank(account, 100));
-      assertFalse(bank.withdrawFromBank(account, 0));
-      assertFalse(bank.withdrawFromPouch(account, -1));
-      assertFalse(bank.depositToBank(account, -10));
-      assertEquals(Map.of(Accounts.BANK, 75.0, Accounts.POUCH, 32.0), balances);
-    }
+    manager.getLedger(alice.toString()).add(PlayerCashflow.EARNINGS, 50);
+    manager.getLedger(alice).add(PlayerCashflow.CITIZEN_TAX, -10);
+    assertSame(manager.getLedger(alice), manager.getLedger(alice.toString()));
+    assertEquals(40.0, manager.getLedger(alice).getNetDaily());
+    manager.getLedger((UUID) null).add(PlayerCashflow.EARNINGS, 999);
+    manager.getLedger("Unknown").add(PlayerCashflow.EARNINGS, 888);
+    assertEquals(0.0, manager.getLedger((UUID) null).getNetDaily());
+    assertEquals(0.0, manager.getLedger("Unknown").getNetDaily());
+    var previous = manager.getLedger(alice);
+    manager.clearAllDaily();
+    assertEquals(0.0, previous.getNetDaily());
+    assertEquals(0.0, manager.getLedger(alice).getNetDaily());
+    assertNotSame(previous, manager.getLedger(alice));
   }
 
   private Faction fundedFaction(
       FactionDomainFixture fixture, String id, String leader, double balance) {
     fixture.player(leader);
     Faction faction = fixture.saved(id, leader);
-    faction.getBank().deposit(balance);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(faction.getBank(), balance);
     return faction;
   }
 

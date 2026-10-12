@@ -307,8 +307,8 @@ class EspionageOperationsCoverageTest {
     target
         .getInstallationHandler()
         .acceptTransferred(new Installation("fort", "Fort", InstallationKind.FORT, 37, 0, 0, 1));
-    target.getBank().deposit(2000.0);
-    guild.getBank().deposit(700.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(target.getBank(), 2000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 700.0);
     double capturedWealth = target.getWealth();
     assertTrue(capturedWealth > 0);
 
@@ -340,7 +340,7 @@ class EspionageOperationsCoverageTest {
     assertNotNull(wealthEstimate);
     assertTrue(
         wealthEstimate.lower() <= capturedWealth && wealthEstimate.upper() >= capturedWealth);
-    target.getBank().deposit(9000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(target.getBank(), 9000.0);
     EspionageService.refreshReports(candidate);
     assertSame(report, EspionageService.report(candidate, target));
     assertEquals(wealthEstimate, report.estimate("Wealth"));

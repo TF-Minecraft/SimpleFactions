@@ -244,9 +244,9 @@ class CivilWarWartimeBoundaryCoverageTest {
     var origin = fixture.guild(host, "origin", "ActingLeader");
     var extra = fixture.guild(rebels, "extra", "Elena");
     extra.setCapital(2, false);
-    extra.getBank().deposit(20.0);
-    host.getOrCreateMainGuild().getBank().deposit(100.0);
-    rebels.getOrCreateMainGuild().getBank().deposit(30.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(extra.getBank(), 20.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(host.getOrCreateMainGuild().getBank(), 100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(rebels.getOrCreateMainGuild().getBank(), 30.0);
     rebels.getOrCreateMainGuild().addMember("Cara");
     host.getMilitary().getRegiment("guard").setCurrentSlots(7);
     rebels.getMilitary().getRegiment("guard").setCurrentSlots(3);
@@ -370,9 +370,9 @@ class CivilWarWartimeBoundaryCoverageTest {
     rebels.addProvince(2);
     host.setCapital(1, true, false);
     rebels.setCapital(2, true, false);
-    host.getOrCreateMainGuild().getBank().deposit(100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(host.getOrCreateMainGuild().getBank(), 100.0);
     var base = rebels.getOrCreateMainGuild();
-    base.getBank().deposit(30.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(base.getBank(), 30.0);
     base.addMember("Cara");
     base.setName("Rebel Company");
     base.setFavoured(true);
@@ -415,7 +415,7 @@ class CivilWarWartimeBoundaryCoverageTest {
     var host = fixture.saved("host", "Alice");
     var rebels = fixture.saved("rebels", "Bob");
     rebels.setRGB("71,72,73");
-    rebels.getOrCreateMainGuild().getBank().deposit(19.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(rebels.getOrCreateMainGuild().getBank(), 19.0);
     var restored = rebels.getOrCreateMainGuild();
     var subject = fixture.saved("subject", "Cara");
     fixture.subject(rebels, subject);

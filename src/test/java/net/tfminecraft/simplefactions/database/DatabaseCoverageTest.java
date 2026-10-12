@@ -129,8 +129,14 @@ class DatabaseCoverageTest {
     FactionData data=richFaction();
     Path path=disk.write("Data/realm.json",JsonUtil.GSON.toJson(data));
     database.loadFactions();Faction faction=FactionManager.getByString("realm");assertNotNull(faction);
+    assertEquals("renowned",faction.getRank().getId());
+    for (var guild : FactionManager.getAllGuilds()) {
+      net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(guild.getIncarnationId(), guild.getBank() == null ? 0 : guild.getBank().legacyBalance(), guild.getLedger().getCitizenTaxesCopy());
+      guild.updateWealth();
+    }
+    FactionManager.updateAllPrestigeConverged();
     assertEquals(400.0,faction.getWealth());assertEquals(75.0,faction.getBank().getWealth());assertEquals(1234L,faction.getFoundedAt());
-    assertEquals(2,faction.getCapitalMoves());assertEquals("renowned",faction.getRank().getId());
+    assertEquals(2,faction.getCapitalMoves());
     assertEquals(3.5,faction.getTaxRate(TaxTarget.GUILD_ID,"merchants",false));
     assertEquals(12345L,faction.getLawHandler().getGroup("customs").getChangedAt());
     assertEquals(5,faction.getMilitary().getRegiment("guards").getCurrentSlots());

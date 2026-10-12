@@ -23,58 +23,50 @@ class SharedDomainUtilitiesCoverageTest {
   @BeforeEach void setUp() { fixture=new FactionDomainFixture(); new Wealth();new Represents();new RandomRGB(); }
   @AfterEach void close() { fixture.close(); }
 
-  @Test void personalWealthIncludesBothAccountsAndTheApplicableShareOfGuildAssets() {
-    Faction realm=fixture.saved("realm","Alice");realm.addMember("Citizen");
-    Guild guild=fixture.guild(realm,"merchants","Bob");guild.addMember("Dana");
-    realm.getBank().deposit(100.0);guild.getBank().deposit(60.0);
-    try(MockedStatic<OfflineModifier> accounts=mockStatic(OfflineModifier.class)) {
-      accounts.when(() -> OfflineModifier.balance(anyString(),eq(Accounts.POUCH))).thenReturn(3.0);
-      accounts.when(() -> OfflineModifier.balance(anyString(),eq(Accounts.BANK))).thenReturn(7.0);
-      assertEquals(110,Wealth.wealth("Alice"));
-      assertEquals(10,Wealth.wealth("Citizen"));
-      assertEquals(40,Wealth.wealth("Bob"));
-      assertEquals(40,Wealth.wealth("Dana"));
-      assertEquals(10,Wealth.wealth("Visitor"));
-    }
+  private String character(String name) {
+    return java.util.UUID.nameUUIDFromBytes(name.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
   }
 
-  @Test void characterWealthReadsTheAccountPlayingTheCharacterAndUnknownCharactersHaveNone() {
-    java.util.UUID account=java.util.UUID.randomUUID(), character=java.util.UUID.randomUUID();
-    String member=net.tfminecraft.simplefactions.identity.Members.key(character);
-    String stranger=net.tfminecraft.simplefactions.identity.Members.key(java.util.UUID.randomUUID());
-    var names=net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.INSTANCE;
-    net.tfminecraft.simplefactions.identity.Members.setResolver(new net.tfminecraft.simplefactions.identity.Members.Resolver() {
-      @Override public java.util.Optional<net.tfminecraft.tlibs.character.CharacterSession> session(org.bukkit.entity.Player p) { return names.session(p); }
-      @Override public boolean isCurrent(net.tfminecraft.tlibs.character.CharacterSession s) { return true; }
-      @Override public String key(org.bukkit.entity.Player p) { return names.key(p); }
-      @Override public java.util.Optional<org.bukkit.entity.Player> online(String key) { return java.util.Optional.empty(); }
-      @Override public java.util.Optional<net.tfminecraft.tlibs.character.CharacterInfo> info(String key) {
-        return key.equals(member) ? java.util.Optional.of(new net.tfminecraft.tlibs.character.CharacterInfo(
-            new net.tfminecraft.tlibs.character.CharacterRef(account,character),"Lady Alice",
-            net.tfminecraft.tlibs.character.CharacterStatus.ALIVE,null,java.util.Set.of(),0,null)) : java.util.Optional.empty();
-      }
-    });
-    try(MockedStatic<OfflineModifier> accounts=mockStatic(OfflineModifier.class)) {
-      accounts.when(() -> OfflineModifier.balance(eq(account),eq(Accounts.POUCH))).thenReturn(3.0);
-      accounts.when(() -> OfflineModifier.balance(eq(account),eq(Accounts.BANK))).thenReturn(7.0);
-      assertEquals(10,Wealth.wealth(member));
-      assertEquals(0,Wealth.wealth(stranger));
-      accounts.verify(() -> OfflineModifier.balance(anyString(),any(Accounts.class)),never());
-    }
+  private void fund(String key, long pouch, long bank) {
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set("char:" + key + ":pouch", pouch);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set("char:" + key + ":bank", bank);
+  }
+
+  @Test void personalWealthIncludesBothAccountsAndTheApplicableShareOfGuildAssets() {
+    String alice=character("Alice"),citizen=character("Citizen"),bob=character("Bob"),dana=character("Dana"),visitor=character("Visitor");
+    Faction realm=fixture.saved("realm",alice);realm.addMember(citizen);
+    Guild guild=fixture.guild(realm,"merchants",bob);guild.addMember(dana);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(realm.getBank(),100);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(),60);
+    for (String key:List.of(alice,citizen,bob,dana,visitor)) fund(key,300,700);
+    assertEquals(110,Wealth.wealth(alice));
+    assertEquals(10,Wealth.wealth(citizen));
+    assertEquals(40,Wealth.wealth(bob));
+    assertEquals(40,Wealth.wealth(dana));
+    assertEquals(10,Wealth.wealth(visitor));
+    assertEquals(0,Wealth.wealth("quarantine:unknown"));
+  }
+
+  @Test void characterWealthReadsItsOwnLedgerWithoutAnOnlineSession() {
+    String member=character("first"),other=character("other");
+    fund(member,300,700);
+    fund(other,100,200);
+    assertEquals(10,Wealth.wealth(member));
+    assertEquals(3,Wealth.wealth(other));
+    assertEquals(0,Wealth.wealth(character("unfunded")));
   }
 
   @Test void wealthRankingIncludesSubjectsOnlyWhenRequestedAndSortsByTotalAssets() {
-    Faction realm=fixture.saved("realm","Alice");realm.addMember("Citizen");
-    Guild guild=fixture.guild(realm,"merchants","Bob");guild.addMember("Dana");
-    Faction subject=fixture.saved("subject","Cara");fixture.subject(realm,subject);
-    realm.getBank().deposit(100.0);guild.getBank().deposit(60.0);subject.getBank().deposit(200.0);
-    Map<String,Double> pouch=Map.of("Alice",1.0,"Bob",10.0,"Dana",5.0,"Citizen",0.0,"Cara",2.0);
-    try(MockedStatic<OfflineModifier> accounts=mockStatic(OfflineModifier.class)) {
-      accounts.when(() -> OfflineModifier.balance(anyString(),eq(Accounts.POUCH)))
-          .thenAnswer(call -> pouch.getOrDefault(call.getArgument(0),0.0));
-      assertEquals(List.of("Alice","Bob","Dana","Citizen"),Wealth.topWealth(realm,false));
-      assertEquals(List.of("Cara","Alice","Bob","Dana","Citizen"),Wealth.topWealth(realm,true));
-    }
+    String alice=character("Alice"),citizen=character("Citizen"),bob=character("Bob"),dana=character("Dana"),cara=character("Cara");
+    Faction realm=fixture.saved("realm",alice);realm.addMember(citizen);
+    Guild guild=fixture.guild(realm,"merchants",bob);guild.addMember(dana);
+    Faction subject=fixture.saved("subject",cara);fixture.subject(realm,subject);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(realm.getBank(),100);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(),60);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(subject.getBank(),200);
+    fund(alice,100,0);fund(bob,1000,0);fund(dana,500,0);fund(cara,200,0);
+    assertEquals(List.of(alice,bob,dana,citizen),Wealth.topWealth(realm,false));
+    assertEquals(List.of(cara,alice,bob,dana,citizen),Wealth.topWealth(realm,true));
   }
 
   @Test void representationDistinguishesCapitalGuildSubjectsAndUnrelatedPlayers() {

@@ -380,7 +380,8 @@ public class SimpleFactions extends JavaPlugin{
 					"Cannot migrate faction data to characters; factions stay offline until this is fixed", error);
 			return;
 		}
-		startServices();
+		try { startServices(); }
+        catch (Exception error) { failFinancialState(error); }
 		if (!started) return;
 		getServer().getPluginManager().callEvent(new net.tfminecraft.simplefactions.events.SimpleFactionsReadyEvent());
 	}
@@ -467,7 +468,9 @@ public class SimpleFactions extends JavaPlugin{
                         guild.getBank() == null ? 0 : guild.getBank().legacyBalance(), guild.getLedger().getCitizenTaxesCopy());
                 guild.updateWealth();
             }
+            FactionManager.updateAllPrestigeConverged();
             net.tfminecraft.simplefactions.identity.death.CharacterDeaths.load(getDataFolder().toPath());
+            net.tfminecraft.simplefactions.economy.ExternalIncome.recover(getDataFolder().toPath());
             realmSettlementService = new net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService(getDataFolder().toPath(), db);
             realmSettlementService.recover();
             net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile();
@@ -833,33 +836,17 @@ public class SimpleFactions extends JavaPlugin{
 		vehicleFeeStore.save();
 	}
 
-	/**
-	 * Records the current owner of every personal vehicle, so a vehicle released before
-	 * anyone built or claimed it through SimpleFactions still has a last owner.
-	 */
-	public void recordVehicleOwners() {
-		if (!getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
-			return;
-		}
-		try {
-			for (net.tfminecraft.vehicleframework.data.OwnedVehicleSummary vehicle
-					: net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.allPersonalVehicles(vehicleRegistry)) {
-				// VehicleFramework still owns vehicles by account; the fee follows that account's character.
-				String owner = net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.ownerKey(
-						net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries
-								.playerNameFromOwner(vehicle.getOwner()));
-				if (owner != null) {
-					vehicleFeeStore.setLastOwner(vehicle.getUuid(), owner);
-				}
-			}
-			for (net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord record : vehicleRegistry.getAll()) {
-				vehicleFeeStore.forgetVehicle(record.getVehicleUuid());
-			}
-			vehicleFeeStore.save();
-		} catch (RuntimeException | LinkageError e) {
-			getLogger().warning("Could not record vehicle owners for transfer fees: " + e);
-		}
-	}
+    /** Retains captured character payers; a current account session cannot replace a registry identity. */
+    public void recordVehicleOwners() {
+        for (var record : vehicleRegistry.getAll()) {
+            if (record.getMode() != net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode.PERSONAL) {
+                vehicleFeeStore.forgetVehicle(record.getVehicleUuid());
+            } else if (record.getPlayerUuid() != null && vehicleFeeStore.getLastOwner(record.getVehicleUuid()) == null) {
+                vehicleFeeStore.setLastOwner(record.getVehicleUuid(), record.getPlayerUuid().toString());
+            }
+        }
+        vehicleFeeStore.save();
+    }
 
 	public InstallationVehicleUnberthService getInstallationVehicleUnberthService() {
 		return installationVehicleUnberthService;

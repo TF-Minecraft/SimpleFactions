@@ -49,8 +49,8 @@ class LedgerSettlementCoverageTest {
     previousEligibility = Cache.dividendRequirePreviousTickMembership;
     Cache.dividendRequirePreviousTickMembership = false;
     previousLookup = MercenaryEngagements.uuidLookup();
-    capital.getBank().setWealth(1000.0);
-    guild.getBank().setWealth(1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(capital.getBank(), 1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
   }
 
   @AfterEach
@@ -148,7 +148,7 @@ class LedgerSettlementCoverageTest {
     Guild receiver = creditor.getOrCreateMainGuild();
     home.addWarReparationsObligation(new WarReparationsObligation("creditor", 25, 4));
     guild.getTradeBreakdown().setIncome(120);
-    guild.getBank().setWealth(-1.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), -1.0);
     assertTrue(guild.isBankrupt());
     assertEquals(0, receiver.getLedger().getWarReparationsReceived());
     DailyGuildTransfers transfers = new DailyGuildTransfers();
@@ -219,7 +219,7 @@ class LedgerSettlementCoverageTest {
     Loan manual = new Loan(20, capital, guild, System.currentTimeMillis(), 7, 7, 0, false);
     capital.getLoanHandler().issueLoan(debt);
     capital.getLoanHandler().issueLoan(manual);
-    guild.getBank().setWealth(-1.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), -1.0);
     guild.getLedger().addCitizenTaxEntry("Bob", 3.0);
     assertEquals(0, guild.getLedger().getInternalTaxableIncome());
     assertEquals(DividendBreakdown.none(), guild.getLedger().getDividendBreakdown());

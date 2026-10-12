@@ -43,14 +43,28 @@ public final class RealmSettlementEffects implements SettlementJournal.Effects {
                 throw new IOException("Settlement guild missing or replaced: " + saved.id);
         }
         Set<Faction> save = new LinkedHashSet<>();
+        java.util.List<Runnable> notices = new java.util.ArrayList<>();
         for (FactionUpkeepPlan saved : changes.upkeep) {
             Faction faction = FactionManager.getByString(saved.faction());
             if (faction == null) throw new IOException("Settlement faction missing: " + saved.faction());
+            if (faction.getMilitary() == null && !saved.regimentSlots().isEmpty()) throw new IOException("Settlement military missing: " + saved.faction());
             if (faction.getMilitary() != null) {
                 for (var regiment : saved.regimentSlots().entrySet()) {
                     var current = faction.getMilitary().getRegiment(regiment.getKey());
                     if (current == null) throw new IOException("Settlement regiment missing: " + regiment.getKey());
                     current.setCurrentSlots(regiment.getValue());
+                }
+            }
+            for (var current : faction.getInstallationHandler().getAll()) {
+                var after = saved.installations().stream().filter(i -> i.id.equals(current.getId())).findFirst().orElse(null);
+                if (after == null || after.level < current.getLevel()) {
+                    String text = "§c" + current.getKind().getDisplayName() + " §f" + current.getName()
+                            + (after == null ? " §chas been destroyed" : " §cdropped to level " + after.level)
+                            + " §7(unable to pay upkeep)";
+                    notices.add(() -> {
+                        var leader = net.tfminecraft.simplefactions.identity.Members.player(faction.getLeader());
+                        if (leader != null) leader.sendMessage(text);
+                    });
                 }
             }
             faction.getInstallationHandler().restoreSettlement(saved.installations(), saved.construction());
@@ -102,5 +116,6 @@ public final class RealmSettlementEffects implements SettlementJournal.Effects {
         DurableJson.write(folder.resolve("Cache/data.json"), timer);
         FactionManager.day = Math.max(FactionManager.day, timer.day);
         FactionManager.timer = 0;
+        notices.forEach(Runnable::run);
     }
 }

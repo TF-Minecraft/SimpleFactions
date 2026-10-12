@@ -945,7 +945,6 @@ class FactionManagerCoverageTest {
     final MockedStatic<InactivityService> inactivity = mockStatic(InactivityService.class);
     final MockedStatic<ContractAccrualService> accrual = mockStatic(ContractAccrualService.class);
     final MockedStatic<ContractTerminationService> termination = mockStatic(ContractTerminationService.class);
-    final MockedStatic<PostSettlementPayouts> payouts = mockStatic(PostSettlementPayouts.class);
     final MockedStatic<WarReparationsService> reparations = mockStatic(WarReparationsService.class);
     final MockedStatic<TradeGraph> routes = mockStatic(TradeGraph.class);
     final MockedStatic<FactionCleanup> cleanup = mockStatic(FactionCleanup.class);
@@ -967,7 +966,6 @@ class FactionManagerCoverageTest {
       cleanup.close();
       routes.close();
       reparations.close();
-      payouts.close();
       termination.close();
       accrual.close();
       inactivity.close();
@@ -975,108 +973,22 @@ class FactionManagerCoverageTest {
   }
 
   @Test
-  void dailySettlementNetsTransfersRoundsBalancesAndPublishesHistoryBeforeClearingBuffer() {
-    Faction home = faction("home", "Alice");
-    Guild payer = guild(home, "payer", "Alice");
-    Guild recipient = guild(home, "recipient", "Bob");
-    Guild zero = guild(home, "zero", "Carol");
-    Guild noBank = guild(home, "no-bank", "Dave");
-    when(noBank.getBank()).thenReturn(null);
-    Loan loan = mock(Loan.class);
-    when(loan.getId()).thenReturn("loan");
-    when(payer.getLoanHandler().getLoansGiven()).thenReturn(Arrays.asList(null, loan));
-    Ledger payerLedger = payer.getLedger();
-    AtomicReference<DailyGuildTransfers> collected = new AtomicReference<>();
-    doAnswer(call -> {
-      DailyGuildTransfers buffer = call.getArgument(0);
-      collected.set(buffer);
-      buffer.add(payer, recipient, 7.12);
-      buffer.addExternalDelta(payer, 10.004);
-      buffer.addExternalDelta(recipient, -1.004);
-      buffer.addExternalDelta(zero, 3.0);
-      buffer.addExternalDelta(zero, -3.0);
-      buffer.addExternalDelta(noBank, 2.0);
-      return null;
-    }).when(payerLedger).populateDailyTransfers(any());
-    try (DailyServices daily = new DailyServices()) {
-      Map<LedgerHistory.Source, Map<String, Double>> before = new HashMap<>();
-      daily.histories.when(() -> Ledger.collectHistoryDay(any())).thenReturn(Map.of(payer, before));
-      daily.payouts.when(() -> PostSettlementPayouts.apply(any(), any(), any(), any()))
-          .thenAnswer(call -> {
-            DailyGuildTransfers buffer = call.getArgument(0);
-            assertEquals(7.12, buffer.getTransfers().get(payer).get(recipient));
-            verify(payer.getBank()).deposit(2.88);
-            verify(recipient.getBank()).deposit(6.12);
-            return null;
-          });
-
+  void dailySettlementUsesOneRealmJournalAndStopsOnUncertainRecovery() throws Exception {
+    var service = mock(net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService.class);
+    when(fixture.ui.plugin.getRealmSettlementService()).thenReturn(service);
+    try (var runtime = mockStatic(net.tfminecraft.simplefactions.economy.EconomyRuntime.class)) {
       manager.settleIncome();
-
-      verify(payer.getLedger().getHistory()).closeDay(same(before));
-      verify(recipient.getLedger().getHistory()).closeDay(null);
-      verify(zero.getBank(), never()).deposit(anyDouble());
-      verify(loan).tickDay();
-      verify(payer).refreshDividendEligibility();
-      verify(recipient).refreshDividendEligibility();
-      daily.accrual.verify(ContractAccrualService::accrueDailyAndPush);
-      daily.termination.verify(ContractTerminationService::tickDay);
-      daily.reparations.verify(() -> WarReparationsService.tickAfterDailySettlement(home));
-      verify(daily.upkeep).processDailyUpkeep();
+      verifyNoInteractions(service);
+      runtime.when(net.tfminecraft.simplefactions.economy.EconomyRuntime::ready).thenReturn(true);
+      FactionManager.day = 7;
+      manager.settleIncome();
+      verify(service).settle(7);
       verify(fixture.ui.plugin).recordVehicleOwners();
-      assertTrue(collected.get().getTransfers().isEmpty());
-      assertTrue(collected.get().getExternalDeltas().isEmpty());
-    }
-  }
-
-  @Test
-  void settlementLiquidatesWhileAssetsShrinkAndStopsAStalledLiquidator() {
-    Faction home = faction("home", "Alice");
-    Guild shrinking = guild(home, "shrinking", "Alice");
-    Guild stalled = guild(home, "stalled", "Bob");
-    AtomicInteger remaining = new AtomicInteger(5);
-    when(shrinking.isBankrupt()).thenAnswer(call -> remaining.get() > 3);
-    when(shrinking.canLiquidate()).thenReturn(true);
-    when(shrinking.getSize()).thenAnswer(call -> remaining.get());
-    doAnswer(call -> { remaining.decrementAndGet(); return null; }).when(shrinking).liquidateRandom();
-    when(stalled.isBankrupt()).thenReturn(true);
-    when(stalled.canLiquidate()).thenReturn(true);
-    when(stalled.getSize()).thenReturn(3);
-    Ledger shrinkingLedger = shrinking.getLedger();
-    doAnswer(call -> {
-      DailyGuildTransfers buffer = call.getArgument(0);
-      buffer.addExternalDelta(shrinking, -20);
-      buffer.addExternalDelta(stalled, -20);
-      return null;
-    }).when(shrinkingLedger).populateDailyTransfers(any());
-    try (DailyServices daily = new DailyServices()) {
+      var failure = new java.io.IOException("incomplete effect");
+      doThrow(failure).when(service).settle(7);
       manager.settleIncome();
-      verify(shrinking, times(2)).liquidateRandom();
-      assertEquals(3, remaining.get());
-      verify(stalled).liquidateRandom();
-      verify(daily.upkeep).processDailyUpkeep();
-    }
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void dailyFailureIsLoggedAndDoesNotPreventOtherGuildsOrFinalMaintenance(boolean availableLogger) {
-    Faction home = faction("home", "Alice");
-    Guild broken = guild(home, "broken", "Alice");
-    Guild healthy = guild(home, "healthy", "Bob");
-    Logger logger = mock(Logger.class);
-    when(fixture.ui.plugin.getLogger()).thenReturn(availableLogger ? logger : null);
-    IllegalStateException failure = new IllegalStateException("broken ledger");
-    Ledger brokenLedger = broken.getLedger();
-    Ledger healthyLedger = healthy.getLedger();
-    doThrow(failure).when(brokenLedger).populateDailyTransfers(any());
-    doAnswer(call -> { ((DailyGuildTransfers) call.getArgument(0)).addExternalDelta(healthy, 10); return null; })
-        .when(healthyLedger).populateDailyTransfers(any());
-    try (DailyServices daily = new DailyServices()) {
-      assertDoesNotThrow(manager::settleIncome);
-      verify(healthy.getBank()).deposit(10.0);
-      verify(healthy.getLedger().getHistory()).closeDay(null);
-      verify(daily.upkeep).processDailyUpkeep();
-      if (availableLogger) verify(logger).log(Level.SEVERE, "Daily tick failed during ledger broken", failure);
+      runtime.verify(() -> net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(failure));
+      assertEquals(7, FactionManager.day);
     }
   }
 
@@ -1110,34 +1022,21 @@ class FactionManagerCoverageTest {
     assertEquals(0, FactionManager.getSecondsUntilNewDay());
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void dayRolloverContinuesAfterOneFactionFailureAndDoesNotPayAgainNextSecond(boolean tracksChanged) {
-    Faction broken = faction("broken", "Alice");
-    Faction healthy = faction("healthy", "Bob");
-    IllegalStateException failure = new IllegalStateException("one faction failed");
-    doThrow(failure).when(broken).newDay();
-    Logger logger = mock(Logger.class);
-    when(fixture.ui.plugin.getLogger()).thenReturn(logger);
-    when(fixture.ui.plugin.refreshTrackProvinces()).thenReturn(tracksChanged);
-    try (DailyServices daily = new DailyServices()) {
+  @Test
+  void dayRolloverAdvancesOnlyAfterTheJournalCompletesAndDoesNotPayAgainNextSecond() throws Exception {
+    var service = mock(net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService.class);
+    when(fixture.ui.plugin.getRealmSettlementService()).thenReturn(service);
+    doAnswer(call -> { FactionManager.day = 6; FactionManager.timer = 0; return null; }).when(service).settle(5);
+    try (DailyServices daily = new DailyServices(); var runtime = mockStatic(net.tfminecraft.simplefactions.economy.EconomyRuntime.class)) {
+      runtime.when(net.tfminecraft.simplefactions.economy.EconomyRuntime::ready).thenReturn(true);
       FactionManager.timer = 86399;
       FactionManager.day = 5;
       manager.time();
-      assertEquals(0, FactionManager.getTimer());
-      assertEquals(6, FactionManager.getDay());
-      verify(healthy).newDay();
-      verify(daily.economy).clearAllDaily();
-      daily.cleanup.verify(() -> FactionCleanup.advanceOfflineDays(FactionManager.factions));
-      daily.routes.verify(TradeGraph::forgetRoutes);
-      verify(fixture.provinces, tracksChanged ? never() : times(1)).recalculate();
-      verify(logger).log(Level.SEVERE, "Daily tick failed during faction broken", failure);
-      verify(daily.upkeep).processDailyUpkeep();
+      assertEquals(0, FactionManager.timer);
+      assertEquals(6, FactionManager.day);
       manager.time();
-      assertEquals(1, FactionManager.getTimer());
-      assertEquals(6, FactionManager.getDay());
-      verify(daily.upkeep, times(1)).processDailyUpkeep();
-      verify(healthy, times(1)).newDay();
+      assertEquals(1, FactionManager.timer);
+      verify(service, times(1)).settle(5);
     }
   }
 

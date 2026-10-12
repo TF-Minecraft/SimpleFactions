@@ -176,8 +176,8 @@ class EspionageMenusCoverageTest {
 
   @Test
   void foreignFactionAndGuildMenusUseTheDatedReportWithoutRevealingCurrentBalances() {
-    target.getBank().deposit(1234567.0);
-    guild.getBank().deposit(7654321.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(target.getBank(), 1234567.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 7654321.0);
     report.estimates.put("Wealth", new EspionageMath.Estimate(100, 150));
     report.estimates.put(
         IntelligenceLedger.key(guild, "Wealth"), new EspionageMath.Estimate(200, 250));
