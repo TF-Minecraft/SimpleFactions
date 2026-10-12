@@ -128,7 +128,7 @@ class FactionManagerCoverageTest {
     List<String> members = new ArrayList<>(List.of(leader));
     when(faction.getMembers()).thenReturn(members);
     when(faction.isMember(anyString()))
-        .thenAnswer(call -> members.stream().anyMatch(name -> name.equalsIgnoreCase(call.getArgument(0))));
+        .thenAnswer(call -> members.contains(call.getArgument(0)));
     doAnswer(call -> members.add(call.getArgument(0))).when(faction).addMember(anyString());
     when(faction.getProvinces()).thenReturn(new ArrayList<>());
     when(faction.getTitles()).thenReturn(new ArrayList<>());
@@ -155,7 +155,7 @@ class FactionManagerCoverageTest {
     when(guild.getName()).thenReturn(id);
     when(guild.getFaction()).thenReturn(faction);
     when(guild.getLeader()).thenReturn(leader);
-    when(guild.isLeader(anyString())).thenAnswer(call -> leader.equalsIgnoreCase(call.getArgument(0)));
+    when(guild.isLeader(anyString())).thenAnswer(call -> leader.equals(call.getArgument(0)));
     when(guild.getMembers()).thenReturn(new ArrayList<>(List.of(leader)));
     when(guild.getType()).thenReturn(GuildLoader.map.get("guild"));
     faction.getGuildHandler().getGuilds().add(guild);
@@ -243,7 +243,7 @@ class FactionManagerCoverageTest {
   }
 
   @Test
-  void managerLookupsPreserveCaseInsensitivityAndRepairLegacyLeaderMembership() {
+  void managerLookupsMatchMemberKeysExactlyAndRepairLegacyLeaderMembership() {
     Faction home = faction("Home", "Alice");
     Faction other = faction("Other", "Bob");
     Guild traders = guild(home, "Traders", "Carol");
@@ -252,21 +252,27 @@ class FactionManagerCoverageTest {
     home.getProvinces().add(4);
     when(home.hasTitle(title)).thenReturn(true);
     assertSame(home, FactionManager.getByString("HOME"));
-    assertSame(home, FactionManager.getByLeader("aLiCe"));
-    assertSame(home, FactionManager.getByMember("ALICE"));
+    assertSame(home, FactionManager.getByLeader("Alice"));
+    assertNull(FactionManager.getByLeader("aLiCe"), "member keys never match by case");
+    assertSame(home, FactionManager.getByMember("Alice"));
+    assertNull(FactionManager.getByMember("ALICE"));
     home.getMembers().clear();
-    assertSame(home, FactionManager.getByMember("aLiCe"));
-    assertEquals(List.of("aLiCe"), home.getMembers());
+    assertSame(home, FactionManager.getByMember("Alice"));
+    assertEquals(List.of("Alice"), home.getMembers());
     assertSame(home, FactionManager.getByRGB("home-RGB"));
     assertSame(home, FactionManager.getByProvince(4));
     assertSame(home, FactionManager.getTitleOwner(title));
     assertSame(traders, FactionManager.getGuildByString("TRADERS"));
-    assertSame(traders, FactionManager.getGuildByLeader("cARoL"));
-    assertSame(traders, FactionManager.getGuildByMember("dAVE"));
+    assertSame(traders, FactionManager.getGuildByLeader("Carol"));
+    assertNull(FactionManager.getGuildByLeader("cARoL"));
+    assertNull(FactionManager.getGuildByLeader(null));
+    assertSame(traders, FactionManager.getGuildByMember("Dave"));
+    assertNull(FactionManager.getGuildByMember("dAVE"));
     assertTrue(FactionManager.guildExists("traders"));
     assertFalse(FactionManager.guildExists("missing"));
     assertNull(FactionManager.getByString("missing"));
     assertNull(FactionManager.getByLeader("missing"));
+    assertNull(FactionManager.getByLeader(null));
     assertNull(FactionManager.getByMember("missing"));
     assertNull(FactionManager.getByMember(null));
     assertNull(FactionManager.getByRGB("missing"));
@@ -292,7 +298,9 @@ class FactionManagerCoverageTest {
     Guild guild = guild(home, "guild", "Bob");
     guild.getMembers().add("Carol");
     assertTrue(FactionManager.canJoinGuild(fixture.player("Dave")));
-    assertFalse(FactionManager.canJoinGuild(fixture.player("BOB")));
+    assertFalse(FactionManager.canJoinGuild(fixture.player("Bob")));
+    Player stranger = mock(Player.class);
+    assertFalse(FactionManager.canJoinGuild(stranger), "no character, no guild");
     assertFalse(FactionManager.canJoinGuild(fixture.player("Carol")));
     when(guild.getType()).thenReturn(GuildLoader.map.get("realm"));
     assertTrue(FactionManager.canJoinGuild(fixture.player("Carol")));

@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Stance;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 import net.tfminecraft.simplefactions.events.FactionCreateEvent;
 import net.tfminecraft.simplefactions.events.FactionDeleteEvent;
@@ -1124,6 +1124,10 @@ class CommandManagerCoverageTest {
   @Test
   void administrativeJoinRefusesExistingMembershipAndNotifiesAfterAdding() {
     admin();
+    assertTrue(run("faction", "forcejoin", "realm", "Nobody"));
+    verify(player).sendMessage(contains("No online character or character ID matches Nobody"));
+    Player alice = gui.player("Alice"), bob = gui.player("Bob"), visitor = gui.player("Visitor");
+    online(alice, bob, visitor);
     assertTrue(run("faction", "forcejoin", "realm", "Alice"));
     verify(player).sendMessage(contains("already in the faction"));
     Faction other = mock(Faction.class);
@@ -1131,8 +1135,6 @@ class CommandManagerCoverageTest {
     assertTrue(run("faction", "forcejoin", "realm", "Bob"));
     verify(player).sendMessage(contains("already in a faction"));
     factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(null);
-    Player alice = gui.player("Alice"), visitor = gui.player("Visitor");
-    online(alice, visitor);
     assertTrue(run("faction", "forcejoin", "realm", "Bob"));
     verify(faction).addMember("Bob");
     verify(alice).sendMessage(contains("Bob joined"));
@@ -1800,11 +1802,11 @@ class CommandManagerCoverageTest {
     verify(player).sendMessage(contains("Only the leader"));
     when(faction.getLeader()).thenReturn("Leader");
     int oldMaximum = Cache.maxMembers;
-    try (MockedStatic<CharacterNames> characters = mockStatic(CharacterNames.class)) {
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
       assertTrue(run("faction", "invite", "Lady", "Alice"));
       verify(faction, never()).invite(anyString());
       Player alice = gui.player("Alice");
-      characters.when(() -> CharacterNames.resolveOnline(player, "Lady Alice")).thenReturn(alice);
+      characters.when(() -> Members.resolveOnline(player, "Lady Alice")).thenReturn(alice);
       when(faction.isMember("Alice")).thenReturn(true);
       assertTrue(run("faction", "invite", "Lady", "Alice"));
       verify(player).sendMessage(contains("already a member"));
@@ -1841,14 +1843,14 @@ class CommandManagerCoverageTest {
     assertTrue(run("guild", "invite", "Lady", "Alice"));
     verify(player).sendMessage(contains("use /faction invite"));
     when(guild.isBase()).thenReturn(false);
-    try (MockedStatic<CharacterNames> characters = mockStatic(CharacterNames.class)) {
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
       assertTrue(run("guild", "invite", "Lady", "Alice"));
       verify(guild, never()).invite(anyString());
-      characters.when(() -> CharacterNames.resolveOnline(player, "Lady Alice")).thenReturn(player);
+      characters.when(() -> Members.resolveOnline(player, "Lady Alice")).thenReturn(player);
       assertTrue(run("guild", "invite", "Lady", "Alice"));
       verify(player).sendMessage(contains("Cannot invite yourself"));
       Player alice = gui.player("Alice");
-      characters.when(() -> CharacterNames.resolveOnline(player, "Lady Alice")).thenReturn(alice);
+      characters.when(() -> Members.resolveOnline(player, "Lady Alice")).thenReturn(alice);
       when(guild.isInvited("Alice")).thenReturn(true);
       assertTrue(run("guild", "invite", "Lady", "Alice"));
       verify(player).sendMessage(contains("already invited"));
@@ -1888,8 +1890,8 @@ class CommandManagerCoverageTest {
     guildLeader();
     when(faction.hasFactionRule(Rules.CLOSED_BORDERS)).thenReturn(true);
     Player alice = gui.player("Alice");
-    try (MockedStatic<CharacterNames> characters = mockStatic(CharacterNames.class)) {
-      characters.when(() -> CharacterNames.resolveOnline(player, "Alice")).thenReturn(alice);
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
+      characters.when(() -> Members.resolveOnline(player, "Alice")).thenReturn(alice);
       assertTrue(run("guild", "invite", "Alice"));
       verify(player).sendMessage(contains("closed borders"));
       verify(guild, never()).invite("Alice");

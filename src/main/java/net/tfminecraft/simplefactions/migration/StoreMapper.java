@@ -337,7 +337,10 @@ final class StoreMapper {
     String name(String raw, String path, JsonElement fragment) {
         if (Members.isQuarantined(raw)) return raw;
         UUID asKey = Members.characterId(raw);
-        if (asKey != null) return Members.key(asKey);
+        if (asKey != null) {
+            changed |= !Members.key(asKey).equals(raw);
+            return Members.key(asKey);
+        }
         Optional<String> key = names.computeIfAbsent(raw.toLowerCase(Locale.ROOT), lower -> heirs.account(raw)
                 .flatMap(this::heirKey));
         changed = true;

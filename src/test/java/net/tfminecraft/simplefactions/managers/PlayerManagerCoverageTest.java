@@ -294,6 +294,8 @@ class PlayerManagerCoverageTest {
     if (!notification.equals("absent")) {
       when(Bukkit.getPlayer("Leader")).thenReturn(leader);
       when(leader.isOnline()).thenReturn(!notification.equals("offline"));
+    } else {
+      fixture.online.remove("Leader");
     }
     ItemStack book = loanBook(3, borrower);
     if (notification.equals("no_expiry"))
@@ -519,6 +521,8 @@ class PlayerManagerCoverageTest {
     if (!notification.equals("absent")) {
       when(Bukkit.getPlayer("Captain")).thenReturn(captain);
       when(captain.isOnline()).thenReturn(notification.equals("online"));
+    } else {
+      fixture.online.remove("Captain");
     }
     var offer = company.getContractHandler().offer(hirer, ContractTerms.defaults());
     assertTrue(offer.ok(), offer.message());

@@ -73,6 +73,11 @@ public class CommandManager implements Listener, CommandExecutor{
 				() -> dispatchCommand(sender, cmd, label, args));
 	}
 
+	/** The arguments from {@code from} on, joined: character names can have spaces. */
+	static String rest(String[] args, int from) {
+		return String.join(" ", Arrays.copyOfRange(args, from, args.length));
+	}
+
 	private boolean dispatchCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("tradegraph"))
             return net.tfminecraft.simplefactions.guild.network.TradeGraphCommand.handle(sender, args);
@@ -286,7 +291,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				g.kick(Members.key(p));
 				p.sendMessage("§aLeft "+g.getName());
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("kick") && args.length == 2) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("kick") && args.length >= 2) {
 				Guild guild = FactionManager.getGuildByLeader(Members.key(p));
 				if(guild == null) {
 					p.sendMessage("§cYou are not the leader of a guild");
@@ -296,7 +301,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cThis is the base guild, use /faction kick instead");
 					return true;
 				}
-				String kicked = Members.find(guild.getMembers(), args[1]);
+				String kicked = Members.find(guild.getMembers(), rest(args, 1));
 				if(kicked == null) {
 					p.sendMessage("§cPlayer is not a member");
 					return true;
@@ -484,7 +489,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§aGuild colour updated to §f" + rgb);
 				}
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("setleader") && args.length == 2) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("setleader") && args.length >= 2) {
 				Guild g = FactionManager.getGuildByMember(Members.key(p));
 				if(g == null) {
 					p.sendMessage("§cYou need to have a guild to change leader");
@@ -494,7 +499,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cOnly the leader can set a new leader!");
 					return true;
 				}
-				String heir = Members.find(g.getMembers(), args[1]);
+				String heir = Members.find(g.getMembers(), rest(args, 1));
 				if(heir == null) {
 					p.sendMessage("§cPlayer is not in the guild");
 					return true;
@@ -510,7 +515,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 				}
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("forceleader") && args.length == 3) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("forceleader") && args.length >= 3) {
 				if(!Permissions.isAdmin(sender)) {
 					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
 					return true;
@@ -524,7 +529,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cThis is the base guild, use /faction forceleader instead");
 					return true;
 				}
-				String member = Members.find(g.getMembers(), args[2]);
+				String member = Members.find(g.getMembers(), rest(args, 2));
 				if(member == null) {
 					p.sendMessage("§cPlayer is not in the guild");
 					return true;
@@ -877,7 +882,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				InventoryManager i = new InventoryManager();
 				i.factionView(p, f);
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("kick") && args.length == 2) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("kick") && args.length >= 2) {
 				Faction f = FactionManager.getByMember(Members.key(p));
 				if(f == null) {
 					p.sendMessage("§cYou need to have a faction to kick someone");
@@ -887,7 +892,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cOnly the leader can dismiss members!");
 					return true;
 				}
-				String kicked = Members.find(f.getMembers(), args[1]);
+				String kicked = Members.find(f.getMembers(), rest(args, 1));
 				if(kicked != null && kicked.equals(f.getLeader())) {
 					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
@@ -904,7 +909,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				p.sendMessage("§aKicked "+Members.display(kicked));
 				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+f.getName()));
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("setleader") && args.length == 2) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("setleader") && args.length >= 2) {
 				Faction f = FactionManager.getByMember(Members.key(p));
 				if(f == null) {
 					p.sendMessage("§cYou need to have a faction to change leader");
@@ -918,7 +923,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cCannot set leader in a democracy!");
 					return true;
 				}
-				String heir = Members.find(f.getMembers(), args[1]);
+				String heir = Members.find(f.getMembers(), rest(args, 1));
 				if(heir == null) {
 					p.sendMessage("§cPlayer is not in the faction");
 					return true;
@@ -1414,7 +1419,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§aRemoved " + amount + " " + slotWord + " from " + regimentName);
 				}
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("forceleader") && args.length == 3) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("forceleader") && args.length >= 3) {
 				if(!Permissions.isAdmin(sender)) {
 					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
 					return true;
@@ -1424,7 +1429,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§a[SimpleFactions]§c Error! faction does not exist!");
 					return true;
 				}
-				String heir = Members.find(f.getMembers(), args[2]);
+				String heir = Members.find(f.getMembers(), rest(args, 2));
 				if(heir == null) {
 					p.sendMessage("§cPlayer is not in the faction");
 					return true;

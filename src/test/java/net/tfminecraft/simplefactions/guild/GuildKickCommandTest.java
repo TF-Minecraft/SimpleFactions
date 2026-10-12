@@ -37,8 +37,9 @@ class GuildKickCommandTest {
 
 			assertTrue(new CommandManager().onCommand(leader, command, "guild", new String[] {"kick", "steve"}));
 
-			verify(guild).kick("steve");
-			verify(leader).sendMessage("§aKicked steve");
+			// The typed name finds the member by character name; the stored key is what leaves.
+			verify(guild).kick("Steve");
+			verify(leader).sendMessage("§aKicked Steve");
 			verify(member).sendMessage("§aLeader kicked you from Smiths");
 		}
 	}
@@ -90,7 +91,7 @@ class GuildKickCommandTest {
 			assertTrue(new CommandManager().onCommand(leader, command, "guild", new String[] {"kick", "leader"}));
 
 			verify(leader).sendMessage("§cYou cannot dismiss the leader!");
-			bukkit.verifyNoInteractions();
+			verify(guild, never()).kick(org.mockito.ArgumentMatchers.anyString());
 		}
 	}
 
@@ -107,7 +108,7 @@ class GuildKickCommandTest {
 			assertTrue(new CommandManager().onCommand(leader, command, "guild", new String[] {"kick", "Alex"}));
 
 			verify(leader).sendMessage("§cPlayer is not a member");
-			bukkit.verifyNoInteractions();
+			verify(guild, never()).kick(org.mockito.ArgumentMatchers.anyString());
 		}
 	}
 

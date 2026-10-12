@@ -75,6 +75,15 @@ public final class NameKeyedMembers implements Members.Resolver, BeforeEachCallb
                 // No server in this test.
             }
         }
+        if (player == null) {
+            try {
+                for (Player online : Bukkit.getOnlinePlayers()) {
+                    if (online != null && key.equals(online.getName())) return Optional.of(online);
+                }
+            } catch (RuntimeException ignored) {
+                // No server in this test.
+            }
+        }
         return Optional.ofNullable(player);
     }
 

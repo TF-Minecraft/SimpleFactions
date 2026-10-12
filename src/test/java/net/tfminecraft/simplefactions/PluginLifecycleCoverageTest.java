@@ -210,18 +210,26 @@ class PluginLifecycleCoverageTest {
             RpCharactersChatIntegration.class,
             VfBuildersConstructionFreeze.class,
             LeaderCharacterListener.class)) scoped(type);
+    // Character identity is ready and the data was migrated earlier, unless a test says otherwise.
+    scoped(net.tfminecraft.tlibs.character.Characters.class)
+        .when(net.tfminecraft.tlibs.character.Characters::available)
+        .thenReturn(true);
+    scoped(net.tfminecraft.tlibs.character.Characters.class)
+        .when(net.tfminecraft.tlibs.character.Characters::legacyHeirsReady)
+        .thenReturn(true);
+    disk.write("migrations/character-v1.json", "{\"complete\":true,\"stores\":{}}");
     SimpleFactions.plugin = plugin;
   }
 
   @Test
   void incompatibleCharacterApiDisablesBeforeOpeningOrSavingState() {
     scoped(net.tfminecraft.tlibs.character.Characters.class)
-        .when(net.tfminecraft.tlibs.character.Characters::available)
-        .thenThrow(new NoClassDefFoundError("CharacterIdentity"));
+        .when(net.tfminecraft.tlibs.character.Characters::legacyHeirsReady)
+        .thenThrow(new NoSuchMethodError("legacyHeirsReady"));
     plugin.onEnable();
     plugin.onDisable();
     verify(plugins).disablePlugin(plugin);
-    verify(logger).severe(contains("TLibs 2.3.0"));
+    verify(logger).severe(contains("TLibs 2.4.0"));
     verify(plugin, never()).getConfig();
     scoped(BattlePersistenceService.class).verifyNoInteractions();
     scoped(InactivityService.class).verifyNoInteractions();
@@ -955,8 +963,10 @@ class PluginLifecycleCoverageTest {
       assertNotNull(sessions);
       assertSame(
           sessions, constructed.getClass().getMethod("getSessionManager").invoke(constructed));
+      // Never enabled, so shutting down touches nothing.
       constructed.onDisable();
-      scoped(BattleManager.class).verify(BattleManager::shutdown);
+      scoped(BattleManager.class).verify(BattleManager::shutdown, never());
+      scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
     }
   }
 
@@ -1050,6 +1060,8 @@ class PluginLifecycleCoverageTest {
       queries
           .when(() -> VehicleOwnershipQueries.allPersonalVehicles(registry))
           .thenReturn(List.of(personal, unowned));
+      // The fee follows the character the owning account plays.
+      domain.player("Bob");
       plugin.recordVehicleOwners();
       fees.load();
       assertEquals("Bob", fees.getLastOwner("personal"));
