@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.prestige;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -20,7 +22,8 @@ import net.tfminecraft.tlibs.character.Characters;
  *
  * <p>This is read from {@code Faction.updatePrestige()}, which runs for every
  * faction on every bank mutation, so a probe must answer from memory. Never do
- * disk or network work behind it.
+ * disk or network work behind it. {@link #withinPass(Runnable)} asks the probe
+ * once per member for a whole prestige pass.
  */
 public final class MemberPlaytime {
 
@@ -33,6 +36,8 @@ public final class MemberPlaytime {
 	}
 
 	private static Probe probe = Probe.NONE;
+	/** Answers for the running prestige pass, including unknown members. */
+	private static final ThreadLocal<Map<String, Integer>> pass = new ThreadLocal<>();
 
 	private MemberPlaytime() {
 	}
@@ -76,7 +81,26 @@ public final class MemberPlaytime {
 
 	public static Integer secondsFor(String player) {
 		if (player == null || player.isBlank()) return null;
-		return probe.secondsFor(player);
+		Map<String, Integer> answers = pass.get();
+		if (answers == null) return probe.secondsFor(player);
+		if (answers.containsKey(player)) return answers.get(player);
+		Integer seconds = probe.secondsFor(player);
+		answers.put(player, seconds);
+		return seconds;
+	}
+
+	/** Runs a prestige pass that looks each member up once; nested passes share the outer answers. */
+	public static void withinPass(Runnable work) {
+		if (pass.get() != null) {
+			work.run();
+			return;
+		}
+		pass.set(new HashMap<>());
+		try {
+			work.run();
+		} finally {
+			pass.remove();
+		}
 	}
 
 	/**

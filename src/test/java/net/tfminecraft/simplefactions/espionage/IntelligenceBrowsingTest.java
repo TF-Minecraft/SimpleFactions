@@ -17,8 +17,19 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
 
 class IntelligenceBrowsingTest {
-    @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
-    @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
+    // Random report tiers may name office holders, which asks the character service on the main thread.
+    private org.mockito.MockedStatic<org.bukkit.Bukkit> bukkit;
+
+    @org.junit.jupiter.api.BeforeEach void guardEverything() {
+        net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything();
+        bukkit = mockStatic(org.bukkit.Bukkit.class);
+        bukkit.when(org.bukkit.Bukkit::isPrimaryThread).thenReturn(true);
+        bukkit.when(org.bukkit.Bukkit::getServicesManager).thenReturn(mock(org.bukkit.plugin.ServicesManager.class));
+    }
+    @org.junit.jupiter.api.AfterEach void resetEspionage() {
+        bukkit.close();
+        net.tfminecraft.simplefactions.testsupport.EspionageModes.reset();
+    }
 
     private Faction faction(String id) {
         Faction faction = mock(Faction.class, RETURNS_DEEP_STUBS);

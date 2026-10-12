@@ -24,8 +24,7 @@ class OfficeOptionalIntegrationsTest {
             var session = f.activate(UUID.randomUUID());
             try (var rpc = new RoleplayFixture(f)) {
             when(rpc.character.getId()).thenReturn(session.ref().characterId().toString().toUpperCase(Locale.ROOT));
-            assertEquals(session.ref().characterId().toString(), OfficeCharacters.activeCharacterId(f.player));
-            var values = OfficeCharacters.attributes(f.player);
+            var values = OfficeCharacters.attributes(f.player, OfficeCharacters.currentSession(f.player));
             assertEquals(EspionageConfig.DEFAULT_WEIGHTS.keySet(), values.keySet());
             assertTrue(values.values().stream().allMatch(value -> value == 12));
             verify(f.plugins).isPluginEnabled("MMOCore");
@@ -96,8 +95,6 @@ class OfficeOptionalIntegrationsTest {
                 default -> throw new AssertionError(invalid);
             }
             assertNull(OfficeCharacters.currentSession(f.player));
-            assertNull(OfficeCharacters.activeCharacterId(f.player));
-            assertThrows(OfficeCharacters.StaleCharacterSession.class, () -> OfficeCharacters.attributes(f.player));
         }
     }
 
@@ -265,9 +262,9 @@ class OfficeOptionalIntegrationsTest {
             var service = Class.forName(EspionageService.class.getName(), true, loader);
             assertDoesNotThrow(service::getDeclaredMethods);
             var bridge = Class.forName(OfficeCharacters.class.getName(), true, loader);
-            var active = bridge.getDeclaredMethod("activeCharacterId", Player.class);
-            active.setAccessible(true);
-            assertNull(active.invoke(null, new Object[]{null}));
+            var current = bridge.getDeclaredMethod("currentSession", Player.class);
+            current.setAccessible(true);
+            assertNull(current.invoke(null, new Object[]{null}));
         }
     }
 }

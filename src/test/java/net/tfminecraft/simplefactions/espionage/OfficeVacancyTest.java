@@ -266,6 +266,22 @@ class OfficeVacancyTest {
         }
     }
 
+    @Test void deathLedgerKeepsOnlyTheMostRecentDeathsAcrossAGsonReload() {
+        var state = new EspionageState();
+        var deaths = new java.util.ArrayList<UUID>();
+        for (int i = 0; i <= EspionageState.HANDLED_DEATH_LIMIT; i++) {
+            deaths.add(UUID.randomUUID());
+            state.rememberDeath(deaths.getLast());
+        }
+        state.rememberDeath(deaths.getLast());
+        state = JsonUtil.GSON.fromJson(JsonUtil.GSON.toJson(state), EspionageState.class);
+        assertFalse(state.handledDeath(deaths.getFirst()));
+        for (UUID kept : deaths.subList(1, deaths.size())) assertTrue(state.handledDeath(kept));
+        state.rememberDeath(UUID.randomUUID());
+        assertFalse(state.handledDeath(deaths.get(1)), "Order survives the reload");
+        assertTrue(state.handledDeath(deaths.get(2)));
+    }
+
     @Test void newDeathAfterRevivalAndReappointmentStillRevokesTheSameCharacter() {
         try (var fixture = new DeathFixture()) {
             fixture.appoint(fixture.ref.ownerId(), fixture.ref.characterId().toString(), 1000);

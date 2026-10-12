@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.prestige;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -70,6 +71,29 @@ class MemberPlaytimeTest {
 	void tearDown() {
 		Cache.maxPlaytimePrestigeExponent = previousCap;
 		MemberPlaytime.reset();
+	}
+
+	/** A pass remembers every answer, unknown members included, and forgets them afterwards. */
+	@Test
+	void withinPass_asksOncePerMemberAndForgetsAfterwards() {
+		Map<String, Integer> lookups = new HashMap<>();
+		MemberPlaytime.setProbe(player -> {
+			lookups.merge(player, 1, Integer::sum);
+			return player.equals("Alice") ? 7200 : null;
+		});
+		MemberPlaytime.withinPass(() -> {
+			MemberPlaytime.totalFor(List.of("Alice", "Bob"));
+			MemberPlaytime.withinPass(() -> MemberPlaytime.totalFor(List.of("Alice", "Bob")));
+			assertEquals(7200, MemberPlaytime.secondsFor("Alice"));
+			assertNull(MemberPlaytime.secondsFor("Bob"));
+		});
+		assertEquals(Map.of("Alice", 1, "Bob", 1), lookups);
+		assertThrows(IllegalStateException.class, () -> MemberPlaytime.withinPass(() -> {
+			MemberPlaytime.secondsFor("Alice");
+			throw new IllegalStateException("pass failed");
+		}));
+		MemberPlaytime.secondsFor("Alice");
+		assertEquals(3, lookups.get("Alice"), "A failed pass does not leave answers behind");
 	}
 
 	/** Without a playtime source the term leaves prestige unchanged. */
