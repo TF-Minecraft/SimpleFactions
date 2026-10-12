@@ -11,9 +11,12 @@ import net.tfminecraft.simplefactions.objects.Faction;
 final class EspionageTestFixtures {
     private EspionageTestFixtures() {}
 
-    /** A stable character ID for a test name; offices match members by this key. */
+    /**
+     * A stable character ID for a test name; offices match members by its key,
+     * which is the name itself under the default name-keyed test resolver.
+     */
     static UUID characterOf(String name) {
-        return UUID.nameUUIDFromBytes(("character-" + name).getBytes(StandardCharsets.UTF_8));
+        return net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf(name);
     }
 
     /** The member key of {@link #characterOf(String)}. */

@@ -132,8 +132,7 @@ class EspionageMenusCoverageTest {
   private CharacterSession session(Player player) {
     if (player == null) return null;
     return sessions.computeIfAbsent(player.getUniqueId(), owner -> new CharacterSession(
-        new CharacterRef(owner, UUID.nameUUIDFromBytes(
-            ("character-" + player.getName()).getBytes(StandardCharsets.UTF_8))), 1));
+        new CharacterRef(owner, EspionageTestFixtures.characterOf(player.getName())), 1));
   }
 
   private SpecialPositionAssignment assign(

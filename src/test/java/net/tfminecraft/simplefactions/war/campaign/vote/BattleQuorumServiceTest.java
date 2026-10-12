@@ -86,6 +86,15 @@ class BattleQuorumServiceTest {
 	}
 
 	@Test
+	void aMemberWithoutAKnownAccountLeavesTheSmallestSideUnrepresented() {
+		War war = baseWar();
+		UUID alice = UUID.randomUUID();
+		war.getBattleVotes().put(alice, Set.of(21));
+		assertFalse(BattleQuorumService.isSmallestSideFullyRepresented(
+				war, name -> "Alice".equals(name) ? alice : null));
+	}
+
+	@Test
 	void meetsQuorum_failsWhenNeitherThresholdMet() {
 		War war = baseWar();
 		UUID alice = UUID.randomUUID();
