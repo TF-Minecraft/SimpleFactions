@@ -626,13 +626,17 @@ class FactionManagerCoverageTest {
     when(guild.getRelocationCost(7)).thenReturn(25.5);
     when(guild.getBank().getWealth()).thenReturn(25.0);
     FactionManager.acceptRelocateRequest(leader);
-    verify(guild.getBank(), never()).withdraw(anyDouble());
     verify(guild, never()).relocate(any(), anyInt(), any(), any());
     verify(sender).sendMessage(contains("does not have enough funds"));
     when(guild.getBank().getWealth()).thenReturn(25.5);
-    FactionManager.acceptRelocateRequest(leader);
-    verify(guild.getBank()).withdraw(25.5);
-    verify(guild).relocate(target, 7, sender, "Riverside");
+    var request = (RelocateRequest) RequestManager.getRequest(leader);
+    try (var topology = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryTopology.class)) {
+      topology.when(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, "Riverside", 25.5, request.getOperationId(), sender)).thenReturn(true);
+      FactionManager.acceptRelocateRequest(leader);
+      topology.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, "Riverside", 25.5, request.getOperationId(), sender));
+    }
     verify(leader).sendMessage("Artisans§a has been relocated to your faction");
   }
 
@@ -648,9 +652,14 @@ class FactionManagerCoverageTest {
     RequestManager.addRequest(leader, leader, new RelocateRequest(guild, 7, null));
     when(guild.getRelocationCost(7)).thenReturn(10.0);
     when(guild.getBank().getWealth()).thenReturn(20.0);
-    FactionManager.acceptRelocateRequest(leader);
-    verify(guild).relocate(target, 7, leader, null);
-    verify(guild.getBank()).withdraw(10.0);
+    var request = (RelocateRequest) RequestManager.getRequest(leader);
+    try (var topology = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryTopology.class)) {
+      topology.when(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, null, 10.0, request.getOperationId(), leader)).thenReturn(true);
+      FactionManager.acceptRelocateRequest(leader);
+      topology.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, null, 10.0, request.getOperationId(), leader));
+    }
   }
 
   @Test
