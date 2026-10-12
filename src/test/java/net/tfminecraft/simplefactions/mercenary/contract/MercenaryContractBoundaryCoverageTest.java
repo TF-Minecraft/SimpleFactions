@@ -37,6 +37,13 @@ import org.junit.jupiter.api.Test;
 
 class MercenaryContractBoundaryCoverageTest {
   @Test
+  void absentReputationIntegrationDoesNotChangeTheContract() {
+    MercenaryContract contract = org.mockito.Mockito.mock(MercenaryContract.class);
+    ContractReputationSeam.NONE.onTermination(contract, null);
+    org.mockito.Mockito.verifyNoInteractions(contract);
+  }
+
+  @Test
   void wageOverridesAreKeyedExactlyWhateverTheLocale() {
     Locale previous = Locale.getDefault();
     try {
