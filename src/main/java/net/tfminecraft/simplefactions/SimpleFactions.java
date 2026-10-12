@@ -227,7 +227,7 @@ public class SimpleFactions extends JavaPlugin{
 	private final BattleVehicleEligibilityService.Listener battleVehicleEligibilityListener =
 			new BattleVehicleEligibilityService.Listener(vehicleRegistry);
 	private final VehicleMaintenancePayService vehicleMaintenancePayService =
-			new VehicleMaintenancePayService(vehicleMaintenanceStore, DenarEconomyPlayerBank.INSTANCE);
+			new VehicleMaintenancePayService(vehicleMaintenanceStore);
 	private final VehicleMaintenanceRepairListener vehicleMaintenanceRepairListener =
 			new VehicleMaintenanceRepairListener(vehicleMaintenanceStore);
 	private final VehicleMaintenancePayListener vehicleMaintenancePayListener =
@@ -410,7 +410,10 @@ public class SimpleFactions extends JavaPlugin{
 			);
 		}
 		net.tfminecraft.simplefactions.inactivity.InactivityService.load();
-		db.loadFactions();
+        try {
+            net.tfminecraft.simplefactions.economy.TreasuryActions.recoverTopologyFiles(getDataFolder().toPath().resolve("economy/callers"));
+        } catch (Exception error) { failFinancialState(error); return; }
+        db.loadFactions();
 		try {
 			net.tfminecraft.simplefactions.espionage.EspionageService.loadAptitudes(
 					getDataFolder().toPath().resolve("Cache/character-aptitudes.json"));
@@ -470,6 +473,10 @@ public class SimpleFactions extends JavaPlugin{
             }
             FactionManager.updateAllPrestigeConverged();
             net.tfminecraft.simplefactions.identity.death.CharacterDeaths.load(getDataFolder().toPath());
+            net.tfminecraft.simplefactions.economy.TreasuryActions.recover(getDataFolder().toPath().resolve("economy/callers"));
+            if (getServer().getPluginManager().isPluginEnabled("VehicleFramework"))
+                net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.startup(getDataFolder().toPath(), vehicleRegistry);
+            net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.startup(getDataFolder().toPath(), vehicleFeeStore, vehicleMaintenanceStore);
             net.tfminecraft.simplefactions.economy.ExternalIncome.recover(getDataFolder().toPath());
             realmSettlementService = new net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService(getDataFolder().toPath(), db);
             realmSettlementService.recover();
@@ -533,6 +540,7 @@ public class SimpleFactions extends JavaPlugin{
 		started = false;
         getServer().getServicesManager().unregisterAll(this);
         net.tfminecraft.simplefactions.identity.death.CharacterDeaths.stop();
+        net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.stop();
 		if (!servicesBegun) {
 			// Still waiting for identity: nothing was loaded, so nothing may be saved.
 			return;

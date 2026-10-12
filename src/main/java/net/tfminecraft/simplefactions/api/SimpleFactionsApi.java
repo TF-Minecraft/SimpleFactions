@@ -20,7 +20,9 @@ public final class SimpleFactionsApi {
 
     public static boolean ready() {
         SimpleFactions plugin = SimpleFactions.getInstance();
-        return plugin != null && plugin.isStarted();
+        return plugin != null && plugin.isStarted()
+                && net.tfminecraft.tlibs.character.Characters.available()
+                && net.tfminecraft.denareconomy.api.Denars.ready();
     }
 
     /** Empty while unavailable; check ready() before making persistence decisions. */

@@ -190,6 +190,7 @@ class PluginLifecycleCoverageTest {
     for (Class<?> type :
         List.of(
             InactivityService.class,
+            net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.class,
             net.tfminecraft.tlibs.character.Characters.class,
             EspionageService.class,
             SpecialPositionsConfigFile.class,

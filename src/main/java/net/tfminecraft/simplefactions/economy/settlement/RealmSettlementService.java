@@ -38,7 +38,7 @@ public final class RealmSettlementService {
             var claims = CharacterDeaths.pendingPayments().stream().map(payment -> new RealmSettlementCalculation.Claim(
                     payment.id(), payment.guildIncarnation(), payment.characterId(), payment.cents(), payment.kind())).toList();
             return new RealmSettlementCalculation(day, prepared.timestamp(), FactionManager.getAllGuilds(), claims)
-                    .withPreparedUpkeep(prepared.upkeep()).calculate(VehicleSettlement::calculate);
+                    .withPreparedUpkeep(prepared.upkeep()).calculate((balances, legs, changes) -> VehicleSettlement.calculate(balances, legs, changes, prepared.timestamp()));
         }, effects);
         if (result != Result.APPLIED) throw new IOException("Realm settlement " + day + " remains " + result);
         preparation.complete(day);

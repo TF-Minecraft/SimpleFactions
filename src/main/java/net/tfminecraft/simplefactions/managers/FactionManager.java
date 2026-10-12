@@ -598,11 +598,13 @@ public class FactionManager implements Listener{
 
 	/** The faction identity of the character in this player's current session. */
 	public static Guild getGuildByMember(Player player) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
 		return getGuildByMember(Members.key(player));
 	}
 
 	/** Looks up a character ID, never a Minecraft account UUID. */
 	public static Guild getGuildByMember(java.util.UUID characterId) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
 		return getGuildByMember(Members.key(characterId));
 	}
 
@@ -618,11 +620,13 @@ public class FactionManager implements Listener{
 
 	/** The faction identity of the character in this player's current session. */
 	public static Guild getGuildByLeader(Player player) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
 		return getGuildByLeader(Members.key(player));
 	}
 
 	/** Looks up a character ID, never a Minecraft account UUID. */
 	public static Guild getGuildByLeader(java.util.UUID characterId) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
 		return getGuildByLeader(Members.key(characterId));
 	}
 
@@ -827,11 +831,13 @@ public class FactionManager implements Listener{
 	}
 	/** The faction identity of the character in this player's current session. */
 	public static Faction getByLeader(Player player) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
 		return getByLeader(Members.key(player));
 	}
 
 	/** Looks up a character ID, never a Minecraft account UUID. */
 	public static Faction getByLeader(java.util.UUID characterId) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
 		return getByLeader(Members.key(characterId));
 	}
 
@@ -844,12 +850,20 @@ public class FactionManager implements Listener{
 	}
 	/** The faction identity of the character in this player's current session. */
 	public static Faction getByMember(Player player) {
-		return getByMember(Members.key(player));
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+        String key = Members.key(player);
+        if (key == null) return null;
+        for (Faction faction : factions) if (faction.isMember(key) || key.equals(faction.getLeader())) return faction;
+        return null;
 	}
 
 	/** Looks up a character ID, never a Minecraft account UUID. */
 	public static Faction getByMember(java.util.UUID characterId) {
-		return getByMember(Members.key(characterId));
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+        String key = Members.key(characterId);
+        if (key == null) return null;
+        for (Faction faction : factions) if (faction.isMember(key) || key.equals(faction.getLeader())) return faction;
+        return null;
 	}
 
 	public static Faction getByMember(String name) {

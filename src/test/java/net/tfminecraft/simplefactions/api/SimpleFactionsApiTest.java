@@ -48,7 +48,7 @@ class SimpleFactionsApiTest {
     @Test
     void readyOnlyOnceThePluginHasStarted() {
         SimpleFactions previous = SimpleFactions.plugin;
-        try {
+        try (var fixture = new net.tfminecraft.simplefactions.testsupport.GuiTestFixture()) {
             SimpleFactions.plugin = null;
             assertFalse(SimpleFactionsApi.ready());
             SimpleFactions plugin = mock(SimpleFactions.class);
