@@ -97,6 +97,13 @@ public class GuildHandler {
         guilds.put(g.getId(), g);
     }
 
+    /** Journal replay supplies the full membership of this realm without rerunning departure effects. */
+    public void restoreTopology(List<Guild> restored) {
+        for (String id : new ArrayList<>(guilds.keySet())) clearProvinceData(id);
+        guilds.clear();
+        for (Guild guild : restored) guilds.put(guild.getId(), guild);
+    }
+
     public List<String> getAllMembers() {
         List<String> members = new ArrayList<>();
         for(Guild g : guilds.values()) {

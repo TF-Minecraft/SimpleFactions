@@ -10,6 +10,7 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.RelocateRequest;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
+import net.tfminecraft.simplefactions.testsupport.TestTreasuries;
 import net.tfminecraft.simplefactions.utils.DisplayNameGate;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
@@ -53,7 +54,7 @@ class RelocationLifecycleCoverageTest {
       fixture.provinceData.put(id, new Province(id, "PLAINS", 50));
     guild = fixture.guild(host, "traders", "Alice");
     guild.setCapital(1);
-    guild.getBank().setWealth(100.0);
+    TestTreasuries.set(guild.getBank(), 100.0);
     host.getSettlementHandler().found("Old_City", 1, 0, 0);
     player = fixture.player("Alice");
     receiver = fixture.player("Bob");
@@ -132,7 +133,7 @@ class RelocationLifecycleCoverageTest {
   @Test
   void moneySpentWhilePromptWasOpenCannotBeSpentAgain() {
     begin(2);
-    guild.getBank().setWealth(5.0);
+    TestTreasuries.set(guild.getBank(), 5.0);
     assertTrue(chat("New_City").isCancelled());
     fixture.ui.runTasks();
     assertEquals(1, guild.getCapital());
@@ -249,18 +250,15 @@ class RelocationLifecycleCoverageTest {
     assertEquals(1, guild.getCapital());
     assertSame(old, host.getSettlementHandler().getByProvince(1));
     assertEquals(100.0, guild.getBank().getWealth());
-    verify(fixture.map).claim(player, host, 4, true);
+    assertFalse(host.hasProvince(4));
   }
 
   @Test
   void successfulClaimMovesAndChargesAfterFounding() {
-    doAnswer(
-            call -> {
-              host.addProvince(4);
-              return null;
-            })
-        .when(fixture.map)
-        .claim(player, host, 4, true);
+    host.setCapital(2, true, false);
+    host.setPrestige(100000.0);
+    fixture.provinceData.get(2).addNeighbour(4);
+    fixture.provinceData.get(4).addNeighbour(2);
     assertTrue(
         RelocationPrompt.completeIntraFactionRelocate(player, guild, host, 4, "New_City", 20));
     assertEquals(4, guild.getCapital());
@@ -280,13 +278,10 @@ class RelocationLifecycleCoverageTest {
 
   @Test
   void successfulNewClaimAlsoRemovesTheVacatedCity() {
-    doAnswer(
-            call -> {
-              host.addProvince(4);
-              return null;
-            })
-        .when(fixture.map)
-        .claim(player, host, 4, true);
+    host.setCapital(2, true, false);
+    host.setPrestige(100000.0);
+    fixture.provinceData.get(2).addNeighbour(4);
+    fixture.provinceData.get(4).addNeighbour(2);
     assertTrue(
         RelocationPrompt.completeIntraFactionRelocate(player, guild, host, 4, "New_City", 20));
     assertNull(host.getSettlementHandler().getByProvince(1));
@@ -296,13 +291,10 @@ class RelocationLifecycleCoverageTest {
   @Test
   void anInvalidNameCannotClaimLandBeforeRelocationIsRejected() {
     host.getSettlementHandler().found("Taken", 3, 0, 0);
-    doAnswer(
-            call -> {
-              host.addProvince(4);
-              return null;
-            })
-        .when(fixture.map)
-        .claim(player, host, 4, true);
+    host.setCapital(2, true, false);
+    host.setPrestige(100000.0);
+    fixture.provinceData.get(2).addNeighbour(4);
+    fixture.provinceData.get(4).addNeighbour(2);
     assertFalse(RelocationPrompt.completeIntraFactionRelocate(player, guild, host, 4, "Taken", 20));
     assertFalse(host.hasProvince(4));
     assertEquals(1, guild.getCapital());

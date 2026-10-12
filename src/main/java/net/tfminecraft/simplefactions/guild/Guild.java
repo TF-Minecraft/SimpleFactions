@@ -417,6 +417,12 @@ public class Guild {
     public void setHost(Faction host) {
         this.host = host;
     }
+
+    /** Exact journal after-values; derived trade data is refreshed once all affected realms agree. */
+    public void restoreTopology(Faction faction, int restoredCapital) {
+        host = faction;
+        capital = restoredCapital;
+    }
     public List<String> getInvites() { return invites; }
     public boolean isInvited(String p) {
         return find(invites, p) != null;

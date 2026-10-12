@@ -8,6 +8,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
+import net.tfminecraft.simplefactions.testsupport.TestTreasuries;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -44,7 +45,7 @@ class CapitalMoveLifecycleCoverageTest {
     data.capital = 1;
     faction = fixture.saved(data);
     faction.getOrCreateMainGuild();
-    faction.getBank().setWealth(100.0);
+    TestTreasuries.set(faction.getBank(), 100.0);
     faction.getSettlementHandler().found("Old_City", 1, 0, 0);
     player = fixture.player("Alice");
     fixture.inventory.confirming = new HashMap<>();
@@ -98,7 +99,7 @@ class CapitalMoveLifecycleCoverageTest {
   @Test
   void insufficientBankBalanceDoesNotOpenConfirmation() {
     faction.setCapitalMoves(1);
-    faction.getBank().setWealth(5.0);
+    TestTreasuries.set(faction.getBank(), 5.0);
     CapitalMovePrompt.begin(player, faction, 1, "New_City", true);
     assertTrue(pending.isEmpty());
     assertTrue(fixture.inventory.confirming.isEmpty());
@@ -164,4 +165,13 @@ class CapitalMoveLifecycleCoverageTest {
     assertTrue(faction.getSettlementHandler().getByProvince(1).getName().contains("Old City"));
     assertEquals(0, faction.getCapitalMoves());
   }
+  @Test void changingCharacterAfterOpeningConfirmationLeavesBothTreasuryAndTopologyUntouched() {
+    CapitalMovePrompt.begin(player, faction, 1, "New_City", true);
+    try (var identity = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      identity.when(() -> net.tfminecraft.simplefactions.identity.Members.isCurrent(any())).thenReturn(false);
+      CapitalMovePrompt.handleConfirm(player, true);
+    }
+    assertUnchanged();
+  }
+
 }

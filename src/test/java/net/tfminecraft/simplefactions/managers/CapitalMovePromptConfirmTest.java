@@ -20,6 +20,9 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.CapitalMovePrompt.CapitalMovePending;
 import net.tfminecraft.simplefactions.managers.CapitalMovePrompt.Outcome;
 import net.tfminecraft.simplefactions.objects.Bank;
+import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
+import net.tfminecraft.simplefactions.testsupport.TestTreasuries;
+import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.settlement.Settlement;
 import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
@@ -27,7 +30,7 @@ import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 class CapitalMovePromptConfirmTest {
 	private static final int CAPITAL = 395;
 
-	private MockedStatic<FactionManager> factionManager;
+	private FactionDomainFixture fixture;
 	private Player player;
 	private Faction faction;
 	private Bank bank;
@@ -35,24 +38,24 @@ class CapitalMovePromptConfirmTest {
 
 	@BeforeEach
 	void setUp() {
-		player = mock(Player.class);
-		when(player.getName()).thenReturn("leader");
-		faction = mock(Faction.class);
-		bank = mock(Bank.class);
-		when(faction.getBank()).thenReturn(bank);
-		when(faction.getCapital()).thenReturn(CAPITAL);
-		SettlementHandler settlements = new SettlementHandler(faction);
-		capital = settlements.found("Arclock Cove", CAPITAL, 0, 0).getSettlement();
-		settlements.found("Fort Yuri", 393, 0, 0);
-		when(faction.getSettlementHandler()).thenReturn(settlements);
-
-		factionManager = mockStatic(FactionManager.class);
-		factionManager.when(() -> FactionManager.getByLeader("leader")).thenReturn(faction);
+        fixture = new FactionDomainFixture();
+        fixture.provincesEnabled(true);
+        fixture.provinceData.put(CAPITAL, new Province(CAPITAL, "PLAINS", 50));
+        fixture.provinceData.put(393, new Province(393, "PLAINS", 50));
+        var data = fixture.data("realm", "leader");
+        data.provinces.addAll(java.util.List.of(CAPITAL, 393));
+        data.capital = CAPITAL;
+        faction = fixture.saved(data);
+        faction.getOrCreateMainGuild();
+        bank = faction.getBank();
+        capital = faction.getSettlementHandler().found("Arclock Cove", CAPITAL, 0, 0).getSettlement();
+        faction.getSettlementHandler().found("Fort Yuri", 393, 0, 0);
+        player = fixture.player("leader");
 	}
 
 	@AfterEach
 	void tearDown() {
-		factionManager.close();
+		fixture.close();
 	}
 
 	/** The pending rename as begin() stores it, priced when the menu opens. */
@@ -63,85 +66,89 @@ class CapitalMovePromptConfirmTest {
 
 	@Test
 	void laterRenameChargesTheShownPriceAndCountsIt() {
-		when(faction.getCapitalMoves()).thenReturn(1);
-		when(bank.getWealth()).thenReturn(500.0);
+		faction.setCapitalMoves(1);
+		TestTreasuries.set(bank, 500.0);
 
 		assertEquals(Outcome.CHANGED, CapitalMovePrompt.confirm(player, renameTo("The_Ashen_Rose"), true));
 
-		assertTrue(capital.getName().endsWith("The Ashen Rose"));
-		verify(bank).withdraw(Cache.capitalMoveCost);
-		verify(faction).setCapitalMoves(2);
+		assertTrue(faction.getSettlementHandler().getByProvince(CAPITAL).getName().endsWith("The Ashen Rose"));
+		assertEquals(500.0 - Cache.capitalMoveCost, bank.getWealth());
+		assertEquals(2, faction.getCapitalMoves());
 	}
 
 	@Test
 	void firstRenameIsFreeAndCounted() {
-		when(faction.getCapitalMoves()).thenReturn(0);
+		faction.setCapitalMoves(0);
 
 		assertEquals(Outcome.CHANGED, CapitalMovePrompt.confirm(player, renameTo("The_Ashen_Rose"), true));
 
-		verify(bank, never()).withdraw(anyDouble());
-		verify(faction).setCapitalMoves(1);
+		assertEquals(0.0, bank.getWealth());
+		assertEquals(1, faction.getCapitalMoves());
 	}
 
 	@Test
 	void cancelChargesNothing() {
-		when(faction.getCapitalMoves()).thenReturn(1);
-		when(bank.getWealth()).thenReturn(500.0);
+		faction.setCapitalMoves(1);
+		TestTreasuries.set(bank, 500.0);
 
 		assertEquals(Outcome.CANCELLED, CapitalMovePrompt.confirm(player, renameTo("The_Ashen_Rose"), false));
 
 		assertUnchangedAndUncharged();
+        assertEquals(500.0, bank.getWealth());
 	}
 
 	@Test
 	void bankEmptiedWhileOpenChargesNothing() {
-		when(faction.getCapitalMoves()).thenReturn(1);
+		faction.setCapitalMoves(1);
 		CapitalMovePending state = renameTo("The_Ashen_Rose");
-		when(bank.getWealth()).thenReturn(10.0);
+		TestTreasuries.set(bank, 10.0);
 
 		assertEquals(Outcome.REFUSED, CapitalMovePrompt.confirm(player, state, true));
 
 		assertUnchangedAndUncharged();
+        assertEquals(10.0, bank.getWealth());
 	}
 
 	@Test
 	void priceChangedWhileOpenChargesNothing() {
-		when(faction.getCapitalMoves()).thenReturn(0);
+		faction.setCapitalMoves(0);
 		CapitalMovePending state = renameTo("The_Ashen_Rose");
-		when(faction.getCapitalMoves()).thenReturn(1);
-		when(bank.getWealth()).thenReturn(500.0);
+		faction.setCapitalMoves(1);
+		TestTreasuries.set(bank, 500.0);
 
 		assertEquals(Outcome.REFUSED, CapitalMovePrompt.confirm(player, state, true));
 
 		assertUnchangedAndUncharged();
+        assertEquals(500.0, bank.getWealth());
 	}
 
 	@Test
 	void capitalMovedWhileOpenChargesNothing() {
-		when(faction.getCapitalMoves()).thenReturn(1);
-		when(bank.getWealth()).thenReturn(500.0);
+		faction.setCapitalMoves(1);
+		TestTreasuries.set(bank, 500.0);
 		CapitalMovePending state = renameTo("The_Ashen_Rose");
-		when(faction.getCapital()).thenReturn(393);
+		faction.setCapital(393, true, false);
 
 		assertEquals(Outcome.REFUSED, CapitalMovePrompt.confirm(player, state, true));
 
 		assertUnchangedAndUncharged();
+        assertEquals(500.0, bank.getWealth());
 	}
 
 	@Test
 	void failedRenameChargesNothing() {
-		when(faction.getCapitalMoves()).thenReturn(1);
-		when(bank.getWealth()).thenReturn(500.0);
+		faction.setCapitalMoves(1);
+		TestTreasuries.set(bank, 500.0);
 
 		// Fort Yuri's id belongs to the other settlement, so the rename fails.
 		assertEquals(Outcome.REFUSED, CapitalMovePrompt.confirm(player, renameTo("Fort_Yuri"), true));
 
 		assertUnchangedAndUncharged();
+        assertEquals(500.0, bank.getWealth());
 	}
 
 	private void assertUnchangedAndUncharged() {
 		assertTrue(capital.getName().endsWith("Arclock Cove"));
-		verify(bank, never()).withdraw(anyDouble());
-		verify(faction, never()).setCapitalMoves(anyInt());
+		assertEquals(1, faction.getCapitalMoves());
 	}
 }

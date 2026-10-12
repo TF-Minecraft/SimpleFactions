@@ -941,7 +941,14 @@ public class FactionManager implements Listener{
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
 		sender.sendMessage("§aRelocation request sent to "+target.getName());
-		RequestManager.addRequest(sender, p, new RelocateRequest(g, capital, settlementName, target));
+        var sendingSession = Members.session(sender).orElse(null);
+        var receivingSession = Members.session(p).orElse(null);
+        if (sendingSession == null || receivingSession == null) {
+            sender.sendMessage("§cBoth characters must be ready before requesting relocation.");
+            return;
+        }
+        RequestManager.addRequest(sender, p, new RelocateRequest(g, capital, settlementName, target,
+                sendingSession, receivingSession));
 	}
 
 	public static void acceptRelocateRequest(Player p) {
@@ -984,8 +991,8 @@ public class FactionManager implements Listener{
 			p.sendMessage(validation.getMessage());
 			return;
 		}
-		sender.relocate(reciever, capital, actor, req.getSettlementName());
-		sender.getBank().withdraw(cost);
+		if (!net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(p, sender, reciever,
+				capital, req.getSettlementName(), cost, req.getOperationId(), actor)) return;
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request to relocate to their faction");
 		p.sendMessage(sender.getName()+"§a has been relocated to your faction");
 	}

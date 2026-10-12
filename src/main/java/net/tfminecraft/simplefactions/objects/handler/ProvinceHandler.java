@@ -420,13 +420,15 @@ public class ProvinceHandler {
 	}
 
 	private Set<Integer> computeLegalProvinces(ProvinceManager pm, int factionCapital) {
+		return computeLegalProvinces(pm, factionCapital, f.getGuildHandler().getGuilds().stream()
+				.filter(Guild::hasCapital).map(Guild::getCapital).toList());
+	}
+
+	private Set<Integer> computeLegalProvinces(ProvinceManager pm, int factionCapital, java.util.Collection<Integer> capitals) {
 		Set<Integer> legal = new HashSet<>();
 		Set<Integer> capitalBlob = capitalLandBlob(pm, factionCapital);
 
-		for (Guild g : f.getGuildHandler().getGuilds()) {
-			if (!g.hasCapital()) continue;
-
-			int cap = g.getCapital();
+		for (int cap : capitals) {
 			if (!isCapitalStillLegal(pm, cap, factionCapital)) {
 				continue;
 			}
@@ -456,6 +458,30 @@ public class ProvinceHandler {
 		}
 
 		return legal;
+	}
+
+	/** Detached claim calculation for a persisted capital/relocation intent. */
+	public record TopologyClaims(List<Integer> provinces, java.util.Map<String, Integer> capitals) {}
+	public TopologyClaims previewTopology(int proposedCapital, List<Integer> owned,
+			java.util.Map<String, Integer> capitals) {
+		ProvinceHandler copy = new ProvinceHandler(f);
+		copy.capital = proposedCapital;
+		copy.provinces = new ArrayList<>(owned);
+		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
+		java.util.Map<String, Integer> after = new java.util.LinkedHashMap<>(capitals);
+		after.replaceAll((id, cap) -> cap != -1 && !copy.isCapitalStillLegal(pm, cap, proposedCapital) ? -1 : cap);
+		int effectiveCapital = after.getOrDefault(f.getId(), proposedCapital);
+		copy.capital = effectiveCapital;
+		Set<Integer> legal = copy.computeLegalProvinces(pm, effectiveCapital,
+				after.values().stream().filter(cap -> cap != -1).toList());
+		return new TopologyClaims(owned.stream().filter(legal::contains).toList(), java.util.Map.copyOf(after));
+	}
+
+	/** Apply the exact saved topology; callers rebuild derived province data after all realms are restored. */
+	public void restoreTopology(int restoredCapital, List<Integer> restoredProvinces) {
+		capital = restoredCapital;
+		provinces.clear();
+		provinces.addAll(restoredProvinces);
 	}
 
 	private boolean isCapitalStillLegal(ProvinceManager pm, int guildCapitalId, int factionCapitalId) {

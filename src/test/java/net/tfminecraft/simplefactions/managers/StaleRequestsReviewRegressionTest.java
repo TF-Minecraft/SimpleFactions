@@ -14,6 +14,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.RelationRequest;
 import net.tfminecraft.simplefactions.objects.request.RelocateRequest;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
+import net.tfminecraft.simplefactions.testsupport.TestTreasuries;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -141,7 +142,7 @@ class StaleRequestsReviewRegressionTest {
     guild = domain.guild(origin, "traders", "GuildLeader");
     Player sender = domain.player("GuildLeader");
     guild.setCapital(1);
-    guild.getBank().setWealth(500.0);
+    TestTreasuries.set(guild.getBank(), 500.0);
     FactionManager.requestRelocation(sender, guild, target, 2, "Destination");
     assertSame(
         guild, assertInstanceOf(RelocateRequest.class, RequestManager.getRequest(bob)).getSender());
@@ -184,7 +185,7 @@ class StaleRequestsReviewRegressionTest {
   @Test
   void aBaseGuildCannotBeChargedForARelocationThatDoesNothing() {
     guild = origin.getOrCreateMainGuild();
-    guild.getBank().setWealth(500.0);
+    TestTreasuries.set(guild.getBank(), 500.0);
     FactionManager.requestRelocation(alice, guild, target, 2, "Destination");
     assertDoesNotThrow(() -> RequestManager.accept(bob));
     assertEquals(500.0, guild.getBank().getWealth());
@@ -277,4 +278,15 @@ class StaleRequestsReviewRegressionTest {
     RequestManager.accept(bob);
     assertEquals(400.0, guild.getBank().getWealth());
   }
+  @Test void aRelocationRequestCapturesBothCharacterSessions() {
+    requestRelocation();
+    try (var identity = org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.identity.Members.class,
+        org.mockito.Mockito.CALLS_REAL_METHODS)) {
+      identity.when(() -> net.tfminecraft.simplefactions.identity.Members.isCurrent(org.mockito.ArgumentMatchers.any())).thenReturn(false);
+      RequestManager.accept(bob);
+    }
+    assertSame(origin, guild.getFaction());
+    assertEquals(500, guild.getBank().getWealth());
+  }
+
 }
