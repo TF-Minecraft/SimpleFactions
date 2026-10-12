@@ -157,7 +157,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cOnly the leader can dismiss members!");
 					return true;
 				}
-				Player kickTarget = Bukkit.getPlayerExact(args[1]);
+				Player kickTarget = onlineTarget(args[1]);
 				if (kickTarget != null && kickTarget.getUniqueId().equals(w.getLeaderId())) {
 					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
@@ -168,12 +168,8 @@ public class BattleCommandManager implements CommandExecutor{
 				}
 				w.removePlayer(kickTarget);;
 				BattlePersistenceService.persistWarband(w);
-				p.sendMessage("§aKicked "+args[1]);
-				for(Player pl : Bukkit.getOnlinePlayers()) {
-					if(pl.getName().equalsIgnoreCase(args[1])) {
-						pl.sendMessage("§a"+p.getName()+ " kicked you from "+w.getId());
-					}
-				}
+				p.sendMessage("§aKicked "+Members.name(kickTarget));
+				kickTarget.sendMessage("§a"+Members.name(p)+ " kicked you from "+w.getId());
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("setleader") && args.length == 2) {
 				Warband w = WarbandManager.getByPlayer(p);
@@ -185,7 +181,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cOnly the leader can set a new leader!");
 					return true;
 				}
-				Player newLeader = Bukkit.getPlayerExact(args[1]);
+				Player newLeader = onlineTarget(args[1]);
 				if (newLeader == null || !w.hasMember(newLeader)) {
 					p.sendMessage("§cPlayer is not in the warband");
 					return true;
@@ -198,7 +194,7 @@ public class BattleCommandManager implements CommandExecutor{
 				BattlePersistenceService.persistWarband(w);
 				for(Player pl : Bukkit.getOnlinePlayers()) {
 					if (w.hasMember(pl)) {
-						pl.sendMessage("§a"+args[1]+ " is the new warband leader!");
+						pl.sendMessage("§a"+Members.name(newLeader)+ " is the new warband leader!");
 					}
 				}
 				return true;
@@ -212,7 +208,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cOnly the leader can invite new members!");
 					return true;
 				}
-				Player invitee = Bukkit.getPlayerExact(args[1]);
+				Player invitee = onlineTarget(args[1]);
 				if (invitee == null) {
 					p.sendMessage("§cPlayer must be online to receive an invitation");
 					return true;
@@ -223,13 +219,9 @@ public class BattleCommandManager implements CommandExecutor{
 				}
 				w.invite(invitee);
 				BattlePersistenceService.persistWarband(w);
-				p.sendMessage("§aInvited "+args[1]);
-				for(Player pl : Bukkit.getOnlinePlayers()) {
-					if(pl.getName().equalsIgnoreCase(args[1])) {
-						pl.sendMessage("§a"+p.getName()+ " invited you to "+w.getId());
-						pl.sendMessage("§aType /warband join "+w.getId() +"§a to join");
-					}
-				}
+				p.sendMessage("§aInvited "+Members.name(invitee));
+				invitee.sendMessage("§a"+Members.name(p)+ " invited you to "+w.getId());
+				invitee.sendMessage("§aType /warband join "+w.getId() +"§a to join");
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("join") && args.length == 2) {
 				if(WarbandManager.getByPlayer(p) != null) {
@@ -520,6 +512,11 @@ public class BattleCommandManager implements CommandExecutor{
 			player.sendMessage("§cEnter a whole number between 1 and 2147483647");
 			return null;
 		}
+	}
+
+	/** An online player named by Minecraft or character name. */
+	private static Player onlineTarget(String input) {
+		return Members.player(Members.findOnline(input));
 	}
 
 	private void warnIfNotSiege(Player p, Battle b) {

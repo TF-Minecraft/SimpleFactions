@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid.fight;
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidMessages;
@@ -65,7 +66,7 @@ public class CampaignRaidBattleEndService implements Listener {
 			return;
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

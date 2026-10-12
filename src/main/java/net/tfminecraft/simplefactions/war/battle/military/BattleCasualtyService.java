@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.battle.military;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -353,13 +354,13 @@ public final class BattleCasualtyService {
 				+ defenderLosses
 				+ " regiments.";
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getAttackers())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getDefenders())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

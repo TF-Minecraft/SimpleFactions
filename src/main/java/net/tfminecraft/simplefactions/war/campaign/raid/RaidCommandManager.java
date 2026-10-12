@@ -47,7 +47,7 @@ public class RaidCommandManager implements CommandExecutor {
 		}
 
 		JoinResult result = CampaignRaidJoinService.join(
-				war, player.getUniqueId(), player.getName(), faction, args[1], CampaignClock.now());
+				war, player.getUniqueId(), Members.key(player), faction, args[1], CampaignClock.now());
 		if (result != JoinResult.OK) {
 			String message = CampaignRaidMessages.messageForJoinResult(result);
 			if (message != null) {

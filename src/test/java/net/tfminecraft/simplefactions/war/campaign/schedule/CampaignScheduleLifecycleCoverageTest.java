@@ -422,6 +422,48 @@ class CampaignScheduleLifecycleCoverageTest {
         CampaignScheduleTrimmer.maxBattlesForGoal(null));
   }
 
+  /** Name-keyed members, plus one offline character the provider knows. */
+  private static void knowCharacter(String key, UUID account) {
+    var names = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.INSTANCE;
+    net.tfminecraft.simplefactions.identity.Members.setResolver(
+        new net.tfminecraft.simplefactions.identity.Members.Resolver() {
+          @Override
+          public java.util.Optional<net.tfminecraft.tlibs.character.CharacterSession> session(
+              org.bukkit.entity.Player player) {
+            return names.session(player);
+          }
+
+          @Override
+          public boolean isCurrent(net.tfminecraft.tlibs.character.CharacterSession session) {
+            return true;
+          }
+
+          @Override
+          public String key(org.bukkit.entity.Player player) {
+            return names.key(player);
+          }
+
+          @Override
+          public java.util.Optional<net.tfminecraft.tlibs.character.CharacterInfo> info(String other) {
+            if (!key.equals(other)) return java.util.Optional.empty();
+            return java.util.Optional.of(
+                new net.tfminecraft.tlibs.character.CharacterInfo(
+                    new net.tfminecraft.tlibs.character.CharacterRef(account, UUID.fromString(key)),
+                    "Offline",
+                    net.tfminecraft.tlibs.character.CharacterStatus.ALIVE,
+                    null,
+                    Set.of(),
+                    0,
+                    Instant.EPOCH));
+          }
+
+          @Override
+          public java.util.Optional<org.bukkit.entity.Player> online(String other) {
+            return names.online(other);
+          }
+        });
+  }
+
   @Test
   void rosterLookupsResolveOnlineOfflineAndFallbackIdentitiesWithoutInventingMembership() {
     var live = BattleScheduleLookups.uuidToFaction();
@@ -439,9 +481,13 @@ class CampaignScheduleLifecycleCoverageTest {
     var carol = rig.player("Carol");
     assertSame(
         outsider, BattleScheduleLookups.uuidToFactionForWar(rig.war).apply(carol.getUniqueId()));
-    rig.attacker.getOrCreateMainGuild().addMember("Offline");
-    UUID offline = BattleScheduleLookups.memberNameToUuid().apply("Offline");
-    assertSame(rig.attacker, BattleScheduleLookups.uuidToFactionForWar(rig.war).apply(offline));
+    UUID account = UUID.randomUUID();
+    String offlineKey = UUID.randomUUID().toString();
+    knowCharacter(offlineKey, account);
+    rig.attacker.getOrCreateMainGuild().addMember(offlineKey);
+    assertEquals(account, BattleScheduleLookups.memberNameToUuid().apply(offlineKey));
+    assertNull(BattleScheduleLookups.memberNameToUuid().apply("Unknown"));
+    assertSame(rig.attacker, BattleScheduleLookups.uuidToFactionForWar(rig.war).apply(account));
     when(Bukkit.getServer()).thenReturn(null);
     assertEquals(
         BattleScheduleLookups.spoofMemberUuid("Offline"),
@@ -478,7 +524,7 @@ class CampaignScheduleLifecycleCoverageTest {
         BattleScheduleService.castSpoofVotes(
             rig.war,
             21,
-            BattleScheduleLookups.memberNameToUuid(),
+            BattleScheduleLookups.spoofMemberNameToUuid(),
             BelligerentRole.ATTACKER,
             BelligerentRole.DEFENDER);
     assertEquals(2, added);
@@ -487,7 +533,7 @@ class CampaignScheduleLifecycleCoverageTest {
         BattleScheduleService.castSpoofVotes(
             rig.war,
             21,
-            BattleScheduleLookups.memberNameToUuid(),
+            BattleScheduleLookups.spoofMemberNameToUuid(),
             BelligerentRole.ATTACKER,
             BelligerentRole.DEFENDER));
     assertEquals(

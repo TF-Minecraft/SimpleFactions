@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.time.Instant;
 import java.util.List;
 
@@ -86,7 +87,7 @@ public final class CampaignBattleSignupReminderService {
 			net.tfminecraft.simplefactions.war.core.Side side,
 			String message) {
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player == null || !player.isOnline()) {
 				continue;
 			}

@@ -393,7 +393,7 @@ public final class CivilWarStartService {
 
 	private static void recordMemberMove(AppliedStart applied, CivilWarMemberMove move) {
 		for (CivilWarMemberMove existing : applied.memberMoves) {
-			if (existing != null && move.player().equalsIgnoreCase(existing.player())) {
+			if (existing != null && move.player().equals(existing.player())) {
 				return;
 			}
 		}

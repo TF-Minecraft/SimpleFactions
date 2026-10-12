@@ -35,15 +35,15 @@ public final class BattleInstallationPickService {
 	public static InstallationPickToggleResult togglePick(
 			War war,
 			Faction faction,
-			String playerName,
+			String memberKey,
 			String installationId) {
-		return togglePick(war, faction, playerName, installationId, CampaignClock.now());
+		return togglePick(war, faction, memberKey, installationId, CampaignClock.now());
 	}
 
 	public static InstallationPickToggleResult togglePick(
 			War war,
 			Faction faction,
-			String playerName,
+			String memberKey,
 			String installationId,
 			Instant now) {
 		if (war == null || !war.isActive()) {
@@ -52,7 +52,7 @@ public final class BattleInstallationPickService {
 		if (faction == null || war.getSide(faction) == null) {
 			return InstallationPickToggleResult.REJECTED_NOT_PARTICIPANT;
 		}
-		if (playerName == null || !faction.isLeader(playerName)) {
+		if (memberKey == null || !faction.isLeader(memberKey)) {
 			return InstallationPickToggleResult.REJECTED_NOT_LEADER;
 		}
 		if (installationId == null || installationId.isBlank()) {

@@ -86,7 +86,7 @@ public final class BattleAutoresolveService {
 
 		Faction opposingLeaderFaction = opposingLeaderFaction(war, side);
 
-		Player target = Bukkit.getPlayerExact(opposingLeaderFaction.getLeader());
+		Player target = Members.player(opposingLeaderFaction.getLeader());
 		if (target == null || !target.isOnline()) {
 			return SendResult.OPPOSING_LEADER_OFFLINE;
 		}
@@ -135,7 +135,7 @@ public final class BattleAutoresolveService {
 
 		Faction proposerFaction = req.getFaction();
 		if (proposerFaction != null) {
-			Player proposer = Bukkit.getPlayerExact(proposerFaction.getLeader());
+			Player proposer = Members.player(proposerFaction.getLeader());
 			if (proposer != null && proposer.isOnline()) {
 				proposer.sendMessage(acceptorFaction.getName() + " §aaccepted autoresolve");
 			}
@@ -331,7 +331,7 @@ public final class BattleAutoresolveService {
 
 	private static void sendToSide(Side side, String message) {
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

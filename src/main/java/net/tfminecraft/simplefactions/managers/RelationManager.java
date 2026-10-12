@@ -282,7 +282,7 @@ public class RelationManager {
 		relation.setType(r);
 		origin.setRelation(target, relation);
 		if(reverseChange) {
-			Player l = Bukkit.getPlayerExact(target.getLeader());
+			Player l = Members.player(target.getLeader());
 			if(l != null && l.isOnline()) {
 				l.sendMessage(StringFormatter.formatHex("#a89977Your relation with "+origin.getName()+" #a89977has been changed to "+r.getLink().getName()));
 			}
@@ -622,7 +622,7 @@ public class RelationManager {
 	}
 	
 	private static void sendRequest(Player sender, Faction f, RelationType type) {
-		Player p = Bukkit.getPlayerExact(f.getLeader());
+		Player p = Members.player(f.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
@@ -646,7 +646,7 @@ public class RelationManager {
 			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
 			return;
 		}
-		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		Player sp = Members.player(sender.getLeader());
 		// The war may have started after the request was sent
 		String blocked = wartimeBlock(req.getType(), reciever, sender);
 		if(blocked != null) {
@@ -660,7 +660,7 @@ public class RelationManager {
 	}
 
 	private static void sendTradeRequest(Player sender, Faction f, RelationType type) {
-		Player p = Bukkit.getPlayerExact(f.getLeader());
+		Player p = Members.player(f.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
@@ -684,14 +684,14 @@ public class RelationManager {
 			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
 			return;
 		}
-		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		Player sp = Members.player(sender.getLeader());
 		if (applyTradeRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
 			sp.sendMessage(reciever.getName()+" §aaccepted your request and set trade to "+req.getType().getName());
 		}
 	}
 
 	private static void sendTreatyRequest(Player sender, Faction f, RelationType type) {
-		Player p = Bukkit.getPlayerExact(f.getLeader());
+		Player p = Members.player(f.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
@@ -715,7 +715,7 @@ public class RelationManager {
 			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
 			return;
 		}
-		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		Player sp = Members.player(sender.getLeader());
 		if (applyTreatyRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
 			sp.sendMessage(reciever.getName()+" §aaccepted your request and set treaty to "+req.getType().getName());
 		}

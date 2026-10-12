@@ -16,6 +16,8 @@ import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinServ
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
 
 public class WarbandMembershipService {
 	private static WarbandMembershipService instance;
@@ -34,21 +36,47 @@ public class WarbandMembershipService {
 	}
 
 	public void handleQuit(UUID playerId) {
+		handleQuit(playerId, getOnlinePlayer(playerId));
+	}
+
+	public void handleQuit(Player player) {
+		if (player != null) {
+			handleQuit(player.getUniqueId(), player);
+		}
+	}
+
+	private void handleQuit(UUID playerId, Player player) {
 		Warband warband = WarbandManager.getByMemberId(playerId);
 		if (warband == null) {
 			return;
 		}
-		Faction faction = resolveFactionForWarband(warband, playerId);
-		detachFromBattle(playerId, warband);
-		pendingRejoin.put(playerId, new WarbandRejoinState(warband.getId(), faction));
+		Faction faction = resolveFactionForWarband(warband, player);
+		// Only the character that left may take the place back.
+		CharacterRef character = Members.session(player).map(CharacterSession::ref).orElse(null);
+		detachFromBattle(player, warband);
+		if (character != null) {
+			pendingRejoin.put(playerId, new WarbandRejoinState(warband.getId(), faction, character));
+		}
 		warband.removeMember(playerId);
 	}
 
-	public boolean handleJoin(Player player) {
-		return attemptRejoin(player.getUniqueId(), player.getName(), player);
+	/** Restores the place only when the character that quit starts playing again. */
+	public boolean handleSessionStart(Player player, CharacterSession session) {
+		if (player == null || session == null) {
+			return false;
+		}
+		WarbandRejoinState state = pendingRejoin.get(player.getUniqueId());
+		if (state == null) {
+			return false;
+		}
+		if (!state.isFor(session.ref())) {
+			pendingRejoin.remove(player.getUniqueId());
+			return false;
+		}
+		return attemptRejoin(player.getUniqueId(), Members.key(player), player);
 	}
 
-	boolean attemptRejoin(UUID playerId, String playerName, Player onlinePlayer) {
+	boolean attemptRejoin(UUID playerId, String memberKey, Player onlinePlayer) {
 		WarbandRejoinState state = pendingRejoin.remove(playerId);
 		if (state == null) {
 			return false;
@@ -57,8 +85,8 @@ public class WarbandMembershipService {
 		if (warband == null || !state.belongsTo(warband)) {
 			return false;
 		}
-		Faction playerFaction = warband.isFaction() ? FactionManager.getByMember(playerName) : null;
-		if (!evaluateRejoin(warband, playerId, playerFaction, state)) {
+		Faction playerFaction = warband.isFaction() ? FactionManager.getByMember(memberKey) : null;
+		if (!evaluateRejoin(warband, playerId, memberKey, playerFaction, state)) {
 			return false;
 		}
 		warband.addMember(playerId);
@@ -76,7 +104,8 @@ public class WarbandMembershipService {
 		pendingRejoin.remove(playerId);
 	}
 
-	public boolean evaluateRejoin(Warband warband, UUID playerId, Faction playerFaction, WarbandRejoinState state) {
+	public boolean evaluateRejoin(
+			Warband warband, UUID playerId, String memberKey, Faction playerFaction, WarbandRejoinState state) {
 		if (warband.isFaction()) {
 			if (!state.hasFaction()) {
 				return false;
@@ -91,7 +120,7 @@ public class WarbandMembershipService {
 			CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
 			if (ctx != null && ctx.battle().hasStarted()) {
 				return CampaignBattleJoinService.validateWarbandMemberJoin(
-						ctx.war(), ctx.battle(), ctx.sideId(), warband, playerNameFromId(playerId), playerId) == null;
+						ctx.war(), ctx.battle(), ctx.sideId(), warband, memberKey, playerId) == null;
 			}
 			if (ctx != null) {
 				return CampaignBattleJoinService.validateRosterHasRoom(
@@ -106,17 +135,6 @@ public class WarbandMembershipService {
 		return true;
 	}
 
-	private String playerNameFromId(UUID playerId) {
-		Player player = getOnlinePlayer(playerId);
-		if (player != null && player.getName() != null) {
-			return player.getName();
-		}
-		if (Bukkit.getOfflinePlayer(playerId).getName() != null) {
-			return Bukkit.getOfflinePlayer(playerId).getName();
-		}
-		return null;
-	}
-
 	private Player getOnlinePlayer(UUID playerId) {
 		if (Bukkit.getServer() == null) {
 			return null;
@@ -124,19 +142,14 @@ public class WarbandMembershipService {
 		return Bukkit.getPlayer(playerId);
 	}
 
-	private Faction resolveFactionForWarband(Warband warband, UUID playerId) {
-		if (!warband.isFaction()) {
-			return null;
-		}
-		Player player = getOnlinePlayer(playerId);
-		if (player == null) {
+	private Faction resolveFactionForWarband(Warband warband, Player player) {
+		if (!warband.isFaction() || player == null) {
 			return null;
 		}
 		return FactionManager.getByMember(Members.key(player));
 	}
 
-	private void detachFromBattle(UUID playerId, Warband warband) {
-		Player player = getOnlinePlayer(playerId);
+	private void detachFromBattle(Player player, Warband warband) {
 		if (player == null) {
 			return;
 		}

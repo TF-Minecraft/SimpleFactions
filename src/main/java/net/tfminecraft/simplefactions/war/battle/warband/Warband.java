@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.battle.warband;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -223,7 +224,7 @@ public class Warband {
 		}
 		Player online = Bukkit.getPlayer(memberId);
 		if (online != null && online.getName() != null) {
-			return online.getName();
+			return Members.name(online);
 		}
 		OfflinePlayer offline = Bukkit.getOfflinePlayer(memberId);
 		if (offline.getName() != null && !offline.getName().isBlank()) {

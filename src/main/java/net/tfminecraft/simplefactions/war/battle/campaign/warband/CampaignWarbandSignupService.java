@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.campaign.warband;
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import java.time.Instant;
 import java.util.UUID;
@@ -45,30 +46,30 @@ public final class CampaignWarbandSignupService {
 		if (player == null || warband == null) {
 			return "Invalid warband signup";
 		}
-		return signupMember(player.getUniqueId(), player.getName(), warband, playerFaction, player);
+		return signupMember(player.getUniqueId(), Members.key(player), warband, playerFaction, player);
 	}
 
-	public static String signupMember(UUID playerId, String playerName, Warband warband, Faction playerFaction) {
-		return signupMember(playerId, playerName, warband, playerFaction, null);
+	public static String signupMember(UUID playerId, String memberKey, Warband warband, Faction playerFaction) {
+		return signupMember(playerId, memberKey, warband, playerFaction, null);
 	}
 
 	public static String signupMember(
 			UUID playerId,
-			String playerName,
+			String memberKey,
 			Warband warband,
 			Faction playerFaction,
 			Player onlinePlayer) {
-		return signupMember(playerId, playerName, warband, playerFaction, onlinePlayer, CampaignClock.now());
+		return signupMember(playerId, memberKey, warband, playerFaction, onlinePlayer, CampaignClock.now());
 	}
 
 	public static String signupMember(
 			UUID playerId,
-			String playerName,
+			String memberKey,
 			Warband warband,
 			Faction playerFaction,
 			Player onlinePlayer,
 			Instant now) {
-		if (playerId == null || playerName == null || warband == null) {
+		if (playerId == null || memberKey == null || warband == null) {
 			return "Invalid warband signup";
 		}
 		if (onlinePlayer != null) {
@@ -90,14 +91,14 @@ public final class CampaignWarbandSignupService {
 		}
 		if (ctx != null) {
 			String joinError = CampaignBattleJoinService.validateWarbandMemberJoin(
-					ctx.war(), ctx.battle(), ctx.sideId(), warband, playerName, playerId);
+					ctx.war(), ctx.battle(), ctx.sideId(), warband, memberKey, playerId);
 			if (joinError != null) {
 				return joinError;
 			}
 		}
 
 		boolean firstSignup = warband.getRealMemberCount() == 0;
-		applyLeaderRules(ctx, warband, playerId, playerName);
+		applyLeaderRules(ctx, warband, playerId, memberKey);
 		warband.addMember(playerId);
 
 		if (ctx != null && firstSignup) {
@@ -115,12 +116,12 @@ public final class CampaignWarbandSignupService {
 			CampaignBattleContext ctx,
 			Warband warband,
 			UUID playerId,
-			String playerName) {
+			String memberKey) {
 		if (warband.isPendingLeader()) {
 			warband.setLeaderId(playerId);
 			return;
 		}
-		if (ctx != null && CampaignWarbandBattleService.isWarSideMainLeader(ctx.war(), warband, playerName)) {
+		if (ctx != null && CampaignWarbandBattleService.isWarSideMainLeader(ctx.war(), warband, memberKey)) {
 			warband.setLeaderId(playerId);
 		}
 	}

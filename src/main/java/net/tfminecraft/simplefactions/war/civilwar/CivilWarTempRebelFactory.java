@@ -13,12 +13,12 @@ public final class CivilWarTempRebelFactory {
 
 	private CivilWarTempRebelFactory() {}
 
-	public static Faction create(Faction host, String leaderName) {
-		if (host == null || leaderName == null) {
+	public static Faction create(Faction host, String leaderKey) {
+		if (host == null || leaderKey == null) {
 			return null;
 		}
 		String id = uniqueId(host);
-		Faction rebels = new Faction(id, leaderName);
+		Faction rebels = new Faction(id, leaderKey);
 		applyRebelIdentity(rebels, host);
 		FactionManager.addFaction(rebels);
 		return rebels;

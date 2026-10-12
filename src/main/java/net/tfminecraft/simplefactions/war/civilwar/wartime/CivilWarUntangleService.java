@@ -154,7 +154,7 @@ public final class CivilWarUntangleService {
 			}
 			boolean wantedLeader = attackerWin
 					&& wanted != null
-					&& wanted.equalsIgnoreCase(move.player());
+					&& wanted.equals(move.player());
 			host.getGuildHandler().forceKick(move.player());
 			if (wantedLeader) {
 				host.getOrCreateMainGuild().addMember(move.player());

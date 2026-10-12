@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.util.Map;
 import java.util.Optional;
 
@@ -229,7 +230,7 @@ public class CampaignBattleOutcomeService implements Listener {
 				: "§eChoose §6attack §eor §6accept white peace §eon the campaign map.";
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(
 				CampaignCoalitionService.toSide(war, leaderCoalition))) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}
@@ -260,13 +261,13 @@ public class CampaignBattleOutcomeService implements Listener {
 			return;
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getAttackers())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(resultLine);
 			}
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getDefenders())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(resultLine);
 			}

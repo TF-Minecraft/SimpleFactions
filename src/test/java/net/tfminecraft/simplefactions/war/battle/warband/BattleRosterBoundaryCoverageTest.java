@@ -25,6 +25,7 @@ import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Event;
 import org.bukkit.event.player.PlayerJoinEvent;
+import net.tfminecraft.tlibs.character.CharacterSessionStartEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -100,7 +101,7 @@ class BattleRosterBoundaryCoverageTest {
   }
 
   @Test
-  void quitAndJoinEventsRestoreAnOpenManualRosterWithoutDuplicatingMembers() {
+  void quitAndSessionStartEventsRestoreAnOpenManualRosterWithoutDuplicatingMembers() {
     Warband band = new Warband("event_rejoin", rig.alice);
     band.setLocked(false);
     WarbandManager.addWarband(band);
@@ -108,11 +109,20 @@ class BattleRosterBoundaryCoverageTest {
     listener.onQuit(new PlayerQuitEvent(rig.alice, "left"));
     assertFalse(band.hasMember(rig.alice));
     assertNotNull(WarbandMembershipService.getInstance().getPendingRejoin(rig.alice.getUniqueId()));
-    listener.onJoin(new PlayerJoinEvent(rig.alice, "joined"));
+    // Logging in alone restores nothing: the listener only answers character sessions.
+    assertTrue(
+        java.util.Arrays.stream(WarbandMembershipListener.class.getDeclaredMethods())
+            .noneMatch(
+                method ->
+                    method.getParameterCount() == 1
+                        && method.getParameterTypes()[0] == PlayerJoinEvent.class));
+    assertFalse(band.hasMember(rig.alice));
+    var session = net.tfminecraft.simplefactions.identity.Members.session(rig.alice).orElseThrow();
+    listener.onSessionStart(new CharacterSessionStartEvent(rig.alice, session));
     assertTrue(band.hasMember(rig.alice));
     assertEquals(1, band.getMemberCount());
     assertNull(WarbandMembershipService.getInstance().getPendingRejoin(rig.alice.getUniqueId()));
-    listener.onJoin(new PlayerJoinEvent(rig.alice, "joined"));
+    listener.onSessionStart(new CharacterSessionStartEvent(rig.alice, session));
     assertEquals(1, band.getMemberCount());
   }
 

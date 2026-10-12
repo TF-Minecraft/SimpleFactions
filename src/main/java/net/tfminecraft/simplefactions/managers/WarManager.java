@@ -334,7 +334,7 @@ public class WarManager {
 		if (members == null) return;
 		for (String member : members) {
 			if (member == null || member.isBlank()) continue;
-			Player p = Bukkit.getPlayerExact(member);
+			Player p = Members.player(member);
 			if (p != null && p.isOnline()) {
 				p.sendTitle("§cWar Declared!", "§e/war list §7to view", 10, 120, 10);
 				declaredHorn.accept(p);
@@ -444,7 +444,7 @@ public class WarManager {
 		members.addAll(BattleSideMembers.collectEligibleMemberNames(w.getAttackers()));
 		members.addAll(BattleSideMembers.collectEligibleMemberNames(w.getDefenders()));
 		for (String member : members) {
-			Player p = Bukkit.getPlayerExact(member);
+			Player p = Members.player(member);
 			if (p != null && p.isOnline()) {
 				p.sendMessage(message);
 			}
@@ -489,7 +489,7 @@ public class WarManager {
 			sender.sendMessage(result.message());
 			return;
 		}
-		Player p = Bukkit.getPlayerExact(target.getLeader());
+		Player p = Members.player(target.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
@@ -528,7 +528,7 @@ public class WarManager {
 		WarCommitmentService.snapshotLevyForFighter(war, reciever);
 		//A secondary only counts as a participant once it has joined, so contracts are re-checked here
 		net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher.onWarJoined(reciever);
-		Player sp = Bukkit.getPlayerExact(origin.getLeader());
+		Player sp = Members.player(origin.getLeader());
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your call to arms");
 		p.sendMessage("§aYour faction has joined the "+war.getName());
 		notifyWarDeclared(reciever.getMembers());
@@ -556,7 +556,7 @@ public class WarManager {
 		}
 		Faction origin = req.getFaction();
 		if (origin != null && origin.getLeader() != null) {
-			Player caller = Bukkit.getPlayerExact(origin.getLeader());
+			Player caller = Members.player(origin.getLeader());
 			if (caller != null && caller.isOnline()) {
 				String who = receiver != null ? receiver.getName() : "They";
 				caller.sendMessage(who + " §cdeclined your call to arms");
