@@ -172,6 +172,24 @@ class MembersTest {
     }
 
     @Test
+    void memberAccountsResolveCharactersLegacyNamesAndBlanks() {
+        try (var identity = new SharedIdentity();
+             var offline = mockStatic(net.tfminecraft.denareconomy.accounts.OfflineModifier.class)) {
+            CharacterRef ada = identity.character(identity.account("Steve"), "Ada");
+            UUID legacy = UUID.randomUUID();
+            offline.when(() -> net.tfminecraft.denareconomy.accounts.OfflineModifier.playerId("Steve"))
+                    .thenReturn(legacy);
+            assertNull(net.tfminecraft.simplefactions.utils.MemberAccounts.accountId(null));
+            assertNull(net.tfminecraft.simplefactions.utils.MemberAccounts.accountId("  "));
+            assertEquals(ada.ownerId(), net.tfminecraft.simplefactions.utils.MemberAccounts.accountId(Members.key(ada)));
+            assertNull(net.tfminecraft.simplefactions.utils.MemberAccounts.accountId(Members.key(UUID.randomUUID())),
+                    "a character nobody owns has no account");
+            assertEquals(legacy, net.tfminecraft.simplefactions.utils.MemberAccounts.accountId("Steve"),
+                    "a non-character key falls back to the Minecraft name lookup");
+        }
+    }
+
+    @Test
     void keysAreLowerCaseCharacterIds() {
         UUID id = UUID.randomUUID();
         assertEquals(id.toString(), Members.key(id));

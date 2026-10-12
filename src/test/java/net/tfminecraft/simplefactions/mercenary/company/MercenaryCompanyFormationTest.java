@@ -61,6 +61,23 @@ class MercenaryCompanyFormationTest {
     }
 
     @Test
+    void formationIsDeniedWhileTheTreasuryCannotFundIt() {
+        CompanyFixture fixture = new CompanyFixture(500.0);
+        try (var treasury = org.mockito.Mockito.mockStatic(
+                net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+            treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.formation(
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyDouble()))
+                    .thenReturn(false);
+            MercenaryResult result = MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+            assertFalse(result.ok());
+            assertEquals("Company formation is awaiting treasury recovery or could not be funded.", result.message());
+        }
+        assertNull(fixture.company(), "a denied formation must not attach a company");
+        assertEquals(500.0, fixture.balance());
+    }
+
+    @Test
     void instantFormationEnlistsTheLeader() {
         Cache.mercenaryFormationSeconds = 0;
         CompanyFixture fixture = new CompanyFixture(500.0);

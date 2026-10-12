@@ -183,6 +183,16 @@ class StaleRequestsReviewRegressionTest {
   }
 
   @Test
+  void relocationRequestIsRefusedWhenTheSenderHasNoCharacterSession() {
+    guild = domain.guild(origin, "traders", "GuildLeader");
+    Player sender = org.mockito.Mockito.mock(Player.class); // no name, so no ready session
+    FactionManager.requestRelocation(sender, guild, target, 2, "Destination");
+    org.mockito.Mockito.verify(sender)
+        .sendMessage("§cBoth characters must be ready before requesting relocation.");
+    assertFalse(RequestManager.hasRequest(bob), "no consent request may be registered");
+  }
+
+  @Test
   void aBaseGuildCannotBeChargedForARelocationThatDoesNothing() {
     guild = origin.getOrCreateMainGuild();
     TestTreasuries.set(guild.getBank(), 500.0);

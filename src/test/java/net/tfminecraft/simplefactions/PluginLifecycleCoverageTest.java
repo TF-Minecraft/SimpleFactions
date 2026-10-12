@@ -306,6 +306,95 @@ class PluginLifecycleCoverageTest {
     scoped(CampaignViewRefreshService.class).verify(CampaignViewRefreshService::stop);
   }
 
+  @Test
+  void startupImportsLegacyGuildBalancesAndTheDeathReconcileTimerFailsClosed() throws Exception {
+    var deaths = scoped(net.tfminecraft.simplefactions.identity.death.CharacterDeaths.class);
+    var economy = scoped(net.tfminecraft.simplefactions.economy.EconomyRuntime.class);
+    var treasuries = scoped(net.tfminecraft.simplefactions.economy.GuildTreasury.class);
+    UUID bankedId = UUID.randomUUID();
+    UUID banklessId = UUID.randomUUID();
+    net.tfminecraft.simplefactions.guild.Guild banked =
+        mock(net.tfminecraft.simplefactions.guild.Guild.class);
+    net.tfminecraft.simplefactions.objects.Bank bank =
+        mock(net.tfminecraft.simplefactions.objects.Bank.class);
+    when(bank.legacyBalance()).thenReturn(42.5);
+    when(banked.getIncarnationId()).thenReturn(bankedId);
+    when(banked.getBank()).thenReturn(bank);
+    var bankedLedger = mock(net.tfminecraft.simplefactions.guild.income.Ledger.class);
+    when(bankedLedger.getCitizenTaxesCopy()).thenReturn(Map.of("tax", 1.5));
+    when(banked.getLedger()).thenReturn(bankedLedger);
+    net.tfminecraft.simplefactions.guild.Guild bankless =
+        mock(net.tfminecraft.simplefactions.guild.Guild.class);
+    when(bankless.getIncarnationId()).thenReturn(banklessId);
+    var banklessLedger = mock(net.tfminecraft.simplefactions.guild.income.Ledger.class);
+    when(banklessLedger.getCitizenTaxesCopy()).thenReturn(Map.of());
+    when(bankless.getLedger()).thenReturn(banklessLedger);
+    scoped(FactionManager.class)
+        .when(FactionManager::getAllGuilds)
+        .thenReturn(List.of(banked, bankless));
+
+    plugin.onEnable();
+
+    assertTrue(plugin.isStarted());
+    assertNotNull(plugin.getRealmSettlementService());
+    treasuries.verify(
+        () ->
+            net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(
+                bankedId, 42.5, Map.of("tax", 1.5)));
+    // A guild without a bank imports a zero legacy balance.
+    treasuries.verify(
+        () ->
+            net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(
+                banklessId, 0.0, Map.of()));
+    verify(banked).updateWealth();
+    verify(bankless).updateWealth();
+
+    var task = org.mockito.ArgumentCaptor.forClass(Runnable.class);
+    verify(domain.ui.scheduler).runTaskTimer(eq(plugin), task.capture(), eq(72000L), eq(72000L));
+    task.getValue().run();
+    deaths.verify(
+        net.tfminecraft.simplefactions.identity.death.CharacterDeaths::reconcile, times(2));
+    economy.verify(
+        () -> net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(any()), never());
+    deaths
+        .when(net.tfminecraft.simplefactions.identity.death.CharacterDeaths::reconcile)
+        .thenThrow(new IOException("death journal stuck"));
+    task.getValue().run();
+    economy.verify(
+        () ->
+            net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(
+                any(IOException.class)));
+  }
+
+  @Test
+  void aFailedLegacyImportFailsTheFinancialStateAndDisablesThePlugin() {
+    var treasuries = scoped(net.tfminecraft.simplefactions.economy.GuildTreasury.class);
+    treasuries
+        .when(
+            () ->
+                net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(
+                    any(), anyDouble(), any()))
+        .thenThrow(new IllegalStateException("legacy import refused"));
+    net.tfminecraft.simplefactions.guild.Guild guild =
+        mock(net.tfminecraft.simplefactions.guild.Guild.class);
+    when(guild.getIncarnationId()).thenReturn(UUID.randomUUID());
+    var ledger = mock(net.tfminecraft.simplefactions.guild.income.Ledger.class);
+    when(ledger.getCitizenTaxesCopy()).thenReturn(Map.of());
+    when(guild.getLedger()).thenReturn(ledger);
+    scoped(FactionManager.class).when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+
+    plugin.onEnable();
+
+    assertFalse(plugin.isStarted());
+    verify(plugins).disablePlugin(plugin);
+    verify(logger)
+        .log(
+            eq(java.util.logging.Level.SEVERE),
+            contains("Faction money recovery is incomplete"),
+            any(IllegalStateException.class));
+    verify(dependency("inventoryManager", InventoryManager.class), never()).start();
+  }
+
   private Map<Path, String> unloadedSavedState() throws Exception {
     var faction = domain.data("prior", "PriorLeader");
     faction.titles = List.of("prior_county");

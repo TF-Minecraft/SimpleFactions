@@ -274,6 +274,7 @@ public class SimpleFactions extends JavaPlugin{
 	public void onEnable() {
 		try {
 			net.tfminecraft.tlibs.character.Characters.legacyHeirsReady();
+			net.tfminecraft.tlibs.character.Characters.deathId(new java.util.UUID(0L, 0L));
 		} catch (LinkageError error) {
 			incompatibleCharacterApi = true;
 			getLogger().severe("SimpleFactions requires TLibs 2.4.1 or newer; disabling.");

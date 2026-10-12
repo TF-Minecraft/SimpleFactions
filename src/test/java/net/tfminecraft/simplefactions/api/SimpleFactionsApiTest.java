@@ -36,6 +36,12 @@ class SimpleFactionsApiTest {
             assertSame(guild, SimpleFactionsApi.getGuildByLeader(player).orElseThrow());
             assertSame(guild, SimpleFactionsApi.getGuildByLeader(character).orElseThrow());
             assertTrue(SimpleFactionsApi.getGuildByMember(java.util.UUID.randomUUID()).isEmpty());
+            var unknown = mock(org.bukkit.entity.Player.class);
+            when(unknown.getName()).thenReturn("Nobody");
+            assertTrue(SimpleFactionsApi.getByMember(unknown).isEmpty(), "ready, but in no faction");
+            assertTrue(SimpleFactionsApi.getByMember(java.util.UUID.randomUUID()).isEmpty());
+            assertNull(net.tfminecraft.simplefactions.managers.FactionManager.getByMember(unknown));
+            assertNull(net.tfminecraft.simplefactions.managers.FactionManager.getByMember(java.util.UUID.randomUUID()));
             assertEquals("guild:" + guild.getIncarnation(), guild.getBank().accountId());
             assertEquals(java.util.UUID.fromString(guild.getIncarnation()), guild.getIncarnationId());
         } finally {

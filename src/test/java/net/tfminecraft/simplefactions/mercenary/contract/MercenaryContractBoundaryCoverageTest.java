@@ -324,6 +324,72 @@ class MercenaryContractBoundaryCoverageTest {
     }
   }
 
+  @Test
+  void settlementRestoreReplacesContractFiguresInPlaceAndRejectsAnotherContract() {
+    try (FactionDomainFixture domain = new FactionDomainFixture()) {
+      Faction host = domain.saved("host", "HostLeader");
+      Faction hirer = domain.saved("hirer", "HirerLeader");
+      MercenaryCompany company = company(domain.guild(host, "blades", "Captain"));
+      MercenaryContract contract = contract(company, hirer, 2, System.currentTimeMillis());
+      MercenaryContractData after = contract.serialize();
+      after.status = ContractStatus.COMPLETED.name();
+      after.daysServed = 4;
+      after.accruedToCompany = 12.5;
+      after.accruedToHirer = 3.5;
+      after.servedDaysValue = 77.0;
+      after.pendingSlots = 3;
+      after.pendingSlotExpiry = 123_456L;
+      contract.restoreSettlement(after);
+      assertEquals(ContractStatus.COMPLETED, contract.getStatus());
+      assertEquals(4, contract.getDaysServed());
+      assertEquals(12.5, contract.getAccruedToCompany());
+      assertEquals(3.5, contract.getAccruedToHirer());
+      assertEquals(77.0, contract.getServedDaysOwed());
+      assertEquals(3, contract.getPendingSlots(1000L));
+      assertEquals(123_456L, contract.getPendingExpiry());
+      contract.restoreSettlement(after); // a replay is exact, never additive
+      assertEquals(12.5, contract.getAccruedToCompany());
+      assertEquals(4, contract.getDaysServed());
+      MercenaryContractData wrong = contract.serialize();
+      wrong.id = "another-contract";
+      var error =
+          assertThrows(IllegalArgumentException.class, () -> contract.restoreSettlement(wrong));
+      assertEquals("Wrong contract identity", error.getMessage());
+      assertEquals(4, contract.getDaysServed(), "a rejected restore changes nothing");
+    }
+  }
+
+  @Test
+  void settlementRestoreReplaysCompanyFinancesAndRejectsAMissingContract() {
+    try (FactionDomainFixture domain = new FactionDomainFixture()) {
+      Faction host = domain.saved("host", "HostLeader");
+      Faction hirer = domain.saved("hirer", "HirerLeader");
+      MercenaryCompany company = company(domain.guild(host, "blades", "Captain"));
+      MercenaryContract contract = contract(company, hirer, 1, System.currentTimeMillis());
+      var after = company.serialize();
+      after.reputation = 73;
+      after.pendingWages = new java.util.LinkedHashMap<>(Map.of("Captain", 9.5));
+      after.contracts.get(0).accruedToCompany = 21.0;
+      after.contracts.get(0).daysServed = 2;
+      company.restoreSettlement(after);
+      assertEquals(73, company.getReputation());
+      assertEquals(Map.of("Captain", 9.5), company.getPendingWages());
+      assertEquals(21.0, contract.getAccruedToCompany());
+      assertEquals(2, contract.getDaysServed());
+      var missing = company.serialize();
+      MercenaryContractData ghost = new MercenaryContractData();
+      ghost.id = "ghost";
+      ghost.status = ContractStatus.ACTIVE.name();
+      ghost.daysServed = 0;
+      ghost.accruedToCompany = 0.0;
+      ghost.accruedToHirer = 0.0;
+      missing.contracts = new ArrayList<>(List.of(ghost));
+      var error =
+          assertThrows(IllegalStateException.class, () -> company.restoreSettlement(missing));
+      assertEquals("Missing settlement contract ghost", error.getMessage());
+    }
+  }
+
   private MercenaryContract contract(MercenaryCompany company, Faction hirer, int slots, long now) {
     MercenaryContract contract =
         new MercenaryContract(
