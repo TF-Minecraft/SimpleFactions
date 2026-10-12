@@ -78,6 +78,9 @@ public class CommandManager implements Listener, CommandExecutor{
             return net.tfminecraft.simplefactions.guild.network.TradeGraphCommand.handle(sender, args);
         if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("reloadespionage"))
             return EspionageCommands.reload(sender, args);
+		if(cmd.getName().equalsIgnoreCase(cmd1) && net.tfminecraft.simplefactions.migration.QuarantineCommands.matches(args)) {
+			return net.tfminecraft.simplefactions.migration.QuarantineCommands.handle(sender, args);
+		}
 		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("addguildbank")) {
 			return addGuildBank(sender, args);
 		}
