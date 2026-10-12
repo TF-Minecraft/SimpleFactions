@@ -38,6 +38,7 @@ import net.tfminecraft.simplefactions.war.resolution.WarReparationsService;
 
 public class Ledger {
     private Guild guild;
+    private SettlementLedgerView settlement;
 
     // Keyed by the earning character's member key.
     private final Map<String, Double> citizenTaxes = new HashMap<>();
@@ -78,6 +79,45 @@ public class Ledger {
 
     public Ledger(Guild guild) {
         this.guild = guild;
+    }
+
+    /** A calculation owns these copies; the live ledger and company remain untouched. */
+    public Ledger copyForSettlement(SettlementLedgerView view) {
+        Ledger copy = new Ledger(guild);
+        copy.settlement = view;
+        copy.citizenTaxes.putAll(citizenTaxes);
+        copy.loanPayments.putAll(loanPayments);
+        copy.interestPayments.putAll(interestPayments);
+        copy.casinoProfit = casinoProfit;
+        copy.vehicleFeeIncome = vehicleFeeIncome;
+        return copy;
+    }
+
+    private Ledger ledgerOf(Guild other) {
+        return settlement == null ? other.getLedger() : settlement.realm.get(other);
+    }
+
+    private Guild capitalOf(Faction faction) {
+        return settlement == null ? faction.getOrCreateMainGuild()
+                : net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds.capital(faction);
+    }
+
+    private List<Loan> loansTaken() {
+        return settlement == null ? guild.getLoanHandler().getLoansTaken() : settlement.taken;
+    }
+
+    private List<Loan> loansGiven() {
+        return settlement == null ? guild.getLoanHandler().getLoansGiven() : settlement.given;
+    }
+
+    private double donationOf(Guild other) {
+        if (settlement == null) return other.getDonationAmount();
+        Ledger otherLedger = ledgerOf(other);
+        return otherLedger.settlement == null ? other.getDonationAmount() : otherLedger.settlement.donation;
+    }
+
+    private boolean bankrupt() {
+        return settlement == null ? guild.isBankrupt() : settlement.wealth < 0;
     }
 
     public void addCitizenTaxEntry(String p, Double tax) {
@@ -209,13 +249,14 @@ public class Ledger {
         if(skipsMoneyMovement()) return 0.0; //bankrupt guilds dont pay or receive money, they need to get our of bankrupcy first
         Faction f = guild.getFaction();
         if (f == null) return 0.0;
+        if (settlement != null && settlement.income.containsKey(cashflow)) return settlement.income.get(cashflow);
         switch (cashflow) {
             case GUILDS:
                 if(!guild.isBase()) return 0;
                 if (f.getGuildHandler() == null || f.getGuildHandler().getGuilds() == null) break;
                 for(Guild g : f.getGuildHandler().getGuilds()) {
                     if(g == null || g.isBase() || g.getLedger() == null) continue;
-                    amount += Math.abs(g.getLedger().getIncome(Cashflow.GUILD_PAYMENTS));
+                    amount += Math.abs(ledgerOf(g).getIncome(Cashflow.GUILD_PAYMENTS));
                 }
                 break;
             case GUILD_PAYMENTS:
@@ -238,7 +279,7 @@ public class Ledger {
             case VASSALS:
                 if(!guild.isBase()) return 0;
                 for(Faction vassal : RelationManager.getSubjects(guild.getFaction())) {
-                    amount += Math.abs(vassal.getOrCreateMainGuild().getLedger().getIncome(Cashflow.OVERLORD_TAX));
+                    amount += Math.abs(ledgerOf(capitalOf(vassal)).getIncome(Cashflow.OVERLORD_TAX));
                 }
                 break;
             case CITIZENS:
@@ -277,8 +318,8 @@ public class Ledger {
             }
             case LOANS:
                 amount += getAggregatedLoanPayments();
-                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansGiven() == null) break;
-                for(Loan loan : guild.getLoanHandler().getLoansGiven()) {
+                if (guild.getLoanHandler() == null || loansGiven() == null) break;
+                for(Loan loan : loansGiven()) {
                     if(!LoanFunding.isCharged(loan)) continue;
                     amount += projectedFunding(loan).principal();
                 }
@@ -292,8 +333,8 @@ public class Ledger {
             }
             case INTEREST:
                 amount += getAggregatedInterestPayments();
-                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansGiven() == null) break;
-                for(Loan loan : guild.getLoanHandler().getLoansGiven()) {
+                if (guild.getLoanHandler() == null || loansGiven() == null) break;
+                for(Loan loan : loansGiven()) {
                     if(!LoanFunding.isCharged(loan)) continue;
                     amount += projectedFunding(loan).interest();
                 }
@@ -392,17 +433,17 @@ public class Ledger {
                 if (f.getGuildHandler() == null || f.getGuildHandler().getGuilds() == null) break;
                 for (Guild other : f.getGuildHandler().getGuilds()) {
                     if (other == null || other.isBase() || other.getLedger() == null) continue;
-                    if (other.getLedger().skipsMoneyMovement()) continue;
-                    amount += Math.max(0, other.getDonationAmount());
+                    if (ledgerOf(other).skipsMoneyMovement()) continue;
+                    amount += Math.max(0, donationOf(other));
                 }
                 break;
             case DONATION_PAYMENTS:
                 if (guild.isBase()) return 0;
-                amount = -Math.max(0, guild.getDonationAmount());
+                amount = -Math.max(0, donationOf(guild));
                 break;
             case DONATION_FEE:
                 if (guild.isBase()) return 0;
-                amount = -GuildDonation.fee(guild.getDonationAmount());
+                amount = -GuildDonation.fee(donationOf(guild));
                 break;
             case PENALTIES:
                 if(!guild.isBase()) return 0;
@@ -454,7 +495,7 @@ public class Ledger {
     }
 
     private MercenaryCompany getFormedCompany() {
-        MercenaryCompany company = guild.getCompany();
+        MercenaryCompany company = settlement == null ? guild.getCompany() : settlement.company;
         if(company == null || !company.isFormed()) return null;
         return company;
     }
@@ -674,7 +715,7 @@ public class Ledger {
             if (g == null || g.isBase()) {
                 continue;
             }
-            total += Math.abs(g.getLedger().getIncome(Cashflow.DIVIDEND_PAYMENT));
+            total += Math.abs(ledgerOf(g).getIncome(Cashflow.DIVIDEND_PAYMENT));
         }
         return total;
     }
@@ -716,7 +757,7 @@ public class Ledger {
                 if(!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
                 if(!mod.getFrom().getId().equals(guild.getFaction().getId())) continue;
 
-                double base = f.getOrCreateMainGuild().getLedger().getInternalTaxableIncome();
+                double base = ledgerOf(capitalOf(f)).getInternalTaxableIncome();
                 total += base * (mod.getAmount() / 100.0);
             }
         }
@@ -751,7 +792,7 @@ public class Ledger {
                     continue;
                 }
                 for (Guild payerGuild : f.getGuildHandler().getGuilds()) {
-                    Ledger payerLedger = payerGuild.getLedger();
+                    Ledger payerLedger = ledgerOf(payerGuild);
                     if (payerLedger == null || payerLedger.skipsMoneyMovement()) {
                         continue;
                     }
@@ -824,7 +865,7 @@ public class Ledger {
      * cannot pay or receive, so settlement must skip it instead of throwing.
      */
     boolean skipsMoneyMovement() {
-        if (guild.isBankrupt()) {
+        if (bankrupt()) {
             return true;
         }
         return guild.getBank() == null;
@@ -835,10 +876,15 @@ public class Ledger {
      * as {@link #applySettlementFor} moves it. Read before settlement clears the day.
      */
     public static Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> collectHistoryDay(Iterable<Guild> guilds) {
+        return collectHistoryDay(guilds, Guild::getLedger);
+    }
+
+    public static Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> collectHistoryDay(
+            Iterable<Guild> guilds, java.util.function.Function<Guild, Ledger> ledgers) {
         Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> out = new HashMap<>();
         for (Guild payer : guilds) {
             if (payer == null || payer.getLedger() == null) continue;
-            Ledger ledger = payer.getLedger();
+            Ledger ledger = ledgers.apply(payer);
             Faction f = payer.getFaction();
             if (f == null || ledger.skipsMoneyMovement()) continue;
 
@@ -848,7 +894,7 @@ public class Ledger {
 
                 Faction overlord = f.getOverlord();
                 if (overlord != null) {
-                    recordHistory(out, overlord.getOrCreateMainGuild(), LedgerHistory.Source.VASSALS,
+                    recordHistory(out, ledger.capitalOf(overlord), LedgerHistory.Source.VASSALS,
                             f.getName(), Math.abs(ledger.getIncome(Cashflow.OVERLORD_TAX)));
                 }
 
@@ -857,12 +903,12 @@ public class Ledger {
                     for (FactionModifier mod : f.getModifiers()) {
                         if (mod.getFrom() == null) continue;
                         if (!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
-                        recordHistory(out, mod.getFrom().getOrCreateMainGuild(), LedgerHistory.Source.TRIBUTES,
+                        recordHistory(out, ledger.capitalOf(mod.getFrom()), LedgerHistory.Source.TRIBUTES,
                                 f.getName(), base * (mod.getAmount() / 100.0));
                     }
                 }
             } else {
-                recordHistory(out, f.getOrCreateMainGuild(), LedgerHistory.Source.GUILD_TAXES,
+                recordHistory(out, ledger.capitalOf(f), LedgerHistory.Source.GUILD_TAXES,
                         payer.getName(), Math.abs(ledger.getIncome(Cashflow.GUILD_PAYMENTS)));
             }
 
@@ -870,7 +916,7 @@ public class Ledger {
             if (trade != null && trade.getTariffsByFactionMap() != null) {
                 for (Map.Entry<Faction, Double> entry : trade.getTariffsByFactionMap().entrySet()) {
                     if (entry.getKey() == null || entry.getValue() == null) continue;
-                    recordHistory(out, entry.getKey().getOrCreateMainGuild(), LedgerHistory.Source.TARIFFS,
+                    recordHistory(out, ledger.capitalOf(entry.getKey()), LedgerHistory.Source.TARIFFS,
                             f.getName(), entry.getValue());
                 }
             }
@@ -887,21 +933,23 @@ public class Ledger {
                 .merge(name, amount, Double::sum);
     }
 
-    private static double wealthOf(Guild g) {
+    private double wealthOf(Guild g) {
+        if (settlement != null && g != null) return Math.max(0, settlement.realm.get(g).settlement.wealth);
         return g == null || g.getBank() == null ? 0.0 : Math.max(0.0, g.getBank().getWealth());
     }
 
     /** This guild's automatic loan payments as its current balance would fund them. */
     private Map<Loan, LoanFunding.Funded> projectedLoanPlan() {
         if (guild.getLoanHandler() == null) return Map.of();
-        return LoanFunding.plan(guild.getLoanHandler().getLoansTaken(), wealthOf(guild));
+        return LoanFunding.plan(loansTaken(), wealthOf(guild));
     }
 
     /** What a borrower's current balance would fund of this loan it took. */
-    private static LoanFunding.Funded projectedFunding(Loan loan) {
+    private LoanFunding.Funded projectedFunding(Loan loan) {
         Guild borrower = loan.getBorrower();
         if (borrower == null || borrower.getLoanHandler() == null) return LoanFunding.NONE;
-        return LoanFunding.plan(borrower.getLoanHandler().getLoansTaken(), wealthOf(borrower))
+        return LoanFunding.plan(settlement == null ? borrower.getLoanHandler().getLoansTaken()
+                : ledgerOf(borrower).loansTaken(), wealthOf(borrower))
                 .getOrDefault(loan, LoanFunding.NONE);
     }
 
@@ -932,8 +980,8 @@ public class Ledger {
         // Drop the gift before anything else is committed. Other costs may then still fit,
         // so a guild that was short only because of the donation stays solvent.
         cancelDonationIfUnaffordable();
-        if(guild.isBankrupt() && guild.getLoanHandler() != null && guild.getLoanHandler().getLoansTaken() != null) {
-            for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
+        if(bankrupt() && guild.getLoanHandler() != null && loansTaken() != null) {
+            for(Loan loan : loansTaken()) {
                 if(loan == null || !loan.isAutoPay()) continue;
                 if(loan.isPaidOff()) continue;
                 loan.setAutoPay(false);
@@ -953,13 +1001,14 @@ public class Ledger {
         // Loans are paid last, from what is left after today's other payments. The lender is
         // credited in full, so an unfunded payment would create money; any shortfall stays owed.
         loanPlan = guild.getLoanHandler() == null ? Map.of()
-                : LoanFunding.plan(guild.getLoanHandler().getLoansTaken(), loanBudget(buffer));
+                : LoanFunding.plan(loansTaken(), loanBudget(buffer));
         try {
             applySettlementFor(Cashflow.LOAN_PAYMENTS, buffer);
             applySettlementFor(Cashflow.INTEREST_PAYMENTS, buffer);
         } finally {
             loanPlan = null;
         }
+        if (settlement != null) return;
         if (!skipsMoneyMovement()) {
             citizenTaxes.clear();
         }
@@ -981,7 +1030,7 @@ public class Ledger {
      * its buckets, because its debts survive the bankruptcy that froze them.
      */
     private void clearSettledContractBuckets() {
-        if (skipsMoneyMovement()) return;
+        if (settlement != null || skipsMoneyMovement()) return;
         MercenaryCompany company = getFormedCompany();
         if (company == null) return;
         for (MercenaryContract c : company.getContractHandler().getAll()) {
@@ -1010,15 +1059,18 @@ public class Ledger {
     }
 
     private void cancelDonationIfUnaffordable() {
-        if (guild.isBase() || guild.getDonationAmount() <= 0) {
+        if (guild.isBase() || donationOf(guild) <= 0) {
             return;
         }
         if (!skipsMoneyMovement() && !donationOverdraws()) {
             return;
         }
-        double sent = guild.getDonationAmount();
-        guild.setDonationAmount(0);
-        GuildDonation.notifyCancelled(guild, sent);
+        double sent = donationOf(guild);
+        if (settlement != null) settlement.donation = 0;
+        else {
+            guild.setDonationAmount(0);
+            GuildDonation.notifyCancelled(guild, sent);
+        }
     }
 
     private void applySettlementFor(Cashflow cf, DailyGuildTransfers buffer) {
@@ -1064,7 +1116,7 @@ public class Ledger {
                 if (guild.isBase()) return; // base doesn't pay guild tax
                 Faction faction = guild.getFaction();
                 if (faction == null) return;
-                Guild capital = faction.getOrCreateMainGuild();
+                Guild capital = capitalOf(faction);
                 double amount = Math.abs(getIncome(Cashflow.GUILD_PAYMENTS));
                 buffer.add(guild, capital, amount);
                 return;
@@ -1074,7 +1126,7 @@ public class Ledger {
                 if (!guild.isBase()) return; //only base pays
                 Faction overlord = guild.getFaction().getOverlord();
                 if (overlord == null) return;
-                Guild overlordCapital = overlord.getOrCreateMainGuild();
+                Guild overlordCapital = capitalOf(overlord);
                 double amount = Math.abs(getIncome(Cashflow.OVERLORD_TAX));
                 buffer.add(guild, overlordCapital, amount);
                 return;
@@ -1092,7 +1144,7 @@ public class Ledger {
 
                     Faction receiverFaction = mod.getFrom();
                     if (receiverFaction == null) continue;
-                    Guild receiverGuild = receiverFaction.getOrCreateMainGuild();
+                    Guild receiverGuild = capitalOf(receiverFaction);
 
                     double amount = base * (mod.getAmount() / 100.0);
                     if (amount <= 0) continue;
@@ -1112,7 +1164,7 @@ public class Ledger {
                     if (receiverFaction == null) {
                         continue;
                     }
-                    Guild receiverGuild = receiverFaction.getOrCreateMainGuild();
+                    Guild receiverGuild = capitalOf(receiverFaction);
                     double amount = base * (obligation.getIncomePercent() / 100.0);
                     if (amount <= 0) {
                         continue;
@@ -1129,7 +1181,7 @@ public class Ledger {
                 for(Map.Entry<Faction, Double> entry : tariffs.getTariffsByFactionMap().entrySet()) {
                     if (entry.getKey() == null || entry.getValue() == null) continue;
                     Faction receiverFaction = entry.getKey();
-                    Guild receiverGuild = receiverFaction.getOrCreateMainGuild();
+                    Guild receiverGuild = capitalOf(receiverFaction);
                     double amount = entry.getValue();
                     if(amount <= 0) continue;
                     buffer.add(guild, receiverGuild, amount);
@@ -1139,8 +1191,8 @@ public class Ledger {
 
             //Loans
             case LOAN_PAYMENTS: {
-                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) return;
-                for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
+                if (guild.getLoanHandler() == null || loansTaken() == null) return;
+                for(Loan loan : loansTaken()) {
                     if(!LoanFunding.isCharged(loan)) continue;
                     double amount = funded(loan).principal();
                     if(amount <= 0) continue;
@@ -1152,8 +1204,8 @@ public class Ledger {
 
             //Interest
             case INTEREST_PAYMENTS: {
-                if (guild.getLoanHandler() == null || guild.getLoanHandler().getLoansTaken() == null) return;
-                for(Loan loan : guild.getLoanHandler().getLoansTaken()) {
+                if (guild.getLoanHandler() == null || loansTaken() == null) return;
+                for(Loan loan : loansTaken()) {
                     if(!LoanFunding.isCharged(loan)) continue;
                     if(loan.getDailyInterest() <= 0) continue;
                     double amount = funded(loan).interest();
@@ -1194,7 +1246,7 @@ public class Ledger {
                     if (amount <= 0) continue;
                     Faction hirer = c.getHirer();
                     if (hirer == null) continue;
-                    Guild capital = hirer.getOrCreateMainGuild();
+                    Guild capital = capitalOf(hirer);
                     if (capital == null || capital == guild) continue;
                     buffer.add(guild, capital, amount);
                 }
@@ -1203,11 +1255,11 @@ public class Ledger {
 
             case DONATION_PAYMENTS: {
                 if (guild.isBase()) return;
-                double amount = guild.getDonationAmount();
+                double amount = donationOf(guild);
                 if (amount <= 0) return;
                 Faction faction = guild.getFaction();
                 if (faction == null) return;
-                Guild capital = faction.getOrCreateMainGuild();
+                Guild capital = capitalOf(faction);
                 if (capital == null || capital == guild) return;
                 buffer.add(guild, capital, amount);
                 return;
@@ -1215,7 +1267,7 @@ public class Ledger {
 
             case DONATION_FEE: {
                 if (guild.isBase()) return;
-                double fee = GuildDonation.fee(guild.getDonationAmount());
+                double fee = GuildDonation.fee(donationOf(guild));
                 if (fee <= 0) return;
                 buffer.addExternalDelta(guild, -fee);
                 return;
@@ -1224,7 +1276,8 @@ public class Ledger {
             case WAGE_PAYMENTS: {
                 MercenaryCompany company = getFormedCompany();
                 if (company == null) return;
-                PlayerUuidLookup uuids = MercenaryEngagements.uuidLookup();
+                PlayerUuidLookup uuids = settlement == null ? MercenaryEngagements.uuidLookup()
+                        : net.tfminecraft.simplefactions.identity.Members::characterId;
                 if (uuids == null) return;
                 for (Map.Entry<String, Double> entry : company.getPendingWages().entrySet()) {
                     double amount = entry.getValue() == null ? 0 : entry.getValue();

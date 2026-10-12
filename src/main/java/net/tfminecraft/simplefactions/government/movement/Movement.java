@@ -381,6 +381,10 @@ public class Movement {
         foreignBackers.remove(backer);
     }
 
+    public void restoreOrganization(double amount) {
+        organization = amount;
+    }
+
     public void changeOrganization(double amount) {
         organization += amount;
         if (organization < 0) organization = 0;

@@ -537,143 +537,46 @@ public class FactionManager implements Listener{
 			SimpleFactions.getInstance().getVehicleUpkeepService()
 					.warnBankShortfalls(Bukkit.getOnlinePlayers(), getSecondsUntilNewDay());
 		}
-		if (timer >= DAY_LENGTH_SECONDS) {
-			runDailyStep("player ledgers", () -> PlayerEconomyManager.get().clearAllDaily());
-			for(Faction f : new ArrayList<>(factions)){
-				if(f == null) continue;
-				runDailyStep("faction " + f.getId(), f::newDay);
-			}
-			runDailyStep("inactive members", () -> {
-				FactionCleanup.advanceOfflineDays(factions);
-				net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
-			});
-			// Track may have been laid or cut since yesterday, so measure routes again
-			// and settle the day on trade that reflects them.
-			runDailyStep("trade routes", () -> {
-				net.tfminecraft.simplefactions.guild.network.TradeGraph.forgetRoutes();
-				boolean tracksChanged = SimpleFactions.getInstance().refreshTrackProvinces();
-				if (!tracksChanged) SimpleFactions.getInstance().getProvinceManager().recalculate();
-			});
-			runDailyStep("income", this::settleIncome);
-			timer = 0;
-			day++;
-		}
-	}
+        if (timer >= DAY_LENGTH_SECONDS) settleIncome();
+    }
 
-	public void settleIncome() {
-		DailyGuildTransfers buffer = new DailyGuildTransfers();
+    public void settleIncome() {
+        if (!net.tfminecraft.simplefactions.economy.EconomyRuntime.ready()) return;
+        try {
+            SimpleFactions.getInstance().getRealmSettlementService().settle(day);
+            SimpleFactions.getInstance().recordVehicleOwners();
+        } catch (Exception error) {
+            net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error);
+        }
+    }
 
-		// Phase 0: contracts accrue the day and hand the hiring capital its bill, which
-		// it cannot compute itself because it owns no contract object.
-		runDailyStep("mercenary accrual", () ->
-				net.tfminecraft.simplefactions.mercenary.contract.ContractAccrualService.accrueDailyAndPush());
+    /** Loads references before money recovery; no repeating tasks can mutate the loaded state yet. */
+    public void prepare() {
+        Database database = new Database();
+        timer = database.getTimer();
+        day = database.getDay();
+        loadRelations();
+        for (Faction f : factions) {
+            f.getLawHandler().apply();
+            f.countyCheck();
+            f.getGovernment().loadMovements();
+            f.ping();
+        }
+        updateAllPrestigeConverged();
+        fixRelations();
+        loadDBLoans();
+    }
 
-		// Read the ledger view history before Phase 1 clears the day's citizen taxes.
-		Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> history = new HashMap<>();
-		runDailyStep("ledger history", () -> history.putAll(Ledger.collectHistoryDay(getAllGuilds())));
+    public void startTicks() {
+        net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
+        tickCycle();
+        loaded = true;
+    }
 
-		// Phase 1: collect transfers & external deltas
-		for (Guild g : getAllGuilds()) {
-			if (g == null || g.getLedger() == null) continue;
-			runDailyStep("ledger " + g.getId(), () -> g.getLedger().populateDailyTransfers(buffer));
-		}
-
-		// Phase 2: compute net deltas
-		Map<Guild, Double> deltas = new HashMap<>();
-
-		// Guild -> Guild transfers
-		for (var fromEntry : buffer.getTransfers().entrySet()) {
-			Guild from = fromEntry.getKey();
-			for (var toEntry : fromEntry.getValue().entrySet()) {
-				Guild to = toEntry.getKey();
-				double amount = toEntry.getValue();
-
-				deltas.merge(from, -amount, Double::sum);
-				deltas.merge(to, amount, Double::sum);
-			}
-		}
-
-		// External deposits / withdrawals
-		for (var entry : buffer.getExternalDeltas().entrySet()) {
-			Guild guild = entry.getKey();
-			double delta = entry.getValue();
-
-			deltas.merge(guild, delta, Double::sum);
-		}
-
-		// Phase 3: apply atomically
-		for (var entry : deltas.entrySet()) {
-			Guild guild = entry.getKey();
-			if (guild == null || guild.getBank() == null) continue;
-			double amount = entry.getValue() == null ? 0.0 : Formatter.formatDouble(entry.getValue());
-			if (amount == 0.0) continue;
-			runDailyStep("deposit " + guild.getId(), () -> {
-				guild.getBank().deposit(amount);
-				int liquidations = 0;
-				while(guild.isBankrupt() && guild.canLiquidate()
-						&& !net.tfminecraft.simplefactions.inactivity.InactivityService.isFullyInactive(guild.getMembers())
-						&& liquidations++ < 1000) {
-					int before = guild.getSize();
-					guild.liquidateRandom();
-					if(guild.getSize() >= before) break;
-				}
-			});
-		}
-
-		for (Guild g : getAllGuilds()) {
-			if (g == null || g.getLedger() == null) continue;
-			runDailyStep("ledger history " + g.getId(), () -> g.getLedger().getHistory().closeDay(history.get(g)));
-		}
-
-		PostSettlementPayouts.apply(
-				buffer,
-				DenarEconomyPlayerBank.INSTANCE,
-				PlayerEconomyManager.get(),
-				net.tfminecraft.simplefactions.utils.MemberAccounts::accountId);
-		for (Guild g : getAllGuilds()) {
-			g.refreshDividendEligibility();
-		}
-
-		for(Guild g : getAllGuilds()) {
-			if (g == null || g.getLoanHandler() == null || g.getLoanHandler().getLoansGiven() == null) continue;
-			for(Loan loan : g.getLoanHandler().getLoansGiven()) {
-				if (loan == null) continue;
-				runDailyStep("loan " + loan.getId(), loan::tickDay);
-			}
-		}
-
-		//Contracts age a day, then elapsed and bankrupt ones are closed out
-		net.tfminecraft.simplefactions.mercenary.contract.ContractTerminationService.tickDay();
-
-		for (Faction faction : factions) {
-			WarReparationsService.tickAfterDailySettlement(faction);
-		}
-
-		buffer.clear();
-		SimpleFactions.getInstance().getVehicleUpkeepService().processDailyUpkeep();
-		SimpleFactions.getInstance().recordVehicleOwners();
-	}
-
-	
-	public void run() {
-		Database database = new Database();
-		timer = database.getTimer();
-		day = database.getDay();
-		LogManager.relations("FactionManager.run loadRelations");
-		loadRelations();
-		tickCycle();	
-		for(Faction f : factions) {
-			f.getLawHandler().apply();
-			f.countyCheck();
-			f.getGovernment().loadMovements();
-			f.ping();
-		}
-		updateAllPrestigeConverged();
-		net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
-		fixRelations();
-		loadDBLoans();
-		loaded = true;
-	}
+    public void run() {
+        prepare();
+        startTicks();
+    }
 
 	public static boolean guildExists(String id) {
 		for(Faction f : factions) {
@@ -751,22 +654,7 @@ public class FactionManager implements Listener{
 		return guilds;
 	}
 
-	/** One bad faction or guild must not abort the day, or the next second would pay everyone again. */
-	private static void runDailyStep(String step, Runnable action) {
-		try {
-			action.run();
-		} catch (RuntimeException ex) {
-			SimpleFactions plugin = SimpleFactions.getInstance();
-			String message = "Daily tick failed during " + step;
-			if (plugin != null && plugin.getLogger() != null) {
-				plugin.getLogger().log(java.util.logging.Level.SEVERE, message, ex);
-			} else {
-				java.util.logging.Logger.getLogger(FactionManager.class.getName())
-						.log(java.util.logging.Level.SEVERE, message, ex);
-			}
-		}
-	}
-	
+
 	public void start(List<Faction> l) {
 		factions = l;
 	}

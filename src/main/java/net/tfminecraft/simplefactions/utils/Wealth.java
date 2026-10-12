@@ -10,12 +10,11 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.denareconomy.enums.Accounts;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 
 public class Wealth {
-    /** Pouch, bank and a share of their guild; the member's account holds the money until part C. */
+    /** Pouch, bank and a share of the character's guild. */
     public static double wealth(String player) {
         double wealth = balance(player, Accounts.POUCH);
         wealth += balance(player, Accounts.BANK);
@@ -31,9 +30,10 @@ public class Wealth {
     }
 
     private static double balance(String member, Accounts account) {
-        if (Members.characterId(member) == null) return OfflineModifier.balance(member, account);
-        UUID id = Members.accountId(member).orElse(null);
-        return id == null ? 0 : OfflineModifier.balance(id, account);
+        UUID id = Members.characterId(member);
+        if (id == null) return 0;
+        return net.tfminecraft.simplefactions.economy.Money.denars(net.tfminecraft.denareconomy.api.Denars.balance(
+                "char:" + id + ":" + (account == Accounts.POUCH ? "pouch" : "bank")));
     }
 
     public static List<String> topWealth(Faction faction, boolean includeVassals) {

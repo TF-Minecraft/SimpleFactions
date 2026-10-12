@@ -72,6 +72,24 @@ public class FactionCleanup {
         }
     }
 
+    /** Pure day snapshot; recovery applies this exact map instead of incrementing it again. */
+    public static Map<String, Integer> planOfflineDays(List<Faction> factions) throws IOException {
+        if (!ensureLoaded()) throw new IOException("Cannot read offline days");
+        Map<String, Integer> result = new HashMap<>(offlineDays);
+        for (Faction faction : factions) {
+            for (String member : faction.getMembers()) {
+                if (InactivityRules.isTrackedMember(member)) result.putIfAbsent(member, 0);
+            }
+        }
+        result.replaceAll((member, days) -> isOnline(member) ? 0 : Math.addExact(days == null ? 0 : days, 1));
+        return result;
+    }
+
+    public static void restoreOfflineDays(Map<String, Integer> values) throws IOException {
+        net.tfminecraft.simplefactions.database.DurableJson.write(LOGIN_FILE.toPath(), values);
+        offlineDays = new HashMap<>(values);
+    }
+
     public static int daysOffline(String member) {
         if (member == null) return 0;
         if (!ensureLoaded()) return 0;

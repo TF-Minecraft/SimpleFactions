@@ -25,8 +25,11 @@ public final class DurableJson {
                 channel.force(true);
             }
             Files.move(pending, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            try (FileChannel channel = FileChannel.open(directory, StandardOpenOption.READ)) {
-                channel.force(true);
+            // A previous failed attempt may already have created an unsynced parent entry.
+            for (Path path = directory; path != null; path = path.getParent()) {
+                try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+                    channel.force(true);
+                }
             }
         } finally {
             Files.deleteIfExists(pending);

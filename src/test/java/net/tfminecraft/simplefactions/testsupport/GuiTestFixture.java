@@ -81,6 +81,7 @@ public final class GuiTestFixture implements AutoCloseable {
   private final Map<Inventory, String> titles = new IdentityHashMap<>();
   private final MockedConstruction<ItemStack> itemConstruction;
   private final MockedStatic<Bukkit> bukkit;
+  private final TestTreasuries treasuries;
 
   public GuiTestFixture() {
     when(world.getName()).thenReturn("world");
@@ -103,6 +104,7 @@ public final class GuiTestFixture implements AutoCloseable {
     bukkit = mockStatic(Bukkit.class);
     bukkit.when(Bukkit::getServer).thenReturn(server);
     bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+    treasuries = new TestTreasuries();
     var services = new org.bukkit.plugin.SimpleServicesManager();
     bukkit.when(Bukkit::getServicesManager).thenReturn(services);
     when(server.getServicesManager()).thenReturn(services);
@@ -688,6 +690,7 @@ public final class GuiTestFixture implements AutoCloseable {
   public void close() {
     try {
       itemConstruction.close();
+      treasuries.close();
     } finally {
       try {
         bukkit.close();

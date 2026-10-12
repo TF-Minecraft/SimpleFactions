@@ -496,6 +496,18 @@ public class MercenaryCompany {
         wages.clearPeacetimeOverride(key);
     }
 
+    /** Replays only the financial state, keeping the company's identity and regiment references. */
+    public void restoreSettlement(MercenaryCompanyData data) {
+        reputation = data.reputation;
+        pendingWages.clear();
+        pendingWages.putAll(data.pendingWages);
+        for (MercenaryContractData saved : data.contracts) {
+            MercenaryContract contract = contractHandler.getById(saved.id);
+            if (contract == null) throw new IllegalStateException("Missing settlement contract " + saved.id);
+            contract.restoreSettlement(saved);
+        }
+    }
+
     public void clearPendingWages() {
         pendingWages.clear();
     }

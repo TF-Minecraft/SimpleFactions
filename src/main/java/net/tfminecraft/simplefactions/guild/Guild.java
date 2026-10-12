@@ -1100,6 +1100,10 @@ public class Guild {
         return eligible;
     }
 
+    public void restoreDividendEligibility(List<String> members) {
+        dividendEligible = new ArrayList<>(members);
+    }
+
     public void refreshDividendEligibility() {
         dividendEligible = new ArrayList<>(members);
     }

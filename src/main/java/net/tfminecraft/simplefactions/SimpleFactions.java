@@ -140,6 +140,8 @@ public class SimpleFactions extends JavaPlugin{
 	private final MercenaryCommandManager mercenaryCommandManager = new MercenaryCommandManager();
 	private final BankManager bankManager = new BankManager();
 	private final Database db = new Database();
+    private net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService realmSettlementService;
+    public net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService getRealmSettlementService() { return realmSettlementService; }
 	private final FactionManager factionManager = new FactionManager();
 	private final TitleManager titleManager = new TitleManager();
 	private final PlayerManager playerManager = new PlayerManager();
@@ -274,7 +276,7 @@ public class SimpleFactions extends JavaPlugin{
 			net.tfminecraft.tlibs.character.Characters.legacyHeirsReady();
 		} catch (LinkageError error) {
 			incompatibleCharacterApi = true;
-			getLogger().severe("SimpleFactions requires TLibs 2.4.0 or newer; disabling.");
+			getLogger().severe("SimpleFactions requires TLibs 2.4.1 or newer; disabling.");
 			getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
@@ -321,7 +323,7 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(new Listener() {
 			@EventHandler
 			public void onPluginEnable(PluginEnableEvent event) {
-				if ("RPCharacters".equalsIgnoreCase(event.getPlugin().getName()) && identityReady()) start();
+				if (("RPCharacters".equalsIgnoreCase(event.getPlugin().getName()) || "DenarEconomy".equalsIgnoreCase(event.getPlugin().getName())) && identityReady()) start();
 			}
 		}, this);
 		identityPoll = getServer().getScheduler().runTaskTimer(this, () -> {
@@ -330,9 +332,21 @@ public class SimpleFactions extends JavaPlugin{
 	}
 
 	static boolean identityReady() {
-		return net.tfminecraft.tlibs.character.Characters.available()
+		return net.tfminecraft.denareconomy.api.Denars.ready()
+                && net.tfminecraft.tlibs.character.Characters.available()
 				&& net.tfminecraft.tlibs.character.Characters.legacyHeirsReady();
 	}
+
+    /** A persisted operation must finish before another character or money mutation is allowed. */
+    public void failFinancialState(Throwable error) {
+        started = false;
+        startupComplete = false;
+        startFailed = true;
+        getServer().getServicesManager().unregisterAll(this);
+        getLogger().log(java.util.logging.Level.SEVERE,
+                "Faction money recovery is incomplete; disabling until the saved operation can be recovered", error);
+        getServer().getPluginManager().disablePlugin(this);
+    }
 
 	/** Whether the data is migrated and everything has started; see {@code SimpleFactionsApi.ready()}. */
 	public boolean isStarted() {
@@ -376,8 +390,7 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.identity.LeaderCharacters.useSharedIdentity();
 		net.tfminecraft.simplefactions.prestige.MemberPlaytime.useSharedIdentity();
 		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.useSharedIdentity();
-		registerListeners();
-		registerRpCharactersChatHooks();
+
 		vehicleRegistryPersistence = new VehicleRegistryPersistence(
 			new File(getDataFolder(), "Cache"),
 			vehicleRegistry);
@@ -445,7 +458,27 @@ public class SimpleFactions extends JavaPlugin{
 				return;
 			}
 		}
-		factionManager.run();
+        factionManager.prepare();
+        WarManager.start();
+        net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.loadAll();
+        try {
+            for (var guild : FactionManager.getAllGuilds()) {
+                net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(guild.getIncarnationId(),
+                        guild.getBank() == null ? 0 : guild.getBank().legacyBalance(), guild.getLedger().getCitizenTaxesCopy());
+                guild.updateWealth();
+            }
+            net.tfminecraft.simplefactions.identity.death.CharacterDeaths.load(getDataFolder().toPath());
+            realmSettlementService = new net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService(getDataFolder().toPath(), db);
+            realmSettlementService.recover();
+            net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile();
+            net.tfminecraft.simplefactions.economy.EconomyRuntime.recovered();
+        } catch (Exception error) {
+            failFinancialState(error);
+            return;
+        }
+        factionManager.startTicks();
+        registerListeners();
+        registerRpCharactersChatHooks();
 		if (Cache.provincesEnabled) {
 			ProvincePresenceTickService.start();
 		}
@@ -466,8 +499,6 @@ public class SimpleFactions extends JavaPlugin{
 		getCommand(MovementCommandManager.CMD).setExecutor(movementCommandManager);
 		getCommand(MovementCommandManager.CMD).setTabCompleter(new MovementTabCompletion());
 		RequestManager.start();
-		WarManager.start();
-		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.loadAll();
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.startAutosave();
 		BattleScheduleTickService.start();
 		CampaignViewRefreshService.start();
@@ -482,8 +513,14 @@ public class SimpleFactions extends JavaPlugin{
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
 		startupComplete = true;
-		started = true;
-		net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
+        started = true;
+        getServer().getServicesManager().register(net.tfminecraft.denareconomy.api.TaxPolicy.class,
+                new net.tfminecraft.simplefactions.economy.GuildTaxPolicy(), this, org.bukkit.plugin.ServicePriority.Normal);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            try { net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile(); }
+            catch (Exception error) { net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error); }
+        }, 72000L, 72000L);
+        net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
 	}
 	@Override
 	public void onDisable() {
@@ -491,6 +528,8 @@ public class SimpleFactions extends JavaPlugin{
 		if (identityPoll != null) identityPoll.cancel();
 		identityPoll = null;
 		started = false;
+        getServer().getServicesManager().unregisterAll(this);
+        net.tfminecraft.simplefactions.identity.death.CharacterDeaths.stop();
 		if (!servicesBegun) {
 			// Still waiting for identity: nothing was loaded, so nothing may be saved.
 			return;

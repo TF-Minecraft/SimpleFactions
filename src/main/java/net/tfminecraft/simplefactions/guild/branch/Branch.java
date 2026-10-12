@@ -85,6 +85,7 @@ public class Branch {
         return allowedTypes.contains(type);
     }
     public int getLevel() { return level; }
+    public void restoreLevel(int level) { this.level = Math.max(0, level); }
     public void levelUp() {
         level++;
     }

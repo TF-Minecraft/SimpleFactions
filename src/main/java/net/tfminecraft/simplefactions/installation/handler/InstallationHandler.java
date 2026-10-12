@@ -77,6 +77,15 @@ public class InstallationHandler {
         return pendingConstruction.toData();
     }
 
+    /** Exact upkeep outcome; a queued construction is not advanced during replay. */
+    public void restoreSettlement(List<InstallationData> installations, InstallationConstructionData construction) {
+        load(installations);
+        pendingConstruction = null;
+        pendingByProvinceKind.clear();
+        if (construction != null) setPendingConstruction(new InstallationConstruction(construction));
+        enqueueMapUpdate();
+    }
+
     public InstallationConstruction getPendingConstruction() {
         return pendingConstruction;
     }
