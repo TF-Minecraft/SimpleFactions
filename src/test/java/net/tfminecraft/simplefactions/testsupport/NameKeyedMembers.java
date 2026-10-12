@@ -22,6 +22,8 @@ import net.tfminecraft.tlibs.character.CharacterSession;
  */
 public final class NameKeyedMembers implements Members.Resolver, BeforeEachCallback, AfterEachCallback {
     public static final NameKeyedMembers INSTANCE = new NameKeyedMembers();
+    /** Character IDs handed out in sessions, back to the name that keys them. */
+    private static final java.util.Map<UUID, String> NAMES = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static void install() {
         Members.setResolver(INSTANCE);
@@ -42,7 +44,21 @@ public final class NameKeyedMembers implements Members.Resolver, BeforeEachCallb
         String name = player.getName();
         if (name == null) return Optional.empty();
         UUID owner = player.getUniqueId() != null ? player.getUniqueId() : id("owner:" + name);
-        return Optional.of(new CharacterSession(new CharacterRef(owner, id(name)), 1L));
+        return Optional.of(new CharacterSession(new CharacterRef(owner, characterOf(name)), 1L));
+    }
+
+    /** The character ID standing for a test name; its key is the name again. */
+    public static UUID characterOf(String name) {
+        UUID character = id(name);
+        NAMES.put(character, name);
+        return character;
+    }
+
+    /** A session's character keys back to the player's name, as {@link #key(Player)} does. */
+    @Override
+    public String key(UUID characterId) {
+        String name = NAMES.get(characterId);
+        return name != null ? name : Members.Resolver.super.key(characterId);
     }
 
     @Override

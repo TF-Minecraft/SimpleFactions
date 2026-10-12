@@ -458,7 +458,7 @@ class MercenaryMenusCoverageTest {
     SpecialPositionAssignment assignment = new SpecialPositionAssignment();
     assignment.playerName = "Host";
     assignment.playerId = fixture.player("Host").getUniqueId();
-    assignment.characterId = "host_character";
+    assignment.characterId = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Host").toString();
     host.getEspionage().appoint(assignment, 50);
     companies.companyView(customer, guild);
     Inventory menu = top(customer);

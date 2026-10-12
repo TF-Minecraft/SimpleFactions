@@ -130,7 +130,7 @@ public final class VehicleHandoverService {
             tellBoth(req, recipient, VehicleHandoverMessages.forOutcome(outcome, Members.name(recipient)));
             return;
         }
-        String ownerKey = VehicleOwnershipQueries.ownerKey(req.getOwnerName());
+        String ownerKey = req.getOwnerKey();
         Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, ownerKey, outcome.vehicleTypeId());
         if (!Objects.equals(req.getVehicleTypeId(), outcome.vehicleTypeId()) || !req.matchesFee(quote)) {
             tellBoth(req, recipient, VehicleHandoverMessages.feeChanged());

@@ -14,6 +14,8 @@ public final class VehicleHandoverRequest extends Request {
     private final String vehicleTypeId;
     private final UUID ownerUuid;
     private final String ownerName;
+    /** The owner's character when the offer was made; it pays the fee even if they log off. */
+    private final String ownerKey;
     private final UUID recipientUuid;
     private final String feeFactionId;
     private final double feeAmount;
@@ -32,10 +34,8 @@ public final class VehicleHandoverRequest extends Request {
         this.ownerUuid = ownerUuid;
         this.ownerName = ownerName;
         this.recipientUuid = recipientUuid;
-        // Fees are charged to the owner's character, the same one acceptRequest quotes for.
-        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE,
-                net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.ownerKey(ownerName),
-                vehicleTypeId);
+        this.ownerKey = net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.ownerKey(ownerName);
+        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, ownerKey, vehicleTypeId);
         this.feeFactionId = quote == null ? null : quote.faction().getId();
         this.feeAmount = quote == null ? 0.0 : quote.amount();
         this.time = System.currentTimeMillis()
@@ -56,6 +56,10 @@ public final class VehicleHandoverRequest extends Request {
 
     public String getOwnerName() {
         return ownerName;
+    }
+
+    public String getOwnerKey() {
+        return ownerKey;
     }
 
     public UUID getRecipientUuid() {

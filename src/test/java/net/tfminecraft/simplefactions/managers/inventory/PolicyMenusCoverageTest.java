@@ -311,7 +311,7 @@ class PolicyMenusCoverageTest {
     var spymaster = new net.tfminecraft.simplefactions.espionage.SpecialPositionAssignment();
     spymaster.playerName = foreign.getName();
     spymaster.playerId = foreign.getUniqueId();
-    spymaster.characterId = "character-Foreign";
+    spymaster.characterId = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Foreign").toString();
     target.getEspionage().appoint(spymaster, 80);
     fixture.saved("home", "Alice");
     inventory.lawView.lawView(alice, target, null);

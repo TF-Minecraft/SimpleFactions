@@ -135,33 +135,30 @@ class IntegrationBoundaryCoverageTest {
   }
 
   @Test
-  void leaderNamesUseSharedReadyCharactersWithoutRpcEnablementOrDiskLookup() {
+  void leaderNamesComeFromTheLeadersOwnCharacterWithoutRpcEnablementOrDiskLookup() {
     SimpleServicesManager services = sharedServices();
     CharacterIdentity provider = mock(CharacterIdentity.class);
+    Members.useSharedIdentity();
     LeaderCharacters.useSharedIdentity();
-    assertNull(LeaderCharacters.resolve("Online", null, null).name());
-    Player player = rig.player("Online");
-    UUID owner = player.getUniqueId();
+    UUID owner = UUID.randomUUID();
     UUID characterId = UUID.randomUUID();
+    String leader = Members.key(characterId);
+    assertNull(LeaderCharacters.resolve(leader, null, null).name());
     CharacterRef ref = new CharacterRef(owner, characterId);
-    CharacterSession session = new CharacterSession(ref, 1);
     CharacterInfo info = new CharacterInfo(ref, "Aelin of the Reach", CharacterStatus.ALIVE,
         null, Set.of(), 7200, Instant.EPOCH);
-    when(Bukkit.getPlayer(owner)).thenReturn(player);
-    when(provider.currentSession(player)).thenReturn(Optional.empty());
     when(provider.info(characterId)).thenReturn(Optional.of(info));
-    when(provider.isCurrent(session)).thenReturn(true);
     when(Bukkit.getOfflinePlayer(anyString()))
         .thenThrow(new AssertionError("Remote lookup is forbidden"));
     services.register(CharacterIdentity.class, provider, rig.ui.plugin, ServicePriority.Normal);
     try {
-      assertNull(LeaderCharacters.resolve("Online", null, null).name());
-      when(provider.currentSession(player)).thenReturn(Optional.of(session));
-      assertEquals("Aelin of the Reach", LeaderCharacters.resolve("Online", null, null).name());
-      assertNull(LeaderCharacters.resolve("Uncached", null, null).name());
+      // The leader may be offline: the name is the character's own, not whatever its player plays now.
+      assertEquals("Aelin of the Reach", LeaderCharacters.resolve(leader, null, null).name());
+      assertNull(LeaderCharacters.resolve(Members.key(UUID.randomUUID()), null, null).name());
       verify(Bukkit.getPluginManager(), never()).isPluginEnabled("RPCharacters");
+      verify(provider, never()).currentSession(any());
       services.unregister(CharacterIdentity.class, provider);
-      assertNull(LeaderCharacters.resolve("Online", "Aelin of the Reach", "Online").name());
+      assertNull(LeaderCharacters.resolve(leader, "Aelin of the Reach", leader).name());
     } finally {
       services.unregister(CharacterIdentity.class, provider);
       LeaderCharacters.reset();

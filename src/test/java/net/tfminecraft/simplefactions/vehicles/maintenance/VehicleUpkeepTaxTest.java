@@ -125,6 +125,10 @@ class VehicleUpkeepTaxTest {
     private void runDay() {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class));
+            // The owner tag names Alice's account; the tax follows the character she plays.
+            org.bukkit.entity.Player owner = mock(org.bukkit.entity.Player.class);
+            when(owner.getName()).thenReturn("Alice");
+            bukkit.when(() -> Bukkit.getPlayerExact("Alice")).thenReturn(owner);
             service.processDailyUpkeep();
         }
     }

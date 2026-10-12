@@ -37,6 +37,11 @@ public final class Members {
         Optional<CharacterInfo> info(String key);
 
         Optional<Player> online(String key);
+
+        /** The key of a character ID: its lower-case text. */
+        default String key(UUID characterId) {
+            return characterId.toString().toLowerCase(Locale.ROOT);
+        }
     }
 
     private static final Resolver SHARED = new SharedResolver();
@@ -59,7 +64,7 @@ public final class Members {
 
     /** Key form of a character ID. */
     public static String key(UUID characterId) {
-        return characterId == null ? null : characterId.toString().toLowerCase(Locale.ROOT);
+        return characterId == null ? null : resolver.key(characterId);
     }
 
     public static String key(CharacterRef ref) {
