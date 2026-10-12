@@ -1,6 +1,12 @@
 package net.tfminecraft.simplefactions.api;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.objects.Faction;
+import org.bukkit.entity.Player;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Entry point for other plugins. Until {@link #ready()} is true, SimpleFactions
@@ -15,5 +21,45 @@ public final class SimpleFactionsApi {
     public static boolean ready() {
         SimpleFactions plugin = SimpleFactions.getInstance();
         return plugin != null && plugin.isStarted();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Guild> getGuildByMember(Player player) {
+        return ready() ? Optional.ofNullable(FactionManager.getGuildByMember(player)) : Optional.empty();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Guild> getGuildByMember(UUID characterId) {
+        return ready() ? Optional.ofNullable(FactionManager.getGuildByMember(characterId)) : Optional.empty();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Guild> getGuildByLeader(Player player) {
+        return ready() ? Optional.ofNullable(FactionManager.getGuildByLeader(player)) : Optional.empty();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Guild> getGuildByLeader(UUID characterId) {
+        return ready() ? Optional.ofNullable(FactionManager.getGuildByLeader(characterId)) : Optional.empty();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Faction> getByMember(Player player) {
+        return ready() ? Optional.ofNullable(FactionManager.getByMember(player)) : Optional.empty();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Faction> getByMember(UUID characterId) {
+        return ready() ? Optional.ofNullable(FactionManager.getByMember(characterId)) : Optional.empty();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Faction> getByLeader(Player player) {
+        return ready() ? Optional.ofNullable(FactionManager.getByLeader(player)) : Optional.empty();
+    }
+
+    /** Empty while unavailable; check ready() before making persistence decisions. */
+    public static Optional<Faction> getByLeader(UUID characterId) {
+        return ready() ? Optional.ofNullable(FactionManager.getByLeader(characterId)) : Optional.empty();
     }
 }

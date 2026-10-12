@@ -15,12 +15,19 @@ public class BattleStartedEvent extends Event {
 	private final BattleType battleType;
 	private final Integer warId;
 	private final Set<UUID> participantIds;
+	private final Set<net.tfminecraft.tlibs.character.CharacterRef> participants;
 
 	public BattleStartedEvent(
 			String battleId,
 			BattleType battleType,
 			Integer warId,
 			Set<UUID> participantIds) {
+		this(battleId, battleType, warId, participantIds, Set.of());
+	}
+
+	public BattleStartedEvent(String battleId, BattleType battleType, Integer warId,
+			Set<UUID> participantIds, Set<net.tfminecraft.tlibs.character.CharacterRef> participants) {
+		this.participants = Set.copyOf(participants);
 		this.battleId = battleId;
 		this.battleType = battleType;
 		this.warId = warId;
@@ -39,6 +46,9 @@ public class BattleStartedEvent extends Event {
 	public Integer getWarId() {
 		return warId;
 	}
+
+	/** Characters captured when participation began. */
+	public Set<net.tfminecraft.tlibs.character.CharacterRef> getParticipants() { return participants; }
 
 	public Set<UUID> getParticipantIds() {
 		return participantIds;

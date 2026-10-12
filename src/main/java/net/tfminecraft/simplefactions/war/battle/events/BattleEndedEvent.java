@@ -21,6 +21,7 @@ public class BattleEndedEvent extends Event {
 	private final String winningSideId;
 	private final Map<String, Integer> sideCasualties;
 	private final Set<UUID> participantIds;
+	private final Set<net.tfminecraft.tlibs.character.CharacterRef> participants;
 	private final BattleEndReason endReason;
 	private final boolean campaignRaid;
 	private final boolean lootEnabled;
@@ -95,6 +96,14 @@ public class BattleEndedEvent extends Event {
 			BattleEndReason endReason,
 			boolean campaignRaid,
 			boolean lootEnabled) {
+		this(battleId, battleType, warId, winningSideId, sideCasualties, participantIds,
+				endReason, campaignRaid, lootEnabled, Set.of());
+	}
+
+	public BattleEndedEvent(String battleId, BattleType battleType, Integer warId, String winningSideId,
+			Map<String, Integer> sideCasualties, Set<UUID> participantIds, BattleEndReason endReason,
+			boolean campaignRaid, boolean lootEnabled, Set<net.tfminecraft.tlibs.character.CharacterRef> participants) {
+		this.participants = Set.copyOf(participants);
 		this.battleId = battleId;
 		this.battleType = battleType;
 		this.warId = warId;
@@ -140,6 +149,9 @@ public class BattleEndedEvent extends Event {
 	public Map<String, Integer> getSideCasualties() {
 		return sideCasualties;
 	}
+
+	/** Captured at participation, including characters who have since disconnected. */
+	public Set<net.tfminecraft.tlibs.character.CharacterRef> getParticipants() { return participants; }
 
 	public Set<UUID> getParticipantIds() {
 		return participantIds;

@@ -693,6 +693,16 @@ public class FactionManager implements Listener{
 		return guild.getType().isBase();
 	}
 
+	/** The faction identity of the character in this player's current session. */
+	public static Guild getGuildByMember(Player player) {
+		return getGuildByMember(Members.key(player));
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Guild getGuildByMember(java.util.UUID characterId) {
+		return getGuildByMember(Members.key(characterId));
+	}
+
 	public static Guild getGuildByMember(String player) {
 		if(player == null) return null;
 		for(Faction f : factions) {
@@ -701,6 +711,16 @@ public class FactionManager implements Listener{
 			}
 		}
 		return null;
+	}
+
+	/** The faction identity of the character in this player's current session. */
+	public static Guild getGuildByLeader(Player player) {
+		return getGuildByLeader(Members.key(player));
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Guild getGuildByLeader(java.util.UUID characterId) {
+		return getGuildByLeader(Members.key(characterId));
 	}
 
 	public static Guild getGuildByLeader(String leader) {
@@ -917,6 +937,16 @@ public class FactionManager implements Listener{
 		}
 		return c;
 	}
+	/** The faction identity of the character in this player's current session. */
+	public static Faction getByLeader(Player player) {
+		return getByLeader(Members.key(player));
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Faction getByLeader(java.util.UUID characterId) {
+		return getByLeader(Members.key(characterId));
+	}
+
 	public static Faction getByLeader(String name) {
 		if(name == null) return null;
 		for(Faction f : factions) {
@@ -924,6 +954,16 @@ public class FactionManager implements Listener{
 		}
 		return null;
 	}
+	/** The faction identity of the character in this player's current session. */
+	public static Faction getByMember(Player player) {
+		return getByMember(Members.key(player));
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Faction getByMember(java.util.UUID characterId) {
+		return getByMember(Members.key(characterId));
+	}
+
 	public static Faction getByMember(String name) {
 		if(name == null) return null;
 		for(Faction f : factions) {

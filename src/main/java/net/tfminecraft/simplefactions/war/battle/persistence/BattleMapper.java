@@ -32,6 +32,7 @@ public final class BattleMapper {
 		}
 		BattleData data = new BattleData();
 		data.id = battle.getId();
+		data.participants = battle.getParticipants();
 		data.displayName = battle.getDisplayName();
 		data.battleType = battle.getBattleType() != null ? battle.getBattleType().toJson() : null;
 		data.warId = battle.getWarId();
@@ -82,6 +83,7 @@ public final class BattleMapper {
 			return null;
 		}
 		Battle battle = new Battle(data.id);
+		battle.restoreParticipants(data.participants);
 		battle.setDisplayName(data.displayName);
 		battle.setBattleType(parseBattleType(data.battleType));
 		battle.setWarId(data.warId);

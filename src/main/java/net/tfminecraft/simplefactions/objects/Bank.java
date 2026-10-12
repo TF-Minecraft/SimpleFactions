@@ -33,6 +33,11 @@ public class Bank {
 		chunk = c;
 	}
 	
+	/** Stable DenarEconomy treasury account for this guild incarnation. */
+	public String accountId() {
+		return "guild:" + guild.getIncarnationId();
+	}
+
 	public Double getWealth() {
 		return bank.getBal();
 	}

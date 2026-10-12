@@ -434,6 +434,9 @@ public class Guild {
 
     public String getIncarnation() { return incarnation; }
 
+    /** Immutable treasury identity; guild names may be reused after disbanding. */
+    public java.util.UUID getIncarnationId() { return java.util.UUID.fromString(incarnation); }
+
     /** A removed branch still saved above level 0. The level is not refunded. */
     static void warnRetiredBranch(Faction host, String guildName, String branchId, int level) {
         if (level <= 0 || branchId == null) {

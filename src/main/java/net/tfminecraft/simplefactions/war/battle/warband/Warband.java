@@ -125,6 +125,8 @@ public class Warband {
 	public void addPlayer(Player p) {
 		memberIds.add(p.getUniqueId());
 		invitedIds.remove(p.getUniqueId());
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getBattleByMemberId(p.getUniqueId());
+		if (battle != null && battle.hasStarted()) battle.captureParticipant(p);
 	}
 
 	public void addMember(UUID memberId) {
