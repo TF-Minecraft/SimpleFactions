@@ -3,14 +3,12 @@ package net.tfminecraft.simplefactions.managers.inventory;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import net.tfminecraft.simplefactions.espionage.EspionageService;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -95,7 +93,7 @@ public class FactionCreator {
 		if(realmSize > 0 && realmSize-f.getProvinces().size() > 0) lore.add(StringFormatter.formatHex("#d4c9aeRealm Size: #7a706a"+realmSize+" #a39ba8("+(realmSize-f.getProvinces().size())+" from subjects)"));
 		else if(realmSize > 0) lore.add(StringFormatter.formatHex("#d4c9aeRealm Size: #7a706a"+realmSize));
 		lore.add(" ");
-		lore.add(StringFormatter.formatHex("#9c9775"+f.getRulerTitle()+": #c2bea7"+CharacterNames.display(p, f.getLeader(), f)));
+		lore.add(StringFormatter.formatHex("#9c9775"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
 		lore.add(StringFormatter.formatHex("#b8ae61Ruling System: #d4c9ae"+f.getGovernmentString()));
 		lore.add(StringFormatter.formatHex("#b8ae61Culture: #d4c9ae"+f.getCulture()));
 		lore.add(StringFormatter.formatHex("#b8ae61Religion: #d4c9ae"+f.getReligion()));
@@ -294,8 +292,8 @@ public class FactionCreator {
 			i = new ItemStack(Material.PLAYER_HEAD, 1);
 			SkullMeta m = (SkullMeta) i.getItemMeta();
 			m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-			m.setDisplayName(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+CharacterNames.display(p, f.getLeader(), f)));
-			m.setOwningPlayer(Bukkit.getOfflinePlayer(f.getLeader()));
+			m.setDisplayName(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
+			MemberHeads.apply(m, f.getLeader());
 			List<String> lore = new ArrayList<String>();
 			lore.add(StringFormatter.formatHex("#b8ae61Ruling System: #d4c9ae"+f.getGovernmentString()));
 			m.setLore(lore);
@@ -305,10 +303,10 @@ public class FactionCreator {
 			SkullMeta m = (SkullMeta) i.getItemMeta();
 			m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 			m.setDisplayName(StringFormatter.formatHex("#93c9a7Government:"));
-			m.setOwningPlayer(Bukkit.getOfflinePlayer(f.getLeader()));
+			MemberHeads.apply(m, f.getLeader());
 			List<String> lore = new ArrayList<String>();
 			Government gov = f.getGovernment();
-			lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+CharacterNames.display(p, f.getLeader(), f)));
+			lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
 			double power = Formatter.formatDouble(gov.getPower());
 			double maxPower = Formatter.formatDouble(gov.getMaxPower());
 			String powerString = ((power < 0) ? "§c" : "") + power+"/"+((maxPower < 0) ? "§c" : "") + maxPower;
@@ -408,7 +406,7 @@ public class FactionCreator {
 				ItemMeta m = i.getItemMeta();
 				m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 				List<String> memberNames = new ArrayList<>(f.getMembers());
-				memberNames.removeIf(name -> name.equalsIgnoreCase(f.getLeader()));
+				memberNames.removeIf(name -> name.equals(f.getLeader()));
 				memberNames.add(0, f.getLeader());
 				m.setDisplayName(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+memberNames.size()));
 				List<String> lore = net.tfminecraft.simplefactions.espionage.RosterLore.faction(p, f).stream().map(StringFormatter::formatHex).toList();

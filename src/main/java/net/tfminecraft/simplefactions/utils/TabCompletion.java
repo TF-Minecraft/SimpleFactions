@@ -82,11 +82,11 @@ public class TabCompletion implements TabCompleter{
 			completions.add("1");
 			return completions;
 		}
-		if(args.length == 2 && args[0].equalsIgnoreCase("kick")) {
+		if(args.length >= 2 && args[0].equalsIgnoreCase("kick")) {
 			if(guild != null && guild.getCompany() != null) {
-				completions.addAll(guild.getCompany().getEnlisted());
+				completions.addAll(Members.display(guild.getCompany().getEnlisted()));
 			}
-			return filtered(completions, args[1]);
+			return Members.completions(completions, args);
 		}
 		if(args.length == 2 && args[0].equalsIgnoreCase("invite")) {
 			for(Player online : Bukkit.getOnlinePlayers()) {
@@ -118,6 +118,11 @@ public class TabCompletion implements TabCompleter{
 			return filtered(completions, args[1]);
 		}
 		return completions;
+	}
+
+	/** Drops the subcommand, so a member name that starts at the third word completes like one at the second. */
+	private static String[] afterFirst(String[] args) {
+		return java.util.Arrays.copyOfRange(args, 1, args.length);
 	}
 
 	private List<String> filtered(List<String> completions, String prefix) {
@@ -454,44 +459,45 @@ public class TabCompletion implements TabCompleter{
 				List<String> completions = new ArrayList<String>();
 				for(Player p : Bukkit.getOnlinePlayers()) {
 					completions.add(p.getName());
-					completions.add(net.tfminecraft.simplefactions.espionage.CharacterNames.of(p.getName()));
+					completions.add(Members.name(p));
 				}
-				return net.tfminecraft.simplefactions.espionage.CharacterNames.inviteCompletions(completions, args);
+				return Members.completions(completions, args);
 			}
-		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("kick")){
+		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 2 && args[0].equalsIgnoreCase("kick")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
 				Guild g = FactionManager.getGuildByLeader(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(g != null && !g.isBase()) {
 					for(String member : g.getMembers()) {
-						if(!member.equalsIgnoreCase(g.getLeader())) completions.add(member);
+						if(!member.equals(g.getLeader())) completions.add(Members.display(member));
 					}
 				}
-				return completions;
+				return Members.completions(completions, args);
 			}
-		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("kick")){
-			if(sender instanceof Player){
-				Player p = (Player) sender;
-				Faction f = FactionManager.getByMember(Members.key(p));
-				List<String> completions = new ArrayList<String>();
-				if(f != null) {
-					completions.addAll(f.getMembers());
-					completions.remove(f.getLeader());
-				}
-				return completions;
-			}
-		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("setleader")){
+		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase("kick")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
 				Faction f = FactionManager.getByMember(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(f != null) {
 					for(String member : f.getMembers()) {
-						if(f.canBecomeLeader(member)) completions.add(member);
+						if(!member.equals(f.getLeader())) completions.add(Members.display(member));
 					}
 				}
-				return completions;
+				return Members.completions(completions, args);
+			}
+		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase("setleader")){
+			if(sender instanceof Player){
+				Player p = (Player) sender;
+				Faction f = FactionManager.getByMember(Members.key(p));
+				List<String> completions = new ArrayList<String>();
+				if(f != null) {
+					for(String member : f.getMembers()) {
+						if(f.canBecomeLeader(member)) completions.add(Members.display(member));
+					}
+				}
+				return Members.completions(completions, args);
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("rename")){
 			if(sender instanceof Player){
@@ -555,7 +561,7 @@ public class TabCompletion implements TabCompleter{
 		} else if(eitherCommand(cmd) && args.length == 2
 				&& (args[0].equalsIgnoreCase("join") || args[0].equalsIgnoreCase("decline"))){
 			if(sender instanceof Player p){
-				return InviteCommands.inviteIds(cmd.getName(), p.getName(), args[1]);
+				return InviteCommands.inviteIds(cmd.getName(), Members.key(p), args[1]);
 			}
 		} else if(eitherCommand(cmd) && args.length == 2 && args[0].equalsIgnoreCase("accept")){
 			if(sender instanceof Player){
@@ -589,26 +595,26 @@ public class TabCompletion implements TabCompleter{
 					}
 				}
 				return completions;
-			} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 3 && args[0].equalsIgnoreCase("forceleader")){
+			} else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 3 && args[0].equalsIgnoreCase("forceleader")){
 				List<String> completions = new ArrayList<String>();
 				Guild g = FactionManager.getGuildByString(args[1]);
 				if(g != null) {
 					for(String member : g.getMembers()) {
-						if(!g.isLeader(member) && member.toLowerCase().startsWith(args[2].toLowerCase())) completions.add(member);
+						if(!g.isLeader(member)) completions.add(Members.display(member));
 					}
 				}
-				return completions;
-			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 3 && args[0].equalsIgnoreCase("forceleader")){
+				return Members.completions(completions, afterFirst(args));
+			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 3 && args[0].equalsIgnoreCase("forceleader")){
 				if(sender instanceof Player){
 					List<String> completions = new ArrayList<String>();
 					
 					Faction f = FactionManager.getByString(args[1]);
 					if(f != null) {
 						for(String member : f.getMembers()) {
-							if(f.canBecomeLeader(member)) completions.add(member);
+							if(f.canBecomeLeader(member)) completions.add(Members.display(member));
 						}
 					}
-					return completions;
+					return Members.completions(completions, afterFirst(args));
 				}
 			} else if (cmd.getName().equalsIgnoreCase("faction")
 					&& Cache.provincesEnabled
@@ -705,9 +711,10 @@ public class TabCompletion implements TabCompleter{
 				if (f != null) {
 					for (Player pl : Bukkit.getOnlinePlayers()) {
 						String name = pl.getName();
-						if (name.toLowerCase().startsWith(args[2].toLowerCase())
-							&& !f.getMembers().contains(name)
-							&& FactionManager.getByMember(name) == null) {
+						String key = Members.key(pl);
+						if (key != null && name.toLowerCase().startsWith(args[2].toLowerCase())
+							&& !f.getMembers().contains(key)
+							&& FactionManager.getByMember(key) == null) {
 							completions.add(name);
 						}
 					}

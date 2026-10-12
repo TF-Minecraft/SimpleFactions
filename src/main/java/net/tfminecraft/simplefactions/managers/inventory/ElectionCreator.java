@@ -42,22 +42,22 @@ public class ElectionCreator {
         } else {
             lore.add(StringFormatter.formatHex("#67cc64Candidates:"));
             for(String candidate : candidates) {
-                lore.add(StringFormatter.formatHex("§f- #e3d5a1"+candidate + " §7(" + Represents.represents(f, candidate) +"§7)"));
+                lore.add(StringFormatter.formatHex("§f- #e3d5a1"+Members.display(candidate) + " §7(" + Represents.represents(f, candidate) +"§7)"));
             }
         }
         lore.add("");
-        if(e.isCandiate(c, p.getName())) {
+        if(e.isCandiate(c, Members.key(p))) {
             // Already a candidate
             if(!e.isActive()) {
                 lore.add(StringFormatter.formatHex("#ba7872Click to withdraw"));
             }
-        } else if(!e.canBeCandidate(c, p.getName())) {
+        } else if(!e.canBeCandidate(c, Members.key(p))) {
             e.applyReasons(lore, c, p);
         } else {
             lore.add(StringFormatter.formatHex("#28ed70Click to sign up"));
         }
         if(gov.hasElection() && e.canVote(Members.key(p))){
-            if(!e.hasVoted(c, p.getName())) {
+            if(!e.hasVoted(c, Members.key(p))) {
                 lore.add(StringFormatter.formatHex("#28ed70Click to view candidates"));
             } else {
                 lore.add(StringFormatter.formatHex("#ab483fYou have already voted for a candidate"));
@@ -75,8 +75,8 @@ public class ElectionCreator {
         ItemStack item = new ItemStack(org.bukkit.Material.PLAYER_HEAD);
         SkullMeta skull = (SkullMeta) item.getItemMeta();
         skull.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-        skull.setOwningPlayer(org.bukkit.Bukkit.getOfflinePlayer(candidateName));
-        skull.setDisplayName(StringFormatter.formatHex("#84c468" + candidateName));
+        MemberHeads.apply(skull, candidateName);
+        skull.setDisplayName(StringFormatter.formatHex("#84c468" + Members.display(candidateName)));
         List<String> lore = new ArrayList<>();
         lore.add(StringFormatter.formatHex("#67cc64" + Represents.represents(f, candidateName)));
         skull.setLore(lore);

@@ -3,7 +3,6 @@ package net.tfminecraft.simplefactions.managers.inventory;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import net.tfminecraft.simplefactions.espionage.EspionageService;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.espionage.IntelligenceLedger;
 import net.tfminecraft.simplefactions.espionage.SpecialPosition;
 import net.tfminecraft.simplefactions.espionage.EspionageConfig;
@@ -76,7 +75,7 @@ public final class EspionageView {
         var spy = observer == null ? null : observer.getEspionage().getSpymaster();
         boolean missingSpymaster = !EspionageService.hasSpymaster(observer);
         String last = missingSpymaster ? "\u00a77The Spymaster's office stands vacant; no findings reach your court."
-                : "\u00a77These are today\u2019s findings, delivered by your spymaster, " + CharacterNames.of(spy.playerName) + ".";
+                : "\u00a77These are today\u2019s findings, delivered by your spymaster, " + Members.display(spy.playerName) + ".";
         List<String> lore = new ArrayList<>(List.of("\u00a77Report quality: \u00a7e" + (missingSpymaster ? "Absent"
                         : report == null ? IntelligenceTier.UNKNOWN.label() : report.qualityLabel()),
                 report == null ? "\u00a77No dated account has yet reached your court." : "\u00a77Dated " + report.loreDate(), last));
@@ -163,12 +162,12 @@ public final class EspionageView {
         return switch (type) {
             case GOVERNMENT -> {
                 ItemStack head = styled(Material.PLAYER_HEAD, "#93c9a7Government:",
-                        "#9c9775§l" + target.getRulerTitle() + ": #c2bea7" + CharacterNames.display(viewer, target.getLeader(), target),
+                        "#9c9775§l" + target.getRulerTitle() + ": #c2bea7" + Members.display(viewer, target.getLeader()),
                         "#85c265Administrative Power§7: §e" + value(report, "Administrative power", ""),
                         "#85c265Stability: " + IntelligenceReport.stabilityRange(report), " ",
                         "#b8ae61Ruling System: #d4c9ae" + target.getGovernmentString());
                 SkullMeta meta = (SkullMeta) head.getItemMeta();
-                meta.setOwningPlayer(Bukkit.getOfflinePlayer(target.getLeader()));
+                MemberHeads.apply(meta, target.getLeader());
                 head.setItemMeta(meta);
                 yield head;
             }
@@ -221,7 +220,7 @@ public final class EspionageView {
         for (var office : SpecialPosition.values()) {
             var holder = EspionageService.canViewExact(viewer, faction) ? faction.getEspionage().holder(office) : null;
             String name = EspionageService.canViewExact(viewer, faction)
-                    ? holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)
+                    ? holder == null ? "Vacant" : Members.display(viewer, holder.playerName)
                     : report == null ? "Unknown" : report.officeHolder(office);
             String aptitude = EspionageService.canViewExact(viewer, faction)
                     ? Integer.toString(switch (office) {
@@ -253,7 +252,7 @@ public final class EspionageView {
         for (SpecialPosition office : SpecialPosition.values()) {
             var holder = office == SpecialPosition.SPYMASTER ? EspionageService.spymaster(faction) : faction.getEspionage().holder(office);
             ItemStack option = item(Material.ENDER_EYE, office.label(),
-                    "\u00a77Office holder: " + (holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)),
+                    "\u00a77Office holder: " + (holder == null ? "Vacant" : Members.display(viewer, holder.playerName)),
                     "\u00a7aClick to inspect this office.");
             var meta = option.getItemMeta();
             meta.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "special-office"),
@@ -271,7 +270,7 @@ public final class EspionageView {
                 27, "\u00a77Spymaster's Office");
         SpecialPositionAssignment holder = EspionageService.spymaster(faction);
         long now = System.currentTimeMillis();
-        ItemStack head = item(Material.PLAYER_HEAD, "Spymaster: " + (holder == null ? "Vacant" : CharacterNames.display(viewer, holder.playerName)),
+        ItemStack head = item(Material.PLAYER_HEAD, "Spymaster: " + (holder == null ? "Vacant" : Members.display(viewer, holder.playerName)),
                 "§7Aptitude: §e" + EspionageService.effectiveAptitude(faction, holder) + "/100",
                 buildUpLine(holder, now),
                 holder == null ? "§7Falls to the faction leader once they have an active character."
@@ -378,17 +377,18 @@ public final class EspionageView {
     private static void candidates(Player viewer, Faction faction, InventoryManager manager, int page) {
         if (!EspionageService.isOwn(viewer, faction) || !faction.isLeader(Members.key(viewer))) return;
         List<String> members = faction.getMembers().stream().distinct()
-                .filter(name -> EspionageService.eligible(faction, name)).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+                .filter(name -> EspionageService.eligible(faction, name))
+                .sorted(java.util.Comparator.comparing(Members::display, String.CASE_INSENSITIVE_ORDER)).toList();
         int safePage = Math.max(0, Math.min(page, Math.max(0, (members.size() - 1) / 45)));
         Inventory inventory = Bukkit.createInventory(new SFInventoryHolder(faction.getId(), SFGUI.SPYMASTER_SELECT, safePage),
                 54, "§7Appoint Spymaster");
         int start = safePage * 45;
         for (int index = start; index < Math.min(start + 45, members.size()); index++) {
             String name = members.get(index);
-            ItemStack head = item(Material.PLAYER_HEAD, CharacterNames.display(viewer, name),
+            ItemStack head = item(Material.PLAYER_HEAD, Members.display(viewer, name),
                     "§7Guild: " + net.tfminecraft.simplefactions.utils.Represents.represents(faction, name),
                     buildUpTerms(),
-                    Bukkit.getPlayerExact(name) == null ? "§8Must be online with an active character." : "§aClick to appoint as Spymaster.");
+                    !Members.isOnline(name) ? "§8Must be online with an active character." : "§aClick to appoint as Spymaster.");
             var meta = head.getItemMeta();
             meta.getPersistentDataContainer().set(new NamespacedKey(SimpleFactions.plugin, "spy-candidate"),
                     PersistentDataType.STRING, name);
@@ -468,7 +468,7 @@ public final class EspionageView {
             else if (event.getCurrentItem() != null && event.getCurrentItem().hasItemMeta()) {
                 String candidate = event.getCurrentItem().getItemMeta().getPersistentDataContainer()
                         .get(new NamespacedKey(SimpleFactions.plugin, "spy-candidate"), PersistentDataType.STRING);
-                if (candidate != null && EspionageService.appoint(viewer, faction, Bukkit.getPlayerExact(candidate))) {
+                if (candidate != null && EspionageService.appoint(viewer, faction, Members.player(candidate))) {
                     spymasterOffice(viewer, faction, manager);
                 }
             }

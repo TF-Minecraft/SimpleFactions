@@ -177,7 +177,7 @@ public class CampaignInstallationPickView {
 		String installationName = installation != null ? installation.getName() : installationId;
 
 		InstallationPickToggleResult result = BattleInstallationPickService.togglePick(
-				war, viewerFaction, player.getName(), installationId);
+				war, viewerFaction, Members.key(player), installationId);
 
 		player.sendMessage(toggleMessage(result, installationName));
 

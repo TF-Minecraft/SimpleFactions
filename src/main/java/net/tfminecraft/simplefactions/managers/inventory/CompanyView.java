@@ -213,13 +213,13 @@ public class CompanyView {
 			int visibleSlots = Math.min(company.getSlots(), LAST_SLOT_BUTTON - FIRST_SLOT_BUTTON + 1);
 			int slotIndex = company.getSlots() - visibleSlots + slot - FIRST_SLOT_BUTTON;
 			if (slotIndex < company.getSlots() && slotIndex >= company.getEnlisted().size()) {
-				report(p, MercenaryCompanyService.removeSlot(guild, p.getName()));
+				report(p, MercenaryCompanyService.removeSlot(guild, Members.key(p)));
 				slotsView(p, guild, inventory);
 			}
 			return;
 		}
 		if (e.getSlot() == EXPAND_BUTTON) {
-			report(p, MercenaryCompanyService.expand(guild, p.getName()));
+			report(p, MercenaryCompanyService.expand(guild, Members.key(p)));
 			slotsView(p, guild, inventory);
 			return;
 		}
@@ -235,7 +235,7 @@ public class CompanyView {
 			InventoryClickEvent e, Inventory inventory, Player p, Guild guild, MercenaryCompany company) {
 		String member = stringKey(e.getCurrentItem());
 		if (member == null) return;
-		report(p, MercenaryCompanyService.kick(guild, p.getName(), member));
+		report(p, MercenaryCompanyService.kick(guild, Members.key(p), member));
 		rosterView(p, guild, inventory);
 	}
 
@@ -250,7 +250,7 @@ public class CompanyView {
 		}
 		String id = stringKey(e.getCurrentItem());
 		if (id == null) return;
-		report(p, MercenaryCompanyService.upgrade(guild, p.getName(), id));
+		report(p, MercenaryCompanyService.upgrade(guild, Members.key(p), id));
 		companyUpgradeView(p, guild, inventory);
 	}
 

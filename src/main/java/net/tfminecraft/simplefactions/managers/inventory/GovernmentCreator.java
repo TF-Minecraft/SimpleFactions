@@ -69,7 +69,7 @@ public class GovernmentCreator {
         m.setDisplayName(StringFormatter.formatHex("#93c9a7Government:"));
         List<String> lore = new ArrayList<String>();
         Government gov = f.getGovernment();
-        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.espionage.CharacterNames.display(p, f.getLeader(), f)));
+        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
         double power = Formatter.formatDouble(gov.getPower());
         double maxPower = Formatter.formatDouble(gov.getMaxPower());
         String powerString = ((power < 0) ? "§c" : "") + power+"/"+((maxPower < 0) ? "§c" : "") + maxPower;
@@ -98,7 +98,7 @@ public class GovernmentCreator {
         if(gov.getCouncil().getCurrentSize() > 0) {
             lore.add(StringFormatter.formatHex("#93c9a7Members:"));
             for(String member : gov.getCouncilMembers()) {
-                lore.add(StringFormatter.formatHex("#d4bb98- "+member + " §7("+Represents.represents(f, member)+")"));
+                lore.add(StringFormatter.formatHex("#d4bb98- "+Members.display(member) + " §7("+Represents.represents(f, member)+")"));
             }
         }
         m.setLore(lore);
@@ -146,7 +146,7 @@ public class GovernmentCreator {
                         color = "#c74d32"; // ineligible
                     }
 
-                    lore.add(formatElectionLine(i++, name, votes, totalVotes, color));
+                    lore.add(formatElectionLine(i++, Members.display(name), votes, totalVotes, color));
                 }
 
             }
@@ -175,7 +175,7 @@ public class GovernmentCreator {
                         color = "#c74d32"; // ineligible
                     }
 
-                    lore.add(formatElectionLine(i++, name, votes, totalVotes, color));
+                    lore.add(formatElectionLine(i++, Members.display(name), votes, totalVotes, color));
                 }
             }
         }
@@ -456,7 +456,7 @@ public class GovernmentCreator {
             else lore.add(StringFormatter.formatHex("#28ed70Click to specific rates"));
         } else {
             Government gov = f.getGovernment();
-            Proposal proposal = new Proposal(p.getName(), gov);
+            Proposal proposal = new Proposal(Members.key(p), gov);
             proposal.setTaxProposal(new TaxLawChange(target, "all", 50));
             if(gov.canProposeOrStartMovement(p) && gov.canBeProposed(proposal)) {
                 lore.add(StringFormatter.formatHex("#525d5dCurrent Rate: #e3d5a1"+f.getTaxRate(target, null, false)+"%"+ " §8(§7"+f.getTaxRate(target, null, true)+"% effective§8)"));
@@ -514,7 +514,7 @@ public class GovernmentCreator {
             lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+baseRate+"%#3f4040)"));
         }
         Government gov = f.getGovernment();
-        Proposal proposal = new Proposal(p.getName(), gov);
+        Proposal proposal = new Proposal(Members.key(p), gov);
         proposal.setTaxProposal(new TaxLawChange(target, id, 50));
         if(gov.canProposeOrStartMovement(p) && gov.canBeProposed(proposal)) lore.add(StringFormatter.formatHex("#28ed70Click to propose a change"));
         else lore.add(StringFormatter.formatHex("#89504eAnother proposal is active for this target."));
@@ -619,9 +619,7 @@ public class GovernmentCreator {
         } else {
             item = new ItemStack(Material.PLAYER_HEAD);
             ItemMeta skullMeta = item.getItemMeta();
-            if(skullMeta instanceof org.bukkit.inventory.meta.SkullMeta) {
-                ((org.bukkit.inventory.meta.SkullMeta) skullMeta).setOwner(memberName);
-            }
+            MemberHeads.apply(skullMeta, memberName);
             item.setItemMeta(skullMeta);
         }
         
@@ -638,7 +636,7 @@ public class GovernmentCreator {
             }
             m.setLore(lore);
         } else {
-            m.setDisplayName(StringFormatter.formatHex("#93c9a7" + memberName));
+            m.setDisplayName(StringFormatter.formatHex("#93c9a7" + Members.display(memberName)));
             List<String> lore = new ArrayList<>();
             
             // Display wealth and ranking
@@ -685,16 +683,14 @@ public class GovernmentCreator {
         
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta skullMeta = item.getItemMeta();
-        if(skullMeta instanceof org.bukkit.inventory.meta.SkullMeta) {
-            ((org.bukkit.inventory.meta.SkullMeta) skullMeta).setOwner(member);
-        }
+        MemberHeads.apply(skullMeta, member);
         item.setItemMeta(skullMeta);
         
         
         ItemMeta m = item.getItemMeta();
         m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 
-        m.setDisplayName(StringFormatter.formatHex("#93c9a7" + member));
+        m.setDisplayName(StringFormatter.formatHex("#93c9a7" + Members.display(member)));
         List<String> lore = new ArrayList<>();
         
         // Display wealth and ranking
@@ -739,7 +735,7 @@ public class GovernmentCreator {
         m.setDisplayName(StringFormatter.formatHex(proposal.isLawProposal() ? "#93c9a7Law Proposal"
                 : proposal.isFeeProposal() ? "#93c9a7Fee Proposal" : "#93c9a7Tax Proposal"));
         List<String> lore = new ArrayList<String>();
-        lore.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7"+proposal.getProposer()));
+        lore.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7"+Members.display(proposal.getProposer())));
         LoreWriter.applyProposalLore(proposal, lore, p, f, m);
         m.setLore(lore);
         item.setItemMeta(m);

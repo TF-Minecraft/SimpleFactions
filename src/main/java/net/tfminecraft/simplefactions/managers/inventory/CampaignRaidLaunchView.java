@@ -7,7 +7,6 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults;
 import java.time.Instant;
 import java.util.List;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -269,7 +268,7 @@ public class CampaignRaidLaunchView {
 		String message = CampaignRaidMessages.buildRaidCalledMessage(launcher, target, raid.getId());
 		Side side = war.getSide(launcher);
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player online = Bukkit.getPlayerExact(memberName);
+			Player online = Members.player(memberName);
 			if (online != null && online.isOnline()) {
 				online.sendMessage(message);
 			}

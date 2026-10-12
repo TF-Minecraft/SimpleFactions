@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -18,11 +20,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -97,6 +102,7 @@ import net.tfminecraft.simplefactions.managers.inventory.VehicleFeeView;
 import net.tfminecraft.simplefactions.objects.handler.VehicleFeeHandler;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.keys.Keys;
+import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class InventoryManager implements Listener{
@@ -112,7 +118,11 @@ public class InventoryManager implements Listener{
 	public HashMap<Player, DividendChange> dividendChange = new HashMap<>();
 	public HashMap<Player, DonationChange> donationChange = new HashMap<>();
 	public HashMap<Player, SlotChangePrompt> slotChanges = new HashMap<>();
+	/** The character session each open menu belongs to, by account. */
+	private final Map<UUID, Optional<CharacterSession>> menuSessions = new HashMap<>();
 	
+	private static final String CONFIRM_TITLE = "§7Confirm Action";
+
 	InventoryUpdater updater = new InventoryUpdater(this);
 	
 	public InventoryUpdater getUpdater() {
@@ -529,7 +539,7 @@ public class InventoryManager implements Listener{
 			p.sendMessage("§4Type 'cancel' to cancel.");
 			return;
 		}
-		Proposal proposal = new Proposal(p.getName(), f.getGovernment());
+		Proposal proposal = new Proposal(Members.key(p), f.getGovernment());
 		TaxLawChange tax = new TaxLawChange(change.getTarget(), change.getId(), amount);
 		proposal.setTaxProposal(tax);
 		taxChange.remove(p);
@@ -560,18 +570,18 @@ public class InventoryManager implements Listener{
 		} else if(gov.canProposeOrStartMovement(p)) {
 			Movement movement = gov.getMovementByMember(Members.key(p));
 			if(movement != null) {
-				movement.createCause(p.getName(), proposal);
+				movement.createCause(Members.key(p), proposal);
 				p.sendMessage("§aProposal added to your movement! Rally support for your proposal by sharing it with your faction and allies!");
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				governmentView(p, f, null);
 				return;
 			}
-			if (net.tfminecraft.simplefactions.war.civilwar.CivilWarHostMovementRules.blocksHostGuildStart(f, p.getName())) {
+			if (net.tfminecraft.simplefactions.war.civilwar.CivilWarHostMovementRules.blocksHostGuildStart(f, Members.key(p))) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				p.sendMessage(net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy.ONE_PROVINCE_HOST_GUILD);
 				return;
 			}
-			gov.startMovement(p.getName(), proposal);
+			gov.startMovement(Members.key(p), proposal);
 			p.sendTitle("", "§cMovement Started", 20, 80, 20);
 			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 			p.sendMessage("§aMovement started! Rally support for your proposal by sharing it with your faction and allies!");
@@ -620,7 +630,7 @@ public class InventoryManager implements Listener{
 			p.sendMessage("§4Type 'cancel' to cancel.");
 			return;
 		}
-		Proposal proposal = new Proposal(p.getName(), f.getGovernment());
+		Proposal proposal = new Proposal(Members.key(p), f.getGovernment());
 		proposal.setFeeProposal(new FeeChange(kind, change.getVehicleTypeId(), amount));
 		feeChange.remove(p);
 		submitRateProposal(p, f, proposal);
@@ -831,7 +841,7 @@ public class InventoryManager implements Listener{
 			return;
 		}
 		MercenaryResult result = company.getContractHandler()
-				.proposeSlots(contract.getId(), p.getName(), slots, System.currentTimeMillis());
+				.proposeSlots(contract.getId(), Members.key(p), slots, System.currentTimeMillis());
 		slotChanges.remove(p);
 		p.sendMessage((result.ok() ? "§a" : "§c") + result.message());
 		p.playSound(p, result.ok() ? Sound.ENTITY_PLAYER_LEVELUP : Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
@@ -1059,6 +1069,10 @@ public class InventoryManager implements Listener{
 	
 	@EventHandler
 	public void dragInWarGui(InventoryDragEvent e) {
+		if (e.getWhoClicked() instanceof Player p && closeIfStale(p, e.getView())) {
+			e.setCancelled(true);
+			return;
+		}
 		Inventory inv = e.getView().getTopInventory();
 		// Menu contents are replaced on redraw. Keep player items out of every menu,
 		// including holderless confirmations, while allowing drags within their own inventory.
@@ -1074,6 +1088,38 @@ public class InventoryManager implements Listener{
 			confirming.remove(e.getPlayer());
 		}
 		slotChanges.remove(e.getPlayer());
+		menuSessions.remove(e.getPlayer().getUniqueId());
+	}
+
+	@EventHandler
+	public void captureMenuSession(InventoryOpenEvent e) {
+		if (e.getPlayer() instanceof Player p && isMenu(e.getView())) {
+			menuSessions.put(p.getUniqueId(), Members.session(p));
+		}
+	}
+
+	@EventHandler
+	public void releaseMenuSession(InventoryCloseEvent e) {
+		menuSessions.remove(e.getPlayer().getUniqueId());
+	}
+
+	private static boolean isMenu(InventoryView view) {
+		return isPluginMenu(view.getTopInventory()) || CONFIRM_TITLE.equals(view.getTitle());
+	}
+
+	/**
+	 * Closes a menu opened for a character the player is no longer playing. A
+	 * menu opened before its session was captured takes the current one.
+	 */
+	private boolean closeIfStale(Player p, InventoryView view) {
+		if (!isMenu(view)) return false;
+		Optional<CharacterSession> current = Members.session(p);
+		Optional<CharacterSession> opened = menuSessions.computeIfAbsent(p.getUniqueId(), id -> current);
+		if (opened.isPresent() && Members.isCurrent(opened.get()) && opened.equals(current)) return false;
+		menuSessions.remove(p.getUniqueId());
+		p.closeInventory();
+		p.sendMessage("§cThat menu belonged to your previous character.");
+		return true;
 	}
 
 	private static boolean isPluginMenu(Inventory inv) {
@@ -1096,6 +1142,10 @@ public class InventoryManager implements Listener{
 	@EventHandler
 	public void clickButton(InventoryClickEvent e) {
 		Player p = (Player) e.getWhoClicked();
+		if (closeIfStale(p, e.getView())) {
+			e.setCancelled(true);
+			return;
+		}
 		Inventory inv = e.getView().getTopInventory();
 		if (inv.getHolder() instanceof SFInventoryHolder
 				&& ((SFInventoryHolder) inv.getHolder()).getType() == SFGUI.PLAYER_LEDGER_VIEW) {
@@ -1691,7 +1741,7 @@ public class InventoryManager implements Listener{
 					p.closeInventory();
 					return;
 				}
-				MercenaryResult result = MercenaryCompanyService.requestFormation(guild, p.getName(), name);
+				MercenaryResult result = MercenaryCompanyService.requestFormation(guild, Members.key(p), name);
 				p.sendMessage((result.ok() ? "§a" : "§c") + result.message());
 				if (!result.ok()) {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
