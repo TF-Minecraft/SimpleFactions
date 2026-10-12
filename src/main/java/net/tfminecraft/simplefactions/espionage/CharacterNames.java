@@ -71,7 +71,8 @@ public final class CharacterNames {
         if (player != null) {
             var session = Characters.currentSession(player).orElse(null);
             if (session == null || !session.ref().ownerId().equals(player.getUniqueId())) return null;
-            String name = Characters.displayName(player);
+            // Plain text, like offline names: callers colour names themselves and reports persist them.
+            String name = org.bukkit.ChatColor.stripColor(Characters.displayName(player));
             return player.isOnline() && Bukkit.getPlayer(player.getUniqueId()) == player
                     && Characters.isCurrent(session) ? name : null;
         }

@@ -169,7 +169,7 @@ class EspionageOperationsCoverageTest {
     assertSame(duplicate, CharacterNames.resolveOnline(leader, "Duplicate"));
     assertNull(CharacterNames.resolveOnline(leader, "No Such Player"));
     verify(leader).sendMessage(contains("No online player"));
-    assertEquals("§aLady Rowan", CharacterNames.forForeign("Candidate"));
+    assertEquals("Lady Rowan", CharacterNames.forForeign("Candidate"));
   }
 
   @Test

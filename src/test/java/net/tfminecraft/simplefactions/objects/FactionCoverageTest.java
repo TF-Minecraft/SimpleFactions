@@ -37,6 +37,7 @@ import net.tfminecraft.simplefactions.loaders.TierLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
+import net.tfminecraft.simplefactions.prestige.MemberPlaytime;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.TestRegistryAccess;
 import net.tfminecraft.simplefactions.tiers.Title;
@@ -97,6 +98,36 @@ class FactionCoverageTest {
     assertEquals("common", faction.getRank().getId());
     assertTrue(faction.getPrestige() > 0);
     assertEquals(0, faction.getWealth());
+  }
+
+  @Test
+  void onePrestigePassAsksForEachMembersPlaytimeOnceWithoutChangingPrestige() {
+    Faction overlord = fixture.saved("overlord", "Alice");
+    Faction vassal = fixture.saved("vassal", "Bob");
+    fixture.guild(overlord, "traders", "Cara");
+    fixture.guild(vassal, "unknowns", "Dana");
+    fixture.subject(overlord, vassal);
+    Map<String, Integer> lookups = new HashMap<>();
+    MemberPlaytime.setProbe(
+        name -> {
+          lookups.merge(name, 1, Integer::sum);
+          return name.equals("Dana") ? null : 36_000 + name.length();
+        });
+    // Uncached reference; the vassal's update also recalculates its overlord.
+    overlord.updatePrestige();
+    vassal.updatePrestige();
+    double overlordPrestige = overlord.getPrestige();
+    double vassalPrestige = vassal.getPrestige();
+    assertTrue(lookups.get("Cara") > 1);
+    lookups.clear();
+
+    FactionManager.updateAllPrestige();
+
+    assertEquals(Map.of("Alice", 1, "Bob", 1, "Cara", 1, "Dana", 1), lookups);
+    assertEquals(overlordPrestige, overlord.getPrestige(), 1e-9);
+    assertEquals(vassalPrestige, vassal.getPrestige(), 1e-9);
+    FactionManager.updateAllPrestige();
+    assertEquals(2, lookups.get("Alice"), "Each pass asks again");
   }
 
   @Test

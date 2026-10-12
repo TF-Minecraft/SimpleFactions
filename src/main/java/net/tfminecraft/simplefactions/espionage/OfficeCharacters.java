@@ -33,11 +33,6 @@ final class OfficeCharacters {
                 && session.ref().ownerId().equals(player.getUniqueId()) && Characters.isCurrent(session);
     }
 
-    static String activeCharacterId(Player player) {
-        var session = currentSession(player);
-        return session == null ? null : session.ref().characterId().toString();
-    }
-
     static boolean isDead(UUID owner, String characterId) {
         UUID id = characterUuid(characterId);
         if (owner == null || id == null) return false;
@@ -54,10 +49,6 @@ final class OfficeCharacters {
         } catch (IllegalArgumentException ignored) {
             return null;
         }
-    }
-
-    static Map<String, Integer> attributes(Player player) {
-        return attributes(player, currentSession(player));
     }
 
     static Map<String, Integer> attributes(Player player, CharacterSession session) {

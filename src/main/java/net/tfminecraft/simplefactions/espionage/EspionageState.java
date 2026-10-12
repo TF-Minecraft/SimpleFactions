@@ -10,7 +10,9 @@ import java.util.random.RandomGenerator;
 public class EspionageState {
     private Map<SpecialPosition, SpecialPositionAssignment> positions = new EnumMap<>(SpecialPosition.class);
     private Map<String, Integer> appointmentAptitudes = new HashMap<>();
-    private java.util.Set<String> handledCharacterDeaths = new java.util.HashSet<>();
+    // Oldest first. Replays arrive soon after a death, so only the latest few are kept.
+    static final int HANDLED_DEATH_LIMIT = 64;
+    private java.util.Set<String> handledCharacterDeaths = new java.util.LinkedHashSet<>();
     private DailyRolls dailyRolls;
     private Map<String, IntelligenceReport> reports = new HashMap<>();
     private Map<SpecialPosition, Integer> appointments = new EnumMap<>(SpecialPosition.class);
@@ -67,7 +69,7 @@ public class EspionageState {
         return new OfficeSnapshot(savedPositions, savedAppointments,
                 new java.util.ArrayList<>(unrest), new java.util.HashSet<>(pendingFounders), new HashMap<>(pendingFounderCharacters),
                 new HashMap<>(lastAppointments), handledCharacterDeaths == null
-                        ? java.util.Set.of() : new java.util.HashSet<>(handledCharacterDeaths),
+                        ? java.util.Set.of() : new java.util.LinkedHashSet<>(handledCharacterDeaths),
                 pendingFounderBoundAt == null ? Map.of() : new HashMap<>(pendingFounderBoundAt));
     }
 
@@ -78,7 +80,7 @@ public class EspionageState {
         pendingFounders.clear(); pendingFounders.addAll(snapshot.pendingFounders());
         pendingFounderCharacters.clear(); pendingFounderCharacters.putAll(snapshot.pendingFounderCharacters());
         lastAppointments.clear(); lastAppointments.putAll(snapshot.lastAppointments());
-        handledCharacterDeaths = new java.util.HashSet<>(snapshot.handledCharacterDeaths());
+        handledCharacterDeaths = new java.util.LinkedHashSet<>(snapshot.handledCharacterDeaths());
         pendingFounderBoundAt = new EnumMap<>(SpecialPosition.class);
         pendingFounderBoundAt.putAll(snapshot.pendingFounderBoundAt());
     }
@@ -88,8 +90,13 @@ public class EspionageState {
     }
 
     void rememberDeath(java.util.UUID deathId) {
-        if (handledCharacterDeaths == null) handledCharacterDeaths = new java.util.HashSet<>();
+        if (handledCharacterDeaths == null) handledCharacterDeaths = new java.util.LinkedHashSet<>();
         handledCharacterDeaths.add(deathId.toString());
+        var oldest = handledCharacterDeaths.iterator();
+        while (handledCharacterDeaths.size() > HANDLED_DEATH_LIMIT) {
+            oldest.next();
+            oldest.remove();
+        }
     }
 
     public SpecialPositionAssignment holder(SpecialPosition office) { return positions.get(office); }

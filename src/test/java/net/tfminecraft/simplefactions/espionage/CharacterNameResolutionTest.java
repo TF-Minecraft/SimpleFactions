@@ -40,7 +40,7 @@ class CharacterNameResolutionTest {
     @Test void onlineNamesUseLiveAliasesWithoutReadingCanonicalDirectoryNames() {
         try (var f = new IdentityFixture()) {
             var alice = f.activate(UUID.randomUUID());
-            f.alias = "\u00a77A Hooded Stranger";
+            f.alias = "A Hooded Stranger";
             assertEquals(f.alias, CharacterNames.of(f.account));
             assertEquals(f.alias, CharacterNames.forForeign(f.account));
             f.activate(UUID.randomUUID());
@@ -51,6 +51,19 @@ class CharacterNameResolutionTest {
             assertEquals(f.alias, CharacterNames.of(f.account));
             verify(f.provider, never()).info(any());
             verify(f.provider, never()).lastPlayed(any());
+        }
+    }
+
+    @Test void onlineNamesDropRpCharactersColouringSoMenusAndReportsKeepTheirOwn() {
+        try (var f = new IdentityFixture()) {
+            f.activate(UUID.randomUUID());
+            // RPCharacters' white reset followed by a two-colour hex gradient.
+            f.alias = "\u00a7f\u00a7x\u00a7f\u00a74\u00a7e\u00a74\u00a7a\u00a7aLa\u00a7x\u00a7c\u00a72\u00a7b\u00a7e\u00a7a\u00a77dy \u00a7oRaven";
+            assertEquals("Lady Raven", CharacterNames.of(f.account));
+            assertEquals("Lady Raven", CharacterNames.forForeign(f.account));
+            var viewer = player("Staff");
+            when(viewer.hasPermission(EspionageService.BYPASS_PERMISSION)).thenReturn(true);
+            assertEquals("Lady Raven \u00a77(" + f.account + ")", CharacterNames.display(viewer, f.account));
         }
     }
 
