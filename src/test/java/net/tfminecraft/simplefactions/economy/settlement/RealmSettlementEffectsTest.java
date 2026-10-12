@@ -25,6 +25,7 @@ class RealmSettlementEffectsTest {
 
     @Test void partialFactionSaveKeepsClaimsAndClockPendingAndReplaysExactAfterValues() throws Exception {
         try (var fixture = new FactionDomainFixture()) {
+            FactionManager.day = 0;
             UUID character = UUID.randomUUID();
             var faction = fixture.saved("realm", UUID.randomUUID().toString());
             var capital = faction.getOrCreateMainGuild();

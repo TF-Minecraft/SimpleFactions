@@ -22,6 +22,7 @@ class RealmSettlementServiceTest {
         try (var disk = new PersistenceFilesFixture(); var fixture = new FactionDomainFixture();
                 var deaths = mockStatic(CharacterDeaths.class); var vehicles = mockStatic(VehicleSettlement.class);
                 var playerEconomy = mockStatic(net.tfminecraft.simplefactions.player.PlayerEconomyManager.class)) {
+            FactionManager.day = 0;
             playerEconomy.when(net.tfminecraft.simplefactions.player.PlayerEconomyManager::get).thenReturn(new net.tfminecraft.simplefactions.player.PlayerEconomyManager());
             when(fixture.ui.plugin.getDataFolder()).thenReturn(disk.root.toFile());
             var faction = fixture.saved("realm", UUID.randomUUID().toString());
