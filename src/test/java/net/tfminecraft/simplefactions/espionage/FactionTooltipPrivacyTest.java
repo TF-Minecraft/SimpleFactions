@@ -51,10 +51,12 @@ class FactionTooltipPrivacyTest {
         when(target.getRelation("origin").getType()).thenReturn(type);
         when(origin.getRelation("target").getOpinion()).thenReturn(12);
         when(target.getRelation("origin").getOpinion()).thenReturn(-8);
-        try (var service = mockStatic(EspionageService.class);
+        try (var identity = new OfficeOptionalIntegrationsTest.IdentityFixture();
+             var service = mockStatic(EspionageService.class);
              var factions = mockStatic(FactionManager.class);
              var relations = mockStatic(RelationManager.class);
              var titles = mockStatic(TitleManager.class)) {
+            identity.registered = false;
             service.when(() -> EspionageService.canViewExact(viewer, target)).thenReturn(bypass);
             factions.when(() -> FactionManager.getByMember("Visitor")).thenReturn(origin);
             factions.when(FactionManager::getCopy).thenAnswer(ignored -> new java.util.ArrayList<>(List.of(target)));
@@ -100,10 +102,12 @@ class FactionTooltipPrivacyTest {
         when(faction.getPrestige()).thenReturn(42.0);
         when(faction.getTitles()).thenReturn(List.of());
         when(faction.getGuildHandler().getGuilds()).thenReturn(List.of());
-        try (var service = mockStatic(EspionageService.class);
+        try (var identity = new OfficeOptionalIntegrationsTest.IdentityFixture();
+             var service = mockStatic(EspionageService.class);
              var factions = mockStatic(FactionManager.class);
              var relations = mockStatic(RelationManager.class);
              var titles = mockStatic(TitleManager.class)) {
+            identity.registered = false;
             factions.when(FactionManager::getCopy).thenAnswer(ignored -> new java.util.ArrayList<>(List.of(faction)));
             relations.when(() -> RelationManager.getSubjects(faction)).thenReturn(List.of());
             relations.when(() -> RelationManager.getAllies(faction)).thenReturn(List.of());

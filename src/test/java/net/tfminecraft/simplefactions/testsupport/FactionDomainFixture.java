@@ -121,8 +121,12 @@ public final class FactionDomainFixture implements AutoCloseable {
     replace(Cache.class, "maxFreeTitles", 10);
     replace(Cache.class, "baseEffects", new HashMap<>());
     when(Bukkit.getLogger()).thenReturn(Logger.getLogger("FactionDomainFixture"));
-    when(Bukkit.getPluginManager()).thenReturn(mock(PluginManager.class));
+    var plugins = mock(PluginManager.class);
+    when(Bukkit.getPluginManager()).thenReturn(plugins);
+    when(ui.server.getPluginManager()).thenReturn(plugins);
     when(Bukkit.getPlayerExact(anyString())).thenAnswer(call -> online.get(call.getArgument(0)));
+    when(Bukkit.getPlayer(any(java.util.UUID.class))).thenAnswer(call -> online.values().stream()
+        .filter(player -> player.getUniqueId().equals(call.getArgument(0))).findFirst().orElse(null));
     Chunk origin = mock(Chunk.class);
     when(origin.getWorld()).thenReturn(ui.world);
     when(ui.world.getChunkAt(anyInt(), anyInt())).thenReturn(origin);

@@ -2,9 +2,12 @@ package net.tfminecraft.simplefactions.espionage;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
 
 class OfficeAppointmentsTest {
     @Test
@@ -15,11 +18,8 @@ class OfficeAppointmentsTest {
         when(faction.getLeader()).thenReturn("Founder");
         when(faction.isLeader("Founder")).thenReturn(true);
         when(faction.getMembers()).thenReturn(java.util.List.of("Founder"));
-        var offline = mock(org.bukkit.OfflinePlayer.class);
-        when(offline.getUniqueId()).thenReturn(java.util.UUID.randomUUID());
         try (var bukkit = mockStatic(org.bukkit.Bukkit.class)) {
             bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
-            bukkit.when(() -> org.bukkit.Bukkit.getOfflinePlayer("Founder")).thenReturn(offline);
             EspionageService.initializeFounder(faction);
             assertNull(state.getSpymaster());
             assertTrue(state.hasPendingFounder());
@@ -30,6 +30,7 @@ class OfficeAppointmentsTest {
             EspionageService.initializeFounder(faction);
             assertNull(state.getSpymaster());
             assertTrue(state.hasPendingFounder(), "The leader still takes the office once others have joined");
+            bukkit.verify(() -> org.bukkit.Bukkit.getOfflinePlayer("Founder"), never());
         }
     }
 
@@ -42,9 +43,12 @@ class OfficeAppointmentsTest {
         when(faction.getLeader()).thenReturn("Leader");
         when(faction.isLeader("Leader")).thenReturn(true);
         when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "Member", "Other"));
-        when(leader.getUniqueId()).thenReturn(java.util.UUID.randomUUID());
+        UUID ownerId = UUID.randomUUID();
+        String characterId = UUID.randomUUID().toString();
+        var session = new CharacterSession(new CharacterRef(ownerId, UUID.fromString(characterId)), 1);
+        when(leader.getUniqueId()).thenReturn(ownerId);
         var registry = mock(CharacterAptitudes.class);
-        when(registry.aptitude(eq("leader-character"), any())).thenReturn(72);
+        when(registry.aptitude(eq(characterId), any())).thenReturn(72);
         var field = EspionageService.class.getDeclaredField("characterAptitudes");
         field.setAccessible(true);
         var previous = field.get(null);
@@ -54,24 +58,28 @@ class OfficeAppointmentsTest {
             field.set(null, registry);
             bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
             bukkit.when(() -> org.bukkit.Bukkit.getPlayerExact("Leader")).thenReturn(leader);
-            characters.when(() -> OfficeCharacters.activeCharacterId(leader)).thenReturn("leader-character");
+            characters.when(() -> OfficeCharacters.currentSession(leader)).thenReturn(session);
+            characters.when(() -> OfficeCharacters.isCurrent(leader, session)).thenReturn(true);
+            characters.when(() -> OfficeCharacters.requireCurrent(leader, session)).thenCallRealMethod();
             var holder = EspionageService.spymaster(faction);
             assertNotNull(holder);
             assertEquals("Leader", holder.playerName);
-            assertEquals("leader-character", holder.characterId);
+            assertEquals(characterId, holder.characterId);
+            assertEquals(ownerId, holder.playerId);
             assertTrue(holder.automatic);
             assertEquals(72, EspionageService.effectiveAptitude(faction, holder));
             assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER), "The default holding keeps the free appointment");
             assertFalse(state.hasPendingFounder());
             verify(databases.constructed().getFirst()).saveFaction(faction);
             verify(leader).sendMessage(contains("you hold the keys"));
+            characters.verify(() -> OfficeCharacters.attributes(leader, session), never());
         } finally { field.set(null, previous); }
     }
 
     private SpecialPositionAssignment assignment(String name) {
         var assignment = new SpecialPositionAssignment();
         assignment.playerName = name;
-        assignment.characterId = name;
+        assignment.characterId = UUID.nameUUIDFromBytes(name.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
         return assignment;
     }
 

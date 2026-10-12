@@ -21,9 +21,11 @@ class RosterAndLedgerPresentationTest {
         when(realm.getFaction()).thenReturn(faction);
         when(rich.getName()).thenReturn("Rich Guild"); when(rich.getWealth()).thenReturn(1000.0);
         when(poor.getName()).thenReturn("Poor Guild"); when(poor.getWealth()).thenReturn(100.0);
-        try (var service = mockStatic(EspionageService.class); var names = mockStatic(CharacterNames.class, CALLS_REAL_METHODS)) {
+        try (var identity = new OfficeOptionalIntegrationsTest.IdentityFixture("LeaderAccount");
+             var service = mockStatic(EspionageService.class)) {
+            identity.activate(java.util.UUID.randomUUID());
+            identity.alias = "Rowan";
             service.when(() -> EspionageService.canViewExact(viewer, faction)).thenReturn(true);
-            names.when(() -> CharacterNames.display(viewer, "LeaderAccount")).thenReturn("Rowan");
             String text = String.join("\n", RosterLore.faction(viewer, faction));
             assertTrue(text.startsWith("#e8c55a\u00a7lElder: #f4e4aaRowan"));
             assertTrue(text.indexOf("Main Realm") < text.indexOf("Rich Guild"));

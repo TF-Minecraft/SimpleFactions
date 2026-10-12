@@ -3,28 +3,27 @@ package net.tfminecraft.simplefactions.integration;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import net.tfminecraft.rpcharacters.chat.*;
-import net.tfminecraft.rpcharacters.managers.PlayerManager;
-import net.tfminecraft.rpcharacters.objects.PlayerData;
-import net.tfminecraft.rpcharacters.objects.RPCharacter;
-import net.tfminecraft.rpcharacters.playtime.PlaytimeService;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.api.GatewayClient;
-import net.tfminecraft.simplefactions.identity.RpCharactersLeaderCharacterProbe;
+import net.tfminecraft.simplefactions.identity.LeaderCharacters;
 import net.tfminecraft.simplefactions.integration.rpcharacters.chat.*;
 import net.tfminecraft.simplefactions.managers.WarManager;
-import net.tfminecraft.simplefactions.prestige.RpCharactersPlaytimeProbe;
+import net.tfminecraft.simplefactions.prestige.MemberPlaytime;
+import net.tfminecraft.tlibs.character.CharacterIdentity;
+import net.tfminecraft.tlibs.character.CharacterInfo;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
+import net.tfminecraft.tlibs.character.CharacterStatus;
 import net.tfminecraft.simplefactions.rest.RestServer;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -35,6 +34,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.ServicesManager;
+import org.bukkit.plugin.SimpleServicesManager;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -134,69 +134,73 @@ class IntegrationBoundaryCoverageTest {
   }
 
   @Test
-  void leaderNamesUseLiveCharactersOrCachedLocalFilesWithoutRemoteLookup() throws Exception {
-    var plugins = Bukkit.getPluginManager();
-    var probe = new RpCharactersLeaderCharacterProbe();
-    assertNull(probe.activeCharacterName("Online"));
-    when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
+  void leaderNamesUseSharedReadyCharactersWithoutRpcEnablementOrDiskLookup() {
+    SimpleServicesManager services = sharedServices();
+    CharacterIdentity provider = mock(CharacterIdentity.class);
+    LeaderCharacters.useSharedIdentity();
+    assertNull(LeaderCharacters.resolve("Online", null, null).name());
     Player player = rig.player("Online");
-    try (var players = mockStatic(PlayerManager.class)) {
-      assertNull(probe.activeCharacterName("Online"));
-      PlayerData data = mock(PlayerData.class);
-      players.when(() -> PlayerManager.get(player)).thenReturn(data);
-      assertNull(probe.activeCharacterName("Online"));
-      when(data.hasActiveCharacter()).thenReturn(true);
-      assertNull(probe.activeCharacterName("Online"));
-      RPCharacter character = mock(RPCharacter.class);
-      when(character.getName()).thenReturn("Aelin of the Reach");
-      when(data.getActiveCharacter()).thenReturn(character);
-      assertEquals("Aelin of the Reach", probe.activeCharacterName("Online"));
-    }
+    UUID owner = player.getUniqueId();
+    UUID characterId = UUID.randomUUID();
+    CharacterRef ref = new CharacterRef(owner, characterId);
+    CharacterSession session = new CharacterSession(ref, 1);
+    CharacterInfo info = new CharacterInfo(ref, "Aelin of the Reach", CharacterStatus.ALIVE,
+        null, Set.of(), 7200, Instant.EPOCH);
+    when(Bukkit.getPlayer(owner)).thenReturn(player);
+    when(provider.currentSession(player)).thenReturn(Optional.empty());
+    when(provider.info(characterId)).thenReturn(Optional.of(info));
+    when(provider.isCurrent(session)).thenReturn(true);
     when(Bukkit.getOfflinePlayer(anyString()))
         .thenThrow(new AssertionError("Remote lookup is forbidden"));
-    assertNull(probe.activeCharacterName("Uncached"));
-    OfflinePlayer offline = mock(OfflinePlayer.class);
-    UUID uuid = UUID.randomUUID();
-    when(offline.getUniqueId()).thenReturn(uuid);
-    when(Bukkit.getOfflinePlayerIfCached("Cached")).thenReturn(offline);
-    Path directory = Path.of("plugins/RPCharacters/data/characterdata", uuid.toString());
-    Path saved = directory.resolve("active.json");
-    byte[] previous =
-        Files.exists(saved, LinkOption.NOFOLLOW_LINKS) ? Files.readAllBytes(saved) : null;
-    List<Path> createdDirectories = new ArrayList<>();
-    for (Path ancestor = directory;
-        ancestor != null && !Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS);
-        ancestor = ancestor.getParent()) {
-      createdDirectories.add(ancestor);
-    }
+    services.register(CharacterIdentity.class, provider, rig.ui.plugin, ServicePriority.Normal);
     try {
-      Files.createDirectories(directory);
-      Files.writeString(saved, "{\"active\":true,\"name\":\"Brann\"}");
-      assertEquals("Brann", probe.activeCharacterName("Cached"));
+      assertNull(LeaderCharacters.resolve("Online", null, null).name());
+      when(provider.currentSession(player)).thenReturn(Optional.of(session));
+      assertEquals("Aelin of the Reach", LeaderCharacters.resolve("Online", null, null).name());
+      assertNull(LeaderCharacters.resolve("Uncached", null, null).name());
+      verify(Bukkit.getPluginManager(), never()).isPluginEnabled("RPCharacters");
+      services.unregister(CharacterIdentity.class, provider);
+      assertNull(LeaderCharacters.resolve("Online", "Aelin of the Reach", "Online").name());
     } finally {
-      if (previous == null) Files.deleteIfExists(saved);
-      else Files.write(saved, previous);
-      for (Path created : createdDirectories) {
-        if (!Files.isDirectory(created, LinkOption.NOFOLLOW_LINKS)) continue;
-        try {
-          Files.deleteIfExists(created);
-        } catch (DirectoryNotEmptyException retained) {
-          // Preserve contents added by another fixture; ancestors are visited deepest first.
-        }
-      }
+      services.unregister(CharacterIdentity.class, provider);
+      LeaderCharacters.reset();
     }
   }
 
   @Test
-  void playtimeIntegrationReturnsUnknownWhenDisabledAndTheProvidersValueWhenEnabled() {
-    var probe = new RpCharactersPlaytimeProbe();
-    assertNull(probe.secondsFor("Offline"));
-    when(Bukkit.getPluginManager().isPluginEnabled("RPCharacters")).thenReturn(true);
-    try (var playtime = mockStatic(PlaytimeService.class)) {
-      playtime.when(() -> PlaytimeService.getSeconds("Offline")).thenReturn(7200);
-      assertEquals(7200, probe.secondsFor("Offline"));
-      playtime.verify(() -> PlaytimeService.getSeconds("Offline"));
+  void playtimeIntegrationUsesSharedOfflineSnapshotAndBecomesUnknownOnProviderLoss() {
+    SimpleServicesManager services = sharedServices();
+    CharacterIdentity provider = mock(CharacterIdentity.class);
+    MemberPlaytime.useSharedIdentity();
+    assertNull(MemberPlaytime.secondsFor("Offline"));
+    UUID owner = UUID.randomUUID();
+    OfflinePlayer offline = mock(OfflinePlayer.class);
+    when(offline.getUniqueId()).thenReturn(owner);
+    when(Bukkit.getOfflinePlayerIfCached("Offline")).thenReturn(offline);
+    CharacterInfo info = new CharacterInfo(new CharacterRef(owner, UUID.randomUUID()),
+        "Last character", CharacterStatus.DEAD, null, Set.of(), 7200, Instant.EPOCH);
+    when(provider.lastPlayed(owner)).thenReturn(Optional.of(info));
+    services.register(CharacterIdentity.class, provider, rig.ui.plugin, ServicePriority.Normal);
+    try {
+      assertEquals(7200, MemberPlaytime.secondsFor("Offline"));
+      verify(provider).lastPlayed(owner);
+      verify(Bukkit.getPluginManager(), never()).isPluginEnabled("RPCharacters");
+      services.unregister(CharacterIdentity.class, provider);
+      assertNull(MemberPlaytime.secondsFor("Offline"));
+    } finally {
+      services.unregister(CharacterIdentity.class, provider);
+      MemberPlaytime.reset();
     }
+  }
+
+  private SimpleServicesManager sharedServices() {
+    SimpleServicesManager services = new SimpleServicesManager();
+    var plugins = Bukkit.getPluginManager();
+    when(Bukkit.isPrimaryThread()).thenReturn(true);
+    when(Bukkit.getServicesManager()).thenReturn(services);
+    when(rig.ui.server.getServicesManager()).thenReturn(services);
+    when(rig.ui.server.getPluginManager()).thenReturn(plugins);
+    return services;
   }
 
   @org.junit.jupiter.params.ParameterizedTest

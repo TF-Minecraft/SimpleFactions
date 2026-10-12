@@ -10,12 +10,14 @@ import java.util.random.RandomGenerator;
 public class EspionageState {
     private Map<SpecialPosition, SpecialPositionAssignment> positions = new EnumMap<>(SpecialPosition.class);
     private Map<String, Integer> appointmentAptitudes = new HashMap<>();
+    private java.util.Set<String> handledCharacterDeaths = new java.util.HashSet<>();
     private DailyRolls dailyRolls;
     private Map<String, IntelligenceReport> reports = new HashMap<>();
     private Map<SpecialPosition, Integer> appointments = new EnumMap<>(SpecialPosition.class);
     private java.util.List<OfficeUnrest> unrest = new java.util.ArrayList<>();
     private java.util.Set<SpecialPosition> pendingFounders = java.util.EnumSet.noneOf(SpecialPosition.class);
     private Map<SpecialPosition, String> pendingFounderCharacters = new EnumMap<>(SpecialPosition.class);
+    private Map<SpecialPosition, Long> pendingFounderBoundAt = new EnumMap<>(SpecialPosition.class);
     // Last deliberate appointment per office; starts the wait before the next one.
     private Map<SpecialPosition, Long> lastAppointments = new EnumMap<>(SpecialPosition.class);
 
@@ -36,7 +38,16 @@ public class EspionageState {
     void pendingFounder(SpecialPosition office) { pendingFounders.add(office); }
     void pendingFounder(SpecialPosition office, String characterId) {
         pendingFounder(office);
-        if (characterId != null) pendingFounderCharacters.put(office, characterId);
+        if (characterId != null) {
+            String previous = pendingFounderCharacters.put(office, characterId);
+            if (!characterId.equalsIgnoreCase(previous)) {
+                if (pendingFounderBoundAt == null) pendingFounderBoundAt = new EnumMap<>(SpecialPosition.class);
+                pendingFounderBoundAt.put(office, System.currentTimeMillis());
+            }
+        }
+    }
+    long pendingFounderBoundAt(SpecialPosition office) {
+        return pendingFounderBoundAt == null ? 0L : pendingFounderBoundAt.getOrDefault(office, 0L);
     }
     String pendingFounderCharacter(SpecialPosition office) { return pendingFounderCharacters.get(office); }
     boolean hasPendingFounder() { return !pendingFounders.isEmpty(); }
@@ -45,7 +56,8 @@ public class EspionageState {
     record OfficeSnapshot(Map<SpecialPosition, SpecialPositionAssignment> positions,
             Map<SpecialPosition, Integer> appointments, java.util.List<OfficeUnrest> unrest,
             java.util.Set<SpecialPosition> pendingFounders, Map<SpecialPosition, String> pendingFounderCharacters,
-            Map<SpecialPosition, Long> lastAppointments) {}
+            Map<SpecialPosition, Long> lastAppointments, java.util.Set<String> handledCharacterDeaths,
+            Map<SpecialPosition, Long> pendingFounderBoundAt) {}
 
     OfficeSnapshot snapshotOffices() {
         var savedPositions = new EnumMap<SpecialPosition, SpecialPositionAssignment>(SpecialPosition.class);
@@ -54,7 +66,9 @@ public class EspionageState {
         savedAppointments.putAll(appointments);
         return new OfficeSnapshot(savedPositions, savedAppointments,
                 new java.util.ArrayList<>(unrest), new java.util.HashSet<>(pendingFounders), new HashMap<>(pendingFounderCharacters),
-                new HashMap<>(lastAppointments));
+                new HashMap<>(lastAppointments), handledCharacterDeaths == null
+                        ? java.util.Set.of() : new java.util.HashSet<>(handledCharacterDeaths),
+                pendingFounderBoundAt == null ? Map.of() : new HashMap<>(pendingFounderBoundAt));
     }
 
     void restoreOffices(OfficeSnapshot snapshot) {
@@ -64,6 +78,18 @@ public class EspionageState {
         pendingFounders.clear(); pendingFounders.addAll(snapshot.pendingFounders());
         pendingFounderCharacters.clear(); pendingFounderCharacters.putAll(snapshot.pendingFounderCharacters());
         lastAppointments.clear(); lastAppointments.putAll(snapshot.lastAppointments());
+        handledCharacterDeaths = new java.util.HashSet<>(snapshot.handledCharacterDeaths());
+        pendingFounderBoundAt = new EnumMap<>(SpecialPosition.class);
+        pendingFounderBoundAt.putAll(snapshot.pendingFounderBoundAt());
+    }
+
+    boolean handledDeath(java.util.UUID deathId) {
+        return handledCharacterDeaths != null && handledCharacterDeaths.contains(deathId.toString());
+    }
+
+    void rememberDeath(java.util.UUID deathId) {
+        if (handledCharacterDeaths == null) handledCharacterDeaths = new java.util.HashSet<>();
+        handledCharacterDeaths.add(deathId.toString());
     }
 
     public SpecialPositionAssignment holder(SpecialPosition office) { return positions.get(office); }
@@ -78,10 +104,12 @@ public class EspionageState {
     public void assignFounder(SpecialPosition office, SpecialPositionAssignment assignment, int aptitude) {
         if (positions.containsKey(office)) return;
         assignment.automatic = true;
+        assignment.characterBoundAt = System.currentTimeMillis();
         assignment.aptitude = EspionageMath.clamp(aptitude, 0, 100);
         positions.put(office, assignment);
         pendingFounders.remove(office);
         pendingFounderCharacters.remove(office);
+        if (pendingFounderBoundAt != null) pendingFounderBoundAt.remove(office);
     }
 
     public void addUnrest(SpecialPosition office, double points, double days, long now) {
@@ -109,6 +137,7 @@ public class EspionageState {
     public void removeSpymaster() {
         pendingFounders.remove(SpecialPosition.SPYMASTER);
         pendingFounderCharacters.remove(SpecialPosition.SPYMASTER);
+        if (pendingFounderBoundAt != null) pendingFounderBoundAt.remove(SpecialPosition.SPYMASTER);
         appointments.put(SpecialPosition.SPYMASTER, appointmentCount(SpecialPosition.SPYMASTER));
         positions.remove(SpecialPosition.SPYMASTER);
     }
@@ -133,8 +162,10 @@ public class EspionageState {
     public void appoint(SpecialPositionAssignment assignment, int permanentAptitude, long now) {
         if (now > 0) lastAppointments.put(SpecialPosition.SPYMASTER, now);
         assignment.appointedAt = Math.max(0, now);
+        assignment.characterBoundAt = Math.max(0, now);
         pendingFounders.remove(SpecialPosition.SPYMASTER);
         pendingFounderCharacters.remove(SpecialPosition.SPYMASTER);
+        if (pendingFounderBoundAt != null) pendingFounderBoundAt.remove(SpecialPosition.SPYMASTER);
         appointments.put(SpecialPosition.SPYMASTER, appointmentCount(SpecialPosition.SPYMASTER) + 1);
         assignment.automatic = false;
         assignment.aptitude = EspionageMath.clamp(permanentAptitude, 0, 100);

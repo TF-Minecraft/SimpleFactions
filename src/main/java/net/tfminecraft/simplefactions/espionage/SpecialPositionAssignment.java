@@ -6,6 +6,8 @@ public class SpecialPositionAssignment {
     public UUID playerId;
     public String playerName;
     public String characterId;
+    // Character binding time, independent of an automatic founder's immediate full aptitude.
+    public long characterBoundAt;
     public int aptitude;
     public boolean automatic;
     // Epoch millis of a deliberate appointment; zero (founders, older saves) means fully established.

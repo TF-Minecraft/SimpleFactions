@@ -3,31 +3,28 @@ package net.tfminecraft.simplefactions.espionage;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import java.util.List;
+import java.util.UUID;
+import net.tfminecraft.simplefactions.espionage.OfficeOptionalIntegrationsTest.IdentityFixture;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
+import net.tfminecraft.tlibs.character.CharacterStatus;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class CharacterNameResolutionTest {
     @org.junit.jupiter.api.BeforeEach void guardEverything() { net.tfminecraft.simplefactions.testsupport.EspionageModes.guardEverything(); }
     @org.junit.jupiter.api.AfterEach void resetEspionage() { net.tfminecraft.simplefactions.testsupport.EspionageModes.reset(); }
 
-    @org.junit.jupiter.api.io.TempDir java.nio.file.Path folder;
-
-    @Test void foreignFallbackHidesAccountsOnlyWhenRoleplayIsEnabled() {
+    @Test void foreignFallbackHidesAccountsOnlyWhenSharedIdentityIsAvailable() {
         var account = "NoActiveCharacterAccount";
         var viewer = player("ForeignViewer");
         var faction = mock(net.tfminecraft.simplefactions.objects.Faction.class);
         EspionageTestFixtures.protect(faction);
-        var plugins = mock(org.bukkit.plugin.PluginManager.class);
-        var roleplay = mock(org.bukkit.plugin.Plugin.class);
-        var offline = mock(org.bukkit.OfflinePlayer.class);
-        when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
-        when(plugins.getPlugin("RPCharacters")).thenReturn(roleplay);
-        when(roleplay.getDataFolder()).thenReturn(folder.toFile());
-        when(offline.getUniqueId()).thenReturn(java.util.UUID.randomUUID());
-        try (var bukkit = mockStatic(org.bukkit.Bukkit.class)) {
-            bukkit.when(org.bukkit.Bukkit::getServer).thenReturn(mock(org.bukkit.Server.class));
-            bukkit.when(org.bukkit.Bukkit::getPluginManager).thenReturn(plugins);
-            bukkit.when(() -> org.bukkit.Bukkit.getOfflinePlayer(account)).thenReturn(offline);
+        try (var f = new IdentityFixture(account)) {
             assertEquals("Unknown", CharacterNames.forForeign(account));
             assertEquals("Unknown", CharacterNames.display(viewer, account, faction));
             assertEquals(account, CharacterNames.of(account), "Invitations keep account fallback");
@@ -35,8 +32,106 @@ class CharacterNameResolutionTest {
             assertEquals(account, CharacterNames.display(viewer, account, faction));
             when(viewer.hasPermission(EspionageService.BYPASS_PERMISSION)).thenReturn(true);
             assertEquals(account + " \u00a77(" + account + ")", CharacterNames.display(viewer, account, faction));
-            when(plugins.isPluginEnabled("RPCharacters")).thenReturn(false);
-            assertEquals(account, CharacterNames.forForeign(account), "Servers without RPCharacters keep account names");
+            f.registered = false;
+            assertEquals(account, CharacterNames.forForeign(account), "Servers without a provider keep account names");
+        }
+    }
+
+    @Test void onlineNamesUseLiveAliasesWithoutReadingCanonicalDirectoryNames() {
+        try (var f = new IdentityFixture()) {
+            var alice = f.activate(UUID.randomUUID());
+            f.alias = "\u00a77A Hooded Stranger";
+            assertEquals(f.alias, CharacterNames.of(f.account));
+            assertEquals(f.alias, CharacterNames.forForeign(f.account));
+            f.activate(UUID.randomUUID());
+            f.alias = "Bob's Mask";
+            assertEquals(f.alias, CharacterNames.forForeign(f.account));
+            f.activate(alice.ref().characterId());
+            f.alias = "Alice's New Mask";
+            assertEquals(f.alias, CharacterNames.of(f.account));
+            verify(f.provider, never()).info(any());
+            verify(f.provider, never()).lastPlayed(any());
+        }
+    }
+
+    @Test void providerArrivalAndRemovalTakeEffectWithoutANameCache() {
+        try (var f = new IdentityFixture()) {
+            f.registered = false;
+            assertEquals(f.account, CharacterNames.forForeign(f.account));
+            f.registered = true;
+            assertEquals("Unknown", CharacterNames.forForeign(f.account));
+            assertEquals(f.account, CharacterNames.of(f.account));
+            f.activate(UUID.randomUUID());
+            assertEquals(f.alias, CharacterNames.forForeign(f.account));
+            f.registered = false;
+            assertEquals(f.account, CharacterNames.forForeign(f.account));
+            assertEquals(f.account, CharacterNames.of(f.account));
+            assertEquals("Unknown", CharacterNames.forForeign(null));
+        }
+    }
+
+    @Test void pendingOrWrongOwnerOnlineSessionCannotFallBackToLastPlayedName() {
+        try (var f = new IdentityFixture()) {
+            UUID characterId = UUID.randomUUID();
+            f.lastPlayed.put(f.owner, OfficeOptionalIntegrationsTest.info(new CharacterRef(f.owner, characterId), CharacterStatus.ALIVE));
+            assertEquals("Unknown", CharacterNames.forForeign(f.account));
+            assertEquals(f.account, CharacterNames.of(f.account));
+            f.token = new CharacterSession(new CharacterRef(UUID.randomUUID(), characterId), 1);
+            assertEquals("Unknown", CharacterNames.forForeign(f.account));
+            verify(f.provider, never()).displayName(any());
+            verify(f.provider, never()).lastPlayed(any());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"switch-back", "provider-lost", "reconnect", "offline"})
+    void aliasCallbackCannotPublishANameFromAnEndedSession(String change) {
+        try (var f = new IdentityFixture()) {
+            var original = f.activate(UUID.randomUUID());
+            when(f.provider.displayName(f.player)).thenAnswer(call -> {
+                switch (change) {
+                    case "switch-back" -> {
+                        f.activate(UUID.randomUUID());
+                        f.activate(original.ref().characterId());
+                    }
+                    case "provider-lost" -> f.registered = false;
+                    case "reconnect" -> {
+                        Player replacement = mock(Player.class);
+                        when(replacement.getUniqueId()).thenReturn(f.owner);
+                        when(replacement.isOnline()).thenReturn(true);
+                        f.connection = replacement;
+                    }
+                    case "offline" -> when(f.player.isOnline()).thenReturn(false);
+                    default -> throw new AssertionError(change);
+                }
+                return "Old Mask";
+            });
+            assertEquals("Unknown", CharacterNames.forForeign(f.account));
+            verify(f.provider, never()).info(any());
+            verify(f.provider, never()).lastPlayed(any());
+        }
+    }
+
+    @Test void cachedOfflineIdentityUsesOwnerCheckedLastPlayedWithoutNetworkLookup() {
+        try (var f = new IdentityFixture()) {
+            f.connection = null;
+            assertEquals("Unknown", CharacterNames.forForeign(f.account));
+            assertEquals(f.account, CharacterNames.of(f.account));
+            verify(f.provider, never()).lastPlayed(any());
+            OfflinePlayer cached = mock(OfflinePlayer.class);
+            when(cached.getUniqueId()).thenReturn(f.owner);
+            f.bukkit.when(() -> Bukkit.getOfflinePlayerIfCached(f.account)).thenReturn(cached);
+            assertEquals("Unknown", CharacterNames.forForeign(f.account));
+            var ref = new CharacterRef(f.owner, UUID.randomUUID());
+            f.lastPlayed.put(f.owner, OfficeOptionalIntegrationsTest.info(ref, CharacterStatus.DEAD));
+            assertEquals("Canonical Secret", CharacterNames.forForeign(f.account));
+            assertEquals("Canonical Secret", CharacterNames.of(f.account));
+            f.lastPlayed.put(f.owner, OfficeOptionalIntegrationsTest.info(new CharacterRef(UUID.randomUUID(), ref.characterId()), CharacterStatus.ALIVE));
+            assertEquals("Unknown", CharacterNames.forForeign(f.account));
+            assertEquals(f.account, CharacterNames.of(f.account));
+            f.bukkit.verify(() -> Bukkit.getOfflinePlayer(anyString()), never());
+            verify(f.provider, never()).info(any());
+            verify(f.provider, never()).displayName(any());
         }
     }
     @org.junit.jupiter.api.Test

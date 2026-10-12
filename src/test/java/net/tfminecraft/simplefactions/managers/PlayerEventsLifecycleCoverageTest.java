@@ -13,7 +13,8 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerJoinEvent;
+import net.tfminecraft.tlibs.character.*;
+import org.bukkit.Bukkit;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -40,21 +41,28 @@ class PlayerEventsLifecycleCoverageTest {
   }
 
   @Test
-  void joiningRefreshesOnlyTheMatchingRealmAndGuildLeaderAfterTheDelay() {
+  void readySessionsImmediatelyRefreshOnlyTheMatchingRealmAndGuildLeader() {
     var realm = fixture.saved("realm", "Alice");
     realm.getOrCreateMainGuild();
     var guild = fixture.guild(realm, "traders", "Bob");
     var names = new HashMap<>(Map.of("Alice", "Lady Alice", "Bob", "Master Bob"));
     LeaderCharacters.setProbe(names::get);
-    var listener = new LeaderCharacterListener(fixture.ui.plugin);
-    listener.onJoin(new PlayerJoinEvent(fixture.player("Alice"), "join"));
-    assertNull(realm.getLeaderCharacter());
-    fixture.ui.tasks.removeLast().run();
+    var identity = mock(CharacterIdentity.class);
+    Bukkit.getServicesManager().register(CharacterIdentity.class, identity, fixture.ui.plugin,
+        org.bukkit.plugin.ServicePriority.Normal);
+    when(identity.isCurrent(any())).thenReturn(true);
+    var listener = new LeaderCharacterListener();
+    Player alice = fixture.player("Alice");
+    listener.onCharacterStart(new CharacterSessionStartEvent(alice,
+        new CharacterSession(new CharacterRef(alice.getUniqueId(), UUID.randomUUID()), 1)));
+    assertTrue(fixture.ui.tasks.isEmpty());
     assertEquals("Lady Alice", realm.getLeaderCharacter());
     assertNull(guild.getLeaderCharacter());
     verify(fixture.map, times(1)).markLeaderNamesChanged();
-    listener.onJoin(new PlayerJoinEvent(fixture.player("Bob"), "join"));
-    fixture.ui.tasks.removeLast().run();
+    Player bob = fixture.player("Bob");
+    listener.onCharacterStart(new CharacterSessionStartEvent(bob,
+        new CharacterSession(new CharacterRef(bob.getUniqueId(), UUID.randomUUID()), 2)));
+    assertTrue(fixture.ui.tasks.isEmpty());
     assertEquals("Master Bob", guild.getLeaderCharacter());
     verify(fixture.map, times(2)).markLeaderNamesChanged();
     LeaderCharacterListener.refresh("alice");
