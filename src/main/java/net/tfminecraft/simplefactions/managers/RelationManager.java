@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -626,15 +628,15 @@ public class RelationManager {
 			return;
 		}
 		sender.sendMessage("§aSent a request to "+f.getName()+" §afor them to become your "+type.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you become their "+type.getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you become their "+type.getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), type, false));
+		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), type, false));
 	}
 	
 	public static void acceptRequest(Player p) {
 		RelationRequest req = (RelationRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -664,15 +666,15 @@ public class RelationManager {
 			return;
 		}
 		sender.sendMessage("§aSent a request to "+f.getName()+" §ato set trade to "+type.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you set trade to "+type.getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you set trade to "+type.getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), type, true));
+		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), type, true));
 	}
 	
 	public static void acceptTradeRequest(Player p) {
 		RelationRequest req = (RelationRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -695,15 +697,15 @@ public class RelationManager {
 			return;
 		}
 		sender.sendMessage("§aSent a request to "+f.getName()+" §ato set treaty to "+type.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you set treaty to "+type.getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you set treaty to "+type.getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), type, false, true));
+		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), type, false, true));
 	}
 
 	public static void acceptTreatyRequest(Player p) {
 		RelationRequest req = (RelationRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;

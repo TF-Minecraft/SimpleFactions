@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.government;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -358,7 +360,7 @@ public class Government {
     }
 
     public boolean isCouncilMember(Player p) {
-        return p != null && isCouncilMember(p.getName());
+        return p != null && isCouncilMember(Members.key(p));
     }
 
     /** Name-based so offline checks (mercenary loyalty, contract signing) can use it too. */
@@ -430,7 +432,7 @@ public class Government {
             case GUILD_MEMBER:
                 if(action == Action.NATIONHOOD) return false; //only leaders can demand that
             case GUILD_LEADER:
-                if(action == Action.NATIONHOOD && !FactionManager.getGuildByMember(p.getName()).canBeElevated(null)) return false;
+                if(action == Action.NATIONHOOD && !FactionManager.getGuildByMember(Members.key(p)).canBeElevated(null)) return false;
                 if(!PoliticalActionLoader.getByAction(action).allowGuilds()) return false;
                 break;
             case VASSAL_LEADER:

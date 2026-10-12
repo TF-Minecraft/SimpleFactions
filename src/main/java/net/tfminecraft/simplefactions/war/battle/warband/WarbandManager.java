@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.warband;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -160,7 +162,7 @@ public class WarbandManager implements Listener {
 				refreshOpenWarbandLists();
 				return;
 			} else if (w.isFaction()) {
-				Faction f = FactionManager.getByMember(p.getName());
+				Faction f = FactionManager.getByMember(Members.key(p));
 				if (f == null) {
 					p.sendMessage("§cThis is a faction warband, you need a faction to join");
 					refreshOpenWarbandLists();

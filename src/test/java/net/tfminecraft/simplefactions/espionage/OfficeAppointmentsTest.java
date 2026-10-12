@@ -133,7 +133,7 @@ class OfficeAppointmentsTest {
     void newHolderBuildsUpToFullAptitudeOverTheConfiguredDays() {
         long day = 86_400_000L;
         var faction = mock(Faction.class);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember("Spy")).thenReturn(true);
         when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "Spy"));
         var holder = assignment("Spy");
         new EspionageState().appoint(holder, 80, 10 * day);

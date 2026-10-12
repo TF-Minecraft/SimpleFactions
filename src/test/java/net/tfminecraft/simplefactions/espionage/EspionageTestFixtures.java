@@ -12,6 +12,6 @@ final class EspionageTestFixtures {
         holder.playerName = "Spy";
         state.appoint(holder, 50);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember("Spy")).thenReturn(true);
     }
 }

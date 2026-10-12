@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,7 +95,7 @@ public class CapitalMovePrompt implements Listener {
         }
         Faction faction = state.faction();
         // The leader or the capital may have changed while the menu was open.
-        if (FactionManager.getByLeader(player.getName()) != faction
+        if (FactionManager.getByLeader(Members.key(player)) != faction
                 || faction.getCapital() != state.fromCapital()) {
             player.sendMessage("§cThe capital changed while you were deciding. Nothing was charged.");
             return Outcome.REFUSED;

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.integration.rpcharacters.chat;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.Collections;
 import java.util.Set;
 
@@ -19,7 +21,7 @@ public final class GuildChatRecipientResolver implements ChatRecipientResolver {
 			return Collections.emptySet();
 		}
 
-		Guild guild = FactionManager.getGuildByMember(sender.getName());
+		Guild guild = FactionManager.getGuildByMember(Members.key(sender));
 		if (guild == null) {
 			return Collections.emptySet();
 		}

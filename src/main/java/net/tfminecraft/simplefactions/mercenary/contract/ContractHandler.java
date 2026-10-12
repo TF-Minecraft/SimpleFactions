@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.mercenary.contract;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -399,7 +401,7 @@ public class ContractHandler {
     private static void tellGovernment(Faction hirer, String message) {
         if (hirer == null || hirer.getGovernment() == null || SimpleFactions.plugin == null) return;
         for (Player online : Bukkit.getOnlinePlayers()) {
-            if (online != null && hirer.getGovernment().isCouncilMember(online.getName())) {
+            if (online != null && hirer.getGovernment().isCouncilMember(Members.key(online))) {
                 online.sendMessage(message);
             }
         }

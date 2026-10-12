@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 
 import org.bukkit.Material;
@@ -71,7 +73,7 @@ public class RelationView {
 
 	private void fillDiplomacyList(Inventory i, Player player, Faction f, int page) {
 		i.clear();
-		boolean own = f.getMembers() != null && f.getMembers().contains(player.getName());
+		boolean own = f.getMembers() != null && f.getMembers().contains(Members.key(player));
 		List<DiplomacyListEntry> entries = own
 				? DiplomacyQueries.ownDirectory(f)
 				: DiplomacyQueries.foreignList(f);
@@ -105,7 +107,7 @@ public class RelationView {
 			return;
 		}
 		int page = Math.max(0, holder.getPage());
-		boolean own = viewed.getMembers() != null && viewed.getMembers().contains(p.getName());
+		boolean own = viewed.getMembers() != null && viewed.getMembers().contains(Members.key(p));
 		int slot = e.getSlot();
 		if (slot == LIST_PREV_SLOT && page > 0) {
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -145,8 +147,8 @@ public class RelationView {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.DIPLOMACY_VIEW), 54, "§7Diplomacy View");
 		}
-		if(!f.getMembers().contains(player.getName()) && FactionManager.getByMember(player.getName()) != null) {
-			Faction pf = FactionManager.getByMember(player.getName());
+		if(!f.getMembers().contains(Members.key(player)) && FactionManager.getByMember(Members.key(player)) != null) {
+			Faction pf = FactionManager.getByMember(Members.key(player));
 			Relation r = pf.getRelation(f.getId());
 			i.setItem(21, creator.createRelationItem(f, pf));
 			RelationType trade = pf.getDiplomacyHandler().getTradeRelation(f.getId());
@@ -176,7 +178,7 @@ public class RelationView {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.ATTITUDE_VIEW), 27, "§7Change Attitude");
 		}
-		Faction origin = FactionManager.getByMember(player.getName());
+		Faction origin = FactionManager.getByMember(Members.key(player));
 		for(int x = 0; x<RelationLoader.getAttitudes().size(); x++) {
 			int slot = x+10;
 			i.setItem(slot, creator.createAttitudeItem(RelationLoader.getAttitudes().get(x), origin, f, true));
@@ -196,7 +198,7 @@ public class RelationView {
 			if(!t.isSettable()) continue;
 			if(t.isTradeAgreement()) continue;
 			if(t.isTreaty()) continue;
-			i.setItem(slot, creator.createRelationTypeItem(RelationLoader.getTypes().get(x), f, FactionManager.getByMember(player.getName()), true));
+			i.setItem(slot, creator.createRelationTypeItem(RelationLoader.getTypes().get(x), f, FactionManager.getByMember(Members.key(player)), true));
 			slot++;
 		}
 		i.setItem(26, inv.createBackButton(SFGUI.RELATION_VIEW));
@@ -214,7 +216,7 @@ public class RelationView {
 			RelationType t = RelationLoader.getTypes().get(x);
 			if(!t.isSettable()) continue;
 			if(!t.isTradeAgreement()) continue;
-			i.setItem(slot, creator.createTradeAgreementTypeItem(player, RelationLoader.getTypes().get(x), f, FactionManager.getByMember(player.getName()), true));
+			i.setItem(slot, creator.createTradeAgreementTypeItem(player, RelationLoader.getTypes().get(x), f, FactionManager.getByMember(Members.key(player)), true));
 			slot++;
 		}
 		i.setItem(26, inv.createBackButton(SFGUI.TRADE_AGREEMENT_VIEW));
@@ -232,7 +234,7 @@ public class RelationView {
 			RelationType t = RelationLoader.getTypes().get(x);
 			if(!t.isSettable()) continue;
 			if(!t.isTreaty()) continue;
-			i.setItem(slot, creator.createTreatyTypeItem(player, t, f, FactionManager.getByMember(player.getName()), true));
+			i.setItem(slot, creator.createTreatyTypeItem(player, t, f, FactionManager.getByMember(Members.key(player)), true));
 			slot++;
 		}
 		i.setItem(26, inv.createBackButton(SFGUI.TREATY_VIEW));
@@ -264,7 +266,7 @@ public class RelationView {
 			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 			Faction f = FactionManager.getByString(h.getId());
 			if(!h.getType().equals(SFGUI.DIPLOMACY_VIEW)) return;
-			if(f == null || FactionManager.getByMember(p.getName()) == null) return;
+			if(f == null || FactionManager.getByMember(Members.key(p)) == null) return;
 			if(e.getSlot() == 30) {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				attitudeView(null, p, f, true);
@@ -278,7 +280,7 @@ public class RelationView {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				treatyView(null, p, f, true);
 			} else if(e.getSlot() == 24) {
-				Faction attacker = FactionManager.getByLeader(p.getName());
+				Faction attacker = FactionManager.getByLeader(Members.key(p));
 				if (attacker == null) return;
 				if (WarManager.exists(attacker, f)) {
 					p.sendMessage("§cYour faction is already in a war with that faction.");
@@ -309,7 +311,7 @@ public class RelationView {
 			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 			Faction f = FactionManager.getByString(h.getId());
 			if(!h.getType().equals(SFGUI.ATTITUDE_VIEW)) return;
-			Faction origin = FactionManager.getByMember(p.getName());
+			Faction origin = FactionManager.getByMember(Members.key(p));
 			if(f == null || origin == null) return;
 			String attitudeId = meta.getPersistentDataContainer().get(new NamespacedKey(SimpleFactions.plugin, "id"), PersistentDataType.STRING);
 			Attitude a = RelationLoader.getAttitude(attitudeId);
@@ -330,7 +332,7 @@ public class RelationView {
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
 			String rid = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-			Faction origin = FactionManager.getByMember(p.getName());
+			Faction origin = FactionManager.getByMember(Members.key(p));
 			
 			RelationType r = RelationLoader.getType(rid);
 			if(f == null || origin == null || r == null) return;
@@ -383,7 +385,7 @@ public class RelationView {
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
 			String rid = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-			Faction origin = FactionManager.getByMember(p.getName());
+			Faction origin = FactionManager.getByMember(Members.key(p));
 			
 			RelationType r = RelationLoader.getType(rid);
 			if(f == null || origin == null || r == null) return;
@@ -412,7 +414,7 @@ public class RelationView {
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
 			String rid = e.getCurrentItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-			Faction origin = FactionManager.getByMember(p.getName());
+			Faction origin = FactionManager.getByMember(Members.key(p));
 			
 			RelationType r = RelationLoader.getType(rid);
 			if(f == null || origin == null || r == null) return;

@@ -475,10 +475,10 @@ class DomainConfigurationBoundaryCoverageTest {
     assertFalse(guilds.isGuildLeader("Traveler"));
     guilds.forceKick("traveler");
     assertNull(guilds.getGuildByMember("Traveler"));
-    assertFalse(faction.isMemberIgnoreCase("Traveler"));
+    assertFalse(faction.isMember("Traveler"));
     assertEquals(List.of("Bob"), traders.getMembers());
     assertEquals("Bob", traders.getLeader());
-    assertTrue(faction.isMemberIgnoreCase("Citizen"));
+    assertTrue(faction.isMember("Citizen"));
     guilds.forceKick("already gone");
     assertTrue(guilds.isGuildLeader("Alice"));
     assertTrue(guilds.isGuildLeader("Bob"));

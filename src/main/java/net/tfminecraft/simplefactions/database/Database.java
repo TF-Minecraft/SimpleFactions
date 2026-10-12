@@ -411,6 +411,7 @@ public class Database {
 
                 GuildData gd = new GuildData();
                 gd.id = g.getId();
+                gd.incarnation = g.getIncarnation();
                 gd.name = g.getOwnName();
                 gd.leader = g.getLeader();
                 gd.leaderCharacter = g.getLeaderCharacter();

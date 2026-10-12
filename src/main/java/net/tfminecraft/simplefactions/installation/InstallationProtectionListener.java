@@ -64,7 +64,7 @@ public final class InstallationProtectionListener implements Listener {
 			return false;
 		}
 		String name = player.getName();
-		return owner.isMemberIgnoreCase(name) || name.equalsIgnoreCase(owner.getLeader());
+		return owner.isMember(name) || name.equalsIgnoreCase(owner.getLeader());
 	}
 
 	private static String blockedMessage(Installation installation) {

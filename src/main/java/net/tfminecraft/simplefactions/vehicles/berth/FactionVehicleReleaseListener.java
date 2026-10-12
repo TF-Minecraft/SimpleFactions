@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -40,7 +42,7 @@ public final class FactionVehicleReleaseListener implements Listener {
             return;
         }
 
-        Faction faction = FactionManager.getByLeader(leader.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(leader));
         if (faction == null) {
             sessionManager.clear(leader.getUniqueId());
             leader.sendMessage(FactionVehicleReleaseMessages.notLeader());

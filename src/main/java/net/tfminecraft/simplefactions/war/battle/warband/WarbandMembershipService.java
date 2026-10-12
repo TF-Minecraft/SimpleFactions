@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.warband;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -130,7 +132,7 @@ public class WarbandMembershipService {
 		if (player == null) {
 			return null;
 		}
-		return FactionManager.getByMember(player.getName());
+		return FactionManager.getByMember(Members.key(player));
 	}
 
 	private void detachFromBattle(UUID playerId, Warband warband) {

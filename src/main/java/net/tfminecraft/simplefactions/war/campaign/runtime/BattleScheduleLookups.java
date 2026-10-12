@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.runtime;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.function.Function;
@@ -25,7 +27,7 @@ public final class BattleScheduleLookups {
 			if (online == null) {
 				return null;
 			}
-			return FactionManager.getByMember(online.getName());
+			return FactionManager.getByMember(Members.key(online));
 		};
 	}
 

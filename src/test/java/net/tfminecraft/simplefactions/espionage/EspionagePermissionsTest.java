@@ -68,7 +68,7 @@ class EspionagePermissionsTest {
         assignment.characterId = "character";
         state.appoint(assignment, () -> 60);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(faction.isMember(anyString())).thenReturn(true);
         when(faction.isLeader("Leader")).thenReturn(true);
         when(leader.getName()).thenReturn("Leader");
         when(leader.getUniqueId()).thenReturn(UUID.randomUUID());
@@ -98,7 +98,7 @@ class EspionagePermissionsTest {
         Player candidate = mock(Player.class);
         Faction faction = mock(Faction.class);
         when(member.getName()).thenReturn("Member");
-        when(faction.isMemberIgnoreCase("Member")).thenReturn(true);
+        when(faction.isMember("Member")).thenReturn(true);
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.appoint(member, faction, candidate));
             assertFalse(EspionageService.remove(member, faction));
@@ -116,7 +116,7 @@ class EspionagePermissionsTest {
         try (var factions = mockStatic(FactionManager.class)) {
             assertNull(EspionageService.report(viewer, target));
             assertNull(target.getEspionage().cachedReport("unused", 0, 0));
-            when(target.isMemberIgnoreCase("Visitor")).thenReturn(true);
+            when(target.isMember("Visitor")).thenReturn(true);
             assertNull(EspionageService.report(viewer, target));
             factions.verify(() -> FactionManager.getByMember("Visitor"), times(1));
         }
@@ -132,7 +132,7 @@ class EspionagePermissionsTest {
         try (var factions = mockStatic(FactionManager.class)) {
             factions.when(() -> FactionManager.getByString("faction")).thenReturn(faction);
             assertTrue(EspionageAccess.denied(member, new SFInventoryHolder("faction", SFGUI.MILITARY_VIEW)));
-            when(faction.isMemberIgnoreCase("FormerSpy")).thenReturn(true);
+            when(faction.isMember("FormerSpy")).thenReturn(true);
             assertFalse(EspionageAccess.denied(member, new SFInventoryHolder("faction", SFGUI.MILITARY_VIEW)));
             assertTrue(EspionageAccess.denied(member, new SFInventoryHolder("faction", SFGUI.SPYMASTER_SETTINGS)));
             assertFalse(EspionageAccess.denied(member, new SFInventoryHolder("faction", SFGUI.SPECIAL_POSITIONS)));
@@ -164,7 +164,7 @@ class EspionagePermissionsTest {
     void leaderIsAlwaysEligibleAndOneOfficeKeepsFullAptitude() {
         Faction faction = mock(Faction.class);
         when(faction.isLeader("Leader")).thenReturn(true);
-        when(faction.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(faction.isMember(anyString())).thenReturn(true);
         when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "Spy"));
         assertTrue(EspionageService.eligible(faction, "Leader"));
         assertTrue(EspionageService.eligible(faction, "Spy"));
@@ -224,7 +224,7 @@ class EspionagePermissionsTest {
         Faction faction = mock(Faction.class);
         when(faction.getLeader()).thenReturn("NewLeader");
         when(faction.isLeader("NewLeader")).thenReturn(true);
-        when(faction.isMemberIgnoreCase("OldLeader")).thenReturn(true);
+        when(faction.isMember("OldLeader")).thenReturn(true);
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
         var appointed = new SpecialPositionAssignment();

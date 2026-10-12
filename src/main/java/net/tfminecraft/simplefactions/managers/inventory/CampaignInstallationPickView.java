@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService.InstallationPickResults;
 import java.time.Instant;
@@ -166,7 +168,7 @@ public class CampaignInstallationPickView {
 			return;
 		}
 
-		if (!viewerFaction.isLeader(player.getName())) {
+		if (!viewerFaction.isLeader(Members.key(player))) {
 			player.sendMessage("§cOnly your faction leader can select installations for this battle.");
 			return;
 		}
@@ -200,11 +202,11 @@ public class CampaignInstallationPickView {
 	}
 
 	private Faction resolveViewerFaction(Player player, War war) {
-		Faction leaderFaction = FactionManager.getByLeader(player.getName());
+		Faction leaderFaction = FactionManager.getByLeader(Members.key(player));
 		if (leaderFaction != null && war.isParticipating(leaderFaction)) {
 			return leaderFaction;
 		}
-		Faction memberFaction = FactionManager.getByMember(player.getName());
+		Faction memberFaction = FactionManager.getByMember(Members.key(player));
 		if (memberFaction != null && war.isParticipating(memberFaction)) {
 			return memberFaction;
 		}

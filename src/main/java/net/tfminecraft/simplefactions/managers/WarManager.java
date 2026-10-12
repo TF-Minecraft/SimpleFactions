@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -493,18 +495,18 @@ public class WarManager {
 			return;
 		}
 		sender.sendMessage("§aSent a call to arms to "+target.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Type §c/faction decline §7to decline");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), w, target.getId()));
+		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), w, target.getId()));
 	}
 	
 	public static void acceptRequest(Player p) {
 		if (!(RequestManager.getRequest(p) instanceof WarRequest req)) {
 			return;
 		}
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -545,7 +547,7 @@ public class WarManager {
 		// A stored target that no longer exists penalises nobody.
 		Faction receiver = req.getTargetFactionId() != null
 				? FactionManager.getByString(req.getTargetFactionId())
-				: called != null ? FactionManager.getByLeader(called.getName()) : null;
+				: called != null ? FactionManager.getByLeader(Members.key(called)) : null;
 		if (receiver != null && receiver.getGovernment() != null) {
 			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
 					"Declined Call to Arms",

@@ -1805,10 +1805,10 @@ class CommandManagerCoverageTest {
       verify(faction, never()).invite(anyString());
       Player alice = gui.player("Alice");
       characters.when(() -> CharacterNames.resolveOnline(player, "Lady Alice")).thenReturn(alice);
-      when(faction.isMemberIgnoreCase("Alice")).thenReturn(true);
+      when(faction.isMember("Alice")).thenReturn(true);
       assertTrue(run("faction", "invite", "Lady", "Alice"));
       verify(player).sendMessage(contains("already a member"));
-      when(faction.isMemberIgnoreCase("Alice")).thenReturn(false);
+      when(faction.isMember("Alice")).thenReturn(false);
       Faction other = mock(Faction.class);
       factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(other);
       assertTrue(run("faction", "invite", "Lady", "Alice"));

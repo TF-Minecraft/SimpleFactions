@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 
 import org.bukkit.command.Command;
@@ -136,7 +138,7 @@ public final class MercenaryCommandManager implements CommandExecutor {
     /** Hands out stage 1 of the negotiation book. */
     private void draft(Player p) {
         MercenaryCompany company = company(p);
-        if (company == null || !company.isLeader(p.getName())) {
+        if (company == null || !company.isLeader(Members.key(p))) {
             p.sendMessage("§cOnly a company leader may draft a contract.");
             return;
         }
@@ -153,7 +155,7 @@ public final class MercenaryCommandManager implements CommandExecutor {
      */
     private void offer(Player p, String factionName) {
         MercenaryCompany company = company(p);
-        if (company == null || !company.isLeader(p.getName())) {
+        if (company == null || !company.isLeader(Members.key(p))) {
             p.sendMessage("§cOnly a company leader may offer a contract.");
             return;
         }
@@ -264,8 +266,8 @@ public final class MercenaryCommandManager implements CommandExecutor {
     }
 
     private static Guild leaderGuild(Player p) {
-        Guild guild = FactionManager.getGuildByLeader(p.getName());
-        return guild != null ? guild : FactionManager.getGuildByMember(p.getName());
+        Guild guild = FactionManager.getGuildByLeader(Members.key(p));
+        return guild != null ? guild : FactionManager.getGuildByMember(Members.key(p));
     }
 
     private static void report(Player p, MercenaryResult result) {

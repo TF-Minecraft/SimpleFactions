@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -685,9 +686,11 @@ public class FactionManager implements Listener{
 	}
 
 	public static boolean canJoinGuild(Player p) {
-		Guild guild = getGuildByMember(p.getName());
+		String key = Members.key(p);
+		if(key == null) return false;
+		Guild guild = getGuildByMember(key);
 		if(guild == null) return true;
-		if(guild.getLeader().equalsIgnoreCase(p.getName())) return false;
+		if(key.equals(guild.getLeader())) return false;
 		return guild.getType().isBase();
 	}
 
@@ -695,13 +698,14 @@ public class FactionManager implements Listener{
 		if(player == null) return null;
 		for(Faction f : factions) {
 			for(Guild guild : f.getGuildHandler().getGuilds()) {
-				if(Guild.findIgnoreCase(guild.getMembers(), player) != null) return guild;
+				if(Guild.find(guild.getMembers(), player) != null) return guild;
 			}
 		}
 		return null;
 	}
 
 	public static Guild getGuildByLeader(String leader) {
+		if(leader == null) return null;
 		for(Faction f : factions) {
 			for(Guild guild : f.getGuildHandler().getGuilds()) {
 				if(guild.isLeader(leader)) return guild;
@@ -915,16 +919,17 @@ public class FactionManager implements Listener{
 		return c;
 	}
 	public static Faction getByLeader(String name) {
+		if(name == null) return null;
 		for(Faction f : factions) {
-			if(f.getLeader().equalsIgnoreCase(name)) return f;
+			if(name.equals(f.getLeader())) return f;
 		}
 		return null;
 	}
 	public static Faction getByMember(String name) {
 		if(name == null) return null;
 		for(Faction f : factions) {
-			if(f.isMemberIgnoreCase(name)) return f;
-			if(f.getLeader().equalsIgnoreCase(name)) {
+			if(f.isMember(name)) return f;
+			if(name.equals(f.getLeader())) {
 				f.addMember(name);
 				return f;
 			}
@@ -1014,7 +1019,7 @@ public class FactionManager implements Listener{
 
 	public static void acceptRelocateRequest(Player p) {
 		RelocateRequest req = (RelocateRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -1073,7 +1078,7 @@ public class FactionManager implements Listener{
 
 	public static void acceptElevationRequest(Player p) {
 		if (!(RequestManager.getRequest(p) instanceof ElevateRequest req)) return;
-		Guild guild = FactionManager.getGuildByLeader(p.getName());
+		Guild guild = FactionManager.getGuildByLeader(Members.key(p));
 		if(guild == null) {
 			p.sendMessage("§cYou are not the leader of a guild");
 			return;
@@ -1270,7 +1275,7 @@ public class FactionManager implements Listener{
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 			return true;
 		}
-		if(!f.canVote(p.getName())) {
+		if(!f.canVote(Members.key(p))) {
 			p.sendMessage("§cYou have no voting rights in this faction");
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 			return true;
@@ -1289,7 +1294,7 @@ public class FactionManager implements Listener{
 	}
 
 	void registerVotingBooth(Player p, Block b) {
-		Faction f = FactionManager.getByMember(p.getName());
+		Faction f = FactionManager.getByMember(Members.key(p));
 		if(f == null) return;
 		if(!mayManageVotingBooths(p, f)) {
 			p.sendMessage("§cOnly the faction leader can set up a voting booth");
@@ -1323,7 +1328,7 @@ public class FactionManager implements Listener{
 	}
 
 	private static boolean mayManageVotingBooths(Player p, Faction f) {
-		return p.getName().equalsIgnoreCase(f.getLeader()) || Permissions.isAdmin(p);
+		return Members.is(p, f.getLeader()) || Permissions.isAdmin(p);
 	}
 
 	void unregisterVotingBooth(Player p, Block b) {

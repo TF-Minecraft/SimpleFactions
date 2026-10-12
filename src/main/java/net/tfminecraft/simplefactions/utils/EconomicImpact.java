@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.utils;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 import java.util.Map;
 
@@ -133,7 +135,7 @@ public class EconomicImpact {
         if (player == null) {
             return null;
         }
-        return FactionManager.getGuildByMember(player.getName());
+        return FactionManager.getGuildByMember(Members.key(player));
     }
 
     private static boolean defer(

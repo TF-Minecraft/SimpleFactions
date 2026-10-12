@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.CanRegisterResult;
@@ -51,7 +53,7 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        Faction faction = FactionManager.getByLeader(leader.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(leader));
         if (faction == null) {
             sessionManager.clear(leader.getUniqueId());
             leader.sendMessage(VehicleTransferMessages.notLeader());

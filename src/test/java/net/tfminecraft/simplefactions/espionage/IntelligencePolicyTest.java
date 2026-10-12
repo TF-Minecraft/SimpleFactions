@@ -59,7 +59,7 @@ class IntelligencePolicyTest {
         var target = mock(Faction.class);
         var state = new EspionageState();
         when(target.getEspionage()).thenReturn(state);
-        when(target.isMemberIgnoreCase("Account")).thenReturn(true);
+        when(target.isMember("Account")).thenReturn(true);
         when(target.getMembers()).thenReturn(List.of("Account"));
         var holder = new SpecialPositionAssignment();
         holder.playerName = "Account";

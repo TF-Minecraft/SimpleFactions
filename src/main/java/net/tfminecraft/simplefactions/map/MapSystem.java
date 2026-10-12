@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.map;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -286,7 +288,7 @@ public class MapSystem {
 	}
 
 	public Faction getRelocationTarget(Player p) {
-		Guild guild = FactionManager.getGuildByLeader(p.getName());
+		Guild guild = FactionManager.getGuildByLeader(Members.key(p));
 		if(guild == null) return null;
 		if(guild.isBase()) return null;
 		if(!guild.hasCapital()) return null;

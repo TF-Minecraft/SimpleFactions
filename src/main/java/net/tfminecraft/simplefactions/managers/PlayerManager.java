@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -112,7 +114,7 @@ public class PlayerManager implements Listener{
             }.runTaskLater(SimpleFactions.plugin, 1L);
         } else if(stage == 3) {
             e.setCancelled(true);
-            Guild borrowerGuild = FactionManager.getGuildByLeader(p.getName());
+            Guild borrowerGuild = FactionManager.getGuildByLeader(Members.key(p));
             String offerId = LoanBook.offerId(newMeta);
             Loan loan = offerId == null ? null : LoanBook.createLoanFromBook(newMeta, borrowerGuild, offerId);
             String validate = newMeta.getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
@@ -221,7 +223,7 @@ public class PlayerManager implements Listener{
             return;
         }
         if(stage == ContractBook.STAGE_DRAFT) {
-            if(!company.isLeader(p.getName())) {
+            if(!company.isLeader(Members.key(p))) {
                 p.sendMessage("§cOnly the company leader may draft a contract.");
                 return;
             }
@@ -235,7 +237,7 @@ public class PlayerManager implements Listener{
             return;
         }
         if(stage == ContractBook.STAGE_REVIEW) {
-            if(!company.isLeader(p.getName())) {
+            if(!company.isLeader(Members.key(p))) {
                 p.sendMessage("§cOnly the company leader may publish an offer.");
                 return;
             }
@@ -360,8 +362,8 @@ public class PlayerManager implements Listener{
     } 
 
     private boolean isInBankChunk(Player p) {
-        Faction f = FactionManager.getByMember(p.getName());
-        Guild g = FactionManager.getGuildByMember(p.getName());
+        Faction f = FactionManager.getByMember(Members.key(p));
+        Guild g = FactionManager.getGuildByMember(Members.key(p));
 
         if (f == null && g == null) {
             p.sendMessage("§cYou must belong to a guild or faction to bank here.");
@@ -377,8 +379,8 @@ public class PlayerManager implements Listener{
     }
 
     private boolean inFactionOrGuildBankChunk(Player p) {
-        Faction f = FactionManager.getByMember(p.getName());
-        Guild g = FactionManager.getGuildByMember(p.getName());
+        Faction f = FactionManager.getByMember(Members.key(p));
+        Guild g = FactionManager.getGuildByMember(Members.key(p));
         Chunk playerChunk = p.getLocation().getChunk();
 
         if (f != null && f.getBank() != null && f.getBank().getChunk() != null

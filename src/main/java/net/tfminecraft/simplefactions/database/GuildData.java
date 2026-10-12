@@ -8,6 +8,8 @@ import com.google.gson.annotations.SerializedName;
 
 public class GuildData {
     public String id;
+    /** Immutable identity of this guild, kept across renames and never reused. */
+    public String incarnation;
     public String name;
     public String leader;
 

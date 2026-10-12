@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.utils;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 
 import net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions;
@@ -41,7 +43,7 @@ public class TabCompletion implements TabCompleter{
 
 	private List<String> completeCompany(Player p, String[] args) {
 		List<String> completions = new ArrayList<>();
-		Guild guild = FactionManager.getGuildByLeader(p.getName());
+		Guild guild = FactionManager.getGuildByLeader(Members.key(p));
 		if(args.length <= 1) {
 			if(guild != null && guild.getCompany() == null) completions.add("found");
 			if(guild != null && guild.hasCompany()) {
@@ -150,7 +152,7 @@ public class TabCompletion implements TabCompleter{
 
 	private List<String> completeInstallationIds(Player p, String prefix, boolean includePendingConstruction) {
 		List<String> completions = new ArrayList<>();
-		Faction f = FactionManager.getByLeader(p.getName());
+		Faction f = FactionManager.getByLeader(Members.key(p));
 		if (f == null) {
 			return completions;
 		}
@@ -211,7 +213,7 @@ public class TabCompletion implements TabCompleter{
 				if(Cache.provincesEnabled) {
 					completions.add("setcapital");
 				}
-				if(FactionManager.getGuildByLeader(p.getName()) != null) {
+				if(FactionManager.getGuildByLeader(Members.key(p)) != null) {
 					completions.add("invite");
 					completions.add("kick");
 					completions.add("setleader");
@@ -236,7 +238,7 @@ public class TabCompletion implements TabCompleter{
 			}
 			if(sender instanceof Player) {
 				Player p = (Player) sender;
-				if(FactionManager.getByLeader(p.getName()) == null) {
+				if(FactionManager.getByLeader(Members.key(p)) == null) {
 					return new ArrayList<>();
 				}
 				return completeConstructKinds(args);
@@ -248,7 +250,7 @@ public class TabCompletion implements TabCompleter{
 				&& args[0].equalsIgnoreCase("upgrade")) {
 			if (!Cache.provincesEnabled
 					|| !(sender instanceof Player p)
-					|| FactionManager.getByLeader(p.getName()) == null) {
+					|| FactionManager.getByLeader(Members.key(p)) == null) {
 				return new ArrayList<>();
 			}
 			return completeInstallationIds(p, args.length >= 2 ? args[1] : "", false);
@@ -320,8 +322,8 @@ public class TabCompletion implements TabCompleter{
 				Player p = (Player) sender;
 				List<String> completions = new ArrayList<>();
 				completions.add("list");
-				if(FactionManager.getByMember(p.getName()) != null) completions.add("menu");
-				if(FactionManager.getByMember(p.getName()) != null) completions.addAll(List.of("positions", "spymaster", "espionage"));
+				if(FactionManager.getByMember(Members.key(p)) != null) completions.add("menu");
+				if(FactionManager.getByMember(Members.key(p)) != null) completions.addAll(List.of("positions", "spymaster", "espionage"));
                 if (p.hasPermission(net.tfminecraft.simplefactions.espionage.EspionageConfig.reloadPermission())) completions.add("reloadespionage");
 				completions.add("create");
 				completions.add("accept");
@@ -329,7 +331,7 @@ public class TabCompletion implements TabCompleter{
 				completions.add("join");
 				completions.add("vehicle");
 				
-				if(FactionManager.getByLeader(p.getName()) != null) {
+				if(FactionManager.getByLeader(Members.key(p)) != null) {
 					if(Cache.provincesEnabled) {
 						completions.add("claim");
 						completions.add("construct");
@@ -402,12 +404,12 @@ public class TabCompletion implements TabCompleter{
 				Player p = (Player) sender;
 				Faction f = null;
 				if(cmd.getName().equalsIgnoreCase("guild")) {
-					Guild g = FactionManager.getGuildByLeader(p.getName());
+					Guild g = FactionManager.getGuildByLeader(Members.key(p));
 					if(g != null) {
 						f = g.getFaction();
 					}
 				} else {
-					f = FactionManager.getByLeader(p.getName());
+					f = FactionManager.getByLeader(Members.key(p));
 				}
 				if(f == null) {
 					return new ArrayList<>();
@@ -421,7 +423,7 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("delete")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Faction f = FactionManager.getByMember(p.getName());
+				Faction f = FactionManager.getByMember(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(f != null) {
 					completions.add(f.getId());
@@ -431,7 +433,7 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("delete")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Guild g = FactionManager.getGuildByMember(p.getName());
+				Guild g = FactionManager.getGuildByMember(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(g != null && !g.isBase()) {
 					completions.add(g.getId());
@@ -459,7 +461,7 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("kick")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Guild g = FactionManager.getGuildByLeader(p.getName());
+				Guild g = FactionManager.getGuildByLeader(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(g != null && !g.isBase()) {
 					for(String member : g.getMembers()) {
@@ -471,7 +473,7 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("kick")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Faction f = FactionManager.getByMember(p.getName());
+				Faction f = FactionManager.getByMember(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(f != null) {
 					completions.addAll(f.getMembers());
@@ -482,7 +484,7 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("setleader")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Faction f = FactionManager.getByMember(p.getName());
+				Faction f = FactionManager.getByMember(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(f != null) {
 					for(String member : f.getMembers()) {

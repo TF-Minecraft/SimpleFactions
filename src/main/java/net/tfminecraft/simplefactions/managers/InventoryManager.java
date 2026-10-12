@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageAccess;
 import net.tfminecraft.simplefactions.managers.inventory.EspionageView;
 
@@ -431,7 +433,7 @@ public class InventoryManager implements Listener{
 	}
 
 	public void setPayingLoan(Player p, Loan loan) {
-		Guild guild = FactionManager.getGuildByLeader(p.getName());;
+		Guild guild = FactionManager.getGuildByLeader(Members.key(p));;
 		if(guild == null) return;
 		loanPayments.put(p, new LoanPayment(guild, loan));
 		p.closeInventory();
@@ -540,7 +542,7 @@ public class InventoryManager implements Listener{
 	 */
 	private void submitRateProposal(Player p, Faction f, Proposal proposal) {
 		Government gov = f.getGovernment();
-		if(!gov.hasCouncil() && f.isLeader(p.getName())) {
+		if(!gov.hasCouncil() && f.isLeader(Members.key(p))) {
 			p.sendMessage("§aChange applied!");
 			proposal.apply(null);
 			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
@@ -556,7 +558,7 @@ public class InventoryManager implements Listener{
 			p.sendTitle("", "§aProposal Added", 20, 80, 20);
 			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 		} else if(gov.canProposeOrStartMovement(p)) {
-			Movement movement = gov.getMovementByMember(p.getName());
+			Movement movement = gov.getMovementByMember(Members.key(p));
 			if(movement != null) {
 				movement.createCause(p.getName(), proposal);
 				p.sendMessage("§aProposal added to your movement! Rally support for your proposal by sharing it with your faction and allies!");
@@ -628,7 +630,7 @@ public class InventoryManager implements Listener{
 	@SuppressWarnings("deprecation")
 	public void loanPaymentChat(Player p, AsyncPlayerChatEvent e) {
 		Guild g = loanPayments.get(p).getGuild();
-		Guild compare = FactionManager.getGuildByLeader(p.getName());
+		Guild compare = FactionManager.getGuildByLeader(Members.key(p));
 		if(compare == null) {
 			loanPayments.remove(p); //player left guild
 			return;
@@ -815,7 +817,7 @@ public class InventoryManager implements Listener{
 			contractView.detailView(p, guild, contract.getId());
 			return;
 		}
-		if (!company.isLeader(p.getName())) {
+		if (!company.isLeader(Members.key(p))) {
 			slotChanges.remove(p);
 			p.sendMessage("§cOnly the guild leader can change a contract's slots.");
 			return;
@@ -902,7 +904,7 @@ public class InventoryManager implements Listener{
 		return switch (parsed.type()) {
 			case MILITARY -> {
 				Faction f = FactionManager.getByString(parsed.ownerId());
-				yield f != null && player.getName().equalsIgnoreCase(f.getLeader())
+				yield f != null && Members.is(player, f.getLeader())
 						&& f.getMilitary().cancelQueue(parsed.index());
 			}
 			case GUILD_UPGRADE -> {
@@ -911,21 +913,21 @@ public class InventoryManager implements Listener{
 			}
 			case INSTALLATION -> {
 				Faction f = FactionManager.getByString(parsed.ownerId());
-				yield f != null && player.getName().equalsIgnoreCase(f.getLeader())
+				yield f != null && Members.is(player, f.getLeader())
 						&& f.getInstallationHandler().cancelPending(parsed.detail());
 			}
 			case COMPANY_SLOT -> {
 				Guild guild = FactionManager.getGuildByString(parsed.ownerId());
 				yield guild != null
 						&& guild.getCompany() != null
-						&& guild.getCompany().isLeader(player.getName())
+						&& guild.getCompany().isLeader(Members.key(player))
 						&& guild.getCompany().cancelSlotQueue(parsed.index());
 			}
 			case COMPANY_UPGRADE -> {
 				Guild guild = FactionManager.getGuildByString(parsed.ownerId());
 				yield guild != null
 						&& guild.getCompany() != null
-						&& guild.getCompany().isLeader(player.getName())
+						&& guild.getCompany().isLeader(Members.key(player))
 						&& guild.getCompany().cancelUpgradeQueue(parsed.index());
 			}
 		};
@@ -1159,7 +1161,7 @@ public class InventoryManager implements Listener{
 						factionView(p, f);
 						break;
 					case DIPLOMACY_VIEW:
-						Faction viewer = FactionManager.getByMember(p.getName());
+						Faction viewer = FactionManager.getByMember(Members.key(p));
 						if (viewer != null) {
 							diplomacyListView(null, p, viewer, true);
 						} else {
@@ -1490,7 +1492,7 @@ public class InventoryManager implements Listener{
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					return;
 				}
-				if(f == null || !f.getLeader().equalsIgnoreCase(p.getName())) return;
+				if(f == null || !Members.is(p, f.getLeader())) return;
 				Regiment r = f.getMilitary().getRegiment(data);
 				if(r == null) return;
 				r.sizeDecrease();
@@ -1503,7 +1505,7 @@ public class InventoryManager implements Listener{
 			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			if(data != null) {
 				Faction f = confirming.get(p);
-				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+				if (f == null || !Members.is(p, f.getLeader())) {
 					confirming.remove(p);
 					p.closeInventory();
 					return;
@@ -1529,7 +1531,7 @@ public class InventoryManager implements Listener{
 				Faction f = confirming.get(p);
 				boolean fromCommand = installationConfirmFromCommand.getOrDefault(p, false);
 				installationConfirmFromCommand.remove(p);
-				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+				if (f == null || !Members.is(p, f.getLeader())) {
 					confirming.remove(p);
 					p.closeInventory();
 					return;
@@ -1557,7 +1559,7 @@ public class InventoryManager implements Listener{
 			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			if(data != null) {
 				Faction f = confirming.get(p);
-				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+				if (f == null || !Members.is(p, f.getLeader())) {
 					confirming.remove(p);
 					p.closeInventory();
 					return;
@@ -1582,7 +1584,7 @@ public class InventoryManager implements Listener{
 			data = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 			if (data != null) {
 				Faction f = confirming.get(p);
-				if (f == null || !p.getName().equalsIgnoreCase(f.getLeader())) {
+				if (f == null || !Members.is(p, f.getLeader())) {
 					confirming.remove(p);
 					p.closeInventory();
 					return;

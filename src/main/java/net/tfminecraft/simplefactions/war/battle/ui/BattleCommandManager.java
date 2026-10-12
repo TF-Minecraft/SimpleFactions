@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.ui;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
@@ -245,7 +247,7 @@ public class BattleCommandManager implements CommandExecutor{
 						return true;
 					}
 				}
-				Faction playerFaction = FactionManager.getByMember(p.getName());
+				Faction playerFaction = FactionManager.getByMember(Members.key(p));
 				if (w.isFaction()) {
 					if (playerFaction == null) {
 						p.sendMessage("§cThis is a faction warband, you need a faction to join");
@@ -286,7 +288,7 @@ public class BattleCommandManager implements CommandExecutor{
 				Warband warband = WarbandManager.getByLeader(p);
 				CampaignBattleJoinService.CampaignBattleContext ctx =
 						CampaignBattleJoinService.findCampaignBattleForWarband(warband);
-				Faction faction = FactionManager.getByMember(p.getName());
+				Faction faction = FactionManager.getByMember(Members.key(p));
 				FactionManager.inv.confirming.put(p, faction);
 				FactionManager.inv.confirmBattleRetreatView(p, ctx.battle().getId());
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

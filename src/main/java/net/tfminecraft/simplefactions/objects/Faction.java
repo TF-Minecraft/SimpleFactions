@@ -519,20 +519,17 @@ public class Faction {
 		this.invited = invited;
 	}
 	public boolean isInvited(String name) {
-		return Guild.findIgnoreCase(invited, name) != null;
+		return Guild.find(invited, name) != null;
 	}
 	public void invite(String name) {
 		if(name == null || isInvited(name)) return;
 		invited.add(name);
 	}
 	public boolean consumeInvite(String name) {
-		String stored = Guild.findIgnoreCase(invited, name);
+		String stored = Guild.find(invited, name);
 		if(stored == null) return false;
 		invited.remove(stored);
 		return true;
-	}
-	public boolean isMemberIgnoreCase(String name) {
-		return Guild.findIgnoreCase(getMembers(), name) != null;
 	}
 	public List<Modifier> getWealthModifiers() {
 		List<Modifier> list = new ArrayList<>(getOrCreateMainGuild().getWealthModifiers());
@@ -694,6 +691,14 @@ public class Faction {
 	public boolean isLeader(String member) {
 		return getOrCreateMainGuild().isLeader(member);
 	}
+	/** Whether the player's current character leads this realm. */
+	public boolean isLeader(org.bukkit.entity.Player player) {
+		return isLeader(net.tfminecraft.simplefactions.identity.Members.key(player));
+	}
+	/** Whether the player's current character belongs to this realm. */
+	public boolean isMember(org.bukkit.entity.Player player) {
+		return isMember(net.tfminecraft.simplefactions.identity.Members.key(player));
+	}
 	public boolean canBecomeLeader(String member) {
 		if(isLeader(member)) return false;
 		if(!isMember(member)) return false;
@@ -708,7 +713,7 @@ public class Faction {
 	}
 
 	public boolean canBeCleanKicked(String p) {
-		if(leader.equalsIgnoreCase(p)) return false;
+		if(leader != null && leader.equals(p)) return false;
 		return !guildHandler.isGuildLeader(p);
 	}
 	public Double getWealth() {

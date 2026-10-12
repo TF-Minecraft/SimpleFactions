@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -130,7 +132,7 @@ public class WarCreator {
 			boolean subject,
 			boolean called,
 			boolean backer) {
-		Faction pf = FactionManager.getByLeader(p.getName());
+		Faction pf = FactionManager.getByLeader(Members.key(p));
 		ItemStack i = new ItemStack(f.getBanner());
 		ItemMeta m = i.getItemMeta();
 		m.setDisplayName(f.getName());
@@ -183,7 +185,7 @@ public class WarCreator {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createParticipantItem(Player p, Participant par, String type, War w, boolean full, boolean warGoal) {
-		Faction pf = FactionManager.getByLeader(p.getName());
+		Faction pf = FactionManager.getByLeader(Members.key(p));
 		Faction f = par.getLeader();
 		ItemStack i = new ItemStack(f.getBanner());
 		ItemMeta m = i.getItemMeta();

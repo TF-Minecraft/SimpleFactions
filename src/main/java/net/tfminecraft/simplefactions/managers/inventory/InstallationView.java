@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -131,7 +133,7 @@ public class InstallationView {
         }
         inventory.clear();
 
-        boolean leader = f.getLeader().equalsIgnoreCase(player.getName());
+        boolean leader = Members.is(player, f.getLeader());
         if (isPending) {
             inventory.setItem(
                     49,
@@ -207,7 +209,7 @@ public class InstallationView {
             ItemMeta meta = item.getItemMeta();
             String queuePayload = meta.getPersistentDataContainer().get(Keys.QUEUE_CANCEL, PersistentDataType.STRING);
             if (queuePayload != null) {
-                if (!f.getLeader().equalsIgnoreCase(player.getName())) {
+                if (!Members.is(player, f.getLeader())) {
                     return;
                 }
                 inv.openQueueCancelConfirm(player, f, queuePayload, "§eCancel construction?");
@@ -230,7 +232,7 @@ public class InstallationView {
                 ItemStack upgradeItem = event.getCurrentItem();
                 if (upgradeItem == null
                         || !upgradeItem.hasItemMeta()
-                        || !f.getLeader().equalsIgnoreCase(player.getName())) {
+                        || !Members.is(player, f.getLeader())) {
                     return;
                 }
                 String id = upgradeItem.getItemMeta()
@@ -256,7 +258,7 @@ public class InstallationView {
                 handleBerthedVehicleClick(event, inventory, player, f);
                 return;
             }
-            if (slot != 11 || !f.getLeader().equalsIgnoreCase(player.getName())) {
+            if (slot != 11 || !Members.is(player, f.getLeader())) {
                 return;
             }
             ItemStack item = event.getCurrentItem();
@@ -278,7 +280,7 @@ public class InstallationView {
 
     private void handleBerthedVehicleClick(
             InventoryClickEvent event, Inventory inventory, Player player, Faction faction) {
-        if (!faction.getLeader().equalsIgnoreCase(player.getName())) {
+        if (!Members.is(player, faction.getLeader())) {
             return;
         }
         ItemStack item = event.getCurrentItem();

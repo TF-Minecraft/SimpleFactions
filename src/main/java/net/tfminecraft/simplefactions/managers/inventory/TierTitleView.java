@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 
 import org.bukkit.Material;
@@ -39,7 +41,7 @@ public class TierTitleView {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TIER_VIEW), 54, "§7Tier View");
 		}
-		if(f.getLeader().equalsIgnoreCase(player.getName())) {
+		if(Members.is(player, f.getLeader())) {
 			int slot = 0;
 			for(Tier t : TierLoader.get()) {
 				i.setItem(slot, creator.createTierItem(f, t, -1));
@@ -60,9 +62,9 @@ public class TierTitleView {
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TITLE_VIEW), 54, "§7Title View");
 		}
-		Faction pf = FactionManager.getByLeader(player.getName());
+		Faction pf = FactionManager.getByLeader(Members.key(player));
 		String overlord = RelationManager.getOverlord(f);
-		if(f.getLeader().equalsIgnoreCase(player.getName())) {
+		if(Members.is(player, f.getLeader())) {
 			int slot = 10;
 			for(Tier t : TierLoader.get()) {
 				if(TitleLoader.getByTier(t).size() > 0) {
@@ -100,13 +102,13 @@ public class TierTitleView {
 		} else if (i != null && i.getHolder() instanceof SFInventoryHolder holder) {
 			holder.setPage(page);
 		}
-		Faction pf = FactionManager.getByLeader(player.getName());
+		Faction pf = FactionManager.getByLeader(Members.key(player));
 		String overlord = RelationManager.getOverlord(f);
 		int slot = 0;
 		for (int x = 0; x < 53; x++) {
 			i.setItem(x, null);
 		}
-		if(f.getLeader().equalsIgnoreCase(player.getName())) {
+		if(Members.is(player, f.getLeader())) {
 			int maxPerPage = 45;
 			List<ItemStack> items = creator.getSortedTitleItems(player, f, TitleLoader.getByTier(tier));
 			int start = page * maxPerPage;
@@ -145,7 +147,7 @@ public class TierTitleView {
 			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 			Faction f = FactionManager.getByString(h.getId());
-			if (f == null || !f.isLeader(p.getName())) return;
+			if (f == null || !f.isLeader(Members.key(p))) return;
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "index");
 			Integer index = clicked.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
 			String tierId = clicked.getItemMeta().getPersistentDataContainer().get(
@@ -178,7 +180,7 @@ public class TierTitleView {
 			Faction f = FactionManager.getByString(h.getId());
 			if (f == null) return;
 			if(type.equals(Material.WRITABLE_BOOK)) {
-				if (!f.isLeader(p.getName())) return;
+				if (!f.isLeader(Members.key(p))) return;
 				if (!f.getGovernment().stateReport().status.canFormTitles()) {
 					p.sendMessage("§cA " + f.getGovernment().stateReport().status.getLabel() + " cannot form titles.");
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
@@ -232,7 +234,7 @@ public class TierTitleView {
 			
 			if("claim".equalsIgnoreCase(action)) {
 				if(!type.equals(Material.YELLOW_CONCRETE)) return;
-				if (!f.isLeader(p.getName()) || FactionManager.getTitleOwner(t) != null
+				if (!f.isLeader(Members.key(p)) || FactionManager.getTitleOwner(t) != null
 						|| !t.canBeCreatedBy(f, TitleManager.getProvinces(f), TitleManager.getTitles(f),
 								f.getGovernment().deJureScore())) return;
 				if (f.getGovernment() != null && !f.getGovernment().stateReport().status.canFormTitles()) {
@@ -258,7 +260,7 @@ public class TierTitleView {
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 			} else if("grant".equalsIgnoreCase(action)) {
 				if(!type.equals(Material.GREEN_CONCRETE)) return;
-				Faction pf = FactionManager.getByLeader(p.getName());
+				Faction pf = FactionManager.getByLeader(Members.key(p));
 				if(pf == null || !pf.getId().equalsIgnoreCase(RelationManager.getOverlord(f))
 						|| !TitleManager.getGrantableTitles(pf, f, t.getTier()).contains(t)) return;
 				

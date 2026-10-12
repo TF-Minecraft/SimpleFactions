@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -163,7 +165,7 @@ public class WarView {
 				|| war.getWarType() == WarType.RAID || CivilWarBorderLock.isCivilWar(war)) {
 			return false;
 		}
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		return leader != null && war.getDefenderLeaderId() != null
 				&& war.getDefenderLeaderId().equalsIgnoreCase(leader.getId());
 	}
@@ -479,7 +481,7 @@ public class WarView {
 				warView(null, p, w, true);
 				return;
 			}
-			Faction pf = FactionManager.getByLeader(p.getName());
+			Faction pf = FactionManager.getByLeader(Members.key(p));
 			if(pf == null) return;
 			Participant par = w.getParticipant(pf);
 			if(par == null) return;
@@ -505,9 +507,9 @@ public class WarView {
 		if (axis == null || axis.isEmpty()) {
 			return false;
 		}
-		Faction faction = FactionManager.getByLeader(player.getName());
+		Faction faction = FactionManager.getByLeader(Members.key(player));
 		if (faction == null) {
-			faction = FactionManager.getByMember(player.getName());
+			faction = FactionManager.getByMember(Members.key(player));
 		}
 		return faction != null && w.getParticipant(faction) != null;
 	}

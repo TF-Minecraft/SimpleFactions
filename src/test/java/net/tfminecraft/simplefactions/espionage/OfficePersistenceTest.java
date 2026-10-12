@@ -35,7 +35,7 @@ class OfficePersistenceTest {
         when(faction.getEspionage()).thenReturn(state);
         when(actor.getName()).thenReturn("Leader");
         when(faction.isLeader("Leader")).thenReturn(true);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember("Spy")).thenReturn(true);
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.remove(actor, faction));
             assertSame(holder, state.getSpymaster());
@@ -103,7 +103,7 @@ class OfficePersistenceTest {
         when(faction.getEspionage()).thenReturn(state);
         when(actor.getName()).thenReturn("Spy");
         when(actor.getUniqueId()).thenReturn(holder.playerId);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember("Spy")).thenReturn(true);
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.setSabotage(actor, faction, true, 100));
             assertFalse(EspionageService.setSabotage(actor, faction, false, 75));

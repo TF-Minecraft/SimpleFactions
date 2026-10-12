@@ -97,7 +97,7 @@ class VassalIntelligenceTest {
         holder.playerName = "Account1";
         state.appoint(holder, 70);
         when(target.getEspionage()).thenReturn(state);
-        when(target.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(target.isMember(anyString())).thenReturn(true);
         var report = EspionageService.createReport(Map.of(), -50, IntelligenceTier.DETAILED, new Random(2));
         try (var names = mockStatic(CharacterNames.class); var represents = mockStatic(Represents.class)) {
             names.when(() -> CharacterNames.forForeign(anyString())).thenAnswer(call -> call.getArgument(0));
@@ -196,7 +196,7 @@ class VassalIntelligenceTest {
         state.appoint(holder, 60);
         when(faction.getId()).thenReturn("faction");
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(faction.isMember(anyString())).thenReturn(true);
         when(faction.getOverlord()).thenReturn(overlord);
         when(faction.getVassals()).thenReturn(List.of(vassal));
         when(spy.getName()).thenReturn("Spy");
@@ -238,7 +238,7 @@ class VassalIntelligenceTest {
         state.appoint(holder, 60);
         state.share(SharingPartner.VASSALS, IntelligenceTier.RUMOURS);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(faction.isMember(anyString())).thenReturn(true);
         when(spy.getName()).thenReturn("Spy");
         when(spy.getUniqueId()).thenReturn(holder.playerId);
         try (var databases = mockConstruction(Database.class)) {
@@ -257,7 +257,7 @@ class VassalIntelligenceTest {
         state.appoint(holder, 60);
         when(faction.getId()).thenReturn("faction");
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(faction.isMember(anyString())).thenReturn(true);
         when(faction.getVassals()).thenReturn(List.of(vassal));
         var vassalState = new EspionageState();
         vassalState.report("faction", 0, 1, IntelligenceReport::new);

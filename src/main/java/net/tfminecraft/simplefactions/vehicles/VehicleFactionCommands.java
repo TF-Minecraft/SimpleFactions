@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +34,7 @@ public final class VehicleFactionCommands {
     private VehicleFactionCommands() {}
 
     public static void armTransfer(Player player, String installationId) {
-        Faction faction = FactionManager.getByLeader(player.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(player));
         if (faction == null) {
             player.sendMessage(VehicleTransferMessages.notLeader());
             return;
@@ -68,7 +70,7 @@ public final class VehicleFactionCommands {
     }
 
     public static void armTake(Player player) {
-        Faction faction = FactionManager.getByLeader(player.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(player));
         if (faction == null) {
             player.sendMessage(FactionVehicleReleaseMessages.notLeader());
             return;
@@ -85,7 +87,7 @@ public final class VehicleFactionCommands {
     }
 
     public static void armGive(Player player, String targetName) {
-        Faction faction = FactionManager.getByLeader(player.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(player));
         if (faction == null) {
             player.sendMessage(FactionVehicleReleaseMessages.notLeader());
             return;
@@ -167,7 +169,7 @@ public final class VehicleFactionCommands {
     }
 
     public static void armMaintenancePay(Player player, PaymentSource source) {
-        if (source == PaymentSource.POUCH && FactionManager.getByLeader(player.getName()) == null) {
+        if (source == PaymentSource.POUCH && FactionManager.getByLeader(Members.key(player)) == null) {
             player.sendMessage(VehicleMaintenanceMessages.notLeader());
             return;
         }

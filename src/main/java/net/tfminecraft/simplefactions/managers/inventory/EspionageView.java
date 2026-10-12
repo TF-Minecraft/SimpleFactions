@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.espionage.IntelligenceLedger;
@@ -70,7 +72,7 @@ public final class EspionageView {
     }
 
     static ItemStack reportHeader(Player viewer, IntelligenceReport report) {
-        var observer = FactionManager.getByMember(viewer.getName());
+        var observer = FactionManager.getByMember(Members.key(viewer));
         var spy = observer == null ? null : observer.getEspionage().getSpymaster();
         boolean missingSpymaster = !EspionageService.hasSpymaster(observer);
         String last = missingSpymaster ? "\u00a77The Spymaster's office stands vacant; no findings reach your court."
@@ -288,7 +290,7 @@ public final class EspionageView {
             head.setItemMeta(meta);
         }
         inventory.setItem(13, head);
-        if (faction.isLeader(viewer.getName())) {
+        if (faction.isLeader(Members.key(viewer))) {
             long next = EspionageService.nextAppointmentAt(faction);
             inventory.setItem(11, item(Material.NAME_TAG, "Appoint Spymaster", "§7Choose a member of your faction.",
                     buildUpTerms(),
@@ -374,7 +376,7 @@ public final class EspionageView {
     }
 
     private static void candidates(Player viewer, Faction faction, InventoryManager manager, int page) {
-        if (!EspionageService.isOwn(viewer, faction) || !faction.isLeader(viewer.getName())) return;
+        if (!EspionageService.isOwn(viewer, faction) || !faction.isLeader(Members.key(viewer))) return;
         List<String> members = faction.getMembers().stream().distinct()
                 .filter(name -> EspionageService.eligible(faction, name)).sorted(String.CASE_INSENSITIVE_ORDER).toList();
         int safePage = Math.max(0, Math.min(page, Math.max(0, (members.size() - 1) / 45)));
@@ -460,7 +462,7 @@ public final class EspionageView {
                     settings(viewer, faction, manager);
             }
         } else {
-            if (!faction.isLeader(viewer.getName())) { viewer.closeInventory(); return; }
+            if (!faction.isLeader(Members.key(viewer))) { viewer.closeInventory(); return; }
             if (slot == 53) spymasterOffice(viewer, faction, manager);
             else if (slot == 45 || slot == 52) candidates(viewer, faction, manager, menu.getPage() + (slot == 45 ? -1 : 1));
             else if (event.getCurrentItem() != null && event.getCurrentItem().hasItemMeta()) {

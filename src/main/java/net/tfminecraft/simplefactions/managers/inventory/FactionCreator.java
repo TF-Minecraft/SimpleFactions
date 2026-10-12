@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
@@ -112,7 +114,7 @@ public class FactionCreator {
             if (f.getProsperity() > 0) lore.add(StringFormatter.formatHex("#4bb244Prosperity: #4fd945" + f.getProsperity()));
         } else lore.add(StringFormatter.formatHex("#4bb244Prosperity: #4fd945" + intelligence(report, "Prosperity", "")));
 		if(p != null && !EspionageService.isOwn(p, f)) {
-			Faction origin = FactionManager.getByMember(p.getName());
+			Faction origin = FactionManager.getByMember(Members.key(p));
 			if(origin != null) {
 				Relation r = origin.getRelation(f.getId());
 				Relation ofR = f.getRelation(origin.getId());
@@ -497,7 +499,7 @@ public class FactionCreator {
 		} else if(t.equals(MenuItemType.TIER)) {
 			ItemMeta m = i.getItemMeta();
 			m.setDisplayName(StringFormatter.formatHex("#c45749§lTier: "+f.getTier().getFormattedName()));
-			if(f.getLeader().equalsIgnoreCase(p.getName())) {
+			if(Members.is(p, f.getLeader())) {
 				List<String> lore = new ArrayList<String>();
 				lore.add("§7Click to edit Tier");
 				m.setLore(lore);
@@ -509,10 +511,10 @@ public class FactionCreator {
 			ItemMeta m = i.getItemMeta();
 			m.setDisplayName(StringFormatter.formatHex("#8acc6eTitles"));
 			List<String> lore = new ArrayList<String>();
-			if(f.getLeader().equalsIgnoreCase(p.getName())) {
+			if(Members.is(p, f.getLeader())) {
 				lore.add("§7Click to view Titles");
 			} else {
-				Faction pf = FactionManager.getByLeader(p.getName());
+				Faction pf = FactionManager.getByLeader(Members.key(p));
 				String overlord = RelationManager.getOverlord(f);
 				if(pf != null && overlord != null && overlord.equalsIgnoreCase(pf.getId())) {
 					lore.add("§7Click to view Titles to grant to "+f.getName());

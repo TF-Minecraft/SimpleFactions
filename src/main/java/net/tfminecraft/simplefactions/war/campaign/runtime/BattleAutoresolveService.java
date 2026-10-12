@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.runtime;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.Random;
@@ -77,7 +79,7 @@ public final class BattleAutoresolveService {
 			return SendResult.NOT_ALLOWED;
 		}
 
-		Faction proposerFaction = FactionManager.getByLeader(proposer.getName());
+		Faction proposerFaction = FactionManager.getByLeader(Members.key(proposer));
 		if (proposerFaction == null || !isWarLeader(proposerFaction, war, side)) {
 			return SendResult.NOT_ALLOWED;
 		}
@@ -114,7 +116,7 @@ public final class BattleAutoresolveService {
 		BelligerentRole opposingSide = req.getProposerSide() == BelligerentRole.ATTACKER
 				? BelligerentRole.DEFENDER
 				: BelligerentRole.ATTACKER;
-		Faction acceptorFaction = FactionManager.getByLeader(acceptor.getName());
+		Faction acceptorFaction = FactionManager.getByLeader(Members.key(acceptor));
 		if (acceptorFaction == null || !isWarLeader(acceptorFaction, war, opposingSide)) {
 			acceptor.sendMessage("§cYou cannot accept this request.");
 			return;

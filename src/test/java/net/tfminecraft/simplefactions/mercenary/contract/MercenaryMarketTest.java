@@ -223,7 +223,7 @@ class MercenaryMarketTest {
         List<String> members = new java.util.ArrayList<>(List.of(council));
         members.add("Farmhand");
         when(fixture.hirer.getMembers()).thenReturn(members);
-        when(fixture.hirer.isMemberIgnoreCase(anyString())).thenAnswer(inv -> {
+        when(fixture.hirer.isMember(anyString())).thenAnswer(inv -> {
             String name = inv.getArgument(0);
             return members.stream().anyMatch(m -> m.equalsIgnoreCase(name));
         });

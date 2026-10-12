@@ -44,7 +44,7 @@ class OfficeVacancyTest {
             assertEquals("Vacant Spymaster", penalties.getFirst().getName());
         }
         var holder = new SpecialPositionAssignment(); holder.playerName = "Spy";
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember("Spy")).thenReturn(true);
         state.appoint(holder, 80);
         assertTrue(EspionageService.stabilityModifiers(faction, 0).isEmpty());
         state.removeSpymaster();
@@ -67,7 +67,7 @@ class OfficeVacancyTest {
         state.addUnrest(SpecialPosition.SPYMASTER, 10, 7, 1000);
         assertEquals(2, EspionageService.stabilityModifiers(faction, 1000).size());
         assertEquals(1, EspionageService.stabilityModifiers(faction, 1000 + 8L * 86_400_000).size());
-        when(faction.isMemberIgnoreCase("FormerSpy")).thenReturn(true);
+        when(faction.isMember("FormerSpy")).thenReturn(true);
         assertTrue(EspionageService.stabilityModifiers(faction, 1000 + 8L * 86_400_000).isEmpty());
     }
 

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,9 +48,9 @@ public final class CampaignRaidWarbandService {
 			return false;
 		}
 		net.tfminecraft.simplefactions.objects.Faction faction =
-				net.tfminecraft.simplefactions.managers.FactionManager.getByMember(player.getName());
+				net.tfminecraft.simplefactions.managers.FactionManager.getByMember(Members.key(player));
 		if (faction == null) {
-			faction = net.tfminecraft.simplefactions.managers.FactionManager.getByLeader(player.getName());
+			faction = net.tfminecraft.simplefactions.managers.FactionManager.getByLeader(Members.key(player));
 		}
 		for (War war : WarManager.getActive()) {
 			CampaignRaid raid = CampaignRaidService.getActive(war);
@@ -167,9 +169,9 @@ public final class CampaignRaidWarbandService {
 		if (player == null) {
 			return;
 		}
-		Faction faction = FactionManager.getByMember(player.getName());
+		Faction faction = FactionManager.getByMember(Members.key(player));
 		if (faction == null) {
-			faction = FactionManager.getByLeader(player.getName());
+			faction = FactionManager.getByLeader(Members.key(player));
 		}
 		if (faction == null || WarbandManager.getByMemberId(player.getUniqueId()) != null) {
 			return;

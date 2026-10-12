@@ -28,7 +28,7 @@ class CharacterNameResolutionTest {
             assertEquals("Unknown", CharacterNames.forForeign(account));
             assertEquals("Unknown", CharacterNames.display(viewer, account, faction));
             assertEquals(account, CharacterNames.of(account), "Invitations keep account fallback");
-            when(faction.isMemberIgnoreCase("ForeignViewer")).thenReturn(true);
+            when(faction.isMember("ForeignViewer")).thenReturn(true);
             assertEquals(account, CharacterNames.display(viewer, account, faction));
             when(viewer.hasPermission(EspionageService.BYPASS_PERMISSION)).thenReturn(true);
             assertEquals(account + " \u00a77(" + account + ")", CharacterNames.display(viewer, account, faction));

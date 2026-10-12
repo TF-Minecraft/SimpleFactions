@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.battle;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
@@ -106,9 +108,9 @@ public final class BattleVehicleEligibilityService {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
 		}
 
-		Faction faction = FactionManager.getByMember(player.getName());
+		Faction faction = FactionManager.getByMember(Members.key(player));
 		if (faction == null) {
-			faction = FactionManager.getByLeader(player.getName());
+			faction = FactionManager.getByLeader(Members.key(player));
 		}
 		if (faction == null || !war.isParticipating(faction)) {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;

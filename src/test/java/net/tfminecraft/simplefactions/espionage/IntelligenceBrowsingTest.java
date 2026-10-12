@@ -39,7 +39,7 @@ class IntelligenceBrowsingTest {
         var holder = new SpecialPositionAssignment();
         holder.playerName = "Spy";
         faction.getEspionage().appoint(holder, 50);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember("Spy")).thenReturn(true);
         when(faction.getMembers()).thenReturn(List.of());
         when(faction.getGuildHandler().getGuilds()).thenReturn(List.of());
         when(faction.getMilitary().getRegiments()).thenReturn(List.of());
@@ -53,7 +53,7 @@ class IntelligenceBrowsingTest {
         when(first.getName()).thenReturn("First");
         when(second.getName()).thenReturn("Second");
         Faction observer = faction("observer"), target = faction("target");
-        when(observer.isMemberIgnoreCase(anyString())).thenReturn(true);
+        when(observer.isMember(anyString())).thenReturn(true);
         try (var factions = mockStatic(FactionManager.class); var databases = mockConstruction(Database.class)) {
             factions.when(() -> FactionManager.getByMember("First")).thenReturn(observer);
             factions.when(() -> FactionManager.getByMember("Second")).thenReturn(observer);
@@ -98,7 +98,7 @@ class IntelligenceBrowsingTest {
         Player viewer = mock(Player.class);
         when(viewer.getName()).thenReturn("Viewer");
         Faction observer = faction("own"), estimated = faction("estimated"), hidden = faction("hidden");
-        when(observer.isMemberIgnoreCase("Viewer")).thenReturn(true);
+        when(observer.isMember("Viewer")).thenReturn(true);
         when(observer.getWealth()).thenReturn(100.0);
         when(observer.getPrestige()).thenReturn(1.0);
         when(estimated.getPrestige()).thenReturn(5.0);

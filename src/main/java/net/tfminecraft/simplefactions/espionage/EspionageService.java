@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.espionage;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -43,7 +45,7 @@ public final class EspionageService {
     }
 
     public static boolean eligible(Faction faction, String playerName) {
-        return faction.isMemberIgnoreCase(playerName) || faction.isLeader(playerName);
+        return faction.isMember(playerName) || faction.isLeader(playerName);
     }
 
     /** The leader's default holding follows the leadership; deliberate appointments stay. */
@@ -164,7 +166,7 @@ public final class EspionageService {
 
     public static boolean isOwn(Player viewer, Faction target) {
         return viewer != null && target != null
-                && (target.isMemberIgnoreCase(viewer.getName()) || target.isLeader(viewer.getName()));
+                && (target.isMember(Members.key(viewer)) || target.isLeader(Members.key(viewer)));
     }
 
     public static boolean bypasses(Player viewer) {
@@ -270,7 +272,7 @@ public final class EspionageService {
     }
 
     public static boolean appoint(Player actor, Faction faction, Player candidate) {
-        if (!isOwn(actor, faction) || !faction.isLeader(actor.getName())) {
+        if (!isOwn(actor, faction) || !faction.isLeader(Members.key(actor))) {
             actor.sendMessage("§cOnly your faction leader can appoint a Spymaster.");
             return false;
         }
@@ -348,7 +350,7 @@ public final class EspionageService {
     }
 
     public static boolean remove(Player actor, Faction faction) {
-        if (!isOwn(actor, faction) || !faction.isLeader(actor.getName())) {
+        if (!isOwn(actor, faction) || !faction.isLeader(Members.key(actor))) {
             actor.sendMessage("§cOnly your faction leader can remove the Spymaster.");
             return false;
         }
@@ -467,7 +469,7 @@ public final class EspionageService {
     /** Reading or clicking menus never generates intelligence. */
     public static IntelligenceReport report(Player viewer, Faction target) {
         if (viewer == null || canViewCovert(viewer, target)) return null;
-        Faction observer = FactionManager.getByMember(viewer.getName());
+        Faction observer = FactionManager.getByMember(Members.key(viewer));
         if (!hasSpymaster(observer)) return null;
         return observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day());
     }
@@ -477,7 +479,7 @@ public final class EspionageService {
     /** GUI-opening commands request one faction-wide report per foreign target each UTC day. */
     public static void refreshReports(Player viewer) {
         if (viewer == null || bypasses(viewer)) return;
-        Faction observer = FactionManager.getByMember(viewer.getName());
+        Faction observer = FactionManager.getByMember(Members.key(viewer));
         if (observer == null) return;
         boolean updated = false;
         java.util.Set<Faction> dirty = new java.util.LinkedHashSet<>();

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 
 import org.bukkit.Sound;
@@ -103,7 +105,7 @@ public class ElectionView {
 				Candidate c = Candidate.valueOf(id);
 				Election election = f.getGovernment().getElection();
                 if(election.isActive()) {
-                    if(election.canVote(p.getName()) && !election.hasVoted(c, p.getName())) {
+                    if(election.canVote(Members.key(p)) && !election.hasVoted(c, p.getName())) {
                         votingView(p, f, c);
                     }
                 } else {
@@ -129,7 +131,7 @@ public class ElectionView {
 		    if(cid == null) return;
             try {
                 Candidate type = Candidate.valueOf(cid);
-                if(election.canVote(p.getName()) && election.isActive()) {
+                if(election.canVote(Members.key(p)) && election.isActive()) {
                     if(!election.hasVoted(type, p.getName()) && 
                         election.getCandidates(type).contains(candidateName)) {
                         election.addVote(type, p.getName(), candidateName);

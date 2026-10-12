@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -97,11 +99,11 @@ public class MovementView {
         // Join as foreign backer button
         i.setItem(16, creator.createJoinAsForeignBackerButton(player, movement));
 
-        if(movement.isLeader(player.getName())) {
+        if(movement.isLeader(Members.key(player))) {
             i.setItem(19, creator.createSendDemandsItem(movement));
             i.setItem(34, creator.createEndMovmentItem(movement));
         }
-        if(player.getName().equalsIgnoreCase(f.getLeader())) {
+        if(Members.is(player, f.getLeader())) {
             i.setItem(25, creator.createDemandDisbandItem(f, movement));
         }
 
@@ -376,8 +378,8 @@ public class MovementView {
         int slot = e.getSlot();
         //leader
         if (slot == 10) {
-            if(!movement.hasLeader() && movement.canBeLeader(p.getName())) {
-                movement.setLeader(p.getName());
+            if(!movement.hasLeader() && movement.canBeLeader(Members.key(p))) {
+                movement.setLeader(Members.key(p));
                 movementView(p, f, movement, inventory);
                 p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1, 1);
             }
@@ -393,7 +395,7 @@ public class MovementView {
             Object supporter = getSupporterObject(p, movement);
             if (supporter != null) {
                 movement.leave(supporter, null);
-                if (movement.isLeader(p.getName())) {
+                if (movement.isLeader(Members.key(p))) {
                     movement.setLeader(null);
                 }
                 movementView(p, f, movement, inventory);
@@ -415,7 +417,7 @@ public class MovementView {
         }
         // Join as foreign backer button
         else if (slot == 16) {
-            Faction playerFaction = FactionManager.getByMember(p.getName());
+            Faction playerFaction = FactionManager.getByMember(Members.key(p));
             if (playerFaction != null && !playerFaction.getId().equals(f.getId())) {
                 if (movement.getForeignBackers().contains(playerFaction)) {
                     if (getSupporterObject(p, movement) != null) {
@@ -439,7 +441,7 @@ public class MovementView {
         }
         // Send demands button
         else if (slot == 19) {
-            if (movement.isLeader(p.getName()) && movement.getOrganization() >= 100) {
+            if (movement.isLeader(Members.key(p)) && movement.getOrganization() >= 100) {
                 for(Cause cause : movement.getCauses()) {
                     if(cause.getProposal().isPoliticalActionProposal() && cause.getProposal().needsTarget()) {
                         if(!cause.getProposal().hasTarget()) {
@@ -466,7 +468,7 @@ public class MovementView {
             }
         }
         else if (slot == 25) {
-            if (!p.getName().equalsIgnoreCase(f.getLeader())) {
+            if (!Members.is(p, f.getLeader())) {
                 return;
             }
             if (!MovementCrackdownQueries.canCrush(f, movement)) {
@@ -497,7 +499,7 @@ public class MovementView {
         // Phase buttons (slots 28-31)
         else if (slot >= 28 && slot <= 31) {
             ItemStack item = e.getCurrentItem();
-            if (item != null && item.getType() == Material.YELLOW_CONCRETE && movement.isLeader(p.getName())) {
+            if (item != null && item.getType() == Material.YELLOW_CONCRETE && movement.isLeader(Members.key(p))) {
                 if (meta.getPersistentDataContainer().has(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING)) {
                     String phaseName = meta.getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
                     try {
@@ -515,7 +517,7 @@ public class MovementView {
             }
         }
         else if (slot == 34) {
-            if(!movement.isLeader(p.getName())) {
+            if(!movement.isLeader(Members.key(p))) {
                 p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
                 return;
             }
@@ -562,8 +564,8 @@ public class MovementView {
             return;
         }
         if(slot == 10) {
-            if(!cause.hasLeader() && cause.canBeLeader(p.getName())) {
-                cause.setLeader(p.getName());
+            if(!cause.hasLeader() && cause.canBeLeader(Members.key(p))) {
+                cause.setLeader(Members.key(p));
                 causeView(p, f, movement, cause, inventory);
                 p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1, 1);
             }
@@ -572,12 +574,12 @@ public class MovementView {
         else if (slot == 14) {
             Object joiningAs = movement.getJoiningAs(p);
             if(joiningAs == null) return;
-            if (cause.getFullMemberList().contains(p.getName())) {
+            if (cause.getFullMemberList().contains(Members.key(p))) {
                 movement.leave(joiningAs, cause);
-                if (cause.hasLeader() && cause.getLeader().equals(p.getName())) {
+                if (cause.hasLeader() && Members.is(p, cause.getLeader())) {
                     cause.setLeader(null);
                 }
-                if (movement.isLeader(p.getName())) {
+                if (movement.isLeader(Members.key(p))) {
                     movement.setLeader(null);
                 }
                 causeView(p, f, movement, cause, inventory);
@@ -597,7 +599,7 @@ public class MovementView {
         }
         // Target selection button
         else if (slot == 28) {
-            if (cause.getProposal().needsTarget() && cause.hasLeader() && cause.getLeader().equals(p.getName())) {
+            if (cause.getProposal().needsTarget() && cause.hasLeader() && Members.is(p, cause.getLeader())) {
                 if (CouncilPeaceQueries.isWarEndAction(cause.getProposal().getPoliticalAction().getAction())) {
                     inv.governmentView.warPeaceSelectView(
                             p, f, cause.getProposal().getPoliticalAction().getAction(), true, cause.getIndex(), null);
@@ -622,7 +624,7 @@ public class MovementView {
         Cause cause = causeAt(inventory, movement, causeIndex);
         
         if (cause == null) return;
-        if (!cause.hasLeader() || !cause.getLeader().equals(p.getName())) return;
+        if (!cause.hasLeader() || !Members.is(p, cause.getLeader())) return;
         
         // Validate target can become leader
         if (!f.canBecomeLeader(targetName)) {
@@ -641,7 +643,7 @@ public class MovementView {
         
         // Accept button (green concrete)
         if (slot == 29) {
-            if (p.getName().equalsIgnoreCase(f.getLeader())) {
+            if (Members.is(p, f.getLeader())) {
                 p.sendMessage(StringFormatter.formatHex("§aYou have accepted the movement's demands."));
                 p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 2f);
                 LogManager.movement(
@@ -664,7 +666,7 @@ public class MovementView {
         }
         // Decline button (red concrete)
         else if (slot == 33) {
-            if (p.getName().equalsIgnoreCase(f.getLeader())) {
+            if (Members.is(p, f.getLeader())) {
                 LogManager.movement(
                         "DEMANDS_REJECT movementId=%s faction=%s power=%.1f",
                         movement.getId(),
@@ -696,7 +698,7 @@ public class MovementView {
 
     private void handleCrackdownViewClick(InventoryClickEvent e, Movement movement, Player p, Faction f, Inventory inventory, ItemMeta meta) {
         int slot = e.getSlot();
-        if (!movement.isLeader(p.getName())) {
+        if (!movement.isLeader(Members.key(p))) {
             return;
         }
         if (slot == 29) {
@@ -794,7 +796,7 @@ public class MovementView {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1, 1);
             return;
         }
-        if (!movement.isLeader(player.getName())) {
+        if (!movement.isLeader(Members.key(player))) {
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
             movementView(player, f, movement, null);
             return;

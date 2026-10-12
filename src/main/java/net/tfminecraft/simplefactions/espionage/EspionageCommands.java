@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.espionage;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,7 +42,7 @@ public final class EspionageCommands {
     }
 
     public static boolean handle(Player player, String[] args) {
-        var faction = FactionManager.getByMember(player.getName());
+        var faction = FactionManager.getByMember(Members.key(player));
         if (faction == null) {
             player.sendMessage("§cYou need to belong to a faction.");
             return true;
@@ -88,12 +90,12 @@ public final class EspionageCommands {
 
     public static List<String> complete(Player player, String[] args) {
         List<String> choices = new ArrayList<>();
-        var faction = FactionManager.getByMember(player.getName());
+        var faction = FactionManager.getByMember(Members.key(player));
         if (faction == null || !args[0].equalsIgnoreCase("spymaster")) return choices;
         var holder = EspionageService.spymaster(faction);
         boolean isHolder = holder != null && holder.isHolder(player.getUniqueId());
         if (args.length == 2) {
-            if (faction.isLeader(player.getName())) {
+            if (faction.isLeader(Members.key(player))) {
                 choices.add("remove");
                 for (String name : faction.getMembers())
                     if (Bukkit.getPlayerExact(name) != null && EspionageService.eligible(faction, name)) choices.add(name);

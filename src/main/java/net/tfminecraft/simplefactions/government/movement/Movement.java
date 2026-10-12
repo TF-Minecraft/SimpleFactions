@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.government.movement;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -586,11 +588,11 @@ public class Movement {
     }
 
     public Object getJoiningAs(Player p) {
-        Member relation = f.getRelationToFaction(p.getName());
+        Member relation = f.getRelationToFaction(Members.key(p));
         if (relation == Member.GUILD_LEADER || relation == Member.GUILD_MEMBER) {
-            return FactionManager.getGuildByMember(p.getName());
+            return FactionManager.getGuildByMember(Members.key(p));
         } else if (relation == Member.VASSAL_LEADER) {
-            return FactionManager.getByMember(p.getName());
+            return FactionManager.getByMember(Members.key(p));
         } else if (relation == Member.MEMBER) {
             return p.getName();
         }
@@ -598,8 +600,8 @@ public class Movement {
     }
 
     public boolean quickJoinCheck(Player p) {
-        if(isMember(p.getName())) return false;
-        Member relation = f.getRelationToFaction(p.getName());
+        if(isMember(Members.key(p))) return false;
+        Member relation = f.getRelationToFaction(Members.key(p));
         switch(relation) {
             case FOREIGNER:
             case GUILD_MEMBER:

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 
 import org.bukkit.Bukkit;
@@ -325,7 +327,7 @@ public class DeclareWarView {
 		Faction defender = request.getDefender();
 		if (FactionManager.getByString(attacker.getId()) != attacker
 				|| FactionManager.getByString(defender.getId()) != defender
-				|| !attacker.isLeader(player.getName())) {
+				|| !attacker.isLeader(Members.key(player))) {
 			WarDeclareCodeService.clearSession(player);
 			player.sendMessage("§cThis war declaration is no longer available.");
 			return;

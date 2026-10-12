@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.handover;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiPredicate;
@@ -94,7 +96,7 @@ public final class VehicleHandoverService {
     }
 
     public void offer(Player owner, Player recipient, String vehicleUuid, String vehicleTypeId) {
-        Guild guild = FactionManager.getGuildByMember(owner.getName());
+        Guild guild = FactionManager.getGuildByMember(Members.key(owner));
         VehicleHandoverRequest request = new VehicleHandoverRequest(
                 guild,
                 vehicleUuid,

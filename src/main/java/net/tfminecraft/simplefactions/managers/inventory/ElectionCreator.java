@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,7 +56,7 @@ public class ElectionCreator {
         } else {
             lore.add(StringFormatter.formatHex("#28ed70Click to sign up"));
         }
-        if(gov.hasElection() && e.canVote(p.getName())){
+        if(gov.hasElection() && e.canVote(Members.key(p))){
             if(!e.hasVoted(c, p.getName())) {
                 lore.add(StringFormatter.formatHex("#28ed70Click to view candidates"));
             } else {

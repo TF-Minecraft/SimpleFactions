@@ -127,7 +127,7 @@ class FactionManagerCoverageTest {
     when(faction.getRGB()).thenReturn(id + "-rgb");
     List<String> members = new ArrayList<>(List.of(leader));
     when(faction.getMembers()).thenReturn(members);
-    when(faction.isMemberIgnoreCase(anyString()))
+    when(faction.isMember(anyString()))
         .thenAnswer(call -> members.stream().anyMatch(name -> name.equalsIgnoreCase(call.getArgument(0))));
     doAnswer(call -> members.add(call.getArgument(0))).when(faction).addMember(anyString());
     when(faction.getProvinces()).thenReturn(new ArrayList<>());

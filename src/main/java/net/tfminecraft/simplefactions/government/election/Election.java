@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.government.election;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -206,11 +208,11 @@ public class Election {
                 lore.add(StringFormatter.formatHex("§7- #ba7872Election is in the voting phase"));
             }
             if(type == Candidate.LEADER) {
-                if(!gov.getFaction().isMember(p.getName())) {
+                if(!gov.getFaction().isMember(Members.key(p))) {
                     lore.add(StringFormatter.formatHex("§7- #ba7872You must be a member of the faction to be Leader"));
                 }
-                Guild g = gov.getFaction().getGuild(p.getName());
-                if (g != null && !g.isBase() && g.isLeader(p.getName())) {
+                Guild g = gov.getFaction().getGuild(Members.key(p));
+                if (g != null && !g.isBase() && g.isLeader(Members.key(p))) {
                     lore.add(StringFormatter.formatHex(
                         "§7- #ba7872Guild leaders cannot be faction leaders"
                     ));
@@ -262,7 +264,7 @@ public class Election {
         if(active) {
             if(notify == 300) {
                 for(Player p : Bukkit.getOnlinePlayers()) {
-                    if(canVote(p.getName()) && gov.getVotingBooths().size() > 0) {
+                    if(canVote(Members.key(p)) && gov.getVotingBooths().size() > 0) {
                         p.sendMessage("§e=================================");
                         p.sendMessage("§a§lActive Election! §7Head to a §e§lVoting Booth §7to vote!");
                         p.sendMessage("§eBooths:");

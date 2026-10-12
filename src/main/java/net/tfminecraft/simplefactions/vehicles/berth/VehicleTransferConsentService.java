@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
@@ -268,7 +270,7 @@ public final class VehicleTransferConsentService {
     private static Faction resolveProposerFaction(VehicleTransferConsentRequest req) {
         Player proposer = Bukkit.getPlayer(req.getProposerLeaderUuid());
         Faction faction = FactionManager.getByString(req.getDestinationFactionId());
-        if (proposer != null && faction != null && proposer.getName().equalsIgnoreCase(faction.getLeader())) {
+        if (proposer != null && faction != null && Members.is(proposer, faction.getLeader())) {
             return faction;
         }
         return null;

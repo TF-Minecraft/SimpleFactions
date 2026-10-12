@@ -145,8 +145,8 @@ class FactionCoverageTest {
     faction.setInvited(new ArrayList<>(List.of("Cara")));
     assertTrue(faction.isInvited("cara"));
     faction.addMember("Bob");
-    assertTrue(faction.isMemberIgnoreCase("bob"));
-    assertFalse(faction.isMemberIgnoreCase("missing"));
+    assertTrue(faction.isMember("bob"));
+    assertFalse(faction.isMember("missing"));
   }
 
   @Test

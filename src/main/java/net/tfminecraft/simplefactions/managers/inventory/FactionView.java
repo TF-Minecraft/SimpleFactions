@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -123,9 +125,9 @@ public class FactionView {
 		}
 		i.clear();
 		i.setItem(20, EspionageService.isOwn(player, f) ? EspionageView.positionButton() : EspionageView.foreignPositionsItem(player, f));
-		if(f.getMembers().contains(player.getName())) i.setItem(1, creator.createMenuItem(player, f, MenuItemType.BANNER_GET));
+		if(f.getMembers().contains(Members.key(player))) i.setItem(1, creator.createMenuItem(player, f, MenuItemType.BANNER_GET));
 		i.setItem(10, creator.createMenuItem(player, f, MenuItemType.BANNER));
-		if(f.getLeader().equalsIgnoreCase(player.getName())) i.setItem(19, creator.createMenuItem(player, f, MenuItemType.BANNER_RANDOM));
+		if(Members.is(player, f.getLeader())) i.setItem(19, creator.createMenuItem(player, f, MenuItemType.BANNER_RANDOM));
 		i.setItem(11, creator.createMenuItem(player, f, MenuItemType.GOVERNMENT));
 		i.setItem(12, creator.createMenuItem(player, f, MenuItemType.WEALTH));
 		i.setItem(13, creator.createMenuItem(player, f, MenuItemType.PRESTIGE));
@@ -136,7 +138,7 @@ public class FactionView {
 		i.setItem(25, creator.createMenuItem(player, f, MenuItemType.TAX));
 		i.setItem(28, creator.createMenuItem(player, f, MenuItemType.LAWS));
 		i.setItem(29, creator.createMenuItem(player, f, MenuItemType.MILITARY));
-		if(f.canDissolve() && f.isLeader(player.getName())) i.setItem(30, creator.createDissolveItem(f));
+		if(f.canDissolve() && f.isLeader(Members.key(player))) i.setItem(30, creator.createDissolveItem(f));
 		i.setItem(31, creator.createMenuItem(player, f, MenuItemType.DIPLOMACY));
 		i.setItem(32, creator.createMenuItem(player, f, MenuItemType.INSTALLATIONS));
 		i.setItem(33, creator.createMenuItem(player, f, MenuItemType.TIER));
@@ -361,7 +363,7 @@ public class FactionView {
 				String factionId = m.getPersistentDataContainer().get(id, PersistentDataType.STRING);
 				if(factionId == null) return;
 				Faction f = FactionManager.getByString(factionId);
-				if(f != null && f.getLeader().equalsIgnoreCase(p.getName())) {
+				if(f != null && Members.is(p, f.getLeader())) {
 					inv.tierView(null, p, f, true);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				}
@@ -373,10 +375,10 @@ public class FactionView {
 				if(factionId == null) return;
 				Faction f = FactionManager.getByString(factionId);
 				if(f != null) {
-					Faction pf = FactionManager.getByLeader(p.getName());
+					Faction pf = FactionManager.getByLeader(Members.key(p));
 					if(pf == null) return;
 					String overlord = RelationManager.getOverlord(f);
-					if(f.getLeader().equalsIgnoreCase(p.getName()) || (overlord != null && overlord.equalsIgnoreCase(pf.getId()))) {
+					if(Members.is(p, f.getLeader()) || (overlord != null && overlord.equalsIgnoreCase(pf.getId()))) {
 						inv.titleView(null, p, f, true);
 						p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 					}
@@ -385,9 +387,9 @@ public class FactionView {
 				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 				Faction f = FactionManager.getByString(h.getId());
-				if(!f.isLeader(p.getName())) return;
+				if(!f.isLeader(Members.key(p))) return;
 				BannerFetcher.fetch("faction:" + f.getId(), patterns -> {
-					if (FactionManager.getByString(f.getId()) != f || !f.isLeader(p.getName())) return;
+					if (FactionManager.getByString(f.getId()) != f || !f.isLeader(Members.key(p))) return;
 					if (patterns == null) {
 						if (p.isOnline()) p.sendMessage("§cCould not generate a banner right now. Try again later.");
 						return;
@@ -401,7 +403,7 @@ public class FactionView {
 				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
 				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
 				Faction f = FactionManager.getByString(h.getId());
-				if (f == null || !f.isMemberIgnoreCase(p.getName())) return;
+				if (f == null || !f.isMember(Members.key(p))) return;
 				ItemStack i = new ItemStack(f.getBanner());
 				p.getInventory().addItem(i);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

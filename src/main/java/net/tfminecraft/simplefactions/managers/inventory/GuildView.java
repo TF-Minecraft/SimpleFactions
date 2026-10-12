@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -194,7 +196,7 @@ public class GuildView {
 		if(target != null && Cache.provincesEnabled) {
 			i.setItem(34, creator.createRelocateItem(player, target, guild));
 		}
-		if(guild.getFaction().isLeader(player.getName()) && !guild.isBase()) {
+		if(guild.getFaction().isLeader(Members.key(player)) && !guild.isBase()) {
 			if(guild.hasCapital()) {
 				i.setItem(43, creator.createElevationItem(player, guild));
 			}
@@ -408,7 +410,7 @@ public class GuildView {
 					}
 					guildView(p, guild, inventory);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-				} else if(guild.getFaction().isLeader(p.getName())) {
+				} else if(guild.getFaction().isLeader(Members.key(p))) {
 					if(!guild.canBeEvicted(p)) {
 						p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 						return;
@@ -429,7 +431,7 @@ public class GuildView {
 				}
 				return;
 			} else if(e.getSlot() == 43) {
-				if(!guild.getFaction().isLeader(p.getName())) return;
+				if(!guild.getFaction().isLeader(Members.key(p))) return;
 				if(!guild.canBeElevated(p)) {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 					return;

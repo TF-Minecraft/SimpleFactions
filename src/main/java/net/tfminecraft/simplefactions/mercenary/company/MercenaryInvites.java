@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.mercenary.company;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -16,7 +18,7 @@ public final class MercenaryInvites {
 
     public static void invite(Player leader, String targetName) {
         Guild guild = net.tfminecraft.simplefactions.managers.FactionManager
-                .getGuildByLeader(leader.getName());
+                .getGuildByLeader(Members.key(leader));
         MercenaryResult check = MercenaryCompanyService
                 .canInvite(guild, leader.getName(), targetName);
         if (!check.ok()) {
