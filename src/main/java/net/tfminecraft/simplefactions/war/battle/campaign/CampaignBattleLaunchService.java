@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -277,13 +278,13 @@ public final class CampaignBattleLaunchService {
 
 	private static void broadcastToBelligerents(War war, String message) {
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getAttackers())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getDefenders())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

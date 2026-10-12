@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression.postbattle;
 
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
@@ -82,13 +83,13 @@ public final class CampaignOffensiveForfeitService {
 				+ winnerLabel
 				+ " wins by forfeit.";
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getAttackers())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getDefenders())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

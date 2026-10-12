@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid.intruder;
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
@@ -64,7 +65,7 @@ public final class CampaignRaidIntruderService {
 			if (raid == null) {
 				continue;
 			}
-			if (!shouldPenalize(war, raid, player.getUniqueId(), player.getName(), provinceId)) {
+			if (!shouldPenalize(war, raid, player.getUniqueId(), Members.key(player), provinceId)) {
 				continue;
 			}
 			warnOnEnter(player, raid);
@@ -80,7 +81,7 @@ public final class CampaignRaidIntruderService {
 			}
 			for (Player player : Bukkit.getOnlinePlayers()) {
 				int provinceId = ProvincePresenceService.getInstance().getCurrentProvince(player.getUniqueId());
-				if (!shouldPenalize(war, raid, player.getUniqueId(), player.getName(), provinceId)) {
+				if (!shouldPenalize(war, raid, player.getUniqueId(), Members.key(player), provinceId)) {
 					continue;
 				}
 				player.sendMessage(CampaignRaidMessages.INTRUDER);
@@ -93,9 +94,9 @@ public final class CampaignRaidIntruderService {
 			War war,
 			CampaignRaid raid,
 			UUID playerId,
-			String playerName,
+			String memberKey,
 			int playerProvinceId) {
-		if (war == null || raid == null || playerId == null || playerName == null) {
+		if (war == null || raid == null || playerId == null || memberKey == null) {
 			return false;
 		}
 		if (raid.getState() != CampaignRaidState.FIGHTING) {
@@ -108,7 +109,7 @@ public final class CampaignRaidIntruderService {
 		if (target == null || playerProvinceId != target.getProvince()) {
 			return false;
 		}
-		Faction faction = FactionManager.getByMember(playerName);
+		Faction faction = FactionManager.getByMember(memberKey);
 		CampaignCoalition coalition = CampaignRaidService.coalitionForFaction(war, faction);
 		if (coalition == null || coalition != raid.getAttackerCoalition()) {
 			return false;

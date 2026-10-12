@@ -194,7 +194,7 @@ class CampaignBattleJoinServiceTest {
 		BattleManager.addBattle(battle);
 		WarbandManager.addWarband(warband);
 
-		WarbandRejoinState state = new WarbandRejoinState(warband.getId(), attacker);
+		WarbandRejoinState state = new WarbandRejoinState(warband.getId(), attacker, null);
 		WarbandMembershipService service = WarbandMembershipService.getInstance();
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
@@ -207,7 +207,7 @@ class CampaignBattleJoinServiceTest {
 					.thenReturn(5);
 			bukkit.when(() -> Bukkit.getPlayer(any(UUID.class))).thenReturn(null);
 
-			assertTrue(service.evaluateRejoin(warband, leaderId, attacker, state));
+			assertTrue(service.evaluateRejoin(warband, leaderId, "leader", attacker, state));
 		}
 	}
 

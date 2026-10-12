@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.time.Instant;
 
 import org.bukkit.Bukkit;
@@ -46,7 +47,7 @@ public final class CampaignNavalAutoLossReminderService {
 		if (offensiveLeader == null || offensiveLeader.getLeader() == null) {
 			return;
 		}
-		Player player = Bukkit.getPlayerExact(offensiveLeader.getLeader());
+		Player player = Members.player(offensiveLeader.getLeader());
 		if (player == null || !player.isOnline()) {
 			return;
 		}

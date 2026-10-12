@@ -47,17 +47,16 @@ public final class BattleScheduleLookups {
 		};
 	}
 
-	// Existing configuration identifies offline profiles by player name, not UUID.
-	@SuppressWarnings("deprecation")
+	/** Battle votes stay keyed by account, so a member key maps to the account that plays it. */
 	public static Function<String, UUID> memberNameToUuid() {
-		return name -> {
-			if (name == null || name.isBlank()) {
+		return key -> {
+			if (key == null || key.isBlank()) {
 				return null;
 			}
 			if (Bukkit.getServer() == null) {
-				return spoofMemberUuid(name);
+				return spoofMemberUuid(key);
 			}
-			return Bukkit.getOfflinePlayer(name).getUniqueId();
+			return Members.accountId(key).orElse(null);
 		};
 	}
 

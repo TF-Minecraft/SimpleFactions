@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -73,7 +74,7 @@ public final class CampaignBattleJoinService {
 		if (joiningPlayer == null) {
 			return "Invalid campaign warband join";
 		}
-		return validateWarbandMemberJoin(war, battle, sideId, warband, joiningPlayer.getName(), joiningPlayer.getUniqueId());
+		return validateWarbandMemberJoin(war, battle, sideId, warband, Members.key(joiningPlayer), joiningPlayer.getUniqueId());
 	}
 
 	public static String validateWarbandMemberJoin(
@@ -81,8 +82,8 @@ public final class CampaignBattleJoinService {
 			Battle battle,
 			String sideId,
 			Warband warband,
-			String joiningPlayerName) {
-		return validateWarbandMemberJoin(war, battle, sideId, warband, joiningPlayerName, null);
+			String memberKey) {
+		return validateWarbandMemberJoin(war, battle, sideId, warband, memberKey, null);
 	}
 
 	public static String validateWarbandMemberJoin(
@@ -90,12 +91,12 @@ public final class CampaignBattleJoinService {
 			Battle battle,
 			String sideId,
 			Warband warband,
-			String joiningPlayerName,
+			String memberKey,
 			java.util.UUID playerId) {
-		if (war == null || battle == null || warband == null || joiningPlayerName == null) {
+		if (war == null || battle == null || warband == null || memberKey == null) {
 			return "Invalid campaign warband join";
 		}
-		Faction faction = FactionManager.getByMember(joiningPlayerName);
+		Faction faction = FactionManager.getByMember(memberKey);
 		if (faction == null) {
 			return "You must be in a faction to join this campaign battle";
 		}
@@ -104,11 +105,11 @@ public final class CampaignBattleJoinService {
 			return "Your faction is not on this battle side";
 		}
 		String mercenaryError = validateMercenaryRoster(
-				war, battle, sideId, battleSide, joiningPlayerName, playerId);
+				war, battle, sideId, battleSide, memberKey, playerId);
 		if (mercenaryError != null) {
 			return mercenaryError;
 		}
-		Side playerSide = rosterSideFor(war, joiningPlayerName, faction);
+		Side playerSide = rosterSideFor(war, memberKey, faction);
 		if (playerSide == null || playerSide != battleSide) {
 			return "Your faction is not on this battle side";
 		}
@@ -117,16 +118,16 @@ public final class CampaignBattleJoinService {
 		}
 		if (battle.hasStarted()) {
 			return CampaignWarbandBattleService.validateMidBattleJoin(
-					war, battle, sideId, warband, joiningPlayerName, playerId);
+					war, battle, sideId, warband, memberKey, playerId);
 		}
 		return validateRosterHasRoom(war, battle, sideId, warband, 1);
 	}
 
-	public static Side rosterSideFor(War war, String playerName, Faction faction) {
+	public static Side rosterSideFor(War war, String memberKey, Faction faction) {
 		if (war == null) {
 			return null;
 		}
-		Side contracted = MercenaryEngagements.sideFor(war, playerName);
+		Side contracted = MercenaryEngagements.sideFor(war, memberKey);
 		if (contracted != null) {
 			return contracted;
 		}
@@ -138,10 +139,10 @@ public final class CampaignBattleJoinService {
 			Battle battle,
 			String sideId,
 			Side battleSide,
-			String joiningPlayerName,
+			String memberKey,
 			java.util.UUID playerId) {
 		MercenaryEngagements.Engagement engagement =
-				MercenaryEngagements.forPlayer(war, joiningPlayerName);
+				MercenaryEngagements.forPlayer(war, memberKey);
 		if (engagement == null) {
 			return null;
 		}
@@ -151,7 +152,7 @@ public final class CampaignBattleJoinService {
 		}
 		Side opposing = war.getOppositeSide(engagement.hirer());
 		if (!net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyalty.canDeployAgainst(
-				joiningPlayerName, opposing)) {
+				memberKey, opposing)) {
 			return "You cannot march on your own realm";
 		}
 		BattleSide roster = battle.getSideById(sideId);

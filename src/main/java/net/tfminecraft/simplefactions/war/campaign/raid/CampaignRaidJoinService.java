@@ -77,7 +77,7 @@ public final class CampaignRaidJoinService {
 	public static JoinResult join(
 			War war,
 			UUID playerId,
-			String playerName,
+			String memberKey,
 			Faction faction,
 			String raidId,
 			Instant now) {
@@ -111,7 +111,7 @@ public final class CampaignRaidJoinService {
 			return JoinResult.REJECTED_MOUNTED_ON_VEHICLE;
 		}
 		raid.getMusterParticipantIds().add(playerKey);
-		CampaignRaidWarbandService.signupAttacker(war, raid, playerId, playerName);
+		CampaignRaidWarbandService.signupAttacker(war, raid, playerId, memberKey);
 		return JoinResult.OK;
 	}
 }

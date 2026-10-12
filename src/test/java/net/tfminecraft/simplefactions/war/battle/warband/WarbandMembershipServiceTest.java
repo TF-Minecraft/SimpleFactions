@@ -11,10 +11,14 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Field;
 import java.util.UUID;
 
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 
@@ -22,6 +26,7 @@ class WarbandMembershipServiceTest {
 	private UUID leaderId;
 	private UUID memberId;
 	private WarbandMembershipService service;
+	private Player member;
 
 	@BeforeEach
 	void setUp() {
@@ -30,13 +35,16 @@ class WarbandMembershipServiceTest {
 		leaderId = UUID.randomUUID();
 		memberId = UUID.randomUUID();
 		service = WarbandMembershipService.getInstance();
+		member = mock(Player.class);
+		when(member.getUniqueId()).thenReturn(memberId);
+		when(member.getName()).thenReturn("member");
 	}
 
 	@Test
 	void quit_savesRejoinStateAndRemovesMember() {
 		Warband warband = createOpenWarband("alpha", leaderId, memberId);
 
-		service.handleQuit(memberId);
+		service.handleQuit(member);
 
 		assertNull(WarbandManager.getByMemberId(memberId));
 		WarbandRejoinState state = service.getPendingRejoin(memberId);
@@ -49,7 +57,7 @@ class WarbandMembershipServiceTest {
 	@Test
 	void join_restoresWhenWarbandStillOpen() {
 		createOpenWarband("alpha", leaderId, memberId);
-		service.handleQuit(memberId);
+		service.handleQuit(member);
 
 		assertTrue(service.attemptRejoin(memberId, "member", null));
 		assertNull(service.getPendingRejoin(memberId));
@@ -59,7 +67,7 @@ class WarbandMembershipServiceTest {
 	@Test
 	void join_skipsWhenWarbandDeleted() {
 		Warband warband = createOpenWarband("alpha", leaderId, memberId);
-		service.handleQuit(memberId);
+		service.handleQuit(member);
 		WarbandManager.deleteWarband(warband);
 
 		assertFalse(service.attemptRejoin(memberId, "member", null));
@@ -76,9 +84,63 @@ class WarbandMembershipServiceTest {
 		Warband warband = createOpenWarband("alpha", leaderId, memberId);
 		markAsFaction(warband);
 
-		WarbandRejoinState state = new WarbandRejoinState("alpha", slotFaction);
+		WarbandRejoinState state = new WarbandRejoinState("alpha", slotFaction, null);
 
-		assertFalse(service.evaluateRejoin(warband, memberId, otherFaction, state));
+		assertFalse(service.evaluateRejoin(warband, memberId, "member", otherFaction, state));
+	}
+
+	@Test
+	void rejoinNeedsPendingStateAndAFactionCapturedForAFactionWarband() throws Exception {
+		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+		markAsFaction(warband);
+
+		assertFalse(service.attemptRejoin(memberId, "member", null));
+		assertFalse(service.evaluateRejoin(
+				warband, memberId, "member", null, new WarbandRejoinState("alpha", null, null)));
+	}
+
+	@Test
+	void quitWithoutACharacterLeavesNoRejoinState() {
+		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+
+		service.handleQuit((Player) null);
+		assertTrue(warband.hasMember(memberId));
+		service.handleQuit(memberId);
+
+		assertFalse(warband.hasMember(memberId));
+		assertNull(service.getPendingRejoin(memberId));
+	}
+
+	@Test
+	void sessionStart_restoresTheSameCharacter() {
+		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+		service.handleQuit(member);
+
+		assertTrue(service.handleSessionStart(member, Members.session(member).orElseThrow()));
+		assertTrue(warband.hasMember(memberId));
+		assertNull(service.getPendingRejoin(memberId));
+	}
+
+	@Test
+	void sessionStart_dropsTheStateForAnotherCharacterOnTheSameAccount() {
+		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+		service.handleQuit(member);
+		CharacterSession other = new CharacterSession(new CharacterRef(memberId, UUID.randomUUID()), 2L);
+
+		assertFalse(service.handleSessionStart(member, other));
+		assertNull(service.getPendingRejoin(memberId));
+		assertFalse(warband.hasMember(memberId));
+		assertFalse(service.handleSessionStart(member, Members.session(member).orElseThrow()));
+		assertFalse(warband.hasMember(memberId));
+	}
+
+	@Test
+	void sessionStart_ignoresMissingArgumentsAndPlayersWithNothingPending() {
+		CharacterSession session = Members.session(member).orElseThrow();
+
+		assertFalse(service.handleSessionStart(null, session));
+		assertFalse(service.handleSessionStart(member, null));
+		assertFalse(service.handleSessionStart(member, session));
 	}
 
 	// Exercise the retained compatibility entry point so legacy behavior stays covered.

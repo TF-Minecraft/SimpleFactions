@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid.fight;
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults;
@@ -62,7 +63,7 @@ public final class CampaignRaidLaunchService {
 
 	private static void broadcastToSide(Side side, String message) {
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}
