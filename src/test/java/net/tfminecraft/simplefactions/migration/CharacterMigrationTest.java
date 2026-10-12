@@ -484,6 +484,65 @@ class CharacterMigrationTest {
     }
 
     @Test
+    void aRealmFileWithoutItsOwnGuildStillMigrates() throws IOException {
+        String caesar = player("Caesar");
+        write("Data/rome.json", "{\"id\":\"rome\",\"leader\":\"Caesar\",\"guilds\":[{\"id\":\"smiths\",\"leader\":\"Caesar\","
+                + "\"members\":[\"Caesar\"]}]}");
+        write("Data/nameless.json", "{\"guilds\":[{\"leader\":\"Caesar\"}]}");
+        migration().run();
+        assertEquals(caesar, read("Data/rome.json").getAsJsonArray("guilds").get(0).getAsJsonObject().get("leader").getAsString());
+        assertEquals(caesar, read("Data/nameless.json").getAsJsonArray("guilds").get(0).getAsJsonObject().get("leader").getAsString());
+    }
+
+    @Test
+    void sharedHeirsAskDenarEconomyThenTheUserCacheThenTheIdentityProvider() {
+        try (var identity = new net.tfminecraft.simplefactions.testsupport.SharedIdentity();
+                var names = org.mockito.Mockito.mockStatic(net.tfminecraft.denareconomy.accounts.OfflineModifier.class)) {
+            UUID known = UUID.randomUUID();
+            names.when(() -> net.tfminecraft.denareconomy.accounts.OfflineModifier.playerId("Known")).thenReturn(known);
+            assertEquals(Optional.of(known), CharacterMigration.SHARED.account("Known"));
+            UUID cached = identity.account("Cached");
+            assertEquals(Optional.of(cached), CharacterMigration.SHARED.account("Cached"));
+            assertEquals(Optional.empty(), CharacterMigration.SHARED.account("Nobody"));
+            names.when(() -> net.tfminecraft.denareconomy.accounts.OfflineModifier.playerId("Cached"))
+                    .thenThrow(new NoClassDefFoundError("DenarEconomy"));
+            assertEquals(Optional.of(cached), CharacterMigration.SHARED.account("Cached"));
+            CharacterRef heir = identity.character(cached, "Heir");
+            identity.heirs.put(cached, heir);
+            assertEquals(Optional.of(heir), CharacterMigration.SHARED.heir(cached));
+            assertEquals(Optional.empty(), CharacterMigration.SHARED.heir(known));
+        }
+    }
+
+    @Test
+    void writesFallBackWhenTheFilesystemCannotMoveAtomically() throws IOException {
+        Path target = root.resolve("nested/file.json");
+        try (var files = org.mockito.Mockito.mockStatic(Files.class, call -> {
+            if (call.getMethod().getName().equals("move")
+                    && java.util.Arrays.asList((java.nio.file.CopyOption[]) call.getRawArguments()[2])
+                            .contains(java.nio.file.StandardCopyOption.ATOMIC_MOVE)) {
+                throw new java.nio.file.AtomicMoveNotSupportedException("a", "b", "no atomic moves here");
+            }
+            return call.callRealMethod();
+        })) {
+            MigrationFiles.write(target, "{}");
+        }
+        assertEquals("{}", Files.readString(target));
+        try (var stream = Files.list(target.getParent())) {
+            assertEquals(1, stream.count(), "no temporary file is left behind");
+        }
+    }
+
+    @Test
+    void aMissingHashAlgorithmIsAnError() {
+        try (var digests = org.mockito.Mockito.mockStatic(java.security.MessageDigest.class)) {
+            digests.when(() -> java.security.MessageDigest.getInstance("SHA-256"))
+                    .thenThrow(new java.security.NoSuchAlgorithmException("none"));
+            assertThrows(IllegalStateException.class, () -> MigrationFiles.sha256("x"));
+        }
+    }
+
+    @Test
     void characterKeysAreLowerCaseCharacterIds() {
         UUID id = UUID.randomUUID();
         assertEquals(id.toString(), CharacterMigration.characterKey(" " + id.toString().toUpperCase() + " "));

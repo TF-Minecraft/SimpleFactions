@@ -1786,6 +1786,69 @@ class CommandManagerCoverageTest {
     verify(player).sendMessage("§cNo faction by the id missing");
   }
 
+  @Test
+  void aPlayerWithoutACharacterIsAStrangerToEveryCommand() {
+    Player stranger = gui.player("Stranger");
+    when(stranger.getName()).thenReturn(null);
+    Command guildCommand = mock(Command.class);
+    when(guildCommand.getName()).thenReturn("guild");
+    assertTrue(commands.onCommand(stranger, guildCommand, "guild", new String[] {"menu"}));
+    assertTrue(commands.onCommand(stranger, guildCommand, "guild", new String[] {"join", "merchants"}));
+    verify(stranger, times(2)).sendMessage(CommandManager.NO_CHARACTER);
+    verify(guild, never()).consumeInvite(any());
+  }
+
+  @Test
+  void staffWithoutACharacterCannotFoundARealm() {
+    Player staff = gui.player("Staff");
+    when(staff.getName()).thenReturn(null);
+    when(staff.hasPermission(Permissions.Permission_Admin)).thenReturn(true);
+    Command factionCommand = mock(Command.class);
+    when(factionCommand.getName()).thenReturn("faction");
+    try (MockedStatic<DisplayNameGate> names = mockStatic(DisplayNameGate.class);
+        MockedConstruction<Faction> created = mockConstruction(Faction.class)) {
+      names.when(() -> DisplayNameGate.check(any(), any(), anyString())).thenReturn(DisplayNameGate.Result.OK);
+      assertTrue(commands.onCommand(staff, factionCommand, "faction", new String[] {"create", "New_Realm"}));
+      assertTrue(created.constructed().isEmpty());
+    }
+    verify(staff).sendMessage(CommandManager.NO_CHARACTER);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"faction", "guild"})
+  void invitingAPlayerWithoutACharacterIsRefused(String name) {
+    if (name.equals("guild")) guildLeader();
+    else member();
+    Player alice = gui.player("Alice");
+    when(alice.getName()).thenReturn(null);
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
+      characters.when(() -> Members.resolveOnline(player, "Alice")).thenReturn(alice);
+      assertTrue(run(name, "invite", "Alice"));
+    }
+    verify(player).sendMessage("§cThat player has not chosen a character yet");
+    verify(faction, never()).invite(any());
+    verify(guild, never()).invite(any());
+  }
+
+  @Test
+  void quarantineCommandsAreRoutedBeforeAnyPlayerCheck() {
+    CommandSender console = mock(CommandSender.class);
+    try (MockedStatic<net.tfminecraft.simplefactions.migration.QuarantineCommands> quarantine =
+        mockStatic(net.tfminecraft.simplefactions.migration.QuarantineCommands.class, CALLS_REAL_METHODS)) {
+      quarantine
+          .when(() -> net.tfminecraft.simplefactions.migration.QuarantineCommands.handle(eq(console), any()))
+          .thenReturn(true);
+      assertTrue(run(console, "faction", "admin", "quarantine", "list"));
+      quarantine.verify(() -> net.tfminecraft.simplefactions.migration.QuarantineCommands.handle(eq(console), any()));
+    }
+  }
+
+  @Test
+  void multiWordCharacterNamesAreJoined() {
+    assertEquals("Ada Lovelace", CommandManager.rest(new String[] {"kick", "Ada", "Lovelace"}, 1));
+    assertEquals("", CommandManager.rest(new String[] {"kick"}, 1));
+  }
+
   private boolean run(String commandName, String... args) {
     Command command = mock(Command.class);
     when(command.getName()).thenReturn(commandName);

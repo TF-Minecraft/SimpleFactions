@@ -95,6 +95,12 @@ class MembersTest {
             assertEquals("Unknown", Members.display(staff, Members.key(UUID.randomUUID())));
             assertEquals("Steve", Members.accountName(Members.key(ada)));
             assertNull(Members.accountName(Members.key(UUID.randomUUID())));
+            identity.bukkit.when(() -> Bukkit.getOfflinePlayer(org.mockito.ArgumentMatchers.any(UUID.class)))
+                    .thenThrow(new IllegalStateException("no user cache"));
+            assertNull(Members.accountName(Members.key(ada)));
+            identity.bukkit.when(Bukkit::getServer).thenReturn(null);
+            assertNull(Members.accountName(Members.key(ada)));
+            identity.bukkit.when(Bukkit::getServer).thenReturn(identity.server);
         }
     }
 
