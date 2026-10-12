@@ -59,7 +59,6 @@ import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.denareconomy.DenarEconomy;
-import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.denareconomy.enums.Accounts;
 
 public class FactionManager implements Listener{
@@ -630,7 +629,7 @@ public class FactionManager implements Listener{
 				buffer,
 				DenarEconomyPlayerBank.INSTANCE,
 				PlayerEconomyManager.get(),
-				OfflineModifier::playerId);
+				net.tfminecraft.simplefactions.utils.MemberAccounts::accountId);
 		for (Guild g : getAllGuilds()) {
 			g.refreshDividendEligibility();
 		}

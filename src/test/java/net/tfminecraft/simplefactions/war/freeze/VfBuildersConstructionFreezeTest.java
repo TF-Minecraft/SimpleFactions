@@ -57,14 +57,12 @@ class VfBuildersConstructionFreezeTest {
 	}
 
 	@Test
-	void anOfflineBuilderIsJudgedByTheCharacterPlayedLast() {
+	void anOfflineBuilderIsJudgedByTheAccountsLegacyHeir() {
 		UUID characterId = UUID.randomUUID();
 		CharacterIdentity identity = mock(CharacterIdentity.class);
 		when(services.load(CharacterIdentity.class)).thenReturn(identity);
-		when(identity.lastPlayed(any())).thenReturn(Optional.empty());
-		when(identity.lastPlayed(account)).thenReturn(Optional.of(new CharacterInfo(
-				new CharacterRef(account, characterId), "Hilde", CharacterStatus.ALIVE, null, Set.of(), 0,
-				Instant.EPOCH)));
+		when(identity.legacyHeir(any())).thenReturn(Optional.empty());
+		when(identity.legacyHeir(account)).thenReturn(Optional.of(new CharacterRef(account, characterId)));
 
 		assertEquals(Members.key(characterId), VfBuildersConstructionFreeze.constructorKey(account));
 		assertNull(VfBuildersConstructionFreeze.constructorKey(UUID.randomUUID()));

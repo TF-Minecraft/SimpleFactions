@@ -79,24 +79,6 @@ public final class Members {
         return accountName == null ? null : key(onlineByName(accountName));
     }
 
-    /**
-     * The member key standing for an account known only by name: its current
-     * character if online, else its reviewed legacy heir. Used where another
-     * plugin still records ownership by account (stage 6 moves those).
-     */
-    public static String ofAccountOrHeir(String accountName) {
-        String online = ofAccountName(accountName);
-        if (online != null || accountName == null) return online;
-        try {
-            if (Bukkit.getServer() == null) return null;
-            org.bukkit.OfflinePlayer cached = Bukkit.getOfflinePlayerIfCached(accountName);
-            if (cached == null || cached.getUniqueId() == null || !Characters.available()) return null;
-            return Characters.legacyHeir(cached.getUniqueId()).map(Members::key).orElse(null);
-        } catch (RuntimeException unavailable) {
-            return null;
-        }
-    }
-
     /** The character name for a key; offline characters are read from the provider. */
     public static String display(String key) {
         if (key == null || key.isBlank()) return "Unknown";

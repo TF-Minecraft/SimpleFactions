@@ -162,33 +162,12 @@ class MembersTest {
     }
 
     @Test
-    void anOfflineAccountStandsForItsLegacyHeir() {
-        try (var identity = new SharedIdentity()) {
-            UUID account = identity.account("Steve");
-            CharacterRef heir = identity.character(account, "Ada");
-            assertNull(Members.ofAccountOrHeir("Steve"));
-            identity.heirs.put(account, heir);
-            assertEquals(Members.key(heir), Members.ofAccountOrHeir("Steve"));
-            assertNull(Members.ofAccountOrHeir("Unknown"));
-            assertNull(Members.ofAccountOrHeir(null));
-            Player steve = identity.connect("Alex");
-            CharacterRef bea = identity.character(steve.getUniqueId(), "Bea");
-            identity.play(steve, bea);
-            assertEquals(Members.key(bea), Members.ofAccountOrHeir("Alex"));
-            identity.unregister();
-            assertNull(Members.ofAccountOrHeir("Steve"));
-        }
-    }
-
-    @Test
     void noServerMeansNobodyIsOnline() {
         try (var bukkit = mockStatic(Bukkit.class)) {
             assertNull(Members.findOnline("Steve"));
-            assertNull(Members.ofAccountOrHeir("Steve"));
             assertNull(Members.accountName(Members.key(UUID.randomUUID())));
             bukkit.when(Bukkit::getServer).thenThrow(new IllegalStateException("no server"));
             assertNull(Members.findOnline("Steve"));
-            assertNull(Members.ofAccountOrHeir("Steve"));
         }
     }
 

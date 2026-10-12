@@ -32,7 +32,10 @@ public final class VehicleHandoverRequest extends Request {
         this.ownerUuid = ownerUuid;
         this.ownerName = ownerName;
         this.recipientUuid = recipientUuid;
-        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, ownerName, vehicleTypeId);
+        // Fees are charged to the owner's character, the same one acceptRequest quotes for.
+        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE,
+                net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.ownerKey(ownerName),
+                vehicleTypeId);
         this.feeFactionId = quote == null ? null : quote.faction().getId();
         this.feeAmount = quote == null ? 0.0 : quote.amount();
         this.time = System.currentTimeMillis()

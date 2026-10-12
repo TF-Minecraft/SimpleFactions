@@ -48,6 +48,12 @@ public class PlayerManager implements Listener{
         net.tfminecraft.simplefactions.inactivity.InactivityService.onLogin(e.getPlayer());
     }
 
+    /** A character is active once it is played, which is usually after the join. */
+    @EventHandler
+    public void characterStart(net.tfminecraft.tlibs.character.CharacterSessionStartEvent e) {
+        net.tfminecraft.simplefactions.inactivity.InactivityService.onLogin(e.getPlayer());
+    }
+
     //Loans and stuff
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void signBook(PlayerEditBookEvent e) {

@@ -99,31 +99,29 @@ public final class VehicleOwnershipQueries {
     }
 
     /**
-     * The member behind a VehicleFramework owner name. Owner tags still name accounts
-     * (stage 6), so this is the character being played, else the account's last-played
-     * character. Without a server or character provider the name itself is the key.
+     * The member key standing for a VehicleFramework owner tag, which still
+     * names an account (stage 6 moves vehicles to characters): the character
+     * the account is playing now, else its reviewed legacy heir, the same rule
+     * the migration used for account-owned rows. Null when neither is known.
      */
     public static String ownerKey(String accountName) {
-        if (accountName == null || accountName.isBlank()) {
+        if (accountName == null || accountName.isBlank() || Bukkit.getServer() == null) {
             return null;
-        }
-        if (Bukkit.getServer() == null) {
-            return accountName;
         }
         Player online = Bukkit.getPlayerExact(accountName);
         if (online != null) {
             return Members.key(online);
         }
         if (!Bukkit.isPrimaryThread() || !Characters.available()) {
-            return accountName;
+            return null;
         }
         UUID account = OfflineModifier.playerId(accountName);
         if (account == null) {
             return null;
         }
-        return Characters.lastPlayed(account)
-                .filter(info -> account.equals(info.ref().ownerId()))
-                .map(info -> Members.key(info.ref()))
+        return Characters.legacyHeir(account)
+                .filter(heir -> account.equals(heir.ownerId()))
+                .map(Members::key)
                 .orElse(null);
     }
 

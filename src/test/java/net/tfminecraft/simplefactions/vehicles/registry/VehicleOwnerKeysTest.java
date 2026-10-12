@@ -35,7 +35,7 @@ import net.tfminecraft.vehicleframework.data.OwnerData;
 class VehicleOwnerKeysTest {
     private final UUID account = UUID.randomUUID();
     private final UUID characterId = UUID.randomUUID();
-    private final Map<UUID, CharacterInfo> lastPlayed = new HashMap<>();
+    private final Map<UUID, CharacterRef> heirs = new HashMap<>();
     private final CharacterIdentity provider = mock(CharacterIdentity.class);
     private CharacterIdentity registered = provider;
     private MockedStatic<Bukkit> bukkit;
@@ -50,7 +50,7 @@ class VehicleOwnerKeysTest {
         ServicesManager services = mock(ServicesManager.class);
         bukkit.when(Bukkit::getServicesManager).thenReturn(services);
         when(services.load(CharacterIdentity.class)).thenAnswer(call -> registered);
-        when(provider.lastPlayed(any())).thenAnswer(call -> Optional.ofNullable(lastPlayed.get(call.getArgument(0))));
+        when(provider.legacyHeir(any())).thenAnswer(call -> Optional.ofNullable(heirs.get(call.getArgument(0))));
         when(provider.info(characterId)).thenReturn(Optional.of(info(account, characterId)));
         accounts.when(() -> OfflineModifier.playerId("Owner")).thenReturn(account);
         Members.useSharedIdentity();
@@ -63,13 +63,13 @@ class VehicleOwnerKeysTest {
     }
 
     @Test
-    void ownerKeyIsThePlayedOrLastPlayedCharacterOfTheTaggedAccount() {
+    void ownerKeyIsThePlayedCharacterElseTheLegacyHeirOfTheTaggedAccount() {
         assertNull(VehicleOwnershipQueries.ownerKey(null));
         assertNull(VehicleOwnershipQueries.ownerKey(" "));
-        assertNull(VehicleOwnershipQueries.ownerKey("Owner"), "No character has been played yet");
-        lastPlayed.put(account, info(UUID.randomUUID(), characterId));
-        assertNull(VehicleOwnershipQueries.ownerKey("Owner"), "A foreign record never names the owner");
-        lastPlayed.put(account, info(account, characterId));
+        assertNull(VehicleOwnershipQueries.ownerKey("Owner"), "No reviewed heir yet");
+        heirs.put(account, new CharacterRef(UUID.randomUUID(), characterId));
+        assertNull(VehicleOwnershipQueries.ownerKey("Owner"), "A foreign heir never names the owner");
+        heirs.put(account, new CharacterRef(account, characterId));
         assertEquals(Members.key(characterId), VehicleOwnershipQueries.ownerKey("Owner"));
         assertNull(VehicleOwnershipQueries.ownerKey("Unknown"), "An account DenarEconomy never saw");
 
@@ -87,14 +87,15 @@ class VehicleOwnerKeysTest {
     }
 
     @Test
-    void withoutAServerOrProviderTheTagNameIsTheKey() {
+    void withoutAServerOrProviderNoCharacterIsKnown() {
+        heirs.put(account, new CharacterRef(account, characterId));
         registered = null;
-        assertEquals("Owner", VehicleOwnershipQueries.ownerKey("Owner"));
+        assertNull(VehicleOwnershipQueries.ownerKey("Owner"));
         registered = provider;
         bukkit.when(Bukkit::isPrimaryThread).thenReturn(false);
-        assertEquals("Owner", VehicleOwnershipQueries.ownerKey("Owner"));
+        assertNull(VehicleOwnershipQueries.ownerKey("Owner"));
         bukkit.when(Bukkit::getServer).thenReturn(null);
-        assertEquals("Owner", VehicleOwnershipQueries.ownerKey("Owner"));
+        assertNull(VehicleOwnershipQueries.ownerKey("Owner"));
     }
 
     @Test

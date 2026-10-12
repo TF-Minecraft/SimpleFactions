@@ -806,7 +806,7 @@ public class SimpleFactions extends JavaPlugin{
 			for (net.tfminecraft.vehicleframework.data.OwnedVehicleSummary vehicle
 					: net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.allPersonalVehicles(vehicleRegistry)) {
 				// VehicleFramework still owns vehicles by account; the fee follows that account's character.
-				String owner = net.tfminecraft.simplefactions.identity.Members.ofAccountOrHeir(
+				String owner = net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.ownerKey(
 						net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries
 								.playerNameFromOwner(vehicle.getOwner()));
 				if (owner != null) {

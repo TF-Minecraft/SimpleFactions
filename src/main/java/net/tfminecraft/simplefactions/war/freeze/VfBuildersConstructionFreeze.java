@@ -35,12 +35,12 @@ public final class VfBuildersConstructionFreeze implements ConstructionFreeze {
 		return "battle postponed (" + PreparationFreeze.formatRemaining(until, now) + ")";
 	}
 
-	/** Projects belong to accounts: the character playing now, else the one played last. */
+	/** Projects belong to accounts: the character playing now, else the account's legacy heir. */
 	static String constructorKey(UUID constructorUuid) {
 		Player online = Bukkit.getPlayer(constructorUuid);
 		if (online != null) {
 			return Members.key(online);
 		}
-		return Characters.lastPlayed(constructorUuid).map(info -> Members.key(info.ref())).orElse(null);
+		return Characters.legacyHeir(constructorUuid).map(Members::key).orElse(null);
 	}
 }
