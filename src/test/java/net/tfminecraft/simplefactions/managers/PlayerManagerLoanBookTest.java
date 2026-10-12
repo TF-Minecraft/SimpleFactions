@@ -75,6 +75,7 @@ class PlayerManagerLoanBookTest {
 		factionManager.when(() -> FactionManager.getGuildByString("lender")).thenReturn(lender);
 		factionManager.when(() -> FactionManager.getGuildByLeader("Borrower")).thenReturn(borrower);
 		when(lender.getId()).thenReturn("lender");
+        when(lender.getIncarnation()).thenReturn("current-lender-incarnation");
 		when(lender.getName()).thenReturn("Lenders");
 		when(lender.getBank()).thenReturn(lenderBank);
 		when(lenderBank.getWealth()).thenReturn(10_000.0);
@@ -100,6 +101,7 @@ class PlayerManagerLoanBookTest {
 		when(data.get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING)).thenReturn(TERMS);
 		when(data.get(Keys.LONG, PersistentDataType.LONG)).thenReturn(System.currentTimeMillis() + 60_000L);
 		when(data.get(Keys.LOAN_OFFER, PersistentDataType.STRING)).thenReturn(offerId);
+        when(data.get(Keys.LOAN_ISSUER, PersistentDataType.STRING)).thenReturn("current-lender-incarnation");
 		when(meta.getPageCount()).thenReturn(2);
 		when(meta.getPage(2)).thenReturn(TERMS);
 		return meta;

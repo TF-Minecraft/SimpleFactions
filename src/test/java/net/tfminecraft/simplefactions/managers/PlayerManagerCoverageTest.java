@@ -220,6 +220,7 @@ class PlayerManagerCoverageTest {
     BookMeta offer = (BookMeta) leader.getInventory().getItem(0).getItemMeta();
     assertEquals(3, offer.getPersistentDataContainer().get(Keys.INT, PersistentDataType.INTEGER));
     assertNotNull(LoanBook.offerId(offer));
+    assertTrue(LoanBook.currentIssuer(offer, lender));
     assertNotNull(
         offer
             .getPersistentDataContainer()
@@ -233,6 +234,7 @@ class PlayerManagerCoverageTest {
       strings = {
         "expired",
         "old_offer",
+        "unbound_issuer",
         "missing_snapshot",
         "invalid_snapshot",
         "invalid_terms",
@@ -255,6 +257,8 @@ class PlayerManagerCoverageTest {
                   meta.getPersistentDataContainer().set(Keys.LONG, PersistentDataType.LONG, 1L));
       case "old_offer" ->
           edit(book, meta -> meta.getPersistentDataContainer().remove(Keys.LOAN_OFFER));
+      case "unbound_issuer" ->
+          edit(book, meta -> meta.getPersistentDataContainer().remove(Keys.LOAN_ISSUER));
       case "missing_snapshot" ->
           edit(book, meta -> meta.getPersistentDataContainer().remove(Keys.SECONDARY_STRING_KEY));
       case "invalid_snapshot" ->
@@ -285,6 +289,27 @@ class PlayerManagerCoverageTest {
     if (borrower.getBank() != null) assertEquals(beforeBorrower, borrower.getBank().getWealth());
     assertTrue(lender.getLoanHandler().getLoansGiven().isEmpty());
     assertTrue(messages(signer).stream().anyMatch(m -> m.startsWith("§c")), reason);
+  }
+
+  @Test
+  void oldLoanBookCannotChargeARecreatedGuildWithTheSameId() {
+    Guild borrower = borrower();
+    Player signer = player("Borrower");
+    ItemStack book = loanBook(3, borrower);
+    String offer = LoanBook.offerId((BookMeta) book.getItemMeta());
+    Guild replacement = fixture.guild(faction, lender.getId(), "Replacement");
+    replacement.setBank(new Bank(replacement, 0, fixture.ui.world.getChunkAt(0, 0)));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(replacement.getBank(), 10000);
+    double borrowerBefore = borrower.getBank().getWealth();
+    signer.getInventory().setItem(0, book);
+
+    assertTrue(sign(signer, book).isCancelled());
+
+    assertEquals(10000, replacement.getBank().getWealth());
+    assertEquals(borrowerBefore, borrower.getBank().getWealth());
+    assertNull(replacement.getLoanHandler().getLoanById(offer));
+    assertFalse(LoanBook.currentIssuer((BookMeta) book.getItemMeta(), replacement));
+    verify(signer).sendMessage(contains("out of date"));
   }
 
   @ParameterizedTest

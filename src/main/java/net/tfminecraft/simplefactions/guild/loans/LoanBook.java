@@ -90,6 +90,7 @@ public class LoanBook {
         meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, loan.getIssuer().getId());
         meta.getPersistentDataContainer().set(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING, meta.getPage(2));
         meta.getPersistentDataContainer().set(Keys.INT, PersistentDataType.INTEGER, 3);
+        meta.getPersistentDataContainer().set(Keys.LOAN_ISSUER, PersistentDataType.STRING, loan.getIssuer().getIncarnation());
         // The accepted loan takes this id, which marks the agreement as used.
         meta.getPersistentDataContainer().set(Keys.LOAN_OFFER, PersistentDataType.STRING, UUID.randomUUID().toString());
         meta.getPersistentDataContainer().set(Keys.LONG, PersistentDataType.LONG, System.currentTimeMillis() + 86400000L); // 1 day in milliseconds
@@ -160,6 +161,11 @@ public class LoanBook {
     @SuppressWarnings("deprecation")
     public static Loan createLoanFromBook(BookMeta meta, Guild borrower) {
         return createLoanFromBook(meta, borrower, null);
+    }
+
+    public static boolean currentIssuer(BookMeta meta, Guild issuer) {
+        String incarnation = meta.getPersistentDataContainer().get(Keys.LOAN_ISSUER, PersistentDataType.STRING);
+        return incarnation != null && incarnation.equals(issuer.getIncarnation());
     }
 
     /** The agreement id on a stage 3 book, or null for a book made before agreements had one. */

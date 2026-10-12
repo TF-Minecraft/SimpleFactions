@@ -114,6 +114,10 @@ public class PlayerManager implements Listener{
             }.runTaskLater(SimpleFactions.plugin, 1L);
         } else if(stage == 3) {
             e.setCancelled(true);
+            if (!LoanBook.currentIssuer(newMeta, issuer)) {
+                p.sendMessage("§cThis loan agreement is out of date. Ask the lender for a new one.");
+                return;
+            }
             Guild borrowerGuild = FactionManager.getGuildByLeader(Members.key(p));
             String offerId = LoanBook.offerId(newMeta);
             Loan loan = offerId == null ? null : LoanBook.createLoanFromBook(newMeta, borrowerGuild, offerId);
