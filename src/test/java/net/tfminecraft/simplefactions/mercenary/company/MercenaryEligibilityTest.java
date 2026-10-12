@@ -37,8 +37,7 @@ class MercenaryEligibilityTest {
         CompanyFixture fixture = new CompanyFixture(500.0);
         CompanyFixture.installMercenaryPrototype();
 
-        MercenaryResult create = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        MercenaryResult create = fixture.requestFormation("Ivar", "Hired Blades");
         assertFalse(create.ok());
         assertEquals("You are not the sort to run a mercenary company.", create.message());
         assertNull(fixture.company());
@@ -60,7 +59,7 @@ class MercenaryEligibilityTest {
     void anIneligibleLeaderDisbandsEvenWhileFounding() {
         CompanyFixture fixture = new CompanyFixture(500.0);
         CompanyFixture.installMercenaryPrototype();
-        MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        fixture.requestFormation("Ivar", "Hired Blades");
         MercenaryCompany company = fixture.company();
         assertTrue(company.isForming());
 

@@ -71,11 +71,11 @@ public final class MercenaryCompanyService {
         }
         Regiment regiment = MercenaryCompany.cloneMercenaryRegiment();
         double cost = Cache.mercenaryFormationCost;
-        guild.getBank().withdraw(cost);
         MercenaryCompany company = new MercenaryCompany(
                 guild, displayName(name), regiment, Cache.mercenaryFormationSeconds);
-        guild.setCompany(company);
         if (company.isFormed()) company.enlistLeader();
+        if (!net.tfminecraft.simplefactions.economy.TreasuryActions.formation(guild, actor, company, cost))
+            return MercenaryResult.deny("Company formation is awaiting treasury recovery or could not be funded.");
         return MercenaryResult.ok("Founding " + company.getName() + "§a for " + money(cost)
                 + " from the guild bank. It will be ready in "
                 + hours(Cache.mercenaryFormationSeconds) + ".");

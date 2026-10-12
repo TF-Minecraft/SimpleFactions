@@ -15,8 +15,6 @@ public final class GuildBankGrant {
         Bank bank = guild.getBank();
         if (bank == null || guild.getLedger() == null) return false;
 
-        bank.deposit(amount);
-        guild.getLedger().getHistory().addDeposit("Compensation", amount);
-        return true;
+        return net.tfminecraft.simplefactions.economy.TreasuryActions.grant(guild, amount);
     }
 }

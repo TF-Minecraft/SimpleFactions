@@ -27,9 +27,7 @@ public final class PillageApplyService {
 			return;
 		}
 		List<Guild> hit = guildsInSettlement(settlement, FactionManager.getAllGuilds());
-		double loot = snapshotLoot(hit, PillageApplyService::liveTradeIncome, Cache.pillageLootDays);
-		depositLoot(war, loot);
-		attachHits(hit, Cache.pillageTradeHitPercent, PillageTradeHit.decayFromConfig());
+        applyTreasury(war, hit, snapshotLoot(hit, PillageApplyService::liveTradeIncome, Cache.pillageLootDays), true);
 	}
 
 	static List<Guild> guildsInSettlement(Settlement settlement, List<Guild> all) {
@@ -68,19 +66,32 @@ public final class PillageApplyService {
 		}
 	}
 
-	static void depositLoot(War war, double loot) {
-		if (war == null || loot <= 0 || war.getAttackers() == null) {
-			return;
-		}
-		Faction attacker = war.getAttackers().getLeader();
-		Bank bank = attacker.getBank();
-		if (bank == null) {
-			java.util.logging.Logger.getLogger(PillageApplyService.class.getName()).warning(
-					"Skipping pillage loot for faction " + attacker.getId() + ": its bank was removed.");
-			return;
-		}
-		bank.deposit(loot);
-	}
+    static void depositLoot(War war, double loot) { applyTreasury(war, List.of(), loot, false); }
+
+    private static void applyTreasury(War war, List<Guild> hit, double loot, boolean penalties) {
+        if (war == null || war.getAttackers() == null || !Double.isFinite(loot) || loot < 0) return;
+        Guild attacker = war.getAttackers().getLeader().getOrCreateMainGuild();
+        if (attacker.getBank() == null && !penalties) return;
+        double payment = attacker.getBank() == null ? 0 : loot;
+        String id = "sf:pillage:" + war.getId() + ":" + war.getStartedAt() + ":" + attacker.getIncarnationId();
+        Boolean resumed = net.tfminecraft.simplefactions.economy.TreasuryActions.resume(id, null);
+        if (resumed != null) {
+            if (!resumed) throw new IllegalStateException("Pillage treasury recovery is pending: " + id);
+            return;
+        }
+        var plan = new net.tfminecraft.simplefactions.economy.TreasuryActions.Plan(id, "Pillage spoils", null, attacker)
+                .transfer(net.tfminecraft.denareconomy.api.Denars.MINT,
+                        net.tfminecraft.simplefactions.economy.TreasuryActions.account(attacker),
+                        net.tfminecraft.simplefactions.economy.Money.cents(payment));
+        if (penalties) for (Guild guild : hit) {
+            List<net.tfminecraft.simplefactions.government.StabilityModifier> after = new ArrayList<>(guild.getPillageHits());
+            after.removeIf(modifier -> modifier != null && PillageTradeHit.NAME.equals(modifier.getName()));
+            after.add(new net.tfminecraft.simplefactions.government.StabilityModifier(PillageTradeHit.NAME,
+                    Cache.pillageTradeHitPercent, PillageTradeHit.decayFromConfig()));
+            plan.capture(guild).effect("pillage", guild, "", guild.getPillageHits(), after);
+        }
+        if (!plan.commit(null)) throw new IllegalStateException("Pillage treasury action did not complete: " + id);
+    }
 
 	static double liveTradeIncome(Guild guild) {
 		if (guild == null) {

@@ -85,6 +85,7 @@ import org.mockito.MockedStatic;
 
 class GuildMenusCoverageTest {
   private GuildFixture fixture;
+  private MockedConstruction<net.tfminecraft.simplefactions.database.Database> treasurySaves;
   private Guild guild;
   private InventoryManager manager;
   private GuildView view;
@@ -109,6 +110,8 @@ class GuildMenusCoverageTest {
   @BeforeEach
   void setUp() {
     fixture = new GuildFixture();
+    treasurySaves = mockConstruction(net.tfminecraft.simplefactions.database.Database.class,
+        (database, context) -> when(database.saveFactionDurably(any())).thenReturn(true));
     guild = fixture.guild("guild", 1);
     fixture.factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(guild);
     manager = new InventoryManager();
@@ -165,6 +168,7 @@ class GuildMenusCoverageTest {
   void close() {
     try {
       for (int i = scopes.size() - 1; i >= 0; i--) scopes.get(i).close();
+      treasurySaves.close();
       access.close();
       intelligence.close();
     } finally {
@@ -239,7 +243,7 @@ class GuildMenusCoverageTest {
 
   @Test
   void branchDowngradeImmediatelyRemovesTheOldExpansionValueFromWealth() {
-    guild.getBank().setWealth(1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
     guild.updateWealth();
     assertEquals(1100, guild.getWealth());
     view = spy(view);
@@ -247,7 +251,7 @@ class GuildMenusCoverageTest {
     doNothing().when(view).guildView(any(), any(), any(Inventory.class));
     Inventory inventory = open();
     inventory.setItem(
-        38, creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0)));
+        38, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0))));
     manager.clickButton(fixture.ui.click(fixture.player, 38));
     assertEquals(0, guild.getSize());
     assertEquals(1080, guild.getBank().getWealth());
@@ -471,7 +475,7 @@ class GuildMenusCoverageTest {
     assertLore(dividends, "20.00%", true);
     assertLore(dividends, "9.00d", true);
     assertLore(dividends, "limited by the guild bank", true);
-    display.getBank().setWealth(100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(display.getBank(), 100.0);
     display.setLeader("Other");
     assertLore(creator.createDividendItem(fixture.player, display), "Only the guild leader", true);
     assertLore(
@@ -926,7 +930,7 @@ class GuildMenusCoverageTest {
       })
   void branchClicksApplyOnlyAuthorizedAffordableWellFormedActions(String scenario) {
     quietRendering();
-    guild.getBank().setWealth(scenario.equals("insufficient") ? 0.0 : 1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), scenario.equals("insufficient") ? 0.0 : 1000.0);
     guild.updateWealth();
     Branch branch = guild.getBranch(0);
     if (scenario.equals("downgrade_zero")) branch.levelDown();
@@ -936,6 +940,7 @@ class GuildMenusCoverageTest {
         scenario.equals("downgrade_zero")
             ? creator.createBranchDowngradeItem(fixture.player, guild, branch)
             : creator.createBranchUpgradeItem(fixture.player, guild, branch);
+    item = view.treasuryButton(fixture.player, guild, branch, item);
     ItemMeta meta = item.getItemMeta();
     if (scenario.equals("no_flag")) meta.getPersistentDataContainer().remove(Keys.BOOLEAN_FLAG);
     if (scenario.equals("no_branch_id")) meta.getPersistentDataContainer().remove(Keys.BRANCH_ID);
@@ -1087,7 +1092,7 @@ class GuildMenusCoverageTest {
       fixture.factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(guild);
     }
     quietRendering();
-    guild.getBank().setWealth(scenario.equals("poor") ? 0.0 : 1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), scenario.equals("poor") ? 0.0 : 1000.0);
     if (scenario.equals("disabled")) Cache.provincesEnabled = false;
     Faction target = scenario.startsWith("cross") ? mock(Faction.class) : fixture.host;
     if (target != fixture.host) when(target.getId()).thenReturn("other");

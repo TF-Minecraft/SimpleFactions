@@ -445,7 +445,7 @@ public class InventoryManager implements Listener{
 	public void setPayingLoan(Player p, Loan loan) {
 		Guild guild = FactionManager.getGuildByLeader(Members.key(p));;
 		if(guild == null) return;
-		loanPayments.put(p, new LoanPayment(guild, loan));
+		loanPayments.put(p, new LoanPayment(guild, loan, p));
 		p.closeInventory();
 		p.sendMessage(StringFormatter.formatHex("#d6cf69Enter the amount you want to pay (you have #87d65c" + 
 			String.format("%.2f", loan.getBorrower().getBank().getWealth()) + "d#d6cf69, loan owes #d65c5c" + 
@@ -645,7 +645,7 @@ public class InventoryManager implements Listener{
 			loanPayments.remove(p); //player left guild
 			return;
 		}
-		if(!g.getId().equalsIgnoreCase(compare.getId())) {
+		if (!g.getIncarnationId().equals(compare.getIncarnationId()) || !loanPayments.get(p).isCurrent()) {
 			loanPayments.remove(p); //player changed guild
 			return;
 		}
@@ -662,6 +662,7 @@ public class InventoryManager implements Listener{
 		double amount = 0;
 		try {
 			amount = Double.parseDouble(e.getMessage());
+            if (!Double.isFinite(amount)) throw new NumberFormatException();
 		} catch (Exception ex) {
 			p.sendMessage("§cError inputting the amount, use the format §e1500.00 §cfor 1500.00d (example)");
 			p.sendMessage("§4Type 'cancel' to cancel.");
@@ -669,7 +670,7 @@ public class InventoryManager implements Listener{
 		}
 
 		amount = Math.round(amount*100.0)/100.0;
-		if(amount <= 0) {
+		if (!Double.isFinite(amount) || amount <= 0) {
 			p.sendMessage("§cYou must pay a positive amount.");
 			p.sendMessage("§4Type 'cancel' to cancel.");
 			return;
@@ -685,8 +686,8 @@ public class InventoryManager implements Listener{
 			amount = loan.getTotalOwed();
 		}
 
-		double finalAmount = loan.makePayment(amount, true);
-		g.getBank().withdraw(finalAmount);
+		double finalAmount = net.tfminecraft.simplefactions.economy.TreasuryActions.repay(p, loan, amount, payment.operationId());
+        if (finalAmount < 0) return;
 		p.sendMessage(StringFormatter.formatHex("#d6cf69You have paid off #87d65c" + String.format("%.2f", finalAmount) + "d #d6cf69of the loan."));
 		p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 		loanPayments.remove(p);
@@ -758,6 +759,7 @@ public class InventoryManager implements Listener{
 		double amount;
 		try {
 			amount = Double.parseDouble(e.getMessage());
+            if (!Double.isFinite(amount)) throw new NumberFormatException();
 		} catch (Exception ex) {
 			p.sendMessage("§cError inputting the amount, use the format §e100 §cfor 100 denars (example)");
 			p.sendMessage("§4Type 'cancel' to cancel.");

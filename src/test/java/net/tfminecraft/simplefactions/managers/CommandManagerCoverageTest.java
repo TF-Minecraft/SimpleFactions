@@ -125,6 +125,7 @@ class CommandManagerCoverageTest {
     when(faction.getGovernment()).thenReturn(government);
     guild = mock(Guild.class, RETURNS_DEEP_STUBS);
     when(guild.getId()).thenReturn("merchants");
+    when(guild.getIncarnationId()).thenReturn(java.util.UUID.randomUUID());
     when(guild.getName()).thenReturn("Merchants");
     when(guild.getLeader()).thenReturn("Leader");
     when(guild.getFaction()).thenReturn(faction);
@@ -537,16 +538,18 @@ class CommandManagerCoverageTest {
     when(bank.getWealth()).thenReturn(100.0);
     var coin = new ItemStack(Material.GOLD_NUGGET, 10);
     when(player.getWorld()).thenReturn(gui.world);
+    when(gui.world.getUID()).thenReturn(java.util.UUID.randomUUID());
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId()), 10000);
     for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
       player.getInventory().setItem(slot, new ItemStack(Material.STONE, 64));
     }
-    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class)) {
+    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class, CALLS_REAL_METHODS)) {
       var money = mock(MoneyManager.class);
       economy.when(DenarEconomy::getMoneyManager).thenReturn(money);
       when(money.amountToItems(10.0)).thenReturn(List.of(coin));
       assertTrue(run("faction", "forcewithdraw", "realm", "10"));
-      verify(bank).withdraw(10.0);
-      verify(player.getInventory()).addItem(coin);
+      assertEquals(9000, net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId())));
+      verify(player.getInventory()).addItem(any(ItemStack.class));
       ArgumentCaptor<ItemStack> dropped = ArgumentCaptor.forClass(ItemStack.class);
       verify(gui.world).dropItemNaturally(eq(player.getLocation()), dropped.capture());
       assertEquals(Material.GOLD_NUGGET, dropped.getValue().getType());
@@ -582,23 +585,15 @@ class CommandManagerCoverageTest {
     when(bank.getChunk()).thenReturn(here);
     assertFalse(run(name, action, "bad"));
     verify(player).sendMessage(contains("whole cents"));
-    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class)) {
-      var players = mock(PlayerManager.class);
-      var data = mock(PlayerData.class);
-      var pouch = mock(Account.class);
-      economy.when(DenarEconomy::getPlayerManager).thenReturn(players);
-      when(players.get(player)).thenReturn(data);
-      when(data.getPouch()).thenReturn(pouch);
+    try (var treasury = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.pouch(player)).thenReturn(0d);
       assertFalse(run(name, action, "10"));
       verify(player).sendMessage(contains("Not enough funds"));
       when(bank.getWealth()).thenReturn(100.0);
-      when(pouch.getBal()).thenReturn(100.0);
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.pouch(player)).thenReturn(100d);
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.bank(player, guild, 10.25, deposit)).thenReturn(true);
       assertTrue(run(name, action, "10.25"));
-      verify(pouch).change(deposit ? -10.25 : 10.25);
-      if (deposit) {
-        verify(bank).deposit(10.25);
-        verify(guild.getLedger().getHistory()).addDeposit("Leader", 10.25);
-      } else verify(bank).withdraw(10.25);
+      treasury.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.bank(player, guild, 10.25, deposit));
       verify(player).sendMessage(contains("Bank Report"));
       verify(player).playSound(player, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
     }
@@ -645,22 +640,25 @@ class CommandManagerCoverageTest {
     Bank bank = mock(Bank.class);
     when(faction.getBank()).thenReturn(bank);
     when(bank.getWealth()).thenReturn(100.0);
+    when(gui.world.getUID()).thenReturn(java.util.UUID.randomUUID());
+    when(player.getWorld()).thenReturn(gui.world);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId()), 10000);
     Player alice = gui.player("Alice");
     when(alice.isOnline()).thenReturn(true);
     when(Bukkit.getPlayer("Alice")).thenReturn(alice);
-    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class)) {
+    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class, CALLS_REAL_METHODS)) {
       var money = mock(MoneyManager.class);
       economy.when(DenarEconomy::getMoneyManager).thenReturn(money);
       var coin = new ItemStack(Material.GOLD_NUGGET, 10);
       when(money.amountToItems(10.0)).thenReturn(List.of(coin));
       assertTrue(run("faction", "forcewithdraw", "realm", "10"));
-      verify(bank).withdraw(10.0);
-      verify(player.getInventory()).addItem(coin);
+      assertEquals(9000, net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId())));
+      verify(player.getInventory()).addItem(any(ItemStack.class));
       verify(alice).sendMessage(contains("withdrawn from the faction by admins"));
       assertTrue(run("faction", "forcewithdraw", "realm", "101"));
       verify(player).sendMessage(contains("enough wealth"));
       assertFalse(run("faction", "forcewithdraw", "realm", "-1"));
-      verify(bank, times(1)).withdraw(anyDouble());
+      assertEquals(9000, net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId())));
     }
   }
 
@@ -1621,10 +1619,12 @@ class CommandManagerCoverageTest {
       assertTrue(run(console, "faction", "addguildbank", "merchants", "10"));
       verify(console, times(2)).sendMessage(contains("does not have a bank"));
     }
-    assertTrue(run(console, "faction", "addguildbank", "merchants", "10"));
-    verify(bank).deposit(10.0);
-    verify(guild.getLedger().getHistory()).addDeposit("Compensation", 10.0);
-    verify(console).sendMessage(contains("New balance:"));
+    try (var treasury = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.grant(guild, 10.0)).thenReturn(true);
+      assertTrue(run(console, "faction", "addguildbank", "merchants", "10"));
+      treasury.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.grant(guild, 10.0));
+      verify(console).sendMessage(contains("New balance:"));
+    }
   }
 
   @ParameterizedTest

@@ -101,7 +101,7 @@ class MercenaryMenusCoverageTest {
     host.addProvince(10);
     guild = fixture.guild(host, "blades", "Captain");
     guild.setCapital(10, false);
-    guild.getBank().setWealth(1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
     hirer = fixture.saved("hirer", "Hirer");
     hirer.getOrCreateMainGuild();
     captain = fixture.player("Captain");

@@ -9,6 +9,17 @@ public class LoanPayment {
     private Guild guild;
     private Loan loan;
     private int time;
+    private final String operationId = net.tfminecraft.simplefactions.economy.TreasuryActions.newId();
+    private net.tfminecraft.tlibs.character.CharacterSession actor;
+
+    public LoanPayment(Guild guild, Loan loan, org.bukkit.entity.Player player) {
+        this(guild, loan);
+        actor = net.tfminecraft.simplefactions.identity.Members.session(player).orElse(null);
+    }
+
+    public boolean isCurrent() { return net.tfminecraft.simplefactions.identity.Members.isCurrent(actor); }
+    public String operationId() { return operationId; }
+
 
     public LoanPayment(Guild guild, Loan loan) {
         this.guild = guild;

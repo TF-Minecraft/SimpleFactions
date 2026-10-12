@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.economy.TreasuryActions;
 
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 import net.tfminecraft.simplefactions.utils.BankAmount;
@@ -56,7 +57,6 @@ import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleCommandRoute;
-import net.tfminecraft.denareconomy.data.Account;
 import net.tfminecraft.denareconomy.DenarEconomy;
 
 public class CommandManager implements Listener, CommandExecutor{
@@ -353,18 +353,17 @@ public class CommandManager implements Listener, CommandExecutor{
 						return false;
 					}
 					double amount = parsed;
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
-					if(pouch.getBal() < amount) {
+					double pouch = TreasuryActions.pouch(p);
+					if(pouch < amount) {
 						p.sendMessage("§cNot enough funds");
 						return false;
 					}
-					pouch.change(amount*-1);
-					g.getBank().deposit(amount);
-					g.getLedger().getHistory().addDeposit(Members.key(p), amount);
+					if (!TreasuryActions.bank(p, g, amount, true)) return false;
+					pouch = TreasuryActions.pouch(p);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aDeposited: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Guild Balance: #b39122"+b.getWealth()+"#dbaf1dd"));
-					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch.getBal()+"#dbaf1dd"));
+					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch+"#dbaf1dd"));
 					p.sendMessage("§e=====================================");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
 				} else {
@@ -391,17 +390,17 @@ public class CommandManager implements Listener, CommandExecutor{
 						return false;
 					}
 					double amount = parsed;
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
+					double pouch = TreasuryActions.pouch(p);
 					if(b.getWealth() < amount) {
 						p.sendMessage("§cNot enough funds in the guild bank");
 						return false;
 					}
-					pouch.change(amount);
-					g.getBank().withdraw(amount);
+					if (!TreasuryActions.bank(p, g, amount, false)) return false;
+					pouch = TreasuryActions.pouch(p);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aWithdrew: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Guild Balance: #b39122"+b.getWealth()+"#dbaf1dd"));
-					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch.getBal()+"#dbaf1dd"));
+					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch+"#dbaf1dd"));
 					p.sendMessage("§e=====================================");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
 				} else {
@@ -1165,18 +1164,17 @@ public class CommandManager implements Listener, CommandExecutor{
 						return false;
 					}
 					double amount = parsed;
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
-					if(pouch.getBal() < amount) {
+					double pouch = TreasuryActions.pouch(p);
+					if(pouch < amount) {
 						p.sendMessage("§cNot enough funds");
 						return false;
 					}
-					pouch.change(amount*-1);
-					f.getBank().deposit(amount);
-					f.getOrCreateMainGuild().getLedger().getHistory().addDeposit(Members.key(p), amount);
+					if (!TreasuryActions.bank(p, f.getOrCreateMainGuild(), amount, true)) return false;
+					pouch = TreasuryActions.pouch(p);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aDeposited: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Faction Balance: #b39122"+b.getWealth()+"#dbaf1dd"));
-					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch.getBal()+"#dbaf1dd"));
+					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch+"#dbaf1dd"));
 					p.sendMessage("§e=====================================");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
 				} else {
@@ -1201,17 +1199,17 @@ public class CommandManager implements Listener, CommandExecutor{
 						return false;
 					}
 					double amount = parsed;
-					Account pouch = DenarEconomy.getPlayerManager().get(p).getPouch();
+					double pouch = TreasuryActions.pouch(p);
 					if(b.getWealth() < amount) {
 						p.sendMessage("§cNot enough funds in the faction bank");
 						return false;
 					}
-					pouch.change(amount);
-					f.getBank().withdraw(amount);
+					if (!TreasuryActions.bank(p, f.getOrCreateMainGuild(), amount, false)) return false;
+					pouch = TreasuryActions.pouch(p);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aWithdrew: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Faction Balance: #b39122"+b.getWealth()+"#dbaf1dd"));
-					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch.getBal()+"#dbaf1dd"));
+					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Pouch Balance: #b39122"+pouch+"#dbaf1dd"));
 					p.sendMessage("§e=====================================");
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
 				} else {
@@ -1505,13 +1503,8 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cBank does not have enough wealth");
 					return true;
 				}
-				bank.withdraw(amount);
-				List<ItemStack> items = DenarEconomy.getMoneyManager().amountToItems(amount);
-				for(ItemStack i : items) {
-					for(ItemStack leftover : p.getInventory().addItem(i).values()) {
-						p.getWorld().dropItemNaturally(p.getLocation(), leftover);
-					}
-				}
+                List<ItemStack> items = DenarEconomy.getMoneyManager().amountToItems(amount);
+                if (!net.tfminecraft.simplefactions.economy.TreasuryPhysical.withdraw(p, f.getOrCreateMainGuild(), amount, items)) return false;
 				p.sendMessage("§6"+amount+" §cwas withdrawn from the bank of "+f.getName());
 				for(String s : f.getMembers()) {
 					Player member = Members.player(s);

@@ -91,7 +91,7 @@ class MercenaryCommandsCoverageTest {
     host.addProvince(10);
     guild = fixture.guild(host, "blades", "Captain");
     guild.setCapital(10, false);
-    guild.getBank().setWealth(1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
     hirer = fixture.saved("hirer", "Hirer");
     hirer.getOrCreateMainGuild();
     captain = fixture.player("Captain");
@@ -229,7 +229,7 @@ class MercenaryCommandsCoverageTest {
       strings = {"valid", "name_warning", "poor", "outsider", "nonleader", "already_formed"})
   void foundingChecksTheNameAndCurrentGuildBeforeRequestingFinancialConfirmation(String state) {
     if (!state.equals("already_formed")) guild.setCompany(null);
-    if (state.equals("poor")) guild.getBank().setWealth(50.0);
+    if (state.equals("poor")) net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 50.0);
     Player actor = state.equals("outsider") ? fixture.player("Outsider") : captain;
     if (state.equals("nonleader")) {
       guild.addMember("Successor");

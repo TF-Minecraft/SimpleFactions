@@ -23,15 +23,17 @@ import net.tfminecraft.simplefactions.objects.Bank;
 
 class GuildBankGrantTest {
 
-    private final Guild guild = mock(Guild.class);
-    private final Bank bank = new Bank(guild, 100.0, null);
-    private final Ledger ledger = new Ledger(guild);
-
-    @BeforeEach
-    void setUp() {
-        when(guild.getBank()).thenReturn(bank);
-        when(guild.getLedger()).thenReturn(ledger);
+    private net.tfminecraft.simplefactions.testsupport.FactionDomainFixture fixture;
+    private Guild guild;
+    private Bank bank;
+    private Ledger ledger;
+    @BeforeEach void setUp() {
+        fixture = new net.tfminecraft.simplefactions.testsupport.FactionDomainFixture();
+        guild = fixture.saved("realm", "Leader").getOrCreateMainGuild();
+        bank = guild.getBank(); ledger = guild.getLedger();
+        net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(bank, 100);
     }
+    @AfterEach void close() { fixture.close(); }
 
     @Test
     void positiveWholeCentAmountIsAddedAndRecordedAsCompensation() {
@@ -43,9 +45,9 @@ class GuildBankGrantTest {
 
     @Test
     void missingBankAndInvalidAmountsDoNotChangeTheBalance() {
-        when(guild.getBank()).thenReturn(null);
+        guild.setBank(null);
         assertFalse(GuildBankGrant.grant(guild, 25.0));
-        when(guild.getBank()).thenReturn(bank);
+        guild.setBank(bank);
 
         assertFalse(GuildBankGrant.grant(guild, 0));
         assertFalse(GuildBankGrant.grant(guild, -1));

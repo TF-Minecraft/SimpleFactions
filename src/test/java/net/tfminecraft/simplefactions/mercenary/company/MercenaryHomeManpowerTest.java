@@ -45,7 +45,7 @@ class MercenaryHomeManpowerTest {
     }
 
     private MercenaryCompany found() {
-        MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        fixture.requestFormation("Ivar", "Hired Blades");
         return fixture.company();
     }
 

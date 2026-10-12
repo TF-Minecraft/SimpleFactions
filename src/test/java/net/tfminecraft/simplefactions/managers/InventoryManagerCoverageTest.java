@@ -97,6 +97,7 @@ class InventoryManagerCoverageTest {
     when(faction.getGovernment()).thenReturn(government);
     when(government.getFaction()).thenReturn(faction);
     when(guild.getId()).thenReturn("guild");
+    when(guild.getIncarnationId()).thenReturn(java.util.UUID.randomUUID());
     when(guild.getFaction()).thenReturn(faction);
     when(guild.isLeader(player)).thenReturn(true);
     taxes = new TaxHandler(faction, 10, 0, 0, 0, 0);
@@ -380,13 +381,14 @@ class InventoryManagerCoverageTest {
     assertTrue(manager.isPayingLoan(player));
     manager.setRate(chat(text));
     assertEquals(200, guild.getBank().getWealth());
-    gui.runTasks();
+    try (var saves = mockConstruction(net.tfminecraft.simplefactions.database.Database.class,
+        (database, context) -> when(database.saveFactionDurably(any())).thenReturn(true))) { gui.runTasks(); }
     assertEquals(paid, loan.getPaid());
     assertEquals(balance, guild.getBank().getWealth(), 0.001);
     assertEquals(owed, loan.getTotalOwed(), 0.001);
     assertFalse(manager.isPayingLoan(player));
-    verify(loan.getIssuer().getLedger()).addLoanPaymentEntry("guild", paid);
-    verify(guild).updateWealth();
+    assertEquals(paid, net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.guild(loan.getIssuer().getIncarnationId())) / 100d);
+    verify(loan.getIssuer().getLedger(), never()).addLoanPaymentEntry(anyString(), anyDouble());
   }
 
   @ParameterizedTest
@@ -1105,7 +1107,9 @@ class InventoryManagerCoverageTest {
   @ParameterizedTest
   @CsvSource({"true,25,2", "false,0,0"})
   void capitalConfirmationDisplaysCostBalanceAndLosses(boolean rename, double cost, int losses) {
-    when(faction.getBank()).thenReturn(new Bank(guild, 100, mock(Chunk.class)));
+    Bank capitalBank = new Bank(guild, 100, mock(Chunk.class));
+    when(faction.getBank()).thenReturn(capitalBank);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(capitalBank, 100);
     manager.confirmCapitalMoveView(player, faction, rename, cost, losses);
     Inventory inventory = player.getOpenInventory().getTopInventory();
     assertEquals("§7Confirm Action", player.getOpenInventory().getTitle());
@@ -1731,12 +1735,20 @@ class InventoryManagerCoverageTest {
   }
 
   private Loan loan(double amount, double balance) {
-    Bank bank = new Bank(guild, balance, mock(Chunk.class));
+    Bank bank = new Bank(guild, 0, mock(Chunk.class));
     when(guild.getBank()).thenReturn(bank);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(bank, balance);
     when(guild.getLoanHandler()).thenReturn(new LoanHandler(guild));
     Guild issuer = mock(Guild.class);
+    when(issuer.getId()).thenReturn("issuer");
+    when(issuer.getIncarnationId()).thenReturn(java.util.UUID.randomUUID());
+    when(issuer.getFaction()).thenReturn(faction);
+    when(issuer.getLoanHandler()).thenReturn(new LoanHandler(issuer));
     when(issuer.getLedger()).thenReturn(mock(Ledger.class));
-    return new Loan("loan", amount, issuer, guild, System.currentTimeMillis(), 7, 0, 0, false);
+    factions.when(() -> FactionManager.getGuildByString("issuer")).thenReturn(issuer);
+    Loan loan = new Loan("loan", amount, issuer, guild, System.currentTimeMillis(), 7, 0, 0, false);
+    issuer.getLoanHandler().issueLoan(loan);
+    return loan;
   }
 
   private AtomicReference<Double> donation(double amount) {
