@@ -339,6 +339,7 @@ public class Government {
 
 
     private void replaceLeader() {
+        if (f.getLeader() == null || f.getLeader().isBlank() || Members.isQuarantined(f.getLeader())) return;
         if (!f.canRemainLeader(f.getLeader())) {
             boolean promoted =
                 election.getWinners(Candidate.LEADER).stream()
@@ -442,6 +443,37 @@ public class Government {
             
         }
         return true;
+    }
+
+    /** Removes only this character's live political rights; other votes retain their order and value. */
+    public void removeDeadCharacter(String key) {
+        council.getMembers().removeIf(key::equals);
+        if (council.refuses(key)) council.toggleRefuse(key);
+        council.getProposalHandler().getProposals().removeIf(proposal -> key.equals(proposal.getProposer()));
+        var candidates = election.serializeCandidates();
+        candidates.values().forEach(list -> list.removeIf(key::equals));
+        var votes = election.serializeVotes();
+        votes.values().forEach(map -> map.entrySet().removeIf(entry -> key.equals(entry.getKey()) || key.equals(entry.getValue())));
+        var previous = election.serializePreviousVotes();
+        previous.values().forEach(map -> map.remove(key));
+        var eligible = new ArrayList<>(election.getStoredEligibleVoters());
+        eligible.removeIf(key::equals);
+        election.restoreFromData(candidates, votes, previous, eligible);
+        for (Movement movement : movements) {
+            if (key.equals(movement.getLeader())) movement.setLeader(null);
+            movement.getSupporters().getCitizens().removeIf(key::equals);
+            for (var cause : movement.getCauses()) {
+                if (key.equals(cause.getLeader())) cause.setLeader(null);
+                cause.getPool().getCitizens().removeIf(key::equals);
+            }
+        }
+    }
+
+    /** Replaying a death must not restart an election and erase ballots cast afterward. */
+    public void beginDeathElection(long at) {
+        if (lastElectionDate.getTime() >= at) return;
+        election.start();
+        lastElectionDate = new Date(at);
     }
 
     public Council getCouncil() {

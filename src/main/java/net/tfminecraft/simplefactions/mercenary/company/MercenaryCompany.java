@@ -488,6 +488,14 @@ public class MercenaryCompany {
         return Collections.unmodifiableMap(pendingWages);
     }
 
+    /** Called only after the death journal durably takes ownership of the owed wages. */
+    public void removeDeadCharacter(String key) {
+        enlisted.removeIf(key::equals);
+        pendingWages.remove(key);
+        wages.clearActiveOverride(key);
+        wages.clearPeacetimeOverride(key);
+    }
+
     public void clearPendingWages() {
         pendingWages.clear();
     }

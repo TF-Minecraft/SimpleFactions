@@ -121,7 +121,7 @@ public class Guild {
         bannerPatterns = f.getBannerPatterns();
         name = f.getName();
         leader = f.getLeader();
-        members.add(leader);
+        if (leader != null && !leader.isBlank()) members.add(leader);
         type = GuildLoader.getBaseType();
         this.wealth = 0.0;
         for (Branch branch : BranchLoader.getList()) {
@@ -188,7 +188,7 @@ public class Guild {
         this.capital = data.capital;
         this.stance = data.stance != null ? Stance.valueOf(data.stance) : Stance.NEUTRAL;
         this.members = data.members != null ? data.members : new ArrayList<>();
-        if(!this.members.contains(leader)) this.members.add(leader);
+        if(leader != null && !leader.isBlank() && !this.members.contains(leader)) this.members.add(leader);
         for (GuildBranchData bd : data.branches) {
             if (bd != null && bd.level != null && bd.level.intValue() > 0) {
                 warnRetiredBranch(host, name, bd.id, bd.level.intValue());
@@ -472,6 +472,15 @@ public class Guild {
         String stored = find(members, member);
         if(stored != null) members.remove(stored);
     }
+    /** The death journal has already captured any money owed before this removal. */
+    public void removeDeadCharacter(String key) {
+        members.removeIf(key::equals);
+        invites.removeIf(key::equals);
+        dividendEligible.removeIf(key::equals);
+        if (key.equals(leader)) leader = "";
+        if (company != null) company.removeDeadCharacter(key);
+    }
+
     public String getLeader() { return isBase() ? host.getLeader() : leader; }
 
     /** Last known roleplay name of the leader; a realm's own guild shares the realm's. */

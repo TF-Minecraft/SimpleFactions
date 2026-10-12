@@ -21,6 +21,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.tlibs.character.CharacterDeathEvent;
 import net.tfminecraft.tlibs.character.CharacterIdentity;
@@ -328,37 +329,45 @@ class OfficeVacancyTest {
         }
     }
 
-    @Test void committedSharedDeathListenerSettlesImmediatelyWithCanonicalName() {
+    @Test void journalOfficeCleanupPreservesLaterAppointmentsAndHandlesPendingFounder() {
         try (var fixture = new DeathFixture()) {
-            fixture.appoint(fixture.ref.ownerId(), fixture.ref.characterId().toString(), 1000);
+            var holder = fixture.appoint(fixture.ref.ownerId(), fixture.ref.characterId().toString(), 3000);
             UUID deathId = UUID.randomUUID();
-            CharacterInfo info = new CharacterInfo(fixture.ref, "Canonical Spy", CharacterStatus.DEAD,
-                    null, Set.of(), 0, Instant.EPOCH);
-            when(fixture.provider.info(fixture.ref.characterId())).thenReturn(Optional.of(info));
-            new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(
-                    fixture.ref, deathId, Instant.ofEpochMilli(2000), null, null, "OTHER"));
+            fixture.state.removeDeadCharacter(fixture.ref, deathId, 2000);
+            assertSame(holder, fixture.state.getSpymaster());
+            fixture.state.removeDeadCharacter(fixture.ref, deathId, 4000);
             assertNull(fixture.state.getSpymaster());
             assertTrue(fixture.state.handledDeath(deathId));
-            verify(fixture.owner).sendMessage(contains("passing of Canonical Spy"));
-            fixture.bukkit.verify(Bukkit::getScheduler, never());
-            verify(fixture.provider, never()).currentSession(any());
+            assertEquals(0, fixture.state.lastAppointedAt(SpecialPosition.SPYMASTER));
+            fixture.state.pendingFounder(SpecialPosition.SPYMASTER, fixture.ref.characterId().toString());
+            fixture.state.removeDeadCharacter(fixture.ref, UUID.randomUUID(), Long.MAX_VALUE);
+            assertFalse(fixture.state.hasPendingFounder());
         }
     }
 
-    @Test void committedDeathStillSettlesWhenDisplaySnapshotIsMissingOrBelongsElsewhere() {
-        for (boolean foreignInfo : new boolean[] {false, true}) {
-            try (var fixture = new DeathFixture()) {
-                fixture.appoint(fixture.ref.ownerId(), fixture.ref.characterId().toString(), 1000);
-                if (foreignInfo) {
-                    CharacterInfo wrong = new CharacterInfo(new CharacterRef(UUID.randomUUID(), fixture.ref.characterId()),
-                            "Someone else", CharacterStatus.DEAD, null, Set.of(), 0, Instant.EPOCH);
-                    when(fixture.provider.info(fixture.ref.characterId())).thenReturn(Optional.of(wrong));
-                }
-                new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(fixture.ref,
-                        UUID.randomUUID(), Instant.ofEpochMilli(2000), null, null, "OTHER"));
-                assertNull(fixture.state.getSpymaster());
-                verify(fixture.owner).sendMessage(contains("passing of your character"));
-            }
+    @Test void committedSharedDeathListenerForwardsTheAuthoritativeEvent() throws Exception {
+        var ref = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+        var deathId = UUID.randomUUID();
+        var at = Instant.ofEpochMilli(2000);
+        try (var deaths = mockStatic(net.tfminecraft.simplefactions.identity.death.CharacterDeaths.class)) {
+            new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(ref, deathId, at, null, null, "OTHER"));
+            deaths.verify(() -> net.tfminecraft.simplefactions.identity.death.CharacterDeaths.onDeath(ref, deathId, at));
+        }
+    }
+
+    @Test void deathCleanupFailureDisablesGameplayUntilRecovery() throws Exception {
+        var ref = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+        var deathId = UUID.randomUUID();
+        var at = Instant.ofEpochMilli(2000);
+        var plugin = mock(SimpleFactions.class, RETURNS_DEEP_STUBS);
+        when(plugin.getLogger()).thenReturn(java.util.logging.Logger.getLogger("death-failure-test"));
+        try (var deaths = mockStatic(net.tfminecraft.simplefactions.identity.death.CharacterDeaths.class);
+             var plugins = mockStatic(SimpleFactions.class)) {
+            plugins.when(SimpleFactions::getInstance).thenReturn(plugin);
+            deaths.when(() -> net.tfminecraft.simplefactions.identity.death.CharacterDeaths.onDeath(ref, deathId, at))
+                    .thenThrow(new java.io.IOException("disk failure"));
+            new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(ref, deathId, at, null, null, "OTHER"));
+            verify(plugin.getServer().getPluginManager()).disablePlugin(plugin);
         }
     }
 

@@ -118,6 +118,24 @@ class SessionLifecycleCoverageTest {
   }
 
   @Test
+  void characterDeathRemovesCurrentBallotAndHostDeathEndsCapturedSession() {
+    Faction faction = faction("home", "Alice", "Bob");
+    Session session = started(faction, block(Material.LANTERN, 0));
+    session.recordVote("Bob", Vote.YAY);
+    assertEquals("Alice", session.getLeaderCharacter());
+    assertEquals(Vote.YAY, session.votesSnapshot().get("Bob"));
+    assertTrue(session.eligibleSnapshot().contains("Bob"));
+    session.removeDeadCharacter("Bob");
+    assertFalse(session.votesSnapshot().containsKey("Bob"));
+    assertFalse(session.eligibleSnapshot().contains("Bob"));
+    assertFalse(session.recordVote("Bob", Vote.NAY));
+    assertTrue(session.isStarted());
+    session.removeDeadCharacter("Alice");
+    assertFalse(session.isStarted());
+    assertFalse(manager.hasSession(faction.getGovernment().getCouncil()));
+  }
+
+  @Test
   void asyncChatDefersWorldHologramAndVoteChangesToTheCapturedMainThreadCallback() {
     Faction faction = faction("home", "Alice", "Bob");
     started(faction, block(Material.LANTERN, 0));

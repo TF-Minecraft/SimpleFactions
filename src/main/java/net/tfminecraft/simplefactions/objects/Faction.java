@@ -774,6 +774,13 @@ public class Faction {
 		this.leader = leader;
 		net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher.onGovernmentChanged(this);
 	}
+    /** Applies only the journal's captured succession; a later deliberate appointment wins. */
+    public void succeedDeadLeader(String dead, String successor) {
+        if (leader != null && !leader.isBlank() && !dead.equals(leader)) return;
+        leader = successor;
+        getOrCreateMainGuild().setLeader(successor);
+    }
+
 	public void promoteToLeader(String name) {
 		if (!canBecomeLeader(name)) return;
 

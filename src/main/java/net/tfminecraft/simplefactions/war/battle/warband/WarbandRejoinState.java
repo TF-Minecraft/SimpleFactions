@@ -21,7 +21,7 @@ public final class WarbandRejoinState {
 		return character != null && character.equals(ref);
 	}
 
-	boolean belongsTo(Warband warband) {
+	public boolean belongsTo(Warband warband) {
 		return originalWarband == warband;
 	}
 

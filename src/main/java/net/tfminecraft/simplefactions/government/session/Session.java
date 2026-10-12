@@ -22,6 +22,7 @@ import net.tfminecraft.simplefactions.managers.SessionManager;
 
 public class Session {
     private Player leader;
+    private final String leaderCharacter;
     private Block lantern;
     private Faction f;
     private Council c;
@@ -39,6 +40,7 @@ public class Session {
     @SuppressWarnings("deprecation")
     public Session(Player leader, Faction f) {
         this.leader = leader;
+        this.leaderCharacter = Members.key(leader);
         this.f = f;
         c = f.getGovernment().getCouncil();
         leader.sendTitle("§aSelect Location", "§7Click on a §eLantern §7to select Location", 20, 80, 20);
@@ -95,6 +97,22 @@ public class Session {
         }
     }
     
+    public String getLeaderCharacter() { return leaderCharacter; }
+
+    public Map<String, Vote> votesSnapshot() {
+        return new HashMap<>(currentVotes);
+    }
+
+    public Set<String> eligibleSnapshot() {
+        return new HashSet<>(eligibleVoters);
+    }
+
+    public void removeDeadCharacter(String key) {
+        currentVotes.remove(key);
+        eligibleVoters.remove(key);
+        if (key.equals(leaderCharacter)) endSession();
+    }
+
     public boolean recordVote(String voter, Vote vote) {
         if (!started || terminated || getCurrentProposal() == null || !eligibleVoters.contains(voter)) {
             return false;
