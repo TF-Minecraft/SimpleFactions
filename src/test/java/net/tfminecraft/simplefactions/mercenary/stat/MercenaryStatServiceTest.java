@@ -173,7 +173,7 @@ class MercenaryStatServiceTest {
 
         company.getUpgrade("company_mana_regen").setLevel(10);
 
-        assertEquals(new MercenaryStatPlan(0, 0, 1.0), MercenaryStatService.planFor("sigrun"));
+        assertEquals(new MercenaryStatPlan(0, 0, 1.0), MercenaryStatService.planFor("Sigrun"));
     }
 
     private static void openGate() {

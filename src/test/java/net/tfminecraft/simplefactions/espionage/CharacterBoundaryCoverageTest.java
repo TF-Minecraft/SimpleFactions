@@ -207,15 +207,15 @@ class CharacterBoundaryCoverageTest {
   @Test
   void ownRosterCombinesCurrentGuildLeadershipAndOfficeWithoutDuplicatingTheFactionLeader() {
     try (var fixture = new FactionDomainFixture()) {
-      var leader = fixture.player("Alice");
-      var home = fixture.saved("home", "Alice");
-      home.addMember("Ordinary");
-      var artisans = fixture.guild(home, "Artisans", "Boris");
-      artisans.addMember("Clerk");
-      var appointment = new SpecialPositionAssignment();
-      appointment.playerName = "Boris";
-      appointment.playerId = fixture.player("Boris").getUniqueId();
-      appointment.characterId = "boris-character";
+      var members = CharacterKeyedMembers.install();
+      var leader = members.add(fixture.player("Alice"));
+      for (String name : List.of("Ordinary", "Clerk")) members.add(fixture.player(name));
+      var home = fixture.saved("home", EspionageTestFixtures.key("Alice"));
+      home.addMember(EspionageTestFixtures.key("Ordinary"));
+      var artisans = fixture.guild(home, "Artisans", EspionageTestFixtures.key("Boris"));
+      artisans.addMember(EspionageTestFixtures.key("Clerk"));
+      var appointment = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Boris");
+      appointment.playerId = members.add(fixture.player("Boris")).getUniqueId();
       home.getEspionage().appoint(appointment, 80);
       var lines = RosterLore.faction(leader, home);
       assertEquals(1, lines.stream().filter(line -> line.contains("Alice")).count());
@@ -246,10 +246,11 @@ class CharacterBoundaryCoverageTest {
   void nestedGuiCommandsRestoreTheOuterObserversIntelligenceContext(boolean nestedFails) {
     try (var fixture = new FactionDomainFixture();
         var database = mockConstruction(Database.class)) {
-      var alice = fixture.player("Alice");
-      var bob = fixture.player("Bob");
-      var first = fixture.saved("first", "Alice");
-      var second = fixture.saved("second", "Bob");
+      var members = CharacterKeyedMembers.install();
+      var alice = members.add(fixture.player("Alice"));
+      var bob = members.add(fixture.player("Bob"));
+      var first = fixture.saved("first", EspionageTestFixtures.key("Alice"));
+      var second = fixture.saved("second", EspionageTestFixtures.key("Bob"));
       appointLeader(first, alice);
       appointLeader(second, bob);
       assertNull(EspionageService.report(alice, second));
@@ -284,10 +285,8 @@ class CharacterBoundaryCoverageTest {
   }
 
   private void appointLeader(Faction faction, Player leader) {
-    var appointment = new SpecialPositionAssignment();
+    var appointment = EspionageTestFixtures.bind(new SpecialPositionAssignment(), leader.getName());
     appointment.playerId = leader.getUniqueId();
-    appointment.playerName = leader.getName();
-    appointment.characterId = leader.getName() + "-character";
     faction.getEspionage().assignFounder(SpecialPosition.SPYMASTER, appointment, 80);
   }
 

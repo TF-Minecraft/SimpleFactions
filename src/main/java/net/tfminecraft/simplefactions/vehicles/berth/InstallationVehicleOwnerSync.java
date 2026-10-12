@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class InstallationVehicleOwnerSync {
@@ -17,11 +18,16 @@ public final class InstallationVehicleOwnerSync {
         this.registry = registry;
     }
 
+    /**
+     * VehicleFramework names the leader's account. Null while that account cannot be
+     * read, so callers leave the owner as it is.
+     */
     public static String expectedOwner(Faction faction) {
         if (faction == null || faction.getLeader() == null) {
             return "player_none";
         }
-        return "player_" + faction.getLeader();
+        String account = VehicleOwnershipQueries.accountNameOf(faction.getLeader());
+        return account == null ? null : "player_" + account;
     }
 
     public void applyLeaderOwner(ActiveVehicle vehicle, Faction faction) {
@@ -35,7 +41,10 @@ public final class InstallationVehicleOwnerSync {
         if (ownerData == null || faction == null) {
             return;
         }
-        ownerData.setOwner(expectedOwner(faction));
+        String expected = expectedOwner(faction);
+        if (expected != null) {
+            ownerData.setOwner(expected);
+        }
     }
 
     public void syncIfBerthed(ActiveVehicle vehicle) {
@@ -85,6 +94,9 @@ public final class InstallationVehicleOwnerSync {
             return;
         }
         String expected = expectedOwner(faction);
+        if (expected == null) {
+            return;
+        }
         String current = ownerData.getOwner();
         if (!expected.equalsIgnoreCase(current) || isLegacyFactionOwner(current)) {
             ownerData.setOwner(expected);

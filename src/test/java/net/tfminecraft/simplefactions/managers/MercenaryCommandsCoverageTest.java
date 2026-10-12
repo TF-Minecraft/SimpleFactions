@@ -273,7 +273,14 @@ class MercenaryCommandsCoverageTest {
     verify(recruit).sendMessage(contains("no company invite to decline"));
     assertTrue(company.adminAdjustSlots(1).ok());
     run(captain, "invite", "Offline");
-    verify(captain).sendMessage(contains("Could not find the player Offline"));
+    verify(captain).sendMessage(contains("No online player found"));
+    Player newcomer = fixture.player("Newcomer");
+    try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members.when(() -> net.tfminecraft.simplefactions.identity.Members.key(newcomer)).thenReturn(null);
+      run(captain, "invite", "Newcomer");
+    }
+    verify(captain).sendMessage(contains("Newcomer has no character to enlist"));
+    assertFalse(RequestManager.hasRequest(newcomer));
     assertEquals(List.of("Captain"), company.getEnlisted());
   }
 

@@ -97,7 +97,8 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        if (!installationVehicleService.tryRegister(installation, vehicle, faction, leader.getUniqueId())) {
+        if (!installationVehicleService.tryRegister(
+                installation, vehicle, faction, VehicleOwnershipQueries.characterId(leader))) {
             leader.sendMessage(VehicleTransferMessages.saveFailed());
             event.setCancelled(true);
             return;
@@ -177,7 +178,7 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        if (!poolService.tryRegister(faction, vehicle, leader.getUniqueId())) {
+        if (!poolService.tryRegister(faction, vehicle, VehicleOwnershipQueries.characterId(leader))) {
             leader.sendMessage(VehicleTransferMessages.saveFailed());
             event.setCancelled(true);
             return;

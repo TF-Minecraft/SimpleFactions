@@ -213,7 +213,8 @@ class MercenaryEnlistmentTest {
         List<Guild> guilds = List.of(fixture.guild);
         company.enlist("Sigrun");
 
-        assertSame(company, MercenaryCompanies.findByMember("sigrun", guilds));
+        assertSame(company, MercenaryCompanies.findByMember("Sigrun", guilds));
+        assertNull(MercenaryCompanies.findByMember("sigrun", guilds));
         assertNull(MercenaryCompanies.findByMember("Bjorn", guilds));
         assertSame(company, MercenaryCompanies.findByName("hired blades", guilds));
         assertNull(MercenaryCompanies.findByName("Iron Wolves", guilds));

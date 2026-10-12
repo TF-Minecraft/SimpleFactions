@@ -661,11 +661,13 @@ class FactionEconomicsCoverageTest {
   }
 
   private void guard(Faction faction, Player leader) {
+    // Offices are held by characters: an established appointee whose character is a member.
+    java.util.UUID character = java.util.UUID.nameUUIDFromBytes((faction.getId() + "-character").getBytes());
     SpecialPositionAssignment assignment = new SpecialPositionAssignment();
     assignment.playerId = leader.getUniqueId();
     assignment.playerName = leader.getName();
-    assignment.characterId = faction.getId() + "-character";
-    assignment.automatic = true;
-    faction.getEspionage().assignFounder(SpecialPosition.SPYMASTER, assignment, 75);
+    assignment.characterId = character.toString();
+    faction.addMember(net.tfminecraft.simplefactions.identity.Members.key(character));
+    faction.getEspionage().appoint(assignment, 75, 0);
   }
 }

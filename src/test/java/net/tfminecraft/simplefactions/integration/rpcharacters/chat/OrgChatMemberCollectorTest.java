@@ -31,7 +31,7 @@ class OrgChatMemberCollectorTest {
 	}
 
 	@Test
-	void onlineMatchingNamesIncludedCaseInsensitivelyOnce() {
+	void eachOnlinePlayerIsIncludedOnce() {
 		Player alice = onlinePlayer();
 		Map<String, Player> lookup = new HashMap<>();
 		lookup.put("alice", alice);

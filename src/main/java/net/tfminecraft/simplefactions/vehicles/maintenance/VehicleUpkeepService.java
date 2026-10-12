@@ -24,6 +24,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
 import net.tfminecraft.simplefactions.player.income.PlayerCashflow;
 import net.tfminecraft.simplefactions.utils.Formatter;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 
 public final class VehicleUpkeepService {
@@ -75,7 +76,8 @@ public final class VehicleUpkeepService {
                 continue;
             }
             // Tax is charged with upkeep, so a player who misses one misses both.
-            Quote tax = VehicleFeeService.quote(FeeKind.VEHICLE_TAX, playerName, vehicle.getTypeId());
+            Quote tax = VehicleFeeService.quote(
+                    FeeKind.VEHICLE_TAX, VehicleOwnershipQueries.ownerKey(playerName), vehicle.getTypeId());
             chargePlayer(playerUuid, upkeep, tax, vehicle.getTypeId(), vehicle.getUuid(), now);
         }
         chargeFactionVehicles(now);
@@ -225,7 +227,7 @@ public final class VehicleUpkeepService {
         if (faction == null || faction.getLeader() == null || Bukkit.getServer() == null) {
             return;
         }
-        Player leader = Bukkit.getPlayerExact(faction.getLeader());
+        Player leader = Members.player(faction.getLeader());
         if (leader != null && leader.isOnline()) {
             leader.sendMessage(
                 "§cCould not pay faction vehicle upkeep ("

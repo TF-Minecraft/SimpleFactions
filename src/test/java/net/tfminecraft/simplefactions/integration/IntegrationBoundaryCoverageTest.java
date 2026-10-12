@@ -28,6 +28,7 @@ import net.tfminecraft.simplefactions.rest.RestServer;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.freeze.VfBuildersConstructionFreeze;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.vfbuilders.api.ConstructionFreeze;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -168,25 +169,29 @@ class IntegrationBoundaryCoverageTest {
   }
 
   @Test
-  void playtimeIntegrationUsesSharedOfflineSnapshotAndBecomesUnknownOnProviderLoss() {
+  void playtimeIntegrationReadsTheMembersOwnCharacterAndBecomesUnknownOnProviderLoss() {
     SimpleServicesManager services = sharedServices();
     CharacterIdentity provider = mock(CharacterIdentity.class);
+    Members.useSharedIdentity();
     MemberPlaytime.useSharedIdentity();
-    assertNull(MemberPlaytime.secondsFor("Offline"));
     UUID owner = UUID.randomUUID();
-    OfflinePlayer offline = mock(OfflinePlayer.class);
-    when(offline.getUniqueId()).thenReturn(owner);
-    when(Bukkit.getOfflinePlayerIfCached("Offline")).thenReturn(offline);
-    CharacterInfo info = new CharacterInfo(new CharacterRef(owner, UUID.randomUUID()),
-        "Last character", CharacterStatus.DEAD, null, Set.of(), 7200, Instant.EPOCH);
-    when(provider.lastPlayed(owner)).thenReturn(Optional.of(info));
+    UUID characterId = UUID.randomUUID();
+    String member = Members.key(characterId);
+    assertNull(MemberPlaytime.secondsFor(member));
+    CharacterInfo info = new CharacterInfo(new CharacterRef(owner, characterId),
+        "Older character", CharacterStatus.DEAD, null, Set.of(), 7200, Instant.EPOCH);
+    CharacterInfo lastPlayed = new CharacterInfo(new CharacterRef(owner, UUID.randomUUID()),
+        "Last character", CharacterStatus.ALIVE, null, Set.of(), 60, Instant.EPOCH);
+    when(provider.info(characterId)).thenReturn(Optional.of(info));
+    when(provider.lastPlayed(owner)).thenReturn(Optional.of(lastPlayed));
     services.register(CharacterIdentity.class, provider, rig.ui.plugin, ServicePriority.Normal);
     try {
-      assertEquals(7200, MemberPlaytime.secondsFor("Offline"));
-      verify(provider).lastPlayed(owner);
+      assertEquals(7200, MemberPlaytime.secondsFor(member), "Not the account's last-played character");
+      assertNull(MemberPlaytime.secondsFor("Offline"), "A name is not a character");
+      verify(provider, never()).lastPlayed(any());
       verify(Bukkit.getPluginManager(), never()).isPluginEnabled("RPCharacters");
       services.unregister(CharacterIdentity.class, provider);
-      assertNull(MemberPlaytime.secondsFor("Offline"));
+      assertNull(MemberPlaytime.secondsFor(member));
     } finally {
       services.unregister(CharacterIdentity.class, provider);
       MemberPlaytime.reset();

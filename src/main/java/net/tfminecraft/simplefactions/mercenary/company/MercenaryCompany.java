@@ -6,8 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import net.tfminecraft.simplefactions.identity.Members;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.army.MilitaryExpansion;
@@ -179,7 +178,7 @@ public class MercenaryCompany {
 
     public boolean isLeader(String player) {
         String leader = getLeader();
-        return leader != null && player != null && leader.equalsIgnoreCase(player);
+        return leader != null && leader.equals(player);
     }
 
     public String getName() {
@@ -351,10 +350,7 @@ public class MercenaryCompany {
     }
 
     public boolean isEnlisted(String player) {
-        for (String s : enlisted) {
-            if (s.equalsIgnoreCase(player)) return true;
-        }
-        return false;
+        return player != null && enlisted.contains(player);
     }
 
     public boolean enlist(String player) {
@@ -376,16 +372,11 @@ public class MercenaryCompany {
 
     /** Frees the slot, which in turn freezes expansion until it is filled again. */
     public boolean kick(String player) {
-        for (int i = 0; i < enlisted.size(); i++) {
-            if (enlisted.get(i).equalsIgnoreCase(player)) {
-                enlisted.remove(i);
-                // Every roster or slot change funnels through the one guarded check, so no
-                // caller has to know which of the two can put the company under its promise.
-                ContractTerminationService.checkSlotCommitments(this);
-                return true;
-            }
-        }
-        return false;
+        if (player == null || !enlisted.remove(player)) return false;
+        // Every roster or slot change funnels through the one guarded check, so no
+        // caller has to know which of the two can put the company under its promise.
+        ContractTerminationService.checkSlotCommitments(this);
+        return true;
     }
 
     /* =====================================================
@@ -556,12 +547,12 @@ public class MercenaryCompany {
     }
 
     /**
-     * The company disbands only when every player on it — the guild leader and
-     * each enlisted fighter — has no alive character with the mercenary trait.
-     * A character they are not currently playing still counts, including one
-     * stored for an offline account. A player who can be checked and has none
-     * is dismissed. A player who cannot be checked is left in place, and that
-     * uncertainty keeps the company from disbanding.
+     * The company disbands only when no character on it — the guild leader and
+     * each enlisted fighter — is an alive character with the mercenary trait.
+     * Each character is judged on its own; another character on the same account
+     * does not count. A character that can be read and fails is dismissed. One
+     * that cannot be read is left in place, and that uncertainty keeps the
+     * company from disbanding.
      *
      * @return true when this company was disbanded and the rest of the tick must stop
      */
@@ -587,8 +578,8 @@ public class MercenaryCompany {
             disband();
             for (String player : players) {
                 if (isLeader(player)) {
-                    tell(player, "§c" + companyName + " disbanded because nobody in the company"
-                            + " has a living character with the mercenary trait.");
+                    tell(player, "§c" + companyName + " disbanded because no character in the company"
+                            + " is a living mercenary.");
                 } else {
                     tell(player, "§c" + companyName + " has disbanded.");
                 }
@@ -596,19 +587,19 @@ public class MercenaryCompany {
             return true;
         }
         for (String member : new ArrayList<>(enlisted)) {
-            if (!containsIgnoreCase(withoutMercenary, member)) continue;
+            if (!withoutMercenary.contains(member)) continue;
             kick(member);
             tell(member, "§cYou were dismissed from " + name
-                    + ". You have no living character with the mercenary trait.");
+                    + ". This character is not a living mercenary.");
             if (!isLeader(member)) {
-                tell(getLeader(), "§c" + member
-                        + " was dismissed from the company. They have no living character with the mercenary trait.");
+                tell(getLeader(), "§c" + Members.display(member)
+                        + " was dismissed from the company. They are not a living mercenary.");
             }
         }
         return false;
     }
 
-    /** Guild leader plus enlisted fighters, with case-insensitive duplicates removed. */
+    /** Guild leader plus enlisted fighters, without duplicates. */
     private List<String> playersInCompany() {
         List<String> players = new ArrayList<>();
         addPlayer(players, getLeader());
@@ -618,15 +609,8 @@ public class MercenaryCompany {
 
     private static void addPlayer(List<String> players, String name) {
         if (name == null || name.isBlank()) return;
-        if (containsIgnoreCase(players, name)) return;
+        if (players.contains(name)) return;
         players.add(name);
-    }
-
-    private static boolean containsIgnoreCase(List<String> names, String name) {
-        for (String existing : names) {
-            if (existing.equalsIgnoreCase(name)) return true;
-        }
-        return false;
     }
 
     /**
@@ -648,8 +632,7 @@ public class MercenaryCompany {
 
     private static void tell(String player, String message) {
         if (player == null || message == null || SimpleFactions.plugin == null) return;
-        Player online = Bukkit.getPlayerExact(player);
-        if (online != null) online.sendMessage(message);
+        Members.online(player).ifPresent(online -> online.sendMessage(message));
     }
 
     private void tickSlotQueue() {

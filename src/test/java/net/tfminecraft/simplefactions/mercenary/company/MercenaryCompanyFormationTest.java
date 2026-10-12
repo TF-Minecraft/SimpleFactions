@@ -202,7 +202,8 @@ class MercenaryCompanyFormationTest {
         MercenaryCompany company = fixture.company();
 
         assertEquals("Ivar", company.getLeader());
-        assertTrue(company.isLeader("ivar"));
+        assertTrue(company.isLeader("Ivar"));
+        assertFalse(company.isLeader("ivar"), "Member keys match exactly");
 
         fixture.setLeader("Sigrun");
 

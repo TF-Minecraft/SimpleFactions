@@ -64,8 +64,7 @@ class EspionagePermissionsTest {
         var state = new EspionageState();
         var assignment = new SpecialPositionAssignment();
         assignment.playerId = UUID.randomUUID();
-        assignment.playerName = "Spy";
-        assignment.characterId = "character";
+        EspionageTestFixtures.bind(assignment, "Spy");
         state.appoint(assignment, () -> 60);
         when(faction.getEspionage()).thenReturn(state);
         when(faction.isMember(anyString())).thenReturn(true);
@@ -170,8 +169,7 @@ class EspionagePermissionsTest {
         assertTrue(EspionageService.eligible(faction, "Spy"));
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
-        var holder = new SpecialPositionAssignment();
-        holder.playerName = "Leader";
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Leader");
         state.assignFounder(SpecialPosition.SPYMASTER, holder, 79);
         assertEquals(1, EspionageService.positionsHeld(faction, holder));
         assertEquals(79, EspionageService.effectiveAptitude(faction, holder));
@@ -202,15 +200,14 @@ class EspionagePermissionsTest {
     @Test
     void leaderKeepsOfficeWhenAnotherMemberJoins() {
         Faction faction = mock(Faction.class);
-        when(faction.isLeader("Leader")).thenReturn(true);
-        when(faction.getLeader()).thenReturn("Leader");
-        when(faction.getMembers()).thenReturn(java.util.List.of("Leader"));
+        when(faction.isLeader(EspionageTestFixtures.key("Leader"))).thenReturn(true);
+        when(faction.getLeader()).thenReturn(EspionageTestFixtures.key("Leader"));
+        when(faction.getMembers()).thenReturn(java.util.List.of(EspionageTestFixtures.key("Leader")));
         var state = new EspionageState();
-        var holder = new SpecialPositionAssignment();
-        holder.playerName = "Leader";
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Leader");
         state.assignFounder(SpecialPosition.SPYMASTER, holder, 100);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "GuildMember"));
+        when(faction.getMembers()).thenReturn(java.util.List.of(EspionageTestFixtures.key("Leader"), "GuildMember"));
         try (var databases = mockConstruction(Database.class)) {
             assertSame(holder, EspionageService.spymaster(faction));
             assertTrue(EspionageService.hasSpymaster(faction));
@@ -224,19 +221,17 @@ class EspionagePermissionsTest {
         Faction faction = mock(Faction.class);
         when(faction.getLeader()).thenReturn("NewLeader");
         when(faction.isLeader("NewLeader")).thenReturn(true);
-        when(faction.isMember("OldLeader")).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key("OldLeader"))).thenReturn(true);
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
-        var appointed = new SpecialPositionAssignment();
-        appointed.playerName = "OldLeader";
+        var appointed = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "OldLeader");
         state.appoint(appointed, 80);
         try (var databases = mockConstruction(Database.class)) {
             assertSame(appointed, EspionageService.spymaster(faction), "A deliberate appointment survives a change of leader");
             assertTrue(databases.constructed().isEmpty());
         }
         state.removeSpymaster();
-        var automatic = new SpecialPositionAssignment();
-        automatic.playerName = "OldLeader";
+        var automatic = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "OldLeader");
         state.assignFounder(SpecialPosition.SPYMASTER, automatic, 80);
         assertFalse(EspionageService.hasSpymaster(faction));
         try (var databases = mockConstruction(Database.class)) {

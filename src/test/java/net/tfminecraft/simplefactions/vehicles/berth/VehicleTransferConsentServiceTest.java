@@ -87,7 +87,7 @@ class VehicleTransferConsentServiceTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"Leader", "lEaDeR"})
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"Leader"})
     void acceptRequest_registersVehicleWhenValidationPasses(String leaderName) {
         UUID ownerUuid = UUID.randomUUID();
         UUID leaderUuid = UUID.randomUUID();

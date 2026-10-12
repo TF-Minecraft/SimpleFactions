@@ -39,6 +39,7 @@ import net.tfminecraft.simplefactions.war.resolution.WarReparationsService;
 public class Ledger {
     private Guild guild;
 
+    // Keyed by the earning character's member key.
     private final Map<String, Double> citizenTaxes = new HashMap<>();
 
     private final Map<String, Double> loanPayments = new HashMap<>();

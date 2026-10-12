@@ -62,8 +62,8 @@ public final class VehicleTransferConsentService {
         RequestManager.addRequest(leader, owner, request);
         if (RequestManager.getRequest(owner) != request) return false;
         owner.sendMessage(VehicleTransferMessages.consentPrompt(
-                leader.getName(), vehicle.getId(), installation.getName()));
-        leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+                Members.name(leader), vehicle.getId(), installation.getName()));
+        leader.sendMessage(VehicleTransferMessages.consentSent(Members.name(owner)));
         return true;
     }
 
@@ -80,8 +80,8 @@ public final class VehicleTransferConsentService {
                 vehicle.getId(), owner.getUniqueId(), leader.getUniqueId(), true);
         RequestManager.addRequest(leader, owner, request);
         if (RequestManager.getRequest(owner) != request) return false;
-        owner.sendMessage(VehicleTransferMessages.poolConsentPrompt(leader.getName(), vehicle.getId()));
-        leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+        owner.sendMessage(VehicleTransferMessages.poolConsentPrompt(Members.name(leader), vehicle.getId()));
+        leader.sendMessage(VehicleTransferMessages.consentSent(Members.name(owner)));
         return true;
     }
 
@@ -138,7 +138,8 @@ public final class VehicleTransferConsentService {
             return;
         }
 
-        if (!installationVehicleService.tryRegister(installation, vehicle, faction, req.getOwnerUuid())) {
+        if (!installationVehicleService.tryRegister(
+                installation, vehicle, faction, VehicleOwnershipQueries.characterId(owner))) {
             String message = VehicleTransferMessages.saveFailed();
             owner.sendMessage(message);
             notifyProposer(req, message);
@@ -168,7 +169,7 @@ public final class VehicleTransferConsentService {
             return;
         }
 
-        if (!poolService.tryRegister(faction, vehicle, req.getOwnerUuid())) {
+        if (!poolService.tryRegister(faction, vehicle, VehicleOwnershipQueries.characterId(owner))) {
             String message = VehicleTransferMessages.saveFailed();
             owner.sendMessage(message);
             notifyProposer(req, message);

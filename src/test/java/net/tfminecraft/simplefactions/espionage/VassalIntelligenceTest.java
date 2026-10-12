@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Represents;
+import net.tfminecraft.simplefactions.identity.Members;
 
 class VassalIntelligenceTest {
     @AfterEach void restoreDefaults() { EspionageConfig.load(new YamlConfiguration()); }
@@ -94,19 +95,19 @@ class VassalIntelligenceTest {
         when(target.getGuildHandler().getGuilds()).thenReturn(List.of());
         var state = new EspionageState();
         var holder = new SpecialPositionAssignment();
-        holder.playerName = "Account1";
+        EspionageTestFixtures.bind(holder, "Account1");
         state.appoint(holder, 70);
         when(target.getEspionage()).thenReturn(state);
         when(target.isMember(anyString())).thenReturn(true);
         var report = EspionageService.createReport(Map.of(), -50, IntelligenceTier.DETAILED, new Random(2));
-        try (var names = mockStatic(CharacterNames.class); var represents = mockStatic(Represents.class)) {
-            names.when(() -> CharacterNames.forForeign(anyString())).thenAnswer(call -> call.getArgument(0));
+        try (var names = mockStatic(Members.class, CALLS_REAL_METHODS); var represents = mockStatic(Represents.class)) {
+            names.when(() -> Members.display(anyString())).thenAnswer(call -> call.getArgument(0));
             represents.when(() -> Represents.represents(eq(target), anyString())).thenReturn("Guild");
             EspionageService.captureMembers(report, target, -50, new Random(2));
             EspionageService.captureOffices(report, target, new Random(2));
         }
         assertEquals(10, report.members.size());
-        assertEquals("Account1", report.officeHolder(SpecialPosition.SPYMASTER));
+        assertEquals(EspionageTestFixtures.key("Account1"), report.officeHolder(SpecialPosition.SPYMASTER));
         assertEquals("70", report.display(IntelligenceReport.officeAptitudeKey(SpecialPosition.SPYMASTER)));
     }
 
@@ -121,8 +122,8 @@ class VassalIntelligenceTest {
         when(guild.getMembers()).thenReturn(members);
         when(guild.isMember(anyString())).thenReturn(true);
         var report = EspionageService.createReport(Map.of(), -50, IntelligenceTier.RUMOURS, new Random(3));
-        try (var names = mockStatic(CharacterNames.class); var represents = mockStatic(Represents.class)) {
-            names.when(() -> CharacterNames.forForeign(anyString())).thenAnswer(call -> call.getArgument(0));
+        try (var names = mockStatic(Members.class, CALLS_REAL_METHODS); var represents = mockStatic(Represents.class)) {
+            names.when(() -> Members.display(anyString())).thenAnswer(call -> call.getArgument(0));
             represents.when(() -> Represents.represents(eq(target), anyString())).thenReturn("Guild");
             EspionageService.captureMembers(report, target, -50, new Random(3));
         }
@@ -191,7 +192,7 @@ class VassalIntelligenceTest {
         Player spy = mock(Player.class), member = mock(Player.class);
         var state = new EspionageState();
         var holder = new SpecialPositionAssignment();
-        holder.playerName = "Spy";
+        EspionageTestFixtures.bind(holder, "Spy");
         holder.playerId = UUID.randomUUID();
         state.appoint(holder, 60);
         when(faction.getId()).thenReturn("faction");
@@ -233,7 +234,7 @@ class VassalIntelligenceTest {
         Player spy = mock(Player.class);
         var state = new EspionageState();
         var holder = new SpecialPositionAssignment();
-        holder.playerName = "Spy";
+        EspionageTestFixtures.bind(holder, "Spy");
         holder.playerId = UUID.randomUUID();
         state.appoint(holder, 60);
         state.share(SharingPartner.VASSALS, IntelligenceTier.RUMOURS);
@@ -252,7 +253,7 @@ class VassalIntelligenceTest {
         Player spy = mock(Player.class);
         var state = new EspionageState();
         var holder = new SpecialPositionAssignment();
-        holder.playerName = "Spy";
+        EspionageTestFixtures.bind(holder, "Spy");
         holder.playerId = UUID.randomUUID();
         state.appoint(holder, 60);
         when(faction.getId()).thenReturn("faction");

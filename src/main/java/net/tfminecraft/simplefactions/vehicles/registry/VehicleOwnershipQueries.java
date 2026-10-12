@@ -10,9 +10,11 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.denareconomy.accounts.OfflineModifier;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 import net.tfminecraft.vehicleframework.VehicleFramework;
+import net.tfminecraft.tlibs.character.Characters;
 
 public final class VehicleOwnershipQueries {
     public interface OwnedInventory {
@@ -94,6 +96,48 @@ public final class VehicleOwnershipQueries {
 
     public static UUID resolvePlayerUuid(String playerName) {
         return OfflineModifier.playerId(playerName);
+    }
+
+    /**
+     * The member behind a VehicleFramework owner name. Owner tags still name accounts
+     * (stage 6), so this is the character being played, else the account's last-played
+     * character. Without a server or character provider the name itself is the key.
+     */
+    public static String ownerKey(String accountName) {
+        if (accountName == null || accountName.isBlank()) {
+            return null;
+        }
+        if (Bukkit.getServer() == null) {
+            return accountName;
+        }
+        Player online = Bukkit.getPlayerExact(accountName);
+        if (online != null) {
+            return Members.key(online);
+        }
+        if (!Bukkit.isPrimaryThread() || !Characters.available()) {
+            return accountName;
+        }
+        UUID account = OfflineModifier.playerId(accountName);
+        if (account == null) {
+            return null;
+        }
+        return Characters.lastPlayed(account)
+                .filter(info -> account.equals(info.ref().ownerId()))
+                .map(info -> Members.key(info.ref()))
+                .orElse(null);
+    }
+
+    /** The character a new registry row or fee is recorded for; the account without a character. */
+    public static UUID characterId(Player player) {
+        return Members.session(player).map(session -> session.ref().characterId()).orElse(player.getUniqueId());
+    }
+
+    /** The account name VehicleFramework uses for a member's vehicles; a non-key is already a name. */
+    public static String accountNameOf(String member) {
+        if (member == null || member.isBlank()) {
+            return null;
+        }
+        return Members.characterId(member) == null ? member : Members.accountName(member);
     }
 
     public static String resolvePlayerName(UUID playerUuid) {

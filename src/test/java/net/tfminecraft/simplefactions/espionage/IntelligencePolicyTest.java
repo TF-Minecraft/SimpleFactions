@@ -59,13 +59,13 @@ class IntelligencePolicyTest {
         var target = mock(Faction.class);
         var state = new EspionageState();
         when(target.getEspionage()).thenReturn(state);
-        when(target.isMember("Account")).thenReturn(true);
-        when(target.getMembers()).thenReturn(List.of("Account"));
-        var holder = new SpecialPositionAssignment();
-        holder.playerName = "Account";
+        String account = EspionageTestFixtures.key("Account");
+        when(target.isMember(account)).thenReturn(true);
+        when(target.getMembers()).thenReturn(List.of(account));
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Account");
         state.appoint(holder, 80);
-        try (var names = mockStatic(CharacterNames.class)) {
-            names.when(() -> CharacterNames.forForeign("Account")).thenReturn("Lady Raven");
+        try (var names = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+            names.when(() -> net.tfminecraft.simplefactions.identity.Members.display(account)).thenReturn("Lady Raven");
             for (int margin : new int[]{30, 65, 100}) {
                 var report = EspionageService.createReport(Map.of(), margin, new Random(1));
                 EspionageService.captureOffices(report, target, new Random(1));

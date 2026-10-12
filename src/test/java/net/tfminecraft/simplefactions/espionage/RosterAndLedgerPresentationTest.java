@@ -15,19 +15,19 @@ class RosterAndLedgerPresentationTest {
         var viewer = mock(Player.class); var faction = mock(Faction.class, RETURNS_DEEP_STUBS);
         when(faction.getEspionage()).thenReturn(new EspionageState());
         var realm = mock(Guild.class); var rich = mock(Guild.class); var poor = mock(Guild.class);
-        when(faction.getLeader()).thenReturn("LeaderAccount"); when(faction.getRulerTitle()).thenReturn("Elder");
+        when(faction.getRulerTitle()).thenReturn("Elder");
         when(faction.getGuildHandler().getGuilds()).thenReturn(List.of(poor, rich, realm));
         when(realm.isBase()).thenReturn(true); when(realm.getName()).thenReturn("Main Realm");
         when(realm.getFaction()).thenReturn(faction);
         when(rich.getName()).thenReturn("Rich Guild"); when(rich.getWealth()).thenReturn(1000.0);
         when(poor.getName()).thenReturn("Poor Guild"); when(poor.getWealth()).thenReturn(100.0);
-        try (var identity = new OfficeOptionalIntegrationsTest.IdentityFixture("LeaderAccount");
+        try (var identity = new OfficeOptionalIntegrationsTest.IdentityFixture("LeaderAccount").shared();
              var service = mockStatic(EspionageService.class)) {
             identity.activate(java.util.UUID.randomUUID());
-            identity.alias = "Rowan";
+            when(faction.getLeader()).thenReturn(identity.key());
             service.when(() -> EspionageService.canViewExact(viewer, faction)).thenReturn(true);
             String text = String.join("\n", RosterLore.faction(viewer, faction));
-            assertTrue(text.startsWith("#e8c55a\u00a7lElder: #f4e4aaRowan"));
+            assertTrue(text.startsWith("#e8c55a\u00a7lElder: #f4e4aaCanonical Secret"), "The leader's character name");
             assertTrue(text.indexOf("Main Realm") < text.indexOf("Rich Guild"));
             assertTrue(text.indexOf("Rich Guild") < text.indexOf("Poor Guild"));
             assertFalse(text.contains("Capital"));

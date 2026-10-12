@@ -9,7 +9,7 @@ import java.util.Map;
  * guild: an active wage that is a share of what the slot earns under contract,
  * and a flat peacetime wage paid whether or not there is a contract.
  *
- * <p>Each kind has a company-wide base and an optional per-player override, so a
+ * <p>Each kind has a company-wide base and an optional override per member key, so a
  * veteran can be kept on better terms than a new recruit without giving everyone
  * the raise.
  */
@@ -114,14 +114,14 @@ public class WageSettings {
     private static void put(Map<String, Double> map, String player, Double value) {
         if (player == null || player.isBlank()) return;
         if (value == null) {
-            map.remove(player.toLowerCase(java.util.Locale.ROOT));
+            map.remove(player);
             return;
         }
-        map.put(player.toLowerCase(java.util.Locale.ROOT), value);
+        map.put(player, value);
     }
 
     private static Double get(Map<String, Double> map, String player) {
         if (player == null) return null;
-        return map.get(player.toLowerCase(java.util.Locale.ROOT));
+        return map.get(player);
     }
 }

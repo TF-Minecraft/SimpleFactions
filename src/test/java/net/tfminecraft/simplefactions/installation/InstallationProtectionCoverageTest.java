@@ -257,11 +257,11 @@ class InstallationProtectionCoverageTest {
   @ValueSource(strings = {"break", "place"})
   void theOwningFactionsLeaderAndMembersBuildInsideTheirInstallationAtPeace(String eventType) {
     Location inside = new Location(fixture.ui.world, 0, 64, 0);
-    player = fixture.player("NEUTRAL");
+    player = fixture.player(neutral.getLeader());
     assertFalse(protectedAt(eventType, inside, neutral), "The leader counts as a member");
     neutral.addMember("Builder");
-    player = fixture.player("builder");
-    assertFalse(protectedAt(eventType, inside, neutral), "Membership ignores name case");
+    player = fixture.player("Builder");
+    assertFalse(protectedAt(eventType, inside, neutral), "Members build too");
     verify(player, never()).sendMessage(anyString());
   }
 

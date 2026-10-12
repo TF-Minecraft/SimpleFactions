@@ -46,7 +46,8 @@ class OfficeOptionalIntegrationsTest {
             assertNull(state.getSpymaster());
             assertEquals(0, state.appointmentCount(SpecialPosition.SPYMASTER));
             var holder = new SpecialPositionAssignment();
-            holder.playerId = f.owner; holder.characterId = "founder"; holder.playerName = "Founder";
+            holder.playerId = f.owner; holder.characterId = UUID.randomUUID().toString(); holder.playerName = "Founder";
+            when(faction.isLeader(holder.memberKey())).thenReturn(true);
             state.assignFounder(SpecialPosition.SPYMASTER, holder, 80);
             assertSame(holder, EspionageService.spymaster(faction));
             assertTrue(EspionageService.stabilityModifiers(faction, 0).isEmpty());
@@ -156,7 +157,7 @@ class OfficeOptionalIntegrationsTest {
     }
 
     @Test void onlyExactOwnerAndCanonicalDeadIdentityRevokesAnOffice() {
-        try (var f = new IdentityFixture()) {
+        try (var f = new IdentityFixture().shared()) {
             UUID id = UUID.fromString("abcdefab-cdef-abcd-efab-cdefabcdefab");
             var ref = new CharacterRef(f.owner, id);
             assertFalse(OfficeCharacters.isDead(null, id.toString()));
@@ -218,7 +219,15 @@ class OfficeOptionalIntegrationsTest {
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             bukkit.when(() -> Bukkit.getPlayer(owner)).thenAnswer(call -> connection);
             bukkit.when(() -> Bukkit.getPlayerExact(account)).thenAnswer(call -> connection);
+            bukkit.when(Bukkit::getOnlinePlayers).thenAnswer(call -> java.util.List.of(connection));
         }
+        /** Members read this fixture's provider instead of keying players by name. */
+        IdentityFixture shared() {
+            net.tfminecraft.simplefactions.identity.Members.useSharedIdentity();
+            return this;
+        }
+        /** The member key of the active character. */
+        String key() { return net.tfminecraft.simplefactions.identity.Members.key(token.ref()); }
         CharacterSession activate(UUID characterId) {
             token = new CharacterSession(new CharacterRef(owner, characterId), ++generation);
             infos.put(characterId, info(token.ref(), CharacterStatus.ALIVE));

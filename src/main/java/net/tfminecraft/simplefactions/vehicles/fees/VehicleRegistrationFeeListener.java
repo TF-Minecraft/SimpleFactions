@@ -11,6 +11,8 @@ import org.bukkit.event.Listener;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.utils.MemberAccounts;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.VehicleIntegrationListener;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
@@ -47,7 +49,7 @@ public final class VehicleRegistrationFeeListener implements Listener {
             return;
         }
         String vehicleTypeId = VehicleIntegrationListener.resolveVehicleTypeId(blueprint);
-        Quote quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, player.getName(), vehicleTypeId);
+        Quote quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, Members.key(player), vehicleTypeId);
         if (quote == null) {
             return;
         }
@@ -87,7 +89,7 @@ public final class VehicleRegistrationFeeListener implements Listener {
             SimpleFactions.getInstance().getLogger().warning("Registration fee refund short by " + shortfall
                     + " for " + build.payerUuid() + " from faction " + build.factionId());
         }
-        Player payer = Bukkit.getPlayer(build.payerUuid());
+        Player payer = Bukkit.getPlayer(MemberAccounts.accountOf(build.payerUuid()));
         if (payer != null && payer.isOnline()) {
             if (refunded > 0.0) {
                 payer.sendMessage(VehicleFeeMessages.registrationRefunded(refunded));
@@ -100,11 +102,13 @@ public final class VehicleRegistrationFeeListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onVehicleConstruct(VehicleConstructEvent event) {
-        boolean changed = store.takePaidBuild(stationKey(event.getStation())) != null;
+        PaidBuild paid = store.takePaidBuild(stationKey(event.getStation()));
+        boolean changed = paid != null;
         if (event.getVehicle() != null && event.getConstructorUuid() != null) {
+            // The builder's character; an offline builder is known only by the fee they paid.
             String owner = event.getConstructor() != null
-                    ? event.getConstructor().getName()
-                    : VehicleOwnershipQueries.resolvePlayerName(event.getConstructorUuid());
+                    ? Members.key(event.getConstructor())
+                    : paid == null ? null : Members.key(paid.payerUuid());
             if (owner != null) {
                 store.setLastOwner(event.getVehicle().getUUID(), owner);
                 changed = true;
@@ -115,9 +119,9 @@ public final class VehicleRegistrationFeeListener implements Listener {
         }
     }
 
+    /** The paying character; its account is charged. */
     static UUID payerUuid(Player player) {
-        UUID resolved = VehicleFeeService.resolve(player.getName());
-        return resolved != null ? resolved : player.getUniqueId();
+        return VehicleOwnershipQueries.characterId(player);
     }
 
     static String stationKey(ActiveStation station) {

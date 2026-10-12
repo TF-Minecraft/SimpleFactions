@@ -51,20 +51,22 @@ class EspionageMenusCoverageTest {
   private MockedStatic<TLibs> items;
   private MockedStatic<net.tfminecraft.rpcharacters.calendar.FantasyCalendar> calendar;
   private MockedConstruction<Database> databases;
+  private CharacterKeyedMembers members;
 
   @BeforeEach
   void setup() throws Exception {
     fixture = new FactionDomainFixture();
-    home = fixture.saved("home", "Leader");
+    members = CharacterKeyedMembers.install();
+    home = fixture.saved("home", EspionageTestFixtures.key("Leader"));
     home.getOrCreateMainGuild();
-    home.addMember("Spy");
-    target = fixture.saved("target", "ForeignLeader");
+    home.addMember(EspionageTestFixtures.key("Spy"));
+    target = fixture.saved("target", EspionageTestFixtures.key("ForeignLeader"));
     target.getOrCreateMainGuild();
-    guild = fixture.guild(target, "merchants", "Baron");
-    leader = fixture.player("Leader");
-    spy = fixture.player("Spy");
-    foreignLeader = fixture.player("ForeignLeader");
-    visitor = fixture.player("Visitor");
+    guild = fixture.guild(target, "merchants", EspionageTestFixtures.key("Baron"));
+    leader = members.add(fixture.player("Leader"));
+    spy = members.add(fixture.player("Spy"));
+    foreignLeader = members.add(fixture.player("ForeignLeader"));
+    visitor = members.add(fixture.player("Visitor"));
     characters = mockStatic(OfficeCharacters.class);
     characters.when(() -> OfficeCharacters.currentSession(any()))
         .thenAnswer(call -> session(call.getArgument(0)));
@@ -413,15 +415,15 @@ class EspionageMenusCoverageTest {
     click(leader, 53);
     assertEquals(SFGUI.SPYMASTER_VIEW, kind(leader));
     click(leader, 11);
-    home.setLeader("Spy");
+    home.setLeader(EspionageTestFixtures.key("Spy"));
     click(leader, 0);
     verify(leader).closeInventory();
   }
 
   @Test
   void selectingAnOnlineCharacterAppointsAndRemovalReturnsTheOfficeToTheLeader() {
-    home.addMember("NewSpy");
-    Player candidate = fixture.player("NewSpy");
+    home.addMember(EspionageTestFixtures.key("NewSpy"));
+    Player candidate = members.add(fixture.player("NewSpy"));
     EspionageView.spymasterOffice(leader, home, manager);
     click(leader, 11);
     int candidateSlot = -1;

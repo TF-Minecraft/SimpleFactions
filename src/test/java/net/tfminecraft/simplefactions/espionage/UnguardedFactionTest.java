@@ -36,10 +36,9 @@ class UnguardedFactionTest {
 
     private SpecialPositionAssignment appoint(Faction faction, String name, int aptitude) {
         var holder = new SpecialPositionAssignment();
-        holder.playerName = name;
+        EspionageTestFixtures.bind(holder, name);
         holder.playerId = UUID.randomUUID();
-        holder.characterId = "character";
-        when(faction.isMember(name)).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key(name))).thenReturn(true);
         faction.getEspionage().appoint(holder, aptitude);
         return holder;
     }
@@ -88,9 +87,10 @@ class UnguardedFactionTest {
         var target = faction("target");
         var holder = appoint(target, "Spy", 50);
         try (var characters = mockStatic(OfficeCharacters.class); var databases = mockConstruction(Database.class)) {
-            when(target.isMember("Spy")).thenReturn(false);
+            characters.when(() -> OfficeCharacters.characterUuid(any())).thenCallRealMethod();
+            when(target.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(false);
             assertTrue(EspionageService.canViewExact(viewer, target));
-            when(target.isMember("Spy")).thenReturn(true);
+            when(target.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
             characters.when(() -> OfficeCharacters.isDead(holder.playerId, holder.characterId)).thenReturn(true);
             assertTrue(EspionageService.canViewExact(viewer, target));
             assertSame(holder, target.getEspionage().getSpymaster());
@@ -159,9 +159,9 @@ class UnguardedFactionTest {
             factions.when(() -> FactionManager.getByMember("ForeignViewer")).thenReturn(observer);
             factions.when(FactionManager::getCopy).thenAnswer(ignored -> new ArrayList<>(List.of(observer, target)));
             assertSame(cached, EspionageService.report(viewer, target));
-            when(observer.isMember("ObserverSpy")).thenReturn(false);
+            when(observer.isMember(EspionageTestFixtures.key("ObserverSpy"))).thenReturn(false);
             assertNull(EspionageService.report(viewer, target), "Ineligible observers cannot read cached findings");
-            when(observer.isMember("ObserverSpy")).thenReturn(true);
+            when(observer.isMember(EspionageTestFixtures.key("ObserverSpy"))).thenReturn(true);
             try (var characters = mockStatic(OfficeCharacters.class)) {
                 characters.when(() -> OfficeCharacters.isDead(holder.playerId, holder.characterId)).thenReturn(true);
                 assertNull(EspionageService.report(viewer, target), "Dead observers cannot read cached findings");

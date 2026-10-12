@@ -52,22 +52,22 @@ public final class MercenaryCommandManager implements CommandExecutor {
         switch (sub) {
             case "found" -> found(p, args);
             case "invite" -> {
-                if (args.length != 2) {
+                if (args.length < 2) {
                     p.sendMessage("§cUsage: /company invite <player>");
                     return true;
                 }
-                MercenaryInvites.invite(p, args[1]);
+                MercenaryInvites.invite(p, rest(args));
             }
             case "accept" -> MercenaryInvites.accept(p);
             case "decline" -> MercenaryInvites.decline(p);
             case "kick" -> {
-                if (args.length != 2) {
+                if (args.length < 2) {
                     p.sendMessage("§cUsage: /company kick <player>");
                     return true;
                 }
-                report(p, MercenaryCompanyService.kick(leaderGuild(p), p.getName(), args[1]));
+                kick(p, rest(args));
             }
-            case "expand" -> report(p, MercenaryCompanyService.expand(leaderGuild(p), p.getName()));
+            case "expand" -> report(p, MercenaryCompanyService.expand(leaderGuild(p), Members.key(p)));
             case "draft" -> draft(p);
             case "offer" -> {
                 if (args.length < 2) {
@@ -94,13 +94,25 @@ public final class MercenaryCommandManager implements CommandExecutor {
             return;
         }
         Guild guild = leaderGuild(p);
-        MercenaryResult check = MercenaryCompanyService.canFound(guild, p.getName(), name);
+        MercenaryResult check = MercenaryCompanyService.canFound(guild, Members.key(p), name);
         if (!check.ok()) {
             report(p, check);
             return;
         }
         // Founding spends guild money, so the charge happens on the confirm button.
         FactionManager.getInv().confirmCompanyFoundView(p, guild, name);
+    }
+
+    /** Typed names may be character names with spaces. */
+    private static String rest(String[] args) {
+        return String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+    }
+
+    /** Matches the typed name against the roster; an unknown name is refused by name. */
+    private void kick(Player p, String input) {
+        MercenaryCompany company = company(p);
+        String member = company == null ? null : Members.find(company.getEnlisted(), input);
+        report(p, MercenaryCompanyService.kick(leaderGuild(p), Members.key(p), member == null ? input : member));
     }
 
     /** {@code /mercenaries} opens the hiring hall; {@code list} prints it in chat. */

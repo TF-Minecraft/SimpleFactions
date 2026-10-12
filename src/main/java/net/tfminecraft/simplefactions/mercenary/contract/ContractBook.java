@@ -11,6 +11,7 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryReputationCalculator;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.md_5.bungee.api.ChatColor;
 
 /**
@@ -143,7 +144,7 @@ public final class ContractBook {
                 + "\n"
                 + "Company:\n"
                 + "-------------------\n"
-                + contract.getCompany().getLeader() + "\n"
+                + Members.display(contract.getCompany().getLeader()) + "\n"
                 + "\n"
                 + "Hirer:\n"
                 + "-------------------\n"
