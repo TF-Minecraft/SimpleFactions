@@ -1150,6 +1150,137 @@ class PluginLifecycleCoverageTest {
     }
   }
 
+  private void identityReady(boolean ready) {
+    scoped(net.tfminecraft.tlibs.character.Characters.class)
+        .when(net.tfminecraft.tlibs.character.Characters::legacyHeirsReady)
+        .thenReturn(ready);
+  }
+
+  private org.bukkit.command.CommandExecutor firstExecutor(String command) {
+    var executor = org.mockito.ArgumentCaptor.forClass(org.bukkit.command.CommandExecutor.class);
+    verify(commands.get(command), atLeastOnce()).setExecutor(executor.capture());
+    return executor.getAllValues().getFirst();
+  }
+
+  private void enableEvent(String name) throws Exception {
+    Plugin enabled = mock(Plugin.class);
+    when(enabled.getName()).thenReturn(name);
+    for (Listener listener : new ArrayList<>(listeners)) {
+      if (listener.getClass().getEnclosingClass() != SimpleFactions.class) continue;
+      var method = listener.getClass().getMethod("onPluginEnable", PluginEnableEvent.class);
+      method.setAccessible(true);
+      method.invoke(listener, new PluginEnableEvent(enabled));
+    }
+  }
+
+  @Test
+  void waitingForIdentityLoadsTicksAndSavesNothingAndCommandsSaySo() throws Exception {
+    identityReady(false);
+    Map<Path, String> saved = unloadedSavedState();
+    plugin.onEnable();
+
+    assertFalse(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
+    assertFalse(plugin.isStarted());
+    verify(logger).severe(contains("Waiting for character identity"));
+    assertEquals(1, listeners.size(), "only the identity watcher listens");
+    assertEquals(1, domain.ui.repeatingTasks.size(), "only the identity poll ticks");
+    verify(dependency("db", Database.class), never()).loadFactions();
+    verify(dependency("factionManager", FactionManager.class), never()).run();
+    for (String name : SimpleFactions.COMMANDS) {
+      var executor = firstExecutor(name);
+      var sender = domain.player("Waiter");
+      assertTrue(executor.onCommand(sender, commands.get(name), name, new String[0]));
+      verify(sender, atLeastOnce()).sendMessage("§eFactions are starting up; try again in a moment.");
+      var completer = org.mockito.ArgumentCaptor.forClass(org.bukkit.command.TabCompleter.class);
+      verify(commands.get(name)).setTabCompleter(completer.capture());
+      assertEquals(List.of(), completer.getValue().onTabComplete(sender, commands.get(name), name, new String[0]));
+    }
+    // Not ready yet: neither the poll nor another plugin's enable starts anything.
+    domain.ui.repeatingTasks.getFirst().run();
+    enableEvent("RPCharacters");
+    verify(dependency("factionManager", FactionManager.class), never()).run();
+
+    plugin.onDisable();
+    verify(dependency("sessionManager", SessionManager.class), never()).end();
+    scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
+    scoped(InactivityService.class).verify(InactivityService::save, never());
+    verify(dependency("db", Database.class), never()).saveFaction(any());
+    assertSavedStateUnchanged(saved);
+    assertFalse(Files.exists(disk.root.resolve("migrations/quarantine.json")));
+  }
+
+  @Test
+  void identityArrivingByPollStartsEverythingOnceAndAnnouncesReadiness() throws Exception {
+    identityReady(false);
+    plugin.onEnable();
+    Runnable poll = domain.ui.repeatingTasks.getFirst();
+    identityReady(true);
+    poll.run();
+
+    assertTrue(plugin.isStarted());
+    assertTrue(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
+    verify(dependency("factionManager", FactionManager.class)).run();
+    verify(plugins).callEvent(any(net.tfminecraft.simplefactions.events.SimpleFactionsReadyEvent.class));
+    poll.run();
+    enableEvent("RPCharacters");
+    verify(dependency("factionManager", FactionManager.class)).run();
+
+    plugin.onDisable();
+    assertFalse(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
+    verify(dependency("sessionManager", SessionManager.class)).end();
+  }
+
+  @Test
+  void identityArrivingWithRpCharactersStartsEverything() throws Exception {
+    identityReady(false);
+    plugin.onEnable();
+    identityReady(true);
+    enableEvent("SomethingElse");
+    verify(dependency("factionManager", FactionManager.class), never()).run();
+    enableEvent("RPCharacters");
+    verify(dependency("factionManager", FactionManager.class)).run();
+    assertTrue(plugin.isStarted());
+  }
+
+  @Test
+  void aFailedMigrationKeepsFactionsOfflineWithoutRetrying() throws Exception {
+    disk.write("migrations/character-v1.json", "{broken");
+    plugin.onEnable();
+    verify(logger).log(eq(java.util.logging.Level.SEVERE), contains("Cannot migrate faction data"), any(Throwable.class));
+    assertFalse(plugin.isStarted());
+    plugin.start();
+    verify(dependency("factionManager", FactionManager.class), never()).run();
+    plugin.onDisable();
+    scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
+  }
+
+  @Test
+  void startMigratesStoredNamesBeforeAnythingLoads() throws Exception {
+    Files.delete(disk.root.resolve("migrations/character-v1.json"));
+    String heir = UUID.randomUUID().toString();
+    UUID account = UUID.randomUUID();
+    disk.write("Data/rome.json", "{\"id\":\"rome\",\"leader\":\"Caesar\",\"guilds\":[{\"id\":\"rome\","
+        + "\"leader\":\"Caesar\",\"members\":[\"Caesar\",\"Ghost\"]}]}");
+    plugin.useMigrationHeirs(new net.tfminecraft.simplefactions.migration.CharacterMigration.Heirs() {
+      @Override
+      public Optional<UUID> account(String name) {
+        return name.equals("Caesar") ? Optional.of(account) : Optional.empty();
+      }
+
+      @Override
+      public Optional<net.tfminecraft.tlibs.character.CharacterRef> heir(UUID id) {
+        return Optional.of(new net.tfminecraft.tlibs.character.CharacterRef(id, UUID.fromString(heir)));
+      }
+    });
+    org.mockito.InOrder order = inOrder(logger, dependency("db", Database.class));
+    plugin.onEnable();
+    order.verify(logger).info(contains("1 stores migrated"));
+    order.verify(dependency("db", Database.class)).loadFactions();
+    verify(logger).warning(contains("1 quarantined faction records need staff"));
+    assertTrue(Files.readString(disk.root.resolve("Data/rome.json")).contains(heir));
+    assertTrue(plugin.isStarted());
+  }
+
   @Test
   void lateDependencyEnableEventsRegisterVehicleAndChatWithoutAnotherIdentityBootstrap()
       throws Exception {
