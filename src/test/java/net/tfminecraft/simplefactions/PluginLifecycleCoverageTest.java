@@ -1174,6 +1174,16 @@ class PluginLifecycleCoverageTest {
   }
 
   @Test
+  void everyDeclaredCommandWaitsForIdentity() throws Exception {
+    try (var input = SimpleFactions.class.getClassLoader().getResourceAsStream("plugin.yml")) {
+      var yaml = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(input));
+      assertEquals(
+          yaml.getConfigurationSection("commands").getKeys(false),
+          new java.util.HashSet<>(SimpleFactions.COMMANDS));
+    }
+  }
+
+  @Test
   void waitingForIdentityLoadsTicksAndSavesNothingAndCommandsSaySo() throws Exception {
     identityReady(false);
     Map<Path, String> saved = unloadedSavedState();
