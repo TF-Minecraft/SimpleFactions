@@ -499,6 +499,12 @@ public class Guild {
         return currentLeader != null && currentLeader.equals(p);
     }
     public boolean isLeader(Player p) { return isLeader(Members.key(p)); }
+
+    /**
+     * True while the leader's seat is held by a migration quarantine record:
+     * nothing may pass the seat on or disband the guild until staff assign it.
+     */
+    public boolean hasUnresolvedLeader() { return Members.isQuarantined(getLeader()); }
     public Map<Integer, Branch> getBranches() { return branches; }
     public Branch getBranch(int i) {
         return branches.getOrDefault(i, null);
