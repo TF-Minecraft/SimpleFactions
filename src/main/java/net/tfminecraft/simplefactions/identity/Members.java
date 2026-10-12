@@ -74,6 +74,11 @@ public final class Members {
         return session != null && resolver.isCurrent(session);
     }
 
+    /** The current character key of the online account with that Minecraft name, or null. */
+    public static String ofAccountName(String accountName) {
+        return accountName == null ? null : key(onlineByName(accountName));
+    }
+
     /** The character name for a key; offline characters are read from the provider. */
     public static String display(String key) {
         if (key == null || key.isBlank()) return "Unknown";
@@ -166,6 +171,8 @@ public final class Members {
     public static String find(Collection<String> keys, String input) {
         if (keys == null || input == null) return null;
         String query = unquote(input);
+        String typedKey = key(characterId(query));
+        if (typedKey != null && keys.contains(typedKey)) return typedKey;
         Player online = onlineByName(query);
         String onlineKey = key(online);
         if (onlineKey != null && keys.contains(onlineKey)) return onlineKey;
@@ -178,10 +185,15 @@ public final class Members {
         return match;
     }
 
-    /** The key of an online player named by Minecraft or character name, or null. */
+    /**
+     * The key of an online player named by Minecraft or character name, or
+     * null. A typed character ID is taken as it is, for staff.
+     */
     public static String findOnline(String input) {
         if (input == null) return null;
         String query = unquote(input);
+        String typedKey = key(characterId(query));
+        if (typedKey != null) return typedKey;
         String direct = key(onlineByName(query));
         if (direct != null) return direct;
         String match = null;

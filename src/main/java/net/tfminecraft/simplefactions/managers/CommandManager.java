@@ -61,6 +61,8 @@ import net.tfminecraft.denareconomy.DenarEconomy;
 
 public class CommandManager implements Listener, CommandExecutor{
 	private Formatter format = new Formatter();
+	/** Sent to a player acting without a ready character session. */
+	public static final String NO_CHARACTER = "§cYou need to be playing a character to do that.";
 	public String cmd1 = "faction";
 	public String cmd2 = "guild";
 	
@@ -96,13 +98,18 @@ public class CommandManager implements Listener, CommandExecutor{
 				p.sendMessage("§a[SimpleFactions]§c Error with command format, use the gameplay guide for a list of commands");
 				return true;
 			}
+			// Without a character the player is a stranger; only staff commands remain.
+			if(Members.key(p) == null && !Permissions.isAdmin(sender)) {
+				p.sendMessage(NO_CHARACTER);
+				return true;
+			}
 			if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("create") && args.length == 2) {
 				Faction f = FactionManager.getByMember(Members.key(p));
 				if(f == null) {
 					p.sendMessage("§cYou need to be in a faction to make a guild");
 					return true;
 				}
-				if(f.isInGuild(p.getName())) {
+				if(f.isInGuild(Members.key(p))) {
 					p.sendMessage("§cYou are already in a guild");
 					return true;
 				}
@@ -156,8 +163,8 @@ public class CommandManager implements Listener, CommandExecutor{
 				guild.getFaction().getGuildHandler().removeGuild(guild.getId());
 				guild.getFaction().getProvinceHandler().revalidateClaims();
 				for(String member : guild.getMembers()) {
-					Player pl = Bukkit.getPlayerExact(member);
-					if(pl != null && !member.equalsIgnoreCase(guild.getLeader())) {
+					Player pl = Members.player(member);
+					if(pl != null && !member.equals(guild.getLeader())) {
 						pl.sendMessage("§cYour guild has been deleted!");
 						pl.sendMessage("§aJoined "+guild.getFaction().getName());
 					}
@@ -217,13 +224,17 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				String invitee = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
-				Player invited = net.tfminecraft.simplefactions.espionage.CharacterNames.resolveOnline(p, invitee);
+				Player invited = Members.resolveOnline(p, invitee);
 				if(invited == null) return true;
 				if(invited.getUniqueId().equals(p.getUniqueId())) {
 					p.sendMessage("§cCannot invite yourself");
 					return true;
 				}
-				String name = invited.getName();
+				String name = Members.key(invited);
+				if(name == null) {
+					p.sendMessage("§cThat player has not chosen a character yet");
+					return true;
+				}
 				if(guild.isInvited(name)) {
 					p.sendMessage("§cPlayer is already invited");
 					return true;
@@ -254,8 +265,8 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				} 
 				guild.invite(name);
-				p.sendMessage("§aInvited "+name);
-				invited.sendMessage("§a"+p.getName()+" invited you to the guild "+guild.getName());
+				p.sendMessage("§aInvited "+Members.display(name));
+				invited.sendMessage("§a"+Members.name(p)+" invited you to the guild "+guild.getName());
 				invited.sendMessage(InviteCommands.buttons(cmd2, guild.getId(), guild.getName()));
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("leave") && args.length == 1) {
@@ -282,21 +293,18 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cThis is the base guild, use /faction kick instead");
 					return true;
 				}
-				if(!guild.isMember(args[1])) {
+				String kicked = Members.find(guild.getMembers(), args[1]);
+				if(kicked == null) {
 					p.sendMessage("§cPlayer is not a member");
 					return true;
 				}
-				if(args[1].equalsIgnoreCase(guild.getLeader())) {
+				if(kicked.equals(guild.getLeader())) {
 					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
 				}
-				guild.kick(args[1]);
-				p.sendMessage("§aKicked "+args[1]);
-				for(Player pl : Bukkit.getOnlinePlayers()) {
-					if(pl.getName().equalsIgnoreCase(args[1])) {
-						pl.sendMessage("§a"+p.getName()+ " kicked you from "+guild.getName());
-					}
-				}
+				guild.kick(kicked);
+				p.sendMessage("§aKicked "+Members.display(kicked));
+				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+guild.getName()));
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("setbank") && args.length == 1) {
 				if(FactionManager.getGuildByLeader(Members.key(p)) != null) {
@@ -344,7 +352,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 					pouch.change(amount*-1);
 					g.getBank().deposit(amount);
-					g.getLedger().getHistory().addDeposit(p.getName(), amount);
+					g.getLedger().getHistory().addDeposit(Members.key(p), amount);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aDeposited: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Guild Balance: #b39122"+b.getWealth()+"#dbaf1dd"));
@@ -483,18 +491,19 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cOnly the leader can set a new leader!");
 					return true;
 				}
-				if(!g.isMember(args[1])) {
+				String heir = Members.find(g.getMembers(), args[1]);
+				if(heir == null) {
 					p.sendMessage("§cPlayer is not in the guild");
 					return true;
 				}
-				if(args[1].equalsIgnoreCase(g.getLeader())) {
+				if(heir.equals(g.getLeader())) {
 					p.sendMessage("§cPlayer is already the leader");
 					return true;
 				}
-				g.setLeader(args[1]);
+				g.setLeader(heir);
 				for(Player pl : Bukkit.getOnlinePlayers()) {
 					if(g.isMember(Members.key(pl))) {
-						pl.sendMessage("§a"+args[1]+ " is the new guild leader!");
+						pl.sendMessage("§a"+Members.display(heir)+ " is the new guild leader!");
 					}
 				}
 				return true;
@@ -522,10 +531,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				g.setLeader(member);
-				p.sendMessage("§a"+member+" now leads "+g.getName());
+				p.sendMessage("§a"+Members.display(member)+" now leads "+g.getName());
 				for(Player pl : Bukkit.getOnlinePlayers()) {
 					if(!pl.equals(p) && g.isMember(Members.key(pl))) {
-						pl.sendMessage("§a"+member+ " is the new guild leader!");
+						pl.sendMessage("§a"+Members.display(member)+ " is the new guild leader!");
 					}
 				}
 				return true;
@@ -553,7 +562,11 @@ public class CommandManager implements Listener, CommandExecutor{
 						== DisplayNameGate.Result.NEEDS_CONFIRM) {
 					return true;
 				}
-				Faction f = new Faction(args[1], p.getName());
+				if(Members.key(p) == null) {
+					p.sendMessage(NO_CHARACTER);
+					return true;
+				}
+				Faction f = new Faction(args[1], Members.key(p));
 				FactionCreateEvent factionCreateEvent = new FactionCreateEvent(p, f);
 				Bukkit.getPluginManager().callEvent(factionCreateEvent);
 				if(!factionCreateEvent.isCancelled()) {
@@ -871,25 +884,22 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cOnly the leader can dismiss members!");
 					return true;
 				}
-				if(args[1].equalsIgnoreCase(f.getLeader())) {
+				String kicked = Members.find(f.getMembers(), args[1]);
+				if(kicked != null && kicked.equals(f.getLeader())) {
 					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
 				}
-				if(!f.getMembers().contains(args[1])) {
+				if(kicked == null) {
 					p.sendMessage("§cPlayer is not a member");
 					return true;
 				}
-				if(f.isInGuild(args[1])) {
+				if(f.isInGuild(kicked)) {
 					p.sendMessage("§cPlayer is a member of a guild");
 					return true;
 				}
-				f.forceRemoveMember(args[1]);;
-				p.sendMessage("§aKicked "+args[1]);
-				for(Player pl : Bukkit.getOnlinePlayers()) {
-					if(pl.getName().equalsIgnoreCase(args[1])) {
-						pl.sendMessage("§a"+p.getName()+ " kicked you from "+f.getName());
-					}
-				}
+				f.forceRemoveMember(kicked);
+				p.sendMessage("§aKicked "+Members.display(kicked));
+				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+f.getName()));
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("setleader") && args.length == 2) {
 				Faction f = FactionManager.getByMember(Members.key(p));
@@ -905,22 +915,23 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cCannot set leader in a democracy!");
 					return true;
 				}
-				if(!f.getMembers().contains(args[1])) {
+				String heir = Members.find(f.getMembers(), args[1]);
+				if(heir == null) {
 					p.sendMessage("§cPlayer is not in the faction");
 					return true;
 				}
-				if(args[1].equalsIgnoreCase(f.getLeader())) {
+				if(heir.equals(f.getLeader())) {
 					p.sendMessage("§cPlayer is already the leader");
 					return true;
 				}
-				if(!f.canBecomeLeader(args[1])) {
+				if(!f.canBecomeLeader(heir)) {
 					p.sendMessage("§cPlayer is not eligible to be leader (perhaps they are a guild leader?)");
 					return true;
 				}
-				f.setLeader(args[1]);
+				f.setLeader(heir);
 				for(Player pl : Bukkit.getOnlinePlayers()) {
 					if(f.getMembers().contains(Members.key(pl))) {
-						pl.sendMessage("§a"+args[1]+ " is the new faction leader!");
+						pl.sendMessage("§a"+Members.display(heir)+ " is the new faction leader!");
 					}
 				}
 				return true;
@@ -934,12 +945,16 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cOnly the leader can invite new members!");
 					return true;
 				}
-				Player invited = net.tfminecraft.simplefactions.espionage.CharacterNames.resolveOnline(p,
+				Player invited = Members.resolveOnline(p,
 						String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
 				if(invited == null) {
 					return true;
 				}
-				String name = invited.getName();
+				String name = Members.key(invited);
+				if(name == null) {
+					p.sendMessage("§cThat player has not chosen a character yet");
+					return true;
+				}
 				if(f.isMember(name)) {
 					p.sendMessage("§cPlayer is already a member");
 					return true;
@@ -953,8 +968,8 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				f.invite(name);
-				p.sendMessage("§aInvited "+name);
-				invited.sendMessage("§a"+p.getName()+ " invited you to "+f.getName());
+				p.sendMessage("§aInvited "+Members.display(name));
+				invited.sendMessage("§a"+Members.name(p)+ " invited you to "+f.getName());
 				invited.sendMessage(InviteCommands.buttons(cmd1, f.getId(), f.getName()));
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("leave") && args.length == 1) {
@@ -968,7 +983,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				Faction f = FactionManager.getByMember(Members.key(p));
-				if(f.isInGuild(p.getName())) {
+				if(f.isInGuild(Members.key(p))) {
 					p.sendMessage("§cYou are in a guild, use /guild leave instead");
 					return true;
 				}
@@ -1149,7 +1164,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 					pouch.change(amount*-1);
 					f.getBank().deposit(amount);
-					f.getOrCreateMainGuild().getLedger().getHistory().addDeposit(p.getName(), amount);
+					f.getOrCreateMainGuild().getLedger().getHistory().addDeposit(Members.key(p), amount);
 					p.sendMessage("§e============§6[Bank Report]§e==============");
 					p.sendMessage(StringFormatter.formatHex("#6ab05aDeposited: #b39122"+amount+"#dbaf1dd"));
 					p.sendMessage(StringFormatter.formatHex("#3ce8c9New Faction Balance: #b39122"+b.getWealth()+"#dbaf1dd"));
@@ -1406,22 +1421,23 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§a[SimpleFactions]§c Error! faction does not exist!");
 					return true;
 				}
-				if(!f.getMembers().contains(args[2])) {
+				String heir = Members.find(f.getMembers(), args[2]);
+				if(heir == null) {
 					p.sendMessage("§cPlayer is not in the faction");
 					return true;
 				}
-				if(args[2].equalsIgnoreCase(f.getLeader())) {
+				if(heir.equals(f.getLeader())) {
 					p.sendMessage("§cPlayer is already the leader");
 					return true;
 				}
-				if(!f.canBecomeLeader(args[2])) {
+				if(!f.canBecomeLeader(heir)) {
 					p.sendMessage("§cPlayer is not eligible to be leader (perhaps they are a guild leader?)");
 					return true;
 				}
-				f.setLeader(args[2]);
+				f.setLeader(heir);
 				for(Player pl : Bukkit.getOnlinePlayers()) {
 					if(f.getMembers().contains(Members.key(pl))) {
-						pl.sendMessage("§a"+args[2]+ " is the new faction leader!");
+						pl.sendMessage("§a"+Members.display(heir)+ " is the new faction leader!");
 					}
 				}
 				return true;
@@ -1435,18 +1451,23 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§a[SimpleFactions]§c Error! faction does not exist!");
 					return true;
 				}
-				if(f.getMembers().contains(args[2])) {
+				String joiner = Members.findOnline(args[2]);
+				if(joiner == null) {
+					p.sendMessage("§cNo online character or character ID matches "+args[2]);
+					return true;
+				}
+				if(f.getMembers().contains(joiner)) {
 					p.sendMessage("§cPlayer is already in the faction");
 					return true;
 				}
-				if(FactionManager.getByMember(args[2]) != null) {
+				if(FactionManager.getByMember(joiner) != null) {
 					p.sendMessage("§cPlayer is already in a faction");
 					return true;
 				}
-				f.addMember(args[2]);;
+				f.addMember(joiner);
 				for(Player pl : Bukkit.getOnlinePlayers()) {
 					if(f.getMembers().contains(Members.key(pl))) {
-						pl.sendMessage("§a"+args[2]+ " joined the faction!");
+						pl.sendMessage("§a"+Members.display(joiner)+ " joined the faction!");
 					}
 				}
 				return true;
@@ -1485,7 +1506,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				}
 				p.sendMessage("§6"+amount+" §cwas withdrawn from the bank of "+f.getName());
 				for(String s : f.getMembers()) {
-					Player member = Bukkit.getPlayer(s);
+					Player member = Members.player(s);
 					if(member != null && member.isOnline()) {
 						member.sendMessage("§6"+amount+" §cwas withdrawn from the faction by admins, §cmake a ticket if you believe this was a mistake");
 					}

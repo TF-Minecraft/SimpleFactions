@@ -173,7 +173,7 @@ public class PlayerManager implements Listener{
             issuer.getLoanHandler().issueLoan(loan);
             p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
             p.sendMessage("§aLoan taken!");
-            Player lender = Bukkit.getPlayer(issuer.getLeader());
+            Player lender = Members.player(issuer.getLeader());
             if(lender != null && lender.isOnline()) {
                 lender.sendMessage("§aYour loan has been accepted by "+borrowerGuild.getName()+"!");
                 lender.playSound(lender, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
@@ -190,7 +190,7 @@ public class PlayerManager implements Listener{
                     m.setPages(completeMeta.getPages());
                     m.setDisplayName("§6Loan Agreement §7"+Cache.getFantasyDate(System.currentTimeMillis()));
                     m.setTitle("§6Loan Agreement §7"+Cache.getFantasyDate(System.currentTimeMillis()));
-                    m.setAuthor(issuer.getLeader()+" and "+p.getName());
+                    m.setAuthor(Members.display(issuer.getLeader())+" and "+Members.name(p));
                     i.setItemMeta(m);
                     replacement.accept(i);
                 }
@@ -267,12 +267,12 @@ public class PlayerManager implements Listener{
             p.sendMessage((result.ok() ? "§a" : "§c")+result.message());
             if(!result.ok()) return;
             p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-            Player leader = Bukkit.getPlayer(company.getLeader());
+            Player leader = Members.player(company.getLeader());
             if(leader != null && leader.isOnline()) {
                 leader.sendMessage("§a"+result.message());
                 leader.playSound(leader, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
             }
-            replaceHeldBook(replacement, signedAgreement(company, contract, p.getName()));
+            replaceHeldBook(replacement, signedAgreement(company, contract, Members.name(p)));
         }
     }
 
@@ -312,7 +312,7 @@ public class PlayerManager implements Listener{
         String title = "§6Mercenary Contract §7"+Cache.getFantasyDate(System.currentTimeMillis());
         m.setDisplayName(title);
         m.setTitle(title);
-        m.setAuthor(company.getLeader()+" and "+signer);
+        m.setAuthor(Members.display(company.getLeader())+" and "+signer);
         i.setItemMeta(m);
         return i;
     }
@@ -322,12 +322,14 @@ public class PlayerManager implements Listener{
         String playerName = e.getPlayer();
         double paidTax = 0;
         double gross = e.getAmount();
-        if(FactionManager.getByMember(playerName) != null) {
-			Faction f = FactionManager.getByMember(playerName);
+        // The earner's realm is the one of the character they are playing now.
+        String member = Members.ofAccountName(playerName);
+        if(FactionManager.getByMember(member) != null) {
+			Faction f = FactionManager.getByMember(member);
 			if(f.getTaxRate(TaxTarget.CITIZENS, null, true) > 0) {
 				if(f.getBank() != null) {
 					paidTax = f.getTaxRate(TaxTarget.CITIZENS, null, true)/100.0*gross;
-					f.giveTax(playerName, paidTax);
+					f.giveTax(member, paidTax);
 				}
 			}
 		}

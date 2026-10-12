@@ -19,25 +19,25 @@ public final class LeaderCharacterListener implements Listener {
         if (!player.isOnline() || Bukkit.getPlayer(player.getUniqueId()) != player
                 || !event.getSession().ref().ownerId().equals(player.getUniqueId())
                 || !Characters.isCurrent(event.getSession())) return;
-        refresh(player.getName());
+        refresh(Members.key(event.getSession().ref()));
     }
 
     /**
-     * Re-reads every realm and guild leader's character (or only `player`'s
-     * when given) and, if any name changed, asks the map to ship nation.json
-     * on its next cycle.
+     * Re-reads every realm and guild leader's character (or only the
+     * character with member key `player` when given) and, if any name
+     * changed, asks the map to ship nation.json on its next cycle.
      */
     public static void refresh(String player) {
         boolean changed = false;
         for (Faction faction : FactionManager.factions) {
             if (faction == null) continue;
-            if (player == null || player.equalsIgnoreCase(faction.getLeader())) {
+            if (player == null || player.equals(faction.getLeader())) {
                 changed |= LeaderCharacters.refresh(faction);
             }
             // Guild leaders too; a realm's own guild follows the realm above.
             for (Guild guild : faction.getGuildHandler().getGuilds()) {
                 if (guild == null || guild.isBase()) continue;
-                if (player != null && !player.equalsIgnoreCase(guild.getLeader())) continue;
+                if (player != null && !player.equals(guild.getLeader())) continue;
                 changed |= LeaderCharacters.refresh(guild);
             }
         }

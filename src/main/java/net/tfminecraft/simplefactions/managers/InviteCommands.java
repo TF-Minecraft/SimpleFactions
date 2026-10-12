@@ -38,6 +38,10 @@ public final class InviteCommands {
 
 	public static boolean handle(Player p, String command, String[] args) {
 		boolean guild = command.equalsIgnoreCase(GUILD);
+		if (Members.key(p) == null) {
+			p.sendMessage(CommandManager.NO_CHARACTER);
+			return true;
+		}
 		if (args[0].equalsIgnoreCase("decline")) {
 			if (guild) declineGuild(p, args[1]);
 			else declineFaction(p, args[1]);
@@ -145,7 +149,7 @@ public final class InviteCommands {
 		g.addMember(Members.key(p));
 		p.sendMessage("§aJoined " + g.getName());
 		g.getFaction().updatePrestige();
-		tellOthers(g.getFaction(), p, "§a" + p.getName() + " joined the guild " + g.getName() + "§a!");
+		tellOthers(g.getFaction(), p, "§a" + Members.name(p) + " joined the guild " + g.getName() + "§a!");
 	}
 
 	private static void joinFaction(Player p, String id) {
@@ -165,7 +169,7 @@ public final class InviteCommands {
 		f.addMember(Members.key(p));
 		p.sendMessage("§aJoined " + f.getName());
 		f.updatePrestige();
-		tellOthers(f, p, "§a" + p.getName() + " joined the faction!");
+		tellOthers(f, p, "§a" + Members.name(p) + " joined the faction!");
 	}
 
 	private static void declineGuild(Player p, String id) {
@@ -175,7 +179,7 @@ public final class InviteCommands {
 			return;
 		}
 		p.sendMessage("§aDeclined the invite to " + g.getName());
-		tellLeader(g.getLeader(), "§c" + p.getName() + " declined your invite to " + g.getName());
+		tellLeader(g.getLeader(), "§c" + Members.name(p) + " declined your invite to " + g.getName());
 	}
 
 	private static void declineFaction(Player p, String id) {
@@ -185,7 +189,7 @@ public final class InviteCommands {
 			return;
 		}
 		p.sendMessage("§aDeclined the invite to " + f.getName());
-		tellLeader(f.getLeader(), "§c" + p.getName() + " declined your invite to " + f.getName());
+		tellLeader(f.getLeader(), "§c" + Members.name(p) + " declined your invite to " + f.getName());
 	}
 
 	private static void tellOthers(Faction f, Player joiner, String message) {
@@ -197,8 +201,6 @@ public final class InviteCommands {
 	}
 
 	private static void tellLeader(String leader, String message) {
-		if (leader == null) return;
-		Player online = Bukkit.getPlayerExact(leader);
-		if (online != null) online.sendMessage(message);
+		Members.online(leader).ifPresent(online -> online.sendMessage(message));
 	}
 }
