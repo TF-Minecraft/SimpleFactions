@@ -80,7 +80,7 @@ public class MovementView {
     public void movementView(Player player, Faction f, Movement movement, Inventory i) {
         boolean open = i == null;
         if (i == null) {
-            i = Bukkit.createInventory(new SFInventoryHolder(movement.getId(), SFGUI.MOVEMENT_VIEW), 54, "Movement: " + movement.getLeader());
+            i = Bukkit.createInventory(new SFInventoryHolder(movement.getId(), SFGUI.MOVEMENT_VIEW), 54, "Movement: " + Members.display(movement.getLeader()));
         }
         i.clear();
         
@@ -451,7 +451,7 @@ public class MovementView {
                         }
                     }
                 }
-                Player factionLeader = Bukkit.getPlayer(f.getLeader());
+                Player factionLeader = Members.player(f.getLeader());
                 if (factionLeader != null && factionLeader.isOnline()) {
                     LogManager.movement(
                             "SEND_DEMANDS movementId=%s faction=%s power=%.1f",
@@ -460,7 +460,7 @@ public class MovementView {
                             movement.getPower());
                     demandsView(factionLeader, f, movement, null);
                     p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1.5f);
-                    p.sendMessage(StringFormatter.formatHex("§7Demands sent to " + f.getLeader()));
+                    p.sendMessage(StringFormatter.formatHex("§7Demands sent to " + Members.display(f.getLeader())));
                 } else {
                     p.sendMessage(StringFormatter.formatHex("§cThe faction leader must be online to send demands!"));
                     p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
@@ -481,7 +481,7 @@ public class MovementView {
                 p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
                 return;
             }
-            Player movementLeader = Bukkit.getPlayer(movement.getLeader());
+            Player movementLeader = Members.player(movement.getLeader());
             if (movementLeader == null || !movementLeader.isOnline()) {
                 p.sendMessage(StringFormatter.formatHex("§cThe movement leader must be online to demand a disband."));
                 p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
@@ -494,7 +494,7 @@ public class MovementView {
                     movement.getPower());
             crackdownView(movementLeader, f, movement, null);
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1.5f);
-            p.sendMessage(StringFormatter.formatHex("§7Disband demand sent to " + movement.getLeader()));
+            p.sendMessage(StringFormatter.formatHex("§7Disband demand sent to " + Members.display(movement.getLeader())));
         }
         // Phase buttons (slots 28-31)
         else if (slot >= 28 && slot <= 31) {
@@ -654,9 +654,9 @@ public class MovementView {
                 
                 // Notify movement leader if online
                 if (movement.hasLeader()) {
-                    Player movementLeader = Bukkit.getPlayer(movement.getLeader());
+                    Player movementLeader = Members.player(movement.getLeader());
                     if (movementLeader != null && movementLeader.isOnline()) {
-                        movementLeader.sendMessage(StringFormatter.formatHex("§a" + f.getLeader() + " has accepted your demands!"));
+                        movementLeader.sendMessage(StringFormatter.formatHex("§a" + Members.name(p) + " has accepted your demands!"));
                     }
                 }
 
@@ -684,9 +684,9 @@ public class MovementView {
                 
                 // Notify movement leader if online
                 if (movement.hasLeader()) {
-                    Player movementLeader = Bukkit.getPlayer(movement.getLeader());
+                    Player movementLeader = Members.player(movement.getLeader());
                     if (movementLeader != null && movementLeader.isOnline()) {
-                        movementLeader.sendMessage(StringFormatter.formatHex("§c" + f.getLeader() + " has declined your demands!"));
+                        movementLeader.sendMessage(StringFormatter.formatHex("§c" + Members.name(p) + " has declined your demands!"));
                         movementLeader.sendMessage(StringFormatter.formatHex("§7A civil war has begun!"));
                     }
                 }
@@ -709,9 +709,9 @@ public class MovementView {
                     movement.getId(),
                     f.getId(),
                     movement.getPower());
-            Player factionLeader = Bukkit.getPlayer(f.getLeader());
+            Player factionLeader = Members.player(f.getLeader());
             if (factionLeader != null && factionLeader.isOnline()) {
-                factionLeader.sendMessage(StringFormatter.formatHex("§a" + p.getName() + " disbanded their movement."));
+                factionLeader.sendMessage(StringFormatter.formatHex("§a" + Members.name(p) + " disbanded their movement."));
             }
             f.getGovernment().endMovement(movement);
             p.closeInventory();
@@ -730,9 +730,9 @@ public class MovementView {
             p.sendMessage(StringFormatter.formatHex("§cYou have refused to disband."));
             p.sendMessage(StringFormatter.formatHex("§7A civil war has begun!"));
             p.playSound(p.getLocation(), "entity.ender_dragon.growl", 1, 0.8f);
-            Player factionLeader = Bukkit.getPlayer(f.getLeader());
+            Player factionLeader = Members.player(f.getLeader());
             if (factionLeader != null && factionLeader.isOnline()) {
-                factionLeader.sendMessage(StringFormatter.formatHex("§c" + p.getName() + " refused to disband!"));
+                factionLeader.sendMessage(StringFormatter.formatHex("§c" + Members.name(p) + " refused to disband!"));
                 factionLeader.sendMessage(StringFormatter.formatHex("§7A civil war has begun!"));
             }
             p.closeInventory();
@@ -752,17 +752,17 @@ public class MovementView {
     }
 
     private Object getSupporterObject(Player p, Movement movement) {
-        String playerName = p.getName();
+        String key = Members.key(p);
         
         // Check if player is in supporters as a citizen
-        if (movement.getSupporters().getCitizens().contains(playerName)) {
-            return playerName;
+        if (movement.getSupporters().getCitizens().contains(key)) {
+            return key;
         }
         
         // Check if player's guild is a supporter
-        Member relation = movement.getFaction().getRelationToFaction(playerName);
+        Member relation = movement.getFaction().getRelationToFaction(key);
         if (relation == Member.GUILD_LEADER || relation == Member.GUILD_MEMBER) {
-            Guild guild = FactionManager.getGuildByMember(playerName);
+            Guild guild = FactionManager.getGuildByMember(key);
             if (guild != null && movement.getSupporters().getGuilds().contains(guild)) {
                 return guild;
             }
@@ -770,7 +770,7 @@ public class MovementView {
         
         // Check if player's faction is a supporter
         if (relation == Member.VASSAL_LEADER || relation == Member.VASSAL_MEMBER) {
-            Faction faction = FactionManager.getByMember(playerName);
+            Faction faction = FactionManager.getByMember(key);
             if (faction != null && movement.getSupporters().getFactions().contains(faction)) {
                 return faction;
             }

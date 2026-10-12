@@ -14,7 +14,6 @@ import net.tfminecraft.simplefactions.enums.MenuItemType;
 import net.tfminecraft.simplefactions.enums.RankType;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.SFGUI;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.espionage.EspionageAccess;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.espionage.IntelligenceReport;
@@ -96,9 +95,6 @@ class FactionMenusCoverageTest {
     intelligence.when(() -> EspionageService.canViewExact(any(), any())).thenReturn(true);
     intelligence.when(() -> EspionageService.canViewCovert(any(), any())).thenReturn(true);
     intelligence.when(() -> EspionageService.isOwn(player, faction)).thenReturn(true);
-    scoped(CharacterNames.class)
-        .when(() -> CharacterNames.display(any(), anyString(), any()))
-        .thenAnswer(call -> call.getArgument(1));
     scoped(RosterLore.class)
         .when(() -> RosterLore.faction(any(), any()))
         .thenReturn(List.of("Leader", "Alice"));

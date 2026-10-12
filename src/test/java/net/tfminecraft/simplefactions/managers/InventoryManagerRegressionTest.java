@@ -338,9 +338,15 @@ class InventoryManagerRegressionTest {
     }
   }
 
+  private static Player named(String name) {
+    Player player = mock(Player.class);
+    when(player.getName()).thenReturn(name);
+    return player;
+  }
+
   private static final class NavigationFixture {
     private final InventoryManager manager = new InventoryManager();
-    private final Player player = mock(Player.class);
+    private final Player player = named("Viewer");
     private final Faction faction = mock(Faction.class);
     private final Movement movement = mock(Movement.class);
     private final Inventory inventory = mock(Inventory.class);

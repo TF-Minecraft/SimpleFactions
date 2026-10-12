@@ -179,7 +179,7 @@ public class ContractView {
         long now = System.currentTimeMillis();
         if (e.getSlot() == CHANGE_SLOTS_BUTTON && company.isLeader(Members.key(p))) {
             if (contract.hasPendingSlots(now)) {
-                report(p, company.getContractHandler().withdrawSlots(contractId, p.getName(), now));
+                report(p, company.getContractHandler().withdrawSlots(contractId, Members.key(p), now));
                 detailView(p, guild, inventory, contractId);
             } else {
                 inv.beginSlotChange(p, guild, contract);
@@ -189,9 +189,9 @@ public class ContractView {
         if (!contract.hasPendingSlots(now) || !canSign(p, contract)) return;
         switch (e.getSlot()) {
             case ACCEPT_SLOTS_BUTTON -> report(p, company.getContractHandler()
-                    .acceptSlots(contractId, contract.getHirer(), p.getName(), now));
+                    .acceptSlots(contractId, contract.getHirer(), Members.key(p), now));
             case DECLINE_SLOTS_BUTTON -> report(p, company.getContractHandler()
-                    .declineSlots(contractId, contract.getHirer(), p.getName(), now));
+                    .declineSlots(contractId, contract.getHirer(), Members.key(p), now));
             default -> {
                 return;
             }

@@ -15,7 +15,6 @@ import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.SFGUI;
 import net.tfminecraft.simplefactions.enums.Scope;
 import net.tfminecraft.simplefactions.enums.Stance;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.government.Council;
 import net.tfminecraft.simplefactions.government.Government;
@@ -154,9 +153,6 @@ class GovernmentMenusCoverageTest {
     wealth
         .when(() -> Wealth.topWealth(any(), eq(true)))
         .thenReturn(List.of("Alice", "Bob", "Cara"));
-    scoped(CharacterNames.class)
-        .when(() -> CharacterNames.display(any(), anyString(), any()))
-        .thenAnswer(call -> call.getArgument(1));
     scoped(PoliticalActionLoader.class)
         .when(() -> PoliticalActionLoader.getByAction(any()))
         .thenAnswer(call -> new PoliticalAction(call.getArgument(0)));
