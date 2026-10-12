@@ -131,21 +131,24 @@ class FactionCoverageTest {
   }
 
   @Test
-  void factionInvitationsAreCaseInsensitiveAndCanBeConsumedExactlyOnce() {
+  void factionInvitationsMatchExactKeysAndCanBeConsumedExactlyOnce() {
     Faction faction = fixture.saved("home", "Alice");
     faction.invite(null);
     faction.invite("Bob");
-    faction.invite("BOB");
+    faction.invite("Bob");
     assertEquals(List.of("Bob"), faction.getInvited());
-    assertTrue(faction.isInvited("bob"));
+    assertTrue(faction.isInvited("Bob"));
+    assertFalse(faction.isInvited("bob"));
     assertFalse(faction.consumeInvite("Cara"));
-    assertTrue(faction.consumeInvite("bOB"));
+    assertFalse(faction.consumeInvite("bOB"));
+    assertTrue(faction.consumeInvite("Bob"));
     assertFalse(faction.consumeInvite("Bob"));
     assertTrue(faction.getInvited().isEmpty());
     faction.setInvited(new ArrayList<>(List.of("Cara")));
-    assertTrue(faction.isInvited("cara"));
+    assertTrue(faction.isInvited("Cara"));
     faction.addMember("Bob");
-    assertTrue(faction.isMember("bob"));
+    assertTrue(faction.isMember("Bob"));
+    assertFalse(faction.isMember("bob"));
     assertFalse(faction.isMember("missing"));
   }
 
@@ -693,8 +696,6 @@ class FactionCoverageTest {
     faction.addMember("Bob");
     faction.addMember("Cara");
     fixture.player("Alice");
-    var offline = fixture.player("Bob");
-    when(offline.isOnline()).thenReturn(false);
     fixture.player("Visitor");
     assertEquals(1, faction.numOnline());
     var north = new Province(7, "PLAINS", 1);

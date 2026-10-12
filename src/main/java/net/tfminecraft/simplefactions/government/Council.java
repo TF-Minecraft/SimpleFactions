@@ -5,9 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Wealth;
 import net.tfminecraft.simplefactions.enums.Rules;
@@ -132,7 +130,7 @@ public class Council {
 
     public boolean canBeMember(String name, boolean ignoreSize, boolean ignoreRefuses) {
         if(members.contains(name)) return false;
-        if(f.getLeader().equalsIgnoreCase(name)) return false;
+        if(f.getLeader().equals(name)) return false;
         if(!ignoreSize && getCurrentSize() >= getMaxSize()) return false;
         if(!ignoreRefuses && refuses.contains(name)) return false;
         if(f.getOrCreateMainGuild().isMember(name)) return true;
@@ -149,7 +147,7 @@ public class Council {
         if (refuses.contains(name)) {
             return false;
         }
-        if (f.getLeader().equalsIgnoreCase(name)) {
+        if (f.getLeader().equals(name)) {
             return false;
         }
         if (f.getOrCreateMainGuild().isMember(name)) {
@@ -251,9 +249,8 @@ public class Council {
         int total = getEligibleVoters().size();
         int validCount = 0;
         
-        for (String voterName : getEligibleVoters()) {
-            Player voterPlayer = Bukkit.getPlayer(voterName);
-            if ((voterPlayer != null && voterPlayer.isOnline()) || isDummyAccount(voterName)) {
+        for (String voter : getEligibleVoters()) {
+            if (Members.isOnline(voter) || isDummyAccount(voter)) {
                 validCount++;
             }
         }

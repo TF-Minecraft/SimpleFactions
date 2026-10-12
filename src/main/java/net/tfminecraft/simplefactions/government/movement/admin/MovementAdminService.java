@@ -5,6 +5,7 @@ import java.util.List;
 
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.LogManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -140,12 +141,14 @@ public final class MovementAdminService {
 			return new Result(false, TARGET_USAGE);
 		}
 		Faction host = movement.getFaction();
-		if (host == null || !host.canBecomeLeader(player)) {
+		String key = host == null ? null : memberKey(host.getMembers(), player);
+		if (key == null || !host.canBecomeLeader(key)) {
 			return new Result(false, "§c" + player + " cannot be the wanted leader.");
 		}
-		cause.getProposal().setTarget(player);
+		cause.getProposal().setTarget(key);
 		persist(movement);
-		return new Result(true, "§aSet wanted leader of " + movement.getId() + " cause " + causeIndex + " to " + player + ".");
+		return new Result(true, "§aSet wanted leader of " + movement.getId() + " cause " + causeIndex + " to "
+				+ Members.display(key) + ".");
 	}
 
 	private static String missingTargetReason(Movement movement) {
@@ -178,7 +181,7 @@ public final class MovementAdminService {
 				return new Result(false, "§cUnknown cause index: " + causeIndex);
 			}
 		}
-		Object obj = resolveMember(memberType, targetId);
+		Object obj = resolveMember(movement, cause, memberType, targetId);
 		if (obj == null) {
 			return new Result(false, "§cUnknown " + memberType + ": " + targetId);
 		}
@@ -272,16 +275,30 @@ public final class MovementAdminService {
 		}
 	}
 
-	private static Object resolveMember(String type, String target) {
+	private static Object resolveMember(Movement movement, Cause cause, String type, String target) {
 		if (type == null || target == null || target.isBlank()) {
 			return null;
 		}
 		return switch (type.toLowerCase(java.util.Locale.ROOT)) {
-			case "citizen" -> target;
+			case "citizen" -> memberKey(citizenCandidates(movement, cause), target);
 			case "guild" -> FactionManager.getGuildByString(target);
 			case "vassal" -> FactionManager.getByString(target);
 			default -> null;
 		};
+	}
+
+	/** Current pool citizens plus the host's members, so staff can remove a citizen who has since left. */
+	private static List<String> citizenCandidates(Movement movement, Cause cause) {
+		Pool pool = cause == null ? movement.getSupporters() : cause.getPool();
+		List<String> keys = new ArrayList<>(pool.getCitizens());
+		if (movement.getFaction() != null) keys.addAll(movement.getFaction().getCompleteMemberList());
+		return keys;
+	}
+
+	/** A member key typed as-is, or found by Minecraft or character name. */
+	static String memberKey(List<String> keys, String input) {
+		if (keys.contains(input)) return input;
+		return Members.find(keys, input);
 	}
 
 	private static boolean isPresent(Movement movement, Cause cause, Object obj) {
@@ -296,7 +313,7 @@ public final class MovementAdminService {
 	}
 
 	private static String formatListLine(Faction host, Movement movement) {
-		String leader = movement.getLeader() == null ? "None" : movement.getLeader();
+		String leader = movement.getLeader() == null ? "None" : Members.display(movement.getLeader());
 		String phase = movement.getPhase() == null ? "-" : movement.getPhase().name();
 		int supporters = movement.getSupporters() == null ? 0 : movement.getSupporters().getAllMembers().size();
 		int backers = movement.getForeignBackers() == null ? 0 : movement.getForeignBackers().size();
@@ -348,7 +365,7 @@ public final class MovementAdminService {
 		if (host == null || host.getOrCreateMainGuild() == null || host.getOrCreateMainGuild().getMembers() == null) {
 			return List.of();
 		}
-		return new ArrayList<>(host.getOrCreateMainGuild().getMembers());
+		return Members.display(host.getOrCreateMainGuild().getMembers());
 	}
 
 	public static List<String> hostGuildIds(Movement movement) {
@@ -407,7 +424,7 @@ public final class MovementAdminService {
 		}
 		for (String member : host.getMembers()) {
 			if (host.canBecomeLeader(member)) {
-				names.add(member);
+				names.add(Members.display(member));
 			}
 		}
 		return names;

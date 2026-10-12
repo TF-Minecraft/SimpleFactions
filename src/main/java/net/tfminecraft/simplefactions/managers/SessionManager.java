@@ -142,9 +142,9 @@ public class SessionManager implements Listener{
 
     private void recordChatVote(Player player, Vote vote) {
         if (!player.isOnline()) return;
-        String playerName = player.getName();
+        String key = Members.key(player);
         
-        Faction faction = FactionManager.getByMember(playerName);
+        Faction faction = FactionManager.getByMember(key);
         if (faction == null) return;
         
         Council council = faction.getGovernment().getCouncil();
@@ -162,7 +162,7 @@ public class SessionManager implements Listener{
                 }
             }
             
-            if (session.recordVote(playerName, vote)) {
+            if (session.recordVote(key, vote)) {
                 player.sendMessage("§aYour vote (" + vote.getDisplay() + ") has been recorded!");
                 Sound sound = switch (vote) {
                     case YAY -> Sound.BLOCK_NOTE_BLOCK_CHIME;

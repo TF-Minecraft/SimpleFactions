@@ -145,7 +145,8 @@ class MovementCoverageTest {
     Movement movement = movement(faction, "Bob");
     assertSame(faction, movement.getFaction());
     assertTrue(movement.hasLeader());
-    assertTrue(movement.isLeader("bOB"));
+    assertTrue(movement.isLeader("Bob"));
+    assertFalse(movement.isLeader("bOB"));
     assertFalse(movement.isLeader("Cara"));
     assertEquals(Phase.GATHERING, movement.getPhase());
     assertEquals(20, movement.getMaxOrganization());

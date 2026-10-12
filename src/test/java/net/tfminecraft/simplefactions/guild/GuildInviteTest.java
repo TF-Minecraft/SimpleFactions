@@ -17,29 +17,32 @@ import net.tfminecraft.simplefactions.objects.Faction;
 class GuildInviteTest {
 
 	@Test
-	void inviteMatchesAndConsumesIgnoreCase() throws Exception {
+	void inviteMatchesAndConsumesExactKeys() throws Exception {
 		Guild guild = mock(Guild.class, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
 		setField(guild, "invites", new ArrayList<String>());
 
 		guild.invite("steve");
-		assertTrue(guild.isInvited("Steve"));
-		guild.invite("STEVE");
+		assertTrue(guild.isInvited("steve"));
+		assertFalse(guild.isInvited("Steve"));
+		guild.invite("steve");
 		assertEquals(1, guild.getInvites().size());
-		assertTrue(guild.consumeInvite("Steve"));
+		assertFalse(guild.consumeInvite("STEVE"));
+		assertTrue(guild.consumeInvite("steve"));
 		assertFalse(guild.isInvited("steve"));
 		assertTrue(guild.getInvites().isEmpty());
 	}
 
 	@Test
-	void findIgnoreCaseReturnsStoredSpelling() {
+	void findReturnsOnlyAnExactKey() {
 		ArrayList<String> names = new ArrayList<>();
 		names.add("Steve");
-		assertEquals("Steve", Guild.findIgnoreCase(names, "steve"));
-		assertEquals(null, Guild.findIgnoreCase(names, "Alex"));
+		assertEquals("Steve", Guild.find(names, "Steve"));
+		assertEquals(null, Guild.find(names, "steve"));
+		assertEquals(null, Guild.find(names, "Alex"));
 	}
 
 	@Test
-	void kickRemovesIgnoreCase() throws Exception {
+	void kickRemovesOnlyAnExactKey() throws Exception {
 		Guild guild = mock(Guild.class, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
 		ArrayList<String> members = new ArrayList<>();
 		members.add("Steve");
@@ -47,6 +50,8 @@ class GuildInviteTest {
 		setField(guild, "host", mock(Faction.class));
 
 		guild.kick("steve");
+		assertEquals(1, members.size());
+		guild.kick("Steve");
 		assertTrue(members.isEmpty());
 	}
 

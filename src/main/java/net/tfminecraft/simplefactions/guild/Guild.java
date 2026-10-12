@@ -390,7 +390,7 @@ public class Guild {
             }
             dummy = dummy+x;
             members.set(i, dummy);
-            p.sendMessage("§a"+dummy+" replaced "+member);
+            p.sendMessage("§a"+dummy+" replaced "+Members.display(member));
             if(isLeader(member)) {
                 p.sendMessage("§a"+dummy+" became leader");
                 if(isBase()) host.setLeader(dummy);

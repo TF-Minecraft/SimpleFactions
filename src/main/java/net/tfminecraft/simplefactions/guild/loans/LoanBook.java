@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+
+import net.tfminecraft.simplefactions.identity.Members;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -77,12 +79,12 @@ public class LoanBook {
                         "\n" + //
                         "Issuer:\n" + //
                         "-------------------\n" + //
-                        loan.getIssuer().getLeader()+"\n" + //
+                        Members.display(loan.getIssuer().getLeader())+"\n" + //
                         "\n" + //
                         "-------------------\n" + //
                         "Loan Taker:\n" + //
                         "\n" + //
-                        (loan.getBorrower() != null ? loan.getBorrower().getLeader() : "[SIGN BOOK TO ACCEPT]") + "\n" + //
+                        (loan.getBorrower() != null ? Members.display(loan.getBorrower().getLeader()) : "[SIGN BOOK TO ACCEPT]") + "\n" + //
                         "-------------------\n" + //
                         "This contract is binding upon signing.");
         meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, loan.getIssuer().getId());
