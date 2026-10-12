@@ -265,7 +265,8 @@ class GovernmentCoverageTest {
     fixture.saved("foreign", "Iris");
     assertFalse(government.isCouncilMember((String) null));
     assertFalse(government.isCouncilMember((org.bukkit.entity.Player) null));
-    assertTrue(government.isCouncilMember("aLiCe"));
+    assertTrue(government.isCouncilMember("Alice"));
+    assertFalse(government.isCouncilMember("aLiCe"));
     assertTrue(government.isCouncilMember(fixture.player("Bob")));
     assertFalse(government.isCouncilMember("Cara"));
     assertTrue(government.canPropose(fixture.player("Alice")));
@@ -457,7 +458,8 @@ class GovernmentCoverageTest {
     political.setPoliticalActionProposal(new PoliticalAction(Action.CHANGE_LEADER));
     political.setTarget("Cara");
     government.startMovement("Bob", law);
-    Movement movement = government.getMovementByLeader("bOB");
+    assertNull(government.getMovementByLeader("bOB"));
+    Movement movement = government.getMovementByLeader("Bob");
     assertNotNull(movement);
     assertTrue(government.hasMovements());
     assertSame(movement, government.getMovementById(movement.getId().toUpperCase()));

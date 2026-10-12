@@ -32,6 +32,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.loaders.TierLoader;
@@ -693,11 +694,11 @@ public class Faction {
 	}
 	/** Whether the player's current character leads this realm. */
 	public boolean isLeader(org.bukkit.entity.Player player) {
-		return isLeader(net.tfminecraft.simplefactions.identity.Members.key(player));
+		return isLeader(Members.key(player));
 	}
 	/** Whether the player's current character belongs to this realm. */
 	public boolean isMember(org.bukkit.entity.Player player) {
-		return isMember(net.tfminecraft.simplefactions.identity.Members.key(player));
+		return isMember(Members.key(player));
 	}
 	public boolean canBecomeLeader(String member) {
 		if(isLeader(member)) return false;
@@ -1013,7 +1014,7 @@ public class Faction {
 	        temp = getHighestTitle().getTier();
 	    }
 	    if(tier == null || !tier.getId().equalsIgnoreCase(temp.getId())) tier = new Tier(temp, -1);
-		Player p = Bukkit.getPlayerExact(leader);
+		Player p = Members.player(leader);
 		for(Faction subject : RelationManager.getSubjects(this)) {
 			if(subject.getTier().getTier() > tier.getTier()) {
 				RelationManager.endVassalage(subject, this, false);
@@ -1425,8 +1426,7 @@ public class Faction {
 	public int numOnline() {
 		int count = 0;
 		for(String m : guildHandler.getAllMembers()){
-			Player p = Bukkit.getPlayerExact(m);
-			if(p != null && p.isOnline()) count++;
+			if(Members.isOnline(m)) count++;
 		}
 		return count;
 	}

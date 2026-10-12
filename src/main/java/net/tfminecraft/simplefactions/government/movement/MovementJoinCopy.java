@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.government.movement;
 
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy;
 
@@ -25,18 +26,18 @@ public final class MovementJoinCopy {
 		return guild.getId();
 	}
 
-	public static String citizenMustBeMember(boolean staff, String playerName, Faction host) {
+	public static String citizenMustBeMember(boolean staff, String member, Faction host) {
 		return pick(
 				staff,
 				"§cYou must be a member of the movement's faction to support it.",
-				"§c" + playerName + " is not a citizen of " + factionId(host) + ".");
+				"§c" + Members.display(member) + " is not a citizen of " + factionId(host) + ".");
 	}
 
-	public static String citizenAlreadySupportingOther(boolean staff, String playerName, Faction host) {
+	public static String citizenAlreadySupportingOther(boolean staff, String member, Faction host) {
 		return pick(
 				staff,
 				"§cYou are already supporting another movement in this faction.",
-				"§c" + playerName + " is already supporting another movement in " + factionId(host) + ".");
+				"§c" + Members.display(member) + " is already supporting another movement in " + factionId(host) + ".");
 	}
 
 	public static String oneProvinceHostGuild(boolean staff, Guild guild) {
@@ -116,25 +117,25 @@ public final class MovementJoinCopy {
 				"§c" + factionId(joining) + " is already backing another movement in " + factionId(host) + ".");
 	}
 
-	public static String causeCitizenMustBeMember(boolean staff, String playerName, Faction host) {
+	public static String causeCitizenMustBeMember(boolean staff, String member, Faction host) {
 		return pick(
 				staff,
 				"§cYou must be a member of the movement's faction to join it.",
-				"§c" + playerName + " is not a citizen of " + factionId(host) + ".");
+				"§c" + Members.display(member) + " is not a citizen of " + factionId(host) + ".");
 	}
 
-	public static String causeCitizensNotAllowed(boolean staff, String playerName) {
+	public static String causeCitizensNotAllowed(boolean staff, String member) {
 		return pick(
 				staff,
 				"§cCitizens are not allowed to join this movement as members.",
-				"§cCitizens cannot join this cause (blocked for " + playerName + ").");
+				"§cCitizens cannot join this cause (blocked for " + Members.display(member) + ").");
 	}
 
-	public static String alreadyCauseMember(boolean staff, String playerName) {
+	public static String alreadyCauseMember(boolean staff, String member) {
 		return pick(
 				staff,
 				"§cYou are already a member of this movement.",
-				"§c" + playerName + " is already a member of this movement.");
+				"§c" + Members.display(member) + " is already a member of this movement.");
 	}
 
 	public static String causeGuildsNotAllowed(boolean staff, Guild guild) {

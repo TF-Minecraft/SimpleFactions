@@ -179,7 +179,7 @@ public class Government {
 
     public Movement getMovementByLeader(String leader) {
         for (Movement movement : movements) {
-            if (movement.getLeader() != null && movement.getLeader().equalsIgnoreCase(leader)) {
+            if (movement.getLeader() != null && movement.getLeader().equals(leader)) {
                 return movement;
             }
         }
@@ -363,14 +363,14 @@ public class Government {
         return p != null && isCouncilMember(Members.key(p));
     }
 
-    /** Name-based so offline checks (mercenary loyalty, contract signing) can use it too. */
-    public boolean isCouncilMember(String name) {
-        if(name == null) return false;
-        return council.isMember(name) || f.getLeader().equalsIgnoreCase(name);
+    /** Key-based so offline checks (mercenary loyalty, contract signing) can use it too. */
+    public boolean isCouncilMember(String key) {
+        if(key == null) return false;
+        return council.isMember(key) || key.equals(f.getLeader());
     }
 
     public boolean canProposeOrStartMovement(Player p) {
-        String name = p.getName();
+        String name = Members.key(p);
         if(isCouncilMember(p)) {
             return council.getProposalHandler().canPropose(name);
         }
@@ -378,7 +378,7 @@ public class Government {
         if(guild != null) {
             if(guild.getFaction().getId().equalsIgnoreCase(f.getId())) {
                 if(guild.isBase()) return true; //Member of the base guild in the faction
-                if(guild.getLeader().equalsIgnoreCase(name))return true; //Guild leader of a guild in the faction
+                if(guild.isLeader(name))return true; //Guild leader of a guild in the faction
             }
         }
         Faction faction = FactionManager.getByLeader(name);
@@ -393,8 +393,8 @@ public class Government {
     }
 
     public boolean canPropose(Player p) {
-        String name = p.getName();
-        if(name.equalsIgnoreCase(f.getLeader())) return true;
+        String name = Members.key(p);
+        if(Members.is(p, f.getLeader())) return true;
         if(council.canPropose(name)) return true;
         return false;
     }
@@ -413,11 +413,11 @@ public class Government {
         if(warEnd && !CouncilPeaceQueries.isParticipatingInAny(f)) {
             return false;
         }
-        String name = p.getName();
+        String name = Members.key(p);
         if(warEnd && canPropose(p)) {
             return true;
         }
-        if(name.equalsIgnoreCase(f.getLeader())) return false;
+        if(Members.is(p, f.getLeader())) return false;
         if(council.isMember(name)) return false;
         if(action == Action.SNAP_ELECTIONS && !hasElections()) return false;
         Member relation = f.getRelationToFaction(name);
@@ -432,7 +432,7 @@ public class Government {
             case GUILD_MEMBER:
                 if(action == Action.NATIONHOOD) return false; //only leaders can demand that
             case GUILD_LEADER:
-                if(action == Action.NATIONHOOD && !FactionManager.getGuildByMember(Members.key(p)).canBeElevated(null)) return false;
+                if(action == Action.NATIONHOOD && !FactionManager.getGuildByMember(name).canBeElevated(null)) return false;
                 if(!PoliticalActionLoader.getByAction(action).allowGuilds()) return false;
                 break;
             case VASSAL_LEADER:

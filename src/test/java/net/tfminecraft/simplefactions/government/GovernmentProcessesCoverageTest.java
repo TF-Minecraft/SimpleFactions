@@ -170,7 +170,8 @@ class GovernmentProcessesCoverageTest {
     election.serializeVotes().get("LEADER").clear();
     election.serializePreviousVotes().get("LEADER").clear();
     assertEquals(3, election.getCandidates(Candidate.LEADER).size());
-    assertEquals(1, election.getVotes(Candidate.LEADER, "cARA"));
+    assertEquals(1, election.getVotes(Candidate.LEADER, "Cara"));
+    assertEquals(0, election.getVotes(Candidate.LEADER, "cARA"));
     election.start();
     assertNull(election.getVote(Candidate.LEADER, "Alice"));
     election.addVote(Candidate.LEADER, "Alice", "Drew");
@@ -357,7 +358,7 @@ class GovernmentProcessesCoverageTest {
     assertEquals(
         List.of(proposal),
         faction.getGovernment().getCouncil().getProposalHandler().getProposals());
-    when(fixture.online.get("Bob").isOnline()).thenReturn(false);
+    fixture.online.remove("Bob");
     Session denied = session(faction);
     denied.onLanternClick(lantern());
     assertFalse(denied.isStarted());

@@ -129,20 +129,20 @@ public class Cause {
         }
     }
 
-    public boolean canMemberJoin(String playerName, boolean checkExisting, boolean feedback) {
-        return memberBlockReason(playerName, checkExisting, false) == null;
+    public boolean canMemberJoin(String member, boolean checkExisting, boolean feedback) {
+        return memberBlockReason(member, checkExisting, false) == null;
     }
 
-    public String memberBlockReason(String playerName, boolean checkExisting, boolean staff) {
-        Member relation = movement.getFaction().getRelationToFaction(playerName);
+    public String memberBlockReason(String member, boolean checkExisting, boolean staff) {
+        Member relation = movement.getFaction().getRelationToFaction(member);
         if (relation != Member.MEMBER) {
-            return MovementJoinCopy.causeCitizenMustBeMember(staff, playerName, movement.getFaction());
+            return MovementJoinCopy.causeCitizenMustBeMember(staff, member, movement.getFaction());
         }
         if (!proposal.getPoliticalAction().allowCitizens()) {
-            return MovementJoinCopy.causeCitizensNotAllowed(staff, playerName);
+            return MovementJoinCopy.causeCitizensNotAllowed(staff, member);
         }
-        if (checkExisting && movement.isMember(playerName)) {
-            return MovementJoinCopy.alreadyCauseMember(staff, playerName);
+        if (checkExisting && movement.isMember(member)) {
+            return MovementJoinCopy.alreadyCauseMember(staff, member);
         }
         return null;
     }

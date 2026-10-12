@@ -469,11 +469,15 @@ class DomainConfigurationBoundaryCoverageTest {
     Guild traders = fixture.guild(faction, "traders", "Bob");
     traders.addMember("Traveler");
     var guilds = faction.getGuildHandler();
-    assertSame(traders, guilds.getGuildByMember("traveler"));
+    assertSame(traders, guilds.getGuildByMember("Traveler"));
+    assertNull(guilds.getGuildByMember("traveler"));
     assertNull(guilds.getGuildByMember("missing"));
-    assertTrue(guilds.isGuildLeader("BOB"));
+    assertTrue(guilds.isGuildLeader("Bob"));
+    assertFalse(guilds.isGuildLeader("BOB"));
     assertFalse(guilds.isGuildLeader("Traveler"));
     guilds.forceKick("traveler");
+    assertSame(traders, guilds.getGuildByMember("Traveler"));
+    guilds.forceKick("Traveler");
     assertNull(guilds.getGuildByMember("Traveler"));
     assertFalse(faction.isMember("Traveler"));
     assertEquals(List.of("Bob"), traders.getMembers());

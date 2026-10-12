@@ -66,7 +66,7 @@ public class MovementCommandManager implements CommandExecutor {
 			player.sendMessage(MovementAdminService.TARGET_USAGE);
 			return true;
 		}
-		MovementAdminService.Result result = MovementAdminService.target(args[2], args[3], args[4]);
+		MovementAdminService.Result result = MovementAdminService.target(args[2], args[3], tail(args, 4));
 		player.sendMessage(result.message());
 		return true;
 	}
@@ -94,21 +94,26 @@ public class MovementCommandManager implements CommandExecutor {
 				return true;
 			}
 			result = joining
-					? MovementAdminService.joinSupporter(movementId, args[4], args[5])
-					: MovementAdminService.leaveSupporter(movementId, args[4], args[5]);
+					? MovementAdminService.joinSupporter(movementId, args[4], tail(args, 5))
+					: MovementAdminService.leaveSupporter(movementId, args[4], tail(args, 5));
 		} else if (slot.equals("cause")) {
 			if (args.length < 7) {
 				player.sendMessage(usage);
 				return true;
 			}
 			result = joining
-					? MovementAdminService.joinCause(movementId, args[4], args[5], args[6])
-					: MovementAdminService.leaveCause(movementId, args[4], args[5], args[6]);
+					? MovementAdminService.joinCause(movementId, args[4], args[5], tail(args, 6))
+					: MovementAdminService.leaveCause(movementId, args[4], args[5], tail(args, 6));
 		} else {
 			player.sendMessage(usage);
 			return true;
 		}
 		player.sendMessage(result.message());
 		return true;
+	}
+
+	/** The rest of the arguments, so character names may contain spaces. */
+	private static String tail(String[] args, int from) {
+		return String.join(" ", java.util.Arrays.copyOfRange(args, from, args.length));
 	}
 }

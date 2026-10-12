@@ -49,13 +49,21 @@ class GuildDeleteCommandTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"Leader", "lEaDeR"})
-  void aLeaderCanDeleteAnEmptyDebtFreeGuildAndReturnItsMembers(String name) {
-    try (Fixture fixture = new Fixture(name, false)) {
+  @Test
+  void aLeaderCanDeleteAnEmptyDebtFreeGuildAndReturnItsMembers() {
+    try (Fixture fixture = new Fixture("Leader", false)) {
       assertTrue(fixture.run("delete", "smiths"));
 
       fixture.assertDeleted();
+    }
+  }
+
+  @Test
+  void aKeyThatOnlyDiffersInCaseIsNotTheLeader() {
+    try (Fixture fixture = new Fixture("lEaDeR", false)) {
+      assertTrue(fixture.run("delete", "smiths"));
+
+      fixture.assertUntouched();
     }
   }
 

@@ -7,6 +7,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.government.movement.Movement;
@@ -42,10 +43,7 @@ public class MovementTabCompletion implements TabCompleter {
 			if (args.length == 4) {
 				return prefixList(args[3], MovementAdminService.causeIndices(movement));
 			}
-			if (args.length == 5) {
-				return prefixList(args[4], MovementAdminService.wantedLeaderNames(movement));
-			}
-			return List.of();
+			return names(args, 4, MovementAdminService.wantedLeaderNames(movement));
 		}
 		if (action.equals("demands")) {
 			if (args.length == 3) {
@@ -86,10 +84,7 @@ public class MovementTabCompletion implements TabCompleter {
 			if (args.length == 5) {
 				return prefix(args[4], "citizen", "guild", "vassal");
 			}
-			if (args.length == 6) {
-				return prefixList(args[5], targets(movement, args[4]));
-			}
-			return List.of();
+			return targets(movement, args, 5);
 		}
 		if (slot.equals("cause")) {
 			if (args.length == 5) {
@@ -98,20 +93,33 @@ public class MovementTabCompletion implements TabCompleter {
 			if (args.length == 6) {
 				return prefix(args[5], "citizen", "guild", "vassal");
 			}
-			if (args.length == 7) {
-				return prefixList(args[6], targets(movement, args[5]));
-			}
+			return targets(movement, args, 6);
 		}
 		return List.of();
 	}
 
-	private static List<String> targets(Movement movement, String memberType) {
-		return switch (memberType.toLowerCase(java.util.Locale.ROOT)) {
-			case "citizen" -> MovementAdminService.hostCitizenNames(movement);
-			case "guild" -> MovementAdminService.hostGuildIds(movement);
-			case "vassal" -> MovementAdminService.hostSubjectIds(movement);
+	/** Completes the target at {@code from}; citizen names may span several words. */
+	private static List<String> targets(Movement movement, String[] args, int from) {
+		String memberType = args[from - 1].toLowerCase(java.util.Locale.ROOT);
+		if (memberType.equals("citizen")) {
+			return names(args, from, MovementAdminService.hostCitizenNames(movement));
+		}
+		if (args.length != from + 1) {
+			return List.of();
+		}
+		return switch (memberType) {
+			case "guild" -> prefixList(args[from], MovementAdminService.hostGuildIds(movement));
+			case "vassal" -> prefixList(args[from], MovementAdminService.hostSubjectIds(movement));
 			default -> List.of();
 		};
+	}
+
+	/** Completes a character name that starts at {@code from} and may contain spaces. */
+	private static List<String> names(String[] args, int from, List<String> names) {
+		String[] tail = new String[args.length - from + 1];
+		tail[0] = "";
+		System.arraycopy(args, from, tail, 1, args.length - from);
+		return Members.completions(names, tail);
 	}
 
 	private static List<String> prefix(String typed, String... candidates) {
