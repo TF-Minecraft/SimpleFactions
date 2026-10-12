@@ -1,7 +1,11 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
+import org.bukkit.Bukkit;
 import java.util.function.BooleanSupplier;
 
 import org.json.simple.JSONObject;
@@ -142,9 +146,10 @@ public final class FactionVehicleReleaseService {
         if (!apply) {
             return outcome(Status.OK, null, typeId);
         }
-        // Drop the faction record and save it before the owner changes, so a failed save can
-        // never leave a personal vehicle that still loads as a faction vehicle.
-        registry.unregister(vehicleUuid);
+        // Record the captured recipient as payer before changing the external ownership tag.
+        UUID recipientCharacter = Members.session(Bukkit.getPlayerExact(recipientName)).map(session -> session.ref().characterId()).orElse(null);
+        if (recipientCharacter == null) return outcome(Status.OWNERSHIP_UNAVAILABLE, null, typeId);
+        registry.register(new PlayerVehicleRecord(recipientCharacter, vehicleUuid, typeId, OwnershipMode.PERSONAL, null));
         if (!registrySaver.getAsBoolean()) {
             // The file still holds the record, so restoring it in memory is enough.
             registry.register(record);

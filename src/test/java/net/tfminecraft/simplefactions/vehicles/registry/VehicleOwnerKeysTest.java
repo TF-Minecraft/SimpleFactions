@@ -83,7 +83,7 @@ class VehicleOwnerKeysTest {
         Player stranger = mock(Player.class);
         UUID strangerAccount = UUID.randomUUID();
         when(stranger.getUniqueId()).thenReturn(strangerAccount);
-        assertEquals(strangerAccount, VehicleOwnershipQueries.characterId(stranger), "No character: the account");
+        assertNull(VehicleOwnershipQueries.characterId(stranger), "No character means no payer");
     }
 
     @Test

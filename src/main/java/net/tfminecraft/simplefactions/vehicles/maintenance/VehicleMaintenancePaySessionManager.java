@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import net.tfminecraft.tlibs.character.CharacterSession;
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
 
@@ -41,15 +42,25 @@ public final class VehicleMaintenancePaySessionManager {
     public static final class VehicleMaintenancePaySession {
         private final long expiresAtMillis;
         private final PaymentSource paymentSource;
+        private final CharacterSession character;
+        private final String operationId = "sf:vehicle:maintenance:" + UUID.randomUUID();
 
         public VehicleMaintenancePaySession(long expiresAtMillis) {
             this(expiresAtMillis, PaymentSource.POUCH);
         }
 
         public VehicleMaintenancePaySession(long expiresAtMillis, PaymentSource paymentSource) {
+            this(expiresAtMillis, paymentSource, null);
+        }
+
+        public VehicleMaintenancePaySession(long expiresAtMillis, PaymentSource paymentSource, CharacterSession character) {
+            this.character = character;
             this.expiresAtMillis = expiresAtMillis;
             this.paymentSource = paymentSource;
         }
+
+        public CharacterSession getCharacter() { return character; }
+        public String getOperationId() { return operationId; }
 
         public PaymentSource getPaymentSource() {
             return paymentSource;

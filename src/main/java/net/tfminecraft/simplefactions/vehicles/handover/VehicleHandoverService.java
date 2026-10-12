@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.vehicles.handover;
 
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.denareconomy.api.Result;
+import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -96,6 +98,9 @@ public final class VehicleHandoverService {
     }
 
     public void offer(Player owner, Player recipient, String vehicleUuid, String vehicleTypeId) {
+        if (Members.session(owner).isEmpty() || Members.session(recipient).isEmpty()) {
+            owner.sendMessage("§cBoth players must select a living character."); return;
+        }
         Guild guild = FactionManager.getGuildByMember(Members.key(owner));
         VehicleHandoverRequest request = new VehicleHandoverRequest(
                 guild,
@@ -125,6 +130,15 @@ public final class VehicleHandoverService {
             notifyExpired(req, recipient);
             return;
         }
+        if (req.getOwnerCharacter() == null || !Members.session(recipient).map(value -> value.ref())
+                .filter(value -> value.equals(req.getRecipientCharacter())).isPresent()) {
+            recipient.sendMessage("§cThis request belongs to another character."); return;
+        }
+        var payments = VehiclePayments.current();
+        String scope = "handover:" + req.getVehicleUuid();
+        if (payments == null || !payments.ready() || payments.blockedVehicle(req.getVehicleUuid())) {
+            tellBoth(req, recipient, "§cVehicle payment needs staff review or recovery."); return;
+        }
         Outcome outcome = evaluate(req.getOwnerName(), recipient.getName(), req.getVehicleUuid());
         if (outcome.status() != Status.OK) {
             tellBoth(req, recipient, VehicleHandoverMessages.forOutcome(outcome, Members.name(recipient)));
@@ -136,26 +150,19 @@ public final class VehicleHandoverService {
             tellBoth(req, recipient, VehicleHandoverMessages.feeChanged());
             return;
         }
-        UUID payer = null;
-        if (quote != null) {
-            payer = VehicleFeeService.resolve(req.getOwnerName());
-            if (payer == null) {
-                payer = req.getOwnerUuid();
-            }
-            if (!VehicleFeeService.collect(payer, quote)) {
-                tellBoth(req, recipient, VehicleFeeMessages.handoverUnaffordable(quote));
-                return;
-            }
+        if (quote != null && payments.charge(scope, req.getOperationId(), req.getOwnerCharacter(), quote) != Result.APPLIED) {
+            tellBoth(req, recipient, VehicleFeeMessages.handoverUnaffordable(quote)); return;
         }
         if (!ownerAssigner.test(req.getVehicleUuid(), recipient.getName())) {
             if (quote != null) {
-                VehicleFeeService.refund(payer, quote.faction().getId(), FeeKind.TRANSFER_FEE, quote.amount());
+                payments.refund(scope);
             }
             tellBoth(req, recipient, VehicleHandoverMessages.ownershipUnavailable());
             return;
         }
-        store.setLastOwner(req.getVehicleUuid(), Members.key(recipient));
-        saver.run();
+        if (!payments.personal(req.getVehicleUuid(), outcome.vehicleTypeId(), req.getRecipientCharacter().characterId())) return;
+        if (quote != null) payments.complete(scope, Members.key(req.getRecipientCharacter()));
+        else { store.setLastOwner(req.getVehicleUuid(), Members.key(req.getRecipientCharacter())); saver.run(); }
         recipient.sendMessage(VehicleHandoverMessages.successRecipient(Members.display(ownerKey)));
         Player owner = Bukkit.getPlayer(req.getOwnerUuid());
         if (owner != null && owner.isOnline()) {

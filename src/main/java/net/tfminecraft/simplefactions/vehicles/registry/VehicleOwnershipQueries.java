@@ -127,7 +127,7 @@ public final class VehicleOwnershipQueries {
 
     /** The character a new registry row or fee is recorded for; the account without a character. */
     public static UUID characterId(Player player) {
-        return Members.session(player).map(session -> session.ref().characterId()).orElse(player.getUniqueId());
+        return Members.session(player).map(session -> session.ref().characterId()).orElse(null);
     }
 
     /** The account name VehicleFramework uses for a member's vehicles; a non-key is already a name. */

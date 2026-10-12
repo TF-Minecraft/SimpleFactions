@@ -80,6 +80,11 @@ class VehicleSettlementTest {
         when(faction.getLeader()).thenReturn(payer.characterId().toString());
         when(faction.getBank()).thenReturn(mock(Bank.class));
         when(faction.getOrCreateMainGuild()).thenReturn(guild);
+        var handler = mock(net.tfminecraft.simplefactions.objects.handler.GuildHandler.class);
+        when(faction.getGuildHandler()).thenReturn(handler);
+        when(handler.getGuild("realm")).thenReturn(guild);
+        Bank bank = faction.getBank();
+        when(guild.getBank()).thenReturn(bank);
         UUID incarnation = UUID.randomUUID();
         when(guild.getIncarnationId()).thenReturn(incarnation);
         RealmSettlementChanges.GuildChange saved = new RealmSettlementChanges.GuildChange();
@@ -115,6 +120,18 @@ class VehicleSettlementTest {
         assertTrue(maintenance.isUnpaid("v"));
         assertFalse(after().has("v"));
         denars.verify(() -> Denars.post(anyString(), anyString(), anyList()), never());
+    }
+
+    @Test void interruptedOwnershipPaymentQuarantinesUpkeepInsteadOfChargingTheOldPayer() {
+        vehicle("v", "ship", payer.characterId(), OwnershipMode.PERSONAL);
+        try (var runtime = mockStatic(net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.class)) {
+            var payments = mock(net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.class);
+            runtime.when(net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments::current).thenReturn(payments);
+            when(payments.blockedVehicle("v")).thenReturn(true);
+            calculate();
+            assertTrue(legs.isEmpty());
+            assertEquals(1000, after().get("v").getAsLong());
+        }
     }
 
     @Test void personalShortfallMovesNeitherUpkeepNorTaxAndPreservesOriginalUnpaidDate() {

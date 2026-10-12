@@ -130,6 +130,7 @@ class VehicleInteractionsCoverageTest {
   private VehicleHandoverService handoverService;
   private VehicleHandoverListener handoverListener;
   private VehicleFeeStore feeStore;
+  private org.mockito.MockedConstruction<net.tfminecraft.simplefactions.database.Database> feeDatabase;
   private PlayerEconomyManager economy;
   private final Map<UUID, Double> balances = new HashMap<>();
   private final List<OwnedVehicleSummary> storedOwned = new ArrayList<>();
@@ -239,6 +240,9 @@ class VehicleInteractionsCoverageTest {
     handovers = new VehicleHandoverSessionManager();
     feeStore = new VehicleFeeStore();
     feeStore.bind(files.root.toFile());
+    feeDatabase = org.mockito.Mockito.mockConstruction(net.tfminecraft.simplefactions.database.Database.class,
+        (value, context) -> when(value.saveFactionDurably(any())).thenReturn(true));
+    net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.startup(files.root, feeStore, new net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceStore());
     handoverService = new VehicleHandoverService(registry, feeStore, feeStore::save);
     handoverListener =
         new VehicleHandoverListener(handovers, handoverService, new VehicleFeeConfirmations());
@@ -250,15 +254,11 @@ class VehicleInteractionsCoverageTest {
           public double getBankBalance(UUID id) {
             return balances.getOrDefault(id, 0.0);
           }
-
-          @Override
           public boolean withdrawFromBank(UUID id, double amount) {
             if (amount <= 0 || getBankBalance(id) < amount) return false;
             balances.put(id, getBankBalance(id) - amount);
             return true;
           }
-
-          @Override
           public boolean depositToBank(UUID id, double amount) {
             balances.put(id, getBankBalance(id) + amount);
             return true;
@@ -272,9 +272,20 @@ class VehicleInteractionsCoverageTest {
         });
   }
 
+  private static void fund(Player player, double amount) {
+    var ref = net.tfminecraft.simplefactions.identity.Members.session(player).orElseThrow().ref();
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(net.tfminecraft.denareconomy.api.Denars.bank(ref), Math.round(amount * 100));
+  }
+  private static double balance(Player player) {
+    var ref = net.tfminecraft.simplefactions.identity.Members.session(player).orElseThrow().ref();
+    return net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.bank(ref)) / 100.0;
+  }
+
   @AfterEach
   @SuppressWarnings({"unchecked", "rawtypes"})
   void close() throws Exception {
+    net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.stop();
+    if (feeDatabase != null) feeDatabase.close();
     try {
       if (vehicleFramework != null) vehicleFramework.close();
       for (var entry : globals.entrySet()) {
@@ -668,7 +679,7 @@ class VehicleInteractionsCoverageTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void factionTakeRemovesTheRegistryEntryAndRecordsTheNewPersonalOwner(boolean pool) {
+  void factionTakeRecordsTheNewPersonalPayer(boolean pool) {
     factionVehicle(pool);
     releases.put(
         leader.getUniqueId(),
@@ -677,7 +688,7 @@ class VehicleInteractionsCoverageTest {
     var event = new VehiclePreInteractEvent(leader, vehicle);
     releaseListener.onVehiclePreInteract(event);
     assertTrue(event.isCancelled());
-    assertTrue(registry.getByVehicleUuid("vehicle-1").isEmpty());
+    assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("vehicle-1").orElseThrow().getMode());
     assertEquals("player_Leader", ownerData.getOwner());
     assertNull(releases.get(leader.getUniqueId()));
     verify(fixture.ui.plugin).saveVehicleRegistry();
@@ -700,7 +711,7 @@ class VehicleInteractionsCoverageTest {
     assertNull(releases.get(leader.getUniqueId()));
     RequestManager.accept(owner);
     assertFalse(RequestManager.hasRequest(owner));
-    assertTrue(registry.getByVehicleUuid("vehicle-1").isEmpty());
+    assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("vehicle-1").orElseThrow().getMode());
     assertEquals("player_Owner", ownerData.getOwner());
     verify(fixture.ui.plugin).recordVehicleOwner("vehicle-1", "Owner");
     verify(fixture.ui.plugin).saveVehicleRegistry();
@@ -793,7 +804,7 @@ class VehicleInteractionsCoverageTest {
   void personalHandoverCollectsOrRefundsTheConfirmedFeeAndMovesOwnershipExactlyOnce(String state) {
     Player recipient = fixture.player("Recipient");
     enableTransferFee();
-    balances.put(owner.getUniqueId(), state.equals("unaffordable") ? 10.0 : 100.0);
+    fund(owner, state.equals("unaffordable") ? 10.0 : 100.0);
     handovers.put(
         owner.getUniqueId(),
         new VehicleHandoverSessionManager.Session(
@@ -803,7 +814,7 @@ class VehicleInteractionsCoverageTest {
     assertTrue(event.isCancelled());
     assertFalse(RequestManager.hasRequest(recipient));
     assertNotNull(handovers.get(owner.getUniqueId()));
-    assertEquals(state.equals("unaffordable") ? 10.0 : 100.0, balances.get(owner.getUniqueId()));
+    assertEquals(state.equals("unaffordable") ? 10.0 : 100.0, balance(owner));
     handoverListener.onVehiclePreInteract(new VehiclePreInteractEvent(owner, vehicle));
     assertTrue(RequestManager.hasRequest(recipient));
     assertNull(handovers.get(owner.getUniqueId()));
@@ -819,17 +830,17 @@ class VehicleInteractionsCoverageTest {
     assertEquals(successful ? "player_Recipient" : "player_Owner", ownerData.getOwner());
     assertEquals(
         successful ? 60.0 : state.equals("unaffordable") ? 10.0 : 100.0,
-        balances.get(owner.getUniqueId()));
+        balance(owner));
     assertEquals(successful ? 1040.0 : 1000.0, faction.getBank().getWealth());
     assertEquals(
         successful ? -40.0 : 0.0,
-        economy.getLedger(owner.getUniqueId()).getAmount(PlayerCashflow.VEHICLE_FEES));
+        economy.getLedger(net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref().characterId()).getAmount(PlayerCashflow.VEHICLE_FEES));
     assertEquals(successful ? "Recipient" : null, feeStore.getLastOwner("vehicle-1"));
     assertFalse(RequestManager.hasRequest(recipient));
     RequestManager.accept(recipient);
     assertEquals(
         successful ? 60.0 : state.equals("unaffordable") ? 10.0 : 100.0,
-        balances.get(owner.getUniqueId()));
+        balance(owner));
     if (successful) {
       VehicleFeeStore persisted = new VehicleFeeStore();
       persisted.bind(files.root.toFile());
@@ -842,7 +853,7 @@ class VehicleInteractionsCoverageTest {
   void pendingHandoverCannotChargeMoreThanTheFeeConfirmedByTheOwner() {
     Player recipient = fixture.player("Recipient");
     enableTransferFee();
-    balances.put(owner.getUniqueId(), 100.0);
+    fund(owner, 100.0);
     handovers.put(
         owner.getUniqueId(),
         new VehicleHandoverSessionManager.Session(
@@ -851,18 +862,18 @@ class VehicleInteractionsCoverageTest {
     assertFalse(RequestManager.hasRequest(recipient));
     handoverListener.onVehiclePreInteract(new VehiclePreInteractEvent(owner, vehicle));
     assertTrue(RequestManager.hasRequest(recipient));
-    assertEquals(100.0, balances.get(owner.getUniqueId()));
+    assertEquals(100.0, balance(owner));
     faction.getVehicleFeeHandler().setRate(FeeKind.TRANSFER_FEE, null, 3.0);
 
     RequestManager.accept(recipient);
 
     assertAll(
         () -> assertEquals("player_Owner", ownerData.getOwner()),
-        () -> assertEquals(100.0, balances.get(owner.getUniqueId())),
+        () -> assertEquals(100.0, balance(owner)),
         () -> assertEquals(1000.0, faction.getBank().getWealth()));
     assertEquals(1000.0, faction.getBank().getWealth());
     assertEquals(
-        0.0, economy.getLedger(owner.getUniqueId()).getAmount(PlayerCashflow.VEHICLE_FEES));
+        0.0, economy.getLedger(net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref().characterId()).getAmount(PlayerCashflow.VEHICLE_FEES));
     assertNull(feeStore.getLastOwner("vehicle-1"));
     assertFalse(RequestManager.hasRequest(recipient));
   }
@@ -954,7 +965,7 @@ class VehicleInteractionsCoverageTest {
       throws Exception {
     Player recipient = fixture.player("Recipient");
     enableTransferFee();
-    balances.put(owner.getUniqueId(), 100.0);
+    fund(owner, 100.0);
     assertEquals(40.0, VehicleFeeService.quote(FeeKind.TRANSFER_FEE, "Owner", "ironclad").amount());
     AtomicInteger saves = new AtomicInteger();
     handoverService =
@@ -983,10 +994,10 @@ class VehicleInteractionsCoverageTest {
     assertFalse(RequestManager.hasRequest(recipient));
     assertEquals("player_Owner", ownerData.getOwner());
     assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals(100.0, balances.get(owner.getUniqueId()));
+    assertEquals(100.0, balance(owner));
     assertEquals(1000.0, faction.getBank().getWealth());
     assertEquals(
-        0.0, economy.getLedger(owner.getUniqueId()).getAmount(PlayerCashflow.VEHICLE_FEES));
+        0.0, economy.getLedger(net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref().characterId()).getAmount(PlayerCashflow.VEHICLE_FEES));
     assertEquals("Owner", feeStore.getLastOwner("vehicle-1"));
     assertEquals(0, saves.get());
     assertArrayEquals(savedFees, Files.readAllBytes(feesFile));
@@ -1281,7 +1292,7 @@ class VehicleInteractionsCoverageTest {
   void pendingHandoverBindsTheFeeRecipientAndFreeStatusAsWellAsItsAmount(String state) {
     Player recipient = fixture.player("Recipient");
     enableTransferFee();
-    balances.put(owner.getUniqueId(), 100.0);
+    fund(owner, 100.0);
     if (state.equals("free_becomes_paid"))
       faction.getVehicleFeeHandler().setRate(FeeKind.TRANSFER_FEE, null, 0.0);
     handovers.put(
@@ -1301,13 +1312,13 @@ class VehicleInteractionsCoverageTest {
       second.addMember("Owner");
       second.getVehicleFeeHandler().applyBracket(FeeKind.TRANSFER_FEE, new Bracket(0, 10));
       second.getVehicleFeeHandler().setRate(FeeKind.TRANSFER_FEE, null, 2.0);
-      second.getBank().setWealth(500.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(second.getBank(), 500.0);
       assertSame(second, FactionManager.getByMember("Owner"));
     }
     if (state.equals("vehicle_type_changes")) when(vehicle.getId()).thenReturn("simple_locomotive");
     RequestManager.accept(recipient);
     assertEquals("player_Owner", ownerData.getOwner());
-    assertEquals(100.0, balances.get(owner.getUniqueId()));
+    assertEquals(100.0, balance(owner));
     assertEquals(1000.0, faction.getBank().getWealth());
     if (second != null) assertEquals(500.0, second.getBank().getWealth());
     assertNull(feeStore.getLastOwner("vehicle-1"));
@@ -1318,13 +1329,13 @@ class VehicleInteractionsCoverageTest {
   void anOfflineOwnerStillPaysThePreviouslyConfirmedHandoverFeeFromTheirCapturedUuid() {
     Player recipient = fixture.player("Recipient");
     enableTransferFee();
-    balances.put(owner.getUniqueId(), 100.0);
+    fund(owner, 100.0);
     handoverService.offer(owner, recipient, "vehicle-1", "ironclad");
     fixture.online.remove("Owner");
     when(owner.isOnline()).thenReturn(false);
     RequestManager.accept(recipient);
     assertEquals("player_Recipient", ownerData.getOwner());
-    assertEquals(60.0, balances.get(owner.getUniqueId()));
+    assertEquals(60.0, balance(owner));
     assertEquals(1040.0, faction.getBank().getWealth());
     assertEquals("Recipient", feeStore.getLastOwner("vehicle-1"));
     assertEquals(
@@ -1386,8 +1397,8 @@ class VehicleInteractionsCoverageTest {
     faction.addMember("Owner");
     faction.getVehicleFeeHandler().applyBracket(FeeKind.REGISTRATION_FEE, new Bracket(0, 10));
     faction.getVehicleFeeHandler().setRate(FeeKind.REGISTRATION_FEE, null, 2.0);
-    faction.getBank().setWealth(1000.0);
-    balances.put(owner.getUniqueId(), state.equals("unaffordable") ? 10.0 : 100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(faction.getBank(), 1000.0);
+    fund(owner, state.equals("unaffordable") ? 10.0 : 100.0);
     Blueprint blueprint = blueprint("ironclad");
     ActiveStation station = station();
     VehicleRegistrationFeeListener fees =
@@ -1403,20 +1414,19 @@ class VehicleInteractionsCoverageTest {
     if (state.equals("unaffordable")) {
       assertTrue(confirmed.isCancelled());
       assertFalse(confirmed.isKeepPlacement());
-      assertEquals(10.0, balances.get(owner.getUniqueId()));
+      assertEquals(10.0, balance(owner));
       assertEquals(1000.0, faction.getBank().getWealth());
       assertNull(feeStore.takePaidBuild("world:6:64:7"));
       return;
     }
     assertFalse(confirmed.isCancelled());
-    assertEquals(60.0, balances.get(owner.getUniqueId()));
+    assertEquals(60.0, balance(owner));
     assertEquals(1040.0, faction.getBank().getWealth());
     VehicleFeeStore persisted = new VehicleFeeStore();
     persisted.bind(files.root.toFile());
     persisted.load();
-    assertEquals(
-        new VehicleFeeStore.PaidBuild(owner.getUniqueId(), "home", 40.0),
-        persisted.takePaidBuild("world:6:64:7"));
+    assertEquals(net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref(), persisted.receipt("build:world:6:64:7").payer());
+    assertEquals(4000, persisted.receipt("build:world:6:64:7").cents());
     var cancelled = new VehicleConstructionCancelEvent(owner.getUniqueId(), blueprint, station);
     if (state.equals("complete")) {
       fees.onVehicleConstruct(
@@ -1424,10 +1434,10 @@ class VehicleInteractionsCoverageTest {
               owner.getUniqueId(), vehicle, blueprint, station.getLocation(), station));
       assertEquals("Owner", feeStore.getLastOwner("vehicle-1"));
       fees.onConstructionCancel(cancelled);
-      assertEquals(60.0, balances.get(owner.getUniqueId()));
+      assertEquals(60.0, balance(owner));
       assertEquals(1040.0, faction.getBank().getWealth());
     } else {
-      if (state.equals("partial_refund")) faction.getBank().setWealth(10.0);
+      if (state.equals("partial_refund")) net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(faction.getBank(), 10.0);
       if (state.equals("offline_refund")) {
         fixture.online.remove("Owner");
         when(owner.isOnline()).thenReturn(false);
@@ -1435,11 +1445,11 @@ class VehicleInteractionsCoverageTest {
       fees.onConstructionCancel(cancelled);
       fees.onConstructionCancel(cancelled);
       assertEquals(
-          state.equals("partial_refund") ? 70.0 : 100.0, balances.get(owner.getUniqueId()));
+          state.equals("partial_refund") ? 70.0 : 100.0, balance(owner));
       assertEquals(state.equals("partial_refund") ? 0.0 : 1000.0, faction.getBank().getWealth());
       assertEquals(
           state.equals("partial_refund") ? -30.0 : 0.0,
-          economy.getLedger(owner.getUniqueId()).getAmount(PlayerCashflow.VEHICLE_FEES));
+          economy.getLedger(net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref().characterId()).getAmount(PlayerCashflow.VEHICLE_FEES));
       assertNull(feeStore.getLastOwner("vehicle-1"));
     }
     assertNull(feeStore.takePaidBuild("world:6:64:7"));
@@ -1482,9 +1492,9 @@ class VehicleInteractionsCoverageTest {
       fixture.online.remove("Owner");
       // An offline builder is known only by the character that paid the fee.
       if (state.equals("offline_constructor")) {
-        feeStore.putPaidBuild(
-            "world:6:64:7",
-            new VehicleFeeStore.PaidBuild(paidBy, "home", 5.0));
+        feeStore.putReceipt("build:world:6:64:7", new net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.Receipt(
+            "old", new net.tfminecraft.tlibs.character.CharacterRef(owner.getUniqueId(), paidBy), "home",
+            faction.getOrCreateMainGuild().getIncarnationId(), FeeKind.REGISTRATION_FEE, 500));
       }
     }
     fees.onVehicleConstruct(
@@ -1497,8 +1507,7 @@ class VehicleInteractionsCoverageTest {
     assertEquals(
         state.equals("offline_constructor") ? paidBy.toString() : null,
         feeStore.getLastOwner("vehicle-1"));
-    if (state.equals("offline_constructor")) verify(save).run();
-    else verifyNoInteractions(save);
+    verifyNoInteractions(save);
   }
 
   @ParameterizedTest
@@ -1611,7 +1620,7 @@ class VehicleInteractionsCoverageTest {
     Player claimant = fixture.player("Recipient");
     enableTransferFee();
     feeStore.setLastOwner("vehicle-1", state.equals("same_owner") ? "Recipient" : "Owner");
-    balances.put(claimant.getUniqueId(), state.equals("unaffordable") ? 10.0 : 100.0);
+    fund(claimant, state.equals("unaffordable") ? 10.0 : 100.0);
     if (state.equals("missing_last_owner")) feeStore.forgetVehicle("vehicle-1");
     if (state.equals("admin"))
       when(claimant.hasPermission("simplefactions.admin")).thenReturn(true);
@@ -1640,13 +1649,13 @@ class VehicleInteractionsCoverageTest {
     fees.onVehicleOwnerClaimed(confirmation);
     assertEquals(state.equals("unaffordable"), confirmation.isCancelled());
     if (!confirmation.isCancelled()) fees.onClaimed(confirmation);
-    assertEquals(state.equals("success") ? 60.0 : 10.0, balances.get(claimant.getUniqueId()));
+    assertEquals(state.equals("success") ? 60.0 : 10.0, balance(claimant));
     assertEquals(state.equals("success") ? 1040.0 : 1000.0, faction.getBank().getWealth());
     assertEquals(
         state.equals("success") ? "Recipient" : "Owner", feeStore.getLastOwner("vehicle-1"));
     assertEquals(
         state.equals("success") ? -40.0 : 0.0,
-        economy.getLedger(claimant.getUniqueId()).getAmount(PlayerCashflow.VEHICLE_FEES));
+        economy.getLedger(net.tfminecraft.simplefactions.identity.Members.session(claimant).orElseThrow().ref().characterId()).getAmount(PlayerCashflow.VEHICLE_FEES));
   }
 
   @Test
@@ -2146,7 +2155,7 @@ class VehicleInteractionsCoverageTest {
     assertEquals(expected, outcome.result());
     String message = InstallationVehicleUnberthService.messageFor(outcome);
     assertTrue(message.startsWith(state.equals("success") ? "§a" : "§c"));
-    if (state.equals("success")) assertTrue(registry.getByVehicleUuid("vehicle-1").isEmpty());
+    if (state.equals("success")) assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("vehicle-1").orElseThrow().getMode());
     else
       assertSame(
           state.equals("not_berthed") ? originalRecord : before,
@@ -2226,7 +2235,7 @@ class VehicleInteractionsCoverageTest {
             + "\",\"factionId\":\"home\",\"amount\":\""
             + amount
             + "\"}}}");
-    feeStore.load();
+    assertThrows(IllegalStateException.class, feeStore::load);
     assertNull(feeStore.takePaidBuild("station"));
     assertEquals("player_Owner", ownerData.getOwner());
   }
@@ -2242,16 +2251,18 @@ class VehicleInteractionsCoverageTest {
     store.putPaidBuild("station", payment);
     if (state.equals("null_document")) files.write("vehicle_fees.json", "null");
     if (state.equals("malformed")) files.write("vehicle_fees.json", "{broken");
+    if (state.equals("absent") || state.equals("directory")) Files.delete(files.root.resolve("vehicle_fees.json"));
     if (state.equals("directory")) Files.createDirectory(files.root.resolve("vehicle_fees.json"));
     if (state.equals("empty_document")) files.write("vehicle_fees.json", "{}");
-    store.load();
+    if (List.of("null_document", "malformed", "directory").contains(state)) assertThrows(IllegalStateException.class, store::load);
+    else store.load();
     if (state.equals("unbound")) store.save();
     assertEquals(state.equals("empty_document") ? null : "Owner", store.getLastOwner("vehicle-1"));
     assertEquals(state.equals("empty_document") ? null : payment, store.takePaidBuild("station"));
   }
 
   @Test
-  void feeStoreFiltersMalformedPaymentRecordsAndPersistsOnlyValidRoundTrips() throws Exception {
+  void feeStoreRejectsMalformedPaymentRecordsAndPersistsRepairedRoundTrips() throws Exception {
     files.write(
         "vehicle_fees.json",
         """
@@ -2264,10 +2275,11 @@ class VehicleInteractionsCoverageTest {
           "valid":{"payerUuid":"%s","factionId":"home","amount":40}}}
         """
             .formatted(owner.getUniqueId(), owner.getUniqueId(), owner.getUniqueId()));
-    feeStore.load();
-    for (String key : List.of("null", "missingPayer", "invalidPayer", "zero", "negative"))
-      assertNull(feeStore.takePaidBuild(key));
-    feeStore.save();
+    assertThrows(IllegalStateException.class, feeStore::load);
+    var repaired = new com.google.gson.JsonParser().parse(Files.readString(files.root.resolve("vehicle_fees.json"))).getAsJsonObject();
+    for (String key : List.of("null", "missingPayer", "invalidPayer", "zero", "negative")) repaired.getAsJsonObject("paidBuilds").remove(key);
+    files.write("vehicle_fees.json", repaired.toString());
+    feeStore.load(); feeStore.save();
     VehicleFeeStore loaded = new VehicleFeeStore();
     loaded.bind(files.root.toFile());
     loaded.load();
@@ -2293,7 +2305,7 @@ class VehicleInteractionsCoverageTest {
   }
 
   @Test
-  void feeStoreFallsBackWhenAtomicRenameIsUnavailableWithoutLeavingAPartialFile() throws Exception {
+  void feeStoreRefusesNonAtomicRenameWithoutReplacingThePreviousFile() throws Exception {
     feeStore.setLastOwner("vehicle-1", "Owner");
     feeStore.save();
     feeStore.setLastOwner("vehicle-1", "Recipient");
@@ -2314,14 +2326,14 @@ class VehicleInteractionsCoverageTest {
               }
               return call.callRealMethod();
             })) {
-      feeStore.save();
+      assertThrows(java.io.UncheckedIOException.class, feeStore::save);
     }
     assertEquals(1, atomicAttempts.get());
     assertFalse(Files.exists(files.root.resolve("vehicle_fees.json.tmp")));
     VehicleFeeStore persisted = new VehicleFeeStore();
     persisted.bind(files.root.toFile());
     persisted.load();
-    assertEquals("Recipient", persisted.getLastOwner("vehicle-1"));
+    assertEquals("Owner", persisted.getLastOwner("vehicle-1"));
   }
 
   @ParameterizedTest
@@ -2330,13 +2342,15 @@ class VehicleInteractionsCoverageTest {
       throws Exception {
     if (state.equals("missing_parent")) feeStore.bind(files.root.resolve("absent").toFile());
     else {
+      Files.delete(files.root.resolve("vehicle_fees.json"));
       Files.createDirectory(files.root.resolve("vehicle_fees.json"));
       Files.writeString(files.root.resolve("vehicle_fees.json/sentinel"), "preserved");
     }
     feeStore.setLastOwner("vehicle-1", "Owner");
-    feeStore.save();
+    if (state.equals("blocked_target")) assertThrows(java.io.UncheckedIOException.class, feeStore::save);
+    else feeStore.save();
     assertEquals("Owner", feeStore.getLastOwner("vehicle-1"));
-    if (state.equals("missing_parent")) assertFalse(Files.exists(files.root.resolve("absent")));
+    if (state.equals("missing_parent")) assertTrue(Files.exists(files.root.resolve("absent/vehicle_fees.json")));
     else
       assertEquals("preserved", Files.readString(files.root.resolve("vehicle_fees.json/sentinel")));
   }
@@ -2439,7 +2453,7 @@ class VehicleInteractionsCoverageTest {
     faction.addMember("Owner");
     faction.getVehicleFeeHandler().applyBracket(FeeKind.TRANSFER_FEE, new Bracket(0, 10));
     faction.getVehicleFeeHandler().setRate(FeeKind.TRANSFER_FEE, null, 2.0);
-    faction.getBank().setWealth(1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(faction.getBank(), 1000.0);
   }
 
   private List<OwnedVehicleSummary> ownedSummaries(String ownerEntry) {

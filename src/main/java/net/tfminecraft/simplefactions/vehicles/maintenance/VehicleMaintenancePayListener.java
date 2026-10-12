@@ -4,6 +4,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePaySessionManager.VehicleMaintenancePaySession;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.VehicleMaintenancePayResult;
 import org.bukkit.entity.Player;
+import net.tfminecraft.simplefactions.identity.Members;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
@@ -43,8 +44,11 @@ public final class VehicleMaintenancePayListener implements Listener {
     }
 
     void pay(Player leader, VehicleMaintenancePaySession session, String vehicleUuid, String vehicleTypeId) {
+        if (!Members.isCurrent(session.getCharacter())) {
+            sessionManager.clear(leader.getUniqueId()); leader.sendMessage("§cThis payment belongs to an earlier character session."); return;
+        }
         VehicleMaintenancePayResult result = payService.tryPay(
-                leader.getUniqueId(),
+                session.getOperationId(), session.getCharacter().ref(),
                 vehicleUuid,
                 vehicleTypeId,
                 session.getPaymentSource());
@@ -62,6 +66,7 @@ public final class VehicleMaintenancePayListener implements Listener {
             case NOT_UNPAID -> leader.sendMessage(VehicleMaintenanceMessages.notUnpaid());
             case INSUFFICIENT_POUCH -> leader.sendMessage(VehicleMaintenanceMessages.insufficientPouch());
             case INSUFFICIENT_BANK -> leader.sendMessage(VehicleMaintenanceMessages.insufficientBank());
+            case UNAVAILABLE -> leader.sendMessage("§cVehicle payment is unavailable pending recovery.");
             case UNKNOWN_TYPE -> leader.sendMessage(VehicleMaintenanceMessages.unknownType());
         }
     }

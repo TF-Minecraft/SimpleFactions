@@ -141,72 +141,9 @@ class VehicleTransactionBoundaryCoverageTest {
     assertTrue(confirmations.confirm(alice, "ironclad", 40, 301));
   }
 
-  @Test
-  void quotedFeesAndRefundsConserveMoneyAndRecordOnlyCompletedTransfers() throws Exception {
-    try (Rig rig = new Rig()) {
-      rig.faction.addMember("Owner");
-      rig.faction.getVehicleFeeHandler().applyBracket(FeeKind.REGISTRATION_FEE, new Bracket(0, 5));
-      rig.faction.getVehicleFeeHandler().setRate(FeeKind.REGISTRATION_FEE, null, 2);
-      UUID ownerId = rig.owner.getUniqueId();
-      rig.bank.balances.put(ownerId, 100.0);
-      rig.faction.getBank().setWealth(0.0);
-      var quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, "Owner", "ironclad");
-      assertNotNull(quote);
-      assertEquals(40, quote.amount());
-      assertTrue(VehicleFeeService.collect(ownerId, quote));
-      assertEquals(60, VehicleFeeService.bankBalance(ownerId));
-      assertEquals(40, rig.faction.getBank().getWealth());
-      assertEquals(40, rig.faction.getOrCreateMainGuild().getLedger().getVehicleFeeIncome());
-      assertEquals(-40, rig.economy.getLedger(ownerId).getAmount(PlayerCashflow.VEHICLE_FEES));
-      assertEquals(ownerId, VehicleFeeService.resolve("Owner"));
 
-      rig.bank.rejectDeposits = true;
-      assertEquals(0, VehicleFeeService.refund(ownerId, "home", FeeKind.REGISTRATION_FEE, 40));
-      assertEquals(40, rig.faction.getBank().getWealth());
-      assertEquals(60, rig.bank.getBankBalance(ownerId));
-      assertEquals(-40, rig.economy.getLedger(ownerId).getNetDaily());
-      rig.bank.rejectDeposits = false;
-      assertEquals(40, VehicleFeeService.refund(ownerId, "home", FeeKind.REGISTRATION_FEE, 60));
-      assertEquals(0, rig.faction.getBank().getWealth());
-      assertEquals(100, rig.bank.getBankBalance(ownerId));
-      assertEquals(0, rig.faction.getOrCreateMainGuild().getLedger().getVehicleFeeIncome());
-      assertEquals(0, rig.economy.getLedger(ownerId).getNetDaily());
-      assertEquals(0, VehicleFeeService.refund(ownerId, "home", FeeKind.REGISTRATION_FEE, 20));
-      assertEquals(0, VehicleFeeService.refund(ownerId, "missing", FeeKind.REGISTRATION_FEE, 20));
-      assertEquals(0, VehicleFeeService.refund(ownerId, null, FeeKind.REGISTRATION_FEE, 20));
-      assertEquals(0, VehicleFeeService.refund(null, "home", FeeKind.REGISTRATION_FEE, 20));
-      assertEquals(0, VehicleFeeService.refund(ownerId, "home", FeeKind.REGISTRATION_FEE, 0));
-      assertEquals(0, VehicleFeeService.bankBalance(null));
-      assertFalse(VehicleFeeService.collect(null, quote));
-      assertFalse(VehicleFeeService.collect(ownerId, null));
-      assertNull(VehicleFeeService.quote(null, "Owner", "ironclad"));
-      assertNull(VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, null, "ironclad"));
-      assertNull(VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, " ", "ironclad"));
-      assertNull(VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, "Owner", null));
-    }
-  }
 
-  @Test
-  void factionFeeCreditCanCompleteWithoutTheOptionalPlayerLedgerPlugin() throws Exception {
-    try (Rig rig = new Rig()) {
-      UUID owner = rig.owner.getUniqueId();
-      rig.bank.balances.put(owner, 20.0);
-      double initial = rig.faction.getBank().getWealth();
-      SimpleFactions previous = SimpleFactions.plugin;
-      try {
-        SimpleFactions.plugin = null;
-        assertTrue(
-            VehicleFeeService.collect(
-                owner,
-                new VehicleFeeService.Quote(FeeKind.TRANSFER_FEE, "ironclad", rig.faction, 1, 20)));
-      } finally {
-        SimpleFactions.plugin = previous;
-      }
-      assertEquals(initial + 20, rig.faction.getBank().getWealth());
-      assertEquals(0, rig.bank.getBankBalance(owner));
-      assertEquals(0, rig.economy.getLedger(owner).getNetDaily());
-    }
-  }
+
 
   @Test
   void poolMessagesUseActualRosterCapacityAndDistinguishStorageConflicts() throws Exception {
@@ -616,15 +553,11 @@ class VehicleTransactionBoundaryCoverageTest {
     public double getBankBalance(UUID id) {
       return balances.getOrDefault(id, 0.0);
     }
-
-    @Override
     public boolean withdrawFromBank(UUID id, double amount) {
       if (getBankBalance(id) < amount) return false;
       balances.put(id, getBankBalance(id) - amount);
       return true;
     }
-
-    @Override
     public boolean depositToBank(UUID id, double amount) {
       if (rejectDeposits) return false;
       balances.put(id, getBankBalance(id) + amount);

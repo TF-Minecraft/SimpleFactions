@@ -38,6 +38,7 @@ import net.tfminecraft.simplefactions.installation.InstallationKind;
 
 class InstallationVehicleUnberthServiceTest {
     private Path tempDir;
+    private org.mockito.MockedStatic<org.bukkit.Bukkit> online;
     private PlayerVehicleRegistry registry;
     private List<String> assigned;
     private InstallationVehicleUnberthService service;
@@ -47,6 +48,13 @@ class InstallationVehicleUnberthServiceTest {
 
     @BeforeEach
     void setUp() throws IOException {
+        online = org.mockito.Mockito.mockStatic(org.bukkit.Bukkit.class);
+        online.when(() -> org.bukkit.Bukkit.getPlayerExact(org.mockito.ArgumentMatchers.anyString())).thenAnswer(call -> {
+            org.bukkit.entity.Player player = mock(org.bukkit.entity.Player.class);
+            when(player.getName()).thenReturn(call.getArgument(0));
+            when(player.getUniqueId()).thenReturn(UUID.nameUUIDFromBytes(call.<String>getArgument(0).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            return player;
+        });
         tempDir = Files.createTempDirectory("sf-unberth-");
         Path vehiclesYaml = tempDir.resolve("vehicles.yml");
         Files.writeString(vehiclesYaml, """
@@ -86,6 +94,7 @@ class InstallationVehicleUnberthServiceTest {
 
     @AfterEach
     void tearDown() throws IOException {
+        online.close();
         net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
         VehicleOwnershipQueries.setSourceForTests(null);
         if (tempDir != null) {
@@ -115,7 +124,7 @@ class InstallationVehicleUnberthServiceTest {
                     service.unberth(faction, "Leader", port, vehicleUuid);
 
             assertEquals(InstallationVehicleUnberthService.UnberthResult.OK, outcome.result());
-            assertFalse(registry.getByVehicleUuid(vehicleUuid).isPresent());
+            assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid(vehicleUuid).orElseThrow().getMode());
             assertEquals(List.of(vehicleUuid + ":Leader"), assigned);
             verify(plugin).saveVehicleRegistry();
         }

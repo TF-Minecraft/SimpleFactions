@@ -117,6 +117,7 @@ class FactionVehicleGiveServiceTest {
                 MockedStatic<SimpleFactions> factions = mockStatic(SimpleFactions.class)) {
             factions.when(SimpleFactions::getInstance).thenReturn(plugin);
             bukkit.when(() -> Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
+            bukkit.when(() -> Bukkit.getPlayerExact("Bob")).thenReturn(recipient);
 
             giveService.offer(leader, recipient, faction, "car-1", "coal_car");
             assertTrue(RequestManager.getRequest(recipient) instanceof VehicleGiveConsentRequest);
@@ -124,7 +125,7 @@ class FactionVehicleGiveServiceTest {
             RequestManager.accept(recipient);
 
             assertEquals(List.of("car-1:Bob"), assigned);
-            assertFalse(registry.getByVehicleUuid("car-1").isPresent());
+            assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("car-1").orElseThrow().getMode());
             assertTrue(recipientMessages.stream().anyMatch(line -> line.contains("personal vehicle")));
             assertTrue(leaderMessages.stream().anyMatch(line -> line.contains("Bob")));
             assertFalse(RequestManager.hasRequest(recipient));
@@ -159,6 +160,7 @@ class FactionVehicleGiveServiceTest {
                 MockedStatic<SimpleFactions> factions = mockStatic(SimpleFactions.class)) {
             factions.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
             bukkit.when(() -> Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
+            bukkit.when(() -> Bukkit.getPlayerExact("Bob")).thenReturn(recipient);
             messagesOf(leader);
 
             RequestManager.addRequest(leader, recipient, expired);
@@ -182,6 +184,7 @@ class FactionVehicleGiveServiceTest {
                 MockedStatic<SimpleFactions> factions = mockStatic(SimpleFactions.class)) {
             factions.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
             bukkit.when(() -> Bukkit.getPlayer(leaderUuid)).thenReturn(leader);
+            bukkit.when(() -> Bukkit.getPlayerExact("Bob")).thenReturn(recipient);
             messagesOf(leader);
 
             giveService.offer(leader, recipient, faction, "car-1", "coal_car");

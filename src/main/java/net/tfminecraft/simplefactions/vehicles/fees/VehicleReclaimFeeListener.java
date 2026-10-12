@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.vehicles.fees;
 
 import org.bukkit.entity.Player;
+import java.util.UUID;
+import net.tfminecraft.denareconomy.api.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -38,6 +40,12 @@ public final class VehicleReclaimFeeListener implements Listener {
         if (player == null || vehicle == null || vehicle.getUUID() == null) {
             return;
         }
+        var session = Members.session(player).orElse(null);
+        var payments = VehiclePayments.current();
+        String scope = "claim:" + vehicle.getUUID();
+        if (session == null || payments == null || !payments.ready() || payments.blockedVehicle(vehicle.getUUID())) {
+            event.setCancelled(true); player.sendMessage("§cVehicle payment needs a living character or staff recovery."); return;
+        }
         String lastOwner = store.getLastOwner(vehicle.getUUID());
         if (lastOwner == null || Members.is(player, lastOwner) || Permissions.isAdmin(player)) {
             return;
@@ -47,14 +55,14 @@ public final class VehicleReclaimFeeListener implements Listener {
             return;
         }
         long now = System.currentTimeMillis();
-        String target = "claim:" + vehicle.getUUID();
+        String target = scope + ":" + session.ref().characterId() + ":" + quote.faction().getOrCreateMainGuild().getIncarnationId();
         if (!confirmations.confirm(player.getUniqueId(), target, quote.amount(), now)) {
             event.setCancelled(true);
             confirmations.ask(player.getUniqueId(), target, quote.amount(), now);
             player.sendMessage(VehicleFeeMessages.claimConfirm(quote, Members.display(lastOwner)));
             return;
         }
-        if (!VehicleFeeService.collect(VehicleRegistrationFeeListener.payerUuid(player), quote)) {
+        if (payments.charge(scope, "sf:vehicle:claim:" + UUID.randomUUID(), session.ref(), quote) != Result.APPLIED) {
             event.setCancelled(true);
             player.sendMessage(VehicleFeeMessages.claimUnaffordable(quote));
             return;
@@ -67,8 +75,14 @@ public final class VehicleReclaimFeeListener implements Listener {
         if (event.getPlayer() == null || event.getVehicle() == null) {
             return;
         }
-        store.setLastOwner(event.getVehicle().getUUID(), Members.key(event.getPlayer()));
-        saver.run();
+        String scope = "claim:" + event.getVehicle().getUUID();
+        var payments = VehiclePayments.current();
+        var receipt = payments == null ? null : payments.receipt(scope);
+        String owner = receipt == null ? Members.session(event.getPlayer()).map(session -> session.ref().characterId().toString()).orElse(null) : receipt.payer().characterId().toString();
+        if (owner == null || payments == null || !payments.personal(event.getVehicle().getUUID(), event.getVehicle().getId(), UUID.fromString(owner))) return;
+        String member = Members.key(UUID.fromString(owner));
+        if (receipt != null) payments.complete(scope, member);
+        else { store.setLastOwner(event.getVehicle().getUUID(), member); saver.run(); }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

@@ -13,11 +13,13 @@ import net.tfminecraft.simplefactions.database.DurableJson;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.economy.Money;
 import net.tfminecraft.simplefactions.economy.settlement.RealmSettlementChanges;
+import net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.player.income.PlayerCashflow;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
+import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
@@ -29,8 +31,11 @@ public final class VehicleSettlement {
     private VehicleSettlement() {}
 
     public static void calculate(Map<String, Long> balances, Map<String, Long> legs, RealmSettlementChanges changes) {
-        calculate(balances, legs, changes, SimpleFactions.getVehicleRegistry(),
-                SimpleFactions.getInstance().getVehicleMaintenanceStore(), System.currentTimeMillis());
+        calculate(balances, legs, changes, System.currentTimeMillis());
+    }
+
+    public static void calculate(Map<String, Long> balances, Map<String, Long> legs, RealmSettlementChanges changes, long now) {
+        calculate(balances, legs, changes, SimpleFactions.getVehicleRegistry(), SimpleFactions.getInstance().getVehicleMaintenanceStore(), now);
     }
 
     static void calculate(Map<String, Long> balances, Map<String, Long> legs, RealmSettlementChanges changes,
@@ -45,6 +50,11 @@ public final class VehicleSettlement {
             }
             var record = registry.getByVehicleUuid(vehicle.getUuid()).orElse(null);
             String payer = record == null || record.getPlayerUuid() == null ? null : record.getPlayerUuid().toString();
+            var payments = VehiclePayments.current();
+            if (payments != null && payments.blockedVehicle(vehicle.getUuid())) {
+                markUnpaid(unpaid, notices, vehicle.getUuid(), vehicle.getTypeId(), payer, null, now);
+                continue;
+            }
             var character = Members.info(payer).filter(CharacterInfo::alive);
             if (character.isEmpty()) {
                 markUnpaid(unpaid, notices, vehicle.getUuid(), vehicle.getTypeId(), payer, null, now);
@@ -55,14 +65,14 @@ public final class VehicleSettlement {
             long fee = tax == null ? 0 : Money.cents(tax.amount());
             long total = Math.addExact(upkeep, fee);
             String account = Denars.bank(ref);
-            if ((tax != null && tax.faction().getBank() == null) || balance(balances, legs, account) < total) {
+            if ((tax != null && SettlementGuilds.capital(tax.faction()).getBank() == null) || balance(balances, legs, account) < total) {
                 markUnpaid(unpaid, notices, vehicle.getUuid(), vehicle.getTypeId(), payer, null, now);
                 continue;
             }
             transfer(balances, legs, account, Denars.MINT, upkeep);
             income(changes, ref.characterId(), PlayerCashflow.VEHICLE_UPKEEP, -upkeep);
             if (tax != null) {
-                var guild = tax.faction().getOrCreateMainGuild();
+                var guild = SettlementGuilds.capital(tax.faction());
                 var saved = changes.guilds.stream().filter(value -> guild.getIncarnationId().equals(value.incarnation))
                         .findFirst().orElseThrow(() -> new IllegalStateException("Vehicle tax guild absent from settlement"));
                 transfer(balances, legs, account, Denars.guild(guild.getIncarnationId()), fee);
@@ -79,8 +89,8 @@ public final class VehicleSettlement {
                 unpaid.remove(record.getVehicleUuid());
                 continue;
             }
-            String account = faction == null ? null : Denars.guild(faction.getOrCreateMainGuild().getIncarnationId());
-            if (faction == null || faction.getBank() == null || balance(balances, legs, account) < upkeep) {
+            String account = faction == null ? null : Denars.guild(SettlementGuilds.capital(faction).getIncarnationId());
+            if (faction == null || SettlementGuilds.capital(faction).getBank() == null || balance(balances, legs, account) < upkeep) {
                 markUnpaid(unpaid, notices, record.getVehicleUuid(), record.getVehicleTypeId(), null,
                         faction == null ? null : faction.getId(), now);
                 continue;

@@ -10,7 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
-import net.tfminecraft.simplefactions.database.JsonUtil;
+import net.tfminecraft.simplefactions.database.DurableJson;
 
 public final class VehicleMaintenancePersistence {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -38,7 +38,7 @@ public final class VehicleMaintenancePersistence {
             saveBlocked = false;
         } catch (IOException | JsonParseException e) {
             saveBlocked = true;
-            e.printStackTrace();
+            throw new IllegalStateException("Cannot load vehicle maintenance", e);
         }
     }
 
@@ -49,7 +49,7 @@ public final class VehicleMaintenancePersistence {
             return;
         }
         try {
-            JsonUtil.writeJsonAtomic(file, data);
+            DurableJson.write(file.toPath(), data);
         } catch (IOException e) {
             e.printStackTrace();
         }

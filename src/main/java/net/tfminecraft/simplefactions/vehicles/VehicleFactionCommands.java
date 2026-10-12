@@ -176,6 +176,8 @@ public final class VehicleFactionCommands {
     }
 
     public static void armMaintenancePay(Player player, PaymentSource source) {
+        var character = Members.session(player).orElse(null);
+        if (character == null) { player.sendMessage("§cSelect a living character first."); return; }
         if (source == PaymentSource.POUCH && FactionManager.getByLeader(Members.key(player)) == null) {
             player.sendMessage(VehicleMaintenanceMessages.notLeader());
             return;
@@ -187,7 +189,7 @@ public final class VehicleFactionCommands {
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().put(
                 player.getUniqueId(),
-                new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source));
+                new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source, character));
         player.sendMessage(VehicleMaintenanceMessages.payArmed(source));
     }
 

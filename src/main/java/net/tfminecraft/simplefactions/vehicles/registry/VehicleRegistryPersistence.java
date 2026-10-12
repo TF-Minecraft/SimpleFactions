@@ -2,13 +2,11 @@ package net.tfminecraft.simplefactions.vehicles.registry;
 
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.Path;
+import net.tfminecraft.simplefactions.database.DurableJson;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -44,47 +42,39 @@ public final class VehicleRegistryPersistence {
             for (VehicleRecordData row : data) {
                 PlayerVehicleRecord record = row == null ? null : row.toRecord();
                 if (record == null) throw new JsonParseException("Invalid vehicle registry row");
-                if (record.getMode() == OwnershipMode.INSTALLATION || record.getMode() == OwnershipMode.POOL) {
-                    records.add(record);
-                }
+                records.add(record);
             }
             registry.replaceAll(records);
             saveBlocked = false;
         } catch (IOException | JsonParseException e) {
             saveBlocked = true;
-            e.printStackTrace();
+            throw new IllegalStateException("Cannot load vehicle payer registry", e);
         }
     }
 
     /** Writes a temp file and moves it into place, so a failed save never leaves a half-written registry. */
     public boolean save() {
         if (saveBlocked) return false;
+        if (registry.getAll().isEmpty() && !file.exists()) return true;
+        try { write(file.toPath(), registry.getAll()); return true; }
+        catch (IOException error) { error.printStackTrace(); return false; }
+    }
+
+    public static void write(Path file, java.util.Collection<PlayerVehicleRecord> records) throws IOException {
         List<VehicleRecordData> data = new ArrayList<>();
-        for (PlayerVehicleRecord record : registry.getAll()) {
-            data.add(VehicleRecordData.from(record));
-        }
-        if (data.isEmpty() && !file.exists()) {
-            return true;
-        }
-        File temp = new File(file.getParentFile(), file.getName() + ".tmp");
-        try (Writer writer = new FileWriter(temp)) {
-            GSON.toJson(data, writer);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-        try {
-            try {
-                Files.move(temp.toPath(), file.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
+        for (PlayerVehicleRecord record : records) data.add(VehicleRecordData.from(record));
+        DurableJson.write(file, data);
+    }
+
+    /** A confirmed personal owner becomes the payer; save before replacing the live row. */
+    public static void personal(Path folder, PlayerVehicleRegistry registry, String vehicle, String type, UUID character) throws IOException {
+        if (character == null) throw new IOException("Missing personal vehicle payer");
+        PlayerVehicleRecord record = new PlayerVehicleRecord(character, vehicle, type, OwnershipMode.PERSONAL, null);
+        List<PlayerVehicleRecord> records = new ArrayList<>(registry.getAll());
+        records.removeIf(value -> value.getVehicleUuid().equals(vehicle));
+        records.add(record);
+        write(folder.resolve("Cache/vehicles_registry.json"), records);
+        registry.register(record);
     }
 
     static final class VehicleRecordData {
