@@ -17,16 +17,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.implementation.MethodDelegation;
-import net.tfminecraft.rpcharacters.managers.PlayerManager;
-import net.tfminecraft.rpcharacters.objects.PlayerData;
-import net.tfminecraft.rpcharacters.objects.RPCharacter;
-import net.tfminecraft.rpcharacters.objects.trait.Trait;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.api.GatewayClient;
 import net.tfminecraft.simplefactions.army.Regiment;
@@ -35,11 +32,15 @@ import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.loaders.CompanyUpgradeLoader;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility;
-import net.tfminecraft.simplefactions.mercenary.company.RpCharactersMercenaryTraitProbe;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
+import net.tfminecraft.tlibs.character.CharacterIdentity;
+import net.tfminecraft.tlibs.character.CharacterInfo;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
+import net.tfminecraft.tlibs.character.CharacterStatus;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -52,6 +53,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.ServicesManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -375,34 +377,44 @@ public class ExternalIntegrationsCoverageTest {
   }
 
   @Test
-  void activeCharacterTraitsControlEligibilityWhileUnavailablePlayersRemainUnknown() {
-    RpCharactersMercenaryTraitProbe probe = new RpCharactersMercenaryTraitProbe();
-    assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.check("Offline"));
-    when(plugins.isPluginEnabled("RPCharacters")).thenReturn(false);
-    assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.check("Sigrun"));
-    when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
-    try (MockedStatic<PlayerManager> manager = mockStatic(PlayerManager.class)) {
-      manager.when(() -> PlayerManager.get(player)).thenReturn(null);
-      assertEquals(MercenaryEligibility.Status.INELIGIBLE, probe.check("Sigrun"));
-      PlayerData data = mock(PlayerData.class);
-      manager.when(() -> PlayerManager.get(player)).thenReturn(data);
-      assertEquals(MercenaryEligibility.Status.INELIGIBLE, probe.check("Sigrun"));
-      RPCharacter character = mock(RPCharacter.class);
-      when(data.hasActiveCharacter()).thenReturn(true);
-      when(data.getActiveCharacter()).thenReturn(character);
-      Trait merchant = mock(Trait.class);
-      when(merchant.getId()).thenReturn("merchant");
-      when(character.getTraits()).thenReturn(Arrays.asList(null, merchant));
-      assertEquals(MercenaryEligibility.Status.INELIGIBLE, probe.check("Sigrun"));
-      Trait mercenary = mock(Trait.class);
-      when(mercenary.getId()).thenReturn("MERCENARY");
-      when(character.getTraits()).thenReturn(Arrays.asList(null, merchant, mercenary));
-      assertEquals(MercenaryEligibility.Status.ELIGIBLE, probe.check("Sigrun"));
+  void activeCharacterTraitsControlEligibilityWhileUnavailablePlayersRemainUnknown() throws Exception {
+    Field probeField = MercenaryEligibility.class.getDeclaredField("probe");
+    probeField.setAccessible(true);
+    MercenaryEligibility.Probe previousProbe = (MercenaryEligibility.Probe) probeField.get(null);
+    ServicesManager services = mock(ServicesManager.class);
+    CharacterIdentity provider = mock(CharacterIdentity.class);
+    when(Bukkit.isPrimaryThread()).thenReturn(true);
+    when(Bukkit.getServicesManager()).thenReturn(services);
+    MercenaryEligibility.useSharedIdentity();
+    try {
+      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Offline"));
+      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Sigrun"));
+      when(services.load(CharacterIdentity.class)).thenReturn(provider);
+      when(provider.currentSession(player)).thenReturn(Optional.empty());
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
+
+      CharacterRef ref = new CharacterRef(player.getUniqueId(), UUID.randomUUID());
+      CharacterSession session = new CharacterSession(ref, 1);
+      when(provider.currentSession(player)).thenReturn(Optional.of(session));
+      when(provider.isCurrent(session)).thenReturn(true);
+      when(provider.info(ref.characterId())).thenReturn(Optional.empty());
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
+      when(provider.info(ref.characterId())).thenReturn(Optional.of(new CharacterInfo(
+          ref, "Canonical Sigrun", CharacterStatus.ALIVE, null, Set.of("merchant"), 0, null)));
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
+      when(provider.info(ref.characterId())).thenReturn(Optional.of(new CharacterInfo(
+          ref, "Canonical Sigrun", CharacterStatus.ALIVE, null, Set.of("merchant", "MERCENARY"), 0, null)));
+      assertEquals(MercenaryEligibility.Status.ELIGIBLE, MercenaryEligibility.check("Sigrun"));
+
+      when(provider.isCurrent(session)).thenReturn(false);
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
+      when(services.load(CharacterIdentity.class)).thenReturn(null);
+      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Sigrun"));
+      when(Bukkit.getServer()).thenReturn(null);
+      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Sigrun"));
+    } finally {
+      MercenaryEligibility.setProbe(previousProbe);
     }
-    when(Bukkit.getPluginManager()).thenReturn(null);
-    assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.check("Sigrun"));
-    when(Bukkit.getServer()).thenReturn(null);
-    assertEquals(MercenaryEligibility.Status.UNKNOWN, probe.check("Sigrun"));
   }
 
   @Test

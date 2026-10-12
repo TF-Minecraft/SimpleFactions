@@ -3,19 +3,15 @@ package net.tfminecraft.simplefactions.espionage;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import net.tfminecraft.rpcharacters.permadeath.CharacterPermakillEvent;
-import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.tlibs.character.CharacterDeathEvent;
+import net.tfminecraft.tlibs.character.Characters;
 
 public final class OfficeCharacterDeathListener implements Listener {
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onCharacterDeath(CharacterPermakillEvent event) {
-        if (event.isCancelled()) return;
-        // RPCharacters fires before committing death. Confirm the resulting status next tick.
-        SimpleFactions.plugin.getServer().getScheduler().runTask(SimpleFactions.plugin,
-                () -> {
-                    var character = event.getCharacter();
-                    if (character.getStatus() == net.tfminecraft.rpcharacters.enums.Status.DEAD)
-                        EspionageService.characterDied(event.getPlayer(), character.getId(), character.getName());
-                });
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onCharacterDeath(CharacterDeathEvent event) {
+        var ref = event.getCharacter();
+        String name = Characters.info(ref.characterId()).filter(info -> info.ref().equals(ref))
+                .map(net.tfminecraft.tlibs.character.CharacterInfo::name).orElse("your character");
+        EspionageService.characterDied(ref, event.getDeathId(), event.getAt(), name);
     }
 }

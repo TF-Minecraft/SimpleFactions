@@ -38,10 +38,11 @@ class CharacterBoundaryCoverageTest {
 
   @Test
   void mmocoreSuppliesPermanentAttributesAndRoleplayFillsMissingInstances() {
-    try (var fixture = new FactionDomainFixture();
+    try (var fixture = new OfficeOptionalIntegrationsTest.IdentityFixture("Spy");
         var roleplay = mockStatic(net.tfminecraft.rpcharacters.managers.PlayerManager.class);
         var mmocore = mockStatic(net.Indyuce.mmocore.api.player.PlayerData.class)) {
-      var player = fixture.player("Spy");
+      var player = fixture.player;
+      var session = fixture.activate(java.util.UUID.randomUUID());
       when(Bukkit.getPluginManager().isPluginEnabled("RPCharacters")).thenReturn(true);
       when(Bukkit.getPluginManager().isPluginEnabled("MMOCore")).thenReturn(true);
       var roleplayData = mock(net.tfminecraft.rpcharacters.objects.PlayerData.class);
@@ -51,6 +52,8 @@ class CharacterBoundaryCoverageTest {
           .when(() -> net.tfminecraft.rpcharacters.managers.PlayerManager.get(player))
           .thenReturn(roleplayData);
       when(roleplayData.getActiveCharacter()).thenReturn(character);
+      when(character.getOwner()).thenReturn(player);
+      when(character.getId()).thenReturn(session.ref().characterId().toString());
       when(character.getAttributeData()).thenReturn(roleplayAttributes);
       when(roleplayAttributes.getAmount(any(AttributeModifier.class))).thenReturn(8);
       var mmoData = mock(net.Indyuce.mmocore.api.player.PlayerData.class);
@@ -61,7 +64,8 @@ class CharacterBoundaryCoverageTest {
       when(mmoData.getAttributes()).thenReturn(mmoAttributes);
       when(mmoAttributes.getInstance("intelligence")).thenReturn(intelligence);
       mmocore.when(() -> net.Indyuce.mmocore.api.player.PlayerData.get(player)).thenReturn(mmoData);
-      Map<String, Integer> values = OfficeCharacters.attributes(player);
+      assertEquals(session, OfficeCharacters.currentSession(player));
+      Map<String, Integer> values = OfficeCharacters.attributes(player, session);
       assertEquals(EspionageConfig.DEFAULT_WEIGHTS.keySet(), values.keySet());
       assertEquals(15, values.get("intelligence"));
       for (String attribute : EspionageConfig.DEFAULT_WEIGHTS.keySet()) {

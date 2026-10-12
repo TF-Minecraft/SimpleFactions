@@ -60,22 +60,24 @@ public final class EspionageService {
     private static void initializeFounder(Faction faction, java.util.Set<Faction> dirty) {
         if (faction.getEspionage() == null || faction.getLeader() == null || org.bukkit.Bukkit.getServer() == null) return;
         var founder = org.bukkit.Bukkit.getPlayerExact(faction.getLeader());
-        String characterId = OfficeCharacters.activeCharacterId(founder);
-        // A dead character would be revoked again on the next check.
-        if (characterId != null && founder != null && OfficeCharacters.isDead(founder.getUniqueId(), characterId)) characterId = null;
+        var session = OfficeCharacters.currentSession(founder);
+        String characterId = session == null ? null : session.ref().characterId().toString();
         for (SpecialPosition office : SpecialPosition.values()) {
             if (faction.getEspionage().holder(office) != null) continue;
-            if (characterId == null) {
+            if (characterId == null || !OfficeCharacters.isCurrent(founder, session)) {
                 faction.getEspionage().pendingFounder(office);
                 continue;
             }
             var assignment = new SpecialPositionAssignment();
             assignment.playerName = faction.getLeader();
-            assignment.playerId = founder == null ? org.bukkit.Bukkit.getOfflinePlayer(faction.getLeader()).getUniqueId() : founder.getUniqueId();
+            assignment.playerId = session.ref().ownerId();
             int aptitude = 0;
             try {
-                aptitude = characterAptitude(founder, characterId);
+                aptitude = characterAptitude(founder, session);
                 assignment.characterId = characterId;
+            } catch (OfficeCharacters.StaleCharacterSession stale) {
+                faction.getEspionage().pendingFounder(office);
+                continue;
             } catch (java.io.IOException exception) {
                 net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                         "Could not save founder aptitude", exception);
@@ -223,20 +225,33 @@ public final class EspionageService {
         return OfficeCharacters.isDead(holder.playerId, holder.characterId);
     }
 
-    /** Character death, rather than an ordinary Minecraft respawn, ends the appointment. */
-    public static void characterDied(Player owner, String characterId, String characterName) {
-        if (characterId == null) return;
+    /** Committed deaths settle only the captured character's office, once per death ID. */
+    public static void characterDied(net.tfminecraft.tlibs.character.CharacterRef ref,
+            java.util.UUID deathId, java.time.Instant at, String characterName) {
+        var owner = org.bukkit.Bukkit.getPlayer(ref.ownerId());
         for (Faction faction : FactionManager.getCopy()) {
             var state = faction.getEspionage();
+            if (state.handledDeath(deathId)) continue;
             var holder = state.getSpymaster();
-            boolean matching = holder != null && (characterId.equals(holder.characterId)
-                    || holder.characterId == null && owner != null && holder.isHolder(owner.getUniqueId()));
-            boolean pending = state.isPendingFounder(SpecialPosition.SPYMASTER) && owner != null && faction.isLeader(owner.getName())
-                    && characterId.equals(state.pendingFounderCharacter(SpecialPosition.SPYMASTER));
+            boolean matching = holder != null && ref.ownerId().equals(holder.playerId)
+                    && ref.characterId().equals(OfficeCharacters.characterUuid(holder.characterId))
+                    && Math.max(holder.appointedAt, holder.characterBoundAt) <= at.toEpochMilli();
+            var leader = faction.getLeader() == null ? null
+                    : org.bukkit.Bukkit.getOfflinePlayerIfCached(faction.getLeader());
+            boolean pending = state.isPendingFounder(SpecialPosition.SPYMASTER)
+                    && leader != null && ref.ownerId().equals(leader.getUniqueId())
+                    && ref.characterId().equals(OfficeCharacters.characterUuid(
+                            state.pendingFounderCharacter(SpecialPosition.SPYMASTER)))
+                    && state.pendingFounderBoundAt(SpecialPosition.SPYMASTER) <= at.toEpochMilli();
             if (!matching && !pending) continue;
+            var previous = state.snapshotOffices();
             state.removeSpymaster();
             state.waiveAppointmentWait(SpecialPosition.SPYMASTER);
-            new Database().saveFaction(faction);
+            state.rememberDeath(deathId);
+            if (!new Database().saveFactionChecked(faction)) {
+                state.restoreOffices(previous);
+                continue;
+            }
             if (owner != null) owner.sendMessage("\u00a78\u00a7oWith the passing of " + characterName
                     + ", the keys to the Spymaster's office return to the faction leader until a successor is appointed.");
         }
@@ -263,13 +278,15 @@ public final class EspionageService {
             actor.sendMessage("§cChoose an online member of your own faction.");
             return false;
         }
-        String characterId = OfficeCharacters.activeCharacterId(candidate);
-        if (characterId == null || OfficeCharacters.isDead(candidate.getUniqueId(), characterId)) {
+        var session = OfficeCharacters.currentSession(candidate);
+        String characterId = session == null ? null : session.ref().characterId().toString();
+        if (session == null) {
             actor.sendMessage("§cThat member needs an active roleplay character.");
             return false;
         }
         SpecialPositionAssignment current = spymaster(faction);
-        if (current != null && current.isHolder(candidate.getUniqueId()) && characterId.equals(current.characterId)) {
+        if (current != null && current.isHolder(candidate.getUniqueId())
+                && session.ref().characterId().equals(OfficeCharacters.characterUuid(current.characterId))) {
             actor.sendMessage("§7That member is already your Spymaster.");
             return false;
         }
@@ -285,17 +302,20 @@ public final class EspionageService {
         assignment.characterId = characterId;
         try {
             if (characterAptitudes == null) throw new java.io.IOException("Character aptitude registry is unavailable");
-            int aptitude = characterAptitude(candidate, characterId);
+            int aptitude = characterAptitude(candidate, session);
             if (!completeAndSaveAppointment(faction, assignment, aptitude, now)) {
                 actor.sendMessage("\u00a7cThe appointment could not be saved. The office is unchanged.");
                 return false;
             }
+        } catch (OfficeCharacters.StaleCharacterSession stale) {
+            return false;
         } catch (java.io.IOException exception) {
             actor.sendMessage("§cThe aptitude could not be saved. The appointment has not been made.");
             net.tfminecraft.simplefactions.SimpleFactions.plugin.getLogger().log(java.util.logging.Level.SEVERE,
                     "Could not save character aptitude", exception);
             return false;
         }
+        if (!OfficeCharacters.isCurrent(candidate, session)) return true;
         // Address only the appointee. Sabotage preferences are never broadcast.
         candidate.sendMessage("§8§oA sealed letter reaches your hands. The keys to " + faction.getName()
                 + "§8§o's unseen network are now yours. You have been appointed Spymaster.");
@@ -314,10 +334,17 @@ public final class EspionageService {
         return true;
     }
 
-    private static int characterAptitude(Player player, String characterId) throws java.io.IOException {
+    private static int characterAptitude(Player player,
+            net.tfminecraft.tlibs.character.CharacterSession session) throws java.io.IOException {
+        OfficeCharacters.requireCurrent(player, session);
         if (characterAptitudes == null) throw new java.io.IOException("Character aptitude registry is unavailable");
-        return characterAptitudes.aptitude(characterId, () ->
-                EspionageMath.aptitude(OfficeCharacters.attributes(player), ThreadLocalRandom.current()));
+        int aptitude = characterAptitudes.aptitude(session.ref().characterId().toString(), () -> {
+            var attributes = OfficeCharacters.attributes(player, session);
+            OfficeCharacters.requireCurrent(player, session);
+            return EspionageMath.aptitude(attributes, ThreadLocalRandom.current());
+        });
+        OfficeCharacters.requireCurrent(player, session);
+        return aptitude;
     }
 
     public static boolean remove(Player actor, Faction faction) {

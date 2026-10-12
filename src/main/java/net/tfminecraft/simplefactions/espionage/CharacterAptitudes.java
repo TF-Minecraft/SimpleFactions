@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 import com.google.gson.reflect.TypeToken;
 import net.tfminecraft.simplefactions.database.JsonUtil;
@@ -30,18 +31,38 @@ public final class CharacterAptitudes {
 
     public void remember(String characterId, int aptitude) {
         if (characterId != null && !characterId.isBlank())
-            aptitudes.putIfAbsent(characterId, EspionageMath.clamp(aptitude, 0, 100));
+            aptitudes.putIfAbsent(storedKey(characterId), EspionageMath.clamp(aptitude, 0, 100));
     }
 
     public int aptitude(String characterId, Supplier<Integer> roll) throws IOException {
         if (characterId == null || characterId.isBlank()) throw new IllegalArgumentException("Missing character identity");
-        Integer existing = aptitudes.get(characterId);
+        Integer existing = aptitudes.get(storedKey(characterId));
         if (existing != null) return existing;
         int result = EspionageMath.clamp(roll.get(), 0, 100);
         aptitudes.put(characterId, result);
         try { save(); }
         catch (IOException error) { aptitudes.remove(characterId); throw error; }
         return result;
+    }
+
+    private String storedKey(String characterId) {
+        if (aptitudes.containsKey(characterId)) return characterId;
+        UUID identity = canonicalUuid(characterId);
+        if (identity != null) {
+            for (String key : aptitudes.keySet()) {
+                if (identity.equals(canonicalUuid(key))) return key;
+            }
+        }
+        return characterId;
+    }
+
+    private static UUID canonicalUuid(String value) {
+        try {
+            UUID identity = UUID.fromString(value);
+            return identity.toString().equalsIgnoreCase(value) ? identity : null;
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     public void save() throws IOException {

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import java.lang.reflect.Field;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.*;
@@ -18,6 +19,8 @@ import net.tfminecraft.simplefactions.managers.inventory.EspionageView;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.tlibs.TLibs;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.ItemCreator;
 import org.bukkit.*;
@@ -44,6 +47,7 @@ class EspionageMenusCoverageTest {
   private Field aptitudeField;
   private Object oldAptitudes;
   private MockedStatic<OfficeCharacters> characters;
+  private final Map<UUID, CharacterSession> sessions = new HashMap<>();
   private MockedStatic<TLibs> items;
   private MockedStatic<net.tfminecraft.rpcharacters.calendar.FantasyCalendar> calendar;
   private MockedConstruction<Database> databases;
@@ -62,14 +66,12 @@ class EspionageMenusCoverageTest {
     foreignLeader = fixture.player("ForeignLeader");
     visitor = fixture.player("Visitor");
     characters = mockStatic(OfficeCharacters.class);
-    characters
-        .when(() -> OfficeCharacters.activeCharacterId(any()))
-        .thenAnswer(
-            call ->
-                call.getArgument(0) == null
-                    ? null
-                    : "character-" + ((Player) call.getArgument(0)).getName());
-    characters.when(() -> OfficeCharacters.attributes(any())).thenReturn(Map.of());
+    characters.when(() -> OfficeCharacters.currentSession(any()))
+        .thenAnswer(call -> session(call.getArgument(0)));
+    characters.when(() -> OfficeCharacters.isCurrent(any(), any())).thenReturn(true);
+    characters.when(() -> OfficeCharacters.requireCurrent(any(), any())).thenCallRealMethod();
+    characters.when(() -> OfficeCharacters.characterUuid(any())).thenCallRealMethod();
+    characters.when(() -> OfficeCharacters.attributes(any(), any())).thenReturn(Map.of());
     databases =
         mockConstruction(
             Database.class,
@@ -125,13 +127,20 @@ class EspionageMenusCoverageTest {
     }
   }
 
+  private CharacterSession session(Player player) {
+    if (player == null) return null;
+    return sessions.computeIfAbsent(player.getUniqueId(), owner -> new CharacterSession(
+        new CharacterRef(owner, UUID.nameUUIDFromBytes(
+            ("character-" + player.getName()).getBytes(StandardCharsets.UTF_8))), 1));
+  }
+
   private SpecialPositionAssignment assign(
       Faction faction, Player player, boolean automatic, long time) {
     faction.getEspionage().removeSpymaster();
     SpecialPositionAssignment assignment = new SpecialPositionAssignment();
     assignment.playerId = player.getUniqueId();
     assignment.playerName = player.getName();
-    assignment.characterId = "character-" + player.getName();
+    assignment.characterId = session(player).ref().characterId().toString();
     assignment.automatic = automatic;
     faction.getEspionage().appoint(assignment, 80, time);
     return assignment;
@@ -430,7 +439,7 @@ class EspionageMenusCoverageTest {
 
   @Test
   void unownedOfficeAndUnknownMenuTypesDoNotExposePrivateControls() {
-    characters.when(() -> OfficeCharacters.activeCharacterId(any())).thenReturn(null);
+    characters.when(() -> OfficeCharacters.currentSession(any())).thenReturn(null);
     home.getEspionage().removeSpymaster();
     EspionageView.spymasterOffice(leader, home, manager);
     assertTrue(text(top(leader).getItem(13)).contains("Vacant"));

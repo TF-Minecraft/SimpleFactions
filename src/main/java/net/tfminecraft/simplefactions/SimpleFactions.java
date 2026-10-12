@@ -241,7 +241,7 @@ public class SimpleFactions extends JavaPlugin{
 	private final VehicleReclaimFeeListener vehicleReclaimFeeListener =
 			new VehicleReclaimFeeListener(vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees);
 	private boolean registrationFeeRegistered;
-	private boolean officeCharacterDeathRegistered;
+	private boolean incompatibleCharacterApi;
 	private boolean vehicleIntegrationRegistered = false;
 	private boolean constructionFreezeRegistered;
 	private final PlayerEconomyManager playerEconomyManager = new PlayerEconomyManager();
@@ -258,6 +258,14 @@ public class SimpleFactions extends JavaPlugin{
 
 	@Override
 	public void onEnable() {
+		try {
+			net.tfminecraft.tlibs.character.Characters.available();
+		} catch (LinkageError error) {
+			incompatibleCharacterApi = true;
+			getLogger().severe("SimpleFactions requires TLibs 2.3.0 or newer; disabling.");
+			getServer().getPluginManager().disablePlugin(this);
+			return;
+		}
 		startupComplete = false;
 		config = getConfig();
 		plugin = this;
@@ -271,8 +279,11 @@ public class SimpleFactions extends JavaPlugin{
 			getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
+		net.tfminecraft.simplefactions.identity.LeaderCharacters.useSharedIdentity();
+		net.tfminecraft.simplefactions.prestige.MemberPlaytime.useSharedIdentity();
+		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.useSharedIdentity();
 		registerListeners();
-		registerRpCharactersIntegrationHooks();
+		registerRpCharactersChatHooks();
 		vehicleRegistryPersistence = new VehicleRegistryPersistence(
 			new File(getDataFolder(), "Cache"),
 			vehicleRegistry);
@@ -377,9 +388,11 @@ public class SimpleFactions extends JavaPlugin{
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
 		startupComplete = true;
+		net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
 	}
 	@Override
 	public void onDisable() {
+		if (incompatibleCharacterApi) return;
 		if (trackRefreshTask != null) trackRefreshTask.cancel();
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.unregister();
 		MercenaryStatService.clearAll();
@@ -451,7 +464,7 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(titleManager, this);
 		getServer().getPluginManager().registerEvents(playerManager, this);
 		getServer().getPluginManager().registerEvents(
-				new net.tfminecraft.simplefactions.identity.LeaderCharacterListener(this), this);
+				new net.tfminecraft.simplefactions.identity.LeaderCharacterListener(), this);
 		getServer().getPluginManager().registerEvents(sessionManager, this);
 		getServer().getPluginManager().registerEvents(relocationPrompt, this);
 		getServer().getPluginManager().registerEvents(capitalMovePrompt, this);
@@ -479,9 +492,8 @@ public class SimpleFactions extends JavaPlugin{
 		MercenaryStatService.setGate(new net.tfminecraft.simplefactions.mercenary.stat.HiredMercenaryGate());
 		net.tfminecraft.simplefactions.mercenary.contract.ContractTerminationService.setReputationSeam(
 				new net.tfminecraft.simplefactions.mercenary.company.MercenaryReputationSeam());
-		if (getServer().getPluginManager().isPluginEnabled("RPCharacters")) {
-			registerRpCharactersIntegration();
-		}
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);
 	}
 	public void createFolders() {
 		File dataFolder = getDataFolder();
@@ -731,42 +743,16 @@ public class SimpleFactions extends JavaPlugin{
 		return saved;
 	}
 
-	private void registerRpCharactersIntegrationHooks() {
+	private void registerRpCharactersChatHooks() {
 		getServer().getPluginManager().registerEvents(new Listener() {
 			@EventHandler
 			public void onPluginEnable(PluginEnableEvent event) {
 				if ("RPCharacters".equalsIgnoreCase(event.getPlugin().getName())) {
-					registerRpCharactersIntegration();
+					net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
 				}
 			}
 		}, this);
-		registerRpCharactersIntegration();
-	}
-
-	private void registerRpCharactersIntegration() {
-		if (getServer().getPluginManager() == null
-				|| !getServer().getPluginManager().isPluginEnabled("RPCharacters")) {
-			return;
-		}
-		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.setProbe(
-				new net.tfminecraft.simplefactions.mercenary.company.RpCharactersMercenaryTraitProbe());
-		net.tfminecraft.simplefactions.prestige.MemberPlaytime.setProbe(
-				new net.tfminecraft.simplefactions.prestige.RpCharactersPlaytimeProbe());
-		net.tfminecraft.simplefactions.identity.LeaderCharacters.setProbe(
-				new net.tfminecraft.simplefactions.identity.RpCharactersLeaderCharacterProbe());
-		// Learn every realm and guild leader's character once the server has
-		// settled, online or not, and ship it with the next map cycle.
-		getServer().getScheduler().runTaskLater(this, () -> {
-			net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
-			if (FactionManager.getMap() != null) {
-				FactionManager.getMap().markLeaderNamesChanged();
-			}
-		}, 200L);
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
-		if (!officeCharacterDeathRegistered) {
-			getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.espionage.OfficeCharacterDeathListener(), this);
-			officeCharacterDeathRegistered = true;
-		}
 	}
 
 	private void registerVehicleIntegrationHooks() {

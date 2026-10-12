@@ -5,20 +5,7 @@ import java.util.Objects;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
 
-/**
- * The roleplay name of a realm's leader, for the web map.
- *
- * A faction stores its leader as a Minecraft username, which is not what the
- * map should show: players are known by their character there. RPCharacters
- * only knows a player's active character while they are online, so the name
- * is read whenever the leader is seen online and remembered with the player it
- * belongs to. A remembered name is dropped as soon as the leader changes, so a
- * new leader never inherits the old one's character.
- *
- * Production swaps in {@link RpCharactersLeaderCharacterProbe} when that
- * plugin is present; without it nothing is ever known, remembered names are
- * dropped too, and the map shows no ruler name.
- */
+/** Character names remembered with their account owner for the public map. */
 public final class LeaderCharacters {
 
     /** Active character name of an online player, or null if unknown. */
@@ -39,6 +26,31 @@ public final class LeaderCharacters {
     private static volatile Probe probe;
 
     private LeaderCharacters() {}
+
+    /** The facade resolves provider registration dynamically on each lookup. */
+    public static void useSharedIdentity() {
+        setProbe(new Probe() {
+            @Override public boolean available() {
+                return net.tfminecraft.tlibs.character.Characters.available();
+            }
+            @Override public String activeCharacterName(String account) {
+                var online = org.bukkit.Bukkit.getPlayerExact(account);
+                if (online != null) {
+                    var session = net.tfminecraft.tlibs.character.Characters.currentSession(online).orElse(null);
+                    if (session == null || !session.ref().ownerId().equals(online.getUniqueId())) return null;
+                    var info = net.tfminecraft.tlibs.character.Characters.info(session.ref().characterId()).orElse(null);
+                    return info != null && info.ref().equals(session.ref())
+                            && online.isOnline() && org.bukkit.Bukkit.getPlayer(online.getUniqueId()) == online
+                            && net.tfminecraft.tlibs.character.Characters.isCurrent(session) ? info.name() : null;
+                }
+                var cached = org.bukkit.Bukkit.getOfflinePlayerIfCached(account);
+                if (cached == null) return null;
+                return net.tfminecraft.tlibs.character.Characters.lastPlayed(cached.getUniqueId())
+                        .filter(info -> info.ref().ownerId().equals(cached.getUniqueId()))
+                        .map(net.tfminecraft.tlibs.character.CharacterInfo::name).orElse(null);
+            }
+        });
+    }
 
     public static void setProbe(Probe next) {
         probe = next;

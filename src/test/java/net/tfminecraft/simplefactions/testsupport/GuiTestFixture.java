@@ -102,6 +102,10 @@ public final class GuiTestFixture implements AutoCloseable {
         .thenAnswer(call -> schedule(repeatingTasks, call.getArgument(1)));
     bukkit = mockStatic(Bukkit.class);
     bukkit.when(Bukkit::getServer).thenReturn(server);
+    bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+    var services = new org.bukkit.plugin.SimpleServicesManager();
+    bukkit.when(Bukkit::getServicesManager).thenReturn(services);
+    when(server.getServicesManager()).thenReturn(services);
     bukkit.when(Bukkit::getScheduler).thenReturn(scheduler);
     Logger logger = plugin.getLogger();
     bukkit.when(Bukkit::getLogger).thenReturn(logger);

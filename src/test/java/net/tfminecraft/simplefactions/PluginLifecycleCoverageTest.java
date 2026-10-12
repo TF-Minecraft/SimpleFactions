@@ -190,6 +190,7 @@ class PluginLifecycleCoverageTest {
     for (Class<?> type :
         List.of(
             InactivityService.class,
+            net.tfminecraft.tlibs.character.Characters.class,
             EspionageService.class,
             SpecialPositionsConfigFile.class,
             VehiclesConfigLoader.class,
@@ -210,6 +211,21 @@ class PluginLifecycleCoverageTest {
             VfBuildersConstructionFreeze.class,
             LeaderCharacterListener.class)) scoped(type);
     SimpleFactions.plugin = plugin;
+  }
+
+  @Test
+  void incompatibleCharacterApiDisablesBeforeOpeningOrSavingState() {
+    scoped(net.tfminecraft.tlibs.character.Characters.class)
+        .when(net.tfminecraft.tlibs.character.Characters::available)
+        .thenThrow(new NoClassDefFoundError("CharacterIdentity"));
+    plugin.onEnable();
+    plugin.onDisable();
+    verify(plugins).disablePlugin(plugin);
+    verify(logger).severe(contains("TLibs 2.3.0"));
+    verify(plugin, never()).getConfig();
+    scoped(BattlePersistenceService.class).verifyNoInteractions();
+    scoped(InactivityService.class).verifyNoInteractions();
+    assertTrue(listeners.isEmpty());
   }
 
   @AfterEach
@@ -1123,7 +1139,7 @@ class PluginLifecycleCoverageTest {
   }
 
   @Test
-  void lateVehicleAndCharacterEnableEventsRegisterTheIntegrationsAndRefreshTheMap()
+  void lateDependencyEnableEventsRegisterVehicleAndChatWithoutAnotherIdentityBootstrap()
       throws Exception {
     plugin.onEnable();
     verify(plugins, never())
@@ -1147,7 +1163,9 @@ class PluginLifecycleCoverageTest {
             dependency("vehicleIntegrationListener", VehicleIntegrationListener.class), plugin);
     verify(logger).info("[SimpleFactions] VehicleFramework vehicle integration enabled");
     domain.ui.runTasks();
-    verify(domain.map).markLeaderNamesChanged();
+    scoped(RpCharactersChatIntegration.class).verify(RpCharactersChatIntegration::register, times(2));
+    scoped(LeaderCharacterListener.class).verify(() -> LeaderCharacterListener.refresh(null), times(1));
+    verify(domain.map, never()).markLeaderNamesChanged();
   }
 
   @Test

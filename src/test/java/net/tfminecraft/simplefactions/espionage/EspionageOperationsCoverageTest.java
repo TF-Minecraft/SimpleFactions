@@ -15,6 +15,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Optional;
+import java.util.Set;
+import net.tfminecraft.tlibs.character.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.tfminecraft.rpcharacters.enums.Status;
 import net.tfminecraft.rpcharacters.objects.PlayerData;
@@ -58,8 +61,10 @@ import org.mockito.MockedStatic;
 class EspionageOperationsCoverageTest {
   @TempDir Path directory;
   private FactionDomainFixture fixture;
-  private Map<Object, Object> names;
-  private Map<Object, Object> originalNames;
+  private final CharacterIdentity identity = mock(CharacterIdentity.class);
+  private final Map<UUID, CharacterSession> sessions = new LinkedHashMap<>();
+  private final Map<UUID, CharacterInfo> offlineInfos = new LinkedHashMap<>();
+  private long generation;
   private final Map<Field, Object> originalConfig = new LinkedHashMap<>();
   private final Map<Map<Object, Object>, Map<Object, Object>> originalConfigMaps =
       new java.util.IdentityHashMap<>();
@@ -81,17 +86,36 @@ class EspionageOperationsCoverageTest {
   @SuppressWarnings("unchecked")
   void setup() throws Exception {
     fixture = new FactionDomainFixture();
-    Field cache = CharacterNames.class.getDeclaredField("cache");
-    cache.setAccessible(true);
-    names = (Map<Object, Object>) cache.get(null);
-    originalNames = new LinkedHashMap<>(names);
-    names.clear();
+    Bukkit.getServicesManager().register(CharacterIdentity.class, identity,
+        fixture.ui.plugin, org.bukkit.plugin.ServicePriority.Normal);
+    when(identity.currentSession(any())).thenAnswer(call -> {
+      Player player = call.getArgument(0);
+      var data = characterData.get(player.getUniqueId());
+      return data == null || data.getActiveCharacter() == null ? Optional.empty()
+          : Optional.ofNullable(sessions.get(player.getUniqueId()));
+    });
+    when(identity.isCurrent(any())).thenAnswer(call -> sessions.containsValue(call.getArgument(0)));
+    when(identity.info(any())).thenAnswer(call -> {
+      UUID id = call.getArgument(0);
+      for (var entry : characters.entrySet()) {
+        RPCharacter character = entry.getValue();
+        if (id.toString().equalsIgnoreCase(character.getId()))
+          return Optional.of(new CharacterInfo(new CharacterRef(accountId(entry.getKey()), id),
+              character.getName(), character.getStatus() == Status.DEAD
+                  ? CharacterStatus.DEAD : CharacterStatus.ALIVE, null, Set.of(), 0, null));
+      }
+      return Optional.ofNullable(offlineInfos.get(id));
+    });
+    when(identity.lastPlayed(any())).thenAnswer(call -> offlineInfos.values().stream()
+        .filter(info -> info.ref().ownerId().equals(call.getArgument(0))).findFirst());
+    when(identity.displayName(any())).thenAnswer(call ->
+        characters.get(((Player) call.getArgument(0)).getName()).getName());
     PluginManager plugins = Bukkit.getPluginManager();
     Plugin roleplay = mock(Plugin.class);
     when(plugins.isPluginEnabled("RPCharacters")).thenReturn(true);
     when(plugins.getPlugin("RPCharacters")).thenReturn(roleplay);
     when(roleplay.getDataFolder()).thenReturn(directory.toFile());
-    when(Bukkit.getOfflinePlayer(anyString()))
+    when(Bukkit.getOfflinePlayerIfCached(anyString()))
         .thenAnswer(
             call -> {
               OfflinePlayer player = mock(OfflinePlayer.class);
@@ -113,27 +137,22 @@ class EspionageOperationsCoverageTest {
             map.clear();
             map.putAll(original);
           });
-      names.clear();
-      names.putAll(originalNames);
     } finally {
       fixture.close();
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"{", "{\"active\":true,\"name\":null}"})
-  void malformedOldCharacterDoesNotHideALaterValidActiveCharacter(String malformed)
-      throws Exception {
+  @Test
+  void offlineNamesUseAuthoritativeDirectoryWithoutReadingPluginFiles() throws Exception {
     Path folder = directory.resolve("data/characterdata").resolve(accountId("Offline").toString());
     Files.createDirectories(folder);
-    Files.writeString(folder.resolve("00-old.json"), malformed);
-    String active = "{\"active\":true,\"name\":\"Lady Rowan\"}";
-    Files.writeString(folder.resolve("01-active.json"), active);
-
+    Files.writeString(folder.resolve("old.json"), "{");
+    UUID id = UUID.randomUUID();
+    offlineInfos.put(id, new CharacterInfo(new CharacterRef(accountId("Offline"), id),
+        "Lady Rowan", CharacterStatus.DEAD, null, Set.of(), 0, null));
     assertEquals("Lady Rowan", CharacterNames.forForeign("Offline"));
     assertEquals("Lady Rowan", CharacterNames.of("Offline"));
-    assertEquals(malformed, Files.readString(folder.resolve("00-old.json")));
-    assertEquals(active, Files.readString(folder.resolve("01-active.json")));
+    assertEquals("{", Files.readString(folder.resolve("old.json")));
   }
 
   @Test
@@ -154,32 +173,15 @@ class EspionageOperationsCoverageTest {
   }
 
   @Test
-  void offlineNamesIgnoreInactiveAndNonJsonFilesAndCacheWithoutEditingCharacterState()
-      throws Exception {
-    Path folder = directory.resolve("data/characterdata").resolve(accountId("Offline").toString());
-    Files.createDirectories(folder);
-    Files.writeString(folder.resolve("00-note.txt"), "This is not character data");
-    Files.writeString(folder.resolve("01-empty.json"), "null");
-    Files.writeString(folder.resolve("02-inactive.json"), "{\"active\":false,\"name\":\"Old\"}");
-    Files.writeString(folder.resolve("03-active.json"), "{\"active\":true,\"name\":\"Current\"}");
+  void unknownDirectoryKeepsForeignIdentityHiddenAndDoesNotCacheOldNames() {
+    UUID id = UUID.randomUUID();
+    offlineInfos.put(id, new CharacterInfo(new CharacterRef(accountId("Offline"), id),
+        "Current", CharacterStatus.ALIVE, null, Set.of(), 0, null));
     assertEquals("Current", CharacterNames.of("Offline"));
-    Files.delete(folder.resolve("03-active.json"));
-    assertEquals("Current", CharacterNames.forForeign("Offline"));
+    offlineInfos.clear();
+    assertEquals("Unknown", CharacterNames.forForeign("Offline"));
+    assertEquals("Offline", CharacterNames.of("Offline"));
     assertEquals("Unknown", CharacterNames.forForeign(null));
-  }
-
-  @Test
-  void unreadableCharacterDirectoryKeepsForeignIdentityHidden() throws Exception {
-    Path folder = directory.resolve("data/characterdata").resolve(accountId("Offline").toString());
-    Files.createDirectories(folder);
-    try (MockedStatic<Files> storage = mockStatic(Files.class)) {
-      storage.when(() -> Files.isDirectory(folder)).thenReturn(true);
-      storage.when(() -> Files.list(folder)).thenThrow(new IOException("directory unavailable"));
-      assertEquals("Unknown", CharacterNames.forForeign("Offline"));
-      assertEquals("Offline", CharacterNames.of("Offline"));
-      storage.verify(() -> Files.list(folder));
-    }
-    assertTrue(Files.isDirectory(folder));
   }
 
   @Test
@@ -189,12 +191,12 @@ class EspionageOperationsCoverageTest {
     SpecialPositionAssignment holder = home.getEspionage().getSpymaster();
     int original = holder.aptitude;
     int canonical = original == 91 ? 92 : 91;
-    Files.writeString(aptitudeFile, "{\"character-Leader\":" + canonical + "}");
+    Files.writeString(aptitudeFile, "{\"" + characterId("character-Leader") + "\":" + canonical + "}");
     EspionageService.loadAptitudes(aptitudeFile);
     assertSame(holder, home.getEspionage().getSpymaster());
     assertEquals(canonical, holder.aptitude);
     assertEquals(canonical, EspionageService.effectiveAptitude(home, holder));
-    assertTrue(Files.readString(aptitudeFile).contains("character-Leader"));
+    assertTrue(Files.readString(aptitudeFile).contains(characterId("character-Leader")));
     assertFalse(EspionageService.appoint(leader, home, leader));
     assertEquals(canonical, holder.aptitude);
   }
@@ -203,19 +205,19 @@ class EspionageOperationsCoverageTest {
   void founderStorageFailureKeepsRetryIntentAndNeverInstallsAnUnsavedOffice() throws Exception {
     offices();
     home.getEspionage().removeSpymaster();
-    when(characters.get("Leader").getId()).thenReturn("replacement-character");
+    activate("Leader", "replacement-character");
     Files.delete(aptitudeFile);
     Files.createDirectory(aptitudeFile);
     EspionageService.initializeFounder(home);
     assertNull(home.getEspionage().getSpymaster());
     assertTrue(home.getEspionage().isPendingFounder(SpecialPosition.SPYMASTER));
     assertEquals(
-        "replacement-character",
+        characterId("replacement-character"),
         home.getEspionage().pendingFounderCharacter(SpecialPosition.SPYMASTER));
     verify(leader).sendMessage(contains("could not be initialized"));
     Files.delete(aptitudeFile);
     EspionageService.initializeFounder(home);
-    assertEquals("replacement-character", home.getEspionage().getSpymaster().characterId);
+    assertEquals(characterId("replacement-character"), home.getEspionage().getSpymaster().characterId);
     assertTrue(home.getEspionage().getSpymaster().automatic);
     assertFalse(home.getEspionage().hasPendingFounder());
   }
@@ -247,7 +249,7 @@ class EspionageOperationsCoverageTest {
       throws Exception {
     offices();
     home.getEspionage().removeSpymaster();
-    when(characters.get("Leader").getId()).thenReturn("replacement-character");
+    activate("Leader", "replacement-character");
     Files.delete(aptitudeFile);
     Files.createDirectory(aptitudeFile);
     int before = databases.constructed().size();
@@ -255,7 +257,7 @@ class EspionageOperationsCoverageTest {
     assertNull(home.getEspionage().getSpymaster());
     assertTrue(home.getEspionage().isPendingFounder(SpecialPosition.SPYMASTER));
     assertEquals(
-        "replacement-character",
+        characterId("replacement-character"),
         home.getEspionage().pendingFounderCharacter(SpecialPosition.SPYMASTER));
     assertEquals(before + 1, databases.constructed().size());
     verify(databases.constructed().getLast()).saveFaction(home);
@@ -290,7 +292,7 @@ class EspionageOperationsCoverageTest {
     SpecialPositionAssignment defender = new SpecialPositionAssignment();
     defender.playerName = baron.getName();
     defender.playerId = baron.getUniqueId();
-    defender.characterId = "character-Baron";
+    defender.characterId = characterId("character-Baron");
     target.getEspionage().appoint(defender, 0, 0);
     Regiment regiment = fixture.regiment("guards", false, 8, 1);
     Regiment levies = fixture.regiment("levies", true, 0, 0);
@@ -571,6 +573,38 @@ class EspionageOperationsCoverageTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"founder", "appointment"})
+  void staleAttributeReadNeverPersistsARollOrBindsTheReturnedCharacter(String operation)
+      throws Exception {
+    offices();
+    boolean founder = operation.equals("founder");
+    String name = founder ? "Leader" : "Candidate";
+    activate(name, "unrolled");
+    if (founder) home.getEspionage().removeSpymaster();
+    SpecialPositionAssignment previous = home.getEspionage().getSpymaster();
+    String stored = Files.readString(aptitudeFile);
+    AtomicBoolean switched = new AtomicBoolean();
+    when(characters.get(name).getAttributeData().getAmount(any(
+        net.tfminecraft.rpcharacters.objects.attributes.AttributeModifier.class)))
+        .thenAnswer(call -> {
+          if (switched.compareAndSet(false, true)) {
+            activate(name, "successor");
+            activate(name, "unrolled");
+          }
+          return 6;
+        });
+    if (founder) {
+      EspionageService.initializeFounder(home);
+      assertTrue(home.getEspionage().hasPendingFounder());
+    } else assertFalse(EspionageService.appoint(leader, home, candidate));
+    assertTrue(switched.get());
+    assertSame(previous, home.getEspionage().getSpymaster());
+    assertEquals(stored, Files.readString(aptitudeFile));
+    assertFalse(stored.contains(characterId("unrolled")));
+    assertEquals(0, home.getEspionage().appointmentCount(SpecialPosition.SPYMASTER));
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {"denied", "extra-argument", "missing-resource", "valid"})
   void reloadRequiresPermissionAndReportsConfigurationFailuresWithoutTouchingReports(String state)
       throws Exception {
@@ -680,7 +714,8 @@ class EspionageOperationsCoverageTest {
   private Player characterPlayer(String name) {
     Player player = fixture.player(name);
     RPCharacter character = mock(RPCharacter.class);
-    when(character.getId()).thenReturn("character-" + name);
+    when(character.getId()).thenReturn(characterId("character-" + name));
+    when(character.getOwner()).thenReturn(player);
     when(character.getName()).thenReturn("Character " + name);
     when(character.getStatus()).thenReturn(Status.ALIVE);
     AttributeData attributes = mock(AttributeData.class);
@@ -693,7 +728,18 @@ class EspionageOperationsCoverageTest {
     when(data.getCharacters()).thenReturn(List.of(character));
     characterData.put(player.getUniqueId(), data);
     characters.put(name, character);
+    activate(name, "character-" + name);
     return player;
+  }
+
+  private void activate(String name, String label) {
+    UUID id = UUID.fromString(characterId(label));
+    when(characters.get(name).getId()).thenReturn(id.toString());
+    sessions.put(accountId(name), new CharacterSession(new CharacterRef(accountId(name), id), ++generation));
+  }
+
+  private static String characterId(String label) {
+    return UUID.nameUUIDFromBytes(label.getBytes(StandardCharsets.UTF_8)).toString();
   }
 
   private static UUID accountId(String name) {

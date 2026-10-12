@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.tlibs.character.Characters;
 
 class ReportPresentationTest {
     @AfterEach void defaults() { EspionageConfig.load(new YamlConfiguration()); }
@@ -91,7 +92,10 @@ class ReportPresentationTest {
         report.roster = List.of(new IntelligenceReport.RosterMember("Known Member", "rich", "Rich Guild", true, false, List.of()),
                 new IntelligenceReport.RosterMember("Secret Spy", "poor", "Poor Guild", false, false, List.of(SpecialPosition.SPYMASTER)),
                 new IntelligenceReport.RosterMember("Guild Baron", "rich", "Rich Guild", false, true, List.of()));
-        try (var service = mockStatic(EspionageService.class); var names = mockStatic(CharacterNames.class, CALLS_REAL_METHODS)) {
+        try (var service = mockStatic(EspionageService.class);
+             var names = mockStatic(CharacterNames.class, CALLS_REAL_METHODS);
+             var identities = mockStatic(Characters.class)) {
+            identities.when(Characters::available).thenReturn(false);
             service.when(() -> EspionageService.report(viewer, faction)).thenReturn(report);
             service.when(() -> EspionageService.visibleValue(eq(viewer), eq(faction), anyString(), any()))
                     .thenAnswer(call -> call.getArgument(2).toString().contains("rich") ? 100.0 : 10.0);

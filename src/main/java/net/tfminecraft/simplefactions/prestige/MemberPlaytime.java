@@ -2,15 +2,21 @@ package net.tfminecraft.simplefactions.prestige;
 
 import java.util.Collection;
 
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
+
+import net.tfminecraft.tlibs.character.CharacterInfo;
+import net.tfminecraft.tlibs.character.CharacterSession;
+import net.tfminecraft.tlibs.character.Characters;
+
 /**
  * The playtime half of the Members prestige term. Headcount alone rewards mass
  * recruitment, so each member also contributes for the time their character has
  * actually spent online.
  *
- * <p>Playtime lives in RPCharacters, so it arrives through a {@link Probe}. The
- * default probe knows nobody, which keeps the term at zero for tests and for
- * servers running without that plugin. Production swaps in
- * {@link RpCharactersPlaytimeProbe}.
+ * <p>Playtime arrives through a {@link Probe}. The default probe knows nobody;
+ * production installs the shared character lookup with {@link #useSharedIdentity()}.
  *
  * <p>This is read from {@code Faction.updatePrestige()}, which runs for every
  * faction on every bank mutation, so a probe must answer from memory. Never do
@@ -37,6 +43,30 @@ public final class MemberPlaytime {
 
 	public static void reset() {
 		probe = Probe.NONE;
+	}
+
+	/** Uses ready online characters and cached offline accounts' last-played characters. */
+	public static void useSharedIdentity() {
+		setProbe(MemberPlaytime::sharedSecondsFor);
+	}
+
+	private static Integer sharedSecondsFor(String name) {
+		if (Bukkit.getServer() == null || !Characters.available()) return null;
+		Player online = Bukkit.getPlayerExact(name);
+		CharacterInfo info;
+		if (online != null) {
+			CharacterSession session = Characters.currentSession(online).orElse(null);
+			if (session == null || !session.ref().ownerId().equals(online.getUniqueId())) return null;
+			info = Characters.info(session.ref().characterId()).orElse(null);
+			if (info == null || !info.ref().equals(session.ref()) || !online.isOnline()
+					|| Bukkit.getPlayer(online.getUniqueId()) != online || !Characters.isCurrent(session)) return null;
+		} else {
+			OfflinePlayer offline = Bukkit.getOfflinePlayerIfCached(name);
+			if (offline == null) return null;
+			info = Characters.lastPlayed(offline.getUniqueId()).orElse(null);
+			if (info == null || !info.ref().ownerId().equals(offline.getUniqueId())) return null;
+		}
+		return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, info.playtimeSeconds()));
 	}
 
 	/** False while the default probe is installed, so unconfigured servers can tell. */
