@@ -17,7 +17,7 @@ public final class WarbandRejoinState {
 	}
 
 	/** Whether the character that quit is the one now playing. */
-	boolean isFor(CharacterRef ref) {
+	public boolean isFor(CharacterRef ref) {
 		return character != null && character.equals(ref);
 	}
 

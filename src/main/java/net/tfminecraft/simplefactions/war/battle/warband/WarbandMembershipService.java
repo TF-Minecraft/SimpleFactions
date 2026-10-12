@@ -50,9 +50,11 @@ public class WarbandMembershipService {
 		if (warband == null) {
 			return;
 		}
-		Faction faction = resolveFactionForWarband(warband, player);
 		// Only the character that left may take the place back.
-		CharacterRef character = Members.session(player).map(CharacterSession::ref).orElse(null);
+		CharacterRef character = warband.getMemberCharacter(playerId)
+				.orElseGet(() -> Members.session(player).map(CharacterSession::ref).orElse(null));
+		Faction faction = warband.isFaction() && character != null
+				? FactionManager.getByMember(character.characterId()) : null;
 		detachFromBattle(player, warband);
 		if (character != null) {
 			pendingRejoin.put(playerId, new WarbandRejoinState(warband.getId(), faction, character));
@@ -89,7 +91,8 @@ public class WarbandMembershipService {
 		if (!evaluateRejoin(warband, playerId, memberKey, playerFaction, state)) {
 			return false;
 		}
-		warband.addMember(playerId);
+		if (onlinePlayer != null) warband.addPlayer(onlinePlayer);
+		else warband.addMember(playerId);
 		if (onlinePlayer != null) {
 			restoreBattleState(onlinePlayer);
 		}
@@ -140,13 +143,6 @@ public class WarbandMembershipService {
 			return null;
 		}
 		return Bukkit.getPlayer(playerId);
-	}
-
-	private Faction resolveFactionForWarband(Warband warband, Player player) {
-		if (!warband.isFaction() || player == null) {
-			return null;
-		}
-		return FactionManager.getByMember(Members.key(player));
 	}
 
 	private void detachFromBattle(Player player, Warband warband) {

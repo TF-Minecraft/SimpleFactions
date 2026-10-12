@@ -140,7 +140,7 @@ class DatabaseCoverageTest {
     assertEquals(1,merchants.getUpgradeQueue().size());assertEquals(9,merchants.getUpgradeQueue().getFirst().getTimeLeft());
     assertEquals(5.0,merchants.getLedger().getCasinoProfit());assertEquals(Map.of("Bob",1.5),merchants.getLedger().getCitizenTaxesCopy());
     assertEquals(1,faction.getWarReparationsObligations().size());
-    assertTrue(database.saveFactionChecked(faction));
+    assertTrue(database.saveFactionDurably(faction));
     FactionData saved=JsonUtil.readJson(path.toFile(),FactionData.class);
     assertEquals(List.of("county"),saved.titles);assertEquals(List.of("guards.5.2"),saved.military);
     assertEquals(data.laws,saved.laws);assertEquals(12345L,saved.lawChangedAt.get("customs"));

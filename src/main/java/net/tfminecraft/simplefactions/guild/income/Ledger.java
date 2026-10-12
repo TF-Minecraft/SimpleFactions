@@ -52,6 +52,7 @@ public class Ledger {
     // Pushed by the games plugin as tables win, and saved with the bank balance it arrived in,
     // so a restart cannot quietly wipe a day of gambling income before it is taxed.
     private double casinoProfit;
+    private final Map<String, Double> casinoProfitOperations = new HashMap<>();
     /** Today's funded loan payments, set only while the settlement is being built. */
     private Map<Loan, LoanFunding.Funded> loanPlan;
 
@@ -148,6 +149,29 @@ public class Ledger {
     public void addCasinoProfitEntry(Double amount) {
         if(amount == null || amount <= 0) return;
         casinoProfit += amount;
+    }
+
+    /** Durably records a Games posting's taxable profit once; exact retries are successful. */
+    public boolean addCasinoProfitEntry(String operationId, double amount) {
+        if (operationId == null || operationId.isBlank() || !Double.isFinite(amount) || amount <= 0) return false;
+        Double previous = casinoProfitOperations.get(operationId);
+        if (previous != null) return Double.compare(previous, amount) == 0;
+        double before = casinoProfit;
+        casinoProfit += amount;
+        casinoProfitOperations.put(operationId, amount);
+        if (new net.tfminecraft.simplefactions.database.Database().saveFactionDurably(guild.getFaction())) return true;
+        casinoProfit = before;
+        casinoProfitOperations.remove(operationId);
+        return false;
+    }
+
+    public Map<String, Double> getCasinoProfitOperations() {
+        return new HashMap<>(casinoProfitOperations);
+    }
+
+    public void restoreCasinoProfitOperations(Map<String, Double> operations) {
+        casinoProfitOperations.clear();
+        if (operations != null) casinoProfitOperations.putAll(operations);
     }
 
     public double getCasinoProfit() {

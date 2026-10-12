@@ -47,6 +47,31 @@ class CapturedBattleCharactersTest {
     }
 
     @Test
+    void warbandCaptureSurvivesSessionEndAndPersistence() {
+        Player player = mock(Player.class);
+        UUID account = UUID.randomUUID();
+        CharacterRef captured = new CharacterRef(account, UUID.randomUUID());
+        when(player.getUniqueId()).thenReturn(account);
+        try (var members = mockStatic(Members.class)) {
+            members.when(() -> Members.session(player)).thenReturn(Optional.of(new CharacterSession(captured, 1)));
+            Warband warband = new Warband("band", player);
+            assertEquals(Optional.of(captured), warband.getMemberCharacter(account));
+            Warband restored = net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper.fromData(
+                    net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper.toData(warband));
+            members.when(() -> Members.session(player)).thenReturn(Optional.empty());
+            assertEquals(Optional.of(captured), restored.getMemberCharacter(account));
+            restored.removePlayer(player);
+            assertTrue(restored.getMemberCharacter(account).isEmpty());
+            restored.restoreMemberCharacters(Map.of(account, captured));
+            assertTrue(restored.getMemberCharacter(account).isEmpty());
+            warband.restoreMemberCharacters(Map.of(account, new CharacterRef(UUID.randomUUID(), UUID.randomUUID())));
+            assertTrue(warband.getMemberCharacter(account).isEmpty());
+            warband.restoreMemberCharacters(null);
+            assertTrue(warband.getMemberCharacters().isEmpty());
+        }
+    }
+
+    @Test
     void joiningAnActiveBattleCapturesTheNewParticipation() {
         Player player = mock(Player.class);
         UUID account = UUID.randomUUID();

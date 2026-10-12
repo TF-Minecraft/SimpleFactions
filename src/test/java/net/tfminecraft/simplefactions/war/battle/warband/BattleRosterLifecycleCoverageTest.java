@@ -294,8 +294,21 @@ class BattleRosterLifecycleCoverageTest {
   }
 
   @Test
-  void quittingWithoutAnOnlineCharacterLeavesNoRejoinState() {
+  void quittingAfterSessionEndsRetainsTheCapturedCharacter() {
     Warband band = factionBand("offline_quit");
+    var captured = session(rig.alice);
+    rig.domain.online.remove("Alice");
+    membership.handleQuit(rig.alice.getUniqueId());
+    assertTrue(membership.getPendingRejoin(rig.alice.getUniqueId()).isFor(captured.ref()));
+    rig.domain.online.put("Alice", rig.alice);
+    assertTrue(membership.handleSessionStart(rig.alice, session(rig.alice)));
+    assertTrue(band.hasMember(rig.alice));
+  }
+
+  @Test
+  void quittingWithoutACapturedOrOnlineCharacterLeavesNoRejoinState() {
+    Warband band = factionBand("uncaptured_quit");
+    band.restoreMemberCharacters(null);
     rig.domain.online.remove("Alice");
     membership.handleQuit(rig.alice.getUniqueId());
     assertNull(membership.getPendingRejoin(rig.alice.getUniqueId()));

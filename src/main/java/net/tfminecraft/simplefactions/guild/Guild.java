@@ -230,6 +230,7 @@ public class Guild {
         if (data.vehicleFeeIncome != null) {
             this.ledger.setVehicleFeeIncome(data.vehicleFeeIncome);
         }
+        this.ledger.restoreCasinoProfitOperations(data.casinoProfitOperations);
         if (data.casinoProfit != null) {
             this.ledger.setCasinoProfit(data.casinoProfit);
         }

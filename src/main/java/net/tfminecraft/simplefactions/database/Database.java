@@ -326,6 +326,15 @@ public class Database {
 
     /** Office mutations must not acknowledge success unless the faction save completed. */
     public boolean saveFactionChecked(Faction f) {
+        return saveFaction(f, false);
+    }
+
+    /** Force the saved state to storage before marking an intent's effects complete. */
+    public boolean saveFactionDurably(Faction f) {
+        return saveFaction(f, true);
+    }
+
+    private boolean saveFaction(Faction f, boolean durable) {
         try {
             File file = new File("plugins/SimpleFactions/Data", f.getId() + ".json");
 
@@ -433,6 +442,7 @@ public class Database {
                 gd.donation = g.getDonationAmount();
                 gd.dividendEligible = g.getDividendEligibleSnapshot();
                 gd.casinoProfit = g.getLedger().getCasinoProfit();
+                gd.casinoProfitOperations = g.getLedger().getCasinoProfitOperations();
                 gd.vehicleFeeIncome = g.getLedger().getVehicleFeeIncome();
                 Map<String, Double> citizenTaxes = g.getLedger().getCitizenTaxesCopy();
                 gd.citizenTaxes = citizenTaxes.isEmpty() ? null : citizenTaxes;
@@ -532,7 +542,8 @@ public class Database {
                 data.warReparationsObligations.add(obligationData);
             }
 
-            JsonUtil.writeJsonAtomic(file, data);
+            if (durable) DurableJson.write(file.toPath(), data);
+            else JsonUtil.writeJsonAtomic(file, data);
             return true;
 
         } catch (Exception e) {

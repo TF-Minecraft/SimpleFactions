@@ -65,6 +65,7 @@ public class GuildData {
 
     @SerializedName("casino profit")
     public Double casinoProfit;
+    public Map<String, Double> casinoProfitOperations;
     public Double vehicleFeeIncome;
 
     @SerializedName("citizen taxes")

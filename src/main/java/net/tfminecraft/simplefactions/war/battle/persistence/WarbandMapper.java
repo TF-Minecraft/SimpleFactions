@@ -17,6 +17,7 @@ public final class WarbandMapper {
 		}
 		WarbandData data = new WarbandData();
 		data.id = warband.getId();
+		data.memberCharacters = warband.getMemberCharacters();
 		data.name = warband.getName();
 		data.leaderId = warband.getLeaderId() != null ? warband.getLeaderId().toString() : null;
 		data.locked = warband.isLocked();
@@ -38,7 +39,7 @@ public final class WarbandMapper {
 		if (data == null || data.id == null || data.id.isBlank()) {
 			return null;
 		}
-		return Warband.fromPersistence(
+		Warband warband = Warband.fromPersistence(
 				data.id,
 				data.name != null ? data.name : data.id,
 				parseUuid(data.leaderId),
@@ -47,6 +48,8 @@ public final class WarbandMapper {
 				data.locked,
 				data.faction,
 				data.campaignSideId);
+		warband.restoreMemberCharacters(data.memberCharacters);
+		return warband;
 	}
 
 	private static List<UUID> parseUuidList(List<String> ids) {

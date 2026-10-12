@@ -342,7 +342,7 @@ class PlayerManagerCoverageTest {
       actor = player("Merchant");
       guild.setBank(new Bank(guild, here));
     }
-    PlayerBankPulseEvent event = new PlayerBankPulseEvent(actor);
+    PlayerBankPulseEvent event = new PlayerBankPulseEvent(actor, net.tfminecraft.simplefactions.identity.Members.session(actor).orElseThrow().ref());
     listener.bankPulse(event);
     boolean allowed = state.endsWith("bank") && !state.equals("no_bank");
     assertEquals(!allowed, event.isCancelled());
@@ -359,7 +359,7 @@ class PlayerManagerCoverageTest {
     String name = state.equals("outsider") ? "Stranger" : "Leader";
     double gross = state.equals("zero_income") ? 0 : 200;
     double expectedTax = state.equals("taxed") ? 20 : 0;
-    PlayerEarnMoneyEvent event = new PlayerEarnMoneyEvent(name, gross);
+    PlayerEarnMoneyEvent event = new PlayerEarnMoneyEvent(name, gross, null);
     listener.earnMoney(event);
     PlayerLedger ledger = economy.getLedger(name);
     assertEquals(expectedTax, event.getAmount());
@@ -391,7 +391,7 @@ class PlayerManagerCoverageTest {
             })
         .when(money)
         .addMoneyToAccount(anyString(), anyDouble(), anyBoolean(), anyBoolean(), any());
-    listener.depositMaterials(new PlayerDepositMaterialsEvent(leader, material));
+    listener.depositMaterials(new PlayerDepositMaterialsEvent(leader, material, net.tfminecraft.simplefactions.identity.Members.session(leader).orElseThrow().ref()));
     assertEquals(state.equals("deposit") ? 0 : 7, material.getAmount());
     assertEquals(87.5, credited[0] + material.getAmount() * coin.getValue());
     if (state.equals("deposit"))
