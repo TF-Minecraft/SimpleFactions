@@ -13,6 +13,7 @@ import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverService.Outcome;
 import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverService.Status;
 import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverSessionManager.Session;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
@@ -51,19 +52,19 @@ public final class VehicleHandoverListener implements Listener {
         }
         Outcome outcome = service.evaluate(owner.getName(), recipient.getName(), vehicle.getUUID());
         if (outcome.status() != Status.OK) {
-            owner.sendMessage(VehicleHandoverMessages.forOutcome(outcome, recipient.getName()));
+            owner.sendMessage(VehicleHandoverMessages.forOutcome(outcome, Members.name(recipient)));
             if (outcome.status() != Status.NOT_OWNER) {
                 sessions.clear(owner.getUniqueId());
             }
             return;
         }
-        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, owner.getName(), outcome.vehicleTypeId());
+        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, Members.key(owner), outcome.vehicleTypeId());
         if (quote != null) {
             long now = System.currentTimeMillis();
             String target = "handover:" + vehicle.getUUID() + ":" + recipient.getUniqueId();
             if (!confirmations.confirm(owner.getUniqueId(), target, quote.amount(), now)) {
                 confirmations.ask(owner.getUniqueId(), target, quote.amount(), now);
-                owner.sendMessage(VehicleFeeMessages.handoverConfirm(quote, recipient.getName()));
+                owner.sendMessage(VehicleFeeMessages.handoverConfirm(quote, Members.name(recipient)));
                 return;
             }
         }

@@ -38,6 +38,31 @@ class SharedDomainUtilitiesCoverageTest {
     }
   }
 
+  @Test void characterWealthReadsTheAccountPlayingTheCharacterAndUnknownCharactersHaveNone() {
+    java.util.UUID account=java.util.UUID.randomUUID(), character=java.util.UUID.randomUUID();
+    String member=net.tfminecraft.simplefactions.identity.Members.key(character);
+    String stranger=net.tfminecraft.simplefactions.identity.Members.key(java.util.UUID.randomUUID());
+    var names=net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.INSTANCE;
+    net.tfminecraft.simplefactions.identity.Members.setResolver(new net.tfminecraft.simplefactions.identity.Members.Resolver() {
+      @Override public java.util.Optional<net.tfminecraft.tlibs.character.CharacterSession> session(org.bukkit.entity.Player p) { return names.session(p); }
+      @Override public boolean isCurrent(net.tfminecraft.tlibs.character.CharacterSession s) { return true; }
+      @Override public String key(org.bukkit.entity.Player p) { return names.key(p); }
+      @Override public java.util.Optional<org.bukkit.entity.Player> online(String key) { return java.util.Optional.empty(); }
+      @Override public java.util.Optional<net.tfminecraft.tlibs.character.CharacterInfo> info(String key) {
+        return key.equals(member) ? java.util.Optional.of(new net.tfminecraft.tlibs.character.CharacterInfo(
+            new net.tfminecraft.tlibs.character.CharacterRef(account,character),"Lady Alice",
+            net.tfminecraft.tlibs.character.CharacterStatus.ALIVE,null,java.util.Set.of(),0,null)) : java.util.Optional.empty();
+      }
+    });
+    try(MockedStatic<OfflineModifier> accounts=mockStatic(OfflineModifier.class)) {
+      accounts.when(() -> OfflineModifier.balance(eq(account),eq(Accounts.POUCH))).thenReturn(3.0);
+      accounts.when(() -> OfflineModifier.balance(eq(account),eq(Accounts.BANK))).thenReturn(7.0);
+      assertEquals(10,Wealth.wealth(member));
+      assertEquals(0,Wealth.wealth(stranger));
+      accounts.verify(() -> OfflineModifier.balance(anyString(),any(Accounts.class)),never());
+    }
+  }
+
   @Test void wealthRankingIncludesSubjectsOnlyWhenRequestedAndSortsByTotalAssets() {
     Faction realm=fixture.saved("realm","Alice");realm.addMember("Citizen");
     Guild guild=fixture.guild(realm,"merchants","Bob");guild.addMember("Dana");

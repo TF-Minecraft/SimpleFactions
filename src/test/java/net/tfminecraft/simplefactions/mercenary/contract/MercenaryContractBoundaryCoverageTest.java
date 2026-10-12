@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test;
 
 class MercenaryContractBoundaryCoverageTest {
   @Test
-  void wageOverridesFollowThePlayerAcrossNameCasingAndLocale() {
+  void wageOverridesAreKeyedExactlyWhateverTheLocale() {
     Locale previous = Locale.getDefault();
     try {
       Locale.setDefault(Locale.forLanguageTag("tr-TR"));
@@ -47,11 +47,12 @@ class MercenaryContractBoundaryCoverageTest {
       wages.setActiveOverride("IRIS", 55.0);
       wages.setPeacetimeOverride("IRIS", 7.0);
 
-      assertEquals(55.0, wages.activeShareOf(100, "iris"));
-      assertEquals(7.0, wages.peacetimeFor("iris"));
-      assertEquals(7.0, wages.getPeacetimeOverride("iris"));
-      wages.clearActiveOverride("iris");
-      wages.clearPeacetimeOverride("iris");
+      assertEquals(55.0, wages.activeShareOf(100, "IRIS"));
+      assertEquals(7.0, wages.peacetimeFor("IRIS"));
+      assertEquals(7.0, wages.getPeacetimeOverride("IRIS"));
+      assertEquals(2.0, wages.peacetimeFor("iris"));
+      wages.clearActiveOverride("IRIS");
+      wages.clearPeacetimeOverride("IRIS");
       assertNull(wages.getPeacetimeOverride("IRIS"));
       assertEquals(20.0, wages.activeShareOf(100, "IRIS"));
       assertEquals(2.0, wages.peacetimeFor("IRIS"));

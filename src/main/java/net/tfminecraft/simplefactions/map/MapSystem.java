@@ -277,7 +277,7 @@ public class MapSystem {
 		    return;
 		}
 		if(stolen) {
-			Player leader = Bukkit.getPlayerExact(owner.getLeader());
+			Player leader = Members.player(owner.getLeader());
 			if(leader != null) leader.sendMessage(f.getName()+" §cclaimed one of your provinces since you lacked the prestige to hold it!");
 			InstallationTransferService.transfer(owner, f, province);
 			unclaim(null, owner, province);

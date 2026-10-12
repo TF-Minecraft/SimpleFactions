@@ -31,13 +31,14 @@ class WageSettingsTest {
     }
 
     @Test
-    void anOverrideIsCaseInsensitiveAndClearable() {
+    void anOverrideBelongsToExactlyOneMemberKeyAndIsClearable() {
         WageSettings wages = new WageSettings();
         wages.setActivePercent(20);
         wages.setActiveOverride("Sigrun", 50.0);
 
-        assertEquals(50.0, wages.activePercentFor("sigrun"), 1e-9);
-        wages.clearActiveOverride("SIGRUN");
+        assertEquals(50.0, wages.activePercentFor("Sigrun"), 1e-9);
+        assertEquals(20.0, wages.activePercentFor("sigrun"), 1e-9, "Keys are opaque and never folded");
+        wages.clearActiveOverride("Sigrun");
         assertNull(wages.getActiveOverride("Sigrun"));
         assertEquals(20.0, wages.activePercentFor("Sigrun"), 1e-9);
     }

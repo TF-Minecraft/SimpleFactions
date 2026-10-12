@@ -8,18 +8,17 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.inactivity.InactivityRules;
 import net.tfminecraft.simplefactions.objects.Faction;
 
@@ -29,7 +28,8 @@ public class FactionCleanup {
     private static Map<String, Integer> offlineDays;
 
     /**
-     * Counts a day offline for members who are not on the server. Members who
+     * Counts a day offline for members (keyed by character) whose character is
+     * not being played. Members who
      * reach {@link InactivityRules#DAYS_UNTIL_INACTIVE} stay in the guild and
      * are marked inactive. They are not kicked, and a lone inactive leader
      * does not dissolve the faction.
@@ -44,9 +44,8 @@ public class FactionCleanup {
                     if (faction == null) continue;
                     for (String member : faction.getMembers()) {
                         if (!InactivityRules.isTrackedMember(member)) continue;
-                        String key = member.toLowerCase(Locale.ROOT);
-                        offlineDays.putIfAbsent(key, 0);
-                        members.add(key);
+                        offlineDays.putIfAbsent(member, 0);
+                        members.add(member);
                     }
                 }
             }
@@ -63,7 +62,7 @@ public class FactionCleanup {
                 if (members.contains(name)
                         && !InactivityRules.isInactive(before)
                         && InactivityRules.isInactive(after)) {
-                    log(name + " is inactive after " + after + " days offline and stays in their guild");
+                    log(Members.display(name) + " (" + name + ") is inactive after " + after + " days offline and stays in their guild");
                 }
             }
 
@@ -73,18 +72,18 @@ public class FactionCleanup {
         }
     }
 
-    public static int daysOffline(String username) {
-        if (username == null) return 0;
+    public static int daysOffline(String member) {
+        if (member == null) return 0;
         if (!ensureLoaded()) return 0;
-        Integer days = offlineDays.get(username.toLowerCase(Locale.ROOT));
+        Integer days = offlineDays.get(member);
         return days == null ? 0 : days;
     }
 
-    public static void ping(String username) {
-        if (username == null || username.isBlank()) return;
+    public static void ping(String member) {
+        if (member == null || member.isBlank()) return;
         try {
             if (!ensureLoaded()) return;
-            offlineDays.put(username.toLowerCase(Locale.ROOT), 0);
+            offlineDays.put(member, 0);
             saveOfflineDays(offlineDays);
         } catch (IOException e) {
             e.printStackTrace();
@@ -104,16 +103,8 @@ public class FactionCleanup {
         }
     }
 
-    private static boolean isOnline(String name) {
-        try {
-            if (Bukkit.getServer() == null || name == null) return false;
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                if (player != null && player.getName().equalsIgnoreCase(name)) return true;
-            }
-        } catch (Throwable ignored) {
-            return false;
-        }
-        return false;
+    private static boolean isOnline(String member) {
+        return Bukkit.getServer() != null && Members.isOnline(member);
     }
 
     private static Map<String, Integer> loadOfflineDays() throws IOException {

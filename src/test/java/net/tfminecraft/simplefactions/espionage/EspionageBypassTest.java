@@ -21,11 +21,10 @@ class EspionageBypassTest {
 
     private void protect(Faction faction) {
         var state = new EspionageState();
-        var holder = new SpecialPositionAssignment();
-        holder.playerName = "Spy";
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Spy");
         state.appoint(holder, 50);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.isMember("Spy")).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
     }
 
     @Test

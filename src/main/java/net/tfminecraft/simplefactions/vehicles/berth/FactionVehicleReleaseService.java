@@ -66,16 +66,17 @@ public final class FactionVehicleReleaseService {
 
     public record Outcome(Status status, CanBuildResult slotFailure, String vehicleTypeId) {}
 
-    public Outcome take(Faction faction, String leaderName, String vehicleUuid) {
-        return release(faction, leaderName, leaderName, vehicleUuid, null, true);
+    /** {@code leader} is the leader's member key; recipients are account names, as VehicleFramework owners are. */
+    public Outcome take(Faction faction, String leader, String vehicleUuid) {
+        return release(faction, leader, VehicleOwnershipQueries.accountNameOf(leader), vehicleUuid, null, true);
     }
 
     public Outcome takeFromInstallation(
             Faction faction,
-            String leaderName,
+            String leader,
             String installationId,
             String vehicleUuid) {
-        return release(faction, leaderName, leaderName, vehicleUuid, installationId, true);
+        return release(faction, leader, VehicleOwnershipQueries.accountNameOf(leader), vehicleUuid, installationId, true);
     }
 
     public Outcome give(Faction faction, String leaderName, String recipientName, String vehicleUuid) {
@@ -104,7 +105,7 @@ public final class FactionVehicleReleaseService {
                 || vehicleUuid.isBlank()) {
             return outcome(Status.NOT_FACTION_VEHICLE, null, null);
         }
-        if (faction.getLeader() == null || !faction.getLeader().equalsIgnoreCase(leaderName)) {
+        if (faction.getLeader() == null || !faction.getLeader().equals(leaderName)) {
             return outcome(Status.NOT_LEADER, null, null);
         }
         if (recipientName == null || recipientName.isBlank()) {

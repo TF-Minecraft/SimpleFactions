@@ -151,7 +151,7 @@ public class ContractHandler {
     public MercenaryResult acceptAtHall(String contractId, Faction hirer, Player signer) {
         MercenaryResult permission = MercenaryMarket.canSign(company, signer);
         if (!permission.ok()) return permission;
-        return accept(contractId, hirer, signer.getName());
+        return accept(contractId, hirer, Members.key(signer));
     }
 
     public MercenaryResult accept(String contractId, Faction hirer, String signer) {
@@ -394,8 +394,7 @@ public class ContractHandler {
 
     private static void tell(String player, String message) {
         if (player == null || message == null || SimpleFactions.plugin == null) return;
-        Player online = Bukkit.getPlayerExact(player);
-        if (online != null) online.sendMessage(message);
+        Members.online(player).ifPresent(online -> online.sendMessage(message));
     }
 
     private static void tellGovernment(Faction hirer, String message) {

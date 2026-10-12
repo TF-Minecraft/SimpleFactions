@@ -27,6 +27,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandVehicleRules;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.utils.MemberAccounts;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class BattleVehicleEligibilityService {
@@ -137,6 +138,7 @@ public final class BattleVehicleEligibilityService {
 		}
 		return registry.getByVehicleUuid(vehicle.getUUID())
 				.map(PlayerVehicleRecord::getPlayerUuid)
+				.map(MemberAccounts::accountOf)
 				.map(Bukkit::getPlayer)
 				.orElse(null);
 	}

@@ -43,21 +43,22 @@ class FactionCleanupCoverageTest {
     FactionCleanup.ping(null);FactionCleanup.ping(" ");
     assertEquals("null",Files.readString(disk.root.resolve("Cache/logins.json")));
     FactionCleanup.ping("ALICE");
-    assertEquals(0,FactionCleanup.daysOffline("alice"));
-    assertTrue(Files.readString(disk.root.resolve("Cache/logins.json")).contains("\"alice\":0"));
+    assertEquals(0,FactionCleanup.daysOffline("ALICE"));
+    assertTrue(Files.readString(disk.root.resolve("Cache/logins.json")).contains("\"ALICE\":0"),"Member keys are stored as given");
   }
 
   @Test void dailyAccountingMarksInactiveMembersWithoutRemovingThemAndResetsOnlinePlayers() throws Exception {
-    disk.write("Cache/logins.json","{\"alice\":20,\"bob\":null,\"cara\":30,\"former\":5}");
+    disk.write("Cache/logins.json","{\"Alice\":20,\"Bob\":null,\"Cara\":30,\"former\":5}");
     Faction faction=mock(Faction.class);when(faction.getMembers()).thenReturn(Arrays.asList("Alice","Bob","Cara","New",null," ","dummy_guard"));
-    Player bob=ui.player("BOB");when(Bukkit.getOnlinePlayers()).thenAnswer(call -> Arrays.asList(null,bob));
+    Player bob=ui.player("Bob");when(Bukkit.getPlayerExact("Bob")).thenReturn(bob);
     FactionCleanup.advanceOfflineDays(Arrays.asList(null,faction));
-    assertEquals(21,FactionCleanup.daysOffline("ALICE"));assertEquals(0,FactionCleanup.daysOffline("Bob"));
+    assertEquals(21,FactionCleanup.daysOffline("Alice"));assertEquals(0,FactionCleanup.daysOffline("Bob"));
+    assertEquals(0,FactionCleanup.daysOffline("ALICE"),"Keys are never folded");
     assertEquals(31,FactionCleanup.daysOffline("Cara"));assertEquals(6,FactionCleanup.daysOffline("former"));
     assertEquals(1,FactionCleanup.daysOffline("New"));assertEquals(0,FactionCleanup.daysOffline("dummy_guard"));
     verify(faction,never()).forceRemoveMember(anyString());
-    verify(ui.plugin.getLogger()).log(eq(Level.INFO),contains("alice is inactive after 21 days"));
-    FactionCleanup.ping("Alice");assertEquals(0,FactionCleanup.daysOffline("alice"));
+    verify(ui.plugin.getLogger()).log(eq(Level.INFO),contains("Alice (Alice) is inactive after 21 days"));
+    FactionCleanup.ping("Alice");assertEquals(0,FactionCleanup.daysOffline("Alice"));
   }
 
   @Test void unreadableOrMalformedHistoryIsPreservedWhenAPlayerLogsIn() throws Exception {
@@ -74,7 +75,6 @@ class FactionCleanupCoverageTest {
     when(Bukkit.getServer()).thenReturn(null);
     FactionCleanup.advanceOfflineDays(null);assertEquals(3,FactionCleanup.daysOffline("alice"));
     when(Bukkit.getServer()).thenReturn(ui.server);
-    when(Bukkit.getOnlinePlayers()).thenThrow(new IllegalStateException("server stopping"));
     FactionCleanup.advanceOfflineDays(List.of());assertEquals(4,FactionCleanup.daysOffline("alice"));
   }
 
@@ -92,7 +92,7 @@ class FactionCleanupCoverageTest {
   }
 
   @Test void cachedHistoryCanRecreateADeletedCacheFolderAndLogWithoutALivePlugin() throws Exception {
-    disk.write("Cache/logins.json","{\"alice\":20}");assertEquals(20,FactionCleanup.daysOffline("Alice"));
+    disk.write("Cache/logins.json","{\"Alice\":20}");assertEquals(20,FactionCleanup.daysOffline("Alice"));
     disk.remove("Cache");Faction faction=mock(Faction.class);when(faction.getMembers()).thenReturn(List.of("Alice"));
     SimpleFactions previousPlugin=SimpleFactions.plugin;SimpleFactions.plugin=null;
     try {FactionCleanup.advanceOfflineDays(List.of(faction));}finally{SimpleFactions.plugin=previousPlugin;}

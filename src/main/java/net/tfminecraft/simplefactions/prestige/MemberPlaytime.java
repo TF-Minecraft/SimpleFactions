@@ -4,13 +4,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.entity.Player;
-
-import net.tfminecraft.tlibs.character.CharacterInfo;
-import net.tfminecraft.tlibs.character.CharacterSession;
-import net.tfminecraft.tlibs.character.Characters;
+import net.tfminecraft.simplefactions.identity.Members;
 
 /**
  * The playtime half of the Members prestige term. Headcount alone rewards mass
@@ -31,8 +25,8 @@ public final class MemberPlaytime {
 		/** Knows nobody, so the whole term stays out of the way. */
 		Probe NONE = player -> null;
 
-		/** Online seconds for this player, or null when the player is unknown. */
-		Integer secondsFor(String player);
+		/** Online seconds for this member's character, or null when it is unknown. */
+		Integer secondsFor(String member);
 	}
 
 	private static Probe probe = Probe.NONE;
@@ -50,28 +44,15 @@ public final class MemberPlaytime {
 		probe = Probe.NONE;
 	}
 
-	/** Uses ready online characters and cached offline accounts' last-played characters. */
+	/** Reads each member's own character, online or not. */
 	public static void useSharedIdentity() {
 		setProbe(MemberPlaytime::sharedSecondsFor);
 	}
 
-	private static Integer sharedSecondsFor(String name) {
-		if (Bukkit.getServer() == null || !Characters.available()) return null;
-		Player online = Bukkit.getPlayerExact(name);
-		CharacterInfo info;
-		if (online != null) {
-			CharacterSession session = Characters.currentSession(online).orElse(null);
-			if (session == null || !session.ref().ownerId().equals(online.getUniqueId())) return null;
-			info = Characters.info(session.ref().characterId()).orElse(null);
-			if (info == null || !info.ref().equals(session.ref()) || !online.isOnline()
-					|| Bukkit.getPlayer(online.getUniqueId()) != online || !Characters.isCurrent(session)) return null;
-		} else {
-			OfflinePlayer offline = Bukkit.getOfflinePlayerIfCached(name);
-			if (offline == null) return null;
-			info = Characters.lastPlayed(offline.getUniqueId()).orElse(null);
-			if (info == null || !info.ref().ownerId().equals(offline.getUniqueId())) return null;
-		}
-		return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, info.playtimeSeconds()));
+	private static Integer sharedSecondsFor(String member) {
+		return Members.info(member)
+				.map(info -> (int) Math.min(Integer.MAX_VALUE, Math.max(0L, info.playtimeSeconds())))
+				.orElse(null);
 	}
 
 	/** False while the default probe is installed, so unconfigured servers can tell. */

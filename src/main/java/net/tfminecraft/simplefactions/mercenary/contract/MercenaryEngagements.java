@@ -5,10 +5,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.utils.MemberAccounts;
 import net.tfminecraft.simplefactions.utils.PostSettlementPayouts.PlayerUuidLookup;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
@@ -46,7 +46,7 @@ public final class MercenaryEngagements {
     }
 
     public static PlayerUuidLookup bukkitUuids() {
-        return OfflineModifier::playerId;
+        return MemberAccounts::accountId;
     }
 
     public static List<Engagement> on(War war, Side side) {

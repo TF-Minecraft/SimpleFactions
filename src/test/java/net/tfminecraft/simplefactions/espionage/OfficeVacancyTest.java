@@ -29,6 +29,7 @@ import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.CharacterStatus;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.identity.Members;
 
 class OfficeVacancyTest {
     @AfterEach void defaults() { EspionageConfig.load(new YamlConfiguration()); }
@@ -43,8 +44,8 @@ class OfficeVacancyTest {
             assertEquals(-10, penalties.getFirst().getModifier());
             assertEquals("Vacant Spymaster", penalties.getFirst().getName());
         }
-        var holder = new SpecialPositionAssignment(); holder.playerName = "Spy";
-        when(faction.isMember("Spy")).thenReturn(true);
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Spy");
+        when(faction.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
         state.appoint(holder, 80);
         assertTrue(EspionageService.stabilityModifiers(faction, 0).isEmpty());
         state.removeSpymaster();
@@ -62,12 +63,12 @@ class OfficeVacancyTest {
         var faction = mock(Faction.class);
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
-        var holder = new SpecialPositionAssignment(); holder.playerName = "FormerSpy";
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "FormerSpy");
         state.appoint(holder, 80);
         state.addUnrest(SpecialPosition.SPYMASTER, 10, 7, 1000);
         assertEquals(2, EspionageService.stabilityModifiers(faction, 1000).size());
         assertEquals(1, EspionageService.stabilityModifiers(faction, 1000 + 8L * 86_400_000).size());
-        when(faction.isMember("FormerSpy")).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key("FormerSpy"))).thenReturn(true);
         assertTrue(EspionageService.stabilityModifiers(faction, 1000 + 8L * 86_400_000).isEmpty());
     }
 
@@ -121,7 +122,7 @@ class OfficeVacancyTest {
         }
     }
 
-    @Test void pendingFounderRequiresKnownCachedOwnerAndExactUuidAndRetriesFailedSave() {
+    @Test void pendingFounderRequiresTheLeadersCharacterAndExactUuidAndRetriesFailedSave() {
         try (var fixture = new DeathFixture()) {
             String savedId = fixture.ref.characterId().toString().toUpperCase(java.util.Locale.ROOT);
             fixture.state.pendingFounder(SpecialPosition.SPYMASTER, savedId);
@@ -374,7 +375,7 @@ class OfficeVacancyTest {
         final MockedConstruction<Database> databases;
         EspionageState state = new EspionageState();
         boolean saveSucceeds = true;
-        private OfflinePlayer cachedFounder;
+        private String leader = "Founder";
 
         DeathFixture() {
             Server server = mock(Server.class);
@@ -385,10 +386,9 @@ class OfficeVacancyTest {
             bukkit.when(Bukkit::getServicesManager).thenReturn(services);
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             bukkit.when(() -> Bukkit.getPlayer(ref.ownerId())).thenReturn(owner);
-            bukkit.when(() -> Bukkit.getOfflinePlayerIfCached("Founder")).thenAnswer(call -> cachedFounder);
             when(owner.getUniqueId()).thenReturn(ref.ownerId());
             when(owner.getName()).thenReturn("Founder");
-            when(faction.getLeader()).thenReturn("Founder");
+            when(faction.getLeader()).thenAnswer(call -> leader);
             when(faction.getEspionage()).thenAnswer(call -> state);
             factions.when(FactionManager::getCopy).thenReturn(List.of(faction));
             databases = mockConstruction(Database.class, (database, context) ->
@@ -405,9 +405,9 @@ class OfficeVacancyTest {
             return holder;
         }
 
+        /** Makes the faction leader the dying character, or another character when the owner differs. */
         void cacheFounder(UUID ownerId) {
-            cachedFounder = mock(OfflinePlayer.class);
-            when(cachedFounder.getUniqueId()).thenReturn(ownerId);
+            leader = ownerId.equals(ref.ownerId()) ? Members.key(ref) : Members.key(UUID.randomUUID());
         }
 
         @Override public void close() {

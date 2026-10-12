@@ -37,16 +37,17 @@ public final class VehicleUpkeepProjection {
         return total;
     }
 
-    /** Vehicle tax the player's faction will charge with tomorrow's upkeep. */
+    /** Vehicle tax the owner's faction will charge with tomorrow's upkeep; {@code playerName} is the account. */
     public static double projectedDailyTax(String playerName, PlayerVehicleRegistry registry) {
         if (playerName == null || playerName.isBlank()) {
             return 0.0;
         }
         double total = 0.0;
+        String owner = VehicleOwnershipQueries.ownerKey(playerName);
         for (OwnedVehicleSummary vehicle :
                 VehicleOwnershipQueries.personalVehicles(playerName, registry)) {
             VehicleFeeService.Quote quote =
-                    VehicleFeeService.quote(FeeKind.VEHICLE_TAX, playerName, vehicle.getTypeId());
+                    VehicleFeeService.quote(FeeKind.VEHICLE_TAX, owner, vehicle.getTypeId());
             if (quote != null) {
                 total += quote.amount();
             }

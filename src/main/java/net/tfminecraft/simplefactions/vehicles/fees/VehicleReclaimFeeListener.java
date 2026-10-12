@@ -6,6 +6,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.vehicles.VehicleRemovals;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
@@ -38,7 +39,7 @@ public final class VehicleReclaimFeeListener implements Listener {
             return;
         }
         String lastOwner = store.getLastOwner(vehicle.getUUID());
-        if (lastOwner == null || lastOwner.equalsIgnoreCase(player.getName()) || Permissions.isAdmin(player)) {
+        if (lastOwner == null || Members.is(player, lastOwner) || Permissions.isAdmin(player)) {
             return;
         }
         Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, lastOwner, vehicle.getId());
@@ -50,7 +51,7 @@ public final class VehicleReclaimFeeListener implements Listener {
         if (!confirmations.confirm(player.getUniqueId(), target, quote.amount(), now)) {
             event.setCancelled(true);
             confirmations.ask(player.getUniqueId(), target, quote.amount(), now);
-            player.sendMessage(VehicleFeeMessages.claimConfirm(quote, lastOwner));
+            player.sendMessage(VehicleFeeMessages.claimConfirm(quote, Members.display(lastOwner)));
             return;
         }
         if (!VehicleFeeService.collect(VehicleRegistrationFeeListener.payerUuid(player), quote)) {
@@ -66,7 +67,7 @@ public final class VehicleReclaimFeeListener implements Listener {
         if (event.getPlayer() == null || event.getVehicle() == null) {
             return;
         }
-        store.setLastOwner(event.getVehicle().getUUID(), event.getPlayer().getName());
+        store.setLastOwner(event.getVehicle().getUUID(), Members.key(event.getPlayer()));
         saver.run();
     }
 

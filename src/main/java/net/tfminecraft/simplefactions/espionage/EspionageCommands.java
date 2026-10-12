@@ -5,7 +5,6 @@ import net.tfminecraft.simplefactions.identity.Members;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -68,7 +67,7 @@ public final class EspionageCommands {
                 else usage(player);
             }
             else {
-                var candidate = CharacterNames.resolveOnline(player, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
+                var candidate = Members.resolveOnline(player, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
                 if (candidate != null) EspionageService.appoint(player, faction, candidate);
             }
         } else if (args[0].equalsIgnoreCase("spymaster") && args.length == 4 && args[1].equalsIgnoreCase("sabotage")
@@ -88,6 +87,14 @@ public final class EspionageCommands {
         player.sendMessage("§7/faction spymaster share <overlord|vassals|allies> <none|rumours|broad|reliable|detailed>");
     }
 
+    /** Online members who could hold the office, completed by character name. */
+    private static List<String> candidates(net.tfminecraft.simplefactions.objects.Faction faction, String[] args) {
+        List<String> names = new ArrayList<>();
+        for (String member : faction.getMembers())
+            if (Members.isOnline(member) && EspionageService.eligible(faction, member)) names.add(Members.display(member));
+        return Members.completions(names, args);
+    }
+
     public static List<String> complete(Player player, String[] args) {
         List<String> choices = new ArrayList<>();
         var faction = FactionManager.getByMember(Members.key(player));
@@ -97,8 +104,7 @@ public final class EspionageCommands {
         if (args.length == 2) {
             if (faction.isLeader(Members.key(player))) {
                 choices.add("remove");
-                for (String name : faction.getMembers())
-                    if (Bukkit.getPlayerExact(name) != null && EspionageService.eligible(faction, name)) choices.add(name);
+                choices.addAll(candidates(faction, args));
             }
             if (isHolder) choices.add("sabotage");
             if (isHolder && EspionageConfig.sharingAllowed()) choices.add("share");
@@ -108,6 +114,9 @@ public final class EspionageCommands {
         } else if (isHolder && args[1].equalsIgnoreCase("share")) {
             if (args.length == 3) choices.addAll(List.of("overlord", "vassals", "allies"));
             if (args.length == 4) choices.addAll(List.of("none", "rumours", "broad", "reliable", "detailed"));
+        } else if (faction.isLeader(Members.key(player))) {
+            // Later words of a character name with spaces.
+            choices.addAll(candidates(faction, args));
         }
         String prefix = args[args.length - 1];
         choices.removeIf(choice -> !choice.regionMatches(true, 0, prefix, 0, prefix.length()));

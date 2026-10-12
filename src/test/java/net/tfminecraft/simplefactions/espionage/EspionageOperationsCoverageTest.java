@@ -36,6 +36,7 @@ import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.ItemCreator;
@@ -144,14 +145,14 @@ class EspionageOperationsCoverageTest {
 
   @Test
   void offlineNamesUseAuthoritativeDirectoryWithoutReadingPluginFiles() throws Exception {
+    Members.useSharedIdentity();
     Path folder = directory.resolve("data/characterdata").resolve(accountId("Offline").toString());
     Files.createDirectories(folder);
     Files.writeString(folder.resolve("old.json"), "{");
     UUID id = UUID.randomUUID();
     offlineInfos.put(id, new CharacterInfo(new CharacterRef(accountId("Offline"), id),
         "Lady Rowan", CharacterStatus.DEAD, null, Set.of(), 0, null));
-    assertEquals("Lady Rowan", CharacterNames.forForeign("Offline"));
-    assertEquals("Lady Rowan", CharacterNames.of("Offline"));
+    assertEquals("Lady Rowan", Members.display(Members.key(id)));
     assertEquals("{", Files.readString(folder.resolve("old.json")));
   }
 
@@ -160,16 +161,16 @@ class EspionageOperationsCoverageTest {
       throws Exception {
     offices();
     when(characters.get("Candidate").getName()).thenReturn("§aLady Rowan");
-    assertSame(candidate, CharacterNames.resolveOnline(leader, " \"lady rowan\" "));
+    assertSame(candidate, Members.resolveOnline(leader, " \"lady rowan\" "));
     Player duplicate = characterPlayer("Duplicate");
     when(characters.get("Duplicate").getName()).thenReturn("Lady Rowan");
-    assertNull(CharacterNames.resolveOnline(leader, "Lady Rowan"));
+    assertNull(Members.resolveOnline(leader, "Lady Rowan"));
     verify(leader).sendMessage(contains("Several characters"));
-    assertSame(candidate, CharacterNames.resolveOnline(leader, "candidate"));
-    assertSame(duplicate, CharacterNames.resolveOnline(leader, "Duplicate"));
-    assertNull(CharacterNames.resolveOnline(leader, "No Such Player"));
+    assertSame(candidate, Members.resolveOnline(leader, "Candidate"));
+    assertSame(duplicate, Members.resolveOnline(leader, "Duplicate"));
+    assertNull(Members.resolveOnline(leader, "No Such Player"));
     verify(leader).sendMessage(contains("No online player"));
-    assertEquals("Lady Rowan", CharacterNames.forForeign("Candidate"));
+    assertEquals("Lady Rowan", Members.display(key("Candidate")));
   }
 
   @Test
@@ -177,11 +178,11 @@ class EspionageOperationsCoverageTest {
     UUID id = UUID.randomUUID();
     offlineInfos.put(id, new CharacterInfo(new CharacterRef(accountId("Offline"), id),
         "Current", CharacterStatus.ALIVE, null, Set.of(), 0, null));
-    assertEquals("Current", CharacterNames.of("Offline"));
+    Members.useSharedIdentity();
+    assertEquals("Current", Members.display(Members.key(id)));
     offlineInfos.clear();
-    assertEquals("Unknown", CharacterNames.forForeign("Offline"));
-    assertEquals("Offline", CharacterNames.of("Offline"));
-    assertEquals("Unknown", CharacterNames.forForeign(null));
+    assertEquals("Unknown", Members.display(Members.key(id)));
+    assertEquals("Unknown", Members.display((String) null));
   }
 
   @Test
@@ -206,6 +207,7 @@ class EspionageOperationsCoverageTest {
     offices();
     home.getEspionage().removeSpymaster();
     activate("Leader", "replacement-character");
+    home.setLeader(characterId("replacement-character"));
     Files.delete(aptitudeFile);
     Files.createDirectory(aptitudeFile);
     EspionageService.initializeFounder(home);
@@ -250,6 +252,7 @@ class EspionageOperationsCoverageTest {
     offices();
     home.getEspionage().removeSpymaster();
     activate("Leader", "replacement-character");
+    home.setLeader(characterId("replacement-character"));
     Files.delete(aptitudeFile);
     Files.createDirectory(aptitudeFile);
     int before = databases.constructed().size();
@@ -273,17 +276,17 @@ class EspionageOperationsCoverageTest {
     settings.set("espionage.checks.aptitude-multiplier", 2);
     EspionageConfig.load(settings);
     home.getEspionage().getSpymaster().aptitude = 100;
-    Faction target = fixture.saved("target", "Foreign");
+    Faction target = fixture.saved("target", key("Foreign"));
     target.getOrCreateMainGuild();
-    target.addMember("Ordinary");
+    target.addMember(key("Ordinary"));
     Player foreign = characterPlayer("Foreign");
     characterPlayer("Ordinary");
     YamlConfiguration upgradeData = new YamlConfiguration();
     upgradeData.set("upgrade.allowed-types", List.of("guild"));
     UpgradeLoader.map.put(
         "workshop", new Upgrade("workshop", upgradeData.getConfigurationSection("upgrade")));
-    Guild guild = fixture.guild(target, "merchants", "Baron");
-    guild.addMember("Trader");
+    Guild guild = fixture.guild(target, "merchants", key("Baron"));
+    guild.addMember(key("Trader"));
     Player baron = characterPlayer("Baron");
     characterPlayer("Trader");
     fixture.provinceData.put(37, new Province(37, "PLAINS", 50));
@@ -476,12 +479,17 @@ class EspionageOperationsCoverageTest {
     home.addMember("OfflineMember");
     assertTrue(
         EspionageCommands.complete(leader, new String[] {"spymaster", ""})
-            .containsAll(List.of("remove", "Leader", "Candidate", "sabotage")));
+            .containsAll(List.of("remove", "Character Leader", "Character Candidate", "sabotage")));
     assertFalse(
         EspionageCommands.complete(leader, new String[] {"spymaster", ""})
             .contains("OfflineMember"));
     assertEquals(
-        List.of("Candidate"), EspionageCommands.complete(leader, new String[] {"spymaster", "Ca"}));
+        List.of("Character Candidate"),
+        EspionageCommands.complete(leader, new String[] {"spymaster", "Character C"}));
+    assertEquals(
+        List.of("Candidate"),
+        EspionageCommands.complete(leader, new String[] {"spymaster", "Character", "Ca"}),
+        "Later words of a name with spaces complete on their own");
     assertTrue(EspionageCommands.complete(candidate, new String[] {"spymaster", ""}).isEmpty());
     assertTrue(EspionageCommands.complete(visitor, new String[] {"spymaster", ""}).isEmpty());
     assertTrue(EspionageCommands.complete(leader, new String[] {"positions", ""}).isEmpty());
@@ -580,7 +588,10 @@ class EspionageOperationsCoverageTest {
     boolean founder = operation.equals("founder");
     String name = founder ? "Leader" : "Candidate";
     activate(name, "unrolled");
-    if (founder) home.getEspionage().removeSpymaster();
+    if (founder) {
+      home.getEspionage().removeSpymaster();
+      home.setLeader(characterId("unrolled"));
+    } else home.addMember(characterId("unrolled"));
     SpecialPositionAssignment previous = home.getEspionage().getSpymaster();
     String stored = Files.readString(aptitudeFile);
     AtomicBoolean switched = new AtomicBoolean();
@@ -690,9 +701,10 @@ class EspionageOperationsCoverageTest {
               when(player.getUniqueId()).thenReturn(call.getArgument(0));
               return player;
             });
-    home = fixture.saved("home", "Leader");
+    Members.useSharedIdentity();
+    home = fixture.saved("home", key("Leader"));
     home.getOrCreateMainGuild();
-    home.addMember("Candidate");
+    home.addMember(key("Candidate"));
     leader = characterPlayer("Leader");
     candidate = characterPlayer("Candidate");
     visitor = characterPlayer("Visitor");
@@ -736,6 +748,11 @@ class EspionageOperationsCoverageTest {
     UUID id = UUID.fromString(characterId(label));
     when(characters.get(name).getId()).thenReturn(id.toString());
     sessions.put(accountId(name), new CharacterSession(new CharacterRef(accountId(name), id), ++generation));
+  }
+
+  /** Member key of the named test player's first character. */
+  private static String key(String name) {
+    return characterId("character-" + name);
   }
 
   private static String characterId(String label) {

@@ -11,6 +11,7 @@ import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.player.income.PlayerCashflow;
 import net.tfminecraft.simplefactions.player.income.PlayerLedger;
+import net.tfminecraft.simplefactions.utils.MemberAccounts;
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank;
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
 
@@ -34,13 +35,13 @@ public final class VehicleFeeService {
         playerBank = bank == null ? DenarEconomyPlayerBank.INSTANCE : bank;
     }
 
-    /** The charge this player owes for this vehicle type, or null when they owe nothing. */
-    public static Quote quote(FeeKind kind, String payerName, String vehicleTypeId) {
-        if (kind == null || payerName == null || payerName.isBlank() || vehicleTypeId == null) {
+    /** The charge this member owes for this vehicle type, or null when they owe nothing. */
+    public static Quote quote(FeeKind kind, String payer, String vehicleTypeId) {
+        if (kind == null || payer == null || payer.isBlank() || vehicleTypeId == null) {
             return null;
         }
-        Faction faction = factionLookup.apply(payerName);
-        if (faction == null || isLeader(faction, payerName)) {
+        Faction faction = factionLookup.apply(payer);
+        if (faction == null || isLeader(faction, payer)) {
             return null;
         }
         double rate = faction.getVehicleFeeHandler().getChargedRate(kind, vehicleTypeId);
@@ -51,8 +52,8 @@ public final class VehicleFeeService {
         return new Quote(kind, vehicleTypeId, faction, rate, amount);
     }
 
-    private static boolean isLeader(Faction faction, String playerName) {
-        return faction.getLeader() != null && faction.getLeader().equalsIgnoreCase(playerName);
+    private static boolean isLeader(Faction faction, String payer) {
+        return faction.getLeader() != null && faction.getLeader().equals(payer);
     }
 
     /**
@@ -116,7 +117,7 @@ public final class VehicleFeeService {
         if (SimpleFactions.getInstance() == null) {
             return;
         }
-        PlayerLedger ledger = SimpleFactions.getPlayerEconomyManager().getLedger(payerUuid);
+        PlayerLedger ledger = SimpleFactions.getPlayerEconomyManager().getLedger(MemberAccounts.accountOf(payerUuid));
         if (ledger != null) {
             ledger.add(kind == FeeKind.VEHICLE_TAX ? PlayerCashflow.VEHICLE_TAX : PlayerCashflow.VEHICLE_FEES, amount);
         }

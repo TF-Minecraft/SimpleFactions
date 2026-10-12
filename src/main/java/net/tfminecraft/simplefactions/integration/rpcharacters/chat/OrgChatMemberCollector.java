@@ -4,22 +4,24 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 final class OrgChatMemberCollector {
 
 	private OrgChatMemberCollector() {}
 
-	static List<Player> onlinePlayersNamed(Collection<String> memberNames) {
+	/** Players currently playing one of the member characters. */
+	static List<Player> onlinePlayersNamed(Collection<String> members) {
 		if (Bukkit.getServer() == null) {
 			return List.of();
 		}
-		return onlinePlayersNamed(memberNames, Bukkit::getPlayerExact);
+		return onlinePlayersNamed(members, Members::player);
 	}
 
 	static List<Player> onlinePlayersNamed(Collection<String> memberNames, Function<String, Player> lookup) {
@@ -28,17 +30,13 @@ final class OrgChatMemberCollector {
 		}
 
 		List<Player> online = new ArrayList<>();
-		Set<String> seen = new HashSet<>();
+		Set<Player> seen = new HashSet<>();
 		for (String memberName : memberNames) {
 			if (memberName == null || memberName.isBlank()) {
 				continue;
 			}
-			String normalized = memberName.toLowerCase(Locale.ROOT);
-			if (!seen.add(normalized)) {
-				continue;
-			}
 			Player player = lookup.apply(memberName);
-			if (player != null && player.isOnline()) {
+			if (player != null && player.isOnline() && seen.add(player)) {
 				online.add(player);
 			}
 		}

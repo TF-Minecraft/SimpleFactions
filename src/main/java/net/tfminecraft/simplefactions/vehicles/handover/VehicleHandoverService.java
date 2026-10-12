@@ -63,7 +63,7 @@ public final class VehicleHandoverService {
         this.ownerAssigner = ownerAssigner;
     }
 
-    /** Whether the owner may hand this vehicle to the recipient right now. */
+    /** Whether the owner may hand this vehicle to the recipient right now; both are account names, as VehicleFramework stores them. */
     public Outcome evaluate(String ownerName, String recipientName, String vehicleUuid) {
         String typeId = personalVehicleType(ownerName, vehicleUuid);
         if (typeId == null) {
@@ -72,7 +72,7 @@ public final class VehicleHandoverService {
         if (!VehiclesConfigLoader.isKnownType(typeId)) {
             return new Outcome(Status.UNKNOWN_TYPE, null, typeId);
         }
-        if (FactionCampaignBattleLock.blocks(FactionManager.getByMember(ownerName))) {
+        if (FactionCampaignBattleLock.blocks(FactionManager.getByMember(VehicleOwnershipQueries.ownerKey(ownerName)))) {
             return new Outcome(Status.IN_BATTLE, null, typeId);
         }
         CanBuildResult slot = VehicleSlotGuard.checkCanBuild(recipientName, typeId, registry);
@@ -109,8 +109,8 @@ public final class VehicleHandoverService {
         if (RequestManager.getRequest(recipient) != request) {
             return;
         }
-        recipient.sendMessage(VehicleHandoverMessages.prompt(owner.getName(), vehicleTypeId));
-        owner.sendMessage(VehicleHandoverMessages.sent(recipient.getName()));
+        recipient.sendMessage(VehicleHandoverMessages.prompt(Members.name(owner), vehicleTypeId));
+        owner.sendMessage(VehicleHandoverMessages.sent(Members.name(recipient)));
     }
 
     public void acceptRequest(Player recipient) {
@@ -127,10 +127,11 @@ public final class VehicleHandoverService {
         }
         Outcome outcome = evaluate(req.getOwnerName(), recipient.getName(), req.getVehicleUuid());
         if (outcome.status() != Status.OK) {
-            tellBoth(req, recipient, VehicleHandoverMessages.forOutcome(outcome, recipient.getName()));
+            tellBoth(req, recipient, VehicleHandoverMessages.forOutcome(outcome, Members.name(recipient)));
             return;
         }
-        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, req.getOwnerName(), outcome.vehicleTypeId());
+        String ownerKey = VehicleOwnershipQueries.ownerKey(req.getOwnerName());
+        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, ownerKey, outcome.vehicleTypeId());
         if (!Objects.equals(req.getVehicleTypeId(), outcome.vehicleTypeId()) || !req.matchesFee(quote)) {
             tellBoth(req, recipient, VehicleHandoverMessages.feeChanged());
             return;
@@ -153,15 +154,15 @@ public final class VehicleHandoverService {
             tellBoth(req, recipient, VehicleHandoverMessages.ownershipUnavailable());
             return;
         }
-        store.setLastOwner(req.getVehicleUuid(), recipient.getName());
+        store.setLastOwner(req.getVehicleUuid(), Members.key(recipient));
         saver.run();
-        recipient.sendMessage(VehicleHandoverMessages.successRecipient(req.getOwnerName()));
+        recipient.sendMessage(VehicleHandoverMessages.successRecipient(Members.display(ownerKey)));
         Player owner = Bukkit.getPlayer(req.getOwnerUuid());
         if (owner != null && owner.isOnline()) {
             if (quote != null) {
                 owner.sendMessage(VehicleFeeMessages.handoverPaid(quote));
             }
-            owner.sendMessage(VehicleHandoverMessages.successOwner(recipient.getName()));
+            owner.sendMessage(VehicleHandoverMessages.successOwner(Members.name(recipient)));
         }
     }
 

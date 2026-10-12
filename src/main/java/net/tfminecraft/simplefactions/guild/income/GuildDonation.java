@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.utils.Formatter;
+import net.tfminecraft.simplefactions.identity.Members;
 
 /**
  * A guild's daily gift to its realm treasury. The amount is what the realm receives.
@@ -41,7 +42,7 @@ public final class GuildDonation {
         if (leaderName == null || leaderName.isBlank() || Bukkit.getServer() == null) {
             return;
         }
-        Player leader = Bukkit.getPlayerExact(leaderName);
+        Player leader = Members.player(leaderName);
         if (leader == null) {
             return;
         }

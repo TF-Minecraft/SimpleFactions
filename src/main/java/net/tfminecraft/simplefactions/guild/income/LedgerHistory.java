@@ -8,7 +8,8 @@ import java.util.Map;
 import net.tfminecraft.simplefactions.utils.Formatter;
 
 /**
- * Last-day and lifetime totals behind the ledger view icons, keyed by payer name. This is a
+ * Last-day and lifetime totals behind the ledger view icons, keyed by payer: a member key for
+ * citizens and deposits, a realm or guild name otherwise (show them with Members.display). This is a
  * record of what already moved; settlement never reads it, so it cannot change a bank.
  */
 public final class LedgerHistory {
@@ -27,6 +28,7 @@ public final class LedgerHistory {
     // Deposits land in the bank straight away, so they are gathered here until the day ends.
     private final Map<String, Double> depositsToday = new HashMap<>();
 
+    /** {@code name} is the depositor's member key, or a label such as "Compensation". */
     public void addDeposit(String name, double amount) {
         if (name == null || name.isBlank() || amount <= 0) return;
         depositsToday.merge(name, amount, Double::sum);

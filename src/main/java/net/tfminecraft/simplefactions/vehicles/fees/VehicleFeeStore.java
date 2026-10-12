@@ -35,11 +35,12 @@ public final class VehicleFeeStore {
         return vehicleUuid == null ? null : lastOwners.get(vehicleUuid);
     }
 
-    public void setLastOwner(String vehicleUuid, String playerName) {
-        if (vehicleUuid == null || playerName == null || playerName.isBlank()) {
+    /** {@code owner} is the member key of the character that last owned the vehicle. */
+    public void setLastOwner(String vehicleUuid, String owner) {
+        if (vehicleUuid == null || owner == null || owner.isBlank()) {
             return;
         }
-        lastOwners.put(vehicleUuid, playerName);
+        lastOwners.put(vehicleUuid, owner);
     }
 
     public void forgetVehicle(String vehicleUuid) {

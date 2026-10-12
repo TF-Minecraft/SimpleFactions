@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.database.InstallationConstructionData;
@@ -23,6 +22,7 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationConstruction;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import net.tfminecraft.tlibs.utils.TimeFormatter;
 
@@ -243,7 +243,7 @@ public class InstallationHandler {
                     cancelUpgrade(installation.getId());
                     installation.setLevel(installation.getLevel() - 1);
                     enqueueMapUpdate();
-                    Player leader = Bukkit.getPlayerExact(faction.getLeader());
+                    Player leader = Members.player(faction.getLeader());
                     if (leader != null) {
                         leader.sendMessage(
                                 "§c" + installation.getKind().getDisplayName()
@@ -391,7 +391,7 @@ public class InstallationHandler {
     void dissolve(Installation installation) {
         removeInstallation(installation);
 
-        Player leader = Bukkit.getPlayerExact(faction.getLeader());
+        Player leader = Members.player(faction.getLeader());
         if (leader != null) {
             leader.sendMessage(
                     "§c"
@@ -405,7 +405,7 @@ public class InstallationHandler {
     private void dissolveForNonPayment(Installation installation) {
         removeInstallation(installation);
 
-        Player leader = Bukkit.getPlayerExact(faction.getLeader());
+        Player leader = Members.player(faction.getLeader());
         if (leader != null) {
             leader.sendMessage(
                     "§c"
@@ -505,7 +505,7 @@ public class InstallationHandler {
             if (installation != null) {
                 installation.setLevel(installation.getLevel() + 1);
                 enqueueMapUpdate();
-                Player leader = Bukkit.getPlayerExact(faction.getLeader());
+                Player leader = Members.player(faction.getLeader());
                 if (leader != null) {
                     leader.sendMessage(
                             "§a" + installation.getKind().getDisplayName()
@@ -527,7 +527,7 @@ public class InstallationHandler {
                 System.currentTimeMillis());
         clearPendingConstruction();
 
-        Player leader = Bukkit.getPlayerExact(faction.getLeader());
+        Player leader = Members.player(faction.getLeader());
         if (leader != null) {
             leader.sendMessage(
                     "§a"

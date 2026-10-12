@@ -1477,12 +1477,15 @@ class VehicleInteractionsCoverageTest {
       verifyNoInteractions(save);
       return;
     }
+    UUID paidBy = UUID.randomUUID();
     if (state.equals("offline_constructor") || state.equals("unknown_constructor")) {
       fixture.online.remove("Owner");
-      OfflinePlayer offline = mock(OfflinePlayer.class);
-      when(offline.getName())
-          .thenReturn(state.equals("offline_constructor") ? "OfflineOwner" : null);
-      when(Bukkit.getOfflinePlayer(owner.getUniqueId())).thenReturn(offline);
+      // An offline builder is known only by the character that paid the fee.
+      if (state.equals("offline_constructor")) {
+        feeStore.putPaidBuild(
+            "world:6:64:7",
+            new VehicleFeeStore.PaidBuild(paidBy, "home", 5.0));
+      }
     }
     fees.onVehicleConstruct(
         new VehicleConstructEvent(
@@ -1492,7 +1495,7 @@ class VehicleInteractionsCoverageTest {
             station.getLocation(),
             station));
     assertEquals(
-        state.equals("offline_constructor") ? "OfflineOwner" : null,
+        state.equals("offline_constructor") ? paidBy.toString() : null,
         feeStore.getLastOwner("vehicle-1"));
     if (state.equals("offline_constructor")) verify(save).run();
     else verifyNoInteractions(save);

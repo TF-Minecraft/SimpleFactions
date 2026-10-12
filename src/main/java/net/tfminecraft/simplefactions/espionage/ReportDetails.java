@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.espionage;
 
 import java.util.List;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /** Non-numeric intelligence is frozen with the same faction-wide daily report. */
@@ -14,7 +15,7 @@ final class ReportDetails {
             if (upgrade.hasMaxLevel()) report.maximums.put(IntelligenceLedger.key(guild, "Upgrade:" + upgrade.getId()), (long) upgrade.getMaxLevel());
         if (report.allows("office-holder")) report.details.put("leader-offices", java.util.Arrays.stream(SpecialPosition.values()).filter(office -> {
             var holder = target.getEspionage().holder(office);
-            return holder != null && target.isLeader(holder.playerName);
+            return holder != null && target.isLeader(holder.memberKey());
         }).map(SpecialPosition::label).toList());
         if (report.allows("training")) {
             report.details.put("training", target.getMilitary().getQueue().stream()
@@ -31,7 +32,7 @@ final class ReportDetails {
             report.details.put("construction", pending == null ? List.of() : List.of((pending.isUpgrade() ? "Upgrading " : "Building ") + pending.getName()));
         }
         if (report.allows("guild-leader")) for (var guild : target.getGuildHandler().getGuilds())
-            report.details.put("guild-leader:" + guild.getId(), List.of(CharacterNames.forForeign(guild.getLeader())));
+            report.details.put("guild-leader:" + guild.getId(), List.of(Members.display(guild.getLeader())));
         VehicleIntelligence.captureTypes(report, target);
         if (report.allows("upgrades")) for (var guild : target.getGuildHandler().getGuilds())
             report.details.put("upgrading:" + guild.getId(), guild.getUpgradeQueue().stream()

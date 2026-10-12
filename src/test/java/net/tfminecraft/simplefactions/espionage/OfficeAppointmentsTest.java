@@ -47,6 +47,9 @@ class OfficeAppointmentsTest {
         String characterId = UUID.randomUUID().toString();
         var session = new CharacterSession(new CharacterRef(ownerId, UUID.fromString(characterId)), 1);
         when(leader.getUniqueId()).thenReturn(ownerId);
+        when(leader.getName()).thenReturn("Leader");
+        // The office holder is judged by its character's key, which the leader's seat must name.
+        when(faction.isLeader(net.tfminecraft.simplefactions.identity.Members.key(UUID.fromString(characterId)))).thenReturn(true);
         var registry = mock(CharacterAptitudes.class);
         when(registry.aptitude(eq(characterId), any())).thenReturn(72);
         var field = EspionageService.class.getDeclaredField("characterAptitudes");
@@ -61,6 +64,7 @@ class OfficeAppointmentsTest {
             characters.when(() -> OfficeCharacters.currentSession(leader)).thenReturn(session);
             characters.when(() -> OfficeCharacters.isCurrent(leader, session)).thenReturn(true);
             characters.when(() -> OfficeCharacters.requireCurrent(leader, session)).thenCallRealMethod();
+            characters.when(() -> OfficeCharacters.characterUuid(any())).thenCallRealMethod();
             var holder = EspionageService.spymaster(faction);
             assertNotNull(holder);
             assertEquals("Leader", holder.playerName);
@@ -77,10 +81,7 @@ class OfficeAppointmentsTest {
     }
 
     private SpecialPositionAssignment assignment(String name) {
-        var assignment = new SpecialPositionAssignment();
-        assignment.playerName = name;
-        assignment.characterId = UUID.nameUUIDFromBytes(name.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
-        return assignment;
+        return EspionageTestFixtures.bind(new SpecialPositionAssignment(), name);
     }
 
     @Test
@@ -133,8 +134,8 @@ class OfficeAppointmentsTest {
     void newHolderBuildsUpToFullAptitudeOverTheConfiguredDays() {
         long day = 86_400_000L;
         var faction = mock(Faction.class);
-        when(faction.isMember("Spy")).thenReturn(true);
-        when(faction.getMembers()).thenReturn(java.util.List.of("Leader", "Spy"));
+        when(faction.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
+        when(faction.getMembers()).thenReturn(java.util.List.of("Leader", EspionageTestFixtures.key("Spy")));
         var holder = assignment("Spy");
         new EspionageState().appoint(holder, 80, 10 * day);
         assertEquals(10 * day, holder.appointedAt);
