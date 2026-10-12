@@ -176,7 +176,7 @@ class VehicleCommandsCoverageTest {
           case "null" -> null;
           case "empty" -> "";
           case "blank" -> " ";
-          case "self" -> "LEADER";
+          case "self" -> "Leader";
           case "missing" -> "Missing";
           default -> "Other";
         };

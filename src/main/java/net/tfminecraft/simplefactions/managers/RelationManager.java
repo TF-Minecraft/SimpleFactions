@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -280,7 +282,7 @@ public class RelationManager {
 		relation.setType(r);
 		origin.setRelation(target, relation);
 		if(reverseChange) {
-			Player l = Bukkit.getPlayerExact(target.getLeader());
+			Player l = Members.player(target.getLeader());
 			if(l != null && l.isOnline()) {
 				l.sendMessage(StringFormatter.formatHex("#a89977Your relation with "+origin.getName()+" #a89977has been changed to "+r.getLink().getName()));
 			}
@@ -620,21 +622,21 @@ public class RelationManager {
 	}
 	
 	private static void sendRequest(Player sender, Faction f, RelationType type) {
-		Player p = Bukkit.getPlayerExact(f.getLeader());
+		Player p = Members.player(f.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
 		}
 		sender.sendMessage("§aSent a request to "+f.getName()+" §afor them to become your "+type.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you become their "+type.getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you become their "+type.getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), type, false));
+		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), type, false));
 	}
 	
 	public static void acceptRequest(Player p) {
 		RelationRequest req = (RelationRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -644,7 +646,7 @@ public class RelationManager {
 			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
 			return;
 		}
-		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		Player sp = Members.player(sender.getLeader());
 		// The war may have started after the request was sent
 		String blocked = wartimeBlock(req.getType(), reciever, sender);
 		if(blocked != null) {
@@ -658,21 +660,21 @@ public class RelationManager {
 	}
 
 	private static void sendTradeRequest(Player sender, Faction f, RelationType type) {
-		Player p = Bukkit.getPlayerExact(f.getLeader());
+		Player p = Members.player(f.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
 		}
 		sender.sendMessage("§aSent a request to "+f.getName()+" §ato set trade to "+type.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you set trade to "+type.getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you set trade to "+type.getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), type, true));
+		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), type, true));
 	}
 	
 	public static void acceptTradeRequest(Player p) {
 		RelationRequest req = (RelationRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -682,28 +684,28 @@ public class RelationManager {
 			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
 			return;
 		}
-		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		Player sp = Members.player(sender.getLeader());
 		if (applyTradeRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
 			sp.sendMessage(reciever.getName()+" §aaccepted your request and set trade to "+req.getType().getName());
 		}
 	}
 
 	private static void sendTreatyRequest(Player sender, Faction f, RelationType type) {
-		Player p = Bukkit.getPlayerExact(f.getLeader());
+		Player p = Members.player(f.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
 		}
 		sender.sendMessage("§aSent a request to "+f.getName()+" §ato set treaty to "+type.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you set treaty to "+type.getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you set treaty to "+type.getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), type, false, true));
+		RequestManager.addRequest(sender, p, new RelationRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), type, false, true));
 	}
 
 	public static void acceptTreatyRequest(Player p) {
 		RelationRequest req = (RelationRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -713,7 +715,7 @@ public class RelationManager {
 			p.sendMessage("§cThis diplomacy request is no longer valid. Ask for a new request.");
 			return;
 		}
-		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		Player sp = Members.player(sender.getLeader());
 		if (applyTreatyRelation(p, req.getType(), reciever, sender, false) && sp != null && sp.isOnline()) {
 			sp.sendMessage(reciever.getName()+" §aaccepted your request and set treaty to "+req.getType().getName());
 		}

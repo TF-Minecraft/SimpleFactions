@@ -123,8 +123,7 @@ class MercenaryContractTest {
         CompanyFixture.installMercenaryPrototype();
         CompanyFixture.installCompanyUpgrades();
         CompanyFixture host = new CompanyFixture(10000);
-        net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService
-                .requestFormation(host.guild, host.leader(), "Still Forming");
+        host.requestFormation(host.leader(), "Still Forming");
 
         MercenaryResult result = ContractValidator.validate(
                 ContractFixture.validTerms(1), host.company(), now);

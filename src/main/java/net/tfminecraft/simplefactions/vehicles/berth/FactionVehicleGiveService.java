@@ -10,6 +10,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.VehicleGiveConsentRequest;
 import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Outcome;
 import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Status;
+import net.tfminecraft.simplefactions.identity.Members;
 
 public final class FactionVehicleGiveService {
     private final FactionVehicleReleaseService releaseService;
@@ -29,14 +30,14 @@ public final class FactionVehicleGiveService {
                 vehicleTypeId,
                 recipient.getUniqueId(),
                 leader.getUniqueId(),
-                leader.getName());
+                Members.key(leader));
         RequestManager.addRequest(leader, recipient, request);
         // addRequest refuses when the recipient is already considering a request, even one for this vehicle.
         if (RequestManager.getRequest(recipient) != request) {
             return;
         }
-        recipient.sendMessage(FactionVehicleReleaseMessages.givePrompt(leader.getName(), vehicleTypeId));
-        leader.sendMessage(FactionVehicleReleaseMessages.giveSent(recipient.getName()));
+        recipient.sendMessage(FactionVehicleReleaseMessages.givePrompt(Members.name(leader), vehicleTypeId));
+        leader.sendMessage(FactionVehicleReleaseMessages.giveSent(Members.name(recipient)));
     }
 
     public void acceptRequest(Player recipient) {
@@ -53,7 +54,7 @@ public final class FactionVehicleGiveService {
         }
         Faction faction = FactionManager.getByString(req.getFactionId());
         if (faction == null || faction.getLeader() == null
-                || !faction.getLeader().equalsIgnoreCase(req.getLeaderName())) {
+                || !faction.getLeader().equals(req.getLeaderName())) {
             String expired = FactionVehicleReleaseMessages.giveExpired();
             recipient.sendMessage(expired);
             notifyLeader(req, expired);
@@ -66,7 +67,7 @@ public final class FactionVehicleGiveService {
                 recipient.getName(),
                 req.getVehicleUuid());
         if (outcome.status() != Status.OK) {
-            String message = FactionVehicleReleaseMessages.forGive(outcome, recipient.getName());
+            String message = FactionVehicleReleaseMessages.forGive(outcome, Members.name(recipient));
             if (message != null) {
                 recipient.sendMessage(message);
                 notifyLeader(req, message);
@@ -75,10 +76,10 @@ public final class FactionVehicleGiveService {
         }
         SimpleFactions plugin = SimpleFactions.getInstance();
         if (plugin != null) {
-            plugin.recordVehicleOwner(req.getVehicleUuid(), recipient.getName());
+            plugin.recordVehicleOwner(req.getVehicleUuid(), Members.key(recipient));
         }
-        recipient.sendMessage(FactionVehicleReleaseMessages.giveSuccessRecipient(req.getLeaderName()));
-        notifyLeader(req, FactionVehicleReleaseMessages.giveSuccessLeader(recipient.getName()));
+        recipient.sendMessage(FactionVehicleReleaseMessages.giveSuccessRecipient(Members.display(req.getLeaderName())));
+        notifyLeader(req, FactionVehicleReleaseMessages.giveSuccessLeader(Members.name(recipient)));
     }
 
     public void notifyExpired(VehicleGiveConsentRequest req, Player recipient) {

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -332,7 +334,7 @@ public class WarManager {
 		if (members == null) return;
 		for (String member : members) {
 			if (member == null || member.isBlank()) continue;
-			Player p = Bukkit.getPlayerExact(member);
+			Player p = Members.player(member);
 			if (p != null && p.isOnline()) {
 				p.sendTitle("§cWar Declared!", "§e/war list §7to view", 10, 120, 10);
 				declaredHorn.accept(p);
@@ -442,7 +444,7 @@ public class WarManager {
 		members.addAll(BattleSideMembers.collectEligibleMemberNames(w.getAttackers()));
 		members.addAll(BattleSideMembers.collectEligibleMemberNames(w.getDefenders()));
 		for (String member : members) {
-			Player p = Bukkit.getPlayerExact(member);
+			Player p = Members.player(member);
 			if (p != null && p.isOnline()) {
 				p.sendMessage(message);
 			}
@@ -487,24 +489,24 @@ public class WarManager {
 			sender.sendMessage(result.message());
 			return;
 		}
-		Player p = Bukkit.getPlayerExact(target.getLeader());
+		Player p = Members.player(target.getLeader());
 		if(p == null || !p.isOnline()) {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
 		}
 		sender.sendMessage("§aSent a call to arms to "+target.getName());
-		p.sendMessage(FactionManager.getByLeader(sender.getName()).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
+		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Type §c/faction decline §7to decline");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(sender.getName()).getOrCreateMainGuild(), w, target.getId()));
+		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), w, target.getId()));
 	}
 	
 	public static void acceptRequest(Player p) {
 		if (!(RequestManager.getRequest(p) instanceof WarRequest req)) {
 			return;
 		}
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -526,7 +528,7 @@ public class WarManager {
 		WarCommitmentService.snapshotLevyForFighter(war, reciever);
 		//A secondary only counts as a participant once it has joined, so contracts are re-checked here
 		net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher.onWarJoined(reciever);
-		Player sp = Bukkit.getPlayerExact(origin.getLeader());
+		Player sp = Members.player(origin.getLeader());
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your call to arms");
 		p.sendMessage("§aYour faction has joined the "+war.getName());
 		notifyWarDeclared(reciever.getMembers());
@@ -545,7 +547,7 @@ public class WarManager {
 		// A stored target that no longer exists penalises nobody.
 		Faction receiver = req.getTargetFactionId() != null
 				? FactionManager.getByString(req.getTargetFactionId())
-				: called != null ? FactionManager.getByLeader(called.getName()) : null;
+				: called != null ? FactionManager.getByLeader(Members.key(called)) : null;
 		if (receiver != null && receiver.getGovernment() != null) {
 			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
 					"Declined Call to Arms",
@@ -554,7 +556,7 @@ public class WarManager {
 		}
 		Faction origin = req.getFaction();
 		if (origin != null && origin.getLeader() != null) {
-			Player caller = Bukkit.getPlayerExact(origin.getLeader());
+			Player caller = Members.player(origin.getLeader());
 			if (caller != null && caller.isOnline()) {
 				String who = receiver != null ? receiver.getName() : "They";
 				caller.sendMessage(who + " §cdeclined your call to arms");

@@ -8,11 +8,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
+import net.tfminecraft.simplefactions.managers.inventory.CharacterKeyFixture;
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 import net.tfminecraft.simplefactions.espionage.EspionageConfig;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -479,12 +480,9 @@ class TabCompletionCoverageTest {
   void invitationCompletionsKeepOnlyTheUnfinishedSuffixOfACharacterName() {
     Player alice = gui.player("Alice");
     when(Bukkit.getOnlinePlayers()).thenAnswer(call -> List.of(alice));
-    try (MockedStatic<CharacterNames> characters =
-        mockStatic(CharacterNames.class, CALLS_REAL_METHODS)) {
-      characters.when(() -> CharacterNames.of("Alice")).thenReturn("Lady Alice");
-      assertEquals(List.of("Alice"), complete("faction", "invite", "Lady", "A"));
-      assertEquals(List.of("Alice"), complete("guild", "invite", "Al"));
-    }
+    CharacterKeyFixture.install().play(alice, "Lady Alice");
+    assertEquals(List.of("Alice"), complete("faction", "invite", "Lady", "A"));
+    assertEquals(List.of("Alice"), complete("guild", "invite", "Al"));
   }
 
   @ParameterizedTest
@@ -658,6 +656,43 @@ class TabCompletionCoverageTest {
     when(installations.getPendingConstruction()).thenReturn(pending);
     when(realm.getInstallationHandler()).thenReturn(installations);
     factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(realm);
+  }
+
+  @Test
+  void memberSuggestionsOfferCharacterNamesAndCompleteTheirLastWords() {
+    CharacterKeyFixture characters = CharacterKeyFixture.install();
+    String leader = characters.play(player, "Lord Aldric");
+    String alice = characters.play(gui.player("Alice"), "Alice Fairweather");
+    String bob = characters.offline(UUID.randomUUID(), "Bob Stone");
+    List<String> members = List.of(leader, alice, bob);
+    when(realm.getLeader()).thenReturn(leader);
+    when(realm.getMembers()).thenAnswer(call -> new ArrayList<>(members));
+    when(realm.canBecomeLeader(alice)).thenReturn(true);
+    when(guild.getLeader()).thenReturn(leader);
+    when(guild.getMembers()).thenAnswer(call -> new ArrayList<>(members));
+    when(guild.isLeader(leader)).thenReturn(true);
+    factions.when(() -> FactionManager.getByMember(leader)).thenReturn(realm);
+    factions.when(() -> FactionManager.getGuildByLeader(leader)).thenReturn(guild);
+    factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(guild);
+
+    assertEquals(List.of("Alice Fairweather", "Bob Stone"), complete("faction", "kick", ""));
+    assertEquals(List.of("Fairweather"), complete("guild", "kick", "Alice", "F"));
+    assertEquals(List.of("Alice Fairweather"), complete("faction", "setleader", "a"));
+    MercenaryCompany company = mock(MercenaryCompany.class);
+    when(company.getEnlisted()).thenReturn(List.of(bob));
+    when(guild.getCompany()).thenReturn(company);
+    assertEquals(List.of("Stone"), complete("company", "kick", "Bob", ""));
+
+    admin();
+    assertEquals(List.of("Fairweather"), complete("faction", "forceleader", "realm", "Alice", ""));
+    assertEquals(
+        List.of("Alice Fairweather", "Bob Stone"),
+        complete("guild", "forceleader", "merchants", ""));
+    Player stranger = gui.player("Stranger");
+    Player free = gui.player("Free");
+    characters.play(free, "Free Folk");
+    when(Bukkit.getOnlinePlayers()).thenAnswer(call -> List.of(stranger, free));
+    assertEquals(List.of("Free"), complete("faction", "forcejoin", "realm", ""));
   }
 
   private void admin() {

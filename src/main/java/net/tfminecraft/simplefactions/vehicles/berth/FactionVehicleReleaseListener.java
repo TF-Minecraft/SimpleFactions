@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -40,7 +42,7 @@ public final class FactionVehicleReleaseListener implements Listener {
             return;
         }
 
-        Faction faction = FactionManager.getByLeader(leader.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(leader));
         if (faction == null) {
             sessionManager.clear(leader.getUniqueId());
             leader.sendMessage(FactionVehicleReleaseMessages.notLeader());
@@ -59,10 +61,10 @@ public final class FactionVehicleReleaseListener implements Listener {
             return;
         }
 
-        Outcome outcome = releaseService.take(faction, leader.getName(), vehicle.getUUID());
+        Outcome outcome = releaseService.take(faction, Members.key(leader), vehicle.getUUID());
         SimpleFactions plugin = SimpleFactions.getInstance();
         if (outcome.status() == Status.OK && plugin != null) {
-            plugin.recordVehicleOwner(vehicle.getUUID(), leader.getName());
+            plugin.recordVehicleOwner(vehicle.getUUID(), Members.key(leader));
         }
         String message = FactionVehicleReleaseMessages.forTake(outcome);
         if (message != null) {
@@ -90,9 +92,9 @@ public final class FactionVehicleReleaseListener implements Listener {
         }
 
         Outcome outcome = releaseService.evaluateGive(
-                faction, leader.getName(), recipient.getName(), vehicleUuid);
+                faction, Members.key(leader), recipient.getName(), vehicleUuid);
         if (outcome.status() != Status.OK) {
-            String message = FactionVehicleReleaseMessages.forGive(outcome, recipient.getName());
+            String message = FactionVehicleReleaseMessages.forGive(outcome, Members.name(recipient));
             if (message != null) {
                 leader.sendMessage(message);
             }

@@ -42,10 +42,14 @@ class PlayerEventsLifecycleCoverageTest {
 
   @Test
   void readySessionsImmediatelyRefreshOnlyTheMatchingRealmAndGuildLeader() {
-    var realm = fixture.saved("realm", "Alice");
+    UUID aliceCharacter = UUID.randomUUID();
+    UUID bobCharacter = UUID.randomUUID();
+    String aliceKey = aliceCharacter.toString();
+    String bobKey = bobCharacter.toString();
+    var realm = fixture.saved("realm", aliceKey);
     realm.getOrCreateMainGuild();
-    var guild = fixture.guild(realm, "traders", "Bob");
-    var names = new HashMap<>(Map.of("Alice", "Lady Alice", "Bob", "Master Bob"));
+    var guild = fixture.guild(realm, "traders", bobKey);
+    var names = new HashMap<>(Map.of(aliceKey, "Lady Alice", bobKey, "Master Bob"));
     LeaderCharacters.setProbe(names::get);
     var identity = mock(CharacterIdentity.class);
     Bukkit.getServicesManager().register(CharacterIdentity.class, identity, fixture.ui.plugin,
@@ -54,21 +58,21 @@ class PlayerEventsLifecycleCoverageTest {
     var listener = new LeaderCharacterListener();
     Player alice = fixture.player("Alice");
     listener.onCharacterStart(new CharacterSessionStartEvent(alice,
-        new CharacterSession(new CharacterRef(alice.getUniqueId(), UUID.randomUUID()), 1)));
+        new CharacterSession(new CharacterRef(alice.getUniqueId(), aliceCharacter), 1)));
     assertTrue(fixture.ui.tasks.isEmpty());
     assertEquals("Lady Alice", realm.getLeaderCharacter());
     assertNull(guild.getLeaderCharacter());
     verify(fixture.map, times(1)).markLeaderNamesChanged();
     Player bob = fixture.player("Bob");
     listener.onCharacterStart(new CharacterSessionStartEvent(bob,
-        new CharacterSession(new CharacterRef(bob.getUniqueId(), UUID.randomUUID()), 2)));
+        new CharacterSession(new CharacterRef(bob.getUniqueId(), bobCharacter), 2)));
     assertTrue(fixture.ui.tasks.isEmpty());
     assertEquals("Master Bob", guild.getLeaderCharacter());
     verify(fixture.map, times(2)).markLeaderNamesChanged();
     LeaderCharacterListener.refresh("alice");
     verify(fixture.map, times(2)).markLeaderNamesChanged();
-    names.put("Alice", "Queen Alice");
-    names.put("Bob", "Guildmaster Bob");
+    names.put(aliceKey, "Queen Alice");
+    names.put(bobKey, "Guildmaster Bob");
     LeaderCharacterListener.refresh(null);
     assertEquals("Queen Alice", realm.getLeaderCharacter());
     assertEquals("Guildmaster Bob", guild.getLeaderCharacter());

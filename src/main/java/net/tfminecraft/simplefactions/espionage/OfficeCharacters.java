@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.tlibs.character.CharacterStatus;
 import net.tfminecraft.tlibs.character.Characters;
@@ -36,8 +37,7 @@ final class OfficeCharacters {
     static boolean isDead(UUID owner, String characterId) {
         UUID id = characterUuid(characterId);
         if (owner == null || id == null) return false;
-        return Characters.info(id).filter(info -> info.ref().ownerId().equals(owner)
-                && info.ref().characterId().equals(id))
+        return Members.info(Members.key(id)).filter(info -> info.ref().ownerId().equals(owner))
                 .map(info -> info.status() == CharacterStatus.DEAD).orElse(false);
     }
 

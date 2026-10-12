@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 
 import org.bukkit.command.Command;
@@ -50,22 +52,22 @@ public final class MercenaryCommandManager implements CommandExecutor {
         switch (sub) {
             case "found" -> found(p, args);
             case "invite" -> {
-                if (args.length != 2) {
+                if (args.length < 2) {
                     p.sendMessage("§cUsage: /company invite <player>");
                     return true;
                 }
-                MercenaryInvites.invite(p, args[1]);
+                MercenaryInvites.invite(p, rest(args));
             }
             case "accept" -> MercenaryInvites.accept(p);
             case "decline" -> MercenaryInvites.decline(p);
             case "kick" -> {
-                if (args.length != 2) {
+                if (args.length < 2) {
                     p.sendMessage("§cUsage: /company kick <player>");
                     return true;
                 }
-                report(p, MercenaryCompanyService.kick(leaderGuild(p), p.getName(), args[1]));
+                kick(p, rest(args));
             }
-            case "expand" -> report(p, MercenaryCompanyService.expand(leaderGuild(p), p.getName()));
+            case "expand" -> report(p, MercenaryCompanyService.expand(leaderGuild(p), Members.key(p)));
             case "draft" -> draft(p);
             case "offer" -> {
                 if (args.length < 2) {
@@ -92,13 +94,25 @@ public final class MercenaryCommandManager implements CommandExecutor {
             return;
         }
         Guild guild = leaderGuild(p);
-        MercenaryResult check = MercenaryCompanyService.canFound(guild, p.getName(), name);
+        MercenaryResult check = MercenaryCompanyService.canFound(guild, Members.key(p), name);
         if (!check.ok()) {
             report(p, check);
             return;
         }
         // Founding spends guild money, so the charge happens on the confirm button.
         FactionManager.getInv().confirmCompanyFoundView(p, guild, name);
+    }
+
+    /** Typed names may be character names with spaces. */
+    private static String rest(String[] args) {
+        return String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+    }
+
+    /** Matches the typed name against the roster; an unknown name is refused by name. */
+    private void kick(Player p, String input) {
+        MercenaryCompany company = company(p);
+        String member = company == null ? null : Members.find(company.getEnlisted(), input);
+        report(p, MercenaryCompanyService.kick(leaderGuild(p), Members.key(p), member == null ? input : member));
     }
 
     /** {@code /mercenaries} opens the hiring hall; {@code list} prints it in chat. */
@@ -136,7 +150,7 @@ public final class MercenaryCommandManager implements CommandExecutor {
     /** Hands out stage 1 of the negotiation book. */
     private void draft(Player p) {
         MercenaryCompany company = company(p);
-        if (company == null || !company.isLeader(p.getName())) {
+        if (company == null || !company.isLeader(Members.key(p))) {
             p.sendMessage("§cOnly a company leader may draft a contract.");
             return;
         }
@@ -153,7 +167,7 @@ public final class MercenaryCommandManager implements CommandExecutor {
      */
     private void offer(Player p, String factionName) {
         MercenaryCompany company = company(p);
-        if (company == null || !company.isLeader(p.getName())) {
+        if (company == null || !company.isLeader(Members.key(p))) {
             p.sendMessage("§cOnly a company leader may offer a contract.");
             return;
         }
@@ -264,8 +278,8 @@ public final class MercenaryCommandManager implements CommandExecutor {
     }
 
     private static Guild leaderGuild(Player p) {
-        Guild guild = FactionManager.getGuildByLeader(p.getName());
-        return guild != null ? guild : FactionManager.getGuildByMember(p.getName());
+        Guild guild = FactionManager.getGuildByLeader(Members.key(p));
+        return guild != null ? guild : FactionManager.getGuildByMember(Members.key(p));
     }
 
     private static void report(Player p, MercenaryResult result) {

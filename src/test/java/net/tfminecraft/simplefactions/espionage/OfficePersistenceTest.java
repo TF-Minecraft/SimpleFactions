@@ -35,7 +35,7 @@ class OfficePersistenceTest {
         when(faction.getEspionage()).thenReturn(state);
         when(actor.getName()).thenReturn("Leader");
         when(faction.isLeader("Leader")).thenReturn(true);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.remove(actor, faction));
             assertSame(holder, state.getSpymaster());
@@ -61,6 +61,7 @@ class OfficePersistenceTest {
         when(faction.getLeader()).thenReturn("Leader");
         when(actor.getName()).thenReturn("Leader");
         when(faction.isLeader("Leader")).thenReturn(true);
+        when(faction.isLeader(EspionageTestFixtures.key("Leader"))).thenReturn(true);
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.remove(actor, faction));
             assertSame(leader, state.getSpymaster());
@@ -103,7 +104,7 @@ class OfficePersistenceTest {
         when(faction.getEspionage()).thenReturn(state);
         when(actor.getName()).thenReturn("Spy");
         when(actor.getUniqueId()).thenReturn(holder.playerId);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
         try (var databases = mockConstruction(Database.class)) {
             assertFalse(EspionageService.setSabotage(actor, faction, true, 100));
             assertFalse(EspionageService.setSabotage(actor, faction, false, 75));
@@ -286,10 +287,8 @@ class OfficePersistenceTest {
     }
 
     private static SpecialPositionAssignment holder(String name) {
-        var holder = new SpecialPositionAssignment();
-        holder.playerName = name;
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), name);
         holder.playerId = UUID.randomUUID();
-        holder.characterId = name;
         return holder;
     }
 }

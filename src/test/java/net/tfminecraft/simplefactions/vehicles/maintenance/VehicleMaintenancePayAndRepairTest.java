@@ -1,169 +1,64 @@
 package net.tfminecraft.simplefactions.vehicles.maintenance;
 
-
-import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceStore;
-import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService;
-import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.VehicleMaintenancePayResult;
-import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceRepairListener;
-import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerPouch;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-
-import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
-import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.PaymentSource;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.file.*;
 import java.util.UUID;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import net.tfminecraft.denareconomy.api.Denars;
+import net.tfminecraft.simplefactions.economy.EconomyRuntime;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
+import net.tfminecraft.simplefactions.testsupport.TestTreasuries;
+import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore;
+import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
+import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePayService.*;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import org.bukkit.Bukkit;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 
 class VehicleMaintenancePayAndRepairTest {
-    private Path tempDir;
-    private VehicleMaintenanceStore store;
-    private TestPlayerPouch pouch;
-    private VehicleMaintenancePayService payService;
-    private PlayerBank bank;
-
-    @BeforeEach
-    void setUp() throws IOException {
-        tempDir = Files.createTempDirectory("sf-vehicle-pay-");
-        Path vehiclesYaml = tempDir.resolve("vehicles.yml");
-        Files.writeString(vehiclesYaml, """
-            personal-slot-limit: 1
-
-            categories:
-              ships:
-                ironclad:
-                  upkeep: 20
-                  size: 1
-              static_emplacements: {}
-              aircraft: {}
-            """);
-        VehiclesConfigLoader.load(vehiclesYaml.toFile());
+    @TempDir Path folder;
+    final CharacterRef payer = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+    VehicleMaintenanceStore store;
+    VehicleMaintenancePayService service;
+    TestTreasuries treasury;
+    MockedStatic<Bukkit> bukkit;
+    @BeforeEach void setup() throws Exception {
+        bukkit = mockStatic(Bukkit.class); bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+        treasury = new TestTreasuries();
+        Files.writeString(folder.resolve("vehicles.yml"), "categories:\n  ships:\n    ship:\n      upkeep: 20\n      size: 1\n");
+        VehiclesConfigLoader.load(folder.resolve("vehicles.yml").toFile());
         store = new VehicleMaintenanceStore();
-        pouch = new TestPlayerPouch();
-        bank = mock(PlayerBank.class);
-        payService = new VehicleMaintenancePayService(store, pouch, bank);
+        service = new VehicleMaintenancePayService(store);
+        var fees = new VehicleFeeStore(); fees.bind(folder.resolve("Cache").toFile());
+        VehiclePayments.startup(folder, fees, store);
+        TestTreasuries.set(Denars.bank(payer), 5000);
+        TestTreasuries.set(Denars.pouch(payer), 500);
     }
-
-    @AfterEach
-    void tearDown() throws IOException {
-        if (tempDir != null) {
-            Files.walk(tempDir)
-                    .sorted(java.util.Comparator.reverseOrder())
-                    .forEach(path -> path.toFile().delete());
-        }
+    @AfterEach void close() { VehiclePayments.stop(); treasury.close(); bukkit.close(); EconomyRuntime.recovered(); }
+    @Test void selectedAccountPaysAndSecondClickCannotPayAgain() {
+        store.markUnpaid("v", 1);
+        assertEquals(20, service.payAmount("ship"));
+        assertEquals(VehicleMaintenancePayResult.INSUFFICIENT_POUCH, service.tryPay("pouch", payer, "v", "ship", PaymentSource.POUCH));
+        assertTrue(VehicleMaintenanceRepairListener.shouldCancelRepair(store, "v"));
+        assertEquals(VehicleMaintenancePayResult.SUCCESS, service.tryPay("bank", payer, "v", "ship", PaymentSource.BANK));
+        assertFalse(VehicleMaintenanceRepairListener.shouldCancelRepair(store, "v"));
+        assertEquals(3000, Denars.balance(Denars.bank(payer)));
+        assertEquals(500, Denars.balance(Denars.pouch(payer)));
+        assertEquals(VehicleMaintenancePayResult.NOT_UNPAID, service.tryPay("repeat", payer, "v", "ship", PaymentSource.BANK));
     }
-
-    @Test
-    void payAmountEqualsTypeUpkeep() {
-        assertEquals(20.0, payService.payAmount("ironclad"));
-    }
-
-    @Test
-    void tryPay_chargesPouchAndClearsUnpaid() {
-        UUID playerUuid = UUID.randomUUID();
-        pouch.setBalance(playerUuid, 50.0);
-        store.markUnpaid("vehicle-1", 1L);
-
-        assertEquals(
-                VehicleMaintenancePayResult.SUCCESS,
-                payService.tryPay(playerUuid, "vehicle-1", "ironclad"));
-        assertEquals(30.0, pouch.getPouchBalance(playerUuid));
-        assertFalse(store.isUnpaid("vehicle-1"));
-        verifyNoInteractions(bank);
-    }
-
-    @Test
-    void tryPay_insufficientPouchLeavesUnpaid() {
-        UUID playerUuid = UUID.randomUUID();
-        pouch.setBalance(playerUuid, 5.0);
-        store.markUnpaid("vehicle-1", 1L);
-
-        assertEquals(
-                VehicleMaintenancePayResult.INSUFFICIENT_POUCH,
-                payService.tryPay(playerUuid, "vehicle-1", "ironclad"));
-        assertEquals(5.0, pouch.getPouchBalance(playerUuid));
-        assertEquals(true, store.isUnpaid("vehicle-1"));
-    }
-
-    @Test
-    void bankPaymentChargesOnlyPayersBankAndAllowsRepair() {
-        UUID payer = UUID.randomUUID();
-        pouch.setBalance(payer, 50.0);
-        store.markUnpaid("vehicle-1", 1L);
-        when(bank.withdrawFromBank(payer, 20.0)).thenReturn(true);
-
-        assertEquals(VehicleMaintenancePayResult.SUCCESS,
-                payService.tryPay(payer, "vehicle-1", "ironclad", PaymentSource.BANK));
-        verify(bank).withdrawFromBank(payer, 20.0);
-        verifyNoMoreInteractions(bank);
-        assertEquals(50.0, pouch.getPouchBalance(payer));
-        assertFalse(VehicleMaintenanceRepairListener.shouldCancelRepair(store, "vehicle-1"));
-
-        assertEquals(VehicleMaintenancePayResult.NOT_UNPAID,
-                payService.tryPay(payer, "vehicle-1", "ironclad", PaymentSource.BANK));
-        verifyNoMoreInteractions(bank);
-    }
-
-    @Test
-    void failedBankPaymentLeavesUnpaidWithoutFallingBackToPouch() {
-        UUID payer = UUID.randomUUID();
-        pouch.setBalance(payer, 50.0);
-        store.markUnpaid("vehicle-1", 1L);
-
-        assertEquals(VehicleMaintenancePayResult.INSUFFICIENT_BANK,
-                payService.tryPay(payer, "vehicle-1", "ironclad", PaymentSource.BANK));
-        assertEquals(50.0, pouch.getPouchBalance(payer));
-        assertEquals(true, VehicleMaintenanceRepairListener.shouldCancelRepair(store, "vehicle-1"));
-        verify(bank).withdrawFromBank(payer, 20.0);
-    }
-
-    @Test
-    void unknownVehicleTypeDoesNotChargeBankOrClearUnpaid() {
-        store.markUnpaid("vehicle-1", 1L);
-        assertEquals(VehicleMaintenancePayResult.UNKNOWN_TYPE,
-                payService.tryPay(UUID.randomUUID(), "vehicle-1", "unknown", PaymentSource.BANK));
-        assertEquals(true, store.isUnpaid("vehicle-1"));
-        verifyNoInteractions(bank);
-    }
-
-    @Test
-    void repairStart_cancelsWhenUnpaid() {
-        store.markUnpaid("vehicle-1", 1L);
-        assertEquals(true, VehicleMaintenanceRepairListener.shouldCancelRepair(store, "vehicle-1"));
-        assertEquals(false, VehicleMaintenanceRepairListener.shouldCancelRepair(store, "vehicle-2"));
-    }
-
-    private static final class TestPlayerPouch implements PlayerPouch {
-        private final Map<UUID, Double> balances = new HashMap<>();
-
-        void setBalance(UUID playerUuid, double balance) {
-            balances.put(playerUuid, balance);
-        }
-
-        @Override
-        public double getPouchBalance(UUID playerUuid) {
-            return balances.getOrDefault(playerUuid, 0.0);
-        }
-
-        @Override
-        public boolean withdrawFromPouch(UUID playerUuid, double amount) {
-            double balance = getPouchBalance(playerUuid);
-            if (balance < amount) {
-                return false;
-            }
-            balances.put(playerUuid, balance - amount);
-            return true;
-        }
+    @Test void missingTypeSessionOrServiceMovesNothingAndBankNeverFallsBackToPouch() {
+        store.markUnpaid("v", 1);
+        assertEquals(VehicleMaintenancePayResult.UNKNOWN_TYPE, service.tryPay("unknown", payer, "v", "unknown", PaymentSource.BANK));
+        assertEquals(VehicleMaintenancePayResult.UNAVAILABLE, service.tryPay("missing", null, "v", "ship", PaymentSource.BANK));
+        TestTreasuries.set(Denars.bank(payer), 0);
+        TestTreasuries.set(Denars.pouch(payer), 5000);
+        assertEquals(VehicleMaintenancePayResult.INSUFFICIENT_BANK, service.tryPay("bank", payer, "v", "ship", PaymentSource.BANK));
+        assertEquals(5000, Denars.balance(Denars.pouch(payer)));
+        assertTrue(store.isUnpaid("v"));
+        VehiclePayments.stop();
+        assertEquals(VehicleMaintenancePayResult.UNAVAILABLE, service.tryPay("off", payer, "v", "ship", PaymentSource.BANK));
+        assertEquals(VehicleMaintenancePayResult.NOT_UNPAID, service.tryPay("nil", payer, null, "ship", PaymentSource.BANK));
     }
 }

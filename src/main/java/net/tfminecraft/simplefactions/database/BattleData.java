@@ -10,6 +10,7 @@ import net.tfminecraft.simplefactions.war.battle.template.CapturePointDefinition
 
 public class BattleData {
 	public String id;
+	public java.util.Set<net.tfminecraft.tlibs.character.CharacterRef> participants = new java.util.LinkedHashSet<>();
 	public String displayName;
 	public String battleType;
 	public Integer warId;

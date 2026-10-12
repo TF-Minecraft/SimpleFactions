@@ -4,6 +4,8 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.entity.Player;
+
+import net.tfminecraft.simplefactions.identity.Members;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.Material;
 import java.util.ArrayList;
@@ -171,7 +173,7 @@ public class Proposal {
                 : isFeeProposal() ? "Fee Proposal" : "Political Action Proposal";
         if (title.length() > 32) title = title.substring(0, 32);
         meta.setTitle(title);
-        meta.setAuthor(proposer != null ? proposer : "Unknown");
+        meta.setAuthor(Members.display(proposer));
 
         Faction f = gov != null ? gov.getFaction() : null;
 
@@ -179,7 +181,7 @@ public class Proposal {
         List<String> first = new ArrayList<>();
         first.add(StringFormatter.formatHex("#93c9a7" + title));
         first.add("");
-        first.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7" + proposer));
+        first.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7" + Members.display(proposer)));
 
         if (isLawProposal() && law != null) {
             LawGroup group = f != null ? f.getLawHandler().getGroup(law.getGroup()) : null;
@@ -228,7 +230,7 @@ public class Proposal {
             first.add(StringFormatter.formatHex("#b8ae61Action: #c2bea7"+action.getDisplay()));
             switch(action) {
                 case CHANGE_LEADER:
-                    first.add(StringFormatter.formatHex("#d4c9aeTarget: "+ (hasTarget() ? "#51e0a2"+ target : "#a3462cNo target")));
+                    first.add(StringFormatter.formatHex("#d4c9aeTarget: "+ (hasTarget() ? "#51e0a2"+ Members.display(target) : "#a3462cNo target")));
                     break;
                 case WHITE_PEACE:
                 case SURRENDER:

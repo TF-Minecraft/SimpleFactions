@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.government.election;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -148,7 +150,7 @@ public class Election {
     public int getVotes(Candidate c, String player) {
         int count = 0;
         for(Map.Entry<String, String> entry : votes.get(c).entrySet()) {
-            if(entry.getValue().equalsIgnoreCase(player)) count++;
+            if(entry.getValue().equals(player)) count++;
         }
         return count;
     }
@@ -180,7 +182,8 @@ public class Election {
         result.sort((a, b) -> {
             int cmp = Integer.compare(voteCounts.get(b), voteCounts.get(a));
             if (cmp != 0) return cmp;
-            return a.compareToIgnoreCase(b);
+            cmp = Members.display(a).compareToIgnoreCase(Members.display(b));
+            return cmp != 0 ? cmp : a.compareTo(b);
         });
 
         return result;
@@ -199,27 +202,28 @@ public class Election {
     }
 
     public void applyReasons(List<String> lore, Candidate type, Player p) {
-        if(isCandiate(type, p.getName())) return;
-        if(!canBeCandidate(type, p.getName())) {
+        String key = Members.key(p);
+        if(isCandiate(type, key)) return;
+        if(!canBeCandidate(type, key)) {
             lore.add(StringFormatter.formatHex("§cYou cannot apply for this position:"));
             if(active) {
                 lore.add(StringFormatter.formatHex("§7- #ba7872Election is in the voting phase"));
             }
             if(type == Candidate.LEADER) {
-                if(!gov.getFaction().isMember(p.getName())) {
+                if(!gov.getFaction().isMember(key)) {
                     lore.add(StringFormatter.formatHex("§7- #ba7872You must be a member of the faction to be Leader"));
                 }
-                Guild g = gov.getFaction().getGuild(p.getName());
-                if (g != null && !g.isBase() && g.isLeader(p.getName())) {
+                Guild g = gov.getFaction().getGuild(key);
+                if (g != null && !g.isBase() && g.isLeader(key)) {
                     lore.add(StringFormatter.formatHex(
                         "§7- #ba7872Guild leaders cannot be faction leaders"
                     ));
                 }
-                if(otherCandidateExists(Candidate.LEADER, p.getName())) {
+                if(otherCandidateExists(Candidate.LEADER, key)) {
                     lore.add(StringFormatter.formatHex("§7- #ba7872Your guild already has a Leader candidate"));
                 }
             } else if(type == Candidate.COUNCIL) {
-                if(otherCandidateExists(Candidate.COUNCIL, p.getName())) {
+                if(otherCandidateExists(Candidate.COUNCIL, key)) {
                     lore.add(StringFormatter.formatHex("§7- #ba7872Your guild already has a Council candidate"));
                 }
             }
@@ -262,7 +266,7 @@ public class Election {
         if(active) {
             if(notify == 300) {
                 for(Player p : Bukkit.getOnlinePlayers()) {
-                    if(canVote(p.getName()) && gov.getVotingBooths().size() > 0) {
+                    if(canVote(Members.key(p)) && gov.getVotingBooths().size() > 0) {
                         p.sendMessage("§e=================================");
                         p.sendMessage("§a§lActive Election! §7Head to a §e§lVoting Booth §7to vote!");
                         p.sendMessage("§eBooths:");
@@ -299,7 +303,7 @@ public class Election {
         Map<String, String> voteMap = votes.get(c);
 
         voteMap.entrySet().removeIf(entry ->
-            entry.getValue().equalsIgnoreCase(candidate)
+            entry.getValue().equals(candidate)
         );
     }
 
@@ -308,7 +312,7 @@ public class Election {
         if(g == null) return false;
         if(g.isBase()) return false;
         for(String candidate : candidates.get(type)) {
-            if(candidate.equalsIgnoreCase(player)) continue;
+            if(candidate.equals(player)) continue;
             Guild cg = gov.getFaction().getGuildHandler().getGuildByMember(candidate);
             if(cg == null) continue;
             if(cg.isBase()) continue;

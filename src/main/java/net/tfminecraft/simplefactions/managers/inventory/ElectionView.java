@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.List;
 
 import org.bukkit.Sound;
@@ -103,17 +105,17 @@ public class ElectionView {
 				Candidate c = Candidate.valueOf(id);
 				Election election = f.getGovernment().getElection();
                 if(election.isActive()) {
-                    if(election.canVote(p.getName()) && !election.hasVoted(c, p.getName())) {
+                    if(election.canVote(Members.key(p)) && !election.hasVoted(c, Members.key(p))) {
                         votingView(p, f, c);
                     }
                 } else {
-                    if(election.isCandiate(c, p.getName())) {
-                        election.removeCandidate(c, p.getName());
+                    if(election.isCandiate(c, Members.key(p))) {
+                        election.removeCandidate(c, Members.key(p));
                         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
                         p.sendMessage("§aWithdrawn from candidacy for "+c.getName());
                         electionView(p, f);
-                    } else if(election.canBeCandidate(c, p.getName())) {
-                        election.addCandidate(c, p.getName());
+                    } else if(election.canBeCandidate(c, Members.key(p))) {
+                        election.addCandidate(c, Members.key(p));
                         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
                         p.sendMessage("§aSigned up as a candidate for "+c.getName());
                         electionView(p, f);
@@ -129,12 +131,12 @@ public class ElectionView {
 		    if(cid == null) return;
             try {
                 Candidate type = Candidate.valueOf(cid);
-                if(election.canVote(p.getName()) && election.isActive()) {
-                    if(!election.hasVoted(type, p.getName()) && 
+                if(election.canVote(Members.key(p)) && election.isActive()) {
+                    if(!election.hasVoted(type, Members.key(p)) && 
                         election.getCandidates(type).contains(candidateName)) {
-                        election.addVote(type, p.getName(), candidateName);
+                        election.addVote(type, Members.key(p), candidateName);
                         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-                        p.sendMessage("§aVoted for " + candidateName + " as " + type.getName());
+                        p.sendMessage("§aVoted for " + Members.display(candidateName) + " as " + type.getName());
                         p.closeInventory();
                         return;
                     }

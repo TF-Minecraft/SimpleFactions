@@ -1,11 +1,12 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults;
 import java.time.Instant;
 import java.util.List;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -196,7 +197,7 @@ public class CampaignRaidLaunchView {
 			return;
 		}
 
-		if (!viewerFaction.isLeader(player.getName())) {
+		if (!viewerFaction.isLeader(Members.key(player))) {
 			player.sendMessage(CampaignRaidMessages.NOT_LEADER);
 			return;
 		}
@@ -267,7 +268,7 @@ public class CampaignRaidLaunchView {
 		String message = CampaignRaidMessages.buildRaidCalledMessage(launcher, target, raid.getId());
 		Side side = war.getSide(launcher);
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player online = Bukkit.getPlayerExact(memberName);
+			Player online = Members.player(memberName);
 			if (online != null && online.isOnline()) {
 				online.sendMessage(message);
 			}
@@ -287,11 +288,11 @@ public class CampaignRaidLaunchView {
 	}
 
 	private Faction resolveViewerFaction(Player player, War war) {
-		Faction leaderFaction = FactionManager.getByLeader(player.getName());
+		Faction leaderFaction = FactionManager.getByLeader(Members.key(player));
 		if (leaderFaction != null && war.isParticipating(leaderFaction)) {
 			return leaderFaction;
 		}
-		Faction memberFaction = FactionManager.getByMember(player.getName());
+		Faction memberFaction = FactionManager.getByMember(Members.key(player));
 		if (memberFaction != null && war.isParticipating(memberFaction)) {
 			return memberFaction;
 		}

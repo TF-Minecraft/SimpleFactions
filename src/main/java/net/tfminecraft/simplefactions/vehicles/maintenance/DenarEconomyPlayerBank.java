@@ -1,63 +1,31 @@
 package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 import java.util.UUID;
+import net.tfminecraft.denareconomy.api.Denars;
+import net.tfminecraft.simplefactions.economy.Money;
+import net.tfminecraft.simplefactions.identity.Members;
 
-import net.tfminecraft.denareconomy.accounts.OfflineModifier;
-import net.tfminecraft.denareconomy.enums.Accounts;
-
+/** Read-only projections. Every payment is posted through a durable vehicle intent. */
 public final class DenarEconomyPlayerBank {
     public interface PlayerBank {
-        double getBankBalance(UUID playerUuid);
-
-        boolean withdrawFromBank(UUID playerUuid, double amount);
-
-        boolean depositToBank(UUID playerUuid, double amount);
-
-        /** Account id for this name, whether or not they are logged in. */
-        UUID resolve(String playerName);
+        double getBankBalance(UUID character);
+        UUID resolve(String member);
     }
-
-    public interface PlayerPouch {
-        double getPouchBalance(UUID playerUuid);
-
-        boolean withdrawFromPouch(UUID playerUuid, double amount);
-    }
-
+    public interface PlayerPouch { double getPouchBalance(UUID character); }
     public static final Impl INSTANCE = new Impl();
-
     private DenarEconomyPlayerBank() {}
 
     public static final class Impl implements PlayerBank, PlayerPouch {
         private Impl() {}
-
-        @Override
-        public UUID resolve(String playerName) {
-            return OfflineModifier.playerId(playerName);
+        @Override public UUID resolve(String member) {
+            String key = Members.characterId(member) != null ? member : Members.ofAccountName(member);
+            return Members.ref(key).map(ref -> ref.characterId()).orElse(null);
         }
-
-        @Override
-        public double getBankBalance(UUID playerUuid) {
-            return OfflineModifier.balance(playerUuid, Accounts.BANK);
+        @Override public double getBankBalance(UUID character) {
+            return Members.ref(Members.key(character)).map(ref -> Money.denars(Denars.balance(Denars.bank(ref)))).orElse(0.0);
         }
-
-        @Override
-        public boolean withdrawFromBank(UUID playerUuid, double amount) {
-            return amount > 0.0 && OfflineModifier.apply(playerUuid, Accounts.BANK, -amount);
-        }
-
-        @Override
-        public boolean depositToBank(UUID playerUuid, double amount) {
-            return amount > 0.0 && OfflineModifier.apply(playerUuid, Accounts.BANK, amount);
-        }
-
-        @Override
-        public double getPouchBalance(UUID playerUuid) {
-            return OfflineModifier.balance(playerUuid, Accounts.POUCH);
-        }
-
-        @Override
-        public boolean withdrawFromPouch(UUID playerUuid, double amount) {
-            return amount > 0.0 && OfflineModifier.apply(playerUuid, Accounts.POUCH, -amount);
+        @Override public double getPouchBalance(UUID character) {
+            return Members.ref(Members.key(character)).map(ref -> Money.denars(Denars.balance(Denars.pouch(ref)))).orElse(0.0);
         }
     }
 }

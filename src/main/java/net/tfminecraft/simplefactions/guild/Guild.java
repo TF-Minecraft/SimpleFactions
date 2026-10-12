@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.guild;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -104,6 +106,8 @@ public class Guild {
     private double donationAmount = 0.0;
     private List<String> dividendEligible = new ArrayList<>();
     private MercenaryCompany company;
+    /** Fixed for this guild's lifetime; a later guild with the same name gets a new one. */
+    private String incarnation = java.util.UUID.randomUUID().toString();
 
     public Guild(Faction f) {
         host = f;
@@ -117,7 +121,7 @@ public class Guild {
         bannerPatterns = f.getBannerPatterns();
         name = f.getName();
         leader = f.getLeader();
-        members.add(leader);
+        if (leader != null && !leader.isBlank()) members.add(leader);
         type = GuildLoader.getBaseType();
         this.wealth = 0.0;
         for (Branch branch : BranchLoader.getList()) {
@@ -139,7 +143,7 @@ public class Guild {
         host = f;
         this.id = format.formatId(id);
 		this.name = StringFormatter.formatHex(format.formatName(id));
-        this.leader = p.getName();
+        this.leader = Members.key(p);
         rgb = RandomRGB.random();
         stance = Stance.NEUTRAL;
         while(!RandomRGB.isFree(rgb)) {
@@ -159,7 +163,7 @@ public class Guild {
         for(Upgrade u : UpgradeLoader.getList()) {
             upgrades.put(u.getId(), new Upgrade(u, 0));
         }
-        f.getOrCreateMainGuild().kick(p.getName()); //remove from main guild
+        f.getOrCreateMainGuild().kick(leader); //remove from main guild
         this.ledger = new Ledger(this);
         this.loanHandler = new LoanHandler(this);
         this.dividendEligible = new ArrayList<>(members);
@@ -179,11 +183,12 @@ public class Guild {
         this.id = data.id;
         this.name = data.name;
         this.leader = data.leader;
+        if (data.incarnation != null && !data.incarnation.isBlank()) this.incarnation = data.incarnation;
         this.rgb = data.rgb;
         this.capital = data.capital;
         this.stance = data.stance != null ? Stance.valueOf(data.stance) : Stance.NEUTRAL;
         this.members = data.members != null ? data.members : new ArrayList<>();
-        if(!this.members.contains(leader)) this.members.add(leader);
+        if(leader != null && !leader.isBlank() && !this.members.contains(leader)) this.members.add(leader);
         for (GuildBranchData bd : data.branches) {
             if (bd != null && bd.level != null && bd.level.intValue() > 0) {
                 warnRetiredBranch(host, name, bd.id, bd.level.intValue());
@@ -225,6 +230,7 @@ public class Guild {
         if (data.vehicleFeeIncome != null) {
             this.ledger.setVehicleFeeIncome(data.vehicleFeeIncome);
         }
+        this.ledger.restoreCasinoProfitOperations(data.casinoProfitOperations);
         if (data.casinoProfit != null) {
             this.ledger.setCasinoProfit(data.casinoProfit);
         }
@@ -385,7 +391,7 @@ public class Guild {
             }
             dummy = dummy+x;
             members.set(i, dummy);
-            p.sendMessage("§a"+dummy+" replaced "+member);
+            p.sendMessage("§a"+dummy+" replaced "+Members.display(member));
             if(isLeader(member)) {
                 p.sendMessage("§a"+dummy+" became leader");
                 if(isBase()) host.setLeader(dummy);
@@ -411,21 +417,32 @@ public class Guild {
     public void setHost(Faction host) {
         this.host = host;
     }
+
+    /** Exact journal after-values; derived trade data is refreshed once all affected realms agree. */
+    public void restoreTopology(Faction faction, int restoredCapital) {
+        host = faction;
+        capital = restoredCapital;
+    }
     public List<String> getInvites() { return invites; }
     public boolean isInvited(String p) {
-        return findIgnoreCase(invites, p) != null;
+        return find(invites, p) != null;
     }
     public void invite(String p) {
         if(p == null || isInvited(p)) return;
         invites.add(p);
     }
     public boolean consumeInvite(String p) {
-        String stored = findIgnoreCase(invites, p);
+        String stored = find(invites, p);
         if(stored == null) return false;
         invites.remove(stored);
         return true;
     }
     public String getId() { return id; }
+
+    public String getIncarnation() { return incarnation; }
+
+    /** Immutable treasury identity; guild names may be reused after disbanding. */
+    public java.util.UUID getIncarnationId() { return java.util.UUID.fromString(incarnation); }
 
     /** A removed branch still saved above level 0. The level is not refunded. */
     static void warnRetiredBranch(Faction host, String guildName, String branchId, int level) {
@@ -447,8 +464,8 @@ public class Guild {
     /** Backing name, even while this guild is a faction base (display name follows the host). */
     public String getOwnName() { return name; }
     public List<String> getMembers() { return members; }
-    public boolean isMember(String p) { return findIgnoreCase(members, p) != null; }
-    public boolean isMember(Player p) { return isMember(p.getName()); }
+    public boolean isMember(String p) { return find(members, p) != null; }
+    public boolean isMember(Player p) { return isMember(Members.key(p)); }
     public void addMember(String p) {
         if(isMember(p)) return;
         if(!isBase() && host.getOrCreateMainGuild().isMember(p)) {
@@ -458,9 +475,18 @@ public class Guild {
         members.add(p);
     }
     public void kick(String member) {
-        String stored = findIgnoreCase(members, member);
+        String stored = find(members, member);
         if(stored != null) members.remove(stored);
     }
+    /** The death journal has already captured any money owed before this removal. */
+    public void removeDeadCharacter(String key) {
+        members.removeIf(key::equals);
+        invites.removeIf(key::equals);
+        dividendEligible.removeIf(key::equals);
+        if (key.equals(leader)) leader = "";
+        if (company != null) company.removeDeadCharacter(key);
+    }
+
     public String getLeader() { return isBase() ? host.getLeader() : leader; }
 
     /** Last known roleplay name of the leader; a realm's own guild shares the realm's. */
@@ -489,9 +515,15 @@ public class Guild {
     }
     public boolean isLeader(String p) {
         String currentLeader = getLeader();
-        return currentLeader != null && currentLeader.equalsIgnoreCase(p);
+        return currentLeader != null && currentLeader.equals(p);
     }
-    public boolean isLeader(Player p) { return isLeader(p.getName()); }
+    public boolean isLeader(Player p) { return isLeader(Members.key(p)); }
+
+    /**
+     * True while the leader's seat is held by a migration quarantine record:
+     * nothing may pass the seat on or disband the guild until staff assign it.
+     */
+    public boolean hasUnresolvedLeader() { return Members.isQuarantined(getLeader()); }
     public Map<Integer, Branch> getBranches() { return branches; }
     public Branch getBranch(int i) {
         return branches.getOrDefault(i, null);
@@ -1074,6 +1106,10 @@ public class Guild {
         return eligible;
     }
 
+    public void restoreDividendEligibility(List<String> members) {
+        dividendEligible = new ArrayList<>(members);
+    }
+
     public void refreshDividendEligibility() {
         dividendEligible = new ArrayList<>(members);
     }
@@ -1089,14 +1125,6 @@ public class Guild {
         return getSize() > 0;
     }
 
-    public void liquidateRandom() {
-        if (!canLiquidate() || bank == null) return;
-        List<Branch> expanded = branches.values().stream().filter(br -> br.getLevel() > 0).toList();
-        Branch b = expanded.get((int) (Math.random() * expanded.size()));
-        double refund = getRefund();
-        b.levelDown();
-        bank.deposit(refund);
-    }
 
     public boolean isFavoured() {
         Boolean overlay = IncomePreviewContext.overlayFavoured(this);
@@ -1121,10 +1149,11 @@ public class Guild {
         repressed = false;
     }
 
-    public static String findIgnoreCase(List<String> names, String name) {
-        if(name == null || names == null) return null;
-        for(String stored : names) {
-            if(stored != null && stored.equalsIgnoreCase(name)) return stored;
+    /** The stored member key equal to {@code key}, or null; keys match exactly. */
+    public static String find(List<String> keys, String key) {
+        if(key == null || keys == null) return null;
+        for(String stored : keys) {
+            if(key.equals(stored)) return stored;
         }
         return null;
     }

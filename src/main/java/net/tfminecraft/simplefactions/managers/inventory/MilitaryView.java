@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -50,7 +52,7 @@ public class MilitaryView {
 		}
 		var m = f.getMilitary();
 		i.setItem(10, creator.createMilitarySummary(f));
-		boolean leader = f.getLeader().equalsIgnoreCase(player.getName());
+		boolean leader = Members.is(player, f.getLeader());
 		for(int x = 0; x<m.getRegiments().size(); x++) {
 			int slot = x+12;
 			Regiment r = m.getRegiments().get(x);
@@ -100,7 +102,7 @@ public class MilitaryView {
 		if (queuePayload != null) {
 			if (!(inventory.getHolder() instanceof SFInventoryHolder holder)) return;
 			Faction f = FactionManager.getByString(holder.getId());
-			if (f == null || !f.getLeader().equalsIgnoreCase(p.getName())) return;
+			if (f == null || !Members.is(p, f.getLeader())) return;
 			inv.openQueueCancelConfirm(p, f, queuePayload, "§eCancel queued regiment expansion?");
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			return;
@@ -121,7 +123,7 @@ public class MilitaryView {
 		key = new org.bukkit.NamespacedKey(SimpleFactions.plugin, "type");
 		String type = m.getPersistentDataContainer().get(key, PersistentDataType.STRING);
 		if(type == null) return;
-		if(!f.getLeader().equalsIgnoreCase(p.getName())) return;
+		if(!Members.is(p, f.getLeader())) return;
 		if(type.contentEquals("increase")) {
 			if(f.getMilitary().getQueue().size() == 3) {
 				p.sendMessage("§cQueue is full");

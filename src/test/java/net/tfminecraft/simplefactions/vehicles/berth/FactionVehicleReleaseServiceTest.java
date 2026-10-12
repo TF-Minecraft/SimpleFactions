@@ -41,6 +41,7 @@ import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 
 class FactionVehicleReleaseServiceTest {
     private Path tempDir;
+    private org.mockito.MockedStatic<org.bukkit.Bukkit> online;
     private PlayerVehicleRegistry registry;
     private List<String> assigned;
     private FactionVehicleReleaseService service;
@@ -53,6 +54,13 @@ class FactionVehicleReleaseServiceTest {
 
     @BeforeEach
     void setUp() throws IOException {
+        online = org.mockito.Mockito.mockStatic(org.bukkit.Bukkit.class);
+        online.when(() -> org.bukkit.Bukkit.getPlayerExact(org.mockito.ArgumentMatchers.anyString())).thenAnswer(call -> {
+            org.bukkit.entity.Player player = mock(org.bukkit.entity.Player.class);
+            when(player.getName()).thenReturn(call.getArgument(0));
+            when(player.getUniqueId()).thenReturn(UUID.nameUUIDFromBytes(call.<String>getArgument(0).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            return player;
+        });
         tempDir = Files.createTempDirectory("sf-vehicle-release-");
         Path vehiclesYaml = tempDir.resolve("vehicles.yml");
         Files.writeString(vehiclesYaml, """
@@ -103,6 +111,7 @@ class FactionVehicleReleaseServiceTest {
 
     @AfterEach
     void tearDown() throws IOException {
+        online.close();
         net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
         VehicleOwnershipQueries.setSourceForTests(null);
         BattleManager.resetForTests();
@@ -127,7 +136,7 @@ class FactionVehicleReleaseServiceTest {
             sf.when(SimpleFactions::getInstance).thenReturn(plugin);
             Outcome outcome = service.take(faction, "Leader", "gun-1");
             assertEquals(Status.OK, outcome.status());
-            assertFalse(registry.getByVehicleUuid("gun-1").isPresent());
+            assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("gun-1").orElseThrow().getMode());
             assertEquals(List.of("gun-1:Leader"), assigned);
             verify(plugin).saveVehicleRegistry();
         }
@@ -305,7 +314,7 @@ class FactionVehicleReleaseServiceTest {
             Outcome outcome = service.give(faction, "Leader", "Bob", "car-1");
             assertEquals(Status.OK, outcome.status());
             assertEquals(List.of("car-1:Bob"), assigned);
-            assertFalse(registry.getByVehicleUuid("car-1").isPresent());
+            assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("car-1").orElseThrow().getMode());
         }
     }
 

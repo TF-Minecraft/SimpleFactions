@@ -1,58 +1,30 @@
 package net.tfminecraft.simplefactions.vehicles.maintenance;
 
-import java.util.UUID;
-
+import net.tfminecraft.denareconomy.api.Result;
+import net.tfminecraft.simplefactions.economy.Money;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
-import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
-import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerPouch;
+import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
+import net.tfminecraft.tlibs.character.CharacterRef;
 
 public final class VehicleMaintenancePayService {
     private final VehicleMaintenanceStore store;
-    private final PlayerPouch playerPouch;
-    private final PlayerBank playerBank;
-
     public enum PaymentSource { POUCH, BANK }
 
-    public VehicleMaintenancePayService(VehicleMaintenanceStore store, PlayerPouch playerPouch) {
-        this(store, playerPouch, DenarEconomyPlayerBank.INSTANCE);
-    }
-
-    public VehicleMaintenancePayService(VehicleMaintenanceStore store, PlayerPouch playerPouch, PlayerBank playerBank) {
-        this.store = store;
-        this.playerPouch = playerPouch;
-        this.playerBank = playerBank;
-    }
+    public VehicleMaintenancePayService(VehicleMaintenanceStore store) { this.store = store; }
 
     public double payAmount(String vehicleTypeId) {
         return VehiclesConfigLoader.getUpkeep(vehicleTypeId);
     }
 
-    public VehicleMaintenancePayResult tryPay(UUID playerUuid, String vehicleUuid, String vehicleTypeId) {
-        return tryPay(playerUuid, vehicleUuid, vehicleTypeId, PaymentSource.POUCH);
-    }
-
-    public VehicleMaintenancePayResult tryPay(
-            UUID playerUuid, String vehicleUuid, String vehicleTypeId, PaymentSource source) {
-        if (vehicleUuid == null || !store.isUnpaid(vehicleUuid)) {
-            return VehicleMaintenancePayResult.NOT_UNPAID;
-        }
-        if (!VehiclesConfigLoader.isKnownType(vehicleTypeId)) {
-            return VehicleMaintenancePayResult.UNKNOWN_TYPE;
-        }
-        double amount = payAmount(vehicleTypeId);
-        if (amount > 0.0) {
-            boolean paid = switch (source) {
-                case BANK -> playerBank.withdrawFromBank(playerUuid, amount);
-                case POUCH -> playerPouch.withdrawFromPouch(playerUuid, amount);
-            };
-            if (!paid) {
-                return source == PaymentSource.BANK
-                        ? VehicleMaintenancePayResult.INSUFFICIENT_BANK
-                        : VehicleMaintenancePayResult.INSUFFICIENT_POUCH;
-            }
-        }
-        store.clearUnpaid(vehicleUuid);
-        return VehicleMaintenancePayResult.SUCCESS;
+    public VehicleMaintenancePayResult tryPay(String operationId, CharacterRef payer, String vehicleUuid, String vehicleTypeId, PaymentSource source) {
+        if (vehicleUuid == null || !store.isUnpaid(vehicleUuid)) return VehicleMaintenancePayResult.NOT_UNPAID;
+        if (!VehiclesConfigLoader.isKnownType(vehicleTypeId)) return VehicleMaintenancePayResult.UNKNOWN_TYPE;
+        var payments = VehiclePayments.current();
+        if (payments == null || payer == null) return VehicleMaintenancePayResult.UNAVAILABLE;
+        Result result = payments.maintain(operationId, payer, vehicleUuid, source == PaymentSource.BANK, Money.cents(payAmount(vehicleTypeId)));
+        if (result == Result.APPLIED) return VehicleMaintenancePayResult.SUCCESS;
+        if (result != Result.REFUSED) return VehicleMaintenancePayResult.UNAVAILABLE;
+        return source == PaymentSource.BANK ? VehicleMaintenancePayResult.INSUFFICIENT_BANK : VehicleMaintenancePayResult.INSUFFICIENT_POUCH;
     }
 
     public enum VehicleMaintenancePayResult {
@@ -60,6 +32,7 @@ public final class VehicleMaintenancePayService {
         NOT_UNPAID,
         INSUFFICIENT_POUCH,
         INSUFFICIENT_BANK,
-        UNKNOWN_TYPE
+        UNKNOWN_TYPE,
+        UNAVAILABLE
     }
 }

@@ -60,7 +60,15 @@ class MercenarySettlementTest {
 		FactionManager.factions.add(host.faction);
 		FactionManager.factions.add(hirer.faction);
 
-		MercenaryCompanyService.requestFormation(host.guild, "Ivar", "Hired Blades");
+        try (var treasury = org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+            treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.formation(
+                    org.mockito.ArgumentMatchers.eq(host.guild), org.mockito.ArgumentMatchers.eq("Ivar"),
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyDouble())).thenAnswer(call -> {
+                host.guild.setCompany(call.getArgument(2));
+                return true;
+            });
+            MercenaryCompanyService.requestFormation(host.guild, "Ivar", "Hired Blades");
+        }
 		company = host.company();
 		for (int i = 0; i < net.tfminecraft.simplefactions.Cache.mercenaryFormationSeconds; i++) {
 			company.tick();

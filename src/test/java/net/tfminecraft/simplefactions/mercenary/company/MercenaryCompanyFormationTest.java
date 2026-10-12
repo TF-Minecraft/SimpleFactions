@@ -37,8 +37,7 @@ class MercenaryCompanyFormationTest {
     void formationDebitsOnceAndOpensWithOneSlot() {
         CompanyFixture fixture = new CompanyFixture(500.0);
 
-        MercenaryResult result = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        MercenaryResult result = fixture.requestFormation("Ivar", "Hired Blades");
 
         assertTrue(result.ok());
         assertTrue(result.message().startsWith("Founding "), result.message());
@@ -62,11 +61,28 @@ class MercenaryCompanyFormationTest {
     }
 
     @Test
+    void formationIsDeniedWhileTheTreasuryCannotFundIt() {
+        CompanyFixture fixture = new CompanyFixture(500.0);
+        try (var treasury = org.mockito.Mockito.mockStatic(
+                net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+            treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.formation(
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyDouble()))
+                    .thenReturn(false);
+            MercenaryResult result = MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+            assertFalse(result.ok());
+            assertEquals("Company formation is awaiting treasury recovery or could not be funded.", result.message());
+        }
+        assertNull(fixture.company(), "a denied formation must not attach a company");
+        assertEquals(500.0, fixture.balance());
+    }
+
+    @Test
     void instantFormationEnlistsTheLeader() {
         Cache.mercenaryFormationSeconds = 0;
         CompanyFixture fixture = new CompanyFixture(500.0);
 
-        MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        fixture.requestFormation("Ivar", "Hired Blades");
 
         MercenaryCompany company = fixture.company();
         assertTrue(company.isFormed());
@@ -77,13 +93,13 @@ class MercenaryCompanyFormationTest {
     @Test
     void leaderServingElsewhereLeavesTheFoundingSlotOpen() {
         CompanyFixture other = new CompanyFixture(500.0);
-        MercenaryCompanyService.requestFormation(other.guild, "Ivar", "Other Blades");
+        other.requestFormation("Ivar", "Other Blades");
         other.company().tick();
         other.company().tick();
         CompanyFixture fixture = new CompanyFixture(500.0);
         CompanyFixture.registerGlobally(other.guild, fixture.guild);
         try {
-            MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+            fixture.requestFormation("Ivar", "Hired Blades");
             fixture.company().tick();
             fixture.company().tick();
 
@@ -119,10 +135,9 @@ class MercenaryCompanyFormationTest {
     @Test
     void secondRequestWhileFoundingIsRefusedWithoutCharging() {
         CompanyFixture fixture = new CompanyFixture(500.0);
-        MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        fixture.requestFormation("Ivar", "Hired Blades");
 
-        MercenaryResult second = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Ivar", "Second Blades");
+        MercenaryResult second = fixture.requestFormation("Ivar", "Second Blades");
 
         assertFalse(second.ok());
         assertEquals("Your guild is already founding a mercenary company.", second.message());
@@ -132,12 +147,11 @@ class MercenaryCompanyFormationTest {
     @Test
     void secondCompanyRefusedOnceTheFirstExists() {
         CompanyFixture fixture = new CompanyFixture(500.0);
-        MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        fixture.requestFormation("Ivar", "Hired Blades");
         fixture.company().tick();
         fixture.company().tick();
 
-        MercenaryResult second = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Ivar", "Second Blades");
+        MercenaryResult second = fixture.requestFormation("Ivar", "Second Blades");
 
         assertFalse(second.ok());
         assertEquals("Your guild already has a mercenary company.", second.message());
@@ -148,8 +162,7 @@ class MercenaryCompanyFormationTest {
     void onlyTheGuildLeaderMayFound() {
         CompanyFixture fixture = new CompanyFixture(500.0);
 
-        MercenaryResult result = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Sigrun", "Hired Blades");
+        MercenaryResult result = fixture.requestFormation("Sigrun", "Hired Blades");
 
         assertFalse(result.ok());
         assertEquals("Only the guild leader can found a mercenary company.", result.message());
@@ -161,8 +174,7 @@ class MercenaryCompanyFormationTest {
     void tooPoorToFoundIsRefusedWithoutCharging() {
         CompanyFixture fixture = new CompanyFixture(99.0);
 
-        MercenaryResult result = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        MercenaryResult result = fixture.requestFormation("Ivar", "Hired Blades");
 
         assertFalse(result.ok());
         assertEquals("Your guild bank needs 100.00d to found a company.", result.message());
@@ -174,8 +186,7 @@ class MercenaryCompanyFormationTest {
     void unnamedCompanyIsRefused() {
         CompanyFixture fixture = new CompanyFixture(500.0);
 
-        MercenaryResult result = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Ivar", "   ");
+        MercenaryResult result = fixture.requestFormation("Ivar", "   ");
 
         assertFalse(result.ok());
         assertEquals("Give the company a name.", result.message());
@@ -187,8 +198,7 @@ class MercenaryCompanyFormationTest {
         CompanyFixture.clearRegiments();
         CompanyFixture fixture = new CompanyFixture(500.0);
 
-        MercenaryResult result = MercenaryCompanyService
-                .requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        MercenaryResult result = fixture.requestFormation("Ivar", "Hired Blades");
 
         assertFalse(result.ok());
         assertEquals("Mercenary companies are not configured on this server.", result.message());
@@ -198,11 +208,12 @@ class MercenaryCompanyFormationTest {
     @Test
     void leadershipFollowsTheGuildLeader() {
         CompanyFixture fixture = new CompanyFixture(500.0);
-        MercenaryCompanyService.requestFormation(fixture.guild, "Ivar", "Hired Blades");
+        fixture.requestFormation("Ivar", "Hired Blades");
         MercenaryCompany company = fixture.company();
 
         assertEquals("Ivar", company.getLeader());
-        assertTrue(company.isLeader("ivar"));
+        assertTrue(company.isLeader("Ivar"));
+        assertFalse(company.isLeader("ivar"), "Member keys match exactly");
 
         fixture.setLeader("Sigrun");
 

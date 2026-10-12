@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
-import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.economy.EconomyRuntime;
+import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
@@ -36,6 +39,8 @@ class PlayerManagerLoanBookTest {
 			+ "Interest (%): 6.0\nDaily Payments: \nYes\nOverdue Fee (%): 2.0\n";
 
 	private MockedStatic<FactionManager> factionManager;
+    private MockedStatic<EconomyRuntime> readiness;
+    private MockedStatic<Denars> money;
 	private final PlayerManager listener = new PlayerManager();
 	private final Guild lender = mock(Guild.class);
 	private final Guild borrower = mock(Guild.class);
@@ -63,9 +68,14 @@ class PlayerManagerLoanBookTest {
 	@BeforeEach
 	void setUp() {
 		factionManager = mockStatic(FactionManager.class);
+        readiness = mockStatic(EconomyRuntime.class);
+        readiness.when(EconomyRuntime::ready).thenReturn(true);
+        money = mockStatic(Denars.class);
+        when(borrower.isLeader(player)).thenReturn(true);
 		factionManager.when(() -> FactionManager.getGuildByString("lender")).thenReturn(lender);
 		factionManager.when(() -> FactionManager.getGuildByLeader("Borrower")).thenReturn(borrower);
 		when(lender.getId()).thenReturn("lender");
+        when(lender.getIncarnation()).thenReturn("current-lender-incarnation");
 		when(lender.getName()).thenReturn("Lenders");
 		when(lender.getBank()).thenReturn(lenderBank);
 		when(lenderBank.getWealth()).thenReturn(10_000.0);
@@ -78,6 +88,8 @@ class PlayerManagerLoanBookTest {
 	@AfterEach
 	void tearDown() {
 		factionManager.close();
+        readiness.close();
+        money.close();
 	}
 
 	private static BookMeta book(Integer stage, String offerId) {
@@ -89,6 +101,7 @@ class PlayerManagerLoanBookTest {
 		when(data.get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING)).thenReturn(TERMS);
 		when(data.get(Keys.LONG, PersistentDataType.LONG)).thenReturn(System.currentTimeMillis() + 60_000L);
 		when(data.get(Keys.LOAN_OFFER, PersistentDataType.STRING)).thenReturn(offerId);
+        when(data.get(Keys.LOAN_ISSUER, PersistentDataType.STRING)).thenReturn("current-lender-incarnation");
 		when(meta.getPageCount()).thenReturn(2);
 		when(meta.getPage(2)).thenReturn(TERMS);
 		return meta;
@@ -123,9 +136,8 @@ class PlayerManagerLoanBookTest {
 
 		sign(book(3, "offer-accepted"));
 
-		verify(player).sendMessage(contains("already been signed"));
-		verify(borrowerBank, never()).deposit(anyDouble());
-		verify(lenderBank, never()).withdraw(anyDouble());
+		verify(player).sendMessage(contains("could not be accepted"));
+		money.verify(() -> Denars.post(anyString(), anyString(), anyList()), never());
 	}
 
 	@Test
@@ -137,8 +149,8 @@ class PlayerManagerLoanBookTest {
 
 		sign(book(3, "offer-used"));
 
-		verify(player).sendMessage(contains("already been signed"));
-		verify(borrowerBank, never()).deposit(anyDouble());
+		verify(player).sendMessage(contains("could not be accepted"));
+		money.verify(() -> Denars.post(anyString(), anyString(), anyList()), never());
 	}
 
 	@Test
@@ -148,6 +160,6 @@ class PlayerManagerLoanBookTest {
 		sign(book(3, null));
 
 		verify(player).sendMessage(contains("out of date"));
-		verify(borrowerBank, never()).deposit(anyDouble());
+		money.verify(() -> Denars.post(anyString(), anyString(), anyList()), never());
 	}
 }

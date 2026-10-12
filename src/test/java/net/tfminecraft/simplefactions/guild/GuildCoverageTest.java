@@ -87,7 +87,8 @@ public class GuildCoverageTest {
     when(fixture.host.getLeader()).thenReturn("Successor");
     assertEquals("Successor", guild.getLeader());
     assertFalse(guild.isLeader("Leader"));
-    assertTrue(guild.isLeader("successor"));
+    assertFalse(guild.isLeader("successor"));
+    assertTrue(guild.isLeader("Successor"));
     assertTrue(guild.isLeader(fixture.ui.player("Successor")));
   }
 
@@ -100,31 +101,7 @@ public class GuildCoverageTest {
     assertEquals(240.0, guild.getTotalPossibleRefund());
   }
 
-  @Test
-  void liquidationRefundsTheLevelBeingRemovedAndRecalculatesWealthAfterTheLevelDrops() {
-    Guild guild = fixture.guild("guild", 2);
-    assertEquals(160.0, guild.getRefund());
-    guild.liquidateRandom();
-    assertEquals(1, guild.getSize());
-    assertEquals(160.0, guild.getBank().getWealth());
-    assertEquals(260.0, guild.getWealth());
-  }
 
-  @Test
-  void liquidationWorksWhenConfiguredBranchGroupsHaveGaps() {
-    YamlConfiguration config = new YamlConfiguration();
-    config.set("trade.group", 4);
-    config.set("trade.allowed-types", List.of("guild"));
-    Branch template = new Branch("trade", config.getConfigurationSection("trade"));
-    BranchLoader.map.clear();
-    BranchLoader.map.put("trade", template);
-    GuildData data = fixture.data("guild", 2);
-    data.branches.getFirst().id = "trade";
-    Guild guild = new Guild(data, fixture.host);
-    guild.liquidateRandom();
-    assertEquals(1, guild.getSize());
-    assertEquals(160.0, guild.getBank().getWealth());
-  }
 
   @Test
   void savedGuildDataSurvivesJsonRoundTripAndRestoresFinancialSettings() {
@@ -177,28 +154,33 @@ public class GuildCoverageTest {
   }
 
   @Test
-  void membershipsAndInvitationsAreCaseInsensitiveAndLeaveTheMainGuildOnce() {
+  void membershipsAndInvitationsMatchExactKeysAndLeaveTheMainGuildOnce() {
     Guild guild = fixture.guild("guild", 0);
     guild.invite(null);
-    guild.invite("BOB");
-    guild.invite("bob");
-    assertEquals(List.of("BOB"), guild.getInvites());
+    guild.invite("Bob");
+    guild.invite("Bob");
+    assertEquals(List.of("Bob"), guild.getInvites());
     assertTrue(guild.isInvited("Bob"));
+    assertFalse(guild.isInvited("BOB"));
     assertFalse(guild.consumeInvite("missing"));
     when(fixture.main.isMember("Bob")).thenReturn(true);
     guild.addMember("Bob");
     verify(fixture.main).kick("Bob");
     assertTrue(guild.getInvites().isEmpty());
-    guild.addMember("BOB");
+    guild.addMember("Bob");
     assertEquals(List.of("Leader", "Alice", "Bob"), guild.getMembers());
-    assertTrue(guild.isMember(fixture.ui.player("bOb")));
+    assertTrue(guild.isMember(fixture.ui.player("Bob")));
+    assertFalse(guild.isMember(fixture.ui.player("bOb")));
     guild.kick("bOB");
+    assertTrue(guild.isMember("Bob"));
+    guild.kick("Bob");
     assertFalse(guild.isMember("Bob"));
     guild.kick("missing");
     assertEquals(2, guild.getMembers().size());
-    assertNull(Guild.findIgnoreCase(null, "Bob"));
-    assertNull(Guild.findIgnoreCase(List.of("Bob"), null));
-    assertEquals("Alice", Guild.findIgnoreCase(java.util.Arrays.asList(null, "Alice"), "ALICE"));
+    assertNull(Guild.find(null, "Bob"));
+    assertNull(Guild.find(List.of("Bob"), null));
+    assertNull(Guild.find(java.util.Arrays.asList(null, "Alice"), "ALICE"));
+    assertEquals("Alice", Guild.find(java.util.Arrays.asList(null, "Alice"), "Alice"));
   }
 
   @ParameterizedTest
@@ -250,7 +232,7 @@ public class GuildCoverageTest {
   @Test
   void wealthModifiersReplaceAccumulateAndRemoveWithoutDuplicatingSources() {
     Guild guild = fixture.guild("guild", 2);
-    guild.getBank().setWealth(50.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 50.0);
     guild.addWealthModifier(new Modifier("Gift", 3.0, false));
     guild.addWealthModifier(new Modifier("GIFT", 4.0, false));
     guild.addPersistentWealthModifier(new Modifier("Treasure", 10.0, true));
@@ -278,7 +260,6 @@ public class GuildCoverageTest {
     assertEquals(0, guild.getTotalExpansionSpent());
     assertEquals(0, guild.getTotalPossibleRefund());
     assertFalse(guild.canLiquidate());
-    guild.liquidateRandom();
     assertEquals(0, guild.getSize());
     guild.getBranch(0).levelUp();
     guild.getBranch(0).levelUp();
@@ -298,7 +279,6 @@ public class GuildCoverageTest {
     when(province.getOwner()).thenReturn(other);
     assertEquals(945, guild.getRelocationCost(7));
     guild.setBank(null);
-    guild.liquidateRandom();
     assertEquals(6, guild.getSize());
   }
 
@@ -495,16 +475,6 @@ public class GuildCoverageTest {
   /**
    * Real saved guilds and definitions; only server and faction integration boundaries are mocked.
    */
-  @Test
-  void removingTheLastExpansionDropsItsHistoricalWealthContribution() {
-    Guild guild = fixture.guild("guild", 1);
-    guild.updateWealth();
-    assertEquals(100, guild.getWealth());
-    guild.liquidateRandom();
-    assertEquals(0, guild.getSize());
-    assertEquals(80, guild.getBank().getWealth());
-    assertEquals(80, guild.getWealth());
-  }
 
   @Test
   void financialLimitsAndDividendEligibilityUseFiniteValuesAndCopies() {

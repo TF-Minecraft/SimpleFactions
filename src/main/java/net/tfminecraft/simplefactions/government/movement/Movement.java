@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.government.movement;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -230,19 +232,19 @@ public class Movement {
         supporters.getFactions().removeIf(faction -> !canFactionBeSupporter(faction, false));
     }
 
-    public boolean canCitizenBeSupporter(String playerName, boolean feedback) {
-        return citizenSupporterBlockReason(playerName, false) == null;
+    public boolean canCitizenBeSupporter(String member, boolean feedback) {
+        return citizenSupporterBlockReason(member, false) == null;
     }
 
-    public String citizenSupporterBlockReason(String playerName, boolean staff) {
-        Member relation = f.getRelationToFaction(playerName);
+    public String citizenSupporterBlockReason(String member, boolean staff) {
+        Member relation = f.getRelationToFaction(member);
         if (relation != Member.MEMBER) {
-            return MovementJoinCopy.citizenMustBeMember(staff, playerName, f);
+            return MovementJoinCopy.citizenMustBeMember(staff, member, f);
         }
         for (Movement otherMovement : f.getGovernment().getMovements()) {
             if (otherMovement.getId().equals(this.id)) continue;
-            if (otherMovement.isMember(playerName)) {
-                return MovementJoinCopy.citizenAlreadySupportingOther(staff, playerName, f);
+            if (otherMovement.isMember(member)) {
+                return MovementJoinCopy.citizenAlreadySupportingOther(staff, member, f);
             }
         }
         return null;
@@ -379,6 +381,10 @@ public class Movement {
         foreignBackers.remove(backer);
     }
 
+    public void restoreOrganization(double amount) {
+        organization = amount;
+    }
+
     public void changeOrganization(double amount) {
         organization += amount;
         if (organization < 0) organization = 0;
@@ -398,12 +404,12 @@ public class Movement {
     }
 
     public boolean isLeader(String player) {
-        return leader != null && leader.equalsIgnoreCase(player);
+        return leader != null && leader.equals(player);
     }
 
     public boolean canBeLeader(String player) {
         for(Cause cause : causes) {
-            if(cause.getLeader() != null && cause.getLeader().equalsIgnoreCase(player)) {
+            if(cause.getLeader() != null && cause.getLeader().equals(player)) {
                 return true;
             }
         }
@@ -420,7 +426,7 @@ public class Movement {
 
     public Cause getCauseByLeader(String leaderName) {
         for (Cause cause : causes) {
-            if (cause.getLeader() != null && cause.getLeader().equalsIgnoreCase(leaderName)) {
+            if (cause.getLeader() != null && cause.getLeader().equals(leaderName)) {
                 return cause;
             }
         }
@@ -586,20 +592,22 @@ public class Movement {
     }
 
     public Object getJoiningAs(Player p) {
-        Member relation = f.getRelationToFaction(p.getName());
+        String key = Members.key(p);
+        Member relation = f.getRelationToFaction(key);
         if (relation == Member.GUILD_LEADER || relation == Member.GUILD_MEMBER) {
-            return FactionManager.getGuildByMember(p.getName());
+            return FactionManager.getGuildByMember(key);
         } else if (relation == Member.VASSAL_LEADER) {
-            return FactionManager.getByMember(p.getName());
+            return FactionManager.getByMember(key);
         } else if (relation == Member.MEMBER) {
-            return p.getName();
+            return key;
         }
         return null;
     }
 
     public boolean quickJoinCheck(Player p) {
-        if(isMember(p.getName())) return false;
-        Member relation = f.getRelationToFaction(p.getName());
+        String key = Members.key(p);
+        if(isMember(key)) return false;
+        Member relation = f.getRelationToFaction(key);
         switch(relation) {
             case FOREIGNER:
             case GUILD_MEMBER:

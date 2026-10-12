@@ -11,11 +11,12 @@ import org.bukkit.event.Listener;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.denareconomy.api.Result;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.VehicleIntegrationListener;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore.PaidBuild;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import net.tfminecraft.vfbuilders.core.ActiveStation;
 import net.tfminecraft.vfbuilders.core.Blueprint;
 import net.tfminecraft.vfbuilders.events.BeginVehicleConstructionEvent;
@@ -46,14 +47,25 @@ public final class VehicleRegistrationFeeListener implements Listener {
         if (player == null || blueprint == null) {
             return;
         }
+        var session = Members.session(player).orElse(null);
+        if (session == null) { event.setCancelled(true); player.sendMessage("§cSelect a living character first."); return; }
         String vehicleTypeId = VehicleIntegrationListener.resolveVehicleTypeId(blueprint);
-        Quote quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, player.getName(), vehicleTypeId);
+        String stationKey = stationKey(event.getStation());
+        String scope = "build:" + stationKey;
+        var payments = VehiclePayments.current();
+        if (payments == null || !payments.ready() || payments.receipt(scope) != null || store.buildOwner(stationKey) != null || stationKey.equals("unknown")) {
+            event.setCancelled(true); player.sendMessage("§cVehicle payment needs staff review or recovery."); return;
+        }
+        Quote quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, Members.key(player), vehicleTypeId);
         if (quote == null) {
+            store.beginBuild(stationKey, session.ref().characterId().toString());
+            try { store.saveDurably(); }
+            catch (java.io.IOException error) { payments.fail(error); event.setCancelled(true); }
             return;
         }
-        String stationKey = stationKey(event.getStation());
         long now = System.currentTimeMillis();
-        String target = "build:" + stationKey + ":" + vehicleTypeId;
+        String target = scope + ":" + vehicleTypeId + ":" + session.ref().characterId()
+                + ":" + quote.faction().getOrCreateMainGuild().getIncarnationId();
         if (!confirmations.confirm(player.getUniqueId(), target, quote.amount(), now)) {
             event.setCancelled(true);
             event.setKeepPlacement(true);
@@ -61,33 +73,33 @@ public final class VehicleRegistrationFeeListener implements Listener {
             player.sendMessage(VehicleFeeMessages.registrationConfirm(quote, vehicleTypeId));
             return;
         }
-        UUID payer = payerUuid(player);
-        if (!VehicleFeeService.collect(payer, quote)) {
+        if (payments.charge(scope, "sf:vehicle:build:" + UUID.randomUUID(), session.ref(), quote) != Result.APPLIED) {
             event.setCancelled(true);
             player.sendMessage(VehicleFeeMessages.registrationUnaffordable(quote));
             return;
         }
-        store.putPaidBuild(stationKey, new PaidBuild(payer, quote.faction().getId(), quote.amount()));
-        saver.run();
         player.sendMessage(VehicleFeeMessages.registrationPaid(quote));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onConstructionCancel(VehicleConstructionCancelEvent event) {
-        PaidBuild build = store.takePaidBuild(stationKey(event.getStation()));
+        String scope = "build:" + stationKey(event.getStation());
+        var payments = VehiclePayments.current();
+        var build = payments == null ? null : payments.receipt(scope);
         if (build == null) {
+            if (store.buildOwner(stationKey(event.getStation())) != null && payments != null) payments.complete(scope, null);
             return;
         }
-        saver.run();
-        double refunded = VehicleFeeService.refund(
-                build.payerUuid(), build.factionId(), FeeKind.REGISTRATION_FEE, build.amount());
-        double shortfall = Formatter.formatDouble(build.amount() - refunded);
+        var refund = payments.refund(scope);
+        if (refund.result() != Result.APPLIED) return;
+        double refunded = refund.amount();
+        double shortfall = Formatter.formatDouble(net.tfminecraft.simplefactions.economy.Money.denars(build.cents()) - refunded);
         if (shortfall > 0.0 && SimpleFactions.getInstance() != null) {
             // The faction bank may be short or the deposit may have failed; either way staff are told.
             SimpleFactions.getInstance().getLogger().warning("Registration fee refund short by " + shortfall
-                    + " for " + build.payerUuid() + " from faction " + build.factionId());
+                    + " for " + build.payer().characterId() + " from faction " + build.factionId());
         }
-        Player payer = Bukkit.getPlayer(build.payerUuid());
+        Player payer = Members.online(build.payer().characterId().toString()).orElse(null);
         if (payer != null && payer.isOnline()) {
             if (refunded > 0.0) {
                 payer.sendMessage(VehicleFeeMessages.registrationRefunded(refunded));
@@ -100,24 +112,14 @@ public final class VehicleRegistrationFeeListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onVehicleConstruct(VehicleConstructEvent event) {
-        boolean changed = store.takePaidBuild(stationKey(event.getStation())) != null;
-        if (event.getVehicle() != null && event.getConstructorUuid() != null) {
-            String owner = event.getConstructor() != null
-                    ? event.getConstructor().getName()
-                    : VehicleOwnershipQueries.resolvePlayerName(event.getConstructorUuid());
-            if (owner != null) {
-                store.setLastOwner(event.getVehicle().getUUID(), owner);
-                changed = true;
-            }
-        }
-        if (changed) {
-            saver.run();
-        }
-    }
-
-    static UUID payerUuid(Player player) {
-        UUID resolved = VehicleFeeService.resolve(player.getName());
-        return resolved != null ? resolved : player.getUniqueId();
+        String scope = "build:" + stationKey(event.getStation());
+        var payments = VehiclePayments.current();
+        var paid = payments == null ? null : payments.receipt(scope);
+        if (event.getVehicle() == null || event.getVehicle().getUUID() == null || payments == null) return;
+        String owner = paid != null ? paid.payer().characterId().toString() : store.buildOwner(stationKey(event.getStation()));
+        if (owner == null || !payments.personal(event.getVehicle().getUUID(), event.getVehicle().getId(), UUID.fromString(owner))) return;
+        store.setLastOwner(event.getVehicle().getUUID(), Members.key(UUID.fromString(owner)));
+        payments.complete(scope, null);
     }
 
     static String stationKey(ActiveStation station) {

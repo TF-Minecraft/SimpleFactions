@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,8 +10,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+
+import net.tfminecraft.tlibs.character.CharacterSessionStartEvent;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
@@ -46,9 +49,9 @@ public final class CampaignRaidWarbandService {
 			return false;
 		}
 		net.tfminecraft.simplefactions.objects.Faction faction =
-				net.tfminecraft.simplefactions.managers.FactionManager.getByMember(player.getName());
+				net.tfminecraft.simplefactions.managers.FactionManager.getByMember(Members.key(player));
 		if (faction == null) {
-			faction = net.tfminecraft.simplefactions.managers.FactionManager.getByLeader(player.getName());
+			faction = net.tfminecraft.simplefactions.managers.FactionManager.getByLeader(Members.key(player));
 		}
 		for (War war : WarManager.getActive()) {
 			CampaignRaid raid = CampaignRaidService.getActive(war);
@@ -114,8 +117,8 @@ public final class CampaignRaidWarbandService {
 		return band != null && band.isFaction() && sideId.equals(band.getCampaignSideId()) ? band : null;
 	}
 
-	public static void signupAttacker(War war, CampaignRaid raid, UUID playerId, String playerName) {
-		if (war == null || raid == null || playerId == null || playerName == null) {
+	public static void signupAttacker(War war, CampaignRaid raid, UUID playerId, String memberKey) {
+		if (war == null || raid == null || playerId == null || memberKey == null) {
 			return;
 		}
 		createRaidWarbands(war, raid);
@@ -123,12 +126,12 @@ public final class CampaignRaidWarbandService {
 		if (warband == null || warband.hasMember(playerId)) {
 			return;
 		}
-		applyRaidLeaderRules(war, warband, playerId, playerName);
+		applyRaidLeaderRules(war, warband, playerId, memberKey);
 		warband.addMember(playerId);
 	}
 
-	public static void signupDefender(War war, CampaignRaid raid, UUID playerId, String playerName) {
-		if (war == null || raid == null || playerId == null || playerName == null) {
+	public static void signupDefender(War war, CampaignRaid raid, UUID playerId, String memberKey) {
+		if (war == null || raid == null || playerId == null || memberKey == null) {
 			return;
 		}
 		createRaidWarbands(war, raid);
@@ -136,7 +139,7 @@ public final class CampaignRaidWarbandService {
 		if (warband == null || warband.hasMember(playerId)) {
 			return;
 		}
-		applyRaidLeaderRules(war, warband, playerId, playerName);
+		applyRaidLeaderRules(war, warband, playerId, memberKey);
 		warband.addMember(playerId);
 	}
 
@@ -152,14 +155,14 @@ public final class CampaignRaidWarbandService {
 			return;
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(defenderSide)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player == null || !player.isOnline()) {
 				continue;
 			}
 			if (WarbandManager.getByMemberId(player.getUniqueId()) != null) {
 				continue;
 			}
-			signupDefender(war, raid, player.getUniqueId(), player.getName());
+			signupDefender(war, raid, player.getUniqueId(), memberName);
 		}
 	}
 
@@ -167,9 +170,9 @@ public final class CampaignRaidWarbandService {
 		if (player == null) {
 			return;
 		}
-		Faction faction = FactionManager.getByMember(player.getName());
+		Faction faction = FactionManager.getByMember(Members.key(player));
 		if (faction == null) {
-			faction = FactionManager.getByLeader(player.getName());
+			faction = FactionManager.getByLeader(Members.key(player));
 		}
 		if (faction == null || WarbandManager.getByMemberId(player.getUniqueId()) != null) {
 			return;
@@ -189,7 +192,7 @@ public final class CampaignRaidWarbandService {
 			if (playerCoalition != defendingCoalition) {
 				continue;
 			}
-			signupDefender(war, raid, player.getUniqueId(), player.getName());
+			signupDefender(war, raid, player.getUniqueId(), Members.key(player));
 			return;
 		}
 	}
@@ -237,12 +240,12 @@ public final class CampaignRaidWarbandService {
 		WarbandManager.addWarband(warband);
 	}
 
-	private static void applyRaidLeaderRules(War war, Warband warband, UUID playerId, String playerName) {
+	private static void applyRaidLeaderRules(War war, Warband warband, UUID playerId, String memberKey) {
 		if (warband.isPendingLeader()) {
 			warband.setLeaderId(playerId);
 			return;
 		}
-		if (CampaignWarbandBattleService.isWarSideMainLeader(war, warband, playerName)) {
+		if (CampaignWarbandBattleService.isWarSideMainLeader(war, warband, memberKey)) {
 			warband.setLeaderId(playerId);
 		}
 	}
@@ -269,8 +272,9 @@ public final class CampaignRaidWarbandService {
 	public static final class Listener implements org.bukkit.event.Listener {
 		private final Map<UUID, String> pendingLeaderPromotion = new ConcurrentHashMap<>();
 
+		/** Defenders enrol once their character is playing, not on login. */
 		@EventHandler
-		public void onJoin(PlayerJoinEvent event) {
+		public void onSessionStart(CharacterSessionStartEvent event) {
 			CampaignRaidWarbandService.tryEnrollDefenderOnLogin(event.getPlayer());
 		}
 

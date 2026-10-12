@@ -37,7 +37,7 @@ public final class ContractFixture {
         CompanyFixture.installCompanyUpgrades();
 
         CompanyFixture host = new CompanyFixture(10000);
-        MercenaryCompanyService.requestFormation(host.guild, host.leader(), "Hired Blades");
+        host.requestFormation(host.leader(), "Hired Blades");
         MercenaryCompany company = host.company();
         for (int i = 0; i < Cache.mercenaryFormationSeconds; i++) {
             company.tick();

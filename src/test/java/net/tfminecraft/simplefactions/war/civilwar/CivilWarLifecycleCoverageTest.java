@@ -138,7 +138,7 @@ class CivilWarLifecycleCoverageTest {
     Guild guild = fixture.guild(home, "traders", "Bob");
     guild.addMember("Cara");
     guild.setCapital(2);
-    guild.getBank().deposit(37.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 37.0);
     var bank = guild.getBank();
     var type = guild.getType();
     guild.setName("The Merchant Company");
@@ -291,8 +291,8 @@ class CivilWarLifecycleCoverageTest {
     Guild second = fixture.guild(home, "crafters", "Cara");
     main.setCapital(2);
     second.setCapital(2);
-    main.getBank().deposit(37.0);
-    second.getBank().deposit(21.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(main.getBank(), 37.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(second.getBank(), 21.0);
     home.getOrCreateMainGuild().addMember("Dave");
     Movement movement = movement(home, "Bob", Action.LAW_CHANGE);
     movement.getSupporters().addGuild(second);
@@ -461,7 +461,7 @@ class CivilWarLifecycleCoverageTest {
     home.getOrCreateMainGuild().addMember("Bob");
     Guild guild = fixture.guild(home, "merchants", "Cara");
     guild.addMember("Dave");
-    guild.getBank().deposit(19.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 19.0);
     Movement movement = movement(home, "Bob", Action.CHANGE_LEADER);
     movement.getCauses().getFirst().getProposal().setTarget("Dave");
     assertTrue(home.canBecomeLeader("Dave"));
@@ -682,7 +682,7 @@ class CivilWarLifecycleCoverageTest {
     twoProvinceHome(home);
     Guild guild = fixture.guild(home, "traders", "Bob");
     guild.setCapital(2);
-    guild.getBank().deposit(23.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 23.0);
     Movement movement = movement(home, "Bob", Action.LAW_CHANGE);
     AtomicBoolean unavailable = new AtomicBoolean();
     doAnswer(

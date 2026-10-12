@@ -43,7 +43,7 @@ class PlayerVehicleRegistryTest {
     }
 
     @Test
-    void saveAndLoad_skipsPersonalRows() {
+    void saveAndLoad_keepsCapturedPersonalPayers() {
         UUID player = UUID.randomUUID();
         registry.register(new PlayerVehicleRecord(
             player, "vehicle-1", "ironclad", OwnershipMode.PERSONAL, null));
@@ -57,7 +57,7 @@ class PlayerVehicleRegistryTest {
             new VehicleRegistryPersistence(tempDir.toFile(), loaded);
         loadedPersistence.load();
 
-        assertTrue(loaded.getByVehicleUuid("vehicle-1").isEmpty());
+        assertEquals(player, loaded.getByVehicleUuid("vehicle-1").orElseThrow().getPlayerUuid());
         assertTrue(loaded.getByVehicleUuid("vehicle-2").isPresent());
         assertEquals(OwnershipMode.INSTALLATION,
             loaded.getByVehicleUuid("vehicle-2").get().getMode());

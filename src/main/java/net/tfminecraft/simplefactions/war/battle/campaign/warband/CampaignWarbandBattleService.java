@@ -25,16 +25,16 @@ public final class CampaignWarbandBattleService {
 			Battle battle,
 			String sideId,
 			Warband warband,
-			String joiningPlayerName,
+			String memberKey,
 			UUID playerId) {
-		if (war == null || battle == null || warband == null || joiningPlayerName == null) {
+		if (war == null || battle == null || warband == null || memberKey == null) {
 			return "Invalid campaign warband join";
 		}
 		if (!battle.hasStarted()) {
 			return null;
 		}
 		net.tfminecraft.simplefactions.objects.Faction faction =
-				net.tfminecraft.simplefactions.managers.FactionManager.getByMember(joiningPlayerName);
+				net.tfminecraft.simplefactions.managers.FactionManager.getByMember(memberKey);
 		if (faction == null) {
 			return "You must be in a faction to join this campaign battle";
 		}
@@ -44,12 +44,12 @@ public final class CampaignWarbandBattleService {
 			return "Your faction is not on this battle side";
 		}
 		String mercenaryError = CampaignBattleJoinService.validateMercenaryRoster(
-				war, battle, sideId, battleSide, joiningPlayerName, playerId);
+				war, battle, sideId, battleSide, memberKey, playerId);
 		if (mercenaryError != null) {
 			return mercenaryError;
 		}
 		net.tfminecraft.simplefactions.war.core.Side playerSide =
-				CampaignBattleJoinService.rosterSideFor(war, joiningPlayerName, faction);
+				CampaignBattleJoinService.rosterSideFor(war, memberKey, faction);
 		if (playerSide == null || playerSide != battleSide) {
 			return "Your faction is not on this battle side";
 		}
@@ -176,8 +176,8 @@ public final class CampaignWarbandBattleService {
 	public static boolean isWarSideMainLeader(
 			net.tfminecraft.simplefactions.war.core.War war,
 			Warband warband,
-			String playerName) {
-		if (war == null || warband == null || playerName == null || playerName.isBlank()) {
+			String memberKey) {
+		if (war == null || warband == null || memberKey == null || memberKey.isBlank()) {
 			return false;
 		}
 		String sideId = warband.getCampaignSideId();
@@ -193,7 +193,7 @@ public final class CampaignWarbandBattleService {
 		}
 		for (net.tfminecraft.simplefactions.war.core.Participant par : side.getMainParticipants()) {
 			if (par.getLeader() != null
-					&& playerName.equalsIgnoreCase(par.getLeader().getLeader())) {
+					&& memberKey.equals(par.getLeader().getLeader())) {
 				return true;
 			}
 		}

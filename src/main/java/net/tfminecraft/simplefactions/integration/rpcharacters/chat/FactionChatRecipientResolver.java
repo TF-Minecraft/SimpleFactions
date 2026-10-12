@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.integration.rpcharacters.chat;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.Collections;
 import java.util.Set;
 
@@ -19,7 +21,7 @@ public final class FactionChatRecipientResolver implements ChatRecipientResolver
 			return Collections.emptySet();
 		}
 
-		Faction faction = FactionManager.getByMember(sender.getName());
+		Faction faction = FactionManager.getByMember(Members.key(sender));
 		if (faction == null) {
 			return Collections.emptySet();
 		}

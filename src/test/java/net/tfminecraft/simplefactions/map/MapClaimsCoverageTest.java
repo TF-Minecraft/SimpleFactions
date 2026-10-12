@@ -162,7 +162,7 @@ class MapClaimsCoverageTest {
     Faction owner = realm("other", "Other", 3, 2, 3);
     civilWar(owner);
     Cache.provinceCost = 1000;
-    home.getBank().deposit(1_000_000_000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(home.getBank(), 1_000_000_000.0);
     home.updatePrestige();
     map.claim(leader, home, 2, false);
     assertSame(owner, FactionManager.getByProvince(2));
@@ -175,7 +175,7 @@ class MapClaimsCoverageTest {
   void stealingAnOverCapHoldingTransfersItsInstallationWithTheLand(boolean online) {
     Faction owner = realm("other", "Other", 3, 2, 3);
     Cache.provinceCost = 1000;
-    home.getBank().deposit(1_000_000_000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(home.getBank(), 1_000_000_000.0);
     home.updatePrestige();
     assertTrue(TitleManager.overProvinceCap(owner));
     assertTrue(home.getPrestige() >= TitleManager.getClaimCost(home));

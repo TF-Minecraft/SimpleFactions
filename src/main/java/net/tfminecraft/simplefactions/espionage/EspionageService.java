@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.espionage;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -42,14 +44,14 @@ public final class EspionageService {
         characterAptitudes = registry;
     }
 
-    public static boolean eligible(Faction faction, String playerName) {
-        return faction.isMemberIgnoreCase(playerName) || faction.isLeader(playerName);
+    public static boolean eligible(Faction faction, String member) {
+        return member != null && (faction.isMember(member) || faction.isLeader(member));
     }
 
     /** The leader's default holding follows the leadership; deliberate appointments stay. */
     private static boolean validHolder(Faction faction, SpecialPositionAssignment holder) {
-        return holder != null && eligible(faction, holder.playerName) && !deadCharacter(holder)
-                && !(holder.automatic && !faction.isLeader(holder.playerName));
+        return holder != null && eligible(faction, holder.memberKey()) && !deadCharacter(holder)
+                && !(holder.automatic && !faction.isLeader(holder.memberKey()));
     }
 
     /** New factions and every later vacancy fall to the leader; it waits for their active character. */
@@ -59,7 +61,7 @@ public final class EspionageService {
 
     private static void initializeFounder(Faction faction, java.util.Set<Faction> dirty) {
         if (faction.getEspionage() == null || faction.getLeader() == null || org.bukkit.Bukkit.getServer() == null) return;
-        var founder = org.bukkit.Bukkit.getPlayerExact(faction.getLeader());
+        var founder = Members.player(faction.getLeader());
         var session = OfficeCharacters.currentSession(founder);
         String characterId = session == null ? null : session.ref().characterId().toString();
         for (SpecialPosition office : SpecialPosition.values()) {
@@ -69,7 +71,7 @@ public final class EspionageService {
                 continue;
             }
             var assignment = new SpecialPositionAssignment();
-            assignment.playerName = faction.getLeader();
+            assignment.playerName = founder.getName();
             assignment.playerId = session.ref().ownerId();
             int aptitude = 0;
             try {
@@ -130,7 +132,7 @@ public final class EspionageService {
 
     /** A new holder builds up to their permanent aptitude; a solo leader keeps only part of it. */
     static int effectiveAptitude(Faction faction, SpecialPositionAssignment holder, long now) {
-        if (holder == null || !eligible(faction, holder.playerName)) return 0;
+        if (holder == null || !eligible(faction, holder.memberKey())) return 0;
         // The epsilon keeps 1 - 0.1 * 3 from flooring a whole result one point low.
         return (int) Math.floor(holder.aptitude * EspionageMath.buildUp(holder.appointedAt, now)
                 * positionMultiplier(positionsHeld(faction, holder)) + 1e-9);
@@ -138,11 +140,12 @@ public final class EspionageService {
 
     /** Offices held by the same person; an assignment not saved yet still counts as one. */
     public static int positionsHeld(Faction faction, SpecialPositionAssignment holder) {
-        if (holder == null || holder.playerName == null || faction.getEspionage() == null) return 1;
+        String member = holder == null ? null : holder.memberKey();
+        if (member == null || faction.getEspionage() == null) return 1;
         int held = 0;
         for (SpecialPosition office : SpecialPosition.values()) {
             var other = faction.getEspionage().holder(office);
-            if (other != null && holder.playerName.equalsIgnoreCase(other.playerName)) held++;
+            if (other != null && member.equals(other.memberKey())) held++;
         }
         return Math.max(1, held);
     }
@@ -164,7 +167,7 @@ public final class EspionageService {
 
     public static boolean isOwn(Player viewer, Faction target) {
         return viewer != null && target != null
-                && (target.isMemberIgnoreCase(viewer.getName()) || target.isLeader(viewer.getName()));
+                && (target.isMember(Members.key(viewer)) || target.isLeader(Members.key(viewer)));
     }
 
     public static boolean bypasses(Player viewer) {
@@ -203,7 +206,7 @@ public final class EspionageService {
         boolean changed = false;
         SpecialPositionAssignment holder = state.getSpymaster();
         if (holder != null && !validHolder(faction, holder)) {
-            boolean died = eligible(faction, holder.playerName) && deadCharacter(holder);
+            boolean died = eligible(faction, holder.memberKey()) && deadCharacter(holder);
             state.removeSpymaster();
             if (died) state.waiveAppointmentWait(SpecialPosition.SPYMASTER);
             changed = true;
@@ -236,10 +239,8 @@ public final class EspionageService {
             boolean matching = holder != null && ref.ownerId().equals(holder.playerId)
                     && ref.characterId().equals(OfficeCharacters.characterUuid(holder.characterId))
                     && Math.max(holder.appointedAt, holder.characterBoundAt) <= at.toEpochMilli();
-            var leader = faction.getLeader() == null ? null
-                    : org.bukkit.Bukkit.getOfflinePlayerIfCached(faction.getLeader());
             boolean pending = state.isPendingFounder(SpecialPosition.SPYMASTER)
-                    && leader != null && ref.ownerId().equals(leader.getUniqueId())
+                    && Members.key(ref).equals(faction.getLeader())
                     && ref.characterId().equals(OfficeCharacters.characterUuid(
                             state.pendingFounderCharacter(SpecialPosition.SPYMASTER)))
                     && state.pendingFounderBoundAt(SpecialPosition.SPYMASTER) <= at.toEpochMilli();
@@ -270,7 +271,7 @@ public final class EspionageService {
     }
 
     public static boolean appoint(Player actor, Faction faction, Player candidate) {
-        if (!isOwn(actor, faction) || !faction.isLeader(actor.getName())) {
+        if (!isOwn(actor, faction) || !faction.isLeader(Members.key(actor))) {
             actor.sendMessage("§cOnly your faction leader can appoint a Spymaster.");
             return false;
         }
@@ -348,7 +349,7 @@ public final class EspionageService {
     }
 
     public static boolean remove(Player actor, Faction faction) {
-        if (!isOwn(actor, faction) || !faction.isLeader(actor.getName())) {
+        if (!isOwn(actor, faction) || !faction.isLeader(Members.key(actor))) {
             actor.sendMessage("§cOnly your faction leader can remove the Spymaster.");
             return false;
         }
@@ -467,7 +468,7 @@ public final class EspionageService {
     /** Reading or clicking menus never generates intelligence. */
     public static IntelligenceReport report(Player viewer, Faction target) {
         if (viewer == null || canViewCovert(viewer, target)) return null;
-        Faction observer = FactionManager.getByMember(viewer.getName());
+        Faction observer = FactionManager.getByMember(Members.key(viewer));
         if (!hasSpymaster(observer)) return null;
         return observer.getEspionage().cachedReport(target.getId(), target.getFoundedAt(), day());
     }
@@ -477,7 +478,7 @@ public final class EspionageService {
     /** GUI-opening commands request one faction-wide report per foreign target each UTC day. */
     public static void refreshReports(Player viewer) {
         if (viewer == null || bypasses(viewer)) return;
-        Faction observer = FactionManager.getByMember(viewer.getName());
+        Faction observer = FactionManager.getByMember(Members.key(viewer));
         if (observer == null) return;
         boolean updated = false;
         java.util.Set<Faction> dirty = new java.util.LinkedHashSet<>();
@@ -558,11 +559,11 @@ public final class EspionageService {
         // The rolled sample is a prefix of the shared roster, so it still holds if sharing is switched off.
         var rolled = prefix(shuffled, rosterFraction(margin));
         var sample = report.exact("roster") ? prefix(shuffled, 1) : rolled;
-        report.members = sample.stream().map(name -> CharacterNames.forForeign(name) + " §7— "
+        report.members = sample.stream().map(name -> Members.display(name) + " §7— "
                 + net.tfminecraft.simplefactions.utils.Represents.represents(target, name)).toList();
         for (var guild : target.getGuildHandler().getGuilds()) {
             report.guildMembers.put(guild.getId(), sample.stream().filter(guild::isMember)
-                    .filter(name -> !guild.isLeader(name)).map(CharacterNames::forForeign).toList());
+                    .filter(name -> !guild.isLeader(name)).map(Members::display).toList());
         }
         report.roster = new java.util.ArrayList<>();
         for (var guild : target.getGuildHandler().getGuilds()) {
@@ -570,12 +571,12 @@ public final class EspionageService {
                 if (target.isLeader(name)) continue;
                 var offices = java.util.Arrays.stream(SpecialPosition.values()).filter(office -> {
                     var holder = target.getEspionage().holder(office);
-                    return holder != null && holder.playerName.equalsIgnoreCase(name);
+                    return holder != null && name.equals(holder.memberKey());
                 }).toList();
                 boolean knownLeader = guild.isLeader(name) && report.allows("guild-leader");
                 boolean knownOffice = !offices.isEmpty() && report.allows("office-holder");
                 if (!knownLeader && !knownOffice && (!report.allows("guild-members") || !sample.contains(name))) continue;
-                report.roster.add(new IntelligenceReport.RosterMember(CharacterNames.forForeign(name), guild.getId(), guild.getName(), rolled.contains(name),
+                report.roster.add(new IntelligenceReport.RosterMember(Members.display(name), guild.getId(), guild.getName(), rolled.contains(name),
                         knownLeader, knownOffice ? offices : java.util.List.of()));
             }
         }
@@ -619,7 +620,7 @@ public final class EspionageService {
         for (var office : SpecialPosition.values()) {
             var holder = target.getEspionage().holder(office);
             if (report.allows("office-holder")) report.officeHolders.put(office,
-                    holder == null ? "Vacant" : CharacterNames.forForeign(holder.playerName));
+                    holder == null ? "Vacant" : Members.display(holder.memberKey()));
             String key = IntelligenceReport.officeAptitudeKey(office);
             if (!report.allows(key)) continue;
             double aptitude = office == SpecialPosition.SPYMASTER ? effectiveAptitude(target, holder)

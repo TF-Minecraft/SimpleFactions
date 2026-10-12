@@ -203,7 +203,8 @@ class PlayerManagerCoverageTest {
 
   @Test
   void aLeaderCanReviewAndPublishValidLoanTermsWithoutMovingMoney() {
-    lender.setBank(new Bank(lender, 10000, null));
+    lender.setBank(new Bank(lender, 10000, fixture.ui.world.getChunkAt(0, 0)));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(lender.getBank(), 10000);
     ItemStack draft = LoanBook.getBaseBook(lender);
     leader.getInventory().setItem(0, draft);
     sign(leader, draft);
@@ -219,6 +220,7 @@ class PlayerManagerCoverageTest {
     BookMeta offer = (BookMeta) leader.getInventory().getItem(0).getItemMeta();
     assertEquals(3, offer.getPersistentDataContainer().get(Keys.INT, PersistentDataType.INTEGER));
     assertNotNull(LoanBook.offerId(offer));
+    assertTrue(LoanBook.currentIssuer(offer, lender));
     assertNotNull(
         offer
             .getPersistentDataContainer()
@@ -232,6 +234,7 @@ class PlayerManagerCoverageTest {
       strings = {
         "expired",
         "old_offer",
+        "unbound_issuer",
         "missing_snapshot",
         "invalid_snapshot",
         "invalid_terms",
@@ -254,6 +257,8 @@ class PlayerManagerCoverageTest {
                   meta.getPersistentDataContainer().set(Keys.LONG, PersistentDataType.LONG, 1L));
       case "old_offer" ->
           edit(book, meta -> meta.getPersistentDataContainer().remove(Keys.LOAN_OFFER));
+      case "unbound_issuer" ->
+          edit(book, meta -> meta.getPersistentDataContainer().remove(Keys.LOAN_ISSUER));
       case "missing_snapshot" ->
           edit(book, meta -> meta.getPersistentDataContainer().remove(Keys.SECONDARY_STRING_KEY));
       case "invalid_snapshot" ->
@@ -267,7 +272,7 @@ class PlayerManagerCoverageTest {
           edit(book, meta -> meta.setPage(2, meta.getPage(2).replace("500.0", "900.0")));
       case "no_lender_bank" -> lender.setBank(null);
       case "no_borrower_bank" -> borrower.setBank(null);
-      case "insufficient" -> lender.getBank().setWealth(20.0);
+      case "insufficient" -> net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(lender.getBank(), 20.0);
       case "used_offer" ->
           lender
               .getLoanHandler()
@@ -286,6 +291,27 @@ class PlayerManagerCoverageTest {
     assertTrue(messages(signer).stream().anyMatch(m -> m.startsWith("§c")), reason);
   }
 
+  @Test
+  void oldLoanBookCannotChargeARecreatedGuildWithTheSameId() {
+    Guild borrower = borrower();
+    Player signer = player("Borrower");
+    ItemStack book = loanBook(3, borrower);
+    String offer = LoanBook.offerId((BookMeta) book.getItemMeta());
+    Guild replacement = fixture.guild(faction, lender.getId(), "Replacement");
+    replacement.setBank(new Bank(replacement, 0, fixture.ui.world.getChunkAt(0, 0)));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(replacement.getBank(), 10000);
+    double borrowerBefore = borrower.getBank().getWealth();
+    signer.getInventory().setItem(0, book);
+
+    assertTrue(sign(signer, book).isCancelled());
+
+    assertEquals(10000, replacement.getBank().getWealth());
+    assertEquals(borrowerBefore, borrower.getBank().getWealth());
+    assertNull(replacement.getLoanHandler().getLoanById(offer));
+    assertFalse(LoanBook.currentIssuer((BookMeta) book.getItemMeta(), replacement));
+    verify(signer).sendMessage(contains("out of date"));
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"online", "offline", "absent", "no_expiry"})
   void acceptingALoanConservesFundsRecordsOneDebtAndProducesASignedReceipt(String notification) {
@@ -294,6 +320,8 @@ class PlayerManagerCoverageTest {
     if (!notification.equals("absent")) {
       when(Bukkit.getPlayer("Leader")).thenReturn(leader);
       when(leader.isOnline()).thenReturn(!notification.equals("offline"));
+    } else {
+      fixture.online.remove("Leader");
     }
     ItemStack book = loanBook(3, borrower);
     if (notification.equals("no_expiry"))
@@ -340,7 +368,7 @@ class PlayerManagerCoverageTest {
       actor = player("Merchant");
       guild.setBank(new Bank(guild, here));
     }
-    PlayerBankPulseEvent event = new PlayerBankPulseEvent(actor);
+    PlayerBankPulseEvent event = new PlayerBankPulseEvent(actor, net.tfminecraft.simplefactions.identity.Members.session(actor).orElseThrow().ref());
     listener.bankPulse(event);
     boolean allowed = state.endsWith("bank") && !state.equals("no_bank");
     assertEquals(!allowed, event.isCancelled());
@@ -348,24 +376,11 @@ class PlayerManagerCoverageTest {
     else if (!allowed) verify(actor).sendMessage(contains("must be at your bank"));
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"taxed", "zero_rate", "no_bank", "outsider", "zero_income"})
-  void earningsRecordGrossAndTaxesWithoutLosingMoneyOrSettlingTheGuildEarly(String state) {
-    lender.setBank(new Bank(lender, 100, null));
-    faction.setTaxRate(state.equals("zero_rate") ? 0 : 10);
-    if (state.equals("no_bank")) lender.setBank(null);
-    String name = state.equals("outsider") ? "Stranger" : "Leader";
-    double gross = state.equals("zero_income") ? 0 : 200;
-    double expectedTax = state.equals("taxed") ? 20 : 0;
-    PlayerEarnMoneyEvent event = new PlayerEarnMoneyEvent(name, gross);
-    listener.earnMoney(event);
-    PlayerLedger ledger = economy.getLedger(name);
-    assertEquals(expectedTax, event.getAmount());
-    assertEquals(gross, ledger.getAmount(PlayerCashflow.EARNINGS));
-    assertEquals(-expectedTax, ledger.getAmount(PlayerCashflow.CITIZEN_TAX), 1e-9);
-    assertEquals(gross, ledger.getNetDaily() + expectedTax);
-    assertEquals(expectedTax, lender.getLedger().getCitizenTaxesCopy().getOrDefault(name, 0.0));
-    if (lender.getBank() != null) assertEquals(100, lender.getBank().getWealth());
+  @Test
+  void oldEarnEventCannotTaxTheSameEarningAgain() {
+    assertTrue(java.util.Arrays.stream(PlayerManager.class.getDeclaredMethods())
+        .filter(method -> method.isAnnotationPresent(org.bukkit.event.EventHandler.class))
+        .noneMatch(method -> java.util.Arrays.asList(method.getParameterTypes()).contains(PlayerEarnMoneyEvent.class)));
   }
 
   @ParameterizedTest
@@ -379,25 +394,16 @@ class PlayerManagerCoverageTest {
     Coin coin = new Coin("gold", config);
     MoneyManager money = mock(MoneyManager.class);
     scoped(DenarEconomy.class).when(DenarEconomy::getMoneyManager).thenReturn(money);
+    when(DenarEconomy.getLedger()).thenCallRealMethod();
     when(money.getCoin(material)).thenReturn(state.equals("unknown_item") ? null : coin);
     if (!state.equals("away")) lender.setBank(new Bank(lender, leader.getLocation().getChunk()));
-    double[] credited = {0};
-    doAnswer(
-            call -> {
-              credited[0] += (Double) call.getArgument(1);
-              return null;
-            })
-        .when(money)
-        .addMoneyToAccount(anyString(), anyDouble(), anyBoolean(), anyBoolean(), any());
-    listener.depositMaterials(new PlayerDepositMaterialsEvent(leader, material));
+    leader.getInventory().setItem(0, material);
+    var ref = net.tfminecraft.simplefactions.identity.Members.session(leader).orElseThrow().ref();
+    listener.depositMaterials(new PlayerDepositMaterialsEvent(leader, material, ref));
     assertEquals(state.equals("deposit") ? 0 : 7, material.getAmount());
-    assertEquals(87.5, credited[0] + material.getAmount() * coin.getValue());
-    if (state.equals("deposit"))
-      verify(money)
-          .addMoneyToAccount(leader.getUniqueId().toString(), 87.5, false, true, Accounts.BANK);
-    else
-      verify(money, never())
-          .addMoneyToAccount(anyString(), anyDouble(), anyBoolean(), anyBoolean(), any());
+    long credited = net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.bank(ref));
+    assertEquals(87.5, credited / 100d + material.getAmount() * coin.getValue());
+    verify(money, never()).addMoneyToAccount(anyString(), anyDouble(), anyBoolean(), anyBoolean(), any());
   }
 
   @ParameterizedTest
@@ -513,12 +519,16 @@ class PlayerManagerCoverageTest {
     Faction hirer = fixture.saved("hirer", "Hirer");
     Guild treasury = hirer.getOrCreateMainGuild();
     treasury.setBank(new Bank(treasury, 1000, null));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(treasury.getBank(), 1000);
     company.getGuild().setBank(new Bank(company.getGuild(), 500, null));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(company.getGuild().getBank(), 500);
     Player signer = player("Hirer");
     Player captain = player("Captain");
     if (!notification.equals("absent")) {
       when(Bukkit.getPlayer("Captain")).thenReturn(captain);
       when(captain.isOnline()).thenReturn(notification.equals("online"));
+    } else {
+      fixture.online.remove("Captain");
     }
     var offer = company.getContractHandler().offer(hirer, ContractTerms.defaults());
     assertTrue(offer.ok(), offer.message());
@@ -650,10 +660,12 @@ class PlayerManagerCoverageTest {
   }
 
   private Guild borrower() {
-    lender.setBank(new Bank(lender, 10000, null));
+    lender.setBank(new Bank(lender, 10000, fixture.ui.world.getChunkAt(0, 0)));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(lender.getBank(), 10000);
     Faction other = fixture.saved("borrowers", "Borrower");
     Guild borrower = other.getOrCreateMainGuild();
-    borrower.setBank(new Bank(borrower, 100, null));
+    borrower.setBank(new Bank(borrower, 100, fixture.ui.world.getChunkAt(0, 0)));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(borrower.getBank(), 100);
     return borrower;
   }
 

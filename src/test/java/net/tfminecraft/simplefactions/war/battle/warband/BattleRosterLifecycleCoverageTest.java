@@ -41,7 +41,6 @@ import net.tfminecraft.vehicleframework.managers.VehicleManager;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -75,6 +74,10 @@ class BattleRosterLifecycleCoverageTest {
     membership = WarbandMembershipService.getInstance();
   }
 
+  private static net.tfminecraft.tlibs.character.CharacterSession session(Player player) {
+    return net.tfminecraft.simplefactions.identity.Members.session(player).orElseThrow();
+  }
+
   @AfterEach
   void cleanup() throws Exception {
     if (rig != null) rig.close();
@@ -97,11 +100,11 @@ class BattleRosterLifecycleCoverageTest {
     assertFalse(life.getPlayers().contains(rig.alice));
     assertEquals(band.getId(), membership.getPendingRejoin(rig.alice.getUniqueId()).getWarbandId());
     assertFalse(membership.getPendingRejoin(rig.alice.getUniqueId()).hasFaction());
-    assertTrue(membership.handleJoin(rig.alice));
+    assertTrue(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertTrue(band.hasMember(rig.alice));
     assertTrue(life.getPlayers().contains(rig.alice));
     assertNull(membership.getPendingRejoin(rig.alice.getUniqueId()));
-    assertFalse(membership.handleJoin(rig.alice));
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
   }
 
   @Test
@@ -111,7 +114,7 @@ class BattleRosterLifecycleCoverageTest {
     WarbandManager.deleteWarband(original);
     Warband replacement = openBand("reused_name", rig.bob);
 
-    assertFalse(membership.handleJoin(rig.alice));
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertEquals(Set.of(rig.bob.getUniqueId()), new HashSet<>(replacement.getMemberIds()));
     assertNull(membership.getPendingRejoin(rig.alice.getUniqueId()));
   }
@@ -123,12 +126,12 @@ class BattleRosterLifecycleCoverageTest {
     band.invite(rig.alice);
     band.setLocked(true);
     membership.handleQuit(rig.alice.getUniqueId());
-    assertTrue(membership.handleJoin(rig.alice));
+    assertTrue(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertTrue(band.hasMember(rig.alice));
 
     membership.handleQuit(rig.alice.getUniqueId());
     band.uninvite(rig.alice);
-    assertFalse(membership.handleJoin(rig.alice));
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertFalse(band.hasMember(rig.alice));
     assertTrue(band.hasMember(rig.bob));
   }
@@ -139,11 +142,11 @@ class BattleRosterLifecycleCoverageTest {
     Warband band = openBand("deleted", rig.alice);
     membership.handleQuit(rig.alice.getUniqueId());
     WarbandManager.deleteWarband(band);
-    assertFalse(membership.handleJoin(rig.alice));
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
     Warband another = openBand("cleared", rig.alice);
     membership.handleQuit(rig.alice.getUniqueId());
     membership.clearPendingRejoin(rig.alice.getUniqueId());
-    assertFalse(membership.handleJoin(rig.alice));
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertFalse(another.hasMember(rig.alice));
   }
 
@@ -161,7 +164,7 @@ class BattleRosterLifecycleCoverageTest {
     assertNotSame(fresh, WarbandMembershipService.getInstance());
     assertNull(WarbandMembershipService.getInstance().getPendingRejoin(rig.alice.getUniqueId()));
     assertFalse(band.hasMember(rig.alice));
-    assertTrue(fresh.handleJoin(rig.alice));
+    assertTrue(fresh.handleSessionStart(rig.alice, session(rig.alice)));
     assertTrue(band.hasMember(rig.alice));
   }
 
@@ -180,7 +183,7 @@ class BattleRosterLifecycleCoverageTest {
     assertTrue(otherBattle.hasStarted());
     assertTrue(other.hasMember(other.getLeaderId()));
     for (BossBar bar : rig.bars) verify(bar, never()).removePlayer(rig.alice);
-    assertTrue(membership.handleJoin(rig.alice));
+    assertTrue(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertNull(BattleManager.getBattleByMemberId(rig.alice.getUniqueId()));
   }
 
@@ -229,7 +232,7 @@ class BattleRosterLifecycleCoverageTest {
     membership.handleQuit(rig.alice.getUniqueId());
     assertEquals(
         rig.attacker.getId(), membership.getPendingRejoin(rig.alice.getUniqueId()).getFactionId());
-    assertTrue(membership.handleJoin(rig.alice));
+    assertTrue(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertTrue(band.hasMember(rig.alice));
   }
 
@@ -239,25 +242,22 @@ class BattleRosterLifecycleCoverageTest {
     Battle battle = battle("limited_battle", band, true);
     membership.handleQuit(rig.alice.getUniqueId());
     for (int i = 0; i < 4; i++) band.addMember(UUID.randomUUID());
-    assertFalse(membership.handleJoin(rig.alice));
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertFalse(band.hasMember(rig.alice));
     band.addPlayer(rig.alice);
     membership.handleQuit(rig.alice.getUniqueId());
     FactionManager.factions.remove(rig.attacker);
-    assertFalse(membership.handleJoin(rig.alice));
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertFalse(band.hasMember(rig.alice));
     assertFalse(battle.hasStarted());
   }
 
   @Test
-  void factionRejoinUsesSavedOfflineNameWhenTheOnlineLookupHasGoneAway() {
+  void factionRejoinUsesTheCapturedMemberKeyWhenTheOnlineLookupHasGoneAway() {
     Warband band = factionBand("offline_name");
     Battle battle = battle("offline_name_battle", band, true);
     assertNull(battle.start());
     membership.handleQuit(rig.alice.getUniqueId());
-    OfflinePlayer profile = mock(OfflinePlayer.class);
-    when(profile.getName()).thenReturn("Alice");
-    when(Bukkit.getOfflinePlayer(rig.alice.getUniqueId())).thenReturn(profile);
     when(Bukkit.getPlayer(rig.alice.getUniqueId())).thenReturn(null);
     assertTrue(membership.attemptRejoin(rig.alice.getUniqueId(), "Alice", null));
     assertTrue(band.hasMember(rig.alice));
@@ -266,41 +266,54 @@ class BattleRosterLifecycleCoverageTest {
         membership.evaluateRejoin(
             band,
             rig.alice.getUniqueId(),
+            "Alice",
             rig.defender,
-            new WarbandRejoinState(band.getId(), rig.attacker)));
+            new WarbandRejoinState(band.getId(), rig.attacker, null)));
   }
 
   @Test
-  void factionMembershipChangesAndAnUnavailableOfflineNameRefuseRejoin() {
+  void factionMembershipChangesAndAMissingMemberKeyRefuseRejoin() {
     Warband band = factionBand("changed_membership");
     Player member = rig.player("Member");
     rig.attacker.addMember("Member");
     band.addPlayer(member);
     membership.handleQuit(member.getUniqueId());
     rig.attacker.forceRemoveMember("Member");
-    assertFalse(membership.handleJoin(member));
+    assertFalse(membership.handleSessionStart(member, session(member)));
     assertFalse(band.hasMember(member));
     assertTrue(band.hasMember(rig.alice));
     membership.handleQuit(rig.alice.getUniqueId());
     assertTrue(
-        membership.handleJoin(rig.alice), "An unchanged faction can rejoin a standalone band");
+        membership.handleSessionStart(rig.alice, session(rig.alice)), "An unchanged faction can rejoin a standalone band");
     Battle battle = battle("unknown_profile_battle", band, true);
     assertNull(battle.start());
     membership.handleQuit(rig.alice.getUniqueId());
     when(Bukkit.getPlayer(rig.alice.getUniqueId())).thenReturn(null);
-    when(Bukkit.getOfflinePlayer(rig.alice.getUniqueId())).thenReturn(mock(OfflinePlayer.class));
-    assertFalse(membership.attemptRejoin(rig.alice.getUniqueId(), "Alice", null));
+    assertFalse(membership.attemptRejoin(rig.alice.getUniqueId(), null, null));
     assertFalse(band.hasMember(rig.alice));
   }
 
   @Test
-  void quittingWithoutAnOnlineProfileDoesNotInventARejoinFaction() {
+  void quittingAfterSessionEndsRetainsTheCapturedCharacter() {
     Warband band = factionBand("offline_quit");
+    var captured = session(rig.alice);
     rig.domain.online.remove("Alice");
     membership.handleQuit(rig.alice.getUniqueId());
-    assertFalse(membership.getPendingRejoin(rig.alice.getUniqueId()).hasFaction());
+    assertTrue(membership.getPendingRejoin(rig.alice.getUniqueId()).isFor(captured.ref()));
     rig.domain.online.put("Alice", rig.alice);
-    assertFalse(membership.handleJoin(rig.alice));
+    assertTrue(membership.handleSessionStart(rig.alice, session(rig.alice)));
+    assertTrue(band.hasMember(rig.alice));
+  }
+
+  @Test
+  void quittingWithoutACapturedOrOnlineCharacterLeavesNoRejoinState() {
+    Warband band = factionBand("uncaptured_quit");
+    band.restoreMemberCharacters(null);
+    rig.domain.online.remove("Alice");
+    membership.handleQuit(rig.alice.getUniqueId());
+    assertNull(membership.getPendingRejoin(rig.alice.getUniqueId()));
+    rig.domain.online.put("Alice", rig.alice);
+    assertFalse(membership.handleSessionStart(rig.alice, session(rig.alice)));
     assertFalse(band.hasMember(rig.alice));
   }
 
@@ -365,7 +378,7 @@ class BattleRosterLifecycleCoverageTest {
     assertTrue(defenders.hasMember(rig.bob));
     membership.handleQuit(rig.bob.getUniqueId());
     rig.bars.forEach(bar -> clearInvocations(bar));
-    assertTrue(membership.handleJoin(rig.bob));
+    assertTrue(membership.handleSessionStart(rig.bob, session(rig.bob)));
     assertTrue(defenders.hasMember(rig.bob));
     for (BossBar bar : rig.bars) verify(bar, never()).addPlayer(rig.bob);
     fighting.end();

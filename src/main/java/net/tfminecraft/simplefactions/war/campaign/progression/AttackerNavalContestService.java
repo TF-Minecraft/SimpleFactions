@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import java.util.Optional;
@@ -157,13 +158,13 @@ public final class AttackerNavalContestService {
 		}
 		String message = CampaignUiCopy.navalAutoLossBroadcast();
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getAttackers())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}
 		}
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getDefenders())) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

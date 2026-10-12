@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,7 +51,7 @@ public class TitleManager implements Listener{
 
 	private void completeTitle(Player p, Tier pending, String message) {
 		if (!p.isOnline()) return;
-		Faction f = FactionManager.getByLeader(p.getName());
+		Faction f = FactionManager.getByLeader(Members.key(p));
 		Tier tier = TierLoader.getByString(pending.getId());
 		if (f == null || tier != pending || !tier.canForm()
 				|| !f.getGovernment().stateReport().status.canFormTitles()) return;

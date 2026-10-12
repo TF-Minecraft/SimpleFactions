@@ -91,7 +91,7 @@ class MercenaryCommandsCoverageTest {
     host.addProvince(10);
     guild = fixture.guild(host, "blades", "Captain");
     guild.setCapital(10, false);
-    guild.getBank().setWealth(1000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
     hirer = fixture.saved("hirer", "Hirer");
     hirer.getOrCreateMainGuild();
     captain = fixture.player("Captain");
@@ -229,7 +229,7 @@ class MercenaryCommandsCoverageTest {
       strings = {"valid", "name_warning", "poor", "outsider", "nonleader", "already_formed"})
   void foundingChecksTheNameAndCurrentGuildBeforeRequestingFinancialConfirmation(String state) {
     if (!state.equals("already_formed")) guild.setCompany(null);
-    if (state.equals("poor")) guild.getBank().setWealth(50.0);
+    if (state.equals("poor")) net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 50.0);
     Player actor = state.equals("outsider") ? fixture.player("Outsider") : captain;
     if (state.equals("nonleader")) {
       guild.addMember("Successor");
@@ -273,7 +273,14 @@ class MercenaryCommandsCoverageTest {
     verify(recruit).sendMessage(contains("no company invite to decline"));
     assertTrue(company.adminAdjustSlots(1).ok());
     run(captain, "invite", "Offline");
-    verify(captain).sendMessage(contains("Could not find the player Offline"));
+    verify(captain).sendMessage(contains("No online player found"));
+    Player newcomer = fixture.player("Newcomer");
+    try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members.when(() -> net.tfminecraft.simplefactions.identity.Members.key(newcomer)).thenReturn(null);
+      run(captain, "invite", "Newcomer");
+    }
+    verify(captain).sendMessage(contains("Newcomer has no character to enlist"));
+    assertFalse(RequestManager.hasRequest(newcomer));
     assertEquals(List.of("Captain"), company.getEnlisted());
   }
 

@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.Stance;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 import net.tfminecraft.simplefactions.events.FactionCreateEvent;
 import net.tfminecraft.simplefactions.events.FactionDeleteEvent;
@@ -125,6 +125,7 @@ class CommandManagerCoverageTest {
     when(faction.getGovernment()).thenReturn(government);
     guild = mock(Guild.class, RETURNS_DEEP_STUBS);
     when(guild.getId()).thenReturn("merchants");
+    when(guild.getIncarnationId()).thenReturn(java.util.UUID.randomUUID());
     when(guild.getName()).thenReturn("Merchants");
     when(guild.getLeader()).thenReturn("Leader");
     when(guild.getFaction()).thenReturn(faction);
@@ -537,16 +538,18 @@ class CommandManagerCoverageTest {
     when(bank.getWealth()).thenReturn(100.0);
     var coin = new ItemStack(Material.GOLD_NUGGET, 10);
     when(player.getWorld()).thenReturn(gui.world);
+    when(gui.world.getUID()).thenReturn(java.util.UUID.randomUUID());
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId()), 10000);
     for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
       player.getInventory().setItem(slot, new ItemStack(Material.STONE, 64));
     }
-    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class)) {
+    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class, CALLS_REAL_METHODS)) {
       var money = mock(MoneyManager.class);
       economy.when(DenarEconomy::getMoneyManager).thenReturn(money);
       when(money.amountToItems(10.0)).thenReturn(List.of(coin));
       assertTrue(run("faction", "forcewithdraw", "realm", "10"));
-      verify(bank).withdraw(10.0);
-      verify(player.getInventory()).addItem(coin);
+      assertEquals(9000, net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId())));
+      verify(player.getInventory()).addItem(any(ItemStack.class));
       ArgumentCaptor<ItemStack> dropped = ArgumentCaptor.forClass(ItemStack.class);
       verify(gui.world).dropItemNaturally(eq(player.getLocation()), dropped.capture());
       assertEquals(Material.GOLD_NUGGET, dropped.getValue().getType());
@@ -582,23 +585,15 @@ class CommandManagerCoverageTest {
     when(bank.getChunk()).thenReturn(here);
     assertFalse(run(name, action, "bad"));
     verify(player).sendMessage(contains("whole cents"));
-    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class)) {
-      var players = mock(PlayerManager.class);
-      var data = mock(PlayerData.class);
-      var pouch = mock(Account.class);
-      economy.when(DenarEconomy::getPlayerManager).thenReturn(players);
-      when(players.get(player)).thenReturn(data);
-      when(data.getPouch()).thenReturn(pouch);
+    try (var treasury = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.pouch(player)).thenReturn(0d);
       assertFalse(run(name, action, "10"));
       verify(player).sendMessage(contains("Not enough funds"));
       when(bank.getWealth()).thenReturn(100.0);
-      when(pouch.getBal()).thenReturn(100.0);
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.pouch(player)).thenReturn(100d);
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.bank(player, guild, 10.25, deposit)).thenReturn(true);
       assertTrue(run(name, action, "10.25"));
-      verify(pouch).change(deposit ? -10.25 : 10.25);
-      if (deposit) {
-        verify(bank).deposit(10.25);
-        verify(guild.getLedger().getHistory()).addDeposit("Leader", 10.25);
-      } else verify(bank).withdraw(10.25);
+      treasury.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.bank(player, guild, 10.25, deposit));
       verify(player).sendMessage(contains("Bank Report"));
       verify(player).playSound(player, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
     }
@@ -645,22 +640,25 @@ class CommandManagerCoverageTest {
     Bank bank = mock(Bank.class);
     when(faction.getBank()).thenReturn(bank);
     when(bank.getWealth()).thenReturn(100.0);
+    when(gui.world.getUID()).thenReturn(java.util.UUID.randomUUID());
+    when(player.getWorld()).thenReturn(gui.world);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId()), 10000);
     Player alice = gui.player("Alice");
     when(alice.isOnline()).thenReturn(true);
     when(Bukkit.getPlayer("Alice")).thenReturn(alice);
-    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class)) {
+    try (MockedStatic<DenarEconomy> economy = mockStatic(DenarEconomy.class, CALLS_REAL_METHODS)) {
       var money = mock(MoneyManager.class);
       economy.when(DenarEconomy::getMoneyManager).thenReturn(money);
       var coin = new ItemStack(Material.GOLD_NUGGET, 10);
       when(money.amountToItems(10.0)).thenReturn(List.of(coin));
       assertTrue(run("faction", "forcewithdraw", "realm", "10"));
-      verify(bank).withdraw(10.0);
-      verify(player.getInventory()).addItem(coin);
+      assertEquals(9000, net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId())));
+      verify(player.getInventory()).addItem(any(ItemStack.class));
       verify(alice).sendMessage(contains("withdrawn from the faction by admins"));
       assertTrue(run("faction", "forcewithdraw", "realm", "101"));
       verify(player).sendMessage(contains("enough wealth"));
       assertFalse(run("faction", "forcewithdraw", "realm", "-1"));
-      verify(bank, times(1)).withdraw(anyDouble());
+      assertEquals(9000, net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.guild(guild.getIncarnationId())));
     }
   }
 
@@ -1124,6 +1122,10 @@ class CommandManagerCoverageTest {
   @Test
   void administrativeJoinRefusesExistingMembershipAndNotifiesAfterAdding() {
     admin();
+    assertTrue(run("faction", "forcejoin", "realm", "Nobody"));
+    verify(player).sendMessage(contains("No online character or character ID matches Nobody"));
+    Player alice = gui.player("Alice"), bob = gui.player("Bob"), visitor = gui.player("Visitor");
+    online(alice, bob, visitor);
     assertTrue(run("faction", "forcejoin", "realm", "Alice"));
     verify(player).sendMessage(contains("already in the faction"));
     Faction other = mock(Faction.class);
@@ -1131,8 +1133,6 @@ class CommandManagerCoverageTest {
     assertTrue(run("faction", "forcejoin", "realm", "Bob"));
     verify(player).sendMessage(contains("already in a faction"));
     factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(null);
-    Player alice = gui.player("Alice"), visitor = gui.player("Visitor");
-    online(alice, visitor);
     assertTrue(run("faction", "forcejoin", "realm", "Bob"));
     verify(faction).addMember("Bob");
     verify(alice).sendMessage(contains("Bob joined"));
@@ -1619,10 +1619,12 @@ class CommandManagerCoverageTest {
       assertTrue(run(console, "faction", "addguildbank", "merchants", "10"));
       verify(console, times(2)).sendMessage(contains("does not have a bank"));
     }
-    assertTrue(run(console, "faction", "addguildbank", "merchants", "10"));
-    verify(bank).deposit(10.0);
-    verify(guild.getLedger().getHistory()).addDeposit("Compensation", 10.0);
-    verify(console).sendMessage(contains("New balance:"));
+    try (var treasury = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+      treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.grant(guild, 10.0)).thenReturn(true);
+      assertTrue(run(console, "faction", "addguildbank", "merchants", "10"));
+      treasury.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.grant(guild, 10.0));
+      verify(console).sendMessage(contains("New balance:"));
+    }
   }
 
   @ParameterizedTest
@@ -1784,6 +1786,69 @@ class CommandManagerCoverageTest {
     verify(player).sendMessage("§cNo faction by the id missing");
   }
 
+  @Test
+  void aPlayerWithoutACharacterIsAStrangerToEveryCommand() {
+    Player stranger = gui.player("Stranger");
+    when(stranger.getName()).thenReturn(null);
+    Command guildCommand = mock(Command.class);
+    when(guildCommand.getName()).thenReturn("guild");
+    assertTrue(commands.onCommand(stranger, guildCommand, "guild", new String[] {"menu"}));
+    assertTrue(commands.onCommand(stranger, guildCommand, "guild", new String[] {"join", "merchants"}));
+    verify(stranger, times(2)).sendMessage(CommandManager.NO_CHARACTER);
+    verify(guild, never()).consumeInvite(any());
+  }
+
+  @Test
+  void staffWithoutACharacterCannotFoundARealm() {
+    Player staff = gui.player("Staff");
+    when(staff.getName()).thenReturn(null);
+    when(staff.hasPermission(Permissions.Permission_Admin)).thenReturn(true);
+    Command factionCommand = mock(Command.class);
+    when(factionCommand.getName()).thenReturn("faction");
+    try (MockedStatic<DisplayNameGate> names = mockStatic(DisplayNameGate.class);
+        MockedConstruction<Faction> created = mockConstruction(Faction.class)) {
+      names.when(() -> DisplayNameGate.check(any(), any(), anyString())).thenReturn(DisplayNameGate.Result.OK);
+      assertTrue(commands.onCommand(staff, factionCommand, "faction", new String[] {"create", "New_Realm"}));
+      assertTrue(created.constructed().isEmpty());
+    }
+    verify(staff).sendMessage(CommandManager.NO_CHARACTER);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"faction", "guild"})
+  void invitingAPlayerWithoutACharacterIsRefused(String name) {
+    if (name.equals("guild")) guildLeader();
+    else member();
+    Player alice = gui.player("Alice");
+    when(alice.getName()).thenReturn(null);
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
+      characters.when(() -> Members.resolveOnline(player, "Alice")).thenReturn(alice);
+      assertTrue(run(name, "invite", "Alice"));
+    }
+    verify(player).sendMessage("§cThat player has not chosen a character yet");
+    verify(faction, never()).invite(any());
+    verify(guild, never()).invite(any());
+  }
+
+  @Test
+  void quarantineCommandsAreRoutedBeforeAnyPlayerCheck() {
+    CommandSender console = mock(CommandSender.class);
+    try (MockedStatic<net.tfminecraft.simplefactions.migration.QuarantineCommands> quarantine =
+        mockStatic(net.tfminecraft.simplefactions.migration.QuarantineCommands.class, CALLS_REAL_METHODS)) {
+      quarantine
+          .when(() -> net.tfminecraft.simplefactions.migration.QuarantineCommands.handle(eq(console), any()))
+          .thenReturn(true);
+      assertTrue(run(console, "faction", "admin", "quarantine", "list"));
+      quarantine.verify(() -> net.tfminecraft.simplefactions.migration.QuarantineCommands.handle(eq(console), any()));
+    }
+  }
+
+  @Test
+  void multiWordCharacterNamesAreJoined() {
+    assertEquals("Ada Lovelace", CommandManager.rest(new String[] {"kick", "Ada", "Lovelace"}, 1));
+    assertEquals("", CommandManager.rest(new String[] {"kick"}, 1));
+  }
+
   private boolean run(String commandName, String... args) {
     Command command = mock(Command.class);
     when(command.getName()).thenReturn(commandName);
@@ -1800,15 +1865,15 @@ class CommandManagerCoverageTest {
     verify(player).sendMessage(contains("Only the leader"));
     when(faction.getLeader()).thenReturn("Leader");
     int oldMaximum = Cache.maxMembers;
-    try (MockedStatic<CharacterNames> characters = mockStatic(CharacterNames.class)) {
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
       assertTrue(run("faction", "invite", "Lady", "Alice"));
       verify(faction, never()).invite(anyString());
       Player alice = gui.player("Alice");
-      characters.when(() -> CharacterNames.resolveOnline(player, "Lady Alice")).thenReturn(alice);
-      when(faction.isMemberIgnoreCase("Alice")).thenReturn(true);
+      characters.when(() -> Members.resolveOnline(player, "Lady Alice")).thenReturn(alice);
+      when(faction.isMember("Alice")).thenReturn(true);
       assertTrue(run("faction", "invite", "Lady", "Alice"));
       verify(player).sendMessage(contains("already a member"));
-      when(faction.isMemberIgnoreCase("Alice")).thenReturn(false);
+      when(faction.isMember("Alice")).thenReturn(false);
       Faction other = mock(Faction.class);
       factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(other);
       assertTrue(run("faction", "invite", "Lady", "Alice"));
@@ -1841,14 +1906,14 @@ class CommandManagerCoverageTest {
     assertTrue(run("guild", "invite", "Lady", "Alice"));
     verify(player).sendMessage(contains("use /faction invite"));
     when(guild.isBase()).thenReturn(false);
-    try (MockedStatic<CharacterNames> characters = mockStatic(CharacterNames.class)) {
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
       assertTrue(run("guild", "invite", "Lady", "Alice"));
       verify(guild, never()).invite(anyString());
-      characters.when(() -> CharacterNames.resolveOnline(player, "Lady Alice")).thenReturn(player);
+      characters.when(() -> Members.resolveOnline(player, "Lady Alice")).thenReturn(player);
       assertTrue(run("guild", "invite", "Lady", "Alice"));
       verify(player).sendMessage(contains("Cannot invite yourself"));
       Player alice = gui.player("Alice");
-      characters.when(() -> CharacterNames.resolveOnline(player, "Lady Alice")).thenReturn(alice);
+      characters.when(() -> Members.resolveOnline(player, "Lady Alice")).thenReturn(alice);
       when(guild.isInvited("Alice")).thenReturn(true);
       assertTrue(run("guild", "invite", "Lady", "Alice"));
       verify(player).sendMessage(contains("already invited"));
@@ -1888,8 +1953,8 @@ class CommandManagerCoverageTest {
     guildLeader();
     when(faction.hasFactionRule(Rules.CLOSED_BORDERS)).thenReturn(true);
     Player alice = gui.player("Alice");
-    try (MockedStatic<CharacterNames> characters = mockStatic(CharacterNames.class)) {
-      characters.when(() -> CharacterNames.resolveOnline(player, "Alice")).thenReturn(alice);
+    try (MockedStatic<Members> characters = mockStatic(Members.class, CALLS_REAL_METHODS)) {
+      characters.when(() -> Members.resolveOnline(player, "Alice")).thenReturn(alice);
       assertTrue(run("guild", "invite", "Alice"));
       verify(player).sendMessage(contains("closed borders"));
       verify(guild, never()).invite("Alice");

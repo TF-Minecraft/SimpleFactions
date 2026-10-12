@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +69,7 @@ public class GovernmentCreator {
         m.setDisplayName(StringFormatter.formatHex("#93c9a7Government:"));
         List<String> lore = new ArrayList<String>();
         Government gov = f.getGovernment();
-        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.espionage.CharacterNames.display(p, f.getLeader(), f)));
+        lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
         double power = Formatter.formatDouble(gov.getPower());
         double maxPower = Formatter.formatDouble(gov.getMaxPower());
         String powerString = ((power < 0) ? "§c" : "") + power+"/"+((maxPower < 0) ? "§c" : "") + maxPower;
@@ -96,7 +98,7 @@ public class GovernmentCreator {
         if(gov.getCouncil().getCurrentSize() > 0) {
             lore.add(StringFormatter.formatHex("#93c9a7Members:"));
             for(String member : gov.getCouncilMembers()) {
-                lore.add(StringFormatter.formatHex("#d4bb98- "+member + " §7("+Represents.represents(f, member)+")"));
+                lore.add(StringFormatter.formatHex("#d4bb98- "+Members.display(member) + " §7("+Represents.represents(f, member)+")"));
             }
         }
         m.setLore(lore);
@@ -144,7 +146,7 @@ public class GovernmentCreator {
                         color = "#c74d32"; // ineligible
                     }
 
-                    lore.add(formatElectionLine(i++, name, votes, totalVotes, color));
+                    lore.add(formatElectionLine(i++, Members.display(name), votes, totalVotes, color));
                 }
 
             }
@@ -173,7 +175,7 @@ public class GovernmentCreator {
                         color = "#c74d32"; // ineligible
                     }
 
-                    lore.add(formatElectionLine(i++, name, votes, totalVotes, color));
+                    lore.add(formatElectionLine(i++, Members.display(name), votes, totalVotes, color));
                 }
             }
         }
@@ -424,7 +426,7 @@ public class GovernmentCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createToggleRefuseButton(Player p, Faction f) {
-        boolean refuse = f.getGovernment().getCouncil().refuses(p.getName());
+        boolean refuse = f.getGovernment().getCouncil().refuses(Members.key(p));
         ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem(refuse ? "mcicons:icon_cancel" : "mcicons:icon_confirm");
         ItemMeta m = item.getItemMeta();
         m.setDisplayName(StringFormatter.formatHex("#a27cbfToggle Council Stance"));
@@ -454,7 +456,7 @@ public class GovernmentCreator {
             else lore.add(StringFormatter.formatHex("#28ed70Click to specific rates"));
         } else {
             Government gov = f.getGovernment();
-            Proposal proposal = new Proposal(p.getName(), gov);
+            Proposal proposal = new Proposal(Members.key(p), gov);
             proposal.setTaxProposal(new TaxLawChange(target, "all", 50));
             if(gov.canProposeOrStartMovement(p) && gov.canBeProposed(proposal)) {
                 lore.add(StringFormatter.formatHex("#525d5dCurrent Rate: #e3d5a1"+f.getTaxRate(target, null, false)+"%"+ " §8(§7"+f.getTaxRate(target, null, true)+"% effective§8)"));
@@ -512,7 +514,7 @@ public class GovernmentCreator {
             lore.add(StringFormatter.formatHex("#3f4040(#767a77Base Rate: #928d7a"+baseRate+"%#3f4040)"));
         }
         Government gov = f.getGovernment();
-        Proposal proposal = new Proposal(p.getName(), gov);
+        Proposal proposal = new Proposal(Members.key(p), gov);
         proposal.setTaxProposal(new TaxLawChange(target, id, 50));
         if(gov.canProposeOrStartMovement(p) && gov.canBeProposed(proposal)) lore.add(StringFormatter.formatHex("#28ed70Click to propose a change"));
         else lore.add(StringFormatter.formatHex("#89504eAnother proposal is active for this target."));
@@ -534,7 +536,7 @@ public class GovernmentCreator {
         if(gov.isCouncilMember(p)) {
             lore.add(StringFormatter.formatHex("#b8ae61Create a new proposal to change"));
             lore.add(StringFormatter.formatHex("#b8ae61your faction's laws or taxes."));
-            lore.add(StringFormatter.formatHex("#525d5dCurrently Active Proposals: #e3d5a1"+gov.getCouncil().getCurrentProposals(p.getName())+"/2"));
+            lore.add(StringFormatter.formatHex("#525d5dCurrently Active Proposals: #e3d5a1"+gov.getCouncil().getCurrentProposals(Members.key(p))+"/2"));
         } else {
             lore.add(StringFormatter.formatHex("#b8ae61Create a new movement to demand"));
             lore.add(StringFormatter.formatHex("#b8ae61changes to your faction's laws or taxes."));
@@ -542,7 +544,7 @@ public class GovernmentCreator {
             lore.add(StringFormatter.formatHex("#b8ae61ultimatum to the council."));
             lore.add(StringFormatter.formatHex("§7(#812222Potential Civil War§7)"));
         }
-        if(gov.canProposeOrStartMovement(p) && gov.getMovementByMember(p.getName()) == null) lore.add(StringFormatter.formatHex("#28ed70Click to start"));
+        if(gov.canProposeOrStartMovement(p) && gov.getMovementByMember(Members.key(p)) == null) lore.add(StringFormatter.formatHex("#28ed70Click to start"));
         else lore.add(StringFormatter.formatHex("#89504eYou cannot start a new proposal/movement at this time."));
         m.setLore(lore);
         item.setItemMeta(m);
@@ -594,7 +596,7 @@ public class GovernmentCreator {
         
         String memberName = slot < members.size() ? members.get(slot) : null;
         boolean isEmpty = memberName == null;
-        boolean isLeader = player.getName().equalsIgnoreCase(f.getLeader());
+        boolean isLeader = Members.is(player, f.getLeader());
         boolean canModify = isLeader && (
             council.getType().equals(Rules.APPOINTED_COUNCIL) ||
             council.getType().equals(Rules.WEALTH_BASED_COUNCIL) ||
@@ -617,9 +619,7 @@ public class GovernmentCreator {
         } else {
             item = new ItemStack(Material.PLAYER_HEAD);
             ItemMeta skullMeta = item.getItemMeta();
-            if(skullMeta instanceof org.bukkit.inventory.meta.SkullMeta) {
-                ((org.bukkit.inventory.meta.SkullMeta) skullMeta).setOwner(memberName);
-            }
+            MemberHeads.apply(skullMeta, memberName);
             item.setItemMeta(skullMeta);
         }
         
@@ -636,7 +636,7 @@ public class GovernmentCreator {
             }
             m.setLore(lore);
         } else {
-            m.setDisplayName(StringFormatter.formatHex("#93c9a7" + memberName));
+            m.setDisplayName(StringFormatter.formatHex("#93c9a7" + Members.display(memberName)));
             List<String> lore = new ArrayList<>();
             
             // Display wealth and ranking
@@ -683,16 +683,14 @@ public class GovernmentCreator {
         
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta skullMeta = item.getItemMeta();
-        if(skullMeta instanceof org.bukkit.inventory.meta.SkullMeta) {
-            ((org.bukkit.inventory.meta.SkullMeta) skullMeta).setOwner(member);
-        }
+        MemberHeads.apply(skullMeta, member);
         item.setItemMeta(skullMeta);
         
         
         ItemMeta m = item.getItemMeta();
         m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 
-        m.setDisplayName(StringFormatter.formatHex("#93c9a7" + member));
+        m.setDisplayName(StringFormatter.formatHex("#93c9a7" + Members.display(member)));
         List<String> lore = new ArrayList<>();
         
         // Display wealth and ranking
@@ -737,7 +735,7 @@ public class GovernmentCreator {
         m.setDisplayName(StringFormatter.formatHex(proposal.isLawProposal() ? "#93c9a7Law Proposal"
                 : proposal.isFeeProposal() ? "#93c9a7Fee Proposal" : "#93c9a7Tax Proposal"));
         List<String> lore = new ArrayList<String>();
-        lore.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7"+proposal.getProposer()));
+        lore.add(StringFormatter.formatHex("#85c265Proposed by: #c2bea7"+Members.display(proposal.getProposer())));
         LoreWriter.applyProposalLore(proposal, lore, p, f, m);
         m.setLore(lore);
         item.setItemMeta(m);
@@ -914,14 +912,14 @@ public class GovernmentCreator {
             if(gov.canFavour(guild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
                 EconomicImpact.applyFavourRepressChange(lore, p, f, guild, isFavourMode, false, m, false);
-                if(f.isLeader(p.getName())) {
+                if(f.isLeader(Members.key(p))) {
                     if(!guild.isFavoured()) {
                         lore.add(StringFormatter.formatHex("#eddda8Upkeep: §e" + guild.getRepressFavourCost()+" Administrative Power"));
                     }
                     lore.add("");
                     lore.add(StringFormatter.formatHex("#28ed70Click to toggle"));
                 }
-            } else if(f.isLeader(p.getName())) {
+            } else if(f.isLeader(Members.key(p))) {
                 lore.add("");
                 if(guild.isRepressed()) {
                     lore.add(StringFormatter.formatHex("#89504eCannot favour: Guild is repressed"));
@@ -939,14 +937,14 @@ public class GovernmentCreator {
             if(gov.canRepress(guild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
                 EconomicImpact.applyFavourRepressChange(lore, p, f, guild, isFavourMode, false, m, false);
-                if(f.isLeader(p.getName())) {
+                if(f.isLeader(Members.key(p))) {
                     if(!guild.isRepressed()) {
                         lore.add(StringFormatter.formatHex("#eddda8Upkeep: §e" + guild.getRepressFavourCost()+" Administrative Power"));
                     }
                     lore.add("");
                     lore.add(StringFormatter.formatHex("#28ed70Click to toggle"));
                 }
-            } else if(f.isLeader(p.getName())) {
+            } else if(f.isLeader(Members.key(p))) {
                 lore.add("");
                 if(guild.isFavoured()) {
                     lore.add(StringFormatter.formatHex("#89504eCannot repress: Guild is favoured"));
@@ -983,14 +981,14 @@ public class GovernmentCreator {
             if(gov.canFavour(mainGuild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
                 EconomicImpact.applyFavourRepressChange(lore, p, f, mainGuild, isFavourMode, false, m, false);
-                if(f.isLeader(p.getName())) {
+                if(f.isLeader(Members.key(p))) {
                     if(!mainGuild.isFavoured()) {
                         lore.add(StringFormatter.formatHex("#eddda8Upkeep: §e" + mainGuild.getRepressFavourCost()+" Administrative Power"));
                     }
                     lore.add("");
                     lore.add(StringFormatter.formatHex("#28ed70Click to toggle"));
                 }
-            } else if(f.isLeader(p.getName())) {
+            } else if(f.isLeader(Members.key(p))) {
                 lore.add("");
                 if(mainGuild.isRepressed()) {
                     lore.add(StringFormatter.formatHex("#89504eCannot favour: Vassal is repressed"));
@@ -1008,14 +1006,14 @@ public class GovernmentCreator {
             if(gov.canRepress(mainGuild)) {
                 lore.add(StringFormatter.formatHex("#eddda8If Toggled:"));
                 EconomicImpact.applyFavourRepressChange(lore, p, f, mainGuild, isFavourMode, false, m, false);
-                if(f.isLeader(p.getName())) {
+                if(f.isLeader(Members.key(p))) {
                     lore.add("");
                     if(!mainGuild.isRepressed()) {
                         lore.add(StringFormatter.formatHex("#eddda8Upkeep: §e" + mainGuild.getRepressFavourCost()+" Administrative Power"));
                     }
                     lore.add(StringFormatter.formatHex("#28ed70Click to toggle"));
                 }
-            } else if(f.isLeader(p.getName())) {
+            } else if(f.isLeader(Members.key(p))) {
                 lore.add("");
                 if(mainGuild.isFavoured()) {
                     lore.add(StringFormatter.formatHex("#89504eCannot repress: Vassal is favoured"));

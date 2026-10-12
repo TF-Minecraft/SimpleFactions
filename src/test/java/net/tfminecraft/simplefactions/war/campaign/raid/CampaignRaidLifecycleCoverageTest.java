@@ -483,9 +483,9 @@ public class CampaignRaidLifecycleCoverageTest {
     Warband existing = new Warband("lifecycle_existing", reserved);
     WarbandManager.addWarband(existing);
     var listener = new CampaignRaidWarbandService.Listener();
-    listener.onJoin(
-        new org.bukkit.event.player.PlayerJoinEvent(
-            late, net.kyori.adventure.text.Component.empty()));
+    listener.onSessionStart(
+            new net.tfminecraft.tlibs.character.CharacterSessionStartEvent(
+                late, net.tfminecraft.simplefactions.identity.Members.session(late).orElseThrow()));
     assertNotNull(CampaignRaidWarbandService.getDefenderWarband(raid));
     assertEquals(0, CampaignRaidWarbandService.getDefenderWarband(raid).getRealMemberCount());
     CampaignRaidLaunchService.startFight(rig.war, raid.getMusterEndsAt());
@@ -493,9 +493,9 @@ public class CampaignRaidLifecycleCoverageTest {
     assertFalse(defenders.hasMember(late));
     assertFalse(defenders.hasMember(reserved));
     when(late.isOnline()).thenReturn(true);
-    listener.onJoin(
-        new org.bukkit.event.player.PlayerJoinEvent(
-            late, net.kyori.adventure.text.Component.empty()));
+    listener.onSessionStart(
+            new net.tfminecraft.tlibs.character.CharacterSessionStartEvent(
+                late, net.tfminecraft.simplefactions.identity.Members.session(late).orElseThrow()));
     assertTrue(defenders.hasMember(late));
     assertSame(existing, WarbandManager.getByPlayer(reserved));
     CampaignRaidWarbandService.tryEnrollDefenderOnLogin(rig.alice);
@@ -1595,9 +1595,9 @@ public class CampaignRaidLifecycleCoverageTest {
     when(rig.alice.isOnline()).thenReturn(true);
 
     new CampaignRaidWarbandService.Listener()
-        .onJoin(
-            new org.bukkit.event.player.PlayerJoinEvent(
-                rig.alice, net.kyori.adventure.text.Component.empty()));
+        .onSessionStart(
+            new net.tfminecraft.tlibs.character.CharacterSessionStartEvent(
+                rig.alice, net.tfminecraft.simplefactions.identity.Members.session(rig.alice).orElseThrow()));
 
     assertAll(
         () -> assertTrue(CampaignWarbandBattleService.isWarSideMainLeader(rig.war, raiders, "Bob")),

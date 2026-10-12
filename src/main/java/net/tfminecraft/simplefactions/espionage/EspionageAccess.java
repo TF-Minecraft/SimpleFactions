@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.espionage;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -63,6 +65,6 @@ public final class EspionageAccess {
             var spymaster = EspionageService.spymaster(faction);
             return spymaster == null || !spymaster.isHolder(player.getUniqueId());
         }
-        return holder.getType() == SFGUI.SPYMASTER_SELECT && !faction.isLeader(player.getName());
+        return holder.getType() == SFGUI.SPYMASTER_SELECT && !faction.isLeader(Members.key(player));
     }
 }

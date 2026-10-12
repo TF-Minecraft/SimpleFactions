@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.CanRegisterResult;
@@ -51,7 +53,7 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        Faction faction = FactionManager.getByLeader(leader.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(leader));
         if (faction == null) {
             sessionManager.clear(leader.getUniqueId());
             leader.sendMessage(VehicleTransferMessages.notLeader());
@@ -95,7 +97,8 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        if (!installationVehicleService.tryRegister(installation, vehicle, faction, leader.getUniqueId())) {
+        if (!installationVehicleService.tryRegister(
+                installation, vehicle, faction, VehicleOwnershipQueries.characterId(leader))) {
             leader.sendMessage(VehicleTransferMessages.saveFailed());
             event.setCancelled(true);
             return;
@@ -175,7 +178,7 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        if (!poolService.tryRegister(faction, vehicle, leader.getUniqueId())) {
+        if (!poolService.tryRegister(faction, vehicle, VehicleOwnershipQueries.characterId(leader))) {
             leader.sendMessage(VehicleTransferMessages.saveFailed());
             event.setCancelled(true);
             return;

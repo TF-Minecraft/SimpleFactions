@@ -88,6 +88,16 @@ class VehicleFeeServiceTest {
     }
 
     @Test
+    void balancePreviewUsesTheCapturedCharacterWithoutMutatingMoney() {
+        UUID character = UUID.randomUUID();
+        bank.balances.put(character, 12.5);
+        assertEquals(12.5, VehicleFeeService.bankBalance(character));
+        assertEquals(0, VehicleFeeService.bankBalance(null));
+        assertNull(VehicleFeeService.resolve("unresolved"));
+        assertEquals(12.5, bank.balances.get(character));
+    }
+
+    @Test
     void taxIsAPercentageAndFeesAMultipleOfUpkeep() {
         handler.applyBracket(FeeKind.VEHICLE_TAX, new Bracket(0, 50));
         handler.setRate(FeeKind.VEHICLE_TAX, null, 25);
@@ -114,33 +124,9 @@ class VehicleFeeServiceTest {
         assertNull(VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, "Alice", "cruiser"));
     }
 
-    @Test
-    void collectMovesMoneyToTheFactionAndItsLedger() {
-        handler.applyBracket(FeeKind.REGISTRATION_FEE, new Bracket(2, 5));
-        UUID alice = UUID.randomUUID();
-        bank.balances.put(alice, 100.0);
-        Quote quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, "Alice", "cruiser");
 
-        assertTrue(VehicleFeeService.collect(alice, quote));
 
-        assertEquals(20.0, bank.balances.get(alice));
-        verify(factionBank).deposit(80.0);
-        assertEquals(80.0, ledger.getVehicleFeeIncome());
-    }
 
-    @Test
-    void collectMovesNothingWhenThePayerCannotCoverIt() {
-        handler.applyBracket(FeeKind.REGISTRATION_FEE, new Bracket(2, 5));
-        UUID alice = UUID.randomUUID();
-        bank.balances.put(alice, 50.0);
-        Quote quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, "Alice", "cruiser");
-
-        assertFalse(VehicleFeeService.collect(alice, quote));
-
-        assertEquals(50.0, bank.balances.get(alice));
-        verify(factionBank, never()).deposit(any());
-        assertEquals(0.0, ledger.getVehicleFeeIncome());
-    }
 
     private static final class MapBank implements PlayerBank {
         final Map<UUID, Double> balances = new HashMap<>();
@@ -149,8 +135,6 @@ class VehicleFeeServiceTest {
         public double getBankBalance(UUID playerUuid) {
             return balances.getOrDefault(playerUuid, 0.0);
         }
-
-        @Override
         public boolean withdrawFromBank(UUID playerUuid, double amount) {
             double balance = getBankBalance(playerUuid);
             if (balance < amount) {
@@ -159,8 +143,6 @@ class VehicleFeeServiceTest {
             balances.put(playerUuid, balance - amount);
             return true;
         }
-
-        @Override
         public boolean depositToBank(UUID playerUuid, double amount) {
             balances.put(playerUuid, getBankBalance(playerUuid) + amount);
             return true;

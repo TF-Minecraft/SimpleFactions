@@ -4,9 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.player.income.PlayerLedger;
+import net.tfminecraft.simplefactions.identity.Members;
 
 public final class PlayerEconomyManager {
     private final Map<UUID, PlayerLedger> ledgers = new HashMap<>();
@@ -22,8 +22,9 @@ public final class PlayerEconomyManager {
         return ledgers.computeIfAbsent(playerUuid, ignored -> new PlayerLedger());
     }
 
-    public PlayerLedger getLedger(String playerName) {
-        UUID uuid = OfflineModifier.playerId(playerName);
+    /** Ledger of the character a member key names. */
+    public PlayerLedger getLedger(String member) {
+        UUID uuid = Members.characterId(member);
         if (uuid == null) {
             return new PlayerLedger();
         }

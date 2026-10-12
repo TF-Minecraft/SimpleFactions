@@ -32,6 +32,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.diplomacy.DiplomacyHandler;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.loaders.GuildLoader;
 import net.tfminecraft.simplefactions.loaders.RankLoader;
 import net.tfminecraft.simplefactions.loaders.TierLoader;
@@ -519,20 +520,17 @@ public class Faction {
 		this.invited = invited;
 	}
 	public boolean isInvited(String name) {
-		return Guild.findIgnoreCase(invited, name) != null;
+		return Guild.find(invited, name) != null;
 	}
 	public void invite(String name) {
 		if(name == null || isInvited(name)) return;
 		invited.add(name);
 	}
 	public boolean consumeInvite(String name) {
-		String stored = Guild.findIgnoreCase(invited, name);
+		String stored = Guild.find(invited, name);
 		if(stored == null) return false;
 		invited.remove(stored);
 		return true;
-	}
-	public boolean isMemberIgnoreCase(String name) {
-		return Guild.findIgnoreCase(getMembers(), name) != null;
 	}
 	public List<Modifier> getWealthModifiers() {
 		List<Modifier> list = new ArrayList<>(getOrCreateMainGuild().getWealthModifiers());
@@ -694,6 +692,14 @@ public class Faction {
 	public boolean isLeader(String member) {
 		return getOrCreateMainGuild().isLeader(member);
 	}
+	/** Whether the player's current character leads this realm. */
+	public boolean isLeader(org.bukkit.entity.Player player) {
+		return isLeader(Members.key(player));
+	}
+	/** Whether the player's current character belongs to this realm. */
+	public boolean isMember(org.bukkit.entity.Player player) {
+		return isMember(Members.key(player));
+	}
 	public boolean canBecomeLeader(String member) {
 		if(isLeader(member)) return false;
 		if(!isMember(member)) return false;
@@ -708,7 +714,7 @@ public class Faction {
 	}
 
 	public boolean canBeCleanKicked(String p) {
-		if(leader.equalsIgnoreCase(p)) return false;
+		if(leader != null && leader.equals(p)) return false;
 		return !guildHandler.isGuildLeader(p);
 	}
 	public Double getWealth() {
@@ -768,6 +774,13 @@ public class Faction {
 		this.leader = leader;
 		net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher.onGovernmentChanged(this);
 	}
+    /** Applies only the journal's captured succession; a later deliberate appointment wins. */
+    public void succeedDeadLeader(String dead, String successor) {
+        if (leader != null && !leader.isBlank() && !dead.equals(leader)) return;
+        leader = successor;
+        getOrCreateMainGuild().setLeader(successor);
+    }
+
 	public void promoteToLeader(String name) {
 		if (!canBecomeLeader(name)) return;
 
@@ -1008,7 +1021,7 @@ public class Faction {
 	        temp = getHighestTitle().getTier();
 	    }
 	    if(tier == null || !tier.getId().equalsIgnoreCase(temp.getId())) tier = new Tier(temp, -1);
-		Player p = Bukkit.getPlayerExact(leader);
+		Player p = Members.player(leader);
 		for(Faction subject : RelationManager.getSubjects(this)) {
 			if(subject.getTier().getTier() > tier.getTier()) {
 				RelationManager.endVassalage(subject, this, false);
@@ -1371,47 +1384,6 @@ public class Faction {
 	    return new FactionModifier(m, totalAmount);
 	}
 
-    public void newDay() {
-        double armyCost = military == null ? 0.0 : military.getTotalUpkeep();
-		Bank bank = getBank();
-		if(armyCost > 0 && bank == null && military != null && military.getRegiments() != null){
-			for(Regiment r : military.getRegiments()){
-				if(r == null || r.isLevy()) continue;
-				while(r.getCurrentSlots() > r.getFreeSlots()){
-					int before = r.getCurrentSlots();
-					r.sizeDecrease();
-					if(r.getCurrentSlots() >= before) break;
-				}
-			}
-			armyCost = 0.0;
-		}
-		Double wealth = bank == null ? null : bank.getWealth();
-		int guard = 0;
-		while(armyCost > 0 && wealth != null && wealth < armyCost && guard++ < 100000) {
-			boolean shrank = false;
-			if(military != null && military.getRegiments() != null) {
-				for(Regiment r : military.getRegiments()) {
-					if(r == null || r.isLevy()) continue;
-					if(r.getCurrentSlots() > r.getFreeSlots()) {
-						int before = r.getCurrentSlots();
-						r.sizeDecrease();
-						if(r.getCurrentSlots() < before) shrank = true;
-						break;
-					}
-				}
-			}
-			if(!shrank) break;
-			armyCost = military.getTotalUpkeep();
-		}
-		if(armyCost > 0 && bank != null && wealth != null) {
-			bank.withdraw(armyCost);
-		}
-		installationHandler.payDailyUpkeep();
-		provinceCap();
-		if (government != null) {
-			government.applyDailyOrganizationGain();
-		}
-    }
 
 	public void provinceCap() {
 		provinceHandler.provinceCap();
@@ -1420,8 +1392,7 @@ public class Faction {
 	public int numOnline() {
 		int count = 0;
 		for(String m : guildHandler.getAllMembers()){
-			Player p = Bukkit.getPlayerExact(m);
-			if(p != null && p.isOnline()) count++;
+			if(Members.isOnline(m)) count++;
 		}
 		return count;
 	}

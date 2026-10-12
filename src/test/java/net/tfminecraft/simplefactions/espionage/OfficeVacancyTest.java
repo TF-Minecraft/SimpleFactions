@@ -21,6 +21,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.tlibs.character.CharacterDeathEvent;
 import net.tfminecraft.tlibs.character.CharacterIdentity;
@@ -29,6 +30,7 @@ import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.CharacterStatus;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.identity.Members;
 
 class OfficeVacancyTest {
     @AfterEach void defaults() { EspionageConfig.load(new YamlConfiguration()); }
@@ -43,8 +45,8 @@ class OfficeVacancyTest {
             assertEquals(-10, penalties.getFirst().getModifier());
             assertEquals("Vacant Spymaster", penalties.getFirst().getName());
         }
-        var holder = new SpecialPositionAssignment(); holder.playerName = "Spy";
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Spy");
+        when(faction.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
         state.appoint(holder, 80);
         assertTrue(EspionageService.stabilityModifiers(faction, 0).isEmpty());
         state.removeSpymaster();
@@ -62,12 +64,12 @@ class OfficeVacancyTest {
         var faction = mock(Faction.class);
         var state = new EspionageState();
         when(faction.getEspionage()).thenReturn(state);
-        var holder = new SpecialPositionAssignment(); holder.playerName = "FormerSpy";
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "FormerSpy");
         state.appoint(holder, 80);
         state.addUnrest(SpecialPosition.SPYMASTER, 10, 7, 1000);
         assertEquals(2, EspionageService.stabilityModifiers(faction, 1000).size());
         assertEquals(1, EspionageService.stabilityModifiers(faction, 1000 + 8L * 86_400_000).size());
-        when(faction.isMemberIgnoreCase("FormerSpy")).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key("FormerSpy"))).thenReturn(true);
         assertTrue(EspionageService.stabilityModifiers(faction, 1000 + 8L * 86_400_000).isEmpty());
     }
 
@@ -121,7 +123,7 @@ class OfficeVacancyTest {
         }
     }
 
-    @Test void pendingFounderRequiresKnownCachedOwnerAndExactUuidAndRetriesFailedSave() {
+    @Test void pendingFounderRequiresTheLeadersCharacterAndExactUuidAndRetriesFailedSave() {
         try (var fixture = new DeathFixture()) {
             String savedId = fixture.ref.characterId().toString().toUpperCase(java.util.Locale.ROOT);
             fixture.state.pendingFounder(SpecialPosition.SPYMASTER, savedId);
@@ -327,37 +329,45 @@ class OfficeVacancyTest {
         }
     }
 
-    @Test void committedSharedDeathListenerSettlesImmediatelyWithCanonicalName() {
+    @Test void journalOfficeCleanupPreservesLaterAppointmentsAndHandlesPendingFounder() {
         try (var fixture = new DeathFixture()) {
-            fixture.appoint(fixture.ref.ownerId(), fixture.ref.characterId().toString(), 1000);
+            var holder = fixture.appoint(fixture.ref.ownerId(), fixture.ref.characterId().toString(), 3000);
             UUID deathId = UUID.randomUUID();
-            CharacterInfo info = new CharacterInfo(fixture.ref, "Canonical Spy", CharacterStatus.DEAD,
-                    null, Set.of(), 0, Instant.EPOCH);
-            when(fixture.provider.info(fixture.ref.characterId())).thenReturn(Optional.of(info));
-            new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(
-                    fixture.ref, deathId, Instant.ofEpochMilli(2000), null, null, "OTHER"));
+            fixture.state.removeDeadCharacter(fixture.ref, deathId, 2000);
+            assertSame(holder, fixture.state.getSpymaster());
+            fixture.state.removeDeadCharacter(fixture.ref, deathId, 4000);
             assertNull(fixture.state.getSpymaster());
             assertTrue(fixture.state.handledDeath(deathId));
-            verify(fixture.owner).sendMessage(contains("passing of Canonical Spy"));
-            fixture.bukkit.verify(Bukkit::getScheduler, never());
-            verify(fixture.provider, never()).currentSession(any());
+            assertEquals(0, fixture.state.lastAppointedAt(SpecialPosition.SPYMASTER));
+            fixture.state.pendingFounder(SpecialPosition.SPYMASTER, fixture.ref.characterId().toString());
+            fixture.state.removeDeadCharacter(fixture.ref, UUID.randomUUID(), Long.MAX_VALUE);
+            assertFalse(fixture.state.hasPendingFounder());
         }
     }
 
-    @Test void committedDeathStillSettlesWhenDisplaySnapshotIsMissingOrBelongsElsewhere() {
-        for (boolean foreignInfo : new boolean[] {false, true}) {
-            try (var fixture = new DeathFixture()) {
-                fixture.appoint(fixture.ref.ownerId(), fixture.ref.characterId().toString(), 1000);
-                if (foreignInfo) {
-                    CharacterInfo wrong = new CharacterInfo(new CharacterRef(UUID.randomUUID(), fixture.ref.characterId()),
-                            "Someone else", CharacterStatus.DEAD, null, Set.of(), 0, Instant.EPOCH);
-                    when(fixture.provider.info(fixture.ref.characterId())).thenReturn(Optional.of(wrong));
-                }
-                new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(fixture.ref,
-                        UUID.randomUUID(), Instant.ofEpochMilli(2000), null, null, "OTHER"));
-                assertNull(fixture.state.getSpymaster());
-                verify(fixture.owner).sendMessage(contains("passing of your character"));
-            }
+    @Test void committedSharedDeathListenerForwardsTheAuthoritativeEvent() throws Exception {
+        var ref = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+        var deathId = UUID.randomUUID();
+        var at = Instant.ofEpochMilli(2000);
+        try (var deaths = mockStatic(net.tfminecraft.simplefactions.identity.death.CharacterDeaths.class)) {
+            new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(ref, deathId, at, null, null, "OTHER"));
+            deaths.verify(() -> net.tfminecraft.simplefactions.identity.death.CharacterDeaths.onDeath(ref, deathId, at));
+        }
+    }
+
+    @Test void deathCleanupFailureDisablesGameplayUntilRecovery() throws Exception {
+        var ref = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+        var deathId = UUID.randomUUID();
+        var at = Instant.ofEpochMilli(2000);
+        var plugin = mock(SimpleFactions.class, RETURNS_DEEP_STUBS);
+        when(plugin.getLogger()).thenReturn(java.util.logging.Logger.getLogger("death-failure-test"));
+        try (var deaths = mockStatic(net.tfminecraft.simplefactions.identity.death.CharacterDeaths.class);
+             var plugins = mockStatic(SimpleFactions.class)) {
+            plugins.when(SimpleFactions::getInstance).thenReturn(plugin);
+            deaths.when(() -> net.tfminecraft.simplefactions.identity.death.CharacterDeaths.onDeath(ref, deathId, at))
+                    .thenThrow(new java.io.IOException("disk failure"));
+            new OfficeCharacterDeathListener().onCharacterDeath(new CharacterDeathEvent(ref, deathId, at, null, null, "OTHER"));
+            verify(plugin.getServer().getPluginManager()).disablePlugin(plugin);
         }
     }
 
@@ -374,7 +384,7 @@ class OfficeVacancyTest {
         final MockedConstruction<Database> databases;
         EspionageState state = new EspionageState();
         boolean saveSucceeds = true;
-        private OfflinePlayer cachedFounder;
+        private String leader = "Founder";
 
         DeathFixture() {
             Server server = mock(Server.class);
@@ -385,10 +395,9 @@ class OfficeVacancyTest {
             bukkit.when(Bukkit::getServicesManager).thenReturn(services);
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             bukkit.when(() -> Bukkit.getPlayer(ref.ownerId())).thenReturn(owner);
-            bukkit.when(() -> Bukkit.getOfflinePlayerIfCached("Founder")).thenAnswer(call -> cachedFounder);
             when(owner.getUniqueId()).thenReturn(ref.ownerId());
             when(owner.getName()).thenReturn("Founder");
-            when(faction.getLeader()).thenReturn("Founder");
+            when(faction.getLeader()).thenAnswer(call -> leader);
             when(faction.getEspionage()).thenAnswer(call -> state);
             factions.when(FactionManager::getCopy).thenReturn(List.of(faction));
             databases = mockConstruction(Database.class, (database, context) ->
@@ -405,9 +414,9 @@ class OfficeVacancyTest {
             return holder;
         }
 
+        /** Makes the faction leader the dying character, or another character when the owner differs. */
         void cacheFounder(UUID ownerId) {
-            cachedFounder = mock(OfflinePlayer.class);
-            when(cachedFounder.getUniqueId()).thenReturn(ownerId);
+            leader = ownerId.equals(ref.ownerId()) ? Members.key(ref) : Members.key(UUID.randomUUID());
         }
 
         @Override public void close() {

@@ -51,14 +51,23 @@ public final class CompanyFixture {
         }).when(guild).setCompany(any());
 
         when(bank.getWealth()).thenAnswer(i -> balance());
-        doAnswer(i -> {
-            this.balance -= (double) (Double) i.getArgument(0);
-            return null;
-        }).when(bank).withdraw(anyDouble());
-        doAnswer(i -> {
-            this.balance += (double) (Double) i.getArgument(0);
-            return null;
-        }).when(bank).deposit(anyDouble());
+
+    }
+
+    /** Domain tests replace the financial boundary; TreasuryActionsTest covers the real ledger. */
+    public net.tfminecraft.simplefactions.mercenary.MercenaryResult requestFormation(String actor, String name) {
+        try (var treasury = org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.economy.TreasuryActions.class)) {
+            treasury.when(() -> net.tfminecraft.simplefactions.economy.TreasuryActions.formation(
+                    org.mockito.ArgumentMatchers.eq(guild), org.mockito.ArgumentMatchers.eq(actor),
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyDouble())).thenAnswer(call -> {
+                double cost = call.getArgument(3);
+                if (balance < cost) return false;
+                balance -= cost;
+                guild.setCompany(call.getArgument(2));
+                return true;
+            });
+            return MercenaryCompanyService.requestFormation(guild, actor, name);
+        }
     }
 
     public double balance() {

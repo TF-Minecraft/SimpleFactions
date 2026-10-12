@@ -131,22 +131,25 @@ class FactionCoverageTest {
   }
 
   @Test
-  void factionInvitationsAreCaseInsensitiveAndCanBeConsumedExactlyOnce() {
+  void factionInvitationsMatchExactKeysAndCanBeConsumedExactlyOnce() {
     Faction faction = fixture.saved("home", "Alice");
     faction.invite(null);
     faction.invite("Bob");
-    faction.invite("BOB");
+    faction.invite("Bob");
     assertEquals(List.of("Bob"), faction.getInvited());
-    assertTrue(faction.isInvited("bob"));
+    assertTrue(faction.isInvited("Bob"));
+    assertFalse(faction.isInvited("bob"));
     assertFalse(faction.consumeInvite("Cara"));
-    assertTrue(faction.consumeInvite("bOB"));
+    assertFalse(faction.consumeInvite("bOB"));
+    assertTrue(faction.consumeInvite("Bob"));
     assertFalse(faction.consumeInvite("Bob"));
     assertTrue(faction.getInvited().isEmpty());
     faction.setInvited(new ArrayList<>(List.of("Cara")));
-    assertTrue(faction.isInvited("cara"));
+    assertTrue(faction.isInvited("Cara"));
     faction.addMember("Bob");
-    assertTrue(faction.isMemberIgnoreCase("bob"));
-    assertFalse(faction.isMemberIgnoreCase("missing"));
+    assertTrue(faction.isMember("Bob"));
+    assertFalse(faction.isMember("bob"));
+    assertFalse(faction.isMember("missing"));
   }
 
   @Test
@@ -420,8 +423,8 @@ class FactionCoverageTest {
     Guild guild = fixture.guild(faction, "artisans", "Bob");
     assertFalse(
         faction.getWealthModifiers().stream().anyMatch(m -> m.getType().contains("artisans")));
-    guild.getBank().deposit(30.5);
-    faction.getBank().deposit(20.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 30.5);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(faction.getBank(), 20.0);
     assertEquals(50.5, faction.getWealth());
     assertTrue(
         faction.getWealthModifiers().stream()
@@ -434,7 +437,7 @@ class FactionCoverageTest {
     faction.setBank(replacement);
     assertSame(replacement, faction.getBank());
     faction.getOrCreateMainGuild().updateWealth();
-    assertEquals(35.5, faction.getWealth());
+    assertEquals(50.5, faction.getWealth());
   }
 
   @Test
@@ -642,17 +645,17 @@ class FactionCoverageTest {
     var guard = faction.getMilitary().getRegiment("guard");
     guard.setFreeSlots(1);
     guard.setCurrentSlots(4);
-    faction.getBank().deposit(25.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(faction.getBank(), 25.0);
     assertEquals(30, faction.getMilitary().getTotalUpkeep());
-    faction.newDay();
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(faction);
     assertEquals(3, guard.getCurrentSlots());
     assertEquals(0, faction.getMilitary().getRegiment("reserve").getCurrentSlots());
     assertEquals(1, guard.getFreeSlots());
     assertEquals(5, faction.getBank().getWealth());
-    faction.newDay();
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(faction);
     assertEquals(1, guard.getCurrentSlots());
     assertEquals(5, faction.getBank().getWealth());
-    faction.newDay();
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(faction);
     assertEquals(1, guard.getCurrentSlots());
     assertEquals(5, faction.getBank().getWealth());
   }
@@ -668,7 +671,7 @@ class FactionCoverageTest {
     guard.setCurrentSlots(4);
     levy.setCurrentSlots(5);
     faction.setBank(null);
-    faction.newDay();
+    net.tfminecraft.simplefactions.testsupport.TestSettlements.upkeep(faction);
     assertEquals(2, guard.getCurrentSlots());
     assertEquals(5, levy.getCurrentSlots());
     assertNull(faction.getBank());
@@ -693,8 +696,6 @@ class FactionCoverageTest {
     faction.addMember("Bob");
     faction.addMember("Cara");
     fixture.player("Alice");
-    var offline = fixture.player("Bob");
-    when(offline.isOnline()).thenReturn(false);
     fixture.player("Visitor");
     assertEquals(1, faction.numOnline());
     var north = new Province(7, "PLAINS", 1);
@@ -1006,9 +1007,9 @@ class FactionCoverageTest {
     fixture.subject(ruler, child);
     Guild guild = fixture.guild(ruler, "merchants", "Bob");
     guild.setCapital(withSeparateCapital ? 8 : 7);
-    guild.getBank().deposit(37.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 37.0);
     Faction observer = fixture.saved("observer", "Dana");
-    observer.getBank().deposit(2000.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(observer.getBank(), 2000.0);
     double existingShare =
         observer.getPrestigeModifiers().stream()
             .filter(m -> m.getType().equals("Wealth"))
@@ -1077,8 +1078,8 @@ class FactionCoverageTest {
     source.setCapital(8);
     Guild artisans = fixture.guild(source, "artisans", "Fay");
     artisans.setCapital(9);
-    source.getBank().deposit(20.0);
-    artisans.getBank().deposit(30.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(source.getBank(), 20.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(artisans.getBank(), 30.0);
     Guild oldBase = source.getOrCreateMainGuild();
     fixture.subject(ruler, source);
     fixture.subject(source, peaceful);
@@ -1118,7 +1119,7 @@ class FactionCoverageTest {
     fixture.subject(ruler, subject);
     Guild guild = fixture.guild(ruler, "merchants", "Bob");
     guild.setCapital(withSeparateCapital ? 8 : 7);
-    guild.getBank().deposit(12.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 12.0);
     var proposal = new Proposal("Alice", ruler.getGovernment());
     proposal.setPoliticalActionProposal(new PoliticalAction(Action.DISSOLVE));
     ruler.applyPoliticalAction(null, proposal);
@@ -1146,7 +1147,7 @@ class FactionCoverageTest {
   void promotedGuildWealthIsImmediatelyVisibleInTheNewFactionAndItsPrestigeBreakdown() {
     Faction old = fixture.saved("old", "Alice");
     Guild guild = fixture.guild(old, "merchants", "Bob");
-    guild.getBank().deposit(37.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 37.0);
     assertEquals(37, guild.getWealth());
     old.getGuildHandler().removeGuild("merchants", false, false);
     Faction promoted = new Faction(guild);

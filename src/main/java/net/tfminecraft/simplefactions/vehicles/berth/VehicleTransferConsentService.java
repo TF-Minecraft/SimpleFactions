@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
@@ -60,8 +62,8 @@ public final class VehicleTransferConsentService {
         RequestManager.addRequest(leader, owner, request);
         if (RequestManager.getRequest(owner) != request) return false;
         owner.sendMessage(VehicleTransferMessages.consentPrompt(
-                leader.getName(), vehicle.getId(), installation.getName()));
-        leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+                Members.name(leader), vehicle.getId(), installation.getName()));
+        leader.sendMessage(VehicleTransferMessages.consentSent(Members.name(owner)));
         return true;
     }
 
@@ -78,8 +80,8 @@ public final class VehicleTransferConsentService {
                 vehicle.getId(), owner.getUniqueId(), leader.getUniqueId(), true);
         RequestManager.addRequest(leader, owner, request);
         if (RequestManager.getRequest(owner) != request) return false;
-        owner.sendMessage(VehicleTransferMessages.poolConsentPrompt(leader.getName(), vehicle.getId()));
-        leader.sendMessage(VehicleTransferMessages.consentSent(owner.getName()));
+        owner.sendMessage(VehicleTransferMessages.poolConsentPrompt(Members.name(leader), vehicle.getId()));
+        leader.sendMessage(VehicleTransferMessages.consentSent(Members.name(owner)));
         return true;
     }
 
@@ -136,7 +138,8 @@ public final class VehicleTransferConsentService {
             return;
         }
 
-        if (!installationVehicleService.tryRegister(installation, vehicle, faction, req.getOwnerUuid())) {
+        if (!installationVehicleService.tryRegister(
+                installation, vehicle, faction, VehicleOwnershipQueries.characterId(owner))) {
             String message = VehicleTransferMessages.saveFailed();
             owner.sendMessage(message);
             notifyProposer(req, message);
@@ -166,7 +169,7 @@ public final class VehicleTransferConsentService {
             return;
         }
 
-        if (!poolService.tryRegister(faction, vehicle, req.getOwnerUuid())) {
+        if (!poolService.tryRegister(faction, vehicle, VehicleOwnershipQueries.characterId(owner))) {
             String message = VehicleTransferMessages.saveFailed();
             owner.sendMessage(message);
             notifyProposer(req, message);
@@ -268,7 +271,7 @@ public final class VehicleTransferConsentService {
     private static Faction resolveProposerFaction(VehicleTransferConsentRequest req) {
         Player proposer = Bukkit.getPlayer(req.getProposerLeaderUuid());
         Faction faction = FactionManager.getByString(req.getDestinationFactionId());
-        if (proposer != null && faction != null && proposer.getName().equalsIgnoreCase(faction.getLeader())) {
+        if (proposer != null && faction != null && Members.is(proposer, faction.getLeader())) {
             return faction;
         }
         return null;

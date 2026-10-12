@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
@@ -14,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.government.Council;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
@@ -22,6 +22,7 @@ import net.tfminecraft.simplefactions.managers.SessionManager;
 
 public class Session {
     private Player leader;
+    private final String leaderCharacter;
     private Block lantern;
     private Faction f;
     private Council c;
@@ -32,13 +33,14 @@ public class Session {
     private Map<Proposal, VoteResult> proposals = new LinkedHashMap<>();
     private final Map<Proposal, int[]> decidedVoteCounts = new HashMap<>();
     private SessionHologram hologram;
-    private Map<String, Vote> currentVotes = new HashMap<>(); // Player name -> Vote
+    private Map<String, Vote> currentVotes = new HashMap<>(); // member key -> Vote
     private Set<String> eligibleVoters = new HashSet<>(); // Council members + leader
     
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public Session(Player leader, Faction f) {
         this.leader = leader;
+        this.leaderCharacter = Members.key(leader);
         this.f = f;
         c = f.getGovernment().getCouncil();
         leader.sendTitle("§aSelect Location", "§7Click on a §eLantern §7to select Location", 20, 80, 20);
@@ -80,7 +82,7 @@ public class Session {
         eligibleVoters.clear();
         
         // Add leader
-        eligibleVoters.add(leader.getName());
+        eligibleVoters.add(Members.key(leader));
         
         // Add council members
         for (String member : c.getMembers()) {
@@ -89,18 +91,33 @@ public class Session {
         
         // Auto-abstain offline members
         for (String member : eligibleVoters) {
-            Player memberPlayer = Bukkit.getPlayer(member);
-            if (memberPlayer == null || !memberPlayer.isOnline()) {
+            if (!Members.isOnline(member)) {
                 currentVotes.put(member, Vote.ABSTAIN);
             }
         }
     }
     
-    public boolean recordVote(String playerName, Vote vote) {
-        if (!started || terminated || getCurrentProposal() == null || !eligibleVoters.contains(playerName)) {
+    public String getLeaderCharacter() { return leaderCharacter; }
+
+    public Map<String, Vote> votesSnapshot() {
+        return new HashMap<>(currentVotes);
+    }
+
+    public Set<String> eligibleSnapshot() {
+        return new HashSet<>(eligibleVoters);
+    }
+
+    public void removeDeadCharacter(String key) {
+        currentVotes.remove(key);
+        eligibleVoters.remove(key);
+        if (key.equals(leaderCharacter)) endSession();
+    }
+
+    public boolean recordVote(String voter, Vote vote) {
+        if (!started || terminated || getCurrentProposal() == null || !eligibleVoters.contains(voter)) {
             return false;
         }
-        currentVotes.put(playerName, vote);
+        currentVotes.put(voter, vote);
         updateHologram();
         
         // Check if all votes are cast
@@ -213,7 +230,7 @@ public class Session {
         if (terminated) return;
         endSession();
         // Create session report
-        SessionReport report = new SessionReport(leader.getName(), f);
+        SessionReport report = new SessionReport(Members.name(leader), f);
         
         // Gather all results
         for(Proposal p : proposals.keySet()) {
@@ -240,7 +257,7 @@ public class Session {
         
         // Send title to all online eligible voters
         for (String voterName : eligibleVoters) {
-            org.bukkit.entity.Player voter = Bukkit.getPlayer(voterName);
+            Player voter = Members.player(voterName);
             if (voter != null && voter.isOnline()) {
                 voter.sendTitle("§aSession Completed!", "§7View the report in your inventory", 20, 60, 20);
             }

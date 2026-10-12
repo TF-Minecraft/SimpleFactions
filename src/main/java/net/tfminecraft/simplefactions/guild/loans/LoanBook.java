@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+
+import net.tfminecraft.simplefactions.identity.Members;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -77,17 +79,18 @@ public class LoanBook {
                         "\n" + //
                         "Issuer:\n" + //
                         "-------------------\n" + //
-                        loan.getIssuer().getLeader()+"\n" + //
+                        Members.display(loan.getIssuer().getLeader())+"\n" + //
                         "\n" + //
                         "-------------------\n" + //
                         "Loan Taker:\n" + //
                         "\n" + //
-                        (loan.getBorrower() != null ? loan.getBorrower().getLeader() : "[SIGN BOOK TO ACCEPT]") + "\n" + //
+                        (loan.getBorrower() != null ? Members.display(loan.getBorrower().getLeader()) : "[SIGN BOOK TO ACCEPT]") + "\n" + //
                         "-------------------\n" + //
                         "This contract is binding upon signing.");
         meta.getPersistentDataContainer().set(Keys.STRING_KEY, PersistentDataType.STRING, loan.getIssuer().getId());
         meta.getPersistentDataContainer().set(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING, meta.getPage(2));
         meta.getPersistentDataContainer().set(Keys.INT, PersistentDataType.INTEGER, 3);
+        meta.getPersistentDataContainer().set(Keys.LOAN_ISSUER, PersistentDataType.STRING, loan.getIssuer().getIncarnation());
         // The accepted loan takes this id, which marks the agreement as used.
         meta.getPersistentDataContainer().set(Keys.LOAN_OFFER, PersistentDataType.STRING, UUID.randomUUID().toString());
         meta.getPersistentDataContainer().set(Keys.LONG, PersistentDataType.LONG, System.currentTimeMillis() + 86400000L); // 1 day in milliseconds
@@ -158,6 +161,11 @@ public class LoanBook {
     @SuppressWarnings("deprecation")
     public static Loan createLoanFromBook(BookMeta meta, Guild borrower) {
         return createLoanFromBook(meta, borrower, null);
+    }
+
+    public static boolean currentIssuer(BookMeta meta, Guild issuer) {
+        String incarnation = meta.getPersistentDataContainer().get(Keys.LOAN_ISSUER, PersistentDataType.STRING);
+        return incarnation != null && incarnation.equals(issuer.getIncarnation());
     }
 
     /** The agreement id on a stage 3 book, or null for a book made before agreements had one. */

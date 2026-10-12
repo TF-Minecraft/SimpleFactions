@@ -46,7 +46,7 @@ class CompanyGuiTest {
     }
 
     private MercenaryCompany formedCompany() {
-        MercenaryCompanyService.requestFormation(fixture.guild, fixture.leader(), "Hired Blades");
+        fixture.requestFormation(fixture.leader(), "Hired Blades");
         MercenaryCompany company = fixture.company();
         for (int i = 0; i < Cache.mercenaryFormationSeconds; i++) {
             company.tick();
@@ -212,7 +212,7 @@ class CompanyGuiTest {
                 line.contains("Cost") && line.contains(Formatter.formatMoney(100.0))));
         assertTrue(lore.stream().anyMatch(line -> line.contains("/company found")));
 
-        MercenaryCompanyService.requestFormation(fixture.guild, fixture.leader(), "Hired Blades");
+        fixture.requestFormation(fixture.leader(), "Hired Blades");
         List<String> forming = creator.buildFormingLore(fixture.company());
         assertTrue(forming.stream().anyMatch(line -> line.contains("Being founded")));
         assertTrue(forming.stream().anyMatch(line -> line.contains("Ready in")));

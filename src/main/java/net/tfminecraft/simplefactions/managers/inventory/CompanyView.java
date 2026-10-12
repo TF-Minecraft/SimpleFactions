@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -92,7 +94,7 @@ public class CompanyView {
 		for (int slot = 0; slot < visibleSlots; slot++) {
 			i.setItem(FIRST_SLOT_BUTTON + slot, creator.createSlotItem(company, firstVisibleSlot + slot));
 		}
-		if (company.isLeader(player.getName())) {
+		if (company.isLeader(Members.key(player))) {
 			i.setItem(EXPAND_BUTTON, creator.createExpandButton(company));
 		}
 		for (int x = 0; x < company.getSlotQueue().size() && x < 3; x++) {
@@ -119,7 +121,7 @@ public class CompanyView {
 		i.clear();
 		MercenaryCompany company = guild.getCompany();
 		if (company == null) return;
-		boolean leader = company.isLeader(player.getName());
+		boolean leader = company.isLeader(Members.key(player));
 		for (int x = 0; x < company.getEnlisted().size() && x < 36; x++) {
 			i.setItem(9 + x, creator.createRosterItem(company, company.getEnlisted().get(x), leader));
 		}
@@ -211,19 +213,19 @@ public class CompanyView {
 			int visibleSlots = Math.min(company.getSlots(), LAST_SLOT_BUTTON - FIRST_SLOT_BUTTON + 1);
 			int slotIndex = company.getSlots() - visibleSlots + slot - FIRST_SLOT_BUTTON;
 			if (slotIndex < company.getSlots() && slotIndex >= company.getEnlisted().size()) {
-				report(p, MercenaryCompanyService.removeSlot(guild, p.getName()));
+				report(p, MercenaryCompanyService.removeSlot(guild, Members.key(p)));
 				slotsView(p, guild, inventory);
 			}
 			return;
 		}
 		if (e.getSlot() == EXPAND_BUTTON) {
-			report(p, MercenaryCompanyService.expand(guild, p.getName()));
+			report(p, MercenaryCompanyService.expand(guild, Members.key(p)));
 			slotsView(p, guild, inventory);
 			return;
 		}
 		String queuePayload = queueCancelPayload(e.getCurrentItem());
 		if (queuePayload != null) {
-			if (!company.isLeader(p.getName())) return;
+			if (!company.isLeader(Members.key(p))) return;
 			inv.openQueueCancelConfirm(p, guild.getFaction(), queuePayload, "§eCancel queued slot expansion?");
 			chirp(p);
 		}
@@ -233,7 +235,7 @@ public class CompanyView {
 			InventoryClickEvent e, Inventory inventory, Player p, Guild guild, MercenaryCompany company) {
 		String member = stringKey(e.getCurrentItem());
 		if (member == null) return;
-		report(p, MercenaryCompanyService.kick(guild, p.getName(), member));
+		report(p, MercenaryCompanyService.kick(guild, Members.key(p), member));
 		rosterView(p, guild, inventory);
 	}
 
@@ -241,14 +243,14 @@ public class CompanyView {
 			InventoryClickEvent e, Inventory inventory, Player p, Guild guild, MercenaryCompany company) {
 		String queuePayload = queueCancelPayload(e.getCurrentItem());
 		if (queuePayload != null) {
-			if (!company.isLeader(p.getName())) return;
+			if (!company.isLeader(Members.key(p))) return;
 			inv.openQueueCancelConfirm(p, guild.getFaction(), queuePayload, "§eCancel queued company upgrade?");
 			chirp(p);
 			return;
 		}
 		String id = stringKey(e.getCurrentItem());
 		if (id == null) return;
-		report(p, MercenaryCompanyService.upgrade(guild, p.getName(), id));
+		report(p, MercenaryCompanyService.upgrade(guild, Members.key(p), id));
 		companyUpgradeView(p, guild, inventory);
 	}
 

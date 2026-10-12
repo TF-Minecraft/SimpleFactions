@@ -26,6 +26,7 @@ import net.tfminecraft.simplefactions.map.MapSystem;
 import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.tlibs.character.CharacterSessionStartEvent;
+import net.tfminecraft.simplefactions.testsupport.SharedIdentity;
 
 class LeaderCharactersTest {
 
@@ -50,7 +51,7 @@ class LeaderCharactersTest {
     void keepsTheRememberedNameWhileTheLeaderIsOffline() {
         online(Map.of());
         LeaderCharacters.Remembered result =
-                LeaderCharacters.resolve("rushork", "Grunk the Bold", "RUSHORK");
+                LeaderCharacters.resolve("rushork", "Grunk the Bold", "rushork");
         assertEquals("Grunk the Bold", result.name());
     }
 
@@ -99,7 +100,7 @@ class LeaderCharactersTest {
     void anUnavailableProbeIsNotMistakenForAnOfflineLeader() {
         LeaderCharacters.setProbe(new LeaderCharacters.Probe() {
             @Override
-            public String activeCharacterName(String player) {
+            public String characterName(String key) {
                 return null;
             }
 
@@ -141,94 +142,97 @@ class LeaderCharactersTest {
     }
 
     @Test
-    void sharedStartImmediatelyRefreshesMatchingRealmAndGuildOnly() {
-        try (var identity = new SharedLeaderCharactersTest.Fixture(); var world = new LeaderWorld()) {
-            Player leader = identity.player("rushork");
-            CharacterSession ready = identity.activate(leader, UUID.randomUUID(), "Grunk the Bold");
+    void sharedStartRefreshesOnlyTheRealmAndGuildThatCharacterLeads() {
+        try (var identity = new SharedIdentity()) {
+            LeaderCharacters.useSharedIdentity();
+            Player leader = identity.connect("rushork");
+            CharacterRef grunk = identity.character(leader.getUniqueId(), "Grunk the Bold");
+            try (var world = new LeaderWorld(Members.key(grunk))) {
+                CharacterSession ready = identity.play(leader, grunk);
 
-            new LeaderCharacterListener().onCharacterStart(new CharacterSessionStartEvent(leader, ready));
+                new LeaderCharacterListener().onCharacterStart(new CharacterSessionStartEvent(leader, ready));
 
-            verify(world.realm).rememberLeaderCharacter("Grunk the Bold", "rushork");
-            verify(world.guild).rememberLeaderCharacter("Grunk the Bold", "rushork");
-            verify(world.base, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
-                    org.mockito.ArgumentMatchers.any());
-            verify(world.unrelated, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
-                    org.mockito.ArgumentMatchers.any());
-            verify(world.map).markLeaderNamesChanged();
-            identity.bukkit.verify(org.bukkit.Bukkit::getScheduler, never());
+                verify(world.realm).rememberLeaderCharacter("Grunk the Bold", Members.key(grunk));
+                verify(world.guild).rememberLeaderCharacter("Grunk the Bold", Members.key(grunk));
+                verify(world.base, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
+                verify(world.unrelated, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
+                verify(world.map).markLeaderNamesChanged();
+            }
         }
     }
 
     @Test
-    void staleStartCannotRefreshNamesAfterAToBToAOrProviderLoss() {
-        try (var identity = new SharedLeaderCharactersTest.Fixture(); var world = new LeaderWorld()) {
-            Player leader = identity.player("rushork");
-            UUID characterA = UUID.randomUUID();
-            CharacterSession originalA = identity.activate(leader, characterA, "Original A");
-            CharacterSession b = identity.activate(leader, UUID.randomUUID(), "B");
-            CharacterSession freshA = identity.activate(leader, characterA, "Fresh A");
-            LeaderCharacterListener listener = new LeaderCharacterListener();
-
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, originalA));
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, b));
-            identity.unregister();
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, freshA));
-            verify(world.realm, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
-                    org.mockito.ArgumentMatchers.any());
-            verify(world.map, never()).markLeaderNamesChanged();
-
-            identity.register();
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, freshA));
-            verify(world.realm).rememberLeaderCharacter("Fresh A", "rushork");
-            verify(world.guild).rememberLeaderCharacter("Fresh A", "rushork");
-            verify(world.map).markLeaderNamesChanged();
+    void anotherCharacterOfTheLeadersPlayerRefreshesNothing() {
+        try (var identity = new SharedIdentity()) {
+            LeaderCharacters.useSharedIdentity();
+            Player leader = identity.connect("rushork");
+            CharacterRef grunk = identity.character(leader.getUniqueId(), "Grunk");
+            CharacterRef other = identity.character(leader.getUniqueId(), "Someone else");
+            try (var world = new LeaderWorld(Members.key(grunk))) {
+                CharacterSession session = identity.play(leader, other);
+                new LeaderCharacterListener().onCharacterStart(new CharacterSessionStartEvent(leader, session));
+                verify(world.realm, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
+                verify(world.map, never()).markLeaderNamesChanged();
+            }
         }
     }
 
     @Test
-    void startRequiresOnlineOriginalConnectionAndCorrectSessionOwner() {
-        try (var identity = new SharedLeaderCharactersTest.Fixture(); var world = new LeaderWorld()) {
-            Player leader = identity.player("rushork");
+    void staleOrForeignStartsRefreshNothing() {
+        try (var identity = new SharedIdentity()) {
+            LeaderCharacters.useSharedIdentity();
+            Player leader = identity.connect("rushork");
             UUID owner = leader.getUniqueId();
-            CharacterSession ready = identity.activate(leader, UUID.randomUUID(), "Grunk");
-            LeaderCharacterListener listener = new LeaderCharacterListener();
-            when(leader.isOnline()).thenReturn(false);
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, ready));
-            when(leader.isOnline()).thenReturn(true);
-            identity.connections.put(owner, mock(Player.class));
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, ready));
-            identity.connections.put(owner, leader);
-            CharacterSession foreign = new CharacterSession(
-                    new CharacterRef(UUID.randomUUID(), UUID.randomUUID()), 123);
-            identity.sessions.put(foreign.ref().ownerId(), foreign);
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, foreign));
-            verify(world.realm, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
-                    org.mockito.ArgumentMatchers.any());
-            verify(world.map, never()).markLeaderNamesChanged();
+            CharacterRef grunk = identity.character(owner, "Grunk");
+            try (var world = new LeaderWorld(Members.key(grunk))) {
+                LeaderCharacterListener listener = new LeaderCharacterListener();
+                CharacterSession stale = identity.play(leader, grunk);
+                identity.play(leader, grunk);
+                listener.onCharacterStart(new CharacterSessionStartEvent(leader, stale));
+                CharacterSession ready = identity.play(leader, grunk);
+                when(leader.isOnline()).thenReturn(false);
+                listener.onCharacterStart(new CharacterSessionStartEvent(leader, ready));
+                when(leader.isOnline()).thenReturn(true);
+                identity.connections.put(owner, mock(Player.class));
+                listener.onCharacterStart(new CharacterSessionStartEvent(leader, ready));
+                identity.connections.put(owner, leader);
+                CharacterSession foreign = new CharacterSession(
+                        new CharacterRef(UUID.randomUUID(), grunk.characterId()), 123);
+                listener.onCharacterStart(new CharacterSessionStartEvent(leader, foreign));
+                verify(world.realm, never()).rememberLeaderCharacter(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
 
-            listener.onCharacterStart(new CharacterSessionStartEvent(leader, ready));
-            verify(world.realm).rememberLeaderCharacter("Grunk", "rushork");
+                listener.onCharacterStart(new CharacterSessionStartEvent(leader, ready));
+                verify(world.realm).rememberLeaderCharacter("Grunk", Members.key(grunk));
+            }
         }
     }
 
     @Test
     void sharedUnknownPreservesRealmAndGuildNamesButProviderLossClearsBoth() {
-        try (var identity = new SharedLeaderCharactersTest.Fixture(); var world = new LeaderWorld()) {
-            when(world.realm.getLeaderCharacter()).thenReturn("Remembered ruler");
-            when(world.realm.getLeaderCharacterOf()).thenReturn("RUSHORK");
-            when(world.guild.getLeaderCharacter()).thenReturn("Remembered guild leader");
-            when(world.guild.getLeaderCharacterOf()).thenReturn("RUSHORK");
+        try (var identity = new SharedIdentity()) {
+            LeaderCharacters.useSharedIdentity();
+            String key = Members.key(UUID.randomUUID());
+            try (var world = new LeaderWorld(key)) {
+                when(world.realm.getLeaderCharacter()).thenReturn("Remembered ruler");
+                when(world.realm.getLeaderCharacterOf()).thenReturn(key);
+                when(world.guild.getLeaderCharacter()).thenReturn("Remembered guild leader");
+                when(world.guild.getLeaderCharacterOf()).thenReturn(key);
 
-            assertFalse(LeaderCharacters.refresh(world.realm));
-            assertFalse(LeaderCharacters.refresh(world.guild));
-            verify(world.realm).rememberLeaderCharacter("Remembered ruler", "rushork");
-            verify(world.guild).rememberLeaderCharacter("Remembered guild leader", "rushork");
+                assertFalse(LeaderCharacters.refresh(world.realm));
+                assertFalse(LeaderCharacters.refresh(world.guild));
+                verify(world.realm).rememberLeaderCharacter("Remembered ruler", key);
+                verify(world.guild).rememberLeaderCharacter("Remembered guild leader", key);
 
-            identity.unregister();
-            assertTrue(LeaderCharacters.refresh(world.realm));
-            assertTrue(LeaderCharacters.refresh(world.guild));
-            verify(world.realm).rememberLeaderCharacter(null, null);
-            verify(world.guild).rememberLeaderCharacter(null, null);
+                identity.unregister();
+                assertTrue(LeaderCharacters.refresh(world.realm));
+                assertTrue(LeaderCharacters.refresh(world.guild));
+                verify(world.realm).rememberLeaderCharacter(null, null);
+                verify(world.guild).rememberLeaderCharacter(null, null);
+            }
         }
     }
 
@@ -241,9 +245,9 @@ class LeaderCharactersTest {
         final Guild unrelated = mock(Guild.class);
         final MapSystem map = mock(MapSystem.class);
 
-        LeaderWorld() {
-            when(realm.getLeader()).thenReturn("rushork");
-            when(guild.getLeader()).thenReturn("rushork");
+        LeaderWorld(String leader) {
+            when(realm.getLeader()).thenReturn(leader);
+            when(guild.getLeader()).thenReturn(leader);
             when(base.isBase()).thenReturn(true);
             when(unrelated.getLeader()).thenReturn("anotheraccount");
             GuildHandler handler = mock(GuildHandler.class);

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -29,9 +31,9 @@ public class RaidCommandManager implements CommandExecutor {
 			return true;
 		}
 
-		Faction faction = FactionManager.getByMember(player.getName());
+		Faction faction = FactionManager.getByMember(Members.key(player));
 		if (faction == null) {
-			faction = FactionManager.getByLeader(player.getName());
+			faction = FactionManager.getByLeader(Members.key(player));
 		}
 		if (faction == null) {
 			player.sendMessage(CampaignRaidMessages.NOT_PARTICIPANT);
@@ -45,7 +47,7 @@ public class RaidCommandManager implements CommandExecutor {
 		}
 
 		JoinResult result = CampaignRaidJoinService.join(
-				war, player.getUniqueId(), player.getName(), faction, args[1], CampaignClock.now());
+				war, player.getUniqueId(), Members.key(player), faction, args[1], CampaignClock.now());
 		if (result != JoinResult.OK) {
 			String message = CampaignRaidMessages.messageForJoinResult(result);
 			if (message != null) {

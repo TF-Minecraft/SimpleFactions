@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid.fight;
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
@@ -241,7 +242,7 @@ public final class CampaignRaidBattleService {
 				: war.getDefenders();
 		String targetName = target.getName();
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(defendingSide)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendTitle("§cRAID INCOMING", "§eDefend " + targetName, 10, 120, 10);
 				player.playSound(player, Sound.ITEM_GOAT_HORN_SOUND_2, SoundCategory.MASTER, 10f, 0.6f);

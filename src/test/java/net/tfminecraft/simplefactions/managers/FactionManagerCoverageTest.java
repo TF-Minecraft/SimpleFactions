@@ -127,8 +127,8 @@ class FactionManagerCoverageTest {
     when(faction.getRGB()).thenReturn(id + "-rgb");
     List<String> members = new ArrayList<>(List.of(leader));
     when(faction.getMembers()).thenReturn(members);
-    when(faction.isMemberIgnoreCase(anyString()))
-        .thenAnswer(call -> members.stream().anyMatch(name -> name.equalsIgnoreCase(call.getArgument(0))));
+    when(faction.isMember(anyString()))
+        .thenAnswer(call -> members.contains(call.getArgument(0)));
     doAnswer(call -> members.add(call.getArgument(0))).when(faction).addMember(anyString());
     when(faction.getProvinces()).thenReturn(new ArrayList<>());
     when(faction.getTitles()).thenReturn(new ArrayList<>());
@@ -155,7 +155,7 @@ class FactionManagerCoverageTest {
     when(guild.getName()).thenReturn(id);
     when(guild.getFaction()).thenReturn(faction);
     when(guild.getLeader()).thenReturn(leader);
-    when(guild.isLeader(anyString())).thenAnswer(call -> leader.equalsIgnoreCase(call.getArgument(0)));
+    when(guild.isLeader(anyString())).thenAnswer(call -> leader.equals(call.getArgument(0)));
     when(guild.getMembers()).thenReturn(new ArrayList<>(List.of(leader)));
     when(guild.getType()).thenReturn(GuildLoader.map.get("guild"));
     faction.getGuildHandler().getGuilds().add(guild);
@@ -243,7 +243,7 @@ class FactionManagerCoverageTest {
   }
 
   @Test
-  void managerLookupsPreserveCaseInsensitivityAndRepairLegacyLeaderMembership() {
+  void managerLookupsMatchMemberKeysExactlyAndRepairLegacyLeaderMembership() {
     Faction home = faction("Home", "Alice");
     Faction other = faction("Other", "Bob");
     Guild traders = guild(home, "Traders", "Carol");
@@ -252,30 +252,36 @@ class FactionManagerCoverageTest {
     home.getProvinces().add(4);
     when(home.hasTitle(title)).thenReturn(true);
     assertSame(home, FactionManager.getByString("HOME"));
-    assertSame(home, FactionManager.getByLeader("aLiCe"));
-    assertSame(home, FactionManager.getByMember("ALICE"));
+    assertSame(home, FactionManager.getByLeader("Alice"));
+    assertNull(FactionManager.getByLeader("aLiCe"), "member keys never match by case");
+    assertSame(home, FactionManager.getByMember("Alice"));
+    assertNull(FactionManager.getByMember("ALICE"));
     home.getMembers().clear();
-    assertSame(home, FactionManager.getByMember("aLiCe"));
-    assertEquals(List.of("aLiCe"), home.getMembers());
+    assertSame(home, FactionManager.getByMember("Alice"));
+    assertEquals(List.of("Alice"), home.getMembers());
     assertSame(home, FactionManager.getByRGB("home-RGB"));
     assertSame(home, FactionManager.getByProvince(4));
     assertSame(home, FactionManager.getTitleOwner(title));
     assertSame(traders, FactionManager.getGuildByString("TRADERS"));
-    assertSame(traders, FactionManager.getGuildByLeader("cARoL"));
-    assertSame(traders, FactionManager.getGuildByMember("dAVE"));
+    assertSame(traders, FactionManager.getGuildByLeader("Carol"));
+    assertNull(FactionManager.getGuildByLeader("cARoL"));
+    assertNull(FactionManager.getGuildByLeader((String) null));
+    assertSame(traders, FactionManager.getGuildByMember("Dave"));
+    assertNull(FactionManager.getGuildByMember("dAVE"));
     assertTrue(FactionManager.guildExists("traders"));
     assertFalse(FactionManager.guildExists("missing"));
     assertNull(FactionManager.getByString("missing"));
     assertNull(FactionManager.getByLeader("missing"));
+    assertNull(FactionManager.getByLeader((String) null));
     assertNull(FactionManager.getByMember("missing"));
-    assertNull(FactionManager.getByMember(null));
+    assertNull(FactionManager.getByMember((String) null));
     assertNull(FactionManager.getByRGB("missing"));
     assertNull(FactionManager.getByProvince(9));
     assertNull(FactionManager.getTitleOwner(fixture.title("Elsewhere", "county", 9)));
     assertNull(FactionManager.getGuildByString("missing"));
     assertNull(FactionManager.getGuildByLeader("missing"));
     assertNull(FactionManager.getGuildByMember("missing"));
-    assertNull(FactionManager.getGuildByMember(null));
+    assertNull(FactionManager.getGuildByMember((String) null));
     assertNull(FactionManager.getMovementById("missing"));
     assertNull(FactionManager.getMovementById(null));
     List<Faction> copy = FactionManager.getCopy();
@@ -292,7 +298,9 @@ class FactionManagerCoverageTest {
     Guild guild = guild(home, "guild", "Bob");
     guild.getMembers().add("Carol");
     assertTrue(FactionManager.canJoinGuild(fixture.player("Dave")));
-    assertFalse(FactionManager.canJoinGuild(fixture.player("BOB")));
+    assertFalse(FactionManager.canJoinGuild(fixture.player("Bob")));
+    Player stranger = mock(Player.class);
+    assertFalse(FactionManager.canJoinGuild(stranger), "no character, no guild");
     assertFalse(FactionManager.canJoinGuild(fixture.player("Carol")));
     when(guild.getType()).thenReturn(GuildLoader.map.get("realm"));
     assertTrue(FactionManager.canJoinGuild(fixture.player("Carol")));
@@ -618,13 +626,17 @@ class FactionManagerCoverageTest {
     when(guild.getRelocationCost(7)).thenReturn(25.5);
     when(guild.getBank().getWealth()).thenReturn(25.0);
     FactionManager.acceptRelocateRequest(leader);
-    verify(guild.getBank(), never()).withdraw(anyDouble());
     verify(guild, never()).relocate(any(), anyInt(), any(), any());
     verify(sender).sendMessage(contains("does not have enough funds"));
     when(guild.getBank().getWealth()).thenReturn(25.5);
-    FactionManager.acceptRelocateRequest(leader);
-    verify(guild.getBank()).withdraw(25.5);
-    verify(guild).relocate(target, 7, sender, "Riverside");
+    var request = (RelocateRequest) RequestManager.getRequest(leader);
+    try (var topology = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryTopology.class)) {
+      topology.when(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, "Riverside", 25.5, request.getOperationId(), sender)).thenReturn(true);
+      FactionManager.acceptRelocateRequest(leader);
+      topology.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, "Riverside", 25.5, request.getOperationId(), sender));
+    }
     verify(leader).sendMessage("Artisans§a has been relocated to your faction");
   }
 
@@ -640,9 +652,14 @@ class FactionManagerCoverageTest {
     RequestManager.addRequest(leader, leader, new RelocateRequest(guild, 7, null));
     when(guild.getRelocationCost(7)).thenReturn(10.0);
     when(guild.getBank().getWealth()).thenReturn(20.0);
-    FactionManager.acceptRelocateRequest(leader);
-    verify(guild).relocate(target, 7, leader, null);
-    verify(guild.getBank()).withdraw(10.0);
+    var request = (RelocateRequest) RequestManager.getRequest(leader);
+    try (var topology = mockStatic(net.tfminecraft.simplefactions.economy.TreasuryTopology.class)) {
+      topology.when(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, null, 10.0, request.getOperationId(), leader)).thenReturn(true);
+      FactionManager.acceptRelocateRequest(leader);
+      topology.verify(() -> net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(
+          leader, guild, target, 7, null, 10.0, request.getOperationId(), leader));
+    }
   }
 
   @Test
@@ -937,7 +954,6 @@ class FactionManagerCoverageTest {
     final MockedStatic<InactivityService> inactivity = mockStatic(InactivityService.class);
     final MockedStatic<ContractAccrualService> accrual = mockStatic(ContractAccrualService.class);
     final MockedStatic<ContractTerminationService> termination = mockStatic(ContractTerminationService.class);
-    final MockedStatic<PostSettlementPayouts> payouts = mockStatic(PostSettlementPayouts.class);
     final MockedStatic<WarReparationsService> reparations = mockStatic(WarReparationsService.class);
     final MockedStatic<TradeGraph> routes = mockStatic(TradeGraph.class);
     final MockedStatic<FactionCleanup> cleanup = mockStatic(FactionCleanup.class);
@@ -959,7 +975,6 @@ class FactionManagerCoverageTest {
       cleanup.close();
       routes.close();
       reparations.close();
-      payouts.close();
       termination.close();
       accrual.close();
       inactivity.close();
@@ -967,108 +982,22 @@ class FactionManagerCoverageTest {
   }
 
   @Test
-  void dailySettlementNetsTransfersRoundsBalancesAndPublishesHistoryBeforeClearingBuffer() {
-    Faction home = faction("home", "Alice");
-    Guild payer = guild(home, "payer", "Alice");
-    Guild recipient = guild(home, "recipient", "Bob");
-    Guild zero = guild(home, "zero", "Carol");
-    Guild noBank = guild(home, "no-bank", "Dave");
-    when(noBank.getBank()).thenReturn(null);
-    Loan loan = mock(Loan.class);
-    when(loan.getId()).thenReturn("loan");
-    when(payer.getLoanHandler().getLoansGiven()).thenReturn(Arrays.asList(null, loan));
-    Ledger payerLedger = payer.getLedger();
-    AtomicReference<DailyGuildTransfers> collected = new AtomicReference<>();
-    doAnswer(call -> {
-      DailyGuildTransfers buffer = call.getArgument(0);
-      collected.set(buffer);
-      buffer.add(payer, recipient, 7.12);
-      buffer.addExternalDelta(payer, 10.004);
-      buffer.addExternalDelta(recipient, -1.004);
-      buffer.addExternalDelta(zero, 3.0);
-      buffer.addExternalDelta(zero, -3.0);
-      buffer.addExternalDelta(noBank, 2.0);
-      return null;
-    }).when(payerLedger).populateDailyTransfers(any());
-    try (DailyServices daily = new DailyServices()) {
-      Map<LedgerHistory.Source, Map<String, Double>> before = new HashMap<>();
-      daily.histories.when(() -> Ledger.collectHistoryDay(any())).thenReturn(Map.of(payer, before));
-      daily.payouts.when(() -> PostSettlementPayouts.apply(any(), any(), any(), any()))
-          .thenAnswer(call -> {
-            DailyGuildTransfers buffer = call.getArgument(0);
-            assertEquals(7.12, buffer.getTransfers().get(payer).get(recipient));
-            verify(payer.getBank()).deposit(2.88);
-            verify(recipient.getBank()).deposit(6.12);
-            return null;
-          });
-
+  void dailySettlementUsesOneRealmJournalAndStopsOnUncertainRecovery() throws Exception {
+    var service = mock(net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService.class);
+    when(fixture.ui.plugin.getRealmSettlementService()).thenReturn(service);
+    try (var runtime = mockStatic(net.tfminecraft.simplefactions.economy.EconomyRuntime.class)) {
       manager.settleIncome();
-
-      verify(payer.getLedger().getHistory()).closeDay(same(before));
-      verify(recipient.getLedger().getHistory()).closeDay(null);
-      verify(zero.getBank(), never()).deposit(anyDouble());
-      verify(loan).tickDay();
-      verify(payer).refreshDividendEligibility();
-      verify(recipient).refreshDividendEligibility();
-      daily.accrual.verify(ContractAccrualService::accrueDailyAndPush);
-      daily.termination.verify(ContractTerminationService::tickDay);
-      daily.reparations.verify(() -> WarReparationsService.tickAfterDailySettlement(home));
-      verify(daily.upkeep).processDailyUpkeep();
+      verifyNoInteractions(service);
+      runtime.when(net.tfminecraft.simplefactions.economy.EconomyRuntime::ready).thenReturn(true);
+      FactionManager.day = 7;
+      manager.settleIncome();
+      verify(service).settle(7);
       verify(fixture.ui.plugin).recordVehicleOwners();
-      assertTrue(collected.get().getTransfers().isEmpty());
-      assertTrue(collected.get().getExternalDeltas().isEmpty());
-    }
-  }
-
-  @Test
-  void settlementLiquidatesWhileAssetsShrinkAndStopsAStalledLiquidator() {
-    Faction home = faction("home", "Alice");
-    Guild shrinking = guild(home, "shrinking", "Alice");
-    Guild stalled = guild(home, "stalled", "Bob");
-    AtomicInteger remaining = new AtomicInteger(5);
-    when(shrinking.isBankrupt()).thenAnswer(call -> remaining.get() > 3);
-    when(shrinking.canLiquidate()).thenReturn(true);
-    when(shrinking.getSize()).thenAnswer(call -> remaining.get());
-    doAnswer(call -> { remaining.decrementAndGet(); return null; }).when(shrinking).liquidateRandom();
-    when(stalled.isBankrupt()).thenReturn(true);
-    when(stalled.canLiquidate()).thenReturn(true);
-    when(stalled.getSize()).thenReturn(3);
-    Ledger shrinkingLedger = shrinking.getLedger();
-    doAnswer(call -> {
-      DailyGuildTransfers buffer = call.getArgument(0);
-      buffer.addExternalDelta(shrinking, -20);
-      buffer.addExternalDelta(stalled, -20);
-      return null;
-    }).when(shrinkingLedger).populateDailyTransfers(any());
-    try (DailyServices daily = new DailyServices()) {
+      var failure = new java.io.IOException("incomplete effect");
+      doThrow(failure).when(service).settle(7);
       manager.settleIncome();
-      verify(shrinking, times(2)).liquidateRandom();
-      assertEquals(3, remaining.get());
-      verify(stalled).liquidateRandom();
-      verify(daily.upkeep).processDailyUpkeep();
-    }
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void dailyFailureIsLoggedAndDoesNotPreventOtherGuildsOrFinalMaintenance(boolean availableLogger) {
-    Faction home = faction("home", "Alice");
-    Guild broken = guild(home, "broken", "Alice");
-    Guild healthy = guild(home, "healthy", "Bob");
-    Logger logger = mock(Logger.class);
-    when(fixture.ui.plugin.getLogger()).thenReturn(availableLogger ? logger : null);
-    IllegalStateException failure = new IllegalStateException("broken ledger");
-    Ledger brokenLedger = broken.getLedger();
-    Ledger healthyLedger = healthy.getLedger();
-    doThrow(failure).when(brokenLedger).populateDailyTransfers(any());
-    doAnswer(call -> { ((DailyGuildTransfers) call.getArgument(0)).addExternalDelta(healthy, 10); return null; })
-        .when(healthyLedger).populateDailyTransfers(any());
-    try (DailyServices daily = new DailyServices()) {
-      assertDoesNotThrow(manager::settleIncome);
-      verify(healthy.getBank()).deposit(10.0);
-      verify(healthy.getLedger().getHistory()).closeDay(null);
-      verify(daily.upkeep).processDailyUpkeep();
-      if (availableLogger) verify(logger).log(Level.SEVERE, "Daily tick failed during ledger broken", failure);
+      runtime.verify(() -> net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(failure));
+      assertEquals(7, FactionManager.day);
     }
   }
 
@@ -1102,34 +1031,21 @@ class FactionManagerCoverageTest {
     assertEquals(0, FactionManager.getSecondsUntilNewDay());
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void dayRolloverContinuesAfterOneFactionFailureAndDoesNotPayAgainNextSecond(boolean tracksChanged) {
-    Faction broken = faction("broken", "Alice");
-    Faction healthy = faction("healthy", "Bob");
-    IllegalStateException failure = new IllegalStateException("one faction failed");
-    doThrow(failure).when(broken).newDay();
-    Logger logger = mock(Logger.class);
-    when(fixture.ui.plugin.getLogger()).thenReturn(logger);
-    when(fixture.ui.plugin.refreshTrackProvinces()).thenReturn(tracksChanged);
-    try (DailyServices daily = new DailyServices()) {
+  @Test
+  void dayRolloverAdvancesOnlyAfterTheJournalCompletesAndDoesNotPayAgainNextSecond() throws Exception {
+    var service = mock(net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService.class);
+    when(fixture.ui.plugin.getRealmSettlementService()).thenReturn(service);
+    doAnswer(call -> { FactionManager.day = 6; FactionManager.timer = 0; return null; }).when(service).settle(5);
+    try (DailyServices daily = new DailyServices(); var runtime = mockStatic(net.tfminecraft.simplefactions.economy.EconomyRuntime.class)) {
+      runtime.when(net.tfminecraft.simplefactions.economy.EconomyRuntime::ready).thenReturn(true);
       FactionManager.timer = 86399;
       FactionManager.day = 5;
       manager.time();
-      assertEquals(0, FactionManager.getTimer());
-      assertEquals(6, FactionManager.getDay());
-      verify(healthy).newDay();
-      verify(daily.economy).clearAllDaily();
-      daily.cleanup.verify(() -> FactionCleanup.advanceOfflineDays(FactionManager.factions));
-      daily.routes.verify(TradeGraph::forgetRoutes);
-      verify(fixture.provinces, tracksChanged ? never() : times(1)).recalculate();
-      verify(logger).log(Level.SEVERE, "Daily tick failed during faction broken", failure);
-      verify(daily.upkeep).processDailyUpkeep();
+      assertEquals(0, FactionManager.timer);
+      assertEquals(6, FactionManager.day);
       manager.time();
-      assertEquals(1, FactionManager.getTimer());
-      assertEquals(6, FactionManager.getDay());
-      verify(daily.upkeep, times(1)).processDailyUpkeep();
-      verify(healthy, times(1)).newDay();
+      assertEquals(1, FactionManager.timer);
+      verify(service, times(1)).settle(5);
     }
   }
 

@@ -8,6 +8,8 @@ import com.google.gson.annotations.SerializedName;
 
 public class GuildData {
     public String id;
+    /** Immutable identity of this guild, kept across renames and never reused. */
+    public String incarnation;
     public String name;
     public String leader;
 
@@ -63,6 +65,7 @@ public class GuildData {
 
     @SerializedName("casino profit")
     public Double casinoProfit;
+    public Map<String, Double> casinoProfitOperations;
     public Double vehicleFeeIncome;
 
     @SerializedName("citizen taxes")

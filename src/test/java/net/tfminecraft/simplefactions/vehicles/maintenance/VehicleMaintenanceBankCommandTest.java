@@ -133,12 +133,13 @@ class VehicleMaintenanceBankCommandTest {
         Player player = mock(Player.class);
         UUID payer = UUID.randomUUID();
         when(player.getUniqueId()).thenReturn(payer);
+        when(player.getName()).thenReturn("Payer");
         var sessions = new VehicleMaintenancePaySessionManager();
         var session = new VehicleMaintenancePaySessionManager.VehicleMaintenancePaySession(
-                System.currentTimeMillis() + 60_000, PaymentSource.BANK);
+                System.currentTimeMillis() + 60_000, PaymentSource.BANK, net.tfminecraft.simplefactions.identity.Members.session(player).orElseThrow());
         sessions.put(payer, session);
         var service = mock(VehicleMaintenancePayService.class);
-        when(service.tryPay(payer, "vehicle-uuid", "cog", PaymentSource.BANK))
+        when(service.tryPay(session.getOperationId(), session.getCharacter().ref(), "vehicle-uuid", "cog", PaymentSource.BANK))
                 .thenReturn(VehicleMaintenancePayService.VehicleMaintenancePayResult.NOT_UNPAID);
         var listener = new VehicleMaintenancePayListener(sessions, service);
 
@@ -149,6 +150,6 @@ class VehicleMaintenanceBankCommandTest {
         var nextClick = new VehiclePreInteractEvent(player, null);
         listener.onVehiclePreInteract(nextClick);
         assertFalse(nextClick.isCancelled());
-        verify(service, times(1)).tryPay(any(), any(), any(), any());
+        verify(service, times(1)).tryPay(any(), any(), any(), any(), any());
     }
 }

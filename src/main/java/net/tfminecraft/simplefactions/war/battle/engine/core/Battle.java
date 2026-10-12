@@ -72,6 +72,22 @@ public class Battle {
 	private boolean capturePointsEnabled;
 	private int contestHoldRemainingSeconds;
 	private boolean campaignRaid;
+	private final Set<net.tfminecraft.tlibs.character.CharacterRef> participants = new HashSet<>();
+
+	public Set<net.tfminecraft.tlibs.character.CharacterRef> getParticipants() {
+		return Set.copyOf(participants);
+	}
+
+	public void restoreParticipants(java.util.Collection<net.tfminecraft.tlibs.character.CharacterRef> saved) {
+		participants.clear();
+		if (saved != null) participants.addAll(saved);
+	}
+
+	public void captureParticipant(Player player) {
+		net.tfminecraft.simplefactions.identity.Members.session(player)
+				.map(net.tfminecraft.tlibs.character.CharacterSession::ref).ifPresent(participants::add);
+	}
+
 	private final Map<String, Integer> recordedSideCasualties = new LinkedHashMap<>();
 	public List<CapturePoint> getPoints() {
 		return points;
@@ -280,6 +296,8 @@ public class Battle {
 		}
 		this.started = true;
 		this.startedAt = Instant.now();
+		participants.clear();
+		getAllParticipants().forEach(this::captureParticipant);
 		fireStartedEvent();
 		if (!this.started) {
 			return "Battle ended during its start event.";
@@ -340,7 +358,7 @@ public class Battle {
 				getId(),
 				getBattleType(),
 				getWarId(),
-				BattleParticipantCollector.collect(this)));
+				BattleParticipantCollector.collect(this), getParticipants()));
 	}
 
 	public void end() {

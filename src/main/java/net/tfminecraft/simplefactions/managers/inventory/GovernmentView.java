@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.List;
 
@@ -75,12 +77,12 @@ public class GovernmentView {
 		i.setItem(24, creator.createProposalListItem(player, f));
 		i.setItem(33, creator.createMovementListItem(player, f));
 		Government gov = f.getGovernment();
-		if(gov.getCouncil().canBeMember(player.getName(), true, true)) i.setItem(21, creator.createToggleRefuseButton(player, f));
+		if(gov.getCouncil().canBeMember(Members.key(player), true, true)) i.setItem(21, creator.createToggleRefuseButton(player, f));
 		if(gov.hasElections()) i.setItem(14, creator.createElectionItem(player, f));
-		if(gov.getCouncil().canHostSession() && f.getLeader().equalsIgnoreCase(player.getName())) {
+		if(gov.getCouncil().canHostSession() && Members.is(player, f.getLeader())) {
 			i.setItem(23, creator.createStartCouncilButton(player, f));
 		}
-		Guild viewer = FactionManager.getGuildByMember(player.getName());
+		Guild viewer = FactionManager.getGuildByMember(Members.key(player));
 		if(viewer != null && gov.canAffectStability(viewer)) {
 			i.setItem(28, creator.createStanceItem(f, viewer, viewer.isLeader(player)));
 		}
@@ -359,7 +361,7 @@ public class GovernmentView {
 				}
 			} else if(slot == 15) {
 				Government gov = f.getGovernment();
-				if(!gov.canProposeOrStartMovement(p) || gov.getMovementByMember(p.getName()) != null) {
+				if(!gov.canProposeOrStartMovement(p) || gov.getMovementByMember(Members.key(p)) != null) {
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 					return;
 				}
@@ -369,8 +371,8 @@ public class GovernmentView {
 				Government gov = f.getGovernment();
 				// Foreign viewers see this menu too; only those offered the button may use it.
 				if(!EspionageService.canViewExact(p, f)
-						|| !gov.getCouncil().canBeMember(p.getName(), true, true)) return;
-				gov.getCouncil().toggleRefuse(p.getName());
+						|| !gov.getCouncil().canBeMember(Members.key(p), true, true)) return;
+				gov.getCouncil().toggleRefuse(Members.key(p));
 				governmentView(p, f, inventory);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(slot == 24) {
@@ -381,7 +383,7 @@ public class GovernmentView {
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(slot == 23) {
 				if(!f.getGovernment().hasCouncil()) return;
-				if(!f.isLeader(p.getName()) || !f.getGovernment().getCouncil().canHostSession()) {
+				if(!f.isLeader(Members.key(p)) || !f.getGovernment().getCouncil().canHostSession()) {
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 					return;
 				}
@@ -516,9 +518,9 @@ public class GovernmentView {
 			}
 			Government gov = f.getGovernment();
 			double cost = law.getCost()*law.getCompatibility(f.getLawHandler().getGroup(group).getCurrent().getId());
-			Proposal proposal = new Proposal(p.getName(), gov);
+			Proposal proposal = new Proposal(Members.key(p), gov);
 			proposal.setLawProposal(law);
-			if(!gov.hasCouncil() && f.isLeader(p.getName())) {
+			if(!gov.hasCouncil() && f.isLeader(Members.key(p))) {
 				if(gov.getPower() < cost) {
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 					p.sendMessage("§cThe government does not have enough power to propose this! §7(Need §e"+cost+"§7, has §e"+gov.getPower()+"§7)");
@@ -546,24 +548,24 @@ public class GovernmentView {
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				governmentView(p, f, null);
 			} else if(gov.canProposeOrStartMovement(p)) {
-				Movement movement = gov.getMovementByMember(p.getName());
+				Movement movement = gov.getMovementByMember(Members.key(p));
 				if(movement != null) {
 					if(!gov.canBeProposed(proposal)) {
 						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 						return;
 					}
-					movement.createCause(p.getName(), proposal);
+					movement.createCause(Members.key(p), proposal);
 					p.sendMessage("§aProposal added to your movement! Rally support for your proposal by sharing it with your faction and allies!");
 					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 					governmentView(p, f, null);
 					return;
 				}
-				if (CivilWarHostMovementRules.blocksHostGuildStart(f, p.getName())) {
+				if (CivilWarHostMovementRules.blocksHostGuildStart(f, Members.key(p))) {
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 					p.sendMessage(CivilWarCopy.ONE_PROVINCE_HOST_GUILD);
 					return;
 				}
-				gov.startMovement(p.getName(), proposal);
+				gov.startMovement(Members.key(p), proposal);
 				p.sendMessage("§aMovement started! Rally support for your proposal by sharing it with your faction and allies!");
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				governmentView(p, f, null);
@@ -593,29 +595,29 @@ public class GovernmentView {
 					return;
 				}
 				
-				Proposal proposal = new Proposal(p.getName(), gov);
+				Proposal proposal = new Proposal(Members.key(p), gov);
 				PoliticalAction politicalAction = PoliticalActionLoader.getByAction(action);
 				proposal.setPoliticalActionProposal(politicalAction);
 				
 				if(gov.canProposeOrStartMovement(p)) {
-					Movement movement = gov.getMovementByMember(p.getName());
+					Movement movement = gov.getMovementByMember(Members.key(p));
 					if(movement != null) {
 						if(!gov.canBeProposed(proposal)) {
 							p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 							return;
 						}
-						movement.createCause(p.getName(), proposal);
+						movement.createCause(Members.key(p), proposal);
 						p.sendMessage("§aProposal added to your movement! Rally support for your proposal by sharing it with your faction and allies!");
 						p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 						governmentView(p, f, null);
 						return;
 					}
-					if (CivilWarHostMovementRules.blocksHostGuildStart(f, p.getName())) {
+					if (CivilWarHostMovementRules.blocksHostGuildStart(f, Members.key(p))) {
 						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 						p.sendMessage(CivilWarCopy.ONE_PROVINCE_HOST_GUILD);
 						return;
 					}
-					gov.startMovement(p.getName(), proposal);
+					gov.startMovement(Members.key(p), proposal);
 					p.sendMessage("§aMovement started! Rally support for your proposal by sharing it with your faction and allies!");
 					p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 					governmentView(p, f, null);
@@ -661,7 +663,7 @@ public class GovernmentView {
 			if(item == null) return;
 			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
 			if(f == null) return;
-			boolean isLeader = p.getName().equalsIgnoreCase(f.getLeader());
+			boolean isLeader = Members.is(p, f.getLeader());
 			if(!isLeader) return;
 			// Handle council member click for replace/appoint
 			ItemMeta meta = item.getItemMeta();
@@ -688,7 +690,7 @@ public class GovernmentView {
 			if(item == null) return;
 			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
 			if(f == null) return;
-			boolean isLeader = p.getName().equalsIgnoreCase(f.getLeader());
+			boolean isLeader = Members.is(p, f.getLeader());
 			if(!isLeader) return;
 			if(e.getSlot() == 45 || e.getSlot() == 52) {
 				int seat = Integer.parseInt(h.getSecondaryId());
@@ -760,7 +762,7 @@ public class GovernmentView {
 			Faction f = FactionManager.getByString(h.getId());
 			if(f == null) return;
 
-			if(!f.isLeader(p.getName())) return;
+			if(!f.isLeader(Members.key(p))) return;
 			
 			String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
 			if(id == null) return;
@@ -822,7 +824,7 @@ public class GovernmentView {
 
 		WarPeaceHolder(Player player, Faction faction, Action action, boolean fromCause, int index) {
 			super(faction.getId(), SFGUI.WAR_PEACE_SELECT, index, fromCause, action.name());
-			movement = fromCause ? faction.getGovernment().getMovementByMember(player.getName()) : null;
+			movement = fromCause ? faction.getGovernment().getMovementByMember(Members.key(player)) : null;
 			cause = movement != null && index >= 0 && index < movement.getCauses().size()
 					? movement.getCauses().get(index) : null;
 		}
@@ -830,7 +832,7 @@ public class GovernmentView {
 
 	public Cause displayedWarPeaceCause(Player player, Faction faction, Inventory inventory) {
 		if (!(inventory.getHolder() instanceof WarPeaceHolder holder) || holder.cause == null
-				|| faction.getGovernment().getMovementByMember(player.getName()) != holder.movement
+				|| faction.getGovernment().getMovementByMember(Members.key(player)) != holder.movement
 				|| !holder.movement.getCauses().contains(holder.cause)) return null;
 		return holder.cause;
 	}
@@ -853,7 +855,7 @@ public class GovernmentView {
 				return;
 			}
 			Movement movement = cause.getMovement();
-			if (!cause.hasLeader() || !cause.getLeader().equals(p.getName())) {
+			if (!cause.hasLeader() || !Members.is(p, cause.getLeader())) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				return;
 			}
@@ -862,11 +864,11 @@ public class GovernmentView {
 			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 			return;
 		}
-		Proposal proposal = new Proposal(p.getName(), gov);
+		Proposal proposal = new Proposal(Members.key(p), gov);
 		PoliticalAction politicalAction = PoliticalActionLoader.getByAction(action);
 		proposal.setPoliticalActionProposal(politicalAction);
 		proposal.setTarget(warId);
-		if (!gov.hasCouncil() && f.isLeader(p.getName())) {
+		if (!gov.hasCouncil() && f.isLeader(Members.key(p))) {
 			proposal.apply(null);
 			p.sendMessage("§aChange applied!");
 			governmentView(p, f, null);
@@ -884,24 +886,24 @@ public class GovernmentView {
 			return;
 		}
 		if (gov.canProposeOrStartMovement(p)) {
-			Movement movement = gov.getMovementByMember(p.getName());
+			Movement movement = gov.getMovementByMember(Members.key(p));
 			if (movement != null) {
 				if (!gov.canBeProposed(proposal)) {
 					p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 					return;
 				}
-				movement.createCause(p.getName(), proposal);
+				movement.createCause(Members.key(p), proposal);
 				p.sendMessage("§aProposal added to your movement! Rally support for your proposal by sharing it with your faction and allies!");
 				p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 				governmentView(p, f, null);
 				return;
 			}
-			if (CivilWarHostMovementRules.blocksHostGuildStart(f, p.getName())) {
+			if (CivilWarHostMovementRules.blocksHostGuildStart(f, Members.key(p))) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				p.sendMessage(CivilWarCopy.ONE_PROVINCE_HOST_GUILD);
 				return;
 			}
-			gov.startMovement(p.getName(), proposal);
+			gov.startMovement(Members.key(p), proposal);
 			p.sendMessage("§aMovement started! Rally support for your proposal by sharing it with your faction and allies!");
 			p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
 			governmentView(p, f, null);

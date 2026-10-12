@@ -39,6 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.identity.Members;
 
 class MemberPlaytimeTest {
 
@@ -166,146 +167,52 @@ class MemberPlaytimeTest {
 	}
 
     @Test
-    void readyOnlineTimeNeverFallsBackToAnEarlierCharacterWhilePending() {
+    void memberTimeIsTheirOwnCharactersNotTheAccountsLastPlayed() {
         try (var fixture = new SharedFixture()) {
-            Player alice = fixture.player("Alice");
-            UUID owner = alice.getUniqueId();
-            fixture.lastPlayed.put(owner, snapshot(owner, UUID.randomUUID(), CharacterStatus.ALIVE, 500 * HOUR));
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            assertEquals(0.0, MemberPlaytime.totalFor(List.of("Alice")), 1e-9);
-            fixture.activate(alice, UUID.randomUUID(), 2 * HOUR);
-            assertEquals(7200, MemberPlaytime.secondsFor("Alice"));
-            fixture.sessions.remove(owner);
-            assertNull(MemberPlaytime.secondsFor("Alice"));
+            UUID owner = UUID.randomUUID();
+            String older = fixture.character(owner, CharacterStatus.DEAD, 2 * HOUR);
+            UUID lastId = UUID.randomUUID();
+            fixture.lastPlayed.put(owner, snapshot(owner, lastId, CharacterStatus.ALIVE, 500 * HOUR));
+            assertEquals(7200, MemberPlaytime.secondsFor(older), "Dead or offline characters keep their time");
+            assertNull(MemberPlaytime.secondsFor(Members.key(lastId)), "An unknown character contributes nothing");
+            assertNull(MemberPlaytime.secondsFor("Alice"), "A name is not a member key");
             verify(fixture.provider, never()).lastPlayed(any());
-        }
-    }
-
-    @Test
-    void sharedLookupTracksProviderArrivalLossAndAbsentServerWithoutReinstallation() {
-        try (var fixture = new SharedFixture()) {
-            Player alice = fixture.player("Alice");
-            fixture.activate(alice, UUID.randomUUID(), HOUR);
-            fixture.unregister();
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.register();
-            assertEquals(3600, MemberPlaytime.secondsFor("Alice"));
-            fixture.unregister();
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.register();
-            fixture.bukkit.when(Bukkit::getServer).thenReturn(null);
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.bukkit.when(Bukkit::getServer).thenReturn(fixture.server);
-            assertEquals(3600, MemberPlaytime.secondsFor("Alice"));
-        }
-    }
-
-    @Test
-    void offlineTimeUsesCachedOwnersLastPlayedIncludingDeadAndHoldsUnknown() {
-        try (var fixture = new SharedFixture()) {
-            assertNull(MemberPlaytime.secondsFor("Uncached"));
-            verify(fixture.provider, never()).lastPlayed(any());
-            UUID owner = fixture.cached("Alice");
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.lastPlayed.put(owner, snapshot(UUID.randomUUID(), UUID.randomUUID(), CharacterStatus.DEAD, HOUR));
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.lastPlayed.put(owner, snapshot(owner, UUID.randomUUID(), CharacterStatus.DEAD, 2 * HOUR));
-            assertEquals(7200, MemberPlaytime.secondsFor("Alice"));
             fixture.bukkit.verify(() -> Bukkit.getOfflinePlayer(anyString()), never());
             verify(fixture.plugin, never()).getDataFolder();
         }
     }
 
     @Test
-    void onlineTimeRejectsForeignSessionOwnerAndWrongOrMissingInfo() {
+    void sharedLookupTracksProviderArrivalAndLossWithoutReinstallation() {
         try (var fixture = new SharedFixture()) {
-            Player alice = fixture.player("Alice");
-            UUID owner = alice.getUniqueId();
-            UUID characterId = UUID.randomUUID();
-            CharacterSession session = fixture.activate(alice, characterId, HOUR);
-            fixture.sessions.put(owner, new CharacterSession(new CharacterRef(UUID.randomUUID(), characterId), 88));
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.sessions.put(owner, session);
-            fixture.infos.put(characterId, snapshot(UUID.randomUUID(), characterId, CharacterStatus.ALIVE, HOUR));
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.infos.put(characterId, snapshot(owner, UUID.randomUUID(), CharacterStatus.ALIVE, HOUR));
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            fixture.infos.remove(characterId);
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-        }
-    }
-
-    @Test
-    void snapshotFromOriginalACannotContributeAfterAToBToA() {
-        try (var fixture = new SharedFixture()) {
-            Player alice = fixture.player("Alice");
-            UUID characterId = UUID.randomUUID();
-            CharacterSession original = fixture.activate(alice, characterId, HOUR);
-            CharacterInfo oldInfo = fixture.infos.get(characterId);
-            when(fixture.provider.info(characterId)).thenAnswer(call -> {
-                fixture.activate(alice, UUID.randomUUID(), 2 * HOUR);
-                fixture.activate(alice, characterId, 3 * HOUR);
-                return Optional.of(oldInfo);
-            });
-            assertNull(MemberPlaytime.secondsFor("Alice"));
-            assertFalse(Characters.isCurrent(original));
-            CharacterInfo fresh = fixture.infos.get(characterId);
-            doReturn(Optional.of(fresh)).when(fixture.provider).info(characterId);
-            assertEquals(10800, MemberPlaytime.secondsFor("Alice"));
-        }
-    }
-
-    @Test
-    void providerCallbackCannotContributeForDisconnectedOrReplacedPlayer() {
-        for (boolean disconnect : new boolean[] {true, false}) {
-            try (var fixture = new SharedFixture()) {
-                Player alice = fixture.player("Alice");
-                UUID owner = alice.getUniqueId();
-                UUID characterId = UUID.randomUUID();
-                CharacterSession original = fixture.activate(alice, characterId, HOUR);
-                CharacterInfo info = fixture.infos.get(characterId);
-                when(fixture.provider.info(characterId)).thenAnswer(call -> {
-                    if (disconnect) when(alice.isOnline()).thenReturn(false);
-                    else fixture.connections.put(owner, mock(Player.class));
-                    return Optional.of(info);
-                });
-                assertNull(MemberPlaytime.secondsFor("Alice"));
-                assertTrue(Characters.isCurrent(original));
-                when(alice.isOnline()).thenReturn(true);
-                fixture.connections.put(owner, alice);
-                doReturn(Optional.of(info)).when(fixture.provider).info(characterId);
-                assertEquals(3600, MemberPlaytime.secondsFor("Alice"));
-            }
+            String alice = fixture.character(UUID.randomUUID(), CharacterStatus.ALIVE, HOUR);
+            fixture.unregister();
+            assertNull(MemberPlaytime.secondsFor(alice));
+            fixture.register();
+            assertEquals(3600, MemberPlaytime.secondsFor(alice));
         }
     }
 
     @Test
     void sharedSecondsSaturateBeforeConvertingToInteger() {
         try (var fixture = new SharedFixture()) {
-            Player alice = fixture.player("Alice");
-            fixture.activate(alice, UUID.randomUUID(), Long.MAX_VALUE);
-            assertEquals(Integer.MAX_VALUE, MemberPlaytime.secondsFor("Alice"));
-            fixture.activate(alice, UUID.randomUUID(), 0);
-            assertEquals(0, MemberPlaytime.secondsFor("Alice"));
-            assertEquals(1.0, MemberPlaytime.totalFor(List.of("Alice")), 1e-9);
+            String endless = fixture.character(UUID.randomUUID(), CharacterStatus.ALIVE, Long.MAX_VALUE);
+            assertEquals(Integer.MAX_VALUE, MemberPlaytime.secondsFor(endless));
+            String fresh = fixture.character(UUID.randomUUID(), CharacterStatus.ALIVE, 0);
+            assertEquals(0, MemberPlaytime.secondsFor(fresh));
+            assertEquals(1.0, MemberPlaytime.totalFor(List.of(fresh)), 1e-9);
         }
     }
 
     @Test
-    void sharedRosterKeepsPrestigeFormulaAndSkipsPendingOrUnknownAccounts() {
+    void sharedRosterKeepsPrestigeFormulaAndSkipsUnknownMembers() {
         try (var fixture = new SharedFixture()) {
-            Player alice = fixture.player("Alice");
-            fixture.activate(alice, UUID.randomUUID(), 500 * HOUR);
-            UUID bob = fixture.cached("Bob");
-            fixture.lastPlayed.put(bob, snapshot(bob, UUID.randomUUID(), CharacterStatus.DEAD, 100 * HOUR));
-            Player cara = fixture.player("Cara");
-            fixture.activate(cara, UUID.randomUUID(), 0);
-            Player pending = fixture.player("Pending");
-            UUID pendingOwner = pending.getUniqueId();
-            fixture.lastPlayed.put(pendingOwner,
-                    snapshot(pendingOwner, UUID.randomUUID(), CharacterStatus.ALIVE, Long.MAX_VALUE));
-            assertEquals(35.0, MemberPlaytime.totalFor(List.of("Alice", "Bob", "Cara", "Pending", "Ghost")), 1e-9);
-            verify(fixture.provider, never()).lastPlayed(pendingOwner);
+            UUID account = UUID.randomUUID();
+            String alice = fixture.character(account, CharacterStatus.ALIVE, 500 * HOUR);
+            String bob = fixture.character(UUID.randomUUID(), CharacterStatus.DEAD, 100 * HOUR);
+            String cara = fixture.character(account, CharacterStatus.ALIVE, 0);
+            String ghost = Members.key(UUID.randomUUID());
+            assertEquals(35.0, MemberPlaytime.totalFor(List.of(alice, bob, cara, ghost, "Pending")), 1e-9);
         }
     }
 
@@ -320,13 +227,8 @@ class MemberPlaytimeTest {
         final Server server = mock(Server.class);
         final Plugin plugin = mock(Plugin.class);
         final CharacterIdentity provider = mock(CharacterIdentity.class);
-        final Map<UUID, CharacterSession> sessions = new HashMap<>();
         final Map<UUID, CharacterInfo> infos = new HashMap<>();
         final Map<UUID, CharacterInfo> lastPlayed = new HashMap<>();
-        final Map<String, Player> online = new HashMap<>();
-        final Map<UUID, Player> connections = new HashMap<>();
-        final Map<String, OfflinePlayer> cached = new HashMap<>();
-        private long generation;
 
         SharedFixture() {
             PluginManager plugins = mock(PluginManager.class);
@@ -336,48 +238,18 @@ class MemberPlaytimeTest {
             bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
             bukkit.when(Bukkit::getServicesManager).thenReturn(services);
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
-            bukkit.when(() -> Bukkit.getPlayerExact(anyString())).thenAnswer(call -> online.get(call.getArgument(0)));
-            bukkit.when(() -> Bukkit.getPlayer(any(UUID.class))).thenAnswer(call -> connections.get(call.getArgument(0)));
-            bukkit.when(() -> Bukkit.getOfflinePlayerIfCached(anyString())).thenAnswer(call -> cached.get(call.getArgument(0)));
-            when(provider.currentSession(any())).thenAnswer(call -> {
-                Player player = call.getArgument(0);
-                return Optional.ofNullable(sessions.get(player.getUniqueId()));
-            });
-            when(provider.isCurrent(any())).thenAnswer(call -> {
-                CharacterSession session = call.getArgument(0);
-                return session != null && session.equals(sessions.get(session.ref().ownerId()));
-            });
             when(provider.info(any())).thenAnswer(call -> Optional.ofNullable(infos.get(call.getArgument(0))));
             when(provider.lastPlayed(any())).thenAnswer(call -> Optional.ofNullable(lastPlayed.get(call.getArgument(0))));
             register();
+            Members.useSharedIdentity();
             MemberPlaytime.useSharedIdentity();
         }
 
-        Player player(String name) {
-            Player player = mock(Player.class);
-            UUID owner = UUID.randomUUID();
-            when(player.getUniqueId()).thenReturn(owner);
-            when(player.getName()).thenReturn(name);
-            when(player.isOnline()).thenReturn(true);
-            online.put(name, player);
-            connections.put(owner, player);
-            return player;
-        }
-
-        UUID cached(String name) {
-            UUID owner = UUID.randomUUID();
-            OfflinePlayer player = mock(OfflinePlayer.class);
-            when(player.getUniqueId()).thenReturn(owner);
-            cached.put(name, player);
-            return owner;
-        }
-
-        CharacterSession activate(Player player, UUID characterId, long seconds) {
-            UUID owner = player.getUniqueId();
-            CharacterSession session = new CharacterSession(new CharacterRef(owner, characterId), ++generation);
-            sessions.put(owner, session);
-            infos.put(characterId, snapshot(owner, characterId, CharacterStatus.ALIVE, seconds));
-            return session;
+        /** A stored character and its member key. */
+        String character(UUID owner, CharacterStatus status, long seconds) {
+            UUID characterId = UUID.randomUUID();
+            infos.put(characterId, snapshot(owner, characterId, status, seconds));
+            return Members.key(characterId);
         }
 
         void register() {
@@ -390,7 +262,6 @@ class MemberPlaytimeTest {
 
         @Override public void close() {
             try {
-                bukkit.when(Bukkit::getServer).thenReturn(server);
                 unregister();
                 MemberPlaytime.reset();
             } finally {

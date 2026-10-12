@@ -81,6 +81,8 @@ public final class GuiTestFixture implements AutoCloseable {
   private final Map<Inventory, String> titles = new IdentityHashMap<>();
   private final MockedConstruction<ItemStack> itemConstruction;
   private final MockedStatic<Bukkit> bukkit;
+  private final TestTreasuries treasuries;
+  private java.nio.file.Path callerJournal;
 
   public GuiTestFixture() {
     when(world.getName()).thenReturn("world");
@@ -103,6 +105,7 @@ public final class GuiTestFixture implements AutoCloseable {
     bukkit = mockStatic(Bukkit.class);
     bukkit.when(Bukkit::getServer).thenReturn(server);
     bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+    treasuries = new TestTreasuries();
     var services = new org.bukkit.plugin.SimpleServicesManager();
     bukkit.when(Bukkit::getServicesManager).thenReturn(services);
     when(server.getServicesManager()).thenReturn(services);
@@ -131,6 +134,17 @@ public final class GuiTestFixture implements AutoCloseable {
               bind(item, state);
             });
     SimpleFactions.plugin = plugin;
+    when(plugin.isStarted()).thenReturn(true);
+    var plugins = mock(org.bukkit.plugin.PluginManager.class);
+    when(server.getPluginManager()).thenReturn(plugins);
+    bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
+    var identity = mock(net.tfminecraft.tlibs.character.CharacterIdentity.class);
+    services.register(net.tfminecraft.tlibs.character.CharacterIdentity.class, identity, plugin, org.bukkit.plugin.ServicePriority.Normal);
+    net.tfminecraft.simplefactions.economy.EconomyRuntime.recovered();
+    try {
+      callerJournal = java.nio.file.Files.createTempDirectory("sf-test-callers-");
+      net.tfminecraft.simplefactions.economy.TreasuryActions.recover(callerJournal);
+    } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
   }
 
   private BukkitTask schedule(List<Runnable> queue, Runnable runnable) {
@@ -313,6 +327,13 @@ public final class GuiTestFixture implements AutoCloseable {
 
   private void bind(ItemStack item, ItemState state) {
     items.put(item, state);
+    when(item.serializeAsBytes()).thenAnswer(call -> {
+      var value = new java.util.LinkedHashMap<String, Object>();
+      value.put("type", state.type.name()); value.put("amount", state.amount);
+      value.put("name", state.meta.name); value.put("lore", state.meta.lore);
+      value.put("model", state.meta.model); value.put("data", state.meta.data.toString());
+      return value.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    });
     when(item.getType()).thenAnswer(call -> state.type);
     doAnswer(
             call -> {
@@ -688,6 +709,10 @@ public final class GuiTestFixture implements AutoCloseable {
   public void close() {
     try {
       itemConstruction.close();
+      treasuries.close();
+      try (var paths = java.nio.file.Files.walk(callerJournal)) {
+        for (var path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(path);
+      } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
     } finally {
       try {
         bukkit.close();

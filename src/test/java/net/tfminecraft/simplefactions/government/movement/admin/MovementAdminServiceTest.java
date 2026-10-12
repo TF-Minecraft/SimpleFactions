@@ -42,7 +42,8 @@ class MovementAdminServiceTest {
 		when(movement.getId()).thenReturn("alice_movement");
 		when(movement.isFrozen()).thenReturn(false);
 		when(movement.getSupporters()).thenReturn(supporters);
-		when(movement.getFaction()).thenReturn(mock(Faction.class));
+		Faction host = hostWith("Bob");
+		when(movement.getFaction()).thenReturn(host);
 		when(movement.canJoin(eq("Bob"), isNull(), eq(false))).thenReturn(true);
 		doAnswer(invocation -> {
 			supporters.addCitizen("Bob");
@@ -160,6 +161,8 @@ class MovementAdminServiceTest {
 		Movement movement = mock(Movement.class);
 		when(movement.isFrozen()).thenReturn(false);
 		when(movement.getSupporters()).thenReturn(new Pool());
+		Faction host = hostWith("Bob");
+		when(movement.getFaction()).thenReturn(host);
 		when(movement.joinBlockReason(eq("Bob"), isNull(), eq(true)))
 				.thenReturn("§cBob is not a citizen of Lantan.");
 
@@ -182,7 +185,8 @@ class MovementAdminServiceTest {
 		when(movement.getCauses()).thenReturn(List.of(cause));
 		when(cause.getPool()).thenReturn(pool);
 		when(cause.getIndex()).thenReturn(0);
-		when(movement.getFaction()).thenReturn(mock(Faction.class));
+		Faction host = hostWith("Bob");
+		when(movement.getFaction()).thenReturn(host);
 		when(movement.canJoin(eq("Bob"), eq(cause), eq(false))).thenReturn(true);
 		doAnswer(invocation -> {
 			pool.addCitizen("Bob");
@@ -262,6 +266,7 @@ class MovementAdminServiceTest {
 		when(cause.getProposal()).thenReturn(proposal);
 		when(proposal.isPoliticalActionProposal()).thenReturn(true);
 		when(proposal.getPoliticalAction()).thenReturn(new net.tfminecraft.simplefactions.government.movement.PoliticalAction(net.tfminecraft.simplefactions.government.movement.Action.CHANGE_LEADER));
+		when(host.getMembers()).thenReturn(List.of("dummy_11"));
 		when(host.canBecomeLeader("dummy_11")).thenReturn(true);
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
@@ -271,5 +276,12 @@ class MovementAdminServiceTest {
 			assertTrue(result.ok());
 			verify(proposal).setTarget("dummy_11");
 		}
+	}
+
+	private static Faction hostWith(String... members) {
+		Faction host = mock(Faction.class);
+		when(host.getCompleteMemberList()).thenReturn(List.of(members));
+		when(host.getMembers()).thenReturn(List.of(members));
+		return host;
 	}
 }

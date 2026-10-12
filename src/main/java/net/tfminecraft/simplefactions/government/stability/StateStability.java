@@ -81,7 +81,7 @@ public final class StateStability {
 		if (faction.getGovernment().getCouncilMembers() == null || richest.getMembers() == null) return false;
 		for (String member : richest.getMembers()) {
 			for (String seat : faction.getGovernment().getCouncilMembers()) {
-				if (member != null && member.equalsIgnoreCase(seat)) return true;
+				if (member != null && member.equals(seat)) return true;
 			}
 		}
 		return false;

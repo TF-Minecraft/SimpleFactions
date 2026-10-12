@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.freeze;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -101,12 +102,12 @@ public final class PreparationFreeze {
 	}
 
 	/** Freeze covering a player's own projects, through their faction or their company. */
-	public static Instant frozenUntil(String playerName, Instant now) {
-		if (playerName == null || !anyWarFrozen(now)) {
+	public static Instant frozenUntil(String memberKey, Instant now) {
+		if (memberKey == null || !anyWarFrozen(now)) {
 			return null;
 		}
-		Instant latest = frozenUntil(FactionManager.getByMember(playerName), now);
-		return later(latest, frozenUntil(MercenaryCompanies.findByMember(playerName), now));
+		Instant latest = frozenUntil(FactionManager.getByMember(memberKey), now);
+		return later(latest, frozenUntil(MercenaryCompanies.findByMember(memberKey), now));
 	}
 
 	/** Refusal for a hire by this faction, or null when hiring is open. */
@@ -173,7 +174,7 @@ public final class PreparationFreeze {
 		String message = "§eThe battle was postponed. For the next " + hours + "h your regiments, installations, "
 				+ "war upgrades, mercenary companies and vehicle projects are frozen, and no mercenaries can be hired.";
 		for (String member : members) {
-			Player player = Bukkit.getPlayerExact(member);
+			Player player = Members.player(member);
 			if (player != null) {
 				player.sendMessage(message);
 			}

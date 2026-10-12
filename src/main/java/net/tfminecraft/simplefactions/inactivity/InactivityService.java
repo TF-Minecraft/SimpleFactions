@@ -22,6 +22,7 @@ import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.FactionCleanup;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
+import net.tfminecraft.simplefactions.identity.Members;
 
 /**
  * Tracks guild output penalties and faction prestige penalties, and sheds land
@@ -126,7 +127,8 @@ public final class InactivityService {
 	public static void onLogin(Player player) {
 		if (player == null) return;
 		ensureLoaded();
-		String name = player.getName();
+		String name = Members.key(player);
+		if (name == null) return;
 		boolean wasInactive = InactivityRules.isInactive(FactionCleanup.daysOffline(name));
 		FactionCleanup.ping(name);
 		if (!wasInactive) return;
@@ -343,16 +345,8 @@ public final class InactivityService {
 		}
 	}
 
-	private static boolean isOnline(String name) {
-		try {
-			if (Bukkit.getServer() == null) return false;
-			for (Player player : Bukkit.getOnlinePlayers()) {
-				if (player != null && player.getName().equalsIgnoreCase(name)) return true;
-			}
-		} catch (Throwable ignored) {
-			return false;
-		}
-		return false;
+	private static boolean isOnline(String member) {
+		return Bukkit.getServer() != null && Members.isOnline(member);
 	}
 
 	private static void refreshEconomy() {

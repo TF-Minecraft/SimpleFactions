@@ -51,20 +51,22 @@ class EspionageMenusCoverageTest {
   private MockedStatic<TLibs> items;
   private MockedStatic<net.tfminecraft.rpcharacters.calendar.FantasyCalendar> calendar;
   private MockedConstruction<Database> databases;
+  private CharacterKeyedMembers members;
 
   @BeforeEach
   void setup() throws Exception {
     fixture = new FactionDomainFixture();
-    home = fixture.saved("home", "Leader");
+    members = CharacterKeyedMembers.install();
+    home = fixture.saved("home", EspionageTestFixtures.key("Leader"));
     home.getOrCreateMainGuild();
-    home.addMember("Spy");
-    target = fixture.saved("target", "ForeignLeader");
+    home.addMember(EspionageTestFixtures.key("Spy"));
+    target = fixture.saved("target", EspionageTestFixtures.key("ForeignLeader"));
     target.getOrCreateMainGuild();
-    guild = fixture.guild(target, "merchants", "Baron");
-    leader = fixture.player("Leader");
-    spy = fixture.player("Spy");
-    foreignLeader = fixture.player("ForeignLeader");
-    visitor = fixture.player("Visitor");
+    guild = fixture.guild(target, "merchants", EspionageTestFixtures.key("Baron"));
+    leader = members.add(fixture.player("Leader"));
+    spy = members.add(fixture.player("Spy"));
+    foreignLeader = members.add(fixture.player("ForeignLeader"));
+    visitor = members.add(fixture.player("Visitor"));
     characters = mockStatic(OfficeCharacters.class);
     characters.when(() -> OfficeCharacters.currentSession(any()))
         .thenAnswer(call -> session(call.getArgument(0)));
@@ -130,8 +132,7 @@ class EspionageMenusCoverageTest {
   private CharacterSession session(Player player) {
     if (player == null) return null;
     return sessions.computeIfAbsent(player.getUniqueId(), owner -> new CharacterSession(
-        new CharacterRef(owner, UUID.nameUUIDFromBytes(
-            ("character-" + player.getName()).getBytes(StandardCharsets.UTF_8))), 1));
+        new CharacterRef(owner, EspionageTestFixtures.characterOf(player.getName())), 1));
   }
 
   private SpecialPositionAssignment assign(
@@ -175,8 +176,8 @@ class EspionageMenusCoverageTest {
 
   @Test
   void foreignFactionAndGuildMenusUseTheDatedReportWithoutRevealingCurrentBalances() {
-    target.getBank().deposit(1234567.0);
-    guild.getBank().deposit(7654321.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(target.getBank(), 1234567.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 7654321.0);
     report.estimates.put("Wealth", new EspionageMath.Estimate(100, 150));
     report.estimates.put(
         IntelligenceLedger.key(guild, "Wealth"), new EspionageMath.Estimate(200, 250));
@@ -413,15 +414,15 @@ class EspionageMenusCoverageTest {
     click(leader, 53);
     assertEquals(SFGUI.SPYMASTER_VIEW, kind(leader));
     click(leader, 11);
-    home.setLeader("Spy");
+    home.setLeader(EspionageTestFixtures.key("Spy"));
     click(leader, 0);
     verify(leader).closeInventory();
   }
 
   @Test
   void selectingAnOnlineCharacterAppointsAndRemovalReturnsTheOfficeToTheLeader() {
-    home.addMember("NewSpy");
-    Player candidate = fixture.player("NewSpy");
+    home.addMember(EspionageTestFixtures.key("NewSpy"));
+    Player candidate = members.add(fixture.player("NewSpy"));
     EspionageView.spymasterOffice(leader, home, manager);
     click(leader, 11);
     int candidateSlot = -1;

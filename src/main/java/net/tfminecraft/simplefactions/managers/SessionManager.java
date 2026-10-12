@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ArrayList;
@@ -78,12 +80,12 @@ public class SessionManager implements Listener{
         if (clickedBlock == null) return;
         if (!clickedBlock.getType().equals(Material.LANTERN)) return;
         
-        Faction faction = FactionManager.getByMember(player.getName());
+        Faction faction = FactionManager.getByMember(Members.key(player));
         if (faction == null) return;
         
         Council council = faction.getGovernment().getCouncil();
         Session session = getSession(council);
-        if (session != null && (faction.getLeader().equals(player.getName()) || faction.getGovernment().isCouncilMember(player))) {
+        if (session != null && (Members.is(player, faction.getLeader()) || faction.getGovernment().isCouncilMember(player))) {
             if(session.isStarted() && clickedBlock.equals(session.getLantern())) {
                 event.setCancelled(true);
                 Proposal currentProposal = session.getCurrentProposal();
@@ -140,9 +142,9 @@ public class SessionManager implements Listener{
 
     private void recordChatVote(Player player, Vote vote) {
         if (!player.isOnline()) return;
-        String playerName = player.getName();
+        String key = Members.key(player);
         
-        Faction faction = FactionManager.getByMember(playerName);
+        Faction faction = FactionManager.getByMember(key);
         if (faction == null) return;
         
         Council council = faction.getGovernment().getCouncil();
@@ -160,7 +162,7 @@ public class SessionManager implements Listener{
                 }
             }
             
-            if (session.recordVote(playerName, vote)) {
+            if (session.recordVote(key, vote)) {
                 player.sendMessage("§aYour vote (" + vote.getDisplay() + ") has been recorded!");
                 Sound sound = switch (vote) {
                     case YAY -> Sound.BLOCK_NOTE_BLOCK_CHIME;

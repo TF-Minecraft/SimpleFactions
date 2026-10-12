@@ -4,27 +4,36 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.denareconomy.enums.Accounts;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 
 public class Wealth {
+    /** Pouch, bank and a share of the character's guild. */
     public static double wealth(String player) {
-        double wealth = OfflineModifier.balance(player, Accounts.POUCH);
-        wealth += OfflineModifier.balance(player, Accounts.BANK);
+        double wealth = balance(player, Accounts.POUCH);
+        wealth += balance(player, Accounts.BANK);
         Guild guild = FactionManager.getGuildByMember(player);
         if(guild != null) {
-            if(guild.getLeader().equalsIgnoreCase(player) && guild.isBase()) {
+            if(guild.getLeader().equals(player) && guild.isBase()) {
                 wealth += guild.getWealth();
             } else if(!guild.isBase()) {
                 wealth += guild.getWealth()/(double)guild.getMembers().size();
             }
         }
         return wealth;
+    }
+
+    private static double balance(String member, Accounts account) {
+        UUID id = Members.characterId(member);
+        if (id == null) return 0;
+        return net.tfminecraft.simplefactions.economy.Money.denars(net.tfminecraft.denareconomy.api.Denars.balance(
+                "char:" + id + ":" + (account == Accounts.POUCH ? "pouch" : "bank")));
     }
 
     public static List<String> topWealth(Faction faction, boolean includeVassals) {

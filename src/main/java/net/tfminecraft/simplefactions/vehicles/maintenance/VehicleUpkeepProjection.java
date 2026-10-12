@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import java.util.UUID;
 
@@ -21,35 +22,34 @@ public final class VehicleUpkeepProjection {
         if (playerUuid == null) {
             return 0.0;
         }
-        String playerName = VehicleOwnershipQueries.resolvePlayerName(playerUuid);
-        return projectedDailyUpkeep(playerName, SimpleFactions.getVehicleRegistry());
+        return projected(playerUuid, SimpleFactions.getVehicleRegistry(), false);
     }
 
     public static double projectedDailyUpkeep(String playerName, PlayerVehicleRegistry registry) {
-        if (playerName == null || playerName.isBlank()) {
-            return 0.0;
-        }
-        double total = 0.0;
-        for (OwnedVehicleSummary vehicle :
-                VehicleOwnershipQueries.personalVehicles(playerName, registry)) {
-            total += VehiclesConfigLoader.getUpkeep(vehicle.getTypeId());
-        }
-        return total;
+        return projected(character(playerName), registry, false);
     }
 
-    /** Vehicle tax the player's faction will charge with tomorrow's upkeep. */
     public static double projectedDailyTax(String playerName, PlayerVehicleRegistry registry) {
-        if (playerName == null || playerName.isBlank()) {
-            return 0.0;
-        }
-        double total = 0.0;
-        for (OwnedVehicleSummary vehicle :
-                VehicleOwnershipQueries.personalVehicles(playerName, registry)) {
-            VehicleFeeService.Quote quote =
-                    VehicleFeeService.quote(FeeKind.VEHICLE_TAX, playerName, vehicle.getTypeId());
-            if (quote != null) {
-                total += quote.amount();
-            }
+        return projected(character(playerName), registry, true);
+    }
+
+    private static UUID character(String name) {
+        UUID character = Members.characterId(name);
+        if (character != null) return character;
+        if (name == null || name.isBlank() || org.bukkit.Bukkit.getServer() == null) return null;
+        return Members.session(org.bukkit.Bukkit.getPlayerExact(name)).map(session -> session.ref().characterId()).orElse(null);
+    }
+
+    private static double projected(UUID character, PlayerVehicleRegistry registry, boolean tax) {
+        if (character == null || registry == null) return 0;
+        double total = 0;
+        for (var vehicle : VehicleOwnershipQueries.allPersonalVehicles(registry)) {
+            var row = registry.getByVehicleUuid(vehicle.getUuid()).orElse(null);
+            if (row == null || !character.equals(row.getPlayerUuid())) continue;
+            if (tax) {
+                var quote = VehicleFeeService.quote(FeeKind.VEHICLE_TAX, Members.key(character), vehicle.getTypeId());
+                if (quote != null) total += quote.amount();
+            } else total += VehiclesConfigLoader.getUpkeep(vehicle.getTypeId());
         }
         return Formatter.formatDouble(total);
     }
@@ -63,8 +63,7 @@ public final class VehicleUpkeepProjection {
         if (settled != 0.0 || ledger.getAmount(PlayerCashflow.VEHICLE_UPKEEP) != 0.0 || playerUuid == null) {
             return settled;
         }
-        String playerName = VehicleOwnershipQueries.resolvePlayerName(playerUuid);
-        double projected = projectedDailyTax(playerName, SimpleFactions.getVehicleRegistry());
+        double projected = projected(playerUuid, SimpleFactions.getVehicleRegistry(), true);
         return projected > 0.0 ? -projected : 0.0;
     }
 

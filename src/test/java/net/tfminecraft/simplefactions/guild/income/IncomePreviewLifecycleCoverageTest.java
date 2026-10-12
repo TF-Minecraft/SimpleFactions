@@ -420,7 +420,7 @@ class IncomePreviewLifecycleCoverageTest {
         Branch branch = new Branch(new Branch("fields", config), 2);
         guild.getBranches().clear();
         guild.getBranches().put(1, branch);
-        guild.getBank().deposit(250.0);
+        net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 250.0);
         TradeBreakdown original = guild.getTradeBreakdown();
         original.setIncome(80);
         ProvinceManager live = new ProvinceManager();

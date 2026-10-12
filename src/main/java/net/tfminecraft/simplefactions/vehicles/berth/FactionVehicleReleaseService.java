@@ -1,7 +1,11 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
+import org.bukkit.Bukkit;
 import java.util.function.BooleanSupplier;
 
 import org.json.simple.JSONObject;
@@ -66,16 +70,17 @@ public final class FactionVehicleReleaseService {
 
     public record Outcome(Status status, CanBuildResult slotFailure, String vehicleTypeId) {}
 
-    public Outcome take(Faction faction, String leaderName, String vehicleUuid) {
-        return release(faction, leaderName, leaderName, vehicleUuid, null, true);
+    /** {@code leader} is the leader's member key; recipients are account names, as VehicleFramework owners are. */
+    public Outcome take(Faction faction, String leader, String vehicleUuid) {
+        return release(faction, leader, VehicleOwnershipQueries.accountNameOf(leader), vehicleUuid, null, true);
     }
 
     public Outcome takeFromInstallation(
             Faction faction,
-            String leaderName,
+            String leader,
             String installationId,
             String vehicleUuid) {
-        return release(faction, leaderName, leaderName, vehicleUuid, installationId, true);
+        return release(faction, leader, VehicleOwnershipQueries.accountNameOf(leader), vehicleUuid, installationId, true);
     }
 
     public Outcome give(Faction faction, String leaderName, String recipientName, String vehicleUuid) {
@@ -104,7 +109,7 @@ public final class FactionVehicleReleaseService {
                 || vehicleUuid.isBlank()) {
             return outcome(Status.NOT_FACTION_VEHICLE, null, null);
         }
-        if (faction.getLeader() == null || !faction.getLeader().equalsIgnoreCase(leaderName)) {
+        if (faction.getLeader() == null || !faction.getLeader().equals(leaderName)) {
             return outcome(Status.NOT_LEADER, null, null);
         }
         if (recipientName == null || recipientName.isBlank()) {
@@ -141,9 +146,10 @@ public final class FactionVehicleReleaseService {
         if (!apply) {
             return outcome(Status.OK, null, typeId);
         }
-        // Drop the faction record and save it before the owner changes, so a failed save can
-        // never leave a personal vehicle that still loads as a faction vehicle.
-        registry.unregister(vehicleUuid);
+        // Record the captured recipient as payer before changing the external ownership tag.
+        UUID recipientCharacter = Members.session(Bukkit.getPlayerExact(recipientName)).map(session -> session.ref().characterId()).orElse(null);
+        if (recipientCharacter == null) return outcome(Status.OWNERSHIP_UNAVAILABLE, null, typeId);
+        registry.register(new PlayerVehicleRecord(recipientCharacter, vehicleUuid, typeId, OwnershipMode.PERSONAL, null));
         if (!registrySaver.getAsBoolean()) {
             // The file still holds the record, so restoring it in memory is enough.
             registry.register(record);

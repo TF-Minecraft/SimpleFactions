@@ -7,6 +7,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.utils.Formatter;
@@ -70,11 +71,11 @@ public final class MercenaryCompanyService {
         }
         Regiment regiment = MercenaryCompany.cloneMercenaryRegiment();
         double cost = Cache.mercenaryFormationCost;
-        guild.getBank().withdraw(cost);
         MercenaryCompany company = new MercenaryCompany(
                 guild, displayName(name), regiment, Cache.mercenaryFormationSeconds);
-        guild.setCompany(company);
         if (company.isFormed()) company.enlistLeader();
+        if (!net.tfminecraft.simplefactions.economy.TreasuryActions.formation(guild, actor, company, cost))
+            return MercenaryResult.deny("Company formation is awaiting treasury recovery or could not be funded.");
         return MercenaryResult.ok("Founding " + company.getName() + "§a for " + money(cost)
                 + " from the guild bank. It will be ready in "
                 + hours(Cache.mercenaryFormationSeconds) + ".");
@@ -101,12 +102,12 @@ public final class MercenaryCompanyService {
             return MercenaryResult.deny("Your company is still being founded.");
         }
         if (company.isEnlisted(target)) {
-            return MercenaryResult.deny(target + " already serves in your company.");
+            return MercenaryResult.deny(Members.display(target) + " already serves in your company.");
         }
         if (!company.hasFreeSlot()) {
             return MercenaryResult.deny("Every slot is already filled.");
         }
-        return MercenaryResult.ok("Invite sent to " + target + ".");
+        return MercenaryResult.ok("Invite sent to " + Members.display(target) + ".");
     }
 
     public static MercenaryResult canJoin(MercenaryCompany company, String player) {
@@ -158,13 +159,13 @@ public final class MercenaryCompanyService {
             return MercenaryResult.deny("Only the guild leader can dismiss mercenaries.");
         }
         if (!company.isEnlisted(player)) {
-            return MercenaryResult.deny(player + " does not serve in your company.");
+            return MercenaryResult.deny(Members.display(player) + " does not serve in your company.");
         }
         if (company.hasFreeSlot()) {
             return MercenaryResult.deny("Fill every slot before dismissing a mercenary.");
         }
         company.kick(player);
-        return MercenaryResult.ok(player + " was dismissed from the company.");
+        return MercenaryResult.ok(Members.display(player) + " was dismissed from the company.");
     }
 
     /* =====================================================
@@ -224,7 +225,7 @@ public final class MercenaryCompanyService {
 
     private static boolean isGuildLeader(Guild guild, String player) {
         String leader = guild.getLeader();
-        return leader != null && player != null && leader.equalsIgnoreCase(player);
+        return leader != null && leader.equals(player);
     }
 
     private static String money(double amount) {

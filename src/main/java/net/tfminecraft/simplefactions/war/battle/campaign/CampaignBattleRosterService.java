@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import java.time.Instant;
 
@@ -153,7 +154,7 @@ public final class CampaignBattleRosterService {
 
 	private static void notifySide(Side side, String message) {
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

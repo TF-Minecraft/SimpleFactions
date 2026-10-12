@@ -102,8 +102,8 @@ class CampaignRaidIntruderServiceTest {
 
 		when(attacker.getMembers()).thenReturn(new ArrayList<>(List.of("Bob")));
 		when(defender.getMembers()).thenReturn(new ArrayList<>(List.of("Carol")));
-		when(attacker.isMemberIgnoreCase("Bob")).thenReturn(true);
-		when(defender.isMemberIgnoreCase("Carol")).thenReturn(true);
+		when(attacker.isMember("Bob")).thenReturn(true);
+		when(defender.isMember("Carol")).thenReturn(true);
 
 		Instant raidWindow = BattleWindowService.atScheduleHour(BATTLE_DAY, 19);
 		CampaignRaidService.beginMuster(war, attacker, "port-atk", "port-def", raidWindow);

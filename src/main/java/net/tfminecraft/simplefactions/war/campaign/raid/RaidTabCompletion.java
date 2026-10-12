@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,9 +28,9 @@ public class RaidTabCompletion implements TabCompleter {
 			return completions;
 		}
 		if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
-			Faction faction = FactionManager.getByMember(player.getName());
+			Faction faction = FactionManager.getByMember(Members.key(player));
 			if (faction == null) {
-				faction = FactionManager.getByLeader(player.getName());
+				faction = FactionManager.getByLeader(Members.key(player));
 			}
 			if (faction == null) {
 				return List.of();

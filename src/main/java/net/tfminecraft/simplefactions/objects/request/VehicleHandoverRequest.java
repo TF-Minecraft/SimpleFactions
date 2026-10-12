@@ -1,6 +1,9 @@
 package net.tfminecraft.simplefactions.objects.request;
 
 import java.util.UUID;
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
@@ -14,9 +17,15 @@ public final class VehicleHandoverRequest extends Request {
     private final String vehicleTypeId;
     private final UUID ownerUuid;
     private final String ownerName;
+    /** The owner's character when the offer was made; it pays the fee even if they log off. */
+    private final String ownerKey;
     private final UUID recipientUuid;
     private final String feeFactionId;
     private final double feeAmount;
+    private final UUID feeIncarnation;
+    private final CharacterRef ownerCharacter;
+    private final CharacterRef recipientCharacter;
+    private final String operationId = "sf:vehicle:handover:" + UUID.randomUUID();
 
     /** The sender guild is null when the owner is in no faction. */
     public VehicleHandoverRequest(
@@ -32,8 +41,12 @@ public final class VehicleHandoverRequest extends Request {
         this.ownerUuid = ownerUuid;
         this.ownerName = ownerName;
         this.recipientUuid = recipientUuid;
-        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, ownerName, vehicleTypeId);
+        this.ownerCharacter = Members.session(Bukkit.getPlayer(ownerUuid)).map(value -> value.ref()).orElse(null);
+        this.recipientCharacter = Members.session(Bukkit.getPlayer(recipientUuid)).map(value -> value.ref()).orElse(null);
+        this.ownerKey = Members.key(ownerCharacter);
+        Quote quote = VehicleFeeService.quote(FeeKind.TRANSFER_FEE, ownerKey, vehicleTypeId);
         this.feeFactionId = quote == null ? null : quote.faction().getId();
+        this.feeIncarnation = quote == null ? null : quote.faction().getOrCreateMainGuild().getIncarnationId();
         this.feeAmount = quote == null ? 0.0 : quote.amount();
         this.time = System.currentTimeMillis()
                 + InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
@@ -55,12 +68,21 @@ public final class VehicleHandoverRequest extends Request {
         return ownerName;
     }
 
+    public String getOwnerKey() {
+        return ownerKey;
+    }
+
     public UUID getRecipientUuid() {
         return recipientUuid;
     }
 
+    public CharacterRef getOwnerCharacter() { return ownerCharacter; }
+    public CharacterRef getRecipientCharacter() { return recipientCharacter; }
+    public String getOperationId() { return operationId; }
+
     public boolean matchesFee(Quote quote) {
         return java.util.Objects.equals(feeFactionId, quote == null ? null : quote.faction().getId())
+                && java.util.Objects.equals(feeIncarnation, quote == null ? null : quote.faction().getOrCreateMainGuild().getIncarnationId())
                 && Double.compare(feeAmount, quote == null ? 0.0 : quote.amount()) == 0;
     }
 }

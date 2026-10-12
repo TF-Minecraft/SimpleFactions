@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.battle;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
@@ -25,6 +27,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandVehicleRules;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.utils.MemberAccounts;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class BattleVehicleEligibilityService {
@@ -106,9 +109,9 @@ public final class BattleVehicleEligibilityService {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
 		}
 
-		Faction faction = FactionManager.getByMember(player.getName());
+		Faction faction = FactionManager.getByMember(Members.key(player));
 		if (faction == null) {
-			faction = FactionManager.getByLeader(player.getName());
+			faction = FactionManager.getByLeader(Members.key(player));
 		}
 		if (faction == null || !war.isParticipating(faction)) {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
@@ -135,6 +138,7 @@ public final class BattleVehicleEligibilityService {
 		}
 		return registry.getByVehicleUuid(vehicle.getUUID())
 				.map(PlayerVehicleRecord::getPlayerUuid)
+				.map(MemberAccounts::accountOf)
 				.map(Bukkit::getPlayer)
 				.orElse(null);
 	}

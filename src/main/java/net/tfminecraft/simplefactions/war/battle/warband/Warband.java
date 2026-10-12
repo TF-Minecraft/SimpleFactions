@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.battle.warband;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,6 +25,7 @@ public class Warband {
 	private String name;
 	private UUID leaderId;
 	private Set<UUID> memberIds = new LinkedHashSet<>();
+	private final Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> memberCharacters = new HashMap<>();
 	private Set<UUID> dummyMemberIds = new LinkedHashSet<>();
 	private Map<UUID, String> dummyDisplayNames = new HashMap<>();
 	private Set<UUID> invitedIds = new HashSet<>();
@@ -55,6 +57,7 @@ public class Warband {
 		this.name = id;
 		this.leaderId = l.getUniqueId();
 		this.memberIds.add(l.getUniqueId());
+		Members.session(l).ifPresent(session -> memberCharacters.put(l.getUniqueId(), session.ref()));
 		this.locked = true;
 		this.faction = false;
 	}
@@ -121,9 +124,27 @@ public class Warband {
 		return null;
 	}
 
+	public java.util.Optional<net.tfminecraft.tlibs.character.CharacterRef> getMemberCharacter(UUID ownerId) {
+		return java.util.Optional.ofNullable(memberCharacters.get(ownerId));
+	}
+
+	public Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> getMemberCharacters() {
+		return Map.copyOf(memberCharacters);
+	}
+
+	public void restoreMemberCharacters(Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> saved) {
+		memberCharacters.clear();
+		if (saved != null) saved.forEach((owner, character) -> {
+			if (character != null && owner.equals(character.ownerId()) && memberIds.contains(owner)) memberCharacters.put(owner, character);
+		});
+	}
+
 	public void addPlayer(Player p) {
 		memberIds.add(p.getUniqueId());
+		Members.session(p).ifPresent(session -> memberCharacters.put(p.getUniqueId(), session.ref()));
 		invitedIds.remove(p.getUniqueId());
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getBattleByMemberId(p.getUniqueId());
+		if (battle != null && battle.hasStarted()) battle.captureParticipant(p);
 	}
 
 	public void addMember(UUID memberId) {
@@ -132,6 +153,7 @@ public class Warband {
 
 	public void removeMember(UUID memberId) {
 		memberIds.remove(memberId);
+		memberCharacters.remove(memberId);
 		dummyMemberIds.remove(memberId);
 		dummyDisplayNames.remove(memberId);
 	}
@@ -223,7 +245,7 @@ public class Warband {
 		}
 		Player online = Bukkit.getPlayer(memberId);
 		if (online != null && online.getName() != null) {
-			return online.getName();
+			return Members.name(online);
 		}
 		OfflinePlayer offline = Bukkit.getOfflinePlayer(memberId);
 		if (offline.getName() != null && !offline.getName().isBlank()) {

@@ -56,6 +56,7 @@ class VehicleUpkeepProjectionTest {
         VehiclesConfigLoader.load(tempDir.resolve("vehicles.yml").toFile());
         registry = new PlayerVehicleRegistry();
         playerUuid = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(playerUuid, "v1", "monoplane", OwnershipMode.PERSONAL, null));
         VehicleOwnershipQueries.setSourceForTests(
                 new FakeOwnedInventory().add("v1", "monoplane", "player_Alice"));
     }
@@ -71,6 +72,14 @@ class VehicleUpkeepProjectionTest {
     }
 
     @Test
+    void absentIdentityAndLedgerHaveNoProjectedCost() {
+        assertEquals(0, VehicleUpkeepProjection.projectedDailyUpkeep((UUID) null));
+        assertEquals(0, VehicleUpkeepProjection.displayVehicleTax(null, playerUuid));
+        assertEquals(0, VehicleUpkeepProjection.displayVehicleExpense(null, playerUuid));
+        assertEquals(0, VehicleUpkeepProjection.displayNetDaily(null, playerUuid));
+    }
+
+    @Test
     void projectedDailyUpkeep_sumsPersonalVehiclesOnly() {
         registry.register(new PlayerVehicleRecord(
                 playerUuid, "v2", "monoplane", OwnershipMode.INSTALLATION, "port-1"));
@@ -78,7 +87,7 @@ class VehicleUpkeepProjectionTest {
                 .add("v1", "monoplane", "player_Alice")
                 .add("v2", "monoplane", "player_Alice"));
 
-        assertEquals(8.0, VehicleUpkeepProjection.projectedDailyUpkeep("Alice", registry));
+        assertEquals(8.0, VehicleUpkeepProjection.projectedDailyUpkeep(playerUuid.toString(), registry));
     }
 
     @Test

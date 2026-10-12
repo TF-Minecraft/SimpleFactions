@@ -87,6 +87,8 @@ class VehicleCommandRouteTest {
         assertTrue(VehicleCommandRoute.isTake(new String[] {"vehicle", "take"}));
         assertFalse(VehicleCommandRoute.isTake(new String[] {"vehicle", "give", "Bob"}));
         assertEquals("Bob", VehicleCommandRoute.giveTarget(new String[] {"vehicle", "give", "Bob"}));
+        assertEquals("Lady Rowan", VehicleCommandRoute.giveTarget(new String[] {"vehicle", "give", "Lady", "Rowan"}));
+        assertEquals("Lady Rowan", VehicleCommandRoute.handoverTarget(new String[] {"vehicle", "handover", "Lady", "Rowan"}));
         assertEquals("", VehicleCommandRoute.giveTarget(new String[] {"vehicle", "give"}));
         assertNull(VehicleCommandRoute.giveTarget(new String[] {"vehicle", "take"}));
         assertNull(VehicleCommandRoute.transferInstallationId(new String[] {"vehicle", "take"}));

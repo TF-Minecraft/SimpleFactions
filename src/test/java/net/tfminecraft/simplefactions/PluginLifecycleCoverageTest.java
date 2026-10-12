@@ -190,6 +190,7 @@ class PluginLifecycleCoverageTest {
     for (Class<?> type :
         List.of(
             InactivityService.class,
+            net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.class,
             net.tfminecraft.tlibs.character.Characters.class,
             EspionageService.class,
             SpecialPositionsConfigFile.class,
@@ -210,18 +211,26 @@ class PluginLifecycleCoverageTest {
             RpCharactersChatIntegration.class,
             VfBuildersConstructionFreeze.class,
             LeaderCharacterListener.class)) scoped(type);
+    // Character identity is ready and the data was migrated earlier, unless a test says otherwise.
+    scoped(net.tfminecraft.tlibs.character.Characters.class)
+        .when(net.tfminecraft.tlibs.character.Characters::available)
+        .thenReturn(true);
+    scoped(net.tfminecraft.tlibs.character.Characters.class)
+        .when(net.tfminecraft.tlibs.character.Characters::legacyHeirsReady)
+        .thenReturn(true);
+    disk.write("migrations/character-v1.json", "{\"complete\":true,\"stores\":{}}");
     SimpleFactions.plugin = plugin;
   }
 
   @Test
   void incompatibleCharacterApiDisablesBeforeOpeningOrSavingState() {
     scoped(net.tfminecraft.tlibs.character.Characters.class)
-        .when(net.tfminecraft.tlibs.character.Characters::available)
-        .thenThrow(new NoClassDefFoundError("CharacterIdentity"));
+        .when(net.tfminecraft.tlibs.character.Characters::legacyHeirsReady)
+        .thenThrow(new NoSuchMethodError("legacyHeirsReady"));
     plugin.onEnable();
     plugin.onDisable();
     verify(plugins).disablePlugin(plugin);
-    verify(logger).severe(contains("TLibs 2.3.0"));
+    verify(logger).severe(contains("TLibs 2.4.1"));
     verify(plugin, never()).getConfig();
     scoped(BattlePersistenceService.class).verifyNoInteractions();
     scoped(InactivityService.class).verifyNoInteractions();
@@ -264,7 +273,7 @@ class PluginLifecycleCoverageTest {
     }
     verify(commands.get("battle"))
         .setExecutor(dependency("battleCommandManager", BattleCommandManager.class));
-    verify(dependency("factionManager", FactionManager.class)).run();
+    verify(dependency("factionManager", FactionManager.class)).prepare();
     verify(dependency("inventoryManager", InventoryManager.class)).start();
     verify(dependency("sessionManager", SessionManager.class)).start();
     verify(dependency("battleManager", BattleManager.class)).start();
@@ -295,6 +304,95 @@ class PluginLifecycleCoverageTest {
     scoped(BattlePersistenceService.class).verify(BattlePersistenceService::stopAutosave);
     scoped(BattleManager.class).verify(BattleManager::shutdown);
     scoped(CampaignViewRefreshService.class).verify(CampaignViewRefreshService::stop);
+  }
+
+  @Test
+  void startupImportsLegacyGuildBalancesAndTheDeathReconcileTimerFailsClosed() throws Exception {
+    var deaths = scoped(net.tfminecraft.simplefactions.identity.death.CharacterDeaths.class);
+    var economy = scoped(net.tfminecraft.simplefactions.economy.EconomyRuntime.class);
+    var treasuries = scoped(net.tfminecraft.simplefactions.economy.GuildTreasury.class);
+    UUID bankedId = UUID.randomUUID();
+    UUID banklessId = UUID.randomUUID();
+    net.tfminecraft.simplefactions.guild.Guild banked =
+        mock(net.tfminecraft.simplefactions.guild.Guild.class);
+    net.tfminecraft.simplefactions.objects.Bank bank =
+        mock(net.tfminecraft.simplefactions.objects.Bank.class);
+    when(bank.legacyBalance()).thenReturn(42.5);
+    when(banked.getIncarnationId()).thenReturn(bankedId);
+    when(banked.getBank()).thenReturn(bank);
+    var bankedLedger = mock(net.tfminecraft.simplefactions.guild.income.Ledger.class);
+    when(bankedLedger.getCitizenTaxesCopy()).thenReturn(Map.of("tax", 1.5));
+    when(banked.getLedger()).thenReturn(bankedLedger);
+    net.tfminecraft.simplefactions.guild.Guild bankless =
+        mock(net.tfminecraft.simplefactions.guild.Guild.class);
+    when(bankless.getIncarnationId()).thenReturn(banklessId);
+    var banklessLedger = mock(net.tfminecraft.simplefactions.guild.income.Ledger.class);
+    when(banklessLedger.getCitizenTaxesCopy()).thenReturn(Map.of());
+    when(bankless.getLedger()).thenReturn(banklessLedger);
+    scoped(FactionManager.class)
+        .when(FactionManager::getAllGuilds)
+        .thenReturn(List.of(banked, bankless));
+
+    plugin.onEnable();
+
+    assertTrue(plugin.isStarted());
+    assertNotNull(plugin.getRealmSettlementService());
+    treasuries.verify(
+        () ->
+            net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(
+                bankedId, 42.5, Map.of("tax", 1.5)));
+    // A guild without a bank imports a zero legacy balance.
+    treasuries.verify(
+        () ->
+            net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(
+                banklessId, 0.0, Map.of()));
+    verify(banked).updateWealth();
+    verify(bankless).updateWealth();
+
+    var task = org.mockito.ArgumentCaptor.forClass(Runnable.class);
+    verify(domain.ui.scheduler).runTaskTimer(eq(plugin), task.capture(), eq(72000L), eq(72000L));
+    task.getValue().run();
+    deaths.verify(
+        net.tfminecraft.simplefactions.identity.death.CharacterDeaths::reconcile, times(2));
+    economy.verify(
+        () -> net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(any()), never());
+    deaths
+        .when(net.tfminecraft.simplefactions.identity.death.CharacterDeaths::reconcile)
+        .thenThrow(new IOException("death journal stuck"));
+    task.getValue().run();
+    economy.verify(
+        () ->
+            net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(
+                any(IOException.class)));
+  }
+
+  @Test
+  void aFailedLegacyImportFailsTheFinancialStateAndDisablesThePlugin() {
+    var treasuries = scoped(net.tfminecraft.simplefactions.economy.GuildTreasury.class);
+    treasuries
+        .when(
+            () ->
+                net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(
+                    any(), anyDouble(), any()))
+        .thenThrow(new IllegalStateException("legacy import refused"));
+    net.tfminecraft.simplefactions.guild.Guild guild =
+        mock(net.tfminecraft.simplefactions.guild.Guild.class);
+    when(guild.getIncarnationId()).thenReturn(UUID.randomUUID());
+    var ledger = mock(net.tfminecraft.simplefactions.guild.income.Ledger.class);
+    when(ledger.getCitizenTaxesCopy()).thenReturn(Map.of());
+    when(guild.getLedger()).thenReturn(ledger);
+    scoped(FactionManager.class).when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+
+    plugin.onEnable();
+
+    assertFalse(plugin.isStarted());
+    verify(plugins).disablePlugin(plugin);
+    verify(logger)
+        .log(
+            eq(java.util.logging.Level.SEVERE),
+            contains("Faction money recovery is incomplete"),
+            any(IllegalStateException.class));
+    verify(dependency("inventoryManager", InventoryManager.class), never()).start();
   }
 
   private Map<Path, String> unloadedSavedState() throws Exception {
@@ -360,7 +458,7 @@ class PluginLifecycleCoverageTest {
               assertTrue(
                   listeners.isEmpty(), "Gameplay listeners must wait for valid configuration"),
           () -> verify(dependency("db", Database.class), never()).loadFactions(),
-          () -> verify(dependency("factionManager", FactionManager.class), never()).run(),
+          () -> verify(dependency("factionManager", FactionManager.class), never()).prepare(),
           () -> verify(dependency("inventoryManager", InventoryManager.class), never()).start(),
           () ->
               scoped(BattlePersistenceService.class)
@@ -392,7 +490,7 @@ class PluginLifecycleCoverageTest {
         grids.when(() -> ProvinceGrid.load(any())).thenThrow(new IllegalStateException("bad grid"));
       plugin.onEnable();
       verify(plugins).disablePlugin(plugin);
-      verify(dependency("factionManager", FactionManager.class), never()).run();
+      verify(dependency("factionManager", FactionManager.class), never()).prepare();
       verify(dependency("inventoryManager", InventoryManager.class), never()).start();
       plugin.onDisable();
       assertSavedStateUnchanged(saved);
@@ -637,7 +735,7 @@ class PluginLifecycleCoverageTest {
     domain.subject(ruler, source);
     var mainGuild = source.getOrCreateMainGuild();
     mainGuild.addMember("Cara");
-    source.getBank().deposit(20.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(source.getBank(), 20.0);
     var originalBank = source.getBank();
     var originalGuildTypes = GuildLoader.get();
     var originalEntries = new LinkedHashMap<>(originalGuildTypes);
@@ -741,7 +839,7 @@ class PluginLifecycleCoverageTest {
       mainGuild.getBranches().get(0).levelUp();
       mainGuild.getUpgrades().getFirst().setLevel(3);
       mainGuild.addMember("Cara");
-      source.getBank().deposit(20.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(source.getBank(), 20.0);
       var originalBank = source.getBank();
       Path broken =
           disk.write(
@@ -902,7 +1000,7 @@ class PluginLifecycleCoverageTest {
       verify(logger).severe(contains("TFMCWeb is not loaded"));
       verify(logger).info(contains("VehicleFramework is not enabled"));
       scoped(ProvincePresenceTickService.class).verify(ProvincePresenceTickService::start);
-      assertEquals(1, domain.ui.repeatingTasks.size());
+      assertEquals(2, domain.ui.repeatingTasks.size());
       domain.ui.repeatingTasks.getFirst().run();
       plugin.onDisable();
       var taskField = SimpleFactions.class.getDeclaredField("trackRefreshTask");
@@ -955,8 +1053,10 @@ class PluginLifecycleCoverageTest {
       assertNotNull(sessions);
       assertSame(
           sessions, constructed.getClass().getMethod("getSessionManager").invoke(constructed));
+      // Never enabled, so shutting down touches nothing.
       constructed.onDisable();
-      scoped(BattleManager.class).verify(BattleManager::shutdown);
+      scoped(BattleManager.class).verify(BattleManager::shutdown, never());
+      scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
     }
   }
 
@@ -1040,26 +1140,16 @@ class PluginLifecycleCoverageTest {
             UUID.randomUUID(), "berthed", "cart", OwnershipMode.PERSONAL, "dock"));
     plugin.recordVehicleOwner("berthed", "PreviousOwner");
     when(plugins.isPluginEnabled("VehicleFramework")).thenReturn(true);
-    try (var queries = mockStatic(VehicleOwnershipQueries.class, CALLS_REAL_METHODS)) {
-      OwnedVehicleSummary personal = mock(OwnedVehicleSummary.class),
-          unowned = mock(OwnedVehicleSummary.class);
-      when(personal.getUuid()).thenReturn("personal");
-      when(personal.getOwner()).thenReturn("player_Bob");
-      when(unowned.getUuid()).thenReturn("unowned");
-      when(unowned.getOwner()).thenReturn("player_none");
-      queries
-          .when(() -> VehicleOwnershipQueries.allPersonalVehicles(registry))
-          .thenReturn(List.of(personal, unowned));
-      plugin.recordVehicleOwners();
-      fees.load();
-      assertEquals("Bob", fees.getLastOwner("personal"));
-      assertNull(fees.getLastOwner("berthed"));
-      queries
-          .when(() -> VehicleOwnershipQueries.allPersonalVehicles(registry))
-          .thenThrow(new LinkageError("old VehicleFramework"));
-      assertDoesNotThrow(plugin::recordVehicleOwners);
-      verify(logger).warning(contains("Could not record vehicle owners"));
-    }
+    UUID payer = UUID.randomUUID();
+    registry.register(new PlayerVehicleRecord(payer, "personal", "cart", OwnershipMode.PERSONAL, null));
+    registry.register(new PlayerVehicleRecord(UUID.randomUUID(), "pool", "cart", OwnershipMode.POOL, null));
+    plugin.recordVehicleOwner("pool", "PreviousOwner");
+    domain.player("Bob");
+    plugin.recordVehicleOwners();
+    fees.load();
+    assertEquals(payer.toString(), fees.getLastOwner("personal"));
+    assertEquals("PreviousOwner", fees.getLastOwner("berthed"));
+    assertNull(fees.getLastOwner("pool"));
     var persistence = mock(VehicleRegistryPersistence.class);
     when(persistence.save()).thenReturn(false);
     field("vehicleRegistryPersistence", persistence);
@@ -1138,6 +1228,147 @@ class PluginLifecycleCoverageTest {
     }
   }
 
+  private void identityReady(boolean ready) {
+    scoped(net.tfminecraft.tlibs.character.Characters.class)
+        .when(net.tfminecraft.tlibs.character.Characters::legacyHeirsReady)
+        .thenReturn(ready);
+  }
+
+  private org.bukkit.command.CommandExecutor firstExecutor(String command) {
+    var executor = org.mockito.ArgumentCaptor.forClass(org.bukkit.command.CommandExecutor.class);
+    verify(commands.get(command), atLeastOnce()).setExecutor(executor.capture());
+    return executor.getAllValues().getFirst();
+  }
+
+  private void enableEvent(String name) throws Exception {
+    Plugin enabled = mock(Plugin.class);
+    when(enabled.getName()).thenReturn(name);
+    for (Listener listener : new ArrayList<>(listeners)) {
+      if (listener.getClass().getEnclosingClass() != SimpleFactions.class) continue;
+      var method = listener.getClass().getMethod("onPluginEnable", PluginEnableEvent.class);
+      method.setAccessible(true);
+      method.invoke(listener, new PluginEnableEvent(enabled));
+    }
+  }
+
+  @Test
+  void everyDeclaredCommandWaitsForIdentity() throws Exception {
+    try (var input = SimpleFactions.class.getClassLoader().getResourceAsStream("plugin.yml")) {
+      var yaml = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(input));
+      assertEquals(
+          yaml.getConfigurationSection("commands").getKeys(false),
+          new java.util.HashSet<>(SimpleFactions.COMMANDS));
+    }
+  }
+
+  @Test
+  void waitingForIdentityLoadsTicksAndSavesNothingAndCommandsSaySo() throws Exception {
+    identityReady(false);
+    Map<Path, String> saved = unloadedSavedState();
+    plugin.onEnable();
+
+    assertFalse(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
+    assertFalse(plugin.isStarted());
+    verify(logger).severe(contains("Waiting for character identity"));
+    assertEquals(1, listeners.size(), "only the identity watcher listens");
+    assertEquals(1, domain.ui.repeatingTasks.size(), "only the identity poll ticks");
+    verify(dependency("db", Database.class), never()).loadFactions();
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
+    for (String name : SimpleFactions.COMMANDS) {
+      var executor = firstExecutor(name);
+      var sender = domain.player("Waiter");
+      assertTrue(executor.onCommand(sender, commands.get(name), name, new String[0]));
+      verify(sender, atLeastOnce()).sendMessage("§eFactions are starting up; try again in a moment.");
+      var completer = org.mockito.ArgumentCaptor.forClass(org.bukkit.command.TabCompleter.class);
+      verify(commands.get(name)).setTabCompleter(completer.capture());
+      assertEquals(List.of(), completer.getValue().onTabComplete(sender, commands.get(name), name, new String[0]));
+    }
+    // Not ready yet: neither the poll nor another plugin's enable starts anything.
+    domain.ui.repeatingTasks.getFirst().run();
+    enableEvent("RPCharacters");
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
+
+    plugin.onDisable();
+    verify(dependency("sessionManager", SessionManager.class), never()).end();
+    scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
+    scoped(InactivityService.class).verify(InactivityService::save, never());
+    verify(dependency("db", Database.class), never()).saveFaction(any());
+    assertSavedStateUnchanged(saved);
+    assertFalse(Files.exists(disk.root.resolve("migrations/quarantine.json")));
+  }
+
+  @Test
+  void identityArrivingByPollStartsEverythingOnceAndAnnouncesReadiness() throws Exception {
+    identityReady(false);
+    plugin.onEnable();
+    Runnable poll = domain.ui.repeatingTasks.getFirst();
+    identityReady(true);
+    poll.run();
+
+    assertTrue(plugin.isStarted());
+    assertTrue(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
+    verify(dependency("factionManager", FactionManager.class)).prepare();
+    verify(plugins).callEvent(any(net.tfminecraft.simplefactions.events.SimpleFactionsReadyEvent.class));
+    poll.run();
+    enableEvent("RPCharacters");
+    verify(dependency("factionManager", FactionManager.class)).prepare();
+
+    plugin.onDisable();
+    assertFalse(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
+    verify(dependency("sessionManager", SessionManager.class)).end();
+  }
+
+  @Test
+  void identityArrivingWithRpCharactersStartsEverything() throws Exception {
+    identityReady(false);
+    plugin.onEnable();
+    identityReady(true);
+    enableEvent("SomethingElse");
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
+    enableEvent("RPCharacters");
+    verify(dependency("factionManager", FactionManager.class)).prepare();
+    assertTrue(plugin.isStarted());
+  }
+
+  @Test
+  void aFailedMigrationKeepsFactionsOfflineWithoutRetrying() throws Exception {
+    disk.write("migrations/character-v1.json", "{broken");
+    plugin.onEnable();
+    verify(logger).log(eq(java.util.logging.Level.SEVERE), contains("Cannot migrate faction data"), any(Throwable.class));
+    assertFalse(plugin.isStarted());
+    plugin.start();
+    verify(dependency("factionManager", FactionManager.class), never()).prepare();
+    plugin.onDisable();
+    scoped(BattlePersistenceService.class).verify(BattlePersistenceService::saveAll, never());
+  }
+
+  @Test
+  void startMigratesStoredNamesBeforeAnythingLoads() throws Exception {
+    Files.delete(disk.root.resolve("migrations/character-v1.json"));
+    String heir = UUID.randomUUID().toString();
+    UUID account = UUID.randomUUID();
+    disk.write("Data/rome.json", "{\"id\":\"rome\",\"leader\":\"Caesar\",\"guilds\":[{\"id\":\"rome\","
+        + "\"leader\":\"Caesar\",\"members\":[\"Caesar\",\"Ghost\"]}]}");
+    plugin.useMigrationHeirs(new net.tfminecraft.simplefactions.migration.CharacterMigration.Heirs() {
+      @Override
+      public Optional<UUID> account(String name) {
+        return name.equals("Caesar") ? Optional.of(account) : Optional.empty();
+      }
+
+      @Override
+      public Optional<net.tfminecraft.tlibs.character.CharacterRef> heir(UUID id) {
+        return Optional.of(new net.tfminecraft.tlibs.character.CharacterRef(id, UUID.fromString(heir)));
+      }
+    });
+    org.mockito.InOrder order = inOrder(logger, dependency("db", Database.class));
+    plugin.onEnable();
+    order.verify(logger).info(contains("1 stores migrated"));
+    order.verify(dependency("db", Database.class)).loadFactions();
+    verify(logger).warning(contains("1 quarantined faction records need staff"));
+    assertTrue(Files.readString(disk.root.resolve("Data/rome.json")).contains(heir));
+    assertTrue(plugin.isStarted());
+  }
+
   @Test
   void lateDependencyEnableEventsRegisterVehicleAndChatWithoutAnotherIdentityBootstrap()
       throws Exception {
@@ -1207,7 +1438,7 @@ class PluginLifecycleCoverageTest {
       when(plugins.isPluginEnabled("VFBuilders")).thenReturn(true);
       when(plugins.isPluginEnabled("VehicleFramework")).thenReturn(true);
       legacy.onEnable();
-      verify(dependency("factionManager", FactionManager.class)).run();
+      verify(dependency("factionManager", FactionManager.class)).prepare();
       verify(plugins, never()).disablePlugin(legacy);
       verify(logger).warning(contains("VFBuilders is older than 2.1.0"));
       verify(logger).warning(contains("VFBuilders has no ConstructionFreeze API"));

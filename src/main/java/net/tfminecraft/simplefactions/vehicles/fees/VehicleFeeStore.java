@@ -1,20 +1,13 @@
 package net.tfminecraft.simplefactions.vehicles.fees;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import net.tfminecraft.simplefactions.database.DurableJson;
+import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.Receipt;
 
 /**
  * State the vehicle fees need across restarts: who last owned each personal vehicle, so
@@ -22,24 +15,37 @@ import com.google.gson.GsonBuilder;
  * paid for constructions still in progress, so a cancelled build can be refunded.
  */
 public final class VehicleFeeStore {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /** A registration fee paid for a construction that has not finished yet. */
     public record PaidBuild(UUID payerUuid, String factionId, double amount) {}
 
     private final Map<String, String> lastOwners = new HashMap<>();
     private final Map<String, PaidBuild> paidBuilds = new HashMap<>();
+    private final Map<String, String> buildOwners = new HashMap<>();
+    public String buildOwner(String station) { return buildOwners.get(station); }
+    public void beginBuild(String station, String character) { buildOwners.put(station, character); }
+    public void endBuild(String station) { buildOwners.remove(station); }
+
+    private final Map<String, Receipt> receipts = new HashMap<>();
     private File file;
+    private boolean loadFailed;
+
+    public Receipt receipt(String scope) { return receipts.get(scope); }
+    public void putReceipt(String scope, Receipt receipt) { receipts.put(scope, receipt); }
+    public void removeReceipt(String scope) { receipts.remove(scope); }
+    public Map<String, PaidBuild> pendingBuilds() { return Map.copyOf(paidBuilds); }
+    public PaidBuild getPaidBuild(String stationKey) { return paidBuilds.get(stationKey); }
 
     public String getLastOwner(String vehicleUuid) {
         return vehicleUuid == null ? null : lastOwners.get(vehicleUuid);
     }
 
-    public void setLastOwner(String vehicleUuid, String playerName) {
-        if (vehicleUuid == null || playerName == null || playerName.isBlank()) {
+    /** {@code owner} is the member key of the character that last owned the vehicle. */
+    public void setLastOwner(String vehicleUuid, String owner) {
+        if (vehicleUuid == null || owner == null || owner.isBlank()) {
             return;
         }
-        lastOwners.put(vehicleUuid, playerName);
+        lastOwners.put(vehicleUuid, owner);
     }
 
     public void forgetVehicle(String vehicleUuid) {
@@ -65,65 +71,63 @@ public final class VehicleFeeStore {
     }
 
     public void load() {
-        if (file == null || !file.exists()) {
-            return;
-        }
-        try (Reader reader = new FileReader(file)) {
-            Data data = GSON.fromJson(reader, Data.class);
-            if (data == null) {
-                return;
-            }
-            lastOwners.clear();
-            if (data.lastOwners != null) {
-                lastOwners.putAll(data.lastOwners);
-            }
-            paidBuilds.clear();
+        if (file == null || !file.exists()) return;
+        try {
+            Data data = DurableJson.read(file.toPath(), Data.class);
+            if (data == null) throw new IOException("Vehicle fee state must be an object");
+            Map<String, PaidBuild> loadedBuilds = new HashMap<>();
             if (data.paidBuilds != null) {
-                for (Map.Entry<String, BuildData> entry : data.paidBuilds.entrySet()) {
+                for (var entry : data.paidBuilds.entrySet()) {
                     PaidBuild build = entry.getValue() == null ? null : entry.getValue().toBuild();
-                    if (build != null) {
-                        paidBuilds.put(entry.getKey(), build);
-                    }
+                    if (build == null) throw new IOException("Invalid pending vehicle build: " + entry.getKey());
+                    loadedBuilds.put(entry.getKey(), build);
                 }
             }
-        } catch (IOException | RuntimeException e) {
-            e.printStackTrace();
+            Map<String, Receipt> loadedReceipts = new HashMap<>();
+            if (data.receipts != null) {
+                for (var entry : data.receipts.entrySet()) {
+                    Receipt receipt = entry.getValue();
+                    if (receipt == null || receipt.id() == null || receipt.payer() == null
+                            || receipt.guildIncarnation() == null || receipt.cents() <= 0 || receipt.kind() == null)
+                        throw new IOException("Invalid vehicle payment receipt: " + entry.getKey());
+                    loadedReceipts.put(entry.getKey(), receipt);
+                }
+            }
+            lastOwners.clear();
+            if (data.lastOwners != null) lastOwners.putAll(data.lastOwners);
+            buildOwners.clear();
+            if (data.buildOwners != null) buildOwners.putAll(data.buildOwners);
+            paidBuilds.clear(); paidBuilds.putAll(loadedBuilds);
+            receipts.clear(); receipts.putAll(loadedReceipts);
+            loadFailed = false;
+        } catch (IOException | RuntimeException error) {
+            loadFailed = true;
+            throw new IllegalStateException("Cannot load vehicle fees", error);
         }
     }
 
-    public void save() {
-        if (file == null || (lastOwners.isEmpty() && paidBuilds.isEmpty() && !file.exists())) {
-            return;
-        }
+    public void saveDurably() throws IOException {
+        if (loadFailed || file == null) throw new IOException("Vehicle fee store is unavailable");
         Data data = new Data();
         data.lastOwners = new HashMap<>(lastOwners);
         data.paidBuilds = new HashMap<>();
-        for (Map.Entry<String, PaidBuild> entry : paidBuilds.entrySet()) {
-            data.paidBuilds.put(entry.getKey(), BuildData.from(entry.getValue()));
-        }
-        // Written beside the file and moved into place, so an interrupted save keeps the old file.
-        File temp = new File(file.getParentFile(), file.getName() + ".tmp");
-        try (Writer writer = new FileWriter(temp)) {
-            GSON.toJson(data, writer);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
-        try {
-            try {
-                Files.move(temp.toPath(), file.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        paidBuilds.forEach((key, value) -> data.paidBuilds.put(key, BuildData.from(value)));
+        data.receipts = new HashMap<>(receipts);
+        data.buildOwners = new HashMap<>(buildOwners);
+        DurableJson.write(file.toPath(), data);
+    }
+
+    public void save() {
+        if (file == null || (lastOwners.isEmpty() && paidBuilds.isEmpty() && receipts.isEmpty() && buildOwners.isEmpty() && !file.exists())) return;
+        try { saveDurably(); }
+        catch (IOException error) { throw new UncheckedIOException(error); }
     }
 
     private static final class Data {
         Map<String, String> lastOwners;
         Map<String, BuildData> paidBuilds;
+        Map<String, Receipt> receipts;
+        Map<String, String> buildOwners;
     }
 
     private static final class BuildData {

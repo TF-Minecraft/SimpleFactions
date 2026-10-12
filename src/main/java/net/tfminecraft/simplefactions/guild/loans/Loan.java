@@ -8,6 +8,8 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.utils.Formatter;
 
 public class Loan {
+    private Long calculationTime;
+    private java.util.function.IntConsumer creditSink;
     private String id;
     private double amount;
     private double paidInterest;
@@ -71,6 +73,40 @@ public class Loan {
         }
     }
 
+    /** Detached copy used by the realm planner; no live loan, ledger or credit score is changed. */
+    public Loan copyForSettlement(long now, java.util.function.IntConsumer creditChanges) {
+        Loan copy = new Loan(id, amount, issuer, borrower, issueDate, getDurationInDays(), interestRate, overdueFee, autoPay);
+        copy.restoreSettlement(new LoanData(this));
+        copy.calculationTime = now;
+        copy.creditSink = creditChanges;
+        return copy;
+    }
+
+    /** Exact after-values from a durable plan. Repeating this operation has no further effect. */
+    public void restoreSettlement(LoanData data) {
+        if (!id.equals(data.id)) throw new IllegalArgumentException("Wrong loan incarnation");
+        amount = data.amount;
+        paidInterest = data.paidInterest;
+        unpaidInterest = data.unpaidInterest;
+        issueDate = data.issueDate;
+        dueDate = data.dueDate;
+        interestRate = data.interestRate;
+        overdueFee = data.overdueFee;
+        paid = data.paid;
+        autoPay = data.autoPay;
+        defaulted = data.defaulted;
+        pausedInterest = data.pausedInterest;
+        status = LoanStatus.valueOf(data.status);
+        tempPayment = 0;
+        tempInterestPayment = 0;
+        interestCharged = false;
+    }
+
+    private void changeCredit(int amount) {
+        if (creditSink != null) creditSink.accept(amount);
+        else borrower.getLoanHandler().changeCreditScore(amount);
+    }
+
     public String getId() {
         return id;
     }
@@ -132,7 +168,7 @@ public class Loan {
         if(status == LoanStatus.ACTIVE && defaulted) {
             status = LoanStatus.DEFAULTED;
             int penalty = CreditCalculator.calculateDefaultPenalty(this);
-            borrower.getLoanHandler().changeCreditScore(penalty);
+            changeCredit(penalty);
         }
     }
 
@@ -149,7 +185,7 @@ public class Loan {
         if (isOverdue() && status == LoanStatus.ACTIVE
                 && borrower != null && borrower.getLoanHandler() != null) {
             int penalty = CreditCalculator.calculateDailyOverduePenalty(this);
-            borrower.getLoanHandler().changeCreditScore(penalty);
+            changeCredit(penalty);
         }
         if (!autoPay) {
             // Interest compounds onto the loan
@@ -219,7 +255,7 @@ public class Loan {
     }
 
     public int getDaysUntilDue() {
-        long now = System.currentTimeMillis();
+        long now = calculationTime == null ? System.currentTimeMillis() : calculationTime;
         long diff = dueDate - now;
         return (int) (diff / (1000 * 60 * 60 * 24));
     }
@@ -276,7 +312,7 @@ public class Loan {
         if(status == LoanStatus.ACTIVE && isPaidOff()) {
             status = LoanStatus.PAID_OFF;
             int bonus = CreditCalculator.calculatePayoffBonus(this);
-            borrower.getLoanHandler().changeCreditScore(bonus);
+            changeCredit(bonus);
         }
 
         return actualPayment;

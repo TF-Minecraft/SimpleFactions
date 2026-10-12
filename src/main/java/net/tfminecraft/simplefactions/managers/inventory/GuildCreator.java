@@ -1,9 +1,10 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageAccess;
 import net.tfminecraft.simplefactions.espionage.IntelligenceLedger;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
-import net.tfminecraft.simplefactions.espionage.CharacterNames;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
 
@@ -13,7 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -160,7 +160,7 @@ public class GuildCreator {
 			SkullMeta m = (SkullMeta) i.getItemMeta();
 			m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 			m.setDisplayName(StringFormatter.formatHex("#9c9775§lLeader: #c2bea7"+ReportedMenus.guildLeader(p, guild)));
-            if (!ReportedMenus.guildLeader(p, guild).endsWith("Unknown")) m.setOwningPlayer(Bukkit.getOfflinePlayer(guild.getLeader()));
+            if (!ReportedMenus.guildLeader(p, guild).endsWith("Unknown")) MemberHeads.apply(m, guild.getLeader());
 			i.setItemMeta(m);
 		} else if(t.equals(MenuItemType.WEALTH)) {
 			i = new ItemStack(Material.GOLD_NUGGET, 1);
@@ -734,8 +734,9 @@ public class GuildCreator {
 		int count = 0;
 		for (var e : LedgerHistory.descending(amounts)) {
 			if (e.getValue() <= 0) continue;
+			// Citizen and deposit rows are member keys; guild and faction names pass through unchanged.
 			lore.add(StringFormatter.formatHex(
-				"#d4c9ae" + e.getKey()
+				"#d4c9ae" + Members.display(e.getKey())
 				+ "#7a706a: #7fbd73+"
 				+ String.format("%.2f", e.getValue()) + "d"
 			));

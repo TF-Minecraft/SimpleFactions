@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,7 +26,14 @@ public class CapitalMovePrompt implements Listener {
             int province,
             String settlementName,
             boolean rename,
-            double cost) {}
+            double cost,
+            String operationId,
+            net.tfminecraft.tlibs.character.CharacterSession session) {
+        CapitalMovePending(Faction faction, int fromCapital, int province, String settlementName, boolean rename, double cost) {
+            this(faction, fromCapital, province, settlementName, rename, cost,
+                    net.tfminecraft.simplefactions.economy.TreasuryActions.newId(), null);
+        }
+    }
 
     /** A faction's first capital move or rename is free; later ones cost {@link Cache#capitalMoveCost}. */
     public static double costFor(Faction faction) {
@@ -55,6 +64,8 @@ public class CapitalMovePrompt implements Listener {
             String settlementName,
             boolean rename) {
         double cost = costFor(faction);
+        var session = Members.session(player).orElse(null);
+        if (session == null) { player.sendMessage("§cYour character is not ready."); return; }
         String funds = checkFunds(faction, cost);
         if (funds != null) {
             player.sendMessage(funds);
@@ -64,7 +75,8 @@ public class CapitalMovePrompt implements Listener {
         int provincesLost = rename
                 ? 0 : faction.getProvinceHandler().previewProvincesLostIfCapitalMoved(province).size();
         pending.put(player, new CapitalMovePending(
-                faction, faction.getCapital(), province, settlementName, rename, cost));
+                faction, faction.getCapital(), province, settlementName, rename, cost,
+                net.tfminecraft.simplefactions.economy.TreasuryActions.newId(), session));
         FactionManager.getInv().confirming.put(player, faction);
         FactionManager.getInv().confirmCapitalMoveView(player, faction, rename, cost, provincesLost);
     }
@@ -92,8 +104,14 @@ public class CapitalMovePrompt implements Listener {
             return Outcome.CANCELLED;
         }
         Faction faction = state.faction();
+        if (state.session() != null && !Members.isCurrent(state.session())) {
+            player.sendMessage("§cYour character changed. Start the capital change again.");
+            return Outcome.REFUSED;
+        }
+        Boolean resumed = net.tfminecraft.simplefactions.economy.TreasuryActions.resume(state.operationId(), player);
+        if (resumed != null) return resumed ? Outcome.CHANGED : Outcome.REFUSED;
         // The leader or the capital may have changed while the menu was open.
-        if (FactionManager.getByLeader(player.getName()) != faction
+        if (FactionManager.getByLeader(Members.key(player)) != faction
                 || faction.getCapital() != state.fromCapital()) {
             player.sendMessage("§cThe capital changed while you were deciding. Nothing was charged.");
             return Outcome.REFUSED;
@@ -109,15 +127,12 @@ public class CapitalMovePrompt implements Listener {
             player.sendMessage(funds);
             return Outcome.REFUSED;
         }
-        boolean changed = state.rename()
-                ? applyRename(player, faction, state.province(), state.settlementName())
-                : applyMove(player, faction, state.province(), state.settlementName());
+        boolean changed = net.tfminecraft.simplefactions.economy.TreasuryTopology.capital(player, faction,
+                state.province(), state.settlementName(), state.rename(), cost, state.operationId());
         if (!changed) {
             return Outcome.REFUSED;
         }
-        faction.setCapitalMoves(faction.getCapitalMoves() + 1);
         if (cost > 0) {
-            faction.getBank().withdraw(cost);
             player.sendMessage("§7Paid §e" + Formatter.formatMoney(cost) + "d §7from the faction bank.");
         } else {
             player.sendMessage("§7That was your free capital change. Later moves and renames cost §e"
@@ -141,12 +156,6 @@ public class CapitalMovePrompt implements Listener {
         faction.setCapital(claim);
         faction.getProvinceHandler().revalidateClaims();
         return true;
-    }
-
-    private static boolean applyRename(Player player, Faction faction, int province, String name) {
-        CapitalResult result = faction.getSettlementHandler().rename(province, name, false);
-        player.sendMessage(result.getMessage());
-        return result.isSuccess();
     }
 
     @EventHandler

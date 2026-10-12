@@ -141,7 +141,7 @@ class PillageMissingBankRegressionTest {
     merchant.setCapital(2, false);
     attacker.getMilitary().getRegiment("guard").setCurrentSlots(3);
     defender.getMilitary().getRegiment("guard").setCurrentSlots(3);
-    attacker.getBank().setWealth(100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(attacker.getBank(), 100.0);
     if (bankRemoved) attacker.setBank(null);
     assertTrue(database.saveFactionChecked(attacker));
     assertTrue(database.saveFactionChecked(defender));
@@ -209,7 +209,7 @@ class PillageMissingBankRegressionTest {
     assertEquals(-60, PillageTradeHit.percent(loadedMerchant));
     if (bankRemoved)
       assertNull(loadedAttacker.getBank(), "Pillage must not recreate a removed bank");
-    else assertEquals(100.0 + expectedLoot, loadedAttacker.getBank().getWealth(), 0.00001);
+    else assertEquals(100.0 + net.tfminecraft.simplefactions.economy.Money.denars(net.tfminecraft.simplefactions.economy.Money.cents(expectedLoot)), loadedAttacker.getBank().getWealth(), 0.00001);
     assertTrue(database.saveFactionChecked(loadedAttacker));
     assertTrue(database.saveFactionChecked(loadedDefender));
     FactionData finalAttacker =

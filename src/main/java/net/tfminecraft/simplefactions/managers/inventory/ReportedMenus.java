@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -45,7 +47,7 @@ public final class ReportedMenus {
 
     public static String guildLeader(Player viewer, Guild guild) {
         if (EspionageService.canViewExact(viewer, guild.getFaction()) || guild.getFaction().isLeader(guild.getLeader()))
-            return CharacterNames.display(viewer, guild.getLeader(), guild.getFaction());
+            return Members.display(viewer, guild.getLeader());
         var report = EspionageService.report(viewer, guild.getFaction());
         var names = report == null ? List.<String>of() : report.details("guild-leader", "guild-leader:" + guild.getId());
         return names.isEmpty() ? "\u00a77Unknown" : names.getFirst();
@@ -129,7 +131,7 @@ public final class ReportedMenus {
         prepare(inventory);
         var report = EspionageService.report(viewer, faction);
         inventory.setItem(10, mask(new ItemStack(Material.WRITABLE_BOOK), "#93c9a7Government:", List.of(
-                "#9c9775" + faction.getRulerTitle() + ": #c2bea7" + CharacterNames.display(viewer, faction.getLeader(), faction),
+                "#9c9775" + faction.getRulerTitle() + ": #c2bea7" + Members.display(viewer, faction.getLeader()),
                 "#85c265Administrative Power: " + (report == null ? "Unknown" : report.display("Administrative power")),
                 "", "#b8ae61Ruling System: #d4c9ae" + faction.getGovernmentString())));
         inventory.setItem(11, mask(IconGetter.getIconOrDefault("stability", Material.GREEN_DYE),

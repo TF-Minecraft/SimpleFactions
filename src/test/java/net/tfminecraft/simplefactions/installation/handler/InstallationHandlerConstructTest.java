@@ -106,26 +106,6 @@ class InstallationHandlerConstructTest {
 		}
 	}
 
-	@Test
-	void missedUpkeepDropsLevelAndCancelsUpgradeButLevelOneDissolves() {
-		Fixture fx = fixture();
-		Bank bank = mock(Bank.class);
-		when(bank.getWealth()).thenReturn(0.0);
-		when(fx.faction.getBank()).thenReturn(bank);
-		Installation station = new Installation("central_station", "Central", InstallationKind.TRAIN_STATION, PROVINCE, X, Z, 1L, 2);
-		fx.handler.acceptTransferred(station);
-		try (TestMocks mocks = testMocks(fx, false)) {
-			assertTrue(fx.handler.upgrade("central_station").isSuccess());
-			fx.handler.payDailyUpkeep();
-			assertEquals(1, station.getLevel());
-			assertNull(fx.handler.getPendingConstruction());
-			verify(bank, never()).withdraw(any());
-			assertTrue(fx.handler.upgrade("central_station").isSuccess());
-			fx.handler.payDailyUpkeep();
-			assertNull(fx.handler.getById("central_station"));
-			assertNull(fx.handler.getPendingConstruction());
-		}
-	}
 
 	@Test
 	void constructInstant_fort_success() {

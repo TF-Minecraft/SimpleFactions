@@ -5,12 +5,12 @@ import java.util.Objects;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
 
-/** Character names remembered with their account owner for the public map. */
+/** Leader character names remembered with the leader's member key for the public map. */
 public final class LeaderCharacters {
 
-    /** Active character name of an online player, or null if unknown. */
+    /** Name of the character with a member key, or null if unknown. */
     public interface Probe {
-        String activeCharacterName(String player);
+        String characterName(String key);
 
         /** False while RPCharacters is missing, so remembered names are not kept either. */
         default boolean available() {
@@ -18,7 +18,7 @@ public final class LeaderCharacters {
         }
     }
 
-    /** A remembered character name and the player it belongs to. */
+    /** A remembered character name and the member key it belongs to. */
     public record Remembered(String name, String player) {
         public static final Remembered NONE = new Remembered(null, null);
     }
@@ -33,21 +33,8 @@ public final class LeaderCharacters {
             @Override public boolean available() {
                 return net.tfminecraft.tlibs.character.Characters.available();
             }
-            @Override public String activeCharacterName(String account) {
-                var online = org.bukkit.Bukkit.getPlayerExact(account);
-                if (online != null) {
-                    var session = net.tfminecraft.tlibs.character.Characters.currentSession(online).orElse(null);
-                    if (session == null || !session.ref().ownerId().equals(online.getUniqueId())) return null;
-                    var info = net.tfminecraft.tlibs.character.Characters.info(session.ref().characterId()).orElse(null);
-                    return info != null && info.ref().equals(session.ref())
-                            && online.isOnline() && org.bukkit.Bukkit.getPlayer(online.getUniqueId()) == online
-                            && net.tfminecraft.tlibs.character.Characters.isCurrent(session) ? info.name() : null;
-                }
-                var cached = org.bukkit.Bukkit.getOfflinePlayerIfCached(account);
-                if (cached == null) return null;
-                return net.tfminecraft.tlibs.character.Characters.lastPlayed(cached.getUniqueId())
-                        .filter(info -> info.ref().ownerId().equals(cached.getUniqueId()))
-                        .map(net.tfminecraft.tlibs.character.CharacterInfo::name).orElse(null);
+            @Override public String characterName(String key) {
+                return Members.info(key).map(net.tfminecraft.tlibs.character.CharacterInfo::name).orElse(null);
             }
         });
     }
@@ -61,17 +48,17 @@ public final class LeaderCharacters {
     }
 
     /**
-     * What to remember for `leader` now: their active character if they are
-     * online with one, else what was remembered for this same leader, else
-     * nothing. Without RPCharacters it is always nothing.
+     * What to remember for `leader` now: the leader character's name, else
+     * what was remembered for this same leader, else nothing. Without
+     * RPCharacters it is always nothing.
      */
     public static Remembered resolve(String leader, String rememberedName, String rememberedFor) {
         if (leader == null || leader.isBlank()) return Remembered.NONE;
         Probe current = probe;
         if (current == null || !current.available()) return Remembered.NONE;
-        String active = clean(current.activeCharacterName(leader));
+        String active = clean(current.characterName(leader));
         if (active != null) return new Remembered(active, leader);
-        if (rememberedName != null && leader.equalsIgnoreCase(rememberedFor)) {
+        if (rememberedName != null && leader.equals(rememberedFor)) {
             String kept = clean(rememberedName);
             if (kept != null) return new Remembered(kept, leader);
         }

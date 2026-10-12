@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.runtime;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.function.Function;
@@ -25,7 +27,7 @@ public final class BattleScheduleLookups {
 			if (online == null) {
 				return null;
 			}
-			return FactionManager.getByMember(online.getName());
+			return FactionManager.getByMember(Members.key(online));
 		};
 	}
 
@@ -45,17 +47,16 @@ public final class BattleScheduleLookups {
 		};
 	}
 
-	// Existing configuration identifies offline profiles by player name, not UUID.
-	@SuppressWarnings("deprecation")
+	/** Battle votes stay keyed by account, so a member key maps to the account that plays it. */
 	public static Function<String, UUID> memberNameToUuid() {
-		return name -> {
-			if (name == null || name.isBlank()) {
+		return key -> {
+			if (key == null || key.isBlank()) {
 				return null;
 			}
 			if (Bukkit.getServer() == null) {
-				return spoofMemberUuid(name);
+				return spoofMemberUuid(key);
 			}
-			return Bukkit.getOfflinePlayer(name).getUniqueId();
+			return Members.accountId(key).orElse(null);
 		};
 	}
 

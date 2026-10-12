@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanies;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
+import net.tfminecraft.simplefactions.identity.Members;
 
 /**
  * Company upgrades only touch a player while they fight a battle as a hired
@@ -64,7 +65,7 @@ public final class MercenaryStatService {
     /** True when the player is carrying company buffs after this call. */
     public static boolean apply(Player player) {
         if (player == null) return false;
-        MercenaryStatPlan plan = planFor(player.getName());
+        MercenaryStatPlan plan = planFor(Members.key(player));
         if (plan.isEmpty()) {
             clear(player);
             return false;

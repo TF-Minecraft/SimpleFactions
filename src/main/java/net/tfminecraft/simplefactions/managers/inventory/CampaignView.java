@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults;
 import java.time.Instant;
@@ -95,9 +97,9 @@ public class CampaignView {
 			return;
 		}
 
-		Faction viewerFaction = FactionManager.getByLeader(player.getName());
+		Faction viewerFaction = FactionManager.getByLeader(Members.key(player));
 		if (viewerFaction == null) {
-			viewerFaction = FactionManager.getByMember(player.getName());
+			viewerFaction = FactionManager.getByMember(Members.key(player));
 		}
 		if (viewerFaction == null) {
 			if (open) {
@@ -221,7 +223,7 @@ public class CampaignView {
 	}
 
 	private void populatePostBattleChoiceButtons(Inventory inventory, War war, Player player) {
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		for (int slot : List.of(40, 41, 42, 43)) {
 			inventory.setItem(slot, inv.getFiller(Material.GRAY_STAINED_GLASS_PANE));
 		}
@@ -306,9 +308,9 @@ public class CampaignView {
 				CampaignCreator.installationsEntryWarKey(),
 				PersistentDataType.INTEGER);
 		if (installationsEntryWarId != null && installationsEntryWarId == war.getId()) {
-			Faction viewerFaction = FactionManager.getByLeader(player.getName());
+			Faction viewerFaction = FactionManager.getByLeader(Members.key(player));
 			if (viewerFaction == null) {
-				viewerFaction = FactionManager.getByMember(player.getName());
+				viewerFaction = FactionManager.getByMember(Members.key(player));
 			}
 			if (viewerFaction == null || !war.isParticipating(viewerFaction)) {
 				player.sendMessage("§cYou are not a belligerent in this war.");
@@ -323,15 +325,15 @@ public class CampaignView {
 				CampaignCreator.raidEntryWarKey(),
 				PersistentDataType.INTEGER);
 		if (raidEntryWarId != null && raidEntryWarId == war.getId()) {
-			Faction viewerFaction = FactionManager.getByLeader(player.getName());
+			Faction viewerFaction = FactionManager.getByLeader(Members.key(player));
 			if (viewerFaction == null) {
-				viewerFaction = FactionManager.getByMember(player.getName());
+				viewerFaction = FactionManager.getByMember(Members.key(player));
 			}
 			if (viewerFaction == null || !war.isParticipating(viewerFaction)) {
 				player.sendMessage(CampaignRaidMessages.NOT_PARTICIPANT);
 				return;
 			}
-			if (!viewerFaction.isLeader(player.getName())) {
+			if (!viewerFaction.isLeader(Members.key(player))) {
 				player.sendMessage(CampaignRaidMessages.NOT_LEADER);
 				return;
 			}
@@ -370,7 +372,7 @@ public class CampaignView {
 				player.sendMessage("§cYou cannot retreat right now.");
 				return;
 			}
-			Faction leader = FactionManager.getByLeader(player.getName());
+			Faction leader = FactionManager.getByLeader(Members.key(player));
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_retreat", String.valueOf(war.getId()));
@@ -386,7 +388,7 @@ public class CampaignView {
 				player.sendMessage("§cYou cannot surrender right now.");
 				return;
 			}
-			Faction leader = FactionManager.getByLeader(player.getName());
+			Faction leader = FactionManager.getByLeader(Members.key(player));
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_surrender", String.valueOf(war.getId()));
@@ -402,7 +404,7 @@ public class CampaignView {
 				player.sendMessage("§cYou cannot accept white peace right now.");
 				return;
 			}
-			Faction leader = FactionManager.getByLeader(player.getName());
+			Faction leader = FactionManager.getByLeader(Members.key(player));
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_accept_peace", String.valueOf(war.getId()));
@@ -418,7 +420,7 @@ public class CampaignView {
 				player.sendMessage("§cYou cannot push right now.");
 				return;
 			}
-			Faction leader = FactionManager.getByLeader(player.getName());
+			Faction leader = FactionManager.getByLeader(Members.key(player));
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_push", String.valueOf(war.getId()));
@@ -434,7 +436,7 @@ public class CampaignView {
 				player.sendMessage("§cYou cannot hold right now.");
 				return;
 			}
-			Faction leader = FactionManager.getByLeader(player.getName());
+			Faction leader = FactionManager.getByLeader(Members.key(player));
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_hold", String.valueOf(war.getId()));
@@ -450,7 +452,7 @@ public class CampaignView {
 				player.sendMessage("§cYou cannot attack right now.");
 				return;
 			}
-			Faction leader = FactionManager.getByLeader(player.getName());
+			Faction leader = FactionManager.getByLeader(Members.key(player));
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_attack", String.valueOf(war.getId()));
@@ -466,7 +468,7 @@ public class CampaignView {
 				player.sendMessage("§cYou cannot accept peace right now.");
 				return;
 			}
-			Faction leader = FactionManager.getByLeader(player.getName());
+			Faction leader = FactionManager.getByLeader(Members.key(player));
 			inv.confirming.put(player, leader);
 			inv.campaignConfirmWar.put(player, war.getId());
 			inv.confirmView(player, leader, "campaign_loser_peace", String.valueOf(war.getId()));
@@ -483,7 +485,7 @@ public class CampaignView {
 	}
 
 	private void handleHourToggleClick(Player player, War war, int hour) {
-		Faction faction = FactionManager.getByMember(player.getName());
+		Faction faction = FactionManager.getByMember(Members.key(player));
 		if (faction == null || !BattleVoterEligibility.canToggleVote(war, faction, CampaignClock.now())) {
 			player.sendMessage("§cYou cannot vote for battle hours right now.");
 			return;
@@ -546,7 +548,7 @@ public class CampaignView {
 			return;
 		}
 
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		if (leader == null) {
 			return;
 		}
@@ -649,7 +651,7 @@ public class CampaignView {
 	}
 
 	public boolean canRetreat(Player player, War war) {
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		if (leader == null) {
 			return false;
 		}
@@ -664,7 +666,7 @@ public class CampaignView {
 	}
 
 	public boolean canAcceptWhitePeace(Player player, War war) {
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		if (leader == null) {
 			return false;
 		}
@@ -672,17 +674,17 @@ public class CampaignView {
 	}
 
 	public boolean canMakePostBattleChoice(Player player, War war) {
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		return leader != null && CampaignPostBattleChoiceService.isChoiceLeader(war, leader);
 	}
 
 	public boolean isDefenderLeader(Player player, War war) {
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		return leader != null && leader.getId().equalsIgnoreCase(war.getDefenderLeaderId());
 	}
 
 	public boolean isAttackerLeader(Player player, War war) {
-		Faction leader = FactionManager.getByLeader(player.getName());
+		Faction leader = FactionManager.getByLeader(Members.key(player));
 		return leader != null && leader.getId().equalsIgnoreCase(war.getAttackerLeaderId());
 	}
 

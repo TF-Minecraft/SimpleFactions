@@ -53,7 +53,7 @@ public final class BattleEndSupport {
 							participantIds,
 							endReason,
 							campaignRaid,
-							lootEnabled));
+							lootEnabled, battle.getParticipants()));
 		}
 	}
 }

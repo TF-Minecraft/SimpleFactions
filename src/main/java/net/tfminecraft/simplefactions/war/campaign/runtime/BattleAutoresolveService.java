@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.runtime;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.Random;
@@ -77,14 +79,14 @@ public final class BattleAutoresolveService {
 			return SendResult.NOT_ALLOWED;
 		}
 
-		Faction proposerFaction = FactionManager.getByLeader(proposer.getName());
+		Faction proposerFaction = FactionManager.getByLeader(Members.key(proposer));
 		if (proposerFaction == null || !isWarLeader(proposerFaction, war, side)) {
 			return SendResult.NOT_ALLOWED;
 		}
 
 		Faction opposingLeaderFaction = opposingLeaderFaction(war, side);
 
-		Player target = Bukkit.getPlayerExact(opposingLeaderFaction.getLeader());
+		Player target = Members.player(opposingLeaderFaction.getLeader());
 		if (target == null || !target.isOnline()) {
 			return SendResult.OPPOSING_LEADER_OFFLINE;
 		}
@@ -114,7 +116,7 @@ public final class BattleAutoresolveService {
 		BelligerentRole opposingSide = req.getProposerSide() == BelligerentRole.ATTACKER
 				? BelligerentRole.DEFENDER
 				: BelligerentRole.ATTACKER;
-		Faction acceptorFaction = FactionManager.getByLeader(acceptor.getName());
+		Faction acceptorFaction = FactionManager.getByLeader(Members.key(acceptor));
 		if (acceptorFaction == null || !isWarLeader(acceptorFaction, war, opposingSide)) {
 			acceptor.sendMessage("§cYou cannot accept this request.");
 			return;
@@ -133,7 +135,7 @@ public final class BattleAutoresolveService {
 
 		Faction proposerFaction = req.getFaction();
 		if (proposerFaction != null) {
-			Player proposer = Bukkit.getPlayerExact(proposerFaction.getLeader());
+			Player proposer = Members.player(proposerFaction.getLeader());
 			if (proposer != null && proposer.isOnline()) {
 				proposer.sendMessage(acceptorFaction.getName() + " §aaccepted autoresolve");
 			}
@@ -329,7 +331,7 @@ public final class BattleAutoresolveService {
 
 	private static void sendToSide(Side side, String message) {
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
-			Player player = Bukkit.getPlayerExact(memberName);
+			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);
 			}

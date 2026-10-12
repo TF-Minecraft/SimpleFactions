@@ -21,11 +21,10 @@ class EspionageBypassTest {
 
     private void protect(Faction faction) {
         var state = new EspionageState();
-        var holder = new SpecialPositionAssignment();
-        holder.playerName = "Spy";
+        var holder = EspionageTestFixtures.bind(new SpecialPositionAssignment(), "Spy");
         state.appoint(holder, 50);
         when(faction.getEspionage()).thenReturn(state);
-        when(faction.isMemberIgnoreCase("Spy")).thenReturn(true);
+        when(faction.isMember(EspionageTestFixtures.key("Spy"))).thenReturn(true);
     }
 
     @Test
@@ -35,7 +34,7 @@ class EspionageBypassTest {
         when(viewer.hasPermission(EspionageService.BYPASS_PERMISSION)).thenReturn(true);
         Faction own = mock(Faction.class), foreign = mock(Faction.class);
         protect(foreign);
-        when(own.isMemberIgnoreCase("Viewer")).thenReturn(true);
+        when(own.isMember("Viewer")).thenReturn(true);
         var config = new org.bukkit.configuration.file.YamlConfiguration();
         config.set(net.tfminecraft.simplefactions.testsupport.EspionageModes.MILITARY_ONLY, false);
         try {

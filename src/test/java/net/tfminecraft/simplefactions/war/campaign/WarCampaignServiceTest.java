@@ -45,6 +45,17 @@ import net.tfminecraft.simplefactions.settlement.Settlement;
 import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 
 class WarCampaignServiceTest {
+	@Test
+	void scheduleCanStartOnTheDeclarationDay() {
+		Cache.warFirstBattleDayAfterDeclare = false;
+		War war = mock(War.class);
+		Instant started = Instant.parse("2026-10-12T12:00:00Z");
+		when(war.getStartedAt()).thenReturn(started);
+		WarCampaignService.initScheduleState(war);
+		org.mockito.Mockito.verify(war).setBattleDay(LocalDate.of(2026, 10, 12));
+		org.mockito.Mockito.verify(war).setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+	}
+
 	private ProvinceManager pm;
 	private WarCampaignService service;
 	private Faction attacker;

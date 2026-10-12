@@ -15,15 +15,17 @@ import org.mockito.Mockito;
 class FactionInviteTest {
 
 	@Test
-	void inviteMatchesAndConsumesIgnoreCase() throws Exception {
+	void inviteMatchesAndConsumesExactKeys() throws Exception {
 		Faction faction = mock(Faction.class, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
 		setField(faction, "invited", new ArrayList<String>());
 
 		faction.invite("steve");
-		assertTrue(faction.isInvited("Steve"));
-		faction.invite("STEVE");
+		assertFalse(faction.isInvited("Steve"));
+		assertTrue(faction.isInvited("steve"));
+		faction.invite("steve");
 		assertEquals(1, faction.getInvited().size());
-		assertTrue(faction.consumeInvite("Steve"));
+		assertFalse(faction.consumeInvite("Steve"));
+		assertTrue(faction.consumeInvite("steve"));
 		assertFalse(faction.isInvited("steve"));
 		assertTrue(faction.getInvited().isEmpty());
 	}

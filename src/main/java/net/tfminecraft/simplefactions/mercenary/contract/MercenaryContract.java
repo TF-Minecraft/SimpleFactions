@@ -102,6 +102,18 @@ public class MercenaryContract {
      * Identity
      * ===================================================== */
 
+    /** Exact financial after-values; preserves references held by active battles and menus. */
+    public void restoreSettlement(MercenaryContractData data) {
+        if (!id.equals(data.id)) throw new IllegalArgumentException("Wrong contract identity");
+        status = ContractStatus.valueOf(data.status);
+        daysServed = data.daysServed;
+        accruedToCompany = data.accruedToCompany;
+        accruedToHirer = data.accruedToHirer;
+        servedDaysValue = data.servedDaysValue;
+        pendingSlots = data.pendingSlots;
+        pendingExpiresAt = data.pendingSlotExpiry == null ? 0 : data.pendingSlotExpiry;
+    }
+
     public String getId() {
         return id;
     }

@@ -2,7 +2,6 @@ package net.tfminecraft.simplefactions.tiers;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import com.google.gson.JsonArray;
@@ -12,6 +11,7 @@ import com.google.gson.JsonObject;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class Title {
@@ -107,7 +107,7 @@ public class Title {
 		Title parent = TitleManager.getParent(this);
 		ownedTitles.remove(this);
 		f.removeTitle(this);
-		Player p = Bukkit.getPlayerExact(f.getLeader());
+		Player p = Members.player(f.getLeader());
 		if(p != null && p.isOnline()) {
 			p.sendMessage("§cYou lost the title §e"+name+" §cdue to a lack of provinces or required titles");
 		}

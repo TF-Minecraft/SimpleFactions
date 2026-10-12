@@ -67,8 +67,9 @@ class GuildIntelligenceTest {
         when(guild.isLeader("Account0")).thenReturn(true);
         var report = new IntelligenceReport();
         report.quality = "Detailed estimates";
-        try (var names = mockStatic(CharacterNames.class); var represents = mockStatic(Represents.class)) {
-            names.when(() -> CharacterNames.of(anyString())).thenAnswer(call -> "Character " + call.getArgument(0).toString().substring(7));
+        try (var names = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS);
+             var represents = mockStatic(Represents.class)) {
+            names.when(() -> net.tfminecraft.simplefactions.identity.Members.display(anyString())).thenAnswer(call -> "Character " + call.getArgument(0).toString().substring(7));
             represents.when(() -> Represents.represents(eq(target), anyString())).thenReturn("Guild");
             EspionageService.captureMembers(report, target, 65, new Random(2));
         }

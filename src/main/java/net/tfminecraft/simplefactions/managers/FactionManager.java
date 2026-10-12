@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -58,7 +59,6 @@ import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.denareconomy.DenarEconomy;
-import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.denareconomy.enums.Accounts;
 
 public class FactionManager implements Listener{
@@ -527,7 +527,7 @@ public class FactionManager implements Listener{
 		if(timer%300 == 0) {
 			for(Faction f : factions) {
 				if(f.getProvinces().size() == 0) continue;
-				Player leader = Bukkit.getPlayerExact(f.getLeader());
+				Player leader = Members.player(f.getLeader());
 				if(leader == null) continue;
 				if(TitleManager.overProvinceCap(f)) {
 					leader.sendMessage("§cYou are over your province cap! Other nations can steal your provinces from you!");
@@ -537,143 +537,46 @@ public class FactionManager implements Listener{
 			SimpleFactions.getInstance().getVehicleUpkeepService()
 					.warnBankShortfalls(Bukkit.getOnlinePlayers(), getSecondsUntilNewDay());
 		}
-		if (timer >= DAY_LENGTH_SECONDS) {
-			runDailyStep("player ledgers", () -> PlayerEconomyManager.get().clearAllDaily());
-			for(Faction f : new ArrayList<>(factions)){
-				if(f == null) continue;
-				runDailyStep("faction " + f.getId(), f::newDay);
-			}
-			runDailyStep("inactive members", () -> {
-				FactionCleanup.advanceOfflineDays(factions);
-				net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
-			});
-			// Track may have been laid or cut since yesterday, so measure routes again
-			// and settle the day on trade that reflects them.
-			runDailyStep("trade routes", () -> {
-				net.tfminecraft.simplefactions.guild.network.TradeGraph.forgetRoutes();
-				boolean tracksChanged = SimpleFactions.getInstance().refreshTrackProvinces();
-				if (!tracksChanged) SimpleFactions.getInstance().getProvinceManager().recalculate();
-			});
-			runDailyStep("income", this::settleIncome);
-			timer = 0;
-			day++;
-		}
-	}
+        if (timer >= DAY_LENGTH_SECONDS) settleIncome();
+    }
 
-	public void settleIncome() {
-		DailyGuildTransfers buffer = new DailyGuildTransfers();
+    public void settleIncome() {
+        if (!net.tfminecraft.simplefactions.economy.EconomyRuntime.ready()) return;
+        try {
+            SimpleFactions.getInstance().getRealmSettlementService().settle(day);
+            SimpleFactions.getInstance().recordVehicleOwners();
+        } catch (Exception error) {
+            net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error);
+        }
+    }
 
-		// Phase 0: contracts accrue the day and hand the hiring capital its bill, which
-		// it cannot compute itself because it owns no contract object.
-		runDailyStep("mercenary accrual", () ->
-				net.tfminecraft.simplefactions.mercenary.contract.ContractAccrualService.accrueDailyAndPush());
+    /** Loads references before money recovery; no repeating tasks can mutate the loaded state yet. */
+    public void prepare() {
+        Database database = new Database();
+        timer = database.getTimer();
+        day = database.getDay();
+        loadRelations();
+        for (Faction f : factions) {
+            f.getLawHandler().apply();
+            f.countyCheck();
+            f.getGovernment().loadMovements();
+            f.ping();
+        }
+        updateAllPrestigeConverged();
+        fixRelations();
+        loadDBLoans();
+    }
 
-		// Read the ledger view history before Phase 1 clears the day's citizen taxes.
-		Map<Guild, Map<LedgerHistory.Source, Map<String, Double>>> history = new HashMap<>();
-		runDailyStep("ledger history", () -> history.putAll(Ledger.collectHistoryDay(getAllGuilds())));
+    public void startTicks() {
+        net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
+        tickCycle();
+        loaded = true;
+    }
 
-		// Phase 1: collect transfers & external deltas
-		for (Guild g : getAllGuilds()) {
-			if (g == null || g.getLedger() == null) continue;
-			runDailyStep("ledger " + g.getId(), () -> g.getLedger().populateDailyTransfers(buffer));
-		}
-
-		// Phase 2: compute net deltas
-		Map<Guild, Double> deltas = new HashMap<>();
-
-		// Guild -> Guild transfers
-		for (var fromEntry : buffer.getTransfers().entrySet()) {
-			Guild from = fromEntry.getKey();
-			for (var toEntry : fromEntry.getValue().entrySet()) {
-				Guild to = toEntry.getKey();
-				double amount = toEntry.getValue();
-
-				deltas.merge(from, -amount, Double::sum);
-				deltas.merge(to, amount, Double::sum);
-			}
-		}
-
-		// External deposits / withdrawals
-		for (var entry : buffer.getExternalDeltas().entrySet()) {
-			Guild guild = entry.getKey();
-			double delta = entry.getValue();
-
-			deltas.merge(guild, delta, Double::sum);
-		}
-
-		// Phase 3: apply atomically
-		for (var entry : deltas.entrySet()) {
-			Guild guild = entry.getKey();
-			if (guild == null || guild.getBank() == null) continue;
-			double amount = entry.getValue() == null ? 0.0 : Formatter.formatDouble(entry.getValue());
-			if (amount == 0.0) continue;
-			runDailyStep("deposit " + guild.getId(), () -> {
-				guild.getBank().deposit(amount);
-				int liquidations = 0;
-				while(guild.isBankrupt() && guild.canLiquidate()
-						&& !net.tfminecraft.simplefactions.inactivity.InactivityService.isFullyInactive(guild.getMembers())
-						&& liquidations++ < 1000) {
-					int before = guild.getSize();
-					guild.liquidateRandom();
-					if(guild.getSize() >= before) break;
-				}
-			});
-		}
-
-		for (Guild g : getAllGuilds()) {
-			if (g == null || g.getLedger() == null) continue;
-			runDailyStep("ledger history " + g.getId(), () -> g.getLedger().getHistory().closeDay(history.get(g)));
-		}
-
-		PostSettlementPayouts.apply(
-				buffer,
-				DenarEconomyPlayerBank.INSTANCE,
-				PlayerEconomyManager.get(),
-				OfflineModifier::playerId);
-		for (Guild g : getAllGuilds()) {
-			g.refreshDividendEligibility();
-		}
-
-		for(Guild g : getAllGuilds()) {
-			if (g == null || g.getLoanHandler() == null || g.getLoanHandler().getLoansGiven() == null) continue;
-			for(Loan loan : g.getLoanHandler().getLoansGiven()) {
-				if (loan == null) continue;
-				runDailyStep("loan " + loan.getId(), loan::tickDay);
-			}
-		}
-
-		//Contracts age a day, then elapsed and bankrupt ones are closed out
-		net.tfminecraft.simplefactions.mercenary.contract.ContractTerminationService.tickDay();
-
-		for (Faction faction : factions) {
-			WarReparationsService.tickAfterDailySettlement(faction);
-		}
-
-		buffer.clear();
-		SimpleFactions.getInstance().getVehicleUpkeepService().processDailyUpkeep();
-		SimpleFactions.getInstance().recordVehicleOwners();
-	}
-
-	
-	public void run() {
-		Database database = new Database();
-		timer = database.getTimer();
-		day = database.getDay();
-		LogManager.relations("FactionManager.run loadRelations");
-		loadRelations();
-		tickCycle();	
-		for(Faction f : factions) {
-			f.getLawHandler().apply();
-			f.countyCheck();
-			f.getGovernment().loadMovements();
-			f.ping();
-		}
-		updateAllPrestigeConverged();
-		net.tfminecraft.simplefactions.inactivity.InactivityService.armAll(factions, System.currentTimeMillis());
-		fixRelations();
-		loadDBLoans();
-		loaded = true;
-	}
+    public void run() {
+        prepare();
+        startTicks();
+    }
 
 	public static boolean guildExists(String id) {
 		for(Faction f : factions) {
@@ -685,23 +588,50 @@ public class FactionManager implements Listener{
 	}
 
 	public static boolean canJoinGuild(Player p) {
-		Guild guild = getGuildByMember(p.getName());
+		String key = Members.key(p);
+		if(key == null) return false;
+		Guild guild = getGuildByMember(key);
 		if(guild == null) return true;
-		if(guild.getLeader().equalsIgnoreCase(p.getName())) return false;
+		if(key.equals(guild.getLeader())) return false;
 		return guild.getType().isBase();
+	}
+
+	/** The faction identity of the character in this player's current session. */
+	public static Guild getGuildByMember(Player player) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+		return getGuildByMember(Members.key(player));
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Guild getGuildByMember(java.util.UUID characterId) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+		return getGuildByMember(Members.key(characterId));
 	}
 
 	public static Guild getGuildByMember(String player) {
 		if(player == null) return null;
 		for(Faction f : factions) {
 			for(Guild guild : f.getGuildHandler().getGuilds()) {
-				if(Guild.findIgnoreCase(guild.getMembers(), player) != null) return guild;
+				if(Guild.find(guild.getMembers(), player) != null) return guild;
 			}
 		}
 		return null;
 	}
 
+	/** The faction identity of the character in this player's current session. */
+	public static Guild getGuildByLeader(Player player) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+		return getGuildByLeader(Members.key(player));
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Guild getGuildByLeader(java.util.UUID characterId) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+		return getGuildByLeader(Members.key(characterId));
+	}
+
 	public static Guild getGuildByLeader(String leader) {
+		if(leader == null) return null;
 		for(Faction f : factions) {
 			for(Guild guild : f.getGuildHandler().getGuilds()) {
 				if(guild.isLeader(leader)) return guild;
@@ -728,22 +658,7 @@ public class FactionManager implements Listener{
 		return guilds;
 	}
 
-	/** One bad faction or guild must not abort the day, or the next second would pay everyone again. */
-	private static void runDailyStep(String step, Runnable action) {
-		try {
-			action.run();
-		} catch (RuntimeException ex) {
-			SimpleFactions plugin = SimpleFactions.getInstance();
-			String message = "Daily tick failed during " + step;
-			if (plugin != null && plugin.getLogger() != null) {
-				plugin.getLogger().log(java.util.logging.Level.SEVERE, message, ex);
-			} else {
-				java.util.logging.Logger.getLogger(FactionManager.class.getName())
-						.log(java.util.logging.Level.SEVERE, message, ex);
-			}
-		}
-	}
-	
+
 	public void start(List<Faction> l) {
 		factions = l;
 	}
@@ -914,17 +829,48 @@ public class FactionManager implements Listener{
 		}
 		return c;
 	}
+	/** The faction identity of the character in this player's current session. */
+	public static Faction getByLeader(Player player) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+		return getByLeader(Members.key(player));
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Faction getByLeader(java.util.UUID characterId) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+		return getByLeader(Members.key(characterId));
+	}
+
 	public static Faction getByLeader(String name) {
+		if(name == null) return null;
 		for(Faction f : factions) {
-			if(f.getLeader().equalsIgnoreCase(name)) return f;
+			if(name.equals(f.getLeader())) return f;
 		}
 		return null;
 	}
+	/** The faction identity of the character in this player's current session. */
+	public static Faction getByMember(Player player) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+        String key = Members.key(player);
+        if (key == null) return null;
+        for (Faction faction : factions) if (faction.isMember(key) || key.equals(faction.getLeader())) return faction;
+        return null;
+	}
+
+	/** Looks up a character ID, never a Minecraft account UUID. */
+	public static Faction getByMember(java.util.UUID characterId) {
+        if (!net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready()) return null;
+        String key = Members.key(characterId);
+        if (key == null) return null;
+        for (Faction faction : factions) if (faction.isMember(key) || key.equals(faction.getLeader())) return faction;
+        return null;
+	}
+
 	public static Faction getByMember(String name) {
 		if(name == null) return null;
 		for(Faction f : factions) {
-			if(f.isMemberIgnoreCase(name)) return f;
-			if(f.getLeader().equalsIgnoreCase(name)) {
+			if(f.isMember(name)) return f;
+			if(name.equals(f.getLeader())) {
 				f.addMember(name);
 				return f;
 			}
@@ -1000,7 +946,7 @@ public class FactionManager implements Listener{
 	//Guild relocation
 
 	public static void requestRelocation(Player sender, Guild g, Faction target, int capital, String settlementName) {
-		Player p = Bukkit.getPlayerExact(target.getLeader());
+		Player p = Members.player(target.getLeader());
 		if(p == null) {
 			sender.sendMessage("§cTarget faction leader is not online");
 			return;
@@ -1009,12 +955,19 @@ public class FactionManager implements Listener{
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
 		sender.sendMessage("§aRelocation request sent to "+target.getName());
-		RequestManager.addRequest(sender, p, new RelocateRequest(g, capital, settlementName, target));
+        var sendingSession = Members.session(sender).orElse(null);
+        var receivingSession = Members.session(p).orElse(null);
+        if (sendingSession == null || receivingSession == null) {
+            sender.sendMessage("§cBoth characters must be ready before requesting relocation.");
+            return;
+        }
+        RequestManager.addRequest(sender, p, new RelocateRequest(g, capital, settlementName, target,
+                sendingSession, receivingSession));
 	}
 
 	public static void acceptRelocateRequest(Player p) {
 		RelocateRequest req = (RelocateRequest) RequestManager.getRequest(p);
-		Faction reciever = FactionManager.getByLeader(p.getName());
+		Faction reciever = FactionManager.getByLeader(Members.key(p));
 		if(reciever == null) {
 			p.sendMessage("§cYou do not have a faction");
 			return;
@@ -1028,14 +981,14 @@ public class FactionManager implements Listener{
 		if(reciever.getSettlementHandler().requiresFoundingName(capital)
 				&& (req.getSettlementName() == null || req.getSettlementName().isBlank())) {
 			p.sendMessage("§cA city name is required to relocate here");
-			Player sp = Bukkit.getPlayerExact(sender.getLeader());
+			Player sp = Members.player(sender.getLeader());
 			if(sp != null && sp.isOnline()) {
 				sp.sendMessage("§cRelocation failed - a city name is required at the destination");
 			}
 			return;
 		}
 		double cost = sender.getRelocationCost(capital);
-		Player sp = Bukkit.getPlayerExact(sender.getLeader());
+		Player sp = Members.player(sender.getLeader());
 		if(sender.getBank() == null || !Double.isFinite(cost) || cost < 0 || sender.getBank().getWealth() < cost) {
 			p.sendMessage("§c"+sender.getName()+" does not have enough funds to relocate (Cost: "+Formatter.formatDouble(cost)+"d)");
 			if(sp != null && sp.isOnline()) sp.sendMessage("§cYour guild does not have enough funds to relocate (Cost: "+Formatter.formatDouble(cost)+"d)");
@@ -1052,14 +1005,14 @@ public class FactionManager implements Listener{
 			p.sendMessage(validation.getMessage());
 			return;
 		}
-		sender.relocate(reciever, capital, actor, req.getSettlementName());
-		sender.getBank().withdraw(cost);
+		if (!net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(p, sender, reciever,
+				capital, req.getSettlementName(), cost, req.getOperationId(), actor)) return;
 		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your request to relocate to their faction");
 		p.sendMessage(sender.getName()+"§a has been relocated to your faction");
 	}
 
 	public static void requestElevation(Player sender, Guild target) {
-		Player p = Bukkit.getPlayerExact(target.getLeader());
+		Player p = Members.player(target.getLeader());
 		if(p == null) {
 			sender.sendMessage("§cTarget guild leader is not online");
 			return;
@@ -1073,7 +1026,7 @@ public class FactionManager implements Listener{
 
 	public static void acceptElevationRequest(Player p) {
 		if (!(RequestManager.getRequest(p) instanceof ElevateRequest req)) return;
-		Guild guild = FactionManager.getGuildByLeader(p.getName());
+		Guild guild = FactionManager.getGuildByLeader(Members.key(p));
 		if(guild == null) {
 			p.sendMessage("§cYou are not the leader of a guild");
 			return;
@@ -1100,22 +1053,22 @@ public class FactionManager implements Listener{
 	}
 
 	public static void requestMovementJoin(Player sender, Movement movement, String type, Cause cause) {
-		Player p = Bukkit.getPlayerExact(movement.getLeader());
+		Player p = Members.player(movement.getLeader());
 		if(p == null) {
 			sender.sendMessage("§cTarget movement leader is not online");
 			return;
 		}
-		p.sendMessage(sender.getName()+" §7wants to join your movement as a "+type);
+		p.sendMessage(Members.name(sender)+" §7wants to join your movement as a "+type);
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Request will time out in 60 seconds");
-		sender.sendMessage("§aJoin request sent to "+movement.getLeader());
-		RequestManager.addRequest(sender, p, new MovementJoinRequest(null, sender.getName(), type, movement, cause));
+		sender.sendMessage("§aJoin request sent to "+Members.display(movement.getLeader()));
+		RequestManager.addRequest(sender, p, new MovementJoinRequest(null, Members.key(sender), type, movement, cause));
 	}
 
 	public static void acceptMovementJoinRequest(Player p) {
 		if (!(RequestManager.getRequest(p) instanceof MovementJoinRequest req)) return;
 		String sender = req.getPlayer();
-		Player sp = Bukkit.getPlayerExact(sender);
+		Player sp = Members.player(sender);
 		if(sp == null || !sp.isOnline()) {
 			p.sendMessage("§cRequest sender is not online");
 			return;
@@ -1125,7 +1078,7 @@ public class FactionManager implements Listener{
 			p.sendMessage("§cTarget faction no longer exists");
 			return;
 		}
-		Movement target = f.getGovernment().getMovementByLeader(p.getName());
+		Movement target = f.getGovernment().getMovementByLeader(Members.key(p));
 		if(target == null) {
 			p.sendMessage("§cYou are not the leader of a movement");
 			return;
@@ -1153,7 +1106,7 @@ public class FactionManager implements Listener{
 				return;
 			}
 			target.joinAsForeignBacker(fac);
-			p.sendMessage("§a"+sender+" has joined your movement as a "+req.getType()+"!");
+			p.sendMessage("§a"+Members.display(sender)+" has joined your movement as a "+req.getType()+"!");
 			return;
 		}
 		if(!target.canJoin(o, cause)) {
@@ -1170,33 +1123,34 @@ public class FactionManager implements Listener{
 			return;
 		}
 		target.join(o, cause);
-		p.sendMessage("§a"+sender+" has joined your movement as a "+req.getType()+"!");
+		p.sendMessage("§a"+Members.display(sender)+" has joined your movement as a "+req.getType()+"!");
 	}
 
+	/** Asks the character with member key {@code targetName} to be the movement's wanted leader. */
 	public static void requestMovementLeaderTarget(Player sender, Movement movement, Cause cause, String targetName) {
 		if (sender == null || movement == null || cause == null || targetName == null) {
 			return;
 		}
-		Player target = Bukkit.getPlayerExact(targetName);
+		Player target = Members.player(targetName);
 		if (target == null || !target.isOnline()) {
 			sender.sendMessage("§cThat player must be online to become the wanted leader.");
 			return;
 		}
 		Faction host = movement.getFaction();
 		if (host == null || !host.canBecomeLeader(targetName)) {
-			sender.sendMessage("§c" + targetName + " cannot be the wanted leader.");
+			sender.sendMessage("§c" + Members.display(targetName) + " cannot be the wanted leader.");
 			return;
 		}
-		target.sendMessage(sender.getName() + " §7wants you to be the wanted leader of their movement.");
+		target.sendMessage(Members.name(sender) + " §7wants you to be the wanted leader of their movement.");
 		target.sendMessage("§7Type §a/faction accept §7to accept");
 		target.sendMessage("§7Request will time out in 60 seconds");
-		sender.sendMessage("§aLeader request sent to " + targetName);
+		sender.sendMessage("§aLeader request sent to " + Members.display(targetName));
 		RequestManager.addRequest(
 				sender,
 				target,
 				new MovementLeaderTargetRequest(
 						null,
-						sender.getName(),
+						Members.key(sender),
 						movement,
 						cause,
 						targetName));
@@ -1204,7 +1158,7 @@ public class FactionManager implements Listener{
 
 	public static void acceptMovementLeaderTargetRequest(Player p) {
 		if (!(RequestManager.getRequest(p) instanceof MovementLeaderTargetRequest req)) return;
-		if (!p.getName().equalsIgnoreCase(req.getProposedName())) {
+		if (!Members.is(p, req.getProposedName())) {
 			p.sendMessage("§cThat request is not for you.");
 			return;
 		}
@@ -1219,7 +1173,7 @@ public class FactionManager implements Listener{
 			p.sendMessage("§cSpecified cause no longer exists");
 			return;
 		}
-		if (!cause.hasLeader() || !cause.getLeader().equalsIgnoreCase(req.getRequester())) {
+		if (!cause.hasLeader() || !cause.getLeader().equals(req.getRequester())) {
 			p.sendMessage("§cThe requester no longer leads that cause.");
 			return;
 		}
@@ -1231,9 +1185,9 @@ public class FactionManager implements Listener{
 		cause.getProposal().setTarget(req.getProposedName());
 		new Database().saveFaction(host);
 		p.sendMessage("§aYou are now the wanted leader of this movement.");
-		Player requester = Bukkit.getPlayerExact(req.getRequester());
+		Player requester = Members.player(req.getRequester());
 		if (requester != null && requester.isOnline()) {
-			requester.sendMessage("§a" + p.getName() + " accepted becoming the wanted leader.");
+			requester.sendMessage("§a" + Members.name(p) + " accepted becoming the wanted leader.");
 		}
 	}
 
@@ -1270,7 +1224,7 @@ public class FactionManager implements Listener{
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 			return true;
 		}
-		if(!f.canVote(p.getName())) {
+		if(!f.canVote(Members.key(p))) {
 			p.sendMessage("§cYou have no voting rights in this faction");
 			p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 			return true;
@@ -1289,7 +1243,7 @@ public class FactionManager implements Listener{
 	}
 
 	void registerVotingBooth(Player p, Block b) {
-		Faction f = FactionManager.getByMember(p.getName());
+		Faction f = FactionManager.getByMember(Members.key(p));
 		if(f == null) return;
 		if(!mayManageVotingBooths(p, f)) {
 			p.sendMessage("§cOnly the faction leader can set up a voting booth");
@@ -1323,7 +1277,7 @@ public class FactionManager implements Listener{
 	}
 
 	private static boolean mayManageVotingBooths(Player p, Faction f) {
-		return p.getName().equalsIgnoreCase(f.getLeader()) || Permissions.isAdmin(p);
+		return Members.is(p, f.getLeader()) || Permissions.isAdmin(p);
 	}
 
 	void unregisterVotingBooth(Player p, Block b) {

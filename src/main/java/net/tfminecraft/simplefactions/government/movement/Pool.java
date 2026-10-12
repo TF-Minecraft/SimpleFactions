@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
@@ -70,7 +71,7 @@ public class Pool {
     public List<String> getFormattedList() {
         List<String> formattedList = new ArrayList<>();
         for (String citizen : citizens) {
-            formattedList.add(StringFormatter.formatHex(citizen + " #77d1a3(Citizen)"));
+            formattedList.add(StringFormatter.formatHex(Members.display(citizen) + " #77d1a3(Citizen)"));
         }
         for (Guild guild : guilds) {
             formattedList.add(StringFormatter.formatHex(guild.getName() + " #d1b83b(Guild)"));

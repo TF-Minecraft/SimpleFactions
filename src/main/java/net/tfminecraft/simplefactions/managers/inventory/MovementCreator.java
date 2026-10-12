@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,7 +34,7 @@ public class MovementCreator {
     @SuppressWarnings({"deprecation"})
     public ItemStack createMovementLeaderItem(Player p, Movement movement) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        if(!movement.hasLeader() && movement.canBeLeader(p.getName())) {
+        if(!movement.hasLeader() && movement.canBeLeader(Members.key(p))) {
             item = new ItemStack(Material.GREEN_CONCRETE);
         } else if(!movement.hasLeader()) {
             item = new ItemStack(Material.RED_CONCRETE);
@@ -43,13 +45,13 @@ public class MovementCreator {
         }
         m.setDisplayName(StringFormatter.formatHex("#c5e0e3Movement Leader"));
         List<String> lore = new ArrayList<>();
-        lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + (movement.hasLeader() ? movement.getLeader() : "None")));
+        lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + (movement.hasLeader() ? Members.display(movement.getLeader()) : "None")));
         lore.add(" ");
         lore.add(StringFormatter.formatHex("#7a7a7aThe leader coordinates the movement"));
         lore.add(StringFormatter.formatHex("#7a7a7aand represents its interests."));
         if(!movement.hasLeader()) {
             lore.add(" ");
-            if(movement.canBeLeader(p.getName())) {
+            if(movement.canBeLeader(Members.key(p))) {
                 lore.add(StringFormatter.formatHex("#45afc4Click to become the leader"));
             } else {
                 lore.add(StringFormatter.formatHex("#c74d32You need to lead a cause to be the movement leader"));
@@ -83,7 +85,7 @@ public class MovementCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createJoinAsSupporterButton(Player player, Movement movement) {
-        boolean isSupporter = movement.getSupporters().getAllMembers().contains(player.getName());
+        boolean isSupporter = movement.getSupporters().getAllMembers().contains(Members.key(player));
         ItemStack item = new ItemStack(isSupporter ? Material.RED_BANNER : Material.GREEN_BANNER);
         ItemMeta m = item.getItemMeta();
         m.setDisplayName(StringFormatter.formatHex(isSupporter ? "#c74d32Leave as Supporter" : "#45afc4Join as Supporter"));
@@ -110,7 +112,7 @@ public class MovementCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createJoinAsForeignBackerButton(Player player, Movement movement) {
-        Faction playerFaction = FactionManager.getByMember(player.getName());
+        Faction playerFaction = FactionManager.getByMember(Members.key(player));
         boolean isBacker = playerFaction != null && movement.getForeignBackers().contains(playerFaction);
         ItemStack item = new ItemStack(isBacker ? Material.RED_BANNER : Material.YELLOW_BANNER);
         ItemMeta m = item.getItemMeta();
@@ -157,11 +159,11 @@ public class MovementCreator {
     public ItemStack createCauseItem(Cause cause, Player p, Faction f) {
         ItemStack item = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta m = item.getItemMeta();
-        m.setDisplayName(StringFormatter.formatHex("#c5e0e3"+(cause.hasLeader() ? cause.getLeader()+"'s Cause" : "Disorganized Cause")));
+        m.setDisplayName(StringFormatter.formatHex("#c5e0e3"+(cause.hasLeader() ? Members.display(cause.getLeader())+"'s Cause" : "Disorganized Cause")));
         List<String> lore = new ArrayList<>();
         lore.add(StringFormatter.formatHex("#9c9775Action: #c2bea7" + cause.getAction().getDisplay()));
         if (cause.hasLeader()) {
-            lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + cause.getLeader()));
+            lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + Members.display(cause.getLeader())));
         } else {
             lore.add(StringFormatter.formatHex("#c74d32No Leader"));
         }
@@ -186,7 +188,7 @@ public class MovementCreator {
     @SuppressWarnings({"deprecation"})
     public ItemStack createCauseLeaderItem(Player p, Cause cause) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        if(!cause.hasLeader() && cause.canBeLeader(p.getName())) {
+        if(!cause.hasLeader() && cause.canBeLeader(Members.key(p))) {
             item = new ItemStack(Material.GREEN_CONCRETE);
         } else if(!cause.hasLeader()) {
             item = new ItemStack(Material.RED_CONCRETE);
@@ -198,13 +200,13 @@ public class MovementCreator {
         m.setDisplayName(StringFormatter.formatHex("#c5e0e3Cause Leader"));
         List<String> lore = new ArrayList<>();
         if (cause.hasLeader()) {
-            lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + cause.getLeader()));
+            lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + Members.display(cause.getLeader())));
         } else {
             lore.add(StringFormatter.formatHex("#c74d32No Leader Assigned"));
         }
         if(!cause.hasLeader()) {
             lore.add(" ");
-            if(cause.canBeLeader(p.getName())) {
+            if(cause.canBeLeader(Members.key(p))) {
                 lore.add(StringFormatter.formatHex("#45afc4Click to become the leader"));
             } else {
                 lore.add(StringFormatter.formatHex("#c74d32You are not able to become leader"));
@@ -245,7 +247,7 @@ public class MovementCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createJoinCauseButton(Player player, Cause cause) {
-        boolean isMember = cause.getFullMemberList().contains(player.getName());
+        boolean isMember = cause.getFullMemberList().contains(Members.key(player));
         ItemStack item = new ItemStack(isMember ? Material.RED_WOOL : Material.GREEN_WOOL);
         ItemMeta m = item.getItemMeta();
         m.setDisplayName(StringFormatter.formatHex(isMember ? "#c74d32Leave Cause" : "#45afc4Join Cause"));
@@ -304,7 +306,7 @@ public class MovementCreator {
     public ItemStack createMovementListItem(Movement movement) {
         ItemStack item = new ItemStack(Material.BLAZE_POWDER);
         ItemMeta m = item.getItemMeta();
-        m.setDisplayName(StringFormatter.formatHex("#d1743b" + movement.getLeader() + "'s Movement "));
+        m.setDisplayName(StringFormatter.formatHex("#d1743b" + Members.display(movement.getLeader()) + "'s Movement "));
         List<String> lore = new ArrayList<>();
         appendMovementSummaryLore(lore, movement);
         lore.add(" ");
@@ -316,7 +318,7 @@ public class MovementCreator {
     }
 
     private void appendMovementSummaryLore(List<String> lore, Movement movement) {
-        lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + movement.getLeader()));
+        lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7" + Members.display(movement.getLeader())));
         lore.add(StringFormatter.formatHex("#9c9775Organization: #c2bea7" + Formatter.formatDouble(movement.getOrganization()) +
                                             "/"+movement.getMaxOrganization()+" §7(" + (movement.getOrganizationGain() > 0 ? "+" : "#d65c5c") + movement.getOrganizationGain()) + " §7per day)");
         lore.add(StringFormatter.formatHex("#c45749Power: #d87638"+movement.getPower()+"% #7a7a7aof " + movement.getFaction().getName()));
@@ -333,9 +335,9 @@ public class MovementCreator {
         ItemStack item = new ItemStack(Material.RED_CONCRETE);
         if(phase == movement.getPhase()) {
             item = new ItemStack(Material.GREEN_CONCRETE);
-        } else if(phase.getIndex() == movement.getPhase().getIndex()-1 && movement.isLeader(p.getName())) {
+        } else if(phase.getIndex() == movement.getPhase().getIndex()-1 && movement.isLeader(Members.key(p))) {
             item = new ItemStack(Material.YELLOW_CONCRETE);
-        } else if(phase.getIndex() < 4 && phase.getIndex() == movement.getPhase().getIndex()+1 && movement.getOrganization() >= movement.getPhase().getMaxOrganization() && movement.isLeader(p.getName())) {
+        } else if(phase.getIndex() < 4 && phase.getIndex() == movement.getPhase().getIndex()+1 && movement.getOrganization() >= movement.getPhase().getMaxOrganization() && movement.isLeader(Members.key(p))) {
             item = new ItemStack(Material.YELLOW_CONCRETE);
         }
         ItemMeta m = item.getItemMeta();
@@ -347,7 +349,7 @@ public class MovementCreator {
         lore.add(StringFormatter.formatHex("#7a7a7aThe current phase of the movement"));
         lore.add(StringFormatter.formatHex("#7a7a7awhich determines its max organization level"));
         lore.add("");
-        if(movement.isLeader(p.getName())) {
+        if(movement.isLeader(Members.key(p))) {
             if(item.getType().equals(Material.RED_CONCRETE)) {
                 lore.add(StringFormatter.formatHex("#c74d32Unavailable"));
                 if(phase.getIndex() > 0 && movement.getPhase().getIndex() == phase.getIndex()-1) {
@@ -507,7 +509,7 @@ public class MovementCreator {
     public ItemStack createDemandItem(Cause cause, Movement movement) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta m = item.getItemMeta();
-        m.setDisplayName(StringFormatter.formatHex("#c5e0e3Demand: " + (cause.hasLeader() ? cause.getLeader() : "Leaderless")));
+        m.setDisplayName(StringFormatter.formatHex("#c5e0e3Demand: " + (cause.hasLeader() ? Members.display(cause.getLeader()) : "Leaderless")));
         List<String> lore = new ArrayList<>();
         lore.add(StringFormatter.formatHex("#9c9775Action: #c2bea7" + cause.getAction().getDisplay()));
         lore.add(" ");
@@ -620,7 +622,7 @@ public class MovementCreator {
         List<String> lore = new ArrayList<>();
         
         if (proposal.hasTarget()) {
-            lore.add(StringFormatter.formatHex("#9c9775Target: #c2bea7" + proposal.getTarget()));
+            lore.add(StringFormatter.formatHex("#9c9775Target: #c2bea7" + Members.display(proposal.getTarget())));
         } else {
             lore.add(StringFormatter.formatHex("#c74d32No Target Selected"));
             lore.add(StringFormatter.formatHex("#d65c5c-5 Organization Gain Penalty"));
@@ -634,7 +636,7 @@ public class MovementCreator {
             lore.add(StringFormatter.formatHex("#7a7a7athe new faction leader."));
         }
         
-        if (cause.hasLeader() && cause.getLeader().equals(p.getName())) {
+        if (cause.hasLeader() && Members.is(p, cause.getLeader())) {
             lore.add(" ");
             lore.add(StringFormatter.formatHex("#50e846Click to select target"));
         } else {
@@ -655,7 +657,7 @@ public class MovementCreator {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta m = item.getItemMeta();
         m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-        m.setDisplayName(StringFormatter.formatHex("#c5e0e3" + member));
+        m.setDisplayName(StringFormatter.formatHex("#c5e0e3" + Members.display(member)));
         List<String> lore = new ArrayList<>();
         lore.add(StringFormatter.formatHex("#7a7a7aSelect this player as the"));
         lore.add(StringFormatter.formatHex("#7a7a7atarget for leadership change."));

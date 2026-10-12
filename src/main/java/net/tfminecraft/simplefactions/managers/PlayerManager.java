@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -22,7 +24,6 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.loans.LoanBook;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.mercenary.MercenaryResult;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
@@ -30,19 +31,20 @@ import net.tfminecraft.simplefactions.mercenary.contract.ContractBook;
 import net.tfminecraft.simplefactions.mercenary.contract.ContractTerms;
 import net.tfminecraft.simplefactions.mercenary.contract.ContractValidator;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract;
-import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
-import net.tfminecraft.simplefactions.player.income.PlayerCashflow;
-import net.tfminecraft.simplefactions.player.income.PlayerLedger;
 import net.tfminecraft.denareconomy.DenarEconomy;
-import net.tfminecraft.denareconomy.enums.Accounts;
 import net.tfminecraft.denareconomy.item.Coin;
 import net.tfminecraft.denareconomy.event.PlayerBankPulseEvent;
 import net.tfminecraft.denareconomy.event.PlayerDepositMaterialsEvent;
-import net.tfminecraft.denareconomy.event.PlayerEarnMoneyEvent;
 
 public class PlayerManager implements Listener{
     @EventHandler
     public void joinEvent(PlayerJoinEvent e) {
+        net.tfminecraft.simplefactions.inactivity.InactivityService.onLogin(e.getPlayer());
+    }
+
+    /** A character is active once it is played, which is usually after the join. */
+    @EventHandler
+    public void characterStart(net.tfminecraft.tlibs.character.CharacterSessionStartEvent e) {
         net.tfminecraft.simplefactions.inactivity.InactivityService.onLogin(e.getPlayer());
     }
 
@@ -112,7 +114,11 @@ public class PlayerManager implements Listener{
             }.runTaskLater(SimpleFactions.plugin, 1L);
         } else if(stage == 3) {
             e.setCancelled(true);
-            Guild borrowerGuild = FactionManager.getGuildByLeader(p.getName());
+            if (!LoanBook.currentIssuer(newMeta, issuer)) {
+                p.sendMessage("§cThis loan agreement is out of date. Ask the lender for a new one.");
+                return;
+            }
+            Guild borrowerGuild = FactionManager.getGuildByLeader(Members.key(p));
             String offerId = LoanBook.offerId(newMeta);
             Loan loan = offerId == null ? null : LoanBook.createLoanFromBook(newMeta, borrowerGuild, offerId);
             String validate = newMeta.getPersistentDataContainer().get(Keys.SECONDARY_STRING_KEY, PersistentDataType.STRING);
@@ -162,16 +168,13 @@ public class PlayerManager implements Listener{
             // Each agreement pays out once. The book is only swapped a few ticks later, so a
             // second signature before then, or after a restart, must not take the loan again.
             long bookExpiresAt = time != null ? time : System.currentTimeMillis() + 86400000L;
-            if(!issuer.getLoanHandler().useOffer(offerId, bookExpiresAt)) {
-                p.sendMessage("§cThis loan agreement has already been signed.");
+            if (!net.tfminecraft.simplefactions.economy.TreasuryActions.acceptLoan(p, loan, offerId, bookExpiresAt)) {
+                p.sendMessage("§cLoan agreement could not be accepted.");
                 return;
             }
-            borrowerGuild.getBank().deposit(loan.getAmount());
-            issuer.getBank().withdraw(loan.getAmount());
-            issuer.getLoanHandler().issueLoan(loan);
             p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
             p.sendMessage("§aLoan taken!");
-            Player lender = Bukkit.getPlayer(issuer.getLeader());
+            Player lender = Members.player(issuer.getLeader());
             if(lender != null && lender.isOnline()) {
                 lender.sendMessage("§aYour loan has been accepted by "+borrowerGuild.getName()+"!");
                 lender.playSound(lender, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
@@ -188,7 +191,7 @@ public class PlayerManager implements Listener{
                     m.setPages(completeMeta.getPages());
                     m.setDisplayName("§6Loan Agreement §7"+Cache.getFantasyDate(System.currentTimeMillis()));
                     m.setTitle("§6Loan Agreement §7"+Cache.getFantasyDate(System.currentTimeMillis()));
-                    m.setAuthor(issuer.getLeader()+" and "+p.getName());
+                    m.setAuthor(Members.display(issuer.getLeader())+" and "+Members.name(p));
                     i.setItemMeta(m);
                     replacement.accept(i);
                 }
@@ -221,7 +224,7 @@ public class PlayerManager implements Listener{
             return;
         }
         if(stage == ContractBook.STAGE_DRAFT) {
-            if(!company.isLeader(p.getName())) {
+            if(!company.isLeader(Members.key(p))) {
                 p.sendMessage("§cOnly the company leader may draft a contract.");
                 return;
             }
@@ -235,7 +238,7 @@ public class PlayerManager implements Listener{
             return;
         }
         if(stage == ContractBook.STAGE_REVIEW) {
-            if(!company.isLeader(p.getName())) {
+            if(!company.isLeader(Members.key(p))) {
                 p.sendMessage("§cOnly the company leader may publish an offer.");
                 return;
             }
@@ -265,12 +268,12 @@ public class PlayerManager implements Listener{
             p.sendMessage((result.ok() ? "§a" : "§c")+result.message());
             if(!result.ok()) return;
             p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-            Player leader = Bukkit.getPlayer(company.getLeader());
+            Player leader = Members.player(company.getLeader());
             if(leader != null && leader.isOnline()) {
                 leader.sendMessage("§a"+result.message());
                 leader.playSound(leader, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
             }
-            replaceHeldBook(replacement, signedAgreement(company, contract, p.getName()));
+            replaceHeldBook(replacement, signedAgreement(company, contract, Members.name(p)));
         }
     }
 
@@ -310,33 +313,9 @@ public class PlayerManager implements Listener{
         String title = "§6Mercenary Contract §7"+Cache.getFantasyDate(System.currentTimeMillis());
         m.setDisplayName(title);
         m.setTitle(title);
-        m.setAuthor(company.getLeader()+" and "+signer);
+        m.setAuthor(Members.display(company.getLeader())+" and "+signer);
         i.setItemMeta(m);
         return i;
-    }
-
-    @EventHandler
-    public void earnMoney(PlayerEarnMoneyEvent e) {
-        String playerName = e.getPlayer();
-        double paidTax = 0;
-        double gross = e.getAmount();
-        if(FactionManager.getByMember(playerName) != null) {
-			Faction f = FactionManager.getByMember(playerName);
-			if(f.getTaxRate(TaxTarget.CITIZENS, null, true) > 0) {
-				if(f.getBank() != null) {
-					paidTax = f.getTaxRate(TaxTarget.CITIZENS, null, true)/100.0*gross;
-					f.giveTax(playerName, paidTax);
-				}
-			}
-		}
-        PlayerLedger ledger = PlayerEconomyManager.get().getLedger(playerName);
-        if (gross > 0) {
-            ledger.add(PlayerCashflow.EARNINGS, gross);
-        }
-        if (paidTax > 0) {
-            ledger.add(PlayerCashflow.CITIZEN_TAX, -paidTax);
-        }
-        e.setAmount(paidTax);
     }
 
     @EventHandler
@@ -347,9 +326,11 @@ public class PlayerManager implements Listener{
 		if(c == null) return;
 		if(c.canWithdraw()) return;
 		if(!inFactionOrGuildBankChunk(p)) return;
-		DenarEconomy.getMoneyManager().addMoneyToAccount(p.getUniqueId().toString(), c.getValue()*i.getAmount(), false, true, Accounts.BANK);
-		p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
-		i.setAmount(0);
+        if (e.isCancelled()) return;
+        Guild guild = FactionManager.getGuildByMember(Members.key(p));
+        if (guild == null) return;
+        if (net.tfminecraft.simplefactions.economy.TreasuryPhysical.material(p, e.getCharacter(), i, c.getValue()*i.getAmount(), guild))
+            p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1f);
     }
 
     @EventHandler
@@ -360,8 +341,8 @@ public class PlayerManager implements Listener{
     } 
 
     private boolean isInBankChunk(Player p) {
-        Faction f = FactionManager.getByMember(p.getName());
-        Guild g = FactionManager.getGuildByMember(p.getName());
+        Faction f = FactionManager.getByMember(Members.key(p));
+        Guild g = FactionManager.getGuildByMember(Members.key(p));
 
         if (f == null && g == null) {
             p.sendMessage("§cYou must belong to a guild or faction to bank here.");
@@ -377,8 +358,8 @@ public class PlayerManager implements Listener{
     }
 
     private boolean inFactionOrGuildBankChunk(Player p) {
-        Faction f = FactionManager.getByMember(p.getName());
-        Guild g = FactionManager.getGuildByMember(p.getName());
+        Faction f = FactionManager.getByMember(Members.key(p));
+        Guild g = FactionManager.getGuildByMember(Members.key(p));
         Chunk playerChunk = p.getLocation().getChunk();
 
         if (f != null && f.getBank() != null && f.getBank().getChunk() != null

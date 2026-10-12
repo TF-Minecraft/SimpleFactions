@@ -4,10 +4,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.ServicePriority;
 
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.tlibs.character.Characters;
 import net.tfminecraft.vfbuilders.api.ConstructionFreeze;
 
 /** Holds VFBuilders projects started by players whose battle was postponed. */
@@ -25,12 +27,20 @@ public final class VfBuildersConstructionFreeze implements ConstructionFreeze {
 
 	@Override
 	public String freezeReason(UUID constructorUuid) {
-		OfflinePlayer player = Bukkit.getOfflinePlayer(constructorUuid);
 		Instant now = Instant.now();
-		Instant until = PreparationFreeze.frozenUntil(player.getName(), now);
+		Instant until = PreparationFreeze.frozenUntil(constructorKey(constructorUuid), now);
 		if (until == null) {
 			return null;
 		}
 		return "battle postponed (" + PreparationFreeze.formatRemaining(until, now) + ")";
+	}
+
+	/** Projects belong to accounts: the character playing now, else the account's legacy heir. */
+	static String constructorKey(UUID constructorUuid) {
+		Player online = Bukkit.getPlayer(constructorUuid);
+		if (online != null) {
+			return Members.key(online);
+		}
+		return Characters.legacyHeir(constructorUuid).map(Members::key).orElse(null);
 	}
 }

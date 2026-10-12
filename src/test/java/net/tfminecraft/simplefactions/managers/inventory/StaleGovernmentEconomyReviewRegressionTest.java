@@ -86,7 +86,7 @@ class StaleGovernmentEconomyReviewRegressionTest {
     guild = domain.guild(home, "traders", "Alice");
     for (int id : List.of(1, 2)) domain.provinceData.put(id, new Province(id, "PLAINS", 50));
     guild.setCapital(1);
-    guild.getBank().setWealth(500.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 500.0);
     home.getSettlementHandler().found("Original", 1, 0, 0);
     home.getGovernment().setPower(50);
     ruler = domain.player("Ruler");

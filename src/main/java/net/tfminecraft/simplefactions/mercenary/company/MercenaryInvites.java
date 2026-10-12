@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.mercenary.company;
 
-import org.bukkit.Bukkit;
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -16,16 +17,21 @@ public final class MercenaryInvites {
 
     public static void invite(Player leader, String targetName) {
         Guild guild = net.tfminecraft.simplefactions.managers.FactionManager
-                .getGuildByLeader(leader.getName());
+                .getGuildByLeader(Members.key(leader));
+        // Tells the leader when nobody online matches the name.
+        Player target = Members.resolveOnline(leader, targetName);
+        if (target == null) {
+            return;
+        }
+        String targetKey = Members.key(target);
         MercenaryResult check = MercenaryCompanyService
-                .canInvite(guild, leader.getName(), targetName);
+                .canInvite(guild, Members.key(leader), targetKey);
         if (!check.ok()) {
             leader.sendMessage("§c" + check.message());
             return;
         }
-        Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null) {
-            leader.sendMessage("§cCould not find the player " + targetName);
+        if (targetKey == null) {
+            leader.sendMessage("§c" + target.getName() + " has no character to enlist.");
             return;
         }
         MercenaryCompany company = guild.getCompany();
@@ -34,8 +40,8 @@ public final class MercenaryInvites {
         if (RequestManager.getRequest(target) != invitation) {
             return;
         }
-        leader.sendMessage("§aInvited " + target.getName() + " to " + company.getName() + ".");
-        target.sendMessage("§a" + leader.getName() + " offers you a slot in "
+        leader.sendMessage("§aInvited " + Members.name(target) + " to " + company.getName() + ".");
+        target.sendMessage("§a" + Members.name(leader) + " offers you a slot in "
                 + company.getName() + ".");
         target.sendMessage("§aType /company accept to sign on, or /company decline to refuse.");
     }
@@ -52,17 +58,14 @@ public final class MercenaryInvites {
             player.sendMessage("§cThat company invite has expired.");
             return;
         }
-        MercenaryResult result = MercenaryCompanyService.join(company, player.getName());
+        MercenaryResult result = MercenaryCompanyService.join(company, Members.key(player));
         player.sendMessage((result.ok() ? "§a" : "§c") + result.message());
         RequestManager.remove(player);
         if (!result.ok()) {
             return;
         }
-        String leader = request.getCompany().getLeader();
-        Player leaderPlayer = leader == null ? null : Bukkit.getPlayerExact(leader);
-        if (leaderPlayer != null) {
-            leaderPlayer.sendMessage("§a" + player.getName() + " signed on with the company.");
-        }
+        Members.online(request.getCompany().getLeader()).ifPresent(leaderPlayer ->
+                leaderPlayer.sendMessage("§a" + Members.name(player) + " signed on with the company."));
     }
 
     public static void decline(Player player) {
@@ -73,11 +76,8 @@ public final class MercenaryInvites {
         }
         RequestManager.remove(player);
         player.sendMessage("§aYou turned down " + request.getCompany().getName() + ".");
-        String leader = request.getCompany().getLeader();
-        Player leaderPlayer = leader == null ? null : Bukkit.getPlayerExact(leader);
-        if (leaderPlayer != null) {
-            leaderPlayer.sendMessage("§c" + player.getName() + " turned down the company.");
-        }
+        Members.online(request.getCompany().getLeader()).ifPresent(leaderPlayer ->
+                leaderPlayer.sendMessage("§c" + Members.name(player) + " turned down the company."));
     }
 
     private static MercenaryInviteRequest pending(Player player) {

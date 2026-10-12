@@ -99,6 +99,22 @@ public class EspionageState {
         }
     }
 
+    /** The death journal owns completion; an appointment made after this death is preserved. */
+    public boolean removeDeadCharacter(net.tfminecraft.tlibs.character.CharacterRef ref, java.util.UUID deathId, long at) {
+        var holder = getSpymaster();
+        boolean held = holder != null && ref.ownerId().equals(holder.playerId)
+                && ref.characterId().equals(OfficeCharacters.characterUuid(holder.characterId))
+                && Math.max(holder.appointedAt, holder.characterBoundAt) <= at;
+        boolean pending = isPendingFounder(SpecialPosition.SPYMASTER)
+                && ref.characterId().equals(OfficeCharacters.characterUuid(pendingFounderCharacter(SpecialPosition.SPYMASTER)))
+                && pendingFounderBoundAt(SpecialPosition.SPYMASTER) <= at;
+        if (!held && !pending) return false;
+        removeSpymaster();
+        waiveAppointmentWait(SpecialPosition.SPYMASTER);
+        rememberDeath(deathId);
+        return true;
+    }
+
     public SpecialPositionAssignment holder(SpecialPosition office) { return positions.get(office); }
 
     public int appointmentCount(SpecialPosition office) {

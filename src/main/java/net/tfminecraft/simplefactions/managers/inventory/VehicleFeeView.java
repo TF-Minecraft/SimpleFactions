@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -212,7 +214,7 @@ public class VehicleFeeView {
 
     private static boolean canPropose(Player p, Faction f, FeeKind kind, String vehicleTypeId) {
         Government gov = f.getGovernment();
-        Proposal proposal = new Proposal(p.getName(), gov);
+        Proposal proposal = new Proposal(Members.key(p), gov);
         proposal.setFeeProposal(new FeeChange(kind, vehicleTypeId, 0.0));
         return gov.canProposeOrStartMovement(p) && gov.canBeProposed(proposal);
     }

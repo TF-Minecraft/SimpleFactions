@@ -93,13 +93,13 @@ class ReportPresentationTest {
                 new IntelligenceReport.RosterMember("Secret Spy", "poor", "Poor Guild", false, false, List.of(SpecialPosition.SPYMASTER)),
                 new IntelligenceReport.RosterMember("Guild Baron", "rich", "Rich Guild", false, true, List.of()));
         try (var service = mockStatic(EspionageService.class);
-             var names = mockStatic(CharacterNames.class, CALLS_REAL_METHODS);
+             var names = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS);
              var identities = mockStatic(Characters.class)) {
             identities.when(Characters::available).thenReturn(false);
             service.when(() -> EspionageService.report(viewer, faction)).thenReturn(report);
             service.when(() -> EspionageService.visibleValue(eq(viewer), eq(faction), anyString(), any()))
                     .thenAnswer(call -> call.getArgument(2).toString().contains("rich") ? 100.0 : 10.0);
-            names.when(() -> CharacterNames.display(viewer, "Leader")).thenReturn("King Rowan");
+            names.when(() -> net.tfminecraft.simplefactions.identity.Members.display(viewer, "Leader")).thenReturn("King Rowan");
             var lore = RosterLore.faction(viewer, faction);
             String text = String.join("\n", lore);
             assertTrue(text.startsWith("#e8c55a\u00a7lLeader:"));

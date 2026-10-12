@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 import org.bukkit.entity.Player;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /** One roster format for owned, staff and estimated views. Never sort foreign guilds by exact wealth. */
@@ -19,12 +20,12 @@ public final class RosterLore {
         var report = exact ? null : EspionageService.report(viewer, faction);
         List<String> lore = new ArrayList<>();
         String title = faction.getRulerTitle();
-        lore.add("#e8c55a\u00a7l" + (title == null || title.isBlank() ? "Leader" : title) + ": #f4e4aa" + CharacterNames.display(viewer, faction.getLeader(), faction));
+        lore.add("#e8c55a\u00a7l" + (title == null || title.isBlank() ? "Leader" : title) + ": #f4e4aa" + Members.display(viewer, faction.getLeader()));
         List<String> leaderOffices = exact ? java.util.Arrays.stream(SpecialPosition.values()).filter(office -> {
             var holder = faction.getEspionage().holder(office);
-            return holder != null && holder.playerName.equalsIgnoreCase(faction.getLeader());
+            return holder != null && faction.isLeader(holder.memberKey());
         }).map(SpecialPosition::label).toList() : report == null ? List.of() : report.details("office-holder", "leader-offices");
-        for (String office : leaderOffices) lore.add("#93c9a7  " + office + ": #c2daca" + CharacterNames.display(viewer, faction.getLeader(), faction));
+        for (String office : leaderOffices) lore.add("#93c9a7  " + office + ": #c2daca" + Members.display(viewer, faction.getLeader()));
         List<Guild> guilds = new ArrayList<>(only == null ? faction.getGuildHandler().getGuilds() : List.of(only));
         guilds.sort(Comparator.comparing((Guild guild) -> !guild.isBase()).thenComparing(Comparator.comparing((Guild guild) -> {
             var wealth = exact ? guild.getWealth() : EspionageService.visibleValue(viewer, faction,
@@ -34,10 +35,10 @@ public final class RosterLore {
         for (Guild guild : guilds) {
             List<IntelligenceReport.RosterMember> entries;
             if (exact) entries = guild.getMembers().stream().filter(name -> !faction.isLeader(name)).map(name ->
-                    new IntelligenceReport.RosterMember(CharacterNames.display(viewer, name), guild.getId(), guild.getName(), true, guild.isLeader(name),
+                    new IntelligenceReport.RosterMember(Members.display(viewer, name), guild.getId(), guild.getName(), true, guild.isLeader(name),
                             java.util.Arrays.stream(SpecialPosition.values()).filter(office -> {
                                 var holder = faction.getEspionage().holder(office);
-                                return holder != null && holder.playerName.equalsIgnoreCase(name);
+                                return holder != null && name.equals(holder.memberKey());
                             }).toList())).toList();
             else entries = report == null || report.roster == null ? List.of() : report.roster.stream()
                     .filter(entry -> entry.guildId().equals(guild.getId()))

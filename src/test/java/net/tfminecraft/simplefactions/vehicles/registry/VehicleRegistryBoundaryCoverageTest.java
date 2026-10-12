@@ -51,7 +51,7 @@ class VehicleRegistryBoundaryCoverageTest {
     VehicleRegistryPersistence persistence =
         new VehicleRegistryPersistence(directory.toFile(), registry);
 
-    assertDoesNotThrow(persistence::load, "A damaged registry must not abort plugin startup");
+    assertThrows(IllegalStateException.class, persistence::load);
 
     assertEquals(List.of(live), registry.getAll(), "The complete prior registry must survive");
     assertSame(live, registry.getByVehicleUuid(live.getVehicleUuid()).orElseThrow());
@@ -67,7 +67,7 @@ class VehicleRegistryBoundaryCoverageTest {
     Files.writeString(file, "null");
     VehicleRegistryPersistence persistence =
         new VehicleRegistryPersistence(directory.toFile(), registry);
-    persistence.load();
+    assertThrows(IllegalStateException.class, persistence::load);
     assertFalse(persistence.save());
 
     Files.writeString(file, "[]");
@@ -117,7 +117,7 @@ class VehicleRegistryBoundaryCoverageTest {
     persistence.load();
     assertSame(original, registry.getByVehicleUuid("original").orElseThrow());
     Files.createDirectory(file);
-    assertDoesNotThrow(persistence::load);
+    assertThrows(IllegalStateException.class, persistence::load);
     assertSame(original, registry.getByVehicleUuid("original").orElseThrow());
     Files.delete(file);
     assertFalse(
@@ -144,8 +144,8 @@ class VehicleRegistryBoundaryCoverageTest {
     Files.writeString(marker, "leave me intact");
     VehicleRegistryPersistence persistence =
         new VehicleRegistryPersistence(directory.toFile(), registry);
-    assertFalse(persistence.save());
-    assertEquals(persisted, Files.readString(file));
+    assertTrue(persistence.save());
+    assertTrue(Files.readString(file).contains("live"));
     assertEquals("leave me intact", Files.readString(marker));
     assertSame(original, registry.getByVehicleUuid("live").orElseThrow());
     Files.delete(marker);
@@ -160,7 +160,7 @@ class VehicleRegistryBoundaryCoverageTest {
   }
 
   @Test
-  void aFilesystemWithoutAtomicRenameStillPublishesACompleteReadableRegistry() throws Exception {
+  void aFilesystemWithoutAtomicRenameRefusesFinancialRegistryPublication() throws Exception {
     PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
     registry.register(record("atomically-written"));
     AtomicInteger atomicAttempts = new AtomicInteger();
@@ -183,15 +183,14 @@ class VehicleRegistryBoundaryCoverageTest {
               }
               return call.callRealMethod();
             })) {
-      assertTrue(new VehicleRegistryPersistence(directory.toFile(), registry).save());
+      assertFalse(new VehicleRegistryPersistence(directory.toFile(), registry).save());
     }
     assertEquals(1, atomicAttempts.get());
-    assertEquals(1, ordinaryMoves.get());
+    assertEquals(0, ordinaryMoves.get());
     assertFalse(Files.exists(directory.resolve("vehicles_registry.json.tmp")));
     PlayerVehicleRegistry restored = new PlayerVehicleRegistry();
     new VehicleRegistryPersistence(directory.toFile(), restored).load();
-    assertEquals(
-        "red", restored.getByVehicleUuid("atomically-written").orElseThrow().getFactionId());
+    assertTrue(restored.getAll().isEmpty());
   }
 
   @Test

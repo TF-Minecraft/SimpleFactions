@@ -14,6 +14,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.migration.CharacterMigration;
 import net.tfminecraft.simplefactions.map.ProvinceGrid;
 import net.tfminecraft.simplefactions.map.infra.TrackProvinceCache;
 import net.tfminecraft.simplefactions.map.presence.ProvincePresenceListener;
@@ -139,6 +140,8 @@ public class SimpleFactions extends JavaPlugin{
 	private final MercenaryCommandManager mercenaryCommandManager = new MercenaryCommandManager();
 	private final BankManager bankManager = new BankManager();
 	private final Database db = new Database();
+    private net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService realmSettlementService;
+    public net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService getRealmSettlementService() { return realmSettlementService; }
 	private final FactionManager factionManager = new FactionManager();
 	private final TitleManager titleManager = new TitleManager();
 	private final PlayerManager playerManager = new PlayerManager();
@@ -224,7 +227,7 @@ public class SimpleFactions extends JavaPlugin{
 	private final BattleVehicleEligibilityService.Listener battleVehicleEligibilityListener =
 			new BattleVehicleEligibilityService.Listener(vehicleRegistry);
 	private final VehicleMaintenancePayService vehicleMaintenancePayService =
-			new VehicleMaintenancePayService(vehicleMaintenanceStore, DenarEconomyPlayerBank.INSTANCE);
+			new VehicleMaintenancePayService(vehicleMaintenanceStore);
 	private final VehicleMaintenanceRepairListener vehicleMaintenanceRepairListener =
 			new VehicleMaintenanceRepairListener(vehicleMaintenanceStore);
 	private final VehicleMaintenancePayListener vehicleMaintenancePayListener =
@@ -255,18 +258,33 @@ public class SimpleFactions extends JavaPlugin{
 			new VehicleMaintenanceDecayTask();
 	
 	private boolean startupComplete;
+	/** Set when loading began, so a failed start still releases what it took. */
+	private boolean servicesBegun;
+	/** True once the data is migrated and every service has started. */
+	private volatile boolean started;
+	private boolean startFailed;
+	private BukkitTask identityPoll;
+	private CharacterMigration.Heirs migrationHeirs = CharacterMigration.SHARED;
+	/** Every command in plugin.yml; each answers "starting up" until the plugin has started. */
+	static final java.util.List<String> COMMANDS = java.util.List.of(
+			"faction", "guild", "warband", "battle", "raid", "war", "movement", "ledger", "company", "mercenaries");
+	private static final long IDENTITY_POLL_TICKS = 5L * 20L;
 
 	@Override
 	public void onEnable() {
 		try {
-			net.tfminecraft.tlibs.character.Characters.available();
+			net.tfminecraft.tlibs.character.Characters.legacyHeirsReady();
+			net.tfminecraft.tlibs.character.Characters.deathId(new java.util.UUID(0L, 0L));
 		} catch (LinkageError error) {
 			incompatibleCharacterApi = true;
-			getLogger().severe("SimpleFactions requires TLibs 2.3.0 or newer; disabling.");
+			getLogger().severe("SimpleFactions requires TLibs 2.4.1 or newer; disabling.");
 			getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
 		startupComplete = false;
+		started = false;
+		startFailed = false;
+		servicesBegun = false;
 		config = getConfig();
 		plugin = this;
 		FactionManager.inv = inventoryManager;
@@ -279,11 +297,102 @@ public class SimpleFactions extends JavaPlugin{
 			getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
+		awaitIdentity();
+	}
+
+	/**
+	 * Faction data names characters, so nothing loads, ticks, listens or saves
+	 * until the character provider can name every legacy account's heir.
+	 * Commands answer that factions are starting up meanwhile.
+	 */
+	private void awaitIdentity() {
+		for (String name : COMMANDS) {
+			org.bukkit.command.PluginCommand command = getCommand(name);
+			if (command == null) continue;
+			command.setExecutor((sender, cmd, label, args) -> {
+				sender.sendMessage("§eFactions are starting up; try again in a moment.");
+				return true;
+			});
+			command.setTabCompleter((sender, cmd, label, args) -> java.util.List.of());
+		}
+		if (identityReady()) {
+			start();
+			return;
+		}
+		getLogger().severe("Waiting for character identity (RPCharacters) before loading any faction data; "
+				+ "factions stay offline until it is ready");
+		getServer().getPluginManager().registerEvents(new Listener() {
+			@EventHandler
+			public void onPluginEnable(PluginEnableEvent event) {
+				if (("RPCharacters".equalsIgnoreCase(event.getPlugin().getName()) || "DenarEconomy".equalsIgnoreCase(event.getPlugin().getName())) && identityReady()) start();
+			}
+		}, this);
+		identityPoll = getServer().getScheduler().runTaskTimer(this, () -> {
+			if (identityReady()) start();
+		}, IDENTITY_POLL_TICKS, IDENTITY_POLL_TICKS);
+	}
+
+	static boolean identityReady() {
+		return net.tfminecraft.denareconomy.api.Denars.ready()
+                && net.tfminecraft.tlibs.character.Characters.available()
+				&& net.tfminecraft.tlibs.character.Characters.legacyHeirsReady();
+	}
+
+    /** A persisted operation must finish before another character or money mutation is allowed. */
+    public void failFinancialState(Throwable error) {
+        started = false;
+        startupComplete = false;
+        startFailed = true;
+        getServer().getServicesManager().unregisterAll(this);
+        getLogger().log(java.util.logging.Level.SEVERE,
+                "Faction money recovery is incomplete; disabling until the saved operation can be recovered", error);
+        getServer().getPluginManager().disablePlugin(this);
+    }
+
+	/** Whether the data is migrated and everything has started; see {@code SimpleFactionsApi.ready()}. */
+	public boolean isStarted() {
+		return started;
+	}
+
+	void useMigrationHeirs(CharacterMigration.Heirs heirs) {
+		migrationHeirs = heirs;
+	}
+
+	/** Migrates the stores if needed, then loads and starts everything. */
+	void start() {
+		if (started || startFailed) return;
+		if (identityPoll != null) {
+			identityPoll.cancel();
+			identityPoll = null;
+		}
+		try {
+			CharacterMigration.Result result =
+					new CharacterMigration(getDataFolder().toPath(), migrationHeirs, getLogger()).run();
+			if (result.migrated() > 0 || result.assignmentsApplied() > 0) {
+				getLogger().info("Character migration: " + result.migrated() + " stores migrated, "
+						+ result.assignmentsApplied() + " quarantine assignments applied");
+			}
+			if (result.quarantined() > 0) {
+				getLogger().warning(result.quarantined() + " quarantined faction records need staff; see /f admin quarantine list");
+			}
+		} catch (java.io.IOException | RuntimeException error) {
+			startFailed = true;
+			getLogger().log(java.util.logging.Level.SEVERE,
+					"Cannot migrate faction data to characters; factions stay offline until this is fixed", error);
+			return;
+		}
+		try { startServices(); }
+        catch (Exception error) { failFinancialState(error); }
+		if (!started) return;
+		getServer().getPluginManager().callEvent(new net.tfminecraft.simplefactions.events.SimpleFactionsReadyEvent());
+	}
+
+	private void startServices() {
+		servicesBegun = true;
 		net.tfminecraft.simplefactions.identity.LeaderCharacters.useSharedIdentity();
 		net.tfminecraft.simplefactions.prestige.MemberPlaytime.useSharedIdentity();
 		net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility.useSharedIdentity();
-		registerListeners();
-		registerRpCharactersChatHooks();
+
 		vehicleRegistryPersistence = new VehicleRegistryPersistence(
 			new File(getDataFolder(), "Cache"),
 			vehicleRegistry);
@@ -302,7 +411,10 @@ public class SimpleFactions extends JavaPlugin{
 			);
 		}
 		net.tfminecraft.simplefactions.inactivity.InactivityService.load();
-		db.loadFactions();
+        try {
+            net.tfminecraft.simplefactions.economy.TreasuryActions.recoverTopologyFiles(getDataFolder().toPath().resolve("economy/callers"));
+        } catch (Exception error) { failFinancialState(error); return; }
+        db.loadFactions();
 		try {
 			net.tfminecraft.simplefactions.espionage.EspionageService.loadAptitudes(
 					getDataFolder().toPath().resolve("Cache/character-aptitudes.json"));
@@ -351,7 +463,33 @@ public class SimpleFactions extends JavaPlugin{
 				return;
 			}
 		}
-		factionManager.run();
+        factionManager.prepare();
+        WarManager.start();
+        net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.loadAll();
+        try {
+            for (var guild : FactionManager.getAllGuilds()) {
+                net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(guild.getIncarnationId(),
+                        guild.getBank() == null ? 0 : guild.getBank().legacyBalance(), guild.getLedger().getCitizenTaxesCopy());
+                guild.updateWealth();
+            }
+            FactionManager.updateAllPrestigeConverged();
+            net.tfminecraft.simplefactions.identity.death.CharacterDeaths.load(getDataFolder().toPath());
+            net.tfminecraft.simplefactions.economy.TreasuryActions.recover(getDataFolder().toPath().resolve("economy/callers"));
+            if (getServer().getPluginManager().isPluginEnabled("VehicleFramework"))
+                net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.startup(getDataFolder().toPath(), vehicleRegistry);
+            net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.startup(getDataFolder().toPath(), vehicleFeeStore, vehicleMaintenanceStore);
+            net.tfminecraft.simplefactions.economy.ExternalIncome.recover(getDataFolder().toPath());
+            realmSettlementService = new net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService(getDataFolder().toPath(), db);
+            realmSettlementService.recover();
+            net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile();
+            net.tfminecraft.simplefactions.economy.EconomyRuntime.recovered();
+        } catch (Exception error) {
+            failFinancialState(error);
+            return;
+        }
+        factionManager.startTicks();
+        registerListeners();
+        registerRpCharactersChatHooks();
 		if (Cache.provincesEnabled) {
 			ProvincePresenceTickService.start();
 		}
@@ -372,8 +510,6 @@ public class SimpleFactions extends JavaPlugin{
 		getCommand(MovementCommandManager.CMD).setExecutor(movementCommandManager);
 		getCommand(MovementCommandManager.CMD).setTabCompleter(new MovementTabCompletion());
 		RequestManager.start();
-		WarManager.start();
-		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.loadAll();
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.startAutosave();
 		BattleScheduleTickService.start();
 		CampaignViewRefreshService.start();
@@ -388,11 +524,28 @@ public class SimpleFactions extends JavaPlugin{
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
 		startupComplete = true;
-		net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
+        started = true;
+        getServer().getServicesManager().register(net.tfminecraft.denareconomy.api.TaxPolicy.class,
+                new net.tfminecraft.simplefactions.economy.GuildTaxPolicy(), this, org.bukkit.plugin.ServicePriority.Normal);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            try { net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile(); }
+            catch (Exception error) { net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error); }
+        }, 72000L, 72000L);
+        net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
 	}
 	@Override
 	public void onDisable() {
 		if (incompatibleCharacterApi) return;
+		if (identityPoll != null) identityPoll.cancel();
+		identityPoll = null;
+		started = false;
+        getServer().getServicesManager().unregisterAll(this);
+        net.tfminecraft.simplefactions.identity.death.CharacterDeaths.stop();
+        net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.stop();
+		if (!servicesBegun) {
+			// Still waiting for identity: nothing was loaded, so nothing may be saved.
+			return;
+		}
 		if (trackRefreshTask != null) trackRefreshTask.cancel();
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.unregister();
 		MercenaryStatService.clearAll();
@@ -686,37 +839,23 @@ public class SimpleFactions extends JavaPlugin{
 		vehicleFeeStore.save();
 	}
 
-	/** Remembers who a vehicle was just handed to, for the transfer fee on a later release. */
-	public void recordVehicleOwner(String vehicleUuid, String playerName) {
-		vehicleFeeStore.setLastOwner(vehicleUuid, playerName);
+	/** Remembers the member key of the character a vehicle was just handed to, for a later transfer fee. */
+	public void recordVehicleOwner(String vehicleUuid, String memberKey) {
+		vehicleFeeStore.setLastOwner(vehicleUuid, memberKey);
 		vehicleFeeStore.save();
 	}
 
-	/**
-	 * Records the current owner of every personal vehicle, so a vehicle released before
-	 * anyone built or claimed it through SimpleFactions still has a last owner.
-	 */
-	public void recordVehicleOwners() {
-		if (!getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
-			return;
-		}
-		try {
-			for (net.tfminecraft.vehicleframework.data.OwnedVehicleSummary vehicle
-					: net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries.allPersonalVehicles(vehicleRegistry)) {
-				String owner = net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries
-						.playerNameFromOwner(vehicle.getOwner());
-				if (owner != null) {
-					vehicleFeeStore.setLastOwner(vehicle.getUuid(), owner);
-				}
-			}
-			for (net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord record : vehicleRegistry.getAll()) {
-				vehicleFeeStore.forgetVehicle(record.getVehicleUuid());
-			}
-			vehicleFeeStore.save();
-		} catch (RuntimeException | LinkageError e) {
-			getLogger().warning("Could not record vehicle owners for transfer fees: " + e);
-		}
-	}
+    /** Retains captured character payers; a current account session cannot replace a registry identity. */
+    public void recordVehicleOwners() {
+        for (var record : vehicleRegistry.getAll()) {
+            if (record.getMode() != net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode.PERSONAL) {
+                vehicleFeeStore.forgetVehicle(record.getVehicleUuid());
+            } else if (record.getPlayerUuid() != null && vehicleFeeStore.getLastOwner(record.getVehicleUuid()) == null) {
+                vehicleFeeStore.setLastOwner(record.getVehicleUuid(), record.getPlayerUuid().toString());
+            }
+        }
+        vehicleFeeStore.save();
+    }
 
 	public InstallationVehicleUnberthService getInstallationVehicleUnberthService() {
 		return installationVehicleUnberthService;

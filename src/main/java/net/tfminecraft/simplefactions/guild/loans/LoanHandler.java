@@ -70,6 +70,10 @@ public class LoanHandler {
         return issuedLoans.get(id);
     }
 
+    public void restoreCreditScore(int score) {
+        creditScore = Math.max(0, Math.min(100, score));
+    }
+
     public void changeCreditScore(int amount) {
         creditScore += amount;
         creditScore = Math.max(0, Math.min(100, creditScore));

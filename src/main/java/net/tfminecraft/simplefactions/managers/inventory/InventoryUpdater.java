@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageAccess;
 import java.util.EnumSet;
 import java.util.Set;
@@ -321,7 +323,7 @@ public class InventoryUpdater {
 		if (h.getType() != SFGUI.CAMPAIGN_INSTALLATION_PICK_VIEW) return;
 		War war = WarManager.getById(h.getWarId());
 		if (war == null || !war.isActive()) return;
-		Faction viewerFaction = FactionManager.getByMember(p.getName());
+		Faction viewerFaction = FactionManager.getByMember(Members.key(p));
 		if (viewerFaction == null) return;
 		if (!war.isParticipating(viewerFaction)) return;
 		inv.campaignInstallationPickView.open(p, war, viewerFaction, false, i);
@@ -330,7 +332,7 @@ public class InventoryUpdater {
 	private void refreshCampaignRaid(Player p, Inventory i, CampaignRaidLaunchHolder h) {
 		War war = WarManager.getById(h.getWarId());
 		if (war == null || !war.isActive()) return;
-		Faction viewerFaction = FactionManager.getByMember(p.getName());
+		Faction viewerFaction = FactionManager.getByMember(Members.key(p));
 		if (viewerFaction == null) return;
 		if (h.isSourcePage()) {
 			inv.campaignRaidLaunchView.openSourcePage(p, war, viewerFaction, false, i);

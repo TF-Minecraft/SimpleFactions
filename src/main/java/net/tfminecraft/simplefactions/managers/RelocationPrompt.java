@@ -32,6 +32,8 @@ public class RelocationPrompt implements Listener {
         private final Faction origin;
         private final int fromCapital;
         private final AtomicBoolean submitted = new AtomicBoolean();
+        private final String operationId = net.tfminecraft.simplefactions.economy.TreasuryActions.newId();
+        private net.tfminecraft.tlibs.character.CharacterSession session;
 
         public RelocationPending(
                 Guild guild,
@@ -63,6 +65,8 @@ public class RelocationPrompt implements Listener {
             return false;
         }
         RelocationPending state = new RelocationPending(guild, target, province, crossFaction, cost);
+        state.session = net.tfminecraft.simplefactions.identity.Members.session(player).orElse(null);
+        if (state.session == null) { player.sendMessage("§cYour character is not ready."); return true; }
         pending.put(player, state);
         player.sendMessage("§eEnter a name for the new city in chat:");
         new BukkitRunnable() {
@@ -83,6 +87,12 @@ public class RelocationPrompt implements Listener {
             int province,
             String settlementName,
             double cost) {
+        return completeIntraFactionRelocate(player, guild, target, province, settlementName, cost,
+                net.tfminecraft.simplefactions.economy.TreasuryActions.newId());
+    }
+
+    private static boolean completeIntraFactionRelocate(Player player, Guild guild, Faction target,
+            int province, String settlementName, double cost, String operationId) {
         if (!guild.isLeader(player) || guild.getFaction() != target) {
             player.sendMessage("§cYour guild changed while you were deciding. Start relocation again.");
             return false;
@@ -91,33 +101,14 @@ public class RelocationPrompt implements Listener {
             player.sendMessage("§cCannot afford to relocate");
             return false;
         }
-        int old = guild.getCapital();
-        if (!target.hasProvince(province)) {
-            CapitalResult validation = target.getSettlementHandler()
-                    .validateRelocationCapital(player, province, settlementName);
-            if (!validation.isSuccess()) {
-                player.sendMessage(validation.getMessage());
-                player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-                return false;
-            }
-            guild.setCapital(-1, false);
-            FactionManager.getMap().claim(player, target, province, true);
-            guild.setCapital(old, false);
-            if (!target.hasProvince(province)) {
-                player.sendMessage("§cRelocation failed, cannot claim province!");
-                player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-                return false;
-            }
-        }
-
-        CapitalResult result = guild.relocateWithinFaction(player, province, settlementName);
-        if (!result.isSuccess()) {
-            if (guild.getCapital() != old) guild.setCapital(old, false);
+        CapitalResult validation = target.getSettlementHandler().validateRelocationCapital(player, province, settlementName);
+        if (!validation.isSuccess()) {
+            player.sendMessage(validation.getMessage());
             player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             return false;
         }
-
-        guild.getBank().withdraw(cost);
+        if (!net.tfminecraft.simplefactions.economy.TreasuryTopology.relocate(player, guild, target,
+                province, settlementName, cost, operationId)) return false;
         player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
         return true;
     }
@@ -153,7 +144,8 @@ public class RelocationPrompt implements Listener {
                     return;
                 }
                 pending.remove(player, state);
-                if (!state.guild.isLeader(player)
+                if (!net.tfminecraft.simplefactions.identity.Members.isCurrent(state.session)
+                        || !state.guild.isLeader(player)
                         || state.guild.getFaction() != state.origin
                         || state.guild.getCapital() != state.fromCapital
                         || FactionManager.getGuildByString(state.guild.getId()) != state.guild
@@ -165,7 +157,7 @@ public class RelocationPrompt implements Listener {
                     FactionManager.requestRelocation(
                             player, state.guild, state.target, state.province, name);
                 } else if (completeIntraFactionRelocate(
-                        player, state.guild, state.target, state.province, name, state.cost)) {
+                        player, state.guild, state.target, state.province, name, state.cost, state.operationId)) {
                     FactionManager.getInv().guildView(player, state.guild);
                 }
             }

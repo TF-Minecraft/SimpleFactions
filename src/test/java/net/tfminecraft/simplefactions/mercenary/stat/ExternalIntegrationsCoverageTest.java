@@ -36,6 +36,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.character.CharacterIdentity;
 import net.tfminecraft.tlibs.character.CharacterInfo;
 import net.tfminecraft.tlibs.character.CharacterRef;
@@ -377,7 +378,7 @@ public class ExternalIntegrationsCoverageTest {
   }
 
   @Test
-  void activeCharacterTraitsControlEligibilityWhileUnavailablePlayersRemainUnknown() throws Exception {
+  void theEnrolledCharactersTraitsControlEligibilityWhileUnreadableCharactersRemainUnknown() throws Exception {
     Field probeField = MercenaryEligibility.class.getDeclaredField("probe");
     probeField.setAccessible(true);
     MercenaryEligibility.Probe previousProbe = (MercenaryEligibility.Probe) probeField.get(null);
@@ -385,33 +386,23 @@ public class ExternalIntegrationsCoverageTest {
     CharacterIdentity provider = mock(CharacterIdentity.class);
     when(Bukkit.isPrimaryThread()).thenReturn(true);
     when(Bukkit.getServicesManager()).thenReturn(services);
+    Members.useSharedIdentity();
     MercenaryEligibility.useSharedIdentity();
+    CharacterRef ref = new CharacterRef(player.getUniqueId(), UUID.randomUUID());
+    String sigrun = Members.key(ref);
     try {
-      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Offline"));
-      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Sigrun"));
+      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check(sigrun));
       when(services.load(CharacterIdentity.class)).thenReturn(provider);
-      when(provider.currentSession(player)).thenReturn(Optional.empty());
-      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
-
-      CharacterRef ref = new CharacterRef(player.getUniqueId(), UUID.randomUUID());
-      CharacterSession session = new CharacterSession(ref, 1);
-      when(provider.currentSession(player)).thenReturn(Optional.of(session));
-      when(provider.isCurrent(session)).thenReturn(true);
       when(provider.info(ref.characterId())).thenReturn(Optional.empty());
-      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
+      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check(sigrun));
       when(provider.info(ref.characterId())).thenReturn(Optional.of(new CharacterInfo(
           ref, "Canonical Sigrun", CharacterStatus.ALIVE, null, Set.of("merchant"), 0, null)));
-      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
+      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check(sigrun));
       when(provider.info(ref.characterId())).thenReturn(Optional.of(new CharacterInfo(
           ref, "Canonical Sigrun", CharacterStatus.ALIVE, null, Set.of("merchant", "MERCENARY"), 0, null)));
-      assertEquals(MercenaryEligibility.Status.ELIGIBLE, MercenaryEligibility.check("Sigrun"));
-
-      when(provider.isCurrent(session)).thenReturn(false);
-      assertEquals(MercenaryEligibility.Status.INELIGIBLE, MercenaryEligibility.check("Sigrun"));
+      assertEquals(MercenaryEligibility.Status.ELIGIBLE, MercenaryEligibility.check(sigrun));
       when(services.load(CharacterIdentity.class)).thenReturn(null);
-      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Sigrun"));
-      when(Bukkit.getServer()).thenReturn(null);
-      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check("Sigrun"));
+      assertEquals(MercenaryEligibility.Status.UNKNOWN, MercenaryEligibility.check(sigrun));
     } finally {
       MercenaryEligibility.setProbe(previousProbe);
     }

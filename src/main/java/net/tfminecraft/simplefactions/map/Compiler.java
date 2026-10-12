@@ -49,7 +49,7 @@ public class Compiler {
 				try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
 					JsonObject factionData = JsonParser.parseReader(reader).getAsJsonObject();
 					String id = factionData.get("id").getAsString();
-					root.add(id, factionData);
+					root.add(id, net.tfminecraft.simplefactions.map.export.PublicFactionProjection.faction(factionData));
 				} catch (Exception e) {
 					e.printStackTrace();
 				}

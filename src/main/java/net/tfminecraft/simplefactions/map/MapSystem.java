@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.map;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -275,7 +277,7 @@ public class MapSystem {
 		    return;
 		}
 		if(stolen) {
-			Player leader = Bukkit.getPlayerExact(owner.getLeader());
+			Player leader = Members.player(owner.getLeader());
 			if(leader != null) leader.sendMessage(f.getName()+" §cclaimed one of your provinces since you lacked the prestige to hold it!");
 			InstallationTransferService.transfer(owner, f, province);
 			unclaim(null, owner, province);
@@ -286,7 +288,7 @@ public class MapSystem {
 	}
 
 	public Faction getRelocationTarget(Player p) {
-		Guild guild = FactionManager.getGuildByLeader(p.getName());
+		Guild guild = FactionManager.getGuildByLeader(Members.key(p));
 		if(guild == null) return null;
 		if(guild.isBase()) return null;
 		if(!guild.hasCapital()) return null;

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,7 +63,7 @@ public class CompanyCreator {
 		List<String> lore = new ArrayList<>();
 		lore.add(StringFormatter.formatHex("#baa875Being founded"));
 		lore.add("§7Ready in: §e" + TimeFormatter.formatTime(company.getFormationRemaining()));
-		lore.add("§7Leader: §e" + company.getLeader());
+		lore.add("§7Leader: §e" + Members.display(company.getLeader()));
 		lore.add(" ");
 		lore.add(StringFormatter.formatHex("#877e7cOpens with one slot, costing "
 				+ Formatter.formatMoney(Cache.mercenarySlotUpkeep) + "d a day"));
@@ -100,7 +102,7 @@ public class CompanyCreator {
 
 	public List<String> buildCompanyLore(Guild guild, MercenaryCompany company) {
 		List<String> lore = new ArrayList<>();
-		lore.add("§7Leader: §e" + company.getLeader());
+		lore.add("§7Leader: §e" + Members.display(company.getLeader()));
 		lore.add("§7Home: §e" + HomeSettlementNames.of(guild));
 		lore.add("§7Slots: §e" + company.getFilledSlots() + "/" + company.getSlots());
 		lore.add("§7Reputation: " + company.getReputationString());
@@ -232,7 +234,7 @@ public class CompanyCreator {
 			lore.add(StringFormatter.formatHex("#877e7cAn empty slot blocks expansion"));
 			lore.add(StringFormatter.formatHex("#877e7cClick to remove this unused slot"));
 		} else {
-			lore.add("§7Mercenary: §e" + occupant);
+			lore.add("§7Mercenary: §e" + Members.display(occupant));
 			lore.add(StringFormatter.formatHex("#877e7cDismiss from Roster before removing a slot"));
 		}
 		lore.add("§7Upkeep: §e" + Formatter.formatMoney(Cache.mercenarySlotUpkeep) + "d");
@@ -291,7 +293,8 @@ public class CompanyCreator {
 	public ItemStack createRosterItem(MercenaryCompany company, String member, boolean leader) {
 		ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
 		ItemMeta meta = item.getItemMeta();
-		meta.setDisplayName("§e" + member);
+		meta.setDisplayName("§e" + Members.display(member));
+		MemberHeads.apply(meta, member);
 		List<String> lore = new ArrayList<>();
 		lore.add("§7Company: §e" + company.getName());
 		if (leader) {

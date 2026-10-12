@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -67,7 +69,7 @@ public class ContractView {
             i.setItem(9 + index, creator.createContractItem(contract));
             index++;
         }
-        if (company.isLeader(player.getName())) {
+        if (company.isLeader(Members.key(player))) {
             i.setItem(DRAFT_BUTTON, creator.createDraftButton(company));
         }
         i.setItem(53, inv.createBackButton(SFGUI.CONTRACT_LIST_VIEW));
@@ -101,7 +103,7 @@ public class ContractView {
         if (contract.isActive()) {
             long now = System.currentTimeMillis();
             boolean pending = contract.hasPendingSlots(now);
-            if (company.isLeader(player.getName())) {
+            if (company.isLeader(Members.key(player))) {
                 i.setItem(CHANGE_SLOTS_BUTTON, pending
                         ? creator.createWithdrawSlotsButton()
                         : creator.createChangeSlotsButton());
@@ -118,7 +120,7 @@ public class ContractView {
     public static boolean canSign(Player player, MercenaryContract contract) {
         Faction hirer = contract.getHirer();
         if (hirer == null || hirer.getGovernment() == null) return false;
-        return hirer.getGovernment().isCouncilMember(player.getName());
+        return hirer.getGovernment().isCouncilMember(Members.key(player));
     }
 
     /* =====================================================
@@ -142,7 +144,7 @@ public class ContractView {
 
     private void clickList(InventoryClickEvent e, Player p, Guild guild, MercenaryCompany company) {
         if (e.getSlot() == DRAFT_BUTTON) {
-            if (!company.isLeader(p.getName())) return;
+            if (!company.isLeader(Members.key(p))) return;
             for (ItemStack leftover : p.getInventory().addItem(ContractBook.draftBook(company)).values()) {
                 p.getWorld().dropItemNaturally(p.getLocation(), leftover);
             }
@@ -175,9 +177,9 @@ public class ContractView {
         }
         if (!contract.isActive()) return;
         long now = System.currentTimeMillis();
-        if (e.getSlot() == CHANGE_SLOTS_BUTTON && company.isLeader(p.getName())) {
+        if (e.getSlot() == CHANGE_SLOTS_BUTTON && company.isLeader(Members.key(p))) {
             if (contract.hasPendingSlots(now)) {
-                report(p, company.getContractHandler().withdrawSlots(contractId, p.getName(), now));
+                report(p, company.getContractHandler().withdrawSlots(contractId, Members.key(p), now));
                 detailView(p, guild, inventory, contractId);
             } else {
                 inv.beginSlotChange(p, guild, contract);
@@ -187,9 +189,9 @@ public class ContractView {
         if (!contract.hasPendingSlots(now) || !canSign(p, contract)) return;
         switch (e.getSlot()) {
             case ACCEPT_SLOTS_BUTTON -> report(p, company.getContractHandler()
-                    .acceptSlots(contractId, contract.getHirer(), p.getName(), now));
+                    .acceptSlots(contractId, contract.getHirer(), Members.key(p), now));
             case DECLINE_SLOTS_BUTTON -> report(p, company.getContractHandler()
-                    .declineSlots(contractId, contract.getHirer(), p.getName(), now));
+                    .declineSlots(contractId, contract.getHirer(), Members.key(p), now));
             default -> {
                 return;
             }

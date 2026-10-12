@@ -109,7 +109,7 @@ class ReportedMenusCoverageTest {
     SpecialPositionAssignment spy = new SpecialPositionAssignment();
     spy.playerName = player.getName();
     spy.playerId = player.getUniqueId();
-    spy.characterId = "character-" + player.getName();
+    spy.characterId = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf(player.getName()).toString();
     faction.getEspionage().appoint(spy, 80);
   }
 

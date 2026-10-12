@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +16,6 @@ import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseMessages;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleInstallationLockService;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferMessages;
-import org.bukkit.Bukkit;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenancePaySessionManager.VehicleMaintenancePaySession;
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceMessages;
 import org.bukkit.entity.Player;
@@ -32,7 +33,7 @@ public final class VehicleFactionCommands {
     private VehicleFactionCommands() {}
 
     public static void armTransfer(Player player, String installationId) {
-        Faction faction = FactionManager.getByLeader(player.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(player));
         if (faction == null) {
             player.sendMessage(VehicleTransferMessages.notLeader());
             return;
@@ -68,7 +69,7 @@ public final class VehicleFactionCommands {
     }
 
     public static void armTake(Player player) {
-        Faction faction = FactionManager.getByLeader(player.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(player));
         if (faction == null) {
             player.sendMessage(FactionVehicleReleaseMessages.notLeader());
             return;
@@ -85,7 +86,7 @@ public final class VehicleFactionCommands {
     }
 
     public static void armGive(Player player, String targetName) {
-        Faction faction = FactionManager.getByLeader(player.getName());
+        Faction faction = FactionManager.getByLeader(Members.key(player));
         if (faction == null) {
             player.sendMessage(FactionVehicleReleaseMessages.notLeader());
             return;
@@ -94,13 +95,17 @@ public final class VehicleFactionCommands {
             player.sendMessage(FactionVehicleReleaseMessages.giveUsage());
             return;
         }
-        if (targetName.equalsIgnoreCase(player.getName())) {
+        // Tells the leader when nobody online matches the name.
+        Player target = Members.resolveOnline(player, targetName);
+        if (target == null) {
+            return;
+        }
+        if (target.getUniqueId().equals(player.getUniqueId())) {
             player.sendMessage(FactionVehicleReleaseMessages.giveSelf());
             return;
         }
-        Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null || !target.isOnline()) {
-            player.sendMessage(FactionVehicleReleaseMessages.recipientOffline(targetName));
+        if (!target.isOnline()) {
+            player.sendMessage(FactionVehicleReleaseMessages.recipientOffline(Members.name(target)));
             return;
         }
         SimpleFactions plugin = SimpleFactions.getInstance();
@@ -115,7 +120,7 @@ public final class VehicleFactionCommands {
                         target.getName(),
                         target.getUniqueId(),
                         System.currentTimeMillis() + timeoutMillis));
-        player.sendMessage(FactionVehicleReleaseMessages.giveArmed(target.getName()));
+        player.sendMessage(FactionVehicleReleaseMessages.giveArmed(Members.name(target)));
     }
 
     /** Any player can hand one of their personal vehicles to another online player. */
@@ -124,13 +129,17 @@ public final class VehicleFactionCommands {
             player.sendMessage(VehicleHandoverMessages.usage());
             return;
         }
-        if (targetName.equalsIgnoreCase(player.getName())) {
+        // Tells the owner when nobody online matches the name.
+        Player target = Members.resolveOnline(player, targetName);
+        if (target == null) {
+            return;
+        }
+        if (target.getUniqueId().equals(player.getUniqueId())) {
             player.sendMessage(VehicleHandoverMessages.self());
             return;
         }
-        Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null || !target.isOnline()) {
-            player.sendMessage(VehicleHandoverMessages.recipientOffline(targetName));
+        if (!target.isOnline()) {
+            player.sendMessage(VehicleHandoverMessages.recipientOffline(Members.name(target)));
             return;
         }
         SimpleFactions plugin = SimpleFactions.getInstance();
@@ -143,7 +152,7 @@ public final class VehicleFactionCommands {
                         target.getName(),
                         target.getUniqueId(),
                         System.currentTimeMillis() + timeoutMillis));
-        player.sendMessage(VehicleHandoverMessages.armed(target.getName()));
+        player.sendMessage(VehicleHandoverMessages.armed(Members.name(target)));
     }
 
     private static void clearOtherVehicleSessions(SimpleFactions plugin, Player player) {
@@ -167,7 +176,9 @@ public final class VehicleFactionCommands {
     }
 
     public static void armMaintenancePay(Player player, PaymentSource source) {
-        if (source == PaymentSource.POUCH && FactionManager.getByLeader(player.getName()) == null) {
+        var character = Members.session(player).orElse(null);
+        if (character == null) { player.sendMessage("§cSelect a living character first."); return; }
+        if (source == PaymentSource.POUCH && FactionManager.getByLeader(Members.key(player)) == null) {
             player.sendMessage(VehicleMaintenanceMessages.notLeader());
             return;
         }
@@ -178,7 +189,7 @@ public final class VehicleFactionCommands {
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().put(
                 player.getUniqueId(),
-                new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source));
+                new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source, character));
         player.sendMessage(VehicleMaintenanceMessages.payArmed(source));
     }
 
@@ -265,7 +276,7 @@ public final class VehicleFactionCommands {
                     || !args[1].equalsIgnoreCase("handover")) {
                 return null;
             }
-            return args.length >= 3 ? args[2] : "";
+            return target(args);
         }
 
         /**
@@ -279,7 +290,12 @@ public final class VehicleFactionCommands {
                     || !args[1].equalsIgnoreCase("give")) {
                 return null;
             }
-            return args.length >= 3 ? args[2] : "";
+            return target(args);
+        }
+
+        /** Character names may have spaces, so the target is every word after the subcommand. */
+        private static String target(String[] args) {
+            return args.length >= 3 ? String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)) : "";
         }
     }
 

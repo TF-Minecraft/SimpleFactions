@@ -237,8 +237,8 @@ class TaxLifecycleCoverageTest {
   void taxChangePreviewConservesRealGuildBalancesAndTaxIncome() {
     Guild realm = faction.getOrCreateMainGuild();
     Guild merchants = fixture.guild(faction, "merchants", "Merchant");
-    realm.getBank().deposit(100.0);
-    merchants.getBank().deposit(100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(realm.getBank(), 100.0);
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(merchants.getBank(), 100.0);
     merchants.getTradeBreakdown().setIncome(200.0);
     faction.getTaxHandler().setGuildTax(10.0);
     faction.getGovernment().setPower(faction.getGovernment().getMaxPower());

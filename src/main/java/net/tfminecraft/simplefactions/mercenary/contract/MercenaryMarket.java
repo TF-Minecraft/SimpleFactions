@@ -7,6 +7,7 @@ import java.util.List;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.rest.RestServer;
@@ -79,7 +80,7 @@ public final class MercenaryMarket {
         }
         MercenaryResult local = isLocal(company, RestServer.getProvince(signer));
         if (!local.ok()) return local;
-        return hasAuthority(company, signer.getName());
+        return hasAuthority(company, Members.key(signer));
     }
 
     /**

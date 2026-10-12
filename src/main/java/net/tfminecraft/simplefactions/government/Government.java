@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.government;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -177,7 +179,7 @@ public class Government {
 
     public Movement getMovementByLeader(String leader) {
         for (Movement movement : movements) {
-            if (movement.getLeader() != null && movement.getLeader().equalsIgnoreCase(leader)) {
+            if (movement.getLeader() != null && movement.getLeader().equals(leader)) {
                 return movement;
             }
         }
@@ -337,6 +339,7 @@ public class Government {
 
 
     private void replaceLeader() {
+        if (f.getLeader() == null || f.getLeader().isBlank() || Members.isQuarantined(f.getLeader())) return;
         if (!f.canRemainLeader(f.getLeader())) {
             boolean promoted =
                 election.getWinners(Candidate.LEADER).stream()
@@ -358,17 +361,17 @@ public class Government {
     }
 
     public boolean isCouncilMember(Player p) {
-        return p != null && isCouncilMember(p.getName());
+        return p != null && isCouncilMember(Members.key(p));
     }
 
-    /** Name-based so offline checks (mercenary loyalty, contract signing) can use it too. */
-    public boolean isCouncilMember(String name) {
-        if(name == null) return false;
-        return council.isMember(name) || f.getLeader().equalsIgnoreCase(name);
+    /** Key-based so offline checks (mercenary loyalty, contract signing) can use it too. */
+    public boolean isCouncilMember(String key) {
+        if(key == null) return false;
+        return council.isMember(key) || key.equals(f.getLeader());
     }
 
     public boolean canProposeOrStartMovement(Player p) {
-        String name = p.getName();
+        String name = Members.key(p);
         if(isCouncilMember(p)) {
             return council.getProposalHandler().canPropose(name);
         }
@@ -376,7 +379,7 @@ public class Government {
         if(guild != null) {
             if(guild.getFaction().getId().equalsIgnoreCase(f.getId())) {
                 if(guild.isBase()) return true; //Member of the base guild in the faction
-                if(guild.getLeader().equalsIgnoreCase(name))return true; //Guild leader of a guild in the faction
+                if(guild.isLeader(name))return true; //Guild leader of a guild in the faction
             }
         }
         Faction faction = FactionManager.getByLeader(name);
@@ -391,8 +394,8 @@ public class Government {
     }
 
     public boolean canPropose(Player p) {
-        String name = p.getName();
-        if(name.equalsIgnoreCase(f.getLeader())) return true;
+        String name = Members.key(p);
+        if(Members.is(p, f.getLeader())) return true;
         if(council.canPropose(name)) return true;
         return false;
     }
@@ -411,11 +414,11 @@ public class Government {
         if(warEnd && !CouncilPeaceQueries.isParticipatingInAny(f)) {
             return false;
         }
-        String name = p.getName();
+        String name = Members.key(p);
         if(warEnd && canPropose(p)) {
             return true;
         }
-        if(name.equalsIgnoreCase(f.getLeader())) return false;
+        if(Members.is(p, f.getLeader())) return false;
         if(council.isMember(name)) return false;
         if(action == Action.SNAP_ELECTIONS && !hasElections()) return false;
         Member relation = f.getRelationToFaction(name);
@@ -430,7 +433,7 @@ public class Government {
             case GUILD_MEMBER:
                 if(action == Action.NATIONHOOD) return false; //only leaders can demand that
             case GUILD_LEADER:
-                if(action == Action.NATIONHOOD && !FactionManager.getGuildByMember(p.getName()).canBeElevated(null)) return false;
+                if(action == Action.NATIONHOOD && !FactionManager.getGuildByMember(name).canBeElevated(null)) return false;
                 if(!PoliticalActionLoader.getByAction(action).allowGuilds()) return false;
                 break;
             case VASSAL_LEADER:
@@ -440,6 +443,37 @@ public class Government {
             
         }
         return true;
+    }
+
+    /** Removes only this character's live political rights; other votes retain their order and value. */
+    public void removeDeadCharacter(String key) {
+        council.getMembers().removeIf(key::equals);
+        if (council.refuses(key)) council.toggleRefuse(key);
+        council.getProposalHandler().getProposals().removeIf(proposal -> key.equals(proposal.getProposer()));
+        var candidates = election.serializeCandidates();
+        candidates.values().forEach(list -> list.removeIf(key::equals));
+        var votes = election.serializeVotes();
+        votes.values().forEach(map -> map.entrySet().removeIf(entry -> key.equals(entry.getKey()) || key.equals(entry.getValue())));
+        var previous = election.serializePreviousVotes();
+        previous.values().forEach(map -> map.remove(key));
+        var eligible = new ArrayList<>(election.getStoredEligibleVoters());
+        eligible.removeIf(key::equals);
+        election.restoreFromData(candidates, votes, previous, eligible);
+        for (Movement movement : movements) {
+            if (key.equals(movement.getLeader())) movement.setLeader(null);
+            movement.getSupporters().getCitizens().removeIf(key::equals);
+            for (var cause : movement.getCauses()) {
+                if (key.equals(cause.getLeader())) cause.setLeader(null);
+                cause.getPool().getCitizens().removeIf(key::equals);
+            }
+        }
+    }
+
+    /** Replaying a death must not restart an election and erase ballots cast afterward. */
+    public void beginDeathElection(long at) {
+        if (lastElectionDate.getTime() >= at) return;
+        election.start();
+        lastElectionDate = new Date(at);
     }
 
     public Council getCouncil() {

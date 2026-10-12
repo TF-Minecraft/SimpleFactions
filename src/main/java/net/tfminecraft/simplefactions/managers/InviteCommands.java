@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +38,10 @@ public final class InviteCommands {
 
 	public static boolean handle(Player p, String command, String[] args) {
 		boolean guild = command.equalsIgnoreCase(GUILD);
+		if (Members.key(p) == null) {
+			p.sendMessage(CommandManager.NO_CHARACTER);
+			return true;
+		}
 		if (args[0].equalsIgnoreCase("decline")) {
 			if (guild) declineGuild(p, args[1]);
 			else declineFaction(p, args[1]);
@@ -43,11 +49,11 @@ public final class InviteCommands {
 			if (guild) joinGuild(p, args[1]);
 			else joinFaction(p, args[1]);
 		} else if (guild) {
-			List<Guild> invites = guildInvites(p.getName());
+			List<Guild> invites = guildInvites(Members.key(p));
 			joinOnlyInvite(p, GUILD, invites.stream().map(Guild::getId).toList(),
 					invites.stream().map(Guild::getName).toList());
 		} else {
-			List<Faction> invites = factionInvites(p.getName());
+			List<Faction> invites = factionInvites(Members.key(p));
 			joinOnlyInvite(p, FACTION, invites.stream().map(Faction::getId).toList(),
 					invites.stream().map(Faction::getName).toList());
 		}
@@ -119,7 +125,7 @@ public final class InviteCommands {
 	}
 
 	private static void joinGuild(Player p, String id) {
-		if (FactionManager.getGuildByLeader(p.getName()) != null) {
+		if (FactionManager.getGuildByLeader(Members.key(p)) != null) {
 			p.sendMessage("§cYou are the leader of a guild");
 			return;
 		}
@@ -132,22 +138,22 @@ public final class InviteCommands {
 			p.sendMessage("§cNo guild by the id " + id);
 			return;
 		}
-		if (!g.consumeInvite(p.getName())) {
+		if (!g.consumeInvite(Members.key(p))) {
 			p.sendMessage("§cYou need to be invited to this guild by the leader first!");
 			return;
 		}
-		Guild previous = FactionManager.getGuildByMember(p.getName());
+		Guild previous = FactionManager.getGuildByMember(Members.key(p));
 		if (previous != null) {
-			previous.kick(p.getName());
+			previous.kick(Members.key(p));
 		}
-		g.addMember(p.getName());
+		g.addMember(Members.key(p));
 		p.sendMessage("§aJoined " + g.getName());
 		g.getFaction().updatePrestige();
-		tellOthers(g.getFaction(), p, "§a" + p.getName() + " joined the guild " + g.getName() + "§a!");
+		tellOthers(g.getFaction(), p, "§a" + Members.name(p) + " joined the guild " + g.getName() + "§a!");
 	}
 
 	private static void joinFaction(Player p, String id) {
-		if (FactionManager.getByMember(p.getName()) != null) {
+		if (FactionManager.getByMember(Members.key(p)) != null) {
 			p.sendMessage("§cAlready in a faction, leave your current faction first!");
 			return;
 		}
@@ -156,47 +162,45 @@ public final class InviteCommands {
 			p.sendMessage("§cNo faction with that name exists");
 			return;
 		}
-		if (!f.consumeInvite(p.getName())) {
+		if (!f.consumeInvite(Members.key(p))) {
 			p.sendMessage("§cYou need to be invited to this faction by the leader first!");
 			return;
 		}
-		f.addMember(p.getName());
+		f.addMember(Members.key(p));
 		p.sendMessage("§aJoined " + f.getName());
 		f.updatePrestige();
-		tellOthers(f, p, "§a" + p.getName() + " joined the faction!");
+		tellOthers(f, p, "§a" + Members.name(p) + " joined the faction!");
 	}
 
 	private static void declineGuild(Player p, String id) {
 		Guild g = FactionManager.getGuildByString(id);
-		if (g == null || !g.consumeInvite(p.getName())) {
+		if (g == null || !g.consumeInvite(Members.key(p))) {
 			p.sendMessage("§cYou have no invite from that guild");
 			return;
 		}
 		p.sendMessage("§aDeclined the invite to " + g.getName());
-		tellLeader(g.getLeader(), "§c" + p.getName() + " declined your invite to " + g.getName());
+		tellLeader(g.getLeader(), "§c" + Members.name(p) + " declined your invite to " + g.getName());
 	}
 
 	private static void declineFaction(Player p, String id) {
 		Faction f = FactionManager.getByString(id);
-		if (f == null || !f.consumeInvite(p.getName())) {
+		if (f == null || !f.consumeInvite(Members.key(p))) {
 			p.sendMessage("§cYou have no invite from that faction");
 			return;
 		}
 		p.sendMessage("§aDeclined the invite to " + f.getName());
-		tellLeader(f.getLeader(), "§c" + p.getName() + " declined your invite to " + f.getName());
+		tellLeader(f.getLeader(), "§c" + Members.name(p) + " declined your invite to " + f.getName());
 	}
 
 	private static void tellOthers(Faction f, Player joiner, String message) {
 		for (Player pl : Bukkit.getOnlinePlayers()) {
-			if (!pl.equals(joiner) && f.getMembers().contains(pl.getName())) {
+			if (!pl.equals(joiner) && f.getMembers().contains(Members.key(pl))) {
 				pl.sendMessage(message);
 			}
 		}
 	}
 
 	private static void tellLeader(String leader, String message) {
-		if (leader == null) return;
-		Player online = Bukkit.getPlayerExact(leader);
-		if (online != null) online.sendMessage(message);
+		Members.online(leader).ifPresent(online -> online.sendMessage(message));
 	}
 }

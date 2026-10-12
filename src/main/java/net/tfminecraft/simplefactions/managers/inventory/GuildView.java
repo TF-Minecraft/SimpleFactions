@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -66,6 +68,24 @@ public class GuildView {
 	public static final int HOST_FACTION_SLOT = 37;
 
 	
+    private static final org.bukkit.NamespacedKey TREASURY_ID = new org.bukkit.NamespacedKey("simplefactions", "treasury-operation");
+    private static final org.bukkit.NamespacedKey TREASURY_ACTOR = new org.bukkit.NamespacedKey("simplefactions", "treasury-actor");
+    private static final org.bukkit.NamespacedKey TREASURY_GUILD = new org.bukkit.NamespacedKey("simplefactions", "treasury-guild");
+    private static final org.bukkit.NamespacedKey TREASURY_LEVEL = new org.bukkit.NamespacedKey("simplefactions", "treasury-level");
+
+    ItemStack treasuryButton(Player player, Guild guild, Branch branch, ItemStack item) {
+        var session = Members.session(player).orElse(null);
+        if (session == null) return item;
+        var meta = item.getItemMeta();
+        var data = meta.getPersistentDataContainer();
+        data.set(TREASURY_ID, PersistentDataType.STRING, net.tfminecraft.simplefactions.economy.TreasuryActions.newId());
+        data.set(TREASURY_ACTOR, PersistentDataType.STRING, net.tfminecraft.simplefactions.database.JsonUtil.GSON.toJson(session));
+        data.set(TREASURY_GUILD, PersistentDataType.STRING, guild.getIncarnationId().toString());
+        data.set(TREASURY_LEVEL, PersistentDataType.INTEGER, branch.getLevel());
+        item.setItemMeta(meta);
+        return item;
+    }
+
 	public GuildView(InventoryManager inv) {
         this.inv = inv;
     }
@@ -194,7 +214,7 @@ public class GuildView {
 		if(target != null && Cache.provincesEnabled) {
 			i.setItem(34, creator.createRelocateItem(player, target, guild));
 		}
-		if(guild.getFaction().isLeader(player.getName()) && !guild.isBase()) {
+		if(guild.getFaction().isLeader(Members.key(player)) && !guild.isBase()) {
 			if(guild.hasCapital()) {
 				i.setItem(43, creator.createElevationItem(player, guild));
 			}
@@ -213,8 +233,8 @@ public class GuildView {
 			if(guild.isLeader(player)) {
 				int upgradeSlot = group + 19;
 				int downgradeSlot = group + 37;
-				i.setItem(upgradeSlot, creator.createBranchUpgradeItem(player, guild, b));
-				i.setItem(downgradeSlot, creator.createBranchDowngradeItem(player, guild, b));
+				i.setItem(upgradeSlot, treasuryButton(player, guild, b, creator.createBranchUpgradeItem(player, guild, b)));
+				i.setItem(downgradeSlot, treasuryButton(player, guild, b, creator.createBranchDowngradeItem(player, guild, b)));
 				if (tradePreview != null) {
 					BranchIncomePreviewService.schedule(player, i, upgradeSlot, tradePreview, guild, b, 1);
 					if (b.getLevel() > 0) {
@@ -408,7 +428,7 @@ public class GuildView {
 					}
 					guildView(p, guild, inventory);
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-				} else if(guild.getFaction().isLeader(p.getName())) {
+				} else if(guild.getFaction().isLeader(Members.key(p))) {
 					if(!guild.canBeEvicted(p)) {
 						p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 						return;
@@ -429,7 +449,7 @@ public class GuildView {
 				}
 				return;
 			} else if(e.getSlot() == 43) {
-				if(!guild.getFaction().isLeader(p.getName())) return;
+				if(!guild.getFaction().isLeader(Members.key(p))) return;
 				if(!guild.canBeElevated(p)) {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
 					return;
@@ -484,25 +504,18 @@ public class GuildView {
 					p.sendMessage("§cYour guild needs a bank to change a branch level.");
 					return;
 				}
-				if(!upgrade) {
-					if(b.getLevel() == 0) return;
-					double refund = guild.getRefund();
-					b.levelDown();
-					guild.getBank().deposit(refund);
-					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					p.sendMessage("§cDowngraded "+b.getName()+ "§c to level §e"+b.getLevel());
-				} else {
-					double cost = guild.getExpansionCost();
-					if(guild.getBank() == null || !Double.isFinite(cost) || cost < 0 || guild.getBank().getWealth() < cost) {
-						p.sendMessage("§cCannot afford to upgrade");
-						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-						return;
-					}
-					b.levelUp();
-					p.sendMessage("§aUpgraded "+b.getName()+ "§a to level §e"+b.getLevel());
-					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					guild.getBank().withdraw(cost);
-				}
+                String operation = meta.getPersistentDataContainer().get(TREASURY_ID, PersistentDataType.STRING);
+                String captured = meta.getPersistentDataContainer().get(TREASURY_ACTOR, PersistentDataType.STRING);
+                String incarnation = meta.getPersistentDataContainer().get(TREASURY_GUILD, PersistentDataType.STRING);
+                Integer level = meta.getPersistentDataContainer().get(TREASURY_LEVEL, PersistentDataType.INTEGER);
+                if (operation == null || captured == null || level == null || !guild.getIncarnationId().toString().equals(incarnation)) return;
+                var session = net.tfminecraft.simplefactions.database.JsonUtil.GSON.fromJson(captured, net.tfminecraft.tlibs.character.CharacterSession.class);
+                if (!Members.isCurrent(session) || !session.ref().ownerId().equals(p.getUniqueId())) return;
+                Boolean resumed = net.tfminecraft.simplefactions.economy.TreasuryActions.resume(operation, p);
+                if (resumed != null) return;
+                if (b.getLevel() != level || !net.tfminecraft.simplefactions.economy.TreasuryActions.branch(p, guild, b, upgrade, operation)) return;
+                p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+                p.sendMessage((upgrade ? "§aUpgraded " : "§cDowngraded ") + b.getName() + " to level §e" + b.getLevel());
 				// Refresh prestige after the final branch and bank state has been applied.
 				if (!upgrade && guild.getFaction() != null) {
 					guild.getFaction().updatePrestige();
