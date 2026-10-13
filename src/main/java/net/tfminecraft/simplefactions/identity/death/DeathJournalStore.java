@@ -18,12 +18,29 @@ final class DeathJournalStore {
         boolean apply(DeathJournal journal, DeathJournal.Step step) throws IOException;
     }
 
+    /** What replay does with an incomplete journal, from the character's state now. */
+    enum Replay { REPLAY, SKIP, CLOSE_REVIVE, CLOSE_REDEATH }
+
+    @FunctionalInterface
+    interface Guard {
+        Replay check(DeathJournal journal);
+    }
+
+    static final String CLOSED_BY_REVIVE = "revive";
+    static final String CLOSED_BY_REDEATH = "redeath";
+
     private final Path folder;
     private final ApplyStep effects;
+    private final Guard guard;
 
     DeathJournalStore(Path folder, ApplyStep effects) {
+        this(folder, effects, journal -> Replay.REPLAY);
+    }
+
+    DeathJournalStore(Path folder, ApplyStep effects, Guard guard) {
         this.folder = folder;
         this.effects = effects;
+        this.guard = guard;
     }
 
     boolean contains(UUID deathId) {
@@ -38,16 +55,28 @@ final class DeathJournalStore {
                 throw new IOException("Death ID reused for a different character: " + journal.deathId);
             }
         }
-        replay(journal.deathId);
+        // The caller has just seen this death as the character's current one.
+        replay(journal.deathId, false);
     }
 
     void replayAll() throws IOException {
-        for (DeathJournal journal : all()) replay(journal.deathId);
+        for (DeathJournal journal : all()) replay(journal.deathId, true);
     }
 
-    private void replay(UUID deathId) throws IOException {
+    /** The journal for a death, or empty when none was written. */
+    java.util.Optional<DeathJournal> find(UUID deathId) throws IOException {
+        return contains(deathId) ? java.util.Optional.of(read(path(deathId))) : java.util.Optional.empty();
+    }
+
+    private void replay(UUID deathId, boolean guarded) throws IOException {
         DeathJournal journal = read(path(deathId));
         if (journal.complete) return;
+        Replay verdict = guarded ? guard.check(journal) : Replay.REPLAY;
+        if (verdict == Replay.SKIP) return;
+        if (verdict != Replay.REPLAY) {
+            close(journal, verdict == Replay.CLOSE_REVIVE ? CLOSED_BY_REVIVE : CLOSED_BY_REDEATH);
+            return;
+        }
         for (DeathJournal.Step step : journal.steps) {
             if (step.done) continue;
             if (!effects.apply(journal, step)) continue;
@@ -56,6 +85,22 @@ final class DeathJournalStore {
         }
         journal.complete = journal.steps.stream().allMatch(step -> step.done);
         DurableJson.write(path(deathId), journal);
+    }
+
+    /**
+     * Revived or dead again: the remaining steps would act on the wrong life, so they are
+     * marked done unapplied, in the fields older jars already honour. A claim whose cleanup
+     * never applied is cancelled in the same write: its wage bucket and dividend eligibility
+     * were never cleared, so settlement still pays them directly.
+     */
+    private void close(DeathJournal journal, String reason) throws IOException {
+        for (DeathJournal.Claim claim : journal.claims) {
+            if (!cleaned(journal, claim.cleanupStep)) claim.paid = claim.payment.cents();
+        }
+        for (DeathJournal.Step step : journal.steps) step.done = true;
+        journal.complete = true;
+        journal.closedBy = reason;
+        DurableJson.write(path(journal.deathId), journal);
     }
 
     List<OwedPayment> pendingPayments() throws IOException {
@@ -146,7 +191,9 @@ final class DeathJournalStore {
         DeathJournal journal = DurableJson.read(file, DeathJournal.class);
         if (journal.deathId == null || journal.characterId == null || journal.ownerId == null
                 || journal.steps == null || journal.claims == null || journal.payments == null
-                || !file.getFileName().toString().equals(journal.deathId + ".json")) {
+                || !file.getFileName().toString().equals(journal.deathId + ".json")
+                || (journal.closedBy != null && (!journal.complete
+                        || !(CLOSED_BY_REVIVE.equals(journal.closedBy) || CLOSED_BY_REDEATH.equals(journal.closedBy))))) {
             throw new IOException("Invalid death journal: " + file);
         }
         var stepIds = new java.util.HashSet<String>();
