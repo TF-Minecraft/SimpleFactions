@@ -22,10 +22,14 @@ import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandMembershipService;
+import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
+import net.tfminecraft.simplefactions.war.civilwar.split.CivilWarMemberMove;
+import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.tlibs.character.CharacterInfo;
 import net.tfminecraft.tlibs.character.CharacterRef;
 
@@ -53,6 +57,8 @@ final class FactionDeaths {
         journal.characterId = ref.characterId();
         journal.at = at;
         String key = Members.key(ref);
+        // Before the snapshots, which can create a main guild.
+        journal.lockGuildIncarnation = lockGuildIncarnation(key);
         List<DeathJournal.Step> successions = new ArrayList<>();
         for (Faction faction : FactionManager.getCopy()) {
             JsonObject before = snapshot(faction);
@@ -115,6 +121,36 @@ final class FactionDeaths {
         }
         journal.steps.add(new DeathJournal.Step("online", "online", online));
         return journal;
+    }
+
+    /**
+     * The first guild the living lookup would answer, through the String overload,
+     * which unlike the Player and UUID ones also answers during boot reconcile.
+     * A member moved into a civil war's rebel main guild follows their origin guild.
+     */
+    static UUID lockGuildIncarnation(String key) {
+        Guild guild = FactionManager.getGuildByMember(key);
+        return guild == null ? null : UUID.fromString(civilWarOrigin(guild, key).getIncarnation());
+    }
+
+    /** Where untangle would restore the member, resolved now; the wanted leader counts as moved. */
+    private static Guild civilWarOrigin(Guild guild, String key) {
+        for (War war : WarManager.getActive()) {
+            CivilWarSnapshot snapshot = war.getCivilWarSnapshot();
+            if (snapshot == null) continue;
+            Faction rebels = FactionManager.getByString(snapshot.getTempRebelFactionId());
+            if (rebels == null || rebels.getGuildHandler().getGuild(rebels.getId()) != guild) continue;
+            CivilWarMemberMove move = snapshot.getMemberMoves().stream()
+                    .filter(candidate -> candidate != null && key.equals(candidate.player()))
+                    .findFirst().orElse(null);
+            Faction host = FactionManager.getByString(snapshot.getHostFactionId());
+            if (move == null || host == null) return guild;
+            // Untangle moves the rebel guilds into the host before restoring members.
+            Guild origin = host.getGuildHandler().getGuild(move.originGuildId());
+            if (origin == null) origin = rebels.getGuildHandler().getGuild(move.originGuildId());
+            return origin == null ? host.getOrCreateMainGuild() : origin;
+        }
+        return guild;
     }
 
     boolean apply(DeathJournal journal, DeathJournal.Step step) throws IOException {

@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.character.CharacterRef;
@@ -16,6 +17,7 @@ import net.tfminecraft.tlibs.character.Characters;
 public final class CharacterDeaths {
     private static DeathJournalStore store;
     private static FactionDeaths factions;
+    private static LockGuildIndex lockGuilds;
 
     private CharacterDeaths() {}
 
@@ -23,12 +25,14 @@ public final class CharacterDeaths {
     public static void startup(Path dataFolder) throws IOException {
         load(dataFolder);
         reconcile();
+        indexLockGuilds();
     }
 
     /** Load obligations before settlement recovery; defer cleanup until that recovery is complete. */
     public static void load(Path dataFolder) throws IOException {
         factions = new FactionDeaths(dataFolder);
         store = new DeathJournalStore(dataFolder.resolve("deaths"), factions::apply);
+        lockGuilds = new LockGuildIndex();
         store.pendingPayments();
     }
 
@@ -42,7 +46,7 @@ public final class CharacterDeaths {
             UUID deathId = Characters.deathId(info.get().ref().characterId())
                     .orElseThrow(() -> new IOException("Dead character has no authoritative death ID: " + key));
             if (!store.contains(deathId)) {
-                store.record(factions.capture(info.get().ref(), deathId, Instant.now().toEpochMilli()));
+                record(factions.capture(info.get().ref(), deathId, Instant.now().toEpochMilli()));
             }
         }
     }
@@ -54,7 +58,28 @@ public final class CharacterDeaths {
         var currentDeath = Characters.deathId(ref.characterId());
         if (currentDeath.isPresent() && !currentDeath.get().equals(deathId)) return;
         if (store.contains(deathId)) store.replayAll();
-        else store.record(factions.capture(ref, deathId, at.toEpochMilli()));
+        else record(factions.capture(ref, deathId, at.toEpochMilli()));
+    }
+
+    /** After reconcile and before SimpleFactions is ready; lock lookups never read journals. */
+    public static void indexLockGuilds() throws IOException {
+        requireStarted();
+        lockGuilds.rebuild(store.all());
+    }
+
+    /** The guild incarnation a dead character's locks follow; empty when unknown, guildless, tied or not loaded. */
+    public static Optional<UUID> lockGuildIncarnation(UUID characterId) {
+        LockGuildIndex index = lockGuilds;
+        return index == null ? Optional.empty() : index.get(characterId);
+    }
+
+    /** A written journal updates the index even when its cleanup has to be retried. */
+    private static void record(DeathJournal journal) throws IOException {
+        try {
+            store.record(journal);
+        } finally {
+            if (store.contains(journal.deathId)) lockGuilds.capture(journal);
+        }
     }
 
     public static List<OwedPayment> pendingPayments() {
@@ -75,6 +100,7 @@ public final class CharacterDeaths {
     public static void stop() {
         store = null;
         factions = null;
+        lockGuilds = null;
     }
 
     private static void requireStarted() throws IOException {

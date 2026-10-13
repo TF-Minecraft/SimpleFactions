@@ -482,6 +482,7 @@ public class SimpleFactions extends JavaPlugin{
             realmSettlementService = new net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService(getDataFolder().toPath(), db);
             realmSettlementService.recover();
             net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile();
+            net.tfminecraft.simplefactions.identity.death.CharacterDeaths.indexLockGuilds();
             net.tfminecraft.simplefactions.economy.EconomyRuntime.recovered();
         } catch (Exception error) {
             failFinancialState(error);
