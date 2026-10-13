@@ -107,11 +107,20 @@ public final class CampaignRaidJoinService {
 			return JoinResult.REJECTED_IN_WARBAND;
 		}
 		Player player = Bukkit.getPlayer(playerId);
+		var character = net.tfminecraft.simplefactions.war.battle.warband.Warband.participant(playerId, memberKey, player).orElse(null);
+		if (character == null) {
+			return JoinResult.REJECTED_NOT_PARTICIPANT;
+		}
 		if (player != null && player.isOnline() && WarbandVehicleRules.joinBlockedReason(player) != null) {
 			return JoinResult.REJECTED_MOUNTED_ON_VEHICLE;
 		}
-		raid.getMusterParticipantIds().add(playerKey);
 		CampaignRaidWarbandService.signupAttacker(war, raid, playerId, memberKey);
+		var band = CampaignRaidWarbandService.getAttackerWarband(raid);
+		if (band == null || band.isIdentityHeld()
+				|| !band.getMemberCharacter(playerId).filter(character::equals).isPresent()) {
+			return JoinResult.REJECTED_NOT_PARTICIPANT;
+		}
+		raid.getMusterParticipantIds().add(playerKey);
 		return JoinResult.OK;
 	}
 }

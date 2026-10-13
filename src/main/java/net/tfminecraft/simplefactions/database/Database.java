@@ -686,9 +686,7 @@ public class Database {
 				folder.mkdirs();
 			}
 			File file = new File(folder, "warband_" + warband.getId() + ".json");
-			net.tfminecraft.simplefactions.database.WarbandData data =
-					net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper.toData(warband);
-			JsonUtil.writeJson(file, data);
+			net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.save(file, warband);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -709,6 +707,7 @@ public class Database {
 			return;
 		}
 		File file = new File("plugins/SimpleFactions/Warbands", "warband_" + warbandId + ".json");
+		if (net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.isHeld(file)) return;
 		if (file.exists()) {
 			file.delete();
 		}
@@ -729,10 +728,8 @@ public class Database {
 				continue;
 			}
 			try {
-				net.tfminecraft.simplefactions.database.WarbandData data =
-						JsonUtil.readJson(file, net.tfminecraft.simplefactions.database.WarbandData.class);
 				net.tfminecraft.simplefactions.war.battle.warband.Warband warband =
-						net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper.fromData(data);
+						net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.read(file);
 				if (warband != null) {
 					warbands.add(warband);
 				}

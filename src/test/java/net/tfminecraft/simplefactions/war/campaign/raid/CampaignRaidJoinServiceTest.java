@@ -107,8 +107,12 @@ class CampaignRaidJoinServiceTest {
 
 	@Test
 	void join_okDuringMuster() {
+		Player player = mock(Player.class);
+		when(player.getUniqueId()).thenReturn(ATTACKER_PLAYER);
+		when(player.getName()).thenReturn(ATTACKER_NAME);
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
 			bukkit.when(() -> Bukkit.getPlayer(ATTACKER_PLAYER)).thenReturn(null);
+			bukkit.when(() -> Bukkit.getPlayerExact(ATTACKER_NAME)).thenReturn(player);
 
 			JoinResult result = CampaignRaidJoinService.join(
 					war, ATTACKER_PLAYER, ATTACKER_NAME, attacker, raidId, raidWindow.plusSeconds(10));
@@ -121,8 +125,31 @@ class CampaignRaidJoinServiceTest {
 	}
 
 	@Test
+	void missingIdentityOrHeldEnrollmentNeverConsumesAnAccountMusterMarker() {
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			assertEquals(JoinResult.REJECTED_NOT_PARTICIPANT,
+					CampaignRaidJoinService.join(war, ATTACKER_PLAYER, ATTACKER_NAME, attacker, raidId, raidWindow.plusSeconds(10)));
+			assertTrue(CampaignRaidService.getActive(war).getMusterParticipantIds().isEmpty());
+			Player player = mock(Player.class);
+			when(player.getUniqueId()).thenReturn(ATTACKER_PLAYER);
+			when(player.getName()).thenReturn(ATTACKER_NAME);
+			bukkit.when(() -> Bukkit.getPlayerExact(ATTACKER_NAME)).thenReturn(player);
+			try (var identities = mockStatic(net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.class)) {
+				identities.when(() -> net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.isHeld(org.mockito.ArgumentMatchers.any()))
+						.thenReturn(true);
+				assertEquals(JoinResult.REJECTED_NOT_PARTICIPANT,
+						CampaignRaidJoinService.join(war, ATTACKER_PLAYER, ATTACKER_NAME, attacker, raidId, raidWindow.plusSeconds(10)));
+				assertTrue(CampaignRaidService.getActive(war).getMusterParticipantIds().isEmpty());
+				assertTrue(CampaignRaidWarbandService.getAttackerWarband(CampaignRaidService.getActive(war)).getMemberCharacter(ATTACKER_PLAYER).isEmpty());
+			}
+		}
+	}
+
+	@Test
 	void join_rejectsMountedPlayer() {
 		Player player = mock(Player.class);
+		when(player.getUniqueId()).thenReturn(ATTACKER_PLAYER);
+		when(player.getName()).thenReturn(ATTACKER_NAME);
 		when(player.isOnline()).thenReturn(true);
 		when(player.isInsideVehicle()).thenReturn(true);
 

@@ -179,10 +179,14 @@ class FieldWinServiceTest {
 			UUID memberId = UUID.randomUUID();
 			Player player = mock(Player.class);
 			when(player.isOnline()).thenReturn(true);
+			when(player.getUniqueId()).thenReturn(memberId);
+			when(player.getName()).thenReturn("Defender");
 			when(player.getWorld()).thenReturn(world);
 			when(player.getLocation()).thenReturn(new Location(world, 40, 64, 40));
 			bukkit.when(() -> org.bukkit.Bukkit.getPlayer(memberId)).thenReturn(player);
-			defender.addBand(Warband.createWithMemberIds("def", memberId, true));
+			Warband band = Warband.createWithMemberIds("def", memberId, true);
+			band.addMember(memberId, net.tfminecraft.simplefactions.identity.Members.session(player).orElseThrow().ref());
+			defender.addBand(band);
 
 			Instant back = start.plusSeconds(1000);
 			assertFalse(FieldWinService.isSideEliminated(battle, defender, back));

@@ -204,7 +204,9 @@ public class BattleManager implements Listener{
 	
 	public void spawnTeleport(Player p, CapturePoint point) {
 		Battle battle = getBattleByPlayer(p);
-		if (battle == null || point == null) return;
+		var session = net.tfminecraft.simplefactions.identity.Members.session(p)
+				.filter(net.tfminecraft.simplefactions.identity.Members::isCurrent).orElse(null);
+		if (battle == null || point == null || session == null) return;
 		new BukkitRunnable()
 		{
 			int i = 15;
@@ -214,6 +216,8 @@ public class BattleManager implements Listener{
 			{
 				BattleSide side = battle.getSideByPlayer(p);
 				if (!p.isOnline() || !battle.hasStarted() || getBattleByPlayer(p) != battle
+						|| !net.tfminecraft.simplefactions.identity.Members.isCurrent(session)
+						|| !net.tfminecraft.simplefactions.identity.Members.session(p).filter(session::equals).isPresent()
 						|| side == null || !battle.getPointManager().getPoints().contains(point)
 						|| point.getController() == null
 						|| !point.getController().getId().equalsIgnoreCase(side.getId())

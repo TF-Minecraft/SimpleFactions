@@ -26,12 +26,22 @@ public class Warband {
 	private UUID leaderId;
 	private Set<UUID> memberIds = new LinkedHashSet<>();
 	private final Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> memberCharacters = new HashMap<>();
+	private final Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> invitedCharacters = new HashMap<>();
 	private Set<UUID> dummyMemberIds = new LinkedHashSet<>();
 	private Map<UUID, String> dummyDisplayNames = new HashMap<>();
 	private Set<UUID> invitedIds = new HashSet<>();
 	private boolean locked;
 	private boolean faction;
 	private String campaignSideId;
+	private com.google.gson.JsonObject storedFields = new com.google.gson.JsonObject();
+
+	public void restoreStoredFields(com.google.gson.JsonObject fields) {
+		storedFields = fields.deepCopy();
+	}
+
+	public com.google.gson.JsonObject getStoredFields() {
+		return storedFields.deepCopy();
+	}
 
 	public static Warband createWithMemberIds(String id, UUID leaderId, boolean locked, UUID... members) {
 		Warband warband = new Warband();
@@ -57,7 +67,7 @@ public class Warband {
 		this.name = id;
 		this.leaderId = l.getUniqueId();
 		this.memberIds.add(l.getUniqueId());
-		Members.session(l).ifPresent(session -> memberCharacters.put(l.getUniqueId(), session.ref()));
+		Members.session(l).filter(Members::isCurrent).ifPresent(session -> memberCharacters.put(l.getUniqueId(), session.ref()));
 		this.locked = true;
 		this.faction = false;
 	}
@@ -132,6 +142,20 @@ public class Warband {
 		return Map.copyOf(memberCharacters);
 	}
 
+	/** New enrollment captures its named character; this is never a legacy-owner resolver. */
+	public static java.util.Optional<net.tfminecraft.tlibs.character.CharacterRef> participant(
+			UUID account, String memberKey, Player online) {
+		Player player = online != null ? online : Bukkit.getServer() == null ? null : Bukkit.getPlayer(account);
+		if (player == null) player = Members.player(memberKey);
+		if (player != null) {
+			return Members.session(player).filter(Members::isCurrent)
+					.filter(session -> account.equals(session.ref().ownerId())
+							&& java.util.Objects.equals(memberKey, Members.key(session.ref())))
+					.map(net.tfminecraft.tlibs.character.CharacterSession::ref);
+		}
+		return Members.ref(memberKey).filter(ref -> account.equals(ref.ownerId()));
+	}
+
 	public void restoreMemberCharacters(Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> saved) {
 		memberCharacters.clear();
 		if (saved != null) saved.forEach((owner, character) -> {
@@ -139,16 +163,40 @@ public class Warband {
 		});
 	}
 
+	public Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> getInvitedCharacters() {
+		return Map.copyOf(invitedCharacters);
+	}
+
+	public void restoreInvitedCharacters(Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> saved) {
+		invitedCharacters.clear();
+		if (saved != null) saved.forEach((owner, character) -> {
+			if (character != null && owner.equals(character.ownerId()) && invitedIds.contains(owner)) invitedCharacters.put(owner, character);
+		});
+	}
+
 	public void addPlayer(Player p) {
+		if (isIdentityHeld()) return;
+		var session = Members.session(p).filter(Members::isCurrent).orElse(null);
+		if (session == null || (memberIds.contains(p.getUniqueId())
+				&& !session.ref().equals(memberCharacters.get(p.getUniqueId())))) return;
 		memberIds.add(p.getUniqueId());
-		Members.session(p).ifPresent(session -> memberCharacters.put(p.getUniqueId(), session.ref()));
+		memberCharacters.put(p.getUniqueId(), session.ref());
 		invitedIds.remove(p.getUniqueId());
+		invitedCharacters.remove(p.getUniqueId());
 		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getBattleByMemberId(p.getUniqueId());
 		if (battle != null && battle.hasStarted()) battle.captureParticipant(p);
 	}
 
 	public void addMember(UUID memberId) {
 		memberIds.add(memberId);
+	}
+
+	/** Enrollment records the supplied character; UUID-only adds are structural bookkeeping. */
+	public void addMember(UUID memberId, net.tfminecraft.tlibs.character.CharacterRef character) {
+		if (!isIdentityHeld() && character != null && memberId.equals(character.ownerId())) {
+			memberIds.add(memberId);
+			memberCharacters.put(memberId, character);
+		}
 	}
 
 	public void removeMember(UUID memberId) {
@@ -167,19 +215,42 @@ public class Warband {
 	public void uninvite(Player p) {
 		if (p != null) {
 			invitedIds.remove(p.getUniqueId());
+			invitedCharacters.remove(p.getUniqueId());
 		}
 	}
 
 	public void invite(Player p) {
-		invitedIds.add(p.getUniqueId());
+		if (isIdentityHeld()) return;
+		Members.session(p).filter(Members::isCurrent).ifPresent(session -> {
+			invitedIds.add(p.getUniqueId());
+			invitedCharacters.put(p.getUniqueId(), session.ref());
+		});
 	}
 
 	public boolean isInvited(Player p) {
-		return invitedIds.contains(p.getUniqueId());
+		return p != null && invitedIds.contains(p.getUniqueId()) && matches(p, invitedCharacters);
 	}
 
 	public boolean hasMember(Player p) {
-		return memberIds.contains(p.getUniqueId());
+		return p != null && memberIds.contains(p.getUniqueId()) && matches(p, memberCharacters);
+	}
+
+	/** Account UUIDs route players; only the captured character has the role. */
+	private boolean matches(Player player, Map<UUID, net.tfminecraft.tlibs.character.CharacterRef> characters) {
+		if (isIdentityHeld()) return false;
+		return Members.session(player).filter(Members::isCurrent)
+				.map(session -> session.ref().equals(characters.get(player.getUniqueId())))
+				.orElse(false);
+	}
+
+	public boolean isLeader(Player player) {
+		return player != null && !isPendingLeader() && !isDummyMember(player.getUniqueId())
+				&& player.getUniqueId().equals(leaderId) && hasMember(player);
+	}
+
+	public boolean isIdentityHeld() {
+		return net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.isHeld(
+				new java.io.File("plugins/SimpleFactions/Warbands", "warband_" + id + ".json"));
 	}
 
 	public boolean hasMember(UUID memberId) {
@@ -243,9 +314,11 @@ public class Warband {
 			String name = dummyDisplayNames.get(memberId);
 			return name != null && !name.isBlank() ? name : "Unknown";
 		}
+		var captured = memberCharacters.get(memberId);
+		if (captured != null) return Members.display(Members.key(captured));
 		Player online = Bukkit.getPlayer(memberId);
 		if (online != null && online.getName() != null) {
-			return Members.name(online);
+			return online.getName();
 		}
 		OfflinePlayer offline = Bukkit.getOfflinePlayer(memberId);
 		if (offline.getName() != null && !offline.getName().isBlank()) {
@@ -287,7 +360,7 @@ public class Warband {
 				continue;
 			}
 			Player p = Bukkit.getPlayer(memberId);
-			if (p != null && p.isOnline()) {
+			if (p != null && p.isOnline() && hasMember(p)) {
 				online.add(p);
 			}
 		}
@@ -318,7 +391,8 @@ public class Warband {
 	}
 
 	public Player getLeader() {
-		return Bukkit.getPlayer(leaderId);
+		Player player = Bukkit.getPlayer(leaderId);
+		return isLeader(player) ? player : null;
 	}
 
 	public UUID getLeaderId() {
@@ -333,7 +407,7 @@ public class Warband {
 		List<Player> invited = new ArrayList<>();
 		for (UUID invitedId : invitedIds) {
 			Player p = Bukkit.getPlayer(invitedId);
-			if (p != null && p.isOnline()) {
+			if (p != null && p.isOnline() && isInvited(p)) {
 				invited.add(p);
 			}
 		}

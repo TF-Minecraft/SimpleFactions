@@ -123,11 +123,13 @@ public final class CampaignRaidWarbandService {
 		}
 		createRaidWarbands(war, raid);
 		Warband warband = getAttackerWarband(raid);
-		if (warband == null || warband.hasMember(playerId)) {
+		if (warband == null || warband.isIdentityHeld() || warband.hasMember(playerId)) {
 			return;
 		}
+		var character = Warband.participant(playerId, memberKey, null).orElse(null);
+		if (character == null) return;
 		applyRaidLeaderRules(war, warband, playerId, memberKey);
-		warband.addMember(playerId);
+		warband.addMember(playerId, character);
 	}
 
 	public static void signupDefender(War war, CampaignRaid raid, UUID playerId, String memberKey) {
@@ -136,11 +138,13 @@ public final class CampaignRaidWarbandService {
 		}
 		createRaidWarbands(war, raid);
 		Warband warband = getDefenderWarband(raid);
-		if (warband == null || warband.hasMember(playerId)) {
+		if (warband == null || warband.isIdentityHeld() || warband.hasMember(playerId)) {
 			return;
 		}
+		var character = Warband.participant(playerId, memberKey, null).orElse(null);
+		if (character == null) return;
 		applyRaidLeaderRules(war, warband, playerId, memberKey);
-		warband.addMember(playerId);
+		warband.addMember(playerId, character);
 	}
 
 	public static void enrollOnlineDefenders(War war, CampaignRaid raid) {
@@ -225,7 +229,9 @@ public final class CampaignRaidWarbandService {
 
 	private static void ensureWarband(War war, CampaignRaid raid, boolean attacker) {
 		String id = attacker ? attackerWarbandId(raid) : defenderWarbandId(raid);
-		if (id == null || WarbandManager.getByString(id) != null) {
+		if (id == null || WarbandManager.getByString(id) != null
+				|| net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.isHeld(
+						new java.io.File("plugins/SimpleFactions/Warbands", "warband_" + id + ".json"))) {
 			return;
 		}
 		CampaignCoalition coalition = attacker
@@ -275,6 +281,8 @@ public final class CampaignRaidWarbandService {
 		/** Defenders enrol once their character is playing, not on login. */
 		@EventHandler
 		public void onSessionStart(CharacterSessionStartEvent event) {
+			if (!Members.isCurrent(event.getSession())
+					|| !Members.session(event.getPlayer()).filter(event.getSession()::equals).isPresent()) return;
 			CampaignRaidWarbandService.tryEnrollDefenderOnLogin(event.getPlayer());
 		}
 

@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.UUID;
+import java.util.Set;
+import java.util.HashSet;
 
 /** Isolates legacy relative persistence paths and restores any pre-existing checkout data. */
 public final class PersistenceFilesFixture implements AutoCloseable {
@@ -13,6 +15,7 @@ public final class PersistenceFilesFixture implements AutoCloseable {
       root.resolveSibling("SimpleFactions.coverage-backup-" + UUID.randomUUID());
   private final boolean hadOriginal;
   private boolean closed;
+  private final Set<Path> previousHolds = new HashSet<>();
 
   public PersistenceFilesFixture() throws IOException {
     Files.createDirectories(root.getParent());
@@ -20,6 +23,8 @@ public final class PersistenceFilesFixture implements AutoCloseable {
     if (hadOriginal) Files.move(root, backup);
     try {
       Files.createDirectory(root);
+      for (Path held : runtimeHolds()) if (held.startsWith(root)) previousHolds.add(held);
+      runtimeHolds().removeIf(path -> path.startsWith(root));
     } catch (IOException failure) {
       if (hadOriginal) Files.move(backup, root);
       throw failure;
@@ -63,6 +68,17 @@ public final class PersistenceFilesFixture implements AutoCloseable {
         else failure.addSuppressed(restoreFailure);
       }
     }
+    runtimeHolds().removeIf(path -> path.startsWith(root));
+    runtimeHolds().addAll(previousHolds);
     if (failure != null) throw failure;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Set<Path> runtimeHolds() {
+    try {
+      var field = net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.class.getDeclaredField("HELD");
+      field.setAccessible(true);
+      return (Set<Path>) field.get(null);
+    } catch (ReflectiveOperationException error) { throw new IllegalStateException(error); }
   }
 }

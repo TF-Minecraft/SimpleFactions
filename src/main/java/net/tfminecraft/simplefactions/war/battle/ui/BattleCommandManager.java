@@ -57,7 +57,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cYou need to lead a warband to view battles");
 					return true;
 				}
-				if (!p.getUniqueId().equals(w.getLeaderId())) {
+				if (!w.isLeader(p)) {
 					p.sendMessage("§cOnly the leader can view battles!");
 					return true;
 				}
@@ -84,6 +84,10 @@ public class BattleCommandManager implements CommandExecutor{
 				return true;
 			}
 			if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("create") && args.length == 2) {
+				if (Members.session(p).filter(Members::isCurrent).isEmpty()) {
+					p.sendMessage("§cChoose a character before creating a warband.");
+					return true;
+				}
 				boolean reserved = net.tfminecraft.simplefactions.managers.WarManager.getActive().stream()
 						.map(war -> war.getActiveCampaignRaid()).filter(java.util.Objects::nonNull)
 						.anyMatch(raid -> args[1].equalsIgnoreCase(CampaignRaidWarbandService.attackerWarbandId(raid))
@@ -92,11 +96,13 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cThis warband id is reserved for an active raid.");
 					return true;
 				}
-				if(WarbandManager.getByPlayer(p) != null) {
+				if(WarbandManager.getByMemberId(p.getUniqueId()) != null) {
 					p.sendMessage("§cYou already have a warband!");
 					return true;
 				}
-				if (WarbandManager.getByString(args[1]) != null) {
+				if (WarbandManager.getByString(args[1]) != null
+						|| net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.isHeld(
+								new java.io.File("plugins/SimpleFactions/Warbands", "warband_" + args[1] + ".json"))) {
 					p.sendMessage("§cA warband with this id already exists");
 					return true;
 				}
@@ -121,7 +127,7 @@ public class BattleCommandManager implements CommandExecutor{
 						p.sendMessage("§cCannot delete a warband you are not part of!");
 						return true;
 					}
-					if (!p.getUniqueId().equals(w.getLeaderId())) {
+					if (!w.isLeader(p)) {
 						p.sendMessage("§cOnly the warband leader can delete the warband!");
 						return true;
 					}
@@ -153,7 +159,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cYou need to have a warband to kick someone");
 					return true;
 				}
-				if (!p.getUniqueId().equals(w.getLeaderId())) {
+				if (!w.isLeader(p)) {
 					p.sendMessage("§cOnly the leader can dismiss members!");
 					return true;
 				}
@@ -177,7 +183,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cYou need to have a warband to change leader");
 					return true;
 				}
-				if (!p.getUniqueId().equals(w.getLeaderId())) {
+				if (!w.isLeader(p)) {
 					p.sendMessage("§cOnly the leader can set a new leader!");
 					return true;
 				}
@@ -204,7 +210,7 @@ public class BattleCommandManager implements CommandExecutor{
 					p.sendMessage("§cYou need to have a warband to invite someone");
 					return true;
 				}
-				if (!p.getUniqueId().equals(w.getLeaderId())) {
+				if (!w.isLeader(p)) {
 					p.sendMessage("§cOnly the leader can invite new members!");
 					return true;
 				}

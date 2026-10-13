@@ -79,8 +79,11 @@ public final class CampaignWarbandSignupService {
 			}
 		}
 		if (warband.hasMember(playerId)) {
-			return null;
+			return Warband.participant(playerId, memberKey, onlinePlayer)
+					.filter(character -> warband.getMemberCharacter(playerId).filter(character::equals).isPresent())
+					.isPresent() && !warband.isIdentityHeld() ? null : "Another character holds this warband slot";
 		}
+		if (warband.isIdentityHeld()) return "Warband identity is held for staff review";
 
 		CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
 		if (!CampaignRaidWarbandService.isRaidWarband(warband)
@@ -97,9 +100,13 @@ public final class CampaignWarbandSignupService {
 			}
 		}
 
+		var character = Warband.participant(playerId, memberKey, onlinePlayer).orElse(null);
+		if (character == null) {
+			return "Character identity is not ready for warband signup";
+		}
 		boolean firstSignup = warband.getRealMemberCount() == 0;
 		applyLeaderRules(ctx, warband, playerId, memberKey);
-		warband.addMember(playerId);
+		warband.addMember(playerId, character);
 
 		if (ctx != null && firstSignup) {
 			WarDevMode.seedDummyMembersOnFirstSignupIfEnabled(

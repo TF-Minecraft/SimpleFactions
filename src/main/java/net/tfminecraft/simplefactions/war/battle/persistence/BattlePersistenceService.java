@@ -382,7 +382,7 @@ public final class BattlePersistenceService {
 				}
 				String id = file.getName().substring("warband_".length(), file.getName().length() - ".json".length());
 				if (!warbandIds.contains(id)) {
-					file.delete();
+					if (!WarbandCharacters.isHeld(file)) file.delete();
 				}
 			}
 		}

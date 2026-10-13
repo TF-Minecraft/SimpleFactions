@@ -53,6 +53,7 @@ class CapturedBattleCharactersTest {
         CharacterRef captured = new CharacterRef(account, UUID.randomUUID());
         when(player.getUniqueId()).thenReturn(account);
         try (var members = mockStatic(Members.class)) {
+            members.when(() -> Members.isCurrent(any(CharacterSession.class))).thenReturn(true);
             members.when(() -> Members.session(player)).thenReturn(Optional.of(new CharacterSession(captured, 1)));
             Warband warband = new Warband("band", player);
             assertEquals(Optional.of(captured), warband.getMemberCharacter(account));

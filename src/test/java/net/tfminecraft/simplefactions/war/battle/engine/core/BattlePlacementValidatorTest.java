@@ -158,6 +158,8 @@ class BattlePlacementValidatorTest {
 			when(withoutSpawn.isOnline()).thenReturn(true);
 			when(withSpawn.getUniqueId()).thenReturn(withSpawnId);
 			when(withoutSpawn.getUniqueId()).thenReturn(withoutSpawnId);
+			when(withSpawn.getName()).thenReturn("Attacker");
+			when(withoutSpawn.getName()).thenReturn("Defender");
 			bukkit.when(() -> org.bukkit.Bukkit.getPlayer(withSpawnId)).thenReturn(withSpawn);
 			bukkit.when(() -> org.bukkit.Bukkit.getPlayer(withoutSpawnId)).thenReturn(withoutSpawn);
 
@@ -167,9 +169,12 @@ class BattlePlacementValidatorTest {
 			Location spawn = location(5, 64, 5);
 			BattleSide attacker = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
 			attacker.setSpawn(spawn);
-			attacker.addBand(Warband.createWithMemberIds("atk", withSpawnId, true));
-			battle.getSideById(BattleTemplate.DEFENDER_SIDE)
-					.addBand(Warband.createWithMemberIds("def", withoutSpawnId, true));
+			Warband attackBand = Warband.createWithMemberIds("atk", withSpawnId, true);
+			attackBand.addMember(withSpawnId, net.tfminecraft.simplefactions.identity.Members.session(withSpawn).orElseThrow().ref());
+			attacker.addBand(attackBand);
+			Warband defenceBand = Warband.createWithMemberIds("def", withoutSpawnId, true);
+			defenceBand.addMember(withoutSpawnId, net.tfminecraft.simplefactions.identity.Members.session(withoutSpawn).orElseThrow().ref());
+			battle.getSideById(BattleTemplate.DEFENDER_SIDE).addBand(defenceBand);
 			SimpleFactions.plugin = plugin;
 
 			assertNull(battle.start());
