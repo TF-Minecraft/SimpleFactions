@@ -3,7 +3,10 @@ package net.tfminecraft.simplefactions.identity.death;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -90,5 +93,43 @@ class LockGuildIndexTest {
         assertEquals(Optional.of(second), index.get(character));
         index.capture(journal(3));
         assertTrue(index.get(character).isEmpty(), "a guildless capture deletes the entry");
+    }
+
+    @Test void malformedOldSnapshotsGiveNoEntryWhileWellFormedSiblingsStillIndex() {
+        List<JsonObject> malformed = new ArrayList<>();
+        JsonObject nullGuilds = realm();
+        nullGuilds.add("guilds", JsonNull.INSTANCE);
+        malformed.add(nullGuilds);
+        JsonObject objectGuilds = realm();
+        objectGuilds.add("guilds", new JsonObject());
+        malformed.add(objectGuilds);
+        JsonObject stringGuild = realm(guild(UUID.randomUUID(), key));
+        stringGuild.getAsJsonArray("guilds").set(0, new JsonPrimitive("guild"));
+        malformed.add(stringGuild);
+        JsonObject nullMembers = guild(UUID.randomUUID(), key);
+        nullMembers.add("members", JsonNull.INSTANCE);
+        malformed.add(realm(nullMembers, guild(UUID.randomUUID(), key)));
+        JsonObject missingMembers = guild(UUID.randomUUID(), key);
+        missingMembers.remove("members");
+        malformed.add(realm(missingMembers));
+        JsonObject missingIncarnation = guild(UUID.randomUUID(), key);
+        missingIncarnation.remove("incarnation");
+        malformed.add(realm(missingIncarnation, guild(UUID.randomUUID(), key)));
+        for (Object bad : new Object[] {JsonNull.INSTANCE, "", " ", "not-a-uuid", 7}) {
+            JsonObject guild = guild(UUID.randomUUID(), key);
+            if (bad instanceof String text) guild.addProperty("incarnation", text);
+            else if (bad instanceof Integer number) guild.addProperty("incarnation", number);
+            else guild.add("incarnation", JsonNull.INSTANCE);
+            malformed.add(realm(guild));
+        }
+        UUID sibling = UUID.randomUUID(), siblingGuild = UUID.randomUUID();
+        for (JsonObject snapshot : malformed) {
+            DeathJournal broken = journal(1, snapshot);
+            DeathJournal wellFormed = journal(1, realm(guild(siblingGuild, sibling.toString())));
+            wellFormed.characterId = sibling;
+            assertDoesNotThrow(() -> index.rebuild(List.of(broken, wellFormed)), snapshot::toString);
+            assertTrue(index.get(character).isEmpty(), snapshot::toString);
+            assertEquals(Optional.of(siblingGuild), index.get(sibling), snapshot::toString);
+        }
     }
 }
