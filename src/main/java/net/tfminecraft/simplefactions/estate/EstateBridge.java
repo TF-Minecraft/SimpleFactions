@@ -42,9 +42,9 @@ public final class EstateBridge {
         }
     }
 
-    /** Forgets the cached probe; for tests. */
-    static void reset() {
-        available = null;
+    /** Sets the cached probe result, or null to probe again; for tests. */
+    static void useProbe(Boolean result) {
+        available = result;
     }
 
     /**

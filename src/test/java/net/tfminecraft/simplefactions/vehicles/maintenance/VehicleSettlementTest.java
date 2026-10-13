@@ -147,6 +147,33 @@ class VehicleSettlementTest {
         assertEquals(0, changes.guilds.getFirst().vehicleFeeIncome);
     }
 
+    @Test void deadPayerWaitingForTheEstateGetsNoNewUnpaidDayAndKeepsAnOldOne() {
+        CharacterRef dead = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+        members.when(() -> Members.info(dead.characterId().toString())).thenReturn(Optional.of(new CharacterInfo(
+                dead, "Dead", CharacterStatus.DEAD, null, Set.of(), 0, Instant.EPOCH)));
+        vehicle("owed", "ship", dead.characterId(), OwnershipMode.PERSONAL);
+        vehicle("fresh", "ship", dead.characterId(), OwnershipMode.PERSONAL);
+        maintenance.markUnpaid("owed", 1);
+        try (var estates = mockStatic(net.tfminecraft.tlibs.character.estate.Estates.class)) {
+            for (var state : List.of(net.tfminecraft.tlibs.character.estate.EstateState.OPEN,
+                    net.tfminecraft.tlibs.character.estate.EstateState.HELD,
+                    net.tfminecraft.tlibs.character.estate.EstateState.DECIDED)) {
+                estates.when(() -> net.tfminecraft.tlibs.character.estate.Estates.stateOf(dead.characterId()))
+                        .thenReturn(Optional.of(state));
+                calculate();
+                assertEquals(1, after().get("owed").getAsLong(), "the marker set before the death stays");
+                assertFalse(after().has("fresh"));
+                assertEquals(0, changes.vehicleChanges.getAsJsonArray("notices").size());
+            }
+            // Staff stopped the estate: the vehicle stays with the dead owner and decays as before.
+            estates.when(() -> net.tfminecraft.tlibs.character.estate.Estates.stateOf(dead.characterId()))
+                    .thenReturn(Optional.of(net.tfminecraft.tlibs.character.estate.EstateState.REVERTED));
+            calculate();
+            assertEquals(1000, after().get("fresh").getAsLong());
+        }
+        assertTrue(legs.isEmpty());
+    }
+
     @Test void missingRegistryCharacterNeverFallsBackToVehicleFrameworkOwner() {
         inventory.stored("unknown", "ship", "player_CurrentAccount");
         vehicle("missing", "ship", UUID.randomUUID(), OwnershipMode.PERSONAL);

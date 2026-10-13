@@ -50,6 +50,8 @@ public final class VehicleSettlement {
             }
             var record = registry.getByVehicleUuid(vehicle.vehicle()).orElse(null);
             String payer = record == null || record.getPlayerUuid() == null ? null : record.getPlayerUuid().toString();
+            // Waiting for the dead payer's estate: no new unpaid day, and an earlier one stays.
+            if (UpkeepPause.paused(payer)) continue;
             var payments = VehiclePayments.current();
             if (payments != null && payments.blockedVehicle(vehicle.vehicle())) {
                 markUnpaid(unpaid, notices, vehicle.vehicle(), vehicle.typeId(), payer, null, now);

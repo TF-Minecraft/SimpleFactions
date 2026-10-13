@@ -15,6 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.ArgumentMatchers.anyString;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.Set;
+import net.tfminecraft.tlibs.character.CharacterInfo;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterStatus;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -155,6 +163,30 @@ class VehicleUpkeepServiceTest {
         when(player.getName()).thenReturn(name);
         when(player.getUniqueId()).thenReturn(uuid);
         return player;
+    }
+
+    @Test
+    void hourlyDecaySparesADeadPayersVehicleWhileItWaitsForTheEstate() {
+        UUID dead = UUID.randomUUID();
+        UUID living = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(dead, "inherited", "ironclad", OwnershipMode.PERSONAL, null));
+        registry.register(new PlayerVehicleRecord(living, "owned", "ironclad", OwnershipMode.PERSONAL, null));
+        registry.register(new PlayerVehicleRecord(null, "orphan", "ironclad", OwnershipMode.PERSONAL, null));
+        registry.register(new PlayerVehicleRecord(dead, "pooled", "ironclad", OwnershipMode.POOL, null));
+        for (String vehicle : List.of("inherited", "owned", "orphan", "pooled", "unregistered")) store.markUnpaid(vehicle, 1L);
+        CharacterRef deadRef = new CharacterRef(UUID.randomUUID(), dead);
+        try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS);
+             var estates = mockStatic(net.tfminecraft.tlibs.character.estate.Estates.class)) {
+            members.when(() -> net.tfminecraft.simplefactions.identity.Members.info(anyString())).thenReturn(Optional.empty());
+            members.when(() -> net.tfminecraft.simplefactions.identity.Members.info(dead.toString())).thenReturn(Optional.of(
+                    new CharacterInfo(deadRef, "Dead", CharacterStatus.DEAD, null, Set.of(), 0, Instant.EPOCH)));
+            estates.when(() -> net.tfminecraft.tlibs.character.estate.Estates.stateOf(dead))
+                    .thenReturn(Optional.of(net.tfminecraft.tlibs.character.estate.EstateState.OPEN));
+            service.tickHourlyDecay();
+            assertEquals(Set.of("owned", "orphan", "pooled", "unregistered"),
+                    decayApi.calls.stream().map(call -> call.uuid).collect(java.util.stream.Collectors.toSet()));
+            assertTrue(store.isUnpaid("inherited"), "the marker stays until the recipient pays");
+        }
     }
 
     @Test
