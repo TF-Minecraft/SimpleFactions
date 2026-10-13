@@ -9,6 +9,8 @@ public final class PlayerVehicleRecord {
     private final OwnershipMode mode;
     private final String installationId;
     private final String factionId;
+    /** The account that played {@code playerUuid} when the row was written; null for older rows. */
+    private final UUID accountUuid;
 
     public PlayerVehicleRecord(
             UUID playerUuid,
@@ -26,12 +28,24 @@ public final class PlayerVehicleRecord {
             OwnershipMode mode,
             String installationId,
             String factionId) {
+        this(playerUuid, vehicleUuid, vehicleTypeId, mode, installationId, factionId, null);
+    }
+
+    public PlayerVehicleRecord(
+            UUID playerUuid,
+            String vehicleUuid,
+            String vehicleTypeId,
+            OwnershipMode mode,
+            String installationId,
+            String factionId,
+            UUID accountUuid) {
         this.playerUuid = playerUuid;
         this.vehicleUuid = vehicleUuid;
         this.vehicleTypeId = vehicleTypeId;
         this.mode = mode;
         this.installationId = installationId;
         this.factionId = factionId;
+        this.accountUuid = accountUuid;
     }
 
     public UUID getPlayerUuid() {
@@ -56,5 +70,13 @@ public final class PlayerVehicleRecord {
 
     public String getFactionId() {
         return factionId;
+    }
+
+    public UUID getAccountUuid() {
+        return accountUuid;
+    }
+
+    public PlayerVehicleRecord withAccount(UUID account) {
+        return new PlayerVehicleRecord(playerUuid, vehicleUuid, vehicleTypeId, mode, installationId, factionId, account);
     }
 }

@@ -74,6 +74,19 @@ class VehicleTransferConsentServiceTest {
                 installationVehicleService,
                 registry,
                 sessionManager);
+        api = net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi.install()
+                .live("vehicle-1", "ironclad", ownerTag());
+    }
+
+    private net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi api;
+
+    private static net.tfminecraft.tlibs.character.CharacterRef ref(UUID account, String name) {
+        return new net.tfminecraft.tlibs.character.CharacterRef(account,
+                net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf(name));
+    }
+
+    private static String ownerTag() {
+        return "char_" + net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Owner");
     }
 
     @AfterEach
@@ -122,11 +135,12 @@ class VehicleTransferConsentServiceTest {
                 "Harbour",
                 "vehicle-1",
                 "ironclad",
-                ownerUuid,
-                leaderUuid);
+                ref(ownerUuid, "Owner"),
+                ref(leaderUuid, "Leader"),
+                false);
 
         OwnerData ownerData = new OwnerData();
-        ownerData.setOwner("player_Owner");
+        ownerData.setOwner(ownerTag());
         InstallationVehicleService.VehicleBerthTarget vehicle =
                 berthTarget("vehicle-1", "ironclad", locationAt(0, 64, 0), ownerData);
 
@@ -153,7 +167,8 @@ class VehicleTransferConsentServiceTest {
 
             PlayerVehicleRecord updated = registry.getByVehicleUuid("vehicle-1").orElseThrow();
             assertEquals(OwnershipMode.INSTALLATION, updated.getMode());
-            assertEquals("player_" + leaderName, ownerData.getOwner());
+            assertEquals(List.of("vehicle-1 " + net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps
+                    .expectedStamp(faction) + " TRANSFER"), api.writes);
             assertEquals(
                     List.of(VehicleTransferMessages.berthSuccess(installation)),
                     ownerMessages);
@@ -196,17 +211,18 @@ class VehicleTransferConsentServiceTest {
                 "Harbour",
                 "vehicle-1",
                 "ironclad",
-                ownerUuid,
-                leaderUuid);
+                ref(ownerUuid, "Owner"),
+                ref(leaderUuid, "Leader"),
+                false);
 
         OwnerData ownerData = new OwnerData();
-        ownerData.setOwner("player_Owner");
+        ownerData.setOwner(ownerTag());
         InstallationVehicleService.VehicleBerthTarget vehicle =
                 berthTarget("vehicle-1", "ironclad", locationAt(0, 64, 0), ownerData);
 
         VehicleTransferConsentService spiedService = spy(consentService);
         doReturn(vehicle).when(spiedService).resolveBerthTarget("vehicle-1");
-        doReturn("player_Buyer").when(spiedService).currentOwnerEntry("vehicle-1");
+        doReturn("char_" + UUID.randomUUID()).when(spiedService).currentOwnerEntry("vehicle-1");
 
         try (MockedStatic<RequestManager> requestManager = mockStatic(RequestManager.class);
                 MockedStatic<FactionManager> factionManager = mockStatic(FactionManager.class);
@@ -226,7 +242,7 @@ class VehicleTransferConsentServiceTest {
             spiedService.acceptRequest(owner);
 
             assertEquals(java.util.Optional.empty(), registry.getByVehicleUuid("vehicle-1"));
-            assertEquals("player_Owner", ownerData.getOwner());
+            assertEquals(ownerTag(), ownerData.getOwner());
             assertEquals(List.of(VehicleTransferMessages.ownerChanged()), ownerMessages);
         }
     }
@@ -243,8 +259,9 @@ class VehicleTransferConsentServiceTest {
                 "Harbour",
                 "vehicle-1",
                 "ironclad",
-                UUID.randomUUID(),
-                UUID.randomUUID());
+                ref(UUID.randomUUID(), "Owner"),
+                ref(UUID.randomUUID(), "Leader"),
+                false);
 
         try (MockedStatic<RequestManager> requestManager = mockStatic(RequestManager.class)) {
             requestManager.when(() -> RequestManager.getRequest(owner)).thenReturn(request);
@@ -266,8 +283,9 @@ class VehicleTransferConsentServiceTest {
                 "Harbour",
                 "vehicle-1",
                 "ironclad",
-                ownerUuid,
-                UUID.randomUUID());
+                ref(ownerUuid, "Owner"),
+                ref(UUID.randomUUID(), "Leader"),
+                false);
 
         try (MockedStatic<org.bukkit.Bukkit> bukkit = mockStatic(org.bukkit.Bukkit.class)) {
             bukkit.when(() -> org.bukkit.Bukkit.getPlayer(request.getProposerLeaderUuid()))

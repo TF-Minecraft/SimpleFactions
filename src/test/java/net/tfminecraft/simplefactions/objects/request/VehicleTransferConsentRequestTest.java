@@ -45,8 +45,9 @@ class VehicleTransferConsentRequestTest {
                 "Harbour",
                 "vehicle-1",
                 "ironclad",
-                UUID.randomUUID(),
-                UUID.randomUUID());
+                new net.tfminecraft.tlibs.character.CharacterRef(UUID.randomUUID(), UUID.randomUUID()),
+                new net.tfminecraft.tlibs.character.CharacterRef(UUID.randomUUID(), UUID.randomUUID()),
+                false);
 
         assertFalse(request.timedOut());
     }

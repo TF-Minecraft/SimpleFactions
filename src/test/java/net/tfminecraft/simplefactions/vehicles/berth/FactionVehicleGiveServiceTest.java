@@ -29,7 +29,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RequestManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.VehicleGiveConsentRequest;
-import net.tfminecraft.simplefactions.vehicles.registry.FakeOwnedInventory;
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
@@ -67,7 +67,7 @@ class FactionVehicleGiveServiceTest {
               aircraft: {}
             """);
         VehiclesConfigLoader.load(vehiclesYaml.toFile());
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory());
+        FakeOwnerApi.install();
 
         previousFactions = FactionManager.factions;
         FactionManager.factions = new ArrayList<>();
@@ -75,7 +75,7 @@ class FactionVehicleGiveServiceTest {
         registry = new PlayerVehicleRegistry();
         assigned = new ArrayList<>();
         FactionVehicleReleaseService releaseService = new FactionVehicleReleaseService(registry, (uuid, name) -> {
-            assigned.add(uuid + ":" + name);
+            assigned.add(uuid + ":" + net.tfminecraft.simplefactions.identity.Members.key(name));
             return true;
         });
         giveService = new FactionVehicleGiveService(releaseService);
@@ -96,7 +96,6 @@ class FactionVehicleGiveServiceTest {
     void tearDown() throws IOException {
         RequestManager.remove(recipient);
         FactionManager.factions = previousFactions;
-        VehicleOwnershipQueries.setSourceForTests(null);
         if (tempDir != null) {
             Files.walk(tempDir)
                     .sorted(java.util.Comparator.reverseOrder())
@@ -137,7 +136,7 @@ class FactionVehicleGiveServiceTest {
         List<String> leaderMessages = messagesOf(leader);
         List<String> recipientMessages = messagesOf(recipient);
         VehicleGiveConsentRequest pending = new VehicleGiveConsentRequest(
-                null, "red", "car-1", "coal_car", recipient.getUniqueId(), leaderUuid, "Leader");
+                null, "red", "car-1", "coal_car", recipient.getUniqueId(), leaderUuid, ref(leaderUuid, "Leader"), ref(recipientUuid, "Bob"));
         RequestManager.addRequest(leader, recipient, pending);
 
         giveService.offer(leader, recipient, faction, "car-1", "coal_car");
@@ -153,7 +152,7 @@ class FactionVehicleGiveServiceTest {
                 UUID.randomUUID(), "car-1", "coal_car", OwnershipMode.POOL, null, "red"));
         List<String> recipientMessages = messagesOf(recipient);
         VehicleGiveConsentRequest expired = org.mockito.Mockito.spy(new VehicleGiveConsentRequest(
-                null, "red", "car-1", "coal_car", recipient.getUniqueId(), leaderUuid, "Leader"));
+                null, "red", "car-1", "coal_car", recipient.getUniqueId(), leaderUuid, ref(leaderUuid, "Leader"), ref(recipientUuid, "Bob")));
         org.mockito.Mockito.doReturn(true).when(expired).timedOut();
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
@@ -176,8 +175,8 @@ class FactionVehicleGiveServiceTest {
     void accept_refusesWhenTheRecipientHasNoRoom() {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(), "car-1", "coal_car", OwnershipMode.POOL, null, "red"));
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("owned", "coal_car", "player_Bob"));
+        registry.register(new PlayerVehicleRecord(UUID.randomUUID(), "owned", "coal_car", OwnershipMode.PERSONAL, null,
+                null, recipientUuid));
         List<String> recipientMessages = messagesOf(recipient);
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
@@ -194,6 +193,39 @@ class FactionVehicleGiveServiceTest {
             assertTrue(assigned.isEmpty());
             assertTrue(recipientMessages.stream().anyMatch(line -> line.contains("Bob") || line.contains("maximum")));
         }
+    }
+
+    private static net.tfminecraft.tlibs.character.CharacterRef ref(UUID account, String name) {
+        return new net.tfminecraft.tlibs.character.CharacterRef(account,
+                net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf(name));
+    }
+
+    @Test
+    void accept_refusesWhenTheRecipientNowPlaysAnotherCharacter() {
+        registry.register(new PlayerVehicleRecord(
+                UUID.randomUUID(), "car-1", "coal_car", OwnershipMode.POOL, null, "red"));
+        List<String> recipientMessages = messagesOf(recipient);
+        VehicleGiveConsentRequest offered = new VehicleGiveConsentRequest(
+                null, "red", "car-1", "coal_car", recipientUuid, leaderUuid, ref(leaderUuid, "Leader"),
+                ref(recipientUuid, "Bob's other character"));
+        RequestManager.addRequest(leader, recipient, offered);
+
+        giveService.acceptRequest(recipient);
+
+        assertTrue(assigned.isEmpty());
+        assertEquals(List.of("§cThis request belongs to another character."), recipientMessages);
+        assertEquals(ref(leaderUuid, "Leader"), offered.getLeaderCharacter());
+    }
+
+    @Test
+    void offer_needsBothPlayersToHaveACharacter() {
+        Player nobody = player(UUID.randomUUID(), null);
+        List<String> leaderMessages = messagesOf(leader);
+
+        giveService.offer(leader, nobody, faction, "car-1", "coal_car");
+
+        assertFalse(RequestManager.hasRequest(nobody));
+        assertEquals(List.of(FactionVehicleReleaseMessages.ownershipUnavailable()), leaderMessages);
     }
 
     private static Player player(UUID uuid, String name) {

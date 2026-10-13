@@ -6,6 +6,8 @@ import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 public final class VehicleConstructionMessages {
     private VehicleConstructionMessages() {}
 
+    public static final String UNAVAILABLE = "§cVehicle limits cannot be checked right now. Try again later.";
+
     public static String forResult(CanBuildResult result, String vehicleTypeId) {
         if (result == null) {
             return null;
@@ -16,6 +18,7 @@ public final class VehicleConstructionMessages {
             case TOTAL_LIMIT -> totalLimit();
             case PER_TYPE_LIMIT -> perTypeLimit(vehicleTypeId);
             case UNKNOWN_TYPE -> "§cThis vehicle type is not registered for faction upkeep.";
+            case UNAVAILABLE -> UNAVAILABLE;
         };
     }
 

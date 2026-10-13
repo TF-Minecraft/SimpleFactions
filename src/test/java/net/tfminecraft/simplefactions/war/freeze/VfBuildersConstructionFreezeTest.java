@@ -72,4 +72,22 @@ class VfBuildersConstructionFreezeTest {
 	void anOfflineBuilderWithoutTheCharacterProviderHasNoCharacter() {
 		assertNull(VfBuildersConstructionFreeze.constructorKey(account));
 	}
+
+	@Test
+	void aProjectWithACapturedCharacterIsJudgedByThatCharacterNotWhoeverPlaysTheAccountNow() {
+		UUID character = UUID.randomUUID();
+		Player builder = mock(Player.class);
+		when(builder.getName()).thenReturn("SomeoneElse");
+		bukkit.when(() -> Bukkit.getPlayer(account)).thenReturn(builder);
+		try (MockedStatic<PreparationFreeze> freeze = mockStatic(PreparationFreeze.class,
+				org.mockito.Mockito.CALLS_REAL_METHODS)) {
+			freeze.when(() -> PreparationFreeze.frozenUntil(org.mockito.ArgumentMatchers.eq(Members.key(character)),
+					any())).thenReturn(Instant.now().plusSeconds(3600));
+			String reason = new VfBuildersConstructionFreeze().freezeReason(account, character);
+			assertEquals(true, reason.startsWith("battle postponed ("));
+			assertNull(new VfBuildersConstructionFreeze().freezeReason(account, null),
+					"Without a captured character the account's current character decides");
+			assertNull(new VfBuildersConstructionFreeze().freezeReason(account, UUID.randomUUID()));
+		}
+	}
 }

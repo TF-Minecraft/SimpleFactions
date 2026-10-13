@@ -74,10 +74,18 @@ public final class VehiclePayments {
     public boolean ready() { return ready; }
     public boolean blockedVehicle(String vehicle) { return receipt("claim:" + vehicle) != null || receipt("handover:" + vehicle) != null; }
     public void fail(Throwable error) { ready = false; EconomyRuntime.failClosed(error); }
-    public boolean personal(String vehicle, String type, UUID character) {
+    public boolean personal(String vehicle, String type, UUID character, UUID account) {
         if (!ready) return false;
         try {
-            VehicleRegistryPersistence.personal(folder, SimpleFactions.getVehicleRegistry(), vehicle, type, character);
+            VehicleRegistryPersistence.personal(folder, SimpleFactions.getVehicleRegistry(), vehicle, type, character, account);
+            return true;
+        } catch (IOException | RuntimeException error) { fail(error); return false; }
+    }
+
+    /** Durably sets a vehicle's row: the one it had before a failed owner change, or none (null). */
+    public boolean replaceRow(String vehicle, net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord previous) {
+        try {
+            VehicleRegistryPersistence.replace(folder, SimpleFactions.getVehicleRegistry(), vehicle, previous);
             return true;
         } catch (IOException | RuntimeException error) { fail(error); return false; }
     }
@@ -94,6 +102,8 @@ public final class VehiclePayments {
         JsonObject changes = new JsonObject();
         changes.addProperty("action", "charge");
         changes.addProperty("scope", scope);
+        // When it was paid, so a rollback can list fees paid after the vehicle owner migration.
+        changes.addProperty("at", System.currentTimeMillis());
         changes.add("receipt", JsonUtil.GSON.toJsonTree(receipt));
         bookkeeping(changes, receipt, guild, cents);
         return execute(new OperationJournal.Intent(operationId, "vehicle:" + quote.kind().name(),

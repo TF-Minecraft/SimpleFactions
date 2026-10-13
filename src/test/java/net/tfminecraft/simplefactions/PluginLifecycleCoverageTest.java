@@ -1270,7 +1270,8 @@ class PluginLifecycleCoverageTest {
     assertFalse(net.tfminecraft.simplefactions.api.SimpleFactionsApi.ready());
     assertFalse(plugin.isStarted());
     verify(logger).severe(contains("Waiting for character identity"));
-    assertEquals(1, listeners.size(), "only the identity watcher listens");
+    assertEquals(
+        2, listeners.size(), "only the identity watcher and the VehicleFramework enable trigger listen");
     assertEquals(1, domain.ui.repeatingTasks.size(), "only the identity poll ticks");
     verify(dependency("db", Database.class), never()).loadFactions();
     verify(dependency("factionManager", FactionManager.class), never()).prepare();
@@ -1523,5 +1524,320 @@ class PluginLifecycleCoverageTest {
 
     @Override
     public void close() {}
+  }
+
+  // Vehicle stage
+
+  private final List<String> vehicleBackupsTaken = new ArrayList<>();
+
+  private net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi vehicleFramework(
+      boolean enabled, boolean probed) throws Exception {
+    var api = new net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi();
+    field(
+        "vehicleApiProbe",
+        (java.util.function.Supplier<net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi>)
+            () -> probed ? api : null);
+    field(
+        "vehicleBackups",
+        (java.util.function.Function<
+                Path, net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerMigration.Backups>)
+            database ->
+                new net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerMigration.Backups() {
+                  @Override
+                  public void vacuumInto(Path destination) throws IOException {
+                    vehicleBackupsTaken.add(database + " -> " + destination.getFileName());
+                    Files.writeString(destination, "copy");
+                  }
+
+                  @Override
+                  public boolean quickCheck(Path copy) {
+                    return true;
+                  }
+                });
+    field(
+        "vehicleIdentity",
+        mock(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerMigration.Identity.class));
+    Plugin vf = mock(Plugin.class);
+    when(vf.getDataFolder()).thenReturn(disk.root.resolve("vf").toFile());
+    when(plugins.getPlugin("VehicleFramework")).thenReturn(vf);
+    when(plugins.isPluginEnabled("VehicleFramework")).thenReturn(enabled);
+    return api;
+  }
+
+  private boolean listening(Class<?> type) {
+    return listeners.stream().anyMatch(type::isInstance);
+  }
+
+  private org.bukkit.plugin.ServicesManager services() {
+    return domain.ui.server.getServicesManager();
+  }
+
+  @Test
+  void vehiclesStartRightAfterFactionsWhenVehicleFrameworkIsAlreadyEnabled() throws Exception {
+    var api = vehicleFramework(true, true);
+    UUID leader = UUID.randomUUID();
+    Faction home = mock(Faction.class);
+    when(home.getId()).thenReturn("home");
+    when(home.getLeader()).thenReturn(leader.toString());
+    scoped(FactionManager.class).when(() -> FactionManager.getByString("home")).thenReturn(home);
+    FactionManager.factions.add(home);
+    SimpleFactions.getVehicleRegistry()
+        .register(
+            new PlayerVehicleRecord(
+                UUID.randomUUID(), "gun", "cannon", OwnershipMode.POOL, null, "home"));
+    api.stored("gun", "cannon", "player_OldLeader");
+
+    plugin.onEnable();
+
+    assertTrue(plugin.isStarted());
+    assertEquals("char_" + leader, api.owner("gun"));
+    assertEquals(
+        List.of(
+            disk.root.resolve("vf/data/vehicles.db") + " -> vehicles-6a-premigration.db"),
+        vehicleBackupsTaken);
+    assertTrue(
+        Files.readString(disk.root.resolve("vehicles/owner-migration.json"))
+            .contains("\"completed\": true"));
+    assertTrue(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class));
+    assertTrue(listeners.contains(dependency("vehicleSpawnListener", net.tfminecraft.simplefactions.vehicles.VehicleSpawnListener.class)));
+    assertFalse(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimsOff.class));
+    var authority =
+        services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class);
+    assertTrue(authority.ready());
+    assertEquals(
+        1,
+        services()
+            .getRegistrations(net.tfminecraft.vehicleframework.api.VehicleQuarantineSource.class)
+            .size());
+    assertTrue(net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enabled());
+    verify(logger).info(contains("Vehicle owner migration: 1 migrated, 0 unchanged, 0 quarantined, 0 gone"));
+    verify(logger, never()).info(contains("Vehicle ownership waits for VehicleFramework"));
+
+    // The daily reconcile replaces the staff findings, and a failure there is only logged.
+    var quarantine = net.tfminecraft.simplefactions.vehicles.owners.VehicleQuarantine.current();
+    api.stored("stray", "cart", "char_" + leader);
+    var characters = net.tfminecraft.simplefactions.guild.TestCharacters.install();
+    UUID account = UUID.randomUUID();
+    UUID kira =
+        net.tfminecraft.simplefactions.identity.Members.characterId(
+            characters.character(account, "Kira"));
+    api.stored("kiras", "cart", "char_" + kira);
+    plugin.reconcileVehicleUpkeep();
+    PlayerVehicleRecord created =
+        SimpleFactions.getVehicleRegistry().getByVehicleUuid("kiras").orElseThrow();
+    assertEquals(kira, created.getPlayerUuid());
+    assertEquals(account, created.getAccountUuid());
+    assertEquals(
+        "reconcile: owner is a faction leader but the vehicle has no registry row",
+        quarantine.findings().getFirst().reason());
+    api.failure = new IllegalStateException("SQLite closed");
+    plugin.reconcileVehicleUpkeep();
+    verify(logger).log(eq(java.util.logging.Level.WARNING), contains("Daily vehicle upkeep reconcile"), any(IllegalStateException.class));
+    assertEquals(1, quarantine.findings().size());
+
+    // VehicleFramework enabling again later changes nothing.
+    int registered = listeners.size();
+    enableEvent("VehicleFramework");
+    assertEquals(registered, listeners.size());
+
+    plugin.failFinancialState(new IOException("money"));
+    assertNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class));
+    assertFalse(authority.ready());
+    assertFalse(net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enabled());
+  }
+
+  @Test
+  void vehiclesStartWhenVehicleFrameworkEnablesAfterFactions() throws Exception {
+    vehicleFramework(false, true);
+    plugin.onEnable();
+    assertTrue(plugin.isStarted());
+    assertFalse(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class));
+    verify(logger).info(contains("Vehicle ownership waits for VehicleFramework"));
+
+    enableEvent("Unrelated");
+    assertFalse(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class));
+    when(plugins.isPluginEnabled("VehicleFramework")).thenReturn(true);
+    enableEvent("VehicleFramework");
+    enableEvent("VehicleFramework");
+
+    assertEquals(
+        1,
+        listeners.stream()
+            .filter(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class::isInstance)
+            .count());
+    assertNotNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class));
+  }
+
+  @Test
+  void vehicleFrameworkEnablingInsideTheEnableWindowWaitsForFactionsToStart() throws Exception {
+    vehicleFramework(true, true);
+    identityReady(false);
+    plugin.onEnable();
+    enableEvent("VehicleFramework");
+    assertFalse(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class));
+
+    identityReady(true);
+    domain.ui.repeatingTasks.getFirst().run();
+
+    assertTrue(plugin.isStarted());
+    assertTrue(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class));
+  }
+
+  @Test
+  void anOlderOrNamesModeVehicleFrameworkRunsVehiclesWithClaimsAndStampsOff() throws Exception {
+    vehicleFramework(true, false);
+    plugin.onEnable();
+
+    assertTrue(plugin.isStarted());
+    assertTrue(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimsOff.class));
+    assertFalse(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class));
+    assertFalse(listeners.contains(dependency("vehicleSpawnListener", net.tfminecraft.simplefactions.vehicles.VehicleSpawnListener.class)));
+    assertNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class));
+    assertNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleQuarantineSource.class));
+    verify(logger).severe(contains("vehicle claims and leader stamps are off"));
+    scoped(net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.class)
+        .verify(
+            () ->
+                net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.startup(
+                    any(), any()));
+    assertFalse(Files.exists(disk.root.resolve("vehicles/owner-migration.json")));
+  }
+
+  @Test
+  void namesModeStillListsHeldBackVehiclesForStaff() throws Exception {
+    var api = vehicleFramework(true, true);
+    api.characters = false;
+    plugin.onEnable();
+    assertTrue(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimsOff.class));
+    assertNotNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleQuarantineSource.class));
+    assertNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class));
+  }
+
+  @Test
+  void aFailedPayerOrOwnerMigrationFailsTheFinancialStateBeforeAnyListener() throws Exception {
+    var api = vehicleFramework(true, true);
+    SimpleFactions.getVehicleRegistry()
+        .register(
+            new PlayerVehicleRecord(
+                UUID.randomUUID(), "gun", "cannon", OwnershipMode.POOL, null, "home"));
+    api.stored("gun", "cannon", "player_OldLeader");
+    api.forced = net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result.SAVE_FAILED;
+
+    plugin.onEnable();
+
+    assertFalse(plugin.isStarted());
+    verify(plugins).disablePlugin(plugin);
+    assertFalse(listening(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.class));
+    assertFalse(listening(VehicleIntegrationListener.class));
+    assertNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class));
+  }
+
+  @Test
+  void aFailedPayerMigrationFailsTheFinancialState() throws Exception {
+    vehicleFramework(true, true);
+    scoped(net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.class)
+        .when(
+            () ->
+                net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.startup(
+                    any(), any()))
+        .thenThrow(new IOException("payer plan unreadable"));
+
+    plugin.onEnable();
+
+    assertFalse(plugin.isStarted());
+    verify(plugins).disablePlugin(plugin);
+    assertFalse(listening(VehicleIntegrationListener.class));
+  }
+
+  @Test
+  void aFailedReconcileStopsBeforeTheListenersAndTheAuthority() throws Exception {
+    var api = vehicleFramework(true, true);
+    disk.write("vehicles/owner-migration.json", "{\"entries\":[],\"quarantine\":[],\"completed\":true}");
+    api.failure = new IllegalStateException("SQLite closed");
+
+    plugin.onEnable();
+
+    assertTrue(plugin.isStarted(), "Factions keep running");
+    verify(logger)
+        .log(
+            eq(java.util.logging.Level.SEVERE),
+            contains("Vehicle reconcile failed"),
+            any(IllegalStateException.class));
+    assertFalse(listening(VehicleIntegrationListener.class));
+    assertNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class));
+    assertNotNull(
+        services().load(net.tfminecraft.vehicleframework.api.VehicleQuarantineSource.class),
+        "Staff can still list held-back vehicles");
+    assertTrue(vehicleBackupsTaken.isEmpty(), "A completed plan never backs up again");
+  }
+
+  @Test
+  void accountsAreCachedOnOlderPersonalRowsAtTheVehicleStage() throws Exception {
+    vehicleFramework(true, true);
+    UUID account = UUID.randomUUID();
+    disk.write(
+        "identity/vehicle-payers.json",
+        "{\"rows\":[{\"vehicle\":\"cart\",\"type\":\"cart\",\"originalOwner\":\"player_Old\",\"account\":\""
+            + account
+            + "\"}],\"completed\":true}");
+    SimpleFactions.getVehicleRegistry()
+        .register(new PlayerVehicleRecord(null, "cart", "cart", OwnershipMode.PERSONAL, null));
+    var characters = net.tfminecraft.simplefactions.guild.TestCharacters.install();
+    UUID kiraAccount = UUID.randomUUID();
+    UUID kira =
+        net.tfminecraft.simplefactions.identity.Members.characterId(
+            characters.character(kiraAccount, "Kira"));
+    SimpleFactions.getVehicleRegistry()
+        .register(new PlayerVehicleRecord(kira, "wagon", "cart", OwnershipMode.PERSONAL, null));
+    scoped(net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.class)
+        .when(
+            () ->
+                net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.accounts(
+                    any()))
+        .thenCallRealMethod();
+
+    plugin.onEnable();
+
+    assertEquals(
+        account,
+        SimpleFactions.getVehicleRegistry().getByVehicleUuid("cart").orElseThrow().getAccountUuid());
+    assertEquals(
+        kiraAccount,
+        SimpleFactions.getVehicleRegistry().getByVehicleUuid("wagon").orElseThrow().getAccountUuid());
+    verify(logger).info(contains("Cached the account on 2 personal vehicle rows"));
+  }
+
+  @Test
+  void disablingForgetsTheVehicleFrameworkLink() throws Exception {
+    vehicleFramework(true, true);
+    plugin.onEnable();
+    assertNotNull(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites.api());
+    plugin.onDisable();
+    assertNull(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites.api());
+    assertNull(net.tfminecraft.simplefactions.vehicles.owners.VehicleQuarantine.current());
+    assertFalse(net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enabled());
+  }
+
+  @Test
+  void onlyCurrentFactionLeadersCountAsLeaders() {
+    UUID leader = UUID.randomUUID();
+    Faction faction = mock(Faction.class);
+    when(faction.getLeader()).thenReturn(leader.toString());
+    List<Faction> previous = FactionManager.factions;
+    try {
+      FactionManager.factions = new ArrayList<>(List.of(faction));
+      assertTrue(SimpleFactions.leadsAFaction(leader));
+      assertFalse(SimpleFactions.leadsAFaction(UUID.randomUUID()));
+    } finally {
+      FactionManager.factions = previous;
+    }
   }
 }

@@ -27,8 +27,24 @@ public final class VfBuildersConstructionFreeze implements ConstructionFreeze {
 
 	@Override
 	public String freezeReason(UUID constructorUuid) {
+		return reason(constructorKey(constructorUuid));
+	}
+
+	/**
+	 * VFBuilders 2.2.0 and later pass the constructor's character; a project from before
+	 * then, or started without a current character, has none and falls back to the account.
+	 */
+	@Override
+	public String freezeReason(UUID constructorUuid, UUID constructorCharacterId) {
+		if (constructorCharacterId == null) {
+			return freezeReason(constructorUuid);
+		}
+		return reason(Members.key(constructorCharacterId));
+	}
+
+	private static String reason(String key) {
 		Instant now = Instant.now();
-		Instant until = PreparationFreeze.frozenUntil(constructorKey(constructorUuid), now);
+		Instant until = PreparationFreeze.frozenUntil(key, now);
 		if (until == null) {
 			return null;
 		}

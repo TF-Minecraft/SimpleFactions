@@ -2,6 +2,8 @@ package net.tfminecraft.simplefactions.objects.request;
 
 import java.util.UUID;
 
+import net.tfminecraft.tlibs.character.CharacterRef;
+
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 
@@ -14,6 +16,8 @@ public final class VehicleTransferConsentRequest extends Request {
     private final UUID proposerLeaderUuid;
     private final boolean pool;
     private final String destinationFactionId;
+    private final CharacterRef ownerCharacter;
+    private final CharacterRef leaderCharacter;
 
     public VehicleTransferConsentRequest(
             Guild sender,
@@ -21,22 +25,14 @@ public final class VehicleTransferConsentRequest extends Request {
             String installationName,
             String vehicleUuid,
             String vehicleTypeId,
-            UUID ownerUuid,
-            UUID proposerLeaderUuid) {
-        this(sender, installationId, installationName, vehicleUuid, vehicleTypeId,
-                ownerUuid, proposerLeaderUuid, false);
-    }
-
-    public VehicleTransferConsentRequest(
-            Guild sender,
-            String installationId,
-            String installationName,
-            String vehicleUuid,
-            String vehicleTypeId,
-            UUID ownerUuid,
-            UUID proposerLeaderUuid,
+            CharacterRef ownerCharacter,
+            CharacterRef leaderCharacter,
             boolean pool) {
         super(sender);
+        UUID ownerUuid = ownerCharacter.ownerId();
+        UUID proposerLeaderUuid = leaderCharacter.ownerId();
+        this.ownerCharacter = ownerCharacter;
+        this.leaderCharacter = leaderCharacter;
         this.installationId = installationId;
         this.installationName = installationName;
         this.vehicleUuid = vehicleUuid;
@@ -79,5 +75,15 @@ public final class VehicleTransferConsentRequest extends Request {
 
     public boolean isPool() {
         return pool;
+    }
+
+    /** The vehicle owner's character when the request was sent. */
+    public CharacterRef getOwnerCharacter() {
+        return ownerCharacter;
+    }
+
+    /** The proposing leader's character when the request was sent. */
+    public CharacterRef getLeaderCharacter() {
+        return leaderCharacter;
     }
 }

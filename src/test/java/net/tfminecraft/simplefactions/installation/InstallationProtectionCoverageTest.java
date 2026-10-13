@@ -480,7 +480,7 @@ class InstallationProtectionCoverageTest {
         externalVehicle("personal-ship", new Location(fixture.ui.world, 8, 64, 0));
     when(vehicle.getId()).thenReturn("ironclad");
     OwnerData owner = new OwnerData();
-    owner.setOwner("player_Visitor");
+    owner.setOwner("char_" + java.util.UUID.randomUUID());
     when(vehicle.getOwnerData()).thenReturn(owner);
     InstallationVehicleService service =
         new InstallationVehicleService(registry, new InstallationVehicleOwnerSync(registry));
@@ -519,11 +519,14 @@ class InstallationProtectionCoverageTest {
     assertEquals(
         FactionVehicleReleaseService.Status.INSTALLATION_LOCKED,
         releases
-            .evaluateGive(attacker, attacker.getLeader(), player.getName(), "raiding")
+            .evaluateGive(attacker, attacker.getLeader(),
+                new net.tfminecraft.tlibs.character.CharacterRef(player.getUniqueId(), java.util.UUID.randomUUID()), "raiding")
             .status());
     assertEquals(
         FactionVehicleReleaseService.Status.OK,
-        releases.evaluateGive(neutral, neutral.getLeader(), player.getName(), "neutral").status());
+        releases.evaluateGive(neutral, neutral.getLeader(),
+            new net.tfminecraft.tlibs.character.CharacterRef(player.getUniqueId(), java.util.UUID.randomUUID()), "neutral")
+            .status());
     assertEquals(
         attacker.getId(), registry.getByVehicleUuid("raiding").orElseThrow().getFactionId());
     assertEquals(

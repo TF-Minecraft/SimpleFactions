@@ -2,6 +2,8 @@ package net.tfminecraft.simplefactions.objects.request;
 
 import java.util.UUID;
 
+import net.tfminecraft.tlibs.character.CharacterRef;
+
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 
@@ -12,7 +14,10 @@ public final class VehicleGiveConsentRequest extends Request {
     private final UUID recipientUuid;
     private final UUID leaderUuid;
     private final String leaderName;
+    private final CharacterRef leaderCharacter;
+    private final CharacterRef recipientCharacter;
 
+    /** Both characters are captured when the gift is offered; accepting needs the same ones. */
     public VehicleGiveConsentRequest(
             Guild sender,
             String factionId,
@@ -20,8 +25,12 @@ public final class VehicleGiveConsentRequest extends Request {
             String vehicleTypeId,
             UUID recipientUuid,
             UUID leaderUuid,
-            String leaderName) {
+            CharacterRef leaderCharacter,
+            CharacterRef recipientCharacter) {
         super(sender);
+        this.leaderCharacter = leaderCharacter;
+        this.recipientCharacter = recipientCharacter;
+        String leaderName = net.tfminecraft.simplefactions.identity.Members.key(leaderCharacter);
         this.factionId = factionId;
         this.vehicleUuid = vehicleUuid;
         this.vehicleTypeId = vehicleTypeId;
@@ -52,7 +61,16 @@ public final class VehicleGiveConsentRequest extends Request {
         return leaderUuid;
     }
 
+    /** The leader's member key when the gift was offered. */
     public String getLeaderName() {
         return leaderName;
+    }
+
+    public CharacterRef getLeaderCharacter() {
+        return leaderCharacter;
+    }
+
+    public CharacterRef getRecipientCharacter() {
+        return recipientCharacter;
     }
 }

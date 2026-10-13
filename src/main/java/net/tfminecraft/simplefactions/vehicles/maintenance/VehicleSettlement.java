@@ -43,30 +43,30 @@ public final class VehicleSettlement {
         Map<String, Long> unpaid = new LinkedHashMap<>(maintenance.snapshot());
         JsonArray notices = new JsonArray();
         for (var vehicle : VehicleOwnershipQueries.allPersonalVehicles(registry)) {
-            long upkeep = Money.cents(VehiclesConfigLoader.getUpkeep(vehicle.getTypeId()));
+            long upkeep = Money.cents(VehiclesConfigLoader.getUpkeep(vehicle.typeId()));
             if (upkeep <= 0) {
-                unpaid.remove(vehicle.getUuid());
+                unpaid.remove(vehicle.vehicle());
                 continue;
             }
-            var record = registry.getByVehicleUuid(vehicle.getUuid()).orElse(null);
+            var record = registry.getByVehicleUuid(vehicle.vehicle()).orElse(null);
             String payer = record == null || record.getPlayerUuid() == null ? null : record.getPlayerUuid().toString();
             var payments = VehiclePayments.current();
-            if (payments != null && payments.blockedVehicle(vehicle.getUuid())) {
-                markUnpaid(unpaid, notices, vehicle.getUuid(), vehicle.getTypeId(), payer, null, now);
+            if (payments != null && payments.blockedVehicle(vehicle.vehicle())) {
+                markUnpaid(unpaid, notices, vehicle.vehicle(), vehicle.typeId(), payer, null, now);
                 continue;
             }
             var character = Members.info(payer).filter(CharacterInfo::alive);
             if (character.isEmpty()) {
-                markUnpaid(unpaid, notices, vehicle.getUuid(), vehicle.getTypeId(), payer, null, now);
+                markUnpaid(unpaid, notices, vehicle.vehicle(), vehicle.typeId(), payer, null, now);
                 continue;
             }
             var ref = character.get().ref();
-            var tax = VehicleFeeService.quote(FeeKind.VEHICLE_TAX, payer, vehicle.getTypeId());
+            var tax = VehicleFeeService.quote(FeeKind.VEHICLE_TAX, payer, vehicle.typeId());
             long fee = tax == null ? 0 : Money.cents(tax.amount());
             long total = Math.addExact(upkeep, fee);
             String account = Denars.bank(ref);
             if ((tax != null && SettlementGuilds.capital(tax.faction()).getBank() == null) || balance(balances, legs, account) < total) {
-                markUnpaid(unpaid, notices, vehicle.getUuid(), vehicle.getTypeId(), payer, null, now);
+                markUnpaid(unpaid, notices, vehicle.vehicle(), vehicle.typeId(), payer, null, now);
                 continue;
             }
             transfer(balances, legs, account, Denars.MINT, upkeep);
@@ -79,7 +79,7 @@ public final class VehicleSettlement {
                 saved.vehicleFeeIncome = Money.denars(Math.addExact(Money.cents(saved.vehicleFeeIncome), fee));
                 income(changes, ref.characterId(), PlayerCashflow.VEHICLE_TAX, -fee);
             }
-            unpaid.remove(vehicle.getUuid());
+            unpaid.remove(vehicle.vehicle());
         }
         for (var record : registry.getAll()) {
             if (record.getMode() == OwnershipMode.PERSONAL) continue;

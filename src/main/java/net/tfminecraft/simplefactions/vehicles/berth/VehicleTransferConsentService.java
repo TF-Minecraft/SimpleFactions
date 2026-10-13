@@ -9,7 +9,8 @@ import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
+import net.tfminecraft.tlibs.character.CharacterRef;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -56,9 +57,11 @@ public final class VehicleTransferConsentService {
                 || installation == null || vehicle == null) {
             return false;
         }
+        var characters = characters(leader, owner);
+        if (characters == null) return false;
         VehicleTransferConsentRequest request = new VehicleTransferConsentRequest(
                 faction.getOrCreateMainGuild(), installation.getId(), installation.getName(),
-                vehicle.getUUID(), vehicle.getId(), owner.getUniqueId(), leader.getUniqueId());
+                vehicle.getUUID(), vehicle.getId(), characters.owner(), characters.leader(), false);
         RequestManager.addRequest(leader, owner, request);
         if (RequestManager.getRequest(owner) != request) return false;
         owner.sendMessage(VehicleTransferMessages.consentPrompt(
@@ -75,9 +78,11 @@ public final class VehicleTransferConsentService {
         if (leader == null || owner == null || faction == null || vehicle == null) {
             return false;
         }
+        var characters = characters(leader, owner);
+        if (characters == null) return false;
         VehicleTransferConsentRequest request = new VehicleTransferConsentRequest(
                 faction.getOrCreateMainGuild(), null, "faction vehicle pool", vehicle.getUUID(),
-                vehicle.getId(), owner.getUniqueId(), leader.getUniqueId(), true);
+                vehicle.getId(), characters.owner(), characters.leader(), true);
         RequestManager.addRequest(leader, owner, request);
         if (RequestManager.getRequest(owner) != request) return false;
         owner.sendMessage(VehicleTransferMessages.poolConsentPrompt(Members.name(leader), vehicle.getId()));
@@ -92,6 +97,10 @@ public final class VehicleTransferConsentService {
 
         if (!owner.getUniqueId().equals(req.getOwnerUuid())) {
             owner.sendMessage("§cYou cannot accept this request.");
+            return;
+        }
+        if (!Members.session(owner).map(session -> session.ref()).filter(req.getOwnerCharacter()::equals).isPresent()) {
+            owner.sendMessage("§cThis request belongs to another character.");
             return;
         }
 
@@ -139,7 +148,7 @@ public final class VehicleTransferConsentService {
         }
 
         if (!installationVehicleService.tryRegister(
-                installation, vehicle, faction, VehicleOwnershipQueries.characterId(owner))) {
+                installation, vehicle, faction, req.getOwnerCharacter().characterId())) {
             String message = VehicleTransferMessages.saveFailed();
             owner.sendMessage(message);
             notifyProposer(req, message);
@@ -169,7 +178,7 @@ public final class VehicleTransferConsentService {
             return;
         }
 
-        if (!poolService.tryRegister(faction, vehicle, VehicleOwnershipQueries.characterId(owner))) {
+        if (!poolService.tryRegister(faction, vehicle, req.getOwnerCharacter().characterId())) {
             String message = VehicleTransferMessages.saveFailed();
             owner.sendMessage(message);
             notifyProposer(req, message);
@@ -183,8 +192,8 @@ public final class VehicleTransferConsentService {
 
     /** Refuses the request if the vehicle was sold or re-claimed after the request was sent. */
     private boolean changedHands(Player owner, VehicleTransferConsentRequest req) {
-        String current = VehicleOwnershipQueries.playerNameFromOwner(currentOwnerEntry(req.getVehicleUuid()));
-        if (current == null || current.equalsIgnoreCase(owner.getName())) {
+        String current = currentOwnerEntry(req.getVehicleUuid());
+        if (current == null || OwnerTags.names(current, req.getOwnerCharacter().characterId())) {
             // An unloaded or unowned vehicle is reported by the validation that follows.
             return false;
         }
@@ -271,11 +280,25 @@ public final class VehicleTransferConsentService {
     private static Faction resolveProposerFaction(VehicleTransferConsentRequest req) {
         Player proposer = Bukkit.getPlayer(req.getProposerLeaderUuid());
         Faction faction = FactionManager.getByString(req.getDestinationFactionId());
-        if (proposer != null && faction != null && Members.is(proposer, faction.getLeader())) {
+        String leader = Members.key(req.getLeaderCharacter());
+        if (proposer != null && faction != null && leader.equals(faction.getLeader()) && Members.is(proposer, leader)) {
             return faction;
         }
         return null;
     }
+
+    /** The leader's and the owner's current characters, or null (and the leader is told) without both. */
+    private static Parties characters(Player leader, Player owner) {
+        var leaderCharacter = Members.session(leader).map(session -> session.ref()).orElse(null);
+        var ownerCharacter = Members.session(owner).map(session -> session.ref()).orElse(null);
+        if (leaderCharacter == null || ownerCharacter == null) {
+            leader.sendMessage(VehicleTransferMessages.ownerOffline());
+            return null;
+        }
+        return new Parties(leaderCharacter, ownerCharacter);
+    }
+
+    private record Parties(CharacterRef leader, CharacterRef owner) {}
 
     private static void notifyProposer(VehicleTransferConsentRequest req, String message) {
         Player proposer = Bukkit.getPlayer(req.getProposerLeaderUuid());

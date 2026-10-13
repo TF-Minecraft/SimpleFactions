@@ -311,7 +311,8 @@ public class InstallationView {
         InstallationVehicleUnberthService service =
                 SimpleFactions.getInstance().getInstallationVehicleUnberthService();
         InstallationVehicleUnberthService.UnberthOutcome outcome =
-                service.unberth(faction, Members.key(player), installation, vehicleUuid);
+                service.unberth(faction, Members.session(player).map(session -> session.ref()).orElse(null),
+                        installation, vehicleUuid);
         player.sendMessage(InstallationVehicleUnberthService.messageFor(outcome));
         if (outcome.result() == InstallationVehicleUnberthService.UnberthResult.OK) {
             installationDetailView(player, faction, installationId);

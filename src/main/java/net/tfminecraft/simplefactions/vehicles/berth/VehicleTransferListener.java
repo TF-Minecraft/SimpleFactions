@@ -10,7 +10,9 @@ import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
-import org.bukkit.Bukkit;
+import java.util.UUID;
+
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -79,10 +81,9 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        String ownerName = VehicleOwnershipQueries.playerNameFromOwner(
-                vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner());
-        if (ownerName != null && !ownerName.equalsIgnoreCase(leader.getName())) {
-            handleOtherOwnerTransfer(leader, faction, installation, vehicle, ownerName, event);
+        UUID owner = otherOwner(leader, vehicle);
+        if (owner != null) {
+            handleOtherOwnerTransfer(leader, faction, installation, vehicle, owner, event);
             return;
         }
 
@@ -113,9 +114,9 @@ public final class VehicleTransferListener implements Listener {
             Faction faction,
             Installation installation,
             ActiveVehicle vehicle,
-            String ownerName,
+            UUID ownerCharacter,
             VehiclePreInteractEvent event) {
-        Player owner = Bukkit.getPlayerExact(ownerName);
+        Player owner = Members.online(Members.key(ownerCharacter)).orElse(null);
         if (owner == null || !owner.isOnline()) {
             leader.sendMessage(VehicleTransferMessages.ownerOffline());
             event.setCancelled(true);
@@ -161,10 +162,9 @@ public final class VehicleTransferListener implements Listener {
             return;
         }
 
-        String ownerName = VehicleOwnershipQueries.playerNameFromOwner(
-                vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner());
-        if (ownerName != null && !ownerName.equalsIgnoreCase(leader.getName())) {
-            handleOtherOwnerPoolTransfer(leader, faction, vehicle, ownerName, event);
+        UUID owner = otherOwner(leader, vehicle);
+        if (owner != null) {
+            handleOtherOwnerPoolTransfer(leader, faction, vehicle, owner, event);
             return;
         }
 
@@ -192,9 +192,9 @@ public final class VehicleTransferListener implements Listener {
             Player leader,
             Faction faction,
             ActiveVehicle vehicle,
-            String ownerName,
+            UUID ownerCharacter,
             VehiclePreInteractEvent event) {
-        Player owner = Bukkit.getPlayerExact(ownerName);
+        Player owner = Members.online(Members.key(ownerCharacter)).orElse(null);
         if (owner == null || !owner.isOnline()) {
             leader.sendMessage(VehicleTransferMessages.ownerOffline());
             event.setCancelled(true);
@@ -228,5 +228,12 @@ public final class VehicleTransferListener implements Listener {
             sessionManager.clear(leader.getUniqueId());
         }
         event.setCancelled(true);
+    }
+
+    /** The character owning the vehicle when it is not the leader's current one, else null. */
+    private static UUID otherOwner(Player leader, ActiveVehicle vehicle) {
+        String tag = vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner();
+        UUID owner = OwnerTags.characterId(tag).orElse(null);
+        return owner == null || owner.equals(VehicleOwnershipQueries.characterId(leader)) ? null : owner;
     }
 }

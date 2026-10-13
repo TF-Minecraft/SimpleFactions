@@ -35,6 +35,11 @@ public final class VehicleRegistryClaimService {
             return new ClaimRegisterResult(TryRegisterResult.FAIL_UNKNOWN_TYPE, CanBuildResult.UNKNOWN_TYPE);
         }
 
+        /** Faction vehicles are never claimed; staff take them over instead. */
+        public static ClaimRegisterResult factionVehicle() {
+            return new ClaimRegisterResult(TryRegisterResult.FAIL_FACTION_VEHICLE, null);
+        }
+
         public static ClaimRegisterResult failSlotLimit(CanBuildResult buildFailure) {
             return new ClaimRegisterResult(TryRegisterResult.FAIL_SLOT_LIMIT, buildFailure);
         }
@@ -58,7 +63,7 @@ public final class VehicleRegistryClaimService {
         }
 
         if (registry.isFactionOwned(vehicleUuid)) {
-            return ClaimRegisterResult.skip();
+            return ClaimRegisterResult.factionVehicle();
         }
 
         String vehicleTypeId = vehicle.getVehicleTypeId();
@@ -68,7 +73,7 @@ public final class VehicleRegistryClaimService {
         }
 
         CanBuildResult slotResult = VehicleSlotGuard.checkCanBuild(
-                player.getName(), vehicleTypeId, registry);
+                player.getUniqueId(), vehicleTypeId, registry);
         if (slotResult != CanBuildResult.OK) {
             return ClaimRegisterResult.failSlotLimit(slotResult);
         }

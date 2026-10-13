@@ -124,6 +124,7 @@ public final class FactionVehicleReleaseMessages {
                     + typeName(vehicleTypeId) + " vehicles ("
                     + VehiclesConfigLoader.getPerPersonLimit(vehicleTypeId) + ").";
             case UNKNOWN_TYPE -> "§cThis vehicle type is not registered for faction upkeep.";
+            case UNAVAILABLE -> VehicleConstructionMessages.UNAVAILABLE;
         };
     }
 

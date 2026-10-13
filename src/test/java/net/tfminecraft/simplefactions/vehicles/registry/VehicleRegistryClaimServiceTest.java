@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.registry;
 
 
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
@@ -52,12 +53,11 @@ class VehicleRegistryClaimServiceTest {
         registry = new PlayerVehicleRegistry();
         service = new VehicleRegistryClaimService(registry);
         playerUuid = UUID.randomUUID();
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory());
+        FakeOwnerApi.install();
     }
 
     @AfterEach
     void tearDown() throws IOException {
-        VehicleOwnershipQueries.setSourceForTests(null);
         if (tempDir != null) {
             Files.walk(tempDir)
                 .sorted(java.util.Comparator.reverseOrder())
@@ -78,7 +78,7 @@ class VehicleRegistryClaimServiceTest {
     }
 
     @Test
-    void tryRegisterOnClaim_skipsWhenInstallationRowExists() {
+    void tryRegisterOnClaim_refusesAFactionVehicleOutright() {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(),
                 "veh-1",
@@ -91,7 +91,7 @@ class VehicleRegistryClaimServiceTest {
 
         var result = service.tryRegisterOnClaim(player, target("veh-1", "monoplane"));
 
-        assertEquals(TryRegisterResult.SKIP, result.status());
+        assertEquals(TryRegisterResult.FAIL_FACTION_VEHICLE, result.status());
         assertEquals(1, registry.getAll().size());
     }
 
@@ -109,9 +109,10 @@ class VehicleRegistryClaimServiceTest {
 
     @Test
     void tryRegisterOnClaim_slotLimit() {
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory()
-                .add("veh-a", "ironclad", "player_Alice")
-                .add("veh-b", "ironclad", "player_Alice"));
+        registry.register(new PlayerVehicleRecord(UUID.randomUUID(), "veh-a", "ironclad", OwnershipMode.PERSONAL,
+                null, null, playerUuid));
+        registry.register(new PlayerVehicleRecord(UUID.randomUUID(), "veh-b", "ironclad", OwnershipMode.PERSONAL,
+                null, null, playerUuid));
 
         Player player = mock(Player.class);
         when(player.getUniqueId()).thenReturn(playerUuid);

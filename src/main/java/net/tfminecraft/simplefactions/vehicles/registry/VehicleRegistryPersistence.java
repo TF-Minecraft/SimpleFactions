@@ -66,14 +66,25 @@ public final class VehicleRegistryPersistence {
         DurableJson.write(file, data);
     }
 
-    /** A confirmed personal owner becomes the payer; save before replacing the live row. */
-    public static void personal(Path folder, PlayerVehicleRegistry registry, String vehicle, String type, UUID character) throws IOException {
+    /**
+     * A confirmed personal owner becomes the payer; save before replacing the live row.
+     * {@code account} is the account playing the character now, kept for slot limits.
+     */
+    public static void personal(Path folder, PlayerVehicleRegistry registry, String vehicle, String type, UUID character,
+            UUID account) throws IOException {
         if (character == null) throw new IOException("Missing personal vehicle payer");
-        PlayerVehicleRecord record = new PlayerVehicleRecord(character, vehicle, type, OwnershipMode.PERSONAL, null);
+        replace(folder, registry, vehicle,
+                new PlayerVehicleRecord(character, vehicle, type, OwnershipMode.PERSONAL, null, null, account));
+    }
+
+    /** Durably puts back a vehicle's earlier row, or removes it when there was none. */
+    public static void replace(Path folder, PlayerVehicleRegistry registry, String vehicle, PlayerVehicleRecord record)
+            throws IOException {
         List<PlayerVehicleRecord> records = new ArrayList<>(registry.getAll());
         records.removeIf(value -> value.getVehicleUuid().equals(vehicle));
-        records.add(record);
+        if (record != null) records.add(record);
         write(folder.resolve("Cache/vehicles_registry.json"), records);
+        registry.unregister(vehicle);
         registry.register(record);
     }
 
@@ -84,6 +95,7 @@ public final class VehicleRegistryPersistence {
         String mode;
         String installationId;
         String factionId;
+        String accountUuid;
 
         static VehicleRecordData from(PlayerVehicleRecord record) {
             VehicleRecordData data = new VehicleRecordData();
@@ -93,6 +105,7 @@ public final class VehicleRegistryPersistence {
             data.mode = record.getMode().name();
             data.installationId = record.getInstallationId();
             data.factionId = record.getFactionId();
+            data.accountUuid = record.getAccountUuid() == null ? null : record.getAccountUuid().toString();
             return data;
         }
 
@@ -108,7 +121,8 @@ public final class VehicleRegistryPersistence {
                     vehicleTypeId,
                     ownershipMode,
                     installationId,
-                    factionId);
+                    factionId,
+                    accountUuid == null ? null : UUID.fromString(accountUuid));
             } catch (IllegalArgumentException e) {
                 return null;
             }

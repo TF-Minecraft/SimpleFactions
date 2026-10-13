@@ -61,7 +61,8 @@ public final class FactionVehicleReleaseListener implements Listener {
             return;
         }
 
-        Outcome outcome = releaseService.take(faction, Members.key(leader), vehicle.getUUID());
+        Outcome outcome = releaseService.take(
+                faction, Members.session(leader).map(value -> value.ref()).orElse(null), vehicle.getUUID());
         SimpleFactions plugin = SimpleFactions.getInstance();
         if (outcome.status() == Status.OK && plugin != null) {
             plugin.recordVehicleOwner(vehicle.getUUID(), Members.key(leader));
@@ -92,7 +93,8 @@ public final class FactionVehicleReleaseListener implements Listener {
         }
 
         Outcome outcome = releaseService.evaluateGive(
-                faction, Members.key(leader), recipient.getName(), vehicleUuid);
+                faction, Members.key(leader), Members.session(recipient).map(value -> value.ref()).orElse(null),
+                vehicleUuid);
         if (outcome.status() != Status.OK) {
             String message = FactionVehicleReleaseMessages.forGive(outcome, Members.name(recipient));
             if (message != null) {

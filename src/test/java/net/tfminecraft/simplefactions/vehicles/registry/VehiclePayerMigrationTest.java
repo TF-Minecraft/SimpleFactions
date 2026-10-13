@@ -52,6 +52,23 @@ class VehiclePayerMigrationTest {
         assertTrue(Files.readString(folder.resolve("identity/vehicle-payers.json")).contains("\"completed\": true"));
     }
 
+    @Test void characterOwnersAreAlreadyPastTheBridgeAndThePlanRemembersMatchedAccounts() throws Exception {
+        var registry = new PlayerVehicleRegistry();
+        assertEquals(Map.of(), VehiclePayerMigration.accounts(folder));
+        VehiclePayerMigration.migrate(folder, registry, List.of(vehicle("migrated", "char_" + UUID.randomUUID()),
+                vehicle("faction", "char_none"), vehicle("legacy", "player_OldName"), vehicle("unknown", "player_Nobody")),
+                name -> name.equals("OldName") ? heir.ownerId() : null, id -> heir);
+        assertEquals(List.of("legacy", "unknown"), registry.getAll().stream().map(PlayerVehicleRecord::getVehicleUuid)
+                .sorted().toList());
+        assertEquals(Map.of("legacy", heir.ownerId()), VehiclePayerMigration.accounts(folder));
+        Files.writeString(folder.resolve("identity/vehicle-payers.json"), "{\"completed\":true}");
+        assertEquals(Map.of(), VehiclePayerMigration.accounts(folder));
+        Files.writeString(folder.resolve("identity/vehicle-payers.json"),
+                "{\"rows\":[null,{\"vehicle\":null,\"account\":\"" + heir.ownerId() + "\"},{\"vehicle\":\"v\"}],"
+                        + "\"completed\":true}");
+        assertEquals(Map.of(), VehiclePayerMigration.accounts(folder));
+    }
+
     @Test void wrongAccountHeirAndUnknownAccountRemainUnmapped() throws Exception {
         var registry = new PlayerVehicleRegistry();
         VehiclePayerMigration.migrate(folder, registry, List.of(vehicle("v", "player_Wrong")),

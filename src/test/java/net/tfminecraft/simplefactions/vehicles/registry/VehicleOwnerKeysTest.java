@@ -22,16 +22,14 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.simplefactions.identity.Members;
-import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSync;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerMigration;
 import net.tfminecraft.tlibs.character.CharacterIdentity;
 import net.tfminecraft.tlibs.character.CharacterInfo;
 import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.tlibs.character.CharacterStatus;
-import net.tfminecraft.vehicleframework.data.OwnerData;
 
-/** VehicleFramework still names accounts; these bridge its owner tags and member keys. */
+/** The live lookups the vehicle owner migration seeds legacy owner names with. */
 class VehicleOwnerKeysTest {
     private final UUID account = UUID.randomUUID();
     private final UUID characterId = UUID.randomUUID();
@@ -62,74 +60,44 @@ class VehicleOwnerKeysTest {
         bukkit.close();
     }
 
+    private final VehicleOwnerMigration.LiveIdentity identity = new VehicleOwnerMigration.LiveIdentity();
+
     @Test
-    void ownerKeyIsThePlayedCharacterElseTheLegacyHeirOfTheTaggedAccount() {
-        assertNull(VehicleOwnershipQueries.ownerKey(null));
-        assertNull(VehicleOwnershipQueries.ownerKey(" "));
-        assertNull(VehicleOwnershipQueries.ownerKey("Owner"), "No reviewed heir yet");
-        heirs.put(account, new CharacterRef(UUID.randomUUID(), characterId));
-        assertNull(VehicleOwnershipQueries.ownerKey("Owner"), "A foreign heir never names the owner");
+    void aLegacyOwnerNameCountsOnlyWhileItIsStillThatAccountsName() {
+        OfflinePlayer current = mock(OfflinePlayer.class);
+        when(current.getName()).thenReturn("owner");
+        bukkit.when(() -> Bukkit.getOfflinePlayer(account)).thenReturn(current);
+        assertEquals(account, identity.roundTrip("Owner"));
+
+        when(current.getName()).thenReturn("Renamed");
+        assertNull(identity.roundTrip("Owner"), "The name now belongs to someone else, or to nobody");
+        when(current.getName()).thenReturn(null);
+        assertNull(identity.roundTrip("Owner"));
+        assertNull(identity.roundTrip("Unknown"), "An account DenarEconomy never saw");
+    }
+
+    @Test
+    void charactersResolveToTheirAccountReviewedHeirAndPlainName() {
+        assertEquals(Optional.of(account), identity.accountOf(characterId));
+        assertEquals(Optional.empty(), identity.accountOf(UUID.randomUUID()));
+        assertEquals(Optional.empty(), identity.heir(account));
         heirs.put(account, new CharacterRef(account, characterId));
-        assertEquals(Members.key(characterId), VehicleOwnershipQueries.ownerKey("Owner"));
-        assertNull(VehicleOwnershipQueries.ownerKey("Unknown"), "An account DenarEconomy never saw");
+        assertEquals(Optional.of(new CharacterRef(account, characterId)), identity.heir(account));
+        assertEquals("Owner's Character", identity.nameOf(characterId));
+        assertNull(identity.nameOf(UUID.randomUUID()));
+        UUID coloured = UUID.randomUUID();
+        when(provider.info(coloured)).thenReturn(Optional.of(new CharacterInfo(new CharacterRef(account, coloured),
+                "\u00a7a  ", CharacterStatus.ALIVE, null, Set.of(), 0, null)));
+        assertNull(identity.nameOf(coloured), "A name that is only colour codes is no name");
 
         Player online = mock(Player.class);
         when(online.getUniqueId()).thenReturn(account);
         when(provider.currentSession(online)).thenReturn(Optional.of(new CharacterSession(new CharacterRef(account, characterId), 1)));
         when(provider.isCurrent(any())).thenReturn(true);
-        bukkit.when(() -> Bukkit.getPlayerExact("Owner")).thenReturn(online);
-        assertEquals(Members.key(characterId), VehicleOwnershipQueries.ownerKey("Owner"));
         assertEquals(characterId, VehicleOwnershipQueries.characterId(online));
         Player stranger = mock(Player.class);
-        UUID strangerAccount = UUID.randomUUID();
-        when(stranger.getUniqueId()).thenReturn(strangerAccount);
+        when(stranger.getUniqueId()).thenReturn(UUID.randomUUID());
         assertNull(VehicleOwnershipQueries.characterId(stranger), "No character means no payer");
-    }
-
-    @Test
-    void withoutAServerOrProviderNoCharacterIsKnown() {
-        heirs.put(account, new CharacterRef(account, characterId));
-        registered = null;
-        assertNull(VehicleOwnershipQueries.ownerKey("Owner"));
-        registered = provider;
-        bukkit.when(Bukkit::isPrimaryThread).thenReturn(false);
-        assertNull(VehicleOwnershipQueries.ownerKey("Owner"));
-        bukkit.when(Bukkit::getServer).thenReturn(null);
-        assertNull(VehicleOwnershipQueries.ownerKey("Owner"));
-    }
-
-    @Test
-    void leaderOwnedFactionVehiclesNameTheLeadersAccountAndWaitWhileItIsUnknown() {
-        OfflinePlayer owner = mock(OfflinePlayer.class);
-        when(owner.getName()).thenReturn("Owner");
-        bukkit.when(() -> Bukkit.getOfflinePlayer(account)).thenReturn(owner);
-        assertNull(VehicleOwnershipQueries.accountNameOf(null));
-        assertNull(VehicleOwnershipQueries.accountNameOf(""));
-        assertEquals("Legacy", VehicleOwnershipQueries.accountNameOf("Legacy"));
-        assertEquals("Owner", VehicleOwnershipQueries.accountNameOf(Members.key(characterId)));
-
-        Faction faction = mock(Faction.class);
-        when(faction.getLeader()).thenReturn(Members.key(characterId));
-        assertEquals("player_Owner", InstallationVehicleOwnerSync.expectedOwner(faction));
-
-        registered = null;
-        assertNull(InstallationVehicleOwnerSync.expectedOwner(faction));
-        OwnerData data = new OwnerData();
-        data.setOwner("player_Previous");
-        InstallationVehicleOwnerSync sync = new InstallationVehicleOwnerSync(new PlayerVehicleRegistry());
-        sync.applyLeaderOwner(data, faction);
-        assertEquals("player_Previous", data.getOwner(), "An unreadable leader leaves the owner alone");
-        PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
-        registry.register(new PlayerVehicleRecord(characterId, "pooled", "cart", OwnershipMode.POOL, null, "home"));
-        var vehicle = mock(net.tfminecraft.vehicleframework.vehicles.ActiveVehicle.class);
-        when(vehicle.getUUID()).thenReturn("pooled");
-        when(vehicle.getOwnerData()).thenReturn(data);
-        try (var factions = mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class)) {
-            factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("home")).thenReturn(faction);
-            new InstallationVehicleOwnerSync(registry).syncIfBerthed(vehicle);
-        }
-        assertEquals("player_Previous", data.getOwner());
-        bukkit.verify(() -> Bukkit.getOfflinePlayer(anyString()), never());
     }
 
     private static CharacterInfo info(UUID owner, UUID id) {

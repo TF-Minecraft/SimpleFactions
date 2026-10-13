@@ -16,7 +16,6 @@ public final class VehicleHandoverRequest extends Request {
     private final String vehicleUuid;
     private final String vehicleTypeId;
     private final UUID ownerUuid;
-    private final String ownerName;
     /** The owner's character when the offer was made; it pays the fee even if they log off. */
     private final String ownerKey;
     private final UUID recipientUuid;
@@ -33,13 +32,11 @@ public final class VehicleHandoverRequest extends Request {
             String vehicleUuid,
             String vehicleTypeId,
             UUID ownerUuid,
-            String ownerName,
             UUID recipientUuid) {
         super(sender);
         this.vehicleUuid = vehicleUuid;
         this.vehicleTypeId = vehicleTypeId;
         this.ownerUuid = ownerUuid;
-        this.ownerName = ownerName;
         this.recipientUuid = recipientUuid;
         this.ownerCharacter = Members.session(Bukkit.getPlayer(ownerUuid)).map(value -> value.ref()).orElse(null);
         this.recipientCharacter = Members.session(Bukkit.getPlayer(recipientUuid)).map(value -> value.ref()).orElse(null);
@@ -62,10 +59,6 @@ public final class VehicleHandoverRequest extends Request {
 
     public UUID getOwnerUuid() {
         return ownerUuid;
-    }
-
-    public String getOwnerName() {
-        return ownerName;
     }
 
     public String getOwnerKey() {
