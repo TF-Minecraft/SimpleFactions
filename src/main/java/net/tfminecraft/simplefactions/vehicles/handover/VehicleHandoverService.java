@@ -1,7 +1,6 @@
 package net.tfminecraft.simplefactions.vehicles.handover;
 
 import net.tfminecraft.simplefactions.identity.Members;
-import net.tfminecraft.denareconomy.api.Result;
 import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
 
 import java.util.Objects;
@@ -18,7 +17,6 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RequestManager;
 import net.tfminecraft.simplefactions.objects.request.VehicleHandoverRequest;
 import net.tfminecraft.simplefactions.vehicles.berth.FactionCampaignBattleLock;
-import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard.CanBuildResult;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeMessages;
@@ -26,8 +24,12 @@ import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
-import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerMeta;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Reason;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites;
+import net.tfminecraft.tlibs.character.CharacterRef;
 
 /**
  * Hands a personal vehicle from one player to another. The owner pays their faction's
@@ -48,53 +50,56 @@ public final class VehicleHandoverService {
     private final PlayerVehicleRegistry registry;
     private final VehicleFeeStore store;
     private final Runnable saver;
-    private final BiPredicate<String, String> ownerAssigner;
+    private final BiPredicate<String, UUID> ownerAssigner;
 
     public VehicleHandoverService(PlayerVehicleRegistry registry, VehicleFeeStore store, Runnable saver) {
-        this(registry, store, saver, FactionVehicleReleaseService::assignFrameworkOwner);
+        this(registry, store, saver, VehicleHandoverService::assignFrameworkOwner);
     }
 
     VehicleHandoverService(
             PlayerVehicleRegistry registry,
             VehicleFeeStore store,
             Runnable saver,
-            BiPredicate<String, String> ownerAssigner) {
+            BiPredicate<String, UUID> ownerAssigner) {
         this.registry = registry;
         this.store = store;
         this.saver = saver;
         this.ownerAssigner = ownerAssigner;
     }
 
-    /** Whether the owner may hand this vehicle to the recipient right now; both are account names, as VehicleFramework stores them. */
-    public Outcome evaluate(String ownerName, String recipientName, String vehicleUuid) {
-        String typeId = personalVehicleType(ownerName, vehicleUuid);
+    /** Gives the vehicle to the recipient's character, emptying its crew list. */
+    static boolean assignFrameworkOwner(String vehicleUuid, UUID character) {
+        return VehicleOwnerWrites.write(vehicleUuid, OwnerTags.character(character), Reason.HANDOVER) == Result.OK;
+    }
+
+    /** Whether the owner's character may hand this vehicle to the recipient's account right now. */
+    public Outcome evaluate(CharacterRef owner, UUID recipientAccount, String vehicleUuid) {
+        String typeId = owner == null ? null : personalVehicleType(owner.characterId(), vehicleUuid);
         if (typeId == null) {
             return new Outcome(Status.NOT_OWNER, null, null);
         }
         if (!VehiclesConfigLoader.isKnownType(typeId)) {
             return new Outcome(Status.UNKNOWN_TYPE, null, typeId);
         }
-        if (FactionCampaignBattleLock.blocks(FactionManager.getByMember(VehicleOwnershipQueries.ownerKey(ownerName)))) {
+        if (FactionCampaignBattleLock.blocks(FactionManager.getByMember(Members.key(owner)))) {
             return new Outcome(Status.IN_BATTLE, null, typeId);
         }
-        CanBuildResult slot = VehicleSlotGuard.checkCanBuild(recipientName, typeId, registry);
+        CanBuildResult slot = VehicleSlotGuard.checkCanBuild(recipientAccount, typeId, registry);
         if (slot != CanBuildResult.OK) {
             return new Outcome(Status.NO_ROOM, slot, typeId);
         }
         return new Outcome(Status.OK, null, typeId);
     }
 
-    /** The type of the vehicle if it is one of the owner's personal (not faction) vehicles. */
-    private String personalVehicleType(String ownerName, String vehicleUuid) {
-        if (ownerName == null || vehicleUuid == null || registry.isFactionOwned(vehicleUuid)) {
+    /** The type of the vehicle if this character owns it personally (not as a faction vehicle). */
+    private String personalVehicleType(UUID owner, String vehicleUuid) {
+        if (vehicleUuid == null || registry.isFactionOwned(vehicleUuid)) {
             return null;
         }
-        for (OwnedVehicleSummary vehicle : VehicleOwnershipQueries.personalVehicles(ownerName, registry)) {
-            if (vehicleUuid.equals(vehicle.getUuid())) {
-                return vehicle.getTypeId();
-            }
-        }
-        return null;
+        return VehicleOwnerWrites.read(vehicleUuid)
+                .filter(meta -> OwnerTags.names(meta.currentOwner(), owner))
+                .map(OwnerMeta::typeId)
+                .orElse(null);
     }
 
     public void offer(Player owner, Player recipient, String vehicleUuid, String vehicleTypeId) {
@@ -107,7 +112,6 @@ public final class VehicleHandoverService {
                 vehicleUuid,
                 vehicleTypeId,
                 owner.getUniqueId(),
-                owner.getName(),
                 recipient.getUniqueId());
         RequestManager.addRequest(owner, recipient, request);
         // addRequest refuses when the recipient is already considering another request.
@@ -139,7 +143,7 @@ public final class VehicleHandoverService {
         if (payments == null || !payments.ready() || payments.blockedVehicle(req.getVehicleUuid())) {
             tellBoth(req, recipient, "§cVehicle payment needs staff review or recovery."); return;
         }
-        Outcome outcome = evaluate(req.getOwnerName(), recipient.getName(), req.getVehicleUuid());
+        Outcome outcome = evaluate(req.getOwnerCharacter(), recipient.getUniqueId(), req.getVehicleUuid());
         if (outcome.status() != Status.OK) {
             tellBoth(req, recipient, VehicleHandoverMessages.forOutcome(outcome, Members.name(recipient)));
             return;
@@ -150,17 +154,27 @@ public final class VehicleHandoverService {
             tellBoth(req, recipient, VehicleHandoverMessages.feeChanged());
             return;
         }
-        if (quote != null && payments.charge(scope, req.getOperationId(), req.getOwnerCharacter(), quote) != Result.APPLIED) {
+        if (quote != null && payments.charge(scope, req.getOperationId(), req.getOwnerCharacter(), quote, req.getOfferedAt())
+                != net.tfminecraft.denareconomy.api.Result.APPLIED) {
             tellBoth(req, recipient, VehicleFeeMessages.handoverUnaffordable(quote)); return;
         }
-        if (!ownerAssigner.test(req.getVehicleUuid(), recipient.getName())) {
+        // The recipient becomes the payer before VehicleFramework's owner changes, and stops being it if that fails.
+        var previous = registry.getByVehicleUuid(req.getVehicleUuid()).orElse(null);
+        var recipientCharacter = req.getRecipientCharacter();
+        if (!payments.personal(req.getVehicleUuid(), outcome.vehicleTypeId(), recipientCharacter.characterId(),
+                recipientCharacter.ownerId())) {
+            if (quote != null) payments.refund(scope);
+            tellBoth(req, recipient, VehicleHandoverMessages.ownershipUnavailable());
+            return;
+        }
+        if (!ownerAssigner.test(req.getVehicleUuid(), recipientCharacter.characterId())) {
+            payments.replaceRow(req.getVehicleUuid(), previous);
             if (quote != null) {
                 payments.refund(scope);
             }
             tellBoth(req, recipient, VehicleHandoverMessages.ownershipUnavailable());
             return;
         }
-        if (!payments.personal(req.getVehicleUuid(), outcome.vehicleTypeId(), req.getRecipientCharacter().characterId())) return;
         if (quote != null) payments.complete(scope, Members.key(req.getRecipientCharacter()));
         else { store.setLastOwner(req.getVehicleUuid(), Members.key(req.getRecipientCharacter())); saver.run(); }
         recipient.sendMessage(VehicleHandoverMessages.successRecipient(Members.display(ownerKey)));

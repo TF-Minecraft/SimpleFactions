@@ -4,7 +4,8 @@ package net.tfminecraft.simplefactions.vehicles.berth;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,7 +54,7 @@ public final class InstallationVehicleService {
 
         OwnerData ownerData = vehicle.getOwnerData();
         String owner = ownerData == null ? null : ownerData.getOwner();
-        if (!VehicleOwnershipQueries.isPlayerOwner(owner)) {
+        if (!OwnerTags.isCharacter(owner)) {
             return CanRegisterResult.NOT_IN_REGISTRY;
         }
 
@@ -121,7 +122,16 @@ public final class InstallationVehicleService {
             registry.register(previous);
             return false;
         }
-        ownerSync.applyLeaderOwner(vehicle.getOwnerData(), faction);
+        if (InstallationVehicleOwnerSync.stampForFaction(vehicle.getVehicleUuid(), faction) != Result.OK) {
+            // The registry went first, so put the personal row back before reporting the failure.
+            registry.unregister(vehicle.getVehicleUuid());
+            registry.register(previous);
+            if (plugin != null && !plugin.saveVehicleRegistry()) {
+                plugin.getLogger().severe("Vehicle " + vehicle.getVehicleUuid() + " was restored in memory after"
+                        + " its berth stamp failed, but the registry could not be saved.");
+            }
+            return false;
+        }
         return true;
     }
 
@@ -178,6 +188,7 @@ public final class InstallationVehicleService {
         SKIP,
         ALLOWED,
         FAIL_UNKNOWN_TYPE,
-        FAIL_SLOT_LIMIT
+        FAIL_SLOT_LIMIT,
+        FAIL_FACTION_VEHICLE
     }
 }

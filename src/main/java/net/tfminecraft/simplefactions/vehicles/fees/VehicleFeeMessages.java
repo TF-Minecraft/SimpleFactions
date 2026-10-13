@@ -51,6 +51,18 @@ public final class VehicleFeeMessages {
         return "§aPaid a transfer fee of " + amount(quote.amount()) + "§a.";
     }
 
+    public static String claimRefunded() {
+        return "§aThe claim did not go through, so the transfer fee was refunded.";
+    }
+
+    public static String claimRefundedPart(double amount) {
+        return "§aThe claim did not go through, so " + amount(amount) + " §aof the transfer fee was refunded to your bank.";
+    }
+
+    public static String claimRefundShort(double amount) {
+        return "§c" + amount(amount) + " §cof your transfer fee could not be refunded. Ask staff to look into it.";
+    }
+
     public static String handoverConfirm(Quote quote, String recipient) {
         return "§6Handing this vehicle to §e" + recipient + " §6costs you " + charge(quote)
                 + "§6. Right-click it again to confirm.";

@@ -680,6 +680,8 @@ public class FactionManager implements Listener{
 		f.setCapital(main.getCapital(), true);
 	}
 	public static void deleteFaction(Faction f){
+		// Annexation and untangle moved their vehicles already; whatever still names f loses its leader.
+		net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.onFactionDeleted(f);
 		map.enqueue("nation", f.getRGB());
 		for(Faction fac : factions) {
 			fac.getDiplomacyHandler().removeRelation(f.getId());

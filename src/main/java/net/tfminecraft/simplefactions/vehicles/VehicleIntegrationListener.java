@@ -4,10 +4,7 @@ package net.tfminecraft.simplefactions.vehicles;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleConstructionMessages;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard.CanBuildResult;
-import java.util.UUID;
 
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,8 +14,6 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vfbuilders.core.Blueprint;
 import net.tfminecraft.vfbuilders.events.BeginVehicleConstructionEvent;
-import net.tfminecraft.vfbuilders.events.VehicleConstructEvent;
-import net.tfminecraft.vehicleframework.cache.Cache;
 import net.tfminecraft.vehicleframework.data.VehicleRemovePayload;
 import net.tfminecraft.vehicleframework.events.VehicleRemoveEvent;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
@@ -41,25 +36,6 @@ public final class VehicleIntegrationListener implements Listener {
             if (message != null) {
                 constructor.sendMessage(message);
             }
-        }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onVehicleConstruct(VehicleConstructEvent event) {
-        UUID constructorUuid = event.getConstructorUuid();
-        ActiveVehicle vehicle = event.getVehicle();
-        Blueprint blueprint = event.getBlueprint();
-
-        if (constructorUuid == null || vehicle == null || blueprint == null) {
-            SimpleFactions.getInstance().getLogger().warning(
-                "[SimpleFactions] VehicleConstructEvent missing constructor, vehicle, or blueprint");
-            return;
-        }
-
-        String ownerEntry = resolveOwnerEntry(constructorUuid, event.getConstructor());
-        vehicle.getOwnerData().setOwner(ownerEntry);
-        if (Cache.allowWhitelist) {
-            vehicle.getOwnerData().setWhiteListed(true);
         }
     }
 
@@ -94,18 +70,6 @@ public final class VehicleIntegrationListener implements Listener {
             return false;
         }
         return registry.unregister(vehicleUuid);
-    }
-
-    private static String resolveOwnerEntry(UUID constructorUuid, Player onlineConstructor) {
-        if (onlineConstructor != null) {
-            return "player_" + onlineConstructor.getName();
-        }
-        OfflinePlayer offline = Bukkit.getOfflinePlayer(constructorUuid);
-        String name = offline.getName();
-        if (name != null && !name.isEmpty()) {
-            return "player_" + name;
-        }
-        return "player_" + constructorUuid;
     }
 
     public static String resolveVehicleTypeId(Blueprint blueprint) {

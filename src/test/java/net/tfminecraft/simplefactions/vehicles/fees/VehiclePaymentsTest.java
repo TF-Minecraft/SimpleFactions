@@ -187,7 +187,7 @@ class VehiclePaymentsTest {
 
     @Test void failedPersonalRegistrationPreservesTheOriginalReceipt() {
         assertEquals(Result.APPLIED, payments.charge("claim:v", "fee", payer, quote()));
-        assertFalse(payments.personal("v", "ship", null));
+        assertFalse(payments.personal("v", "ship", null, null));
         assertFalse(payments.ready());
         assertNotNull(payments.receipt("claim:v"));
     }
@@ -215,5 +215,10 @@ class VehiclePaymentsTest {
         assertFalse(payments.ready());
         assertNull(payments.receipt("claim:v"));
         assertEquals(9999, Denars.balance(Denars.bank(payer)));
+    }
+
+    @Test void aRowThatCannotBeReplacedStopsVehiclePayments() {
+        assertFalse(payments.replaceRow("v", null));
+        assertFalse(payments.ready());
     }
 }

@@ -39,6 +39,29 @@ import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.
 import net.tfminecraft.vehicleframework.data.OwnerData;
 
 class InstallationVehicleServiceTest {
+    private static final UUID ALICE = UUID.randomUUID();
+    private static final String ALICE_TAG = "char_" + ALICE;
+
+    @Test
+    void aFailedLeaderStampPutsThePersonalRowBack() {
+        PlayerVehicleRecord personal = new PlayerVehicleRecord(UUID.randomUUID(), "vehicle-1", "ironclad",
+                OwnershipMode.PERSONAL, null);
+        registry.register(personal);
+        var api = net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi.install();
+        api.forced = net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result.SAVE_FAILED;
+        Faction faction = mock(Faction.class);
+        when(faction.getId()).thenReturn("red");
+        SimpleFactions plugin = mock(SimpleFactions.class);
+        java.util.logging.Logger logger = mock(java.util.logging.Logger.class);
+        when(plugin.getLogger()).thenReturn(logger);
+        when(plugin.saveVehicleRegistry()).thenReturn(true, false);
+        try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
+            sf.when(SimpleFactions::getInstance).thenReturn(plugin);
+            assertEquals(false, service.tryRegister(port, ownedTarget("vehicle-1", "ironclad"), faction, UUID.randomUUID()));
+        }
+        assertEquals(personal, registry.getByVehicleUuid("vehicle-1").orElseThrow());
+        verify(logger).severe(org.mockito.ArgumentMatchers.contains("berth stamp failed"));
+    }
     private Path tempDir;
     private PlayerVehicleRegistry registry;
     private InstallationVehicleService service;
@@ -255,7 +278,9 @@ class InstallationVehicleServiceTest {
         VehicleBerthTarget vehicle = berthTarget("vehicle-1", "ironclad", locationAt(0, 64, 0), ownerData);
 
         Faction faction = mock(Faction.class);
-        when(faction.getLeader()).thenReturn("Alice");
+        when(faction.getLeader()).thenReturn(ALICE.toString());
+        var api = net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi.install()
+                .live("vehicle-1", "ironclad", "char_" + UUID.randomUUID());
 
         SimpleFactions plugin = mock(SimpleFactions.class);
         when(plugin.saveVehicleRegistry()).thenReturn(true);
@@ -268,7 +293,7 @@ class InstallationVehicleServiceTest {
             assertEquals(OwnershipMode.INSTALLATION, updated.getMode());
             assertEquals("port-1", updated.getInstallationId());
             assertEquals(playerUuid, updated.getPlayerUuid());
-            assertEquals("player_Alice", ownerData.getOwner());
+            assertEquals(ALICE_TAG, api.owner("vehicle-1"));
             verify(plugin).saveVehicleRegistry();
         }
     }
@@ -279,7 +304,7 @@ class InstallationVehicleServiceTest {
 
     private static OwnerData ownedData() {
         OwnerData ownerData = new OwnerData();
-        ownerData.setOwner("player_Alice");
+        ownerData.setOwner(ALICE_TAG);
         return ownerData;
     }
 

@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.vehicles.maintenance;
 
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -37,7 +38,6 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import net.tfminecraft.vehicleframework.VehicleFramework;
-import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 import net.tfminecraft.vehicleframework.events.VehicleRepairStartEvent;
 import net.tfminecraft.vehicleframework.managers.VehicleManager;
@@ -71,7 +71,6 @@ class VehicleRuntimeLifecycleCoverageTest {
   private VehicleMaintenancePayListener payListener;
   private VehicleManager manager;
   private MockedStatic<VehicleFramework> framework;
-  private final List<OwnedVehicleSummary> owned = new ArrayList<>();
   private final List<Damage> damage = new ArrayList<>();
   private final Map<Field, Object> globals = new LinkedHashMap<>();
 
@@ -92,10 +91,8 @@ class VehicleRuntimeLifecycleCoverageTest {
             "feeExcludedCategories")) {
       snapshot(VehiclesConfigLoader.class, name);
     }
-    snapshot(VehicleOwnershipQueries.class, "source");
     snapshot(VehicleFeeService.class, "factionLookup");
     snapshot(VehicleFeeService.class, "playerBank");
-    VehicleOwnershipQueries.setSourceForTests(null);
     configure(20);
     faction = fixture.saved("home", "Leader");
     faction.getOrCreateMainGuild().addMember("Alice");
@@ -135,14 +132,6 @@ class VehicleRuntimeLifecycleCoverageTest {
         new VehicleMaintenancePayListener(
             sessions, new VehicleMaintenancePayService(store));
     manager = mock(VehicleManager.class);
-    when(manager.listAllPlayerOwnedVehicles()).thenAnswer(call -> new ArrayList<>(owned));
-    when(manager.listOwnedVehicles(anyString()))
-        .thenAnswer(
-            call ->
-                owned.stream()
-                    .filter(
-                        vehicle -> call.<String>getArgument(0).equalsIgnoreCase(vehicle.getOwner()))
-                    .toList());
     framework = mockStatic(VehicleFramework.class);
     framework.when(VehicleFramework::getVehicleManager).thenReturn(manager);
   }
@@ -343,72 +332,13 @@ class VehicleRuntimeLifecycleCoverageTest {
   }
 
   @Test
-  void ownershipQueriesPreserveValidProviderRowsAndExcludeFactionRegistrations() {
-    OwnedVehicleSummary personal = summary("personal", "ironclad", "player_Alice");
-    OwnedVehicleSummary ignored = summary("ignored", "raft", "player_Alice");
-    OwnedVehicleSummary factionOwned = summary("pool", "ironclad", "player_Alice");
-    registry.register(
-        new PlayerVehicleRecord(
-            player.getUniqueId(), "pool", "ironclad", OwnershipMode.POOL, null, "home"));
-    when(manager.listOwnedVehicles("player_Alice"))
-        .thenReturn(
-            Arrays.asList(
-                null, summary(null, "ironclad", "player_Alice"), personal, ignored, factionOwned));
-    when(manager.listAllPlayerOwnedVehicles())
-        .thenReturn(Arrays.asList(null, personal, factionOwned));
-
-    assertEquals(
-        List.of(personal, ignored), VehicleOwnershipQueries.personalVehicles("Alice", registry));
-    assertEquals(List.of(personal), VehicleOwnershipQueries.allPersonalVehicles(registry));
-    assertEquals(
-        List.of(personal, factionOwned), VehicleOwnershipQueries.allPersonalVehicles(null));
-    assertEquals(1, VehicleOwnershipQueries.countOfType(List.of(personal, ignored), "IRONCLAD"));
-    assertEquals(1, VehicleOwnershipQueries.countExcludingIgnoreLimit(List.of(personal, ignored)));
-    assertEquals(
-        0,
-        VehicleOwnershipQueries.countOfType(
-            List.of(summary("unknown", null, "player_Alice")), "ironclad"));
-    assertEquals(0, VehicleOwnershipQueries.countOfType(null, "ironclad"));
-    assertEquals(0, VehicleOwnershipQueries.countOfType(List.of(personal), null));
-    assertEquals(0, VehicleOwnershipQueries.countOfType(List.of(personal), ""));
-    assertEquals(0, VehicleOwnershipQueries.countExcludingIgnoreLimit(null));
-    for (String name : Arrays.asList(null, "", " ")) {
-      assertEquals("player_none", VehicleOwnershipQueries.ownerEntry(name));
-      assertTrue(VehicleOwnershipQueries.personalVehicles(name, registry).isEmpty());
-      assertFalse(VehicleOwnershipQueries.isPlayerOwner(name));
-      assertNull(VehicleOwnershipQueries.playerNameFromOwner(name));
-    }
-    for (String owner : List.of("player_", "player_none", "faction_home")) {
-      assertFalse(VehicleOwnershipQueries.isPlayerOwner(owner));
-      assertNull(VehicleOwnershipQueries.playerNameFromOwner(owner));
-    }
-    assertTrue(VehicleOwnershipQueries.isPlayerOwner("PLAYER_Alice"));
-    assertEquals("Alice", VehicleOwnershipQueries.playerNameFromOwner("PLAYER_Alice"));
-    when(manager.listOwnedVehicles("player_Alice")).thenReturn(null);
-    assertTrue(VehicleOwnershipQueries.personalVehicles("Alice", registry).isEmpty());
-    framework
-        .when(VehicleFramework::getVehicleManager)
-        .thenThrow(new LinkageError("plugin absent"));
-    assertTrue(VehicleOwnershipQueries.personalVehicles("Alice", registry).isEmpty());
-    assertTrue(VehicleOwnershipQueries.allPersonalVehicles(registry).isEmpty());
-  }
-
-  @Test
-  void ownershipNameResolutionUsesTheRealOnlineOrOfflineProviderContract() {
+  void legacyOwnerNamesResolveThroughDenarEconomysRememberedNames() {
     UUID offlineId = UUID.randomUUID();
-    OfflinePlayer offline = mock(OfflinePlayer.class);
-    when(offline.getName()).thenReturn("OfflineAlice");
-    when(Bukkit.getOfflinePlayer(offlineId)).thenReturn(offline);
-    assertEquals("Alice", VehicleOwnershipQueries.resolvePlayerName(player.getUniqueId()));
-    assertEquals("OfflineAlice", VehicleOwnershipQueries.resolvePlayerName(offlineId));
-    assertNull(VehicleOwnershipQueries.resolvePlayerName(null));
     try (MockedStatic<OfflineModifier> identities = mockStatic(OfflineModifier.class)) {
       identities.when(() -> OfflineModifier.playerId("OfflineAlice")).thenReturn(offlineId);
       assertEquals(offlineId, VehicleOwnershipQueries.resolvePlayerUuid("OfflineAlice"));
       assertNull(VehicleOwnershipQueries.resolvePlayerUuid("Unknown"));
     }
-    when(Bukkit.getServer()).thenReturn(null);
-    assertNull(VehicleOwnershipQueries.resolvePlayerName(player.getUniqueId()));
   }
 
 
@@ -487,9 +417,10 @@ class VehicleRuntimeLifecycleCoverageTest {
     Player taxpayer = fixture.player("Taxpayer");
     UUID character = net.tfminecraft.simplefactions.identity.Members.session(taxpayer).orElseThrow().ref().characterId();
     taxed.getVehicleFeeHandler().setRate(FeeKind.VEHICLE_TAX, null, 50);
-    owned.add(summary("personal-taxable", "ironclad", "player_Taxpayer"));
-    owned.add(summary("pooled-exempt", "ironclad", "player_Taxpayer"));
-    owned.add(summary("free-exempt", "raft", "player_Taxpayer"));
+    FakeOwnerApi.install()
+        .stored("personal-taxable", "ironclad", "player_Taxpayer")
+        .stored("pooled-exempt", "ironclad", "player_Taxpayer")
+        .stored("free-exempt", "raft", "player_Taxpayer");
     registry.register(
         new PlayerVehicleRecord(
             character, "pooled-exempt", "ironclad", OwnershipMode.POOL, "taxed"));
@@ -631,9 +562,6 @@ class VehicleRuntimeLifecycleCoverageTest {
     return vehicle;
   }
 
-  private static OwnedVehicleSummary summary(String id, String type, String owner) {
-    return new OwnedVehicleSummary(id, type, type, Optional.empty(), false, owner);
-  }
 
   private void snapshot(Class<?> type, String name) throws Exception {
     Field field = type.getDeclaredField(name);

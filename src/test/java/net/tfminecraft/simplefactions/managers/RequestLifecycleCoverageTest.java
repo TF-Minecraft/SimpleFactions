@@ -60,7 +60,6 @@ class RequestLifecycleCoverageTest {
             UUID.randomUUID().toString(),
             "wagon",
             alice.getUniqueId(),
-            "Alice",
             bob.getUniqueId());
     expire(request);
     RequestManager.addRequest(alice, bob, request);
@@ -82,7 +81,6 @@ class RequestLifecycleCoverageTest {
             UUID.randomUUID().toString(),
             "wagon",
             alice.getUniqueId(),
-            "Alice",
             bob.getUniqueId());
     var gift =
         new VehicleGiveConsentRequest(
@@ -92,7 +90,8 @@ class RequestLifecycleCoverageTest {
             "wagon",
             alice.getUniqueId(),
             bob.getUniqueId(),
-            "Bob");
+            new net.tfminecraft.tlibs.character.CharacterRef(bob.getUniqueId(), UUID.randomUUID()),
+            new net.tfminecraft.tlibs.character.CharacterRef(alice.getUniqueId(), UUID.randomUUID()));
     expire(handover);
     expire(gift);
     RequestManager.addRequest(alice, bob, handover);

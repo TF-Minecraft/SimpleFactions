@@ -1,7 +1,7 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
 
-import net.tfminecraft.simplefactions.vehicles.registry.FakeOwnedInventory;
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
@@ -37,6 +37,10 @@ import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 
 class InstallationVehicleUnberthServiceTest {
+    private static final net.tfminecraft.tlibs.character.CharacterRef LEADER = new net.tfminecraft.tlibs.character.CharacterRef(
+            UUID.randomUUID(), net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Leader"));
+    private static final net.tfminecraft.tlibs.character.CharacterRef OTHER = new net.tfminecraft.tlibs.character.CharacterRef(
+            UUID.randomUUID(), net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Other"));
     private Path tempDir;
     private org.mockito.MockedStatic<org.bukkit.Bukkit> online;
     private PlayerVehicleRegistry registry;
@@ -72,12 +76,12 @@ class InstallationVehicleUnberthServiceTest {
               static_emplacements: {}
             """);
         VehiclesConfigLoader.load(vehiclesYaml.toFile());
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory());
+        FakeOwnerApi.install();
         registry = new PlayerVehicleRegistry();
         assigned = new ArrayList<>();
         service = new InstallationVehicleUnberthService(
                 registry, (uuid, name) -> {
-                    assigned.add(uuid + ":" + name);
+                    assigned.add(uuid + ":" + net.tfminecraft.simplefactions.identity.Members.key(name));
                     return true;
                 });
         faction = mock(Faction.class);
@@ -96,7 +100,6 @@ class InstallationVehicleUnberthServiceTest {
     void tearDown() throws IOException {
         online.close();
         net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
-        VehicleOwnershipQueries.setSourceForTests(null);
         if (tempDir != null) {
             Files.walk(tempDir)
                     .sorted(java.util.Comparator.reverseOrder())
@@ -121,7 +124,7 @@ class InstallationVehicleUnberthServiceTest {
             sf.when(SimpleFactions::getInstance).thenReturn(plugin);
 
             InstallationVehicleUnberthService.UnberthOutcome outcome =
-                    service.unberth(faction, "Leader", port, vehicleUuid);
+                    service.unberth(faction, LEADER, port, vehicleUuid);
 
             assertEquals(InstallationVehicleUnberthService.UnberthResult.OK, outcome.result());
             assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid(vehicleUuid).orElseThrow().getMode());
@@ -143,7 +146,7 @@ class InstallationVehicleUnberthServiceTest {
                         "red"));
 
         InstallationVehicleUnberthService.UnberthOutcome outcome =
-                service.unberth(faction, "Other", port, vehicleUuid);
+                service.unberth(faction, OTHER, port, vehicleUuid);
 
         assertEquals(InstallationVehicleUnberthService.UnberthResult.NOT_LEADER, outcome.result());
         assertTrue(registry.getByVehicleUuid(vehicleUuid).isPresent());
@@ -162,7 +165,7 @@ class InstallationVehicleUnberthServiceTest {
                         null));
 
         InstallationVehicleUnberthService.UnberthOutcome outcome =
-                service.unberth(faction, "Leader", port, vehicleUuid);
+                service.unberth(faction, LEADER, port, vehicleUuid);
 
         assertEquals(InstallationVehicleUnberthService.UnberthResult.NOT_BERTHED, outcome.result());
     }
@@ -184,7 +187,7 @@ class InstallationVehicleUnberthServiceTest {
                     .thenReturn(true);
 
             InstallationVehicleUnberthService.UnberthOutcome outcome =
-                    service.unberth(faction, "Leader", port, vehicleUuid);
+                    service.unberth(faction, LEADER, port, vehicleUuid);
 
             assertEquals(InstallationVehicleUnberthService.UnberthResult.EMBARGO, outcome.result());
             assertTrue(registry.getByVehicleUuid(vehicleUuid).isPresent());
@@ -203,11 +206,11 @@ class InstallationVehicleUnberthServiceTest {
                         OwnershipMode.INSTALLATION,
                         port.getId(),
                         "red"));
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("other", "cloudskimmer", "player_Leader"));
+        registry.register(new PlayerVehicleRecord(LEADER.characterId(), "other", "cloudskimmer",
+                OwnershipMode.PERSONAL, null, null, LEADER.ownerId()));
 
         InstallationVehicleUnberthService.UnberthOutcome outcome =
-                service.unberth(faction, "Leader", port, vehicleUuid);
+                service.unberth(faction, LEADER, port, vehicleUuid);
 
         assertEquals(InstallationVehicleUnberthService.UnberthResult.NO_PERSONAL_ROOM, outcome.result());
         assertTrue(registry.getByVehicleUuid(vehicleUuid).isPresent());

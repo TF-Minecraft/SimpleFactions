@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 
 
-import net.tfminecraft.simplefactions.vehicles.registry.FakeOwnedInventory;
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
@@ -78,12 +78,11 @@ class VehicleUpkeepServiceTest {
         store = new VehicleMaintenanceStore();
         decayApi = new RecordingDecayApi();
         service = new VehicleUpkeepService(registry, economyManager, bank, store, decayApi);
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory());
+        FakeOwnerApi.install();
     }
 
     @AfterEach
     void tearDown() throws IOException {
-        VehicleOwnershipQueries.setSourceForTests(null);
         if (tempDir != null) {
             Files.walk(tempDir)
                 .sorted(java.util.Comparator.reverseOrder())
@@ -115,8 +114,7 @@ class VehicleUpkeepServiceTest {
         UUID playerUuid = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Alice");
         bank.setBalance(playerUuid, 5.0);
         bank.remember("Alice", playerUuid);
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
+        FakeOwnerApi.install().stored("vehicle-1", "ironclad", "player_Alice");
         Player alice = onlinePlayer("Alice", playerUuid);
         registry.register(new PlayerVehicleRecord(playerUuid, "vehicle-1", "ironclad", OwnershipMode.PERSONAL, null));
 
@@ -131,8 +129,7 @@ class VehicleUpkeepServiceTest {
         UUID playerUuid = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Alice");
         bank.setBalance(playerUuid, 20.0);
         bank.remember("Alice", playerUuid);
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("vehicle-1", "ironclad", "player_Alice"));
+        FakeOwnerApi.install().stored("vehicle-1", "ironclad", "player_Alice");
         Player alice = onlinePlayer("Alice", playerUuid);
         registry.register(new PlayerVehicleRecord(playerUuid, "vehicle-1", "ironclad", OwnershipMode.PERSONAL, null));
 

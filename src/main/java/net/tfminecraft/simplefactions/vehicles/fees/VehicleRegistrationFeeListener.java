@@ -12,11 +12,17 @@ import org.bukkit.event.Listener;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.identity.Members;
-import net.tfminecraft.denareconomy.api.Result;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.VehicleIntegrationListener;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore.PaidBuild;
+import net.tfminecraft.simplefactions.vehicles.owners.ConstructionStamp;
+import net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Reason;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleQuarantine;
 import net.tfminecraft.vfbuilders.core.ActiveStation;
 import net.tfminecraft.vfbuilders.core.Blueprint;
 import net.tfminecraft.vfbuilders.events.BeginVehicleConstructionEvent;
@@ -29,6 +35,7 @@ import net.tfminecraft.vfbuilders.events.VehicleConstructionCancelEvent;
  * Needs VFBuilders 2.1.0 or later for the confirm click and refunds.
  */
 public final class VehicleRegistrationFeeListener implements Listener {
+    public static final String OWNERSHIP_STARTING = "§cVehicle ownership is not running yet, so nothing can be built.";
     private final VehicleFeeStore store;
     private final VehicleFeeConfirmations confirmations;
     private final Runnable saver;
@@ -49,6 +56,8 @@ public final class VehicleRegistrationFeeListener implements Listener {
         }
         var session = Members.session(player).orElse(null);
         if (session == null) { event.setCancelled(true); player.sendMessage("§cSelect a living character first."); return; }
+        // A finished vehicle is stamped for its builder, which needs the vehicle stage up in characters mode.
+        if (!LeaderStamps.enabled()) { event.setCancelled(true); player.sendMessage(OWNERSHIP_STARTING); return; }
         String vehicleTypeId = VehicleIntegrationListener.resolveVehicleTypeId(blueprint);
         String stationKey = stationKey(event.getStation());
         String scope = "build:" + stationKey;
@@ -73,7 +82,7 @@ public final class VehicleRegistrationFeeListener implements Listener {
             player.sendMessage(VehicleFeeMessages.registrationConfirm(quote, vehicleTypeId));
             return;
         }
-        if (payments.charge(scope, "sf:vehicle:build:" + UUID.randomUUID(), session.ref(), quote) != Result.APPLIED) {
+        if (payments.charge(scope, "sf:vehicle:build:" + UUID.randomUUID(), session.ref(), quote) != net.tfminecraft.denareconomy.api.Result.APPLIED) {
             event.setCancelled(true);
             player.sendMessage(VehicleFeeMessages.registrationUnaffordable(quote));
             return;
@@ -91,7 +100,7 @@ public final class VehicleRegistrationFeeListener implements Listener {
             return;
         }
         var refund = payments.refund(scope);
-        if (refund.result() != Result.APPLIED) return;
+        if (refund.result() != net.tfminecraft.denareconomy.api.Result.APPLIED) return;
         double refunded = refund.amount();
         double shortfall = Formatter.formatDouble(net.tfminecraft.simplefactions.economy.Money.denars(build.cents()) - refunded);
         if (shortfall > 0.0 && SimpleFactions.getInstance() != null) {
@@ -117,9 +126,43 @@ public final class VehicleRegistrationFeeListener implements Listener {
         var paid = payments == null ? null : payments.receipt(scope);
         if (event.getVehicle() == null || event.getVehicle().getUUID() == null || payments == null) return;
         String owner = paid != null ? paid.payer().characterId().toString() : store.buildOwner(stationKey(event.getStation()));
-        if (owner == null || !payments.personal(event.getVehicle().getUUID(), event.getVehicle().getId(), UUID.fromString(owner))) return;
-        store.setLastOwner(event.getVehicle().getUUID(), Members.key(UUID.fromString(owner)));
+        if (owner == null) return;
+        UUID payer = UUID.fromString(owner);
+        UUID account = paid != null ? paid.payer().ownerId() : Members.accountId(Members.key(payer)).orElse(null);
+        String vehicle = event.getVehicle().getUUID();
+        // The payer row goes first and is taken back if VehicleFramework's owner cannot be set.
+        if (!payments.personal(vehicle, event.getVehicle().getId(), payer, account)) return;
+        UUID constructor = ConstructionStamp.constructor(event);
+        boolean agree = payer.equals(constructor);
+        String stamp = agree ? OwnerTags.character(payer) : OwnerTags.NO_CHARACTER;
+        Result stamped = VehicleOwnerWrites.write(vehicle, stamp, Reason.CONSTRUCT);
+        if (stamped != Result.OK) {
+            payments.replaceRow(vehicle, null);
+            // Nobody may claim it while the paid build is unresolved.
+            quarantine(vehicle, OwnerTags.NONE, "construction owner could not be written (" + stamped
+                    + "); build receipt " + scope + " stays open");
+            return;
+        }
+        if (!agree) {
+            quarantine(vehicle, OwnerTags.NO_CHARACTER,
+                    "registration fee payer " + payer + " is not the constructor " + constructor);
+        }
+        store.setLastOwner(vehicle, Members.key(payer));
         payments.complete(scope, null);
+    }
+
+    private static void quarantine(String vehicle, String owner, String reason) {
+        var quarantine = VehicleQuarantine.current();
+        try {
+            if (quarantine != null) quarantine.add(new VehicleQuarantine.Entry(vehicle, owner, reason));
+        } catch (java.io.IOException error) {
+            log("Could not list quarantined vehicle " + vehicle + ": " + error);
+        }
+        log("Vehicle " + vehicle + " is held for staff: " + reason);
+    }
+
+    private static void log(String message) {
+        if (SimpleFactions.getInstance() != null) SimpleFactions.getInstance().getLogger().warning(message);
     }
 
     static String stationKey(ActiveStation station) {

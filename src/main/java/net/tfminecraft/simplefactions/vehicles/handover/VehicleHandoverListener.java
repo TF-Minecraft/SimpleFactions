@@ -50,7 +50,8 @@ public final class VehicleHandoverListener implements Listener {
             sessions.clear(owner.getUniqueId());
             return;
         }
-        Outcome outcome = service.evaluate(owner.getName(), recipient.getName(), vehicle.getUUID());
+        Outcome outcome = service.evaluate(
+                Members.session(owner).map(value -> value.ref()).orElse(null), recipient.getUniqueId(), vehicle.getUUID());
         if (outcome.status() != Status.OK) {
             owner.sendMessage(VehicleHandoverMessages.forOutcome(outcome, Members.name(recipient)));
             if (outcome.status() != Status.NOT_OWNER) {

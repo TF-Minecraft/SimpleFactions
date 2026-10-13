@@ -23,6 +23,12 @@ public final class FactionVehicleGiveService {
         if (leader == null || recipient == null || faction == null || vehicleUuid == null) {
             return;
         }
+        var leaderCharacter = Members.session(leader).map(session -> session.ref()).orElse(null);
+        var recipientCharacter = Members.session(recipient).map(session -> session.ref()).orElse(null);
+        if (leaderCharacter == null || recipientCharacter == null) {
+            leader.sendMessage(FactionVehicleReleaseMessages.ownershipUnavailable());
+            return;
+        }
         VehicleGiveConsentRequest request = new VehicleGiveConsentRequest(
                 faction.getOrCreateMainGuild(),
                 faction.getId(),
@@ -30,7 +36,8 @@ public final class FactionVehicleGiveService {
                 vehicleTypeId,
                 recipient.getUniqueId(),
                 leader.getUniqueId(),
-                Members.key(leader));
+                leaderCharacter,
+                recipientCharacter);
         RequestManager.addRequest(leader, recipient, request);
         // addRequest refuses when the recipient is already considering a request, even one for this vehicle.
         if (RequestManager.getRequest(recipient) != request) {
@@ -52,6 +59,11 @@ public final class FactionVehicleGiveService {
             notifyExpired(req, recipient);
             return;
         }
+        if (!Members.session(recipient).map(session -> session.ref()).filter(req.getRecipientCharacter()::equals)
+                .isPresent()) {
+            recipient.sendMessage("§cThis request belongs to another character.");
+            return;
+        }
         Faction faction = FactionManager.getByString(req.getFactionId());
         if (faction == null || faction.getLeader() == null
                 || !faction.getLeader().equals(req.getLeaderName())) {
@@ -64,7 +76,7 @@ public final class FactionVehicleGiveService {
         Outcome outcome = releaseService.give(
                 faction,
                 req.getLeaderName(),
-                recipient.getName(),
+                req.getRecipientCharacter(),
                 req.getVehicleUuid());
         if (outcome.status() != Status.OK) {
             String message = FactionVehicleReleaseMessages.forGive(outcome, Members.name(recipient));
@@ -76,7 +88,7 @@ public final class FactionVehicleGiveService {
         }
         SimpleFactions plugin = SimpleFactions.getInstance();
         if (plugin != null) {
-            plugin.recordVehicleOwner(req.getVehicleUuid(), Members.key(recipient));
+            plugin.recordVehicleOwner(req.getVehicleUuid(), Members.key(req.getRecipientCharacter()));
         }
         recipient.sendMessage(FactionVehicleReleaseMessages.giveSuccessRecipient(Members.display(req.getLeaderName())));
         notifyLeader(req, FactionVehicleReleaseMessages.giveSuccessLeader(Members.name(recipient)));

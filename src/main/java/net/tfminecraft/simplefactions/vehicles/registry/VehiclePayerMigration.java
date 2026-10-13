@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import net.tfminecraft.simplefactions.database.DurableJson;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
 import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.Characters;
 import net.tfminecraft.vehicleframework.VehicleFramework;
@@ -22,6 +23,18 @@ public final class VehiclePayerMigration {
         boolean completed;
     }
     private VehiclePayerMigration() {}
+
+    /** The accounts the stage-5 payer plan resolved owner names to, by vehicle; empty without a plan. */
+    public static java.util.Map<String, UUID> accounts(Path folder) throws IOException {
+        Path file = folder.resolve("identity/vehicle-payers.json");
+        java.util.Map<String, UUID> out = new java.util.HashMap<>();
+        if (!Files.exists(file)) return out;
+        Plan plan = DurableJson.read(file, Plan.class);
+        if (plan.rows != null) {
+            for (Row row : plan.rows) if (row != null && row.vehicle() != null && row.account() != null) out.put(row.vehicle(), row.account());
+        }
+        return out;
+    }
 
     public static void startup(Path folder, PlayerVehicleRegistry registry) throws IOException {
         Path file = folder.resolve("identity/vehicle-payers.json");
@@ -42,8 +55,10 @@ public final class VehiclePayerMigration {
         if (Files.exists(file)) { replay(folder, file, registry, DurableJson.read(file, Plan.class)); return; }
         Plan plan = new Plan();
         for (var vehicle : source) {
-            if (registry.getByVehicleUuid(vehicle.getUuid()).isPresent()) continue;
-            UUID owner = accounts.apply(VehicleOwnershipQueries.playerNameFromOwner(vehicle.getOwner()));
+            String name = OwnerTags.legacyName(vehicle.getOwner());
+            // Character owners are already past this bridge; VehicleFramework 2.13 lists them too.
+            if (name == null || registry.getByVehicleUuid(vehicle.getUuid()).isPresent()) continue;
+            UUID owner = accounts.apply(name);
             CharacterRef heir = owner == null ? null : heirs.apply(owner);
             UUID character = heir != null && heir.ownerId().equals(owner) ? heir.characterId() : null;
             plan.rows.add(new Row(vehicle.getUuid(), vehicle.getTypeId(), vehicle.getOwner(), owner, character));

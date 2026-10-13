@@ -771,14 +771,23 @@ public class Faction {
 	}
 	public void setLeader(String leader) {
 		getOrCreateMainGuild().setLeader(leader);
-		this.leader = leader;
+		changeLeader(leader);
 		net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher.onGovernmentChanged(this);
 	}
     /** Applies only the journal's captured succession; a later deliberate appointment wins. */
     public void succeedDeadLeader(String dead, String successor) {
         if (leader != null && !leader.isBlank() && !dead.equals(leader)) return;
+        String previous = leader;
         leader = successor;
         getOrCreateMainGuild().setLeader(successor);
+        net.tfminecraft.simplefactions.events.FactionLeaderChangedEvent.fire(this, previous, successor);
+    }
+
+    /** With succeedDeadLeader, the only writer of the leader after construction; vehicles restamp from its event. */
+    private void changeLeader(String next) {
+        String previous = leader;
+        leader = next;
+        net.tfminecraft.simplefactions.events.FactionLeaderChangedEvent.fire(this, previous, next);
     }
 
 	public void promoteToLeader(String name) {

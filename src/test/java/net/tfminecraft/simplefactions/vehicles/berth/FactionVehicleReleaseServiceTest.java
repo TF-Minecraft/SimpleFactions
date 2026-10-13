@@ -27,11 +27,13 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Outcome;
 import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Status;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard.CanBuildResult;
-import net.tfminecraft.simplefactions.vehicles.registry.FakeOwnedInventory;
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.testsupport.NameKeyedMembers;
+import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -40,6 +42,8 @@ import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 
 class FactionVehicleReleaseServiceTest {
+    private static final CharacterRef LEADER = new CharacterRef(UUID.randomUUID(), NameKeyedMembers.characterOf("Leader"));
+    private static final CharacterRef BOB = new CharacterRef(UUID.randomUUID(), NameKeyedMembers.characterOf("Bob"));
     private Path tempDir;
     private org.mockito.MockedStatic<org.bukkit.Bukkit> online;
     private PlayerVehicleRegistry registry;
@@ -83,12 +87,12 @@ class FactionVehicleReleaseServiceTest {
               aircraft: {}
             """);
         VehiclesConfigLoader.load(vehiclesYaml.toFile());
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory());
+        FakeOwnerApi.install();
 
         registry = new PlayerVehicleRegistry();
         assigned = new ArrayList<>();
         service = new FactionVehicleReleaseService(registry, (uuid, name) -> {
-            assigned.add(uuid + ":" + name);
+            assigned.add(uuid + ":" + Members.key(name));
             return true;
         });
 
@@ -113,7 +117,6 @@ class FactionVehicleReleaseServiceTest {
     void tearDown() throws IOException {
         online.close();
         net.tfminecraft.simplefactions.managers.FactionManager.factions = previousFactions;
-        VehicleOwnershipQueries.setSourceForTests(null);
         BattleManager.resetForTests();
         WarManager.get().clear();
         WarManager.get().addAll(savedWars);
@@ -134,7 +137,7 @@ class FactionVehicleReleaseServiceTest {
         SimpleFactions plugin = savingPlugin();
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(plugin);
-            Outcome outcome = service.take(faction, "Leader", "gun-1");
+            Outcome outcome = service.take(faction, LEADER, "gun-1");
             assertEquals(Status.OK, outcome.status());
             assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("gun-1").orElseThrow().getMode());
             assertEquals(List.of("gun-1:Leader"), assigned);
@@ -148,12 +151,12 @@ class FactionVehicleReleaseServiceTest {
         FactionVehicleReleaseService failing = new FactionVehicleReleaseService(
                 registry,
                 (uuid, name) -> {
-                    assigned.add(uuid + ":" + name);
+                    assigned.add(uuid + ":" + Members.key(name));
                     return true;
                 },
                 () -> false);
 
-        Outcome outcome = failing.take(faction, "Leader", "gun-1");
+        Outcome outcome = failing.take(faction, LEADER, "gun-1");
 
         assertEquals(Status.SAVE_FAILED, outcome.status());
         assertTrue(registry.getByVehicleUuid("gun-1").isPresent());
@@ -166,7 +169,7 @@ class FactionVehicleReleaseServiceTest {
         FactionVehicleReleaseService unassignable =
                 new FactionVehicleReleaseService(registry, (uuid, name) -> false, () -> true);
 
-        Outcome outcome = unassignable.take(faction, "Leader", "gun-1");
+        Outcome outcome = unassignable.take(faction, LEADER, "gun-1");
 
         assertEquals(Status.OWNERSHIP_UNAVAILABLE, outcome.status());
         assertEquals(OwnershipMode.POOL, registry.getByVehicleUuid("gun-1").orElseThrow().getMode());
@@ -179,7 +182,7 @@ class FactionVehicleReleaseServiceTest {
         FactionVehicleReleaseService service = new FactionVehicleReleaseService(
                 registry, (uuid, name) -> false, () -> saves.incrementAndGet() == 1);
 
-        Outcome outcome = service.take(faction, "Leader", "gun-1");
+        Outcome outcome = service.take(faction, LEADER, "gun-1");
 
         assertEquals(Status.SAVE_FAILED, outcome.status());
         assertEquals(2, saves.get());
@@ -196,7 +199,7 @@ class FactionVehicleReleaseServiceTest {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(), "ship-1", "ironclad", OwnershipMode.INSTALLATION, "port-1", "blue"));
 
-        Outcome outcome = service.take(faction, "Leader", "ship-1");
+        Outcome outcome = service.take(faction, LEADER, "ship-1");
 
         assertEquals(Status.NOT_FACTION_VEHICLE, outcome.status());
         assertTrue(registry.getByVehicleUuid("ship-1").isPresent());
@@ -211,7 +214,7 @@ class FactionVehicleReleaseServiceTest {
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
-            Outcome outcome = service.take(faction, "Leader", "ship-1");
+            Outcome outcome = service.take(faction, LEADER, "ship-1");
             assertEquals(Status.OK, outcome.status());
             assertEquals(List.of("ship-1:Leader"), assigned);
             assertFalse(registry.isBerthed("ship-1"));
@@ -221,10 +224,9 @@ class FactionVehicleReleaseServiceTest {
     @Test
     void take_refusesWhenPersonalLimitIsFull() {
         registry.register(pool("car-1", "coal_car"));
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("owned", "ironclad", "player_Leader"));
+        own("owned", "ironclad", LEADER);
 
-        Outcome outcome = service.take(faction, "Leader", "car-1");
+        Outcome outcome = service.take(faction, LEADER, "car-1");
 
         assertEquals(Status.NO_PERSONAL_ROOM, outcome.status());
         assertEquals(CanBuildResult.TOTAL_LIMIT, outcome.slotFailure());
@@ -238,10 +240,9 @@ class FactionVehicleReleaseServiceTest {
         when(handler.getById("port-1")).thenReturn(
                 new Installation("port-1", "Harbour", InstallationKind.PORT, 1, 0, 0, 0L));
         registry.register(berthed("ship-1", "ironclad", "port-1"));
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("owned", "ironclad", "player_Leader"));
+        own("owned", "ironclad", LEADER);
 
-        Outcome outcome = service.take(faction, "Leader", "ship-1");
+        Outcome outcome = service.take(faction, LEADER, "ship-1");
 
         assertEquals(Status.NO_PERSONAL_ROOM, outcome.status());
         assertEquals(CanBuildResult.PER_TYPE_LIMIT, outcome.slotFailure());
@@ -252,7 +253,7 @@ class FactionVehicleReleaseServiceTest {
         registry.register(pool("car-1", "coal_car"));
         startBattle(true, false);
 
-        Outcome outcome = service.take(faction, "Leader", "car-1");
+        Outcome outcome = service.take(faction, LEADER, "car-1");
 
         assertEquals(Status.IN_BATTLE, outcome.status());
         assertTrue(registry.getByVehicleUuid("car-1").isPresent());
@@ -264,7 +265,7 @@ class FactionVehicleReleaseServiceTest {
         registry.register(pool("car-1", "coal_car"));
         startBattle(true, true);
 
-        assertEquals(Status.IN_BATTLE, service.take(faction, "Leader", "car-1").status());
+        assertEquals(Status.IN_BATTLE, service.take(faction, LEADER, "car-1").status());
     }
 
     @Test
@@ -274,7 +275,7 @@ class FactionVehicleReleaseServiceTest {
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
-            assertEquals(Status.OK, service.take(faction, "Leader", "car-1").status());
+            assertEquals(Status.OK, service.take(faction, LEADER, "car-1").status());
         }
     }
 
@@ -288,7 +289,7 @@ class FactionVehicleReleaseServiceTest {
         try (MockedStatic<VehicleInstallationLockService> lock = mockStatic(VehicleInstallationLockService.class)) {
             lock.when(() -> VehicleInstallationLockService.isInstallationLocked(org.mockito.ArgumentMatchers.same(installation), org.mockito.ArgumentMatchers.any()))
                     .thenReturn(true);
-            Outcome outcome = service.take(faction, "Leader", "ship-1");
+            Outcome outcome = service.take(faction, LEADER, "ship-1");
             assertEquals(Status.INSTALLATION_LOCKED, outcome.status());
             assertEquals(
                     VehicleInstallationLockService.UNBERTH_BLOCKED,
@@ -302,7 +303,7 @@ class FactionVehicleReleaseServiceTest {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(), "car-1", "coal_car", OwnershipMode.POOL, null, "blue"));
 
-        assertEquals(Status.NOT_FACTION_VEHICLE, service.take(faction, "Leader", "car-1").status());
+        assertEquals(Status.NOT_FACTION_VEHICLE, service.take(faction, LEADER, "car-1").status());
     }
 
     @Test
@@ -311,7 +312,7 @@ class FactionVehicleReleaseServiceTest {
 
         try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
-            Outcome outcome = service.give(faction, "Leader", "Bob", "car-1");
+            Outcome outcome = service.give(faction, "Leader", BOB, "car-1");
             assertEquals(Status.OK, outcome.status());
             assertEquals(List.of("car-1:Bob"), assigned);
             assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("car-1").orElseThrow().getMode());
@@ -321,10 +322,9 @@ class FactionVehicleReleaseServiceTest {
     @Test
     void give_refusesWhenRecipientHasNoRoom() {
         registry.register(pool("car-1", "coal_car"));
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("owned", "ironclad", "player_Bob"));
+        own("owned", "ironclad", BOB);
 
-        Outcome outcome = service.evaluateGive(faction, "Leader", "Bob", "car-1");
+        Outcome outcome = service.evaluateGive(faction, "Leader", BOB, "car-1");
 
         assertEquals(Status.NO_PERSONAL_ROOM, outcome.status());
         assertTrue(registry.getByVehicleUuid("car-1").isPresent());
@@ -341,7 +341,7 @@ class FactionVehicleReleaseServiceTest {
         try (MockedStatic<VehicleInstallationLockService> lock = mockStatic(VehicleInstallationLockService.class)) {
             lock.when(() -> VehicleInstallationLockService.isInstallationLocked(org.mockito.ArgumentMatchers.same(installation), org.mockito.ArgumentMatchers.any()))
                     .thenReturn(true);
-            Outcome outcome = service.evaluateGive(faction, "Leader", "Bob", "ship-1");
+            Outcome outcome = service.evaluateGive(faction, "Leader", BOB, "ship-1");
             assertEquals(Status.INSTALLATION_LOCKED, outcome.status());
             assertTrue(FactionVehicleReleaseMessages.forGive(outcome, "Bob").contains("give"));
         }
@@ -355,6 +355,39 @@ class FactionVehicleReleaseServiceTest {
         battle.setStarted(started);
         battle.setCampaignRaid(raid);
         BattleManager.addBattle(battle);
+    }
+
+    private void own(String vehicle, String type, CharacterRef owner) {
+        registry.register(new PlayerVehicleRecord(owner.characterId(), vehicle, type, OwnershipMode.PERSONAL, null, null,
+                owner.ownerId()));
+    }
+
+    @Test
+    void releasedVehiclesCacheTheRecipientsAccountAndNeedARecipient() {
+        registry.register(pool("car-1", "coal_car"));
+        Outcome missing = service.give(faction, "Leader", null, "car-1");
+        assertEquals(Status.OWNERSHIP_UNAVAILABLE, missing.status());
+        assertTrue(assigned.isEmpty());
+
+        try (MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
+            sf.when(SimpleFactions::getInstance).thenReturn(savingPlugin());
+            assertEquals(Status.OK, service.give(faction, "Leader", BOB, "car-1").status());
+        }
+        PlayerVehicleRecord row = registry.getByVehicleUuid("car-1").orElseThrow();
+        assertEquals(BOB.characterId(), row.getPlayerUuid());
+        assertEquals(BOB.ownerId(), row.getAccountUuid());
+    }
+
+    @Test
+    void theFrameworkOwnerIsTheRecipientsCharacterWithAnEmptyCrew() {
+        FakeOwnerApi api = FakeOwnerApi.install().stored("car-1", "coal_car", "char_none", "char_x;y;Crew");
+
+        assertTrue(FactionVehicleReleaseService.assignFrameworkOwner("car-1", BOB.characterId()));
+        assertEquals("char_" + BOB.characterId(), api.owner("car-1"));
+        assertEquals(List.of(), api.vehicles.get("car-1").current().orElseThrow().whitelist());
+        assertEquals(List.of("car-1 char_" + BOB.characterId() + " RELEASE"), api.writes);
+        assertFalse(FactionVehicleReleaseService.assignFrameworkOwner("car-1", null));
+        assertFalse(FactionVehicleReleaseService.assignFrameworkOwner("gone", BOB.characterId()));
     }
 
     private static PlayerVehicleRecord pool(String uuid, String typeId) {

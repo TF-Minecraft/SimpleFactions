@@ -199,7 +199,9 @@ class RequestManagerDeclineTest {
 		Player owner = player("Owner");
 		Guild guild = mock(Guild.class);
 		VehicleTransferConsentRequest request = new VehicleTransferConsentRequest(
-				guild, "fort", "Fort", UUID.randomUUID().toString(), "wagon", UUID.randomUUID(), UUID.randomUUID());
+				guild, "fort", "Fort", UUID.randomUUID().toString(), "wagon",
+				new net.tfminecraft.tlibs.character.CharacterRef(owner.getUniqueId() == null ? UUID.randomUUID() : owner.getUniqueId(), UUID.randomUUID()),
+				new net.tfminecraft.tlibs.character.CharacterRef(UUID.randomUUID(), UUID.randomUUID()), false);
 		forceTimeout(request);
 		RequestManager.addRequest(owner, owner, request);
 		SimpleFactions plugin = mock(SimpleFactions.class);

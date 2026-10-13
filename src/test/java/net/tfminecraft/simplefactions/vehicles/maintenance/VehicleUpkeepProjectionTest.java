@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 
 
-import net.tfminecraft.simplefactions.vehicles.registry.FakeOwnedInventory;
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
@@ -57,13 +57,11 @@ class VehicleUpkeepProjectionTest {
         registry = new PlayerVehicleRegistry();
         playerUuid = UUID.randomUUID();
         registry.register(new PlayerVehicleRecord(playerUuid, "v1", "monoplane", OwnershipMode.PERSONAL, null));
-        VehicleOwnershipQueries.setSourceForTests(
-                new FakeOwnedInventory().add("v1", "monoplane", "player_Alice"));
+        FakeOwnerApi.install().stored("v1", "monoplane", "player_Alice");
     }
 
     @AfterEach
     void tearDown() throws IOException {
-        VehicleOwnershipQueries.setSourceForTests(null);
         if (tempDir != null) {
             Files.walk(tempDir)
                     .sorted(java.util.Comparator.reverseOrder())
@@ -83,9 +81,9 @@ class VehicleUpkeepProjectionTest {
     void projectedDailyUpkeep_sumsPersonalVehiclesOnly() {
         registry.register(new PlayerVehicleRecord(
                 playerUuid, "v2", "monoplane", OwnershipMode.INSTALLATION, "port-1"));
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory()
-                .add("v1", "monoplane", "player_Alice")
-                .add("v2", "monoplane", "player_Alice"));
+        FakeOwnerApi.install()
+                .stored("v1", "monoplane", "player_Alice")
+                .stored("v2", "monoplane", "player_Alice");
 
         assertEquals(8.0, VehicleUpkeepProjection.projectedDailyUpkeep(playerUuid.toString(), registry));
     }

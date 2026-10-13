@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import net.tfminecraft.simplefactions.identity.Members;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
@@ -48,7 +50,7 @@ import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBan
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolLore;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
-import net.tfminecraft.simplefactions.vehicles.registry.FakeOwnedInventory;
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
@@ -244,13 +246,12 @@ class VehicleTransactionBoundaryCoverageTest {
               new Outcome(Status.NO_PERSONAL_ROOM, null, "ironclad")));
       assertEquals(
           CanBuildResult.UNKNOWN_TYPE,
-          VehicleSlotGuard.checkCanBuild((String) null, "ironclad", rig.registry));
+          VehicleSlotGuard.checkCanBuild((UUID) null, "ironclad", rig.registry));
       assertEquals(
           CanBuildResult.UNKNOWN_TYPE,
-          VehicleSlotGuard.checkCanBuild(" ", "ironclad", rig.registry));
-      assertEquals(
-          CanBuildResult.UNKNOWN_TYPE, VehicleSlotGuard.checkCanBuild("Owner", "ironclad", null));
-      CanBuildResult free = VehicleSlotGuard.checkCanBuild("Recipient", "ironclad", rig.registry);
+          VehicleSlotGuard.checkCanBuild(rig.owner.getUniqueId(), "ironclad", null));
+      CanBuildResult free =
+          VehicleSlotGuard.checkCanBuild(rig.recipient.getUniqueId(), "ironclad", rig.registry);
       assertEquals(CanBuildResult.OK, free);
       assertNull(
           FactionVehicleReleaseMessages.personalRoom(free, "ironclad", "Recipient"),
@@ -261,9 +262,11 @@ class VehicleTransactionBoundaryCoverageTest {
           "An unspecified external slot failure should still give a useful explanation");
       assertNull(VehicleConstructionMessages.forResult(null, "ironclad"));
       assertEquals(
-          CanBuildResult.UNKNOWN_TYPE, VehicleSlotGuard.checkCanBuild("Owner", "", rig.registry));
+          CanBuildResult.UNKNOWN_TYPE,
+          VehicleSlotGuard.checkCanBuild(rig.owner.getUniqueId(), "", rig.registry));
       assertEquals(
-          CanBuildResult.UNKNOWN_TYPE, VehicleSlotGuard.checkCanBuild("Owner", null, rig.registry));
+          CanBuildResult.UNKNOWN_TYPE,
+          VehicleSlotGuard.checkCanBuild(rig.owner.getUniqueId(), null, rig.registry));
     }
   }
 
@@ -272,14 +275,15 @@ class VehicleTransactionBoundaryCoverageTest {
     try (Rig rig = new Rig()) {
       PlayerVehicleRecord original = rig.pool("gift", "field_artillery");
       rig.registry.register(original);
+      var recipient = Members.session(rig.recipient).orElseThrow().ref();
       AtomicInteger writes = new AtomicInteger();
       AtomicInteger assignments = new AtomicInteger();
       FactionVehicleReleaseService service =
           new FactionVehicleReleaseService(
               rig.registry,
-              (id, name) -> {
+              (id, character) -> {
                 assertEquals("gift", id);
-                assertEquals("Recipient", name);
+                assertEquals(recipient.characterId(), character);
                 assignments.incrementAndGet();
                 return false;
               },
@@ -287,7 +291,7 @@ class VehicleTransactionBoundaryCoverageTest {
                 writes.incrementAndGet();
                 return true;
               });
-      Outcome outcome = service.give(rig.faction, "Leader", "Recipient", "gift");
+      Outcome outcome = service.give(rig.faction, "Leader", recipient, "gift");
       assertEquals(Status.OWNERSHIP_UNAVAILABLE, outcome.status());
       assertSame(original, rig.registry.getByVehicleUuid("gift").orElseThrow());
       assertEquals(2, writes.get());
@@ -392,15 +396,15 @@ class VehicleTransactionBoundaryCoverageTest {
               "Harbor",
               "v1",
               "ironclad",
-              rig.owner.getUniqueId(),
-              rig.leader.getUniqueId());
+              Members.session(rig.owner).orElseThrow().ref(),
+              Members.session(rig.leader).orElseThrow().ref(),
+              false);
       var handover =
           new VehicleHandoverRequest(
               rig.faction.getOrCreateMainGuild(),
               "v2",
               "ironclad",
               rig.leader.getUniqueId(),
-              "Leader",
               rig.recipient.getUniqueId());
       RequestManager.addRequest(rig.leader, rig.owner, transfer);
       RequestManager.addRequest(rig.leader, rig.recipient, handover);
@@ -463,8 +467,7 @@ class VehicleTransactionBoundaryCoverageTest {
           snapshot(InstallationConfigLoader.class, name);
         snapshot(RequestManager.class, "requests").set(null, new HashMap<>());
         snapshot(BattleManager.class, "battles").set(null, new ArrayList<>());
-        snapshot(VehicleOwnershipQueries.class, "source");
-        VehicleOwnershipQueries.setSourceForTests(new FakeOwnedInventory());
+        FakeOwnerApi.install();
         snapshot(VehicleFeeService.class, "factionLookup");
         snapshot(VehicleFeeService.class, "playerBank");
         VehicleFeeService.setForTests(null, bank);
@@ -511,7 +514,7 @@ class VehicleTransactionBoundaryCoverageTest {
       when(vehicle.getUUID()).thenReturn(id);
       when(vehicle.getId()).thenReturn(type);
       OwnerData data = new OwnerData();
-      data.setOwner("player_Owner");
+      data.setOwner("char_" + net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Owner"));
       when(vehicle.getOwnerData()).thenReturn(data);
       return vehicle;
     }

@@ -2,189 +2,66 @@ package net.tfminecraft.simplefactions.vehicles.registry;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.denareconomy.accounts.OfflineModifier;
 import net.tfminecraft.simplefactions.identity.Members;
-import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
-import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
-import net.tfminecraft.vehicleframework.VehicleFramework;
-import net.tfminecraft.tlibs.character.Characters;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerMeta;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites;
 
 public final class VehicleOwnershipQueries {
-    public interface OwnedInventory {
-        List<OwnedVehicleSummary> listByOwner(String ownerEntry);
-
-        List<OwnedVehicleSummary> listAllPlayerOwned();
-    }
-
-    private static OwnedInventory source = new VfOwnedInventory();
+    /** A personal vehicle: owned by one character, or still by a legacy account name, and not a faction's. */
+    public record PersonalVehicle(String vehicle, String typeId) {}
 
     private VehicleOwnershipQueries() {}
 
-    public static void setSourceForTests(OwnedInventory inventory) {
-        source = inventory == null ? new VfOwnedInventory() : inventory;
-    }
-
-    public static String ownerEntry(String playerName) {
-        if (playerName == null || playerName.isBlank()) {
-            return "player_none";
-        }
-        return "player_" + playerName;
-    }
-
-    public static boolean isPlayerOwner(String owner) {
-        if (owner == null || owner.isBlank()) {
-            return false;
-        }
-        if (!owner.regionMatches(true, 0, "player_", 0, 7)) {
-            return false;
-        }
-        return !owner.equalsIgnoreCase("player_none") && owner.length() > 7;
-    }
-
-    public static String playerNameFromOwner(String owner) {
-        if (!isPlayerOwner(owner)) {
-            return null;
-        }
-        return owner.substring(7);
-    }
-
-    public static List<OwnedVehicleSummary> personalVehicles(
-            String playerName, PlayerVehicleRegistry registry) {
-        if (playerName == null || playerName.isBlank()) {
-            return List.of();
-        }
-        return excludeBerthed(source.listByOwner(ownerEntry(playerName)), registry);
-    }
-
-    public static List<OwnedVehicleSummary> allPersonalVehicles(PlayerVehicleRegistry registry) {
-        return excludeBerthed(source.listAllPlayerOwned(), registry);
-    }
-
-    public static int countOfType(List<OwnedVehicleSummary> personal, String vehicleTypeId) {
-        if (personal == null || vehicleTypeId == null || vehicleTypeId.isEmpty()) {
-            return 0;
-        }
-        String normalized = vehicleTypeId.toLowerCase(Locale.ROOT);
-        int count = 0;
-        for (OwnedVehicleSummary vehicle : personal) {
-            if (vehicle.getTypeId() != null && normalized.equalsIgnoreCase(vehicle.getTypeId())) {
-                count++;
+    /**
+     * Every personal vehicle, from VehicleFramework's owner values. Without a readable
+     * VehicleFramework the personal registry rows stand in, so upkeep is still charged.
+     */
+    public static List<PersonalVehicle> allPersonalVehicles(PlayerVehicleRegistry registry) {
+        VehicleOwnerApi api = VehicleOwnerWrites.api();
+        if (api != null) {
+            try {
+                List<PersonalVehicle> out = new ArrayList<>();
+                for (OwnerMeta meta : api.list()) {
+                    String owner = meta.currentOwner();
+                    if (!OwnerTags.isCharacter(owner) && OwnerTags.legacyName(owner) == null) continue;
+                    if (registry.isFactionOwned(meta.vehicle())) continue;
+                    out.add(new PersonalVehicle(meta.vehicle(), meta.typeId()));
+                }
+                return out;
+            } catch (RuntimeException | LinkageError error) {
+                logFallback(error);
             }
         }
-        return count;
-    }
-
-    public static int countExcludingIgnoreLimit(List<OwnedVehicleSummary> personal) {
-        if (personal == null) {
-            return 0;
-        }
-        int count = 0;
-        for (OwnedVehicleSummary vehicle : personal) {
-            if (!VehiclesConfigLoader.ignoresPersonalSlotLimit(vehicle.getTypeId())) {
-                count++;
+        List<PersonalVehicle> rows = new ArrayList<>();
+        for (PlayerVehicleRecord record : registry.getAll()) {
+            if (record.getMode() == OwnershipMode.PERSONAL) {
+                rows.add(new PersonalVehicle(record.getVehicleUuid(), record.getVehicleTypeId()));
             }
         }
-        return count;
+        return rows;
     }
 
+    /** The account a legacy owner name belongs to, from DenarEconomy's remembered names. */
     public static UUID resolvePlayerUuid(String playerName) {
         return OfflineModifier.playerId(playerName);
     }
 
-    /**
-     * The member key standing for a VehicleFramework owner tag, which still
-     * names an account (stage 6 moves vehicles to characters): the character
-     * the account is playing now, else its reviewed legacy heir, the same rule
-     * the migration used for account-owned rows. Null when neither is known.
-     */
-    public static String ownerKey(String accountName) {
-        if (accountName == null || accountName.isBlank() || Bukkit.getServer() == null) {
-            return null;
-        }
-        Player online = Bukkit.getPlayerExact(accountName);
-        if (online != null) {
-            return Members.key(online);
-        }
-        if (!Bukkit.isPrimaryThread() || !Characters.available()) {
-            return null;
-        }
-        UUID account = OfflineModifier.playerId(accountName);
-        if (account == null) {
-            return null;
-        }
-        return Characters.legacyHeir(account)
-                .filter(heir -> account.equals(heir.ownerId()))
-                .map(Members::key)
-                .orElse(null);
-    }
-
-    /** The character a new registry row or fee is recorded for; the account without a character. */
+    /** The character a new registry row or fee is recorded for; null without a current session. */
     public static UUID characterId(Player player) {
         return Members.session(player).map(session -> session.ref().characterId()).orElse(null);
     }
 
-    /** The account name VehicleFramework uses for a member's vehicles; a non-key is already a name. */
-    public static String accountNameOf(String member) {
-        if (member == null || member.isBlank()) {
-            return null;
-        }
-        return Members.characterId(member) == null ? member : Members.accountName(member);
-    }
-
-    public static String resolvePlayerName(UUID playerUuid) {
-        if (playerUuid == null || Bukkit.getServer() == null) {
-            return null;
-        }
-        Player online = Bukkit.getPlayer(playerUuid);
-        if (online != null) {
-            return online.getName();
-        }
-        OfflinePlayer offline = Bukkit.getOfflinePlayer(playerUuid);
-        return offline.getName();
-    }
-
-    private static List<OwnedVehicleSummary> excludeBerthed(
-            List<OwnedVehicleSummary> owned, PlayerVehicleRegistry registry) {
-        if (owned == null || owned.isEmpty()) {
-            return List.of();
-        }
-        List<OwnedVehicleSummary> out = new ArrayList<>();
-        for (OwnedVehicleSummary vehicle : owned) {
-            if (vehicle == null || vehicle.getUuid() == null) {
-                continue;
-            }
-            if (registry != null && registry.isFactionOwned(vehicle.getUuid())) {
-                continue;
-            }
-            out.add(vehicle);
-        }
-        return out;
-    }
-
-    private static final class VfOwnedInventory implements OwnedInventory {
-        @Override
-        public List<OwnedVehicleSummary> listByOwner(String ownerEntry) {
-            try {
-                return VehicleFramework.getVehicleManager().listOwnedVehicles(ownerEntry);
-            } catch (Throwable ignored) {
-                return List.of();
-            }
-        }
-
-        @Override
-        public List<OwnedVehicleSummary> listAllPlayerOwned() {
-            try {
-                return VehicleFramework.getVehicleManager().listAllPlayerOwnedVehicles();
-            } catch (Throwable ignored) {
-                return List.of();
-            }
+    private static void logFallback(Throwable error) {
+        var plugin = net.tfminecraft.simplefactions.SimpleFactions.getInstance();
+        if (plugin != null) {
+            plugin.getLogger().warning("Could not list vehicle owners; using personal registry rows instead: " + error);
         }
     }
 }

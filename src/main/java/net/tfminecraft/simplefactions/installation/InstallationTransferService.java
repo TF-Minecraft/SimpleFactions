@@ -16,8 +16,6 @@ import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleOwnerSyn
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.vehicleframework.VehicleFramework;
-import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class InstallationTransferService {
 	private InstallationTransferService() {}
@@ -96,7 +94,7 @@ public final class InstallationTransferService {
 				return;
 			}
 			PlayerVehicleRegistry registry = SimpleFactions.getVehicleRegistry();
-			InstallationVehicleOwnerSync sync = new InstallationVehicleOwnerSync(registry);
+			java.util.List<String> moved = new java.util.ArrayList<>();
 			for (PlayerVehicleRecord record : registry.getByInstallation(from.getId(), originalId)) {
 				// An older record has no faction id. Move it only when the new holder is the
 				// only faction with this installation id, so another faction's vehicle stays put.
@@ -113,22 +111,22 @@ public final class InstallationTransferService {
 						record.getMode(),
 						installation.getId(),
 						to.getId()));
-				try {
-					ActiveVehicle vehicle = VehicleFramework.getVehicleManager().get(record.getVehicleUuid());
-					if (vehicle != null) {
-						sync.applyLeaderOwner(vehicle, to);
-					}
-				} catch (RuntimeException e) {
-					// Kept per vehicle so the rest still transfer. The owner is corrected on its next spawn.
-					SimpleFactions.getInstance().getLogger().warning(
-							"Could not move vehicle " + record.getVehicleUuid() + " to faction " + to.getId()
-									+ " leader after installation transfer; it updates on next spawn: " + e);
-				}
+				moved.add(record.getVehicleUuid());
 			}
 			if (!SimpleFactions.getInstance().saveVehicleRegistry()) {
 				SimpleFactions.getInstance().getLogger().warning(
 						"Could not save vehicle registry after transferring installation " + installation.getId()
 								+ " to faction " + to.getId());
+			}
+			// Loaded and stored vehicles alike. The rows follow the installation whatever happens here;
+			// a failed stamp is retried by the next boot's leader reconcile and the click backstop.
+			for (String vehicle : moved) {
+				var result = InstallationVehicleOwnerSync.stampForFaction(vehicle, to);
+				if (result != net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result.OK) {
+					SimpleFactions.getInstance().getLogger().warning(
+							"Could not stamp vehicle " + vehicle + " for faction " + to.getId()
+									+ " after installation transfer: " + result);
+				}
 			}
 		} catch (Exception failure) {
 			SimpleFactions.getInstance().getLogger().warning(

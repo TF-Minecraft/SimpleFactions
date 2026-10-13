@@ -112,6 +112,15 @@ import net.tfminecraft.simplefactions.vehicles.berth.VehicleReleaseSessionManage
 import net.tfminecraft.simplefactions.vehicles.maintenance.VehicleUpkeepService;
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
+import net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimsOff;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerMigration;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipServices;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleQuarantine;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleUpkeepReconcile;
 
 public class SimpleFactions extends JavaPlugin{
 	public static FileConfiguration config;
@@ -242,10 +251,17 @@ public class SimpleFactions extends JavaPlugin{
 	private final VehicleHandoverListener vehicleHandoverListener = new VehicleHandoverListener(
 			vehicleHandoverSessionManager, vehicleHandoverService, vehicleFeeConfirmations);
 	private final VehicleReclaimFeeListener vehicleReclaimFeeListener =
-			new VehicleReclaimFeeListener(vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees);
+			new VehicleReclaimFeeListener(vehicleFeeStore, this::saveVehicleFees);
 	private boolean registrationFeeRegistered;
 	private boolean incompatibleCharacterApi;
-	private boolean vehicleIntegrationRegistered = false;
+	/** Once-guard for {@link #startVehicles()}, which both start() and VehicleFramework's enable can trigger. */
+	private boolean vehiclesStarted;
+	private static final long VEHICLE_RECONCILE_TICKS = 24L * 60L * 60L * 20L;
+	// Seams for tests; production probes VehicleFramework and copies its SQLite database.
+	java.util.function.Supplier<VehicleOwnerApi> vehicleApiProbe = VehicleOwnerWrites::probe;
+	java.util.function.Function<java.nio.file.Path, VehicleOwnerMigration.Backups> vehicleBackups =
+			VehicleOwnerMigration.SqliteBackups::new;
+	VehicleOwnerMigration.Identity vehicleIdentity = new VehicleOwnerMigration.LiveIdentity();
 	private boolean constructionFreezeRegistered;
 	private final PlayerEconomyManager playerEconomyManager = new PlayerEconomyManager();
 	private final VehicleUpkeepService vehicleUpkeepService = new VehicleUpkeepService(
@@ -285,6 +301,7 @@ public class SimpleFactions extends JavaPlugin{
 		started = false;
 		startFailed = false;
 		servicesBegun = false;
+		vehiclesStarted = false;
 		config = getConfig();
 		plugin = this;
 		FactionManager.inv = inventoryManager;
@@ -297,6 +314,13 @@ public class SimpleFactions extends JavaPlugin{
 			getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
+		// VehicleFramework may enable inside this enable window or after start(); startVehicles() runs once.
+		getServer().getPluginManager().registerEvents(new Listener() {
+			@EventHandler
+			public void onPluginEnable(PluginEnableEvent event) {
+				if ("VehicleFramework".equalsIgnoreCase(event.getPlugin().getName())) startVehicles();
+			}
+		}, this);
 		awaitIdentity();
 	}
 
@@ -341,6 +365,7 @@ public class SimpleFactions extends JavaPlugin{
     /** A persisted operation must finish before another character or money mutation is allowed. */
     public void failFinancialState(Throwable error) {
         started = false;
+        LeaderStamps.enable(false);
         startupComplete = false;
         startFailed = true;
         getServer().getServicesManager().unregisterAll(this);
@@ -384,6 +409,12 @@ public class SimpleFactions extends JavaPlugin{
 		try { startServices(); }
         catch (Exception error) { failFinancialState(error); }
 		if (!started) return;
+		// Factions are up; vehicles follow once VehicleFramework is enabled too. The ready event says nothing about vehicles.
+		startVehicles();
+		if (!started) return;
+		if (!vehiclesStarted) {
+			getLogger().info("Vehicle ownership waits for VehicleFramework to enable; factions run without vehicles until then");
+		}
 		getServer().getPluginManager().callEvent(new net.tfminecraft.simplefactions.events.SimpleFactionsReadyEvent());
 	}
 
@@ -475,8 +506,6 @@ public class SimpleFactions extends JavaPlugin{
             FactionManager.updateAllPrestigeConverged();
             net.tfminecraft.simplefactions.identity.death.CharacterDeaths.load(getDataFolder().toPath());
             net.tfminecraft.simplefactions.economy.TreasuryActions.recover(getDataFolder().toPath().resolve("economy/callers"));
-            if (getServer().getPluginManager().isPluginEnabled("VehicleFramework"))
-                net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.startup(getDataFolder().toPath(), vehicleRegistry);
             net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.startup(getDataFolder().toPath(), vehicleFeeStore, vehicleMaintenanceStore);
             net.tfminecraft.simplefactions.economy.ExternalIncome.recover(getDataFolder().toPath());
             realmSettlementService = new net.tfminecraft.simplefactions.economy.settlement.RealmSettlementService(getDataFolder().toPath(), db);
@@ -540,6 +569,9 @@ public class SimpleFactions extends JavaPlugin{
 		if (identityPoll != null) identityPoll.cancel();
 		identityPoll = null;
 		started = false;
+		LeaderStamps.enable(false);
+		VehicleOwnerWrites.use(null);
+		VehicleQuarantine.use(null);
         getServer().getServicesManager().unregisterAll(this);
         net.tfminecraft.simplefactions.identity.death.CharacterDeaths.stop();
         net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.stop();
@@ -895,21 +927,117 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.integration.rpcharacters.chat.RpCharactersChatIntegration.register();
 	}
 
+	/** The VFBuilders construction freeze and registration fee, which need no vehicle stage. */
 	private void registerVehicleIntegrationHooks() {
 		getServer().getPluginManager().registerEvents(new Listener() {
 			@EventHandler
 			public void onPluginEnable(PluginEnableEvent event) {
 				if ("VFBuilders".equalsIgnoreCase(event.getPlugin().getName())
 						|| "VehicleFramework".equalsIgnoreCase(event.getPlugin().getName())) {
-					registerVehicleIntegration();
 					registerConstructionFreeze();
 					registerRegistrationFee();
 				}
 			}
 		}, this);
-		registerVehicleIntegration();
 		registerConstructionFreeze();
 		registerRegistrationFee();
+	}
+
+	/**
+	 * The vehicle stage, once factions have started and VehicleFramework is enabled:
+	 * payer migration, the owner migration, the leader and upkeep reconciles, then the
+	 * vehicle listeners, and last the ownership authority VehicleFramework waits for.
+	 * Without VehicleFramework 2.13 in characters mode only the payer migration and the
+	 * listeners run, with claims and restamps off.
+	 */
+	void startVehicles() {
+		if (vehiclesStarted || !started || !getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
+			return;
+		}
+		vehiclesStarted = true;
+		VehicleOwnerApi api = vehicleApiProbe.get();
+		VehicleOwnerWrites.use(api);
+		boolean full = VehicleOwnerWrites.ready();
+		java.nio.file.Path folder = getDataFolder().toPath();
+		VehicleQuarantine quarantine = new VehicleQuarantine(folder);
+		VehicleQuarantine.use(quarantine);
+		if (api != null) VehicleOwnershipServices.registerQuarantine(getServer().getServicesManager(), this, quarantine);
+		try {
+			net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.startup(folder, vehicleRegistry);
+			if (full) {
+				VehicleOwnerMigration.Outcome outcome = new VehicleOwnerMigration(folder, api, vehicleRegistry,
+						vehicleIdentity, vehicleBackups.apply(vehicleDatabase())).run();
+				if (outcome.ran()) {
+					getLogger().info("Vehicle owner migration: " + outcome.migrated() + " migrated, " + outcome.unchanged()
+							+ " unchanged, " + outcome.quarantined() + " quarantined, " + outcome.gone() + " gone");
+				}
+			}
+			quarantine.load(VehicleOwnerMigration.quarantine(folder));
+		} catch (Exception error) {
+			failFinancialState(error);
+			return;
+		}
+		if (!full) {
+			getLogger().severe("VehicleFramework 2.13 or newer in characters mode is needed for vehicle ownership; "
+					+ "vehicle claims and leader stamps are off, and upkeep is charged from registry rows");
+		} else {
+			try {
+				LeaderStamps.reconcile(vehicleRegistry);
+				int filled = net.tfminecraft.simplefactions.vehicles.registry.RegistryAccounts.fill(folder, vehicleRegistry,
+						character -> net.tfminecraft.simplefactions.identity.Members.accountId(
+								net.tfminecraft.simplefactions.identity.Members.key(character)),
+						java.util.List.of(VehicleOwnerMigration.accounts(folder),
+								net.tfminecraft.simplefactions.vehicles.registry.VehiclePayerMigration.accounts(folder)));
+				if (filled > 0) getLogger().info("Cached the account on " + filled + " personal vehicle rows");
+				quarantine.setFindings(upkeepReconcile().run());
+			} catch (Exception error) {
+				getLogger().log(java.util.logging.Level.SEVERE, "Vehicle reconcile failed, so vehicle listeners and the "
+						+ "ownership authority stay off until a restart; VehicleFramework refuses player ownership changes", error);
+				return;
+			}
+		}
+		registerVehicleIntegration(full);
+		if (full) {
+			VehicleOwnershipServices.registerAuthority(getServer().getServicesManager(), this,
+					() -> started && LeaderStamps.enabled());
+			LeaderStamps.enable(true);
+			getServer().getScheduler().runTaskTimer(this, this::reconcileVehicleUpkeep,
+					VEHICLE_RECONCILE_TICKS, VEHICLE_RECONCILE_TICKS);
+		}
+	}
+
+	private java.nio.file.Path vehicleDatabase() {
+		return getServer().getPluginManager().getPlugin("VehicleFramework").getDataFolder().toPath()
+				.resolve("data/vehicles.db");
+	}
+
+	/** The daily upkeep reconcile; its findings replace the previous ones in the staff list. */
+	void reconcileVehicleUpkeep() {
+		try {
+			VehicleQuarantine.current().setFindings(upkeepReconcile().run());
+		} catch (RuntimeException error) {
+			getLogger().log(java.util.logging.Level.WARNING, "Daily vehicle upkeep reconcile failed", error);
+		}
+	}
+
+	private VehicleUpkeepReconcile upkeepReconcile() {
+		return new VehicleUpkeepReconcile(VehicleOwnerWrites.api(), vehicleRegistry,
+				(vehicle, type, character, account) -> {
+					var payments = net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.current();
+					return payments != null && payments.personal(vehicle, type, character, account);
+				},
+				SimpleFactions::leadsAFaction,
+				character -> net.tfminecraft.simplefactions.identity.Members.accountId(
+						net.tfminecraft.simplefactions.identity.Members.key(character)),
+				getLogger());
+	}
+
+	static boolean leadsAFaction(java.util.UUID character) {
+		String key = net.tfminecraft.simplefactions.identity.Members.key(character);
+		for (Faction faction : FactionManager.factions) {
+			if (key.equals(faction.getLeader())) return true;
+		}
+		return false;
 	}
 
 	private void registerRegistrationFee() {
@@ -946,24 +1074,25 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.war.freeze.VfBuildersConstructionFreeze.register(this);
 	}
 
-	private void registerVehicleIntegration() {
-		if (vehicleIntegrationRegistered) {
-			return;
-		}
-		if (!getServer().getPluginManager().isPluginEnabled("VehicleFramework")) {
-			return;
-		}
+	/** Step 5 of the vehicle stage, which runs once per start. */
+	private void registerVehicleIntegration(boolean full) {
 		getServer().getPluginManager().registerEvents(vehicleIntegrationListener, this);
 		getServer().getPluginManager().registerEvents(vehicleRegistryClaimListener, this);
 		getServer().getPluginManager().registerEvents(vehicleTransferListener, this);
 		getServer().getPluginManager().registerEvents(factionVehicleReleaseListener, this);
 		getServer().getPluginManager().registerEvents(vehicleMaintenancePayListener, this);
 		getServer().getPluginManager().registerEvents(vehicleMaintenanceRepairListener, this);
-		getServer().getPluginManager().registerEvents(vehicleSpawnListener, this);
 		getServer().getPluginManager().registerEvents(battleVehicleEligibilityListener, this);
 		getServer().getPluginManager().registerEvents(vehicleHandoverListener, this);
 		getServer().getPluginManager().registerEvents(vehicleReclaimFeeListener, this);
-		vehicleIntegrationRegistered = true;
+		if (full) {
+			getServer().getPluginManager().registerEvents(vehicleSpawnListener, this);
+			getServer().getPluginManager().registerEvents(new VehicleOwnershipGate(vehicleRegistry,
+					vehicleRegistryClaimService, vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees,
+					getLogger()), this);
+		} else {
+			getServer().getPluginManager().registerEvents(new VehicleClaimsOff(), this);
+		}
 		// VehicleFramework loads its vehicles as it enables, so wait before reading owners.
 		getServer().getScheduler().runTaskLater(this, this::recordVehicleOwners, 200L);
 		if (getServer().getPluginManager().isPluginEnabled("VFBuilders")) {

@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.identity.death;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,18 +46,30 @@ final class LockGuildIndex {
     /**
      * Journals written before the field existed use the first guild listing the
      * character in the rights snapshots, in their order, without civil-war mapping.
+     * A malformed snapshot gives no entry rather than guessing past it.
      */
     static UUID incarnation(DeathJournal journal) {
         if (journal.lockGuildIncarnation != null) return journal.lockGuildIncarnation;
         JsonPrimitive key = new JsonPrimitive(journal.characterId.toString());
         for (DeathJournal.Step step : journal.steps) {
             if (!step.kind.equals("rights") || !step.plan.has("guilds")) continue;
-            for (JsonElement guild : step.plan.getAsJsonArray("guilds")) {
-                if (guild.getAsJsonObject().getAsJsonArray("members").contains(key)) {
-                    return UUID.fromString(guild.getAsJsonObject().get("incarnation").getAsString());
+            if (!(step.plan.get("guilds") instanceof JsonArray guilds)) return null;
+            for (JsonElement guild : guilds) {
+                if (!(guild instanceof JsonObject object) || !(object.get("members") instanceof JsonArray members)) {
+                    return null;
                 }
+                if (members.contains(key)) return uuid(object.get("incarnation"));
             }
         }
         return null;
+    }
+
+    private static UUID uuid(JsonElement value) {
+        if (!(value instanceof JsonPrimitive primitive) || !primitive.isString()) return null;
+        try {
+            return UUID.fromString(primitive.getAsString());
+        } catch (IllegalArgumentException invalid) {
+            return null;
+        }
     }
 }

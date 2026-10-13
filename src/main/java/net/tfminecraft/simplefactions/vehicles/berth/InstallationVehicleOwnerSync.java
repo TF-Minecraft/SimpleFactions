@@ -1,16 +1,16 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
-
-import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
-import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
-import java.util.Optional;
-
-import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Reason;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
+/** Keeps faction vehicles stamped for their faction's leader character. */
 public final class InstallationVehicleOwnerSync {
     private final PlayerVehicleRegistry registry;
 
@@ -19,91 +19,27 @@ public final class InstallationVehicleOwnerSync {
     }
 
     /**
-     * VehicleFramework names the leader's account. Null while that account cannot be
-     * read, so callers leave the owner as it is.
+     * A vehicle joining a faction: stamped for the faction's leader, with the old owner's
+     * whitelist entries dropped and the whitelist switch left as it was.
      */
-    public static String expectedOwner(Faction faction) {
-        if (faction == null || faction.getLeader() == null) {
-            return "player_none";
-        }
-        String account = VehicleOwnershipQueries.accountNameOf(faction.getLeader());
-        return account == null ? null : "player_" + account;
+    public static Result stampForFaction(String vehicleUuid, Faction faction) {
+        return VehicleOwnerWrites.write(vehicleUuid, LeaderStamps.expectedStamp(faction), Reason.TRANSFER);
     }
 
-    public void applyLeaderOwner(ActiveVehicle vehicle, Faction faction) {
-        if (vehicle == null || faction == null) {
-            return;
-        }
-        applyLeaderOwner(vehicle.getOwnerData(), faction);
-    }
-
-    public void applyLeaderOwner(net.tfminecraft.vehicleframework.data.OwnerData ownerData, Faction faction) {
-        if (ownerData == null || faction == null) {
-            return;
-        }
-        String expected = expectedOwner(faction);
-        if (expected != null) {
-            ownerData.setOwner(expected);
-        }
-    }
-
+    /** On spawn, a faction vehicle with a stale stamp is restamped. */
     public void syncIfBerthed(ActiveVehicle vehicle) {
-        if (vehicle == null || vehicle.getUUID() == null) {
+        if (vehicle == null || vehicle.getUUID() == null || !LeaderStamps.enabled()) {
             return;
         }
-        syncIfBerthed(vehicle.getUUID(), vehicle.getOwnerData());
-    }
-
-    void syncIfBerthed(String vehicleUuid, net.tfminecraft.vehicleframework.data.OwnerData ownerData) {
-        if (vehicleUuid == null || ownerData == null) {
+        PlayerVehicleRecord record = registry.getByVehicleUuid(vehicle.getUUID()).orElse(null);
+        String current = vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner();
+        if (!LeaderStamps.isStale(record, current)) {
             return;
         }
-
-        Optional<PlayerVehicleRecord> recordOpt = registry.getByVehicleUuid(vehicleUuid);
-        if (recordOpt.isEmpty()) {
-            return;
+        Result result = VehicleOwnerWrites.write(vehicle.getUUID(), LeaderStamps.expected(record), Reason.RESTAMP);
+        if (result != Result.OK && SimpleFactions.getInstance() != null) {
+            SimpleFactions.getInstance().getLogger().warning(
+                    "Could not restamp faction vehicle " + vehicle.getUUID() + " on spawn: " + result);
         }
-        PlayerVehicleRecord record = recordOpt.get();
-        if (record.getMode() == OwnershipMode.POOL) {
-            Faction faction = FactionManager.getByString(record.getFactionId());
-            applyExpectedOwner(ownerData, faction);
-            return;
-        }
-        if (record.getMode() != OwnershipMode.INSTALLATION) {
-            return;
-        }
-
-        String installationId = record.getInstallationId();
-        if (installationId == null) {
-            return;
-        }
-
-        // Resolves by the record's faction id, since two factions can reuse an installation id.
-        Faction faction = net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.payingFaction(record);
-        if (faction == null) {
-            return;
-        }
-
-        applyExpectedOwner(ownerData, faction);
-    }
-
-    private static void applyExpectedOwner(
-            net.tfminecraft.vehicleframework.data.OwnerData ownerData,
-            Faction faction) {
-        if (faction == null) {
-            return;
-        }
-        String expected = expectedOwner(faction);
-        if (expected == null) {
-            return;
-        }
-        String current = ownerData.getOwner();
-        if (!expected.equalsIgnoreCase(current) || isLegacyFactionOwner(current)) {
-            ownerData.setOwner(expected);
-        }
-    }
-
-    private static boolean isLegacyFactionOwner(String owner) {
-        return owner != null && owner.startsWith("faction_");
     }
 }

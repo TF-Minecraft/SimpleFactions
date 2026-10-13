@@ -6,6 +6,7 @@ import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseServic
 import net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleReleaseService.Status;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard.CanBuildResult;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
+import net.tfminecraft.tlibs.character.CharacterRef;
 
 public final class InstallationVehicleUnberthService {
     private final FactionVehicleReleaseService releaseService;
@@ -38,14 +39,15 @@ public final class InstallationVehicleUnberthService {
 
     public record UnberthOutcome(UnberthResult result, CanBuildResult slotFailure, String vehicleTypeId) {}
 
+    /** {@code leader} is the character the leader plays now; the vehicle becomes theirs. */
     public UnberthOutcome unberth(
             Faction faction,
-            String leaderName,
+            CharacterRef leader,
             Installation installation,
             String vehicleUuid) {
         String installationId = installation == null ? "" : installation.getId();
         Outcome outcome = releaseService.takeFromInstallation(
-                faction, leaderName, installationId, vehicleUuid);
+                faction, leader, installationId, vehicleUuid);
         return new UnberthOutcome(map(outcome.status()), outcome.slotFailure(), outcome.vehicleTypeId());
     }
 

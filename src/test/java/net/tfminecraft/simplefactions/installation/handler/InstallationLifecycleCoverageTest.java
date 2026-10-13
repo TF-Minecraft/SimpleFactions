@@ -140,11 +140,10 @@ class InstallationLifecycleCoverageTest {
             OwnershipMode.INSTALLATION,
             "harbor",
             destination.getId()));
-    OwnerData incomingOwner = new OwnerData();
-    incomingOwner.setOwner("player_Leader");
-    ActiveVehicle incomingVehicle = mock(ActiveVehicle.class);
-    when(incomingVehicle.getOwnerData()).thenReturn(incomingOwner);
-    when(vehicles.get("incoming")).thenReturn(incomingVehicle);
+    var api =
+        net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi.install()
+            .stored("incoming", "ironclad", "char_" + UUID.randomUUID())
+            .stored("existing", "ironclad", "char_" + UUID.randomUUID());
 
     InstallationTransferService.transfer(home, destination, 42);
 
@@ -168,7 +167,13 @@ class InstallationLifecycleCoverageTest {
         registry.getByVehicleUuid("incoming").orElseThrow().getInstallationId());
     assertEquals("destination", registry.getByVehicleUuid("incoming").orElseThrow().getFactionId());
     assertEquals("harbor", registry.getByVehicleUuid("existing").orElseThrow().getInstallationId());
-    assertEquals("player_Recipient", incomingOwner.getOwner());
+    // The vehicles move with the installation: stamped for the new holder's leader, stored or not.
+    assertEquals(
+        List.of(
+            "incoming "
+                + net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.expectedStamp(destination)
+                + " TRANSFER"),
+        api.writes);
   }
 
   @Test
@@ -633,19 +638,16 @@ class InstallationLifecycleCoverageTest {
       registry.register(
           new PlayerVehicleRecord(
               UUID.randomUUID(), id, "ironclad", OwnershipMode.INSTALLATION, "port", home.getId()));
-    when(vehicles.get("unavailable")).thenThrow(new IllegalStateException("external failure"));
-    OwnerData owner = new OwnerData();
-    owner.setOwner("player_Leader");
-    ActiveVehicle loaded = mock(ActiveVehicle.class);
-    when(loaded.getOwnerData()).thenReturn(owner);
-    when(vehicles.get("loaded")).thenReturn(loaded);
+    var api =
+        net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi.install()
+            .live("loaded", "ironclad", "char_" + UUID.randomUUID());
     Logger logger = mock(Logger.class);
     when(fixture.ui.plugin.getLogger()).thenReturn(logger);
     InstallationTransferService.transfer(home, destination, 42);
     for (String id : List.of("unavailable", "loaded"))
       assertEquals(destination.getId(), registry.getByVehicleUuid(id).orElseThrow().getFactionId());
-    assertEquals("player_Recipient", owner.getOwner());
-    verify(logger).warning(contains("unavailable"));
+    assertEquals("char_none", api.owner("loaded"));
+    verify(logger).warning(contains("Could not stamp vehicle unavailable for faction destination"));
     verify(fixture.ui.plugin).saveVehicleRegistry();
   }
 
@@ -663,11 +665,9 @@ class InstallationLifecycleCoverageTest {
             OwnershipMode.INSTALLATION,
             "port",
             home.getId()));
-    OwnerData owner = new OwnerData();
-    owner.setOwner("player_Leader");
-    ActiveVehicle loaded = mock(ActiveVehicle.class);
-    when(loaded.getOwnerData()).thenReturn(owner);
-    when(vehicles.get("ship")).thenReturn(loaded);
+    var api =
+        net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi.install()
+            .live("ship", "ironclad", "char_" + UUID.randomUUID());
     Logger logger = mock(Logger.class);
     when(fixture.ui.plugin.getLogger()).thenReturn(logger);
     if (exceptional)
@@ -681,7 +681,8 @@ class InstallationLifecycleCoverageTest {
     assertTrue(home.getInstallationHandler().getAll().isEmpty());
     assertEquals(
         destination.getId(), registry.getByVehicleUuid("ship").orElseThrow().getFactionId());
-    assertEquals("player_Recipient", owner.getOwner());
+    // A failed save still stamps the vehicles; a save that throws stops before them.
+    assertEquals(exceptional ? List.of() : List.of("ship char_none TRANSFER"), api.writes);
     verify(fixture.ui.plugin).saveVehicleRegistry();
     verify(logger)
         .warning(

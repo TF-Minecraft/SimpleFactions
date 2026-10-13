@@ -5,25 +5,21 @@ import net.tfminecraft.simplefactions.identity.Members;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
-import org.bukkit.Bukkit;
 import java.util.function.BooleanSupplier;
 
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Reason;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites;
+import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleSlotGuard.CanBuildResult;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
-import net.tfminecraft.vehicleframework.VehicleFramework;
-import net.tfminecraft.vehicleframework.data.StoredVehicleMeta;
-import net.tfminecraft.vehicleframework.database.VehiclePersistence;
-import net.tfminecraft.vehicleframework.database.VehicleSnapshot;
-import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class FactionVehicleReleaseService {
     private final PlayerVehicleRegistry registry;
@@ -53,7 +49,7 @@ public final class FactionVehicleReleaseService {
     }
 
     public interface PersonalOwner {
-        boolean assign(String vehicleUuid, String playerName);
+        boolean assign(String vehicleUuid, UUID character);
     }
 
     public enum Status {
@@ -70,50 +66,48 @@ public final class FactionVehicleReleaseService {
 
     public record Outcome(Status status, CanBuildResult slotFailure, String vehicleTypeId) {}
 
-    /** {@code leader} is the leader's member key; recipients are account names, as VehicleFramework owners are. */
-    public Outcome take(Faction faction, String leader, String vehicleUuid) {
-        return release(faction, leader, VehicleOwnershipQueries.accountNameOf(leader), vehicleUuid, null, true);
+    /** The leader takes the vehicle for the character they are playing now. */
+    public Outcome take(Faction faction, CharacterRef leader, String vehicleUuid) {
+        return release(faction, Members.key(leader), leader, vehicleUuid, null, true);
     }
 
     public Outcome takeFromInstallation(
             Faction faction,
-            String leader,
+            CharacterRef leader,
             String installationId,
             String vehicleUuid) {
-        return release(faction, leader, VehicleOwnershipQueries.accountNameOf(leader), vehicleUuid, installationId, true);
+        return release(faction, Members.key(leader), leader, vehicleUuid, installationId, true);
     }
 
-    public Outcome give(Faction faction, String leaderName, String recipientName, String vehicleUuid) {
-        return release(faction, leaderName, recipientName, vehicleUuid, null, true);
+    /** {@code leaderKey} is the leader's member key; {@code recipient} was captured when the gift was offered. */
+    public Outcome give(Faction faction, String leaderKey, CharacterRef recipient, String vehicleUuid) {
+        return release(faction, leaderKey, recipient, vehicleUuid, null, true);
     }
 
     public Outcome evaluateGive(
             Faction faction,
-            String leaderName,
-            String recipientName,
+            String leaderKey,
+            CharacterRef recipient,
             String vehicleUuid) {
-        return release(faction, leaderName, recipientName, vehicleUuid, null, false);
+        return release(faction, leaderKey, recipient, vehicleUuid, null, false);
     }
 
     private Outcome release(
             Faction faction,
-            String leaderName,
-            String recipientName,
+            String leaderKey,
+            CharacterRef recipient,
             String vehicleUuid,
             String requiredInstallationId,
             boolean apply) {
         if (faction == null
-                || leaderName == null
-                || leaderName.isBlank()
+                || leaderKey == null
+                || leaderKey.isBlank()
                 || vehicleUuid == null
                 || vehicleUuid.isBlank()) {
             return outcome(Status.NOT_FACTION_VEHICLE, null, null);
         }
-        if (faction.getLeader() == null || !faction.getLeader().equals(leaderName)) {
+        if (faction.getLeader() == null || !faction.getLeader().equals(leaderKey)) {
             return outcome(Status.NOT_LEADER, null, null);
-        }
-        if (recipientName == null || recipientName.isBlank()) {
-            return outcome(Status.NOT_FACTION_VEHICLE, null, null);
         }
 
         Optional<PlayerVehicleRecord> recordOpt = registry.getByVehicleUuid(vehicleUuid);
@@ -134,8 +128,11 @@ public final class FactionVehicleReleaseService {
                         faction.getInstallationHandler().getById(record.getInstallationId()), Instant.now())) {
             return outcome(Status.INSTALLATION_LOCKED, null, typeId);
         }
+        if (recipient == null) {
+            return outcome(Status.OWNERSHIP_UNAVAILABLE, null, typeId);
+        }
 
-        CanBuildResult slot = VehicleSlotGuard.checkCanBuild(recipientName, typeId, registry);
+        CanBuildResult slot = VehicleSlotGuard.checkCanBuild(recipient.ownerId(), typeId, registry);
         if (slot == CanBuildResult.UNKNOWN_TYPE) {
             return outcome(Status.UNKNOWN_TYPE, slot, typeId);
         }
@@ -146,16 +143,15 @@ public final class FactionVehicleReleaseService {
         if (!apply) {
             return outcome(Status.OK, null, typeId);
         }
-        // Record the captured recipient as payer before changing the external ownership tag.
-        UUID recipientCharacter = Members.session(Bukkit.getPlayerExact(recipientName)).map(session -> session.ref().characterId()).orElse(null);
-        if (recipientCharacter == null) return outcome(Status.OWNERSHIP_UNAVAILABLE, null, typeId);
-        registry.register(new PlayerVehicleRecord(recipientCharacter, vehicleUuid, typeId, OwnershipMode.PERSONAL, null));
+        // Record the recipient as payer before changing VehicleFramework's owner.
+        registry.register(new PlayerVehicleRecord(recipient.characterId(), vehicleUuid, typeId,
+                OwnershipMode.PERSONAL, null, null, recipient.ownerId()));
         if (!registrySaver.getAsBoolean()) {
             // The file still holds the record, so restoring it in memory is enough.
             registry.register(record);
             return outcome(Status.SAVE_FAILED, null, typeId);
         }
-        if (!personalOwner.assign(vehicleUuid, recipientName)) {
+        if (!personalOwner.assign(vehicleUuid, recipient.characterId())) {
             registry.register(record);
             if (!registrySaver.getAsBoolean()) {
                 logSevere("Vehicle " + vehicleUuid + " (" + typeId + ") was restored to faction "
@@ -192,89 +188,10 @@ public final class FactionVehicleReleaseService {
         return new Outcome(status, slotFailure, vehicleTypeId);
     }
 
-    public static boolean assignFrameworkOwner(String vehicleUuid, String playerName) {
-        if (vehicleUuid == null || vehicleUuid.isBlank() || playerName == null || playerName.isBlank()) {
-            return false;
-        }
-        String entry = VehicleOwnershipQueries.ownerEntry(playerName);
-        ActiveVehicle loaded;
-        try {
-            loaded = VehicleFramework.getVehicleManager().get(vehicleUuid);
-        } catch (Throwable ignored) {
-            // VehicleFramework is not running in unit tests.
-            loaded = null;
-        }
-        if (loaded != null) {
-            // A loaded vehicle is the live copy, so never fall back to the stored one for it.
-            return assignLoaded(loaded, entry);
-        }
-        try {
-            if (assignStored(vehicleUuid, entry)) {
-                return true;
-            }
-            return storedOwnerMatches(vehicleUuid, entry);
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
-    /** Sets the owner and saves it; the old owner is put back if the save fails. */
-    private static boolean assignLoaded(ActiveVehicle vehicle, String ownerEntry) {
-        if (vehicle.getOwnerData() == null) {
-            return false;
-        }
-        String previous = vehicle.getOwnerData().getOwner();
-        vehicle.getOwnerData().setOwner(ownerEntry);
-        try {
-            VehiclePersistence persistence = VehiclePersistence.current();
-            if (persistence != null && !persistence.saveLive(vehicle)) {
-                vehicle.getOwnerData().setOwner(previous);
-                return false;
-            }
-            return true;
-        } catch (RuntimeException e) {
-            vehicle.getOwnerData().setOwner(previous);
-            return false;
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static boolean assignStored(String vehicleUuid, String ownerEntry) {
-        VehiclePersistence persistence = VehiclePersistence.current();
-        if (persistence == null) {
-            return false;
-        }
-        Optional<VehicleSnapshot> found = persistence.findLive(vehicleUuid);
-        if (found.isEmpty()) {
-            return false;
-        }
-        VehicleSnapshot snapshot = found.get();
-        String payloadJson = snapshot.getPayloadJson();
-        if (payloadJson == null || payloadJson.isBlank()) {
-            return false;
-        }
-        JSONObject payload;
-        try {
-            payload = (JSONObject) new JSONParser().parse(payloadJson);
-        } catch (Exception e) {
-            return false;
-        }
-        payload.put("owner", ownerEntry);
-        VehicleSnapshot updated = snapshot.withPayload(
-                payload.toJSONString(),
-                snapshot.getName(),
-                ownerEntry,
-                System.currentTimeMillis());
-        return persistence.repository().saveLive(updated);
-    }
-
-    private static boolean storedOwnerMatches(String vehicleUuid, String ownerEntry) {
-        VehiclePersistence persistence = VehiclePersistence.current();
-        if (persistence == null) {
-            return false;
-        }
-        Optional<StoredVehicleMeta> meta = persistence.readMeta(vehicleUuid);
-        return meta.isPresent() && ownerEntry.equalsIgnoreCase(meta.get().getOwner());
+    /** Gives a released faction vehicle to the character, emptying its crew list. */
+    public static boolean assignFrameworkOwner(String vehicleUuid, UUID character) {
+        return character != null
+                && VehicleOwnerWrites.write(vehicleUuid, OwnerTags.character(character), Reason.RELEASE) == Result.OK;
     }
 
     private static void logSevere(String message) {

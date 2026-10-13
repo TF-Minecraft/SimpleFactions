@@ -59,7 +59,12 @@ import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerFields;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerMeta;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Reason;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result;
+import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerWrites;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleRegistryClaimListener;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleRegistryClaimService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
@@ -73,7 +78,6 @@ import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.vehicleframework.VehicleFramework;
-import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 import net.tfminecraft.vehicleframework.data.OwnerData;
 import net.tfminecraft.vehicleframework.data.StoredVehicleMeta;
 import net.tfminecraft.vehicleframework.data.VehicleRemovePayload;
@@ -133,7 +137,9 @@ class VehicleInteractionsCoverageTest {
   private org.mockito.MockedConstruction<net.tfminecraft.simplefactions.database.Database> feeDatabase;
   private PlayerEconomyManager economy;
   private final Map<UUID, Double> balances = new HashMap<>();
-  private final List<OwnedVehicleSummary> storedOwned = new ArrayList<>();
+  private final Map<String, OwnerFields> stored = new HashMap<>();
+  private final Map<String, String> storedTypes = new HashMap<>();
+  private Framework framework;
   private OwnerData ownerData;
   private ActiveVehicle vehicle;
   private PlayerVehicleRecord originalRecord;
@@ -163,8 +169,6 @@ class VehicleInteractionsCoverageTest {
       snapshot(InstallationConfigLoader.class, field);
     Field requests = snapshot(RequestManager.class, "requests");
     requests.set(null, new HashMap<>());
-    snapshot(VehicleOwnershipQueries.class, "source");
-    VehicleOwnershipQueries.setSourceForTests(null);
     snapshot(VehicleFeeService.class, "factionLookup");
     snapshot(VehicleFeeService.class, "playerBank");
     Field battles = snapshot(BattleManager.class, "battles");
@@ -215,13 +219,14 @@ class VehicleInteractionsCoverageTest {
     when(fixture.ui.plugin.getVehicleTransferConsentService()).thenReturn(consent);
     VehicleManager manager = mock(VehicleManager.class);
     when(manager.get(anyString())).thenAnswer(call -> loaded.get(call.getArgument(0)));
-    when(manager.listOwnedVehicles(anyString()))
-        .thenAnswer(call -> ownedSummaries(call.getArgument(0)));
-    when(manager.listAllPlayerOwnedVehicles()).thenAnswer(call -> ownedSummaries(null));
     vehicleFramework = mockStatic(VehicleFramework.class);
     vehicleFramework.when(VehicleFramework::getVehicleManager).thenReturn(manager);
+    framework = new Framework();
+    VehicleOwnerWrites.use(framework);
+    // The vehicle stage has finished, so builds may start.
+    net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enable(true);
     ownerData = new OwnerData();
-    ownerData.setOwner("player_Owner");
+    ownerData.setOwner(tag("Owner"));
     vehicle = mock(ActiveVehicle.class);
     when(vehicle.getUUID()).thenReturn("vehicle-1");
     when(vehicle.getId()).thenReturn("ironclad");
@@ -230,7 +235,8 @@ class VehicleInteractionsCoverageTest {
     loaded.put("vehicle-1", vehicle);
     originalRecord =
         new PlayerVehicleRecord(
-            owner.getUniqueId(), "vehicle-1", "ironclad", OwnershipMode.PERSONAL, null);
+            owner.getUniqueId(), "vehicle-1", "ironclad", OwnershipMode.PERSONAL, null, null,
+            owner.getUniqueId());
     registry.register(originalRecord);
     releases = new VehicleReleaseSessionManager();
     releaseService = new FactionVehicleReleaseService(registry);
@@ -350,7 +356,7 @@ class VehicleInteractionsCoverageTest {
     assertEquals(pool ? null : "harbor", updated.getInstallationId());
     assertEquals("home", updated.getFactionId());
     assertEquals(owner.getUniqueId(), updated.getPlayerUuid());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals("char_none", ownerData.getOwner(), "Name-keyed fixture leaders have no character");
     assertFalse(RequestManager.hasRequest(owner));
     RequestManager.accept(owner);
     assertSame(updated, registry.getByVehicleUuid("vehicle-1").orElseThrow());
@@ -395,7 +401,7 @@ class VehicleInteractionsCoverageTest {
   @ValueSource(booleans = {false, true})
   void theCurrentLeaderCanTransferTheirOwnVehicleWithoutAConsentRequest(boolean pool) {
     arm(pool);
-    ownerData.setOwner("player_lEaDeR");
+    ownerData.setOwner(tag("Leader"));
     assertTrue(click().isCancelled());
     assertNull(sessions.get(leader.getUniqueId()));
     assertFalse(RequestManager.hasRequest(owner));
@@ -403,7 +409,7 @@ class VehicleInteractionsCoverageTest {
     assertEquals(pool ? OwnershipMode.POOL : OwnershipMode.INSTALLATION, record.getMode());
     assertEquals(leader.getUniqueId(), record.getPlayerUuid());
     assertEquals("home", record.getFactionId());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals("char_none", ownerData.getOwner(), "Name-keyed fixture leaders have no character");
     verify(fixture.ui.plugin).saveVehicleRegistry();
   }
 
@@ -493,12 +499,12 @@ class VehicleInteractionsCoverageTest {
   @ValueSource(booleans = {false, true})
   void aLeadersOwnInvalidVehicleIsRefusedByTheSameStoreValidation(boolean pool) {
     arm(pool);
-    ownerData.setOwner("player_Leader");
+    ownerData.setOwner(tag("Leader"));
     when(vehicle.getId()).thenReturn("unknown");
     assertTrue(click().isCancelled());
     assertNotNull(sessions.get(leader.getUniqueId()));
     assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     verify(leader).sendMessage(contains("not registered for faction upkeep"));
     verify(fixture.ui.plugin, never()).saveVehicleRegistry();
   }
@@ -523,7 +529,7 @@ class VehicleInteractionsCoverageTest {
     click();
     assertTrue(RequestManager.hasRequest(owner));
     if (state.endsWith("unloaded")) loaded.clear();
-    if (state.endsWith("changed_owner")) ownerData.setOwner("player_Buyer");
+    if (state.endsWith("changed_owner")) ownerData.setOwner(tag("Buyer"));
     if (state.endsWith("unknown_type")) when(vehicle.getId()).thenReturn("unknown");
     if (state.endsWith("removed_installation"))
       faction.getInstallationHandler().detachOnProvince(42);
@@ -552,8 +558,9 @@ class VehicleInteractionsCoverageTest {
             "Harbor",
             "vehicle-1",
             "ironclad",
-            UUID.randomUUID(),
-            leader.getUniqueId());
+            new net.tfminecraft.tlibs.character.CharacterRef(UUID.randomUUID(), UUID.randomUUID()),
+            ref(leader),
+            false);
     RequestManager.addRequest(leader, owner, request);
     consent.acceptRequest(owner);
     verify(owner).sendMessage("§cYou cannot accept this request.");
@@ -576,8 +583,9 @@ class VehicleInteractionsCoverageTest {
             "Harbor",
             "vehicle-1",
             "ironclad",
-            owner.getUniqueId(),
-            leader.getUniqueId());
+            ref(owner),
+            ref(leader),
+            false);
     consent.notifyExpired(null, owner);
     verify(owner, never()).sendMessage(anyString());
     consent.notifyExpired(request, owner);
@@ -600,7 +608,7 @@ class VehicleInteractionsCoverageTest {
       click();
       assertTrue(RequestManager.hasRequest(owner));
     } else {
-      ownerData.setOwner("player_Leader");
+      ownerData.setOwner(tag("Leader"));
     }
     String priorOwner = ownerData.getOwner();
     when(fixture.ui.plugin.saveVehicleRegistry()).thenReturn(false);
@@ -667,8 +675,9 @@ class VehicleInteractionsCoverageTest {
             "Harbor",
             "vehicle-1",
             "ironclad",
-            owner.getUniqueId(),
-            leader.getUniqueId());
+            ref(owner),
+            ref(leader),
+            false);
     Faction destination = fixture.saved("next", "Next Leader");
     guild.relocate(destination, -1);
     assertSame(destination, guild.getFaction());
@@ -689,7 +698,7 @@ class VehicleInteractionsCoverageTest {
     releaseListener.onVehiclePreInteract(event);
     assertTrue(event.isCancelled());
     assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("vehicle-1").orElseThrow().getMode());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     assertNull(releases.get(leader.getUniqueId()));
     verify(fixture.ui.plugin).saveVehicleRegistry();
     verify(fixture.ui.plugin).recordVehicleOwner("vehicle-1", "Leader");
@@ -707,12 +716,12 @@ class VehicleInteractionsCoverageTest {
     assertEquals(
         OwnershipMode.valueOf(pool ? "POOL" : "INSTALLATION"),
         registry.getByVehicleUuid("vehicle-1").orElseThrow().getMode());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     assertNull(releases.get(leader.getUniqueId()));
     RequestManager.accept(owner);
     assertFalse(RequestManager.hasRequest(owner));
     assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("vehicle-1").orElseThrow().getMode());
-    assertEquals("player_Owner", ownerData.getOwner());
+    assertEquals(tag("Owner"), ownerData.getOwner());
     verify(fixture.ui.plugin).recordVehicleOwner("vehicle-1", "Owner");
     verify(fixture.ui.plugin).saveVehicleRegistry();
   }
@@ -757,9 +766,7 @@ class VehicleInteractionsCoverageTest {
               "harbor",
               "home"));
     if (state.equals("recipient_full"))
-      storedOwned.add(
-          new OwnedVehicleSummary(
-              "other", "Other ship", "ironclad", Optional.empty(), false, "player_Owner"));
+      storeOwned("other", "ironclad", "Owner");
     if (state.equals("battle")) startBattle();
     var before = registry.getByVehicleUuid("vehicle-1").orElseThrow();
     var event =
@@ -768,7 +775,7 @@ class VehicleInteractionsCoverageTest {
     releaseListener.onVehiclePreInteract(event);
     assertEquals(!state.equals("no_session") && !state.equals("no_player"), event.isCancelled());
     assertSame(before, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     assertFalse(RequestManager.hasRequest(owner));
     assertEquals(
         state.equals("no_session") || state.equals("former_leader") || state.equals("battle"),
@@ -793,7 +800,7 @@ class VehicleInteractionsCoverageTest {
     releaseListener.onVehiclePreInteract(event);
     assertTrue(event.isCancelled());
     assertSame(before, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     assertEquals(state.equals("battle"), releases.get(leader.getUniqueId()) == null);
     verify(leader).sendMessage(startsWith("§c"));
     verify(fixture.ui.plugin, never()).recordVehicleOwner(anyString(), anyString());
@@ -818,16 +825,15 @@ class VehicleInteractionsCoverageTest {
     handoverListener.onVehiclePreInteract(new VehiclePreInteractEvent(owner, vehicle));
     assertTrue(RequestManager.hasRequest(recipient));
     assertNull(handovers.get(owner.getUniqueId()));
-    if (state.equals("ownership_failure")) {
-      try (MockedStatic<VehiclePersistence> external = mockStatic(VehiclePersistence.class)) {
-        VehiclePersistence persistence = mock(VehiclePersistence.class);
-        external.when(VehiclePersistence::current).thenReturn(persistence);
-        when(persistence.saveLive(vehicle)).thenReturn(false);
-        RequestManager.accept(recipient);
-      }
-    } else RequestManager.accept(recipient);
+    if (state.equals("ownership_failure")) framework.forced = Result.SAVE_FAILED;
+    RequestManager.accept(recipient);
     boolean successful = state.equals("success");
-    assertEquals(successful ? "player_Recipient" : "player_Owner", ownerData.getOwner());
+    if (state.equals("ownership_failure")) {
+      // The recipient's payer row went first and was taken back.
+      assertEquals(originalRecord.getPlayerUuid(), registry.getByVehicleUuid("vehicle-1").orElseThrow().getPlayerUuid());
+      assertEquals(List.of("vehicle-1 " + tag("Recipient") + " HANDOVER"), framework.writes);
+    }
+    assertEquals(successful ? tag("Recipient") : tag("Owner"), ownerData.getOwner());
     assertEquals(
         successful ? 60.0 : state.equals("unaffordable") ? 10.0 : 100.0,
         balance(owner));
@@ -868,7 +874,7 @@ class VehicleInteractionsCoverageTest {
     RequestManager.accept(recipient);
 
     assertAll(
-        () -> assertEquals("player_Owner", ownerData.getOwner()),
+        () -> assertEquals(tag("Owner"), ownerData.getOwner()),
         () -> assertEquals(100.0, balance(owner)),
         () -> assertEquals(1000.0, faction.getBank().getWealth()));
     assertEquals(1000.0, faction.getBank().getWealth());
@@ -907,12 +913,10 @@ class VehicleInteractionsCoverageTest {
       Player replacement = fixture.player("Recipient");
       when(replacement.getUniqueId()).thenReturn(UUID.randomUUID());
     }
-    if (state.equals("not_owner")) ownerData.setOwner("player_Another");
+    if (state.equals("not_owner")) ownerData.setOwner(tag("Another"));
     if (state.equals("unknown_type")) when(vehicle.getId()).thenReturn("unknown");
     if (state.equals("recipient_full"))
-      storedOwned.add(
-          new OwnedVehicleSummary(
-              "other", "Other", "ironclad", Optional.empty(), false, "player_Recipient"));
+      storeOwned("other", "ironclad", "Recipient");
     if (state.equals("battle")) {
       faction.addMember("Owner");
       startBattle();
@@ -941,12 +945,10 @@ class VehicleInteractionsCoverageTest {
         assertInstanceOf(VehicleHandoverRequest.class, RequestManager.getRequest(recipient));
     assertEquals("ironclad", request.getVehicleTypeId());
     if (state.equals("wrong_uuid")) when(recipient.getUniqueId()).thenReturn(UUID.randomUUID());
-    if (state.equals("changed_owner")) ownerData.setOwner("player_Another");
+    if (state.equals("changed_owner")) ownerData.setOwner(tag("Another"));
     if (state.equals("unknown_type")) when(vehicle.getId()).thenReturn("unknown");
     if (state.equals("recipient_full"))
-      storedOwned.add(
-          new OwnedVehicleSummary(
-              "other", "Other", "ironclad", Optional.empty(), false, "player_Recipient"));
+      storeOwned("other", "ironclad", "Recipient");
     if (state.equals("battle")) {
       faction.addMember("Owner");
       startBattle();
@@ -992,7 +994,7 @@ class VehicleInteractionsCoverageTest {
     }
 
     assertFalse(RequestManager.hasRequest(recipient));
-    assertEquals("player_Owner", ownerData.getOwner());
+    assertEquals(tag("Owner"), ownerData.getOwner());
     assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
     assertEquals(100.0, balance(owner));
     assertEquals(1000.0, faction.getBank().getWealth());
@@ -1019,14 +1021,14 @@ class VehicleInteractionsCoverageTest {
     verify(owner).sendMessage("§cThe target is already considering another request.");
     assertEquals(
         VehicleHandoverService.Status.NOT_OWNER,
-        handoverService.evaluate(null, "Recipient", "vehicle-1").status());
+        handoverService.evaluate(null, recipient.getUniqueId(), "vehicle-1").status());
     assertEquals(
         VehicleHandoverService.Status.NOT_OWNER,
-        handoverService.evaluate("Owner", "Recipient", null).status());
+        handoverService.evaluate(ref(owner), recipient.getUniqueId(), null).status());
     factionVehicle(false);
     assertEquals(
         VehicleHandoverService.Status.NOT_OWNER,
-        handoverService.evaluate("Leader", "Recipient", "vehicle-1").status());
+        handoverService.evaluate(ref(leader), recipient.getUniqueId(), "vehicle-1").status());
   }
 
   @ParameterizedTest
@@ -1078,7 +1080,7 @@ class VehicleInteractionsCoverageTest {
     RequestManager.accept(owner);
     assertFalse(RequestManager.hasRequest(owner));
     assertSame(priorRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     verify(owner).sendMessage(startsWith("§c"));
     verify(fixture.ui.plugin, never()).saveVehicleRegistry();
   }
@@ -1102,7 +1104,8 @@ class VehicleInteractionsCoverageTest {
             "ironclad",
             owner.getUniqueId(),
             null,
-            "Leader");
+            ref(leader),
+            ref(owner));
     giveService.notifyExpired(orphaned, owner);
     verify(owner).sendMessage(FactionVehicleReleaseMessages.giveExpired());
     verify(leader, never()).sendMessage(anyString());
@@ -1117,7 +1120,6 @@ class VehicleInteractionsCoverageTest {
         "no_vehicle",
         "blank_vehicle",
         "no_recipient",
-        "blank_recipient",
         "not_registered",
         "different_installation"
       })
@@ -1127,18 +1129,20 @@ class VehicleInteractionsCoverageTest {
     if (state.equals("not_registered")) registry.unregister("vehicle-1");
     var result =
         state.equals("different_installation")
-            ? releaseService.takeFromInstallation(faction, "Leader", "elsewhere", "vehicle-1")
+            ? releaseService.takeFromInstallation(faction, ref(leader), "elsewhere", "vehicle-1")
             : releaseService.give(
                 state.equals("no_faction") ? null : faction,
                 state.equals("no_leader") ? null : state.equals("blank_leader") ? " " : "Leader",
-                state.equals("no_recipient")
-                    ? null
-                    : state.equals("blank_recipient") ? " " : "Owner",
+                state.equals("no_recipient") ? null : ref(owner),
                 state.equals("no_vehicle")
                     ? null
                     : state.equals("blank_vehicle") ? " " : "vehicle-1");
-    assertEquals(FactionVehicleReleaseService.Status.NOT_FACTION_VEHICLE, result.status());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(
+        state.equals("no_recipient")
+            ? FactionVehicleReleaseService.Status.OWNERSHIP_UNAVAILABLE
+            : FactionVehicleReleaseService.Status.NOT_FACTION_VEHICLE,
+        result.status());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     if (state.equals("not_registered")) assertTrue(registry.getAll().isEmpty());
     else assertSame(record, registry.getByVehicleUuid("vehicle-1").orElseThrow());
     verify(fixture.ui.plugin, never()).saveVehicleRegistry();
@@ -1151,139 +1155,41 @@ class VehicleInteractionsCoverageTest {
     factionVehicle(false);
     var record = registry.getByVehicleUuid("vehicle-1").orElseThrow();
     when(fixture.ui.plugin.saveVehicleRegistry()).thenReturn(true, !rollbackFails);
-    try (MockedStatic<VehiclePersistence> external = mockStatic(VehiclePersistence.class)) {
-      VehiclePersistence persistence = mock(VehiclePersistence.class);
-      external.when(VehiclePersistence::current).thenReturn(persistence);
-      when(persistence.saveLive(vehicle)).thenReturn(false);
-      var outcome = releaseService.give(faction, "Leader", "Owner", "vehicle-1");
-      assertEquals(
-          rollbackFails
-              ? FactionVehicleReleaseService.Status.SAVE_FAILED
-              : FactionVehicleReleaseService.Status.OWNERSHIP_UNAVAILABLE,
-          outcome.status());
-      assertSame(record, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-      assertEquals("player_Leader", ownerData.getOwner());
-      verify(fixture.ui.plugin, times(2)).saveVehicleRegistry();
-      verify(persistence).saveLive(vehicle);
-    }
+    framework.forced = Result.SAVE_FAILED;
+    var outcome = releaseService.give(faction, "Leader", ref(owner), "vehicle-1");
+    assertEquals(
+        rollbackFails
+            ? FactionVehicleReleaseService.Status.SAVE_FAILED
+            : FactionVehicleReleaseService.Status.OWNERSHIP_UNAVAILABLE,
+        outcome.status());
+    assertSame(record, registry.getByVehicleUuid("vehicle-1").orElseThrow());
+    assertEquals(tag("Leader"), ownerData.getOwner());
+    verify(fixture.ui.plugin, times(2)).saveVehicleRegistry();
+    assertEquals(List.of("vehicle-1 " + tag("Owner") + " RELEASE"), framework.writes);
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"no_owner", "save_true", "save_false", "save_throws"})
-  void loadedFrameworkOwnerWritesAreAtomicAndNeverFallBackToStoredCopies(String state) {
-    if (state.equals("no_owner")) when(vehicle.getOwnerData()).thenReturn(null);
-    try (MockedStatic<VehiclePersistence> external = mockStatic(VehiclePersistence.class)) {
-      VehiclePersistence persistence = mock(VehiclePersistence.class);
-      external.when(VehiclePersistence::current).thenReturn(persistence);
-      when(persistence.saveLive(vehicle)).thenReturn(state.equals("save_true"));
-      if (state.equals("save_throws"))
-        when(persistence.saveLive(vehicle))
-            .thenThrow(new IllegalStateException("database unavailable"));
-      boolean changed = FactionVehicleReleaseService.assignFrameworkOwner("vehicle-1", "Recipient");
-      assertEquals(state.equals("save_true"), changed);
-      assertEquals(changed ? "player_Recipient" : "player_Owner", ownerData.getOwner());
-      verify(persistence, never()).findLive(anyString());
-    }
-  }
+  @ValueSource(strings = {"OK", "SAVE_FAILED", "NOT_FOUND", "REFUSED_MODE", "UNAVAILABLE"})
+  void releasedOwnersAreWrittenThroughVehicleFrameworksSetOwnership(String result) {
+    framework.forced = Result.valueOf(result);
+    if (framework.forced == Result.OK) framework.forced = null;
+    UUID recipient = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Recipient");
+    ownerData.setWhiteList(new ArrayList<>(List.of(tag("Crew") + ";x;Crew")));
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "success",
-        "save_false",
-        "missing",
-        "empty_payload",
-        "null_payload",
-        "malformed",
-        "array_payload",
-        "lookup_throws",
-        "already_owned",
-        "no_persistence",
-        "manager_unavailable"
-      })
-  void unloadedFrameworkTransfersPreserveSnapshotDataAndRequireAConfirmedStoredWrite(String state) {
-    loaded.clear();
-    if (state.equals("manager_unavailable"))
-      vehicleFramework
-          .when(VehicleFramework::getVehicleManager)
-          .thenThrow(new IllegalStateException("not started"));
-    String payload =
-        switch (state) {
-          case "empty_payload" -> "  ";
-          case "null_payload" -> null;
-          case "malformed" -> "{";
-          case "array_payload" -> "[]";
-          default -> "{\"owner\":\"player_Owner\",\"health\":27}";
-        };
-    VehicleSnapshot before =
-        new VehicleSnapshot(
-            "vehicle-1",
-            "ironclad",
-            "Named ship",
-            "player_Owner",
-            "world",
-            7,
-            64,
-            9,
-            12.0f,
-            0,
-            0,
-            payload,
-            2,
-            8,
-            false,
-            123);
-    try (MockedStatic<VehiclePersistence> external = mockStatic(VehiclePersistence.class)) {
-      VehiclePersistence persistence = mock(VehiclePersistence.class);
-      VehicleRepository repository = mock(VehicleRepository.class);
-      external
-          .when(VehiclePersistence::current)
-          .thenReturn(state.equals("no_persistence") ? null : persistence);
-      when(persistence.findLive("vehicle-1"))
-          .thenReturn(
-              state.equals("missing") || state.equals("already_owned")
-                  ? Optional.empty()
-                  : Optional.of(before));
-      if (state.equals("lookup_throws"))
-        when(persistence.findLive("vehicle-1")).thenThrow(new IllegalStateException("read failed"));
-      when(persistence.repository()).thenReturn(repository);
-      when(repository.saveLive(any(VehicleSnapshot.class))).thenReturn(!state.equals("save_false"));
-      when(persistence.readMeta("vehicle-1"))
-          .thenReturn(
-              state.equals("already_owned")
-                  ? Optional.of(
-                      new StoredVehicleMeta(
-                          "vehicle-1", "Named ship", "ironclad", "player_Recipient"))
-                  : Optional.empty());
-      boolean result = FactionVehicleReleaseService.assignFrameworkOwner("vehicle-1", "Recipient");
-      boolean successful =
-          List.of("success", "already_owned", "manager_unavailable").contains(state);
-      assertEquals(successful, result);
-      assertEquals("player_Owner", before.getOwner());
-      assertEquals(8, before.getRevision());
-      assertEquals(payload, before.getPayloadJson());
-      if (state.equals("success")
-          || state.equals("manager_unavailable")
-          || state.equals("save_false")) {
-        var updated = ArgumentCaptor.forClass(VehicleSnapshot.class);
-        verify(repository).saveLive(updated.capture());
-        assertEquals("player_Recipient", updated.getValue().getOwner());
-        assertEquals("Named ship", updated.getValue().getName());
-        assertEquals(7, updated.getValue().getX());
-        assertEquals(9, updated.getValue().getZ());
-        assertEquals(8, updated.getValue().getRevision());
-        assertTrue(updated.getValue().getPayloadJson().contains("\"health\":27"));
-        assertTrue(updated.getValue().getPayloadJson().contains("\"owner\":\"player_Recipient\""));
-      } else verify(repository, never()).saveLive(any(VehicleSnapshot.class));
-    }
+    boolean changed = FactionVehicleReleaseService.assignFrameworkOwner("vehicle-1", recipient);
+
+    assertEquals(result.equals("OK"), changed);
+    assertEquals(changed ? tag("Recipient") : tag("Owner"), ownerData.getOwner());
+    assertEquals(changed, ownerData.getWhiteList().isEmpty(), "A release never keeps the old crew");
+    assertEquals(List.of("vehicle-1 " + tag("Recipient") + " RELEASE"), framework.writes);
   }
 
   @Test
   void invalidFrameworkOwnershipIdentifiersCannotModifyEitherLiveOrStoredState() {
+    UUID recipient = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Recipient");
     for (String vehicleId : new String[] {null, "", " "})
-      assertFalse(FactionVehicleReleaseService.assignFrameworkOwner(vehicleId, "Recipient"));
-    for (String playerName : new String[] {null, "", " "})
-      assertFalse(FactionVehicleReleaseService.assignFrameworkOwner("vehicle-1", playerName));
+      assertFalse(FactionVehicleReleaseService.assignFrameworkOwner(vehicleId, recipient));
+    assertFalse(FactionVehicleReleaseService.assignFrameworkOwner("vehicle-1", null));
     assertPersonalOwnershipUnchanged();
   }
 
@@ -1317,7 +1223,7 @@ class VehicleInteractionsCoverageTest {
     }
     if (state.equals("vehicle_type_changes")) when(vehicle.getId()).thenReturn("simple_locomotive");
     RequestManager.accept(recipient);
-    assertEquals("player_Owner", ownerData.getOwner());
+    assertEquals(tag("Owner"), ownerData.getOwner());
     assertEquals(100.0, balance(owner));
     assertEquals(1000.0, faction.getBank().getWealth());
     if (second != null) assertEquals(500.0, second.getBank().getWealth());
@@ -1334,13 +1240,13 @@ class VehicleInteractionsCoverageTest {
     fixture.online.remove("Owner");
     when(owner.isOnline()).thenReturn(false);
     RequestManager.accept(recipient);
-    assertEquals("player_Recipient", ownerData.getOwner());
+    assertEquals(tag("Recipient"), ownerData.getOwner());
     assertEquals(60.0, balance(owner));
     assertEquals(1040.0, faction.getBank().getWealth());
     assertEquals("Recipient", feeStore.getLastOwner("vehicle-1"));
     assertEquals(
         VehicleHandoverService.Status.NOT_OWNER,
-        handoverService.evaluate("Recipient", "Leader", "other-vehicle").status());
+        handoverService.evaluate(ref(recipient), leader.getUniqueId(), "other-vehicle").status());
   }
 
   @Test
@@ -1350,9 +1256,9 @@ class VehicleInteractionsCoverageTest {
     faction.setLeader("Successor");
     assertEquals(
         FactionVehicleReleaseService.Status.NOT_LEADER,
-        releaseService.take(faction, "Leader", "vehicle-1").status());
+        releaseService.take(faction, ref(leader), "vehicle-1").status());
     assertSame(record, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     verify(fixture.ui.plugin, never()).saveVehicleRegistry();
   }
 
@@ -1365,7 +1271,7 @@ class VehicleInteractionsCoverageTest {
     var record = registry.getByVehicleUuid("vehicle-1").orElseThrow();
     assertEquals(pool ? OwnershipMode.POOL : OwnershipMode.INSTALLATION, record.getMode());
     assertEquals("home", record.getFactionId());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals("char_none", ownerData.getOwner(), "Name-keyed fixture leaders have no character");
     verify(fixture.ui.plugin).saveVehicleRegistry();
   }
 
@@ -1381,7 +1287,7 @@ class VehicleInteractionsCoverageTest {
             : berths.tryRegister(port, vehicle, faction, owner.getUniqueId());
     assertFalse(result);
     assertTrue(registry.getAll().isEmpty());
-    assertEquals("player_Owner", ownerData.getOwner());
+    assertEquals(tag("Owner"), ownerData.getOwner());
     assertEquals(
         FactionVehiclePoolService.CanAddResult.NOT_OWNED,
         pools.canAdd(faction, (ActiveVehicle) null));
@@ -1524,7 +1430,8 @@ class VehicleInteractionsCoverageTest {
         state.equals("missing_blueprint")
             ? null
             : blueprint(state.equals("unknown") ? "unknown" : "ironclad");
-    if (!state.equals("per_type_full")) loaded.clear();
+    // Only the full case keeps the owner's personal ironclad row.
+    if (!state.equals("per_type_full")) registry.unregister("vehicle-1");
     var event =
         new BeginVehicleConstructionEvent(
             state.equals("missing_player") ? null : owner,
@@ -1535,48 +1442,8 @@ class VehicleInteractionsCoverageTest {
     boolean denied = List.of("unknown", "missing_blueprint", "per_type_full").contains(state);
     assertEquals(denied, event.isCancelled());
     if (denied) verify(owner).sendMessage(startsWith("§c"));
-    assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Owner", ownerData.getOwner());
-  }
-
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "online",
-        "offline_named",
-        "offline_uuid",
-        "missing_vehicle",
-        "missing_uuid",
-        "missing_blueprint"
-      })
-  void completedConstructionAssignsTheResolvedOwnerAndWhitelistWithoutInventingARegistryEntry(
-      String state) throws Exception {
-    snapshot(net.tfminecraft.vehicleframework.cache.Cache.class, "allowWhitelist");
-    net.tfminecraft.vehicleframework.cache.Cache.allowWhitelist = true;
-    if (state.startsWith("offline")) {
-      fixture.online.remove("Owner");
-      OfflinePlayer offline = mock(OfflinePlayer.class);
-      when(offline.getName()).thenReturn(state.equals("offline_named") ? "OfflineOwner" : null);
-      when(Bukkit.getOfflinePlayer(owner.getUniqueId())).thenReturn(offline);
-    }
-    Blueprint blueprint = state.equals("missing_blueprint") ? null : blueprint("ironclad");
-    ActiveStation station = station();
-    var event =
-        new VehicleConstructEvent(
-            state.equals("missing_uuid") ? null : owner.getUniqueId(),
-            state.equals("missing_vehicle") ? null : vehicle,
-            blueprint,
-            station.getLocation(),
-            station);
-    new VehicleIntegrationListener().onVehicleConstruct(event);
-    boolean missing = state.startsWith("missing");
-    String expected =
-        state.equals("offline_named")
-            ? "player_OfflineOwner"
-            : state.equals("offline_uuid") ? "player_" + owner.getUniqueId() : "player_Owner";
-    assertEquals(expected, ownerData.getOwner());
-    assertEquals(!missing, ownerData.isWhiteListed());
-    assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
+    if (state.equals("per_type_full")) assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
+    assertEquals(tag("Owner"), ownerData.getOwner());
   }
 
   @ParameterizedTest
@@ -1599,68 +1466,12 @@ class VehicleInteractionsCoverageTest {
                     : VehicleRemoveReason.PLAYER_DESTROY);
     var event = new VehicleRemoveEvent(state.equals("missing_vehicle") ? null : vehicle, payload);
     new VehicleIntegrationListener().onVehicleRemove(event);
-    new VehicleReclaimFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save)
-        .onVehicleRemove(event);
+    new VehicleReclaimFeeListener(feeStore, feeStore::save).onVehicleRemove(event);
     boolean removed = List.of("death", "remove", "missing_record").contains(state);
     assertEquals(removed, registry.getByVehicleUuid("vehicle-1").isEmpty());
     assertEquals(removed ? null : "Owner", feeStore.getLastOwner("vehicle-1"));
     verify(fixture.ui.plugin, times(state.equals("death") || state.equals("remove") ? 1 : 0))
         .saveVehicleRegistry();
-  }
-
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "success",
-        "unaffordable",
-        "same_owner",
-        "admin",
-        "missing_last_owner",
-        "missing_player",
-        "missing_vehicle",
-        "missing_uuid",
-        "exempt"
-      })
-  void reclaimChargesOnlyAConfirmedNewOwnerAndCommitsTheOwnerHistoryAfterSuccess(String state) {
-    Player claimant = fixture.player("Recipient");
-    enableTransferFee();
-    feeStore.setLastOwner("vehicle-1", state.equals("same_owner") ? "Recipient" : "Owner");
-    fund(claimant, state.equals("unaffordable") ? 10.0 : 100.0);
-    if (state.equals("missing_last_owner")) feeStore.forgetVehicle("vehicle-1");
-    if (state.equals("admin"))
-      when(claimant.hasPermission("simplefactions.admin")).thenReturn(true);
-    if (state.equals("missing_uuid")) when(vehicle.getUUID()).thenReturn(null);
-    if (state.equals("exempt"))
-      faction.getVehicleFeeHandler().setRate(FeeKind.TRANSFER_FEE, null, 0.0);
-    var fees =
-        new VehicleReclaimFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save);
-    Player player = state.equals("missing_player") ? null : claimant;
-    ActiveVehicle claimed = state.equals("missing_vehicle") ? null : vehicle;
-    var event = new VehicleOwnerClaimedEvent(player, claimed, "none", "player_Recipient");
-    fees.onVehicleOwnerClaimed(event);
-    boolean charged = state.equals("success") || state.equals("unaffordable");
-    assertEquals(charged, event.isCancelled());
-    assertEquals(1000.0, faction.getBank().getWealth());
-    if (!charged) {
-      fees.onClaimed(event);
-      assertEquals(
-          List.of("missing_player", "missing_vehicle", "missing_uuid").contains(state)
-              ? "Owner"
-              : "Recipient",
-          feeStore.getLastOwner("vehicle-1"));
-      return;
-    }
-    var confirmation = new VehicleOwnerClaimedEvent(claimant, vehicle, "none", "player_Recipient");
-    fees.onVehicleOwnerClaimed(confirmation);
-    assertEquals(state.equals("unaffordable"), confirmation.isCancelled());
-    if (!confirmation.isCancelled()) fees.onClaimed(confirmation);
-    assertEquals(state.equals("success") ? 60.0 : 10.0, balance(claimant));
-    assertEquals(state.equals("success") ? 1040.0 : 1000.0, faction.getBank().getWealth());
-    assertEquals(
-        state.equals("success") ? "Recipient" : "Owner", feeStore.getLastOwner("vehicle-1"));
-    assertEquals(
-        state.equals("success") ? -40.0 : 0.0,
-        economy.getLedger(net.tfminecraft.simplefactions.identity.Members.session(claimant).orElseThrow().ref().characterId()).getAmount(PlayerCashflow.VEHICLE_FEES));
   }
 
   @Test
@@ -1720,7 +1531,7 @@ class VehicleInteractionsCoverageTest {
       war.setBattleInstallationPicks(Map.of("home", new LinkedHashSet<>(List.of("harbor"))));
     Player actor = state.equals("no_faction") || state.equals("nonparticipant") ? owner : leader;
     if (state.equals("nonparticipant")) fixture.saved("neutral", "Neutral").addMember("Owner");
-    ownerData.setOwner("player_" + actor.getName());
+    ownerData.setOwner(tag(actor.getName()));
     Battle battle = new Battle("vehicle-entry");
     battle.setWarId(war.getId());
     battle.setStarted(!state.equals("prebattle"));
@@ -1801,7 +1612,7 @@ class VehicleInteractionsCoverageTest {
   @Test
   void battleNotificationsPreferCurrentOwnerThenRegistryIdentityAndIgnoreIncompleteEvents() {
     assertSame(owner, BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry));
-    ownerData.setOwner("player_NotOnline");
+    ownerData.setOwner(tag("NotOnline"));
     assertSame(owner, BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry));
     when(vehicle.getOwnerData()).thenReturn(null);
     assertSame(owner, BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry));
@@ -1859,21 +1670,21 @@ class VehicleInteractionsCoverageTest {
         "faction_owned"
       })
   void claimListenersEnforceRealPersonalLimitsWithoutCreatingPrematureOwnership(String state) {
+    // A stale personal row from another account; the claimer's own vehicles decide.
+    originalRecord = new PlayerVehicleRecord(owner.getUniqueId(), "vehicle-1", "ironclad", OwnershipMode.PERSONAL,
+        null, null, UUID.randomUUID());
+    registry.register(originalRecord);
     var claims = new VehicleRegistryClaimService(registry);
     var listener = new VehicleRegistryClaimListener(claims);
-    ownerData.setOwner(state.equals("already_owned") ? "player_Owner" : "none");
+    ownerData.setOwner(state.equals("already_owned") ? tag("Owner") : "none");
     if (state.equals("missing_uuid")) when(vehicle.getUUID()).thenReturn(null);
     if (state.equals("no_owner_data")) when(vehicle.getOwnerData()).thenReturn(null);
     if (state.equals("unknown")) when(vehicle.getId()).thenReturn("unknown");
     if (state.equals("per_type_limit"))
-      storedOwned.add(
-          new OwnedVehicleSummary(
-              "owned", "Owned", "ironclad", Optional.empty(), false, "player_Owner"));
+      storeOwned("owned", "ironclad", "Owner");
     if (state.equals("total_limit"))
       for (int i = 0; i < VehiclesConfigLoader.getPersonalSlotLimit(); i++)
-        storedOwned.add(
-            new OwnedVehicleSummary(
-                "owned-" + i, "Owned", "horse_cart", Optional.empty(), false, "player_Owner"));
+        storeOwned("owned-" + i, "horse_cart", "Owner");
     if (state.equals("faction_owned"))
       registry.register(
           new PlayerVehicleRecord(
@@ -1888,16 +1699,13 @@ class VehicleInteractionsCoverageTest {
     ActiveVehicle active = state.equals("missing_vehicle") ? null : vehicle;
     var clicked = new VehiclePreInteractEvent(player, active);
     listener.onVehiclePreInteract(clicked);
-    boolean denied = List.of("unknown", "per_type_limit", "total_limit").contains(state);
+    boolean denied =
+        List.of("unknown", "per_type_limit", "total_limit", "faction_owned").contains(state);
     assertEquals(denied, clicked.isCancelled());
-    if (!state.equals("already_owned")) {
-      var claimed = new VehicleOwnerClaimedEvent(player, active, "none", "player_Owner");
-      listener.onVehicleOwnerClaimed(claimed);
-      assertEquals(denied, claimed.isCancelled());
-    }
     assertSame(before, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals(state.equals("already_owned") ? "player_Owner" : "none", ownerData.getOwner());
-    if (denied) verify(owner, times(2)).sendMessage(startsWith("§c"));
+    assertEquals(state.equals("already_owned") ? tag("Owner") : "none", ownerData.getOwner());
+    if (denied) verify(owner).sendMessage(startsWith("§c"));
+    if (state.equals("faction_owned")) verify(owner).sendMessage(VehicleRegistryClaimListener.FACTION_VEHICLE);
     verify(fixture.ui.plugin, never()).saveVehicleRegistry();
     assertEquals(
         InstallationVehicleService.TryRegisterResult.SKIP,
@@ -1932,11 +1740,11 @@ class VehicleInteractionsCoverageTest {
     when(manager.readStoredVehicle("vehicle-1"))
         .thenReturn(
             Optional.of(
-                new StoredVehicleMeta("vehicle-1", "Stored name", "ironclad", "player_Leader")));
+                new StoredVehicleMeta("vehicle-1", "Stored name", "ironclad", tag("Leader"))));
     assertEquals("Stored name", VehicleFindMessages.resolveVehicleName("vehicle-1"));
     when(manager.readStoredVehicle("vehicle-1"))
         .thenReturn(
-            Optional.of(new StoredVehicleMeta("vehicle-1", " ", "ironclad", "player_Leader")));
+            Optional.of(new StoredVehicleMeta("vehicle-1", " ", "ironclad", tag("Leader"))));
     assertEquals("ironclad", VehicleFindMessages.resolveVehicleName("vehicle-1"));
     when(manager.readStoredVehicle("vehicle-1")).thenReturn(Optional.empty());
     assertEquals("vehicle-1", VehicleFindMessages.resolveVehicleName("vehicle-1"));
@@ -2052,30 +1860,31 @@ class VehicleInteractionsCoverageTest {
     if (state.equals("missing_owner_data")) when(vehicle.getOwnerData()).thenReturn(null);
     if (state.equals("removed_installation")) faction.getInstallationHandler().load(List.of());
     if (state.equals("legacy_owner")) ownerData.setOwner("faction_home");
-    if (state.equals("already_current")) ownerData.setOwner("player_Leader");
+    // The fixture keys members by name, so this faction's leader has no character: char_none.
+    if (state.equals("already_current")) ownerData.setOwner("char_none");
     String previous = ownerData.getOwner();
     var synchronizer = new InstallationVehicleOwnerSync(registry);
     var spawn = new VehicleSpawnListener(synchronizer);
+    net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enable(true);
     spawn.onVehicleSpawn(new VehicleSpawnEvent(vehicle));
     boolean change =
-        List.of("pool", "installation", "legacy_owner", "already_current").contains(state);
-    assertEquals(change ? "player_Leader" : previous, ownerData.getOwner());
+        !List.of("personal", "missing_record", "missing_uuid", "missing_owner_data", "already_current")
+            .contains(state);
+    assertEquals(change ? "char_none" : previous, ownerData.getOwner());
+    assertEquals(change ? List.of("vehicle-1 char_none RESTAMP") : state.equals("missing_owner_data")
+        ? List.of("vehicle-1 char_none RESTAMP") : List.of(), framework.writes);
     spawn.onVehicleSpawn(new VehicleSpawnEvent(null));
     synchronizer.syncIfBerthed((ActiveVehicle) null);
-    synchronizer.applyLeaderOwner((ActiveVehicle) null, faction);
-    synchronizer.applyLeaderOwner(vehicle, null);
-    assertEquals(change ? "player_Leader" : previous, ownerData.getOwner());
+    assertEquals(change ? "char_none" : previous, ownerData.getOwner());
   }
 
   @Test
   void explicitOwnerSynchronizationHandlesAbsentFactionOrOwnerDataWithoutInventingOwnership() {
     var synchronizer = new InstallationVehicleOwnerSync(registry);
-    assertEquals("player_none", InstallationVehicleOwnerSync.expectedOwner(null));
-    synchronizer.applyLeaderOwner(vehicle, faction);
-    assertEquals("player_Leader", ownerData.getOwner());
-    synchronizer.applyLeaderOwner((OwnerData) null, faction);
-    synchronizer.applyLeaderOwner(ownerData, null);
-    assertEquals("player_Leader", ownerData.getOwner());
+    InstallationVehicleOwnerSync.stampForFaction("vehicle-1", faction);
+    assertEquals("char_none", ownerData.getOwner());
+    ownerData.setOwner(tag("Leader"));
+    net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enable(true);
     registry.register(
         new PlayerVehicleRecord(
             owner.getUniqueId(),
@@ -2085,7 +1894,7 @@ class VehicleInteractionsCoverageTest {
             null,
             "missing"));
     synchronizer.syncIfBerthed(vehicle);
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals("char_none", ownerData.getOwner(), "A pool whose faction is gone has no leader");
     assertEquals(
         InstallationVehicleService.TryRegisterResult.SKIP,
         new VehicleRegistryClaimService(registry).tryRegisterOnClaim(null, vehicle).status());
@@ -2118,9 +1927,7 @@ class VehicleInteractionsCoverageTest {
     }
     if (state.equals("battle")) startBattle();
     if (state.equals("full"))
-      storedOwned.add(
-          new OwnedVehicleSummary(
-              "other", "Other", "ironclad", Optional.empty(), false, "player_Leader"));
+      storeOwned("other", "ironclad", "Leader");
     if (state.equals("unknown")) {
       registry.register(
           new PlayerVehicleRecord(
@@ -2136,14 +1943,8 @@ class VehicleInteractionsCoverageTest {
       when(fixture.ui.plugin.saveVehicleRegistry()).thenReturn(false);
     var service = new InstallationVehicleUnberthService(registry);
     InstallationVehicleUnberthService.UnberthOutcome outcome;
-    if (state.equals("owner_failure")) {
-      try (MockedStatic<VehiclePersistence> external = mockStatic(VehiclePersistence.class)) {
-        VehiclePersistence persistence = mock(VehiclePersistence.class);
-        external.when(VehiclePersistence::current).thenReturn(persistence);
-        when(persistence.saveLive(vehicle)).thenReturn(false);
-        outcome = service.unberth(faction, "Leader", port, "vehicle-1");
-      }
-    } else outcome = service.unberth(faction, "Leader", port, "vehicle-1");
+    if (state.equals("owner_failure")) framework.forced = Result.SAVE_FAILED;
+    outcome = service.unberth(faction, ref(leader), port, "vehicle-1");
     var expected =
         switch (state) {
           case "success" -> InstallationVehicleUnberthService.UnberthResult.OK;
@@ -2165,7 +1966,7 @@ class VehicleInteractionsCoverageTest {
       assertSame(
           state.equals("not_berthed") ? originalRecord : before,
           registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
     assertEquals(
         "§cThat vehicle is not berthed at this installation.",
         InstallationVehicleUnberthService.messageFor(null));
@@ -2242,7 +2043,7 @@ class VehicleInteractionsCoverageTest {
             + "\"}}}");
     assertThrows(IllegalStateException.class, feeStore::load);
     assertNull(feeStore.takePaidBuild("station"));
-    assertEquals("player_Owner", ownerData.getOwner());
+    assertEquals(tag("Owner"), ownerData.getOwner());
   }
 
   @ParameterizedTest
@@ -2370,10 +2171,18 @@ class VehicleInteractionsCoverageTest {
     new VehicleRegistrationFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save).onBeginVehicleConstruction(build);
     assertTrue(build.isCancelled());
     feeStore.putReceipt("claim:vehicle-1", payment.receipt("build:world:6:64:7"));
-    var claim = new VehicleOwnerClaimedEvent(owner, vehicle, "none", "player_Owner");
-    new VehicleReclaimFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save).onVehicleOwnerClaimed(claim);
+    ownerData.setOwner("none");
+    registry.unregister("vehicle-1");
+    var claim = new net.tfminecraft.vehicleframework.events.VehicleOwnershipChangeEvent(owner, vehicle,
+        net.tfminecraft.vehicleframework.api.OwnershipReason.CLAIM, UUID.randomUUID(), ref(owner), false, ref(owner),
+        null, "none", tag("Owner"));
+    new net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate(registry,
+        new VehicleRegistryClaimService(registry), feeStore, new VehicleFeeConfirmations(), feeStore::save,
+        java.util.logging.Logger.getAnonymousLogger()).onChange(claim);
     assertTrue(claim.isCancelled());
-    assertEquals("player_Owner", ownerData.getOwner());
+    verify(owner).sendMessage(net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnershipGate.PAYMENT_UNAVAILABLE);
+    ownerData.setOwner(tag("Owner"));
+    assertEquals(tag("Owner"), ownerData.getOwner());
   }
 
   @Test
@@ -2381,7 +2190,7 @@ class VehicleInteractionsCoverageTest {
     Player recipient = fixture.player("Recipient");
     handoverService.offer(owner, recipient, "vehicle-1", "ironclad");
     handoverService.acceptRequest(recipient);
-    assertEquals("player_Recipient", ownerData.getOwner());
+    assertEquals(tag("Recipient"), ownerData.getOwner());
     assertEquals("Recipient", feeStore.getLastOwner("vehicle-1"));
     assertEquals(net.tfminecraft.simplefactions.identity.Members.session(recipient).orElseThrow().ref().characterId(),
         registry.getByVehicleUuid("vehicle-1").orElseThrow().getPlayerUuid());
@@ -2401,7 +2210,7 @@ class VehicleInteractionsCoverageTest {
     net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments.stop();
     handoverService.acceptRequest(recipient);
     verify(recipient).sendMessage("§cVehicle payment needs staff review or recovery.");
-    assertEquals("player_Owner", ownerData.getOwner());
+    assertEquals(tag("Owner"), ownerData.getOwner());
   }
 
   @Test
@@ -2424,7 +2233,7 @@ class VehicleInteractionsCoverageTest {
     } finally {
       SimpleFactions.plugin = previous;
     }
-    assertEquals("player_Leader", ownerData.getOwner());
+    assertEquals(tag("Leader"), ownerData.getOwner());
   }
 
   @Test
@@ -2434,7 +2243,7 @@ class VehicleInteractionsCoverageTest {
     assertEquals(
         "§cYou need to be a faction leader to transfer vehicles.", VehicleFindMessages.notLeader());
     assertNull(VehicleHandoverMessages.forOutcome(null, "Leader"));
-    var permitted = handoverService.evaluate("Owner", "Leader", "vehicle-1");
+    var permitted = handoverService.evaluate(ref(owner), leader.getUniqueId(), "vehicle-1");
     assertEquals(VehicleHandoverService.Status.OK, permitted.status());
     assertNull(VehicleHandoverMessages.forOutcome(permitted, "Leader"));
     var unknown =
@@ -2468,7 +2277,7 @@ class VehicleInteractionsCoverageTest {
   private void factionVehicle(boolean pool) {
     arm(pool);
     sessions.clear(leader.getUniqueId());
-    ownerData.setOwner("player_Leader");
+    ownerData.setOwner(tag("Leader"));
     registry.register(
         new PlayerVehicleRecord(
             owner.getUniqueId(),
@@ -2506,23 +2315,74 @@ class VehicleInteractionsCoverageTest {
     net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(faction.getBank(), 1000.0);
   }
 
-  private List<OwnedVehicleSummary> ownedSummaries(String ownerEntry) {
-    List<OwnedVehicleSummary> all = new ArrayList<>(storedOwned);
-    for (ActiveVehicle active : loaded.values()) {
-      OwnerData data = active.getOwnerData();
-      if (data != null)
-        all.add(
-            new OwnedVehicleSummary(
-                active.getUUID(),
-                active.getId(),
-                active.getId(),
-                Optional.ofNullable(active.getLocation()),
-                true,
-                data.getOwner()));
+  private static net.tfminecraft.tlibs.character.CharacterRef ref(Player player) {
+    return net.tfminecraft.simplefactions.identity.Members.session(player).orElseThrow().ref();
+  }
+
+  /** The owner value of the character a fixture player of that name plays. */
+  private static String tag(String name) {
+    return "char_" + net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf(name);
+  }
+
+  /** An unloaded personal vehicle of the named player's character, with its payer row. */
+  private void storeOwned(String id, String type, String ownerName) {
+    stored.put(id, new OwnerFields(tag(ownerName), List.of(), false, false, null));
+    storedTypes.put(id, type);
+    Player player = fixture.online.get(ownerName);
+    UUID account = player != null ? player.getUniqueId() : UUID.nameUUIDFromBytes(ownerName.getBytes());
+    registry.register(new PlayerVehicleRecord(
+        net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf(ownerName), id, type,
+        OwnershipMode.PERSONAL, null, null, account));
+  }
+
+  /** VehicleFramework's setOwnership over the loaded mocks and the stored map. */
+  private final class Framework implements VehicleOwnerApi {
+    final List<String> writes = new ArrayList<>();
+    Result forced;
+
+    @Override
+    public boolean characters() {
+      return true;
     }
-    return all.stream()
-        .filter(v -> ownerEntry == null || ownerEntry.equalsIgnoreCase(v.getOwner()))
-        .toList();
+
+    @Override
+    public List<OwnerMeta> list() {
+      List<OwnerMeta> all = new ArrayList<>();
+      for (String id : loaded.keySet()) read(id).ifPresent(all::add);
+      for (String id : stored.keySet()) if (!loaded.containsKey(id)) read(id).ifPresent(all::add);
+      return all;
+    }
+
+    @Override
+    public Optional<OwnerMeta> read(String id) {
+      ActiveVehicle live = loaded.get(id);
+      if (live != null && live.getOwnerData() != null) {
+        OwnerData data = live.getOwnerData();
+        OwnerFields fields = new OwnerFields(data.getOwner(), data.getWhiteList(), data.isWhiteListed(),
+            data.isTicketsEnabled(), data.getTicketId());
+        return Optional.of(new OwnerMeta(id, live.getId(), fields.owner(), Optional.of(fields), Optional.of(fields)));
+      }
+      OwnerFields fields = stored.get(id);
+      return fields == null ? Optional.empty()
+          : Optional.of(new OwnerMeta(id, storedTypes.get(id), fields.owner(), Optional.of(fields), Optional.empty()));
+    }
+
+    @Override
+    public Result write(String id, String owner, List<String> whitelist, Reason reason) {
+      writes.add(id + " " + owner + " " + reason);
+      if (forced != null) return forced;
+      ActiveVehicle live = loaded.get(id);
+      if (live != null && live.getOwnerData() != null) {
+        live.getOwnerData().setOwner(owner);
+        if (reason != Reason.RESTAMP && reason != Reason.MIGRATE) live.getOwnerData().setWhiteList(new ArrayList<>());
+        return Result.OK;
+      }
+      if (stored.containsKey(id)) {
+        stored.put(id, stored.get(id).withOwnership(owner, List.of()));
+        return Result.OK;
+      }
+      return Result.NOT_FOUND;
+    }
   }
 
   private void fillPort() {
@@ -2542,7 +2402,8 @@ class VehicleInteractionsCoverageTest {
     when(vehicle.getId()).thenReturn(type);
     originalRecord =
         new PlayerVehicleRecord(
-            owner.getUniqueId(), "vehicle-1", type, OwnershipMode.PERSONAL, null);
+            owner.getUniqueId(), "vehicle-1", type, OwnershipMode.PERSONAL, null, null,
+            owner.getUniqueId());
     registry.register(originalRecord);
     sessions.put(
         leader.getUniqueId(),
@@ -2558,7 +2419,7 @@ class VehicleInteractionsCoverageTest {
 
   private void assertPersonalOwnershipUnchanged() {
     assertSame(originalRecord, registry.getByVehicleUuid("vehicle-1").orElseThrow());
-    assertEquals("player_Owner", ownerData.getOwner());
+    assertEquals(tag("Owner"), ownerData.getOwner());
     assertEquals(1, registry.getAll().size());
   }
 
@@ -2572,5 +2433,49 @@ class VehicleInteractionsCoverageTest {
             ? new LinkedHashMap<>(map)
             : value);
     return field;
+  }
+
+  @Test
+  void aHandoverWhosePayerRowCannotBeWrittenNeverChangesTheOwner() throws Exception {
+    Player recipient = fixture.player("Recipient");
+    handoverService.offer(owner, recipient, "vehicle-1", "ironclad");
+    Files.writeString(files.root.resolve("Cache"), "a file where the registry folder should be");
+
+    RequestManager.accept(recipient);
+
+    assertEquals(tag("Owner"), ownerData.getOwner());
+    assertEquals(List.of(), framework.writes);
+    verify(recipient).sendMessage(VehicleHandoverMessages.ownershipUnavailable());
+    verify(owner).sendMessage(VehicleHandoverMessages.ownershipUnavailable());
+  }
+
+  @Test
+  void consentNeedsBothCharactersWhenOfferedAndTheSameOwnerCharacterWhenAccepted() {
+    arm(false);
+    try (var members =
+        mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members
+          .when(() -> net.tfminecraft.simplefactions.identity.Members.session(owner))
+          .thenReturn(Optional.empty());
+      assertFalse(consent.trySendConsentRequest(leader, owner, faction, port, vehicle));
+      verify(leader).sendMessage(VehicleTransferMessages.ownerOffline());
+    }
+    assertTrue(click().isCancelled());
+    assertInstanceOf(VehicleTransferConsentRequest.class, RequestManager.getRequest(owner));
+    var otherCharacter =
+        Optional.of(
+            new net.tfminecraft.tlibs.character.CharacterSession(
+                new net.tfminecraft.tlibs.character.CharacterRef(owner.getUniqueId(), UUID.randomUUID()),
+                2L));
+    try (var members =
+        mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members
+          .when(() -> net.tfminecraft.simplefactions.identity.Members.session(owner))
+          .thenReturn(otherCharacter);
+      consent.acceptRequest(owner);
+    }
+    verify(owner).sendMessage("§cThis request belongs to another character.");
+    assertPersonalOwnershipUnchanged();
+    assertEquals(List.of(), framework.writes);
   }
 }

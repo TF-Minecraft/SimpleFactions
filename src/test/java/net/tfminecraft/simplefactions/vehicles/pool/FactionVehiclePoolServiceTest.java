@@ -29,6 +29,31 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vehicleframework.data.OwnerData;
 
 class FactionVehiclePoolServiceTest {
+    private static final UUID ALICE = UUID.randomUUID();
+    private static final String ALICE_TAG = "char_" + ALICE;
+    private net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi api;
+
+    @Test
+    void aFailedLeaderStampPutsThePersonalRowBack() {
+        PlayerVehicleRecord personal = new PlayerVehicleRecord(UUID.randomUUID(), "v1", "coal_car",
+                OwnershipMode.PERSONAL, null);
+        registry.register(personal);
+        api.forced = net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result.SAVE_FAILED;
+        net.tfminecraft.simplefactions.SimpleFactions plugin = mock(net.tfminecraft.simplefactions.SimpleFactions.class);
+        java.util.logging.Logger logger = mock(java.util.logging.Logger.class);
+        when(plugin.getLogger()).thenReturn(logger);
+        when(plugin.saveVehicleRegistry()).thenReturn(true, false);
+        try (var sf = org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.SimpleFactions.class)) {
+            sf.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(plugin);
+            assertEquals(false, service.tryRegister(faction, target("v1", "coal_car", owned("char_x")), UUID.randomUUID()));
+        }
+        assertEquals(personal, registry.getByVehicleUuid("v1").orElseThrow());
+        org.mockito.Mockito.verify(logger).severe(org.mockito.ArgumentMatchers.contains("pool stamp failed"));
+
+        registry.unregister("v1");
+        assertEquals(false, service.tryRegister(faction, target("v1", "coal_car", owned("char_x")), UUID.randomUUID()));
+        assertEquals(java.util.Optional.empty(), registry.getByVehicleUuid("v1"));
+    }
     private Path tempDir;
     private PlayerVehicleRegistry registry;
     private FactionVehiclePoolService service;
@@ -98,7 +123,9 @@ class FactionVehiclePoolServiceTest {
         when(military.getRegiment("artillery")).thenReturn(artillery);
         faction = mock(Faction.class);
         when(faction.getId()).thenReturn("red");
-        when(faction.getLeader()).thenReturn("Alice");
+        when(faction.getLeader()).thenReturn(ALICE.toString());
+        api = net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi.install()
+                .live("gun-1", "field_artillery", ALICE_TAG).live("v1", "coal_car", "char_" + UUID.randomUUID());
         when(faction.getMilitary()).thenReturn(military);
     }
 
@@ -119,13 +146,13 @@ class FactionVehiclePoolServiceTest {
 
     @Test
     void nonBerthableTrainCanJoinThePool() {
-        assertEquals(CanAddResult.OK, service.canAdd(faction, target("v1", "coal_car", "player_Alice")));
+        assertEquals(CanAddResult.OK, service.canAdd(faction, target("v1", "coal_car", ALICE_TAG)));
     }
 
     @Test
     void berthableTypeIsRefused() {
-        assertEquals(CanAddResult.MUST_BERTH, service.canAdd(faction, target("v1", "horse_cart", "player_Alice")));
-        assertEquals(CanAddResult.MUST_BERTH, service.canAdd(faction, target("v2", "ironclad", "player_Alice")));
+        assertEquals(CanAddResult.MUST_BERTH, service.canAdd(faction, target("v1", "horse_cart", ALICE_TAG)));
+        assertEquals(CanAddResult.MUST_BERTH, service.canAdd(faction, target("v2", "ironclad", ALICE_TAG)));
         assertEquals(
                 "§cThis vehicle belongs at an installation, not in the faction pool.",
                 VehicleTransferMessages.forPoolResult(CanAddResult.MUST_BERTH, "ironclad", faction));
@@ -136,22 +163,22 @@ class FactionVehiclePoolServiceTest {
         when(artillery.getCurrentSlots()).thenReturn(0);
         assertEquals(
                 CanAddResult.NO_ARTILLERY_CAPACITY,
-                service.canAdd(faction, target("gun-1", "field_artillery", "player_Alice")));
+                service.canAdd(faction, target("gun-1", "field_artillery", ALICE_TAG)));
 
         when(artillery.getCurrentSlots()).thenReturn(1);
-        assertEquals(CanAddResult.OK, service.canAdd(faction, target("gun-1", "field_artillery", "player_Alice")));
+        assertEquals(CanAddResult.OK, service.canAdd(faction, target("gun-1", "field_artillery", ALICE_TAG)));
 
-        OwnerData owner = owned("player_Alice");
+        OwnerData owner = owned(ALICE_TAG);
         service.register(faction, target("gun-1", "field_artillery", owner), UUID.randomUUID());
         assertEquals(
                 CanAddResult.NO_ARTILLERY_CAPACITY,
-                service.canAdd(faction, target("gun-2", "field_artillery", "player_Alice")));
+                service.canAdd(faction, target("gun-2", "field_artillery", ALICE_TAG)));
         assertEquals(1, registry.countPoolCategory("red", "artillery"));
     }
 
     @Test
     void registerAssignsPoolOwnershipToTheFactionLeader() {
-        OwnerData owner = owned("player_Bob");
+        OwnerData owner = owned("char_" + UUID.randomUUID());
         UUID original = UUID.randomUUID();
         service.register(faction, target("v1", "coal_car", owner), original);
 
@@ -159,7 +186,8 @@ class FactionVehiclePoolServiceTest {
         assertEquals(OwnershipMode.POOL, record.getMode());
         assertEquals("red", record.getFactionId());
         assertEquals(original, record.getPlayerUuid());
-        assertEquals("player_Alice", owner.getOwner());
+        assertEquals(ALICE_TAG, api.owner("v1"));
+        assertEquals(java.util.List.of("v1 " + ALICE_TAG + " TRANSFER"), api.writes);
         assertEquals(1.0, FactionVehiclePoolService.dailyUpkeep(registry, "red"));
     }
 
@@ -170,10 +198,10 @@ class FactionVehiclePoolServiceTest {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(), "berthed", "ironclad", OwnershipMode.INSTALLATION, "port-1"));
 
-        assertEquals(CanAddResult.ALREADY_IN_POOL, service.canAdd(faction, target("pooled", "coal_car", "player_Alice")));
-        assertEquals(CanAddResult.ALREADY_BERTHED, service.canAdd(faction, target("berthed", "ironclad", "player_Alice")));
+        assertEquals(CanAddResult.ALREADY_IN_POOL, service.canAdd(faction, target("pooled", "coal_car", ALICE_TAG)));
+        assertEquals(CanAddResult.ALREADY_BERTHED, service.canAdd(faction, target("berthed", "ironclad", ALICE_TAG)));
         assertEquals(CanAddResult.NOT_OWNED, service.canAdd(faction, target("free", "coal_car", "none")));
-        assertEquals(CanAddResult.UNKNOWN_TYPE, service.canAdd(faction, target("odd", "not_a_vehicle", "player_Alice")));
+        assertEquals(CanAddResult.UNKNOWN_TYPE, service.canAdd(faction, target("odd", "not_a_vehicle", ALICE_TAG)));
     }
 
     @Test

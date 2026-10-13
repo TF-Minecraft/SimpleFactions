@@ -83,7 +83,7 @@ class InstallationMenusCoverageTest {
     scope(VehicleFramework.class).when(VehicleFramework::getVehicleManager).thenReturn(vehicles);
     unberth = mock(InstallationVehicleUnberthService.class);
     when(fixture.ui.plugin.getInstallationVehicleUnberthService()).thenReturn(unberth);
-    when(unberth.unberth(any(), anyString(), any(), anyString()))
+    when(unberth.unberth(any(), any(), any(), anyString()))
         .thenReturn(
             new InstallationVehicleUnberthService.UnberthOutcome(
                 InstallationVehicleUnberthService.UnberthResult.NOT_BERTHED, null, null));
@@ -107,6 +107,10 @@ class InstallationMenusCoverageTest {
     } finally {
       fixture.close();
     }
+  }
+
+  private net.tfminecraft.tlibs.character.CharacterRef leaderRef() {
+    return net.tfminecraft.simplefactions.identity.Members.session(leader).orElseThrow().ref();
   }
 
   @Test
@@ -398,7 +402,7 @@ class InstallationMenusCoverageTest {
     PlayerVehicleRecord original = berth("tank-1", "heavy_tank", fort);
     InstallationVehicleUnberthService.UnberthOutcome outcome =
         new InstallationVehicleUnberthService.UnberthOutcome(result, null, "heavy_tank");
-    when(unberth.unberth(faction, "Leader", fort, "tank-1"))
+    when(unberth.unberth(faction, leaderRef(), fort, "tank-1"))
         .thenAnswer(
             call -> {
               if (result == InstallationVehicleUnberthService.UnberthResult.OK)
@@ -414,7 +418,7 @@ class InstallationMenusCoverageTest {
     view.installationDetailView(leader, faction, "fort");
     Inventory old = top();
     view.click(fixture.ui.click(leader, 0), old, leader);
-    verify(unberth).unberth(faction, "Leader", fort, "tank-1");
+    verify(unberth).unberth(faction, leaderRef(), fort, "tank-1");
     verify(leader).sendMessage(InstallationVehicleUnberthService.messageFor(outcome));
     assertEquals(1, registry.getAll().size());
     if (result == InstallationVehicleUnberthService.UnberthResult.OK) {

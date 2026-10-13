@@ -6,9 +6,10 @@ import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
-import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -125,13 +126,11 @@ public final class BattleVehicleEligibilityService {
 		if (vehicle == null) {
 			return null;
 		}
-		String ownerName = VehicleOwnershipQueries.playerNameFromOwner(
-				vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner());
-		if (ownerName != null) {
-			Player owner = Bukkit.getPlayerExact(ownerName);
-			if (owner != null) {
-				return owner;
-			}
+		UUID ownerCharacter = OwnerTags.characterId(
+				vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner()).orElse(null);
+		Player owner = ownerCharacter == null ? null : Members.online(Members.key(ownerCharacter)).orElse(null);
+		if (owner != null) {
+			return owner;
 		}
 		if (registry == null || vehicle.getUUID() == null) {
 			return null;

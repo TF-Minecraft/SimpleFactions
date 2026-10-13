@@ -13,7 +13,6 @@ import net.tfminecraft.simplefactions.player.income.PlayerLedger;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
-import net.tfminecraft.vehicleframework.data.OwnedVehicleSummary;
 
 public final class VehicleUpkeepProjection {
     private VehicleUpkeepProjection() {}
@@ -44,12 +43,12 @@ public final class VehicleUpkeepProjection {
         if (character == null || registry == null) return 0;
         double total = 0;
         for (var vehicle : VehicleOwnershipQueries.allPersonalVehicles(registry)) {
-            var row = registry.getByVehicleUuid(vehicle.getUuid()).orElse(null);
+            var row = registry.getByVehicleUuid(vehicle.vehicle()).orElse(null);
             if (row == null || !character.equals(row.getPlayerUuid())) continue;
             if (tax) {
-                var quote = VehicleFeeService.quote(FeeKind.VEHICLE_TAX, Members.key(character), vehicle.getTypeId());
+                var quote = VehicleFeeService.quote(FeeKind.VEHICLE_TAX, Members.key(character), vehicle.typeId());
                 if (quote != null) total += quote.amount();
-            } else total += VehiclesConfigLoader.getUpkeep(vehicle.getTypeId());
+            } else total += VehiclesConfigLoader.getUpkeep(vehicle.typeId());
         }
         return Formatter.formatDouble(total);
     }

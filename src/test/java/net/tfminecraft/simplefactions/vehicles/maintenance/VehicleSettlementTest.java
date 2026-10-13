@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.vehicles.maintenance;
 
+import net.tfminecraft.simplefactions.vehicles.owners.FakeOwnerApi;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -42,14 +43,13 @@ class VehicleSettlementTest {
     MockedStatic<Members> members;
     MockedStatic<VehicleFeeService> fees;
     MockedStatic<FactionVehiclePoolService> pools;
-    FakeOwnedInventory inventory;
+    FakeOwnerApi inventory;
 
     @BeforeEach void setup() throws Exception {
         Path config = folder.resolve("vehicles.yml");
         Files.writeString(config, "categories:\n  ships:\n    ship:\n      upkeep: 20\n      size: 1\n    free:\n      upkeep: 0\n      size: 1\n");
         VehiclesConfigLoader.load(config.toFile());
-        inventory = new FakeOwnedInventory();
-        VehicleOwnershipQueries.setSourceForTests(inventory);
+        inventory = FakeOwnerApi.install();
         denars = mockStatic(Denars.class, CALLS_REAL_METHODS);
         denars.when(() -> Denars.balance(anyString())).thenReturn(10000L);
         members = mockStatic(Members.class, CALLS_REAL_METHODS);
@@ -63,13 +63,12 @@ class VehicleSettlementTest {
 
     @AfterEach void close() {
         pools.close(); fees.close(); members.close(); denars.close();
-        VehicleOwnershipQueries.setSourceForTests(null);
     }
 
     PlayerVehicleRecord vehicle(String id, String type, UUID character, OwnershipMode mode) {
         var record = new PlayerVehicleRecord(character, id, type, mode, "fort", "realm");
         registry.register(record);
-        inventory.add(id, type, "player_UnrelatedAccountTag");
+        inventory.stored(id, type, "player_UnrelatedAccountTag");
         return record;
     }
 
@@ -149,7 +148,7 @@ class VehicleSettlementTest {
     }
 
     @Test void missingRegistryCharacterNeverFallsBackToVehicleFrameworkOwner() {
-        inventory.add("unknown", "ship", "player_CurrentAccount");
+        inventory.stored("unknown", "ship", "player_CurrentAccount");
         vehicle("missing", "ship", UUID.randomUUID(), OwnershipMode.PERSONAL);
         vehicle("free", "free", payer.characterId(), OwnershipMode.PERSONAL);
         maintenance.markUnpaid("free", 1);

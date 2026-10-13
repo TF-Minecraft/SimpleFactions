@@ -8,11 +8,12 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import net.tfminecraft.vehicleframework.data.OwnerData;
-import net.tfminecraft.vehicleframework.events.VehicleOwnerClaimedEvent;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class VehicleRegistryClaimListener implements Listener {
+    public static final String FACTION_VEHICLE =
+            "§cThis vehicle belongs to a faction; its leader manages it with /faction vehicle.";
     private final VehicleRegistryClaimService claimService;
 
     public VehicleRegistryClaimListener(VehicleRegistryClaimService claimService) {
@@ -35,20 +36,7 @@ public final class VehicleRegistryClaimListener implements Listener {
         handleClaimResult(event, player, vehicle.getId(), result);
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onVehicleOwnerClaimed(VehicleOwnerClaimedEvent event) {
-        Player player = event.getPlayer();
-        ActiveVehicle vehicle = event.getVehicle();
-        if (player == null || vehicle == null) {
-            return;
-        }
-
-        VehicleRegistryClaimService.ClaimRegisterResult result =
-                claimService.tryRegisterOnClaim(player, vehicle);
-        handleClaimResult(event, player, vehicle.getId(), result);
-    }
-
-    static void handleClaimResult(
+    public static void handleClaimResult(
             org.bukkit.event.Cancellable event,
             Player player,
             String vehicleTypeId,
@@ -62,6 +50,10 @@ public final class VehicleRegistryClaimListener implements Listener {
                 if (message != null) {
                     player.sendMessage(message);
                 }
+            }
+            case FAIL_FACTION_VEHICLE -> {
+                event.setCancelled(true);
+                player.sendMessage(FACTION_VEHICLE);
             }
             case SKIP, ALLOWED -> {
                 // allow VF to continue
