@@ -464,6 +464,24 @@ class VehicleOwnerMigrationTest {
     }
 
     @Test
+    void aDoneVehicleWithNeitherAStoredNorALiveCopyFailsTheStageAsTorn() throws IOException {
+        api.stored("blank", "cart", "player_Dave");
+        VehicleOwnerApi emptying = new Crashing(api, Integer.MAX_VALUE) {
+            @Override
+            public Result write(String vehicle, String owner, List<String> whitelist, Reason reason) {
+                Result result = super.write(vehicle, owner, whitelist, reason);
+                delegate.vehicles.put(vehicle, new OwnerMeta(vehicle, "cart", null, Optional.empty(), Optional.empty()));
+                return result;
+            }
+        };
+
+        IOException failure = assertThrows(IOException.class, () -> migration(emptying).run());
+
+        assertEquals("Stored and live vehicle owners disagree after migration: [blank]", failure.getMessage());
+        assertFalse(plan().get("completed").getAsBoolean());
+    }
+
+    @Test
     void copiesThatAgreeOnSomethingElseAtVerificationAreQuarantined() throws IOException {
         api.stored("moved", "cart", "player_Dave").live("gone", "cart", "player_Dave");
         String staff = "char_" + UUID.randomUUID();

@@ -391,7 +391,8 @@ public final class VehicleOwnerMigration {
                 }
                 copies.add(stored);
             }
-            if (copies.size() == 2 && !copies.get(0).sameOwnership(copies.get(1))) {
+            if (copies.isEmpty() || copies.size() == 2 && !copies.get(0).sameOwnership(copies.get(1))) {
+                // Neither copy can be read back, or the two disagree.
                 torn.add(entry.vehicle);
             } else if (!copies.get(0).sameOwnership(planned)) {
                 // Both copies agree on something else: staff changed it since; list it, never overwrite.
