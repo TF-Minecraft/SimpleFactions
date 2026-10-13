@@ -407,14 +407,60 @@ public final class VehicleOwnerMigration {
 
     // Production lookups.
 
-    /** Live providers: DenarEconomy's remembered names, Bukkit's name cache and TLibs characters. */
+    /**
+     * Live providers. A legacy owner name counts only while it is still its account's latest
+     * name: Bukkit's name for the account when the server still knows one, otherwise the name
+     * DenarEconomy remembered last for it (its durable {@code player-names.json}, which never
+     * expires as the user cache does).
+     */
     public static final class LiveIdentity implements Identity {
+        static final Path REMEMBERED_NAMES = Path.of("plugins/DenarEconomy/Data/player-names.json");
+        private final Path rememberedNames;
+        private java.util.Map<UUID, String> latestNames;
+
+        public LiveIdentity() {
+            this(REMEMBERED_NAMES);
+        }
+
+        /** Reads DenarEconomy's name index from this file instead of the server's. */
+        public LiveIdentity(Path rememberedNames) {
+            this.rememberedNames = rememberedNames;
+        }
+
         @Override
         public UUID roundTrip(String name) {
             UUID account = VehicleOwnershipQueries.resolvePlayerUuid(name);
             if (account == null) return null;
             String current = Bukkit.getOfflinePlayer(account).getName();
+            if (current == null) current = latestRemembered().get(account);
             return name.equalsIgnoreCase(current) ? account : null;
+        }
+
+        /** Each account's most recently first-seen name in DenarEconomy's index; read once. */
+        public java.util.Map<UUID, String> latestRemembered() {
+            if (latestNames == null) latestNames = readLatest(rememberedNames);
+            return latestNames;
+        }
+
+        static java.util.Map<UUID, String> readLatest(Path file) {
+            java.util.Map<UUID, String> latest = new java.util.HashMap<>();
+            if (!Files.isRegularFile(file)) return latest;
+            try {
+                com.google.gson.JsonObject names = com.google.gson.JsonParser.parseString(Files.readString(file))
+                        .getAsJsonObject();
+                // DenarEconomy appends a name the first time it sees it, so the last entry is the newest.
+                for (var entry : names.entrySet()) {
+                    try {
+                        latest.put(UUID.fromString(entry.getValue().getAsString()), entry.getKey());
+                    } catch (IllegalArgumentException | UnsupportedOperationException | IllegalStateException bad) {
+                        // A damaged row names nobody.
+                    }
+                }
+            } catch (IOException | RuntimeException unreadable) {
+                // Without the index only Bukkit's names count.
+                latest.clear();
+            }
+            return latest;
         }
 
         @Override

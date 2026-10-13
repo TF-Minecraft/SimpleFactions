@@ -227,4 +227,12 @@ class VehicleOwnerRollbackTest {
     void withoutAPaymentJournalThereIsNothingToRefund() throws IOException {
         assertEquals(List.of(), VehicleOwnerRollback.refunds(server.resolve("absent"), 0));
     }
+
+    @Test
+    void anOldGsonOrAMissingSqliteDriverIsNamedBeforeAnythingRuns() {
+        assertEquals(null, VehicleOwnerRollback.missingLibraries(com.google.gson.JsonArray.class, "org.sqlite.JDBC"));
+        assertTrue(VehicleOwnerRollback.missingLibraries(Object.class, "org.sqlite.JDBC").startsWith("Gson 2.10 or newer"));
+        assertTrue(VehicleOwnerRollback.missingLibraries(com.google.gson.JsonArray.class, "org.sqlite.Missing")
+                .startsWith("sqlite-jdbc is needed"));
+    }
 }

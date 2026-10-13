@@ -55,7 +55,29 @@ public final class VehicleOwnerRollback {
         if (args.length < 1 || args.length > 2 || (args.length == 2 && !args[1].equals("--apply"))) {
             throw new IllegalArgumentException("Usage: VehicleOwnerRollback <server folder> [--apply]");
         }
+        String missing = missingLibraries(JsonArray.class, "org.sqlite.JDBC");
+        if (missing != null) throw new IllegalStateException(missing);
         run(Path.of(args[0]), args.length == 2, System.out);
+    }
+
+    /**
+     * Why the classpath cannot run the tool, or null. Gson must be 2.10 or newer (records,
+     * {@code JsonParser.parseString}); a server's {@code libraries/} may also hold older ones.
+     */
+    static String missingLibraries(Class<?> jsonArray, String sqliteDriver) {
+        try {
+            jsonArray.getMethod("asList");
+        } catch (NoSuchMethodException old) {
+            return "Gson 2.10 or newer is needed on the classpath (found an older one); use the newest"
+                    + " libraries/com/google/code/gson/gson/<version>/gson-<version>.jar";
+        }
+        try {
+            Class.forName(sqliteDriver);
+        } catch (ClassNotFoundException | LinkageError absent) {
+            return "sqlite-jdbc is needed on the classpath:"
+                    + " libraries/org/xerial/sqlite-jdbc/<version>/sqlite-jdbc-<version>.jar";
+        }
+        return null;
     }
 
     public static Report run(Path server, boolean apply, PrintStream out) throws IOException {

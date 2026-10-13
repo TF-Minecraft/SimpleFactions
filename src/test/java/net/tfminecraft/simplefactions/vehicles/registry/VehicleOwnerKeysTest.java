@@ -104,4 +104,32 @@ class VehicleOwnerKeysTest {
         return new CharacterInfo(new CharacterRef(owner, id), "Owner's Character", CharacterStatus.ALIVE,
                 null, Set.of(), 0, null);
     }
+
+    @Test
+    void anExpiredUserCacheFallsBackToTheNameDenarEconomyRememberedLast(@org.junit.jupiter.api.io.TempDir java.nio.file.Path folder)
+            throws Exception {
+        OfflinePlayer forgotten = mock(OfflinePlayer.class);
+        bukkit.when(() -> Bukkit.getOfflinePlayer(account)).thenReturn(forgotten);
+        java.nio.file.Path index = folder.resolve("player-names.json");
+        UUID other = UUID.randomUUID();
+        java.nio.file.Files.writeString(index, "{\"oldname\":\"" + account + "\",\"owner\":\"" + account
+                + "\",\"someone\":\"" + other + "\",\"broken\":\"not-a-uuid\",\"nothing\":null,"
+                + "\"object\":{}}");
+        accounts.when(() -> OfflineModifier.playerId("OldName")).thenReturn(account);
+
+        var remembered = new VehicleOwnerMigration.LiveIdentity(index);
+        assertEquals(account, remembered.roundTrip("Owner"), "The account's newest remembered name");
+        assertNull(remembered.roundTrip("OldName"), "A name the account has since replaced");
+        assertEquals("someone", remembered.latestRemembered().get(other));
+
+        java.nio.file.Files.writeString(index, "{\"owner\":\"" + account + "\",\"renamed\":\"" + account + "\"}");
+        assertNull(new VehicleOwnerMigration.LiveIdentity(index).roundTrip("Owner"), "The owner renamed since");
+        java.nio.file.Files.writeString(index, "[\"not an object\"]");
+        assertNull(new VehicleOwnerMigration.LiveIdentity(index).roundTrip("Owner"));
+        assertNull(new VehicleOwnerMigration.LiveIdentity(folder.resolve("absent.json")).roundTrip("Owner"));
+
+        when(forgotten.getName()).thenReturn("Owner");
+        assertEquals(account, new VehicleOwnerMigration.LiveIdentity(folder.resolve("absent.json")).roundTrip("Owner"),
+                "A name the server still knows needs no index");
+    }
 }
