@@ -25,6 +25,8 @@ public final class VehicleHandoverRequest extends Request {
     private final CharacterRef ownerCharacter;
     private final CharacterRef recipientCharacter;
     private final String operationId = "sf:vehicle:handover:" + UUID.randomUUID();
+    /** When the owner made the offer; the fee's intent carries it, so a retry matches. */
+    private final long offeredAt = System.currentTimeMillis();
 
     /** The sender guild is null when the owner is in no faction. */
     public VehicleHandoverRequest(
@@ -72,6 +74,7 @@ public final class VehicleHandoverRequest extends Request {
     public CharacterRef getOwnerCharacter() { return ownerCharacter; }
     public CharacterRef getRecipientCharacter() { return recipientCharacter; }
     public String getOperationId() { return operationId; }
+    public long getOfferedAt() { return offeredAt; }
 
     public boolean matchesFee(Quote quote) {
         return java.util.Objects.equals(feeFactionId, quote == null ? null : quote.faction().getId())

@@ -248,4 +248,22 @@ class LeaderStampsTest {
             verify(plugins, times(1)).callEvent(any(Event.class));
         }
     }
+
+    @Test
+    void aVehicleHeldForStaffIsNeverRestampedOrTreatedAsStale() throws Exception {
+        String staff = "char_" + UUID.randomUUID();
+        PlayerVehicleRecord gun = pool("gun", "red");
+        api.stored("gun", "gun", staff);
+        VehicleQuarantine quarantine = new VehicleQuarantine(java.nio.file.Files.createTempDirectory("held"));
+        quarantine.load(List.of(new VehicleQuarantine.Entry("gun", staff, "owner changed after the migration was planned")));
+        VehicleQuarantine.use(quarantine);
+
+        LeaderStamps.reconcile(registry);
+        LeaderStamps.onLeaderChanged(red, registry);
+
+        assertEquals(List.of(), api.writes);
+        assertFalse(LeaderStamps.isStale(gun, staff));
+        api.stored("gun", "gun", "player_Other");
+        assertTrue(LeaderStamps.isStale(gun, "player_Other"), "Once staff change it, it is a faction vehicle again");
+    }
 }

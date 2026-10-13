@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.vehicles.VehicleIntegrationListener;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore.PaidBuild;
 import net.tfminecraft.simplefactions.vehicles.owners.ConstructionStamp;
+import net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps;
 import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
 import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Reason;
 import net.tfminecraft.simplefactions.vehicles.owners.VehicleOwnerApi.Result;
@@ -34,6 +35,7 @@ import net.tfminecraft.vfbuilders.events.VehicleConstructionCancelEvent;
  * Needs VFBuilders 2.1.0 or later for the confirm click and refunds.
  */
 public final class VehicleRegistrationFeeListener implements Listener {
+    public static final String OWNERSHIP_STARTING = "§cVehicle ownership is not running yet, so nothing can be built.";
     private final VehicleFeeStore store;
     private final VehicleFeeConfirmations confirmations;
     private final Runnable saver;
@@ -54,6 +56,8 @@ public final class VehicleRegistrationFeeListener implements Listener {
         }
         var session = Members.session(player).orElse(null);
         if (session == null) { event.setCancelled(true); player.sendMessage("§cSelect a living character first."); return; }
+        // A finished vehicle is stamped for its builder, which needs the vehicle stage up in characters mode.
+        if (!LeaderStamps.enabled()) { event.setCancelled(true); player.sendMessage(OWNERSHIP_STARTING); return; }
         String vehicleTypeId = VehicleIntegrationListener.resolveVehicleTypeId(blueprint);
         String stationKey = stationKey(event.getStation());
         String scope = "build:" + stationKey;
@@ -134,21 +138,23 @@ public final class VehicleRegistrationFeeListener implements Listener {
         Result stamped = VehicleOwnerWrites.write(vehicle, stamp, Reason.CONSTRUCT);
         if (stamped != Result.OK) {
             payments.replaceRow(vehicle, null);
-            log("Could not stamp constructed vehicle " + vehicle + " (" + stamped
-                    + "); it stays unowned and build receipt " + scope + " stays open for staff");
+            // Nobody may claim it while the paid build is unresolved.
+            quarantine(vehicle, OwnerTags.NONE, "construction owner could not be written (" + stamped
+                    + "); build receipt " + scope + " stays open");
             return;
         }
         if (!agree) {
-            quarantine(vehicle, "registration fee payer " + payer + " is not the constructor " + constructor);
+            quarantine(vehicle, OwnerTags.NO_CHARACTER,
+                    "registration fee payer " + payer + " is not the constructor " + constructor);
         }
         store.setLastOwner(vehicle, Members.key(payer));
         payments.complete(scope, null);
     }
 
-    private static void quarantine(String vehicle, String reason) {
+    private static void quarantine(String vehicle, String owner, String reason) {
         var quarantine = VehicleQuarantine.current();
         try {
-            if (quarantine != null) quarantine.add(new VehicleQuarantine.Entry(vehicle, OwnerTags.NO_CHARACTER, reason));
+            if (quarantine != null) quarantine.add(new VehicleQuarantine.Entry(vehicle, owner, reason));
         } catch (java.io.IOException error) {
             log("Could not list quarantined vehicle " + vehicle + ": " + error);
         }

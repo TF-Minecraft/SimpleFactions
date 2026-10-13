@@ -95,14 +95,15 @@ class VehicleOwnerRollbackTest {
     private void writePlan() throws IOException {
         String quoted = "\"" + bran + "\"";
         String entries = String.join(",",
-                entry("restore", "DONE", "player_Alice", kira, quoted, true),
+                entry("restore", "PENDING", "player_Alice", kira, quoted, true),
                 entry("changed", "DONE", "player_Alice", kira, quoted, true),
                 entry("payload", "DONE", "player_Alice", kira, quoted, true),
                 entry("tombstoned", "DONE", "player_Alice", kira, quoted, true),
                 entry("unchanged", "DONE", kira, kira, "\"player_Bob\"", true),
                 "{\"vehicle\":\"held\",\"status\":\"QUARANTINED\"}");
         Files.createDirectories(factions.resolve("vehicles"));
-        Files.writeString(factions.resolve(VehicleOwnerMigration.PLAN), "{\"completed\":true,\"completedAt\":" + migratedAt
+        // An interrupted plan: no completion time, fees count from when it was made.
+        Files.writeString(factions.resolve(VehicleOwnerMigration.PLAN), "{\"completed\":false,\"createdAt\":" + migratedAt
                 + ",\"entries\":[" + entries + "],\"quarantine\":[]}");
     }
 

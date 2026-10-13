@@ -485,4 +485,21 @@ class VehicleOwnershipGateTest {
         }
         assertEquals(Optional.empty(), registry.getByVehicleUuid("ship-1"));
     }
+
+    @Test
+    void aVehicleHeldForStaffCannotBeChangedByPlayers() throws Exception {
+        FakeOwnerApi.install().stored("ship-1", "ship", "none");
+        VehicleQuarantine quarantine = new VehicleQuarantine(folder);
+        quarantine.load(List.of(new VehicleQuarantine.Entry("ship-1", "none", "construction owner could not be written")));
+        VehicleQuarantine.use(quarantine);
+        VehicleOwnershipChangeEvent claim = change(OwnershipReason.CLAIM, false);
+        VehicleOwnershipChangeEvent staff = change(OwnershipReason.TAKEOVER, true);
+
+        gate.onChange(claim);
+        gate.onChange(staff);
+
+        assertTrue(claim.isCancelled());
+        verify(player).sendMessage(VehicleOwnershipGate.HELD);
+        assertFalse(staff.isCancelled());
+    }
 }

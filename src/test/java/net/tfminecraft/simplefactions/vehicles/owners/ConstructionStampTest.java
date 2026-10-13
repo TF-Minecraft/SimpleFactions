@@ -158,6 +158,9 @@ class ConstructionStampTest {
         verify(payments, never()).complete(anyString(), any());
         verify(logger).warning(contains("build receipt build:world:6:64:7 stays open"));
         assertNull(store.getLastOwner("ship-1"));
+        // Unowned but held, so nobody claims it while the paid build is unresolved.
+        assertTrue(VehicleQuarantine.held("ship-1"));
+        assertEquals("none", VehicleQuarantine.current().list().getFirst().owner());
     }
 
     @Test
@@ -193,5 +196,21 @@ class ConstructionStampTest {
         assertTrue(ConstructionStamp.characterApi());
         assertTrue(ConstructionStamp.hasCharacter(VehicleConstructEvent.class));
         assertEquals(false, ConstructionStamp.hasCharacter(Object.class));
+    }
+
+    @Test
+    void noBuildStartsUntilTheVehicleStageRunsInCharactersMode() {
+        org.bukkit.entity.Player builder = mock(org.bukkit.entity.Player.class);
+        when(builder.getName()).thenReturn("Builder");
+        Blueprint blueprint = mock(Blueprint.class);
+        when(blueprint.getId()).thenReturn("ship");
+        var begin = new net.tfminecraft.vfbuilders.events.BeginVehicleConstructionEvent(builder, blueprint, station,
+                station.getLocation());
+
+        listener.onBeginVehicleConstruction(begin);
+
+        assertTrue(begin.isCancelled());
+        verify(builder).sendMessage(VehicleRegistrationFeeListener.OWNERSHIP_STARTING);
+        verify(payments, never()).charge(anyString(), anyString(), any(), any());
     }
 }

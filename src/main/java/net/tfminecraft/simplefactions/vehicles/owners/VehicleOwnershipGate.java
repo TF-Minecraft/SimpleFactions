@@ -46,6 +46,7 @@ import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 public final class VehicleOwnershipGate implements Listener {
     public static final String PAYMENT_UNAVAILABLE = "§cVehicle payment needs a living character or staff recovery.";
     public static final String FAILED = "§cVehicle ownership could not be checked, so nothing changed.";
+    public static final String HELD = "§cThis vehicle is held for staff; ask them to assign its owner.";
     static final int REMEMBERED_OPERATIONS = 1024;
 
     private final PlayerVehicleRegistry registry;
@@ -74,6 +75,10 @@ public final class VehicleOwnershipGate implements Listener {
         try {
             if (event.isStaff()) return;
             ActiveVehicle vehicle = event.getVehicle();
+            if (VehicleQuarantine.held(vehicle.getUUID())) {
+                refuse(event, event.getPlayer(), HELD);
+                return;
+            }
             if (LeaderStamps.isFactionRow(row(vehicle))) {
                 refuse(event, event.getPlayer(), VehicleRegistryClaimListener.FACTION_VEHICLE);
                 return;

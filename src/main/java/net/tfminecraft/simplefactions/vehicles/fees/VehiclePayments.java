@@ -91,6 +91,11 @@ public final class VehiclePayments {
     }
 
     public Result charge(String scope, String operationId, CharacterRef payer, VehicleFeeService.Quote quote) {
+        return charge(scope, operationId, payer, quote, System.currentTimeMillis());
+    }
+
+    /** {@code at} is part of the replayable intent, so a retried operation must pass the same time. */
+    public Result charge(String scope, String operationId, CharacterRef payer, VehicleFeeService.Quote quote, long at) {
         if (!ready) return Result.UNAVAILABLE;
         if (store.receipt(scope) != null) return Result.CONFLICT;
         if (payer == null || quote == null || quote.faction().getBank() == null) return Result.REFUSED;
@@ -103,7 +108,7 @@ public final class VehiclePayments {
         changes.addProperty("action", "charge");
         changes.addProperty("scope", scope);
         // When it was paid, so a rollback can list fees paid after the vehicle owner migration.
-        changes.addProperty("at", System.currentTimeMillis());
+        changes.addProperty("at", at);
         changes.add("receipt", JsonUtil.GSON.toJsonTree(receipt));
         bookkeeping(changes, receipt, guild, cents);
         return execute(new OperationJournal.Intent(operationId, "vehicle:" + quote.kind().name(),

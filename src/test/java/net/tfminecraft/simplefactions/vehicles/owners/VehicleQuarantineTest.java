@@ -57,4 +57,22 @@ class VehicleQuarantineTest {
         Files.writeString(folder.resolve("vehicles/quarantine.json"), "{broken");
         assertThrows(IOException.class, () -> new VehicleQuarantine(folder).load(List.of()));
     }
+
+    @Test
+    void heldVehiclesAreThoseStillListedAndUnreadableOnesStayListed() throws IOException {
+        FakeOwnerApi.install().stored("legacy", "cart", "player_Old").stored("fixed", "cart", "char_none");
+        assertEquals(false, VehicleQuarantine.held("legacy"), "Nothing is held without a running list");
+        VehicleQuarantine quarantine = new VehicleQuarantine(folder);
+        quarantine.load(List.of(new Entry("legacy", "player_Old", "renamed"), new Entry("fixed", "player_Old", "x"),
+                new Entry("unreadable", null, "its ownership fields cannot be read")));
+        VehicleQuarantine.use(quarantine);
+
+        assertEquals(true, VehicleQuarantine.held("legacy"));
+        assertEquals(false, VehicleQuarantine.held("fixed"));
+        assertEquals(true, VehicleQuarantine.held("unreadable"));
+        assertEquals(false, VehicleQuarantine.held("other"));
+        assertEquals(false, VehicleQuarantine.held(null));
+        assertEquals(List.of(new Entry("legacy", "player_Old", "renamed"),
+                new Entry("unreadable", null, "its ownership fields cannot be read")), quarantine.list());
+    }
 }

@@ -154,7 +154,8 @@ public final class VehicleHandoverService {
             tellBoth(req, recipient, VehicleHandoverMessages.feeChanged());
             return;
         }
-        if (quote != null && payments.charge(scope, req.getOperationId(), req.getOwnerCharacter(), quote) != net.tfminecraft.denareconomy.api.Result.APPLIED) {
+        if (quote != null && payments.charge(scope, req.getOperationId(), req.getOwnerCharacter(), quote, req.getOfferedAt())
+                != net.tfminecraft.denareconomy.api.Result.APPLIED) {
             tellBoth(req, recipient, VehicleFeeMessages.handoverUnaffordable(quote)); return;
         }
         // The recipient becomes the payer before VehicleFramework's owner changes, and stops being it if that fails.

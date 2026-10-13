@@ -61,6 +61,8 @@ public final class LeaderStamps {
     }
 
     static Result stamp(String vehicle, String expected) {
+        // A vehicle held for staff (for example taken over while the migration was interrupted) is theirs.
+        if (VehicleQuarantine.held(vehicle)) return Result.OK;
         String current = VehicleOwnerWrites.currentOwner(vehicle);
         if (current == null) return Result.NOT_FOUND;
         if (current.equals(expected)) return Result.OK;
@@ -110,7 +112,8 @@ public final class LeaderStamps {
 
     /** Backstop: whether a faction vehicle carries a stale stamp. Personal and unregistered vehicles never do. */
     public static boolean isStale(PlayerVehicleRecord record, String currentOwner) {
-        return isFactionRow(record) && !expected(record).equals(currentOwner);
+        return isFactionRow(record) && !expected(record).equals(currentOwner)
+                && !VehicleQuarantine.held(record.getVehicleUuid());
     }
 
     /** Restamps on the next tick, once per vehicle however often it is clicked. */

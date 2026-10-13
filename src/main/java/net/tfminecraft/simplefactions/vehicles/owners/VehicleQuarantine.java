@@ -75,11 +75,29 @@ public final class VehicleQuarantine {
     public List<Entry> list() {
         List<Entry> out = new ArrayList<>();
         for (Entry entry : concat(migration, runtime)) {
-            String current = VehicleOwnerWrites.currentOwner(entry.vehicle());
-            if (current != null && Objects.equals(current, entry.owner())) out.add(entry);
+            if (stillHeld(entry)) out.add(entry);
         }
         out.addAll(findings);
         return out;
+    }
+
+    /**
+     * Whether the running list holds this vehicle back: SimpleFactions then leaves its owner
+     * to staff, and players cannot change it.
+     */
+    public static boolean held(String vehicle) {
+        VehicleQuarantine quarantine = active;
+        if (quarantine == null || vehicle == null) return false;
+        for (Entry entry : concat(quarantine.migration, quarantine.runtime)) {
+            if (vehicle.equals(entry.vehicle()) && stillHeld(entry)) return true;
+        }
+        return false;
+    }
+
+    /** Listed until staff give it an owner; one whose owner could not be read stays listed. */
+    private static boolean stillHeld(Entry entry) {
+        if (entry.owner() == null) return true;
+        return Objects.equals(VehicleOwnerWrites.currentOwner(entry.vehicle()), entry.owner());
     }
 
     private static List<Entry> concat(List<Entry> first, List<Entry> second) {

@@ -223,6 +223,8 @@ class VehicleInteractionsCoverageTest {
     vehicleFramework.when(VehicleFramework::getVehicleManager).thenReturn(manager);
     framework = new Framework();
     VehicleOwnerWrites.use(framework);
+    // The vehicle stage has finished, so builds may start.
+    net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enable(true);
     ownerData = new OwnerData();
     ownerData.setOwner(tag("Owner"));
     vehicle = mock(ActiveVehicle.class);

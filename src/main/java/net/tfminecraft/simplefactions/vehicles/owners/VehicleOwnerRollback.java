@@ -65,7 +65,8 @@ public final class VehicleOwnerRollback {
         Report report;
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:"
                 + server.resolve("plugins/VehicleFramework/data/vehicles.db").toAbsolutePath())) {
-            report = restore(connection, plan, apply, refunds(factions.resolve(PAYMENTS), plan.completedAt));
+            // Fees count from when the plan was made, so an unfinished migration lists them too.
+            report = restore(connection, plan, apply, refunds(factions.resolve(PAYMENTS), plan.createdAt));
         } catch (SQLException error) {
             throw new IOException("Could not roll back vehicle owners", error);
         }
@@ -92,7 +93,9 @@ public final class VehicleOwnerRollback {
         connection.setAutoCommit(false);
         try {
             for (Entry entry : plan.entries) {
-                if (entry.status != Status.DONE || entry.original.value().sameOwnership(entry.planned.value())) continue;
+                // Pending entries may have been written before a crash; the row check keeps the rest safe.
+                if (entry.status == Status.QUARANTINED || entry.planned == null
+                        || entry.original.value().sameOwnership(entry.planned.value())) continue;
                 Row row = row(connection, entry.vehicle);
                 if (row == null) {
                     gone.add(entry.vehicle);
