@@ -51,6 +51,7 @@ class VehicleEstateParticipantTest {
     MockedStatic<VehiclesConfigLoader> types;
     MockedStatic<VehiclePayments> paymentsCurrent;
     VehicleEstateParticipant participant;
+    final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(1_000_000);
 
     /** VehicleFramework's owner values in memory; a scripted result replaces the next writes. */
     static final class FakeFramework implements VehicleOwnerApi {
@@ -112,6 +113,8 @@ class VehicleEstateParticipantTest {
         Files.createDirectories(folder.resolve("Cache"));
         fees.bind(folder.resolve("Cache").toFile());
         participant = new VehicleEstateParticipant(folder, registry, fees, Logger.getLogger("test"));
+        // Each call happens an hour after the last, so every gone or unreadable read counts.
+        participant.clock = () -> now.addAndGet(VehicleEstateParticipant.ATTEMPT_SPACING_MS);
     }
 
     @AfterEach void close() {
@@ -212,6 +215,7 @@ class VehicleEstateParticipantTest {
         framework.put("cart", "cart", tag(testator));
         estates.when(() -> Estates.guardHolds(any())).thenReturn(false);
         assertEquals(Outcome.Kind.RETRY, participant.settle(toHeir()).kind());
+        assertEquals(Outcome.Kind.RETRY, participant.settle(decision(Recipient.FROZEN)).kind(), "not this revision");
         estates.when(() -> Estates.guardHolds(any())).thenReturn(true);
         api.when(SimpleFactionsApi::ready).thenReturn(false);
         assertEquals(Outcome.Kind.RETRY, participant.settle(toHeir()).kind());
@@ -220,6 +224,14 @@ class VehicleEstateParticipantTest {
         assertEquals(Outcome.Kind.RETRY, participant.settle(toHeir()).kind());
         assertEquals(testator.characterId(), payer("cart"));
         assertTrue(framework.writes.isEmpty());
+    }
+
+    @Test void nothingToMoveIsDoneEvenWhileTheVehicleStageIsDegraded() {
+        api.when(SimpleFactionsApi::ready).thenReturn(false);
+        VehicleOwnerWrites.use(null);
+        // Otherwise a degraded stage would hold every revive behind this participant.
+        assertEquals(Outcome.done(), participant.settle(decision(Recipient.WAITING)));
+        assertEquals(Outcome.done(), participant.settle(decision(Recipient.FROZEN)));
     }
 
     @Test void theEstateGateHoldsVehiclesBackWithoutPlanningThem() throws Exception {
@@ -368,6 +380,56 @@ class VehicleEstateParticipantTest {
         assertEquals(List.of("cart"), ((Outcome.Done) participant.settle(toHeir())).movedIds());
     }
 
+    @Test void attemptsCountAtMostOnceAnHourSoCallsCloseTogetherDoNotListAVehicle() throws Exception {
+        participant.clock = now::get;
+        row("cart", "cart", testator.characterId());
+        framework.put("cart", "cart", tag(testator));
+        framework.unreadable.add("cart");
+        for (int i = 0; i < 5; i++) assertEquals(Outcome.Kind.RETRY, participant.settle(toHeir()).kind());
+        assertEquals(1, plan().entry("cart").attempts);
+        now.addAndGet(VehicleEstateParticipant.ATTEMPT_SPACING_MS - 1);
+        participant.settle(toHeir());
+        assertEquals(1, plan().entry("cart").attempts);
+        now.addAndGet(1);
+        participant.settle(toHeir());
+        assertEquals(2, plan().entry("cart").attempts);
+    }
+
+    @Test void blockedVehicleWaitsForStaffAndTheReconcileNeverAdvancesIt() throws Exception {
+        row("cart", "cart", testator.characterId());
+        framework.put("cart", "cart", tag(testator));
+        framework.unreadable.add("cart");
+        for (int i = 0; i < 3; i++) participant.settle(toHeir());
+        assertEquals("the vehicle is gone or cannot be read", plan().entry("cart").blocked);
+        framework.unreadable.clear();
+        estates.when(Estates::decided).thenReturn(List.of(toHeir()));
+        estates.when(() -> Estates.report(any(), any(), anyLong(), any())).thenReturn(true);
+        participant.reconcile();
+        estates.verify(() -> Estates.report(death, VehicleEstateParticipant.ID, 3,
+                Outcome.blocked("cart: the vehicle is gone or cannot be read")));
+        assertTrue(framework.writes.isEmpty(), "only a staff retry moves it on");
+        // Staff retry: the estate provider calls settle, which reads the vehicle once more.
+        assertEquals(List.of("cart"), ((Outcome.Done) participant.settle(toHeir())).movedIds());
+    }
+
+    @Test void staffRetryOfAStillMissingVehicleIsBlockedAgainAtOnce() throws Exception {
+        row("cart", "cart", testator.characterId());
+        framework.put("cart", "cart", tag(testator));
+        framework.unreadable.add("cart");
+        for (int i = 0; i < 3; i++) participant.settle(toHeir());
+        participant.clock = now::get;
+        assertEquals(Outcome.blocked("cart: the vehicle is gone or cannot be read"), participant.settle(toHeir()));
+        assertEquals(VehicleEstateParticipant.ATTEMPTS, plan().entry("cart").attempts);
+    }
+
+    @Test void entryPlannedForAnotherRecipientIsListedRatherThanReportedMoved() throws Exception {
+        planned("cart", VehicleEstatePlan.LAST_OWNER);
+        CharacterRef other = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+        assertEquals(Outcome.blocked("cart: planned for another recipient"),
+                participant.settle(decision(Recipient.character(other))));
+        assertTrue(framework.writes.isEmpty());
+    }
+
     @Test void unreadableVehicleIsRetriedThenBlocked() throws Exception {
         row("cart", "cart", testator.characterId());
         framework.put("cart", "cart", tag(testator));
@@ -482,6 +544,20 @@ class VehicleEstateParticipantTest {
         participant.reconcile();
         estates.verify(() -> Estates.report(death, VehicleEstateParticipant.ID, 3,
                 Outcome.done(Map.of("vehicles", 2), List.of("cart", "built"))), times(2));
+    }
+
+    @Test void oneFailingEstateDoesNotHoldBackTheOthers() {
+        row("cart", "cart", testator.characterId());
+        framework.put("cart", "cart", tag(testator));
+        EstateDecision poisoned = new EstateDecision(UUID.randomUUID(), heir, Optional.empty(), Instant.EPOCH,
+                Optional.empty(), Optional.empty(), Optional.empty(), Recipient.FROZEN, Recipient.FROZEN,
+                Recipient.FROZEN, Recipient.SENDER, 0);
+        estates.when(Estates::decided).thenReturn(List.of(poisoned, toHeir()));
+        estates.when(() -> Estates.guardHolds(poisoned)).thenThrow(new IllegalStateException("corrupt record"));
+        estates.when(() -> Estates.report(any(), any(), anyLong(), any())).thenReturn(true);
+        participant.reconcile();
+        estates.verify(() -> Estates.report(death, VehicleEstateParticipant.ID, 3,
+                Outcome.done(Map.of("vehicles", 1), List.of("cart"))));
     }
 
     @Test void reconcileWaitsForSimpleFactionsAndContainsFailures() {

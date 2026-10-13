@@ -89,7 +89,7 @@ class CharacterDeathsEstateTest {
         status(CharacterStatus.DEAD, null);
         assertEquals(DeathJournalStore.Replay.SKIP, CharacterDeaths.replayGuard(journal), "no death identity: wait");
         status(CharacterStatus.MISSING, null);
-        assertEquals(DeathJournalStore.Replay.REPLAY, CharacterDeaths.replayGuard(journal), "cleanup as before 4.2.0");
+        assertEquals(DeathJournalStore.Replay.SKIP, CharacterDeaths.replayGuard(journal), "staff decide MISSING characters");
     }
 
     @Test void reconcileClosesARevivedCharactersJournalWithoutTouchingItsRights() throws Exception {

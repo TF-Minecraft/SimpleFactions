@@ -44,6 +44,7 @@ final class VehicleEstateParticipant implements EstateParticipant {
     static final String ID = "simplefactions-vehicles";
     /** Reads that found the vehicle gone or unreadable before it is listed for staff. */
     static final int ATTEMPTS = 3;
+    static final long ATTEMPT_SPACING_MS = 60L * 60L * 1000L;
 
     private enum Progress { MOVED, SUPERSEDED, RETRY, BLOCKED }
 
@@ -55,6 +56,7 @@ final class VehicleEstateParticipant implements EstateParticipant {
     private final Logger logger;
     /** The last outcome reported per death and revision, so the hourly reconcile reports only changes. */
     private final Map<UUID, String> reported = new HashMap<>();
+    java.util.function.LongSupplier clock = System::currentTimeMillis;
 
     VehicleEstateParticipant(Path dataFolder, PlayerVehicleRegistry registry, VehicleFeeStore feeStore, Logger logger) {
         this.dataFolder = dataFolder;
@@ -68,24 +70,32 @@ final class VehicleEstateParticipant implements EstateParticipant {
         return ID;
     }
 
+    /**
+     * Called by the estate provider: at the decision, while the last answer was RETRY, and when
+     * staff retry a BLOCKED answer. Only these calls check a blocked vehicle again.
+     */
     @Override
     public Outcome settle(EstateDecision decision) {
+        return settle(decision, true);
+    }
+
+    private Outcome settle(EstateDecision decision, boolean recheckBlocked) {
+        if (!Estates.guardHolds(decision)) return Outcome.retry("The estate is not settling this revision");
+        Optional<CharacterRef> recipient = decision.property().character();
+        // WAITING and FROZEN property stays with the dead owner at this revision, whatever the vehicle stage's state.
+        if (recipient.isEmpty()) return Outcome.done();
         if (!SimpleFactionsApi.ready() || !VehicleOwnerWrites.ready()) {
             return Outcome.retry("SimpleFactions vehicles are not ready");
         }
-        if (!Estates.guardHolds(decision)) return Outcome.retry("The estate is not settling this revision");
-        Optional<CharacterRef> recipient = decision.property().character();
-        // WAITING and FROZEN property stays with the dead owner at this revision.
-        if (recipient.isEmpty()) return Outcome.done();
         try {
-            return settle(decision.deathId(), decision.testator().characterId(), recipient.get());
+            return settle(decision.deathId(), decision.testator().characterId(), recipient.get(), recheckBlocked);
         } catch (IOException error) {
             logger.log(Level.WARNING, "Could not save a vehicle estate step for death " + decision.deathId(), error);
             return Outcome.retry("Could not save a vehicle estate step");
         }
     }
 
-    private Outcome settle(UUID deathId, UUID testator, CharacterRef to) throws IOException {
+    private Outcome settle(UUID deathId, UUID testator, CharacterRef to, boolean recheckBlocked) throws IOException {
         Path file = VehicleEstatePlan.file(dataFolder, deathId);
         VehicleEstatePlan plan = VehicleEstatePlan.load(file, deathId, testator);
         List<OwnerMeta> tagged;
@@ -120,8 +130,7 @@ final class VehicleEstateParticipant implements EstateParticipant {
         }
         List<String> moved = new ArrayList<>();
         for (VehicleEstatePlan.Entry entry : plan.entries) {
-            Step step = entry.open() ? advance(plan, file, entry) : new Step(
-                    VehicleEstatePlan.LAST_OWNER.equals(entry.step) ? Progress.MOVED : Progress.SUPERSEDED, null);
+            Step step = step(plan, file, entry, to.characterId(), recheckBlocked);
             switch (step.progress()) {
                 case MOVED -> moved.add(entry.vehicle);
                 case RETRY -> retry.add(entry.vehicle + ": " + step.reason());
@@ -149,6 +158,23 @@ final class VehicleEstateParticipant implements EstateParticipant {
             }
         }
         return vehicles;
+    }
+
+    private Step step(VehicleEstatePlan plan, Path file, VehicleEstatePlan.Entry entry, UUID recipient,
+            boolean recheckBlocked) throws IOException {
+        if (VehicleEstatePlan.SUPERSEDED.equals(entry.step)) return new Step(Progress.SUPERSEDED, null);
+        // Recipients never change once a part names a character; a mismatch is listed rather than reported moved.
+        if (!entry.to.equals(recipient)) return new Step(Progress.BLOCKED, "planned for another recipient");
+        if (VehicleEstatePlan.LAST_OWNER.equals(entry.step)) return new Step(Progress.MOVED, null);
+        if (entry.blocked != null) {
+            if (!recheckBlocked) return new Step(Progress.BLOCKED, entry.blocked);
+            // Staff asked again: one fresh read decides.
+            entry.blocked = null;
+            entry.attempts = ATTEMPTS - 1;
+            entry.lastAttemptAt = 0;
+            plan.save(file);
+        }
+        return advance(plan, file, entry);
     }
 
     /** One vehicle, from the state the registry and VehicleFramework show now. */
@@ -197,12 +223,21 @@ final class VehicleEstateParticipant implements EstateParticipant {
         return new Step(Progress.MOVED, null);
     }
 
-    /** Gone or unreadable: retried, then listed for staff. The payer row is not put back. */
-    private static Step unreadable(VehicleEstatePlan plan, Path file, VehicleEstatePlan.Entry entry, String reason)
+    /**
+     * Gone or unreadable: retried, then listed for staff. Attempts count at most once an hour,
+     * so a briefly unreadable vehicle is not listed by calls close together. The payer row is not put back.
+     */
+    private Step unreadable(VehicleEstatePlan plan, Path file, VehicleEstatePlan.Entry entry, String reason)
             throws IOException {
+        long now = clock.getAsLong();
+        if (entry.lastAttemptAt != 0 && now - entry.lastAttemptAt < ATTEMPT_SPACING_MS) {
+            return new Step(Progress.RETRY, reason);
+        }
         entry.attempts++;
+        entry.lastAttemptAt = now;
+        if (entry.attempts >= ATTEMPTS) entry.blocked = reason;
         plan.save(file);
-        return new Step(entry.attempts >= ATTEMPTS ? Progress.BLOCKED : Progress.RETRY, reason);
+        return new Step(entry.blocked != null ? Progress.BLOCKED : Progress.RETRY, reason);
     }
 
     private static boolean payer(PlayerVehicleRecord row, UUID character) {
@@ -257,22 +292,31 @@ final class VehicleEstateParticipant implements EstateParticipant {
      * vehicles that appeared since (a build that finished for the dead payer).
      */
     void reconcile() {
+        List<EstateDecision> decided;
         try {
             if (!SimpleFactionsApi.ready()) return;
-            Map<UUID, String> seen = new LinkedHashMap<>();
-            for (EstateDecision decision : Estates.decided()) {
+            decided = Estates.decided();
+        } catch (RuntimeException | LinkageError error) {
+            logger.log(Level.WARNING, "Vehicle estate reconcile failed; it runs again within the hour", error);
+            return;
+        }
+        Map<UUID, String> seen = new LinkedHashMap<>();
+        for (EstateDecision decision : decided) {
+            // One estate failing must not hold back the others for an hour.
+            try {
                 if (!Estates.guardHolds(decision)) continue;
-                Outcome outcome = settle(decision);
+                Outcome outcome = settle(decision, false);
                 String key = decision.revision() + ":" + outcome;
                 seen.put(decision.deathId(), key);
                 if (key.equals(reported.get(decision.deathId()))) continue;
                 if (Estates.report(decision.deathId(), ID, decision.revision(), outcome)) {
                     reported.put(decision.deathId(), key);
                 }
+            } catch (RuntimeException | LinkageError error) {
+                logger.log(Level.WARNING, "Vehicle estate reconcile failed for death " + decision.deathId()
+                        + "; it runs again within the hour", error);
             }
-            reported.keySet().retainAll(seen.keySet());
-        } catch (RuntimeException | LinkageError error) {
-            logger.log(Level.WARNING, "Vehicle estate reconcile failed; it runs again within the hour", error);
         }
+        reported.keySet().retainAll(seen.keySet());
     }
 }

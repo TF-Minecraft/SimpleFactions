@@ -75,14 +75,14 @@ public final class CharacterDeaths {
 
     /**
      * Replay acts only on the life the journal belongs to. A revived or re-dead character's
-     * journal is closed; an unreadable one waits. A MISSING character's cleanup replays as before.
+     * journal is closed; an unreadable one waits, and so does a MISSING one, which staff decide (E13).
      */
     static DeathJournalStore.Replay replayGuard(DeathJournal journal) {
         var info = Characters.info(journal.characterId);
         if (info.isEmpty()) return DeathJournalStore.Replay.SKIP;
         return switch (info.get().status()) {
             case ALIVE -> DeathJournalStore.Replay.CLOSE_REVIVE;
-            case MISSING -> DeathJournalStore.Replay.REPLAY;
+            case MISSING -> DeathJournalStore.Replay.SKIP;
             case DEAD -> Characters.deathId(journal.characterId)
                     .map(current -> current.equals(journal.deathId)
                             ? DeathJournalStore.Replay.REPLAY : DeathJournalStore.Replay.CLOSE_REDEATH)

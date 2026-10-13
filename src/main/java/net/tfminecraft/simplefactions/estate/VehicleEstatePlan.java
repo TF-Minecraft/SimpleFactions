@@ -33,11 +33,11 @@ final class VehicleEstatePlan {
         UUID toAccount;
         Row previousRow;
         String step;
+        /** Reads that found the vehicle gone or unreadable, counted at most once an hour. */
         int attempts;
-
-        boolean open() {
-            return !LAST_OWNER.equals(step) && !SUPERSEDED.equals(step);
-        }
+        long lastAttemptAt;
+        /** Set when listed for staff; only a call from the estate provider (staff retry) checks it again. */
+        String blocked;
     }
 
     /** A registry row as it was before the move; null fields as stored. */
