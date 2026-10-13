@@ -41,9 +41,10 @@ final class FactionDeaths {
         this.dataFolder = dataFolder;
     }
 
+    /** Reads only: unlike a capture's snapshot, it never creates a realm's main guild. */
     Set<String> referencedCharacters() {
         Set<String> keys = new LinkedHashSet<>();
-        for (Faction faction : FactionManager.getCopy()) collectKeys(snapshot(faction), keys);
+        for (Faction faction : FactionManager.getCopy()) collectKeys(snapshot(faction, null), keys);
         for (var warband : WarbandManager.get()) {
             warband.getMemberCharacters().values().forEach(ref -> keys.add(Members.key(ref)));
         }
@@ -58,7 +59,11 @@ final class FactionDeaths {
         journal.at = at;
         String key = Members.key(ref);
         // Before the snapshots, which can create a main guild.
-        journal.lockGuildIncarnation = lockGuildIncarnation(key);
+        LockGuild lockGuild = lockGuild(key);
+        if (lockGuild != null) {
+            journal.lockGuildIncarnation = lockGuild.incarnation();
+            journal.lockGuildRealm = lockGuild.realm();
+        }
         List<DeathJournal.Step> successions = new ArrayList<>();
         for (Faction faction : FactionManager.getCopy()) {
             JsonObject before = snapshot(faction);
@@ -123,18 +128,17 @@ final class FactionDeaths {
         return journal;
     }
 
+    /** A death guild and its realm's ruling guild incarnation, null when that guild is missing. */
+    record LockGuild(UUID incarnation, UUID realm) {}
+
     /**
      * The first guild the living lookup would answer, through the String overload,
-     * which unlike the Player and UUID ones also answers during boot reconcile.
-     * A member moved into a civil war's rebel main guild follows their origin guild.
+     * which unlike the Player and UUID ones also answers during boot reconcile; null when guildless.
+     * A member moved into a civil war's rebel main guild follows their origin guild, in the host realm.
      */
-    static UUID lockGuildIncarnation(String key) {
+    static LockGuild lockGuild(String key) {
         Guild guild = FactionManager.getGuildByMember(key);
-        return guild == null ? null : UUID.fromString(civilWarOrigin(guild, key).getIncarnation());
-    }
-
-    /** Where untangle would restore the member, resolved now; the wanted leader counts as moved. */
-    private static Guild civilWarOrigin(Guild guild, String key) {
+        if (guild == null) return null;
         for (War war : WarManager.getActive()) {
             CivilWarSnapshot snapshot = war.getCivilWarSnapshot();
             if (snapshot == null) continue;
@@ -144,13 +148,19 @@ final class FactionDeaths {
                     .filter(candidate -> candidate != null && key.equals(candidate.player()))
                     .findFirst().orElse(null);
             Faction host = FactionManager.getByString(snapshot.getHostFactionId());
-            if (move == null || host == null) return guild;
-            // Untangle moves the rebel guilds into the host before restoring members.
+            if (move == null || host == null) break;
+            // Untangle moves the rebel guilds into the host before restoring members; the wanted leader counts as moved.
             Guild origin = host.getGuildHandler().getGuild(move.originGuildId());
             if (origin == null) origin = rebels.getGuildHandler().getGuild(move.originGuildId());
-            return origin == null ? host.getOrCreateMainGuild() : origin;
+            if (origin == null) origin = host.getOrCreateMainGuild();
+            return new LockGuild(origin.getIncarnationId(), realm(host));
         }
-        return guild;
+        return new LockGuild(guild.getIncarnationId(), realm(guild.getFaction()));
+    }
+
+    private static UUID realm(Faction faction) {
+        Guild ruling = net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds.ruling(faction);
+        return ruling == null ? null : ruling.getIncarnationId();
     }
 
     boolean apply(DeathJournal journal, DeathJournal.Step step) throws IOException {
@@ -205,8 +215,10 @@ final class FactionDeaths {
         }
         if (guild.hasUnresolvedLeader()) return false;
         String leader = guild.getLeader();
-        // Once staff or a later event appoints someone else, this death cannot replace them.
-        if (!key.equals(leader) && leader != null && !leader.isBlank()) {
+        // Once staff or a later event appoints someone else, this death cannot replace them,
+        // and it never displaces a living holder; a blank seat is still filled.
+        if (leader != null && !leader.isBlank()
+                && (!key.equals(leader) || Members.info(leader).map(CharacterInfo::alive).orElse(false))) {
             save(faction);
             return true;
         }
@@ -314,8 +326,12 @@ final class FactionDeaths {
     }
 
     private static JsonObject snapshot(Faction faction) {
+        return snapshot(faction, faction.getOrCreateMainGuild().getIncarnation());
+    }
+
+    private static JsonObject snapshot(Faction faction, String realm) {
         JsonObject snapshot = new JsonObject();
-        snapshot.addProperty("realm", faction.getOrCreateMainGuild().getIncarnation());
+        if (realm != null) snapshot.addProperty("realm", realm);
         snapshot.addProperty("faction", faction.getId());
         snapshot.addProperty("leader", faction.getLeader());
         snapshot.add("government", JsonUtil.GSON.toJsonTree(faction.getGovernment().serialize()));

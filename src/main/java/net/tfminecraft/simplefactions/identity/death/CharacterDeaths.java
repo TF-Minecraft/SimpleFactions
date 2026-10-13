@@ -31,7 +31,7 @@ public final class CharacterDeaths {
     /** Load obligations before settlement recovery; defer cleanup until that recovery is complete. */
     public static void load(Path dataFolder) throws IOException {
         factions = new FactionDeaths(dataFolder);
-        store = new DeathJournalStore(dataFolder.resolve("deaths"), factions::apply);
+        store = new DeathJournalStore(dataFolder.resolve("deaths"), factions::apply, CharacterDeaths::replayGuard);
         lockGuilds = new LockGuildIndex();
         store.pendingPayments();
     }
@@ -71,6 +71,75 @@ public final class CharacterDeaths {
     public static Optional<UUID> lockGuildIncarnation(UUID characterId) {
         LockGuildIndex index = lockGuilds;
         return index == null ? Optional.empty() : index.get(characterId);
+    }
+
+    /**
+     * Replay acts only on the life the journal belongs to. A revived or re-dead character's
+     * journal is closed; an unreadable one waits, and so does a MISSING one, which staff decide (E13).
+     */
+    static DeathJournalStore.Replay replayGuard(DeathJournal journal) {
+        var info = Characters.info(journal.characterId);
+        if (info.isEmpty()) return DeathJournalStore.Replay.SKIP;
+        return switch (info.get().status()) {
+            case ALIVE -> DeathJournalStore.Replay.CLOSE_REVIVE;
+            case MISSING -> DeathJournalStore.Replay.SKIP;
+            case DEAD -> Characters.deathId(journal.characterId)
+                    .map(current -> current.equals(journal.deathId)
+                            ? DeathJournalStore.Replay.REPLAY : DeathJournalStore.Replay.CLOSE_REDEATH)
+                    .orElse(DeathJournalStore.Replay.SKIP);
+        };
+    }
+
+    /** The guild a death journal records; {@code realm} is its ruling guild's incarnation, null when unknown. */
+    public record DeathGuild(Kind kind, UUID incarnation, UUID realm) {
+        public enum Kind { UNAVAILABLE, NONE, GUILD }
+        static final DeathGuild UNAVAILABLE = new DeathGuild(Kind.UNAVAILABLE, null, null);
+        static final DeathGuild NONE = new DeathGuild(Kind.NONE, null, null);
+    }
+
+    /**
+     * The guild this death left, read only from its journal: never re-snapshotted, never created.
+     * UNAVAILABLE while not loaded, when the journal cannot be read or names another character,
+     * and while a character with no journal is still referenced by a realm or warband (the
+     * reconcile has yet to capture it).
+     */
+    public static DeathGuild deathGuild(UUID characterId, UUID deathId) {
+        DeathJournalStore current = store;
+        FactionDeaths adapter = factions;
+        if (current == null || adapter == null) return DeathGuild.UNAVAILABLE;
+        try {
+            Optional<DeathJournal> found = current.find(deathId);
+            if (found.isEmpty()) {
+                return adapter.referencedCharacters().contains(Members.key(characterId))
+                        ? DeathGuild.UNAVAILABLE : DeathGuild.NONE;
+            }
+            DeathJournal journal = found.get();
+            if (!journal.characterId.equals(characterId)) return DeathGuild.UNAVAILABLE;
+            UUID incarnation = LockGuildIndex.incarnation(journal);
+            if (incarnation == null) return DeathGuild.NONE;
+            UUID realm = journal.lockGuildRealm != null ? journal.lockGuildRealm : storedRealm(journal, incarnation);
+            return new DeathGuild(DeathGuild.Kind.GUILD, incarnation, realm);
+        } catch (IOException error) {
+            return DeathGuild.UNAVAILABLE;
+        }
+    }
+
+    /**
+     * For journals written before {@code lockGuildRealm}: the one realm whose stored rights plan
+     * lists the guild. None or several leave it unknown.
+     */
+    static UUID storedRealm(DeathJournal journal, UUID incarnation) {
+        java.util.Set<UUID> realms = new java.util.HashSet<>();
+        for (DeathJournal.Step step : journal.steps) {
+            if (!step.kind.equals("rights") || !(step.plan.get("guilds") instanceof com.google.gson.JsonArray guilds)) continue;
+            for (var guild : guilds) {
+                if (guild instanceof com.google.gson.JsonObject entry
+                        && incarnation.equals(LockGuildIndex.uuid(entry.get("incarnation")))) {
+                    realms.add(LockGuildIndex.uuid(step.plan.get("realm")));
+                }
+            }
+        }
+        return realms.size() == 1 ? realms.iterator().next() : null;
     }
 
     /** A written journal updates the index even when its cleanup has to be retried. */

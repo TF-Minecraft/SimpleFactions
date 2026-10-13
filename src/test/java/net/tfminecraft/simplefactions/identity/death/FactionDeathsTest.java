@@ -264,6 +264,29 @@ class FactionDeathsTest {
         assertThrows(IOException.class, () -> effects.apply(journal, new DeathJournal.Step("bad", "unknown", new JsonObject())));
     }
 
+    @Test void successionNeverDisplacesALivingSeatHolderButFillsABlankSeat() throws Exception {
+        Faction faction = realm(living());
+        Guild guild = fixture.guild(faction, "guild", key);
+        String successor = living();
+        guild.addMember(successor);
+        DeathJournal journal = capture();
+        // Revived and holding the seat again: this death's succession leaves them in it.
+        characters.put(key, info(dead, CharacterStatus.ALIVE));
+        assertTrue(effects.apply(journal, step(journal, "succession")));
+        assertEquals(key, guild.getLeader());
+        characters.put(key, info(dead, CharacterStatus.DEAD));
+        guild.setLeader("");
+        assertTrue(effects.apply(journal, step(journal, "succession")));
+        assertEquals(successor, guild.getLeader());
+    }
+
+    @Test void scanningForReferencesNeverCreatesARulingGuild() {
+        Faction bare = fixture.saved("bare", key);
+        bare.getGuildHandler().restoreTopology(List.of());
+        assertTrue(effects.referencedCharacters().contains(key));
+        assertNull(bare.getGuildHandler().getGuild("bare"));
+    }
+
     @Test void successfulOfficeCleanupPreservesTheExistingPrivateVacancyNotice() throws Exception {
         Faction faction = realm(key);
         faction.getOrCreateMainGuild().addMember(living());

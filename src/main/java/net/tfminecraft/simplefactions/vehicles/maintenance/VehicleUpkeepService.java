@@ -69,6 +69,7 @@ public final class VehicleUpkeepService {
         double fraction = VehiclesConfigLoader.getMaintenanceHourlyDamageFraction();
         double minHealth = VehiclesConfigLoader.getMaintenanceMinHealthFraction();
         for (String uuid : maintenanceStore.unpaidUuids()) {
+            if (UpkeepPause.paused(registry, uuid)) continue;
             decayApi.unloadedDamage(uuid, fraction, minHealth);
         }
     }

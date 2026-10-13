@@ -557,6 +557,7 @@ public class SimpleFactions extends JavaPlugin{
         started = true;
         getServer().getServicesManager().register(net.tfminecraft.denareconomy.api.TaxPolicy.class,
                 new net.tfminecraft.simplefactions.economy.GuildTaxPolicy(), this, org.bukkit.plugin.ServicePriority.Normal);
+        net.tfminecraft.simplefactions.estate.EstateBridge.registerFallback(this);
         getServer().getScheduler().runTaskTimer(this, () -> {
             try { net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile(); }
             catch (Exception error) { net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error); }
@@ -1003,6 +1004,7 @@ public class SimpleFactions extends JavaPlugin{
 			LeaderStamps.enable(true);
 			getServer().getScheduler().runTaskTimer(this, this::reconcileVehicleUpkeep,
 					VEHICLE_RECONCILE_TICKS, VEHICLE_RECONCILE_TICKS);
+			net.tfminecraft.simplefactions.estate.EstateBridge.registerVehicles(this, folder, vehicleRegistry, vehicleFeeStore);
 		}
 	}
 

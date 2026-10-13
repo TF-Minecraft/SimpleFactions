@@ -64,7 +64,7 @@ final class LockGuildIndex {
         return null;
     }
 
-    private static UUID uuid(JsonElement value) {
+    static UUID uuid(JsonElement value) {
         if (!(value instanceof JsonPrimitive primitive) || !primitive.isString()) return null;
         try {
             return UUID.fromString(primitive.getAsString());

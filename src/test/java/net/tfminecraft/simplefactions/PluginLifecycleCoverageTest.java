@@ -1609,6 +1609,10 @@ class PluginLifecycleCoverageTest {
         services()
             .getRegistrations(net.tfminecraft.vehicleframework.api.VehicleQuarantineSource.class)
             .size());
+    // Estates: guild answers once factions start, vehicles once the vehicle stage has loaded.
+    assertNotNull(services().load(net.tfminecraft.tlibs.character.estate.EstateFallback.class));
+    assertEquals("simplefactions-vehicles",
+        services().load(net.tfminecraft.tlibs.character.estate.EstateParticipant.class).id());
     assertTrue(net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enabled());
     verify(logger).info(contains("Vehicle owner migration: 1 migrated, 0 unchanged, 0 quarantined, 0 gone"));
     verify(logger, never()).info(contains("Vehicle ownership waits for VehicleFramework"));
@@ -1645,6 +1649,8 @@ class PluginLifecycleCoverageTest {
         services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class));
     assertFalse(authority.ready());
     assertFalse(net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.enabled());
+    assertNull(services().load(net.tfminecraft.tlibs.character.estate.EstateFallback.class));
+    assertNull(services().load(net.tfminecraft.tlibs.character.estate.EstateParticipant.class));
   }
 
   @Test
