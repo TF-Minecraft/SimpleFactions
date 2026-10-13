@@ -13,6 +13,8 @@ final class DeathJournal {
     UUID ownerId;
     UUID characterId;
     long at;
+    /** The guild a dead owner's GUILD and FACTION locks follow; absent when guildless or written before 6a. */
+    UUID lockGuildIncarnation;
     List<Step> steps = new ArrayList<>();
     List<Claim> claims = new ArrayList<>();
     Map<String, Map<String, Long>> payments = new LinkedHashMap<>();

@@ -131,7 +131,7 @@ final class DeathJournalStore {
         return journal.steps.stream().anyMatch(step -> step.id.equals(id) && step.done);
     }
 
-    private List<DeathJournal> all() throws IOException {
+    List<DeathJournal> all() throws IOException {
         if (!Files.exists(folder)) return List.of();
         List<DeathJournal> journals = new ArrayList<>();
         try (var files = Files.list(folder)) {
