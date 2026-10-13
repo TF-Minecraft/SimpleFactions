@@ -16,9 +16,11 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import net.tfminecraft.denareconomy.api.Result;
+import net.tfminecraft.simplefactions.economy.Money;
 import net.tfminecraft.simplefactions.events.FactionLeaderChangedEvent;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeConfirmations;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeMessages;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
@@ -186,15 +188,29 @@ public final class VehicleOwnershipGate implements Listener {
         audit(event, vehicle);
     }
 
+    /** The guild bank may hold less than the fee by now; a short refund is logged and the player told. */
     private void refund(VehiclePayments payments, String scope, VehicleOwnershipChangedEvent event) {
-        var refund = payments == null ? null : payments.refund(scope);
+        var receipt = payments == null ? null : payments.receipt(scope);
+        var refund = receipt == null ? null : payments.refund(scope);
         if (refund == null || refund.result() != Result.APPLIED) {
             logger.severe("Claim fee " + scope + " was charged but the claim failed, and the refund did not go"
                     + " through; staff must recover it");
             return;
         }
-        event.getPlayer().ifPresent(player -> player.sendMessage(
-                "§aThe claim did not go through, so the transfer fee was refunded."));
+        double refunded = refund.amount();
+        double shortfall = Formatter.formatDouble(Money.denars(receipt.cents()) - refunded);
+        if (shortfall > 0.0) {
+            logger.warning("Transfer fee refund short by " + shortfall + " for " + receipt.payer().characterId()
+                    + " from faction " + receipt.factionId());
+        }
+        event.getPlayer().ifPresent(player -> {
+            if (shortfall <= 0.0) {
+                player.sendMessage(VehicleFeeMessages.claimRefunded());
+                return;
+            }
+            if (refunded > 0.0) player.sendMessage(VehicleFeeMessages.claimRefundedPart(refunded));
+            player.sendMessage(VehicleFeeMessages.claimRefundShort(shortfall));
+        });
     }
 
     private void audit(VehicleOwnershipChangedEvent event, ActiveVehicle vehicle) {

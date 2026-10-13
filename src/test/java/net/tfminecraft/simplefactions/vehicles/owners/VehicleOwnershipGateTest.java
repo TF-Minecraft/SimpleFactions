@@ -302,6 +302,7 @@ class VehicleOwnershipGateTest {
         VehicleOwnershipChangeEvent paid = change(OwnershipReason.CLAIM, false);
         when(payments.charge(anyString(), anyString(), any(), any())).thenReturn(Result.APPLIED);
         gate.onClaimFee(paid);
+        when(payments.receipt("claim:ship-1")).thenReturn(transferReceipt(4000));
         when(payments.refund("claim:ship-1")).thenReturn(new VehiclePayments.Refund(Result.APPLIED, 40));
 
         gate.onChanged(changed(false, OwnershipReason.CLAIM, paid.getOperationId(), false, actor));
@@ -309,6 +310,7 @@ class VehicleOwnershipGateTest {
 
         verify(payments, times(1)).refund("claim:ship-1");
         verify(player).sendMessage("§aThe claim did not go through, so the transfer fee was refunded.");
+        verify(logger, never()).warning(anyString());
         verify(payments, never()).personal(anyString(), anyString(), any(), any());
 
         confirmations.clear(player.getUniqueId());
@@ -328,6 +330,48 @@ class VehicleOwnershipGateTest {
 
         gate.onChanged(changed(false, OwnershipReason.CLEAR, UUID.randomUUID(), false, null));
         verify(payments, times(2)).refund("claim:ship-1");
+
+        paymentsStatic.when(VehiclePayments::current).thenReturn(payments);
+        when(payments.receipt("claim:ship-1")).thenReturn(null);
+        confirmations.clear(player.getUniqueId());
+        gate.onClaimFee(change(OwnershipReason.CLAIM, false));
+        VehicleOwnershipChangeEvent unrecorded = change(OwnershipReason.CLAIM, false);
+        gate.onClaimFee(unrecorded);
+        gate.onChanged(changed(false, OwnershipReason.CLAIM, unrecorded.getOperationId(), false, actor));
+        verify(logger, times(3)).severe(contains("staff must recover it"));
+        verify(payments, times(2)).refund("claim:ship-1");
+    }
+
+    private VehiclePayments.Receipt transferReceipt(long cents) {
+        return new VehiclePayments.Receipt("r", actor, "realm", UUID.randomUUID(), FeeKind.TRANSFER_FEE, cents);
+    }
+
+    @Test
+    void aPartialRefundIsLoggedAndThePlayerToldTheShortfall() {
+        quote();
+        store.setLastOwner("ship-1", "Previous");
+        when(payments.charge(anyString(), anyString(), any(), any())).thenReturn(Result.APPLIED);
+        when(payments.receipt("claim:ship-1")).thenReturn(transferReceipt(4000));
+        when(payments.refund("claim:ship-1")).thenReturn(new VehiclePayments.Refund(Result.APPLIED, 25),
+                new VehiclePayments.Refund(Result.APPLIED, 0));
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            confirmations.clear(player.getUniqueId());
+            gate.onClaimFee(change(OwnershipReason.CLAIM, false));
+            VehicleOwnershipChangeEvent paid = change(OwnershipReason.CLAIM, false);
+            gate.onClaimFee(paid);
+            gate.onChanged(changed(false, OwnershipReason.CLAIM, paid.getOperationId(), false, actor));
+        }
+
+        verify(logger).warning("Transfer fee refund short by 15.0 for " + actor.characterId() + " from faction realm");
+        verify(logger).warning("Transfer fee refund short by 40.0 for " + actor.characterId() + " from faction realm");
+        verify(player).sendMessage(VehicleFeeMessages.claimRefundedPart(25));
+        verify(player).sendMessage(VehicleFeeMessages.claimRefundShort(15));
+        verify(player).sendMessage(VehicleFeeMessages.claimRefundShort(40));
+        verify(player, never()).sendMessage(VehicleFeeMessages.claimRefundedPart(0));
+        verify(player, never()).sendMessage(VehicleFeeMessages.claimRefunded());
+        assertTrue(VehicleFeeMessages.claimRefundShort(15).contains("15")
+                && VehicleFeeMessages.claimRefundedPart(25).contains("25"));
     }
 
     @Test
