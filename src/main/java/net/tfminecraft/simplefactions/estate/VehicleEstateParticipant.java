@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -236,7 +237,7 @@ final class VehicleEstateParticipant implements EstateParticipant {
         for (String vehicle : vehicles) {
             String type = registry.getByVehicleUuid(vehicle).map(PlayerVehicleRecord::getVehicleTypeId)
                     .orElseGet(() -> tagged.stream().filter(meta -> meta.vehicle().equals(vehicle))
-                            .map(OwnerMeta::typeId).findFirst().orElse("vehicle"));
+                            .map(OwnerMeta::typeId).filter(Objects::nonNull).findFirst().orElse("vehicle"));
             labels.add(type + " " + vehicle.substring(0, Math.min(8, vehicle.length())));
         }
         return new Holdings(Map.of("vehicles", vehicles.size()), labels);
