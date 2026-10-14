@@ -13,6 +13,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService.CampaignBattleContext;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
@@ -112,11 +113,16 @@ public class WarbandMembershipService {
 		if (!evaluateRejoin(warband, playerId, memberKey, playerFaction, state)) {
 			return false;
 		}
+		CampaignWarbandSideLock.Tie tie = CampaignWarbandSideLock.tieOf(warband);
+		if (tie != null && CampaignWarbandSideLock.refusal(tie.war(), tie.coalition(), playerId) != null) {
+			return false;
+		}
 		if (onlinePlayer != null) warband.addPlayer(onlinePlayer);
 		else {
 			warband.addMember(playerId, state.getCharacter());
 		}
 		if (!warband.getMemberCharacter(playerId).equals(java.util.Optional.of(state.getCharacter()))) return false;
+		if (tie != null) CampaignWarbandSideLock.bind(tie.war(), tie.coalition(), playerId);
 		if (onlinePlayer != null) {
 			restoreBattleState(onlinePlayer);
 		}

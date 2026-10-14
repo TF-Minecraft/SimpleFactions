@@ -81,6 +81,8 @@ public class War {
 	private List<ScheduledCampaignBattle> campaignCounterSchedule = new ArrayList<>();
 	private int campaignCounterScheduleIndex;
 	private Map<String, CampaignCoalition> fortControllers = new HashMap<>();
+	/** Account UUID to the coalition its characters signed up for; held until the war ends. */
+	private Map<String, CampaignCoalition> accountCoalitions = new HashMap<>();
 	private Map<String, String> wartimeInstallationOwners = new LinkedHashMap<>();
 	private Set<String> concededScheduleSlots = new LinkedHashSet<>();
 	private Map<String, Integer> locationBattleCounts = new HashMap<>();
@@ -530,6 +532,26 @@ public class War {
 			return;
 		}
 		this.fortControllers = new HashMap<>(fortControllers);
+	}
+
+	public Map<String, CampaignCoalition> getAccountCoalitions() {
+		return Collections.unmodifiableMap(accountCoalitions);
+	}
+
+	public void setAccountCoalitions(Map<String, CampaignCoalition> accountCoalitions) {
+		this.accountCoalitions = accountCoalitions == null ? new HashMap<>() : new HashMap<>(accountCoalitions);
+	}
+
+	public CampaignCoalition getAccountCoalition(UUID accountId) {
+		return accountId == null ? null : accountCoalitions.get(accountId.toString());
+	}
+
+	/** Returns whether the account was newly tied to that coalition. */
+	public boolean bindAccountCoalition(UUID accountId, CampaignCoalition coalition) {
+		if (accountId == null || coalition == null) {
+			return false;
+		}
+		return accountCoalitions.putIfAbsent(accountId.toString(), coalition) == null;
 	}
 
 	public void putFortController(String fortInstallationId, CampaignCoalition coalition) {

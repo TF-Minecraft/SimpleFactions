@@ -132,7 +132,8 @@ public final class WarMapper {
 		data.campaignScheduleIndex = war.getCampaignScheduleIndex();
 		data.campaignCounterSchedule = serializeSchedule(war.getCampaignCounterSchedule());
 		data.campaignCounterScheduleIndex = war.getCampaignCounterScheduleIndex();
-		data.fortControllers = serializeFortControllers(war.getFortControllers());
+		data.fortControllers = serializeCoalitions(war.getFortControllers());
+		data.accountCoalitions = serializeCoalitions(war.getAccountCoalitions());
 		data.wartimeInstallationOwners = war.getWartimeInstallationOwners() == null
 				|| war.getWartimeInstallationOwners().isEmpty()
 				? new LinkedHashMap<>()
@@ -258,7 +259,8 @@ public final class WarMapper {
 		war.setCampaignCounterSchedule(counterSchedule);
 		war.setCampaignCounterScheduleIndex(
 				data.campaignCounterScheduleIndex != null ? data.campaignCounterScheduleIndex : 0);
-		war.setFortControllers(deserializeFortControllers(data.fortControllers));
+		war.setFortControllers(deserializeCoalitions(data.fortControllers));
+		war.setAccountCoalitions(deserializeCoalitions(data.accountCoalitions));
 		war.setWartimeInstallationOwners(
 				data.wartimeInstallationOwners == null
 						? new LinkedHashMap<>()
@@ -323,7 +325,7 @@ public final class WarMapper {
 		return (int) Math.ceil(schedule.size() * Cache.warInitiativeFactor);
 	}
 
-	private static Map<String, String> serializeFortControllers(Map<String, CampaignCoalition> controllers) {
+	private static Map<String, String> serializeCoalitions(Map<String, CampaignCoalition> controllers) {
 		if (controllers == null || controllers.isEmpty()) {
 			return new HashMap<>();
 		}
@@ -337,7 +339,7 @@ public final class WarMapper {
 		return serialized;
 	}
 
-	private static Map<String, CampaignCoalition> deserializeFortControllers(Map<String, String> controllers) {
+	private static Map<String, CampaignCoalition> deserializeCoalitions(Map<String, String> controllers) {
 		if (controllers == null || controllers.isEmpty()) {
 			return new HashMap<>();
 		}

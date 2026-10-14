@@ -499,6 +499,7 @@ public class SimpleFactions extends JavaPlugin{
         factionManager.prepare();
         WarManager.start();
         net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.loadAll();
+        net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock.bindLoadedMembers();
         try {
             for (var guild : FactionManager.getAllGuilds()) {
                 net.tfminecraft.simplefactions.economy.GuildTreasury.importLegacy(guild.getIncarnationId(),

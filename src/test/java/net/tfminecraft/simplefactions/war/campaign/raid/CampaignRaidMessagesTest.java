@@ -52,6 +52,9 @@ class CampaignRaidMessagesTest {
 				CampaignRaidMessages.IN_WARBAND,
 				CampaignRaidMessages.messageForJoinResult(JoinResult.REJECTED_IN_WARBAND));
 		assertEquals(
+				CampaignRaidMessages.OTHER_SIDE,
+				CampaignRaidMessages.messageForJoinResult(JoinResult.REJECTED_OTHER_SIDE));
+		assertEquals(
 				CampaignRaidMessages.NOT_MUSTER,
 				CampaignRaidMessages.messageForJoinResult(JoinResult.REJECTED_NOT_MUSTER));
 	}

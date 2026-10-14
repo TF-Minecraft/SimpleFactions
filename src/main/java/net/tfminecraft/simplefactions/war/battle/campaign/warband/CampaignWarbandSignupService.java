@@ -104,6 +104,11 @@ public final class CampaignWarbandSignupService {
 				return joinError;
 			}
 		}
+		CampaignWarbandSideLock.Tie tie = CampaignWarbandSideLock.tieOf(warband);
+		String sideError = tie == null ? null : CampaignWarbandSideLock.refusal(tie.war(), tie.coalition(), playerId);
+		if (sideError != null) {
+			return sideError;
+		}
 
 		var character = Warband.participant(playerId, memberKey, onlinePlayer).orElse(null);
 		if (character == null) {
@@ -112,6 +117,9 @@ public final class CampaignWarbandSignupService {
 		boolean firstSignup = warband.getRealMemberCount() == 0;
 		applyLeaderRules(ctx, warband, playerId, memberKey);
 		warband.addMember(playerId, character);
+		if (tie != null && warband.getMemberCharacter(playerId).isPresent()) {
+			CampaignWarbandSideLock.bind(tie.war(), tie.coalition(), playerId);
+		}
 
 		if (ctx != null && firstSignup) {
 			WarDevMode.seedDummyMembersOnFirstSignupIfEnabled(

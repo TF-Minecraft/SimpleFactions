@@ -13,6 +13,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.JoinResult;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandVehicleRules;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -105,6 +106,9 @@ public final class CampaignRaidJoinService {
 		}
 		if (WarbandManager.getByMemberId(playerId) != null) {
 			return JoinResult.REJECTED_IN_WARBAND;
+		}
+		if (CampaignWarbandSideLock.refusal(war, coalition, playerId) != null) {
+			return JoinResult.REJECTED_OTHER_SIDE;
 		}
 		Player player = Bukkit.getPlayer(playerId);
 		var character = net.tfminecraft.simplefactions.war.battle.warband.Warband.participant(playerId, memberKey, player).orElse(null);
