@@ -224,6 +224,7 @@ class MemberShareTest {
 			assertEquals(List.of(main, friend), headcount.counted());
 			assertEquals(List.of(), MemberShare.count(List.of()).counted());
 			assertEquals(List.of(), MemberShare.count(null).counted());
+			assertEquals(List.of(friend), MemberShare.count(java.util.Arrays.asList(null, friend)).counted());
 		}
 	}
 }

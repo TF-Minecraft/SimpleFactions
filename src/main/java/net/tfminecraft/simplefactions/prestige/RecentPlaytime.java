@@ -190,7 +190,7 @@ public final class RecentPlaytime {
 	}
 
 	/** Test hook: forgets every count, the file and the clock. */
-	static synchronized void reset() {
+	public static synchronized void reset() {
 		stopTasks();
 		days.clear();
 		file = null;

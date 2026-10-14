@@ -169,6 +169,7 @@ class FactionCoverageTest {
           "One head, and playtime only for the two characters actually played");
     } finally {
       MemberPlaytime.reset();
+      RecentPlaytime.reset();
       net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.install();
     }
   }

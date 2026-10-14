@@ -16,7 +16,7 @@ import net.tfminecraft.tlibs.character.CharacterInfo;
  * Who counts toward the Members prestige term, and for how much. Each account is
  * one member in total, split between its living characters by their
  * {@link RecentPlaytime}. A member with no share adds neither headcount nor
- * playtime, so an alt that is never played adds nothing to any faction.
+ * playtime, so an alt that is not played adds nothing to any faction.
  *
  * <p>An account with no recent time splits by lifetime playtime instead, and evenly
  * when it has none. A dead member counts nothing. A member the character directory
@@ -45,6 +45,7 @@ public final class MemberShare {
 		List<String> counted = new ArrayList<>();
 		withinPass(() -> {
 			for (String member : members) {
+				if (member == null) continue;
 				double share = shareOf(member);
 				heads[0] += share;
 				if (share > 0.0) counted.add(member);
