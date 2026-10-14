@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
@@ -126,10 +127,18 @@ public final class CampaignRaidWarbandService {
 		if (warband == null || warband.isIdentityHeld() || warband.hasMember(playerId)) {
 			return;
 		}
+		CampaignCoalition coalition = raid.getAttackerCoalition();
+		if (CampaignWarbandSideLock.refusal(war, coalition, playerId) != null) {
+			return;
+		}
 		var character = Warband.participant(playerId, memberKey, null).orElse(null);
 		if (character == null) return;
 		applyRaidLeaderRules(war, warband, playerId, memberKey);
 		warband.addMember(playerId, character);
+		if (warband.getMemberCharacter(playerId).isPresent()) {
+			// Raid callers save the war after enrolling.
+			war.bindAccountCoalition(playerId, coalition);
+		}
 	}
 
 	public static void signupDefender(War war, CampaignRaid raid, UUID playerId, String memberKey) {
@@ -141,10 +150,18 @@ public final class CampaignRaidWarbandService {
 		if (warband == null || warband.isIdentityHeld() || warband.hasMember(playerId)) {
 			return;
 		}
+		CampaignCoalition coalition = raid.getAttackerCoalition().opposing();
+		if (CampaignWarbandSideLock.refusal(war, coalition, playerId) != null) {
+			return;
+		}
 		var character = Warband.participant(playerId, memberKey, null).orElse(null);
 		if (character == null) return;
 		applyRaidLeaderRules(war, warband, playerId, memberKey);
 		warband.addMember(playerId, character);
+		if (warband.getMemberCharacter(playerId).isPresent()) {
+			// Raid callers save the war after enrolling.
+			war.bindAccountCoalition(playerId, coalition);
+		}
 	}
 
 	public static void enrollOnlineDefenders(War war, CampaignRaid raid) {
@@ -197,6 +214,9 @@ public final class CampaignRaidWarbandService {
 				continue;
 			}
 			signupDefender(war, raid, player.getUniqueId(), Members.key(player));
+			if (WarbandManager.getByMemberId(player.getUniqueId()) != null) {
+				WarManager.persist(war);
+			}
 			return;
 		}
 	}

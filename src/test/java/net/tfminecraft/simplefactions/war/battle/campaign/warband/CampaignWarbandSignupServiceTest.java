@@ -37,6 +37,7 @@ import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -174,6 +175,62 @@ class CampaignWarbandSignupServiceTest {
 	}
 
 	@Test
+	void signupMember_tiesTheAccountToItsCoalition() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID aliceId = UUID.randomUUID();
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
+			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
+					.thenReturn(5);
+
+			assertNull(CampaignWarbandSignupService.signupMember(
+					aliceId, "Alice", shell, attacker, null, BattleWindowService.atScheduleHour(BATTLE_DAY, 20)));
+			assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(aliceId));
+			wars.verify(() -> WarManager.persist(war));
+		}
+	}
+
+	@Test
+	void signupMember_refusesTheOtherSideToAnAccountAlreadyTiedToOne() {
+		War war = battleDayWar();
+		Warband attackerShell = Warband.createCampaignSideShell(war, war.getAttackers(), BattleTemplate.ATTACKER_SIDE);
+		Warband defenderShell = Warband.createCampaignSideShell(war, war.getDefenders(), BattleTemplate.DEFENDER_SIDE);
+		addWarbandsToBattle(war, attackerShell, defenderShell);
+		WarbandManager.addWarband(attackerShell);
+		WarbandManager.addWarband(defenderShell);
+		UUID accountId = UUID.randomUUID();
+		war.bindAccountCoalition(accountId, CampaignCoalition.AGGRESSOR);
+		Instant signupHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 20);
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+			mockBukkitPlayerLookup(bukkit, accountId, "Alice");
+			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
+			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(defender);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID),
+					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+
+			assertEquals(CampaignWarbandSideLock.OTHER_SIDE, CampaignWarbandSignupService.signupMember(
+					accountId, "Bob", defenderShell, defender, null, signupHour));
+			assertFalse(defenderShell.hasMember(accountId));
+
+			assertNull(CampaignWarbandSignupService.signupMember(
+					accountId, "Alice", attackerShell, attacker, null, signupHour));
+			assertTrue(attackerShell.hasMember(accountId));
+		}
+	}
+
+	@Test
 	void signupMember_raidWarbandNotBlocked() {
 		War war = battleDayWar();
 		CampaignRaid raid = new CampaignRaid();
@@ -226,6 +283,10 @@ class CampaignWarbandSignupServiceTest {
 	}
 
 	private void addWarbandToBattle(War war, Warband shell) {
+		addWarbandsToBattle(war, shell, null);
+	}
+
+	private void addWarbandsToBattle(War war, Warband attackerShell, Warband defenderShell) {
 		BossBar bossBar = mock(BossBar.class);
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
 			bukkit.when(() -> Bukkit.createBossBar(org.mockito.ArgumentMatchers.anyString(),
@@ -240,7 +301,10 @@ class CampaignWarbandSignupServiceTest {
 			battle.setWarId(1);
 			battle.setProvinceId(PROVINCE_ID);
 			battle.setLocked(false);
-			battle.getSideById(BattleTemplate.ATTACKER_SIDE).addBand(shell);
+			battle.getSideById(BattleTemplate.ATTACKER_SIDE).addBand(attackerShell);
+			if (defenderShell != null) {
+				battle.getSideById(BattleTemplate.DEFENDER_SIDE).addBand(defenderShell);
+			}
 			BattleManager.addBattle(battle);
 		}
 	}

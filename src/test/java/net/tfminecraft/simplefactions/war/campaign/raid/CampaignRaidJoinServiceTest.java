@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.raid;
 
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidMusterScheduler;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -121,6 +122,7 @@ class CampaignRaidJoinServiceTest {
 			Warband atk = CampaignRaidWarbandService.getAttackerWarband(CampaignRaidService.getActive(war));
 			assertNotNull(atk);
 			assertTrue(atk.hasMember(ATTACKER_PLAYER));
+			assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
 		}
 	}
 
@@ -172,6 +174,39 @@ class CampaignRaidJoinServiceTest {
 				JoinResult.REJECTED_IN_WARBAND,
 				CampaignRaidJoinService.join(
 						war, ATTACKER_PLAYER, ATTACKER_NAME, attacker, raidId, raidWindow.plusSeconds(10)));
+	}
+
+	@Test
+	void join_rejectsAnAccountTiedToTheOtherSide() {
+		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignCoalition.DEFENDER);
+
+		assertEquals(
+				JoinResult.REJECTED_OTHER_SIDE,
+				CampaignRaidJoinService.join(
+						war, ATTACKER_PLAYER, ATTACKER_NAME, attacker, raidId, raidWindow.plusSeconds(10)));
+		assertTrue(CampaignRaidService.getActive(war).getMusterParticipantIds().isEmpty());
+	}
+
+	@Test
+	void signupAttacker_skipsAnAccountTiedToTheDefenders() {
+		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignCoalition.DEFENDER);
+
+		CampaignRaidWarbandService.signupAttacker(war, CampaignRaidService.getActive(war), ATTACKER_PLAYER, ATTACKER_NAME);
+
+		Warband atk = CampaignRaidWarbandService.getAttackerWarband(CampaignRaidService.getActive(war));
+		assertNotNull(atk);
+		assertFalse(atk.hasMember(ATTACKER_PLAYER));
+	}
+
+	@Test
+	void signupDefender_skipsAnAccountTiedToTheRaiders() {
+		war.bindAccountCoalition(DEFENDER_PLAYER, CampaignCoalition.AGGRESSOR);
+
+		CampaignRaidWarbandService.signupDefender(war, CampaignRaidService.getActive(war), DEFENDER_PLAYER, DEFENDER_NAME);
+
+		Warband def = CampaignRaidWarbandService.getDefenderWarband(CampaignRaidService.getActive(war));
+		assertNotNull(def);
+		assertFalse(def.hasMember(DEFENDER_PLAYER));
 	}
 
 	@Test

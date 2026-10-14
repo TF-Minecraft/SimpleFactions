@@ -59,6 +59,7 @@ public class WarData {
     public List<ScheduledCampaignBattleData> campaignCounterSchedule;
     public Integer campaignCounterScheduleIndex;
     public Map<String, String> fortControllers;
+    public Map<String, String> accountCoalitions;
     public Map<String, String> wartimeInstallationOwners;
     public List<String> concededScheduleSlots;
     public Map<String, Integer> locationBattleCounts;
@@ -105,6 +106,7 @@ public class WarData {
         raidRepairLockUntil = new LinkedHashMap<>();
         locationBattleCounts = new HashMap<>();
         fortControllers = new HashMap<>();
+        accountCoalitions = new HashMap<>();
         wartimeInstallationOwners = new LinkedHashMap<>();
         concededScheduleSlots = new ArrayList<>();
         campaignBattleSchedule = new ArrayList<>();

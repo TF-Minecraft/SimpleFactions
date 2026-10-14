@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.raid;
 
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.JoinResult;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.LaunchResult;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.ValidateLaunchResult;
@@ -21,6 +22,7 @@ public final class CampaignRaidMessages {
 	public static final String NOT_PARTICIPANT = "§cYou are not a belligerent in this war.";
 	public static final String INVALID_INPUT = "§cCould not launch campaign raid.";
 	public static final String IN_WARBAND = "§cLeave your warband before joining a campaign raid.";
+	public static final String OTHER_SIDE = "§c" + CampaignWarbandSideLock.OTHER_SIDE;
 	public static final String NOT_MUSTER = "§cCampaign raid muster has ended.";
 	public static final String NOT_ATTACKER_COALITION = "§cOnly the attacking coalition can join this raid.";
 	public static final String RAID_NOT_FOUND = "§cNo active campaign raid with that id.";
@@ -100,6 +102,7 @@ public final class CampaignRaidMessages {
 			case REJECTED_NOT_ATTACKER_COALITION -> NOT_ATTACKER_COALITION;
 			case REJECTED_NOT_MUSTER -> NOT_MUSTER;
 			case REJECTED_IN_WARBAND -> IN_WARBAND;
+			case REJECTED_OTHER_SIDE -> OTHER_SIDE;
 			case REJECTED_ALREADY_JOINED -> ALREADY_JOINED;
 			case REJECTED_MOUNTED_ON_VEHICLE -> MOUNTED_ON_VEHICLE;
 			case OK -> null;

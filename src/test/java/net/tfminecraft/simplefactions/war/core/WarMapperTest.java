@@ -618,6 +618,34 @@ class WarMapperTest {
 	}
 
 	@Test
+	void roundTrip_accountCoalitions() {
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("faction_a");
+		when(defender.getId()).thenReturn("faction_b");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		try {
+			UUID account = UUID.fromString("00000000-0000-0000-0000-000000000007");
+			WarData data = minimalWarData();
+			data.accountCoalitions = new HashMap<>();
+			data.accountCoalitions.put(account.toString(), CampaignCoalition.DEFENDER.toJson());
+			data.accountCoalitions.put("bad", "unknown");
+
+			War war = WarMapper.fromData(data);
+			assertEquals(CampaignCoalition.DEFENDER, war.getAccountCoalition(account));
+			assertFalse(war.bindAccountCoalition(account, CampaignCoalition.AGGRESSOR));
+			assertEquals(CampaignCoalition.DEFENDER, war.getAccountCoalition(account));
+
+			WarData roundTripped = WarMapper.toData(war);
+			assertEquals(Map.of(account.toString(), "defender"), roundTripped.accountCoalitions);
+		} finally {
+			FactionManager.factions.remove(attacker);
+			FactionManager.factions.remove(defender);
+		}
+	}
+
+	@Test
 	void roundTrip_fortControllers() {
 		Faction attacker = mock(Faction.class);
 		Faction defender = mock(Faction.class);
