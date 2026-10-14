@@ -15,6 +15,10 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -65,6 +69,15 @@ class RecentPlaytimeTest {
 		assertEquals(25, RecentPlaytime.seconds("ada"));
 		day += 30;
 		assertEquals(0, RecentPlaytime.seconds("ada"));
+	}
+
+	@Test
+	void daysAheadOfTheClockAreKeptButNotCounted() {
+		RecentPlaytime.credit("ada", 90);
+		day -= 3;
+		assertEquals(0, RecentPlaytime.seconds("ada"));
+		day += 3;
+		assertEquals(90, RecentPlaytime.seconds("ada"));
 	}
 
 	@Test
@@ -122,10 +135,16 @@ class RecentPlaytimeTest {
 		File file = new File(folder, "recent-playtime.json");
 		Files.writeString(file.toPath(), "not json");
 		RecentPlaytime.bind(folder);
-		RecentPlaytime.load();
-		RecentPlaytime.credit("ada", 60);
-		RecentPlaytime.save();
+		List<String> warnings = captureWarnings(() -> {
+			RecentPlaytime.load();
+			RecentPlaytime.stop();
+			RecentPlaytime.credit("ada", 60);
+			RecentPlaytime.stop();
+		});
 		assertEquals("not json", Files.readString(file.toPath()));
+		assertEquals(List.of("Could not read recent playtime",
+				"Recent playtime counted this run is lost: the file could not be read at startup"), warnings,
+				"The loss is only reported when something was counted");
 
 		Files.writeString(file.toPath(), "null");
 		RecentPlaytime.load();
@@ -153,8 +172,31 @@ class RecentPlaytimeTest {
 		RecentPlaytime.bind(new File(blocker, "Cache"));
 		RecentPlaytime.load();
 		RecentPlaytime.credit("ada", 60);
-		RecentPlaytime.save();
+		assertEquals(List.of("Could not save recent playtime"), captureWarnings(RecentPlaytime::save));
 		assertEquals(60, RecentPlaytime.seconds("ada"));
+	}
+
+	/** Warnings RecentPlaytime logs while the plugin is not running. */
+	private static List<String> captureWarnings(Runnable work) {
+		Logger logger = Logger.getLogger(RecentPlaytime.class.getName());
+		List<String> messages = new ArrayList<>();
+		Handler handler = new Handler() {
+			@Override public void publish(LogRecord record) {
+				if (record.getLevel() == Level.WARNING) messages.add(record.getMessage());
+			}
+			@Override public void flush() {}
+			@Override public void close() {}
+		};
+		boolean parents = logger.getUseParentHandlers();
+		logger.addHandler(handler);
+		logger.setUseParentHandlers(false);
+		try {
+			work.run();
+		} finally {
+			logger.removeHandler(handler);
+			logger.setUseParentHandlers(parents);
+		}
+		return messages;
 	}
 
 	@Test

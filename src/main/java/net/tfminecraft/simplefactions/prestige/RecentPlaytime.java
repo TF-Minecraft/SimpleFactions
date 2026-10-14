@@ -71,7 +71,7 @@ public final class RecentPlaytime {
 				}
 			}
 		} catch (IOException | RuntimeException ex) {
-			// Keep the unreadable file for staff; a fresh window would hand shares to whoever logs in first.
+			// Keep the unreadable file for staff; counts made this run are not saved over it.
 			loaded = true;
 			saveBlocked = true;
 			log("Could not read recent playtime", ex);
@@ -112,6 +112,7 @@ public final class RecentPlaytime {
 	/** Stops crediting and saves what was counted. */
 	public static synchronized void stop() {
 		stopTasks();
+		if (saveBlocked && dirty) log("Recent playtime counted this run is lost: the file could not be read at startup", null);
 		save();
 	}
 
@@ -142,10 +143,13 @@ public final class RecentPlaytime {
 		if (key == null) return 0L;
 		Map<Long, Integer> perDay = days.get(key);
 		if (perDay == null) return 0L;
+		long newest = today.getAsLong();
 		long oldest = oldestDay();
 		long total = 0L;
 		for (Map.Entry<Long, Integer> entry : perDay.entrySet()) {
-			if (entry.getKey() != null && entry.getKey() >= oldest && entry.getValue() != null) {
+			Long day = entry.getKey();
+			// Days ahead of the clock are kept on disk but not counted.
+			if (day != null && day >= oldest && day <= newest && entry.getValue() != null) {
 				total += Math.max(0, entry.getValue());
 			}
 		}

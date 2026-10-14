@@ -51,7 +51,7 @@ prestige-from-trade-falloff: 0.1
 # most 32, reached at 500 h. Needs RPCharacters; without it the term is 0.
 max-prestige-playtime-exponent: 5
 # Each account adds at most one member to the headcount, split between its living
-# characters' factions by how long each character was played over this many days.
+# characters by how long each was played over this many days.
 member-share-window-days: 30
 max-members: 64
 max-untitled-provinces: 5

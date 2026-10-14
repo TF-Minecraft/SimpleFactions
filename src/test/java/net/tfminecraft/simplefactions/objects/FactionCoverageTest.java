@@ -7,7 +7,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.FactionData;
 import net.tfminecraft.simplefactions.database.GovernmentData;
@@ -38,6 +40,12 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.prestige.MemberPlaytime;
+import net.tfminecraft.simplefactions.prestige.RecentPlaytime;
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.tlibs.character.CharacterInfo;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
+import net.tfminecraft.tlibs.character.CharacterStatus;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.TestRegistryAccess;
 import net.tfminecraft.simplefactions.tiers.Title;
@@ -98,6 +106,81 @@ class FactionCoverageTest {
     assertEquals("common", faction.getRank().getId());
     assertTrue(faction.getPrestige() > 0);
     assertEquals(0, faction.getWealth());
+  }
+
+  @Test
+  void twoCharactersOfOneAccountAreOneMemberInTheMembersLine() {
+    UUID account = UUID.randomUUID();
+    Map<String, CharacterInfo> infos = new HashMap<>();
+    String main = character(infos, account);
+    String alt = character(infos, account);
+    String unplayed = character(infos, account);
+    Members.setResolver(
+        new Members.Resolver() {
+          @Override
+          public Optional<CharacterSession> session(org.bukkit.entity.Player player) {
+            return Optional.empty();
+          }
+
+          @Override
+          public boolean isCurrent(CharacterSession session) {
+            return false;
+          }
+
+          @Override
+          public String key(org.bukkit.entity.Player player) {
+            return null;
+          }
+
+          @Override
+          public Optional<CharacterInfo> info(String key) {
+            return Optional.ofNullable(infos.get(key));
+          }
+
+          @Override
+          public Optional<org.bukkit.entity.Player> online(String key) {
+            return Optional.empty();
+          }
+
+          @Override
+          public Optional<List<CharacterInfo>> characters(UUID ownerId) {
+            return Optional.of(List.copyOf(infos.values()));
+          }
+        });
+    try {
+      Faction faction = fixture.saved("home", main);
+      fixture.guild(faction, "traders", alt);
+      faction.getOrCreateMainGuild().addMember(unplayed);
+      RecentPlaytime.credit(main, 3600);
+      RecentPlaytime.credit(alt, 1800);
+      MemberPlaytime.setProbe(key -> 0);
+
+      faction.updatePrestige();
+
+      double oneMember = Math.pow(1 + 4, 1.8) + 5;
+      assertEquals(
+          Formatter.formatDouble(oneMember + 2),
+          faction.getPrestigeModifiers().stream()
+              .filter(m -> m.getType().equals("Members"))
+              .findFirst()
+              .orElseThrow()
+              .getAmount(),
+          1e-9,
+          "One head, and playtime only for the two characters actually played");
+    } finally {
+      MemberPlaytime.reset();
+      net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.install();
+    }
+  }
+
+  private static String character(Map<String, CharacterInfo> infos, UUID account) {
+    CharacterRef ref = new CharacterRef(account, UUID.randomUUID());
+    String key = Members.key(ref);
+    infos.put(
+        key,
+        new CharacterInfo(
+            ref, "Character", CharacterStatus.ALIVE, null, java.util.Set.of(), 0, java.time.Instant.EPOCH));
+    return key;
   }
 
   @Test

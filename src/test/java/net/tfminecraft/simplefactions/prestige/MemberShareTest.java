@@ -40,6 +40,10 @@ class MemberShareTest {
 		NameKeyedMembers.install();
 	}
 
+	private static double heads(List<String> members) {
+		return MemberShare.count(members).heads();
+	}
+
 	/** Lifetime playtime is set so tests can tell the recent split from the fallback. */
 	private static String character(SharedIdentity identity, UUID owner, CharacterStatus status, long lifetime) {
 		CharacterRef ref = new CharacterRef(owner, UUID.randomUUID());
@@ -61,7 +65,7 @@ class MemberShareTest {
 			assertEquals(0.7, MemberShare.shareOf(main), 1e-9);
 			assertEquals(0.2, MemberShare.shareOf(second), 1e-9);
 			assertEquals(0.1, MemberShare.shareOf(third), 1e-9);
-			assertEquals(1.0, MemberShare.headsFor(List.of(main, second, third)), 1e-9,
+			assertEquals(1.0, heads(List.of(main, second, third)), 1e-9,
 					"All of an account's characters in one faction are still one member");
 		}
 	}
@@ -91,7 +95,7 @@ class MemberShareTest {
 			RecentPlaytime.credit(member, HOUR);
 			RecentPlaytime.credit(wanderer, 3 * HOUR);
 
-			assertEquals(0.25, MemberShare.headsFor(List.of(member)), 1e-9,
+			assertEquals(0.25, heads(List.of(member)), 1e-9,
 					"Time on a character outside the faction counts; time outside the window does not");
 		}
 	}
@@ -135,6 +139,11 @@ class MemberShareTest {
 			UUID allDead = UUID.randomUUID();
 			String last = character(identity, allDead, CharacterStatus.DEAD, 0);
 			assertEquals(0.0, MemberShare.shareOf(last), 1e-9);
+
+			UUID unreadable = UUID.randomUUID();
+			String lost = character(identity, unreadable, CharacterStatus.DEAD, 0);
+			when(identity.provider.characters(unreadable)).thenReturn(Optional.empty());
+			assertEquals(0.0, MemberShare.shareOf(lost), 1e-9, "Dead counts nothing even when the account cannot be read");
 		}
 	}
 
@@ -146,9 +155,9 @@ class MemberShareTest {
 			when(identity.provider.characters(unreadable)).thenReturn(Optional.empty());
 
 			assertEquals(1.0, MemberShare.shareOf(member), 1e-9);
-			assertEquals(3.0, MemberShare.headsFor(List.of(member, Members.key(UUID.randomUUID()), "Pending")), 1e-9);
-			assertEquals(0.0, MemberShare.headsFor(List.of()), 1e-9);
-			assertEquals(0.0, MemberShare.headsFor(null), 1e-9);
+			assertEquals(3.0, heads(List.of(member, Members.key(UUID.randomUUID()), "Pending")), 1e-9);
+			assertEquals(0.0, heads(List.of()), 1e-9);
+			assertEquals(0.0, heads(null), 1e-9);
 		}
 	}
 
@@ -163,14 +172,17 @@ class MemberShareTest {
 			when(identity.provider.characters(unreadable)).thenReturn(Optional.empty());
 
 			MemberShare.withinPass(() -> {
-				assertEquals(1.0, MemberShare.headsFor(List.of(first, second)), 1e-9);
-				MemberShare.withinPass(() -> assertEquals(3.0, MemberShare.headsFor(List.of(first, second, lost, lost)), 1e-9));
+				assertEquals(1.0, heads(List.of(first, second)), 1e-9);
+				MemberShare.withinPass(() -> assertEquals(3.0, heads(List.of(first, second, lost, lost)), 1e-9));
 			});
 			verify(identity.provider, times(1)).characters(account);
 			verify(identity.provider, times(1)).characters(unreadable);
+			verify(identity.provider, times(3)).info(any());
 
 			MemberShare.shareOf(first);
 			verify(identity.provider, times(2)).characters(account);
+			heads(List.of(first, second));
+			verify(identity.provider, times(3)).characters(account);
 		}
 	}
 
@@ -190,11 +202,28 @@ class MemberShareTest {
 	}
 
 	@Test
-	void aMemberMissingFromItsAccountCountsNothing() {
+	void aLivingMemberMissingFromItsAccountCountsWhole() {
 		try (var identity = new SharedIdentity()) {
 			when(identity.provider.characters(any())).thenReturn(Optional.of(List.of()));
 			String member = character(identity, UUID.randomUUID(), CharacterStatus.ALIVE, 0);
-			assertEquals(0.0, MemberShare.shareOf(member), 1e-9);
+			assertEquals(1.0, MemberShare.shareOf(member), 1e-9);
+		}
+	}
+
+	@Test
+	void onlyMembersWithAShareCountTowardPlaytime() {
+		try (var identity = new SharedIdentity()) {
+			UUID account = UUID.randomUUID();
+			String main = character(identity, account, CharacterStatus.ALIVE, 50 * HOUR);
+			String alt = character(identity, account, CharacterStatus.ALIVE, 0);
+			String friend = character(identity, UUID.randomUUID(), CharacterStatus.ALIVE, 0);
+			RecentPlaytime.credit(main, HOUR);
+
+			MemberShare.Headcount headcount = MemberShare.count(List.of(main, alt, friend));
+			assertEquals(2.0, headcount.heads(), 1e-9);
+			assertEquals(List.of(main, friend), headcount.counted());
+			assertEquals(List.of(), MemberShare.count(List.of()).counted());
+			assertEquals(List.of(), MemberShare.count(null).counted());
 		}
 	}
 }
