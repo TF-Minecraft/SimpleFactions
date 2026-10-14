@@ -8,9 +8,9 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import org.bukkit.plugin.Plugin;
 
 /**
- * The only way the rest of SimpleFactions reaches TLibs' estate API (2.6.0). The API is
- * probed once; on an older TLibs, or if a call fails, SimpleFactions takes no part in
- * estates and nothing here throws, so no estate error can reach a financial failure.
+ * Optional access to TLibs' estate API (2.6.0), probed once. API, probe and registration
+ * failures are contained here; vehicle registry writes still follow the ordinary
+ * financial fail-closed contract.
  */
 public final class EstateBridge {
     static final String[] API = {
