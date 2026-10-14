@@ -188,6 +188,7 @@ final class VehicleEstateParticipant implements EstateParticipant {
             return new Step(Progress.SUPERSEDED, null);
         }
         PlayerVehicleRecord row = registry.getByVehicleUuid(entry.vehicle).orElse(null);
+        if (meta.isEmpty() && row == null) return unreadable(plan, file, entry, "the vehicle is gone or cannot be read");
         if (!payer(row, entry.to)) {
             String type = type(meta, row);
             String refusal = gate(entry.vehicle, type);
