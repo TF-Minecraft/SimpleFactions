@@ -323,7 +323,7 @@ public class FactionCreator {
 				if(gov.getCouncil().getCurrentSize() > 0) {
 					lore.add(StringFormatter.formatHex("#93c9a7Members:"));
 					for(String member : gov.getCouncilMembers()) {
-						lore.add(StringFormatter.formatHex("#d4bb98- "+member + " §7("+Represents.represents(f, member)+")"));
+						lore.add(StringFormatter.formatHex("#d4bb98- "+Members.display(p, member) + " §7("+Represents.represents(f, member)+")"));
 					}
 				}
 			} else {

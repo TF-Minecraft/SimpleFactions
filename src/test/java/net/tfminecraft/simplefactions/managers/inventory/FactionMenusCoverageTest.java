@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.simplefactions.enums.MenuItemType;
@@ -21,6 +22,7 @@ import net.tfminecraft.simplefactions.espionage.RosterLore;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.TestCharacters;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
@@ -293,14 +295,16 @@ class FactionMenusCoverageTest {
     when(gov.getCouncil().getType()).thenReturn(Rules.ELECTED_COUNCIL);
     when(gov.getCouncil().getCurrentSize()).thenReturn(1);
     when(gov.getCouncil().getMaxSize()).thenReturn(3);
-    when(gov.getCouncilMembers()).thenReturn(List.of("Alice"));
+    String alice = TestCharacters.install().character(UUID.randomUUID(), "Alice");
+    when(gov.getCouncilMembers()).thenReturn(List.of(alice));
     try (MockedStatic<Represents> represents = mockStatic(Represents.class)) {
-      represents.when(() -> Represents.represents(display, "Alice")).thenReturn("Merchants");
+      represents.when(() -> Represents.represents(display, alice)).thenReturn("Merchants");
       ItemStack item = creator.createMenuItem(player, display, MenuItemType.GOVERNMENT);
       assertEquals("realm", id(item));
       assertLore(item, "Administrative Power", true);
       assertLore(item, council ? "-4.0/-2.0" : "5.0/10.0", true);
-      assertLore(item, council ? "Alice" : "Has Council", true);
+      assertLore(item, council ? "- Alice" : "Has Council", true);
+      assertLore(item, alice, false);
       if (council) assertLore(item, "Merchants", true);
     }
   }
