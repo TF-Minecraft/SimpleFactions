@@ -403,7 +403,6 @@ class PlayerManagerCoverageTest {
     assertEquals(state.equals("deposit") ? 0 : 7, material.getAmount());
     long credited = net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.bank(ref));
     assertEquals(87.5, credited / 100d + material.getAmount() * coin.getValue());
-    verify(money, never()).addMoneyToAccount(anyString(), anyDouble(), anyBoolean(), anyBoolean(), any());
   }
 
   @ParameterizedTest

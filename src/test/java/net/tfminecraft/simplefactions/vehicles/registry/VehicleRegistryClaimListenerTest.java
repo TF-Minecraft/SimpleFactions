@@ -19,7 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
-import net.tfminecraft.vehicleframework.events.VehicleOwnerClaimedEvent;
+import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 
 class VehicleRegistryClaimListenerTest {
     private Path tempDir;
@@ -52,8 +52,8 @@ class VehicleRegistryClaimListenerTest {
     @Test
     void handleClaimResult_cancelsOnSlotLimit() {
         Player player = mock(Player.class);
-        VehicleOwnerClaimedEvent event =
-                new VehicleOwnerClaimedEvent(player, null, "none", "player_Test");
+        VehiclePreInteractEvent event =
+                new VehiclePreInteractEvent(player, null);
 
         VehicleRegistryClaimListener.handleClaimResult(
                 event,
@@ -68,8 +68,8 @@ class VehicleRegistryClaimListenerTest {
     @Test
     void handleClaimResult_allowsRegistered() {
         Player player = mock(Player.class);
-        VehicleOwnerClaimedEvent event =
-                new VehicleOwnerClaimedEvent(player, null, "none", "player_Test");
+        VehiclePreInteractEvent event =
+                new VehiclePreInteractEvent(player, null);
 
         VehicleRegistryClaimListener.handleClaimResult(
                 event,
