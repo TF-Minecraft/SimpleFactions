@@ -253,8 +253,9 @@ final class FactionDeaths {
         if (pending != null && pending.isFor(ref)) membership.clearPendingRejoin(journal.ownerId);
         if (!plan.has("warband")) return true;
         var warband = WarbandManager.getByString(plan.get("warband").getAsString());
-        // A held file is unloaded, not gone: wait for its validated reload.
-        if (warband == null) return !WarbandCharacters.isHeld(warbandFile(plan.get("warband").getAsString()));
+        boolean held = WarbandCharacters.isHeld(warbandFile(plan.get("warband").getAsString()));
+        // A held file may have only a fresh campaign shell: wait for its validated reload.
+        if (warband == null || (held && warband.getStoredFields().keySet().isEmpty())) return !held;
         var current = warband.getMemberCharacter(journal.ownerId);
         if ((current.isPresent() && !current.get().equals(ref))
                 || (current.isEmpty() && warband.hasMember(journal.ownerId))) {
