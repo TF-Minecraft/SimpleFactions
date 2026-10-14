@@ -36,6 +36,8 @@ public final class CampaignRaidLaunchService {
 		CampaignRaidWarbandService.enrollOnlineDefenders(war, raid);
 		Battle battle = CampaignRaidBattleService.createAndStart(war, raid, now);
 		if (CampaignRaidService.getActive(war) != raid) {
+			// Keeps the defenders' side ties made above.
+			WarManager.persist(war);
 			return;
 		}
 		if (battle == null) {

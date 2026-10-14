@@ -54,6 +54,16 @@ class CampaignWarbandSideLockTest {
 		}
 	}
 
+	@Test
+	void aWarbandOutsideAnyBattleOrRaidHasNoTie() {
+		War war = war();
+		try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
+			wars.when(WarManager::getActive).thenReturn(java.util.List.of(war));
+			assertNull(CampaignWarbandSideLock.tieOf(
+					net.tfminecraft.simplefactions.war.battle.warband.Warband.createWithMemberIds("free", account, false, account)));
+		}
+	}
+
 	private static War war() {
 		Faction attacker = mock(Faction.class);
 		Faction defender = mock(Faction.class);

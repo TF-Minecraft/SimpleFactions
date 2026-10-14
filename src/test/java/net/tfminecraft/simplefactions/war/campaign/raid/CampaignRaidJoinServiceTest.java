@@ -5,6 +5,7 @@ import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidMuster
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -26,6 +27,8 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
@@ -185,6 +188,66 @@ class CampaignRaidJoinServiceTest {
 				CampaignRaidJoinService.join(
 						war, ATTACKER_PLAYER, ATTACKER_NAME, attacker, raidId, raidWindow.plusSeconds(10)));
 		assertTrue(CampaignRaidService.getActive(war).getMusterParticipantIds().isEmpty());
+	}
+
+	@Test
+	void raidShellsAreTiedToTheirCoalitionsDuringTheMuster() {
+		CampaignRaid raid = CampaignRaidService.getActive(war);
+		CampaignRaidWarbandService.createRaidWarbands(war, raid);
+
+		assertEquals(new CampaignWarbandSideLock.Tie(war, CampaignCoalition.AGGRESSOR),
+				CampaignWarbandSideLock.tieOf(CampaignRaidWarbandService.getAttackerWarband(raid)));
+		assertEquals(new CampaignWarbandSideLock.Tie(war, CampaignCoalition.DEFENDER),
+				CampaignWarbandSideLock.tieOf(CampaignRaidWarbandService.getDefenderWarband(raid)));
+	}
+
+	@Test
+	void warbandJoinIntoTheMusteringRaidShellRespectsTheSideTie() {
+		CampaignRaid raid = CampaignRaidService.getActive(war);
+		CampaignRaidWarbandService.createRaidWarbands(war, raid);
+		Warband atk = CampaignRaidWarbandService.getAttackerWarband(raid);
+		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignCoalition.DEFENDER);
+
+		assertEquals(CampaignWarbandSideLock.OTHER_SIDE, CampaignWarbandSignupService.signupMember(
+				ATTACKER_PLAYER, ATTACKER_NAME, atk, attacker, null, raidWindow.plusSeconds(10)));
+		assertFalse(atk.hasMember(ATTACKER_PLAYER));
+	}
+
+	@Test
+	void warbandJoinIntoTheMusteringRaidShellTiesTheAccount() {
+		CampaignRaid raid = CampaignRaidService.getActive(war);
+		CampaignRaidWarbandService.createRaidWarbands(war, raid);
+		Warband atk = CampaignRaidWarbandService.getAttackerWarband(raid);
+		Player player = mock(Player.class);
+		when(player.getUniqueId()).thenReturn(ATTACKER_PLAYER);
+		when(player.getName()).thenReturn(ATTACKER_NAME);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.getPlayerExact(ATTACKER_NAME)).thenReturn(player);
+
+			assertNull(CampaignWarbandSignupService.signupMember(
+					ATTACKER_PLAYER, ATTACKER_NAME, atk, attacker, null, raidWindow.plusSeconds(10)));
+		}
+		assertTrue(atk.hasMember(ATTACKER_PLAYER));
+		assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
+	}
+
+	@Test
+	void membersLoadedFromBeforeTheLockAreTiedAtStartup() {
+		Player player = mock(Player.class);
+		when(player.getUniqueId()).thenReturn(ATTACKER_PLAYER);
+		when(player.getName()).thenReturn(ATTACKER_NAME);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.getPlayerExact(ATTACKER_NAME)).thenReturn(player);
+			CampaignRaidWarbandService.signupAttacker(war, CampaignRaidService.getActive(war), ATTACKER_PLAYER, ATTACKER_NAME);
+		}
+		WarbandManager.addWarband(Warband.createWithMemberIds("free_band", DEFENDER_PLAYER, false, DEFENDER_PLAYER));
+		war.setAccountCoalitions(null);
+
+		CampaignWarbandSideLock.bindLoadedMembers();
+		CampaignWarbandSideLock.bindLoadedMembers();
+
+		assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
+		assertNull(war.getAccountCoalition(DEFENDER_PLAYER));
 	}
 
 	@Test

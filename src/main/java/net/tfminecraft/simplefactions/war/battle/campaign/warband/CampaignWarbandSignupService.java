@@ -16,7 +16,6 @@ import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceSe
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandVehicleRules;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -98,18 +97,17 @@ public final class CampaignWarbandSignupService {
 				&& !isSignupOpen(ctx.war(), now)) {
 			return SIGNUP_BLOCKED_DURING_RAID;
 		}
-		CampaignCoalition coalition = null;
 		if (ctx != null) {
 			String joinError = CampaignBattleJoinService.validateWarbandMemberJoin(
 					ctx.war(), ctx.battle(), ctx.sideId(), warband, memberKey, playerId);
 			if (joinError != null) {
 				return joinError;
 			}
-			coalition = CampaignWarbandSideLock.coalition(ctx.war(), ctx.battle(), ctx.sideId());
-			String sideError = CampaignWarbandSideLock.refusal(ctx.war(), coalition, playerId);
-			if (sideError != null) {
-				return sideError;
-			}
+		}
+		CampaignWarbandSideLock.Tie tie = CampaignWarbandSideLock.tieOf(warband);
+		String sideError = tie == null ? null : CampaignWarbandSideLock.refusal(tie.war(), tie.coalition(), playerId);
+		if (sideError != null) {
+			return sideError;
 		}
 
 		var character = Warband.participant(playerId, memberKey, onlinePlayer).orElse(null);
@@ -119,8 +117,8 @@ public final class CampaignWarbandSignupService {
 		boolean firstSignup = warband.getRealMemberCount() == 0;
 		applyLeaderRules(ctx, warband, playerId, memberKey);
 		warband.addMember(playerId, character);
-		if (ctx != null && warband.getMemberCharacter(playerId).isPresent()) {
-			CampaignWarbandSideLock.bind(ctx.war(), coalition, playerId);
+		if (tie != null && warband.getMemberCharacter(playerId).isPresent()) {
+			CampaignWarbandSideLock.bind(tie.war(), tie.coalition(), playerId);
 		}
 
 		if (ctx != null && firstSignup) {

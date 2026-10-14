@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
 import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -62,6 +66,32 @@ class WarbandMembershipServiceTest {
 		assertTrue(service.attemptRejoin(memberId, "member", null));
 		assertNull(service.getPendingRejoin(memberId));
 		assertNotNull(WarbandManager.getByMemberId(memberId));
+	}
+
+	@Test
+	void rejoinIsRefusedToAnAccountTiedToTheOtherSideAndTiesOtherwise() {
+		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("atk");
+		when(defender.getId()).thenReturn("def");
+		War war = new War(1, attacker, defender);
+		try (var lock = mockStatic(CampaignWarbandSideLock.class, CALLS_REAL_METHODS);
+				var wars = mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class)) {
+			lock.when(() -> CampaignWarbandSideLock.tieOf(warband))
+					.thenReturn(new CampaignWarbandSideLock.Tie(war, CampaignCoalition.AGGRESSOR));
+
+			war.bindAccountCoalition(memberId, CampaignCoalition.DEFENDER);
+			service.handleQuit(member);
+			assertFalse(service.attemptRejoin(memberId, "member", null));
+			assertFalse(warband.hasMember(memberId));
+
+			war.setAccountCoalitions(null);
+			warband.addMember(memberId, Members.session(member).orElseThrow().ref());
+			service.handleQuit(member);
+			assertTrue(service.attemptRejoin(memberId, "member", null));
+			assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(memberId));
+		}
 	}
 
 	@Test
