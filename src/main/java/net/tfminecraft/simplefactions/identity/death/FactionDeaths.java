@@ -253,7 +253,8 @@ final class FactionDeaths {
         if (pending != null && pending.isFor(ref)) membership.clearPendingRejoin(journal.ownerId);
         if (!plan.has("warband")) return true;
         var warband = WarbandManager.getByString(plan.get("warband").getAsString());
-        if (warband == null) return true;
+        // A held file is unloaded, not gone: wait for its validated reload.
+        if (warband == null) return !WarbandCharacters.isHeld(warbandFile(plan.get("warband").getAsString()));
         var current = warband.getMemberCharacter(journal.ownerId);
         if ((current.isPresent() && !current.get().equals(ref))
                 || (current.isEmpty() && warband.hasMember(journal.ownerId))) {
@@ -279,7 +280,11 @@ final class FactionDeaths {
     }
 
     private void saveWarband(net.tfminecraft.simplefactions.war.battle.warband.Warband warband) throws IOException {
-        WarbandCharacters.save(dataFolder.resolve("Warbands/warband_" + warband.getId() + ".json").toFile(), warband);
+        WarbandCharacters.save(warbandFile(warband.getId()), warband);
+    }
+
+    private java.io.File warbandFile(String id) {
+        return dataFolder.resolve("Warbands/warband_" + id + ".json").toFile();
     }
 
     private void disbandRealm(Faction faction, String id) throws IOException {
