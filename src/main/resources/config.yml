@@ -50,6 +50,9 @@ prestige-from-trade-falloff: 0.1
 # doubles their share and this cap ends the curve. 5 means a member is worth at
 # most 32, reached at 500 h. Needs RPCharacters; without it the term is 0.
 max-prestige-playtime-exponent: 5
+# Each account adds at most one member to the headcount, split between its living
+# characters by how long each was played over this many days.
+member-share-window-days: 30
 max-members: 64
 max-untitled-provinces: 5
 max-free-titles: 3

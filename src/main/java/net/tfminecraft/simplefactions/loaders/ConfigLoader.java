@@ -60,6 +60,7 @@ public class ConfigLoader {
 			Bukkit.getLogger().warning("[SimpleFactions] max-trade-upkeep must be finite and 0 or more, using " + TradeUpkeep.DEFAULT_MAX);
 		}
 		Cache.maxPlaytimePrestigeExponent = config.getDouble("max-prestige-playtime-exponent", 5);
+		Cache.memberShareWindowDays = Math.max(1, config.getInt("member-share-window-days", 30));
 		Cache.bankBlock = config.getString("bank-block", "v.lodestone");
 		Cache.maxExtraNodeCapacity = config.getInt("max-extra-node-capacity", 0);
 		

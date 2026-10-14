@@ -836,10 +836,11 @@ public class Faction {
 		}
 		setPersistentPrestigeModifier("Branches", branchPrestige);
 
-		// Two halves: headcount, plus what each member's online time is worth.
-		List<String> roster = guildHandler.getAllMembers();
-		double members = Math.pow(roster.size()+4, 1.8)+5
-				+ net.tfminecraft.simplefactions.prestige.MemberPlaytime.totalFor(roster);
+		// Two halves: headcount, where each account is one member split across its
+		// characters by recent play, plus what each counted member's online time is worth.
+		var headcount = net.tfminecraft.simplefactions.prestige.MemberShare.count(guildHandler.getAllMembers());
+		double members = Math.pow(headcount.heads()+4, 1.8)+5
+				+ net.tfminecraft.simplefactions.prestige.MemberPlaytime.totalFor(headcount.counted());
 
 		double wealthAmount = 0.0;
 		if(wealth > 0 && FactionManager.getGlobalWealth() > 0) {

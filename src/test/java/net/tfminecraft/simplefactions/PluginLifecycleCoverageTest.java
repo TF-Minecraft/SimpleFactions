@@ -1000,7 +1000,8 @@ class PluginLifecycleCoverageTest {
       verify(logger).severe(contains("TFMCWeb is not loaded"));
       verify(logger).info(contains("VehicleFramework is not enabled"));
       scoped(ProvincePresenceTickService.class).verify(ProvincePresenceTickService::start);
-      assertEquals(2, domain.ui.repeatingTasks.size());
+      // Track refresh, death reconcile, and the recent playtime tick and autosave.
+      assertEquals(4, domain.ui.repeatingTasks.size());
       domain.ui.repeatingTasks.getFirst().run();
       plugin.onDisable();
       var taskField = SimpleFactions.class.getDeclaredField("trackRefreshTask");
