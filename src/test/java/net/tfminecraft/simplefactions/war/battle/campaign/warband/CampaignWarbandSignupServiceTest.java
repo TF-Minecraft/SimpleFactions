@@ -133,6 +133,24 @@ class CampaignWarbandSignupServiceTest {
 	}
 
 	@Test
+	void unassignedAccountStillReceivesCampaignValidationBeforeAnyRosterMutation() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID outsider = UUID.randomUUID();
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			assertNull(WarbandManager.getByMemberId(outsider));
+			assertEquals("You must be in a faction to join this campaign battle",
+					CampaignWarbandSignupService.signupMember(outsider, "Outsider", shell, null, null,
+							BattleWindowService.atScheduleHour(BATTLE_DAY, 20)));
+			assertEquals(0, shell.getMemberCount());
+			assertTrue(shell.isPendingLeader());
+			assertNull(WarbandManager.getByMemberId(outsider));
+		}
+	}
+
+	@Test
 	void signupMember_allowedAfterRaidCall() {
 		War war = battleDayWar();
 		Warband shell = createShellOnBattle(war);

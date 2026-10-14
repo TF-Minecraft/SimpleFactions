@@ -230,7 +230,7 @@ public class BattleCommandManager implements CommandExecutor{
 				invitee.sendMessage("§aType /warband join "+w.getId() +"§a to join");
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("join") && args.length == 2) {
-				if(WarbandManager.getByPlayer(p) != null) {
+				if(WarbandManager.getByMemberId(p.getUniqueId()) != null) {
 					p.sendMessage("§cAlready in a warband, leave your current warband first!");
 					return true;
 				}

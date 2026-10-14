@@ -17,14 +17,13 @@ import java.util.Set;
 import java.util.UUID;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.database.Database;
-import net.tfminecraft.simplefactions.database.DurableJson;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper;
+import net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandMembershipService;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
@@ -280,7 +279,7 @@ final class FactionDeaths {
     }
 
     private void saveWarband(net.tfminecraft.simplefactions.war.battle.warband.Warband warband) throws IOException {
-        DurableJson.write(dataFolder.resolve("Warbands/warband_" + warband.getId() + ".json"), WarbandMapper.toData(warband));
+        WarbandCharacters.save(dataFolder.resolve("Warbands/warband_" + warband.getId() + ".json").toFile(), warband);
     }
 
     private void disbandRealm(Faction faction, String id) throws IOException {
