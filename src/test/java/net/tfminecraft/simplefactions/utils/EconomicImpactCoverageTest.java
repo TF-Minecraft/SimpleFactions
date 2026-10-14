@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.economy.FrozenBalances;
 import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
 import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
@@ -72,6 +73,7 @@ class EconomicImpactCoverageTest {
     law = mock(Law.class);
     agreement = mock(RelationType.class);
     prepared = mock(EconomicPreview.Prepared.class);
+    when(prepared.balances()).thenReturn(FrozenBalances.capture());
     when(gui.plugin.getProvinceManager()).thenReturn(provinces);
     when(faction.getTaxHandler()).thenReturn(taxes);
     factions = mockStatic(FactionManager.class);

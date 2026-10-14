@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.economy.FrozenBalances;
 import net.tfminecraft.simplefactions.economy.Money;
 import net.tfminecraft.simplefactions.guild.Guild;
 
@@ -23,7 +24,7 @@ public class Bank {
         this.chunk = chunk;
     }
     public String accountId() { return Denars.guild(guild.getIncarnationId()); }
-    public Double getWealth() { return Money.denars(Denars.balance(accountId())); }
+    public Double getWealth() { return Money.denars(FrozenBalances.balance(accountId())); }
     /** Read only by the one-time, ledger-keyed legacy importer during startup. */
     public double legacyBalance() { return legacyBalance; }
     public Chunk getChunk() { return chunk; }
