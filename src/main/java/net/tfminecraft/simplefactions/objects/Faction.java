@@ -836,9 +836,11 @@ public class Faction {
 		}
 		setPersistentPrestigeModifier("Branches", branchPrestige);
 
-		// Two halves: headcount, plus what each member's online time is worth.
+		// Two halves: headcount, where each account is one member split across its
+		// characters by recent play, plus what each member's online time is worth.
 		List<String> roster = guildHandler.getAllMembers();
-		double members = Math.pow(roster.size()+4, 1.8)+5
+		double heads = net.tfminecraft.simplefactions.prestige.MemberShare.headsFor(roster);
+		double members = Math.pow(heads+4, 1.8)+5
 				+ net.tfminecraft.simplefactions.prestige.MemberPlaytime.totalFor(roster);
 
 		double wealthAmount = 0.0;

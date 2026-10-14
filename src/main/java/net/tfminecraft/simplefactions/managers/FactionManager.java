@@ -695,11 +695,12 @@ public class FactionManager implements Listener{
 		// and per guild. Without this guard a load is O(n^2) prestige passes over a partial
 		// faction set, which also lets the rank-down branch demote against a half-built ladder.
 		if(loading) return;
-		net.tfminecraft.simplefactions.prestige.MemberPlaytime.withinPass(() -> {
+		net.tfminecraft.simplefactions.prestige.MemberPlaytime.withinPass(() ->
+				net.tfminecraft.simplefactions.prestige.MemberShare.withinPass(() -> {
 			for(Faction f : factions) {
 				f.updatePrestige();
 			}
-		});
+		}));
 	}
 	/**
 	 * Rank moves at most one level per updatePrestige, and getRankUpAmount is competitive:

@@ -38,6 +38,11 @@ public final class Members {
 
         Optional<Player> online(String key);
 
+        /** Every character the account owns; empty when its records cannot be read. */
+        default Optional<List<CharacterInfo>> characters(UUID ownerId) {
+            return Optional.empty();
+        }
+
         /** The key of a character ID: its lower-case text. */
         default String key(UUID characterId) {
             return characterId.toString().toLowerCase(Locale.ROOT);
@@ -156,6 +161,11 @@ public final class Members {
     public static Optional<CharacterInfo> info(String key) {
         if (key == null || characterId(key) == null) return Optional.empty();
         return resolver.info(key);
+    }
+
+    /** Every character the account owns, dead ones included; empty when unknown or unreadable. */
+    public static Optional<List<CharacterInfo>> characters(UUID ownerId) {
+        return ownerId == null ? Optional.empty() : resolver.characters(ownerId);
     }
 
     /** Whether the player is currently playing the character with that key. */
@@ -309,6 +319,12 @@ public final class Members {
             UUID id = characterId(key);
             if (id == null || !Characters.available()) return Optional.empty();
             return Characters.info(id).filter(info -> id.equals(info.ref().characterId()));
+        }
+
+        @Override
+        public Optional<List<CharacterInfo>> characters(UUID ownerId) {
+            if (!Characters.available()) return Optional.empty();
+            return Characters.characters(ownerId);
         }
 
         @Override

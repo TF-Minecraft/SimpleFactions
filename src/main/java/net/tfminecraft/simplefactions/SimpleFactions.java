@@ -442,6 +442,8 @@ public class SimpleFactions extends JavaPlugin{
 			);
 		}
 		net.tfminecraft.simplefactions.inactivity.InactivityService.load();
+		net.tfminecraft.simplefactions.prestige.RecentPlaytime.bind(new File(getDataFolder(), "Cache"));
+		net.tfminecraft.simplefactions.prestige.RecentPlaytime.load();
         try {
             net.tfminecraft.simplefactions.economy.TreasuryActions.recoverTopologyFiles(getDataFolder().toPath().resolve("economy/callers"));
         } catch (Exception error) { failFinancialState(error); return; }
@@ -553,6 +555,7 @@ public class SimpleFactions extends JavaPlugin{
 		}
 		inventoryManager.start();
 		vehicleMaintenanceDecayTask.start();
+		net.tfminecraft.simplefactions.prestige.RecentPlaytime.start(this);
 		startupComplete = true;
         started = true;
         getServer().getServicesManager().register(net.tfminecraft.denareconomy.api.TaxPolicy.class,
@@ -595,6 +598,7 @@ public class SimpleFactions extends JavaPlugin{
 		}
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
+		net.tfminecraft.simplefactions.prestige.RecentPlaytime.stop();
 		saveFactionsForShutdown();
 		for(War w : WarManager.get()){
 			db.saveWar(w);

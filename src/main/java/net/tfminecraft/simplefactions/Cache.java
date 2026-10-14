@@ -34,6 +34,7 @@ public class Cache {
 	public static double prosperitySoftCapScale = 20;
 	public static double maxTradeUpkeep = 0.75;
 	public static double maxPlaytimePrestigeExponent = 5;
+	public static int memberShareWindowDays = 30;
 	public static String baseYear;
 	public static int baseIrlYear = java.time.Year.now().getValue();
 	public static String bankBlock;
