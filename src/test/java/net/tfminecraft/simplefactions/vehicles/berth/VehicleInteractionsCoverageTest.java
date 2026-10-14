@@ -86,7 +86,6 @@ import net.tfminecraft.vehicleframework.database.VehicleRepository;
 import net.tfminecraft.vehicleframework.database.VehicleSnapshot;
 import net.tfminecraft.vehicleframework.enums.VehicleDeath;
 import net.tfminecraft.vehicleframework.enums.VehicleRemoveReason;
-import net.tfminecraft.vehicleframework.events.VehicleOwnerClaimedEvent;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 import net.tfminecraft.vehicleframework.events.VehicleRemoveEvent;
 import net.tfminecraft.vehicleframework.events.VehicleSpawnEvent;
