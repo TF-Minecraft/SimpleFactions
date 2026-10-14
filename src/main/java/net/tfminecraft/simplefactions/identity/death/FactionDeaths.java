@@ -17,14 +17,13 @@ import java.util.Set;
 import java.util.UUID;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.database.Database;
-import net.tfminecraft.simplefactions.database.DurableJson;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper;
+import net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandMembershipService;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
@@ -254,7 +253,9 @@ final class FactionDeaths {
         if (pending != null && pending.isFor(ref)) membership.clearPendingRejoin(journal.ownerId);
         if (!plan.has("warband")) return true;
         var warband = WarbandManager.getByString(plan.get("warband").getAsString());
-        if (warband == null) return true;
+        boolean held = WarbandCharacters.isHeld(warbandFile(plan.get("warband").getAsString()));
+        // A held file may have only a fresh campaign shell: wait for its validated reload.
+        if (warband == null || (held && warband.getStoredFields().keySet().isEmpty())) return !held;
         var current = warband.getMemberCharacter(journal.ownerId);
         if ((current.isPresent() && !current.get().equals(ref))
                 || (current.isEmpty() && warband.hasMember(journal.ownerId))) {
@@ -280,7 +281,11 @@ final class FactionDeaths {
     }
 
     private void saveWarband(net.tfminecraft.simplefactions.war.battle.warband.Warband warband) throws IOException {
-        DurableJson.write(dataFolder.resolve("Warbands/warband_" + warband.getId() + ".json"), WarbandMapper.toData(warband));
+        WarbandCharacters.save(warbandFile(warband.getId()), warband);
+    }
+
+    private java.io.File warbandFile(String id) {
+        return dataFolder.resolve("Warbands/warband_" + id + ".json").toFile();
     }
 
     private void disbandRealm(Faction faction, String id) throws IOException {

@@ -598,6 +598,31 @@ class BattleEngineListenersCoverageTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
+  void aNewSessionCannotCompleteAnOldCountdownAfterRejoiningBeforeTheFirstTick(boolean sameCharacter) {
+    Battle battle = battle("front", BattleType.FIELD);
+    battle.setStarted(true);
+    Warband band = band(battle, "attacker", alice);
+    CapturePoint point = runtimePoint(battle);
+    var original = net.tfminecraft.simplefactions.identity.Members.session(alice).orElseThrow();
+    listener.spawnTeleport(alice, point);
+    Runnable timer = ui.repeatingTasks.getFirst();
+    var ref = sameCharacter ? original.ref() : new net.tfminecraft.tlibs.character.CharacterRef(alice.getUniqueId(), UUID.randomUUID());
+    var incoming = new net.tfminecraft.tlibs.character.CharacterSession(ref, original.sessionId() + 1);
+    try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members.when(() -> net.tfminecraft.simplefactions.identity.Members.session(alice)).thenReturn(java.util.Optional.of(incoming));
+      band.removePlayer(alice);
+      band.addPlayer(alice);
+      assertTrue(band.hasMember(alice));
+      assertSame(battle, BattleManager.getBattleByPlayer(alice));
+      timer.run();
+      verify(alice, never()).teleport(any(Location.class));
+      verify(alice, never()).sendTitle(anyString(), anyString(), anyInt(), anyInt(), anyInt());
+      verify(ui.scheduler).cancelTask(1);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
   void manualWarbandJoiningRetainsInvitationsWhenMountedAndConsumesThemOnSuccess(boolean invited) {
     Warband band = band(null, null, player("Bob"));
     band.setLocked(invited);

@@ -131,8 +131,12 @@ class SiegeWinServiceTest {
 			UUID attackerId = UUID.randomUUID();
 			Player attackerPlayer = mock(Player.class);
 			when(attackerPlayer.isOnline()).thenReturn(true);
+			when(attackerPlayer.getUniqueId()).thenReturn(attackerId);
+			when(attackerPlayer.getName()).thenReturn("Attacker");
 			bukkit.when(() -> org.bukkit.Bukkit.getPlayer(attackerId)).thenReturn(attackerPlayer);
-			attacker.addBand(Warband.createWithMemberIds("atk", attackerId, true));
+			Warband band = Warband.createWithMemberIds("atk", attackerId, true);
+			band.addMember(attackerId, net.tfminecraft.simplefactions.identity.Members.session(attackerPlayer).orElseThrow().ref());
+			attacker.addBand(band);
 			BattleSide defender = battle.getSideById(BattleTemplate.DEFENDER_SIDE);
 			defender.setLives(0);
 			FieldWinService.isSideEliminated(battle, defender, start.plusSeconds(300));

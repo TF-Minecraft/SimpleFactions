@@ -47,7 +47,10 @@ public class WarbandManager implements Listener {
 	}
 
 	public static Warband getByPlayer(Player p) {
-		return getByMemberId(p.getUniqueId());
+		for (Warband w : bands) {
+			if (w.hasMember(p)) return w;
+		}
+		return null;
 	}
 
 	public static Warband getByMemberId(java.util.UUID memberId) {
@@ -59,7 +62,7 @@ public class WarbandManager implements Listener {
 
 	public static Warband getByLeader(Player p) {
 		for (Warband w : bands) {
-			if (w.getLeaderId().equals(p.getUniqueId())) return w;
+			if (w.isLeader(p)) return w;
 		}
 		return null;
 	}
@@ -156,7 +159,7 @@ public class WarbandManager implements Listener {
 			if (w.hasMember(p)) {
 				p.sendMessage("§cAlready in this warband, use §e/warband leave §cto leave it");
 				p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-			} else if (WarbandManager.getByPlayer(p) != null) {
+			} else if (WarbandManager.getByMemberId(p.getUniqueId()) != null) {
 				p.sendMessage("§cAlready in a warband, leave your current warband first!");
 				p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				refreshOpenWarbandLists();

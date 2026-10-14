@@ -14,6 +14,7 @@ import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinServ
 import net.tfminecraft.simplefactions.war.core.WarDevMode;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
+import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandVehicleRules;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
@@ -72,6 +73,10 @@ public final class CampaignWarbandSignupService {
 		if (playerId == null || memberKey == null || warband == null) {
 			return "Invalid warband signup";
 		}
+		Warband current = WarbandManager.getByMemberId(playerId);
+		if (current != null && current != warband) {
+			return "Already in another warband, leave your current warband first";
+		}
 		if (onlinePlayer != null) {
 			String vehicleError = WarbandVehicleRules.joinBlockedReason(onlinePlayer);
 			if (vehicleError != null) {
@@ -79,8 +84,11 @@ public final class CampaignWarbandSignupService {
 			}
 		}
 		if (warband.hasMember(playerId)) {
-			return null;
+			return Warband.participant(playerId, memberKey, onlinePlayer)
+					.filter(character -> warband.getMemberCharacter(playerId).filter(character::equals).isPresent())
+					.isPresent() && !warband.isIdentityHeld() ? null : "Another character holds this warband slot";
 		}
+		if (warband.isIdentityHeld()) return "Warband identity is held for staff review";
 
 		CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
 		if (!CampaignRaidWarbandService.isRaidWarband(warband)
@@ -97,9 +105,13 @@ public final class CampaignWarbandSignupService {
 			}
 		}
 
+		var character = Warband.participant(playerId, memberKey, onlinePlayer).orElse(null);
+		if (character == null) {
+			return "Character identity is not ready for warband signup";
+		}
 		boolean firstSignup = warband.getRealMemberCount() == 0;
 		applyLeaderRules(ctx, warband, playerId, memberKey);
-		warband.addMember(playerId);
+		warband.addMember(playerId, character);
 
 		if (ctx != null && firstSignup) {
 			WarDevMode.seedDummyMembersOnFirstSignupIfEnabled(

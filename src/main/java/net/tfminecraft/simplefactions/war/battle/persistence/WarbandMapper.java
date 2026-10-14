@@ -18,6 +18,7 @@ public final class WarbandMapper {
 		WarbandData data = new WarbandData();
 		data.id = warband.getId();
 		data.memberCharacters = warband.getMemberCharacters();
+		data.invitedCharacters = warband.getInvitedCharacters();
 		data.name = warband.getName();
 		data.leaderId = warband.getLeaderId() != null ? warband.getLeaderId().toString() : null;
 		data.locked = warband.isLocked();
@@ -49,6 +50,7 @@ public final class WarbandMapper {
 				data.faction,
 				data.campaignSideId);
 		warband.restoreMemberCharacters(data.memberCharacters);
+		warband.restoreInvitedCharacters(data.invitedCharacters);
 		return warband;
 	}
 

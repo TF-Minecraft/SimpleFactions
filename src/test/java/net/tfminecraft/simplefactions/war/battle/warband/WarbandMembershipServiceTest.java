@@ -100,14 +100,15 @@ class WarbandMembershipServiceTest {
 	}
 
 	@Test
-	void quitWithoutACharacterLeavesNoRejoinState() {
+	void quitWithoutARecordedCharacterPreservesTheHeldMembership() {
 		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+		warband.restoreMemberCharacters(java.util.Map.of());
 
 		service.handleQuit((Player) null);
 		assertTrue(warband.hasMember(memberId));
 		service.handleQuit(memberId);
 
-		assertFalse(warband.hasMember(memberId));
+		assertTrue(warband.hasMember(memberId));
 		assertNull(service.getPendingRejoin(memberId));
 	}
 
@@ -127,7 +128,10 @@ class WarbandMembershipServiceTest {
 		service.handleQuit(member);
 		CharacterSession other = new CharacterSession(new CharacterRef(memberId, UUID.randomUUID()), 2L);
 
-		assertFalse(service.handleSessionStart(member, other));
+		try (var members = org.mockito.Mockito.mockStatic(Members.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+			members.when(() -> Members.session(member)).thenReturn(java.util.Optional.of(other));
+			assertFalse(service.handleSessionStart(member, other));
+		}
 		assertNull(service.getPendingRejoin(memberId));
 		assertFalse(warband.hasMember(memberId));
 		assertFalse(service.handleSessionStart(member, Members.session(member).orElseThrow()));
@@ -164,6 +168,7 @@ class WarbandMembershipServiceTest {
 
 	private Warband createOpenWarband(String id, UUID leader, UUID member) {
 		Warband warband = Warband.createWithMemberIds(id, leader, false, member);
+		warband.addMember(member, Members.session(this.member).orElseThrow().ref());
 		WarbandManager.addWarband(warband);
 		return warband;
 	}

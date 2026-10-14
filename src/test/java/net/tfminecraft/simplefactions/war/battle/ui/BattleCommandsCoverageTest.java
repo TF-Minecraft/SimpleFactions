@@ -276,6 +276,26 @@ class BattleCommandsCoverageTest {
     verify(alice).sendMessage("§cYou already have a warband!");
   }
 
+  @Test
+  void creationRefusesMissingIdentityAndDoesNotReplaceAHeldWarband() {
+    try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members.when(() -> net.tfminecraft.simplefactions.identity.Members.session(alice))
+          .thenReturn(java.util.Optional.empty());
+      assertTrue(run("warband", "create", "scouts"));
+      verify(alice).sendMessage("§cChoose a character before creating a warband.");
+      assertTrue(WarbandManager.get().isEmpty());
+      persistence.verifyNoInteractions();
+    }
+    try (var identities = mockStatic(net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.class)) {
+      identities.when(() -> net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters.isHeld(any()))
+          .thenReturn(true);
+      assertTrue(run("warband", "create", "scouts"));
+      verify(alice).sendMessage("§cA warband with this id already exists");
+      assertTrue(WarbandManager.get().isEmpty());
+      persistence.verifyNoInteractions();
+    }
+  }
+
   private Warband campaignBand(Player leader) {
     Side side = mock(Side.class);
     Faction faction = mock(Faction.class);

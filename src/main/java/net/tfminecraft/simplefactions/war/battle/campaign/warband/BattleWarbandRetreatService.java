@@ -57,10 +57,6 @@ public final class BattleWarbandRetreatService {
 			}
 			return RetreatResult.REJECTED_NOT_IN_WARBAND;
 		}
-		if (warband.isPendingLeader()) {
-			return RetreatResult.REJECTED_PENDING_LEADER;
-		}
-
 		CampaignBattleJoinService.CampaignBattleContext ctx =
 				CampaignBattleJoinService.findCampaignBattleForWarband(warband);
 		if (ctx == null) {

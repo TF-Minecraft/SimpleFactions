@@ -267,6 +267,26 @@ class CampaignBattleLifecycleCoverageTest {
     verify(recruit, never()).openInventory(any(Inventory.class));
   }
 
+  @Test
+  void aNewSessionOfTheSameCharacterCannotRunAnEarlierSpawnCallback() {
+    Battle battle = battle(BattleType.FIELD, true);
+    Warband band = battle.getSideById("attacker").getBands().getFirst();
+    Player recruit = rig.player("Recruit");
+    rig.attacker.addMember("Recruit");
+    band.addPlayer(recruit);
+    var original = net.tfminecraft.simplefactions.identity.Members.session(recruit).orElseThrow();
+    rig.domain.ui.tasks.clear();
+    CampaignWarbandBattleService.onMemberJoined(recruit, band, new CampaignBattleContext(battle, "attacker", rig.war));
+    assertEquals(1, rig.domain.ui.tasks.size());
+    try (var members = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      members.when(() -> net.tfminecraft.simplefactions.identity.Members.session(recruit))
+          .thenReturn(java.util.Optional.of(new net.tfminecraft.tlibs.character.CharacterSession(original.ref(), original.sessionId() + 1)));
+      assertTrue(band.hasMember(recruit));
+      rig.domain.ui.runTasks();
+      verify(recruit, never()).openInventory(any(Inventory.class));
+    }
+  }
+
   @ParameterizedTest
   @EnumSource(
       value = BattleType.class,
@@ -506,7 +526,7 @@ class CampaignBattleLifecycleCoverageTest {
     Warband band = battle.getSideById("attacker").getBands().getFirst();
     Player recruit = rig.player("Recruit");
     rig.attacker.addMember("Recruit");
-    band.addMember(recruit.getUniqueId());
+    band.addMember(recruit.getUniqueId(), net.tfminecraft.simplefactions.identity.Members.session(recruit).orElseThrow().ref());
     CampaignBattleContext context = new CampaignBattleContext(battle, "attacker", rig.war);
     battle.removeSide("attacker");
     rig.domain.ui.tasks.clear();

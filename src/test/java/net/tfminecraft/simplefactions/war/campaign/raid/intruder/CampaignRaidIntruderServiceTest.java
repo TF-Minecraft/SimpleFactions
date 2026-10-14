@@ -131,7 +131,9 @@ class CampaignRaidIntruderServiceTest {
 
 	@Test
 	void activeAttackerParticipant_exempt() {
-		CampaignRaidWarbandService.signupAttacker(war, raid, BOB_ID, "Bob");
+		var band = CampaignRaidWarbandService.getAttackerWarband(raid);
+		band.addMember(BOB_ID, new net.tfminecraft.tlibs.character.CharacterRef(BOB_ID,
+				net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Bob")));
 
 		assertFalse(CampaignRaidIntruderService.shouldPenalize(
 				war, raid, BOB_ID, "Bob", TARGET_PROVINCE));
@@ -139,7 +141,9 @@ class CampaignRaidIntruderServiceTest {
 
 	@Test
 	void eliminatedAttacker_penalized() {
-		CampaignRaidWarbandService.signupAttacker(war, raid, BOB_ID, "Bob");
+		var band = CampaignRaidWarbandService.getAttackerWarband(raid);
+		band.addMember(BOB_ID, new net.tfminecraft.tlibs.character.CharacterRef(BOB_ID,
+				net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Bob")));
 		RaidAttackerEliminationService.markOut(battle, BOB_ID);
 
 		assertTrue(CampaignRaidIntruderService.shouldPenalize(

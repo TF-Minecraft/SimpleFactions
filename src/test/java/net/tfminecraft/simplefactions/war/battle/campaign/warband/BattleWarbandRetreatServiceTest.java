@@ -104,6 +104,9 @@ class BattleWarbandRetreatServiceTest {
 
 		Player leader = mock(Player.class);
 		when(leader.getUniqueId()).thenReturn(leaderId);
+		when(leader.getName()).thenReturn("Leader");
+		retreatingWarband.addMember(leaderId,
+				net.tfminecraft.simplefactions.identity.Members.session(leader).orElseThrow().ref());
 
 		return new RetreatFixture(war, battle, retreatingWarband, leader, NOW);
 	}
@@ -203,7 +206,7 @@ class BattleWarbandRetreatServiceTest {
 		WarbandManager.addWarband(shell);
 
 		withWarManager(war, () -> assertEquals(
-				RetreatResult.REJECTED_PENDING_LEADER,
+				RetreatResult.REJECTED_NOT_IN_WARBAND,
 				BattleWarbandRetreatService.retreatRejection(pendingLeader, NOW)));
 	}
 
@@ -214,6 +217,9 @@ class BattleWarbandRetreatServiceTest {
 		WarbandManager.addWarband(orphan);
 		Player leader = mock(Player.class);
 		when(leader.getUniqueId()).thenReturn(leaderId);
+		when(leader.getName()).thenReturn("Orphan");
+		orphan.addMember(leaderId,
+				net.tfminecraft.simplefactions.identity.Members.session(leader).orElseThrow().ref());
 
 		assertEquals(RetreatResult.REJECTED_NOT_IN_BATTLE,
 				BattleWarbandRetreatService.retreatRejection(leader, NOW));

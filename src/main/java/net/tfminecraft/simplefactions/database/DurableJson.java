@@ -14,13 +14,18 @@ public final class DurableJson {
     private DurableJson() {}
 
     public static void write(Path file, Object data) throws IOException {
+        write(file, data, JsonUtil.GSON);
+    }
+
+    /** A raw-document writer may retain explicit null fields without changing intent schemas. */
+    public static void write(Path file, Object data, com.google.gson.Gson serializer) throws IOException {
         Path destination = file.toAbsolutePath();
         Path directory = destination.getParent();
         Files.createDirectories(directory);
         Path pending = Files.createTempFile(directory, destination.getFileName().toString() + ".", ".tmp");
         try {
             try (FileChannel channel = FileChannel.open(pending, StandardOpenOption.WRITE)) {
-                ByteBuffer bytes = StandardCharsets.UTF_8.encode(JsonUtil.GSON.toJson(data));
+                ByteBuffer bytes = StandardCharsets.UTF_8.encode(serializer.toJson(data));
                 while (bytes.hasRemaining()) channel.write(bytes);
                 channel.force(true);
             }

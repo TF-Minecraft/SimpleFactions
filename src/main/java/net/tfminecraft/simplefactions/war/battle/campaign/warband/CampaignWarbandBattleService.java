@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.campaign.warband;
 
+import net.tfminecraft.simplefactions.identity.Members;
+
 
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import java.util.UUID;
@@ -65,9 +67,11 @@ public final class CampaignWarbandBattleService {
 	}
 
 	public static void onMemberJoined(Player player, Warband warband, CampaignBattleJoinService.CampaignBattleContext ctx) {
-		if (player == null || warband == null || ctx == null) {
+		if (player == null || warband == null || ctx == null || !warband.hasMember(player)) {
 			return;
 		}
+		var joined = Members.session(player).filter(Members::isCurrent).orElse(null);
+		if (joined == null) return;
 		Battle battle = ctx.battle();
 		if (!battle.hasStarted()) {
 			return;
@@ -96,7 +100,9 @@ public final class CampaignWarbandBattleService {
 				public void run() {
 					if (!player.isOnline() || !battle.hasStarted()
 							|| BattleManager.currentBattle.get(player) != battle
-							|| !warband.hasMember(player.getUniqueId())) {
+							|| !Members.isCurrent(joined)
+							|| !Members.session(player).filter(joined::equals).isPresent()
+							|| !warband.hasMember(player)) {
 						return;
 					}
 					BattleInventoryManager inv = new BattleInventoryManager();

@@ -21,6 +21,10 @@ public final class WarbandRejoinState {
 		return character != null && character.equals(ref);
 	}
 
+	public CharacterRef getCharacter() {
+		return character;
+	}
+
 	public boolean belongsTo(Warband warband) {
 		return originalWarband == warband;
 	}

@@ -17,6 +17,8 @@ import java.util.zip.GZIPOutputStream;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.database.CampaignRaidData;
 import net.tfminecraft.simplefactions.database.JsonUtil;
+import net.tfminecraft.simplefactions.database.DurableJson;
+import net.tfminecraft.simplefactions.database.WarbandData;
 import net.tfminecraft.simplefactions.database.WarData;
 import net.tfminecraft.simplefactions.events.PlayerProvinceEnterEvent;
 import net.tfminecraft.simplefactions.installation.Installation;
@@ -1678,10 +1680,12 @@ public class CampaignRaidLifecycleCoverageTest {
   }
 
   /**
-   * Shared real campaign domain for these two lifecycle suites; only server and file I/O are faked.
+   * Shared real campaign domain with isolated durable files and scoped server boundaries.
    */
   public static final class Fixture implements AutoCloseable {
     public static final LocalDate DAY = LocalDate.of(2026, 10, 10);
+    private final net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture files =
+        new net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture();
     public final FactionDomainFixture domain = new FactionDomainFixture();
     public final Player alice = player("Alice"), bob = player("Bob");
     public final Faction attacker = domain.saved("lifecycle_iron", "Alice");
@@ -1693,6 +1697,7 @@ public class CampaignRaidLifecycleCoverageTest {
     public final List<BossBar> bars = new ArrayList<>();
     public final Installation source, target;
     private MockedStatic<JsonUtil> json;
+    private MockedStatic<DurableJson> durable;
     private MockedStatic<TLibs> tlibs;
     private final Duration oldOffset = CampaignClock.getOffset();
     private final List<Battle> oldBattles = new ArrayList<>(BattleManager.get());
@@ -1852,6 +1857,17 @@ public class CampaignRaidLifecycleCoverageTest {
                   writes.add(new Write(call.getArgument(0), call.getArgument(1)));
                   return null;
                 });
+        durable = mockStatic(DurableJson.class, CALLS_REAL_METHODS);
+        durable.when(() -> DurableJson.write(any(java.nio.file.Path.class), any(), any(com.google.gson.Gson.class)))
+            .thenAnswer(call -> {
+              call.callRealMethod();
+              Object value = call.getArgument(1);
+              if (value instanceof com.google.gson.JsonObject raw && raw.has("memberIds")) {
+                value = JsonUtil.GSON.fromJson(raw, WarbandData.class);
+              }
+              writes.add(new Write(((java.nio.file.Path) call.getArgument(0)).toFile(), value));
+              return null;
+            });
         tlibs = mockStatic(TLibs.class);
         ItemAPI itemApi = mock(ItemAPI.class, RETURNS_DEEP_STUBS);
         tlibs.when(TLibs::getItemAPI).thenReturn(itemApi);
@@ -2001,9 +2017,11 @@ public class CampaignRaidLifecycleCoverageTest {
             if (tlibs != null) tlibs.close();
           } finally {
             try {
+              if (durable != null) durable.close();
               if (json != null) json.close();
             } finally {
-              domain.close();
+              try { domain.close(); }
+              finally { files.close(); }
             }
           }
         }

@@ -381,8 +381,11 @@ public final class BattlePersistenceService {
 					continue;
 				}
 				String id = file.getName().substring("warband_".length(), file.getName().length() - ".json".length());
-				if (!warbandIds.contains(id)) {
-					file.delete();
+				if (!warbandIds.contains(id) && !WarbandCharacters.isHeld(file) && file.delete()) {
+					// A band this prune unlinks may stay loaded; its next save starts a new file.
+					for (Warband loaded : WarbandManager.get()) {
+						if (loaded.getId().equals(id)) loaded.restoreStoredFields(new com.google.gson.JsonObject());
+					}
 				}
 			}
 		}

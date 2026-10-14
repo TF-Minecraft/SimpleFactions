@@ -36,11 +36,17 @@ public class WarbandMembershipService {
 	}
 
 	public void handleQuit(UUID playerId) {
-		handleQuit(playerId, getOnlinePlayer(playerId));
+		Player player = getOnlinePlayer(playerId);
+		if (player == null) handleQuit(playerId, null);
+		else handleQuit(player);
 	}
 
 	public void handleQuit(Player player) {
 		if (player != null) {
+			Warband band = WarbandManager.getByMemberId(player.getUniqueId());
+			if (band != null && Members.session(player)
+					.filter(session -> !band.getMemberCharacter(player.getUniqueId()).equals(java.util.Optional.of(session.ref())))
+					.isPresent()) return;
 			handleQuit(player.getUniqueId(), player);
 		}
 	}
@@ -51,8 +57,10 @@ public class WarbandMembershipService {
 			return;
 		}
 		// Only the character that left may take the place back.
-		CharacterRef character = warband.getMemberCharacter(playerId)
-				.orElseGet(() -> Members.session(player).map(CharacterSession::ref).orElse(null));
+		CharacterRef character = warband.getMemberCharacter(playerId).orElse(null);
+		if (character == null) {
+			return;
+		}
 		Faction faction = warband.isFaction() && character != null
 				? FactionManager.getByMember(character.characterId()) : null;
 		detachFromBattle(player, warband);
@@ -62,6 +70,14 @@ public class WarbandMembershipService {
 		warband.removeMember(playerId);
 	}
 
+	/** The outgoing session is already noncurrent when its end event fires. */
+	public void handleSessionEnd(Player player, CharacterSession session) {
+		Warband warband = WarbandManager.getByMemberId(player.getUniqueId());
+		if (warband != null && warband.getMemberCharacter(player.getUniqueId()).equals(java.util.Optional.of(session.ref()))) {
+			handleQuit(player.getUniqueId(), player);
+		}
+	}
+
 	/** Restores the place only when the character that quit starts playing again. */
 	public boolean handleSessionStart(Player player, CharacterSession session) {
 		if (player == null || session == null) {
@@ -69,6 +85,9 @@ public class WarbandMembershipService {
 		}
 		WarbandRejoinState state = pendingRejoin.get(player.getUniqueId());
 		if (state == null) {
+			return false;
+		}
+		if (!Members.isCurrent(session) || !Members.session(player).equals(java.util.Optional.of(session))) {
 			return false;
 		}
 		if (!state.isFor(session.ref())) {
@@ -87,12 +106,17 @@ public class WarbandMembershipService {
 		if (warband == null || !state.belongsTo(warband)) {
 			return false;
 		}
+		Warband current = WarbandManager.getByMemberId(playerId);
+		if (current != null && current != warband) return false;
 		Faction playerFaction = warband.isFaction() ? FactionManager.getByMember(memberKey) : null;
 		if (!evaluateRejoin(warband, playerId, memberKey, playerFaction, state)) {
 			return false;
 		}
 		if (onlinePlayer != null) warband.addPlayer(onlinePlayer);
-		else warband.addMember(playerId);
+		else {
+			warband.addMember(playerId, state.getCharacter());
+		}
+		if (!warband.getMemberCharacter(playerId).equals(java.util.Optional.of(state.getCharacter()))) return false;
 		if (onlinePlayer != null) {
 			restoreBattleState(onlinePlayer);
 		}

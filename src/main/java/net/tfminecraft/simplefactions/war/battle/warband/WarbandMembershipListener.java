@@ -5,6 +5,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import net.tfminecraft.tlibs.character.CharacterSessionStartEvent;
+import net.tfminecraft.tlibs.character.CharacterSessionEndEvent;
 
 public class WarbandMembershipListener implements Listener {
 	@EventHandler
@@ -16,5 +17,10 @@ public class WarbandMembershipListener implements Listener {
 	@EventHandler
 	public void onSessionStart(CharacterSessionStartEvent e) {
 		WarbandMembershipService.getInstance().handleSessionStart(e.getPlayer(), e.getSession());
+	}
+
+	@EventHandler
+	public void onSessionEnd(CharacterSessionEndEvent e) {
+		WarbandMembershipService.getInstance().handleSessionEnd(e.getPlayer(), e.getSession());
 	}
 }

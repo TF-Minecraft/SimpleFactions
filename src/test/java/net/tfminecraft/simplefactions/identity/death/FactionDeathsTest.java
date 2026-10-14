@@ -21,7 +21,7 @@ import net.tfminecraft.simplefactions.managers.SessionManager;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
-import net.tfminecraft.simplefactions.war.battle.persistence.WarbandMapper;
+import net.tfminecraft.simplefactions.war.battle.persistence.WarbandCharacters;
 import net.tfminecraft.simplefactions.war.battle.warband.*;
 import net.tfminecraft.tlibs.character.*;
 import org.bukkit.Bukkit;
@@ -372,16 +372,28 @@ class FactionDeathsTest {
         assertTrue(effects.referencedCharacters().contains(key));
         DeathJournal journal = capture();
         Path warbandFile = folder.resolve("Warbands/warband_surviving-band.json");
+        WarbandCharacters.save(warbandFile.toFile(), band);
         try (var disk = mockStatic(DurableJson.class, CALLS_REAL_METHODS)) {
-            disk.when(() -> DurableJson.write(eq(warbandFile), any())).thenThrow(new IOException("interrupted save"));
+            disk.when(() -> DurableJson.write(eq(warbandFile), any(), any(com.google.gson.Gson.class)))
+                    .thenThrow(new IOException("interrupted save"));
             assertThrows(IOException.class, () -> store.record(journal));
         }
         assertFalse(band.hasMember(dead.ownerId()));
         assertEquals(successor.ownerId(), band.getLeaderId());
+        assertTrue(WarbandCharacters.isHeld(warbandFile.toFile()));
+        assertFalse(store.find(journal.deathId).orElseThrow().complete);
+        assertThrows(IOException.class, store::replayAll);
+        WarbandManager.resetForTests();
+        var restarted = WarbandCharacters.read(warbandFile.toFile());
+        WarbandManager.addWarband(restarted);
         store.replayAll();
-        var saved = WarbandMapper.fromData(DurableJson.read(warbandFile, WarbandData.class));
+        var saved = WarbandCharacters.read(warbandFile.toFile());
         assertFalse(saved.hasMember(dead.ownerId()));
         assertEquals(successor.ownerId(), saved.getLeaderId());
+        assertEquals(Optional.of(successor), saved.getMemberCharacter(successor.ownerId()));
+        assertTrue(saved.hasMember(unmapped));
+        assertTrue(saved.getMemberCharacter(unmapped).isEmpty());
+        assertTrue(store.find(journal.deathId).orElseThrow().complete);
         var empty = Warband.createWithMemberIds("vacant-band", dead.ownerId(), true);
         empty.restoreMemberCharacters(Map.of(dead.ownerId(), dead));
         WarbandManager.addWarband(empty);
@@ -416,25 +428,25 @@ class FactionDeathsTest {
     }
 
     @Test void warbandRemovalUsesCapturedCharacterAfterSessionHasEnded() throws Exception {
-        var band = mock(Warband.class);
-        when(band.getId()).thenReturn("band");
-        when(band.hasMember(dead.ownerId())).thenReturn(true);
-        when(band.getMemberCharacter(dead.ownerId())).thenReturn(Optional.of(dead));
+        CharacterRef survivor = characters.get(living()).ref();
+        var band = Warband.createWithMemberIds("band", survivor.ownerId(), true, dead.ownerId());
+        band.restoreMemberCharacters(Map.of(survivor.ownerId(), survivor, dead.ownerId(), dead));
         WarbandManager.addWarband(band);
         var account = fixture.player("Account");
         when(account.getUniqueId()).thenReturn(dead.ownerId());
+        assertTrue(Members.session(account).isEmpty());
         DeathJournal journal = capture();
-        try (var mapper = mockStatic(WarbandMapper.class)) {
-            mapper.when(() -> WarbandMapper.toData(band)).thenReturn(new net.tfminecraft.simplefactions.database.WarbandData());
-            store.record(journal);
-            verify(band, atLeastOnce()).removeMember(dead.ownerId());
-            assertTrue(Files.exists(folder.resolve("Warbands/warband_band.json")));
-        }
+        store.record(journal);
+        assertFalse(band.hasMember(dead.ownerId()));
+        Path warbandFile = folder.resolve("Warbands/warband_band.json");
+        assertFalse(WarbandCharacters.read(warbandFile.toFile()).hasMember(dead.ownerId()));
         var step = step(journal, "online");
-        when(band.getMemberCharacter(dead.ownerId())).thenReturn(Optional.of(new CharacterRef(dead.ownerId(), UUID.randomUUID())));
-        clearInvocations(band);
+        CharacterRef other = new CharacterRef(dead.ownerId(), UUID.randomUUID());
+        band.addMember(dead.ownerId(), other);
         assertTrue(effects.apply(journal, step));
-        verify(band, never()).removeMember(any());
+        assertTrue(band.hasMember(dead.ownerId()));
+        assertEquals(Optional.of(other), band.getMemberCharacter(dead.ownerId()));
+        assertEquals(Optional.of(other), WarbandCharacters.read(warbandFile.toFile()).getMemberCharacter(dead.ownerId()));
         WarbandManager.resetForTests();
         assertTrue(effects.apply(journal, step));
     }

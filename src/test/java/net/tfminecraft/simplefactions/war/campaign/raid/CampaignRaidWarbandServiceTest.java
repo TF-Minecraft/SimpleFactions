@@ -173,14 +173,23 @@ class CampaignRaidWarbandServiceTest {
 
 	@Test
 	void signupAttacker_addsMemberAndPromotesWarLeader() {
-		CampaignRaidWarbandService.signupAttacker(war, raid, BOB_ID, "Bob");
-		Warband atk = CampaignRaidWarbandService.getAttackerWarband(raid);
-		assertTrue(atk.hasMember(BOB_ID));
-		assertEquals(BOB_ID, atk.getLeaderId());
-
-		CampaignRaidWarbandService.signupAttacker(war, raid, ALICE_ID, "Alice");
-		assertTrue(atk.hasMember(ALICE_ID));
-		assertEquals(ALICE_ID, atk.getLeaderId());
+		Player bob = mock(Player.class);
+		when(bob.getUniqueId()).thenReturn(BOB_ID);
+		when(bob.getName()).thenReturn("Bob");
+		Player alice = mock(Player.class);
+		when(alice.getUniqueId()).thenReturn(ALICE_ID);
+		when(alice.getName()).thenReturn("Alice");
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.getPlayerExact("Bob")).thenReturn(bob);
+			bukkit.when(() -> Bukkit.getPlayerExact("Alice")).thenReturn(alice);
+			CampaignRaidWarbandService.signupAttacker(war, raid, BOB_ID, "Bob");
+			Warband atk = CampaignRaidWarbandService.getAttackerWarband(raid);
+			assertTrue(atk.hasMember(BOB_ID));
+			assertEquals(BOB_ID, atk.getLeaderId());
+			CampaignRaidWarbandService.signupAttacker(war, raid, ALICE_ID, "Alice");
+			assertTrue(atk.hasMember(ALICE_ID));
+			assertEquals(ALICE_ID, atk.getLeaderId());
+		}
 	}
 
 	@Test
@@ -272,7 +281,9 @@ class CampaignRaidWarbandServiceTest {
 		when(carol.getUniqueId()).thenReturn(CAROL_ID);
 		when(carol.getName()).thenReturn("Carol");
 
-		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.getPlayerExact("Carol")).thenReturn(carol);
 			factions.when(() -> FactionManager.getByMember("Carol")).thenReturn(defender);
 			factions.when(() -> FactionManager.getByLeader("Carol")).thenReturn(null);
 

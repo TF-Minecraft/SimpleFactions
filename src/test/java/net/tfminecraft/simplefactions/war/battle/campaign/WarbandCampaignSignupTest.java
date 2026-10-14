@@ -45,9 +45,11 @@ class WarbandCampaignSignupTest {
 
 	private Faction attacker;
 	private Faction defender;
+	private net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture files;
 
 	@BeforeEach
-	void setUp() {
+	void setUp() throws Exception {
+		files = new net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture();
 		BattleManager.resetForTests();
 		WarbandManager.resetForTests();
 		WarDevMode.resetForTests();
@@ -64,6 +66,9 @@ class WarbandCampaignSignupTest {
 		when(attacker.getLeader()).thenReturn("Alice");
 		when(defender.getLeader()).thenReturn("Carol");
 	}
+
+	@org.junit.jupiter.api.AfterEach
+	void cleanup() throws Exception { if (files != null) files.close(); }
 
 	// Exercise the retained compatibility entry point so legacy behavior stays covered.
 	@SuppressWarnings("deprecation")
@@ -88,7 +93,7 @@ class WarbandCampaignSignupTest {
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
 				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			mockBukkitPlayerLookup(bukkit);
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
 			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
@@ -112,7 +117,8 @@ class WarbandCampaignSignupTest {
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
 				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			mockBukkitPlayerLookup(bukkit);
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
+			mockBukkitPlayerLookup(bukkit, bobId, "Bob");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
@@ -138,7 +144,8 @@ class WarbandCampaignSignupTest {
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
 				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			mockBukkitPlayerLookup(bukkit);
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
+			mockBukkitPlayerLookup(bukkit, bobId, "Bob");
 			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(attacker);
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
@@ -166,7 +173,7 @@ class WarbandCampaignSignupTest {
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
 				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			mockBukkitPlayerLookup(bukkit);
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
 			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
@@ -224,7 +231,10 @@ class WarbandCampaignSignupTest {
 		return shell;
 	}
 
-	private void mockBukkitPlayerLookup(MockedStatic<Bukkit> bukkit) {
-		bukkit.when(() -> Bukkit.getPlayer(org.mockito.ArgumentMatchers.any(UUID.class))).thenReturn(null);
+	private void mockBukkitPlayerLookup(MockedStatic<Bukkit> bukkit, UUID owner, String name) {
+		org.bukkit.entity.Player player = mock(org.bukkit.entity.Player.class);
+		when(player.getUniqueId()).thenReturn(owner);
+		when(player.getName()).thenReturn(name);
+		bukkit.when(() -> Bukkit.getPlayerExact(name)).thenReturn(player);
 	}
 }
