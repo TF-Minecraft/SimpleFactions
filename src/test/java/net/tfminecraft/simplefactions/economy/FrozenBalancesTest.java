@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.economy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
@@ -9,6 +10,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -62,8 +64,11 @@ class FrozenBalancesTest {
         }
 
         // Static mocks stay on the test thread, so the worker reaches the real ledger guard.
+        // Without a server, the guard fails inside Bukkit.isPrimaryThread rather than with its own message.
         CompletableFuture<Double> live = CompletableFuture.supplyAsync(() -> guild.getBank().getWealth());
-        assertThrows(ExecutionException.class, live::get);
+        ExecutionException refused = assertThrows(ExecutionException.class, live::get);
+        assertTrue(Arrays.stream(refused.getCause().getStackTrace())
+                .anyMatch(frame -> frame.getMethodName().equals("requireMainThread")));
 
         assertEquals(12.34, CompletableFuture.supplyAsync(() -> frozen.read(() -> guild.getBank().getWealth())).get());
         assertEquals(0L, frozen.read(() -> FrozenBalances.balance("unknown")));

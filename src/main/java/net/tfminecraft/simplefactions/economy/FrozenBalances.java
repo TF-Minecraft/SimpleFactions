@@ -8,6 +8,7 @@ import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Bank;
+import net.tfminecraft.simplefactions.objects.Faction;
 
 /**
  * Guild treasury balances read once on the main thread. DenarEconomy refuses ledger reads
@@ -19,11 +20,17 @@ public final class FrozenBalances {
     private final Map<String, Long> cents;
 
     private FrozenBalances(Map<String, Long> cents) {
-        this.cents = cents;
+        this.cents = Map.copyOf(cents);
     }
 
     /** Reads every guild treasury now. Call on the main thread. */
     public static FrozenBalances capture() {
+        // Stability asks for each realm guild, so create any missing one here rather than on a worker.
+        for (Faction faction : FactionManager.factions) {
+            if (faction != null && faction.getGuildHandler() != null) {
+                faction.getOrCreateMainGuild();
+            }
+        }
         Map<String, Long> cents = new HashMap<>();
         for (Guild guild : FactionManager.getAllGuilds()) {
             Bank bank = guild == null ? null : guild.getBank();

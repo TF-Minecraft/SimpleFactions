@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.economy.FrozenBalances;
+import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
