@@ -67,7 +67,6 @@ class WarbandCampaignSignupTest {
 		when(defender.getLeader()).thenReturn("Carol");
 	}
 
-	// Exercise the retained compatibility entry point so legacy behavior stays covered.
 	@org.junit.jupiter.api.AfterEach
 	void cleanup() throws Exception { if (files != null) files.close(); }
 
