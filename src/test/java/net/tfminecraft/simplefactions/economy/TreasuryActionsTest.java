@@ -211,8 +211,9 @@ class TreasuryActionsTest {
         Bukkit.getServicesManager().register(TaxPolicy.class, policy, fixture.ui.plugin, ServicePriority.Normal);
         try (var messages = mockStatic(MessageLoader.class)) {
             assertTrue(TreasuryPhysical.material(actor, ref, item, 8.75, guild));
-            messages.verify(() -> MessageLoader.send(actor, "money.earned", "amount", BigDecimal.valueOf(875 - tax, 2)));
-            messages.verify(() -> MessageLoader.send(actor, "money.tax", "tax", BigDecimal.valueOf(tax, 2)), times(tax > 0 ? 1 : 0));
+            if (tax > 0) messages.verify(() -> MessageLoader.send(actor, "money.earned-taxed",
+                    "amount", BigDecimal.valueOf(875 - tax, 2), "tax", BigDecimal.valueOf(tax, 2)));
+            else messages.verify(() -> MessageLoader.send(actor, "money.earned", "amount", BigDecimal.valueOf(875, 2)));
         }
         assertEquals(0, item.getAmount());
         assertEquals(875 - tax, Denars.balance(Denars.bank(ref)));

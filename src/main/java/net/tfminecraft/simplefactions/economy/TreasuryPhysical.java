@@ -8,7 +8,6 @@ import java.util.Optional;
 import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.denareconomy.api.TaxLeg;
 import net.tfminecraft.denareconomy.api.TaxPolicy;
-import net.tfminecraft.denareconomy.loaders.MessageLoader;
 import net.tfminecraft.denareconomy.managers.MoneyManager;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.identity.Members;
@@ -49,10 +48,7 @@ public final class TreasuryPhysical {
             player.getInventory().setItem(slot, null);
             player.saveData();
         }).commit(player);
-        if (deposited) {
-            MessageLoader.send(player, "money.earned", "amount", MoneyManager.denars(cents - withheld));
-            if (withheld > 0) MessageLoader.send(player, "money.tax", "tax", MoneyManager.denars(withheld));
-        }
+        if (deposited) MoneyManager.tellEarned(player, cents - withheld, withheld);
         return deposited;
     }
     public static boolean withdraw(Player player, Guild guild, double amount, List<ItemStack> items) {
