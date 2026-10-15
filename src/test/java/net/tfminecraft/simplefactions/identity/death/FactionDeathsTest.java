@@ -150,7 +150,7 @@ class FactionDeathsTest {
         assertEquals(1, store.pendingPayments().size());
     }
 
-    @Test void failedSuccessionSaveIsRetriedEvenWhenMemoryAlreadyHasItsFinalLeaderOrGuildRemoval() throws Exception {
+    @Test void failedSuccessionSaveIsRetriedEvenWhenMemoryAlreadyHasItsFinalLeaderOrEmptySeat() throws Exception {
         for (boolean empty : List.of(false, true)) {
             FactionManager.factions.clear();
             Faction faction = realm(living());
@@ -164,7 +164,7 @@ class FactionDeathsTest {
             });
             saveWorks.set(true);
             assertThrows(IOException.class, () -> interrupted.record(journal));
-            if (empty) assertFalse(faction.getGuildHandler().getGuilds().contains(guild));
+            if (empty) assertTrue(guild.isLeaderless());
             else assertEquals(successor, guild.getLeader());
             int savesBeforeReplay = databases.constructed().size();
             saveWorks.set(true);
@@ -174,13 +174,18 @@ class FactionDeathsTest {
         }
     }
 
-    @Test void ordinaryEmptyGuildIsRemovedButItsPaymentSurvives() throws Exception {
+    @Test void ordinaryEmptyGuildStaysOpenWithoutALeaderAndItsPaymentSurvives() throws Exception {
         Faction faction = realm(living());
         Guild guild = fixture.guild(faction, "company", key);
         guild.refreshDividendEligibility();
         UUID incarnation = UUID.fromString(guild.getIncarnation());
-        store.record(capture());
-        assertFalse(faction.getGuildHandler().getGuilds().contains(guild));
+        DeathJournal journal = capture();
+        store.record(journal);
+        assertTrue(faction.getGuildHandler().getGuilds().contains(guild));
+        assertTrue(guild.isLeaderless());
+        assertEquals(key, guild.getDeadLeader());
+        assertEquals(journal.at, guild.getLeaderlessSince());
+        assertTrue(guild.getMembers().isEmpty());
         assertEquals(incarnation, store.pendingPayments().getFirst().guildIncarnation());
         assertSame(faction, FactionManager.getByString("realm"));
     }
@@ -252,6 +257,7 @@ class FactionDeathsTest {
         characters.put(successor, info(chosen.ref(), CharacterStatus.DEAD));
         assertFalse(effects.apply(journal, step(journal, "succession")));
         assertEquals("", guild.getLeader());
+        assertTrue(guild.isLeaderless());
         String staff = living();
         guild.setLeader(staff);
         assertTrue(effects.apply(journal, step(journal, "succession")));

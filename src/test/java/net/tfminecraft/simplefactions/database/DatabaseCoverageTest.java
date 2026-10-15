@@ -282,4 +282,16 @@ class DatabaseCoverageTest {
   }
 
   private List<?> load(String kind) { return switch(kind) {case "Wars" -> database.loadWars();case "Battles" -> database.loadBattles();default -> database.loadWarbands();}; }
+
+  @Test void savingALeaderlessGuildKeepsItsDeadLeaderAndOffer() throws Exception {
+    Files.createDirectories(disk.root.resolve("Data"));
+    Faction realm=fixture.saved("realm","Alice");
+    realm.getOrCreateMainGuild();
+    Guild smiths=fixture.guild(realm,"smiths","Bob");
+    smiths.kick("Bob");smiths.markLeaderless("Bob",42L);smiths.offerLeadership("Alice");
+    assertTrue(database.saveFactionChecked(realm));
+    FactionData saved=JsonUtil.readJson(disk.root.resolve("Data/realm.json").toFile(),FactionData.class);
+    GuildData stored=saved.guilds.stream().filter(entry->"smiths".equals(entry.id)).findFirst().orElseThrow();
+    assertEquals("Bob",stored.deadLeader);assertEquals(42L,stored.leaderlessSince);assertEquals("Alice",stored.leaderOffer);
+  }
 }

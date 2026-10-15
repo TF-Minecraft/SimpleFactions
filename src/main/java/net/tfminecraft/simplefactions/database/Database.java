@@ -425,6 +425,11 @@ public class Database {
                 gd.leader = g.getLeader();
                 gd.leaderCharacter = g.getLeaderCharacter();
                 gd.leaderCharacterOf = g.getLeaderCharacterOf();
+                if (g.isLeaderless()) {
+                    gd.deadLeader = g.getDeadLeader();
+                    gd.leaderlessSince = g.getLeaderlessSince();
+                    gd.leaderOffer = g.getLeaderOffer();
+                }
                 gd.rgb = g.getRGB();
                 gd.type = g.getType().getId();
                 gd.capital = g.getCapital();

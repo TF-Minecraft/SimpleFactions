@@ -19,6 +19,15 @@ public class GuildData {
 
     @com.google.gson.annotations.SerializedName("leader character of")
     public String leaderCharacterOf;
+
+    /** The leader who died with nobody to succeed them, while the seat stays empty. */
+    @SerializedName("dead leader")
+    public String deadLeader;
+    @SerializedName("leaderless since")
+    public Long leaderlessSince;
+    /** The character the realm leader has offered the empty seat to. */
+    @SerializedName("leader offer")
+    public String leaderOffer;
     public String rgb;
     public String type;
     public Integer capital;

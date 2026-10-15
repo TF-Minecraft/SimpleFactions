@@ -1963,4 +1963,19 @@ class CommandManagerCoverageTest {
       verify(guild).invite("Alice");
     }
   }
+
+  @Test
+  void guildAppointAndLeadAreHandledByLeaderlessGuilds() {
+    try (MockedStatic<net.tfminecraft.simplefactions.guild.LeaderlessGuilds> leaderless =
+        mockStatic(net.tfminecraft.simplefactions.guild.LeaderlessGuilds.class)) {
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handles(anyString(), any()))
+          .thenCallRealMethod();
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handle(eq(player), any()))
+          .thenReturn(true);
+      assertTrue(run("guild", "appoint", "smiths", "Alice"));
+      assertTrue(run("guild", "lead", "smiths"));
+      leaderless.verify(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handle(eq(player), any()),
+          times(2));
+    }
+  }
 }

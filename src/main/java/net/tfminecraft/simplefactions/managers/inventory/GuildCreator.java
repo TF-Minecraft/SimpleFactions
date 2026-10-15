@@ -82,6 +82,9 @@ public class GuildCreator {
 		lore.add(StringFormatter.formatHex("#b8ae61Based in: #d4c9ae" + HomeSettlementNames.of(guild)));
 		lore.add(" ");
 		lore.add(StringFormatter.formatHex("#9c9775Leader: #c2bea7"+ReportedMenus.guildLeader(p, guild)));
+		if(guild.isLeaderless() && guild.getFaction().isLeader(p)) {
+			lore.add("§eAppoint a leader: §f/guild appoint "+guild.getId()+" <name>");
+		}
 		lore.add(StringFormatter.formatHex("#b8ae61Members: #7fbd73"+(own ? String.valueOf(guild.getMembers().size()) : guildIntelligence(report, guild, "Members", ""))));
 		lore.add(" ");
         if (guild.hasCapital()) {

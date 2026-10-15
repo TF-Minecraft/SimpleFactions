@@ -102,6 +102,9 @@ public class CommandManager implements Listener, CommandExecutor{
 			if (InviteCommands.handles(cmd.getName(), args)) {
 				return InviteCommands.handle(p, cmd.getName(), args);
 			}
+			if (Members.key(p) != null && net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handles(cmd.getName(), args)) {
+				return net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handle(p, args);
+			}
 			if((cmd.getName().equalsIgnoreCase(cmd1) || cmd.getName().equalsIgnoreCase(cmd2)) && args.length < 1) {
 				p.sendMessage("§a[SimpleFactions]§c Error with command format, use the gameplay guide for a list of commands");
 				return true;

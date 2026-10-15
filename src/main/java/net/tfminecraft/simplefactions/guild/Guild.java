@@ -109,6 +109,11 @@ public class Guild {
     /** Fixed for this guild's lifetime; a later guild with the same name gets a new one. */
     private String incarnation = java.util.UUID.randomUUID().toString();
 
+    /** Set while the seat is empty because the leader died with nobody to succeed them. */
+    private String deadLeader;
+    private long leaderlessSince;
+    private String leaderOffer;
+
     public Guild(Faction f) {
         host = f;
         id = f.getId();
@@ -184,6 +189,9 @@ public class Guild {
         this.name = data.name;
         this.leader = data.leader;
         if (data.incarnation != null && !data.incarnation.isBlank()) this.incarnation = data.incarnation;
+        this.deadLeader = data.deadLeader;
+        this.leaderlessSince = data.leaderlessSince == null ? 0 : data.leaderlessSince;
+        this.leaderOffer = data.leaderOffer;
         this.rgb = data.rgb;
         this.capital = data.capital;
         this.stance = data.stance != null ? Stance.valueOf(data.stance) : Stance.NEUTRAL;
@@ -484,6 +492,7 @@ public class Guild {
         invites.removeIf(key::equals);
         dividendEligible.removeIf(key::equals);
         if (key.equals(leader)) leader = "";
+        if (key.equals(leaderOffer)) leaderOffer = null;
         if (company != null) company.removeDeadCharacter(key);
     }
 
@@ -512,6 +521,39 @@ public class Guild {
     }
     public void setLeader(String leader) {
         this.leader = leader;
+        if (leader != null && !leader.isBlank()) clearLeaderless();
+    }
+
+    /**
+     * Empties the seat of a leader who died with nobody to succeed them. The guild stays open
+     * for the realm leader to appoint someone. Replays keep the first time and any offer made since.
+     */
+    public void markLeaderless(String deadKey, long at) {
+        leader = "";
+        if (leaderlessSince > 0) return;
+        deadLeader = deadKey;
+        leaderlessSince = at;
+        leaderOffer = null;
+        invites.clear();
+    }
+
+    /** An ordinary guild whose leader died and has not been replaced. */
+    public boolean isLeaderless() {
+        return !isBase() && leaderlessSince > 0 && (leader == null || leader.isBlank());
+    }
+
+    public String getDeadLeader() { return deadLeader; }
+    public long getLeaderlessSince() { return leaderlessSince; }
+    public String getLeaderOffer() { return leaderOffer; }
+
+    public void offerLeadership(String key) { leaderOffer = key; }
+
+    public void withdrawLeaderOffer() { leaderOffer = null; }
+
+    private void clearLeaderless() {
+        deadLeader = null;
+        leaderlessSince = 0;
+        leaderOffer = null;
     }
     public boolean isLeader(String p) {
         String currentLeader = getLeader();

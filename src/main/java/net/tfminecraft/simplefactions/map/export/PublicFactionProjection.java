@@ -51,7 +51,10 @@ public final class PublicFactionProjection {
     private static void leader(JsonObject source, JsonObject target) {
         JsonElement stored = source.get("leader");
         String key = stored != null && stored.isJsonPrimitive() ? stored.getAsString() : null;
-        String name = Members.display(key);
+        JsonElement dead = source.get("dead leader");
+        boolean leaderless = (key == null || key.isBlank()) && dead != null && dead.isJsonPrimitive();
+        if (leaderless) key = dead.getAsString();
+        String name = Members.display(key) + (leaderless ? " (dead)" : "");
         String account = Members.accountName(key);
         // The website verifies these two legacy fields match before showing the character name.
         String publicLeader = account == null ? name : account;

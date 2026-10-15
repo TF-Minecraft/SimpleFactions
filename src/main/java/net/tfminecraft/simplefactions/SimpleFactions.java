@@ -564,7 +564,8 @@ public class SimpleFactions extends JavaPlugin{
         net.tfminecraft.simplefactions.estate.EstateBridge.registerFallback(this);
         getServer().getScheduler().runTaskTimer(this, () -> {
             try { net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile(); }
-            catch (Exception error) { net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error); }
+            catch (Exception error) { net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error); return; }
+            net.tfminecraft.simplefactions.guild.LeaderlessGuilds.closeExpired(System.currentTimeMillis());
         }, 72000L, 72000L);
         net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
 	}

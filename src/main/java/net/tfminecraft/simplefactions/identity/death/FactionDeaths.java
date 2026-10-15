@@ -221,8 +221,9 @@ final class FactionDeaths {
             save(faction);
             return true;
         }
+        // The guild outlives its last member; the realm leader appoints a new one (LeaderlessGuilds).
         if (!guild.isBase() && guild.getMembers().isEmpty()) {
-            faction.getGuildHandler().removeGuild(guild.getId());
+            guild.markLeaderless(key, journal.at);
             save(faction);
             return true;
         }
@@ -236,7 +237,7 @@ final class FactionDeaths {
         if (successor.isBlank() || !guild.isMember(successor)
                 || !Members.info(successor).map(CharacterInfo::alive).orElse(false)) {
             if (guild.isBase()) faction.succeedDeadLeader(key, "");
-            else guild.setLeader("");
+            else guild.markLeaderless(key, journal.at);
             save(faction);
             return false;
         }
