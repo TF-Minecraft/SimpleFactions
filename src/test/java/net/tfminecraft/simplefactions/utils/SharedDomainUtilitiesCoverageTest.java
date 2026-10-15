@@ -87,6 +87,17 @@ class SharedDomainUtilitiesCoverageTest {
     assertFalse(RandomRGB.isFree("21,42,63"));
     assertFalse(RandomRGB.isFree("84,105,126"));
     assertTrue(RandomRGB.isFree("0,0,0"));
+    assertFalse(RandomRGB.isFree("21, 042,63"), "same colour spelt differently");
+  }
+
+  @Test void coloursMatchByValue() {
+    assertTrue(RandomRGB.sameRGB("255,0,00", "255,0,0"));
+    assertFalse(RandomRGB.sameRGB("255,0,1", "255,0,0"));
+    assertFalse(RandomRGB.sameRGB(null, "255,0,0"));
+    assertTrue(RandomRGB.sameRGB("odd", "ODD"), "unparsable colours compare as text");
+    assertFalse(RandomRGB.sameRGB("1,2", "1,2,3"));
+    assertTrue(RandomRGB.sameRGB("a,b,c", "A,B,C"));
+    assertFalse(RandomRGB.sameRGB("a,b,c", "1,2,3"));
   }
 
   @Test void randomFactionColorsRetryCollisionsAndRemainValidRgbValues() {

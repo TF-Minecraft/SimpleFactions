@@ -74,6 +74,8 @@ public final class TitleAdminService {
 		if (title == null) return Result.error("No title with the id " + id);
 		String rgb = parseRgb(rawRgb);
 		if (rgb == null) return Result.error("Colour must be R,G,B with each value 0-255, e.g. 200,168,80");
+		// The web map reads land without an owner as 0,0,0.
+		if (rgb.equals("0,0,0")) return Result.error("0,0,0 is reserved for unclaimed land; pick another colour");
 		String old = title.getRgb();
 		if (rgb.equals(old)) return Result.error(title.getId() + " already uses " + rgb);
 		for (Title other : TitleLoader.getByTier(title.getTier())) {
