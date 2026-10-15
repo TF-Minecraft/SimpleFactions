@@ -3,33 +3,38 @@ package net.tfminecraft.simplefactions.economy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.government.StabilityModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /**
- * Guild treasuries and espionage stability read once on the main thread. DenarEconomy and
- * TLibs character identity refuse reads from other threads, so income previews that run
- * async read these instead.
+ * Guild treasuries, node upkeep and espionage stability read once on the main thread.
+ * DenarEconomy, Dowsing and TLibs character identity refuse reads from other threads, so
+ * income previews that run async read these instead.
  */
 public final class FrozenReads {
     private static final ThreadLocal<FrozenReads> CURRENT = new ThreadLocal<>();
 
     private final Map<String, Long> cents;
+    private final Map<UUID, Double> nodeUpkeep;
     private final Map<String, List<StabilityModifier>> espionage;
 
-    private FrozenReads(Map<String, Long> cents, Map<String, List<StabilityModifier>> espionage) {
+    private FrozenReads(
+            Map<String, Long> cents, Map<UUID, Double> nodeUpkeep, Map<String, List<StabilityModifier>> espionage) {
         this.cents = Map.copyOf(cents);
+        this.nodeUpkeep = Map.copyOf(nodeUpkeep);
         this.espionage = Map.copyOf(espionage);
     }
 
-    /** Reads every guild treasury and realm espionage modifier now. Call on the main thread. */
+    /** Reads every guild treasury and node upkeep and every realm espionage modifier now. Call on the main thread. */
     public static FrozenReads capture() {
         long now = System.currentTimeMillis();
         Map<String, List<StabilityModifier>> espionage = new HashMap<>();
@@ -44,14 +49,19 @@ public final class FrozenReads {
             }
         }
         Map<String, Long> cents = new HashMap<>();
+        Map<UUID, Double> nodeUpkeep = new HashMap<>();
         for (Guild guild : FactionManager.getAllGuilds()) {
             Bank bank = guild == null ? null : guild.getBank();
             if (bank != null) {
                 String account = bank.accountId();
                 cents.put(account, Denars.balance(account));
             }
+            UUID incarnation = guild == null ? null : guild.getIncarnationId();
+            if (incarnation != null) {
+                nodeUpkeep.put(incarnation, Ledger.liveNodeUpkeep(guild));
+            }
         }
-        return new FrozenReads(cents, espionage);
+        return new FrozenReads(cents, nodeUpkeep, espionage);
     }
 
     /** Runs the work with these reads standing in for the live state on this thread. */
@@ -76,6 +86,16 @@ public final class FrozenReads {
             return current.cents.getOrDefault(account, 0L);
         }
         return Denars.balance(account);
+    }
+
+    /** The frozen node upkeep inside {@link #read}, otherwise the live upkeep. */
+    public static double nodeUpkeep(Guild guild) {
+        FrozenReads current = CURRENT.get();
+        if (current != null) {
+            UUID incarnation = guild.getIncarnationId();
+            return incarnation == null ? 0.0 : current.nodeUpkeep.getOrDefault(incarnation, 0.0);
+        }
+        return Ledger.liveNodeUpkeep(guild);
     }
 
     /** The frozen espionage modifiers inside {@link #read}, otherwise the live ones at {@code now}. */

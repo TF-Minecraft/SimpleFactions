@@ -32,7 +32,9 @@ import net.tfminecraft.simplefactions.espionage.SpecialPositionAssignment;
 import net.tfminecraft.simplefactions.government.StabilityModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
+import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
+import net.tfminecraft.simplefactions.guild.income.Ledger;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
@@ -64,6 +66,7 @@ class FrozenReadsTest {
 
     @AfterEach
     void tearDown() {
+        Ledger.setNodeUpkeepLookup(null);
         FactionManager.factions.clear();
         FactionManager.factions.addAll(savedFactions);
     }
@@ -157,6 +160,32 @@ class FrozenReadsTest {
         Faction later = mock(Faction.class);
         when(later.getId()).thenReturn("later");
         assertEquals(List.of(), frozen.read(() -> FrozenReads.espionage(later, now)));
+    }
+
+    @Test
+    void asyncLedgerUsesNodeUpkeepCapturedOnTheMainThread() throws Exception {
+        Thread main = Thread.currentThread();
+        Ledger.setNodeUpkeepLookup(g -> {
+            if (Thread.currentThread() != main) {
+                throw new IllegalStateException("Character identity must be used on the main thread");
+            }
+            return g == guild ? 200 : 0;
+        });
+        when(guild.getFaction()).thenReturn(FactionManager.factions.getFirst());
+        Ledger ledger = new Ledger(guild);
+
+        // Dowsing's lookup asks SimpleFactions' API for readiness, which only answers on the main thread.
+        ExecutionException live = assertThrows(ExecutionException.class,
+                () -> CompletableFuture.supplyAsync(() -> ledger.getIncome(Cashflow.NODES)).get());
+        assertInstanceOf(IllegalStateException.class, live.getCause());
+
+        FrozenReads frozen;
+        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+            denars.when(() -> Denars.balance(anyString())).thenReturn(0L);
+            frozen = FrozenReads.capture();
+        }
+        assertEquals(-200.0, CompletableFuture.supplyAsync(() -> frozen.read(() -> ledger.getIncome(Cashflow.NODES))).get());
+        assertEquals(-200.0, ledger.getIncome(Cashflow.NODES));
     }
 
     /** Knows one dead character and refuses lookups off the capturing thread, like TLibs. */
