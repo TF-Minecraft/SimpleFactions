@@ -1358,4 +1358,14 @@ class GuildMenusCoverageTest {
     fixture.player.openInventory(inventory);
     return inventory;
   }
+
+  @Test
+  void leaderlessGuildListShowsTheAppointCommandOnlyToTheRealmLeader() {
+    Guild display = displayGuild(guild);
+    doReturn(true).when(display).isLeaderless();
+    when(fixture.host.isLeader(fixture.player)).thenReturn(true);
+    assertLore(creator.createListItem(fixture.player, display), "/guild appoint", true);
+    when(fixture.host.isLeader(fixture.player)).thenReturn(false);
+    assertLore(creator.createListItem(fixture.player, display), "/guild appoint", false);
+  }
 }

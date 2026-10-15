@@ -36,6 +36,13 @@ public final class TestCharacters implements Members.Resolver {
         return key;
     }
 
+    /** Marks a registered character as permanently dead. */
+    public void kill(String key) {
+        CharacterInfo info = characters.get(key);
+        characters.put(key, new CharacterInfo(info.ref(), info.name(), CharacterStatus.DEAD, info.raceId(),
+                info.traits(), info.playtimeSeconds(), info.lastPlayedAt()));
+    }
+
     /** Starts a session for {@code key} on that player; null ends it. */
     public void play(Player player, String key) {
         if (key == null) playing.remove(player);

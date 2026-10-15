@@ -264,6 +264,9 @@ public class Movement {
         if (guild.isBase()) {
             return MovementJoinCopy.guildCannotBeBase(staff, guild);
         }
+        if (guild.isLeaderless()) {
+            return MovementJoinCopy.guildLeaderless(staff, guild);
+        }
         if (guild.getStance(f) == Stance.SUPPORT) {
             return MovementJoinCopy.guildSupportStance(staff, guild, f);
         }

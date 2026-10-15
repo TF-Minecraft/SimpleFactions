@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.loaders.LawLoader;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InviteCommands;
+import net.tfminecraft.simplefactions.guild.LeaderlessGuilds;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.RequestManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
@@ -226,6 +227,8 @@ public class TabCompletion implements TabCompleter{
 					completions.add("setbanner");
 					completions.add("setcolour");
 				}
+				if(!LeaderlessGuilds.appointable(Members.key(p)).isEmpty()) completions.add("appoint");
+				if(LeaderlessGuilds.offeredTo(Members.key(p)) != null) completions.add("lead");
 				if(Permissions.isAdmin(sender)) {
 					completions.add("dummify");
 					completions.add("dummyleader");
@@ -556,6 +559,18 @@ public class TabCompletion implements TabCompleter{
 			if(sender instanceof Player){
 				List<String> completions = new ArrayList<String>();
 				
+				return completions;
+			}
+		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("appoint")){
+			if(sender instanceof Player p){
+				return LeaderlessGuilds.appointable(Members.key(p)).stream().map(Guild::getId)
+						.filter(id -> id.startsWith(args[1].toLowerCase(java.util.Locale.ROOT))).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+			}
+		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("lead")){
+			if(sender instanceof Player p){
+				Guild offered = LeaderlessGuilds.offeredTo(Members.key(p));
+				List<String> completions = new ArrayList<>();
+				if (offered != null) completions.add(offered.getId());
 				return completions;
 			}
 		} else if(eitherCommand(cmd) && args.length == 2

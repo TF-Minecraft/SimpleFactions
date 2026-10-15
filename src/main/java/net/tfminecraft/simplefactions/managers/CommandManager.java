@@ -103,6 +103,9 @@ public class CommandManager implements Listener, CommandExecutor{
 			if (InviteCommands.handles(cmd.getName(), args)) {
 				return InviteCommands.handle(p, cmd.getName(), args);
 			}
+			if (Members.key(p) != null && net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handles(cmd.getName(), args)) {
+				return net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handle(p, args);
+			}
 			if((cmd.getName().equalsIgnoreCase(cmd1) || cmd.getName().equalsIgnoreCase(cmd2)) && args.length < 1) {
 				p.sendMessage("§a[SimpleFactions]§c Error with command format, use the gameplay guide for a list of commands");
 				return true;
@@ -538,6 +541,19 @@ public class CommandManager implements Listener, CommandExecutor{
 				}
 				if(g.isBase()) {
 					p.sendMessage("§cThis is the base guild, use /faction forceleader instead");
+					return true;
+				}
+				if(g.isLeaderless()) {
+					// Any living member of the realm may fill an empty seat, even of a guild with no members.
+					String member = Members.find(g.getFaction().getMembers(), rest(args, 2));
+					if(member == null || !Members.info(member).map(net.tfminecraft.tlibs.character.CharacterInfo::alive).orElse(false)) {
+						p.sendMessage("§cNo living member of "+g.getFaction().getName()+" §cby that name");
+					} else if(FactionManager.getGuildByLeader(member) != null) {
+						p.sendMessage("§c"+Members.display(member)+" already leads a guild");
+					} else {
+						String failure = net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(g, member);
+						p.sendMessage(failure != null ? failure : "§a"+Members.display(member)+" now leads "+g.getName());
+					}
 					return true;
 				}
 				String member = Members.find(g.getMembers(), rest(args, 2));

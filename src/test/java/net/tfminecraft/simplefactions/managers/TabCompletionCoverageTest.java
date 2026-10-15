@@ -753,4 +753,28 @@ class TabCompletionCoverageTest {
     List<String> result = completion.onTabComplete(sender, command, commandName, args);
     return result == null ? List.of() : result;
   }
+
+  @Test
+  void leaderlessGuildCommandsCompleteForTheRealmLeaderAndTheOfferedCharacter() {
+    Guild smiths = mock(Guild.class);
+    when(smiths.getId()).thenReturn("smiths");
+    try (MockedStatic<net.tfminecraft.simplefactions.guild.LeaderlessGuilds> leaderless =
+        mockStatic(net.tfminecraft.simplefactions.guild.LeaderlessGuilds.class)) {
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.appointable("Leader"))
+          .thenReturn(List.of(smiths));
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.offeredTo("Leader"))
+          .thenReturn(smiths);
+      assertTrue(complete("guild", "").containsAll(List.of("appoint", "lead")));
+      assertEquals(List.of("smiths"), complete("guild", "appoint", "Sm"));
+      assertTrue(complete("guild", "appoint", "x").isEmpty());
+      assertEquals(List.of("smiths"), complete("guild", "lead", ""));
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.offeredTo("Leader"))
+          .thenReturn(null);
+      assertTrue(complete("guild", "lead", "").isEmpty());
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.appointable("Leader"))
+          .thenReturn(List.of());
+      assertFalse(complete("guild", "").contains("appoint"));
+      assertFalse(complete("guild", "").contains("lead"));
+    }
+  }
 }

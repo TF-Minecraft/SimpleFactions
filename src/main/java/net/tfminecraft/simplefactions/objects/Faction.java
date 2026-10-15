@@ -1159,6 +1159,7 @@ public class Faction {
 			case INDEPENDENCE:
 				if(cause == null) return; //no cause = no members to give independence to
 				for(Guild guild : cause.getPool().getGuilds()) {
+					if(guild.isLeaderless()) continue; // stays for the realm leader to appoint
 					if(guild.canBeElevated(null)) {
 						guild.elevate(false);
 					} else {
@@ -1172,6 +1173,7 @@ public class Faction {
 			case NATIONHOOD:
 				if(cause == null) return; //no cause = no members to give nationhood
 				for(Guild guild : cause.getPool().getGuilds()) {
+					if(guild.isLeaderless()) continue; // stays for the realm leader to appoint
 					if(guild.canBeElevated(null)) {
 						guild.elevate(true);
 					} else {
@@ -1461,6 +1463,8 @@ public class Faction {
 		} else {
 			for(Guild guild : guilds) {
 				if(guild.isBase()) continue;
+				// Nobody can lead it as a realm of its own; it stays for this realm's leader to appoint.
+				if(guild.isLeaderless()) continue;
 				if(guild.canBeElevated(null)){
 					guild.elevate(false);
 				} else {

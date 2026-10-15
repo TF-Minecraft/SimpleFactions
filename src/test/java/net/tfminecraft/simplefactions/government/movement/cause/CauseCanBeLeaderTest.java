@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.government.movement.cause;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -71,5 +72,18 @@ class CauseCanBeLeaderTest {
 		Proposal proposal = mock(Proposal.class);
 		when(proposal.getPoliticalAction()).thenReturn(action);
 		return proposal;
+	}
+
+	@Test
+	void leaderlessGuildCannotJoinACause() {
+		Faction host = mock(Faction.class);
+		Movement movement = mock(Movement.class);
+		when(movement.getFaction()).thenReturn(host);
+		Cause cause = new Cause(movement, proposal(true, false, true), "Alice");
+		Guild guild = mock(Guild.class);
+		when(guild.isLeaderless()).thenReturn(true);
+		when(guild.getId()).thenReturn("smiths");
+		assertEquals("§cA guild without a leader cannot support a movement.", cause.guildBlockReason(guild, true, false));
+		assertEquals("§csmiths has no leader and cannot support a movement.", cause.guildBlockReason(guild, true, true));
 	}
 }

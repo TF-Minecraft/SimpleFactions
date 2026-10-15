@@ -32,7 +32,8 @@ final class ReportDetails {
             report.details.put("construction", pending == null ? List.of() : List.of((pending.isUpgrade() ? "Upgrading " : "Building ") + pending.getName()));
         }
         if (report.allows("guild-leader")) for (var guild : target.getGuildHandler().getGuilds())
-            report.details.put("guild-leader:" + guild.getId(), List.of(Members.display(guild.getLeader())));
+            report.details.put("guild-leader:" + guild.getId(), List.of(java.util.Objects.requireNonNullElse(
+                    net.tfminecraft.simplefactions.guild.LeaderlessGuilds.deadLeaderLabel(guild), Members.display(guild.getLeader()))));
         VehicleIntelligence.captureTypes(report, target);
         if (report.allows("upgrades")) for (var guild : target.getGuildHandler().getGuilds())
             report.details.put("upgrading:" + guild.getId(), guild.getUpgradeQueue().stream()

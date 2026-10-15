@@ -20,6 +20,7 @@ public final class LeaderCharacterListener implements Listener {
                 || !event.getSession().ref().ownerId().equals(player.getUniqueId())
                 || !Characters.isCurrent(event.getSession())) return;
         refresh(Members.key(event.getSession().ref()));
+        net.tfminecraft.simplefactions.guild.LeaderlessGuilds.remind(player);
     }
 
     /**

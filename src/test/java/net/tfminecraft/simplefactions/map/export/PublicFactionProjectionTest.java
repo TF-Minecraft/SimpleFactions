@@ -42,4 +42,18 @@ class PublicFactionProjectionTest {
         assertEquals(0, PublicFactionProjection.faction(new com.google.gson.JsonObject())
                 .getAsJsonArray("guilds").size());
     }
+
+    @Test
+    void emptySeatShowsTheDeadLeaderMarkedDead() {
+        var characters = net.tfminecraft.simplefactions.guild.TestCharacters.install();
+        String dead = characters.character(java.util.UUID.randomUUID(), "Grim Hollow");
+        String living = characters.character(java.util.UUID.randomUUID(), "Kira Vale");
+        var result = PublicFactionProjection.faction(JsonParser.parseString("""
+                {"guilds":[{"id":"a","leader":"","dead leader":"%s"},{"id":"b","leader":"%s","dead leader":"%s"}]}
+                """.formatted(dead, living, dead)).getAsJsonObject());
+        var guilds = result.getAsJsonArray("guilds");
+        assertEquals("Grim Hollow (dead)", guilds.get(0).getAsJsonObject().get("leader character").getAsString());
+        assertEquals("Kira Vale", guilds.get(1).getAsJsonObject().get("leader character").getAsString());
+        assertFalse(result.toString().contains(dead));
+    }
 }

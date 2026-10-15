@@ -221,8 +221,10 @@ final class FactionDeaths {
             save(faction);
             return true;
         }
+        // The guild outlives its last member; the realm leader appoints a new one (LeaderlessGuilds).
         if (!guild.isBase() && guild.getMembers().isEmpty()) {
-            faction.getGuildHandler().removeGuild(guild.getId());
+            guild.markLeaderless(key, journal.at);
+            leaveMovements(guild, faction);
             save(faction);
             return true;
         }
@@ -236,7 +238,10 @@ final class FactionDeaths {
         if (successor.isBlank() || !guild.isMember(successor)
                 || !Members.info(successor).map(CharacterInfo::alive).orElse(false)) {
             if (guild.isBase()) faction.succeedDeadLeader(key, "");
-            else guild.setLeader("");
+            else {
+                guild.markLeaderless(key, journal.at);
+                leaveMovements(guild, faction);
+            }
             save(faction);
             return false;
         }
@@ -302,6 +307,13 @@ final class FactionDeaths {
         for (Faction survivor : FactionManager.getCopy()) {
             survivor.getDiplomacyHandler().removeRelation(id);
             save(survivor);
+        }
+    }
+
+    /** Other realms' movements are saved here; the guild's own realm is saved by the caller. */
+    private static void leaveMovements(Guild guild, Faction own) throws IOException {
+        for (Faction other : net.tfminecraft.simplefactions.guild.LeaderlessGuilds.withdrawFromMovements(guild)) {
+            if (other != own) save(other);
         }
     }
 

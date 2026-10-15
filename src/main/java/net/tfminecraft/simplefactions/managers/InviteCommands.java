@@ -174,6 +174,7 @@ public final class InviteCommands {
 
 	private static void declineGuild(Player p, String id) {
 		Guild g = FactionManager.getGuildByString(id);
+		if (g != null && net.tfminecraft.simplefactions.guild.LeaderlessGuilds.decline(p, g)) return;
 		if (g == null || !g.consumeInvite(Members.key(p))) {
 			p.sendMessage("§cYou have no invite from that guild");
 			return;

@@ -46,6 +46,8 @@ public final class ReportedMenus {
     }
 
     public static String guildLeader(Player viewer, Guild guild) {
+        String dead = net.tfminecraft.simplefactions.guild.LeaderlessGuilds.deadLeaderLabel(guild);
+        if (dead != null) return dead;
         if (EspionageService.canViewExact(viewer, guild.getFaction()) || guild.getFaction().isLeader(guild.getLeader()))
             return Members.display(viewer, guild.getLeader());
         var report = EspionageService.report(viewer, guild.getFaction());

@@ -73,6 +73,7 @@ class GuildEstateFallbackTest {
     }
 
     @AfterEach void close() {
+        net.tfminecraft.simplefactions.guild.LeaderlessGuilds.resetForTests();
         CharacterDeaths.stop();
         Members.useSharedIdentity();
         WarbandManager.resetForTests();
@@ -174,6 +175,29 @@ class GuildEstateFallbackTest {
         var answer = (DeathGuild.Guild) fallback.deathGuild(owner.characterId(), death);
         assertTrue(answer.live());
         assertEquals(Optional.empty(), answer.leader());
+    }
+
+    @Test void anUnsavedClosureIsUnavailableUntilItsRealmIsSaved() throws Exception {
+        CharacterRef master = character();
+        Faction faction = realm("realm", character());
+        Guild smiths = guild(faction, "smiths", master);
+        UUID death = kill(master);
+        assertTrue(smiths.isLeaderless());
+        var open = (DeathGuild.Guild) fallback.deathGuild(master.characterId(), death);
+        assertTrue(open.live());
+        assertEquals(Optional.empty(), open.leader());
+        long due = smiths.getEmptySince() + net.tfminecraft.simplefactions.guild.LeaderlessGuilds.CLOSE_AFTER.toMillis();
+        saveWorks.set(false);
+        net.tfminecraft.simplefactions.guild.LeaderlessGuilds.closeExpired(due);
+        assertNull(faction.getGuildHandler().getGuild("smiths"));
+        assertEquals(DeathGuild.UNAVAILABLE, fallback.deathGuild(master.characterId(), death));
+        assertEquals(GuildLookup.UNAVAILABLE, fallback.guild(smiths.getIncarnationId()));
+        net.tfminecraft.simplefactions.guild.LeaderlessGuilds.closeExpired(due + 1);
+        assertEquals(GuildLookup.UNAVAILABLE, fallback.guild(smiths.getIncarnationId()));
+        saveWorks.set(true);
+        net.tfminecraft.simplefactions.guild.LeaderlessGuilds.closeExpired(due + 2);
+        assertEquals(GuildLookup.GONE, fallback.guild(smiths.getIncarnationId()));
+        assertFalse(((DeathGuild.Guild) fallback.deathGuild(master.characterId(), death)).live());
     }
 
     @Test void journalWithoutTheRealmFieldFindsItInTheStoredPlan() throws Exception {

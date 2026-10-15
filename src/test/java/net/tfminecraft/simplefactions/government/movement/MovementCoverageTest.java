@@ -500,4 +500,18 @@ class MovementCoverageTest {
     empty.foreignBackers = null;
     assertTrue(new Movement(faction, empty).getCauses().isEmpty());
   }
+
+  @Test
+  void leaderlessGuildCannotSupportAMovement() {
+    Faction faction = host();
+    Movement movement = movement(faction, "Bob");
+    Guild guild = fixture.guild(faction, "smiths", "Eve");
+    guild.kick("Eve");
+    guild.markLeaderless("Eve", 1L);
+    assertTrue(movement.guildSupporterBlockReason(guild, false).contains("without a leader"));
+    assertTrue(movement.guildSupporterBlockReason(guild, true).contains("smiths has no leader"));
+    assertNotNull(movement.joinBlockReason(guild, null, true));
+    movement.join(guild, null);
+    assertFalse(movement.getSupporters().getGuilds().contains(guild));
+  }
 }

@@ -61,6 +61,13 @@ public final class MovementJoinCopy {
 				"§c" + guildId(guild) + " is the base guild and cannot support the movement.");
 	}
 
+	public static String guildLeaderless(boolean staff, Guild guild) {
+		return pick(
+				staff,
+				"§cA guild without a leader cannot support a movement.",
+				"§c" + guildId(guild) + " has no leader and cannot support a movement.");
+	}
+
 	public static String guildSupportStance(boolean staff, Guild guild, Faction host) {
 		return pick(
 				staff,

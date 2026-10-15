@@ -123,7 +123,8 @@ public final class CivilWarStartService {
 			return result;
 		}
 		for (Guild guild : movement.getAllSupportingGuilds()) {
-			if (guild == null || guild.isBase()) {
+			// A leaderless guild stays in its realm for the realm leader to appoint.
+			if (guild == null || guild.isBase() || guild.isLeaderless()) {
 				continue;
 			}
 			if (guild.getFaction() != null && host.getId().equalsIgnoreCase(guild.getFaction().getId())) {
