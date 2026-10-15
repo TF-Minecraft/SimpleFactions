@@ -538,10 +538,9 @@ public class CommandManager implements Listener, CommandExecutor{
 						p.sendMessage("§cNo living member of "+g.getFaction().getName()+" §cby that name");
 					} else if(FactionManager.getGuildByLeader(member) != null) {
 						p.sendMessage("§c"+Members.display(member)+" already leads a guild");
-					} else if(!net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(g, member)) {
-						p.sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
 					} else {
-						p.sendMessage("§a"+Members.display(member)+" now leads "+g.getName());
+						String failure = net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(g, member);
+						p.sendMessage(failure != null ? failure : "§a"+Members.display(member)+" now leads "+g.getName());
 					}
 					return true;
 				}

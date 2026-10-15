@@ -2010,9 +2010,10 @@ class CommandManagerCoverageTest {
       assertTrue(run("guild", "forceleader", "merchants", "Alice"));
       verify(player).sendMessage("§cAlice already leads a guild");
       factions.when(() -> FactionManager.getGuildByLeader("Alice")).thenReturn(null);
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(guild, "Alice")).thenReturn("§cNot saved");
       assertTrue(run("guild", "forceleader", "merchants", "Alice"));
-      verify(player).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
-      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(guild, "Alice")).thenReturn(true);
+      verify(player).sendMessage("§cNot saved");
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(guild, "Alice")).thenReturn(null);
       assertTrue(run("guild", "forceleader", "merchants", "Alice"));
       verify(player).sendMessage("§aAlice now leads Merchants");
     }

@@ -39,14 +39,14 @@ class LeaderlessGuildsTest {
     private Faction realm;
     private Guild smiths;
     private Player rulerPlayer;
-    private boolean saves = true;
+    private int failures;
 
     @BeforeEach
     void setUp() {
         fixture = new FactionDomainFixture();
         characters = TestCharacters.install();
         databases = mockConstruction(Database.class,
-                (database, context) -> when(database.saveFactionDurably(any())).thenAnswer(call -> saves));
+                (database, context) -> when(database.saveFactionDurably(any())).thenAnswer(call -> failures-- <= 0));
         ruler = characters.character(UUID.randomUUID(), "Queen Ada");
         founder = characters.character(UUID.randomUUID(), "Grim Hollow");
         realm = fixture.saved("realm", ruler);
@@ -61,6 +61,7 @@ class LeaderlessGuildsTest {
 
     @AfterEach
     void tearDown() {
+        LeaderlessGuilds.resetForTests();
         databases.close();
         fixture.close();
     }
@@ -293,7 +294,7 @@ class LeaderlessGuildsTest {
         Player kiraPlayer = fixture.player("kira");
         characters.play(kiraPlayer, kira);
         smiths.offerLeadership(kira);
-        saves = false;
+        failures = 1;
 
         LeaderlessGuilds.accept(kiraPlayer, "smiths");
         verify(kiraPlayer).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
@@ -312,12 +313,13 @@ class LeaderlessGuildsTest {
         String kira = citizen("Kira Vale");
         Player kiraPlayer = fixture.player("kira");
         characters.play(kiraPlayer, kira);
-        saves = false;
+        failures = 1;
         LeaderlessGuilds.appoint(rulerPlayer, "smiths", "Kira Vale");
         verify(rulerPlayer).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
         assertNull(smiths.getLeaderOffer());
 
         smiths.offerLeadership(kira);
+        failures = 1;
         assertTrue(LeaderlessGuilds.decline(kiraPlayer, smiths));
         verify(kiraPlayer).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
         assertEquals(kira, smiths.getLeaderOffer());
@@ -363,9 +365,34 @@ class LeaderlessGuildsTest {
     @Test
     void fillingAGuildWithoutAnOfferStillClearsTheVacancy() {
         String kira = citizen("Kira Vale");
-        assertTrue(LeaderlessGuilds.fill(smiths, kira));
+        assertNull(LeaderlessGuilds.fill(smiths, kira));
         assertEquals(kira, smiths.getLeader());
         assertFalse(smiths.isLeaderless());
         assertEquals(0, smiths.getEmptySince());
+    }
+
+    @Test
+    void anUndoThatCannotBeSavedEitherAsksStaffToCheck() {
+        String kira = citizen("Kira Vale");
+        Player kiraPlayer = fixture.player("kira");
+        characters.play(kiraPlayer, kira);
+        smiths.offerLeadership(kira);
+        failures = 2;
+        LeaderlessGuilds.accept(kiraPlayer, "smiths");
+        verify(kiraPlayer).sendMessage(LeaderlessGuilds.UNCERTAIN);
+        assertTrue(smiths.isLeaderless());
+        assertEquals(kira, smiths.getLeaderOffer());
+    }
+
+    @Test
+    void aClosureWhoseRealmLaterDisappearsIsForgotten() {
+        long due = 1_000L + LeaderlessGuilds.CLOSE_AFTER.toMillis();
+        failures = 1;
+        LeaderlessGuilds.closeExpired(due);
+        assertTrue(LeaderlessGuilds.closing(smiths.getIncarnationId()));
+        assertFalse(LeaderlessGuilds.closing(null));
+        FactionManager.factions.remove(realm);
+        LeaderlessGuilds.closeExpired(due + 1);
+        assertFalse(LeaderlessGuilds.closing(smiths.getIncarnationId()));
     }
 }

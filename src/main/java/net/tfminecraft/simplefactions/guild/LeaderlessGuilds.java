@@ -3,6 +3,9 @@ package net.tfminecraft.simplefactions.guild;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
@@ -29,6 +32,9 @@ public final class LeaderlessGuilds {
     public static final Duration CLOSE_AFTER = Duration.ofDays(30);
     private static final String GUILD = "guild";
     private static final String NOT_SAVED = "§cThe guild could not be saved. Nothing changed; try again shortly.";
+    static final String UNCERTAIN = "§cThe guild could not be saved and may need staff to check it.";
+    /** Guilds closed in memory whose realm has not been saved yet, by incarnation, with their realm's id. */
+    private static final Map<UUID, String> unsavedClosures = new ConcurrentHashMap<>();
 
     private LeaderlessGuilds() {}
 
@@ -113,7 +119,7 @@ public final class LeaderlessGuilds {
         guild.offerLeadership(target);
         if (!save(faction)) {
             guild.offerLeadership(previousOffer);
-            p.sendMessage(NOT_SAVED);
+            p.sendMessage(undo(faction));
             return;
         }
         p.sendMessage("§aOffered the leadership of " + guild.getName() + " §ato " + Members.display(target)
@@ -137,8 +143,9 @@ public final class LeaderlessGuilds {
             p.sendMessage("§cYou already lead a guild");
             return;
         }
-        if (!fill(guild, own)) {
-            p.sendMessage(NOT_SAVED);
+        String failure = fill(guild, own);
+        if (failure != null) {
+            p.sendMessage(failure);
             return;
         }
         p.sendMessage("§aYou now lead " + guild.getName());
@@ -155,7 +162,7 @@ public final class LeaderlessGuilds {
         guild.withdrawLeaderOffer();
         if (!save(guild.getFaction())) {
             guild.offerLeadership(own);
-            p.sendMessage(NOT_SAVED);
+            p.sendMessage(undo(guild.getFaction()));
             return true;
         }
         p.sendMessage("§aDeclined the leadership of " + guild.getName());
@@ -177,9 +184,9 @@ public final class LeaderlessGuilds {
 
     /**
      * Makes {@code member}, a living member of the guild's realm, its leader and saves the realm.
-     * When the save fails nothing is kept and the result is false.
+     * Null when saved; otherwise the change is undone and the message to show is returned.
      */
-    public static boolean fill(Guild guild, String member) {
+    public static String fill(Guild guild, String member) {
         Faction faction = guild.getFaction();
         String deadLeader = guild.getDeadLeader();
         long since = guild.getLeaderlessSince();
@@ -194,28 +201,39 @@ public final class LeaderlessGuilds {
             guild.kick(member);
             guild.restoreLeaderless(deadLeader, since, empty, offer);
             if (previous != null && index >= 0) previous.getMembers().add(Math.min(index, previous.getMembers().size()), member);
-            return false;
+            return undo(faction);
         }
         net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(member);
         faction.updatePrestige();
-        return true;
+        return null;
+    }
+
+    /** Estates wait while a closed guild's removal is not on disk: a restart would bring it back. */
+    public static boolean closing(UUID incarnation) {
+        return incarnation != null && unsavedClosures.containsKey(incarnation);
     }
 
     /** Hourly: removes leaderless guilds that have had no members for {@link #CLOSE_AFTER}. */
     public static void closeExpired(long now) {
+        for (String id : new java.util.HashSet<>(unsavedClosures.values())) {
+            Faction faction = FactionManager.getByString(id);
+            if (faction == null || save(faction)) unsavedClosures.values().removeIf(id::equals);
+        }
         for (Faction faction : new ArrayList<>(FactionManager.factions)) {
             if (faction == null) continue;
             boolean changed = false;
+            List<UUID> closed = new ArrayList<>();
             for (Guild guild : new ArrayList<>(faction.getGuildHandler().getGuilds())) {
                 if (guild == null || !guild.isLeaderless()) continue;
                 changed |= guild.trackEmpty(now);
                 if (!guild.getMembers().isEmpty() || now - guild.getEmptySince() < CLOSE_AFTER.toMillis()) continue;
                 faction.getGuildHandler().removeGuild(guild.getId());
+                closed.add(guild.getIncarnationId());
                 Logger.getLogger("SimpleFactions").info("Closed " + guild.getName() + " (" + guild.getIncarnation()
                         + "): no leader was appointed within " + CLOSE_AFTER.toDays() + " days");
                 changed = true;
             }
-            if (changed) save(faction);
+            if (changed && !save(faction)) closed.forEach(incarnation -> unsavedClosures.put(incarnation, faction.getId()));
         }
     }
 
@@ -233,6 +251,21 @@ public final class LeaderlessGuilds {
         return Component.text(label, colour, TextDecoration.BOLD)
                 .clickEvent(ClickEvent.runCommand(command))
                 .hoverEvent(HoverEvent.showText(Component.text(hover)));
+    }
+
+    /**
+     * A failed save may still have replaced the file before its directory sync failed, so the
+     * undone state is saved again; the message says whether that worked.
+     */
+    private static String undo(Faction faction) {
+        if (save(faction)) return NOT_SAVED;
+        Logger.getLogger("SimpleFactions").severe("Could not save " + faction.getId()
+                + " after undoing a guild leadership change; its file may hold the change. Check it before restarting.");
+        return UNCERTAIN;
+    }
+
+    public static void resetForTests() {
+        unsavedClosures.clear();
     }
 
     private static boolean save(Faction faction) {

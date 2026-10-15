@@ -7,6 +7,7 @@ import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.simplefactions.api.SimpleFactionsApi;
 import net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.LeaderlessGuilds;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.identity.death.CharacterDeaths;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -29,6 +30,7 @@ final class GuildEstateFallback implements EstateFallback {
             case UNAVAILABLE -> DeathGuild.UNAVAILABLE;
             case NONE -> DeathGuild.NONE;
             case GUILD -> {
+                if (LeaderlessGuilds.closing(recorded.incarnation())) yield DeathGuild.UNAVAILABLE;
                 Guild live = byIncarnation(recorded.incarnation());
                 yield DeathGuild.guild(recorded.incarnation(), live != null,
                         live == null ? Optional.empty() : leader(live), Optional.ofNullable(recorded.realm()));
@@ -38,7 +40,9 @@ final class GuildEstateFallback implements EstateFallback {
 
     @Override
     public GuildLookup guild(UUID incarnation) {
-        if (incarnation == null || !SimpleFactionsApi.ready()) return GuildLookup.UNAVAILABLE;
+        if (incarnation == null || !SimpleFactionsApi.ready() || LeaderlessGuilds.closing(incarnation)) {
+            return GuildLookup.UNAVAILABLE;
+        }
         Guild guild = byIncarnation(incarnation);
         return guild == null ? GuildLookup.GONE : GuildLookup.live(ref(guild));
     }
