@@ -93,7 +93,7 @@ public class FactionCreator {
 		if(realmSize > 0 && realmSize-f.getProvinces().size() > 0) lore.add(StringFormatter.formatHex("#d4c9aeRealm Size: #7a706a"+realmSize+" #a39ba8("+(realmSize-f.getProvinces().size())+" from subjects)"));
 		else if(realmSize > 0) lore.add(StringFormatter.formatHex("#d4c9aeRealm Size: #7a706a"+realmSize));
 		lore.add(" ");
-		lore.add(StringFormatter.formatHex("#9c9775"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
+		lore.add(StringFormatter.formatHex("#9c9775"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.guild.HeldRealms.leaderName(p, f)));
 		lore.add(StringFormatter.formatHex("#b8ae61Ruling System: #d4c9ae"+f.getGovernmentString()));
 		lore.add(StringFormatter.formatHex("#b8ae61Culture: #d4c9ae"+f.getCulture()));
 		lore.add(StringFormatter.formatHex("#b8ae61Religion: #d4c9ae"+f.getReligion()));
@@ -292,7 +292,7 @@ public class FactionCreator {
 			i = new ItemStack(Material.PLAYER_HEAD, 1);
 			SkullMeta m = (SkullMeta) i.getItemMeta();
 			m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-			m.setDisplayName(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
+			m.setDisplayName(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.guild.HeldRealms.leaderName(p, f)));
 			MemberHeads.apply(m, f.getLeader());
 			List<String> lore = new ArrayList<String>();
 			lore.add(StringFormatter.formatHex("#b8ae61Ruling System: #d4c9ae"+f.getGovernmentString()));
@@ -306,7 +306,7 @@ public class FactionCreator {
 			MemberHeads.apply(m, f.getLeader());
 			List<String> lore = new ArrayList<String>();
 			Government gov = f.getGovernment();
-			lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+Members.display(p, f.getLeader())));
+			lore.add(StringFormatter.formatHex("#9c9775§l"+f.getRulerTitle()+": #c2bea7"+net.tfminecraft.simplefactions.guild.HeldRealms.leaderName(p, f)));
 			double power = Formatter.formatDouble(gov.getPower());
 			double maxPower = Formatter.formatDouble(gov.getMaxPower());
 			String powerString = ((power < 0) ? "§c" : "") + power+"/"+((maxPower < 0) ? "§c" : "") + maxPower;

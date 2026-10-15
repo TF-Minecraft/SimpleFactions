@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,8 +22,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.managers.InviteCommands;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.identity.LeaderCharacterListener;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -127,25 +133,51 @@ class HeldRealmsTest {
     }
 
     @Test
-    void anUnfinishedClosureIsFinishedLaterAndHoldsEstatesMeanwhile() {
+    void aFailedSurvivorSaveKeepsTheRealmUntilTheNextHour() {
         Faction survivor = survivor();
         UUID incarnation = main.getIncarnationId();
         failures = 1;
         HeldRealms.closeExpired(AT + WEEK, folder);
-        assertNull(FactionManager.getByString("realm"));
+        assertSame(realm, FactionManager.getByString("realm"));
         assertTrue(HeldRealms.closing(incarnation, AT));
 
         HeldRealms.closeExpired(AT + WEEK + 1, folder);
+        assertNull(FactionManager.getByString("realm"));
         assertFalse(HeldRealms.closing(incarnation, AT));
         assertFalse(survivor.getDiplomacyHandler().getRelations().containsKey("realm"));
     }
 
     @Test
-    void aNewRealmThatTookTheNameIsLeftAlone() throws Exception {
-        survivor();
-        UUID incarnation = main.getIncarnationId();
-        failures = 1;
+    void closingRemovesTradeAgreementsAndTreaties() {
+        Faction survivor = survivor();
+        survivor.getDiplomacyHandler().getTradeRelations().put("realm", null);
+        survivor.getDiplomacyHandler().getTreatyRelations().put("realm", null);
         HeldRealms.closeExpired(AT + WEEK, folder);
+        assertFalse(survivor.getDiplomacyHandler().getTradeRelations().containsKey("realm"));
+        assertFalse(survivor.getDiplomacyHandler().getTreatyRelations().containsKey("realm"));
+    }
+
+    @Test
+    void aClosureThatFailsAfterLeavingMemoryIsFinishedLater() throws Exception {
+        UUID incarnation = main.getIncarnationId();
+        Files.delete(folder.resolve("Data/realm.json"));
+        Files.delete(folder.resolve("Data"));
+        HeldRealms.closeExpired(AT + WEEK, folder);
+        assertNull(FactionManager.getByString("realm"));
+        assertTrue(HeldRealms.closing(incarnation, AT));
+
+        Files.createDirectories(folder.resolve("Data"));
+        HeldRealms.closeExpired(AT + WEEK + 1, folder);
+        assertFalse(HeldRealms.closing(incarnation, AT));
+    }
+
+    @Test
+    void aNewRealmThatTookTheNameIsLeftAlone() throws Exception {
+        UUID incarnation = main.getIncarnationId();
+        Files.delete(folder.resolve("Data/realm.json"));
+        Files.delete(folder.resolve("Data"));
+        HeldRealms.closeExpired(AT + WEEK, folder);
+        Files.createDirectories(folder.resolve("Data"));
         Faction newcomer = fixture.saved("realm", characters.character(UUID.randomUUID(), "Kira Vale"));
         newcomer.getOrCreateMainGuild();
         Files.writeString(folder.resolve("Data/realm.json"), "new");
@@ -154,6 +186,54 @@ class HeldRealmsTest {
         assertSame(newcomer, FactionManager.getByString("realm"));
         assertEquals("new", Files.readString(folder.resolve("Data/realm.json")));
         assertFalse(HeldRealms.closing(incarnation, AT));
+    }
+
+    @Test
+    void aRealmAtWarClosesOnlyOnceTheWarIsOver() {
+        try (MockedStatic<WarManager> wars = mockStatic(WarManager.class, CALLS_REAL_METHODS)) {
+            wars.when(() -> WarManager.isAtWar(realm)).thenReturn(true);
+            HeldRealms.closeExpired(AT + WEEK, folder);
+            assertSame(realm, FactionManager.getByString("realm"));
+            assertTrue(HeldRealms.closing(main.getIncarnationId(), AT + WEEK), "estates keep waiting");
+        }
+        HeldRealms.closeExpired(AT + WEEK + 1, folder);
+        assertNull(FactionManager.getByString("realm"));
+    }
+
+    @Test
+    void nobodyCanJoinAHeldRealmOnAnOldInvitation() {
+        String kira = characters.character(UUID.randomUUID(), "Kira Vale");
+        realm.getInvited().add(kira);
+        HeldRealms.hold(realm, ruler, AT);
+        assertTrue(realm.getInvited().isEmpty());
+
+        realm.getInvited().add(kira);
+        Player kiraPlayer = fixture.player("kira");
+        characters.play(kiraPlayer, kira);
+        InviteCommands.handle(kiraPlayer, "faction", new String[] {"join", "realm"});
+        verify(kiraPlayer).sendMessage("§c" + realm.getName() + " §chas no living members, so nobody can join it.");
+        assertFalse(realm.isMember(kira));
+    }
+
+    @Test
+    void menusShowTheDeadLeaderWhileTheRealmIsHeld() {
+        Player viewer = fixture.player("viewer");
+        assertEquals("§7Queen Ada (dead)", HeldRealms.leaderName(viewer, realm));
+        String kira = characters.character(UUID.randomUUID(), "Kira Vale");
+        realm.addMember(kira);
+        realm.setLeader(kira);
+        assertEquals(Members.display(viewer, kira), HeldRealms.leaderName(viewer, realm));
+    }
+
+    @Test
+    void aRevivedLeaderWhoseSaveFailsAtTheDeadlineKeepsTheRealm() {
+        characters.revive(ruler);
+        failures = 1;
+        HeldRealms.closeExpired(AT + WEEK, folder);
+        assertSame(realm, FactionManager.getByString("realm"));
+        assertTrue(HeldRealms.isHeld(realm));
+        HeldRealms.closeExpired(AT + WEEK + 1, folder);
+        assertEquals(ruler, realm.getLeader());
     }
 
     @Test

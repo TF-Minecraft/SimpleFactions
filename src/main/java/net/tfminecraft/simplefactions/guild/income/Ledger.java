@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.HeldRealms;
 import net.tfminecraft.simplefactions.guild.income.entry.PlayerEntry;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.guild.loans.LoanFunding;
@@ -724,7 +725,8 @@ public class Ledger {
     public double getOverlordTax() {
         Faction f = guild.getFaction();
         Faction overlord = f.getOverlord();
-        if (overlord == null) return 0.0;
+        // A held realm pays no overlord tax or tribute until it is taken on or closed.
+        if (overlord == null || HeldRealms.isHeld(f)) return 0.0;
 
         double base = getGrossTaxableIncome();
         return base * f.getOverlordTaxRate(overlord);
@@ -732,6 +734,7 @@ public class Ledger {
 
     public double getTributeTax() {
         Faction f = guild.getFaction();
+        if (HeldRealms.isHeld(f)) return 0.0;
         double base = getInternalTaxableIncome();
         double paid = 0.0;
         for (FactionModifier mod : f.getModifiers()) {
@@ -745,7 +748,7 @@ public class Ledger {
     public double getTributeRecieved() {
         double total = 0.0;
         for(Faction f : FactionManager.factions) {
-            if(f.getId().equals(guild.getFaction().getId())) continue;
+            if(f.getId().equals(guild.getFaction().getId()) || HeldRealms.isHeld(f)) continue;
             for(FactionModifier mod : f.getModifiers()) {
                 if(mod.getFrom() == null) continue;
                 if(!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
@@ -892,7 +895,7 @@ public class Ledger {
                             f.getName(), Math.abs(ledger.getIncome(Cashflow.OVERLORD_TAX)));
                 }
 
-                if (f.getModifiers() != null) {
+                if (f.getModifiers() != null && !HeldRealms.isHeld(f)) {
                     double base = ledger.getInternalTaxableIncome();
                     for (FactionModifier mod : f.getModifiers()) {
                         if (mod.getFrom() == null) continue;
@@ -1129,7 +1132,7 @@ public class Ledger {
             case TRIBUTE_PAYMENTS: {
                 if(!guild.isBase()) return; //only base pays
                 Faction f = guild.getFaction();
-                if (f == null || f.getModifiers() == null) return;
+                if (f == null || f.getModifiers() == null || HeldRealms.isHeld(f)) return;
                 double base = getInternalTaxableIncome();
 
                 for (FactionModifier mod : f.getModifiers()) {

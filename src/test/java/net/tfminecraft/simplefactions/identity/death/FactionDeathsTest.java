@@ -240,8 +240,9 @@ class FactionDeathsTest {
         Faction faction = realm(key);
         DeathJournal journal = capture();
         effects.apply(journal, step(journal, "rights"));
+        assertTrue(net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(faction), "held with the last member's removal");
         faction.getOrCreateMainGuild().addMember(living());
-        assertFalse(effects.apply(journal, step(journal, "succession")));
+        assertTrue(effects.apply(journal, step(journal, "succession")), "a member let in since is left to staff");
         faction.getOrCreateMainGuild().getMembers().clear();
         faction.setLeader(Members.QUARANTINED + "unresolved");
         assertFalse(effects.apply(journal, step(journal, "succession")));
@@ -426,6 +427,19 @@ class FactionDeathsTest {
         membership.handleQuit(dead.ownerId());
         store.record(capture());
         assertTrue(membership.getPendingRejoin(dead.ownerId()).isFor(other));
+    }
+
+    @Test void aSeatFilledBeforeSuccessionIsNotHeldAgain() throws Exception {
+        Faction faction = realm(key);
+        DeathJournal journal = capture();
+        effects.apply(journal, step(journal, "rights"));
+        String staffPick = living();
+        faction.addMember(staffPick);
+        faction.setLeader(staffPick);
+        faction.getOrCreateMainGuild().getMembers().clear();
+        assertTrue(effects.apply(journal, step(journal, "succession")));
+        assertEquals(staffPick, faction.getLeader());
+        assertFalse(net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(faction));
     }
 
     @Test void lastMemberDeathAlsoHoldsAnAlreadyVacantRealm() throws Exception {

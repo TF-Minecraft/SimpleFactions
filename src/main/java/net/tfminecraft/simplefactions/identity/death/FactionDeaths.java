@@ -172,8 +172,13 @@ final class FactionDeaths {
         Faction faction = realm(plan.get("realm").getAsString());
         if (faction == null) return true;
         String key = journal.characterId.toString();
+        boolean member = faction.isMember(key);
         for (Guild guild : faction.getGuildHandler().getGuilds()) guild.removeDeadCharacter(key);
         faction.succeedDeadLeader(key, "");
+        // Held in the same save as the last member's removal, so a revive before succession still finds it.
+        if (member && faction.getMembers().isEmpty() && blank(faction.getLeader())) {
+            net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, key, journal.at);
+        }
         faction.getGovernment().removeDeadCharacter(key);
         boolean vacatedOffice = faction.getEspionage().removeDeadCharacter(new CharacterRef(journal.ownerId, journal.characterId),
                 journal.deathId, journal.at);
@@ -197,9 +202,11 @@ final class FactionDeaths {
         Faction faction = realm(plan.get("realm").getAsString());
         if (plan.get("emptyRealm").getAsBoolean() && plan.get("base").getAsBoolean()) {
             if (faction == null) return true;
-            if (!faction.getMembers().isEmpty()
-                    || faction.getGuildHandler().getGuilds().stream().anyMatch(Guild::hasUnresolvedLeader)) return false;
-            net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, key, journal.at);
+            if (faction.getGuildHandler().getGuilds().stream().anyMatch(Guild::hasUnresolvedLeader)) return false;
+            // A seat filled or a member let in since is left to them and to staff.
+            if (faction.getMembers().isEmpty() && blank(faction.getLeader())) {
+                net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, key, journal.at);
+            }
             save(faction);
             return true;
         }
@@ -297,6 +304,10 @@ final class FactionDeaths {
         for (Faction other : net.tfminecraft.simplefactions.guild.LeaderlessGuilds.withdrawFromMovements(guild)) {
             if (other != own) save(other);
         }
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static Faction realm(String incarnation) {

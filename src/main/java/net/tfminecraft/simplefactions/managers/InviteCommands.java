@@ -162,6 +162,10 @@ public final class InviteCommands {
 			p.sendMessage("§cNo faction with that name exists");
 			return;
 		}
+		if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(f)) {
+			p.sendMessage("§c" + f.getName() + " §chas no living members, so nobody can join it.");
+			return;
+		}
 		if (!f.consumeInvite(Members.key(p))) {
 			p.sendMessage("§cYou need to be invited to this faction by the leader first!");
 			return;
