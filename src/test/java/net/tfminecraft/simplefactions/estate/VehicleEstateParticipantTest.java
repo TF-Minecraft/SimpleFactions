@@ -499,21 +499,71 @@ class VehicleEstateParticipantTest {
         framework.put("wagon", "wagon", tag(testator));
         Holdings holdings = participant.describe(testator.characterId());
         assertEquals(Map.of("vehicles", 2), holdings.counts());
-        assertEquals(List.of("cart cart", "wagon wagon"), holdings.labels());
+        assertEquals(List.of("Cart", "Wagon"), holdings.labels());
         framework.listFails = true;
-        assertEquals(List.of("cart cart"), participant.describe(testator.characterId()).labels());
+        assertEquals(List.of("Cart"), participant.describe(testator.characterId()).labels());
         VehicleOwnerWrites.use(null);
         assertEquals(Map.of("vehicles", 1), participant.describe(testator.characterId()).counts());
         registry.register(new PlayerVehicleRecord(testator.characterId(), "0123456789abcdef", "cart",
                 OwnershipMode.PERSONAL, null));
-        assertTrue(participant.describe(testator.characterId()).labels().contains("cart 01234567"));
+        assertTrue(participant.describe(testator.characterId()).labels().contains("Cart"));
         assertEquals(VehicleEstateParticipant.ID, participant.id());
     }
 
     @Test void describeNamesATagOnlyVehicleWithoutAType() {
         framework.vehicles.put("wagon", new OwnerMeta("wagon", null, tag(testator),
                 Optional.of(new OwnerFields(tag(testator), List.of(), false, false, null)), Optional.empty()));
-        assertEquals(List.of("vehicle wagon"), participant.describe(testator.characterId()).labels());
+        assertEquals(List.of("Vehicle"), participant.describe(testator.characterId()).labels());
+    }
+
+    @Test void describeUsesVehicleFrameworkNamesAndPlaces() {
+        row("cart", "cart", testator.characterId());
+        participant.framework = (vehicle, type) -> Optional.of("Passenger Car at 1 2 3");
+        assertEquals(List.of("Passenger Car at 1 2 3"), participant.describe(testator.characterId()).labels());
+        assertEquals("Simple locomotive", VehicleEstateParticipant.typeName("simple_locomotive"));
+        assertEquals("Vehicle", VehicleEstateParticipant.typeName("_"));
+    }
+
+    @Test void frameworkLabelReadsOnlyVehicleFrameworksMemory() {
+        var manager = mock(net.tfminecraft.vehicleframework.managers.VehicleManager.class);
+        org.bukkit.World main = mock(org.bukkit.World.class);
+        org.bukkit.World nether = mock(org.bukkit.World.class);
+        when(nether.getName()).thenReturn("world_nether");
+        var live = mock(net.tfminecraft.vehicleframework.vehicles.ActiveVehicle.class);
+        var template = mock(net.tfminecraft.vehicleframework.vehicles.Vehicle.class);
+        try (MockedStatic<net.tfminecraft.vehicleframework.VehicleFramework> framework =
+                        mockStatic(net.tfminecraft.vehicleframework.VehicleFramework.class);
+                MockedStatic<net.tfminecraft.vehicleframework.loaders.VehicleLoader> loader =
+                        mockStatic(net.tfminecraft.vehicleframework.loaders.VehicleLoader.class);
+                MockedStatic<org.bukkit.Bukkit> bukkit = mockStatic(org.bukkit.Bukkit.class)) {
+            framework.when(net.tfminecraft.vehicleframework.VehicleFramework::getVehicleManager).thenReturn(manager);
+            bukkit.when(org.bukkit.Bukkit::getWorlds).thenReturn(List.of(main, nether));
+            when(manager.get("a")).thenReturn(live);
+            when(live.getName()).thenReturn("\u00a7l\u00a7ePassenger Car");
+            when(live.getLocation()).thenReturn(new org.bukkit.Location(main, 1.5, 64, -2.5));
+            assertEquals(Optional.of("Passenger Car at 1 64 -3"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
+            when(live.getLocation()).thenReturn(new org.bukkit.Location(nether, 0, 0, 0));
+            assertEquals(Optional.of("Passenger Car at 0 0 0 (world_nether)"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
+            when(live.getLocation()).thenReturn(new org.bukkit.Location(null, 0, 0, 0));
+            assertEquals(Optional.of("Passenger Car"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
+            when(live.getLocation()).thenReturn(null);
+            when(live.getName()).thenReturn(" ");
+            assertEquals(Optional.of("Passenger car"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
+            bukkit.when(org.bukkit.Bukkit::getWorlds).thenReturn(List.of());
+            assertEquals("0 0 0", VehicleEstateParticipant.place(new org.bukkit.Location(nether, 0, 0, 0)));
+            // Stored vehicles: the type's name from memory, never a snapshot read.
+            loader.when(() -> net.tfminecraft.vehicleframework.loaders.VehicleLoader.getByString("simple_locomotive"))
+                    .thenReturn(template);
+            when(template.getName()).thenReturn("\u00a7l\u00a7eSimple Locomotive");
+            assertEquals(Optional.of("Simple Locomotive"), VehicleEstateParticipant.frameworkLabel("b", "simple_locomotive"));
+            when(template.getName()).thenReturn(null);
+            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("b", "simple_locomotive"));
+            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("b", "unknown"));
+            verify(manager, never()).readStoredVehicle(anyString());
+            verify(manager, never()).getOfflineLocation(anyString());
+            when(manager.get("c")).thenThrow(new IllegalStateException("no framework"));
+            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("c", "x"));
+        }
     }
 
     @Test void reconcileSettlesDecidedEstatesAndReportsOnlyChanges() {

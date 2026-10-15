@@ -33,6 +33,14 @@ import net.tfminecraft.tlibs.character.estate.EstateParticipant;
 import net.tfminecraft.tlibs.character.estate.Estates;
 import net.tfminecraft.tlibs.character.estate.Holdings;
 import net.tfminecraft.tlibs.character.estate.Outcome;
+import net.tfminecraft.vehicleframework.VehicleFramework;
+import net.tfminecraft.vehicleframework.loaders.VehicleLoader;
+import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
+import net.tfminecraft.vehicleframework.vehicles.Vehicle;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.World;
 
 /**
  * Hands a dead character's personal vehicles to the estate's property recipient (design R8, N3).
@@ -57,6 +65,8 @@ final class VehicleEstateParticipant implements EstateParticipant {
     /** The last outcome reported per death and revision, so the hourly reconcile reports only changes. */
     private final Map<UUID, String> reported = new HashMap<>();
     java.util.function.LongSupplier clock = System::currentTimeMillis;
+    /** A vehicle's label from VehicleFramework's memory, given its UUID and type, or empty when it cannot say. */
+    java.util.function.BiFunction<String, String, Optional<String>> framework = VehicleEstateParticipant::frameworkLabel;
 
     VehicleEstateParticipant(Path dataFolder, PlayerVehicleRegistry registry, VehicleFeeStore feeStore, Logger logger) {
         this.dataFolder = dataFolder;
@@ -274,9 +284,50 @@ final class VehicleEstateParticipant implements EstateParticipant {
             String type = registry.getByVehicleUuid(vehicle).map(PlayerVehicleRecord::getVehicleTypeId)
                     .orElseGet(() -> tagged.stream().filter(meta -> meta.vehicle().equals(vehicle))
                             .map(OwnerMeta::typeId).filter(Objects::nonNull).findFirst().orElse("vehicle"));
-            labels.add(type + " " + vehicle.substring(0, Math.min(8, vehicle.length())));
+            labels.add(framework.apply(vehicle, type).orElseGet(() -> typeName(type)));
         }
+        labels.sort(String.CASE_INSENSITIVE_ORDER);
         return new Holdings(Map.of("vehicles", vehicles.size()), labels);
+    }
+
+    /** {@code simple_locomotive} as "Simple locomotive". */
+    static String typeName(String typeId) {
+        String words = typeId.replace('_', ' ').trim();
+        return words.isEmpty() ? "Vehicle" : Character.toUpperCase(words.charAt(0)) + words.substring(1);
+    }
+
+    /**
+     * "Passenger Car at 512 64 -230" for a vehicle out in the world, naming the world when it is not the first;
+     * the type's name for a stored one. Reads VehicleFramework's memory only: the will screen opens on the
+     * main thread, so stored snapshots are never read.
+     */
+    static Optional<String> frameworkLabel(String vehicle, String type) {
+        try {
+            ActiveVehicle live = VehicleFramework.getVehicleManager().get(vehicle);
+            if (live != null) {
+                String name = plainName(live.getName());
+                Location at = live.getLocation();
+                if (name == null) name = typeName(type);
+                return Optional.of(at == null || at.getWorld() == null ? name : name + " at " + place(at));
+            }
+            Vehicle template = VehicleLoader.getByString(type);
+            return Optional.ofNullable(template == null ? null : plainName(template.getName()));
+        } catch (RuntimeException | LinkageError error) {
+            return Optional.empty();
+        }
+    }
+
+    /** A colour-free name, or null when blank. */
+    private static String plainName(String name) {
+        String plain = name == null ? "" : ChatColor.stripColor(name).trim();
+        return plain.isEmpty() ? null : plain;
+    }
+
+    static String place(Location at) {
+        String spot = at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ();
+        List<World> worlds = Bukkit.getWorlds();
+        return worlds.isEmpty() || worlds.getFirst().equals(at.getWorld()) ? spot
+                : spot + " (" + at.getWorld().getName() + ")";
     }
 
     private static List<OwnerMeta> listedOrNone() {
