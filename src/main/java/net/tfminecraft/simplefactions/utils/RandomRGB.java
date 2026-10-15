@@ -107,12 +107,28 @@ public class RandomRGB {
 
     public static boolean isFree(String rgb) {
         for(Faction f : FactionManager.factions) {
-            if(f.getRGB().equalsIgnoreCase(rgb)) return false;
+            if(sameRGB(f.getRGB(), rgb)) return false;
             for(Guild g : f.getGuildHandler().getGuilds()) {
-                if(g.getRGB().equalsIgnoreCase(rgb)) return false;
+                if(sameRGB(g.getRGB(), rgb)) return false;
             }
         }
         return true;
+    }
+
+    /** Same colour by value, so 255,0,00 matches 255,0,0. */
+    public static boolean sameRGB(String left, String right) {
+        if (left == null || right == null) return false;
+        String[] a = left.trim().split(",", -1);
+        String[] b = right.trim().split(",", -1);
+        if (a.length != 3 || b.length != 3) return left.trim().equalsIgnoreCase(right.trim());
+        try {
+            for (int i = 0; i < 3; i++) {
+                if (Integer.parseInt(a[i].trim()) != Integer.parseInt(b[i].trim())) return false;
+            }
+            return true;
+        } catch (NumberFormatException e) {
+            return left.trim().equalsIgnoreCase(right.trim());
+        }
     }
 
 }

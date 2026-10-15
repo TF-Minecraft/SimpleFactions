@@ -498,7 +498,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cEach RGB value must be between 0 and 255");
 				} else if(result == 4) {
 					p.sendMessage("§c0,0,0 is reserved for unclaimed land; pick another colour");
-				} else if(!rgb.equalsIgnoreCase(g.getRGB()) && !RandomRGB.isFree(rgb)) {
+				} else if(!RandomRGB.sameRGB(rgb, g.getRGB()) && !RandomRGB.isFree(rgb)) {
 					p.sendMessage("§cThat colour is already used");
 				} else {
 					g.setRGB(rgb);
@@ -841,7 +841,7 @@ public class CommandManager implements Listener, CommandExecutor{
 
 			        Faction f = FactionManager.getByLeader(Members.key(p));
 			        String old = f.getRGB();
-			        if(result == 0 && !rgb.equalsIgnoreCase(old) && !RandomRGB.isFree(rgb)) {
+			        if(result == 0 && !RandomRGB.sameRGB(rgb, old) && !RandomRGB.isFree(rgb)) {
 			            p.sendMessage("§cThat colour is already used");
 			        } else if(result == 0) {
 			            FactionManager.getMap().enqueue("nation", old);
