@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -16,6 +17,7 @@ import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.denareconomy.api.Result;
 import net.tfminecraft.denareconomy.api.TaxLeg;
 import net.tfminecraft.denareconomy.api.TaxPolicy;
+import net.tfminecraft.denareconomy.loaders.MessageLoader;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.GuildBankGrant;
@@ -207,7 +209,11 @@ class TreasuryActionsTest {
         String holding = Denars.guildTax(guild.getIncarnationId());
         TaxPolicy policy = (earner, gross) -> tax == 0 ? Optional.empty() : Optional.of(new TaxLeg(holding, tax));
         Bukkit.getServicesManager().register(TaxPolicy.class, policy, fixture.ui.plugin, ServicePriority.Normal);
-        assertTrue(TreasuryPhysical.material(actor, ref, item, 8.75, guild));
+        try (var messages = mockStatic(MessageLoader.class)) {
+            assertTrue(TreasuryPhysical.material(actor, ref, item, 8.75, guild));
+            messages.verify(() -> MessageLoader.send(actor, "money.earned", "amount", BigDecimal.valueOf(875 - tax, 2)));
+            messages.verify(() -> MessageLoader.send(actor, "money.tax", "tax", BigDecimal.valueOf(tax, 2)), times(tax > 0 ? 1 : 0));
+        }
         assertEquals(0, item.getAmount());
         assertEquals(875 - tax, Denars.balance(Denars.bank(ref)));
         assertEquals(tax, Denars.balance(holding));
