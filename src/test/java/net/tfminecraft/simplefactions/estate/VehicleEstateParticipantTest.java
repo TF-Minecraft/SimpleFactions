@@ -518,43 +518,51 @@ class VehicleEstateParticipantTest {
 
     @Test void describeUsesVehicleFrameworkNamesAndPlaces() {
         row("cart", "cart", testator.characterId());
-        participant.framework = vehicle -> Optional.of("Passenger Car at 1 2 3");
+        participant.framework = (vehicle, type) -> Optional.of("Passenger Car at 1 2 3");
         assertEquals(List.of("Passenger Car at 1 2 3"), participant.describe(testator.characterId()).labels());
         assertEquals("Simple locomotive", VehicleEstateParticipant.typeName("simple_locomotive"));
         assertEquals("Vehicle", VehicleEstateParticipant.typeName("_"));
     }
 
-    @Test void frameworkLabelNamesTheVehicleAndWhereItIs() {
+    @Test void frameworkLabelReadsOnlyVehicleFrameworksMemory() {
         var manager = mock(net.tfminecraft.vehicleframework.managers.VehicleManager.class);
         org.bukkit.World main = mock(org.bukkit.World.class);
         org.bukkit.World nether = mock(org.bukkit.World.class);
         when(nether.getName()).thenReturn("world_nether");
-        try (MockedStatic<net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages> names =
-                        mockStatic(net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.class);
-                MockedStatic<net.tfminecraft.vehicleframework.VehicleFramework> framework =
+        var live = mock(net.tfminecraft.vehicleframework.vehicles.ActiveVehicle.class);
+        var template = mock(net.tfminecraft.vehicleframework.vehicles.Vehicle.class);
+        try (MockedStatic<net.tfminecraft.vehicleframework.VehicleFramework> framework =
                         mockStatic(net.tfminecraft.vehicleframework.VehicleFramework.class);
+                MockedStatic<net.tfminecraft.vehicleframework.loaders.VehicleLoader> loader =
+                        mockStatic(net.tfminecraft.vehicleframework.loaders.VehicleLoader.class);
                 MockedStatic<org.bukkit.Bukkit> bukkit = mockStatic(org.bukkit.Bukkit.class)) {
             framework.when(net.tfminecraft.vehicleframework.VehicleFramework::getVehicleManager).thenReturn(manager);
             bukkit.when(org.bukkit.Bukkit::getWorlds).thenReturn(List.of(main, nether));
-            names.when(() -> net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.resolveVehicleName("a"))
-                    .thenReturn("\u00a7l\u00a7ePassenger Car");
-            when(manager.getOfflineLocation("a")).thenReturn(Optional.of(new org.bukkit.Location(main, 1.5, 64, -2.5)));
-            assertEquals(Optional.of("Passenger Car at 1 64 -3"), VehicleEstateParticipant.frameworkLabel("a"));
-            when(manager.getOfflineLocation("a")).thenReturn(Optional.of(new org.bukkit.Location(nether, 0, 0, 0)));
-            assertEquals(Optional.of("Passenger Car at 0 0 0 (world_nether)"), VehicleEstateParticipant.frameworkLabel("a"));
-            when(manager.getOfflineLocation("a")).thenReturn(Optional.of(new org.bukkit.Location(null, 0, 0, 0)));
-            assertEquals(Optional.of("Passenger Car"), VehicleEstateParticipant.frameworkLabel("a"));
+            when(manager.get("a")).thenReturn(live);
+            when(live.getName()).thenReturn("\u00a7l\u00a7ePassenger Car");
+            when(live.getLocation()).thenReturn(new org.bukkit.Location(main, 1.5, 64, -2.5));
+            assertEquals(Optional.of("Passenger Car at 1 64 -3"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
+            when(live.getLocation()).thenReturn(new org.bukkit.Location(nether, 0, 0, 0));
+            assertEquals(Optional.of("Passenger Car at 0 0 0 (world_nether)"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
+            when(live.getLocation()).thenReturn(new org.bukkit.Location(null, 0, 0, 0));
+            assertEquals(Optional.of("Passenger Car"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
+            when(live.getLocation()).thenReturn(null);
+            when(live.getName()).thenReturn(" ");
+            assertEquals(Optional.of("Passenger car"), VehicleEstateParticipant.frameworkLabel("a", "passenger_car"));
             bukkit.when(org.bukkit.Bukkit::getWorlds).thenReturn(List.of());
             assertEquals("0 0 0", VehicleEstateParticipant.place(new org.bukkit.Location(nether, 0, 0, 0)));
-            names.when(() -> net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.resolveVehicleName("b"))
-                    .thenReturn("b");
-            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("b"));
-            names.when(() -> net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.resolveVehicleName("c"))
-                    .thenReturn(" ");
-            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("c"));
-            names.when(() -> net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.resolveVehicleName("d"))
-                    .thenThrow(new IllegalStateException("no framework"));
-            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("d"));
+            // Stored vehicles: the type's name from memory, never a snapshot read.
+            loader.when(() -> net.tfminecraft.vehicleframework.loaders.VehicleLoader.getByString("simple_locomotive"))
+                    .thenReturn(template);
+            when(template.getName()).thenReturn("\u00a7l\u00a7eSimple Locomotive");
+            assertEquals(Optional.of("Simple Locomotive"), VehicleEstateParticipant.frameworkLabel("b", "simple_locomotive"));
+            when(template.getName()).thenReturn(null);
+            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("b", "simple_locomotive"));
+            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("b", "unknown"));
+            verify(manager, never()).readStoredVehicle(anyString());
+            verify(manager, never()).getOfflineLocation(anyString());
+            when(manager.get("c")).thenThrow(new IllegalStateException("no framework"));
+            assertEquals(Optional.empty(), VehicleEstateParticipant.frameworkLabel("c", "x"));
         }
     }
 

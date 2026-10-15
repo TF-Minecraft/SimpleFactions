@@ -17,7 +17,6 @@ import java.util.logging.Logger;
 import net.tfminecraft.simplefactions.api.SimpleFactionsApi;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
-import net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore;
 import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
 import net.tfminecraft.simplefactions.vehicles.owners.OwnerMeta;
@@ -35,6 +34,9 @@ import net.tfminecraft.tlibs.character.estate.Estates;
 import net.tfminecraft.tlibs.character.estate.Holdings;
 import net.tfminecraft.tlibs.character.estate.Outcome;
 import net.tfminecraft.vehicleframework.VehicleFramework;
+import net.tfminecraft.vehicleframework.loaders.VehicleLoader;
+import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
+import net.tfminecraft.vehicleframework.vehicles.Vehicle;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -63,8 +65,8 @@ final class VehicleEstateParticipant implements EstateParticipant {
     /** The last outcome reported per death and revision, so the hourly reconcile reports only changes. */
     private final Map<UUID, String> reported = new HashMap<>();
     java.util.function.LongSupplier clock = System::currentTimeMillis;
-    /** A vehicle's name and place from VehicleFramework, or empty when it cannot say. */
-    java.util.function.Function<String, Optional<String>> framework = VehicleEstateParticipant::frameworkLabel;
+    /** A vehicle's label from VehicleFramework's memory, given its UUID and type, or empty when it cannot say. */
+    java.util.function.BiFunction<String, String, Optional<String>> framework = VehicleEstateParticipant::frameworkLabel;
 
     VehicleEstateParticipant(Path dataFolder, PlayerVehicleRegistry registry, VehicleFeeStore feeStore, Logger logger) {
         this.dataFolder = dataFolder;
@@ -279,10 +281,10 @@ final class VehicleEstateParticipant implements EstateParticipant {
         Set<String> vehicles = owned(characterId, tagged);
         List<String> labels = new ArrayList<>();
         for (String vehicle : vehicles) {
-            labels.add(framework.apply(vehicle).orElseGet(() -> typeName(registry.getByVehicleUuid(vehicle)
-                    .map(PlayerVehicleRecord::getVehicleTypeId)
+            String type = registry.getByVehicleUuid(vehicle).map(PlayerVehicleRecord::getVehicleTypeId)
                     .orElseGet(() -> tagged.stream().filter(meta -> meta.vehicle().equals(vehicle))
-                            .map(OwnerMeta::typeId).filter(Objects::nonNull).findFirst().orElse("vehicle")))));
+                            .map(OwnerMeta::typeId).filter(Objects::nonNull).findFirst().orElse("vehicle"));
+            labels.add(framework.apply(vehicle, type).orElseGet(() -> typeName(type)));
         }
         labels.sort(String.CASE_INSENSITIVE_ORDER);
         return new Holdings(Map.of("vehicles", vehicles.size()), labels);
@@ -294,17 +296,31 @@ final class VehicleEstateParticipant implements EstateParticipant {
         return words.isEmpty() ? "Vehicle" : Character.toUpperCase(words.charAt(0)) + words.substring(1);
     }
 
-    /** "Passenger Car at 512 64 -230", naming the world when it is not the first. */
-    static Optional<String> frameworkLabel(String vehicle) {
+    /**
+     * "Passenger Car at 512 64 -230" for a vehicle out in the world, naming the world when it is not the first;
+     * the type's name for a stored one. Reads VehicleFramework's memory only: the will screen opens on the
+     * main thread, so stored snapshots are never read.
+     */
+    static Optional<String> frameworkLabel(String vehicle, String type) {
         try {
-            String name = ChatColor.stripColor(VehicleFindMessages.resolveVehicleName(vehicle)).trim();
-            if (name.isEmpty() || name.equals(vehicle)) return Optional.empty();
-            Optional<Location> at = VehicleFramework.getVehicleManager().getOfflineLocation(vehicle);
-            return Optional.of(at.filter(location -> location.getWorld() != null)
-                    .map(location -> name + " at " + place(location)).orElse(name));
+            ActiveVehicle live = VehicleFramework.getVehicleManager().get(vehicle);
+            if (live != null) {
+                String name = plainName(live.getName());
+                Location at = live.getLocation();
+                if (name == null) name = typeName(type);
+                return Optional.of(at == null || at.getWorld() == null ? name : name + " at " + place(at));
+            }
+            Vehicle template = VehicleLoader.getByString(type);
+            return Optional.ofNullable(template == null ? null : plainName(template.getName()));
         } catch (RuntimeException | LinkageError error) {
             return Optional.empty();
         }
+    }
+
+    /** A colour-free name, or null when blank. */
+    private static String plainName(String name) {
+        String plain = name == null ? "" : ChatColor.stripColor(name).trim();
+        return plain.isEmpty() ? null : plain;
     }
 
     static String place(Location at) {
