@@ -145,15 +145,17 @@ public class GuildView {
 
 	/**
 	 * The summary of every income and expense line sits on top, with money received by source
-	 * below it. {@code fromGuildView} is kept in the holder flag so Back returns to the menu
-	 * the ledger was opened from.
+	 * below it. A realm treasury lists every source; any other guild only receives deposits.
+	 * {@code fromGuildView} is kept in the holder flag so Back returns to the menu the ledger
+	 * was opened from.
 	 */
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void ledgerView(Player player, Guild guild, Inventory i, boolean fromGuildView) {
 		if (!EspionageService.canViewExact(player, guild.getFaction())) { EspionageView.foreignLedger(player, guild, inv); return; }
 		boolean open = i == null;
-		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW, 0, fromGuildView), 36, MenuTitles.legacy("Ledger for "+guild.getName()));
+		int size = guild.isBase() ? 36 : 27;
+		if(i == null) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(guild.getId(), SFGUI.LEDGER_VIEW, 0, fromGuildView), size, MenuTitles.legacy("Ledger for "+guild.getName()));
 		i.clear();
 		i.setItem(4, creator.createLedgerItem(player, guild));
 		if(guild.isBase()) {
@@ -164,8 +166,10 @@ public class GuildView {
 					creator.createLedgerTributesItem(guild),
 					creator.createLedgerTariffsItem(guild),
 					creator.createLedgerDepositsItem(guild)));
+		} else {
+			i.setItem(13, creator.createLedgerDepositsItem(guild));
 		}
-		i.setItem(31, inv.createBackButton(SFGUI.LEDGER_VIEW));
+		i.setItem(i.getSize() - 5, inv.createBackButton(SFGUI.LEDGER_VIEW));
 		if(open) player.openInventory(i);
 	}
 
