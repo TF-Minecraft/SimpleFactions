@@ -208,6 +208,30 @@ public final class LeaderlessGuilds {
         return null;
     }
 
+    /**
+     * A guild without a leader backs no movement: it leaves every movement and cause it supported,
+     * so no political outcome or civil war turns it into a realm. Returns the realms whose
+     * movements changed.
+     */
+    public static java.util.Set<Faction> withdrawFromMovements(Guild guild) {
+        java.util.Set<Faction> changed = new java.util.LinkedHashSet<>();
+        for (Faction faction : new ArrayList<>(FactionManager.factions)) {
+            if (faction == null || faction.getGovernment() == null) continue;
+            for (var movement : faction.getGovernment().getMovements()) {
+                if (movement.getSupporters().getGuilds().contains(guild)) {
+                    movement.leave(guild, null);
+                    changed.add(faction);
+                }
+                for (var cause : movement.getCauses()) {
+                    if (!cause.getPool().getGuilds().contains(guild)) continue;
+                    movement.leave(guild, cause);
+                    changed.add(faction);
+                }
+            }
+        }
+        return changed;
+    }
+
     /** Estates wait while a closed guild's removal is not on disk: a restart would bring it back. */
     public static boolean closing(UUID incarnation) {
         return incarnation != null && unsavedClosures.containsKey(incarnation);
@@ -225,6 +249,10 @@ public final class LeaderlessGuilds {
             List<UUID> closed = new ArrayList<>();
             for (Guild guild : new ArrayList<>(faction.getGuildHandler().getGuilds())) {
                 if (guild == null || !guild.isLeaderless()) continue;
+                for (Faction other : withdrawFromMovements(guild)) {
+                    if (other == faction) changed = true;
+                    else save(other);
+                }
                 changed |= guild.trackEmpty(now);
                 if (!guild.getMembers().isEmpty() || now - guild.getEmptySince() < CLOSE_AFTER.toMillis()) continue;
                 faction.getGuildHandler().removeGuild(guild.getId());

@@ -456,4 +456,24 @@ class FactionDeathsTest {
         WarbandManager.resetForTests();
         assertTrue(effects.apply(journal, step));
     }
+
+    @Test void aGuildLeftWithoutALeaderLeavesTheMovementsItBacked() throws Exception {
+        Faction faction = realm(living());
+        Guild guild = fixture.guild(faction, "company", key);
+        DeathJournal journal = capture();
+        Faction other = fixture.saved("other", living());
+        other.getOrCreateMainGuild();
+        var pool = new net.tfminecraft.simplefactions.government.movement.Pool();
+        pool.addGuild(guild);
+        var movement = mock(net.tfminecraft.simplefactions.government.movement.Movement.class);
+        when(movement.getSupporters()).thenReturn(pool);
+        when(movement.getCauses()).thenReturn(List.of());
+        doAnswer(call -> { pool.removeGuild(call.getArgument(0)); return null; }).when(movement).leave(any(), isNull());
+        other.getGovernment().getMovements().add(movement);
+        int saves = databases.constructed().size();
+        store.record(journal);
+        assertTrue(guild.isLeaderless());
+        assertTrue(pool.getGuilds().isEmpty());
+        assertTrue(databases.constructed().size() > saves + 1);
+    }
 }

@@ -413,4 +413,42 @@ class LeaderlessGuildsTest {
         assertTrue(smiths.isLeaderless());
         assertSame(smiths, FactionManager.getGuildByString("smiths"));
     }
+
+    @Test
+    void leaderlessGuildsLeaveEveryMovementAndCauseTheyBacked() {
+        var supporters = new net.tfminecraft.simplefactions.government.movement.Pool();
+        supporters.addGuild(smiths);
+        var causePool = new net.tfminecraft.simplefactions.government.movement.Pool();
+        causePool.addGuild(smiths);
+        var cause = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.government.movement.cause.Cause.class);
+        when(cause.getPool()).thenReturn(causePool);
+        var movement = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.government.movement.Movement.class);
+        when(movement.getSupporters()).thenReturn(supporters);
+        when(movement.getCauses()).thenReturn(List.of(cause));
+        org.mockito.Mockito.doAnswer(call -> {
+            if (call.getArgument(1) == null) supporters.removeGuild(call.getArgument(0));
+            else causePool.removeGuild(call.getArgument(0));
+            return null;
+        }).when(movement).leave(any(), any());
+        Faction other = fixture.saved("other", characters.character(UUID.randomUUID(), "Other Ruler"));
+        other.getOrCreateMainGuild();
+        other.getGovernment().getMovements().add(movement);
+
+        assertEquals(java.util.Set.of(other), LeaderlessGuilds.withdrawFromMovements(smiths));
+        assertTrue(supporters.getGuilds().isEmpty());
+        assertTrue(causePool.getGuilds().isEmpty());
+        assertTrue(LeaderlessGuilds.withdrawFromMovements(smiths).isEmpty());
+
+        supporters.addGuild(smiths);
+        LeaderlessGuilds.closeExpired(2_000L);
+        assertTrue(supporters.getGuilds().isEmpty());
+        verify(movement, times(2)).leave(smiths, null);
+
+        other.getGovernment().getMovements().clear();
+        realm.getGovernment().getMovements().add(movement);
+        supporters.addGuild(smiths);
+        LeaderlessGuilds.closeExpired(3_000L);
+        assertTrue(supporters.getGuilds().isEmpty());
+        verify(movement, times(3)).leave(smiths, null);
+    }
 }
