@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.utils;
 
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.migration.QuarantineCommands;
 
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 
@@ -53,8 +54,9 @@ public class TabCompletion implements TabCompleter{
 				completions.add("expand");
 				completions.add("draft");
 				completions.add("offer");
-				completions.add("contracts");
 			}
+			Guild memberGuild = guild != null ? guild : FactionManager.getGuildByMember(Members.key(p));
+			if(memberGuild != null && memberGuild.hasCompany()) completions.add("contracts");
 			if(RequestManager.getRequest(p) instanceof MercenaryInviteRequest) {
 				completions.add("accept");
 				completions.add("decline");
@@ -69,10 +71,11 @@ public class TabCompletion implements TabCompleter{
 			completions.add("take");
 			return filtered(completions, args[1]);
 		}
-		if(args.length == 3 && args[0].equalsIgnoreCase("admin") && Permissions.isAdmin(p)) {
+		if(args.length == 3 && args[0].equalsIgnoreCase("admin") && Permissions.isAdmin(p)
+				&& (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take"))) {
 			for(Guild g : FactionManager.getAllGuilds()) {
 				if(g == null || g.getCompany() == null) continue;
-				if(g.getCompany().getName() != null) {
+				if(g.getCompany().getName() != null && !g.getCompany().getName().contains(" ")) {
 					completions.add(g.getCompany().getName());
 				}
 				completions.add(g.getId());
@@ -80,7 +83,7 @@ public class TabCompletion implements TabCompleter{
 			return filtered(completions, args[2]);
 		}
 		if(args.length == 4 && args[0].equalsIgnoreCase("admin") && Permissions.isAdmin(p)) {
-			completions.add("1");
+
 			return completions;
 		}
 		if(args.length >= 2 && args[0].equalsIgnoreCase("kick")) {
@@ -89,17 +92,23 @@ public class TabCompletion implements TabCompleter{
 			}
 			return Members.completions(completions, args);
 		}
-		if(args.length == 2 && args[0].equalsIgnoreCase("invite")) {
-			for(Player online : Bukkit.getOnlinePlayers()) {
-				completions.add(online.getName());
+		if(args.length >= 2 && args[0].equalsIgnoreCase("invite")) {
+			if(guild != null && guild.hasCompany()) {
+				for(Player online : Bukkit.getOnlinePlayers()) {
+					if(Members.key(online) != null && net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService
+							.canInvite(guild, Members.key(p), Members.key(online)).ok()) {
+						completions.add(online.getName());
+						completions.add(Members.name(online));
+					}
+				}
 			}
-			return filtered(completions, args[1]);
+			return Members.completions(completions, args);
 		}
-		if(args.length == 2 && args[0].equalsIgnoreCase("offer")) {
+		if(args.length >= 2 && args[0].equalsIgnoreCase("offer") && guild != null && guild.hasCompany()) {
 			for(net.tfminecraft.simplefactions.objects.Faction f : FactionManager.factions) {
 				if(f.getName() != null) completions.add(f.getName());
 			}
-			return filtered(completions, args[1]);
+			return Members.completions(completions, args);
 		}
 		return completions;
 	}
@@ -111,12 +120,12 @@ public class TabCompletion implements TabCompleter{
 			completions.add("hire");
 			return filtered(completions, args.length == 1 ? args[0] : "");
 		}
-		if(args.length == 2 && args[0].equalsIgnoreCase("hire")) {
+		if(args.length >= 2 && args[0].equalsIgnoreCase("hire")) {
 			for(net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany company
 					: net.tfminecraft.simplefactions.mercenary.contract.MercenaryMarket.listing()) {
 				if(company.getName() != null) completions.add(company.getName());
 			}
-			return filtered(completions, args[1]);
+			return Members.completions(completions, args);
 		}
 		return completions;
 	}
@@ -127,9 +136,9 @@ public class TabCompletion implements TabCompleter{
 	}
 
 	private List<String> filtered(List<String> completions, String prefix) {
-		String lower = prefix == null ? "" : prefix.toLowerCase();
-		completions.removeIf(s -> !s.toLowerCase().startsWith(lower));
-		return completions;
+		String lower = prefix == null ? "" : prefix.toLowerCase(java.util.Locale.ROOT);
+		return completions.stream().filter(java.util.Objects::nonNull)
+				.filter(s -> s.toLowerCase(java.util.Locale.ROOT).startsWith(lower)).distinct().toList();
 	}
 
 	private List<String> completeConstructKinds(String[] args) {
@@ -171,12 +180,40 @@ public class TabCompletion implements TabCompleter{
 		return net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions.filter(completions, prefix);
 	}
 
+	private List<String> leaderlessCandidates(Guild guild) {
+		List<String> names = new ArrayList<>();
+		for(String member : guild.getFaction().getMembers()) {
+			if(Members.info(member).map(net.tfminecraft.tlibs.character.CharacterInfo::alive).orElse(false)
+					&& FactionManager.getGuildByLeader(member) == null) names.add(Members.display(member));
+		}
+		return names;
+	}
+
     @Override
     public List<String> onTabComplete (CommandSender sender, Command cmd, String label, String[] args){
-        if (cmd.getName().equalsIgnoreCase("faction") && args.length == 1
-                && sender.hasPermission(net.tfminecraft.simplefactions.espionage.EspionageConfig.reloadPermission())
-                && "reloadespionage".regionMatches(true, 0, args[0], 0, args[0].length()) && !args[0].isEmpty())
-            return List.of("reloadespionage");
+        return filtered(complete(sender, cmd, args), args.length == 0 ? "" : args[args.length - 1]);
+    }
+
+    private List<String> complete(CommandSender sender, Command cmd, String[] args) {
+		if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase("admin")) {
+			return QuarantineCommands.complete(sender, args);
+		}
+		if(cmd.getName().equalsIgnoreCase("faction") && args.length < 2 && !(sender instanceof Player)) {
+			List<String> completions = new ArrayList<>();
+			if(sender.hasPermission(net.tfminecraft.simplefactions.espionage.EspionageConfig.reloadPermission()))
+				completions.add("reloadespionage");
+			if(Permissions.isAdmin(sender)) {
+				completions.addAll(List.of("admin", "addguildbank"));
+				if(Cache.provincesEnabled) completions.addAll(List.of(TitleAdminCommand.SUBCOMMAND, "tradegraph"));
+			}
+			return completions;
+		}
+		if(cmd.getName().equalsIgnoreCase("faction") && sender instanceof Player
+				&& Permissions.isAdmin(sender) && args.length == 2
+				&& (args[0].equalsIgnoreCase("delbank") || args[0].equalsIgnoreCase("startelection")
+						|| args[0].equalsIgnoreCase("endelection") || (Cache.provincesEnabled && args[0].equalsIgnoreCase("unclaim")))) {
+			return FactionManager.factions.stream().map(Faction::getId).toList();
+		}
 		if (cmd.getName().equalsIgnoreCase("faction") && args.length >= 2
 				&& EspionageCommands.matches(args[0])) {
 			return sender instanceof Player player
@@ -210,6 +247,11 @@ public class TabCompletion implements TabCompleter{
 				Player p = (Player) sender;
 				List<String> completions = new ArrayList<>();
 				completions.add("create");
+				completions.add("list");
+				Guild ownGuild = FactionManager.getGuildByMember(Members.key(p));
+				Guild ledGuild = FactionManager.getGuildByLeader(Members.key(p));
+				if(ownGuild != null && ledGuild == null) completions.add("leave");
+				if(Permissions.isAdmin(sender) || (ledGuild != null && !ledGuild.isBase())) completions.add("delete");
 				completions.add("join");
 				completions.add("decline");
 				completions.add("menu");
@@ -238,8 +280,7 @@ public class TabCompletion implements TabCompleter{
 			}
 		}
 		else if(cmd.getName().equalsIgnoreCase("faction")
-				&& args.length >= 1
-				&& args.length <= 2
+				&& args.length == 2
 				&& args[0].equalsIgnoreCase("construct")) {
 			if(!Cache.provincesEnabled) {
 				return new ArrayList<>();
@@ -253,8 +294,7 @@ public class TabCompletion implements TabCompleter{
 			}
 		}
 		else if (cmd.getName().equalsIgnoreCase("faction")
-				&& args.length >= 1
-				&& args.length <= 2
+				&& args.length == 2
 				&& args[0].equalsIgnoreCase("upgrade")) {
 			if (!Cache.provincesEnabled
 					|| !(sender instanceof Player p)
@@ -264,8 +304,7 @@ public class TabCompletion implements TabCompleter{
 			return completeInstallationIds(p, args.length >= 2 ? args[1] : "", false);
 		}
 		else if(cmd.getName().equalsIgnoreCase("faction")
-				&& args.length >= 1
-				&& args.length <= 2
+				&& args.length == 2
 				&& args[0].equalsIgnoreCase("deconstruct")) {
 			if(!Cache.provincesEnabled) {
 				return new ArrayList<>();
@@ -276,7 +315,7 @@ public class TabCompletion implements TabCompleter{
 			}
 		}
 		else if(cmd.getName().equalsIgnoreCase("faction")
-				&& args.length >= 1
+				&& args.length >= 2
 				&& args[0].equalsIgnoreCase("vehicle")) {
 			if(sender instanceof Player) {
 				Player p = (Player) sender;
@@ -284,12 +323,15 @@ public class TabCompletion implements TabCompleter{
 					return net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions.subcommands(
 							args.length >= 2 ? args[1] : "");
 				}
-				if(args.length == 3 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("handover"))) {
+				if(args.length >= 3 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("handover"))) {
 					List<String> names = new ArrayList<>();
+					if(args[1].equalsIgnoreCase("give") && FactionManager.getByLeader(Members.key(p)) == null) return names;
 					for(Player online : Bukkit.getOnlinePlayers()) {
+						if(online.getUniqueId().equals(p.getUniqueId())) continue;
 						names.add(online.getName());
+						names.add(Members.name(online));
 					}
-					return VehicleTabCompletions.filter(names, args[2]);
+					return Members.completions(names, afterFirst(args));
 				}
 				if(args.length == 3 && args[1].equalsIgnoreCase("transfer")) {
 					List<String> ids = completeInstallationIds(p, args[2], false);
@@ -308,8 +350,7 @@ public class TabCompletion implements TabCompleter{
 			}
 		}
 		else if(cmd.getName().equalsIgnoreCase("faction")
-				&& args.length >= 1
-				&& args.length <= 2
+				&& args.length == 2
 				&& args[0].equalsIgnoreCase("transfervehicle")) {
 			if(sender instanceof Player) {
 				Player p = (Player) sender;
@@ -317,8 +358,7 @@ public class TabCompletion implements TabCompleter{
 			}
 		}
 		else if(cmd.getName().equalsIgnoreCase("faction")
-				&& args.length >= 1
-				&& args.length <= 2
+				&& args.length == 2
 				&& args[0].equalsIgnoreCase("findvehicles")) {
 			if(sender instanceof Player) {
 				Player p = (Player) sender;
@@ -330,6 +370,11 @@ public class TabCompletion implements TabCompleter{
 				Player p = (Player) sender;
 				List<String> completions = new ArrayList<>();
 				completions.add("list");
+				Faction ownFaction = FactionManager.getByMember(Members.key(p));
+				if(ownFaction != null) {
+					if(ownFaction.getBank() != null) completions.add("deposit");
+					if(FactionManager.getByLeader(Members.key(p)) == null && !ownFaction.isInGuild(Members.key(p))) completions.add("leave");
+				}
 				if(FactionManager.getByMember(Members.key(p)) != null) completions.add("menu");
 				if(FactionManager.getByMember(Members.key(p)) != null) completions.addAll(List.of("positions", "spymaster", "espionage"));
                 if (p.hasPermission(net.tfminecraft.simplefactions.espionage.EspionageConfig.reloadPermission())) completions.add("reloadespionage");
@@ -365,6 +410,7 @@ public class TabCompletion implements TabCompleter{
 					completions.add("setcolour");
 				}
 				if(Permissions.isAdmin(sender)) {
+					completions.addAll(List.of("admin", "delete", "forcedelete", "refresh", "delbank"));
 					completions.add("addguildbank");
 					completions.add("forceleader");
 					completions.add("forcejoin");
@@ -374,6 +420,7 @@ public class TabCompletion implements TabCompleter{
 					//completions.add("addwealthmodifier");
 					completions.add("getglobalwealth");
 					if(Cache.provincesEnabled) {
+						completions.add("provincecap");
 						completions.add("forceconstruct");
 						completions.add("forceupgrade");
 						completions.add("queueallnations");
@@ -399,10 +446,7 @@ public class TabCompletion implements TabCompleter{
 			}
 		} else if(eitherCommand(cmd) && args.length == 2 && args[0].equalsIgnoreCase("create")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				completions.add("<id>");
-				
-				return completions;
+                return List.of();
 			}
 		} else if(eitherCommand(cmd) && args.length == 2 && args[0].equalsIgnoreCase("setcapital")) {
 			if(!Cache.provincesEnabled) {
@@ -431,9 +475,11 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("delete")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Faction f = FactionManager.getByMember(Members.key(p));
+				Faction f = FactionManager.getByLeader(Members.key(p));
 				List<String> completions = new ArrayList<String>();
-				if(f != null) {
+				if(Permissions.isAdmin(sender)) {
+					for(Faction target : FactionManager.factions) completions.add(target.getId());
+				} else if(f != null) {
 					completions.add(f.getId());
 				}
 				return completions;
@@ -441,7 +487,7 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("delete")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Guild g = FactionManager.getGuildByMember(Members.key(p));
+				Guild g = FactionManager.getGuildByLeader(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(g != null && !g.isBase()) {
 					completions.add(g.getId());
@@ -481,11 +527,11 @@ public class TabCompletion implements TabCompleter{
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase("kick")){
 			if(sender instanceof Player){
 				Player p = (Player) sender;
-				Faction f = FactionManager.getByMember(Members.key(p));
+				Faction f = FactionManager.getByLeader(Members.key(p));
 				List<String> completions = new ArrayList<String>();
 				if(f != null) {
 					for(String member : f.getMembers()) {
-						if(!member.equals(f.getLeader())) completions.add(Members.display(member));
+						if(!member.equals(f.getLeader()) && !f.isInGuild(member)) completions.add(Members.display(member));
 					}
 				}
 				return Members.completions(completions, args);
@@ -502,64 +548,57 @@ public class TabCompletion implements TabCompleter{
 				}
 				return Members.completions(completions, args);
 			}
+		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 2 && args[0].equalsIgnoreCase("setleader")) {
+			if(sender instanceof Player p) {
+				Guild g = FactionManager.getGuildByLeader(Members.key(p));
+				List<String> names = new ArrayList<>();
+				if(g != null) for(String member : g.getMembers()) {
+					if(!g.isLeader(member)) names.add(Members.display(member));
+				}
+				return Members.completions(names, args);
+			}
+		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 3 && args[0].equalsIgnoreCase("appoint")) {
+			if(sender instanceof Player p) {
+				Guild g = FactionManager.getGuildByString(args[1]);
+				if(g != null && LeaderlessGuilds.appointable(Members.key(p)).contains(g)) {
+					return Members.completions(leaderlessCandidates(g), afterFirst(args));
+				}
+			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("rename")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				completions.add("<id>");
-				
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("setculture")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				completions.add("<culture>");
-				
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("setreligion")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				completions.add("<religion>");
-				
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("setrulingsystem")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				completions.add("<ruling system>");
-				
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("setrulertitle")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				completions.add("<ruler title>");
-				
-				return completions;
+                return List.of();
 			}
 		} else if(eitherCommand(cmd) && args.length == 2 && args[0].equalsIgnoreCase("setbanner")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("claim")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 3 && args[0].equalsIgnoreCase("construct")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<>();
-				completions.add("<name>");
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("unclaim")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				
-				return completions;
+                return List.of();
 			}
 		} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("appoint")){
 			if(sender instanceof Player p){
@@ -576,20 +615,21 @@ public class TabCompletion implements TabCompleter{
 		} else if(eitherCommand(cmd) && args.length == 2
 				&& (args[0].equalsIgnoreCase("join") || args[0].equalsIgnoreCase("decline"))){
 			if(sender instanceof Player p){
-				return InviteCommands.inviteIds(cmd.getName(), Members.key(p), args[1]);
+				List<String> ids = new ArrayList<>(InviteCommands.inviteIds(cmd.getName(), Members.key(p), args[1]));
+				if(cmd.getName().equalsIgnoreCase("guild") && args[0].equalsIgnoreCase("decline")) {
+					Guild offered = LeaderlessGuilds.offeredTo(Members.key(p));
+					if(offered != null) ids.add(offered.getId());
+				}
+				return ids;
 			}
 		} else if(eitherCommand(cmd) && args.length == 2 && args[0].equalsIgnoreCase("accept")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				
-				return completions;
+                return List.of();
 			}
 		} else if((cmd.getName().equalsIgnoreCase("faction") || cmd.getName().equalsIgnoreCase("guild"))
 				&& args.length == 2 && args[0].equalsIgnoreCase("setcolour")){
 			if(sender instanceof Player){
-				List<String> completions = new ArrayList<String>();
-				completions.add("R,G,B");
-				return completions;
+                return List.of();
 			}
 		}
 		if(Permissions.isAdmin(sender)) {
@@ -613,7 +653,8 @@ public class TabCompletion implements TabCompleter{
 			} else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 3 && args[0].equalsIgnoreCase("forceleader")){
 				List<String> completions = new ArrayList<String>();
 				Guild g = FactionManager.getGuildByString(args[1]);
-				if(g != null) {
+				if(g != null && !g.isBase()) {
+					if(g.isLeaderless()) return Members.completions(leaderlessCandidates(g), afterFirst(args));
 					for(String member : g.getMembers()) {
 						if(!g.isLeader(member)) completions.add(Members.display(member));
 					}
@@ -672,9 +713,7 @@ public class TabCompletion implements TabCompleter{
 					&& Cache.provincesEnabled
 					&& args.length >= 4
 					&& args[0].equalsIgnoreCase("forceconstruct")) {
-				List<String> completions = new ArrayList<>();
-				completions.add("<name>");
-				return completions;
+                return List.of();
 			} else if(cmd.getName().equalsIgnoreCase("faction")
 					&& args.length == 2
 					&& args[0].equalsIgnoreCase("forceregiment")) {
@@ -697,7 +736,7 @@ public class TabCompletion implements TabCompleter{
 				Faction f = FactionManager.getByString(args[1]);
 				if(f != null) {
 					for(net.tfminecraft.simplefactions.army.Regiment r : f.getMilitary().getRegiments()) {
-						if(!r.isLevy()) {
+						if(!r.isLevy() && !r.isMercenary()) {
 							completions.add(r.getId());
 						}
 					}
@@ -706,9 +745,7 @@ public class TabCompletion implements TabCompleter{
 			} else if(cmd.getName().equalsIgnoreCase("faction")
 					&& args.length == 5
 					&& args[0].equalsIgnoreCase("forceregiment")) {
-				List<String> completions = new ArrayList<>();
-				completions.add("1");
-				return completions;
+                return List.of();
 			} else if (cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("forcejoin")) {
 				List<String> completions = new ArrayList<String>();
 				// Suggest faction names
@@ -746,9 +783,7 @@ public class TabCompletion implements TabCompleter{
 				}
 			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 3 && args[0].equalsIgnoreCase("forcewithdraw")){
 				if(sender instanceof Player){
-					List<String> completions = new ArrayList<String>();
-					completions.add("1.0");
-					return completions;
+                    return List.of();
 				}
 			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("addprestigemodifier")){
 				if(sender instanceof Player){
@@ -760,15 +795,11 @@ public class TabCompletion implements TabCompleter{
 				}
 			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 3 && args[0].equalsIgnoreCase("addprestigemodifier")){
 				if(sender instanceof Player){
-					List<String> completions = new ArrayList<String>();
-					completions.add("<type>");
-					return completions;
+                    return List.of();
 				}
 			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 4 && args[0].equalsIgnoreCase("addprestigemodifier")){
 				if(sender instanceof Player){
-					List<String> completions = new ArrayList<String>();
-					completions.add("1.0");
-					return completions;
+                    return List.of();
 				}
 			} else if(cmd.getName().equalsIgnoreCase("faction") && args.length == 2 && args[0].equalsIgnoreCase("forcedelete")){
 				if(sender instanceof Player){
@@ -950,6 +981,6 @@ public class TabCompletion implements TabCompleter{
 				}
 			}
 		}
-    	return null;
+        return List.of();
     }
 }

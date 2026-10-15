@@ -325,6 +325,19 @@ class MercenaryCommandsCoverageTest {
   }
 
   @Test
+  void factionOfferCompletionExecutesFormattedMultiwordTargets() {
+    hirer.setName("§6Eastern Realm");
+    captain.getInventory().setItem(0, ContractBook.reviewBook(company, ContractTerms.defaults()));
+    var completions = new net.tfminecraft.simplefactions.utils.TabCompletion().onTabComplete(
+        captain, command, "company", new String[] {"offer", "Eastern", "rE"});
+    assertEquals(List.of("Realm"), completions);
+    run(captain, "offer", "Eastern", completions.getFirst());
+    assertEquals(1, company.getContractHandler().getAll().size());
+    assertSame(hirer, company.getContractHandler().getAll().getFirst().getHirer());
+    assertSame(hirer, MercenaryCommandManager.resolveFaction("§6Eastern Realm"));
+  }
+
+  @Test
   void draftCommandCreatesExactlyOneCompanyBoundBookInAvailableInventorySpace() {
     run(captain, "draft");
     BookMeta draft = (BookMeta) captain.getInventory().getItem(0).getItemMeta();

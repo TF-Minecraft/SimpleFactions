@@ -224,7 +224,7 @@ public final class TitleAdminCommand {
 					if (!TitleLoader.getByTier(tier).isEmpty()) completions.add(tier.getId());
 				}
 			} else if (sub.equals("where")) {
-				completions.add("<province>");
+				return List.of();
 			} else if (SUBCOMMANDS.contains(sub) || sub.equals("setcolor")) {
 				for (Title title : TitleLoader.getTitles()) {
 					if (sub.equals("addprovince") && title.isComposite()) continue;
@@ -237,13 +237,9 @@ public final class TitleAdminCommand {
 		Title title = TitleLoader.getById(args[2]);
 		String last = args[args.length - 1];
 		switch (sub) {
-			case "rename" -> {
-				if (args.length == 4) completions.add("<name>");
-			}
 			case "setcolour", "setcolor" -> {
-				if (args.length == 4) completions.add(title != null && title.getRgb() != null ? title.getRgb() : "R,G,B");
+				if (args.length == 4 && title != null && title.getRgb() != null) completions.add(title.getRgb());
 			}
-			case "addprovince" -> completions.add("<province>");
 			case "removeprovince" -> {
 				if (title != null) {
 					for (int province : title.getProvinces()) completions.add(String.valueOf(province));

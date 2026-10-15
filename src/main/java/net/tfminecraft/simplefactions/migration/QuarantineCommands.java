@@ -2,6 +2,8 @@ package net.tfminecraft.simplefactions.migration;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
 import java.util.logging.Level;
 
 import org.bukkit.command.CommandSender;
@@ -14,7 +16,34 @@ import net.tfminecraft.tlibs.character.Characters;
 
 /** {@code /f admin quarantine list} and {@code /f admin quarantine assign <recordId> <characterId>}. */
 public final class QuarantineCommands {
+    private record Snapshot(Path file, List<String> unresolved) {}
+    private static volatile Snapshot snapshot = new Snapshot(null, List.of());
+
     private QuarantineCommands() {}
+
+    /** Refreshed by migration and staff reads/writes, never by a tab request. */
+    static void snapshot(Path file, Collection<Quarantine.Record> records) {
+        snapshot = new Snapshot(file.toAbsolutePath().normalize(), records.stream()
+                .filter(record -> !record.applied && record.assigned == null)
+                .map(record -> record.id).toList());
+    }
+
+    public static List<String> complete(CommandSender sender, String[] args) {
+        if (!Permissions.isAdmin(sender) || args.length < 2 || !args[0].equalsIgnoreCase("admin")) return List.of();
+        List<String> candidates = List.of();
+        if (args.length == 2) candidates = List.of("quarantine");
+        else if (args[1].equalsIgnoreCase("quarantine")) {
+            if (args.length == 3) candidates = List.of("list", "assign");
+            else if (args.length == 4 && args[2].equalsIgnoreCase("assign")) {
+                SimpleFactions plugin = SimpleFactions.getInstance();
+                Snapshot current = snapshot;
+                if (plugin != null && plugin.getDataFolder().toPath().resolve(CharacterMigration.QUARANTINE)
+                        .toAbsolutePath().normalize().equals(current.file())) candidates = current.unresolved();
+            }
+        }
+        String prefix = args[args.length - 1];
+        return candidates.stream().filter(value -> value.regionMatches(true, 0, prefix, 0, prefix.length())).toList();
+    }
 
     public static boolean matches(String[] args) {
         return args.length >= 2 && args[0].equalsIgnoreCase("admin") && args[1].equalsIgnoreCase("quarantine");

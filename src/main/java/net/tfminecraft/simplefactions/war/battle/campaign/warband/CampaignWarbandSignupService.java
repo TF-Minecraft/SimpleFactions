@@ -70,6 +70,33 @@ public final class CampaignWarbandSignupService {
 			Faction playerFaction,
 			Player onlinePlayer,
 			Instant now) {
+		String failure = signupFailure(playerId, memberKey, warband, playerFaction, onlinePlayer, now);
+		if(failure != null) return failure;
+		if(warband.hasMember(playerId)) return null;
+		var character = Warband.participant(playerId, memberKey, onlinePlayer).orElseThrow();
+		CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
+		CampaignWarbandSideLock.Tie tie = CampaignWarbandSideLock.tieOf(warband);
+		boolean firstSignup = warband.getRealMemberCount() == 0;
+		applyLeaderRules(ctx, warband, playerId, memberKey);
+		warband.addMember(playerId, character);
+		if (tie != null && warband.getMemberCharacter(playerId).isPresent()) {
+			CampaignWarbandSideLock.bind(tie.war(), tie.coalition(), playerId);
+		}
+
+		if (ctx != null && firstSignup) {
+			WarDevMode.seedDummyMembersOnFirstSignupIfEnabled(
+					warband, ctx.war(), ctx.battle(), ctx.sideId());
+		}
+		if (ctx != null && ctx.battle().hasStarted() && onlinePlayer != null) {
+			CampaignWarbandBattleService.onMemberJoined(onlinePlayer, warband, ctx);
+		}
+		BattlePersistenceService.persistWarband(warband);
+		return null;
+	}
+
+	/** The same eligibility checks as signup, without changing the roster or binding a side. */
+	public static String signupFailure(UUID playerId, String memberKey, Warband warband,
+			Faction playerFaction, Player onlinePlayer, Instant now) {
 		if (playerId == null || memberKey == null || warband == null) {
 			return "Invalid warband signup";
 		}
@@ -110,26 +137,8 @@ public final class CampaignWarbandSignupService {
 			return sideError;
 		}
 
-		var character = Warband.participant(playerId, memberKey, onlinePlayer).orElse(null);
-		if (character == null) {
-			return "Character identity is not ready for warband signup";
-		}
-		boolean firstSignup = warband.getRealMemberCount() == 0;
-		applyLeaderRules(ctx, warband, playerId, memberKey);
-		warband.addMember(playerId, character);
-		if (tie != null && warband.getMemberCharacter(playerId).isPresent()) {
-			CampaignWarbandSideLock.bind(tie.war(), tie.coalition(), playerId);
-		}
-
-		if (ctx != null && firstSignup) {
-			WarDevMode.seedDummyMembersOnFirstSignupIfEnabled(
-					warband, ctx.war(), ctx.battle(), ctx.sideId());
-		}
-		if (ctx != null && ctx.battle().hasStarted() && onlinePlayer != null) {
-			CampaignWarbandBattleService.onMemberJoined(onlinePlayer, warband, ctx);
-		}
-		BattlePersistenceService.persistWarband(warband);
-		return null;
+        return Warband.participant(playerId, memberKey, onlinePlayer).isPresent()
+                ? null : "Character identity is not ready for warband signup";
 	}
 
 	private static void applyLeaderRules(

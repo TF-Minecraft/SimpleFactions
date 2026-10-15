@@ -74,12 +74,14 @@ public final class Quarantine {
 
     public static Quarantine load(Path file) throws IOException {
         Quarantine quarantine = new Quarantine(file);
+        QuarantineCommands.snapshot(file, List.of());
         if (!Files.exists(file)) return quarantine;
         try {
             List<Record> loaded = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8),
                     new TypeToken<List<Record>>() {}.getType());
             if (loaded == null) throw new JsonParseException("empty quarantine");
             for (Record record : loaded) quarantine.records.put(record.id, record);
+            QuarantineCommands.snapshot(file, quarantine.records());
             return quarantine;
         } catch (JsonParseException malformed) {
             throw new IOException("Unreadable quarantine " + file, malformed);
@@ -88,6 +90,7 @@ public final class Quarantine {
 
     public void save() throws IOException {
         MigrationFiles.write(file, GSON.toJson(new ArrayList<>(records.values())));
+        QuarantineCommands.snapshot(file, records());
     }
 
     public Collection<Record> records() {
