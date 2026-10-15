@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 import net.tfminecraft.simplefactions.api.SimpleFactionsApi;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
+import net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore;
 import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
 import net.tfminecraft.simplefactions.vehicles.owners.OwnerMeta;
@@ -33,6 +34,11 @@ import net.tfminecraft.tlibs.character.estate.EstateParticipant;
 import net.tfminecraft.tlibs.character.estate.Estates;
 import net.tfminecraft.tlibs.character.estate.Holdings;
 import net.tfminecraft.tlibs.character.estate.Outcome;
+import net.tfminecraft.vehicleframework.VehicleFramework;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.World;
 
 /**
  * Hands a dead character's personal vehicles to the estate's property recipient (design R8, N3).
@@ -57,6 +63,8 @@ final class VehicleEstateParticipant implements EstateParticipant {
     /** The last outcome reported per death and revision, so the hourly reconcile reports only changes. */
     private final Map<UUID, String> reported = new HashMap<>();
     java.util.function.LongSupplier clock = System::currentTimeMillis;
+    /** A vehicle's name and place from VehicleFramework, or empty when it cannot say. */
+    java.util.function.Function<String, Optional<String>> framework = VehicleEstateParticipant::frameworkLabel;
 
     VehicleEstateParticipant(Path dataFolder, PlayerVehicleRegistry registry, VehicleFeeStore feeStore, Logger logger) {
         this.dataFolder = dataFolder;
@@ -271,12 +279,39 @@ final class VehicleEstateParticipant implements EstateParticipant {
         Set<String> vehicles = owned(characterId, tagged);
         List<String> labels = new ArrayList<>();
         for (String vehicle : vehicles) {
-            String type = registry.getByVehicleUuid(vehicle).map(PlayerVehicleRecord::getVehicleTypeId)
+            labels.add(framework.apply(vehicle).orElseGet(() -> typeName(registry.getByVehicleUuid(vehicle)
+                    .map(PlayerVehicleRecord::getVehicleTypeId)
                     .orElseGet(() -> tagged.stream().filter(meta -> meta.vehicle().equals(vehicle))
-                            .map(OwnerMeta::typeId).filter(Objects::nonNull).findFirst().orElse("vehicle"));
-            labels.add(type + " " + vehicle.substring(0, Math.min(8, vehicle.length())));
+                            .map(OwnerMeta::typeId).filter(Objects::nonNull).findFirst().orElse("vehicle")))));
         }
+        labels.sort(String.CASE_INSENSITIVE_ORDER);
         return new Holdings(Map.of("vehicles", vehicles.size()), labels);
+    }
+
+    /** {@code simple_locomotive} as "Simple locomotive". */
+    static String typeName(String typeId) {
+        String words = typeId.replace('_', ' ').trim();
+        return words.isEmpty() ? "Vehicle" : Character.toUpperCase(words.charAt(0)) + words.substring(1);
+    }
+
+    /** "Passenger Car at 512 64 -230", naming the world when it is not the first. */
+    static Optional<String> frameworkLabel(String vehicle) {
+        try {
+            String name = ChatColor.stripColor(VehicleFindMessages.resolveVehicleName(vehicle)).trim();
+            if (name.isEmpty() || name.equals(vehicle)) return Optional.empty();
+            Optional<Location> at = VehicleFramework.getVehicleManager().getOfflineLocation(vehicle);
+            return Optional.of(at.filter(location -> location.getWorld() != null)
+                    .map(location -> name + " at " + place(location)).orElse(name));
+        } catch (RuntimeException | LinkageError error) {
+            return Optional.empty();
+        }
+    }
+
+    static String place(Location at) {
+        String spot = at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ();
+        List<World> worlds = Bukkit.getWorlds();
+        return worlds.isEmpty() || worlds.getFirst().equals(at.getWorld()) ? spot
+                : spot + " (" + at.getWorld().getName() + ")";
     }
 
     private static List<OwnerMeta> listedOrNone() {
