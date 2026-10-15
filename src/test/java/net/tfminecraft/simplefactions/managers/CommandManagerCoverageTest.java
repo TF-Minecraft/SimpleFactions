@@ -1592,6 +1592,38 @@ class CommandManagerCoverageTest {
     }
   }
 
+  @Test
+  void aGuildLeaderRenamesTheirCapitalInPlace() {
+    guildLeader();
+    var settlements = mock(SettlementHandler.class);
+    when(faction.getSettlementHandler()).thenReturn(settlements);
+    when(guild.getCapital()).thenReturn(7);
+    try (MockedStatic<RestServer> rest = mockStatic(RestServer.class);
+        MockedStatic<DisplayNameGate> names = mockStatic(DisplayNameGate.class)) {
+      rest.when(() -> RestServer.getProvince(player)).thenReturn(7);
+      names
+          .when(() -> DisplayNameGate.check(player, NameOperation.SETTLEMENT_FOUND, "Vardsmeer"))
+          .thenReturn(DisplayNameGate.Result.NEEDS_CONFIRM);
+      assertTrue(run("guild", "setcapital", "Vardsmeer"));
+      verify(settlements, never()).renameGuildCapital(any(), anyInt(), any(), anyBoolean());
+      names
+          .when(() -> DisplayNameGate.check(player, NameOperation.SETTLEMENT_FOUND, "Vardsmeer"))
+          .thenReturn(DisplayNameGate.Result.OK);
+      when(settlements.renameGuildCapital(guild, 7, "Vardsmeer", false))
+          .thenReturn(CapitalResult.fail("Shared"));
+      assertTrue(run("guild", "setcapital", "Vardsmeer"));
+      verify(player).sendMessage("Shared");
+      verify(player, never()).playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+      when(settlements.renameGuildCapital(guild, 7, "Vardsmeer", false))
+          .thenReturn(CapitalResult.ok("Renamed"));
+      assertTrue(run("guild", "setcapital", "Vardsmeer"));
+      verify(player).sendMessage("Renamed");
+      verify(player).playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+      verify(map, never()).claimForCapital(any(), any(), anyInt(), anyBoolean());
+      verify(guild, never()).setCapital(anyInt());
+    }
+  }
+
   private boolean run(CommandSender sender, String commandName, String... args) {
     Command command = mock(Command.class);
     when(command.getName()).thenReturn(commandName);

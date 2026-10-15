@@ -324,6 +324,34 @@ class SettlementLifecycleCoverageTest {
     verify(leader).sendMessage(contains("has been destroyed"));
   }
 
+  @Test
+  void guildLeaderRenamesOnlyTheirOwnUnsharedSettlement() {
+    settlements.found("Seat", 10, 0, 0);
+    home.setCapital(10, true, false);
+    Settlement city = settlements.found("Omelas", 11, 0, 0).getSettlement();
+    Guild guild = fixture.guild(home, "craft", "Smith");
+    guild.setCapital(11, false);
+
+    assertFalse(settlements.renameGuildCapital(guild, 10, "Vardsmeer", false).isSuccess());
+    assertFalse(
+        settlements
+            .renameGuildCapital(home.getOrCreateMainGuild(), 10, "Vardsmeer", false)
+            .isSuccess());
+    assertTrue(settlements.renameGuildCapital(guild, 11, "Vardsmeer", true).isSuccess());
+    assertTrue(city.getName().endsWith("Omelas"));
+    assertTrue(settlements.renameGuildCapital(guild, 11, "Vardsmeer", false).isSuccess());
+    assertTrue(city.getName().endsWith("Vardsmeer"));
+    assertSame(city, settlements.getById("Omelas"));
+
+    Guild neighbour = fixture.guild(home, "neighbours", "Neighbour");
+    neighbour.setCapital(11, false);
+    assertFalse(settlements.renameGuildCapital(guild, 11, "Omelas", false).isSuccess());
+
+    Guild seated = fixture.guild(home, "seated", "Seated");
+    seated.setCapital(10, false);
+    assertFalse(settlements.renameGuildCapital(seated, 10, "Throne", false).isSuccess());
+  }
+
   private Faction faction(String id, String name, int... provinces) {
     FactionData data = fixture.data(id, name);
     for (int province : provinces) {
