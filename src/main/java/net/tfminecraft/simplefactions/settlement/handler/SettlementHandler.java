@@ -238,6 +238,30 @@ public class SettlementHandler {
         return CapitalResult.ok("§aRenamed §f" + oldName + " §ato §f" + name, settlement);
     }
 
+    /**
+     * Renames a guild's own settlement. The faction capital stays with
+     * {@code /faction setcapital}, and a settlement shared with other guilds is refused.
+     */
+    public CapitalResult renameGuildCapital(Guild guild, int province, String newName, boolean dryRun) {
+        if (guild.isBase()) {
+            return CapitalResult.fail("§cUse §e/faction setcapital <name> §cto rename the faction capital");
+        }
+        Settlement settlement = getByProvince(province);
+        if (settlement == null || guild.getCapital() != province) {
+            return CapitalResult.fail("§cStand in your guild capital to rename it");
+        }
+        if (faction.hasCapital() && settlement.contains(faction.getCapital())) {
+            return CapitalResult.fail("§cOnly the faction leader can rename the faction capital");
+        }
+        for (Guild other : getPopulation(settlement)) {
+            if (other != guild) {
+                return CapitalResult.fail("§cOther guilds share §f" + settlement.getName()
+                        + "§c, so your guild cannot rename it");
+            }
+        }
+        return rename(province, newName, dryRun);
+    }
+
     public Settlement detachOnProvince(int province) {
         Settlement settlement = getByProvince(province);
         if (settlement == null) {

@@ -44,6 +44,7 @@ import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.ConstructResult;
 import net.tfminecraft.simplefactions.settlement.handler.CapitalResult;
+import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.tiers.admin.TitleAdminCommand;
 import net.tfminecraft.simplefactions.utils.DisplayNameGate;
@@ -426,9 +427,20 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				String name = args.length == 2 ? args[1] : null;
-				if(name != null && g.getFaction().getSettlementHandler().requiresFoundingName(claim)
+				SettlementHandler settlements = g.getFaction().getSettlementHandler();
+				boolean renaming = name != null && g.getCapital() == claim
+						&& !settlements.requiresFoundingName(claim);
+				if(name != null && (renaming || settlements.requiresFoundingName(claim))
 						&& DisplayNameGate.check(p, NameOperation.SETTLEMENT_FOUND, name)
 						== DisplayNameGate.Result.NEEDS_CONFIRM) {
+					return true;
+				}
+				if(renaming) {
+					CapitalResult rename = settlements.renameGuildCapital(g, claim, name, false);
+					p.sendMessage(rename.getMessage());
+					if(rename.isSuccess()) {
+						p.playSound(p, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+					}
 					return true;
 				}
 				if(!tryClaimForCapital(p, g.getFaction(), claim)) {
