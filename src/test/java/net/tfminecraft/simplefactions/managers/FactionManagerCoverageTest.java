@@ -307,7 +307,7 @@ class FactionManagerCoverageTest {
   }
 
   @ParameterizedTest
-  @CsvSource(value = {"0,0,0|0", "255, 12, 3|0", "1,2|1", "1,2,3,4|1", "x,2,3|2", "-1,2,3|3", "256,2,3|3"}, delimiter = '|')
+  @CsvSource(value = {"0,0,0|4", "0, 0, 00|4", "0,0,1|0", "255, 12, 3|0", "1,2|1", "1,2,3,4|1", "x,2,3|2", "-1,2,3|3", "256,2,3|3"}, delimiter = '|')
   void rgbValidationProvidesSpecificErrors(String input, int expected) {
     assertEquals(expected, FactionManager.validateRGB(input));
     assertEquals(1, FactionManager.validateRGB(null));

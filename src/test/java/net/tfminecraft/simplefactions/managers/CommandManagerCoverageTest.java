@@ -835,7 +835,9 @@ class CommandManagerCoverageTest {
     "faction,2,must be numbers",
     "guild,2,must be numbers",
     "faction,3,between 0 and 255",
-    "guild,3,between 0 and 255"
+    "guild,3,between 0 and 255",
+    "faction,4,reserved for unclaimed land",
+    "guild,4,reserved for unclaimed land"
   })
   void invalidColoursHaveSpecificValidationMessages(String name, int code, String message) {
     guildLeader();
@@ -855,6 +857,10 @@ class CommandManagerCoverageTest {
     verify(map).enqueue("nation", "1,1,1");
     verify(map).enqueue("nation", "2,2,2");
     try (MockedStatic<RandomRGB> colours = mockStatic(RandomRGB.class)) {
+      assertTrue(run("faction", "setcolour", "3,3,3"));
+      verify(player).sendMessage(contains("already used"));
+      verify(faction, never()).setRGB("3,3,3");
+      clearInvocations(player);
       assertTrue(run("guild", "setcolour", "2,2,2"));
       verify(player).sendMessage(contains("already used"));
       colours.when(() -> RandomRGB.isFree("2,2,2")).thenReturn(true);

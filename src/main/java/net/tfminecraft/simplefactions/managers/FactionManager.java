@@ -904,10 +904,14 @@ public class FactionManager implements Listener{
 	    if (parts.length != 3) return 1;
 
 	    try {
+	        int total = 0;
 	        for (String part : parts) {
 	            int value = Integer.parseInt(part.trim());
 	            if (value < 0 || value > 255) return 3;
+	            total += value;
 	        }
+	        // The web map reads land without an owner as 0,0,0.
+	        if (total == 0) return 4;
 	        return 0; // All good
 	    } catch (NumberFormatException e) {
 	        return 2;

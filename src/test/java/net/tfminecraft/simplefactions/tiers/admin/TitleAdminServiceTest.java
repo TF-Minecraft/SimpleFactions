@@ -88,6 +88,12 @@ class TitleAdminServiceTest {
 	}
 
 	@Test
+	void setColourRefusesTheUnclaimedLandColour() {
+		assertFalse(TitleAdminService.setColour("COUNTY_1", "0, 0, 00").ok());
+		assertEquals("1,1,1", county1.getRgb());
+	}
+
+	@Test
 	void addProvinceMovesItFromItsOldTitle() {
 		Result result = TitleAdminService.addProvinces("COUNTY_3", List.of("1"), ANY_PROVINCE);
 
