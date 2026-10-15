@@ -429,6 +429,7 @@ public class Database {
                     gd.deadLeader = g.getDeadLeader();
                     gd.leaderlessSince = g.getLeaderlessSince();
                     gd.emptySince = g.getEmptySince();
+                    if (g.getClosingSince() > 0) gd.closingSince = g.getClosingSince();
                     gd.leaderOffer = g.getLeaderOffer();
                 }
                 gd.rgb = g.getRGB();

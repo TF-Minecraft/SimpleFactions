@@ -45,6 +45,7 @@ class HeldRealmsTest {
     private TestCharacters characters;
     private MockedConstruction<Database> databases;
     private int failures;
+    private Faction failFor;
     private String ruler;
     private Faction realm;
     private Guild main;
@@ -54,7 +55,8 @@ class HeldRealmsTest {
         fixture = new FactionDomainFixture();
         characters = TestCharacters.install();
         databases = mockConstruction(Database.class,
-                (database, context) -> when(database.saveFactionDurably(any())).thenAnswer(call -> failures-- <= 0));
+                (database, context) -> when(database.saveFactionDurably(any()))
+                        .thenAnswer(call -> call.getArgument(0) != failFor && failures-- <= 0));
         ruler = characters.character(UUID.randomUUID(), "Queen Ada");
         realm = fixture.saved("realm", ruler);
         main = realm.getOrCreateMainGuild();
@@ -133,18 +135,51 @@ class HeldRealmsTest {
     }
 
     @Test
-    void aFailedSurvivorSaveKeepsTheRealmUntilTheNextHour() {
+    void aClosureThatHasBegunFinishesEvenIfTheLeaderIsRevived() {
         Faction survivor = survivor();
         UUID incarnation = main.getIncarnationId();
-        failures = 1;
+        failFor = survivor;
         HeldRealms.closeExpired(AT + WEEK, folder);
         assertSame(realm, FactionManager.getByString("realm"));
+        assertEquals(AT + WEEK, main.getClosingSince());
         assertTrue(HeldRealms.closing(incarnation, AT));
 
+        characters.revive(ruler);
+        HeldRealms.revived(ruler);
+        assertTrue(HeldRealms.isHeld(realm), "a closure that has begun is not undone");
+        failFor = null;
         HeldRealms.closeExpired(AT + WEEK + 1, folder);
         assertNull(FactionManager.getByString("realm"));
         assertFalse(HeldRealms.closing(incarnation, AT));
         assertFalse(survivor.getDiplomacyHandler().getRelations().containsKey("realm"));
+    }
+
+    @Test
+    void aRealmThatCannotBeSavedAsClosingIsLeftUntouchedUntilTheNextHour() {
+        Faction survivor = survivor();
+        failures = 1;
+        HeldRealms.closeExpired(AT + WEEK, folder);
+        assertSame(realm, FactionManager.getByString("realm"));
+        assertEquals(0, main.getClosingSince());
+        assertTrue(survivor.getDiplomacyHandler().getRelations().containsKey("realm"));
+        assertTrue(HeldRealms.closing(main.getIncarnationId(), AT));
+        HeldRealms.closeExpired(AT + WEEK + 1, folder);
+        assertNull(FactionManager.getByString("realm"));
+    }
+
+    @Test
+    void lettingSomeoneInStopsTheWeekAtOnce() {
+        Guild smiths = fixture.guild(realm, "smiths", characters.character(UUID.randomUUID(), "Bo Reed"));
+        smiths.getMembers().clear();
+        main.restoreLeaderless(ruler, AT, AT, null);
+        smiths.addMember(characters.character(UUID.randomUUID(), "Kira Vale"));
+        assertEquals(0, main.getEmptySince());
+        smiths.getMembers().clear();
+        realm.addMember(characters.character(UUID.randomUUID(), "Lin Moss"));
+        main.getMembers().clear();
+        HeldRealms.closeExpired(AT + WEEK, folder);
+        assertSame(realm, FactionManager.getByString("realm"), "the week starts again from the next check");
+        assertEquals(AT + WEEK, main.getEmptySince());
     }
 
     @Test

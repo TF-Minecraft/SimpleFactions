@@ -215,6 +215,20 @@ class VehicleSettlementTest {
         assertTrue(maintenance.isUnpaid("orphan"));
     }
 
+    @Test void aHeldRealmsVehiclesAreNotChargedAndKeepTheirMarkers() {
+        var owed = vehicle("owed", "ship", null, OwnershipMode.POOL);
+        var fresh = vehicle("fresh", "ship", null, OwnershipMode.INSTALLATION);
+        maintenance.markUnpaid("owed", 1);
+        Faction held = faction();
+        when(held.getOrCreateMainGuild().isHeld()).thenReturn(true);
+        pools.when(() -> FactionVehiclePoolService.payingFaction(owed)).thenReturn(held);
+        pools.when(() -> FactionVehiclePoolService.payingFaction(fresh)).thenReturn(held);
+        calculate();
+        assertEquals(1, after().get("owed").getAsLong());
+        assertFalse(after().has("fresh"));
+        assertTrue(legs.isEmpty());
+    }
+
     @Test void durableAfterValuesReplayWithoutChangingUnpaidAgesOrChargingAgain() throws Exception {
         vehicle("v", "ship", null, OwnershipMode.PERSONAL);
         calculate();

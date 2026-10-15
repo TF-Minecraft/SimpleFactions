@@ -114,6 +114,7 @@ public class Guild {
     private long leaderlessSince;
     private long emptySince;
     private String leaderOffer;
+    private long closingSince;
 
     public Guild(Faction f) {
         host = f;
@@ -194,6 +195,7 @@ public class Guild {
         this.leaderlessSince = data.leaderlessSince == null ? 0 : data.leaderlessSince;
         this.emptySince = data.emptySince == null ? 0 : data.emptySince;
         this.leaderOffer = data.leaderOffer;
+        this.closingSince = data.closingSince == null ? 0 : data.closingSince;
         this.rgb = data.rgb;
         this.capital = data.capital;
         this.stance = data.stance != null ? Stance.valueOf(data.stance) : Stance.NEUTRAL;
@@ -483,6 +485,10 @@ public class Guild {
         } 
         consumeInvite(p);
         members.add(p);
+        // Anyone let into a held realm stops its week; the hourly check starts it again once empty.
+        Guild main = isBase() ? this
+                : host == null || host.getGuildHandler() == null ? null : host.getGuildHandler().getGuild(host.getId());
+        if (main != null && main.isHeld()) main.emptySince = 0;
     }
     public void kick(String member) {
         String stored = find(members, member);
@@ -576,6 +582,9 @@ public class Guild {
     public long getLeaderlessSince() { return leaderlessSince; }
     public long getEmptySince() { return emptySince; }
     public String getLeaderOffer() { return leaderOffer; }
+    /** When a held realm's closure began; from then on it closes even if its leader is revived. */
+    public long getClosingSince() { return closingSince; }
+    public void markClosing(long at) { closingSince = at; }
 
     public void offerLeadership(String key) { leaderOffer = key; }
 
@@ -586,6 +595,7 @@ public class Guild {
         leaderlessSince = 0;
         emptySince = 0;
         leaderOffer = null;
+        closingSince = 0;
     }
     public boolean isLeader(String p) {
         String currentLeader = getLeader();

@@ -79,7 +79,7 @@ public final class HeldRealms {
     public static void closeExpired(long now, Path dataFolder) {
         for (var entry : new ArrayList<>(unclosed.entrySet())) {
             // A realm still loaded is decided below; a new realm that took the name is left alone.
-            if (FactionManager.getByString(entry.getKey()) == null) close(null, entry.getKey(), entry.getValue(), dataFolder);
+            if (FactionManager.getByString(entry.getKey()) == null) close(null, entry.getKey(), entry.getValue(), now, dataFolder);
             else unclosed.remove(entry.getKey());
         }
         for (Faction faction : new ArrayList<>(FactionManager.factions)) {
@@ -87,18 +87,27 @@ public final class HeldRealms {
             if (main == null || !main.isHeld() || restore(faction, main) != Restore.NOT_ELIGIBLE) continue;
             if (main.trackEmpty(now, faction.getMembers().isEmpty())) save(faction);
             if (weekOver(faction, main, now) && !WarManager.isAtWar(faction)) {
-                close(faction, faction.getId(), main.getIncarnationId(), dataFolder);
+                close(faction, faction.getId(), main.getIncarnationId(), now, dataFolder);
             }
         }
     }
 
     /**
-     * Removes every other realm's relation, trade agreement and treaty with the realm first, so a
-     * partial closure never leaves them for a new realm of the same name, then the realm and its file.
+     * Saves the realm as closing, so a revive can no longer take back a realm whose relations are
+     * partly gone; removes every other realm's relation, trade agreement and treaty with it, so a
+     * partial closure never leaves them for a new realm of the same name; then the realm and its file.
      * {@code faction} is null when it already left memory.
      */
-    private static void close(Faction faction, String id, UUID incarnation, Path dataFolder) {
+    private static void close(Faction faction, String id, UUID incarnation, long now, Path dataFolder) {
         try {
+            Guild main = faction == null ? null : faction.getOrCreateMainGuild();
+            if (main != null && main.getClosingSince() == 0) {
+                main.markClosing(now);
+                if (!save(faction)) {
+                    main.markClosing(0);
+                    throw new IOException("cannot save " + id + " as closing");
+                }
+            }
             for (Faction survivor : FactionManager.getCopy()) {
                 if (survivor == faction) continue;
                 survivor.getDiplomacyHandler().removeRelation(id);
@@ -135,7 +144,7 @@ public final class HeldRealms {
     /** Puts the revived leader back in charge; a failed save puts the hold back for the next try. */
     private static Restore restore(Faction faction, Guild main) {
         String dead = main.getDeadLeader();
-        if (dead == null || !faction.getMembers().isEmpty() || FactionManager.getByMember(dead) != null
+        if (dead == null || main.getClosingSince() > 0 || !faction.getMembers().isEmpty() || FactionManager.getByMember(dead) != null
                 || !Members.info(dead).map(CharacterInfo::alive).orElse(false)) return Restore.NOT_ELIGIBLE;
         long since = main.getLeaderlessSince();
         long empty = main.getEmptySince();
