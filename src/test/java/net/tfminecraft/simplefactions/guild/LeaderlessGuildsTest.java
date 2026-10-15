@@ -395,4 +395,22 @@ class LeaderlessGuildsTest {
         LeaderlessGuilds.closeExpired(due + 1);
         assertFalse(LeaderlessGuilds.closing(smiths.getIncarnationId()));
     }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = net.tfminecraft.simplefactions.government.movement.Action.class,
+            names = {"INDEPENDENCE", "NATIONHOOD"})
+    void aSuccessfulBreakawayLeavesLeaderlessGuildsWithTheRealm(
+            net.tfminecraft.simplefactions.government.movement.Action action) {
+        var cause = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.government.movement.cause.Cause.class,
+                org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        when(cause.getPool().getGuilds()).thenReturn(new java.util.ArrayList<>(List.of(smiths)));
+        var proposal = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.government.proposal.Proposal.class,
+                org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        when(proposal.isPoliticalActionProposal()).thenReturn(true);
+        when(proposal.getPoliticalAction().getAction()).thenReturn(action);
+        realm.applyPoliticalAction(cause, proposal);
+        assertSame(realm, smiths.getFaction());
+        assertTrue(smiths.isLeaderless());
+        assertSame(smiths, FactionManager.getGuildByString("smiths"));
+    }
 }
