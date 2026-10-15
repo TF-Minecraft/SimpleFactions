@@ -493,4 +493,19 @@ class CivilWarStartServiceTest {
 		when(handler.getGroup("vassalage")).thenReturn(group);
 		when(rebels.getLawHandler()).thenReturn(handler);
 	}
+
+	@Test
+	void leaderlessGuildsAreNeverRebelGuilds() {
+		Faction host = org.mockito.Mockito.mock(Faction.class);
+		org.mockito.Mockito.when(host.getId()).thenReturn("host");
+		net.tfminecraft.simplefactions.guild.Guild leaderless = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.guild.Guild.class);
+		org.mockito.Mockito.when(leaderless.isLeaderless()).thenReturn(true);
+		org.mockito.Mockito.when(leaderless.getFaction()).thenReturn(host);
+		net.tfminecraft.simplefactions.guild.Guild led = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.guild.Guild.class);
+		org.mockito.Mockito.when(led.getFaction()).thenReturn(host);
+		net.tfminecraft.simplefactions.government.movement.Movement movement =
+				org.mockito.Mockito.mock(net.tfminecraft.simplefactions.government.movement.Movement.class);
+		org.mockito.Mockito.when(movement.getAllSupportingGuilds()).thenReturn(java.util.List.of(leaderless, led));
+		org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(led), CivilWarStartService.supportingHostGuilds(movement, host));
+	}
 }

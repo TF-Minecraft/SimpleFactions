@@ -158,6 +158,9 @@ public class Cause {
         if (guild.isBase()) {
             return MovementJoinCopy.causeGuildBase(staff, guild);
         }
+        if (guild.isLeaderless()) {
+            return MovementJoinCopy.guildLeaderless(staff, guild);
+        }
         if (net.tfminecraft.simplefactions.war.civilwar.CivilWarHostMovementRules.blocksHostGuildJoin(movement.getFaction())) {
             return MovementJoinCopy.oneProvinceHostGuild(staff, guild);
         }
