@@ -28,6 +28,7 @@ import net.tfminecraft.tlibs.character.CharacterInfo;
 public final class LeaderlessGuilds {
     public static final Duration CLOSE_AFTER = Duration.ofDays(30);
     private static final String GUILD = "guild";
+    private static final String NOT_SAVED = "§cThe guild could not be saved. Nothing changed; try again shortly.";
 
     private LeaderlessGuilds() {}
 
@@ -108,8 +109,13 @@ public final class LeaderlessGuilds {
             p.sendMessage("§c" + Members.display(target) + " already leads a guild");
             return;
         }
+        String previousOffer = guild.getLeaderOffer();
         guild.offerLeadership(target);
-        save(faction);
+        if (!save(faction)) {
+            guild.offerLeadership(previousOffer);
+            p.sendMessage(NOT_SAVED);
+            return;
+        }
         p.sendMessage("§aOffered the leadership of " + guild.getName() + " §ato " + Members.display(target)
                 + ". They become leader when they accept.");
         Members.online(target).ifPresent(online -> sendOffer(online, guild));
@@ -131,13 +137,10 @@ public final class LeaderlessGuilds {
             p.sendMessage("§cYou already lead a guild");
             return;
         }
-        Guild previous = FactionManager.getGuildByMember(own);
-        if (previous != null && previous != guild) previous.kick(own);
-        guild.addMember(own);
-        guild.setLeader(own);
-        net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(own);
-        faction.updatePrestige();
-        save(faction);
+        if (!fill(guild, own)) {
+            p.sendMessage(NOT_SAVED);
+            return;
+        }
         p.sendMessage("§aYou now lead " + guild.getName());
         String announcement = "§a" + Members.name(p) + " now leads " + guild.getName() + "§a!";
         for (Player online : Bukkit.getOnlinePlayers()) {
@@ -150,7 +153,11 @@ public final class LeaderlessGuilds {
         String own = Members.key(p);
         if (!guild.isLeaderless() || own == null || !own.equals(guild.getLeaderOffer())) return false;
         guild.withdrawLeaderOffer();
-        save(guild.getFaction());
+        if (!save(guild.getFaction())) {
+            guild.offerLeadership(own);
+            p.sendMessage(NOT_SAVED);
+            return true;
+        }
         p.sendMessage("§aDeclined the leadership of " + guild.getName());
         Members.online(guild.getFaction().getLeader()).ifPresent(leader -> leader.sendMessage(
                 "§c" + Members.name(p) + " declined the leadership of " + guild.getName()));
@@ -168,14 +175,41 @@ public final class LeaderlessGuilds {
         }
     }
 
+    /**
+     * Makes {@code member}, a living member of the guild's realm, its leader and saves the realm.
+     * When the save fails nothing is kept and the result is false.
+     */
+    public static boolean fill(Guild guild, String member) {
+        Faction faction = guild.getFaction();
+        String deadLeader = guild.getDeadLeader();
+        long since = guild.getLeaderlessSince();
+        long empty = guild.getEmptySince();
+        String offer = guild.getLeaderOffer();
+        Guild previous = FactionManager.getGuildByMember(member);
+        int index = previous == null ? -1 : previous.getMembers().indexOf(member);
+        if (previous != null && previous != guild) previous.kick(member);
+        guild.addMember(member);
+        guild.setLeader(member);
+        if (!save(faction)) {
+            guild.kick(member);
+            guild.restoreLeaderless(deadLeader, since, empty, offer);
+            if (previous != null && index >= 0) previous.getMembers().add(Math.min(index, previous.getMembers().size()), member);
+            return false;
+        }
+        net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(member);
+        faction.updatePrestige();
+        return true;
+    }
+
     /** Hourly: removes leaderless guilds that have had no members for {@link #CLOSE_AFTER}. */
     public static void closeExpired(long now) {
         for (Faction faction : new ArrayList<>(FactionManager.factions)) {
             if (faction == null) continue;
             boolean changed = false;
             for (Guild guild : new ArrayList<>(faction.getGuildHandler().getGuilds())) {
-                if (guild == null || !guild.isLeaderless() || !guild.getMembers().isEmpty()) continue;
-                if (now - guild.getLeaderlessSince() < CLOSE_AFTER.toMillis()) continue;
+                if (guild == null || !guild.isLeaderless()) continue;
+                changed |= guild.trackEmpty(now);
+                if (!guild.getMembers().isEmpty() || now - guild.getEmptySince() < CLOSE_AFTER.toMillis()) continue;
                 faction.getGuildHandler().removeGuild(guild.getId());
                 Logger.getLogger("SimpleFactions").info("Closed " + guild.getName() + " (" + guild.getIncarnation()
                         + "): no leader was appointed within " + CLOSE_AFTER.toDays() + " days");
@@ -201,10 +235,9 @@ public final class LeaderlessGuilds {
                 .hoverEvent(HoverEvent.showText(Component.text(hover)));
     }
 
-    private static void save(Faction faction) {
-        if (!new Database().saveFactionDurably(faction)) {
-            Logger.getLogger("SimpleFactions").warning("Could not save " + faction.getId()
-                    + " after a guild leadership change; the next save retries it");
-        }
+    private static boolean save(Faction faction) {
+        if (new Database().saveFactionDurably(faction)) return true;
+        Logger.getLogger("SimpleFactions").warning("Could not save " + faction.getId() + " after a guild leadership change");
+        return false;
     }
 }

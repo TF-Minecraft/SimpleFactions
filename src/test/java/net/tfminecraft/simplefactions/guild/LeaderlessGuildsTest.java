@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -235,15 +236,20 @@ class LeaderlessGuildsTest {
         data.banner = new java.util.ArrayList<>(List.of("white"));
         data.deadLeader = smiths.getDeadLeader();
         data.leaderlessSince = smiths.getLeaderlessSince();
+        data.emptySince = smiths.getEmptySince();
         data.leaderOffer = smiths.getLeaderOffer();
         Guild copy = new Guild(data, realm);
         assertTrue(copy.isLeaderless());
         assertEquals(founder, copy.getDeadLeader());
         assertEquals(1_000L, copy.getLeaderlessSince());
+        assertEquals(1_000L, copy.getEmptySince());
         assertEquals(ruler, copy.getLeaderOffer());
 
         data.leaderlessSince = null;
-        assertFalse(new Guild(data, realm).isLeaderless());
+        data.emptySince = null;
+        Guild bare = new Guild(data, realm);
+        assertFalse(bare.isLeaderless());
+        assertEquals(0, bare.getEmptySince());
     }
 
     @Test
@@ -270,11 +276,96 @@ class LeaderlessGuildsTest {
         Player outsider = fixture.player("outsider");
         characters.play(outsider, characters.character(UUID.randomUUID(), "Stranger"));
         when(org.bukkit.Bukkit.getOnlinePlayers()).thenAnswer(call -> List.of(rulerPlayer, kiraPlayer, outsider));
-        saves = false;
         LeaderlessGuilds.accept(kiraPlayer, "smiths");
         assertEquals(kira, smiths.getLeader());
         verify(rulerPlayer).sendMessage("§aKira Vale now leads smiths§a!");
         verify(kiraPlayer, never()).sendMessage("§aKira Vale now leads smiths§a!");
         verify(outsider, never()).sendMessage("§aKira Vale now leads smiths§a!");
+    }
+
+    @Test
+    void aFailedSaveUndoesTheAcceptanceAndKeepsTheOffer() {
+        String first = citizen("First Member");
+        String kira = citizen("Kira Vale");
+        String last = citizen("Last Member");
+        Guild base = realm.getOrCreateMainGuild();
+        int index = base.getMembers().indexOf(kira);
+        Player kiraPlayer = fixture.player("kira");
+        characters.play(kiraPlayer, kira);
+        smiths.offerLeadership(kira);
+        saves = false;
+
+        LeaderlessGuilds.accept(kiraPlayer, "smiths");
+        verify(kiraPlayer).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
+        assertTrue(smiths.isLeaderless());
+        assertEquals(founder, smiths.getDeadLeader());
+        assertEquals(1_000L, smiths.getLeaderlessSince());
+        assertEquals(1_000L, smiths.getEmptySince());
+        assertEquals(kira, smiths.getLeaderOffer());
+        assertFalse(smiths.isMember(kira));
+        assertEquals(index, base.getMembers().indexOf(kira));
+        assertTrue(base.isMember(first) && base.isMember(last));
+    }
+
+    @Test
+    void failedSavesUndoAppointmentsAndRefusals() {
+        String kira = citizen("Kira Vale");
+        Player kiraPlayer = fixture.player("kira");
+        characters.play(kiraPlayer, kira);
+        saves = false;
+        LeaderlessGuilds.appoint(rulerPlayer, "smiths", "Kira Vale");
+        verify(rulerPlayer).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
+        assertNull(smiths.getLeaderOffer());
+
+        smiths.offerLeadership(kira);
+        assertTrue(LeaderlessGuilds.decline(kiraPlayer, smiths));
+        verify(kiraPlayer).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
+        assertEquals(kira, smiths.getLeaderOffer());
+    }
+
+    @Test
+    void theThirtyDaysCountFromWhenTheGuildWasLastEmpty() {
+        long day = java.time.Duration.ofDays(1).toMillis();
+        String kira = citizen("Kira Vale");
+        smiths.addMember(kira);
+        LeaderlessGuilds.closeExpired(40 * day);
+        assertEquals(0, smiths.getEmptySince());
+        smiths.kick(kira);
+        LeaderlessGuilds.closeExpired(41 * day);
+        assertEquals(41 * day, smiths.getEmptySince());
+        LeaderlessGuilds.closeExpired(70 * day);
+        assertSame(smiths, FactionManager.getGuildByString("smiths"));
+        LeaderlessGuilds.closeExpired(71 * day);
+        assertNull(FactionManager.getGuildByString("smiths"));
+    }
+
+    @Test
+    void leaderlessGuildWithMembersStartsUnemptyAndCannotLeaveTheRealm() {
+        Guild crew = fixture.guild(realm, "crew", characters.character(UUID.randomUUID(), "Crew Boss"));
+        crew.addMember(citizen("Deckhand"));
+        crew.markLeaderless(crew.getLeader(), 5L);
+        assertEquals(0, crew.getEmptySince());
+        assertFalse(crew.trackEmpty(6L));
+        assertFalse(smiths.canBeEvicted(rulerPlayer));
+        assertFalse(smiths.canBeElevated(rulerPlayer));
+        verify(rulerPlayer, times(2)).sendMessage("§cAppoint a leader for this guild first");
+        assertFalse(smiths.canBeElevated(null));
+    }
+
+    @Test
+    void releasingTheRealmsGuildsKeepsLeaderlessOnesForItsLeader() {
+        realm.dissolve(new java.util.ArrayList<>(), new java.util.ArrayList<>(realm.getGuildHandler().getGuilds()));
+        assertSame(realm, smiths.getFaction());
+        assertTrue(smiths.isLeaderless());
+        assertSame(smiths, FactionManager.getGuildByString("smiths"));
+    }
+
+    @Test
+    void fillingAGuildWithoutAnOfferStillClearsTheVacancy() {
+        String kira = citizen("Kira Vale");
+        assertTrue(LeaderlessGuilds.fill(smiths, kira));
+        assertEquals(kira, smiths.getLeader());
+        assertFalse(smiths.isLeaderless());
+        assertEquals(0, smiths.getEmptySince());
     }
 }

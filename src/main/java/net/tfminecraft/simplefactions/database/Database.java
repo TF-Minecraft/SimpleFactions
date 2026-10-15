@@ -428,6 +428,7 @@ public class Database {
                 if (g.isLeaderless()) {
                     gd.deadLeader = g.getDeadLeader();
                     gd.leaderlessSince = g.getLeaderlessSince();
+                    gd.emptySince = g.getEmptySince();
                     gd.leaderOffer = g.getLeaderOffer();
                 }
                 gd.rgb = g.getRGB();

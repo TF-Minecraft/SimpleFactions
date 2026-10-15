@@ -5,6 +5,11 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.UUID;
+import net.tfminecraft.tlibs.character.CharacterInfo;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterStatus;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
@@ -1976,6 +1981,40 @@ class CommandManagerCoverageTest {
       assertTrue(run("guild", "lead", "smiths"));
       leaderless.verify(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handle(eq(player), any()),
           times(2));
+    }
+  }
+
+  @Test
+  void forceLeaderFillsALeaderlessGuildWithALivingRealmMember() {
+    admin();
+    when(guild.isBase()).thenReturn(false);
+    when(guild.isLeaderless()).thenReturn(true);
+    when(guild.getFaction()).thenReturn(faction);
+    when(faction.getMembers()).thenReturn(new ArrayList<>(List.of("Leader", "Alice", "Ghost")));
+    when(faction.getName()).thenReturn("Realm");
+    when(guild.getName()).thenReturn("Merchants");
+    CharacterInfo alive = new CharacterInfo(new CharacterRef(UUID.randomUUID(), UUID.randomUUID()), "Alice",
+        CharacterStatus.ALIVE, null, java.util.Set.of(), 0, null);
+    try (MockedStatic<Members> members = mockStatic(Members.class, CALLS_REAL_METHODS);
+        MockedStatic<net.tfminecraft.simplefactions.guild.LeaderlessGuilds> leaderless =
+            mockStatic(net.tfminecraft.simplefactions.guild.LeaderlessGuilds.class)) {
+      members.when(() -> Members.info("Alice")).thenReturn(Optional.of(alive));
+      members.when(() -> Members.display("Alice")).thenReturn("Alice");
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.handles(anyString(), any()))
+          .thenReturn(false);
+      assertTrue(run("guild", "forceleader", "merchants", "Ghost"));
+      verify(player).sendMessage("§cNo living member of Realm §cby that name");
+      assertTrue(run("guild", "forceleader", "merchants", "Nobody"));
+      verify(player, times(2)).sendMessage("§cNo living member of Realm §cby that name");
+      factions.when(() -> FactionManager.getGuildByLeader("Alice")).thenReturn(guild);
+      assertTrue(run("guild", "forceleader", "merchants", "Alice"));
+      verify(player).sendMessage("§cAlice already leads a guild");
+      factions.when(() -> FactionManager.getGuildByLeader("Alice")).thenReturn(null);
+      assertTrue(run("guild", "forceleader", "merchants", "Alice"));
+      verify(player).sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(guild, "Alice")).thenReturn(true);
+      assertTrue(run("guild", "forceleader", "merchants", "Alice"));
+      verify(player).sendMessage("§aAlice now leads Merchants");
     }
   }
 }

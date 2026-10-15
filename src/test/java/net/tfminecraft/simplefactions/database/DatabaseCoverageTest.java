@@ -292,6 +292,6 @@ class DatabaseCoverageTest {
     assertTrue(database.saveFactionChecked(realm));
     FactionData saved=JsonUtil.readJson(disk.root.resolve("Data/realm.json").toFile(),FactionData.class);
     GuildData stored=saved.guilds.stream().filter(entry->"smiths".equals(entry.id)).findFirst().orElseThrow();
-    assertEquals("Bob",stored.deadLeader);assertEquals(42L,stored.leaderlessSince);assertEquals("Alice",stored.leaderOffer);
+    assertEquals("Bob",stored.deadLeader);assertEquals(42L,stored.leaderlessSince);assertEquals(42L,stored.emptySince);assertEquals("Alice",stored.leaderOffer);
   }
 }

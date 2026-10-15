@@ -112,6 +112,7 @@ public class Guild {
     /** Set while the seat is empty because the leader died with nobody to succeed them. */
     private String deadLeader;
     private long leaderlessSince;
+    private long emptySince;
     private String leaderOffer;
 
     public Guild(Faction f) {
@@ -191,6 +192,7 @@ public class Guild {
         if (data.incarnation != null && !data.incarnation.isBlank()) this.incarnation = data.incarnation;
         this.deadLeader = data.deadLeader;
         this.leaderlessSince = data.leaderlessSince == null ? 0 : data.leaderlessSince;
+        this.emptySince = data.emptySince == null ? 0 : data.emptySince;
         this.leaderOffer = data.leaderOffer;
         this.rgb = data.rgb;
         this.capital = data.capital;
@@ -533,8 +535,26 @@ public class Guild {
         if (leaderlessSince > 0) return;
         deadLeader = deadKey;
         leaderlessSince = at;
+        emptySince = members.isEmpty() ? at : 0;
         leaderOffer = null;
         invites.clear();
+    }
+
+    /** Puts back a leaderless state whose filling could not be saved. */
+    public void restoreLeaderless(String deadKey, long since, long empty, String offer) {
+        leader = "";
+        deadLeader = deadKey;
+        leaderlessSince = since;
+        emptySince = empty;
+        leaderOffer = offer;
+    }
+
+    /** Starts or stops the empty clock of a leaderless guild; true when it changed. */
+    public boolean trackEmpty(long now) {
+        long next = members.isEmpty() ? (emptySince > 0 ? emptySince : now) : 0;
+        if (next == emptySince) return false;
+        emptySince = next;
+        return true;
     }
 
     /** An ordinary guild whose leader died and has not been replaced. */
@@ -544,6 +564,7 @@ public class Guild {
 
     public String getDeadLeader() { return deadLeader; }
     public long getLeaderlessSince() { return leaderlessSince; }
+    public long getEmptySince() { return emptySince; }
     public String getLeaderOffer() { return leaderOffer; }
 
     public void offerLeadership(String key) { leaderOffer = key; }
@@ -553,6 +574,7 @@ public class Guild {
     private void clearLeaderless() {
         deadLeader = null;
         leaderlessSince = 0;
+        emptySince = 0;
         leaderOffer = null;
     }
     public boolean isLeader(String p) {
@@ -971,6 +993,10 @@ public class Guild {
             if(p != null) p.sendMessage("§cCannot evict the main guild");
             return false;
         }
+        if(isLeaderless()) {
+            if(p != null) p.sendMessage("§cAppoint a leader for this guild first");
+            return false;
+        }
         if(host.getGovernment().getMovementByMember(leader) != null) {
             if(p != null) p.sendMessage("§cGuild is currently involved in a movement");
             return false;
@@ -981,6 +1007,10 @@ public class Guild {
     public boolean canBeElevated(Player p) {
         if(isBase()) {
             if(p != null) p.sendMessage("§cCannot elevate the main guild");
+            return false;
+        }
+        if(isLeaderless()) {
+            if(p != null) p.sendMessage("§cAppoint a leader for this guild first");
             return false;
         }
         if(!host.hasFactionRule(Rules.CAN_HAVE_VASSALS)) {

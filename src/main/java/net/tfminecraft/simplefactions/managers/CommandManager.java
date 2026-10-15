@@ -531,6 +531,20 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cThis is the base guild, use /faction forceleader instead");
 					return true;
 				}
+				if(g.isLeaderless()) {
+					// Any living member of the realm may fill an empty seat, even of a guild with no members.
+					String member = Members.find(g.getFaction().getMembers(), rest(args, 2));
+					if(member == null || !Members.info(member).map(net.tfminecraft.tlibs.character.CharacterInfo::alive).orElse(false)) {
+						p.sendMessage("§cNo living member of "+g.getFaction().getName()+" §cby that name");
+					} else if(FactionManager.getGuildByLeader(member) != null) {
+						p.sendMessage("§c"+Members.display(member)+" already leads a guild");
+					} else if(!net.tfminecraft.simplefactions.guild.LeaderlessGuilds.fill(g, member)) {
+						p.sendMessage("§cThe guild could not be saved. Nothing changed; try again shortly.");
+					} else {
+						p.sendMessage("§a"+Members.display(member)+" now leads "+g.getName());
+					}
+					return true;
+				}
 				String member = Members.find(g.getMembers(), rest(args, 2));
 				if(member == null) {
 					p.sendMessage("§cPlayer is not in the guild");
