@@ -814,10 +814,21 @@ class GuildMenusCoverageTest {
       clearInvocations(fixture.player);
       view.ledgerView(fixture.player, display, inventory);
       verify(fixture.player, never()).openInventory(any(Inventory.class));
-      Guild ordinary = displayGuild(guild);
-      view.ledgerView(fixture.player, ordinary, null);
-      assertNull(fixture.player.getOpenInventory().getTopInventory().getItem(10));
     }
+  }
+
+  @Test
+  void ordinaryGuildLedgerShowsItsDepositsOnAShorterMenu() {
+    Guild ordinary = displayGuild(guild);
+    ordinary.getLedger().getHistory().addDeposit("Leader", 25);
+    view.ledgerView(fixture.player, ordinary, null);
+    Inventory inventory = fixture.player.getOpenInventory().getTopInventory();
+    assertEquals(27, inventory.getSize());
+    assertNotNull(inventory.getItem(4));
+    assertEquals(Material.CHEST, inventory.getItem(13).getType());
+    assertNull(inventory.getItem(12));
+    assertNull(inventory.getItem(14));
+    assertNotNull(inventory.getItem(22));
   }
 
   @ParameterizedTest
