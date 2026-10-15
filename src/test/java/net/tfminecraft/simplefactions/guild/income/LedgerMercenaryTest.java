@@ -158,6 +158,21 @@ class LedgerMercenaryTest {
 	}
 
 	@Test
+	void aHeldRealmsCompanyPaysNoSlotUpkeep() {
+		Fixture host = hostGuild(false);
+		when(host.company.getSlotUpkeep()).thenReturn(24.0);
+		when(host.faction.getId()).thenReturn("realm");
+		Guild main = mock(Guild.class);
+		when(host.guildHandler.getGuild("realm")).thenReturn(main);
+		when(main.isHeld()).thenReturn(true);
+
+		assertEquals(0.0, host.ledger.getIncome(Cashflow.MILITARY_UPKEEP), 1e-9);
+		var transfers = new net.tfminecraft.simplefactions.utils.DailyGuildTransfers();
+		host.ledger.populateDailyTransfers(transfers);
+		assertEquals(0.0, transfers.getExternalDeltas().getOrDefault(host.guild, 0.0), 1e-9);
+	}
+
+	@Test
 	void aCapitalPaysBothItsArmyAndItsCompany() {
 		Fixture host = hostGuild(true);
 		when(host.military.getTotalUpkeep()).thenReturn(100.0);

@@ -498,7 +498,8 @@ public class Ledger {
     /** Slot upkeep the host guild owes for its own company, zero for everyone else. */
     private double getCompanySlotUpkeep() {
         MercenaryCompany company = getFormedCompany();
-        return company == null ? 0 : company.getSlotUpkeep();
+        // A held realm pays no army upkeep, its companies' slots included.
+        return company == null || HeldRealms.isHeld(guild.getFaction()) ? 0 : company.getSlotUpkeep();
     }
 
     /**

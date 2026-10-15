@@ -185,6 +185,7 @@ class GuildEstateFallbackTest {
         assertTrue(main.isHeld());
         assertEquals(DeathGuild.UNAVAILABLE, fallback.deathGuild(ruler.characterId(), death));
         assertEquals(GuildLookup.UNAVAILABLE, fallback.guild(main.getIncarnationId()));
+        assertEquals(GuildLookup.UNAVAILABLE, fallback.guildByName(main.getName()), "by name as by incarnation");
         CharacterRef heir = character();
         faction.addMember(key(heir));
         faction.setLeader(key(heir));

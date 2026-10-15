@@ -58,7 +58,7 @@ final class GuildEstateFallback implements EstateFallback {
                 .filter(guild -> name.trim().equalsIgnoreCase(guild.getName()))
                 .toList();
         if (matches.size() > 1) return GuildLookup.UNAVAILABLE;
-        return matches.isEmpty() ? GuildLookup.GONE : GuildLookup.live(ref(matches.getFirst()));
+        return matches.isEmpty() ? GuildLookup.GONE : guild(matches.getFirst().getIncarnationId());
     }
 
     /** A guild being closed, or a held realm, is neither live nor gone yet. */
