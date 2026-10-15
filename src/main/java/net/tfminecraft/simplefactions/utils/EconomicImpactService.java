@@ -92,7 +92,7 @@ public final class EconomicImpactService {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Map<Guild, Double> deltas;
             try {
-                deltas = pending.prepared.balances().read(() -> pending.calculator.calculate(pending.prepared));
+                deltas = pending.prepared.reads().read(() -> pending.calculator.calculate(pending.prepared));
             } catch (RuntimeException ex) {
                 plugin.getLogger().log(Level.WARNING, "Economic impact preview failed", ex);
                 deltas = null;

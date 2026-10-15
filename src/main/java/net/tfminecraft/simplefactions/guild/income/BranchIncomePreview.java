@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.tfminecraft.simplefactions.economy.FrozenBalances;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -31,15 +31,15 @@ public final class BranchIncomePreview {
 
     public static final class Prepared {
         private final ProvinceManager snapshot;
-        private final FrozenBalances balances = FrozenBalances.capture();
+        private final FrozenReads reads = FrozenReads.capture();
 
         private Prepared(ProvinceManager snapshot) {
             this.snapshot = snapshot;
         }
 
-        /** Guild treasuries as they were when this copy was made, for work off the main thread. */
-        public FrozenBalances balances() {
-            return balances;
+        /** Main-thread state as it was when this copy was made, for work off the main thread. */
+        public FrozenReads reads() {
+            return reads;
         }
     }
 

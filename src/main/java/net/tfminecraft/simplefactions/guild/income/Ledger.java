@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.ToDoubleFunction;
 
+import net.tfminecraft.simplefactions.economy.FrozenReads;
+
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 
 import org.bukkit.Bukkit;
@@ -69,6 +71,11 @@ public class Ledger {
 
     public static void setNodeUpkeepLookup(ToDoubleFunction<Guild> lookup) {
         nodeUpkeepLookup = lookup == null ? guild -> 0.0 : lookup;
+    }
+
+    /** The registered node upkeep, read live. Dowsing answers only on the main thread. */
+    public static double liveNodeUpkeep(Guild guild) {
+        return nodeUpkeepLookup.applyAsDouble(guild);
     }
 
     // Pool vehicle upkeep is withdrawn in VehicleUpkeepService. This lookup is the ledger line.
@@ -399,7 +406,7 @@ public class Ledger {
                 amount *= net.tfminecraft.simplefactions.inactivity.InactivityService.outputFactor(guild);
                 break;
             case NODES:
-                amount = -nodeUpkeepLookup.applyAsDouble(guild);
+                amount = -FrozenReads.nodeUpkeep(guild);
                 break;
             //Mercenary contracts
             case MERCENARY_CONTRACT:
