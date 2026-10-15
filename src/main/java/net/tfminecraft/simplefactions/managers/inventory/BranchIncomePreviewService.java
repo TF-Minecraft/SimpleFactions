@@ -58,7 +58,7 @@ public final class BranchIncomePreviewService {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             BranchIncomePreview.Estimate estimate;
             try {
-                estimate = prepared.balances().read(
+                estimate = prepared.reads().read(
                         () -> BranchIncomePreview.estimate(prepared, guild, current, hypothetical));
             } catch (RuntimeException ex) {
                 plugin.getLogger().log(

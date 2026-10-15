@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import net.tfminecraft.simplefactions.SimpleFactions;
-import net.tfminecraft.simplefactions.economy.FrozenBalances;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
 import net.tfminecraft.simplefactions.keys.Keys;
@@ -71,9 +71,9 @@ class EconomicImpactServiceCoverageTest {
     when(viewer.getName()).thenReturn("Our Guild");
     previews = mockStatic(EconomicPreview.class);
     prepared = mock(EconomicPreview.Prepared.class);
-    FrozenBalances balances = mock(FrozenBalances.class);
-    when(balances.read(any())).thenAnswer(call -> call.<Supplier<?>>getArgument(0).get());
-    when(prepared.balances()).thenReturn(balances);
+    FrozenReads reads = mock(FrozenReads.class);
+    when(reads.read(any())).thenAnswer(call -> call.<Supplier<?>>getArgument(0).get());
+    when(prepared.reads()).thenReturn(reads);
     previews.when(EconomicPreview::current).thenReturn(prepared);
     calculations = new AtomicInteger();
   }

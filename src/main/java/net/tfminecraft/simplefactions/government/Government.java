@@ -232,7 +232,7 @@ public class Government {
 
     public List<StabilityModifier> getStabilityModifiers() {
         if (f == null || f.getEspionage() == null) return stabilityModifiers;
-        var active = net.tfminecraft.simplefactions.espionage.EspionageService.stabilityModifiers(f, System.currentTimeMillis());
+        var active = net.tfminecraft.simplefactions.economy.FrozenReads.espionage(f, System.currentTimeMillis());
         if (active.isEmpty()) return stabilityModifiers;
         List<StabilityModifier> result = new ArrayList<>(stabilityModifiers);
         result.addAll(active);
