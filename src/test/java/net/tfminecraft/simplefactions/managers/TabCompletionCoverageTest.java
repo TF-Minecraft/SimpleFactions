@@ -297,6 +297,9 @@ class TabCompletionCoverageTest {
     MercenaryCompany company = mock(MercenaryCompany.class);
     when(company.getEnlisted()).thenReturn(List.of("Alice", "Bob"));
     when(guild.getCompany()).thenReturn(company);
+    when(guild.hasCompany()).thenReturn(true);
+    when(company.isLeader("Leader")).thenReturn(true);
+    when(company.hasFreeSlot()).thenReturn(true);
     when(Bukkit.getOnlinePlayers())
         .thenAnswer(call -> List.of(gui.player("Alice"), gui.player("Bob")));
     assertEquals(List.of("Alice"), complete("company", "kick", "al"));
@@ -323,10 +326,10 @@ class TabCompletionCoverageTest {
         .thenReturn(Arrays.asList(null, mock(Guild.class), guild, unnamed));
     assertEquals(List.of("give", "take"), complete("company", "admin", ""));
     assertEquals(
-        List.of("Silver Shields", "merchants", "unnamed"),
+        List.of("merchants", "unnamed"),
         complete("company", "admin", "give", ""));
     assertEquals(List.of("merchants"), complete("company", "admin", "take", "mer"));
-    assertEquals(List.of("1"), complete("company", "admin", "give", "merchants", ""));
+    assertEquals(List.of(), complete("company", "admin", "give", "merchants", ""));
     when(player.hasPermission(Permissions.Permission_Admin)).thenReturn(false);
     assertTrue(complete("company", "admin", "").isEmpty());
   }
@@ -352,9 +355,9 @@ class TabCompletionCoverageTest {
     assertTrue(complete("faction", "construct", "").isEmpty());
     factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(realm);
     assertEquals(
-        List.of("fort", "port", "airport", "train_station"), complete("faction", "construct"));
+        List.of("fort", "port", "airport", "train_station"), complete("faction", "construct", ""));
     assertEquals(List.of("train_station"), complete("faction", "construct", "TR"));
-    assertEquals(List.of("<name>"), complete("faction", "construct", "fort", ""));
+    assertEquals(List.of(), complete("faction", "construct", "fort", ""));
     Cache.provincesEnabled = false;
     assertTrue(complete("faction", "construct", "").isEmpty());
     assertTrue(complete(mock(CommandSender.class), "faction", "construct", "").isEmpty());
@@ -365,7 +368,8 @@ class TabCompletionCoverageTest {
   void installationCompletionsUseTheLeadersCurrentInstallations(String action) {
     assertTrue(complete("faction", action, "").isEmpty());
     installationChoices();
-    List<String> all = complete("faction", action);
+    assertEquals(List.of(action), complete("faction", action));
+    List<String> all = complete("faction", action, "");
     assertTrue(all.containsAll(List.of("fort", "port")));
     assertEquals(action.equals("deconstruct"), all.contains("fort_building"));
     assertEquals(List.of("port"), complete("faction", action, "P"));
@@ -381,7 +385,7 @@ class TabCompletionCoverageTest {
     when(Bukkit.getOnlinePlayers())
         .thenAnswer(call -> List.of(gui.player("Alice"), gui.player("Bob")));
     assertTrue(
-        complete("faction", "vehicle")
+        complete("faction", "vehicle", "")
             .containsAll(List.of("give", "handover", "transfer", "maintenance")));
     assertEquals(List.of("transfer"), complete("faction", "vehicle", "tr"));
     assertEquals(List.of("Alice"), complete("faction", "vehicle", "give", "A"));
@@ -406,8 +410,9 @@ class TabCompletionCoverageTest {
     "faction,setcolour,'R,G,B'",
     "guild,setcolour,'R,G,B'"
   })
-  void scalarArgumentsHaveSpecificPlaceholders(String command, String action, String placeholder) {
-    assertEquals(List.of(placeholder), complete(command, action, ""));
+  void freeTextArgumentsDoNotInsertUsageHints(String command, String action, String placeholder) {
+    assertEquals(List.of(), complete(command, action, ""));
+    assertEquals(List.of(), complete(command, action, "MIXED"));
   }
 
   @ParameterizedTest
@@ -444,7 +449,9 @@ class TabCompletionCoverageTest {
     assertTrue(complete("faction", "delete", "").isEmpty());
     assertTrue(complete("guild", "delete", "").isEmpty());
     factions.when(() -> FactionManager.getByMember("Leader")).thenReturn(realm);
+    factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(realm);
     factions.when(() -> FactionManager.getGuildByMember("Leader")).thenReturn(guild);
+    factions.when(() -> FactionManager.getGuildByLeader("Leader")).thenReturn(guild);
     assertEquals(List.of("realm"), complete("faction", "delete", ""));
     assertEquals(List.of("merchants"), complete("guild", "delete", ""));
     Guild base = mock(Guild.class);
@@ -467,6 +474,7 @@ class TabCompletionCoverageTest {
     assertTrue(complete("guild", "kick", "").isEmpty());
     assertTrue(complete("faction", "setleader", "").isEmpty());
     factions.when(() -> FactionManager.getByMember("Leader")).thenReturn(realm);
+    factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(realm);
     factions.when(() -> FactionManager.getGuildByLeader("Leader")).thenReturn(guild);
     when(realm.canBecomeLeader("Alice")).thenReturn(true);
     assertEquals(List.of("Alice", "Bob"), complete("guild", "kick", ""));
@@ -523,7 +531,7 @@ class TabCompletionCoverageTest {
     assertEquals(List.of("fort"), complete("faction", "forceupgrade", "realm", "F"));
     assertTrue(complete("faction", "forceupgrade", "missing", "").isEmpty());
     assertEquals(List.of("airport"), complete("faction", "forceconstruct", "realm", "air"));
-    assertEquals(List.of("<name>"), complete("faction", "forceconstruct", "realm", "fort", ""));
+    assertEquals(List.of(), complete("faction", "forceconstruct", "realm", "fort", ""));
     Cache.provincesEnabled = false;
     assertTrue(complete("faction", "forceconstruct", "realm", "").isEmpty());
     assertTrue(complete("faction", "forceupgrade", "realm", "").isEmpty());
@@ -538,13 +546,17 @@ class TabCompletionCoverageTest {
     Regiment levy = mock(Regiment.class);
     when(levy.getId()).thenReturn("levy");
     when(levy.isLevy()).thenReturn(true);
-    when(military.getRegiments()).thenReturn(List.of(professional, levy));
+    Regiment mercenary = mock(Regiment.class);
+    when(mercenary.isMercenary()).thenReturn(true);
+    when(mercenary.getId()).thenReturn("company_owned");
+    when(military.getRegiments()).thenReturn(List.of(professional, levy, mercenary));
     when(realm.getMilitary()).thenReturn(military);
     assertEquals(List.of("give", "take"), complete("faction", "forceregiment", "realm", ""));
     assertEquals(List.of("archers"), complete("faction", "forceregiment", "realm", "give", ""));
+    assertEquals(List.of("archers"), complete("faction", "forceregiment", "realm", "take", "AR"));
     assertTrue(complete("faction", "forceregiment", "missing", "give", "").isEmpty());
     assertEquals(
-        List.of("1"), complete("faction", "forceregiment", "realm", "give", "archers", ""));
+        List.of(), complete("faction", "forceregiment", "realm", "give", "archers", ""));
   }
 
   @Test
@@ -562,12 +574,12 @@ class TabCompletionCoverageTest {
   }
 
   @Test
-  void administrativeNumbersAndModifiersHaveClearArgumentPlaceholders() {
+  void administrativeFreeTextAndNumbersHaveNoInventedValues() {
     admin();
-    assertEquals(List.of("1.0"), complete("faction", "forcewithdraw", "realm", ""));
-    assertEquals(List.of("<type>"), complete("faction", "addprestigemodifier", "realm", ""));
+    assertEquals(List.of(), complete("faction", "forcewithdraw", "realm", ""));
+    assertEquals(List.of(), complete("faction", "addprestigemodifier", "realm", ""));
     assertEquals(
-        List.of("1.0"), complete("faction", "addprestigemodifier", "realm", "festival", ""));
+        List.of(), complete("faction", "addprestigemodifier", "realm", "festival", ""));
   }
 
   @Test
@@ -609,6 +621,8 @@ class TabCompletionCoverageTest {
       types.when(RelationLoader::getTreatyTypes).thenReturn(List.of(trade));
       types.when(RelationLoader::getPoliticalTreatyTypes).thenReturn(List.of(political));
       assertEquals(List.of("alliance"), complete("faction", "setrelation", "realm", "other", ""));
+      assertEquals(List.of("alliance"), complete("faction", "setrelation", "realm", "other", "ALL"));
+      assertTrue(complete("faction", "setrelation", "realm", "other", "tr").isEmpty());
       assertEquals(
           List.of("trade", "non_aggression"),
           complete("faction", "settreaty", "realm", "other", ""));
@@ -644,6 +658,207 @@ class TabCompletionCoverageTest {
     assertTrue(complete("unrelated", "unknown").isEmpty());
   }
 
+  @Test
+  void missingRootActionsFollowMemberLeaderAdminAndProvinceContext() {
+    assertTrue(complete("guild", "li").contains("list"));
+    factions.when(() -> FactionManager.getByMember("Leader")).thenReturn(realm);
+    when(realm.getBank()).thenReturn(mock(net.tfminecraft.simplefactions.objects.Bank.class));
+    assertTrue(complete("faction", "").containsAll(List.of("deposit", "leave")));
+    when(realm.isInGuild("Leader")).thenReturn(true);
+    assertFalse(complete("faction", "").contains("leave"));
+    factions.when(() -> FactionManager.getGuildByMember("Leader")).thenReturn(guild);
+    assertEquals(List.of("leave"), complete("guild", "lea"));
+    factions.when(() -> FactionManager.getGuildByLeader("Leader")).thenReturn(guild);
+    assertFalse(complete("guild", "").contains("leave"));
+    assertEquals(List.of("delete"), complete("guild", "del"));
+    admin();
+    assertTrue(complete("faction", "").containsAll(List.of("admin", "forcedelete", "refresh", "delbank", "provincecap")));
+    assertEquals(List.of("quarantine"), complete("faction", "admin", "QU"));
+    assertEquals(List.of("assign"), complete("faction", "admin", "quarantine", "AS"));
+    Cache.provincesEnabled = false;
+    assertFalse(complete("faction", "").contains("provincecap"));
+  }
+
+  @Test
+  void rootPrefixFilteringKeepsEveryAuthorizedMatchAndExactCommandToken() {
+    admin();
+    factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(realm);
+    factions.when(() -> FactionManager.getGuildByLeader("Leader")).thenReturn(guild);
+    when(player.hasPermission(EspionageConfig.reloadPermission())).thenReturn(true);
+    assertEquals(List.of("setleader"), complete("guild", "SeTL"));
+    assertEquals(List.of("invite"), complete("faction", "iNV"));
+    assertTrue(complete("faction", "re").containsAll(List.of("rename", "reloadconfigs", "reloadtitles", "reloadespionage", "refresh")));
+    assertTrue(complete("faction", "re").stream().allMatch(value -> value.startsWith("re")));
+    for (String action : List.of("construct", "upgrade", "deconstruct", "transfervehicle", "findvehicles", "vehicle"))
+      assertEquals(List.of(action), complete("faction", action));
+    assertEquals(List.of("fort", "port", "airport", "train_station"), complete("faction", "construct", ""));
+  }
+
+  @Test
+  void adminFactionIdsAndDeletionIncludeTargetsOutsideMembership() {
+    admin();
+    for (String action : List.of("delete", "delbank", "startelection", "endelection", "unclaim")) {
+      assertEquals(List.of("realm", "other"), complete("faction", action, ""));
+      assertEquals(List.of("other"), complete("faction", action, "Ot"));
+      assertEquals(List.of(), complete("faction", action, "other", ""));
+    }
+    when(player.hasPermission(Permissions.Permission_Admin)).thenReturn(false);
+    assertTrue(complete("faction", "delete", "").isEmpty());
+    assertTrue(complete("faction", "delbank", "").isEmpty());
+  }
+
+  @Test
+  void companyContractsRemainDiscoverableToMembersAndNamesCompleteAfterSpaces() {
+    MercenaryCompany company = mock(MercenaryCompany.class);
+    when(guild.getCompany()).thenReturn(company);
+    when(guild.hasCompany()).thenReturn(true);
+    factions.when(() -> FactionManager.getGuildByMember("Leader")).thenReturn(guild);
+    assertEquals(List.of("contracts"), complete("company", "CON"));
+    assertFalse(complete("company", "").contains("invite"));
+    factions.when(() -> FactionManager.getGuildByLeader("Leader")).thenReturn(guild);
+    assertEquals(List.of("Realm"), complete("company", "offer", "Other", "rE"));
+    assertTrue(complete("company", "offer", "Other", "Realm", "").isEmpty());
+    when(company.getName()).thenReturn("Silver Shields");
+    try (MockedStatic<MercenaryMarket> market = mockStatic(MercenaryMarket.class)) {
+      market.when(MercenaryMarket::listing).thenReturn(List.of(company));
+      assertEquals(List.of("Shields"), complete("mercenaries", "hire", "Silver", "sH"));
+      assertTrue(complete("mercenaries", "hire", "Silver", "Shields", "").isEmpty());
+    }
+  }
+
+  @Test
+  void companyAdminTargetsFitTheExecutorsSingleTokenGrammar() {
+    admin();
+    MercenaryCompany company = mock(MercenaryCompany.class);
+    when(company.getName()).thenReturn("Silver Shields");
+    when(guild.getCompany()).thenReturn(company);
+    factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+    assertEquals(List.of("merchants"), complete("company", "admin", "give", ""));
+    for (String target : complete("company", "admin", "take", "")) {
+      assertEquals(1, target.split(" ").length);
+      assertEquals(guild.getId(), target);
+    }
+    when(company.getName()).thenReturn("Silver");
+    assertEquals(List.of("Silver", "merchants"), complete("company", "admin", "take", ""));
+  }
+
+  @Test
+  void guildSetLeaderAndLeaderlessAppointmentsCompleteEligibleOfflineCharacterSuffixes() {
+    CharacterKeyFixture characters = CharacterKeyFixture.install();
+    String leader = characters.play(player, "Lord Aldric");
+    String alice = characters.offline(UUID.randomUUID(), "Alice Fairweather");
+    String bob = characters.offline(UUID.randomUUID(), "Bob Stone");
+    when(realm.getMembers()).thenReturn(List.of(leader, alice, bob));
+    when(guild.getMembers()).thenReturn(List.of(leader, alice));
+    when(guild.getLeader()).thenReturn(leader);
+    when(guild.isLeader(leader)).thenReturn(true);
+    factions.when(() -> FactionManager.getGuildByLeader(leader)).thenReturn(guild);
+    factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(guild);
+    assertEquals(List.of("Alice Fairweather"), complete("guild", "setleader", "aL"));
+    assertEquals(List.of("Fairweather"), complete("guild", "setleader", "Alice", "f"));
+    assertTrue(complete("guild", "setleader", "Bob", "").isEmpty());
+    when(guild.isLeaderless()).thenReturn(true);
+    when(guild.getMembers()).thenReturn(List.of());
+    factions.when(() -> FactionManager.getGuildByLeader(bob)).thenReturn(mock(Guild.class));
+    try (MockedStatic<net.tfminecraft.simplefactions.guild.LeaderlessGuilds> leaderless = mockStatic(net.tfminecraft.simplefactions.guild.LeaderlessGuilds.class)) {
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.appointable(leader)).thenReturn(List.of(guild));
+      assertEquals(List.of("Alice Fairweather"), complete("guild", "appoint", "merchants", ""));
+      assertEquals(List.of("Fairweather"), complete("guild", "appoint", "merchants", "Alice", ""));
+      assertTrue(complete("guild", "appoint", "missing", "").isEmpty());
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.appointable(leader)).thenReturn(List.of());
+      assertTrue(complete("guild", "appoint", "merchants", "").isEmpty());
+    }
+    admin();
+    assertEquals(List.of("Alice Fairweather"), complete("guild", "forceleader", "merchants", ""));
+    assertEquals(List.of("Fairweather"), complete("guild", "forceleader", "merchants", "Alice", "F"));
+    assertTrue(complete("guild", "forceleader", "merchants", "Bob", "").isEmpty());
+    var livingBob = net.tfminecraft.simplefactions.identity.Members.info(bob).orElseThrow();
+    factions.when(() -> FactionManager.getGuildByLeader(bob)).thenReturn(null);
+    var deadBob = new net.tfminecraft.tlibs.character.CharacterInfo(livingBob.ref(), livingBob.name(),
+        net.tfminecraft.tlibs.character.CharacterStatus.DEAD, null, java.util.Set.of(), 0L, java.time.Instant.EPOCH);
+    try (MockedStatic<net.tfminecraft.simplefactions.identity.Members> identities = mockStatic(net.tfminecraft.simplefactions.identity.Members.class, CALLS_REAL_METHODS)) {
+      identities.when(() -> net.tfminecraft.simplefactions.identity.Members.info(bob)).thenReturn(java.util.Optional.of(deadBob));
+      assertEquals(List.of("Alice Fairweather"), complete("guild", "forceleader", "merchants", ""));
+    }
+
+  }
+
+  @Test
+  void companyAndVehicleRecipientsIncludeOnlineCharacterNamesAndSuffixes() {
+    CharacterKeyFixture characters = CharacterKeyFixture.install();
+    String leader = characters.play(player, "Lord Aldric");
+    Player account = gui.player("BlockCrafter");
+    String alice = characters.play(account, "Alice Fairweather");
+    when(Bukkit.getOnlinePlayers()).thenAnswer(call -> List.of(player, account));
+    factions.when(() -> FactionManager.getByLeader(leader)).thenReturn(realm);
+    factions.when(() -> FactionManager.getGuildByLeader(leader)).thenReturn(guild);
+    MercenaryCompany company = mock(MercenaryCompany.class);
+    when(guild.hasCompany()).thenReturn(true);
+    when(guild.getCompany()).thenReturn(company);
+    when(company.isLeader(leader)).thenReturn(true);
+    when(company.hasFreeSlot()).thenReturn(true);
+    assertEquals(List.of("Alice Fairweather"), complete("company", "invite", "Al"));
+    assertEquals(List.of("Fairweather"), complete("company", "invite", "Alice", "f"));
+    for (String action : List.of("give", "handover")) {
+      assertEquals(List.of("Alice Fairweather"), complete("faction", "vehicle", action, "Al"));
+      assertEquals(List.of("Fairweather"), complete("faction", "vehicle", action, "Alice", ""));
+      assertEquals(List.of("BlockCrafter"), complete("faction", "vehicle", action, "Bl"));
+    }
+    when(company.isEnlisted(alice)).thenReturn(true);
+    assertTrue(complete("company", "invite", "Al").isEmpty());
+  }
+
+  @Test
+  void factionKickExcludesMembersWhoMustLeaveThroughTheirSubguild() {
+    factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(realm);
+    when(realm.isInGuild("Bob")).thenReturn(true);
+    assertEquals(List.of("Alice"), complete("faction", "kick", ""));
+    assertTrue(complete("faction", "kick", "B").isEmpty());
+  }
+
+  @Test
+  void offeredLeaderlessGuildCanBeDeclinedWithoutAnOrdinaryInvite() {
+    try (MockedStatic<net.tfminecraft.simplefactions.guild.LeaderlessGuilds> leaderless = mockStatic(net.tfminecraft.simplefactions.guild.LeaderlessGuilds.class)) {
+      leaderless.when(() -> net.tfminecraft.simplefactions.guild.LeaderlessGuilds.offeredTo("Leader")).thenReturn(guild);
+      assertEquals(List.of("merchants"), complete("guild", "decline", "MER"));
+      assertTrue(complete("guild", "join", "MER").isEmpty());
+      assertTrue(complete("guild", "decline", "x").isEmpty());
+    }
+  }
+
+  @Test
+  void staffConsoleDiscoversOnlySupportedFactionRoots() {
+    CommandSender console = mock(CommandSender.class);
+    when(console.hasPermission(Permissions.Permission_Admin)).thenReturn(true);
+    assertEquals(List.of("title"), complete(console, "faction", "tiT"));
+    assertEquals(List.of("addguildbank"), complete(console, "faction", "addg"));
+    assertEquals(List.of("tradegraph"), complete(console, "faction", "trad"));
+    assertTrue(complete(console, "faction", "").contains("admin"));
+    assertFalse(complete(console, "faction", "").contains("create"));
+    Cache.provincesEnabled = false;
+    assertTrue(complete(console, "faction", "tit").isEmpty());
+  }
+
+  @Test
+  void pluginCommandDoesNotFallBackToPlayerNamesAfterTerminalOrUnknownArguments() throws Exception {
+    Player fallback = gui.player("UnrelatedAccount");
+    when(player.getServer()).thenReturn(gui.server);
+    when(gui.server.suggestPlayerNamesWhenNullTabCompletions()).thenReturn(true);
+    when(gui.server.getOnlinePlayers()).thenAnswer(call -> List.of(fallback));
+    when(player.canSee(fallback)).thenReturn(true);
+    var constructor = org.bukkit.command.PluginCommand.class.getDeclaredConstructor(String.class, org.bukkit.plugin.Plugin.class);
+    constructor.setAccessible(true);
+    for (String root : List.of("faction", "guild")) {
+      var command = constructor.newInstance(root, gui.plugin);
+      command.setExecutor((sender, cmd, label, args) -> true);
+      command.setTabCompleter((sender, cmd, label, args) -> null);
+      assertEquals(List.of("UnrelatedAccount"), command.tabComplete(player, root, new String[] {"list", ""}));
+      command.setTabCompleter(completion);
+      for (String action : List.of("list", "reloadconfigs", "menu", "leave", "unknown"))
+        assertEquals(List.of(), command.tabComplete(player, root, new String[] {action, ""}));
+    }
+  }
+
   private void installationChoices() {
     InstallationHandler installations = mock(InstallationHandler.class);
     Installation fort = mock(Installation.class);
@@ -672,6 +887,7 @@ class TabCompletionCoverageTest {
     when(guild.getMembers()).thenAnswer(call -> new ArrayList<>(members));
     when(guild.isLeader(leader)).thenReturn(true);
     factions.when(() -> FactionManager.getByMember(leader)).thenReturn(realm);
+    factions.when(() -> FactionManager.getByLeader(leader)).thenReturn(realm);
     factions.when(() -> FactionManager.getGuildByLeader(leader)).thenReturn(guild);
     factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(guild);
 
@@ -751,7 +967,8 @@ class TabCompletionCoverageTest {
     Command command = mock(Command.class);
     when(command.getName()).thenReturn(commandName);
     List<String> result = completion.onTabComplete(sender, command, commandName, args);
-    return result == null ? List.of() : result;
+    assertNotNull(result);
+    return result;
   }
 
   @Test

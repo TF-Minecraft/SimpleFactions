@@ -258,7 +258,8 @@ public final class MercenaryCommandManager implements CommandExecutor {
         Faction byId = FactionManager.getByString(nameOrId);
         if (byId != null) return byId;
         for (Faction f : FactionManager.factions) {
-            if (f.getName() != null && f.getName().equalsIgnoreCase(nameOrId)) return f;
+            if (f.getName() != null && (f.getName().equalsIgnoreCase(nameOrId)
+                    || org.bukkit.ChatColor.stripColor(f.getName()).equalsIgnoreCase(nameOrId))) return f;
         }
         return null;
     }

@@ -60,6 +60,40 @@ class QuarantineCommandsTest {
     }
 
     @Test
+    void completionOffersOnlyTheAuthorizedGrammarAndUnresolvedSnapshot() throws IOException {
+        assertEquals(List.of("quarantine"), QuarantineCommands.complete(staff, new String[] {"admin", "Qu"}));
+        assertEquals(List.of("list", "assign"), QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", ""}));
+        assertEquals(List.of("assign"), QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", "AS"}));
+        record("q1", true);
+        record("q2", false);
+        record("q3", false);
+        Quarantine quarantine = Quarantine.load(root.resolve(CharacterMigration.QUARANTINE));
+        quarantine.get("q2").assigned = "pending";
+        quarantine.get("q3").applied = true;
+        quarantine.save();
+        assertEquals(List.of("q1"), QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", "assign", "Q"}));
+        Files.delete(root.resolve(CharacterMigration.QUARANTINE));
+        assertEquals(List.of("q1"), QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", "assign", ""}), "completion must not reread disk");
+        assertTrue(QuarantineCommands.complete(mock(CommandSender.class), new String[] {"admin", "quarantine", "assign", ""}).isEmpty());
+        assertTrue(QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", "assign", "q1", ""}).isEmpty());
+        assertTrue(QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", "list", ""}).isEmpty());
+        assertTrue(QuarantineCommands.complete(staff, new String[] {"admin", "other", ""}).isEmpty());
+    }
+
+    @Test
+    void completionDropsAssignedRecordsAndDoesNotReuseAnotherDataFoldersSnapshot() throws IOException {
+        record("q1", true);
+        try (var identity = new SharedIdentity()) {
+            CharacterRef ada = identity.character(identity.account("Steve"), "Ada");
+            QuarantineCommands.handle(staff, new String[] {"admin", "quarantine", "assign", "q1", ada.characterId().toString()});
+            assertTrue(QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", "assign", ""}).isEmpty());
+        }
+        record("q4", false);
+        when(SimpleFactions.plugin.getDataFolder()).thenReturn(root.resolve("other").toFile());
+        assertTrue(QuarantineCommands.complete(staff, new String[] {"admin", "quarantine", "assign", ""}).isEmpty());
+    }
+
+    @Test
     void onlyStaffMayUseIt() {
         assertTrue(QuarantineCommands.matches(new String[] {"admin", "QUARANTINE"}));
         assertFalse(QuarantineCommands.matches(new String[] {"admin"}));

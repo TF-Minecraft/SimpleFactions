@@ -198,11 +198,11 @@ class BattleCommandsCoverageTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"setlives,5|10|20|50", "setcontestduration,60|120|180|240|300", "setdefenderlives,5|10|20|25|50"})
-  void numericSettingsCompleteNumbersInsteadOfUnrelatedSideIds(String operation, String values) {
+  @ValueSource(strings = {"setlives", "setcontestduration", "setdefenderlives"})
+  void numericSettingsLeaveTheValueForTheCaller(String operation) {
     admin();
     battle("battle", BattleType.FIELD);
-    assertEquals(List.of(values.split("\\|")), complete(alice, "battle", operation, "battle", ""));
+    assertEquals(List.of(), complete(alice, "battle", operation, "battle", ""));
   }
 
   @Test
@@ -486,10 +486,104 @@ class BattleCommandsCoverageTest {
   }
 
   @Test
+  void warbandJoinCompletesOpenInvitedAndEligibleCampaignBandsWithoutEnrolling() {
+    Player bob = player("Bob");
+    Warband open = band("open", bob);
+    open.setLocked(false);
+    Warband invited = band("invited", bob);
+    invited.invite(alice);
+    band("private", bob);
+    assertEquals(List.of("join"), complete(alice, "warband", "jO"));
+    assertEquals(List.of("open", "invited"), complete(alice, "warband", "join", ""));
+    assertEquals(List.of("invited"), complete(alice, "warband", "join", "INV"));
+    assertEquals(1, open.getMemberCount());
+    assertFalse(invited.hasMember(alice));
+    persistence.verifyNoInteractions();
+    when(alice.isInsideVehicle()).thenReturn(true);
+    assertTrue(complete(alice, "warband", "join", "").isEmpty());
+    when(alice.isInsideVehicle()).thenReturn(false);
+    open.addPlayer(alice);
+    assertTrue(complete(alice, "warband", "join", "").isEmpty());
+    assertTrue(complete(alice, "warband", "j").isEmpty());
+  }
+
+  @Test
+  void campaignWarbandJoinUsesScheduleAndCampaignEligibility() {
+    Faction faction = mock(Faction.class);
+    Warband shell = mock(Warband.class);
+    when(shell.getId()).thenReturn("campaign");
+    when(shell.isFaction()).thenReturn(true);
+    WarbandManager.addWarband(shell);
+    assertTrue(complete(alice, "warband", "join", "").isEmpty());
+    factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(faction);
+    var day = java.time.LocalDate.of(2026, 10, 15);
+    var now = net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.atScheduleHour(day, 23);
+    War war = mock(War.class);
+    when(war.getBattleDay()).thenReturn(day);
+    Battle battle = mock(Battle.class);
+    CampaignBattleContext context = new CampaignBattleContext(battle, "attacker", war);
+    try (MockedStatic<CampaignBattleJoinService> campaigns = mockStatic(CampaignBattleJoinService.class);
+         MockedStatic<net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock> clock = mockStatic(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.class)) {
+      clock.when(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock::now).thenReturn(now);
+      campaigns.when(() -> CampaignBattleJoinService.findCampaignBattleForWarband(shell)).thenReturn(context);
+      assertEquals(List.of("campaign"), complete(alice, "warband", "join", "c"));
+      campaigns.when(() -> CampaignBattleJoinService.validateWarbandMemberJoin(war, battle, "attacker", shell, "Alice", alice.getUniqueId())).thenReturn("Roster full");
+      assertTrue(complete(alice, "warband", "join", "").isEmpty());
+      campaigns.when(() -> CampaignBattleJoinService.validateWarbandMemberJoin(war, battle, "attacker", shell, "Alice", alice.getUniqueId())).thenReturn(null);
+      when(war.getBattleDay()).thenReturn(day.plusDays(1));
+      assertTrue(complete(alice, "warband", "join", "").isEmpty());
+      verify(shell, never()).addMember(any(), any());
+      persistence.verifyNoInteractions();
+    }
+  }
+
+  @Test
+  void adminWarbandDeletionCompletesBandsOutsideOwnership() {
+    band("others", player("Bob"));
+    assertEquals(List.of(), complete(alice, "warband", "delete", ""));
+    admin();
+    assertEquals(List.of("others"), complete(alice, "warband", "delete", "OTH"));
+  }
+
+  @Test
+  void battleAndWarbandPrefixesAndExactRootTokensDoNotAdvanceArguments() {
+    admin();
+    assertEquals(List.of("create"), complete(alice, "battle", "create"));
+    assertEquals(List.of("create"), complete(alice, "warband", "create"));
+    assertEquals(List.of("setspawn"), complete(alice, "battle", "SeTSp"));
+    assertEquals(List.of("invite"), complete(alice, "warband", "iNV"));
+    battle("front", BattleType.FIELD);
+    assertEquals(List.of("attacker"), complete(alice, "battle", "join", "front", "AtT"));
+    assertEquals(List.of("front"), complete(alice, "battle", "edit", "FRO"));
+    assertTrue(complete(alice, "battle", "join", "front", "defender", "").isEmpty());
+    assertTrue(complete(alice, "battle", "unknown", "").isEmpty());
+  }
+
+  @Test
+  void terminalBattleCommandsStayEmptyThroughPluginCommand() throws Exception {
+    Player fallback = ui.player("UnrelatedAccount");
+    when(alice.getServer()).thenReturn(ui.server);
+    when(ui.server.suggestPlayerNamesWhenNullTabCompletions()).thenReturn(true);
+    when(ui.server.getOnlinePlayers()).thenAnswer(call -> List.of(fallback));
+    when(alice.canSee(fallback)).thenReturn(true);
+    var constructor = org.bukkit.command.PluginCommand.class.getDeclaredConstructor(String.class, org.bukkit.plugin.Plugin.class);
+    constructor.setAccessible(true);
+    for (String root : List.of("battle", "warband")) {
+      var command = constructor.newInstance(root, ui.plugin);
+      command.setExecutor((sender, cmd, label, args) -> true);
+      command.setTabCompleter((sender, cmd, label, args) -> null);
+      assertEquals(List.of("UnrelatedAccount"), command.tabComplete(alice, root, new String[] {"list", ""}));
+      command.setTabCompleter(tabs);
+      for (String action : List.of("list", "leave", "unknown"))
+        assertEquals(List.of(), command.tabComplete(alice, root, new String[] {action, ""}));
+    }
+  }
+
+  @Test
   void tabCompletionReflectsPermissionsCurrentWarbandsAndSideNames() {
     assertEquals(List.of("list", "join"), complete(alice, "battle"));
     assertTrue(complete(alice, "warband").containsAll(List.of("create", "kick", "retreat")));
-    assertEquals(List.of("<id>"), complete(alice, "warband", "create", ""));
+    assertEquals(List.of(), complete(alice, "warband", "create", ""));
     assertEquals(List.of(), complete(alice, "warband", "delete", ""));
     assertEquals(List.of(), complete(alice, "warband", "kick", ""));
     assertEquals(List.of(), complete(alice, "warband", "setleader", ""));
@@ -503,20 +597,20 @@ class BattleCommandsCoverageTest {
     battle("front", BattleType.FIELD);
     assertEquals(List.of("front"), complete(alice, "battle", "join", ""));
     assertEquals(List.of("attacker", "defender"), complete(alice, "battle", "join", "front", ""));
-    assertNull(complete(alice, "battle", "join", "missing", ""));
-    assertNull(complete(alice, "battle", "create", ""));
+    assertEquals(List.of(), complete(alice, "battle", "join", "missing", ""));
+    assertEquals(List.of(), complete(alice, "battle", "create", ""));
     admin();
     assertTrue(complete(alice, "battle", "").containsAll(List.of("create", "edit", "delete", "setlives")));
     assertEquals(List.of("field", "siege", "raid"), complete(alice, "battle", "create", ""));
-    assertEquals(List.of("<battleId>"), complete(alice, "battle", "create", "field", ""));
-    assertEquals(List.of("<sideId>"), complete(alice, "battle", "addside", "front", ""));
+    assertEquals(List.of(), complete(alice, "battle", "create", "field", ""));
+    assertEquals(List.of(), complete(alice, "battle", "addside", "front", ""));
     for (String operation : List.of("addpoint", "setspawn", "setjail")) {
       assertEquals(List.of("attacker", "defender"), complete(alice, "battle", operation, "front", ""));
     }
     assertEquals(List.of(), complete(alice, "battle", "addpoint", "missing", ""));
-    assertNull(complete(alice, "battle", "setspawn", "missing", ""));
-    assertNull(complete(alice, "unknown", ""));
-    assertNull(complete(mock(CommandSender.class), "warband", ""));
+    assertEquals(List.of(), complete(alice, "battle", "setspawn", "missing", ""));
+    assertEquals(List.of(), complete(alice, "unknown", ""));
+    assertEquals(List.of(), complete(mock(CommandSender.class), "warband", ""));
   }
   @Test
   void retreatReportsRejectionsAndRequiresConfirmationForAnEligibleCampaignLeader() {

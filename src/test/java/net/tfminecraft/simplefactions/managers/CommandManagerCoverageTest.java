@@ -516,6 +516,15 @@ class CommandManagerCoverageTest {
     verify(player).sendMessage(contains("must be the leader"));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"culture", "religion"})
+  void oldTabHintsCannotBeSavedAsFactionIdentity(String field) {
+    assertTrue(run("faction", "set" + field, "<" + field.toUpperCase() + ">"));
+    verify(faction, never()).setCulture(anyString());
+    verify(faction, never()).setReligion(anyString());
+    verify(player).sendMessage(contains("name instead"));
+  }
+
   private void admin() {
     when(player.hasPermission(Permissions.Permission_Admin)).thenReturn(true);
   }

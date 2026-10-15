@@ -1125,6 +1125,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				String s = args[1].replace("_", " ");
+				if(s.equalsIgnoreCase("<culture>")) {
+					p.sendMessage("§cEnter a culture name instead of <culture>.");
+					return true;
+				}
 				f.setCulture(s);
 				p.sendMessage("§aFaction culture changed to "+f.getCulture());
 				return true;
@@ -1135,6 +1139,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				String s = args[1].replace("_", " ");
+				if(s.equalsIgnoreCase("<religion>")) {
+					p.sendMessage("§cEnter a religion name instead of <religion>.");
+					return true;
+				}
 				f.setReligion(s);
 				p.sendMessage("§aFaction religion changed to "+f.getReligion());
 				return true;
