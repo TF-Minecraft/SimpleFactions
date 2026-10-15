@@ -15,7 +15,7 @@ public final class PublicFactionProjection {
         for (String field : new String[] {"banner", "provinces", "titles", "relations", "trade relation", "treaty relation", "laws"}) {
             result.add(field, values(source, field));
         }
-        leader(source, result);
+        leader(source, result, mainGuildDeadLeader(source));
         JsonArray guilds = new JsonArray();
         JsonArray members = new JsonArray();
         if (source.has("guilds") && source.get("guilds").isJsonArray()) {
@@ -34,7 +34,7 @@ public final class PublicFactionProjection {
     private static JsonObject guild(JsonObject source) {
         JsonObject result = fields(source, "id", "name", "rgb", "type", "capital", "stance");
         result.add("banner", values(source, "banner"));
-        leader(source, result);
+        leader(source, result, source.get("dead leader"));
         JsonArray members = new JsonArray();
         for (JsonElement member : values(source, "members")) members.add(Members.display(member.getAsString()));
         result.add("members", members);
@@ -48,10 +48,19 @@ public final class PublicFactionProjection {
         return result;
     }
 
-    private static void leader(JsonObject source, JsonObject target) {
+    /** A held realm keeps its dead leader on its main guild, the one sharing the realm's id. */
+    private static JsonElement mainGuildDeadLeader(JsonObject source) {
+        JsonElement id = source.get("id");
+        if (id == null || !source.has("guilds") || !source.get("guilds").isJsonArray()) return null;
+        for (JsonElement entry : source.getAsJsonArray("guilds")) {
+            if (entry.isJsonObject() && id.equals(entry.getAsJsonObject().get("id"))) return entry.getAsJsonObject().get("dead leader");
+        }
+        return null;
+    }
+
+    private static void leader(JsonObject source, JsonObject target, JsonElement dead) {
         JsonElement stored = source.get("leader");
         String key = stored != null && stored.isJsonPrimitive() ? stored.getAsString() : null;
-        JsonElement dead = source.get("dead leader");
         boolean leaderless = (key == null || key.isBlank()) && dead != null && dead.isJsonPrimitive();
         if (leaderless) key = dead.getAsString();
         String name = Members.display(key) + (leaderless ? " (dead)" : "");

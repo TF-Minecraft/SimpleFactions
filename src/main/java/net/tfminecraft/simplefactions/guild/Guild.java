@@ -551,7 +551,12 @@ public class Guild {
 
     /** Starts or stops the empty clock of a leaderless guild; true when it changed. */
     public boolean trackEmpty(long now) {
-        long next = members.isEmpty() ? (emptySince > 0 ? emptySince : now) : 0;
+        return trackEmpty(now, members.isEmpty());
+    }
+
+    /** As {@link #trackEmpty(long)}, with emptiness judged by the caller (a held realm counts every guild). */
+    public boolean trackEmpty(long now, boolean empty) {
+        long next = empty ? (emptySince > 0 ? emptySince : now) : 0;
         if (next == emptySince) return false;
         emptySince = next;
         return true;
@@ -560,6 +565,11 @@ public class Guild {
     /** An ordinary guild whose leader died and has not been replaced. */
     public boolean isLeaderless() {
         return !isBase() && leaderlessSince > 0 && (leader == null || leader.isBlank());
+    }
+
+    /** A realm's own guild whose last member died: the realm is held for a revive (HeldRealms). */
+    public boolean isHeld() {
+        return isBase() && leaderlessSince > 0 && (getLeader() == null || getLeader().isBlank());
     }
 
     public String getDeadLeader() { return deadLeader; }

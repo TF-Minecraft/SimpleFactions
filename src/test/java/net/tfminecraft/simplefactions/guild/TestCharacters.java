@@ -43,6 +43,13 @@ public final class TestCharacters implements Members.Resolver {
                 info.traits(), info.playtimeSeconds(), info.lastPlayedAt()));
     }
 
+    /** Marks a registered character as alive again. */
+    public void revive(String key) {
+        CharacterInfo info = characters.get(key);
+        characters.put(key, new CharacterInfo(info.ref(), info.name(), CharacterStatus.ALIVE, info.raceId(),
+                info.traits(), info.playtimeSeconds(), info.lastPlayedAt()));
+    }
+
     /** Starts a session for {@code key} on that player; null ends it. */
     public void play(Player player, String key) {
         if (key == null) playing.remove(player);

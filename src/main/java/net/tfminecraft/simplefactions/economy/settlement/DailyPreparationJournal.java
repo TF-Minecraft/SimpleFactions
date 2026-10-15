@@ -129,7 +129,8 @@ public final class DailyPreparationJournal {
 
     private static Integer removal(Faction faction) {
         List<Integer> provinces = faction.getProvinces();
-        if (CivilWarBorderLock.isLocked(faction) || !TitleManager.overProvinceCap(faction) || provinces.isEmpty()) return null;
+        if (CivilWarBorderLock.isLocked(faction) || net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(faction)
+                || !TitleManager.overProvinceCap(faction) || provinces.isEmpty()) return null;
         int remove = provinces.getLast();
         if (remove == faction.getCapital() && provinces.size() > 1) remove = provinces.get(provinces.size() - 2);
         return remove == faction.getCapital() ? null : remove;

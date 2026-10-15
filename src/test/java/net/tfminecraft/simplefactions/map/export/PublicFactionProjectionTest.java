@@ -44,6 +44,20 @@ class PublicFactionProjectionTest {
     }
 
     @Test
+    void heldRealmShowsItsDeadLeaderMarkedDead() {
+        var characters = net.tfminecraft.simplefactions.guild.TestCharacters.install();
+        String dead = characters.character(java.util.UUID.randomUUID(), "Grim Hollow");
+        var held = PublicFactionProjection.faction(JsonParser.parseString("""
+                {"id":"realm","leader":"","guilds":[{"id":"other"},{"id":"realm","leader":"","dead leader":"%s"}]}
+                """.formatted(dead)).getAsJsonObject());
+        assertEquals("Grim Hollow (dead)", held.get("leader character").getAsString());
+        var open = PublicFactionProjection.faction(JsonParser.parseString("""
+                {"id":"realm","leader":"","guilds":[{"id":"other","dead leader":"%s"}]}
+                """.formatted(dead)).getAsJsonObject());
+        assertFalse(open.get("leader character").getAsString().contains("(dead)"));
+    }
+
+    @Test
     void emptySeatShowsTheDeadLeaderMarkedDead() {
         var characters = net.tfminecraft.simplefactions.guild.TestCharacters.install();
         String dead = characters.character(java.util.UUID.randomUUID(), "Grim Hollow");

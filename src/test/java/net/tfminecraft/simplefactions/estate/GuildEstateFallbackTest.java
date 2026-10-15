@@ -177,6 +177,23 @@ class GuildEstateFallbackTest {
         assertEquals(Optional.empty(), answer.leader());
     }
 
+    @Test void aHeldRealmIsLiveWithoutALeaderUntilItsWeekRunsOut() throws Exception {
+        CharacterRef ruler = character();
+        Faction faction = realm("realm", ruler);
+        clock = System.currentTimeMillis();
+        UUID death = kill(ruler);
+        Guild main = faction.getGuildHandler().getGuild("realm");
+        assertTrue(main.isHeld());
+        var answer = (DeathGuild.Guild) fallback.deathGuild(ruler.characterId(), death);
+        assertTrue(answer.live());
+        assertEquals(Optional.empty(), answer.leader());
+        assertEquals(Optional.of(main.getIncarnationId()), answer.realm());
+        main.restoreLeaderless(key(ruler), main.getLeaderlessSince(),
+                System.currentTimeMillis() - net.tfminecraft.simplefactions.guild.HeldRealms.HOLD.toMillis(), null);
+        assertEquals(DeathGuild.UNAVAILABLE, fallback.deathGuild(ruler.characterId(), death));
+        assertEquals(GuildLookup.UNAVAILABLE, fallback.guild(main.getIncarnationId()));
+    }
+
     @Test void anUnsavedClosureIsUnavailableUntilItsRealmIsSaved() throws Exception {
         CharacterRef master = character();
         Faction faction = realm("realm", character());

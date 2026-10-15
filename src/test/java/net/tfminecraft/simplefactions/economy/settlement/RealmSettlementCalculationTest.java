@@ -99,6 +99,17 @@ class RealmSettlementCalculationTest {
         assertEquals(2, changes(debt).guilds.stream().filter(c -> c.incarnation.equals(guild.getIncarnationId())).findFirst().orElseThrow().branches.get(0));
     }
 
+    @Test void aHeldRealmKeepsItsBranchesThroughAShortfall() {
+        guild.getBranch(0).levelUp();
+        guild.getBranch(0).levelUp();
+        Ledger.setNodeUpkeepLookup(g -> g == guild ? 200 : 0);
+        String leader = faction.getLeader();
+        faction.succeedDeadLeader(leader, "");
+        net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, leader, 1);
+        var after = changes(plan(List.of())).guilds.stream().filter(c -> c.incarnation.equals(guild.getIncarnationId())).findFirst().orElseThrow();
+        assertEquals(2, after.branches.get(0));
+    }
+
     @Test void fixedDeathDividendsReserveNormalPoolAndPartialWagesStayOwed() {
         net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 10.0);
         var company = new MercenaryCompany(guild, "Company", null, 0);

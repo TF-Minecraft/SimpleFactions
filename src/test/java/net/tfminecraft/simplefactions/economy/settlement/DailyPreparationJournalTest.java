@@ -57,6 +57,28 @@ class DailyPreparationJournalTest {
         }
     }
 
+    @Test void aHeldRealmKeepsItsProvincesAndArmyAndPaysNoUpkeep() throws Exception {
+        try (var disk = new PersistenceFilesFixture(); var fixture = new FactionDomainFixture(); var titles = mockStatic(TitleManager.class, CALLS_REAL_METHODS)) {
+            String leader = UUID.randomUUID().toString();
+            var faction = fixture.saved("realm", leader);
+            faction.addProvince(1); faction.addProvince(2);
+            faction.setCapital(1, true);
+            titles.when(() -> TitleManager.overProvinceCap(faction)).thenReturn(true);
+            var guard = new net.tfminecraft.simplefactions.army.Regiment(fixture.regiment("guard", false, 2, 5));
+            guard.setCurrentSlots(6);
+            faction.getMilitary().getRegiments().add(guard);
+            faction.succeedDeadLeader(leader, "");
+            net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, leader, 1);
+            var database = mock(Database.class);
+            when(database.saveFactionDurably(faction)).thenReturn(true);
+            var prepared = new DailyPreparationJournal(disk.root.resolve("day-preparation"), database).prepare(2, 1000);
+            assertEquals(List.of(1, 2), faction.getProvinces());
+            var upkeep = prepared.upkeep().getFirst();
+            assertEquals(0, upkeep.charge());
+            assertEquals(Map.of("guard", 6), upkeep.regimentSlots());
+        }
+    }
+
     @Test void malformedOrReplacedPreparationCannotStartAnotherDay() throws Exception {
         try (var disk = new PersistenceFilesFixture(); var fixture = new FactionDomainFixture()) {
             var faction = fixture.saved("realm", UUID.randomUUID().toString());

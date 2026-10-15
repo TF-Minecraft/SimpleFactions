@@ -566,6 +566,7 @@ public class SimpleFactions extends JavaPlugin{
             try { net.tfminecraft.simplefactions.identity.death.CharacterDeaths.reconcile(); }
             catch (Exception error) { net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error); return; }
             net.tfminecraft.simplefactions.guild.LeaderlessGuilds.closeExpired(System.currentTimeMillis());
+            net.tfminecraft.simplefactions.guild.HeldRealms.closeExpired(System.currentTimeMillis(), getDataFolder().toPath());
         }, 72000L, 72000L);
         net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
 	}

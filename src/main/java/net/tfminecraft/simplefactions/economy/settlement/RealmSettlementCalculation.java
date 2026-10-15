@@ -193,7 +193,8 @@ public final class RealmSettlementCalculation {
         change.incarnation = guild.getIncarnationId();
         guild.getBranches().forEach((key, branch) -> change.branches.put(key, branch.getLevel()));
         changes.guilds.add(change);
-        if (!moved || guild.getBank() == null || net.tfminecraft.simplefactions.inactivity.InactivityService.isFullyInactive(guild.getMembers())) return;
+        if (!moved || guild.getBank() == null || net.tfminecraft.simplefactions.inactivity.InactivityService.isFullyInactive(guild.getMembers())
+                || net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(guild.getFaction())) return;
         int size = change.branches.values().stream().mapToInt(Integer::intValue).sum();
         Random random = new Random(day ^ guild.getIncarnationId().getMostSignificantBits() ^ guild.getIncarnationId().getLeastSignificantBits());
         for (int guard = 0; balances.get(account(guild)) < 0 && size > 0 && guard < 1000; guard++) {

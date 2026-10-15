@@ -425,7 +425,7 @@ public class Database {
                 gd.leader = g.getLeader();
                 gd.leaderCharacter = g.getLeaderCharacter();
                 gd.leaderCharacterOf = g.getLeaderCharacterOf();
-                if (g.isLeaderless()) {
+                if (g.isLeaderless() || g.isHeld()) {
                     gd.deadLeader = g.getDeadLeader();
                     gd.leaderlessSince = g.getLeaderlessSince();
                     gd.emptySince = g.getEmptySince();
