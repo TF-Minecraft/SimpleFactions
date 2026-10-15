@@ -177,6 +177,23 @@ class GuildEstateFallbackTest {
         assertEquals(Optional.empty(), answer.leader());
     }
 
+    @Test void aHeldRealmIsUnavailableUntilStaffTakeItOn() throws Exception {
+        CharacterRef ruler = character();
+        Faction faction = realm("realm", ruler);
+        UUID death = kill(ruler);
+        Guild main = faction.getGuildHandler().getGuild("realm");
+        assertTrue(main.isHeld());
+        assertEquals(DeathGuild.UNAVAILABLE, fallback.deathGuild(ruler.characterId(), death));
+        assertEquals(GuildLookup.UNAVAILABLE, fallback.guild(main.getIncarnationId()));
+        assertEquals(GuildLookup.UNAVAILABLE, fallback.guildByName(main.getName()), "by name as by incarnation");
+        CharacterRef heir = character();
+        faction.addMember(key(heir));
+        faction.setLeader(key(heir));
+        var answer = (DeathGuild.Guild) fallback.deathGuild(ruler.characterId(), death);
+        assertTrue(answer.live());
+        assertEquals(Optional.of(heir.characterId()), answer.leader());
+    }
+
     @Test void anUnsavedClosureIsUnavailableUntilItsRealmIsSaved() throws Exception {
         CharacterRef master = character();
         Faction faction = realm("realm", character());

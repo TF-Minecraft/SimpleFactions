@@ -114,6 +114,7 @@ public class Guild {
     private long leaderlessSince;
     private long emptySince;
     private String leaderOffer;
+    private long closingSince;
 
     public Guild(Faction f) {
         host = f;
@@ -194,6 +195,7 @@ public class Guild {
         this.leaderlessSince = data.leaderlessSince == null ? 0 : data.leaderlessSince;
         this.emptySince = data.emptySince == null ? 0 : data.emptySince;
         this.leaderOffer = data.leaderOffer;
+        this.closingSince = data.closingSince == null ? 0 : data.closingSince;
         this.rgb = data.rgb;
         this.capital = data.capital;
         this.stance = data.stance != null ? Stance.valueOf(data.stance) : Stance.NEUTRAL;
@@ -483,6 +485,10 @@ public class Guild {
         } 
         consumeInvite(p);
         members.add(p);
+        // Anyone let into a held realm stops its week; the hourly check starts it again once empty.
+        Guild main = isBase() ? this
+                : host == null || host.getGuildHandler() == null ? null : host.getGuildHandler().getGuild(host.getId());
+        if (main != null && main.isHeld()) main.emptySince = 0;
     }
     public void kick(String member) {
         String stored = find(members, member);
@@ -551,7 +557,12 @@ public class Guild {
 
     /** Starts or stops the empty clock of a leaderless guild; true when it changed. */
     public boolean trackEmpty(long now) {
-        long next = members.isEmpty() ? (emptySince > 0 ? emptySince : now) : 0;
+        return trackEmpty(now, members.isEmpty());
+    }
+
+    /** As {@link #trackEmpty(long)}, with emptiness judged by the caller (a held realm counts every guild). */
+    public boolean trackEmpty(long now, boolean empty) {
+        long next = empty ? (emptySince > 0 ? emptySince : now) : 0;
         if (next == emptySince) return false;
         emptySince = next;
         return true;
@@ -562,10 +573,18 @@ public class Guild {
         return !isBase() && leaderlessSince > 0 && (leader == null || leader.isBlank());
     }
 
+    /** A realm's own guild whose last member died: the realm is held for a revive (HeldRealms). */
+    public boolean isHeld() {
+        return isBase() && leaderlessSince > 0 && (getLeader() == null || getLeader().isBlank());
+    }
+
     public String getDeadLeader() { return deadLeader; }
     public long getLeaderlessSince() { return leaderlessSince; }
     public long getEmptySince() { return emptySince; }
     public String getLeaderOffer() { return leaderOffer; }
+    /** When a held realm's closure began; from then on it closes even if its leader is revived. */
+    public long getClosingSince() { return closingSince; }
+    public void markClosing(long at) { closingSince = at; }
 
     public void offerLeadership(String key) { leaderOffer = key; }
 
@@ -576,6 +595,7 @@ public class Guild {
         leaderlessSince = 0;
         emptySince = 0;
         leaderOffer = null;
+        closingSince = 0;
     }
     public boolean isLeader(String p) {
         String currentLeader = getLeader();

@@ -143,6 +143,32 @@ class LedgerSettlementCoverageTest {
   }
 
   @Test
+  void aHeldRealmPaysNoOverlordTaxOrTribute() {
+    Faction subject = fixture.saved("subject", "Cara");
+    fixture.subject(home, subject);
+    Guild subjectCapital = subject.getOrCreateMainGuild();
+    subjectCapital.getTradeBreakdown().setIncome(100);
+    Faction creditor = fixture.saved("creditor", "Dan");
+    Guild creditorCapital = creditor.getOrCreateMainGuild();
+    YamlConfiguration y = new YamlConfiguration();
+    y.set("r.recieve-modifiers", List.of("TRIBUTE(10)"));
+    subject.getDiplomacyHandler().setRelation(creditor,
+        new Relation(new RelationType("tribute", y.getConfigurationSection("r")), RelationLoader.getDefaultAttitude()));
+    assertTrue(subjectCapital.getLedger().getTributeTax() > 0);
+    subject.succeedDeadLeader("Cara", "");
+    net.tfminecraft.simplefactions.guild.HeldRealms.hold(subject, "Cara", 1);
+    assertEquals(0, subjectCapital.getLedger().getOverlordTax());
+    assertEquals(0, capital.getLedger().getIncome(Cashflow.VASSALS));
+    assertEquals(0, subjectCapital.getLedger().getTributeTax());
+    assertEquals(0, creditorCapital.getLedger().getTributeRecieved());
+    var history = Ledger.collectHistoryDay(List.of(subjectCapital));
+    assertNull(history.getOrDefault(creditorCapital, Map.of()).get(LedgerHistory.Source.TRIBUTES));
+    DailyGuildTransfers transfers = new DailyGuildTransfers();
+    subjectCapital.getLedger().populateDailyTransfers(transfers);
+    assertTrue(transfers.getTransfers().getOrDefault(subjectCapital, Map.of()).values().stream().allMatch(v -> v == 0));
+  }
+
+  @Test
   void bankruptPayersAndGuildsWithoutTradeDoNotPayReparations() {
     Faction creditor = fixture.saved("creditor", "Cara");
     Guild receiver = creditor.getOrCreateMainGuild();

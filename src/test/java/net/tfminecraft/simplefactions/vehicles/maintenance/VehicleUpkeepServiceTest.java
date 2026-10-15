@@ -190,6 +190,30 @@ class VehicleUpkeepServiceTest {
     }
 
     @Test
+    void hourlyDecaySparesAHeldRealmsVehicles() {
+        registry.register(new PlayerVehicleRecord(null, "pooled", "ironclad", OwnershipMode.POOL, null));
+        registry.register(new PlayerVehicleRecord(null, "berthed", "ironclad", OwnershipMode.INSTALLATION, null));
+        store.markUnpaid("pooled", 1L);
+        store.markUnpaid("berthed", 1L);
+        Faction held = org.mockito.Mockito.mock(Faction.class);
+        var handler = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.objects.handler.GuildHandler.class);
+        var main = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.guild.Guild.class);
+        org.mockito.Mockito.when(held.getId()).thenReturn("realm");
+        org.mockito.Mockito.when(held.getGuildHandler()).thenReturn(handler);
+        org.mockito.Mockito.when(handler.getGuild("realm")).thenReturn(main);
+        org.mockito.Mockito.when(main.isHeld()).thenReturn(true);
+        try (var pools = mockStatic(net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.class)) {
+            pools.when(() -> net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.payingFaction(
+                    org.mockito.ArgumentMatchers.argThat(row -> row != null && "pooled".equals(row.getVehicleUuid()))))
+                    .thenReturn(held);
+            service.tickHourlyDecay();
+            assertEquals(Set.of("berthed"),
+                    decayApi.calls.stream().map(call -> call.uuid).collect(java.util.stream.Collectors.toSet()));
+            assertTrue(store.isUnpaid("pooled"));
+        }
+    }
+
+    @Test
     void hourlyDecayDamagesUnpaidVehicles() {
         store.markUnpaid("vehicle-1", 1L);
         service.tickHourlyDecay();

@@ -28,6 +28,9 @@ public class GuildData {
     /** When a leaderless guild was last left with no members; it closes 30 days later. */
     @SerializedName("empty since")
     public Long emptySince;
+    /** When a held realm's closure began. */
+    @SerializedName("closing since")
+    public Long closingSince;
     /** The character the realm leader has offered the empty seat to. */
     @SerializedName("leader offer")
     public String leaderOffer;

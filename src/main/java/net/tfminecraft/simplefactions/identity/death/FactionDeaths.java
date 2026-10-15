@@ -6,10 +6,7 @@ import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -175,8 +172,13 @@ final class FactionDeaths {
         Faction faction = realm(plan.get("realm").getAsString());
         if (faction == null) return true;
         String key = journal.characterId.toString();
+        boolean member = faction.isMember(key);
         for (Guild guild : faction.getGuildHandler().getGuilds()) guild.removeDeadCharacter(key);
         faction.succeedDeadLeader(key, "");
+        // Held in the same save as the last member's removal, so a revive before succession still finds it.
+        if (member && faction.getMembers().isEmpty() && blank(faction.getLeader())) {
+            net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, key, journal.at);
+        }
         faction.getGovernment().removeDeadCharacter(key);
         boolean vacatedOffice = faction.getEspionage().removeDeadCharacter(new CharacterRef(journal.ownerId, journal.characterId),
                 journal.deathId, journal.at);
@@ -199,9 +201,13 @@ final class FactionDeaths {
         String key = journal.characterId.toString();
         Faction faction = realm(plan.get("realm").getAsString());
         if (plan.get("emptyRealm").getAsBoolean() && plan.get("base").getAsBoolean()) {
-            if (faction != null && (!faction.getMembers().isEmpty()
-                    || faction.getGuildHandler().getGuilds().stream().anyMatch(Guild::hasUnresolvedLeader))) return false;
-            disbandRealm(faction, plan.get("faction").getAsString());
+            if (faction == null) return true;
+            if (faction.getGuildHandler().getGuilds().stream().anyMatch(Guild::hasUnresolvedLeader)) return false;
+            // A seat filled or a member let in since is left to them and to staff.
+            if (faction.getMembers().isEmpty() && blank(faction.getLeader())) {
+                net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, key, journal.at);
+            }
+            save(faction);
             return true;
         }
         if (faction == null) return true;
@@ -293,28 +299,15 @@ final class FactionDeaths {
         return dataFolder.resolve("Warbands/warband_" + id + ".json").toFile();
     }
 
-    private void disbandRealm(Faction faction, String id) throws IOException {
-        if (faction == null && FactionManager.getByString(id) != null) {
-            throw new IOException("A new realm uses the old death journal's name: " + id);
-        }
-        if (faction != null) {
-            FactionManager.deleteFaction(faction);
-        }
-        Files.deleteIfExists(dataFolder.resolve("Data/" + id + ".json"));
-        try (FileChannel directory = FileChannel.open(dataFolder.resolve("Data"), StandardOpenOption.READ)) {
-            directory.force(true);
-        }
-        for (Faction survivor : FactionManager.getCopy()) {
-            survivor.getDiplomacyHandler().removeRelation(id);
-            save(survivor);
-        }
-    }
-
     /** Other realms' movements are saved here; the guild's own realm is saved by the caller. */
     private static void leaveMovements(Guild guild, Faction own) throws IOException {
         for (Faction other : net.tfminecraft.simplefactions.guild.LeaderlessGuilds.withdrawFromMovements(guild)) {
             if (other != own) save(other);
         }
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static Faction realm(String incarnation) {

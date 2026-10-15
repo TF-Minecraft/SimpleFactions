@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import net.tfminecraft.tlibs.character.CharacterRevivedEvent;
 import net.tfminecraft.tlibs.character.CharacterSessionStartEvent;
 import net.tfminecraft.tlibs.character.Characters;
 
@@ -11,7 +12,7 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 
-/** Refreshes map leader names when a shared character session is ready. */
+/** Refreshes map leader names when a shared character session is ready, and returns held realms on revive. */
 public final class LeaderCharacterListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onCharacterStart(CharacterSessionStartEvent event) {
@@ -21,6 +22,12 @@ public final class LeaderCharacterListener implements Listener {
                 || !Characters.isCurrent(event.getSession())) return;
         refresh(Members.key(event.getSession().ref()));
         net.tfminecraft.simplefactions.guild.LeaderlessGuilds.remind(player);
+    }
+
+    /** A revived leader takes back the realm held since their death. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRevived(CharacterRevivedEvent event) {
+        net.tfminecraft.simplefactions.guild.HeldRealms.revived(Members.key(event.getCharacter()));
     }
 
     /**

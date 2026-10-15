@@ -7,6 +7,7 @@ import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.simplefactions.api.SimpleFactionsApi;
 import net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.HeldRealms;
 import net.tfminecraft.simplefactions.guild.LeaderlessGuilds;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.identity.death.CharacterDeaths;
@@ -30,7 +31,7 @@ final class GuildEstateFallback implements EstateFallback {
             case UNAVAILABLE -> DeathGuild.UNAVAILABLE;
             case NONE -> DeathGuild.NONE;
             case GUILD -> {
-                if (LeaderlessGuilds.closing(recorded.incarnation())) yield DeathGuild.UNAVAILABLE;
+                if (closing(recorded.incarnation())) yield DeathGuild.UNAVAILABLE;
                 Guild live = byIncarnation(recorded.incarnation());
                 yield DeathGuild.guild(recorded.incarnation(), live != null,
                         live == null ? Optional.empty() : leader(live), Optional.ofNullable(recorded.realm()));
@@ -40,7 +41,7 @@ final class GuildEstateFallback implements EstateFallback {
 
     @Override
     public GuildLookup guild(UUID incarnation) {
-        if (incarnation == null || !SimpleFactionsApi.ready() || LeaderlessGuilds.closing(incarnation)) {
+        if (incarnation == null || !SimpleFactionsApi.ready() || closing(incarnation)) {
             return GuildLookup.UNAVAILABLE;
         }
         Guild guild = byIncarnation(incarnation);
@@ -57,7 +58,12 @@ final class GuildEstateFallback implements EstateFallback {
                 .filter(guild -> name.trim().equalsIgnoreCase(guild.getName()))
                 .toList();
         if (matches.size() > 1) return GuildLookup.UNAVAILABLE;
-        return matches.isEmpty() ? GuildLookup.GONE : GuildLookup.live(ref(matches.getFirst()));
+        return matches.isEmpty() ? GuildLookup.GONE : guild(matches.getFirst().getIncarnationId());
+    }
+
+    /** A guild being closed, or a held realm, is neither live nor gone yet. */
+    private static boolean closing(UUID incarnation) {
+        return LeaderlessGuilds.closing(incarnation) || HeldRealms.unsettled(incarnation);
     }
 
     private static Guild byIncarnation(UUID incarnation) {

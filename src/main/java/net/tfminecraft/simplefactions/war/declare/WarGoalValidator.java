@@ -70,6 +70,9 @@ public class WarGoalValidator {
 		if (attacker.getId().equalsIgnoreCase(defender.getId())) {
 			return WarValidationResult.fail("§cYou cannot declare war on your own faction.");
 		}
+		if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(defender)) {
+			return WarValidationResult.fail("§c" + defender.getName() + " §chas no living members and cannot be attacked.");
+		}
 		War sharedWar = WarManager.findSharedActiveWar(attacker, defender);
 		if (sharedWar != null) {
 			Side attackerSide = sharedWar.getSide(attacker);

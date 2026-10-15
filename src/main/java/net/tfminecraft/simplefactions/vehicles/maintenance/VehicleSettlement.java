@@ -87,6 +87,7 @@ public final class VehicleSettlement {
             if (record.getMode() == OwnershipMode.PERSONAL) continue;
             long upkeep = Money.cents(VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId()));
             var faction = FactionVehiclePoolService.payingFaction(record);
+            if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(faction)) continue;
             if (upkeep <= 0 || (faction == null && record.getMode() == OwnershipMode.INSTALLATION)) {
                 unpaid.remove(record.getVehicleUuid());
                 continue;

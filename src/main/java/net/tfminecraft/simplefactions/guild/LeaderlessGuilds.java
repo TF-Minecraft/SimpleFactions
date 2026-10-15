@@ -57,7 +57,7 @@ public final class LeaderlessGuilds {
 
     /** "Name (dead)" in grey for an empty seat whose leader died, else null. */
     public static String deadLeaderLabel(Guild guild) {
-        if (!guild.isLeaderless() || guild.getDeadLeader() == null) return null;
+        if (!guild.isLeaderless() && !guild.isHeld() || guild.getDeadLeader() == null) return null;
         return "§7" + Members.display(guild.getDeadLeader()) + " (dead)";
     }
 

@@ -21,6 +21,7 @@ public record FactionUpkeepPlan(String faction, Map<String, Integer> regimentSlo
         long charge, double armyLedgerCost, double installationLedgerCost) {
 
     public static FactionUpkeepPlan calculate(Faction faction) {
+        if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(faction)) return paused(faction);
         List<Regiment> regiments = new ArrayList<>();
         if (faction.getMilitary() != null) {
             for (Regiment regiment : faction.getMilitary().getRegiments()) {
@@ -71,6 +72,20 @@ public record FactionUpkeepPlan(String faction, Map<String, Integer> regimentSlo
             }
         }
         return new FactionUpkeepPlan(faction.getId(), slots, installations, construction, charge, army, ledgerCost);
+    }
+
+    /** A held realm pays nothing and keeps its army and installations as they are. */
+    private static FactionUpkeepPlan paused(Faction faction) {
+        Map<String, Integer> slots = new LinkedHashMap<>();
+        if (faction.getMilitary() != null) {
+            for (Regiment regiment : faction.getMilitary().getRegiments()) {
+                if (regiment != null) slots.put(regiment.getId(), regiment.getCurrentSlots());
+            }
+        }
+        List<InstallationData> installations = faction.getInstallationHandler().getAll().stream()
+                .sorted(Comparator.comparing(Installation::getId)).map(Installation::toData).toList();
+        return new FactionUpkeepPlan(faction.getId(), slots, new ArrayList<>(installations),
+                faction.getInstallationHandler().serializeConstruction(), 0, 0, 0);
     }
 
     private static double armyCost(List<Regiment> regiments, double factor) {

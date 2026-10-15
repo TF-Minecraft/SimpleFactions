@@ -305,6 +305,19 @@ class CommandManagerCoverageTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"forceleader realm Alice", "forcejoin realm Bob"})
+  void staffCannotTakeOnARealmWhoseClosureHasBegun(String command) {
+    admin();
+    Guild main = mock(Guild.class);
+    when(guilds.getGuild("realm")).thenReturn(main);
+    when(main.getClosingSince()).thenReturn(5L);
+    assertTrue(run("faction", command.split(" ")));
+    verify(player).sendMessage(net.tfminecraft.simplefactions.guild.HeldRealms.CLOSING);
+    verify(faction, never()).setLeader(anyString());
+    verify(faction, never()).addMember(anyString());
+  }
+
+  @ParameterizedTest
   @ValueSource(
       strings = {
         "forceupgrade missing fort",
