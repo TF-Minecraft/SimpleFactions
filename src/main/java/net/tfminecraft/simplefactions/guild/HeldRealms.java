@@ -32,6 +32,15 @@ public final class HeldRealms {
 
     private HeldRealms() {}
 
+    public static final String CLOSING = "§cThis faction's week ran out and it is being closed.";
+
+    /** Whether the realm's closure has begun; it then always finishes. */
+    public static boolean isClosing(Faction faction) {
+        if (faction == null || faction.getGuildHandler() == null) return false;
+        Guild main = faction.getGuildHandler().getGuild(faction.getId());
+        return main != null && main.getClosingSince() > 0;
+    }
+
     public static boolean isHeld(Faction faction) {
         if (faction == null || faction.getGuildHandler() == null) return false;
         Guild main = faction.getGuildHandler().getGuild(faction.getId());
@@ -51,15 +60,15 @@ public final class HeldRealms {
     }
 
     /**
-     * Whether estates must wait: the realm's week has run out (it may still be at war), or its closure is
-     * not finished.
+     * Whether estate lookups must wait: the realm is held or its closure is not finished. Estates of deaths
+     * in it then pass once it is taken on (live with a leader) or closed (gone), and a revive cancels them.
      */
-    public static boolean closing(UUID incarnation, long now) {
+    public static boolean unsettled(UUID incarnation) {
         if (incarnation == null) return false;
         if (unclosed.containsValue(incarnation)) return true;
         for (Faction faction : FactionManager.getCopy()) {
             Guild main = faction.getGuildHandler().getGuild(faction.getId());
-            if (main != null && incarnation.equals(main.getIncarnationId())) return weekOver(faction, main, now);
+            if (main != null && incarnation.equals(main.getIncarnationId())) return main.isHeld() || main.getClosingSince() > 0;
         }
         return false;
     }
@@ -84,6 +93,10 @@ public final class HeldRealms {
         }
         for (Faction faction : new ArrayList<>(FactionManager.factions)) {
             Guild main = faction == null ? null : faction.getGuildHandler().getGuild(faction.getId());
+            if (main != null && main.getClosingSince() > 0) {
+                close(faction, faction.getId(), main.getIncarnationId(), now, dataFolder);
+                continue;
+            }
             if (main == null || !main.isHeld() || restore(faction, main) != Restore.NOT_ELIGIBLE) continue;
             if (main.trackEmpty(now, faction.getMembers().isEmpty())) save(faction);
             if (weekOver(faction, main, now) && !WarManager.isAtWar(faction)) {

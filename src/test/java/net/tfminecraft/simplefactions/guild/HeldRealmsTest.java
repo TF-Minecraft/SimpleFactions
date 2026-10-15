@@ -102,19 +102,19 @@ class HeldRealmsTest {
     void aRealmNobodyTakesOnClosesAfterAWeek() {
         Faction survivor = survivor();
         UUID incarnation = main.getIncarnationId();
-        assertFalse(HeldRealms.closing(null, AT + WEEK));
-        assertFalse(HeldRealms.closing(UUID.randomUUID(), AT + WEEK));
-        assertFalse(HeldRealms.closing(incarnation, AT + WEEK - 1));
+        assertFalse(HeldRealms.unsettled(null));
+        assertFalse(HeldRealms.unsettled(UUID.randomUUID()));
+        assertTrue(HeldRealms.unsettled(incarnation), "estates wait while the realm is held");
 
         HeldRealms.closeExpired(AT + WEEK - 1, folder);
         assertSame(realm, FactionManager.getByString("realm"));
-        assertTrue(HeldRealms.closing(incarnation, AT + WEEK));
+        assertTrue(HeldRealms.unsettled(incarnation));
 
         HeldRealms.closeExpired(AT + WEEK, folder);
         assertNull(FactionManager.getByString("realm"));
         assertFalse(Files.exists(folder.resolve("Data/realm.json")));
         assertFalse(survivor.getDiplomacyHandler().getRelations().containsKey("realm"));
-        assertFalse(HeldRealms.closing(incarnation, AT + WEEK));
+        assertFalse(HeldRealms.unsettled(incarnation));
     }
 
     @Test
@@ -142,15 +142,18 @@ class HeldRealmsTest {
         HeldRealms.closeExpired(AT + WEEK, folder);
         assertSame(realm, FactionManager.getByString("realm"));
         assertEquals(AT + WEEK, main.getClosingSince());
-        assertTrue(HeldRealms.closing(incarnation, AT));
+        assertTrue(HeldRealms.unsettled(incarnation));
 
+        assertTrue(HeldRealms.isClosing(realm));
+        assertFalse(HeldRealms.isClosing(null));
         characters.revive(ruler);
         HeldRealms.revived(ruler);
         assertTrue(HeldRealms.isHeld(realm), "a closure that has begun is not undone");
+        realm.addMember(characters.character(UUID.randomUUID(), "Kira Vale"));
         failFor = null;
         HeldRealms.closeExpired(AT + WEEK + 1, folder);
         assertNull(FactionManager.getByString("realm"));
-        assertFalse(HeldRealms.closing(incarnation, AT));
+        assertFalse(HeldRealms.unsettled(incarnation));
         assertFalse(survivor.getDiplomacyHandler().getRelations().containsKey("realm"));
     }
 
@@ -162,7 +165,7 @@ class HeldRealmsTest {
         assertSame(realm, FactionManager.getByString("realm"));
         assertEquals(0, main.getClosingSince());
         assertTrue(survivor.getDiplomacyHandler().getRelations().containsKey("realm"));
-        assertTrue(HeldRealms.closing(main.getIncarnationId(), AT));
+        assertTrue(HeldRealms.unsettled(main.getIncarnationId()));
         HeldRealms.closeExpired(AT + WEEK + 1, folder);
         assertNull(FactionManager.getByString("realm"));
     }
@@ -199,11 +202,11 @@ class HeldRealmsTest {
         Files.delete(folder.resolve("Data"));
         HeldRealms.closeExpired(AT + WEEK, folder);
         assertNull(FactionManager.getByString("realm"));
-        assertTrue(HeldRealms.closing(incarnation, AT));
+        assertTrue(HeldRealms.unsettled(incarnation));
 
         Files.createDirectories(folder.resolve("Data"));
         HeldRealms.closeExpired(AT + WEEK + 1, folder);
-        assertFalse(HeldRealms.closing(incarnation, AT));
+        assertFalse(HeldRealms.unsettled(incarnation));
     }
 
     @Test
@@ -220,7 +223,7 @@ class HeldRealmsTest {
         HeldRealms.closeExpired(AT + WEEK + 1, folder);
         assertSame(newcomer, FactionManager.getByString("realm"));
         assertEquals("new", Files.readString(folder.resolve("Data/realm.json")));
-        assertFalse(HeldRealms.closing(incarnation, AT));
+        assertFalse(HeldRealms.unsettled(incarnation));
     }
 
     @Test
@@ -229,7 +232,7 @@ class HeldRealmsTest {
             wars.when(() -> WarManager.isAtWar(realm)).thenReturn(true);
             HeldRealms.closeExpired(AT + WEEK, folder);
             assertSame(realm, FactionManager.getByString("realm"));
-            assertTrue(HeldRealms.closing(main.getIncarnationId(), AT + WEEK), "estates keep waiting");
+            assertTrue(HeldRealms.unsettled(main.getIncarnationId()), "estates keep waiting");
         }
         HeldRealms.closeExpired(AT + WEEK + 1, folder);
         assertNull(FactionManager.getByString("realm"));

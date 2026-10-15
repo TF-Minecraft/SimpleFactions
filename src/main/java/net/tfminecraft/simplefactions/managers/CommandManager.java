@@ -1455,6 +1455,10 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§a[SimpleFactions]§c Error! faction does not exist!");
 					return true;
 				}
+				if(net.tfminecraft.simplefactions.guild.HeldRealms.isClosing(f)) {
+					p.sendMessage(net.tfminecraft.simplefactions.guild.HeldRealms.CLOSING);
+					return true;
+				}
 				String heir = Members.find(f.getMembers(), rest(args, 2));
 				if(heir == null) {
 					p.sendMessage("§cPlayer is not in the faction");
@@ -1483,6 +1487,10 @@ public class CommandManager implements Listener, CommandExecutor{
 				Faction f = FactionManager.getByString(args[1]);
 				if(f == null) {
 					p.sendMessage("§a[SimpleFactions]§c Error! faction does not exist!");
+					return true;
+				}
+				if(net.tfminecraft.simplefactions.guild.HeldRealms.isClosing(f)) {
+					p.sendMessage(net.tfminecraft.simplefactions.guild.HeldRealms.CLOSING);
 					return true;
 				}
 				String joiner = Members.findOnline(args[2]);

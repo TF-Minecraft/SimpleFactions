@@ -61,9 +61,9 @@ final class GuildEstateFallback implements EstateFallback {
         return matches.isEmpty() ? GuildLookup.GONE : GuildLookup.live(ref(matches.getFirst()));
     }
 
-    /** A guild being closed is neither live nor gone yet. */
+    /** A guild being closed, or a held realm, is neither live nor gone yet. */
     private static boolean closing(UUID incarnation) {
-        return LeaderlessGuilds.closing(incarnation) || HeldRealms.closing(incarnation, System.currentTimeMillis());
+        return LeaderlessGuilds.closing(incarnation) || HeldRealms.unsettled(incarnation);
     }
 
     private static Guild byIncarnation(UUID incarnation) {
