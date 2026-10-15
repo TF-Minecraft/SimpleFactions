@@ -15,6 +15,7 @@ import net.tfminecraft.denareconomy.event.PlayerBankPulseEvent;
 import net.tfminecraft.denareconomy.event.PlayerDepositMaterialsEvent;
 import net.tfminecraft.denareconomy.event.PlayerEarnMoneyEvent;
 import net.tfminecraft.denareconomy.item.Coin;
+import net.tfminecraft.denareconomy.loaders.MessageLoader;
 import net.tfminecraft.denareconomy.managers.MoneyManager;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -396,6 +397,7 @@ class PlayerManagerCoverageTest {
     scoped(DenarEconomy.class).when(DenarEconomy::getMoneyManager).thenReturn(money);
     when(DenarEconomy.getLedger()).thenCallRealMethod();
     when(money.getCoin(material)).thenReturn(state.equals("unknown_item") ? null : coin);
+    MockedStatic<MessageLoader> messages = scoped(MessageLoader.class);
     if (!state.equals("away")) lender.setBank(new Bank(lender, leader.getLocation().getChunk()));
     leader.getInventory().setItem(0, material);
     var ref = net.tfminecraft.simplefactions.identity.Members.session(leader).orElseThrow().ref();
@@ -403,6 +405,9 @@ class PlayerManagerCoverageTest {
     assertEquals(state.equals("deposit") ? 0 : 7, material.getAmount());
     long credited = net.tfminecraft.denareconomy.api.Denars.balance(net.tfminecraft.denareconomy.api.Denars.bank(ref));
     assertEquals(87.5, credited / 100d + material.getAmount() * coin.getValue());
+    messages.verify(
+        () -> MessageLoader.send(leader, "money.earned", "amount", new java.math.BigDecimal("87.50")),
+        times(state.equals("deposit") ? 1 : 0));
   }
 
   @ParameterizedTest

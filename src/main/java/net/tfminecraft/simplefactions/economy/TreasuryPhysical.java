@@ -8,6 +8,8 @@ import java.util.Optional;
 import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.denareconomy.api.TaxLeg;
 import net.tfminecraft.denareconomy.api.TaxPolicy;
+import net.tfminecraft.denareconomy.loaders.MessageLoader;
+import net.tfminecraft.denareconomy.managers.MoneyManager;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.character.CharacterRef;
@@ -39,7 +41,7 @@ public final class TreasuryPhysical {
         TreasuryActions.Plan plan = new TreasuryActions.Plan(TreasuryActions.newId(), "Material bank deposit", player, guild)
                 .transfer(Denars.MINT, Denars.bank(earner), cents - withheld);
         if (withheld > 0) plan.transfer(Denars.MINT, tax.orElseThrow().account(), withheld);
-        return plan.physical(snapshot, intent -> {
+        boolean deposited = plan.physical(snapshot, intent -> {
             if (!Members.isCurrent(session) || !inventory.equals(inventory(player)) || !source.equals(encode(item))
                     || slot != player.getInventory().getHeldItemSlot() || !source.equals(encode(player.getInventory().getItem(slot))))
                 throw new IOException("Material source changed after posting: " + intent.id());
@@ -47,6 +49,11 @@ public final class TreasuryPhysical {
             player.getInventory().setItem(slot, null);
             player.saveData();
         }).commit(player);
+        if (deposited) {
+            MessageLoader.send(player, "money.earned", "amount", MoneyManager.denars(cents - withheld));
+            if (withheld > 0) MessageLoader.send(player, "money.tax", "tax", MoneyManager.denars(withheld));
+        }
+        return deposited;
     }
     public static boolean withdraw(Player player, Guild guild, double amount, List<ItemStack> items) {
         var session = Members.session(player).orElse(null);
