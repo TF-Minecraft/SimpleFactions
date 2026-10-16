@@ -45,6 +45,24 @@ class LedgerCitizenTaxPersistenceTest {
 	}
 
 	@Test
+	void fractionalLegacyContributorsAreRoundedBeforeReconcilingHeldTax() {
+		Guild guild = mock(Guild.class);
+		UUID incarnation = UUID.randomUUID();
+		when(guild.getIncarnationId()).thenReturn(incarnation);
+		Ledger ledger = new Ledger(guild);
+		ledger.setCitizenTaxes(Map.of("Alice", 0.005));
+		try (var reads = mockStatic(FrozenReads.class)) {
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(1L);
+			assertEquals(Map.of("Alice", 0.01), ledger.getCitizenTaxBreakdown());
+			assertEquals(Map.of("Alice", 0.005), ledger.getCitizenTaxesCopy());
+			ledger.setCitizenTaxes(Map.of("Alice", 0.005, "Bob", 0.005));
+			assertEquals(Map.of("Other citizen taxes", 0.01), ledger.getCitizenTaxBreakdown());
+			ledger.setCitizenTaxes(Map.of("Alice", 0.004, "Bob", 0.004));
+			assertEquals(Map.of("Other citizen taxes", 0.01), ledger.getCitizenTaxBreakdown());
+		}
+	}
+
+	@Test
 	void contributorBreakdownReconcilesToHeldTaxAndDoesNotChangeSavedEntries() {
 		Guild guild = mock(Guild.class);
 		UUID incarnation = UUID.randomUUID();

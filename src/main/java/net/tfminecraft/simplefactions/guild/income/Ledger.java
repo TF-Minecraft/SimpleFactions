@@ -148,11 +148,16 @@ public class Ledger {
     public Map<String, Double> getCitizenTaxBreakdown() {
         double collected = getCollectedCitizenTax();
         if (collected <= 0) return Map.of();
-        double attributed = LedgerHistory.total(citizenTaxes);
-        if (!Double.isFinite(attributed) || Formatter.formatDouble(attributed) > collected) {
+        if (!Double.isFinite(LedgerHistory.total(citizenTaxes))) {
             return Map.of("Other citizen taxes", collected);
         }
-        Map<String, Double> amounts = getCitizenTaxesCopy();
+        Map<String, Double> amounts = new HashMap<>();
+        citizenTaxes.forEach((name, value) -> {
+            double amount = Formatter.formatDouble(value);
+            if (amount > 0) amounts.put(name, amount);
+        });
+        double attributed = Formatter.formatDouble(LedgerHistory.total(amounts));
+        if (attributed > collected) return Map.of("Other citizen taxes", collected);
         double remaining = Formatter.formatDouble(collected - attributed);
         if (remaining > 0) amounts.merge("Other citizen taxes", remaining, Double::sum);
         return amounts;
