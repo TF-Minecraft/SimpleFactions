@@ -16,7 +16,7 @@ import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /**
- * Guild treasuries, node upkeep and espionage stability read once on the main thread.
+ * Guild treasuries, held tax, node upkeep and espionage stability read once on the main thread.
  * DenarEconomy, Dowsing and TLibs character identity refuse reads from other threads, so
  * income previews that run async read these instead.
  */
@@ -34,7 +34,7 @@ public final class FrozenReads {
         this.espionage = Map.copyOf(espionage);
     }
 
-    /** Reads every guild treasury and node upkeep and every realm espionage modifier now. Call on the main thread. */
+    /** Reads guild treasuries, held tax and node upkeep and realm espionage modifiers now. Call on the main thread. */
     public static FrozenReads capture() {
         long now = System.currentTimeMillis();
         Map<String, List<StabilityModifier>> espionage = new HashMap<>();
@@ -58,6 +58,8 @@ public final class FrozenReads {
             }
             UUID incarnation = guild == null ? null : guild.getIncarnationId();
             if (incarnation != null) {
+                String taxAccount = Denars.guildTax(incarnation);
+                cents.put(taxAccount, Denars.balance(taxAccount));
                 nodeUpkeep.put(incarnation, Ledger.liveNodeUpkeep(guild));
             }
         }

@@ -589,7 +589,7 @@ public class GuildCreator {
 		m.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 		m.setDisplayName(StringFormatter.formatHex("#94b572Citizens"));
 		m.setLore(ledgerSourceLore(g, LedgerHistory.Source.CITIZENS, "Top contributors",
-				g.getLedger().getCitizenTaxesCopy(), "No citizen taxes."));
+				g.getLedger().getCitizenTaxBreakdown(), "No citizen taxes."));
 		i.setItemMeta(m);
 		return i;
 	}

@@ -579,6 +579,20 @@ class GuildMenusCoverageTest {
   }
 
   @Test
+  void citizenTooltipShowsHeldTaxWithoutLegacyContributorRows() {
+    var incarnation = guild.getIncarnationId();
+    try (var reads = mockStatic(net.tfminecraft.simplefactions.economy.FrozenReads.class)) {
+      reads.when(() -> net.tfminecraft.simplefactions.economy.FrozenReads.balance("guildtax:" + incarnation))
+          .thenReturn(1234L);
+      assertTrue(guild.getLedger().getCitizenTaxesCopy().isEmpty());
+      ItemStack citizens = creator.createLedgerCitizensItem(guild);
+      assertLore(citizens, "Today: +12.34d", true);
+      assertLore(citizens, "Other citizen taxes: +12.34d", true);
+      assertLore(citizens, "No citizen taxes", false);
+    }
+  }
+
+  @Test
   void ledgerSourcesSortCapAndSeparateTodayFromHistoricalTotals() {
     Guild display = displayGuild(guild);
     Ledger ledger = display.getLedger();
@@ -586,7 +600,7 @@ class GuildMenusCoverageTest {
     Map<String, Double> taxes = new LinkedHashMap<>();
     for (int n = 0; n < 7; n++) taxes.put("Citizen" + n, (double) n);
     taxes.put("Negative", -2.0);
-    when(ledger.getCitizenTaxesCopy()).thenReturn(taxes);
+    when(ledger.getCitizenTaxBreakdown()).thenReturn(taxes);
     history.closeDay(Map.of(LedgerHistory.Source.CITIZENS, Map.of("Yesterday", 15.0)));
     history.addDeposit("Leader", 25);
     history.addDeposit("Alice", 10);
@@ -596,7 +610,7 @@ class GuildMenusCoverageTest {
     assertLore(citizens, "Citizen1", false);
     assertLore(citizens, "Yesterday", true);
     assertLore(citizens, "Negative", false);
-    when(ledger.getCitizenTaxesCopy()).thenReturn(Map.of("Zero", 0.0));
+    when(ledger.getCitizenTaxBreakdown()).thenReturn(Map.of("Zero", 0.0));
     assertLore(creator.createLedgerCitizensItem(display), "No citizen taxes", true);
     Guild paying = displayGuild(fixture.guild("guild", 0));
     when(paying.getLedger().getIncome(Cashflow.GUILD_PAYMENTS)).thenReturn(-12.0);

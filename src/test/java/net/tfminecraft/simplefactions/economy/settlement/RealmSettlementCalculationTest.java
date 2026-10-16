@@ -83,6 +83,18 @@ class RealmSettlementCalculationTest {
         assertTrue(changes(plan).guilds.stream().filter(c -> c.incarnation.equals(capital.getIncarnationId())).findFirst().orElseThrow().citizenTaxes.isEmpty());
     }
 
+    @Test void heldTaxWithoutLegacyEntriesIsIncludedInSettlementHistory() {
+        denars.when(() -> Denars.balance(Denars.guildTax(capital.getIncarnationId()))).thenReturn(1234L);
+        var plan = plan(List.of());
+        assertEquals(-1234, net(plan, Denars.guildTax(capital.getIncarnationId())));
+        assertEquals(1234, net(plan, capital.getBank().accountId()));
+        var saved = changes(plan).guilds.stream()
+                .filter(c -> c.incarnation.equals(capital.getIncarnationId())).findFirst().orElseThrow();
+        assertEquals(Map.of("Other citizen taxes", 12.34), saved.ledgerLastDay.get("CITIZENS"));
+        assertEquals(Map.of("Other citizen taxes", 12.34), saved.ledgerLifetime.get("CITIZENS"));
+        assertTrue(capital.getLedger().getCitizenTaxesCopy().isEmpty());
+    }
+
     @Test void debtIsPreservedAndDailyShortfallsLiquidateWithoutTouchingLiveBranches() {
         guild.getBranch(0).levelUp();
         guild.getBranch(0).levelUp();

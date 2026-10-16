@@ -4,15 +4,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.database.GuildData;
 import net.tfminecraft.simplefactions.database.JsonUtil;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -100,11 +103,15 @@ class LedgerHistoryTest {
 		when(trade.getTariffsByFactionMap()).thenReturn(new java.util.HashMap<>(Map.of(rome, 4.0)));
 		when(gaulCapital.getTradeBreakdown()).thenReturn(trade);
 
-		var day = Ledger.collectHistoryDay(List.of(romeCapital, gaulCapital));
-
-		assertEquals(Map.of("Alice", 2.0), day.get(romeCapital).get(LedgerHistory.Source.CITIZENS));
-		assertEquals(Map.of("Gaul", 4.0), day.get(romeCapital).get(LedgerHistory.Source.TARIFFS));
-		assertFalse(day.containsKey(gaulCapital));
+		UUID incarnation = UUID.randomUUID();
+		when(romeCapital.getIncarnationId()).thenReturn(incarnation);
+		try (var reads = mockStatic(FrozenReads.class)) {
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(200L);
+			var day = Ledger.collectHistoryDay(List.of(romeCapital, gaulCapital));
+			assertEquals(Map.of("Alice", 2.0), day.get(romeCapital).get(LedgerHistory.Source.CITIZENS));
+			assertEquals(Map.of("Gaul", 4.0), day.get(romeCapital).get(LedgerHistory.Source.TARIFFS));
+			assertFalse(day.containsKey(gaulCapital));
+		}
 		// Collecting is a read: settlement still clears the citizen taxes afterwards.
 		assertEquals(2.0, romeCapital.getLedger().getCitizenTaxesCopy().get("Alice"), 1e-9);
 	}
