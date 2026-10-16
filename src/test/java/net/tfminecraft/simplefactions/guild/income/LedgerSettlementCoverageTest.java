@@ -73,6 +73,8 @@ class LedgerSettlementCoverageTest {
     ledger.setCitizenTaxes(saved);
     ledger.addCitizenTaxEntry("Alice", 3.0);
     ledger.addCitizenTaxEntry("Bob", 9.0);
+    String holding = net.tfminecraft.denareconomy.api.Denars.guildTax(capital.getIncarnationId());
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(holding, 1400L);
     assertEquals(Map.of("Alice", 5.0, "Bob", 9.0), ledger.getCitizenTaxesCopy());
     assertEquals(
         List.of("Bob", "Alice"),
@@ -104,6 +106,8 @@ class LedgerSettlementCoverageTest {
     assertEquals(33, first.getExternalDeltas().get(capital));
     assertEquals(0, ledger.getCasinoProfit());
     assertTrue(ledger.getCitizenTaxesCopy().isEmpty());
+    // The legacy transfer buffer does not post money; simulate its holding-account sweep.
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(holding, 0L);
     for (Cashflow kind :
         List.of(Cashflow.LOANS, Cashflow.INTEREST, Cashflow.MERCENARY_PAYMENTS, Cashflow.REFUNDS))
       assertEquals(0, ledger.getIncome(kind));

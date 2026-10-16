@@ -4,20 +4,89 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.database.GuildData;
 import net.tfminecraft.simplefactions.database.JsonUtil;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
+import net.tfminecraft.simplefactions.objects.Bank;
+import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 
 class LedgerCitizenTaxPersistenceTest {
+
+	@Test
+	void heldTaxIsVisibleWithoutLegacyContributorEntries() {
+		Guild guild = mock(Guild.class);
+		UUID incarnation = UUID.randomUUID();
+		when(guild.getIncarnationId()).thenReturn(incarnation);
+		when(guild.isBase()).thenReturn(true);
+		when(guild.getBank()).thenReturn(mock(Bank.class));
+		when(guild.getFaction()).thenReturn(mock(Faction.class));
+		Ledger ledger = new Ledger(guild);
+		try (var reads = mockStatic(FrozenReads.class)) {
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(1234L);
+			assertTrue(ledger.getCitizenTaxesCopy().isEmpty());
+			assertEquals(12.34, ledger.getIncome(Cashflow.CITIZENS));
+			assertEquals(Map.of("Other citizen taxes", 12.34), ledger.getCitizenTaxBreakdown());
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(0L);
+			assertEquals(0.0, ledger.getIncome(Cashflow.CITIZENS));
+			assertTrue(ledger.getCitizenTaxBreakdown().isEmpty());
+		}
+	}
+
+	@Test
+	void fractionalLegacyContributorsAreRoundedBeforeReconcilingHeldTax() {
+		Guild guild = mock(Guild.class);
+		UUID incarnation = UUID.randomUUID();
+		when(guild.getIncarnationId()).thenReturn(incarnation);
+		Ledger ledger = new Ledger(guild);
+		ledger.setCitizenTaxes(Map.of("Alice", 0.005));
+		try (var reads = mockStatic(FrozenReads.class)) {
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(1L);
+			assertEquals(Map.of("Alice", 0.01), ledger.getCitizenTaxBreakdown());
+			assertEquals(Map.of("Alice", 0.005), ledger.getCitizenTaxesCopy());
+			ledger.setCitizenTaxes(Map.of("Alice", 0.005, "Bob", 0.005));
+			assertEquals(Map.of("Other citizen taxes", 0.01), ledger.getCitizenTaxBreakdown());
+			ledger.setCitizenTaxes(Map.of("Alice", 0.004, "Bob", 0.004));
+			assertEquals(Map.of("Other citizen taxes", 0.01), ledger.getCitizenTaxBreakdown());
+		}
+	}
+
+	@Test
+	void contributorBreakdownReconcilesToHeldTaxAndDoesNotChangeSavedEntries() {
+		Guild guild = mock(Guild.class);
+		UUID incarnation = UUID.randomUUID();
+		when(guild.getIncarnationId()).thenReturn(incarnation);
+		Ledger ledger = new Ledger(guild);
+		ledger.setCitizenTaxes(Map.of("Alice", 0.20, "Bob", 0.10));
+		try (var reads = mockStatic(FrozenReads.class)) {
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(80L);
+			assertEquals(Map.of("Alice", 0.20, "Bob", 0.10, "Other citizen taxes", 0.50), ledger.getCitizenTaxBreakdown());
+			assertEquals("Other citizen taxes", ledger.getCitizenTaxEntriesDescending().getFirst().getKey());
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(30L);
+			Map<String, Double> displayed = ledger.getCitizenTaxBreakdown();
+			assertEquals(Map.of("Alice", 0.20, "Bob", 0.10), displayed);
+			displayed.clear();
+			assertEquals(Map.of("Alice", 0.20, "Bob", 0.10), ledger.getCitizenTaxesCopy());
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(15L);
+			assertEquals(Map.of("Other citizen taxes", 0.15), ledger.getCitizenTaxBreakdown());
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(0L);
+			assertTrue(ledger.getCitizenTaxBreakdown().isEmpty());
+			ledger.setCitizenTaxes(Map.of("Alice", Double.NaN));
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(30L);
+			assertEquals(Map.of("Other citizen taxes", 0.30), ledger.getCitizenTaxBreakdown());
+		}
+	}
 
 	@Test
 	void oldJsonWithoutCitizenTaxes_loadsEmpty() {

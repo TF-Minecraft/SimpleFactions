@@ -8,7 +8,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.ToDoubleFunction;
 
+import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.simplefactions.economy.FrozenReads;
+import net.tfminecraft.simplefactions.economy.Money;
 
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 
@@ -140,6 +142,25 @@ public class Ledger {
     /** Copy for save. The live map stays on this ledger. */
     public Map<String, Double> getCitizenTaxesCopy() {
         return new HashMap<>(citizenTaxes);
+    }
+
+    /** Held tax is authoritative; legacy contributor rows describe only part of it. */
+    public Map<String, Double> getCitizenTaxBreakdown() {
+        double collected = getCollectedCitizenTax();
+        if (collected <= 0) return Map.of();
+        if (!Double.isFinite(LedgerHistory.total(citizenTaxes))) {
+            return Map.of("Other citizen taxes", collected);
+        }
+        Map<String, Double> amounts = new HashMap<>();
+        citizenTaxes.forEach((name, value) -> {
+            double amount = Formatter.formatDouble(value);
+            if (amount > 0) amounts.put(name, amount);
+        });
+        double attributed = Formatter.formatDouble(LedgerHistory.total(amounts));
+        if (attributed > collected) return Map.of("Other citizen taxes", collected);
+        double remaining = Formatter.formatDouble(collected - attributed);
+        if (remaining > 0) amounts.merge("Other citizen taxes", remaining, Double::sum);
+        return amounts;
     }
 
     /** Seeded from disk at load, so an unsettled day survives a restart. */
@@ -286,7 +307,7 @@ public class Ledger {
                 break;
             case CITIZENS:
                 if(!guild.isBase()) return 0;
-                amount = getAggregatedCitizenTax();
+                amount = getCollectedCitizenTax();
                 break;
             case TARIFFS:
                 if(!guild.isBase()) return 0;
@@ -466,18 +487,18 @@ public class Ledger {
     }
 
     public List<Map.Entry<String, Double>> getCitizenTaxEntriesDescending() {
-        return citizenTaxes.entrySet().stream()
+        return getCitizenTaxBreakdown().entrySet().stream()
             .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
             .toList();
     }
 
 
-    private double getAggregatedCitizenTax() {
-        double total = 0;
-        for(Double d : citizenTaxes.values()) {
-            total+=d;
+    private double getCollectedCitizenTax() {
+        if (settlement != null && settlement.income.containsKey(Cashflow.CITIZENS)) {
+            return settlement.income.get(Cashflow.CITIZENS);
         }
-        return total;
+        var incarnation = guild.getIncarnationId();
+        return incarnation == null ? 0.0 : Money.denars(FrozenReads.balance(Denars.guildTax(incarnation)));
     }
 
     private double getAggregatedLoanPayments() {
@@ -894,7 +915,7 @@ public class Ledger {
             if (f == null || ledger.skipsMoneyMovement()) continue;
 
             if (payer.isBase()) {
-                ledger.citizenTaxes.forEach((name, tax) ->
+                ledger.getCitizenTaxBreakdown().forEach((name, tax) ->
                         recordHistory(out, payer, LedgerHistory.Source.CITIZENS, name, tax));
 
                 Faction overlord = f.getOverlord();

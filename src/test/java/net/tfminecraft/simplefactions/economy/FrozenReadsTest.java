@@ -85,6 +85,26 @@ class FrozenReadsTest {
     }
 
     @Test
+    void asyncCitizenTaxUsesTheHoldingBalanceCapturedOnTheMainThread() throws Exception {
+        when(guild.isBase()).thenReturn(true);
+        when(guild.getFaction()).thenReturn(FactionManager.factions.getFirst());
+        Ledger ledger = new Ledger(guild);
+        String holding = Denars.guildTax(guild.getIncarnationId());
+        FrozenReads frozen;
+        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+            denars.when(() -> Denars.balance(anyString())).thenReturn(0L);
+            denars.when(() -> Denars.balance(holding)).thenReturn(1234L);
+            frozen = FrozenReads.capture();
+            denars.when(() -> Denars.balance(holding)).thenReturn(5000L);
+            assertEquals(50.0, ledger.getIncome(Cashflow.CITIZENS));
+        }
+
+        assertEquals(12.34, CompletableFuture.supplyAsync(() -> frozen.read(() -> ledger.getIncome(Cashflow.CITIZENS))).get());
+        assertEquals(Map.of("Other citizen taxes", 12.34), CompletableFuture
+                .supplyAsync(() -> frozen.read(ledger::getCitizenTaxBreakdown)).get());
+    }
+
+    @Test
     void readRestoresTheLiveLedgerAfterwards() {
         try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(500L);
