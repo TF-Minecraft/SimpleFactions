@@ -9,12 +9,16 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.ServicesManager;
 
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vehicleframework.api.QuarantinedVehicle;
+import net.tfminecraft.vehicleframework.api.VehicleAccessGroups;
 import net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority;
 import net.tfminecraft.vehicleframework.api.VehicleQuarantineSource;
 
-/** The two VehicleFramework services SimpleFactions provides; only loaded once the API probe passed. */
+/** The VehicleFramework services SimpleFactions provides; only loaded once the API probe passed. */
 public final class VehicleOwnershipServices {
+    static final String GROUP_ACCESS_API = "net.tfminecraft.vehicleframework.api.VehicleAccessGroups";
+
     private VehicleOwnershipServices() {}
 
     /** Lists held-back vehicles for {@code /vf admin quarantine}, even when the vehicle stage stopped early. */
@@ -30,6 +34,28 @@ public final class VehicleOwnershipServices {
                 return ready.getAsBoolean();
             }
         }, plugin, ServicePriority.Normal);
+    }
+
+    /**
+     * Answers the vehicle group switches. VehicleFramework before 2.15 has no such service, so
+     * nothing is registered and vehicles keep their whitelists only.
+     */
+    public static boolean registerGroupAccess(ServicesManager services, Plugin plugin, PlayerVehicleRegistry registry,
+            BooleanSupplier ready) {
+        return registerGroupAccess(services, plugin, registry, ready, GROUP_ACCESS_API);
+    }
+
+    static boolean registerGroupAccess(ServicesManager services, Plugin plugin, PlayerVehicleRegistry registry,
+            BooleanSupplier ready, String apiClass) {
+        try {
+            Class.forName(apiClass);
+        } catch (ClassNotFoundException | LinkageError missing) {
+            plugin.getLogger().warning("VehicleFramework 2.15 or newer is needed for faction, guild, ally and vassal "
+                    + "vehicle access; vehicles keep their whitelists only");
+            return false;
+        }
+        services.register(VehicleAccessGroups.class, new VehicleGroupAccess(registry, ready), plugin, ServicePriority.Normal);
+        return true;
     }
 
     static List<QuarantinedVehicle> quarantined(VehicleQuarantine quarantine) {

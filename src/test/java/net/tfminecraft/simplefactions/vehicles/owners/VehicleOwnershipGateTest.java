@@ -137,7 +137,7 @@ class VehicleOwnershipGateTest {
 
     @ParameterizedTest
     @EnumSource(value = OwnershipReason.class, names = {"CLAIM", "CLEAR", "WHITELIST_ADD", "WHITELIST_REMOVE",
-        "WHITELIST_TOGGLE", "TICKETS_TOGGLE"})
+        "WHITELIST_TOGGLE", "TICKETS_TOGGLE", "FACTION_ACCESS_TOGGLE", "GUILD_ACCESS_TOGGLE"})
     void everyNonStaffChangeToAFactionVehicleIsRefused(OwnershipReason reason) {
         factionRow();
         VehicleOwnershipChangeEvent event = change(reason, false);
@@ -146,6 +146,19 @@ class VehicleOwnershipGateTest {
 
         assertTrue(event.isCancelled());
         verify(player).sendMessage(VehicleRegistryClaimListener.FACTION_VEHICLE);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OwnershipReason.class, names = {"ALLY_ACCESS_TOGGLE", "VASSAL_ACCESS_TOGGLE"})
+    void theLeaderMayOpenAFactionVehicleToAlliesAndVassals(OwnershipReason reason) {
+        factionRow();
+        VehicleOwnershipChangeEvent event = change(reason, false);
+
+        gate.onChange(event);
+        gate.onClaimFee(event);
+
+        assertFalse(event.isCancelled());
+        verifyNoInteractions(player);
     }
 
     @Test
@@ -454,7 +467,7 @@ class VehicleOwnershipGateTest {
     }
 
     @Test
-    void factionLeadersMayOpenTheMenuButUseNoControlAndStaleStampsAreHiddenAndFixed() {
+    void factionLeadersMayOpenTheMenuAndOnlyTheAllyAndVassalSwitchesAndStaleStampsAreHiddenAndFixed() {
         UUID leader = UUID.randomUUID();
         Faction red = mock(Faction.class);
         when(red.getId()).thenReturn("red");
@@ -470,6 +483,15 @@ class VehicleOwnershipGateTest {
             VehicleOwnershipEditCheckEvent toggle = check(OwnershipReason.WHITELIST_TOGGLE, false);
             gate.onEditCheck(toggle);
             assertFalse(toggle.isAllowed());
+            VehicleOwnershipEditCheckEvent guild = check(OwnershipReason.GUILD_ACCESS_TOGGLE, false);
+            gate.onEditCheck(guild);
+            assertFalse(guild.isAllowed(), "a faction vehicle has no guild");
+            VehicleOwnershipEditCheckEvent allies = check(OwnershipReason.ALLY_ACCESS_TOGGLE, false);
+            gate.onEditCheck(allies);
+            assertTrue(allies.isAllowed());
+            VehicleOwnershipEditCheckEvent vassals = check(OwnershipReason.VASSAL_ACCESS_TOGGLE, false);
+            gate.onEditCheck(vassals);
+            assertTrue(vassals.isAllowed());
             VehicleOwnershipEditCheckEvent staff = check(OwnershipReason.CLEAR, true);
             gate.onEditCheck(staff);
             assertTrue(staff.isAllowed());

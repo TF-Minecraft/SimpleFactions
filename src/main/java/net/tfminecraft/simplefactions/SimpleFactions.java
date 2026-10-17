@@ -1008,6 +1008,8 @@ public class SimpleFactions extends JavaPlugin{
 		if (full) {
 			VehicleOwnershipServices.registerAuthority(getServer().getServicesManager(), this,
 					() -> started && LeaderStamps.enabled());
+			VehicleOwnershipServices.registerGroupAccess(getServer().getServicesManager(), this, vehicleRegistry,
+					() -> started && LeaderStamps.enabled());
 			LeaderStamps.enable(true);
 			getServer().getScheduler().runTaskTimer(this, this::reconcileVehicleUpkeep,
 					VEHICLE_RECONCILE_TICKS, VEHICLE_RECONCILE_TICKS);
@@ -1100,8 +1102,7 @@ public class SimpleFactions extends JavaPlugin{
 					vehicleRegistryClaimService, vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees,
 					getLogger()), this);
 		} else {
-			getServer().getPluginManager().registerEvents(
-					net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimGuards.create(), this);
+			net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimGuards.register(getServer().getPluginManager(), this);
 		}
 		// VehicleFramework loads its vehicles as it enables, so wait before reading owners.
 		getServer().getScheduler().runTaskLater(this, this::recordVehicleOwners, 200L);
