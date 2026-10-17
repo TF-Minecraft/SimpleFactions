@@ -330,7 +330,7 @@ public class GovernmentCreator {
         penalty(lines, "Max Diplomatic Capacity", adminPenalty);
         penalty(lines, "Law Upkeep", upkeepIncrease);
         penalty(lines, "De Jure Requirement", deJure);
-        penalty(lines, "Prestige Malus", prestige);
+        penalty(lines, "Prestige", prestige);
         penalty(lines, "State Output", outputPenalty);
         if (!report.status.canWageWar()) {
             lines.add("#b8ae61Offensive War: #d13530Locked");

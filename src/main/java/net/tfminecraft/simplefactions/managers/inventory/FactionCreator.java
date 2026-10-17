@@ -339,7 +339,7 @@ public class FactionCreator {
 			m.setDisplayName(StringFormatter.formatHex("#d1b43fWealth: #ccbb76"+f.getWealth()+"d"));
 			List<String> lore = new ArrayList<String>();
 			for(Modifier mod : f.getWealthModifiers()) {
-				lore.add(StringFormatter.formatHex("#93c9a7+"+mod.getAmount()+"d from "+mod.getType()));
+				lore.add(StringFormatter.formatHex(EffectDisplay.wealth(mod.getAmount())+" from "+mod.getType()));
 			}
 			m.setLore(lore);
 			i.setItemMeta(m);
