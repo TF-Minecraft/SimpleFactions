@@ -1008,6 +1008,8 @@ public class SimpleFactions extends JavaPlugin{
 		if (full) {
 			VehicleOwnershipServices.registerAuthority(getServer().getServicesManager(), this,
 					() -> started && LeaderStamps.enabled());
+			VehicleOwnershipServices.registerGroupAccess(getServer().getServicesManager(), this, vehicleRegistry,
+					() -> started && LeaderStamps.enabled());
 			LeaderStamps.enable(true);
 			getServer().getScheduler().runTaskTimer(this, this::reconcileVehicleUpkeep,
 					VEHICLE_RECONCILE_TICKS, VEHICLE_RECONCILE_TICKS);

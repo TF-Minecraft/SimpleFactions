@@ -1605,6 +1605,9 @@ class PluginLifecycleCoverageTest {
     var authority =
         services().load(net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority.class);
     assertTrue(authority.ready());
+    var groups = services().load(net.tfminecraft.vehicleframework.api.VehicleAccessGroups.class);
+    assertTrue(groups.ready());
+    assertTrue(groups.alwaysOpen(UUID.randomUUID(), "char_" + leader).isEmpty());
     assertEquals(
         1,
         services()

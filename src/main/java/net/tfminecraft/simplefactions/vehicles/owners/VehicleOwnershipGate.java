@@ -50,6 +50,9 @@ public final class VehicleOwnershipGate implements Listener {
     public static final String FAILED = "§cVehicle ownership could not be checked, so nothing changed.";
     public static final String HELD = "§cThis vehicle is held for staff; ask them to assign its owner.";
     static final int REMEMBERED_OPERATIONS = 1024;
+    /** The only controls a faction leader may use on a pool or installation vehicle. */
+    static final Set<OwnershipReason> LEADER_SWITCHES =
+            Set.of(OwnershipReason.ALLY_ACCESS_TOGGLE, OwnershipReason.VASSAL_ACCESS_TOGGLE);
 
     private final PlayerVehicleRegistry registry;
     private final VehicleRegistryClaimService claims;
@@ -81,7 +84,7 @@ public final class VehicleOwnershipGate implements Listener {
                 refuse(event, event.getPlayer(), HELD);
                 return;
             }
-            if (LeaderStamps.isFactionRow(row(vehicle))) {
+            if (LeaderStamps.isFactionRow(row(vehicle)) && !LEADER_SWITCHES.contains(event.getReason())) {
                 refuse(event, event.getPlayer(), VehicleRegistryClaimListener.FACTION_VEHICLE);
                 return;
             }
@@ -230,7 +233,7 @@ public final class VehicleOwnershipGate implements Listener {
             if (LeaderStamps.isStale(record, event.getVehicle().getOwnerData().getOwner())) {
                 event.deny();
                 LeaderStamps.scheduleRestamp(record);
-            } else if (!event.isMenu()) {
+            } else if (!event.isMenu() && !LEADER_SWITCHES.contains(event.getReason().orElseThrow())) {
                 event.deny();
             }
         } catch (RuntimeException | LinkageError error) {

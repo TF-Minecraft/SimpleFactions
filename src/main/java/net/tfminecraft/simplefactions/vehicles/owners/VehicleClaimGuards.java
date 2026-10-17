@@ -13,13 +13,11 @@ public final class VehicleClaimGuards {
     private VehicleClaimGuards() {}
 
     public static Listener create() {
-        return create("net.tfminecraft.vehicleframework.events.VehicleOwnershipChangeEvent",
-                "net.tfminecraft.vehicleframework.events.VehicleOwnerClaimedEvent");
+        return create("net.tfminecraft.vehicleframework.events.VehicleOwnershipChangeEvent");
     }
 
-    static Listener create(String modernEvent, String legacyEvent) {
-        if (present(modernEvent)) return new VehicleClaimsOff();
-        if (present(legacyEvent)) return new LegacyVehicleClaimsOff();
+    static Listener create(String claimEvent) {
+        if (present(claimEvent)) return new VehicleClaimsOff();
         throw new IllegalStateException("VehicleFramework has no supported claim event");
     }
 

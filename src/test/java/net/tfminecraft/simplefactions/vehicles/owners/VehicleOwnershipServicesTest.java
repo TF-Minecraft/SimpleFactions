@@ -20,7 +20,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vehicleframework.api.QuarantinedVehicle;
+import net.tfminecraft.vehicleframework.api.VehicleAccessGroups;
 import net.tfminecraft.vehicleframework.api.VehicleOwnershipAuthority;
 import net.tfminecraft.vehicleframework.api.VehicleQuarantineSource;
 
@@ -44,6 +46,29 @@ class VehicleOwnershipServicesTest {
                 eq(ServicePriority.Normal));
         assertEquals(List.of(new QuarantinedVehicle(vehicle, "player_Old", "renamed")),
                 source.getValue().quarantinedVehicles());
+    }
+
+    @Test
+    void groupAccessIsRegisteredOnlyWhenVehicleFrameworkHasTheService() {
+        ServicesManager services = mock(ServicesManager.class);
+        Plugin plugin = mock(Plugin.class);
+        java.util.logging.Logger logger = mock(java.util.logging.Logger.class);
+        org.mockito.Mockito.when(plugin.getLogger()).thenReturn(logger);
+        AtomicBoolean ready = new AtomicBoolean(true);
+
+        assertTrue(VehicleOwnershipServices.registerGroupAccess(services, plugin, new PlayerVehicleRegistry(), ready::get));
+
+        ArgumentCaptor<VehicleAccessGroups> groups = ArgumentCaptor.forClass(VehicleAccessGroups.class);
+        verify(services).register(eq(VehicleAccessGroups.class), groups.capture(), eq(plugin), eq(ServicePriority.Normal));
+        assertTrue(groups.getValue() instanceof VehicleGroupAccess);
+        ready.set(false);
+        assertFalse(groups.getValue().ready());
+
+        ServicesManager old = mock(ServicesManager.class);
+        assertFalse(VehicleOwnershipServices.registerGroupAccess(old, plugin, new PlayerVehicleRegistry(), ready::get,
+                "net.tfminecraft.vehicleframework.api.Missing"));
+        org.mockito.Mockito.verifyNoInteractions(old);
+        verify(logger).warning(org.mockito.ArgumentMatchers.contains("VehicleFramework 2.15 or newer"));
     }
 
     @Test

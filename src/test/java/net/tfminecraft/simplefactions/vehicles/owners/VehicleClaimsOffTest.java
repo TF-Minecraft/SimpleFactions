@@ -7,7 +7,6 @@ import java.util.UUID;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 import net.tfminecraft.vehicleframework.api.OwnershipReason;
-import net.tfminecraft.vehicleframework.events.VehicleOwnerClaimedEvent;
 import net.tfminecraft.vehicleframework.events.VehicleOwnershipChangeEvent;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
@@ -31,30 +30,10 @@ class VehicleClaimsOffTest {
     }
 
     @Test
-    void legacyBridgeKeepsTheOldStaffAndMissingPlayerPolicy() {
-        LegacyVehicleClaimsOff guard = new LegacyVehicleClaimsOff();
-        Player player = mock(Player.class);
-        Player staff = mock(Player.class);
-        when(staff.hasPermission("simplefactions.admin")).thenReturn(true);
-        VehicleOwnerClaimedEvent claim = new VehicleOwnerClaimedEvent(player, null, "none", "player_A");
-        VehicleOwnerClaimedEvent allowed = new VehicleOwnerClaimedEvent(staff, null, "none", "player_Staff");
-        VehicleOwnerClaimedEvent absent = new VehicleOwnerClaimedEvent(null, null, "none", "player_X");
-        guard.onClaim(claim);
-        guard.onClaim(allowed);
-        guard.onClaim(absent);
-        assertTrue(claim.isCancelled());
-        verify(player).sendMessage(VehicleClaimsOff.MESSAGE);
-        assertFalse(allowed.isCancelled());
-        assertFalse(absent.isCancelled());
-    }
-
-    @Test
-    void selectsModernBeforeLegacyAndRefusesAnUnknownProvider() {
-        String legacy = VehicleOwnerClaimedEvent.class.getName();
+    void selectsTheOwnershipEventGuardAndRefusesAnUnknownProvider() {
         assertInstanceOf(VehicleClaimsOff.class, VehicleClaimGuards.create());
-        assertInstanceOf(LegacyVehicleClaimsOff.class, VehicleClaimGuards.create("missing.Modern", legacy));
-        assertInstanceOf(LegacyVehicleClaimsOff.class, VehicleClaimGuards.create(BrokenEvent.class.getName(), legacy));
-        assertThrows(IllegalStateException.class, () -> VehicleClaimGuards.create("missing.Modern", "missing.Legacy"));
+        assertThrows(IllegalStateException.class, () -> VehicleClaimGuards.create("missing.Modern"));
+        assertThrows(IllegalStateException.class, () -> VehicleClaimGuards.create(BrokenEvent.class.getName()));
     }
 
     static final class BrokenEvent {
