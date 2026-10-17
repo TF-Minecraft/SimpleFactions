@@ -6,14 +6,14 @@
 
     <groupId>net.tfminecraft</groupId>
     <artifactId>simplefactions</artifactId>
-    <version>4.2.0</version>
+    <version>main-SNAPSHOT</version>
 
     <properties>
         <argLine></argLine>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.proc>full</maven.compiler.proc>
-        <denareconomy.version>0.6.0</denareconomy.version>
+        <denareconomy.version>0.7.0</denareconomy.version>
         <rpcharacters.version>2.16.0</rpcharacters.version>
         <tlibs.version>2.6.0</tlibs.version>
         <vehicleframework.version>2.13.0</vehicleframework.version>

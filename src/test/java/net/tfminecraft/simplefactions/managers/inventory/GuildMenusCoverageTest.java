@@ -10,7 +10,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
+import net.tfminecraft.denareconomy.DenarEconomy;
+import net.tfminecraft.denareconomy.api.Denars;
+import net.tfminecraft.denareconomy.api.Leg;
+import net.tfminecraft.denareconomy.api.Result;
+import net.tfminecraft.denareconomy.api.TaxLeg;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.database.GuildData;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
@@ -39,6 +45,7 @@ import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.guild.upgrade.Upgrade;
 import net.tfminecraft.simplefactions.guild.upgrade.UpgradeExpansion;
 import net.tfminecraft.simplefactions.inactivity.InactivityService;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.keys.Keys;
 import net.tfminecraft.simplefactions.loaders.BranchLoader;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
@@ -638,6 +645,29 @@ class GuildMenusCoverageTest {
       assertLore(citizens, "Today: +12.34d", true);
       assertLore(citizens, "Other citizen taxes: +12.34d", true);
       assertLore(citizens, "No citizen taxes", false);
+    }
+  }
+
+  @Test
+  void citizenTooltipNamesTodaysContributorAndRetainsItAfterRollover() {
+    var character = UUID.randomUUID();
+    var holding = Denars.guildTax(guild.getIncarnationId());
+    assertEquals(Result.APPLIED, DenarEconomy.getLedger().postEarning("daily-tax", "earn",
+        List.of(new Leg(Denars.MINT, -1234), new Leg(holding, 1234)), character, new TaxLeg(holding, 1234)));
+    try (var members = mockStatic(Members.class, CALLS_REAL_METHODS)) {
+      members.when(() -> Members.display(character.toString())).thenReturn("Daily Citizen");
+      ItemStack today = creator.createLedgerCitizensItem(guild);
+      assertLore(today, "Today: +12.34d", true);
+      assertLore(today, "Daily Citizen: +12.34d", true);
+      assertLore(today, "Other citizen taxes", false);
+      guild.getLedger().getHistory().closeDay(Map.of(LedgerHistory.Source.CITIZENS, guild.getLedger().getCitizenTaxBreakdown()));
+      assertEquals(Result.APPLIED, Denars.transfer("daily-settle", "settle", holding, guild.getBank().accountId(), 1234));
+      ItemStack yesterday = creator.createLedgerCitizensItem(guild);
+      assertLore(yesterday, "Today: +0.00d", true);
+      assertLore(yesterday, "Last day: +12.34d", true);
+      assertLore(yesterday, "Lifetime: +12.34d", true);
+      assertEquals(2, yesterday.getItemMeta().getLore().stream()
+          .filter(line -> ChatColor.stripColor(line).equals("Daily Citizen: +12.34d")).count());
     }
   }
 

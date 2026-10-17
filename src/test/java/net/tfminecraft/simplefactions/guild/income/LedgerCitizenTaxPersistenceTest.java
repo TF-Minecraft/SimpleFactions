@@ -25,6 +25,22 @@ import net.tfminecraft.simplefactions.utils.DailyGuildTransfers;
 class LedgerCitizenTaxPersistenceTest {
 
 	@Test
+	void transactionContributorsCombineWithLegacyRowsWithoutChangingSavedAmounts() {
+		Guild guild = mock(Guild.class);
+		UUID incarnation = UUID.randomUUID();
+		UUID character = UUID.randomUUID();
+		when(guild.getIncarnationId()).thenReturn(incarnation);
+		Ledger ledger = new Ledger(guild);
+		ledger.setCitizenTaxes(Map.of(character.toString(), 0.50));
+		try (var reads = mockStatic(FrozenReads.class)) {
+			reads.when(() -> FrozenReads.balance("guildtax:" + incarnation)).thenReturn(1234L);
+			reads.when(() -> FrozenReads.taxContributors(incarnation)).thenReturn(Map.of(character, 1000L));
+			assertEquals(Map.of(character.toString(), 10.50, "Other citizen taxes", 1.84), ledger.getCitizenTaxBreakdown());
+			assertEquals(Map.of(character.toString(), 0.50), ledger.getCitizenTaxesCopy());
+		}
+	}
+
+	@Test
 	void heldTaxIsVisibleWithoutLegacyContributorEntries() {
 		Guild guild = mock(Guild.class);
 		UUID incarnation = UUID.randomUUID();

@@ -3,8 +3,11 @@ package net.tfminecraft.simplefactions.economy.settlement;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.tfminecraft.denareconomy.DenarEconomy;
 import net.tfminecraft.denareconomy.api.Denars;
 import net.tfminecraft.denareconomy.api.Leg;
+import net.tfminecraft.denareconomy.api.Result;
+import net.tfminecraft.denareconomy.api.TaxLeg;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.database.LoanData;
@@ -92,6 +95,22 @@ class RealmSettlementCalculationTest {
                 .filter(c -> c.incarnation.equals(capital.getIncarnationId())).findFirst().orElseThrow();
         assertEquals(Map.of("Other citizen taxes", 12.34), saved.ledgerLastDay.get("CITIZENS"));
         assertEquals(Map.of("Other citizen taxes", 12.34), saved.ledgerLifetime.get("CITIZENS"));
+        assertTrue(capital.getLedger().getCitizenTaxesCopy().isEmpty());
+    }
+
+    @Test void postedTaxContributorsBecomeLastDayAndLifetimeWithoutChangingSettlementMoney() {
+        String holding = Denars.guildTax(capital.getIncarnationId());
+        assertEquals(Result.APPLIED, DenarEconomy.getLedger().postEarning("tax", "earn",
+                        List.of(new Leg(Denars.MINT, -2000), new Leg("char:" + character + ":bank", 766),
+                                new Leg(holding, 1234)), character, new TaxLeg(holding, 1234)));
+        assertEquals(Map.of(character.toString(), 12.34), capital.getLedger().getCitizenTaxBreakdown());
+        var plan = plan(List.of());
+        assertEquals(-1234, net(plan, holding));
+        assertEquals(1234, net(plan, capital.getBank().accountId()));
+        var saved = changes(plan).guilds.stream()
+                .filter(c -> c.incarnation.equals(capital.getIncarnationId())).findFirst().orElseThrow();
+        assertEquals(Map.of(character.toString(), 12.34), saved.ledgerLastDay.get("CITIZENS"));
+        assertEquals(Map.of(character.toString(), 12.34), saved.ledgerLifetime.get("CITIZENS"));
         assertTrue(capital.getLedger().getCitizenTaxesCopy().isEmpty());
     }
 
