@@ -144,15 +144,18 @@ public class Ledger {
         return new HashMap<>(citizenTaxes);
     }
 
-    /** Held tax is authoritative; legacy contributor rows describe only part of it. */
+    /** Held tax is authoritative; combine transaction attribution with legacy contributor rows. */
     public Map<String, Double> getCitizenTaxBreakdown() {
         double collected = getCollectedCitizenTax();
         if (collected <= 0) return Map.of();
-        if (!Double.isFinite(LedgerHistory.total(citizenTaxes))) {
+        Map<String, Double> taxes = new HashMap<>(citizenTaxes);
+        FrozenReads.taxContributors(guild.getIncarnationId()).forEach((character, cents) ->
+                taxes.merge(character.toString(), cents / 100.0, Double::sum));
+        if (!Double.isFinite(LedgerHistory.total(taxes))) {
             return Map.of("Other citizen taxes", collected);
         }
         Map<String, Double> amounts = new HashMap<>();
-        citizenTaxes.forEach((name, value) -> {
+        taxes.forEach((name, value) -> {
             double amount = Formatter.formatDouble(value);
             if (amount > 0) amounts.put(name, amount);
         });

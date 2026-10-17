@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -50,6 +51,12 @@ class FrozenReadsTest {
     private final List<Faction> savedFactions = new ArrayList<>();
     private Guild guild;
 
+    private org.mockito.MockedStatic<Denars> mockDenars() {
+        var denars = mockStatic(Denars.class, CALLS_REAL_METHODS);
+        denars.when(() -> Denars.taxContributors(any())).thenReturn(Map.of());
+        return denars;
+    }
+
     @BeforeEach
     void setUp() {
         savedFactions.addAll(FactionManager.factions);
@@ -74,7 +81,7 @@ class FrozenReadsTest {
     @Test
     void asyncReadsUseBalancesCapturedOnTheMainThread() throws Exception {
         FrozenReads frozen;
-        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+        try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(1234L);
             frozen = FrozenReads.capture();
         }
@@ -82,6 +89,8 @@ class FrozenReadsTest {
         // Static mocks stay on the test thread, so only the frozen balance can give the worker 12.34.
         assertEquals(12.34, CompletableFuture.supplyAsync(() -> frozen.read(() -> guild.getBank().getWealth())).get());
         assertEquals(0L, frozen.read(() -> FrozenReads.balance("unknown")));
+        assertEquals(Map.of(), frozen.read(() -> FrozenReads.taxContributors(UUID.randomUUID())));
+        assertEquals(Map.of(), FrozenReads.taxContributors(null));
     }
 
     @Test
@@ -91,22 +100,27 @@ class FrozenReadsTest {
         Ledger ledger = new Ledger(guild);
         String holding = Denars.guildTax(guild.getIncarnationId());
         FrozenReads frozen;
-        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+        UUID contributor = UUID.randomUUID();
+        var contributors = new java.util.HashMap<>(Map.of(contributor, 1000L));
+        try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(0L);
             denars.when(() -> Denars.balance(holding)).thenReturn(1234L);
+            denars.when(() -> Denars.taxContributors(guild.getIncarnationId())).thenReturn(contributors);
             frozen = FrozenReads.capture();
             denars.when(() -> Denars.balance(holding)).thenReturn(5000L);
+            contributors.put(contributor, 2000L);
             assertEquals(50.0, ledger.getIncome(Cashflow.CITIZENS));
+            assertEquals(Map.of(contributor.toString(), 20.0, "Other citizen taxes", 30.0), ledger.getCitizenTaxBreakdown());
         }
 
         assertEquals(12.34, CompletableFuture.supplyAsync(() -> frozen.read(() -> ledger.getIncome(Cashflow.CITIZENS))).get());
-        assertEquals(Map.of("Other citizen taxes", 12.34), CompletableFuture
+        assertEquals(Map.of(contributor.toString(), 10.0, "Other citizen taxes", 2.34), CompletableFuture
                 .supplyAsync(() -> frozen.read(ledger::getCitizenTaxBreakdown)).get());
     }
 
     @Test
     void readRestoresTheLiveLedgerAfterwards() {
-        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+        try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(500L);
             FrozenReads frozen = FrozenReads.capture();
             denars.when(() -> Denars.balance(anyString())).thenReturn(700L);
@@ -118,7 +132,7 @@ class FrozenReadsTest {
 
     @Test
     void nestedReadsRestoreTheOuterBalances() {
-        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+        try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(100L);
             FrozenReads outer = FrozenReads.capture();
             denars.when(() -> Denars.balance(anyString())).thenReturn(200L);
@@ -135,7 +149,7 @@ class FrozenReadsTest {
     void previewCopiesCarryTheBalancesFromWhenTheyWereMade() {
         ProvinceManager live = new ProvinceManager();
         live.start(Map.of());
-        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+        try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(-300L);
             EconomicPreview.Prepared economic = EconomicPreview.prepare(live);
             BranchIncomePreview.Prepared branch = BranchIncomePreview.prepare(live);
@@ -168,7 +182,7 @@ class FrozenReadsTest {
         assertInstanceOf(IllegalStateException.class, live.getCause());
 
         FrozenReads frozen;
-        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+        try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(0L);
             frozen = FrozenReads.capture();
         }
@@ -200,7 +214,7 @@ class FrozenReadsTest {
         assertInstanceOf(IllegalStateException.class, live.getCause());
 
         FrozenReads frozen;
-        try (var denars = mockStatic(Denars.class, CALLS_REAL_METHODS)) {
+        try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(0L);
             frozen = FrozenReads.capture();
         }

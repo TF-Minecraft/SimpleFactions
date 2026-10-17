@@ -24,12 +24,15 @@ public final class FrozenReads {
     private static final ThreadLocal<FrozenReads> CURRENT = new ThreadLocal<>();
 
     private final Map<String, Long> cents;
+    private final Map<UUID, Map<UUID, Long>> taxContributors;
     private final Map<UUID, Double> nodeUpkeep;
     private final Map<String, List<StabilityModifier>> espionage;
 
     private FrozenReads(
-            Map<String, Long> cents, Map<UUID, Double> nodeUpkeep, Map<String, List<StabilityModifier>> espionage) {
+            Map<String, Long> cents, Map<UUID, Map<UUID, Long>> taxContributors,
+            Map<UUID, Double> nodeUpkeep, Map<String, List<StabilityModifier>> espionage) {
         this.cents = Map.copyOf(cents);
+        this.taxContributors = Map.copyOf(taxContributors);
         this.nodeUpkeep = Map.copyOf(nodeUpkeep);
         this.espionage = Map.copyOf(espionage);
     }
@@ -49,6 +52,7 @@ public final class FrozenReads {
             }
         }
         Map<String, Long> cents = new HashMap<>();
+        Map<UUID, Map<UUID, Long>> taxContributors = new HashMap<>();
         Map<UUID, Double> nodeUpkeep = new HashMap<>();
         for (Guild guild : FactionManager.getAllGuilds()) {
             Bank bank = guild == null ? null : guild.getBank();
@@ -60,10 +64,11 @@ public final class FrozenReads {
             if (incarnation != null) {
                 String taxAccount = Denars.guildTax(incarnation);
                 cents.put(taxAccount, Denars.balance(taxAccount));
+                taxContributors.put(incarnation, Map.copyOf(Denars.taxContributors(incarnation)));
                 nodeUpkeep.put(incarnation, Ledger.liveNodeUpkeep(guild));
             }
         }
-        return new FrozenReads(cents, nodeUpkeep, espionage);
+        return new FrozenReads(cents, taxContributors, nodeUpkeep, espionage);
     }
 
     /** Runs the work with these reads standing in for the live state on this thread. */
@@ -88,6 +93,14 @@ public final class FrozenReads {
             return current.cents.getOrDefault(account, 0L);
         }
         return Denars.balance(account);
+    }
+
+    /** Held tax by earning character, frozen with the balance for async previews and settlement. */
+    public static Map<UUID, Long> taxContributors(UUID incarnation) {
+        if (incarnation == null) return Map.of();
+        FrozenReads current = CURRENT.get();
+        return current == null ? Denars.taxContributors(incarnation)
+                : current.taxContributors.getOrDefault(incarnation, Map.of());
     }
 
     /** The frozen node upkeep inside {@link #read}, otherwise the live upkeep. */
