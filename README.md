@@ -18,7 +18,7 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 
 ## A shared political world
 
-[ProvinceSystem](https://github.com/TF-Minecraft/ProvinceSystem) presents the world map, borders, settlements, and military activity on the website.
+[TFMCWeb](https://github.com/TF-Minecraft/TFMCWeb) presents the world map, borders, settlements, and military activity on the website.
 
 ## Project background
 
