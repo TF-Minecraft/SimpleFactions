@@ -368,6 +368,8 @@ class GovernmentMenusCoverageTest {
     assertTrue(name(creator.createStabilityItem(faction)).contains(report.status.getLabel()));
     assertTrue(stability.contains("Victory: +2%"));
     assertTrue(stability.contains("Unrest: -3%"));
+    assertFalse(stability.contains("Prestige Malus:"));
+    if (score < 100) assertTrue(stability.contains("Prestige: -"), stability);
     if (score == 0) {
       assertTrue(stability.contains("State needs to be size 12.5"));
       assertTrue(stability.contains("Provinces: -3"));

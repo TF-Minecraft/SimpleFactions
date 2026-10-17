@@ -191,6 +191,25 @@ class ReportedMenusCoverageTest {
   }
 
   @ParameterizedTest
+  @org.junit.jupiter.params.provider.CsvSource({
+    "0, -0.01, 2, 4, #4fd945", "0, 0.01, 2, 4, #cf493a",
+    "0, 0, 2, 4, #7a706a", "0.03, -0.01, 2, 4, #7a706a",
+    "0, -0.01, 2, 2, #4fd945"
+  })
+  void reportedUpkeepColorUsesOnlyTheRecordedRange(double base, double step, long lower, long upper, String color) {
+    report.shared = "detailed";
+    Branch branch = new Branch(guild.getBranch(0), 9876);
+    branch.getModifiers().clear();
+    branch.getModifiers().put(GuildModifier.TRADE_UPKEEP,
+        new net.tfminecraft.simplefactions.guild.branch.BranchModifier(base, step));
+    estimate(IntelligenceLedger.key(guild, "Branch:" + branch.getId()), lower, upper);
+    String raw = String.join("\n", ReportedMenus.branch(viewer, guild, branch).getItemMeta().getLore());
+    String expected = net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex("Trade Upkeep: " + color);
+    assertTrue(raw.contains(expected), raw);
+    assertFalse(raw.contains("9876"));
+  }
+
+  @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void militaryAndUpgradeQueuesDiscloseOnlyRecordedEntries(boolean known) {
     if (known) {

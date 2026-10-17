@@ -309,6 +309,16 @@ class FactionMenusCoverageTest {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(doubles = {-50, 0, 50})
+  void factionWealthUsesOneSignAndAnOutcomeColor(double amount) {
+    faction.getOrCreateMainGuild().setWealthModifiers(new ArrayList<>(List.of(new Modifier("Adjustment", amount, true))));
+    String raw = String.join("\n", creator.createMenuItem(player, faction, MenuItemType.WEALTH).getItemMeta().getLore());
+    String expected = amount < 0 ? "#d13530-50.0d" : amount > 0 ? "#93c9a7+50.0d" : "#7a706a0d";
+    assertTrue(raw.contains(net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex(expected + " from Adjustment")), raw);
+    assertFalse(raw.contains("+-"));
+  }
+
   @Test
   void menuItemsContainTheirActualDomainSummariesAndActionIds() {
     faction.addMember("Alice");

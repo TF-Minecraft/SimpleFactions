@@ -171,7 +171,7 @@ public class GuildCreator {
 			m.setDisplayName(StringFormatter.formatHex("#d1b43fWealth: #ccbb76"+guild.getWealth()+"d"));
 			List<String> lore = new ArrayList<String>();
 			for(Modifier mod : guild.getWealthModifiers()) {
-				lore.add(StringFormatter.formatHex("#93c9a7+"+mod.getAmount()+"d from "+mod.getType()));
+				lore.add(StringFormatter.formatHex(EffectDisplay.wealth(mod.getAmount())+" from "+mod.getType()));
 			}
 			m.setLore(lore);
 			i.setItemMeta(m);
@@ -294,10 +294,10 @@ public class GuildCreator {
 				lore.add(StringFormatter.formatHex(
 					"§f - " + m.getName()
 					+ "#d6cf69:"
-					+ (m.isPositive() ? " #4fd945" : " #cf493a")
+					+ " " + EffectDisplay.color(m, mod.getCurrent(branch.getLevel()))
 					+ (mod.getCurrent(branch.getLevel())
 					+ " #575150("
-					+ (m.isPositive() ? "#4fd945" : "#cf493a")
+					+ EffectDisplay.color(m, mod.getPerLevel())
 					+ mod.getPerLevel()
 					+ "#87807f/level#575150)")
 				));
@@ -383,7 +383,15 @@ public class GuildCreator {
 		lore.add(StringFormatter.formatHex("#575150Current Level: #d6cf69" + branch.getLevel()));
 		lore.add("");
 		lore.add(StringFormatter.formatHex("#c95644Downgrade Effects:"));
-		lore.add(StringFormatter.formatHex("#7a706aStats will decrease by one level."));
+		lore.add(StringFormatter.formatHex("#7a706aEffects return to the previous level."));
+		for (GuildModifier modifier : branch.getModifierKeys()) {
+			BranchModifier effect = branch.getModifier(modifier);
+			if (effect == null) continue;
+			double change = Math.round((effect.getCurrent(branch.getLevel() - 1)
+					- effect.getCurrent(branch.getLevel())) * 100.0) / 100.0;
+			lore.add(StringFormatter.formatHex(modifier.getName() + ": "
+					+ EffectDisplay.color(modifier, change) + (change > 0 ? "+" : "") + change));
+		}
 		lore.add("");
 		if (!guild.hasCapital()) {
 			lore.add("");
@@ -772,10 +780,10 @@ public class GuildCreator {
 			lore.add(StringFormatter.formatHex(
 				"§f - " + m.getName()
 				+ "#d6cf69:"
-				+ (m.isPositive() ? " #4fd945" : " #cf493a")
+				+ " " + EffectDisplay.color(m, mod.getCurrent(upgrade.getLevel()))
 				+ (mod.getCurrent(upgrade.getLevel())
 				+ " #575150("
-				+ (m.isPositive() ? "#4fd945" : "#cf493a")
+				+ EffectDisplay.color(m, mod.getPerLevel())
 				+ mod.getPerLevel()
 				+ "#87807f/level#575150)")
 			));

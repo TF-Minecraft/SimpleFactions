@@ -283,7 +283,7 @@ class GuildMenusCoverageTest {
     assertLore(up, "40.0", true);
     assertLore(up, "Calculating", true);
     assertLore(down, "80.0d", true);
-    assertLore(down, "Stats will decrease", true);
+    assertLore(down, "Effects return to the previous level", true);
     creator.writeUpgradeEstimate(up, guild, branch, new BranchIncomePreview.Estimate(7.125, 7.125));
     assertLore(up, "+7.13d/day", true);
     assertLore(up, "Realm-wide", false);
@@ -308,6 +308,55 @@ class GuildMenusCoverageTest {
         creator.createBranchDowngradeItem(fixture.player, guild, branch),
         "cannot be downgraded",
         true);
+  }
+
+  @ParameterizedTest
+  @org.junit.jupiter.params.provider.CsvSource({
+    "TRADE_UPKEEP, -0.01, #4fd945", "TRADE_UPKEEP, 0, #7a706a",
+    "TRADE_UPKEEP, 0.01, #cf493a", "PRODUCTION, -0.01, #cf493a",
+    "PRODUCTION, 0, #7a706a", "PRODUCTION, 0.01, #4fd945"
+  })
+  void branchAndUpgradeColorsDescribeTheOutcome(GuildModifier modifier, double step, String color) {
+    Branch branch = guild.getBranch(0);
+    branch.getModifiers().clear();
+    branch.getModifiers().put(modifier, new BranchModifier(0, step));
+    branch.restoreLevel(2);
+    Upgrade upgrade = new Upgrade(fixture.upgrade("roads", true, 60), 2);
+    upgrade.getModifiers().clear();
+    upgrade.getModifiers().put(modifier, new BranchModifier(0, step));
+    for (ItemStack item : List.of(creator.createBranchItem(fixture.player, guild, branch),
+        creator.createUpgradeItem(fixture.player, guild, upgrade))) {
+      String raw = String.join("\n", item.getItemMeta().getLore());
+      assertTrue(raw.contains(net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex(color + (2 * step))), raw);
+      assertTrue(raw.contains(net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex(color + step)), raw);
+    }
+  }
+
+  @Test
+  void upkeepTotalsAndChangesHaveIndependentColorsAndDowngradesShowTheCostIncrease() {
+    Branch branch = guild.getBranch(0);
+    branch.getModifiers().clear();
+    branch.getModifiers().put(GuildModifier.TRADE_UPKEEP, new BranchModifier(0.10, -0.01));
+    branch.getModifiers().put(GuildModifier.PRODUCTION, null);
+    branch.restoreLevel(2);
+    String raw = String.join("\n", creator.createBranchItem(fixture.player, guild, branch).getItemMeta().getLore());
+    assertTrue(raw.contains(net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex("#cf493a0.08")), raw);
+    assertTrue(raw.contains(net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex("#4fd945-0.01")), raw);
+    ItemStack down = creator.createBranchDowngradeItem(fixture.player, guild, branch);
+    raw = String.join("\n", down.getItemMeta().getLore());
+    assertTrue(raw.contains(net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex("#cf493a+0.01")), raw);
+    assertLore(down, "Stats will decrease", false);
+    assertEquals(2, branch.getLevel(), "Rendering must not change the branch");
+  }
+
+  @ParameterizedTest
+  @ValueSource(doubles = {-50, 0, 50})
+  void guildWealthUsesOneSignAndAnOutcomeColor(double amount) {
+    guild.setWealthModifiers(new ArrayList<>(List.of(new Modifier("Adjustment", amount, true))));
+    String raw = String.join("\n", creator.createMenuItem(fixture.player, guild, MenuItemType.WEALTH).getItemMeta().getLore());
+    String expected = amount < 0 ? "#d13530-50.0d" : amount > 0 ? "#93c9a7+50.0d" : "#7a706a0d";
+    assertTrue(raw.contains(net.tfminecraft.tlibs.objects.api.subapi.StringFormatter.formatHex(expected + " from Adjustment")), raw);
+    assertFalse(raw.contains("+-"));
   }
 
   @Test
