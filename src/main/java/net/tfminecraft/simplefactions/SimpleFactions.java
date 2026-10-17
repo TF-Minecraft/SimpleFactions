@@ -1102,8 +1102,7 @@ public class SimpleFactions extends JavaPlugin{
 					vehicleRegistryClaimService, vehicleFeeStore, vehicleFeeConfirmations, this::saveVehicleFees,
 					getLogger()), this);
 		} else {
-			getServer().getPluginManager().registerEvents(
-					net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimGuards.create(), this);
+			net.tfminecraft.simplefactions.vehicles.owners.VehicleClaimGuards.register(getServer().getPluginManager(), this);
 		}
 		// VehicleFramework loads its vehicles as it enables, so wait before reading owners.
 		getServer().getScheduler().runTaskLater(this, this::recordVehicleOwners, 200L);
