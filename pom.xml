@@ -6,7 +6,7 @@
 
     <groupId>net.tfminecraft</groupId>
     <artifactId>simplefactions</artifactId>
-    <version>4.2.0</version>
+    <version>main-SNAPSHOT</version>
 
     <properties>
         <argLine></argLine>
