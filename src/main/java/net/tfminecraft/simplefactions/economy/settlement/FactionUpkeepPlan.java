@@ -15,12 +15,22 @@ import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
 
-/** The pre-income army and installation decisions, calculated without changing the faction. */
+/** The army and installation decisions, calculated without changing the faction. */
 public record FactionUpkeepPlan(String faction, Map<String, Integer> regimentSlots,
         List<InstallationData> installations, InstallationConstructionData construction,
         long charge, double armyLedgerCost, double installationLedgerCost) {
 
+    /** Plans against the ruling guild's balance as it stands now. */
     public static FactionUpkeepPlan calculate(Faction faction) {
+        var bank = SettlementGuilds.capital(faction).getBank();
+        return calculate(faction, bank == null ? 0 : bank.getWealth());
+    }
+
+    /**
+     * Plans against {@code available}: during settlement, the ruling guild's balance once the
+     * day's income and other transfers have arrived, so upkeep is paid from that income.
+     */
+    public static FactionUpkeepPlan calculate(Faction faction, double available) {
         if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(faction)) return paused(faction);
         List<Regiment> regiments = new ArrayList<>();
         if (faction.getMilitary() != null) {
@@ -29,7 +39,7 @@ public record FactionUpkeepPlan(String faction, Map<String, Integer> regimentSlo
             }
         }
         boolean bank = SettlementGuilds.capital(faction).getBank() != null;
-        double wealth = bank ? SettlementGuilds.capital(faction).getBank().getWealth() : 0;
+        double wealth = bank ? available : 0;
         double factor = 1 + faction.getModifier(FactionModifiers.MILITARY_UPKEEP).getAmount() / 100;
         double army = armyCost(regiments, factor);
         if (!bank && army > 0) {

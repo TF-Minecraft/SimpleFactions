@@ -1006,6 +1006,26 @@ public class Ledger {
     }
 
     public void populateDailyTransfers(DailyGuildTransfers buffer) {
+        populateTransfersBeforeLoans(buffer);
+        populateLoanTransfers(buffer, loanBudget(buffer));
+        if (settlement != null) return;
+        if (!skipsMoneyMovement()) {
+            citizenTaxes.clear();
+        }
+        loanPayments.clear();
+        interestPayments.clear();
+        // Taxed once, on the day it was won.
+        casinoProfit = 0;
+        vehicleFeeIncome = 0;
+        // Rebuilt from the persisted buckets by every pre-pass, so clearing them for a
+        // bankrupt hirer too keeps yesterday's bill from being paid twice.
+        mercenaryPayments.clear();
+        refunds.clear();
+        clearSettledContractBuckets();
+    }
+
+    /** Every daily payment except the automatic loan payments, which come last. */
+    public void populateTransfersBeforeLoans(DailyGuildTransfers buffer) {
         // Drop the gift before anything else is committed. Other costs may then still fit,
         // so a guild that was short only because of the donation stays solvent.
         cancelDonationIfUnaffordable();
@@ -1027,30 +1047,21 @@ public class Ledger {
             if (cf == Cashflow.LOAN_PAYMENTS || cf == Cashflow.INTEREST_PAYMENTS) continue;
             applySettlementFor(cf, buffer);
         }
-        // Loans are paid last, from what is left after today's other payments. The lender is
-        // credited in full, so an unfunded payment would create money; any shortfall stays owed.
+    }
+
+    /**
+     * Loans are paid last, from {@code budget}: what is left after today's other payments. The
+     * lender is credited in full, so an unfunded payment would create money; any shortfall stays owed.
+     */
+    public void populateLoanTransfers(DailyGuildTransfers buffer, double budget) {
         loanPlan = guild.getLoanHandler() == null ? Map.of()
-                : LoanFunding.plan(loansTaken(), loanBudget(buffer));
+                : LoanFunding.plan(loansTaken(), Math.max(0.0, budget));
         try {
             applySettlementFor(Cashflow.LOAN_PAYMENTS, buffer);
             applySettlementFor(Cashflow.INTEREST_PAYMENTS, buffer);
         } finally {
             loanPlan = null;
         }
-        if (settlement != null) return;
-        if (!skipsMoneyMovement()) {
-            citizenTaxes.clear();
-        }
-        loanPayments.clear();
-        interestPayments.clear();
-        // Taxed once, on the day it was won.
-        casinoProfit = 0;
-        vehicleFeeIncome = 0;
-        // Rebuilt from the persisted buckets by every pre-pass, so clearing them for a
-        // bankrupt hirer too keeps yesterday's bill from being paid twice.
-        mercenaryPayments.clear();
-        refunds.clear();
-        clearSettledContractBuckets();
     }
 
     /**
@@ -1113,7 +1124,7 @@ public class Ledger {
             case TRADE_UPKEEP:
                 buffer.addExternalDelta(guild, getIncome(cf));
                 return;
-            // INSTALLATIONS: charged by the pre-income upkeep plan, so getIncome() is ledger GUI display only.
+            // INSTALLATIONS: charged by the upkeep plan after income, so getIncome() is ledger GUI display only.
             // VEHICLE_UPKEEP: withdrawn in VehicleUpkeepService for pool and installation vehicles.
             case UPGRADES_UPKEEP:
             case PENALTIES:
@@ -1131,7 +1142,7 @@ public class Ledger {
             case VEHICLE_FEES:
                 return;
 
-            // The faction share of military upkeep is charged by the pre-income upkeep plan;
+            // The faction share of military upkeep is charged by the upkeep plan after income;
             // only the company's slot upkeep settles here.
             case MILITARY_UPKEEP: {
                 double slots = getCompanySlotUpkeep();

@@ -114,6 +114,53 @@ class RealmSettlementCalculationTest {
         assertTrue(capital.getLedger().getCitizenTaxesCopy().isEmpty());
     }
 
+    net.tfminecraft.simplefactions.army.Regiment guard(int slots) {
+        // 2 free slots; each paid slot costs 5.00 a day.
+        var guard = new net.tfminecraft.simplefactions.army.Regiment(fixture.regiment("guard", false, 2, 5));
+        guard.setCurrentSlots(slots);
+        faction.getMilitary().getRegiments().add(guard);
+        return guard;
+    }
+
+    FactionUpkeepPlan upkeep(SettlementJournal.Plan plan) {
+        return changes(plan).upkeep.stream().filter(u -> u.faction().equals(faction.getId())).findFirst().orElseThrow();
+    }
+
+    @Test void todaysIncomePaysTheArmyWhenTheTreasuryAloneCannot() {
+        net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(capital.getBank(), 1.0);
+        var guard = guard(6);
+        denars.when(() -> Denars.balance(Denars.guildTax(capital.getIncarnationId()))).thenReturn(5000L);
+        var plan = plan(List.of());
+        assertEquals(6, upkeep(plan).regimentSlots().get("guard"));
+        assertEquals(2000, upkeep(plan).charge());
+        assertEquals(5000 - 2000, net(plan, capital.getBank().accountId()));
+        assertEquals(6, guard.getCurrentSlots());
+    }
+
+    @Test void paidSlotsGoOnlyWhenIncomeAndTreasuryTogetherFallShort() {
+        net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(capital.getBank(), 1.0);
+        guard(6);
+        denars.when(() -> Denars.balance(Denars.guildTax(capital.getIncarnationId()))).thenReturn(1000L);
+        var plan = plan(List.of());
+        // 11.00 covers two of the four paid slots.
+        assertEquals(4, upkeep(plan).regimentSlots().get("guard"));
+        assertEquals(1000, upkeep(plan).charge());
+        assertEquals(0, net(plan, capital.getBank().accountId()));
+    }
+
+    @Test void loansArePaidFromTodaysIncomeAfterUpkeep() {
+        net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(capital.getBank(), 0.0);
+        guard(4);
+        Loan loan = new Loan("test", 100, guild, capital, 1000000000L - 86400000L * 3, 1, 7, 5, true);
+        guild.getLoanHandler().issueLoan(loan);
+        denars.when(() -> Denars.balance(Denars.guildTax(capital.getIncarnationId()))).thenReturn(5000L);
+        var plan = plan(List.of());
+        assertEquals(4, upkeep(plan).regimentSlots().get("guard"));
+        long repaid = net(plan, guild.getBank().accountId());
+        assertTrue(repaid > 0);
+        assertEquals(5000 - 1000 - repaid, net(plan, capital.getBank().accountId()));
+    }
+
     @Test void debtIsPreservedAndDailyShortfallsLiquidateWithoutTouchingLiveBranches() {
         guild.getBranch(0).levelUp();
         guild.getBranch(0).levelUp();
