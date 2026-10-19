@@ -380,6 +380,34 @@ class DiplomacyCoverageTest {
   }
 
   @Test
+  void endingLeavesNoOrphanedMutualHalfForLoadingToRestore() {
+    Faction origin = fixture.saved("origin", "Alice");
+    Faction target = fixture.saved("target", "Bob");
+    Player alice = fixture.player("Alice");
+    Player bob = fixture.player("Bob");
+    RelationType deal =
+        fixture.relationType("deal", Map.of("trade-agreement", true, "mutual", true));
+    RelationType other =
+        fixture.relationType("other", Map.of("trade-agreement", true, "mutual", true));
+    RelationType embargo = fixture.relationType("embargo", Map.of("trade-agreement", true));
+    RelationManager.setTradeRelationForced(deal, target, origin);
+    RelationManager.setTradeRelation(alice, embargo, target, origin, false);
+    assertSame(deal, target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    assertTrue(RelationManager.endTradeRelation(alice, target, origin));
+    assertNull(target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    verify(bob).sendMessage(contains("ended the"));
+    FactionManager.migrateMisplacedTradeRelations();
+    assertNull(origin.getDiplomacyHandler().getTradeRelation(target.getId()));
+    assertNull(target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    origin.getDiplomacyHandler().setTradeRelation(target, deal);
+    target.getDiplomacyHandler().setTradeRelation(origin, other);
+    assertTrue(RelationManager.endTradeRelation(alice, target, origin));
+    FactionManager.migrateMisplacedTradeRelations();
+    assertNull(origin.getDiplomacyHandler().getTradeRelation(target.getId()));
+    assertNull(target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+  }
+
+  @Test
   void endingALinkedAgreementKeepsLocksAndUnrelatedPartnerOverlays() {
     Faction origin = fixture.saved("origin", "Alice");
     Faction target = fixture.saved("target", "Bob");
