@@ -71,9 +71,9 @@ class DailyPreparationJournalTest {
             net.tfminecraft.simplefactions.guild.HeldRealms.hold(faction, leader, 1);
             var database = mock(Database.class);
             when(database.saveFactionDurably(faction)).thenReturn(true);
-            var prepared = new DailyPreparationJournal(disk.root.resolve("day-preparation"), database).prepare(2, 1000);
+            new DailyPreparationJournal(disk.root.resolve("day-preparation"), database).prepare(2, 1000);
             assertEquals(List.of(1, 2), faction.getProvinces());
-            var upkeep = prepared.upkeep().getFirst();
+            var upkeep = FactionUpkeepPlan.calculate(faction, 0);
             assertEquals(0, upkeep.charge());
             assertEquals(Map.of("guard", 6), upkeep.regimentSlots());
         }

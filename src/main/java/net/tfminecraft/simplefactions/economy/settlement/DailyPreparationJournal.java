@@ -12,8 +12,6 @@ import java.util.UUID;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.DurableJson;
 import net.tfminecraft.simplefactions.government.movement.Movement;
-import net.tfminecraft.simplefactions.installation.InstallationKind;
-import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -23,12 +21,11 @@ import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 /** Replays the nonfinancial preparation of a day before its monetary plan is published. */
 public final class DailyPreparationJournal {
     private record Removal(String faction, UUID incarnation, Integer province) {}
-    public record Prepared(long day, long timestamp, List<FactionUpkeepPlan> upkeep) {}
+    public record Prepared(long day, long timestamp) {}
     private static final class Saved {
         long day;
         long timestamp;
         List<Removal> removals;
-        List<FactionUpkeepPlan> upkeep;
         Map<String, Map<String, Double>> organization;
         Map<String, Integer> offlineDays;
         boolean prepared;
@@ -62,10 +59,8 @@ public final class DailyPreparationJournal {
             saved.day = day;
             saved.timestamp = now;
             saved.removals = new ArrayList<>();
-            saved.upkeep = new ArrayList<>();
             for (Faction faction : FactionManager.factions.stream().sorted(Comparator.comparing(Faction::getId)).toList()) {
                 saved.removals.add(new Removal(faction.getId(), SettlementGuilds.capital(faction).getIncarnationId(), removal(faction)));
-                saved.upkeep.add(FactionUpkeepPlan.calculate(faction));
             }
             DurableJson.write(path, saved);
         }
@@ -89,8 +84,6 @@ public final class DailyPreparationJournal {
                     saved.organization.put(faction.getId(), values);
                 }
                 saved.offlineDays = FactionCleanup.planOfflineDays(FactionManager.factions);
-                List<Removal> removals = saved.removals;
-                saved.upkeep = saved.upkeep.stream().map(plan -> afterProvinceLoss(plan, removals)).toList();
                 DurableJson.write(path, saved);
             }
             for (Removal removal : saved.removals) {
@@ -106,7 +99,7 @@ public final class DailyPreparationJournal {
             saved.prepared = true;
             DurableJson.write(path, saved);
         }
-        return new Prepared(saved.day, saved.timestamp, saved.upkeep);
+        return new Prepared(saved.day, saved.timestamp);
     }
 
     public void complete(long day) throws IOException {
@@ -114,17 +107,6 @@ public final class DailyPreparationJournal {
         Saved saved = read(path);
         saved.settled = true;
         DurableJson.write(path, saved);
-    }
-
-    private static FactionUpkeepPlan afterProvinceLoss(FactionUpkeepPlan plan, List<Removal> removals) {
-        Integer lost = removals.stream().filter(r -> r.faction().equals(plan.faction())).findFirst().orElseThrow().province();
-        if (lost == null) return plan;
-        var installations = plan.installations().stream().filter(i -> !lost.equals(i.province)).toList();
-        var construction = plan.construction();
-        if (construction != null && lost.equals(construction.province)) construction = null;
-        double cost = installations.stream().mapToDouble(i -> InstallationConfigLoader.getDailyUpkeep(InstallationKind.fromCommand(i.kind), i.level)).sum();
-        return new FactionUpkeepPlan(plan.faction(), plan.regimentSlots(), installations, construction,
-                plan.charge(), plan.armyLedgerCost(), cost);
     }
 
     private static Integer removal(Faction faction) {
@@ -151,7 +133,7 @@ public final class DailyPreparationJournal {
     private static Saved read(Path path) throws IOException {
         Saved saved = DurableJson.read(path, Saved.class);
         if (!path.getFileName().toString().equals(saved.day + ".json") || saved.timestamp <= 0
-                || saved.removals == null || saved.upkeep == null || (saved.prepared && saved.organization == null))
+                || saved.removals == null || (saved.prepared && saved.organization == null))
             throw new IOException("Invalid daily preparation: " + path);
         return saved;
     }

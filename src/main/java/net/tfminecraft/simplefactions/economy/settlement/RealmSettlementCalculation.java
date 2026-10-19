@@ -49,7 +49,6 @@ public final class RealmSettlementCalculation {
     private final long now;
     private final List<Guild> guilds;
     private final List<Claim> claims;
-    private List<FactionUpkeepPlan> preparedUpkeep;
     private final Map<Guild, Ledger> ledgers = new LinkedHashMap<>();
     private final Map<Guild, SettlementLedgerView> views = new LinkedHashMap<>();
     private final Map<Guild, MercenaryCompany> companies = new LinkedHashMap<>();
@@ -67,22 +66,15 @@ public final class RealmSettlementCalculation {
         this.claims = List.copyOf(claims);
     }
 
-    public RealmSettlementCalculation withPreparedUpkeep(List<FactionUpkeepPlan> upkeep) {
-        this.preparedUpkeep = List.copyOf(upkeep);
-        return this;
-    }
-
     public SettlementJournal.Plan calculate(Vehicles vehicles) {
         capture();
         accrue();
         var history = Ledger.collectHistoryDay(guilds, ledgers::get);
         Map<String, Long> beforeIncome = new LinkedHashMap<>(balances);
+        // Income and the day's other payments land first, so upkeep and loans are paid from them.
         DailyGuildTransfers buffer = new DailyGuildTransfers();
-        for (Guild guild : guilds) ledgers.get(guild).populateDailyTransfers(buffer);
-        for (var from : buffer.getTransfers().entrySet()) {
-            for (var to : from.getValue().entrySet()) transfer(account(from.getKey()), account(to.getKey()), Money.cents(to.getValue()));
-        }
-        for (var entry : buffer.getExternalDeltas().entrySet()) transfer(Denars.MINT, account(entry.getKey()), Money.cents(entry.getValue()));
+        for (Guild guild : guilds) ledgers.get(guild).populateTransfersBeforeLoans(buffer);
+        apply(buffer);
         for (Guild guild : guilds) {
             if (canMove(guild) && guild.isBase()) {
                 // CITIZENS in the transfer buffer is backed by held tax, never newly minted.
@@ -90,6 +82,13 @@ public final class RealmSettlementCalculation {
                 transfer(Denars.guildTax(guild.getIncarnationId()), Denars.MINT, held);
             }
         }
+        chargeUpkeep();
+        DailyGuildTransfers loanPayments = new DailyGuildTransfers();
+        for (Guild guild : guilds) {
+            long left = balances.getOrDefault(account(guild), 0L);
+            ledgers.get(guild).populateLoanTransfers(loanPayments, Money.denars(Math.max(0, left)));
+        }
+        apply(loanPayments);
         for (Guild guild : guilds) liquidate(guild, !java.util.Objects.equals(beforeIncome.get(account(guild)), balances.get(account(guild))));
         for (Guild guild : guilds) payouts(guild, buffer);
         payOrphanClaims();
@@ -114,8 +113,24 @@ public final class RealmSettlementCalculation {
         return new SettlementJournal.Plan(day, posting, JsonUtil.GSON.toJsonTree(changes).getAsJsonObject());
     }
 
+    private void apply(DailyGuildTransfers buffer) {
+        for (var from : buffer.getTransfers().entrySet()) {
+            for (var to : from.getValue().entrySet()) transfer(account(from.getKey()), account(to.getKey()), Money.cents(to.getValue()));
+        }
+        for (var entry : buffer.getExternalDeltas().entrySet()) transfer(Denars.MINT, account(entry.getKey()), Money.cents(entry.getValue()));
+    }
+
+    /** Army and installation upkeep, planned against each ruling guild's balance after the day's income. */
+    private void chargeUpkeep() {
+        for (Faction faction : guilds.stream().map(Guild::getFaction).distinct().toList()) {
+            Guild capital = SettlementGuilds.capital(faction);
+            FactionUpkeepPlan plan = FactionUpkeepPlan.calculate(faction, Money.denars(balances.get(account(capital))));
+            changes.upkeep.add(plan);
+            transfer(account(capital), Denars.MINT, plan.charge());
+        }
+    }
+
     private void capture() {
-        Map<Faction, FactionUpkeepPlan> upkeep = new LinkedHashMap<>();
         for (Guild guild : guilds) {
             balances.put(account(guild), guild.getBank() == null ? 0 : Money.cents(guild.getBank().getWealth()));
             initial.put(guild, guild.getBank() == null ? 0 : guild.getBank().getWealth());
@@ -128,15 +143,6 @@ public final class RealmSettlementCalculation {
                 companies.put(guild, copy);
             }
         }
-        for (Faction faction : guilds.stream().map(Guild::getFaction).distinct().toList()) {
-            FactionUpkeepPlan plan = preparedUpkeep == null ? FactionUpkeepPlan.calculate(faction)
-                    : preparedUpkeep.stream().filter(p -> p.faction().equals(faction.getId())).findFirst().orElseThrow();
-            changes.upkeep.add(plan);
-            upkeep.put(faction, plan);
-            Guild capital = SettlementGuilds.capital(faction);
-            transfer(account(capital), Denars.MINT, plan.charge());
-            initial.put(capital, Money.denars(balances.get(account(capital))));
-        }
         for (Guild guild : guilds) {
             for (Loan original : guild.getLoanHandler().getLoansGiven()) {
                 if (!credits.containsKey(original.getBorrower()) || original.getIssuer() != guild)
@@ -148,10 +154,6 @@ public final class RealmSettlementCalculation {
         for (Guild guild : guilds) {
             Map<Cashflow, Double> income = new EnumMap<>(Cashflow.class);
             if (guild.isBase()) {
-                FactionUpkeepPlan costs = upkeep.get(guild.getFaction());
-                MercenaryCompany company = companies.get(guild);
-                income.put(Cashflow.MILITARY_UPKEEP, -costs.armyLedgerCost() - (company == null || !company.isFormed() ? 0 : company.getSlotUpkeep()));
-                income.put(Cashflow.INSTALLATIONS, -costs.installationLedgerCost());
                 income.put(Cashflow.CITIZENS, Money.denars(Denars.balance(Denars.guildTax(guild.getIncarnationId()))));
             }
             SettlementLedgerView view = new SettlementLedgerView(ledgers,
