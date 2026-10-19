@@ -342,6 +342,70 @@ class DiplomacyCoverageTest {
   }
 
   @Test
+  void endingAnEmbargoLiftsOnlyOurSideWithoutTheirConsent() {
+    Faction origin = fixture.saved("origin", "Alice");
+    Faction target = fixture.saved("target", "Bob");
+    Player alice = fixture.player("Alice");
+    Player bob = fixture.player("Bob");
+    RelationType embargo =
+        fixture.relationType("embargo", Map.of("trade-agreement", true, "blocks-shops", true));
+    RelationManager.setTradeRelation(alice, embargo, target, origin, true);
+    RelationManager.setTradeRelationForced(embargo, origin, target);
+    assertTrue(RelationManager.hasTradeEmbargo(origin, target));
+    assertTrue(RelationManager.endTradeRelation(alice, target, origin));
+    assertFalse(RelationManager.hasTradeEmbargo(origin, target));
+    assertNull(origin.getDiplomacyHandler().getTradeRelation(target.getId()));
+    assertSame(embargo, target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    assertFalse(RequestManager.hasRequest(bob));
+    verify(alice).sendMessage(contains("Ended"));
+    verify(bob, never()).sendMessage(contains("ended"));
+    assertFalse(RelationManager.endTradeRelation(alice, target, origin));
+  }
+
+  @Test
+  void endingAMutualAgreementRemovesBothSidesAndTellsThePartner() {
+    Faction origin = fixture.saved("origin", "Alice");
+    Faction target = fixture.saved("target", "Bob");
+    Player bob = fixture.player("Bob");
+    RelationType deal =
+        fixture.relationType("deal", Map.of("trade-agreement", true, "mutual", true));
+    RelationManager.setTradeRelationForced(deal, target, origin);
+    assertSame(deal, target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    assertTrue(RelationManager.endTradeRelation(null, target, origin));
+    assertNull(origin.getDiplomacyHandler().getTradeRelation(target.getId()));
+    assertNull(target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    verify(bob).sendMessage(contains("ended the"));
+    FactionManager.migrateMisplacedTradeRelations();
+    assertNull(target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+  }
+
+  @Test
+  void endingALinkedAgreementKeepsLocksAndUnrelatedPartnerOverlays() {
+    Faction origin = fixture.saved("origin", "Alice");
+    Faction target = fixture.saved("target", "Bob");
+    RelationType subject =
+        fixture.relationType(
+            "unequal_subject", Map.of("trade-agreement", true, "lock", true, "settable", false));
+    RelationType leader =
+        fixture.relationType(
+            "unequal_leader",
+            Map.of("trade-agreement", true, "mutual", true, "link", "unequal_subject"));
+    RelationType embargo = fixture.relationType("embargo", Map.of("trade-agreement", true));
+    RelationManager.setTradeRelationForced(leader, target, origin);
+    assertFalse(RelationManager.endTradeRelation(null, origin, target));
+    assertSame(subject, target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    assertTrue(RelationManager.endTradeRelation(null, target, origin));
+    assertNull(origin.getDiplomacyHandler().getTradeRelation(target.getId()));
+    assertNull(target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    RelationManager.setTradeRelationForced(leader, target, origin);
+    RelationManager.setTradeRelationForced(embargo, origin, target);
+    assertTrue(RelationManager.endTradeRelation(null, target, origin));
+    assertSame(embargo, target.getDiplomacyHandler().getTradeRelation(origin.getId()));
+    assertFalse(RelationManager.endTradeRelation(null, null, origin));
+    assertFalse(RelationManager.endTradeRelation(null, target, null));
+  }
+
+  @Test
   void forcedRelationsStillRejectLawsExistingOverlordsLimitsAndAncestryLoops() {
     Faction root = fixture.saved("root", "Alice");
     Faction middle = fixture.saved("middle", "Bob");
