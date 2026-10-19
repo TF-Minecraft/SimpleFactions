@@ -395,6 +395,11 @@ public class RelationView {
 				p.sendMessage("§cYou are bound to "+f.getName()+"§c and cannot change this relationship yourself.");
 				return;
 			}
+			if(current != null && current.equals(r)) {
+				RelationManager.endTradeRelation(p, f, origin);
+				diplomacyView(null, p, f, true);
+				return;
+			}
 
 			if(RelationManager.actorLacksCapacity(origin, f, r, current) || RelationManager.partnerLacksOverlayCapacity(origin, f, r, theirCurrent)) {
 				if(RelationManager.actorLacksCapacity(origin, f, r, current))

@@ -258,6 +258,7 @@ class RelationMenusCoverageTest {
     diplomacy.verify(() -> RelationManager.setRelation(any(), any(), any(), any(), anyBoolean()), never());
     diplomacy.verify(() -> RelationManager.setTradeRelation(any(), any(), any(), any(), anyBoolean()), never());
     diplomacy.verify(() -> RelationManager.setTreatyRelation(any(), any(), any(), any(), anyBoolean()), never());
+    diplomacy.verify(() -> RelationManager.endTradeRelation(any(), any(), any()), never());
   }
 
   private void openPicker(String kind) {
@@ -466,6 +467,19 @@ class RelationMenusCoverageTest {
       assertNoDiplomaticMutation();
       verify(player, atLeastOnce()).sendMessage(anyString());
     }
+  }
+
+  @Test
+  void clickingTheCurrentTradeAgreementEndsItInsteadOfSettingItAgain() {
+    RelationType choice = type("choice", "trade-agreement", true, "mutual", true);
+    when(origin.getDiplomacyHandler().getTradeRelation("target")).thenReturn(choice);
+    openPicker("trade");
+    diplomacy.clearInvocations();
+    click(9);
+    diplomacy.verify(() -> RelationManager.endTradeRelation(player, target, origin));
+    diplomacy.verify(() -> RelationManager.setTradeRelation(any(), any(), any(), any(), anyBoolean()), never());
+    diplomacy.verify(() -> RelationManager.actorLacksCapacity(any(), any(), any(), any()), never());
+    assertEquals(SFGUI.DIPLOMACY_VIEW, menu());
   }
 
   @Test

@@ -367,6 +367,32 @@ public class RelationManager {
 		return true;
 	}
 
+	/**
+	 * Ends origin's trade overlay toward target, as "No Treaty" does for treaties. The partner's
+	 * half of a mutual agreement goes too, or loading would restore origin's half from it; their
+	 * own one-sided overlays, such as an embargo on origin, stay.
+	 */
+	public static boolean endTradeRelation(Player p, Faction target, Faction origin) {
+		if (target == null || origin == null) {
+			return false;
+		}
+		RelationType current = origin.getDiplomacyHandler().getTradeRelation(target.getId());
+		if (current == null || current.hasLock()) {
+			return false;
+		}
+		origin.getDiplomacyHandler().removeTradeRelation(target.getId());
+		RelationType theirs = target.getDiplomacyHandler().getTradeRelation(origin.getId());
+		if (theirs != null && (theirs.isMutual() || (current.isMutual() && theirs.equals(current.getLink())))) {
+			target.getDiplomacyHandler().removeTradeRelation(origin.getId());
+			Player leader = Members.player(target.getLeader());
+			if (leader != null && leader.isOnline()) {
+				leader.sendMessage(StringFormatter.formatHex(origin.getName()+" #a89977ended the "+theirs.getName()+" #a89977with you"));
+			}
+		}
+		if (p != null) p.sendMessage(StringFormatter.formatHex("#a89977Ended "+current.getName()+" #a89977with "+target.getName()));
+		return true;
+	}
+
 	public static void setTreatyRelation(Player p, RelationType r, Faction target, Faction origin, boolean check) {
 		applyTreatyRelation(p, r, target, origin, check);
 	}
