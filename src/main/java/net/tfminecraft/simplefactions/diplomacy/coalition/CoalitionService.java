@@ -130,6 +130,20 @@ public final class CoalitionService {
 		return new ItemStack(leader.getBanner());
 	}
 
+	/** The coalition's own colour, or its leader's while it has none; null when neither is known. */
+	public static String colour(Coalition coalition) {
+		if (coalition.getRgb() != null) return coalition.getRgb();
+		Faction leader = leader(coalition);
+		return leader == null ? null : leader.getRGB();
+	}
+
+	/** The banner patterns the coalition shows: its own, or its leader's. */
+	public static List<String> bannerPatterns(Coalition coalition) {
+		if (coalition.getBannerPatterns() != null) return coalition.getBannerPatterns();
+		Faction leader = leader(coalition);
+		return leader == null ? List.of() : leader.getBannerPatterns();
+	}
+
 	/** Time left before a coalition that lost its target disbands, or null when it has a target. */
 	public static Duration targetLossRemaining(Coalition coalition) {
 		if (coalition.getTargetLostAt() == null) return null;
@@ -382,6 +396,28 @@ public final class CoalitionService {
 		coalition.setBannerPatterns(null);
 		CoalitionRegistry.save();
 		return Result.ok("§aThe coalition shows its leader's banner again.");
+	}
+
+	/** {@code R,G,B} for the website map, or {@code reset} to use the leader's colour again. */
+	public static Result setColour(Faction leader, String rgb) {
+		Coalition coalition = ledBy(leader);
+		if (coalition == null) return Result.fail(of(leader) == null ? NOT_IN_COALITION : NOT_LEADER);
+		if (rgb.equalsIgnoreCase("reset")) {
+			coalition.setRgb(null);
+			CoalitionRegistry.save();
+			return Result.ok("§aThe coalition uses its leader's colour on the map again.");
+		}
+		String error = switch (FactionManager.validateRGB(rgb)) {
+			case 0 -> null;
+			case 2 -> "§cRGB values must be numbers (e.g. 128,128,128)";
+			case 3 -> "§cEach RGB value must be between 0 and 255";
+			case 4 -> "§c0,0,0 is reserved for unclaimed land; pick another colour";
+			default -> "§cInvalid format. Use: R,G,B (e.g. 255,0,0)";
+		};
+		if (error != null) return Result.fail(error);
+		coalition.setRgb(rgb.replace(" ", ""));
+		CoalitionRegistry.save();
+		return Result.ok("§aCoalition map colour set to " + coalition.getRgb() + ".");
 	}
 
 	/** Set by a redeemed offensive code or by staff. */

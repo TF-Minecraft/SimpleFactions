@@ -102,6 +102,10 @@ class CoalitionCommandTest extends CoalitionTestBase {
 		assertEquals(List.of("BLUE.BASE"), league.getBannerPatterns());
 		run(finn, "resetbanner");
 		assertNull(league.getBannerPatterns());
+		run(finn, "setcolour");
+		verify(finn).sendMessage("§cUsage: /coalition setcolour <R,G,B|reset>");
+		run(finn, "setcolor", "40,50,60");
+		assertEquals("40,50,60", league.getRgb());
 
 		run(bea, "leave");
 		run(finn, "disband");
@@ -273,6 +277,7 @@ class CoalitionCommandTest extends CoalitionTestBase {
 		assertEquals(List.of("holy"), tabs.onTabComplete(tom, command, "coalition", new String[] {"invite", "ho"}));
 		assertEquals(List.of("Grand League"), tabs.onTabComplete(tom, command, "coalition", new String[] {"join", "g"}));
 		assertTrue(tabs.onTabComplete(tom, command, "coalition", new String[] {"leave", ""}).isEmpty());
+		assertEquals(List.of("reset"), tabs.onTabComplete(tom, command, "coalition", new String[] {"setcolour", "r"}));
 		assertTrue(tabs.onTabComplete(tom, command, "coalition", new String[] {"invite", "bog", ""}).isEmpty());
 		assertTrue(tabs.onTabComplete(tom, command, "coalition", new String[] {"admin", ""}).isEmpty());
 		assertEquals(List.of("cost"), tabs.onTabComplete(staff, command, "coalition", new String[] {"admin", "co"}));

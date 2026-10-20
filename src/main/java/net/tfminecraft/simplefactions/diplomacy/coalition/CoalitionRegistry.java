@@ -32,6 +32,7 @@ public final class CoalitionRegistry {
 		public Map<String, Long> members = new LinkedHashMap<>();
 		public Map<String, Long> invites = new LinkedHashMap<>();
 		public List<String> banner;
+		public String rgb;
 		public long createdAt;
 		public Long targetLostAt;
 		public long targetLossPausedMillis;
@@ -119,6 +120,7 @@ public final class CoalitionRegistry {
 		}
 		coalition.setOffensive(saved.offensive);
 		coalition.setBannerPatterns(saved.banner);
+		coalition.setRgb(saved.rgb);
 		coalition.setTargetLostAt(saved.targetLostAt);
 		coalition.setTargetLossPausedMillis(saved.targetLossPausedMillis);
 		coalition.setSingleMemberSince(saved.singleMemberSince);
@@ -135,6 +137,7 @@ public final class CoalitionRegistry {
 		saved.members.putAll(coalition.getMembers());
 		saved.invites.putAll(coalition.getInvites());
 		saved.banner = coalition.getBannerPatterns();
+		saved.rgb = coalition.getRgb();
 		saved.createdAt = coalition.getCreatedAt();
 		saved.targetLostAt = coalition.getTargetLostAt();
 		saved.targetLossPausedMillis = coalition.getTargetLossPausedMillis();

@@ -140,6 +140,9 @@ public class CoalitionView {
 		lore.add(hex("#b8ae61Leader: #d4c9ae") + (leader == null ? "-" : leader.getName()));
 		lore.add(hex("#b8ae61Target: #d4c9ae") + (target == null ? coalition.getTargetId() : target.getName()));
 		lore.add(hex("#b8ae61Members: #d4c9ae") + coalition.getMembers().size());
+		String colour = CoalitionService.colour(coalition);
+		lore.add(hex("#b8ae61Map colour: #d4c9ae") + (colour == null ? "-" : colour)
+				+ (coalition.getRgb() == null ? hex(" #a39ba8(leader's)") : ""));
 		Duration remaining = CoalitionService.targetLossRemaining(coalition);
 		if (remaining != null) {
 			lore.add(" ");
