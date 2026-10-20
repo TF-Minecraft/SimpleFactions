@@ -37,7 +37,7 @@ import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyLedger;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
@@ -240,7 +240,7 @@ class LegacyRaidWarbandIdentityTest {
       fresh.setId(RAID_ID);
       fresh.setDisplayName("Def Port Raid");
       fresh.setWarId(WAR_ID);
-      fresh.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+      fresh.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
       fresh.setState(CampaignRaidState.MUSTER);
       fresh.setBattleDay(DAY);
       context.war.setActiveCampaignRaid(fresh);
@@ -357,7 +357,7 @@ class LegacyRaidWarbandIdentityTest {
       old.setDisplayName("Def Port Raid");
       old.setWarId(WAR_ID);
       old.setBattleDay(DAY);
-      old.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+      old.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
       old.setLauncherFactionId(attacker.getId());
       old.setSourceInstallationId("source");
       old.setTargetInstallationId("target");

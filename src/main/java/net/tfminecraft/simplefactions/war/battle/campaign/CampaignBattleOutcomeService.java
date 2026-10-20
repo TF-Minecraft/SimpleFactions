@@ -24,8 +24,8 @@ import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignBattleEndService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignMilitaryWalkoverService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
@@ -122,7 +122,7 @@ public class CampaignBattleOutcomeService implements Listener {
 			Integer battleProvinceId,
 			Battle battle,
 			Map<String, Integer> sideCasualties,
-			CampaignCoalition lastBattleOffensiveOverride) {
+			CampaignSideRole lastBattleOffensiveOverride) {
 		if (war == null) {
 			return new CampaignBattleApplyResult(false, false, Optional.empty());
 		}
@@ -154,7 +154,7 @@ public class CampaignBattleOutcomeService implements Listener {
 
 		boolean progressionApplied = false;
 		if (winnerRole != null && battleProvinceId != null) {
-			CampaignCoalition winner = CampaignCoalitionService.belligerentRoleToCoalition(winnerRole);
+			CampaignSideRole winner = CampaignSideService.belligerentRoleToCoalition(winnerRole);
 			if (foughtSlot != null
 					&& foughtSlot.kind() == CampaignBattleKind.SIEGE
 					&& foughtSlot.fortInstallationId() != null
@@ -172,8 +172,8 @@ public class CampaignBattleOutcomeService implements Listener {
 			progressionApplied = true;
 		}
 
-		CampaignCoalition winner = winnerRole == null ? null
-				: CampaignCoalitionService.belligerentRoleToCoalition(winnerRole);
+		CampaignSideRole winner = winnerRole == null ? null
+				: CampaignSideService.belligerentRoleToCoalition(winnerRole);
 		if (winner != null && battleProvinceId != null) {
 			Optional<WarEndReason> battleVictory = WarResolutionService.tryEndAfterBattle(
 					war,
@@ -221,7 +221,7 @@ public class CampaignBattleOutcomeService implements Listener {
 		if (Bukkit.getServer() == null) {
 			return;
 		}
-		CampaignCoalition leaderCoalition = CampaignPostBattleChoiceService.choiceLeaderCoalition(war);
+		CampaignSideRole leaderCoalition = CampaignPostBattleChoiceService.choiceLeaderCoalition(war);
 		if (leaderCoalition == null) {
 			return;
 		}
@@ -229,7 +229,7 @@ public class CampaignBattleOutcomeService implements Listener {
 				? "§eChoose §6push §eor §6hold §eon the campaign map."
 				: "§eChoose §6attack §eor §6accept white peace §eon the campaign map.";
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(
-				CampaignCoalitionService.toSide(war, leaderCoalition))) {
+				CampaignSideService.toSide(war, leaderCoalition))) {
 			Player player = Members.player(memberName);
 			if (player != null && player.isOnline()) {
 				player.sendMessage(message);

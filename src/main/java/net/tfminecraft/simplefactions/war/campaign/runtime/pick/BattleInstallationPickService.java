@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.zoc.PortSeaZocIndex;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -200,7 +200,7 @@ public final class BattleInstallationPickService {
 	}
 
 	private static Faction defenderZocPortOwner(War war, String portId) {
-		Side defending = CampaignCoalitionService.toSide(
+		Side defending = CampaignSideService.toSide(
 				war, CampaignCapabilityService.battleDefensiveCoalition(war));
 		List<Faction> candidates = new ArrayList<>();
 		for (Faction faction : BattleSideMembers.collectParticipatingFactions(defending)) {

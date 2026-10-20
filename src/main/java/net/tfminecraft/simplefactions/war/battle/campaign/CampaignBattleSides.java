@@ -3,8 +3,8 @@ package net.tfminecraft.simplefactions.war.battle.campaign;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 
@@ -16,12 +16,12 @@ public final class CampaignBattleSides {
 		if (war == null || battleSideId == null || battleSideId.isBlank()) {
 			return null;
 		}
-		CampaignCoalition offensive = offensiveCoalition(battle);
+		CampaignSideRole offensive = offensiveCoalition(battle);
 		if (BattleTemplate.ATTACKER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return CampaignCoalitionService.toSide(war, offensive);
+			return CampaignSideService.toSide(war, offensive);
 		}
 		if (BattleTemplate.DEFENDER_SIDE.equalsIgnoreCase(battleSideId)) {
-			return CampaignCoalitionService.toSide(war, offensive.opposing());
+			return CampaignSideService.toSide(war, offensive.opposing());
 		}
 		return null;
 	}
@@ -30,11 +30,11 @@ public final class CampaignBattleSides {
 		if (war == null || side == null) {
 			return null;
 		}
-		CampaignCoalition coalition = CampaignCoalitionService.coalitionOf(war, side);
+		CampaignSideRole coalition = CampaignSideService.coalitionOf(war, side);
 		if (coalition == null) {
 			return null;
 		}
-		CampaignCoalition offensive = offensiveCoalition(battle);
+		CampaignSideRole offensive = offensiveCoalition(battle);
 		return coalition == offensive ? BattleTemplate.ATTACKER_SIDE : BattleTemplate.DEFENDER_SIDE;
 	}
 
@@ -43,15 +43,15 @@ public final class CampaignBattleSides {
 		if (side == null) {
 			return null;
 		}
-		CampaignCoalition coalition = CampaignCoalitionService.coalitionOf(war, side);
-		return CampaignCoalitionService.coalitionToBelligerentRole(coalition);
+		CampaignSideRole coalition = CampaignSideService.coalitionOf(war, side);
+		return CampaignSideService.coalitionToBelligerentRole(coalition);
 	}
 
-	private static CampaignCoalition offensiveCoalition(Battle battle) {
+	private static CampaignSideRole offensiveCoalition(Battle battle) {
 		if (battle != null && battle.getOffensiveCoalition() != null) {
 			return battle.getOffensiveCoalition();
 		}
 		// Missing snapshot: war attackers stay on the battle attacker side.
-		return CampaignCoalition.AGGRESSOR;
+		return CampaignSideRole.AGGRESSOR;
 	}
 }

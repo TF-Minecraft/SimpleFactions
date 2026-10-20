@@ -691,7 +691,7 @@ public class CampaignView {
 	private static String retreatRejectionMessage(RetreatResult result) {
 		return switch (result) {
 			case REJECTED_VOTE_CLOSED -> "§cRetreat is closed for this battle day.";
-			case REJECTED_NOT_LEADER -> "§cOnly the pushed coalition war leader can retreat.";
+			case REJECTED_NOT_LEADER -> "§cOnly the war leader of the pushed side can retreat.";
 			case REJECTED_POST_BATTLE_CHOICE -> "§cResolve the post-battle choice first.";
 			case REJECTED_NO_ACTIVE_SLOT -> "§cNo active battle slot to concede.";
 			case REJECTED_NOT_ELIGIBLE, SUCCESS -> "§cYou cannot retreat right now.";

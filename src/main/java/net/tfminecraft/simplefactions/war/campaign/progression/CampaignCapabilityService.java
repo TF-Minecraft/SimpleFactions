@@ -1,7 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushProjection;
@@ -20,17 +20,17 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleServ
 public final class CampaignCapabilityService {
 	private CampaignCapabilityService() {}
 
-	public static int capitulationTargetIndex(War war, CampaignCoalition coalition) {
+	public static int capitulationTargetIndex(War war, CampaignSideRole coalition) {
 		if (!isValidWar(war) || coalition == null) {
 			return -1;
 		}
-		if (coalition == CampaignCoalition.AGGRESSOR) {
+		if (coalition == CampaignSideRole.AGGRESSOR) {
 			return objectiveIndex(war);
 		}
 		return aggressorCapitalIndex(war);
 	}
 
-	public static int stepsToCapitulationTarget(War war, CampaignCoalition coalition) {
+	public static int stepsToCapitulationTarget(War war, CampaignSideRole coalition) {
 		if (!isValidWar(war) || coalition == null) {
 			return 0;
 		}
@@ -42,35 +42,35 @@ public final class CampaignCapabilityService {
 	}
 
 	public static int stepsToCapitulationTarget(War war, BelligerentRole side) {
-		return stepsToCapitulationTarget(war, CampaignCoalitionService.belligerentRoleToCoalition(side));
+		return stepsToCapitulationTarget(war, CampaignSideService.belligerentRoleToCoalition(side));
 	}
 
-	public static CampaignCoalition battleOffensiveCoalition(War war) {
-		return CampaignCoalitionService.getInitiativeHolderCoalition(war);
+	public static CampaignSideRole battleOffensiveCoalition(War war) {
+		return CampaignSideService.getInitiativeHolderCoalition(war);
 	}
 
-	public static CampaignCoalition battleDefensiveCoalition(War war) {
-		CampaignCoalition offensive = battleOffensiveCoalition(war);
+	public static CampaignSideRole battleDefensiveCoalition(War war) {
+		CampaignSideRole offensive = battleOffensiveCoalition(war);
 		return offensive != null ? offensive.opposing() : null;
 	}
 
-	public static int offensiveRegiments(War war, int provinceId, CampaignCoalition coalition) {
-		Side side = CampaignCoalitionService.toSide(war, coalition);
+	public static int offensiveRegiments(War war, int provinceId, CampaignSideRole coalition) {
+		Side side = CampaignSideService.toSide(war, coalition);
 		if (side == null) {
 			return 0;
 		}
 		return BattlePoolService.totalCommittedRegiments(war, provinceId, side, PoolMode.OFFENSIVE);
 	}
 
-	public static int defensiveRegiments(War war, int provinceId, CampaignCoalition coalition) {
-		Side side = CampaignCoalitionService.toSide(war, coalition);
+	public static int defensiveRegiments(War war, int provinceId, CampaignSideRole coalition) {
+		Side side = CampaignSideService.toSide(war, coalition);
 		if (side == null) {
 			return 0;
 		}
 		return BattlePoolService.totalCommittedRegiments(war, provinceId, side, PoolMode.DEFENSIVE);
 	}
 
-	public static boolean canDefend(War war, int provinceId, CampaignCoalition coalition) {
+	public static boolean canDefend(War war, int provinceId, CampaignSideRole coalition) {
 		return defensiveRegiments(war, provinceId, coalition) > 0;
 	}
 
@@ -83,8 +83,8 @@ public final class CampaignCapabilityService {
 		}
 
 		CampaignPushTarget pushTarget = effectivePushTarget(war);
-		CampaignCoalition holder = CampaignCoalitionService.getInitiativeHolderCoalition(war);
-		if (holder == null || CampaignCoalitionService.getFuel(war, holder) <= 0) {
+		CampaignSideRole holder = CampaignSideService.getInitiativeHolderCoalition(war);
+		if (holder == null || CampaignSideService.getFuel(war, holder) <= 0) {
 			return OptionalInt.empty();
 		}
 
@@ -101,17 +101,17 @@ public final class CampaignCapabilityService {
 		};
 	}
 
-	public static boolean canAttack(War war, CampaignCoalition coalition) {
+	public static boolean canAttack(War war, CampaignSideRole coalition) {
 		if (!isValidWar(war) || coalition == null) {
 			return false;
 		}
 		if (war.getPostBattleChoicePhase() != PostBattleChoicePhase.NONE) {
 			return false;
 		}
-		if (coalition != CampaignCoalitionService.getInitiativeHolderCoalition(war)) {
+		if (coalition != CampaignSideService.getInitiativeHolderCoalition(war)) {
 			return false;
 		}
-		if (CampaignCoalitionService.getFuel(war, coalition) < 1) {
+		if (CampaignSideService.getFuel(war, coalition) < 1) {
 			return false;
 		}
 		OptionalInt next = nextBattleProvince(war);
@@ -121,7 +121,7 @@ public final class CampaignCapabilityService {
 		return offensiveRegiments(war, next.getAsInt(), coalition) > 0;
 	}
 
-	public static boolean canReachTarget(War war, CampaignCoalition coalition) {
+	public static boolean canReachTarget(War war, CampaignSideRole coalition) {
 		if (!isValidWar(war) || coalition == null) {
 			return false;
 		}
@@ -129,28 +129,28 @@ public final class CampaignCapabilityService {
 			return false;
 		}
 		int steps = stepsToCapitulationTarget(war, coalition);
-		return CampaignCoalitionService.getFuel(war, coalition) >= steps;
+		return CampaignSideService.getFuel(war, coalition) >= steps;
 	}
 
-	public static boolean hasOffensiveArmy(War war, CampaignCoalition coalition, int provinceId) {
+	public static boolean hasOffensiveArmy(War war, CampaignSideRole coalition, int provinceId) {
 		if (!isValidWar(war) || coalition == null || provinceId <= 0) {
 			return false;
 		}
-		if (CampaignCoalitionService.getFuel(war, coalition) < 1) {
+		if (CampaignSideService.getFuel(war, coalition) < 1) {
 			return false;
 		}
 		return offensiveRegiments(war, provinceId, coalition) > 0;
 	}
 
-	public static boolean canMountOffensive(War war, CampaignCoalition coalition, int provinceId) {
+	public static boolean canMountOffensive(War war, CampaignSideRole coalition, int provinceId) {
 		return hasOffensiveArmy(war, coalition, provinceId);
 	}
 
-	public static boolean canMountOffensiveAtNextBattle(War war, CampaignCoalition coalition) {
+	public static boolean canMountOffensiveAtNextBattle(War war, CampaignSideRole coalition) {
 		if (!isValidWar(war) || coalition == null) {
 			return false;
 		}
-		if (coalition != CampaignCoalitionService.getInitiativeHolderCoalition(war)) {
+		if (coalition != CampaignSideService.getInitiativeHolderCoalition(war)) {
 			return false;
 		}
 		if (war.getPostBattleChoicePhase() != PostBattleChoicePhase.NONE || needsPostBattleChoice(war)) {
@@ -160,7 +160,7 @@ public final class CampaignCapabilityService {
 		return next.isPresent() && hasOffensiveArmy(war, coalition, next.getAsInt());
 	}
 
-	public static boolean canMountOffensiveAfterPush(War war, CampaignCoalition winner) {
+	public static boolean canMountOffensiveAfterPush(War war, CampaignSideRole winner) {
 		return CampaignPushProjection.canMountOffensiveAfterPush(war, winner);
 	}
 
@@ -201,7 +201,7 @@ public final class CampaignCapabilityService {
 		if (target != null) {
 			return target;
 		}
-		return CampaignCoalitionService.derivePushTargetFromLegacyPhase(
+		return CampaignSideService.derivePushTargetFromLegacyPhase(
 				war.getCampaignPhase(),
 				war.getObjectiveHeldBy());
 	}

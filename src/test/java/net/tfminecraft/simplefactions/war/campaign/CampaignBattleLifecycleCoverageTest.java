@@ -32,7 +32,7 @@ import net.tfminecraft.simplefactions.war.battle.warband.*;
 import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminResult;
 import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignBattleEndService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
@@ -655,7 +655,7 @@ class CampaignBattleLifecycleCoverageTest {
     assertEquals(1, rig.war.getPostponementsThisCycle());
     assertTrue(BattleManager.get().isEmpty());
     rig.war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
-    rig.war.setPostBattleWinnerCoalition(CampaignCoalition.AGGRESSOR);
+    rig.war.setPostBattleWinnerCoalition(CampaignSideRole.AGGRESSOR);
     rig.war.setPostBattleChoiceResolved(false);
     WarScheduleAdminResult blocked = WarScheduleAdminService.closeVote(rig.war, rig.now());
     assertFalse(blocked.success());
@@ -750,7 +750,7 @@ class CampaignBattleLifecycleCoverageTest {
     assertTrue(result.message().contains("Applied attacker win at province 20"), result.message());
     assertEquals(1, rig.war.getCampaignBattlesFought());
     assertTrue(rig.war.getOccupiedByAttacker().contains(20));
-    assertEquals(CampaignCoalition.AGGRESSOR, rig.war.getPostBattleWinnerCoalition());
+    assertEquals(CampaignSideRole.AGGRESSOR, rig.war.getPostBattleWinnerCoalition());
     assertFalse(rig.war.isPostBattleChoiceResolved());
     WarScheduleAdminResult repeated =
         WarScheduleAdminService.winBattle(rig.war, BelligerentRole.DEFENDER);
@@ -765,7 +765,7 @@ class CampaignBattleLifecycleCoverageTest {
       throws Exception {
     configureCampaign();
     prepareArmies();
-    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignCoalition.AGGRESSOR);
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.AGGRESSOR);
     if (choice.equals("attack") || choice.equals("accept")) {
       assertTrue(WarScheduleAdminService.battleChoice(rig.war, "hold").success());
       assertTrue(rig.war.isHoldPeaceProposalActive());

@@ -12,8 +12,8 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.installation.Installation;
 
@@ -85,12 +85,12 @@ public final class ZocRealm {
         if (fortId == null || fortId.isBlank()) {
             return installationOwner;
         }
-        CampaignCoalition coalition = net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService
+        CampaignSideRole coalition = net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService
                 .controllerForInstallation(war, fort).orElse(null);
         if (coalition == null) {
             return installationOwner;
         }
-        Side side = CampaignCoalitionService.toSide(war, coalition);
+        Side side = CampaignSideService.toSide(war, coalition);
         return side.getLeader();
     }
 

@@ -27,7 +27,7 @@ import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 
@@ -54,9 +54,9 @@ class WarResolutionServiceTest {
 		try (MockedStatic<WarManager> warManager = mockStatic(WarManager.class);
 				MockedStatic<CampaignCapabilityService> capability = mockStatic(CampaignCapabilityService.class)) {
 			capability.when(() -> CampaignCapabilityService.isValidWar(war)).thenReturn(true);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(false);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(false);
 			capability.when(() -> CampaignCapabilityService.nextBattleProvince(war))
 					.thenReturn(java.util.OptionalInt.empty());
@@ -83,9 +83,9 @@ class WarResolutionServiceTest {
 			capability.when(() -> CampaignCapabilityService.nextBattleProvince(war))
 					.thenReturn(java.util.OptionalInt.of(20));
 			capability.when(() -> CampaignCapabilityService.canMountOffensive(
-					war, CampaignCoalition.AGGRESSOR, 20)).thenReturn(false);
+					war, CampaignSideRole.AGGRESSOR, 20)).thenReturn(false);
 			capability.when(() -> CampaignCapabilityService.canMountOffensive(
-					war, CampaignCoalition.DEFENDER, 20)).thenReturn(false);
+					war, CampaignSideRole.DEFENDER, 20)).thenReturn(false);
 
 			ArgumentCaptor<WarEndReason> reasonCaptor = ArgumentCaptor.forClass(WarEndReason.class);
 			warManager.when(() -> WarManager.endWar(any(), reasonCaptor.capture())).then(inv -> null);
@@ -108,12 +108,12 @@ class WarResolutionServiceTest {
 			capability.when(() -> CampaignCapabilityService.nextBattleProvince(war))
 					.thenReturn(java.util.OptionalInt.of(20));
 			capability.when(() -> CampaignCapabilityService.canMountOffensive(
-					war, CampaignCoalition.AGGRESSOR, 20)).thenReturn(false);
+					war, CampaignSideRole.AGGRESSOR, 20)).thenReturn(false);
 			capability.when(() -> CampaignCapabilityService.canMountOffensive(
-					war, CampaignCoalition.DEFENDER, 20)).thenReturn(false);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+					war, CampaignSideRole.DEFENDER, 20)).thenReturn(false);
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(true);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(true);
 			warManager.when(() -> WarManager.endWar(any(), any())).then(inv -> null);
 
@@ -137,12 +137,12 @@ class WarResolutionServiceTest {
 			capability.when(() -> CampaignCapabilityService.nextBattleProvince(war))
 					.thenReturn(java.util.OptionalInt.of(20));
 			capability.when(() -> CampaignCapabilityService.canMountOffensive(
-					war, CampaignCoalition.AGGRESSOR, 20)).thenReturn(false);
+					war, CampaignSideRole.AGGRESSOR, 20)).thenReturn(false);
 			capability.when(() -> CampaignCapabilityService.canMountOffensive(
-					war, CampaignCoalition.DEFENDER, 20)).thenReturn(false);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+					war, CampaignSideRole.DEFENDER, 20)).thenReturn(false);
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(true);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(true);
 			warManager.when(() -> WarManager.endWar(any(), any())).then(inv -> null);
 
@@ -155,7 +155,7 @@ class WarResolutionServiceTest {
 
 	@Test
 	void tryEndAfterBattle_aggressorWinsAtDefenderCapital() {
-		assertVictoryEndsWar(30, CampaignCoalition.AGGRESSOR, WarEndReason.ATTACKER_VICTORY);
+		assertVictoryEndsWar(30, CampaignSideRole.AGGRESSOR, WarEndReason.ATTACKER_VICTORY);
 	}
 
 	@Test
@@ -164,13 +164,13 @@ class WarResolutionServiceTest {
 		try (MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
 			warManager.when(() -> WarManager.endWar(any(), any())).then(inv -> null);
 			assertTrue(WarResolutionService.tryEndAfterBattle(
-					war, 30, CampaignCoalition.DEFENDER, war.getPushTarget(), war.getObjectiveHeldBy()).isEmpty());
+					war, 30, CampaignSideRole.DEFENDER, war.getPushTarget(), war.getObjectiveHeldBy()).isEmpty());
 		}
 	}
 
 	@Test
 	void tryEndAfterBattle_defenderWinsAtAttackerCapital() {
-		assertVictoryEndsWar(5, CampaignCoalition.DEFENDER, WarEndReason.DEFENDER_VICTORY);
+		assertVictoryEndsWar(5, CampaignSideRole.DEFENDER, WarEndReason.DEFENDER_VICTORY);
 	}
 
 	@Test
@@ -179,7 +179,7 @@ class WarResolutionServiceTest {
 		try (MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
 			warManager.when(() -> WarManager.endWar(any(), any())).then(inv -> null);
 			assertTrue(WarResolutionService.tryEndAfterBattle(
-					war, 5, CampaignCoalition.AGGRESSOR, war.getPushTarget(), war.getObjectiveHeldBy()).isEmpty());
+					war, 5, CampaignSideRole.AGGRESSOR, war.getPushTarget(), war.getObjectiveHeldBy()).isEmpty());
 		}
 	}
 
@@ -197,7 +197,7 @@ class WarResolutionServiceTest {
 			Optional<WarEndReason> result = WarResolutionService.tryEndAfterBattle(
 					war,
 					30,
-					CampaignCoalition.AGGRESSOR,
+					CampaignSideRole.AGGRESSOR,
 					CampaignPushTarget.RETAKE_OBJECTIVE,
 					ObjectiveHolder.ATTACKER);
 
@@ -218,7 +218,7 @@ class WarResolutionServiceTest {
 			assertTrue(WarResolutionService.tryEndAfterBattle(
 					war,
 					30,
-					CampaignCoalition.DEFENDER,
+					CampaignSideRole.DEFENDER,
 					CampaignPushTarget.RETAKE_OBJECTIVE,
 					ObjectiveHolder.ATTACKER).isEmpty());
 		}
@@ -258,19 +258,19 @@ class WarResolutionServiceTest {
 
 	@Test
 	void tryEndAfterBattle_pillageAttackerWinAtSettlementEndsWar() {
-		assertVictoryEndsWarOn(pillageWar(20), 20, CampaignCoalition.AGGRESSOR, WarEndReason.ATTACKER_VICTORY);
+		assertVictoryEndsWarOn(pillageWar(20), 20, CampaignSideRole.AGGRESSOR, WarEndReason.ATTACKER_VICTORY);
 	}
 
 	@Test
 	void tryEndAfterBattle_pillageDefenderWinAtSettlementEndsWar() {
-		assertVictoryEndsWarOn(pillageWar(20), 20, CampaignCoalition.DEFENDER, WarEndReason.DEFENDER_VICTORY);
+		assertVictoryEndsWarOn(pillageWar(20), 20, CampaignSideRole.DEFENDER, WarEndReason.DEFENDER_VICTORY);
 	}
 
-	private void assertVictoryEndsWar(int provinceId, CampaignCoalition winner, WarEndReason expected) {
+	private void assertVictoryEndsWar(int provinceId, CampaignSideRole winner, WarEndReason expected) {
 		assertVictoryEndsWarOn(baseWar(), provinceId, winner, expected);
 	}
 
-	private void assertVictoryEndsWarOn(War war, int provinceId, CampaignCoalition winner, WarEndReason expected) {
+	private void assertVictoryEndsWarOn(War war, int provinceId, CampaignSideRole winner, WarEndReason expected) {
 		try (MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
 			ArgumentCaptor<WarEndReason> reasonCaptor = ArgumentCaptor.forClass(WarEndReason.class);
 			warManager.when(() -> WarManager.endWar(any(), reasonCaptor.capture())).then(inv -> null);

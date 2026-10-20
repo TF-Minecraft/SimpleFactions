@@ -33,7 +33,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleOutcomeService;
@@ -292,7 +292,7 @@ class WarScheduleAdminServiceTest {
 	void winBattle_blockedWhilePostBattleChoicePending() {
 		War war = votingWar();
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
-		war.setPostBattleWinnerCoalition(CampaignCoalition.DEFENDER);
+		war.setPostBattleWinnerCoalition(CampaignSideRole.DEFENDER);
 		war.setPostBattleChoiceResolved(false);
 
 		WarScheduleAdminResult result = WarScheduleAdminService.winBattle(war, BelligerentRole.DEFENDER);
@@ -304,7 +304,7 @@ class WarScheduleAdminServiceTest {
 	void battleChoice_hold_proposesPeaceAndKeepsWinnerInitiative() {
 		War war = votingWar();
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
-		war.setPostBattleWinnerCoalition(CampaignCoalition.DEFENDER);
+		war.setPostBattleWinnerCoalition(CampaignSideRole.DEFENDER);
 		war.setPostBattleChoiceResolved(false);
 		try (MockedStatic<net.tfminecraft.simplefactions.managers.WarManager> warManager =
 				mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class)) {

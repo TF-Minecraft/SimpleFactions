@@ -47,7 +47,7 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService.Prediction;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
@@ -173,7 +173,7 @@ class BattleAutoresolveServiceTest {
 		assertEquals(10, deaths.get(BattleTemplate.ATTACKER_SIDE));
 		assertEquals(15, deaths.get(BattleTemplate.DEFENDER_SIDE));
 		Battle carrier = capturedCarrier();
-		assertEquals(CampaignCoalition.AGGRESSOR, carrier.getOffensiveCoalition());
+		assertEquals(CampaignSideRole.AGGRESSOR, carrier.getOffensiveCoalition());
 		assertFalse(carrier.hasStarted());
 		assertNull(BattleManager.getByString(carrier.getId()));
 		assertEquals(1, war.getCampaignBattlesFought());
@@ -187,18 +187,18 @@ class BattleAutoresolveServiceTest {
 	void resolve_counterPush_debitsTheOffensiveCoalition() {
 		War war = votingWar();
 		war.setInitiativeHolder(BelligerentRole.DEFENDER);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		openHarness(war, war.getDefenders());
 
 		assertTrue(BattleAutoresolveService.resolve(war, explodingRandom()));
 
 		Battle carrier = capturedCarrier();
-		assertEquals(CampaignCoalition.DEFENDER, carrier.getOffensiveCoalition());
+		assertEquals(CampaignSideRole.DEFENDER, carrier.getOffensiveCoalition());
 		assertEquals(war.getDefenders(), CampaignBattleSides.warSideFor(war, carrier, BattleTemplate.ATTACKER_SIDE));
 		assertEquals(10, capturedDeaths().get(BattleTemplate.ATTACKER_SIDE));
 		assertEquals(15, capturedDeaths().get(BattleTemplate.DEFENDER_SIDE));
-		assertEquals(CampaignCoalition.DEFENDER, war.getLastBattleOffensiveCoalition());
-		assertEquals(CampaignCoalition.DEFENDER, war.getPostBattleWinnerCoalition());
+		assertEquals(CampaignSideRole.DEFENDER, war.getLastBattleOffensiveCoalition());
+		assertEquals(CampaignSideRole.DEFENDER, war.getPostBattleWinnerCoalition());
 		assertMessageContains("Defenders", "attacker 2", "defender 3");
 	}
 
@@ -313,7 +313,7 @@ class BattleAutoresolveServiceTest {
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
 		war.setInitiativeHolder(BelligerentRole.ATTACKER);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);

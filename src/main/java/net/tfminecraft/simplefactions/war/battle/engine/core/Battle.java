@@ -36,7 +36,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.win.SiegeWinService;
 import net.tfminecraft.simplefactions.war.battle.template.CapturePointDefinition;
 import net.tfminecraft.simplefactions.war.battle.template.ContestArea;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleInventoryManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidBossBarService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 
@@ -58,7 +58,7 @@ public class Battle {
 	private Integer provinceId;
 	private BattleType battleType;
 	private Integer warId;
-	private CampaignCoalition offensiveCoalition;
+	private CampaignSideRole offensiveCoalition;
 	private String templateName;
 	private ContestArea contestArea;
 	private int contestDurationSeconds;
@@ -472,11 +472,11 @@ public class Battle {
 		this.warId = warId;
 	}
 
-	public CampaignCoalition getOffensiveCoalition() {
+	public CampaignSideRole getOffensiveCoalition() {
 		return offensiveCoalition;
 	}
 
-	public void setOffensiveCoalition(CampaignCoalition offensiveCoalition) {
+	public void setOffensiveCoalition(CampaignSideRole offensiveCoalition) {
 		this.offensiveCoalition = offensiveCoalition;
 	}
 

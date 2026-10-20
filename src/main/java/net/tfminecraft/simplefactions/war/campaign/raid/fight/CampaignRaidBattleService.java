@@ -26,7 +26,7 @@ import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -236,8 +236,8 @@ public final class CampaignRaidBattleService {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	private static void alertDefenders(War war, CampaignRaid raid, Installation target) {
-		CampaignCoalition defendingCoalition = raid.getAttackerCoalition().opposing();
-		Side defendingSide = defendingCoalition == CampaignCoalition.AGGRESSOR
+		CampaignSideRole defendingCoalition = raid.getAttackerCoalition().opposing();
+		Side defendingSide = defendingCoalition == CampaignSideRole.AGGRESSOR
 				? war.getAttackers()
 				: war.getDefenders();
 		String targetName = target.getName();

@@ -3,7 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 import net.tfminecraft.simplefactions.identity.Members;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import java.util.Optional;
 
@@ -85,11 +85,11 @@ public final class AttackerNavalContestService {
 
 		purgeUnstartedBattle(war);
 
-		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
-		CampaignCoalition winner = offensive != null ? offensive.opposing() : CampaignCoalition.DEFENDER;
+		CampaignSideRole offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
+		CampaignSideRole winner = offensive != null ? offensive.opposing() : CampaignSideRole.DEFENDER;
 		CampaignBattleOutcomeService.applyCampaignBattleOutcome(
 				war,
-				CampaignCoalitionService.coalitionToBelligerentRole(winner),
+				CampaignSideService.coalitionToBelligerentRole(winner),
 				battleProvinceId,
 				null,
 				null,
@@ -103,7 +103,7 @@ public final class AttackerNavalContestService {
 		if (war == null) {
 			return null;
 		}
-		return CampaignCoalitionService.toSide(war, CampaignCapabilityService.battleOffensiveCoalition(war));
+		return CampaignSideService.toSide(war, CampaignCapabilityService.battleOffensiveCoalition(war));
 	}
 
 	private static boolean hasBerthedNavalAtInPlayPort(

@@ -12,7 +12,7 @@ public final class CampaignRaidMessages {
 	public static final String OUTSIDE_WINDOW =
 			"§cCampaign raids can only be called between 19:00 and 20:00 on battle day.";
 	public static final String SIDE_QUOTA_SPENT =
-			"§cYour coalition has already launched its raid for this battle day.";
+			"§cYour side has already launched its raid for this battle day.";
 	public static final String RAID_IN_PROGRESS = "§cAnother campaign raid is already in progress.";
 	public static final String INVALID_SOURCE = "§cThat installation cannot be used as a raid source.";
 	public static final String INVALID_TARGET = "§cThat installation cannot be targeted.";
@@ -24,7 +24,7 @@ public final class CampaignRaidMessages {
 	public static final String IN_WARBAND = "§cLeave your warband before joining a campaign raid.";
 	public static final String OTHER_SIDE = "§c" + CampaignWarbandSideLock.OTHER_SIDE;
 	public static final String NOT_MUSTER = "§cCampaign raid muster has ended.";
-	public static final String NOT_ATTACKER_COALITION = "§cOnly the attacking coalition can join this raid.";
+	public static final String NOT_ATTACKER_COALITION = "§cOnly the attacking side can join this raid.";
 	public static final String RAID_NOT_FOUND = "§cNo active campaign raid with that id.";
 	public static final String JOINED = "§aJoined the campaign raid muster.";
 	public static final String ALREADY_JOINED = "§7You are already in this campaign raid muster.";

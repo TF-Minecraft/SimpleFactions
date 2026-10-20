@@ -1,7 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,8 +16,8 @@ public final class CampaignProgressionService {
 		if (!CampaignCapabilityService.isValidWar(war)) {
 			return null;
 		}
-		return CampaignCoalitionService.coalitionToBelligerentRole(
-				CampaignCoalitionService.getInitiativeHolderCoalition(war));
+		return CampaignSideService.coalitionToBelligerentRole(
+				CampaignSideService.getInitiativeHolderCoalition(war));
 	}
 
 	public static boolean holdsInitiative(War war, BelligerentRole side) {
@@ -27,9 +27,9 @@ public final class CampaignProgressionService {
 		return side == getInitiativeHolder(war);
 	}
 
-	public static boolean holdsInitiative(War war, CampaignCoalition coalition) {
+	public static boolean holdsInitiative(War war, CampaignSideRole coalition) {
 		return CampaignCapabilityService.isValidWar(war) && coalition != null
-				&& coalition == CampaignCoalitionService.getInitiativeHolderCoalition(war);
+				&& coalition == CampaignSideService.getInitiativeHolderCoalition(war);
 	}
 
 	public static List<Integer> resolveNextBattleNodes(War war) {
@@ -50,7 +50,7 @@ public final class CampaignProgressionService {
 		return CampaignCapabilityService.stepsToCapitulationTarget(war, side);
 	}
 
-	public static int stepsToCapitulationTarget(War war, CampaignCoalition coalition) {
+	public static int stepsToCapitulationTarget(War war, CampaignSideRole coalition) {
 		return CampaignCapabilityService.stepsToCapitulationTarget(war, coalition);
 	}
 

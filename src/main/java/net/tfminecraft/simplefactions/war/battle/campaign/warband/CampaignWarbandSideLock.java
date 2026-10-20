@@ -11,8 +11,8 @@ import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidWarbandService;
@@ -27,26 +27,26 @@ public final class CampaignWarbandSideLock {
 			"You already fight for the other side of this war. You can change sides when the war ends.";
 
 	/** The active war a warband fights in and the coalition it fights for. */
-	public record Tie(War war, CampaignCoalition coalition) {}
+	public record Tie(War war, CampaignSideRole coalition) {}
 
 	private CampaignWarbandSideLock() {
 	}
 
 	/** The war coalition a battle side belongs to. */
-	public static CampaignCoalition coalition(War war, Battle battle, String battleSideId) {
-		return CampaignCoalitionService.coalitionOf(war, CampaignBattleSides.warSideFor(war, battle, battleSideId));
+	public static CampaignSideRole coalition(War war, Battle battle, String battleSideId) {
+		return CampaignSideService.coalitionOf(war, CampaignBattleSides.warSideFor(war, battle, battleSideId));
 	}
 
 	/** Campaign battle warbands, and raid shells from muster onwards; null for other warbands. */
 	public static Tie tieOf(Warband warband) {
 		CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
 		if (ctx != null) {
-			CampaignCoalition coalition = coalition(ctx.war(), ctx.battle(), ctx.sideId());
+			CampaignSideRole coalition = coalition(ctx.war(), ctx.battle(), ctx.sideId());
 			return coalition == null ? null : new Tie(ctx.war(), coalition);
 		}
 		for (War war : WarManager.getActive()) {
 			CampaignRaid raid = CampaignRaidService.getActive(war);
-			CampaignCoalition raiders = raid == null ? null : raid.getAttackerCoalition();
+			CampaignSideRole raiders = raid == null ? null : raid.getAttackerCoalition();
 			if (raiders != null && warband == CampaignRaidWarbandService.getAttackerWarband(raid)) {
 				return new Tie(war, raiders);
 			}
@@ -58,15 +58,15 @@ public final class CampaignWarbandSideLock {
 	}
 
 	/** Null when the account may sign up for that coalition. */
-	public static String refusal(War war, CampaignCoalition coalition, UUID accountId) {
+	public static String refusal(War war, CampaignSideRole coalition, UUID accountId) {
 		if (war == null || coalition == null || accountId == null) {
 			return null;
 		}
-		CampaignCoalition bound = war.getAccountCoalition(accountId);
+		CampaignSideRole bound = war.getAccountCoalition(accountId);
 		return bound == null || bound == coalition ? null : OTHER_SIDE;
 	}
 
-	public static void bind(War war, CampaignCoalition coalition, UUID accountId) {
+	public static void bind(War war, CampaignSideRole coalition, UUID accountId) {
 		if (war != null && war.bindAccountCoalition(accountId, coalition)) {
 			WarManager.persist(war);
 		}

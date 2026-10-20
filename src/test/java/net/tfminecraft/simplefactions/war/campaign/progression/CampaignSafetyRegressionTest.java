@@ -14,7 +14,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignMilitaryWalkoverService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
@@ -67,7 +67,7 @@ class CampaignSafetyRegressionTest {
   @Test
   void aMissingObjectiveCannotBeTreatedAsAnAlreadyReachableTarget() {
     rig.war.setObjectiveProvinceId(99);
-    assertFalse(CampaignCapabilityService.canReachTarget(rig.war, CampaignCoalition.AGGRESSOR));
+    assertFalse(CampaignCapabilityService.canReachTarget(rig.war, CampaignSideRole.AGGRESSOR));
     WhitePeaceService.recalculateProposals(rig.war);
     assertTrue(rig.war.isWhitePeaceProposedByAttacker());
   }
@@ -111,7 +111,7 @@ class CampaignSafetyRegressionTest {
     assertEquals(3, rig.war.getCampaignScheduleIndex());
     assertEquals(3, rig.war.getCampaignBattlesFought());
     assertEquals(1, rig.war.getInitiativeAttacker());
-    assertEquals(CampaignCoalition.AGGRESSOR, rig.war.getInitiativeHolderCoalition());
+    assertEquals(CampaignSideRole.AGGRESSOR, rig.war.getInitiativeHolderCoalition());
   }
 
   @Test
@@ -119,7 +119,7 @@ class CampaignSafetyRegressionTest {
     army(rig.defender, 2);
     rig.defender.getInstallationHandler().load(List.of());
     rig.war.setCursorIndex(2);
-    rig.war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
+    rig.war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
     rig.war.setCampaignBattleSchedule(
         List.of(new ScheduledCampaignBattle(20, CampaignBattleKind.NAVAL, false, null)));
     rig.war.setCampaignCounterSchedule(
@@ -128,12 +128,12 @@ class CampaignSafetyRegressionTest {
     List<ScheduledCampaignBattle> counter = List.copyOf(rig.war.getCampaignCounterSchedule());
 
     assertTrue(
-        CampaignPushProjection.canMountOffensiveAfterPush(rig.war, CampaignCoalition.DEFENDER));
+        CampaignPushProjection.canMountOffensiveAfterPush(rig.war, CampaignSideRole.DEFENDER));
 
     assertEquals(invasion, rig.war.getCampaignBattleSchedule());
     assertEquals(counter, rig.war.getCampaignCounterSchedule());
     assertEquals(CampaignPushTarget.TOWARD_OBJECTIVE, rig.war.getPushTarget());
-    assertEquals(CampaignCoalition.AGGRESSOR, rig.war.getInitiativeHolderCoalition());
+    assertEquals(CampaignSideRole.AGGRESSOR, rig.war.getInitiativeHolderCoalition());
     assertEquals(2, rig.war.getCursorIndex());
   }
 }

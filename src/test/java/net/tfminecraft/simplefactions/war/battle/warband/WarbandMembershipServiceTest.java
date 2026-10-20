@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.CharacterSession;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -79,9 +79,9 @@ class WarbandMembershipServiceTest {
 		try (var lock = mockStatic(CampaignWarbandSideLock.class, CALLS_REAL_METHODS);
 				var wars = mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class)) {
 			lock.when(() -> CampaignWarbandSideLock.tieOf(warband))
-					.thenReturn(new CampaignWarbandSideLock.Tie(war, CampaignCoalition.AGGRESSOR));
+					.thenReturn(new CampaignWarbandSideLock.Tie(war, CampaignSideRole.AGGRESSOR));
 
-			war.bindAccountCoalition(memberId, CampaignCoalition.DEFENDER);
+			war.bindAccountCoalition(memberId, CampaignSideRole.DEFENDER);
 			service.handleQuit(member);
 			assertFalse(service.attemptRejoin(memberId, "member", null));
 			assertFalse(warband.hasMember(memberId));
@@ -90,7 +90,7 @@ class WarbandMembershipServiceTest {
 			warband.addMember(memberId, Members.session(member).orElseThrow().ref());
 			service.handleQuit(member);
 			assertTrue(service.attemptRejoin(memberId, "member", null));
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(memberId));
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getAccountCoalition(memberId));
 		}
 	}
 

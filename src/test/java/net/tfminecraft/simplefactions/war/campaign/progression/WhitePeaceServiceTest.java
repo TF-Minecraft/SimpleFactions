@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,9 +47,9 @@ class WhitePeaceServiceTest {
 	void recalculateProposals_marksAggressorWhenUnreachable() {
 		War war = baseWar();
 		try (MockedStatic<CampaignCapabilityService> capability = mockStatic(CampaignCapabilityService.class)) {
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(false);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(true);
 
 			assertEquals(Optional.empty(), WhitePeaceService.recalculateProposals(war));
@@ -63,9 +63,9 @@ class WhitePeaceServiceTest {
 		War war = baseWar();
 		war.setWhitePeaceProposedByAttacker(true);
 		try (MockedStatic<CampaignCapabilityService> capability = mockStatic(CampaignCapabilityService.class)) {
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(true);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(true);
 
 			WhitePeaceService.recalculateProposals(war);
@@ -77,9 +77,9 @@ class WhitePeaceServiceTest {
 	void recalculateProposals_marksDefenderUnreachable() {
 		War war = baseWar();
 		try (MockedStatic<CampaignCapabilityService> capability = mockStatic(CampaignCapabilityService.class)) {
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(true);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(false);
 
 			WhitePeaceService.recalculateProposals(war);
@@ -108,9 +108,9 @@ class WhitePeaceServiceTest {
 	void recalculateProposals_autoEndsWhenBothStrategicallyExhausted() {
 		War war = baseWar();
 		try (MockedStatic<CampaignCapabilityService> capability = mockStatic(CampaignCapabilityService.class)) {
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(false);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(false);
 
 			Optional<WarEndReason> reason = WhitePeaceService.recalculateProposals(war);
@@ -141,9 +141,9 @@ class WhitePeaceServiceTest {
 		War war = baseWar();
 		war.setForcedWhitePeaceByAttacker(true);
 		try (MockedStatic<CampaignCapabilityService> capability = mockStatic(CampaignCapabilityService.class)) {
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(true);
-			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignCoalition.DEFENDER))
+			capability.when(() -> CampaignCapabilityService.canReachTarget(war, CampaignSideRole.DEFENDER))
 					.thenReturn(true);
 
 			WhitePeaceService.recalculateProposals(war);

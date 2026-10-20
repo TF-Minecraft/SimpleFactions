@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,16 +52,16 @@ class CampaignCapabilityServiceTest {
 	@Test
 	void stepsToCapitulationTarget_countsAxisDistance() {
 		War war = baseWar();
-		assertEquals(1, CampaignCapabilityService.stepsToCapitulationTarget(war, CampaignCoalition.AGGRESSOR));
-		assertEquals(2, CampaignCapabilityService.stepsToCapitulationTarget(war, CampaignCoalition.DEFENDER));
+		assertEquals(1, CampaignCapabilityService.stepsToCapitulationTarget(war, CampaignSideRole.AGGRESSOR));
+		assertEquals(2, CampaignCapabilityService.stepsToCapitulationTarget(war, CampaignSideRole.DEFENDER));
 	}
 
 	@Test
 	void battleOffensiveCoalition_followsInitiativeHolder() {
 		War war = baseWar();
-		assertEquals(CampaignCoalition.AGGRESSOR, CampaignCapabilityService.battleOffensiveCoalition(war));
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
-		assertEquals(CampaignCoalition.DEFENDER, CampaignCapabilityService.battleOffensiveCoalition(war));
+		assertEquals(CampaignSideRole.AGGRESSOR, CampaignCapabilityService.battleOffensiveCoalition(war));
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
+		assertEquals(CampaignSideRole.DEFENDER, CampaignCapabilityService.battleOffensiveCoalition(war));
 	}
 
 	@Test
@@ -98,7 +98,7 @@ class CampaignCapabilityServiceTest {
 		War war = baseWar();
 		war.setCampaignBattlesFought(1);
 		war.setCursorIndex(2);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 		assertEquals(10, CampaignCapabilityService.nextBattleProvince(war).getAsInt());
 	}
@@ -109,7 +109,7 @@ class CampaignCapabilityServiceTest {
 		war.setCampaignCounterSchedule(List.of(
 				new ScheduledCampaignBattle(10, CampaignBattleKind.FIELD, false, null),
 				new ScheduledCampaignBattle(5, CampaignBattleKind.FIELD, true, null)));
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 		assertEquals(10, CampaignCapabilityService.nextBattleProvince(war).getAsInt());
 	}
@@ -136,7 +136,7 @@ class CampaignCapabilityServiceTest {
 	void canReachTarget_falseWhenFuelTooLow() {
 		War war = baseWar();
 		war.setInitiativeAttacker(0);
-		assertFalse(CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR));
+		assertFalse(CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
@@ -144,15 +144,15 @@ class CampaignCapabilityServiceTest {
 		War war = baseWar();
 		war.setCursorIndex(3);
 		war.setInitiativeAttacker(0);
-		assertEquals(0, CampaignCapabilityService.stepsToCapitulationTarget(war, CampaignCoalition.AGGRESSOR));
-		assertTrue(CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR));
+		assertEquals(0, CampaignCapabilityService.stepsToCapitulationTarget(war, CampaignSideRole.AGGRESSOR));
+		assertTrue(CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
 	void canReachTarget_doesNotRequireCommittedRegiments() {
 		War war = baseWar();
 		war.setInitiativeAttacker(4);
-		assertTrue(CampaignCapabilityService.canReachTarget(war, CampaignCoalition.AGGRESSOR));
+		assertTrue(CampaignCapabilityService.canReachTarget(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
@@ -168,10 +168,10 @@ class CampaignCapabilityServiceTest {
 
 			assertEquals(
 					10,
-					CampaignCapabilityService.offensiveRegiments(war, BATTLE_PROVINCE, CampaignCoalition.AGGRESSOR));
+					CampaignCapabilityService.offensiveRegiments(war, BATTLE_PROVINCE, CampaignSideRole.AGGRESSOR));
 			assertEquals(
 					6,
-					CampaignCapabilityService.defensiveRegiments(war, BATTLE_PROVINCE, CampaignCoalition.DEFENDER));
+					CampaignCapabilityService.defensiveRegiments(war, BATTLE_PROVINCE, CampaignSideRole.DEFENDER));
 			pools.verify(() -> BattlePoolService.totalCommittedRegiments(
 					eq(war), eq(BATTLE_PROVINCE), eq(attackers), eq(PoolMode.OFFENSIVE)));
 			pools.verify(() -> BattlePoolService.totalCommittedRegiments(
@@ -189,7 +189,7 @@ class CampaignCapabilityServiceTest {
 		war.setCursorIndex(2);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setObjectiveHeldBy(ObjectiveHolder.DEFENDER);

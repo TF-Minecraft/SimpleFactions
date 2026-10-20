@@ -353,7 +353,7 @@ public class CampaignCreator {
 				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Pick any hours you can fight"),
 				StringFormatter.formatHex(CampaignUiCopy.LABEL + "One vote per eligible player"),
 				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Most-voted hour wins after vote close"),
-				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Coalition totals shown as Attacker/Defender counts")));
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Side totals shown as Attacker/Defender counts")));
 		item.setItemMeta(meta);
 		return item;
 	}
@@ -411,7 +411,7 @@ public class CampaignCreator {
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex(CampaignUiCopy.REMOVE + "Surrender"));
 		meta.setLore(List.of(
-				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Your coalition loses the war"),
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Your side loses the war"),
 				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Opponent wins")));
 		NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "campaign_surrender");
 		meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, war.getId());

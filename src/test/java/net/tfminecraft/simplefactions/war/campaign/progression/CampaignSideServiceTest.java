@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 
-class CampaignCoalitionServiceTest {
+class CampaignSideServiceTest {
 	private Faction attacker;
 	private Faction defender;
 
@@ -38,36 +38,36 @@ class CampaignCoalitionServiceTest {
 	@Test
 	void coalitionMapping_roundTripsSides() {
 		War war = baseWar();
-		assertEquals(CampaignCoalition.AGGRESSOR, CampaignCoalitionService.coalitionOf(war, war.getAttackers()));
-		assertEquals(CampaignCoalition.DEFENDER, CampaignCoalitionService.coalitionOf(war, war.getDefenders()));
-		assertEquals(war.getAttackers(), CampaignCoalitionService.toSide(war, CampaignCoalition.AGGRESSOR));
+		assertEquals(CampaignSideRole.AGGRESSOR, CampaignSideService.coalitionOf(war, war.getAttackers()));
+		assertEquals(CampaignSideRole.DEFENDER, CampaignSideService.coalitionOf(war, war.getDefenders()));
+		assertEquals(war.getAttackers(), CampaignSideService.toSide(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
 	void fuelSpend_reducesCoalitionFuel() {
 		War war = baseWar();
-		CampaignCoalitionService.spendFuel(war, CampaignCoalition.AGGRESSOR);
-		assertEquals(3, CampaignCoalitionService.getFuel(war, CampaignCoalition.AGGRESSOR));
+		CampaignSideService.spendFuel(war, CampaignSideRole.AGGRESSOR);
+		assertEquals(3, CampaignSideService.getFuel(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
 	void derivePushTargetFromLegacyPhase_mapsKnownPhases() {
 		assertEquals(
 				CampaignPushTarget.TOWARD_OBJECTIVE,
-				CampaignCoalitionService.derivePushTargetFromLegacyPhase(CampaignPhase.INVASION, ObjectiveHolder.DEFENDER));
+				CampaignSideService.derivePushTargetFromLegacyPhase(CampaignPhase.INVASION, ObjectiveHolder.DEFENDER));
 		assertEquals(
 				CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL,
-				CampaignCoalitionService.derivePushTargetFromLegacyPhase(CampaignPhase.COUNTER_PUSH, ObjectiveHolder.DEFENDER));
+				CampaignSideService.derivePushTargetFromLegacyPhase(CampaignPhase.COUNTER_PUSH, ObjectiveHolder.DEFENDER));
 		assertEquals(
 				CampaignPushTarget.RETAKE_OBJECTIVE,
-				CampaignCoalitionService.derivePushTargetFromLegacyPhase(CampaignPhase.RETAKE, ObjectiveHolder.ATTACKER));
+				CampaignSideService.derivePushTargetFromLegacyPhase(CampaignPhase.RETAKE, ObjectiveHolder.ATTACKER));
 	}
 
 	@Test
 	void isCoalitionWarLeader_matchesLeaderFaction() {
 		War war = baseWar();
-		assertTrue(CampaignCoalitionService.isCoalitionWarLeader(war, attacker, CampaignCoalition.AGGRESSOR));
-		assertFalse(CampaignCoalitionService.isCoalitionWarLeader(war, defender, CampaignCoalition.AGGRESSOR));
+		assertTrue(CampaignSideService.isCoalitionWarLeader(war, attacker, CampaignSideRole.AGGRESSOR));
+		assertFalse(CampaignSideService.isCoalitionWarLeader(war, defender, CampaignSideRole.AGGRESSOR));
 	}
 
 	private War baseWar() {
@@ -77,7 +77,7 @@ class CampaignCoalitionServiceTest {
 		war.setCampaignProvinces(List.of(5, 10, 20, 30));
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		return war;
 	}
 }

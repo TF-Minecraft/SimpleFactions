@@ -4,8 +4,8 @@ package net.tfminecraft.simplefactions.war.campaign.progression.postbattle;
 
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -35,12 +35,12 @@ public final class CampaignPostBattleChoiceService {
 		return needsWinnerChoice(war) || needsLoserResponse(war);
 	}
 
-	public static CampaignCoalition choiceLeaderCoalition(War war) {
+	public static CampaignSideRole choiceLeaderCoalition(War war) {
 		if (needsWinnerChoice(war)) {
 			return war.getPostBattleWinnerCoalition();
 		}
 		if (needsLoserResponse(war)) {
-			CampaignCoalition winner = war.getPostBattleWinnerCoalition();
+			CampaignSideRole winner = war.getPostBattleWinnerCoalition();
 			return winner != null ? winner.opposing() : null;
 		}
 		return null;
@@ -50,7 +50,7 @@ public final class CampaignPostBattleChoiceService {
 		if (!needsWinnerChoice(war)) {
 			return false;
 		}
-		CampaignCoalition winner = war.getPostBattleWinnerCoalition();
+		CampaignSideRole winner = war.getPostBattleWinnerCoalition();
 		if (!CampaignCapabilityService.canMountOffensiveAfterPush(war, winner)) {
 			return false;
 		}
@@ -73,7 +73,7 @@ public final class CampaignPostBattleChoiceService {
 	/**
 	 * Moment C: winner cannot mount the next offensive after Push - auto Hold immediately.
 	 */
-	public static boolean resolveMandatoryHoldIfNeeded(War war, CampaignCoalition winner) {
+	public static boolean resolveMandatoryHoldIfNeeded(War war, CampaignSideRole winner) {
 		if (war == null || winner == null) {
 			return false;
 		}
@@ -117,7 +117,7 @@ public final class CampaignPostBattleChoiceService {
 			return false;
 		}
 		if (needsWinnerChoice(war)) {
-			CampaignCoalition winner = war.getPostBattleWinnerCoalition();
+			CampaignSideRole winner = war.getPostBattleWinnerCoalition();
 			if (CampaignCapabilityService.canMountOffensiveAfterPush(war, winner)) {
 				return applyPushChoice(war);
 			}
@@ -133,8 +133,8 @@ public final class CampaignPostBattleChoiceService {
 		if (war == null || leader == null) {
 			return false;
 		}
-		CampaignCoalition coalition = choiceLeaderCoalition(war);
-		return coalition != null && CampaignCoalitionService.isCoalitionWarLeader(war, leader, coalition);
+		CampaignSideRole coalition = choiceLeaderCoalition(war);
+		return coalition != null && CampaignSideService.isCoalitionWarLeader(war, leader, coalition);
 	}
 
 	private static void afterChoiceResolved(War war) {

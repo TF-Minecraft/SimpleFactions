@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
@@ -82,13 +82,13 @@ class CampaignNavyGateTest {
 	void winnerCanContestNextNaval_falseWithoutPortOnNavalSlot() {
 		War war = warWithSchedule(CampaignBattleKind.NAVAL, false);
 		assertTrue(CampaignNavyGate.nextSlotRequiresNavy(war));
-		assertFalse(CampaignNavyGate.winnerCanContestNextNaval(war, CampaignCoalition.AGGRESSOR));
+		assertFalse(CampaignNavyGate.winnerCanContestNextNaval(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
 	void winnerCanContestNextNaval_trueWithPortOnNavalSlot() {
 		War war = warWithSchedule(CampaignBattleKind.NAVAL, true);
-		assertTrue(CampaignNavyGate.winnerCanContestNextNaval(war, CampaignCoalition.AGGRESSOR));
+		assertTrue(CampaignNavyGate.winnerCanContestNextNaval(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
@@ -96,8 +96,8 @@ class CampaignNavyGateTest {
 		War war = warWithSchedule(CampaignBattleKind.NAVAL, false);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
 		war.setPostBattleChoiceResolved(false);
-		war.setPostBattleWinnerCoalition(CampaignCoalition.AGGRESSOR);
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
+		war.setPostBattleWinnerCoalition(CampaignSideRole.AGGRESSOR);
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
 		try (MockedStatic<CampaignCapabilityService> capability =
 						mockStatic(CampaignCapabilityService.class, CALLS_REAL_METHODS);
 				MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
@@ -112,7 +112,7 @@ class CampaignNavyGateTest {
 	@Test
 	void resolveMandatoryHoldIfNeeded_holdsWhenNavyBlocked() {
 		War war = warWithSchedule(CampaignBattleKind.NAVAL, false);
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
 		try (MockedStatic<CampaignCapabilityService> capability =
 						mockStatic(CampaignCapabilityService.class, CALLS_REAL_METHODS);
 				MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
@@ -120,7 +120,7 @@ class CampaignNavyGateTest {
 					.thenReturn(true);
 			warManager.when(() -> WarManager.persist(any())).then(inv -> null);
 			assertTrue(CampaignPostBattleChoiceService.resolveMandatoryHoldIfNeeded(
-					war, CampaignCoalition.AGGRESSOR));
+					war, CampaignSideRole.AGGRESSOR));
 			assertEquals(PostBattleChoicePhase.LOSER_ATTACK_PEACE, war.getPostBattleChoicePhase());
 		}
 	}
@@ -143,8 +143,8 @@ class CampaignNavyGateTest {
 		war.setBattleDay(BATTLE_DAY);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
 		war.setPostBattleChoiceResolved(false);
-		war.setPostBattleWinnerCoalition(CampaignCoalition.AGGRESSOR);
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
+		war.setPostBattleWinnerCoalition(CampaignSideRole.AGGRESSOR);
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
 		Instant now = BattleWindowService.atScheduleHour(BATTLE_DAY, 12);
 		try (MockedStatic<CampaignCapabilityService> capability =
 						mockStatic(CampaignCapabilityService.class, CALLS_REAL_METHODS);
@@ -182,7 +182,7 @@ class CampaignNavyGateTest {
 		war.setCampaignBattlesFought(1);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setObjectiveHeldBy(ObjectiveHolder.DEFENDER);

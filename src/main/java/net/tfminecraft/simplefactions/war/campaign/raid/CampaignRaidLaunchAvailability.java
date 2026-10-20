@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.LaunchResult;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.core.Side;
@@ -33,7 +33,7 @@ public final class CampaignRaidLaunchAvailability {
 			}
 		}
 
-		CampaignCoalition coalition = coalitionForFaction(war, faction);
+		CampaignSideRole coalition = coalitionForFaction(war, faction);
 		if (coalition != null) {
 			boolean ownQuota = CampaignRaidService.isSideQuotaUsed(war, coalition);
 			String ownQuotaLabel = WarDevMode.isEnabled()
@@ -41,9 +41,9 @@ public final class CampaignRaidLaunchAvailability {
 					: (ownQuota ? CampaignUiCopy.REMOVE + "spent" : CampaignUiCopy.SELECT + "available");
 			lore.add(StringFormatter.formatHex(
 					CampaignUiCopy.LABEL + "Your raid quota: " + ownQuotaLabel));
-			CampaignCoalition enemy = coalition.opposing();
+			CampaignSideRole enemy = coalition.opposing();
 			boolean enemyQuota = CampaignRaidService.isSideQuotaUsed(war, enemy);
-			String enemyLabel = enemy == CampaignCoalition.AGGRESSOR ? "Attacker" : "Defender";
+			String enemyLabel = enemy == CampaignSideRole.AGGRESSOR ? "Attacker" : "Defender";
 			String enemyQuotaLabel = WarDevMode.isEnabled()
 					? CampaignUiCopy.SELECT + "bypassed (devmode)"
 					: (enemyQuota ? CampaignUiCopy.REMOVE + "spent" : CampaignUiCopy.SELECT + "available");
@@ -71,7 +71,7 @@ public final class CampaignRaidLaunchAvailability {
 		return new LaunchAvailability(enabled, List.copyOf(lore));
 	}
 
-	private static CampaignCoalition coalitionForFaction(War war, Faction faction) {
+	private static CampaignSideRole coalitionForFaction(War war, Faction faction) {
 		if (war == null || faction == null) {
 			return null;
 		}
@@ -80,8 +80,8 @@ public final class CampaignRaidLaunchAvailability {
 			return null;
 		}
 		if (side == war.getAttackers()) {
-			return CampaignCoalition.AGGRESSOR;
+			return CampaignSideRole.AGGRESSOR;
 		}
-		return CampaignCoalition.DEFENDER;
+		return CampaignSideRole.DEFENDER;
 	}
 }

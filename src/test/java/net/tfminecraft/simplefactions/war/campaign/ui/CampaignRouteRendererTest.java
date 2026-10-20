@@ -41,7 +41,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.pathfinder.TitleManagerProvinceOwnerLookup;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy;
@@ -314,7 +314,7 @@ class CampaignRouteRendererTest {
 				new ScheduledCampaignBattle(10, CampaignBattleKind.FIELD, false, null),
 				new ScheduledCampaignBattle(5, CampaignBattleKind.FIELD, true, null)));
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 
 		List<String> lore = CampaignRouteRenderer.buildRouteLore(
 				war,

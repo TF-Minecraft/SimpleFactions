@@ -17,7 +17,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.Side;
@@ -183,7 +183,7 @@ public final class CampaignRaidMusterReminderService {
 	}
 
 	private static void broadcastToAttackerCoalition(War war, CampaignRaid raid, String message) {
-		Side side = raid.getAttackerCoalition() == CampaignCoalition.AGGRESSOR
+		Side side = raid.getAttackerCoalition() == CampaignSideRole.AGGRESSOR
 				? war.getAttackers()
 				: war.getDefenders();
 		for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {

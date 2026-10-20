@@ -1,8 +1,8 @@
 package net.tfminecraft.simplefactions.war.resolution;
 
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.WhitePeaceService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.government.movement.Action;
@@ -32,13 +32,13 @@ public final class CouncilPeaceService {
 			WarResolutionService.surrender(war, main);
 			return;
 		}
-		CampaignCoalition coalition = CampaignCoalitionService.coalitionOf(war, war.getSide(actor));
-		if (coalition == CampaignCoalition.AGGRESSOR) {
+		CampaignSideRole coalition = CampaignSideService.coalitionOf(war, war.getSide(actor));
+		if (coalition == CampaignSideRole.AGGRESSOR) {
 			war.setForcedWhitePeaceByAttacker(true);
 		} else {
 			war.setForcedWhitePeaceByDefender(true);
 		}
-		CampaignCoalitionService.setWhitePeaceProposed(war, coalition, true);
+		CampaignSideService.setWhitePeaceProposed(war, coalition, true);
 		if (WhitePeaceService.shouldAutoEnd(war)) {
 			WarResolutionService.endWhitePeace(war);
 		}

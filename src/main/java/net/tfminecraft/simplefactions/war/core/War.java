@@ -28,7 +28,7 @@ import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarStatus;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
@@ -82,9 +82,9 @@ public class War {
 	private int campaignScheduleIndex;
 	private List<ScheduledCampaignBattle> campaignCounterSchedule = new ArrayList<>();
 	private int campaignCounterScheduleIndex;
-	private Map<String, CampaignCoalition> fortControllers = new HashMap<>();
+	private Map<String, CampaignSideRole> fortControllers = new HashMap<>();
 	/** Account UUID to the coalition its characters signed up for; held until the war ends. */
-	private Map<String, CampaignCoalition> accountCoalitions = new HashMap<>();
+	private Map<String, CampaignSideRole> accountCoalitions = new HashMap<>();
 	private Map<String, String> wartimeInstallationOwners = new LinkedHashMap<>();
 	private Set<String> concededScheduleSlots = new LinkedHashSet<>();
 	private Map<String, Integer> locationBattleCounts = new HashMap<>();
@@ -105,12 +105,12 @@ public class War {
 	private int postponementsThisCycle;
 	private Instant preparationFrozenUntil;
 	private boolean defenderChoiceResolved;
-	private CampaignCoalition initiativeHolderCoalition = CampaignCoalition.AGGRESSOR;
+	private CampaignSideRole initiativeHolderCoalition = CampaignSideRole.AGGRESSOR;
 	private CampaignPushTarget pushTarget = CampaignPushTarget.TOWARD_OBJECTIVE;
 	private PostBattleChoicePhase postBattleChoicePhase = PostBattleChoicePhase.NONE;
-	private CampaignCoalition postBattleWinnerCoalition;
+	private CampaignSideRole postBattleWinnerCoalition;
 	private boolean postBattleChoiceResolved = true;
-	private CampaignCoalition lastBattleOffensiveCoalition;
+	private CampaignSideRole lastBattleOffensiveCoalition;
 	private boolean holdPeaceProposalActive;
 	private boolean forceQuorumNextClose;
 	private Instant startedAt;
@@ -420,8 +420,8 @@ public class War {
 	public void setInitiativeHolder(BelligerentRole initiativeHolder) {
 		this.initiativeHolder = initiativeHolder;
 		this.initiativeHolderCoalition = initiativeHolder == BelligerentRole.DEFENDER
-				? CampaignCoalition.DEFENDER
-				: CampaignCoalition.AGGRESSOR;
+				? CampaignSideRole.DEFENDER
+				: CampaignSideRole.AGGRESSOR;
 	}
 
 	public List<Integer> getOccupiedByAttacker() {
@@ -544,11 +544,11 @@ public class War {
 		this.campaignCounterScheduleIndex = Math.max(0, campaignCounterScheduleIndex);
 	}
 
-	public Map<String, CampaignCoalition> getFortControllers() {
+	public Map<String, CampaignSideRole> getFortControllers() {
 		return Collections.unmodifiableMap(fortControllers);
 	}
 
-	public void setFortControllers(Map<String, CampaignCoalition> fortControllers) {
+	public void setFortControllers(Map<String, CampaignSideRole> fortControllers) {
 		if (fortControllers == null || fortControllers.isEmpty()) {
 			this.fortControllers = new HashMap<>();
 			return;
@@ -556,27 +556,27 @@ public class War {
 		this.fortControllers = new HashMap<>(fortControllers);
 	}
 
-	public Map<String, CampaignCoalition> getAccountCoalitions() {
+	public Map<String, CampaignSideRole> getAccountCoalitions() {
 		return Collections.unmodifiableMap(accountCoalitions);
 	}
 
-	public void setAccountCoalitions(Map<String, CampaignCoalition> accountCoalitions) {
+	public void setAccountCoalitions(Map<String, CampaignSideRole> accountCoalitions) {
 		this.accountCoalitions = accountCoalitions == null ? new HashMap<>() : new HashMap<>(accountCoalitions);
 	}
 
-	public CampaignCoalition getAccountCoalition(UUID accountId) {
+	public CampaignSideRole getAccountCoalition(UUID accountId) {
 		return accountId == null ? null : accountCoalitions.get(accountId.toString());
 	}
 
 	/** Returns whether the account was newly tied to that coalition. */
-	public boolean bindAccountCoalition(UUID accountId, CampaignCoalition coalition) {
+	public boolean bindAccountCoalition(UUID accountId, CampaignSideRole coalition) {
 		if (accountId == null || coalition == null) {
 			return false;
 		}
 		return accountCoalitions.putIfAbsent(accountId.toString(), coalition) == null;
 	}
 
-	public void putFortController(String fortInstallationId, CampaignCoalition coalition) {
+	public void putFortController(String fortInstallationId, CampaignSideRole coalition) {
 		if (fortInstallationId == null || fortInstallationId.isBlank() || coalition == null) {
 			return;
 		}
@@ -827,11 +827,11 @@ public class War {
 		this.defenderChoiceResolved = defenderChoiceResolved;
 	}
 
-	public CampaignCoalition getInitiativeHolderCoalition() {
+	public CampaignSideRole getInitiativeHolderCoalition() {
 		return initiativeHolderCoalition;
 	}
 
-	public void setInitiativeHolderCoalition(CampaignCoalition initiativeHolderCoalition) {
+	public void setInitiativeHolderCoalition(CampaignSideRole initiativeHolderCoalition) {
 		this.initiativeHolderCoalition = initiativeHolderCoalition;
 	}
 
@@ -853,11 +853,11 @@ public class War {
 				: PostBattleChoicePhase.NONE;
 	}
 
-	public CampaignCoalition getPostBattleWinnerCoalition() {
+	public CampaignSideRole getPostBattleWinnerCoalition() {
 		return postBattleWinnerCoalition;
 	}
 
-	public void setPostBattleWinnerCoalition(CampaignCoalition postBattleWinnerCoalition) {
+	public void setPostBattleWinnerCoalition(CampaignSideRole postBattleWinnerCoalition) {
 		this.postBattleWinnerCoalition = postBattleWinnerCoalition;
 	}
 
@@ -870,11 +870,11 @@ public class War {
 		this.defenderChoiceResolved = postBattleChoiceResolved;
 	}
 
-	public CampaignCoalition getLastBattleOffensiveCoalition() {
+	public CampaignSideRole getLastBattleOffensiveCoalition() {
 		return lastBattleOffensiveCoalition;
 	}
 
-	public void setLastBattleOffensiveCoalition(CampaignCoalition lastBattleOffensiveCoalition) {
+	public void setLastBattleOffensiveCoalition(CampaignSideRole lastBattleOffensiveCoalition) {
 		this.lastBattleOffensiveCoalition = lastBattleOffensiveCoalition;
 	}
 

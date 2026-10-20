@@ -27,7 +27,7 @@ import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
@@ -177,7 +177,7 @@ class BattleVehicleEligibilityServiceTest {
 	@Test
 	void cloudskimmer_atCampaignRaidSource_okWithoutPick() {
 		CampaignRaid raid = new CampaignRaid();
-		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 		raid.setState(CampaignRaidState.FIGHTING);
 		raid.setSourceInstallationId("airport-1");
 		raid.setTargetInstallationId("airport-def");
@@ -245,7 +245,7 @@ class BattleVehicleEligibilityServiceTest {
 		war.setCursorIndex(2);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null),
@@ -282,7 +282,7 @@ class BattleVehicleEligibilityServiceTest {
 		war.setCursorIndex(2);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(18, CampaignBattleKind.SIEGE, false, "fort-1")));

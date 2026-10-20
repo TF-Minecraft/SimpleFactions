@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -92,7 +92,7 @@ class BattleSiegeFortServiceTest {
 		War war = warWithSchedule(field(20));
 		war.setCampaignCounterSchedule(List.of(siege(5, "fort_counter")));
 		war.setCampaignCounterScheduleIndex(0);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 		mockFort(defender, "fort_counter");
 
@@ -107,7 +107,7 @@ class BattleSiegeFortServiceTest {
 		war.setCursorIndex(2);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setCampaignBattleSchedule(List.of(slots));
 		war.setCampaignScheduleIndex(0);

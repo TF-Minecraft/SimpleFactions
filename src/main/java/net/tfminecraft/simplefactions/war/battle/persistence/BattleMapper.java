@@ -20,7 +20,7 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleLocation;
 import net.tfminecraft.simplefactions.war.battle.template.CapturePointDefinition;
 import net.tfminecraft.simplefactions.war.battle.template.ContestArea;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 
 public final class BattleMapper {
 	private BattleMapper() {
@@ -87,7 +87,7 @@ public final class BattleMapper {
 		battle.setDisplayName(data.displayName);
 		battle.setBattleType(parseBattleType(data.battleType));
 		battle.setWarId(data.warId);
-		battle.setOffensiveCoalition(CampaignCoalition.fromJson(data.offensiveCoalition));
+		battle.setOffensiveCoalition(CampaignSideRole.fromJson(data.offensiveCoalition));
 		battle.setProvinceId(data.provinceId);
 		battle.setTemplateName(data.templateName);
 		battle.setFriendlyFire(data.friendlyFire);

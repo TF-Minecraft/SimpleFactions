@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminResult;
 import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminService;
 import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleFeedbackFormatter;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
@@ -347,11 +347,11 @@ public class WarCommandManager implements CommandExecutor {
 			player.sendMessage("§cSide must be aggressor, defender, or both");
 			return true;
 		}
-		CampaignCoalition coalition = WarCommandHelper.parseCoalitionScope(sideArg);
+		CampaignSideRole coalition = WarCommandHelper.parseCoalitionScope(sideArg);
 		int cleared = CampaignRaidService.resetRaidQuota(war, coalition);
 		String scope = coalition == null
 				? "both sides"
-				: (coalition == CampaignCoalition.AGGRESSOR ? "aggressor" : "defender");
+				: (coalition == CampaignSideRole.AGGRESSOR ? "aggressor" : "defender");
 		player.sendMessage("§aReset raid quota for war " + war.getId()
 				+ " (" + scope + "): cleared " + cleared + " entr" + (cleared == 1 ? "y" : "ies") + ".");
 		return true;

@@ -27,7 +27,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
@@ -130,13 +130,13 @@ class WarModelLifecycleCoverageTest {
               .getAsJsonObject();
       optional.entrySet().forEach(entry -> saved.add(entry.getKey(), entry.getValue()));
       War restored = WarMapper.fromData(gson.fromJson(saved, WarData.class));
-      assertEquals(Map.of("valid_fort", CampaignCoalition.DEFENDER), restored.getFortControllers());
+      assertEquals(Map.of("valid_fort", CampaignSideRole.DEFENDER), restored.getFortControllers());
       assertEquals(1, restored.getCampaignBattleSchedule().size());
       assertEquals(11, restored.getCampaignBattleSchedule().getFirst().provinceId());
       assertEquals(
           CampaignBattleKind.FIELD, restored.getCampaignBattleSchedule().getFirst().kind());
       assertEquals(PostBattleChoicePhase.NONE, restored.getPostBattleChoicePhase());
-      assertEquals(CampaignCoalition.AGGRESSOR, restored.getInitiativeHolderCoalition());
+      assertEquals(CampaignSideRole.AGGRESSOR, restored.getInitiativeHolderCoalition());
       assertEquals(
           Map.of("valid_faction", new LinkedHashSet<>(List.of("port"))),
           restored.getBattleInstallationPicks());
@@ -163,10 +163,10 @@ class WarModelLifecycleCoverageTest {
   void publicCampaignStateEditsPersistValidRowsWithoutAliasingInputMaps() throws Exception {
     try (Fixture rig = new Fixture()) {
       var war = rig.war;
-      war.putFortController(null, CampaignCoalition.AGGRESSOR);
-      war.putFortController(" ", CampaignCoalition.AGGRESSOR);
+      war.putFortController(null, CampaignSideRole.AGGRESSOR);
+      war.putFortController(" ", CampaignSideRole.AGGRESSOR);
       war.putFortController("fort", null);
-      war.putFortController("fort", CampaignCoalition.DEFENDER);
+      war.putFortController("fort", CampaignSideRole.DEFENDER);
       war.putWartimeInstallationOwner(null, rig.attacker.getId());
       war.putWartimeInstallationOwner("port", " ");
       war.putWartimeInstallationOwner("port", rig.attacker.getId());
@@ -204,7 +204,7 @@ class WarModelLifecycleCoverageTest {
       var saved = WarMapper.toData(war);
       War restored = jsonRoundTrip(saved);
       assertEquals(3, restored.getSchemaVersion());
-      assertEquals(Map.of("fort", CampaignCoalition.DEFENDER), restored.getFortControllers());
+      assertEquals(Map.of("fort", CampaignSideRole.DEFENDER), restored.getFortControllers());
       assertEquals(Map.of("port", rig.attacker.getId()), restored.getWartimeInstallationOwners());
       assertEquals(2, restored.getLocationBattleCount("fort"));
       assertEquals(

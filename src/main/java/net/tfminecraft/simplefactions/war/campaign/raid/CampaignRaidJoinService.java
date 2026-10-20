@@ -11,7 +11,7 @@ import org.bukkit.entity.Player;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.JoinResult;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
@@ -66,7 +66,7 @@ public final class CampaignRaidJoinService {
 			if (raid == null || raid.getState() != CampaignRaidState.MUSTER) {
 				continue;
 			}
-			CampaignCoalition coalition = CampaignRaidService.coalitionForFaction(war, faction);
+			CampaignSideRole coalition = CampaignRaidService.coalitionForFaction(war, faction);
 			if (coalition != raid.getAttackerCoalition()) {
 				continue;
 			}
@@ -96,7 +96,7 @@ public final class CampaignRaidJoinService {
 				|| (raid.getMusterEndsAt() != null && !now.isBefore(raid.getMusterEndsAt()))) {
 			return JoinResult.REJECTED_NOT_MUSTER;
 		}
-		CampaignCoalition coalition = CampaignRaidService.coalitionForFaction(war, faction);
+		CampaignSideRole coalition = CampaignRaidService.coalitionForFaction(war, faction);
 		if (coalition != raid.getAttackerCoalition()) {
 			return JoinResult.REJECTED_NOT_ATTACKER_COALITION;
 		}

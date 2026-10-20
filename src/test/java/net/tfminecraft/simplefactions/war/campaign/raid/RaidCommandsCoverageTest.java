@@ -16,7 +16,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
@@ -82,7 +82,7 @@ class RaidCommandsCoverageTest {
     raid.setWarId(war.getId());
     raid.setBattleDay(war.getBattleDay());
     raid.setState(CampaignRaidState.MUSTER);
-    raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+    raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
     raid.setMusterEndsAt(Instant.parse("2026-10-10T18:00:00Z"));
     war.setActiveCampaignRaid(raid);
     WarManager.addWar(war);
@@ -228,7 +228,7 @@ class RaidCommandsCoverageTest {
     raid("finished-raid").end(WarEndReason.ADMIN_END);
     raid("fighting-raid").getActiveCampaignRaid().setState(CampaignRaidState.FIGHTING);
     War defending = raid("enemy-raid");
-    defending.getActiveCampaignRaid().setAttackerCoalition(CampaignCoalition.DEFENDER);
+    defending.getActiveCampaignRaid().setAttackerCoalition(CampaignSideRole.DEFENDER);
     assertEquals(List.of("join"), complete(""));
     assertTrue(complete("x").isEmpty());
     assertEquals(List.of("iron-port-raid", "coast-port-raid"), complete("join", ""));

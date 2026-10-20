@@ -1,7 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -169,9 +169,9 @@ public class OccupationService {
 			int battleProvinceId,
 			BelligerentRole winner,
 			FortZocIndex forts) {
-		CampaignCoalition advancing = winner == BelligerentRole.ATTACKER
-				? CampaignCoalition.AGGRESSOR
-				: CampaignCoalition.DEFENDER;
+		CampaignSideRole advancing = winner == BelligerentRole.ATTACKER
+				? CampaignSideRole.AGGRESSOR
+				: CampaignSideRole.DEFENDER;
 		List<OperationalFort> covering = forts.fortsCovering(provinceId);
 		if (covering.isEmpty()) {
 			return false;

@@ -32,7 +32,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleTickService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
@@ -566,7 +566,7 @@ class WarCommandsCoverageTest {
   @ValueSource(strings = {"default", "aggressor", "defender", "both"})
   void quotaResetChangesOnlyTheRequestedCoalitionAndPersistsIt(String scope) {
     War war = war(1);
-    for (CampaignCoalition coalition : CampaignCoalition.values())
+    for (CampaignSideRole coalition : CampaignSideRole.values())
       war.getCampaignRaidsUsed().put(coalition.toJson(), war.getBattleDay().toString());
     long before = writes(war);
     if (scope.equals("default")) assertTrue(run("admin", "raid", "resetquota", "1"));

@@ -3,7 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression.postbattle;
 
 
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignOffensiveForfeitService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
@@ -108,8 +108,8 @@ class CampaignOffensiveForfeitServiceTest {
 		War war = baseWar();
 		try (MockedStatic<CampaignCapabilityService> capability = mockStatic(CampaignCapabilityService.class)) {
 			capability.when(() -> CampaignCapabilityService.battleOffensiveCoalition(war))
-					.thenReturn(CampaignCoalition.AGGRESSOR);
-			capability.when(() -> CampaignCapabilityService.canAttack(war, CampaignCoalition.AGGRESSOR))
+					.thenReturn(CampaignSideRole.AGGRESSOR);
+			capability.when(() -> CampaignCapabilityService.canAttack(war, CampaignSideRole.AGGRESSOR))
 					.thenReturn(true);
 			assertFalse(CampaignOffensiveForfeitService.applyIfBattleOffensiveCannotAttack(war, 20));
 		}
@@ -126,7 +126,7 @@ class CampaignOffensiveForfeitServiceTest {
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
 		war.setInitiativeHolder(BelligerentRole.ATTACKER);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setObjectiveHeldBy(ObjectiveHolder.DEFENDER);

@@ -11,7 +11,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.core.War;
 
 class CampaignBattleSidesTest {
@@ -37,7 +37,7 @@ class CampaignBattleSidesTest {
 		Faction defender = faction("def");
 		War war = new War(1, attacker, defender);
 		Battle battle = mock(Battle.class);
-		when(battle.getOffensiveCoalition()).thenReturn(CampaignCoalition.DEFENDER);
+		when(battle.getOffensiveCoalition()).thenReturn(CampaignSideRole.DEFENDER);
 
 		assertEquals(war.getDefenders(), CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE));
 		assertEquals(war.getAttackers(), CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE));

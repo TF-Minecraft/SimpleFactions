@@ -50,7 +50,7 @@ import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
@@ -132,7 +132,7 @@ class CampaignBattleOutcomeServiceTest {
 		Installation fort = new Installation("fort_a", "Fort", InstallationKind.FORT, 20, 0, 0, 100L);
 		defender.getInstallationHandler().acceptTransferred(fort);
 		FactionManager.factions.add(defender);
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController("fort_a", CampaignSideRole.DEFENDER);
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		CampaignBattleOutcomeService.applyCampaignBattleOutcome(
@@ -140,7 +140,7 @@ class CampaignBattleOutcomeServiceTest {
 				BelligerentRole.ATTACKER,
 				20);
 
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get(fort.getStableKey()));
+		assertEquals(CampaignSideRole.AGGRESSOR, war.getFortControllers().get(fort.getStableKey()));
 		assertEquals(1, war.getCampaignScheduleIndex());
 		assertEquals(1, war.getCampaignBattlesFought());
 	}
@@ -156,7 +156,7 @@ class CampaignBattleOutcomeServiceTest {
 		war.setCampaignScheduleIndex(0);
 		war.setCampaignCounterScheduleIndex(0);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		CampaignBattleOutcomeService.applyCampaignBattleOutcome(
@@ -199,13 +199,13 @@ class CampaignBattleOutcomeServiceTest {
 	void handleBattleEnded_counterPushAttackerSideWin_isWarDefender() {
 		War war = baseWar();
 		war.setInitiativeHolder(BelligerentRole.DEFENDER);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		Battle battle = BattleFactory.createBlank(BattleType.FIELD, "campaign_w1_p20");
 		battle.setWarId(1);
 		battle.setProvinceId(20);
-		battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+		battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
 		BattleManager.addBattle(battle);
 
 		CampaignBattleOutcomeService.handleBattleEnded(
@@ -217,7 +217,7 @@ class CampaignBattleOutcomeServiceTest {
 						Map.of(),
 						Set.of()));
 
-		assertEquals(CampaignCoalition.DEFENDER, war.getPostBattleWinnerCoalition());
+		assertEquals(CampaignSideRole.DEFENDER, war.getPostBattleWinnerCoalition());
 		assertEquals(4, war.getInitiativeAttacker());
 		assertEquals(3, war.getInitiativeDefender());
 		assertTrue(CampaignPostBattleChoiceService.needsWinnerChoice(war));
@@ -378,7 +378,7 @@ class CampaignBattleOutcomeServiceTest {
 	void applyCampaignBattleOutcome_winnerWithoutNextOffensive_autoHolds() {
 		War war = baseWar();
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
-		capabilityMock.when(() -> CampaignCapabilityService.canMountOffensiveAfterPush(war, CampaignCoalition.DEFENDER))
+		capabilityMock.when(() -> CampaignCapabilityService.canMountOffensiveAfterPush(war, CampaignSideRole.DEFENDER))
 				.thenReturn(false);
 
 		CampaignBattleOutcomeService.CampaignBattleApplyResult result =

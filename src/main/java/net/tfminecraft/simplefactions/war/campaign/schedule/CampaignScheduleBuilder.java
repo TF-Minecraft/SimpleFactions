@@ -11,8 +11,8 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
@@ -102,7 +102,7 @@ public final class CampaignScheduleBuilder {
 		LogManager.section("Phase 1 border anchor");
 		OperationalFort borderFort = fortIndex.fortForProvince(borderProvinceId).orElse(null);
 		boolean enemyBorderFort = borderFort != null
-				&& FortControlService.isEnemyControlledForFort(war, borderFort, CampaignCoalition.AGGRESSOR);
+				&& FortControlService.isEnemyControlledForFort(war, borderFort, CampaignSideRole.AGGRESSOR);
 		boolean fortHomeOffAxis = enemyBorderFort && axis.indexOf(borderFort.province()) < 0;
 		boolean borderIsObjective = objectiveIndex >= 0
 				&& objectiveIndex < axis.size()
@@ -121,7 +121,7 @@ public final class CampaignScheduleBuilder {
 					ScheduleLeg.INVASION,
 					borderProvinceId,
 					BattleTrigger.FORT_ZOC,
-					CampaignCoalition.AGGRESSOR,
+					CampaignSideRole.AGGRESSOR,
 					borderFort.id(),
 					null);
 		}
@@ -132,7 +132,7 @@ public final class CampaignScheduleBuilder {
 					ScheduleLeg.INVASION,
 					borderProvinceId,
 					BattleTrigger.BORDER,
-					CampaignCoalition.AGGRESSOR,
+					CampaignSideRole.AGGRESSOR,
 					null,
 					null);
 		}
@@ -148,7 +148,7 @@ public final class CampaignScheduleBuilder {
 					objectiveIndex,
 					1,
 					ScheduleLeg.INVASION,
-					CampaignCoalition.AGGRESSOR,
+					CampaignSideRole.AGGRESSOR,
 					borderStartIndex,
 					axis.get(objectiveIndex),
 					cadence);
@@ -165,7 +165,7 @@ public final class CampaignScheduleBuilder {
 					aggressorCapitalIndex,
 					-1,
 					ScheduleLeg.COUNTER,
-					CampaignCoalition.DEFENDER,
+					CampaignSideRole.DEFENDER,
 					borderStartIndex - 1,
 					axis.get(aggressorCapitalIndex),
 					cadence);
@@ -184,7 +184,7 @@ public final class CampaignScheduleBuilder {
 					objectiveIndex,
 					1,
 					ScheduleLeg.INVASION,
-					CampaignCoalition.AGGRESSOR,
+					CampaignSideRole.AGGRESSOR,
 					portIndex);
 		}
 		if (borderStartIndex > 0 && aggressorCapitalIndex >= 0 && aggressorCapitalIndex < borderStartIndex) {
@@ -197,7 +197,7 @@ public final class CampaignScheduleBuilder {
 					aggressorCapitalIndex,
 					-1,
 					ScheduleLeg.COUNTER,
-					CampaignCoalition.DEFENDER,
+					CampaignSideRole.DEFENDER,
 					portIndex);
 		}
 
@@ -227,7 +227,7 @@ public final class CampaignScheduleBuilder {
 			int toIndex,
 			int step,
 			ScheduleLeg leg,
-			CampaignCoalition advancing,
+			CampaignSideRole advancing,
 			int cadenceOriginIndex,
 			int terminalProvinceId,
 			int cadence) {
@@ -293,7 +293,7 @@ public final class CampaignScheduleBuilder {
 			int rangeEnd,
 			int step,
 			ScheduleLeg leg,
-			CampaignCoalition advancing,
+			CampaignSideRole advancing,
 			PortSeaZocIndex portIndex) {
 		if (portIndex == null) {
 			return;
@@ -367,7 +367,7 @@ public final class CampaignScheduleBuilder {
 		return seaRun;
 	}
 
-	private static boolean isEnemyPort(War war, OperationalPort port, CampaignCoalition advancing) {
+	private static boolean isEnemyPort(War war, OperationalPort port, CampaignSideRole advancing) {
 		if (war == null || port == null || port.owner() == null) {
 			return false;
 		}
@@ -375,7 +375,7 @@ public final class CampaignScheduleBuilder {
 		if (ownerSide == null) {
 			return false;
 		}
-		CampaignCoalition coalition = CampaignCoalitionService.coalitionOf(war, ownerSide);
+		CampaignSideRole coalition = CampaignSideService.coalitionOf(war, ownerSide);
 		return coalition != null && coalition != advancing;
 	}
 }

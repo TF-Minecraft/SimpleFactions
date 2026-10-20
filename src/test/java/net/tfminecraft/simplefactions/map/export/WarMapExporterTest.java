@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
@@ -64,7 +64,7 @@ class WarMapExporterTest {
 		war.setCampaignScheduleIndex(0);
 		war.setCampaignCounterScheduleIndex(0);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 
 		JsonArray wars = WarMapExporter.exportWars(List.of(war));
 		assertEquals(1, wars.size());
@@ -103,7 +103,7 @@ class WarMapExporterTest {
 		war.setCampaignScheduleIndex(1);
 		war.setCampaignCounterScheduleIndex(1);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 
 		JsonObject row = WarMapExporter.exportWars(List.of(war)).get(0).getAsJsonObject();
 

@@ -28,7 +28,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.RaidAttackerEliminationService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidEligibilityService;
@@ -110,7 +110,7 @@ public final class CampaignRaidIntruderService {
 			return false;
 		}
 		Faction faction = FactionManager.getByMember(memberKey);
-		CampaignCoalition coalition = CampaignRaidService.coalitionForFaction(war, faction);
+		CampaignSideRole coalition = CampaignRaidService.coalitionForFaction(war, faction);
 		if (coalition == null || coalition != raid.getAttackerCoalition()) {
 			return false;
 		}

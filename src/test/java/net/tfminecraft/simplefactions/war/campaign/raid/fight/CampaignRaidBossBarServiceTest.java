@@ -37,7 +37,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -213,7 +213,7 @@ class CampaignRaidBossBarServiceTest {
 		raid.setId("fort_raid");
 		raid.setDisplayName("Fort Raid");
 		raid.setWarId(1);
-		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 		raid.setState(CampaignRaidState.FIGHTING);
 		raid.setFightEndsAt(fightEndsAt);
 		raid.setBattleId(battle.getId());

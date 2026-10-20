@@ -39,7 +39,7 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -191,7 +191,7 @@ class CampaignRaidMusterSchedulerTest {
 	@Test
 	void processOverdue_startsFightWithNoJoiners() {
 		Instant musterEnd = raidWindow.plusSeconds(60);
-		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignCoalition.AGGRESSOR));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
 
 		World world = mock(World.class);
 		when(world.getName()).thenReturn("world");
@@ -216,7 +216,7 @@ class CampaignRaidMusterSchedulerTest {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
 		assertNotNull(raid);
 		assertEquals(CampaignRaidState.FIGHTING, raid.getState());
-		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignCoalition.AGGRESSOR));
+		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
 		assertTrue(raid.getMusterParticipantIds().isEmpty());
 		assertFalse(CampaignRaidMusterScheduler.processOverdue(war, musterEnd));
 	}

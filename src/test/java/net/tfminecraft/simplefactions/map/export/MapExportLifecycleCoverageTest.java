@@ -34,7 +34,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.Modifier;
 import net.tfminecraft.simplefactions.settlement.Settlement;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
@@ -306,7 +306,7 @@ class MapExportLifecycleCoverageTest {
     war.setGoal(WarGoalType.SUBJUGATE);
     war.setCampaignProvinces(List.of(1, 2, 4));
     war.setObjectiveProvinceId(4);
-    war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
+    war.putFortController(fort.getStableKey(), CampaignSideRole.DEFENDER);
     WarManager.get().add(war);
     return new WorldState(home, enemy, subject, traders, fort, war);
   }

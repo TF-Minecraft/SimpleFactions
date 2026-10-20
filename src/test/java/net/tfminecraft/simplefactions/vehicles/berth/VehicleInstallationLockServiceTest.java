@@ -35,7 +35,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
@@ -239,7 +239,7 @@ class VehicleInstallationLockServiceTest {
 	private void setActiveRaid(CampaignRaidState state) {
 		CampaignRaid raid = new CampaignRaid();
 		raid.setWarId(war.getId());
-		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 		raid.setLauncherFactionId(attacker.getId());
 		raid.setBattleDay(BATTLE_DAY);
 		raid.setSourceInstallationId("port-atk");
@@ -258,7 +258,7 @@ class VehicleInstallationLockServiceTest {
 		siegeWar.setCursorIndex(2);
 		siegeWar.setInitiativeAttacker(4);
 		siegeWar.setInitiativeDefender(4);
-		siegeWar.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		siegeWar.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		siegeWar.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		siegeWar.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(18, CampaignBattleKind.SIEGE, false, "fort-1")));

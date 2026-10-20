@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex.OperationalFort;
@@ -69,7 +69,7 @@ class CampaignBattlePlacerTest {
 		War war = war();
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 10, BattleTrigger.BORDER, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 10, BattleTrigger.BORDER, CampaignSideRole.AGGRESSOR, null, null);
 
 		assertEquals(1, ctx.invasion().size());
 		assertEquals(10, ctx.invasion().get(0).provinceId());
@@ -84,7 +84,7 @@ class CampaignBattlePlacerTest {
 		War war = war();
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 30, BattleTrigger.OBJECTIVE, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 30, BattleTrigger.OBJECTIVE, CampaignSideRole.AGGRESSOR, null, null);
 
 		assertEquals(1, ctx.invasion().size());
 		assertTrue(ctx.invasion().get(0).required());
@@ -101,10 +101,10 @@ class CampaignBattlePlacerTest {
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(
 				List.of(5, 20, 21, 30), 21, 1, 3, index);
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 21, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_a", null);
+				ctx, war, ScheduleLeg.INVASION, 21, BattleTrigger.FORT_ZOC, CampaignSideRole.AGGRESSOR, "fort_a", null);
 
 		assertEquals(1, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.SIEGE, ctx.invasion().get(0).kind());
@@ -121,10 +121,10 @@ class CampaignBattlePlacerTest {
 				List.of(20, 30), 20, 0, 1, index);
 		ctx.scheduledFortIds().add(fort.stableKey());
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 20, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_a", null);
+				ctx, war, ScheduleLeg.INVASION, 20, BattleTrigger.FORT_ZOC, CampaignSideRole.AGGRESSOR, "fort_a", null);
 
 		assertTrue(ctx.invasion().isEmpty());
 	}
@@ -137,7 +137,7 @@ class CampaignBattlePlacerTest {
 		War war = war();
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 11, BattleTrigger.NAVAL, CampaignCoalition.AGGRESSOR, null, "port_a");
+				ctx, war, ScheduleLeg.INVASION, 11, BattleTrigger.NAVAL, CampaignSideRole.AGGRESSOR, null, "port_a");
 
 		assertEquals(2, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.NAVAL, ctx.invasion().get(0).kind());
@@ -153,7 +153,7 @@ class CampaignBattlePlacerTest {
 		War war = war();
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 11, BattleTrigger.NAVAL, CampaignCoalition.AGGRESSOR, null, "port_a");
+				ctx, war, ScheduleLeg.INVASION, 11, BattleTrigger.NAVAL, CampaignSideRole.AGGRESSOR, null, "port_a");
 
 		assertTrue(ctx.invasion().isEmpty());
 	}
@@ -165,7 +165,7 @@ class CampaignBattlePlacerTest {
 		War war = war();
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 20, BattleTrigger.CADENCE, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 20, BattleTrigger.CADENCE, CampaignSideRole.AGGRESSOR, null, null);
 
 		assertEquals(1, ctx.invasion().size());
 	}
@@ -177,7 +177,7 @@ class CampaignBattlePlacerTest {
 		War war = war();
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 11, BattleTrigger.CADENCE, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 11, BattleTrigger.CADENCE, CampaignSideRole.AGGRESSOR, null, null);
 
 		assertTrue(ctx.invasion().isEmpty());
 	}
@@ -196,12 +196,12 @@ class CampaignBattlePlacerTest {
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 709, 0, 3, index);
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 706, BattleTrigger.CADENCE, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 706, BattleTrigger.CADENCE, CampaignSideRole.AGGRESSOR, null, null);
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 706, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "Greenfort", null);
+				ctx, war, ScheduleLeg.INVASION, 706, BattleTrigger.FORT_ZOC, CampaignSideRole.AGGRESSOR, "Greenfort", null);
 
 		assertEquals(2, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.SIEGE, ctx.invasion().get(0).kind());
@@ -226,12 +226,12 @@ class CampaignBattlePlacerTest {
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 704, 0, 1, index);
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 704, BattleTrigger.BORDER, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 704, BattleTrigger.BORDER, CampaignSideRole.AGGRESSOR, null, null);
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 704, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "Greenfort", null);
+				ctx, war, ScheduleLeg.INVASION, 704, BattleTrigger.FORT_ZOC, CampaignSideRole.AGGRESSOR, "Greenfort", null);
 
 		assertEquals(1, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.SIEGE, ctx.invasion().get(0).kind());
@@ -248,9 +248,9 @@ class CampaignBattlePlacerTest {
 		War war = war();
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.COUNTER, 10, BattleTrigger.CADENCE, CampaignCoalition.DEFENDER, null, null);
+				ctx, war, ScheduleLeg.COUNTER, 10, BattleTrigger.CADENCE, CampaignSideRole.DEFENDER, null, null);
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.COUNTER, 11, BattleTrigger.NAVAL, CampaignCoalition.DEFENDER, null, "port_a");
+				ctx, war, ScheduleLeg.COUNTER, 11, BattleTrigger.NAVAL, CampaignSideRole.DEFENDER, null, "port_a");
 
 		assertEquals(2, ctx.counter().size());
 		assertEquals(CampaignBattleKind.NAVAL, ctx.counter().get(0).kind());
@@ -267,12 +267,12 @@ class CampaignBattlePlacerTest {
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 705, 1, 1, index);
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_cap", null);
+				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.FORT_ZOC, CampaignSideRole.AGGRESSOR, "fort_cap", null);
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.OBJECTIVE, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.OBJECTIVE, CampaignSideRole.AGGRESSOR, null, null);
 
 		assertEquals(2, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.SIEGE, ctx.invasion().get(0).kind());
@@ -300,12 +300,12 @@ class CampaignBattlePlacerTest {
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 706, 0, 2, index);
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.OBJECTIVE, CampaignCoalition.AGGRESSOR, null, null);
+				ctx, war, ScheduleLeg.INVASION, 705, BattleTrigger.OBJECTIVE, CampaignSideRole.AGGRESSOR, null, null);
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 706, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "Lan_Airfield", null);
+				ctx, war, ScheduleLeg.INVASION, 706, BattleTrigger.FORT_ZOC, CampaignSideRole.AGGRESSOR, "Lan_Airfield", null);
 
 		assertEquals(2, ctx.invasion().size());
 		assertEquals(CampaignBattleKind.SIEGE, ctx.invasion().get(0).kind());
@@ -331,10 +331,10 @@ class CampaignBattlePlacerTest {
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		CampaignScheduleBuildContext ctx = new CampaignScheduleBuildContext(axis, 706, 0, 1, index);
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		CampaignBattlePlacer.placeBattle(
-				ctx, war, ScheduleLeg.INVASION, 708, BattleTrigger.FORT_ZOC, CampaignCoalition.AGGRESSOR, "fort_past", null);
+				ctx, war, ScheduleLeg.INVASION, 708, BattleTrigger.FORT_ZOC, CampaignSideRole.AGGRESSOR, "fort_past", null);
 
 		assertTrue(ctx.invasion().isEmpty());
 	}

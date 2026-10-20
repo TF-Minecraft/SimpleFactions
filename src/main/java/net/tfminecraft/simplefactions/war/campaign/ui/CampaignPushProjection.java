@@ -3,8 +3,8 @@ package net.tfminecraft.simplefactions.war.campaign.ui;
 
 
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignNavyGate;
 import java.util.OptionalInt;
 import java.util.Optional;
@@ -22,7 +22,7 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBat
 public final class CampaignPushProjection {
 	private CampaignPushProjection() {}
 
-	public static boolean canMountOffensiveAfterPush(War war, CampaignCoalition winner) {
+	public static boolean canMountOffensiveAfterPush(War war, CampaignSideRole winner) {
 		if (war == null || winner == null || !CampaignCapabilityService.isValidWar(war)) {
 			return false;
 		}
@@ -37,12 +37,12 @@ public final class CampaignPushProjection {
 		return scheduledSlot(war, projected)
 				.filter(slot -> CampaignNavyGate.isNavalKind(slot.kind()))
 				.map(slot -> CampaignNavyGate.canChallengeNaval(
-						CampaignCoalitionService.toSide(war, winner).getLeader()))
+						CampaignSideService.toSide(war, winner).getLeader()))
 				.orElse(true);
 	}
 
-	static ProjectedState afterPush(War war, CampaignCoalition winner) {
-		CampaignCoalition offensive = war.getLastBattleOffensiveCoalition();
+	static ProjectedState afterPush(War war, CampaignSideRole winner) {
+		CampaignSideRole offensive = war.getLastBattleOffensiveCoalition();
 		if (offensive == null) {
 			offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
 		}
@@ -69,7 +69,7 @@ public final class CampaignPushProjection {
 				}
 			}
 		} else {
-			if (winner == CampaignCoalition.AGGRESSOR) {
+			if (winner == CampaignSideRole.AGGRESSOR) {
 				cursor = CampaignCapabilityService.clampCursorIndex(war, cursor + 1);
 				if (pushTarget == CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL) {
 					pushTarget = CampaignPushTarget.TOWARD_OBJECTIVE;
@@ -84,7 +84,7 @@ public final class CampaignPushProjection {
 	}
 
 	private static OptionalInt nextBattleProvince(War war, ProjectedState state) {
-		if (CampaignCoalitionService.getFuel(war, state.initiativeHolder()) <= 0) {
+		if (CampaignSideService.getFuel(war, state.initiativeHolder()) <= 0) {
 			return OptionalInt.empty();
 		}
 
@@ -144,6 +144,6 @@ public final class CampaignPushProjection {
 			int cursorIndex,
 			CampaignPushTarget pushTarget,
 			ObjectiveHolder objectiveHeldBy,
-			CampaignCoalition initiativeHolder,
+			CampaignSideRole initiativeHolder,
 			int campaignBattlesFought) {}
 }

@@ -33,7 +33,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 
 class CampaignBattleRosterServiceTest {
@@ -114,7 +114,7 @@ class CampaignBattleRosterServiceTest {
 						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
 			mockBossBar(bukkit);
 			Battle battle = createBattle(1);
-			battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+			battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(1)).thenReturn(war);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("atk"))
 					.thenReturn(attacker);

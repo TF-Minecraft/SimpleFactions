@@ -439,8 +439,8 @@ public class WarManager {
 	private static void notifyWarEnded(War w, WarEndReason reason) {
 		String message = switch (reason) {
 			case WHITE_PEACE -> "§7The war has ended in white peace.";
-			case ATTACKER_VICTORY -> "§7The war has ended. The attacker coalition wins.";
-			case DEFENDER_VICTORY -> "§7The war has ended. The defender coalition wins.";
+			case ATTACKER_VICTORY -> "§7The war has ended. The attacking side wins.";
+			case DEFENDER_VICTORY -> "§7The war has ended. The defending side wins.";
 			default -> "§7The war has ended.";
 		};
 		LinkedHashSet<String> members = new LinkedHashSet<>();

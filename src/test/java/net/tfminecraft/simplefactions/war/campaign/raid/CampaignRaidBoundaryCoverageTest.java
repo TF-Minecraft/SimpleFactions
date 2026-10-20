@@ -9,7 +9,7 @@ import java.util.Map;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.*;
 import net.tfminecraft.simplefactions.war.campaign.raid.RaidTargetService.RaidKind;
@@ -155,10 +155,10 @@ class CampaignRaidBoundaryCoverageTest {
         CampaignRaidService.beginMuster(
             rig.war, rig.attacker, rig.source.getId(), rig.target.getId(), rig.now()));
     assertEquals(2, CampaignRaidService.resetRaidQuota(rig.war, null));
-    assertEquals(0, CampaignRaidService.resetRaidQuota(rig.war, CampaignCoalition.AGGRESSOR));
+    assertEquals(0, CampaignRaidService.resetRaidQuota(rig.war, CampaignSideRole.AGGRESSOR));
     assertTrue(CampaignRaidService.isInstallationRepairLocked(rig.war, rig.target, rig.now()));
     assertEquals(Map.of(rig.target.getStableKey(), lock), rig.war.getRaidRepairLockUntil());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(null, CampaignCoalition.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(null, CampaignSideRole.AGGRESSOR));
   }
 
   @Test

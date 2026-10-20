@@ -38,7 +38,7 @@ import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
@@ -329,7 +329,7 @@ class BattleCasualtyServiceTest {
 		seedOwnRow(war, "def", "professional", 10);
 
 		Battle battle = campaignBattle(war, PROVINCE_ID);
-		when(battle.getOffensiveCoalition()).thenReturn(CampaignCoalition.DEFENDER);
+		when(battle.getOffensiveCoalition()).thenReturn(CampaignSideRole.DEFENDER);
 		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
 
 		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);

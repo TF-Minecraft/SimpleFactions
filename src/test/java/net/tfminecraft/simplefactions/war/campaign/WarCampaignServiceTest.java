@@ -34,7 +34,7 @@ import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignProgressionService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.enums.Terrain;
@@ -361,7 +361,7 @@ class WarCampaignServiceTest {
 			assertTrue(schedule.stream().anyMatch(slot ->
 					slot.kind() == CampaignBattleKind.SIEGE
 							&& "fort_a".equals(slot.fortInstallationId())));
-			assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get(fort.getStableKey()));
+			assertEquals(CampaignSideRole.DEFENDER, war.getFortControllers().get(fort.getStableKey()));
 			ScheduledCampaignBattle last = schedule.get(schedule.size() - 1);
 			assertEquals(25, last.provinceId());
 			assertTrue(last.required());
