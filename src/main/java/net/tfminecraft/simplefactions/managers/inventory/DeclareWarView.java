@@ -63,7 +63,6 @@ public class DeclareWarView {
 		}
 		inventory.clear();
 		int slot = 10;
-		inventory.setItem(slot++, creator.createWarGoalItem());
 		inventory.setItem(slot++, creator.createTributaryGoalItem());
 		if (attacker.canHaveVassals()) {
 			inventory.setItem(slot++, creator.createSubjugateGoalItem());
@@ -310,7 +309,8 @@ public class DeclareWarView {
 	public void routeGoal(Player player, Faction attacker, Faction defender, WarGoalType goal) {
 		if (goal == null) return;
 		switch (goal) {
-			case WAR, TRIBUTARY, USURP, OPEN_MARKET ->
+			case WAR -> player.sendMessage(WarDeclareCodeService.RETIRED_WAR_GOAL);
+			case TRIBUTARY, USURP, OPEN_MARKET ->
 					openConfirm(player, attacker, defender, goal, null, null, null, null, null, null);
 			case CHANGE_GOVERNMENT -> openGovernmentPicker(player, attacker, defender, null, null);
 			case SUBJUGATE -> openRelationTypePicker(player, attacker, defender);

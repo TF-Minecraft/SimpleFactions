@@ -153,7 +153,7 @@ class WarDeclarationBoundaryCoverageTest {
         assertSame(session, WarDeclareCodeService.session(player));
         assertNull(WarDeclareCodeService.session(null));
         assertNull(WarDeclareCodeService.clearSession(null));
-        for (String body : List.of("{", "[]", "null", "{\"goal\":null}", "{\"goal\":{}}")) {
+        for (String body : List.of("{", "[]", "null", "{\"goal\":null}", "{\"goal\":{}}", "{\"goal\":\"war\"}")) {
           WarDeclareCodeService.setGateway((path, json) -> GatewayClient.Result.success(body));
           assertFalse(
               WarDeclareCodeService.validate("code", attacker.getId(), defender.getId()).ok, body);
@@ -190,7 +190,7 @@ class WarDeclarationBoundaryCoverageTest {
     try (GatewayScope scope = new GatewayScope();
         MockedStatic<GatewayClient> gateway = mockStatic(GatewayClient.class)) {
       List<String> bodies = new ArrayList<>();
-      GatewayClient.Result response = scope.success("{\"goal\":\"war\"}");
+      GatewayClient.Result response = scope.success("{\"goal\":\"tributary\"}");
       gateway
           .when(
               () ->

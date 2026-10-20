@@ -93,11 +93,12 @@ public class WarCreator {
 			}
 		}
 		if (w.getDefenderCounterGoal() == null) {
-			lore.add(StringFormatter.formatHex("#a39ba8Defender counter: #f5ef42War Reparations (default)"));
+			lore.add(StringFormatter.formatHex("#a39ba8Defender counter: #f5ef42None"));
 		} else {
 			lore.add(StringFormatter.formatHex("#a39ba8Defender counter: #f5ef42"
 					+ w.getDefenderCounterGoal().getDisplayName()));
 		}
+		lore.add(StringFormatter.formatHex("#a39ba8The loser pays #f5ef42War Reparations"));
 		m.setLore(lore);
 		NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
 		m.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, w.getId());

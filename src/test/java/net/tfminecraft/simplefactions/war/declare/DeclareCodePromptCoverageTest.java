@@ -64,7 +64,8 @@ class DeclareCodePromptCoverageTest {
     previousSessions = new LinkedHashMap<>(map(WarDeclareCodeService.class, "sessions"));
     map(DeclareCodePrompt.class, "pending").clear();
     map(WarDeclareCodeService.class, "sessions").clear();
-    response = GatewayClient.Result.success("{\"goal\":\"war\"}");
+    fixture.relationType("tributary", Map.of("name", "Tributary"));
+    response = GatewayClient.Result.success("{\"goal\":\"tributary\"}");
     WarDeclareCodeService.setGateway(
         (path, body) -> {
           assertEquals("/wars/declare-codes/validate", path);
@@ -144,10 +145,10 @@ class DeclareCodePromptCoverageTest {
 
     fixture.ui.runTasks();
 
-    assertEquals(WarGoalType.WAR, WarDeclareCodeService.session(player).goal);
+    assertEquals(WarGoalType.TRIBUTARY, WarDeclareCodeService.session(player).goal);
     assertEquals("chosen-code", WarDeclareCodeService.session(player).code);
     assertSame(defender, inventory.pendingWarDeclares.get(player).getDefender());
-    assertEquals(WarGoalType.WAR, inventory.pendingWarDeclares.get(player).getGoal());
+    assertEquals(WarGoalType.TRIBUTARY, inventory.pendingWarDeclares.get(player).getGoal());
     assertEquals(
         "defender",
         fixture.ui.data(player.getOpenInventory().getTopInventory().getItem(11), "war_declare"));

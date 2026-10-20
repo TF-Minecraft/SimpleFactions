@@ -116,7 +116,7 @@ types:
         link: suzerain
         mutual: true
         give-modifiers:
-            - tribute(3.0)
+            - tribute(10.0)
     war:
         name: "#d42300War"
         target: -80
