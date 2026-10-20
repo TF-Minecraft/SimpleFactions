@@ -145,7 +145,13 @@ class VehiclesConfigUnpaidEffectsTest {
                 Arguments.of("unpaid-effects:\n  types:\n    schooner: {}",
                         "unpaid-effects.types.schooner is not a vehicle type"),
                 Arguments.of("unpaid-effects:\n  types:\n    sloop: 1",
-                        "unpaid-effects.types.sloop must be a section"));
+                        "unpaid-effects.types.sloop must be a section"),
+                Arguments.of("unpaid-effects:\n  types:\n    sloop: {}\n    Sloop: {}",
+                        "unpaid-effects.types lists Sloop twice (also as sloop)"),
+                Arguments.of("unpaid-effects:\n  categories:\n    ships: {}\n    SHIPS: {}",
+                        "unpaid-effects.categories lists SHIPS twice (also as ships)"),
+                Arguments.of("unpaid-effects:\n  default:\n    part-min-health-percent:\n      hull: 5\n      HULL: 6",
+                        "unpaid-effects.default.part-min-health-percent lists HULL twice"));
     }
 
     private void load(String unpaid) throws Exception {

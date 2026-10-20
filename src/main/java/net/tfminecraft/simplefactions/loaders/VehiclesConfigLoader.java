@@ -312,7 +312,10 @@ public final class VehiclesConfigLoader {
             if (!known.contains(normalized)) {
                 throw failure("vehicles.yml unpaid-effects." + group + "." + key + " is not a " + kind);
             }
-            keys.put(normalized, key);
+            String previous = keys.putIfAbsent(normalized, key);
+            if (previous != null) {
+                throw failure("vehicles.yml unpaid-effects." + group + " lists " + key + " twice (also as " + previous + ")");
+            }
         }
         return keys;
     }
@@ -333,8 +336,13 @@ public final class VehiclesConfigLoader {
         if (section.contains("part-min-health-percent")) {
             String partsPath = path + ".part-min-health-percent";
             ConfigurationSection partsSection = section(section, "part-min-health-percent", partsPath);
+            Set<String> seen = new HashSet<>();
             for (String part : partsSection.getKeys(false)) {
-                parts.put(part.toLowerCase(java.util.Locale.ROOT), percent(partsSection, part, partsPath));
+                String normalized = part.toLowerCase(java.util.Locale.ROOT);
+                if (!seen.add(normalized)) {
+                    throw failure("vehicles.yml " + partsPath + " lists " + part + " twice");
+                }
+                parts.put(normalized, percent(partsSection, part, partsPath));
             }
         }
         return new UnpaidVehicleEffects(
