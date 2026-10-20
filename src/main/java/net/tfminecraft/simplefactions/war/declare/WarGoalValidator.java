@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 import net.tfminecraft.simplefactions.settlement.Settlement;
 
 /**
@@ -91,6 +92,11 @@ public class WarGoalValidator {
 			if (!usurpOverlord) {
 				return WarValidationResult.fail("§cYou cannot declare war on a faction in the same realm.");
 			}
+		}
+		java.time.Duration truce = TruceService.remaining(attacker, defender);
+		if (!truce.isZero()) {
+			return WarValidationResult.fail("§cYou have a truce with " + defender.getName() + " §cfor another "
+					+ TruceService.formatRemaining(truce) + ".");
 		}
 		for (Faction ally : RelationManager.getAllies(attacker)) {
 			if (ally != null && ally.getId().equalsIgnoreCase(defender.getId())) {

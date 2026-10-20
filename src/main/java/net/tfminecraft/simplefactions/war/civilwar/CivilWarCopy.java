@@ -20,4 +20,8 @@ public final class CivilWarCopy {
 			"§cCannot pick this war goal against a faction in a civil war.";
 	public static final String VASSALAGE_LAW_MISSING =
 			"§cCivil war vassalage law is missing or invalid in war.yml.";
+
+	public static String cooldown(String remaining) {
+		return "§cThis faction fought a civil war too recently. It can start another in " + remaining + ".";
+	}
 }

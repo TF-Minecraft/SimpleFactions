@@ -7,6 +7,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +36,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator.SettlementProbe;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.laws.Law;
@@ -420,6 +423,48 @@ class WarGoalValidatorTest {
 		FactionManager.factions.add(defender);
 
 		assertTrue(validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.WAR)).isValid());
+	}
+
+	@Test
+	void war_rejectsDeclaringDuringATruce() {
+		Faction attacker = mockFaction("attacker", 3);
+		Faction defender = mockFactionWithCapital("defender", 42);
+		when(defender.getName()).thenReturn("Riverland");
+		FactionManager.factions.add(defender);
+		TruceService.record("defender", "attacker", Instant.now().plus(Duration.ofHours(3)).plusSeconds(12 * 60 + 30), 1);
+
+		WarValidationResult result = validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.WAR));
+		assertFalse(result.isValid());
+		assertEquals("§cYou have a truce with Riverland §cfor another 3h 13m.", result.getMessage());
+
+		TruceService.clear("attacker", "defender");
+		assertTrue(validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.WAR)).isValid());
+	}
+
+	@Test
+	void usurp_rejectsRebellingAgainstTheOverlordDuringATruce() {
+		Faction king = mockFactionWithTitle("king", 5);
+		when(king.getName()).thenReturn("Kingdom");
+		Faction duke = mockSubject("duke", "king");
+		FactionManager.factions.add(king);
+		FactionManager.factions.add(duke);
+		TruceService.record("duke", "king", Instant.now().plus(Duration.ofDays(1)), 1);
+
+		WarValidationResult result = validator.validate(WarDeclareRequest.of(duke, king, WarGoalType.USURP));
+		assertFalse(result.isValid());
+		assertTrue(result.getMessage().startsWith("§cYou have a truce with Kingdom §cfor another "), result.getMessage());
+	}
+
+	@Test
+	void war_sameRealmRefusalComesBeforeTheTruce() {
+		Faction attacker = mockFaction("attacker", 3);
+		Faction defender = mockSubject("defender", "attacker");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		TruceService.record("defender", "attacker", Instant.now().plus(Duration.ofDays(1)), 1);
+
+		WarValidationResult result = validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.WAR));
+		assertEquals("§cYou cannot declare war on a faction in the same realm.", result.getMessage());
 	}
 
 	@Test

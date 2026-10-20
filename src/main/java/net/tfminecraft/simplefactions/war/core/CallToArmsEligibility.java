@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.core;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.declare.InterVassalQueries;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 
 public final class CallToArmsEligibility {
 	public static final String ALREADY_IN_WAR = "§cTarget faction is already part of the war";
@@ -49,6 +50,16 @@ public final class CallToArmsEligibility {
 		}
 		if (!isUnjoinedAlly(participant, target)) {
 			return Result.deny(CANNOT_CALL);
+		}
+		// Joining an attack would break a truce; joining the defence never does.
+		if (callerSide == war.getAttackers()) {
+			for (Faction defender : BattleSideMembers.collectParticipatingFactions(war.getDefenders())) {
+				java.time.Duration truce = TruceService.remaining(target, defender);
+				if (!truce.isZero()) {
+					return Result.deny("§c" + target.getName() + " §chas a truce with " + defender.getName()
+							+ " §cfor another " + TruceService.formatRemaining(truce) + ".");
+				}
+			}
 		}
 		return Result.allow();
 	}

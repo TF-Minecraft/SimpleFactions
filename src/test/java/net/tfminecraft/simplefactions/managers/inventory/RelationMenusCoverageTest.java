@@ -483,6 +483,16 @@ class RelationMenusCoverageTest {
   }
 
   @Test
+  void warButtonShowsTheTruceWithTheViewedFaction() {
+    type("war", "threshold.amount", -10, "threshold.mutual", true);
+    assertFalse(text(creator.createWarButton(target, origin)).contains("Truce"));
+    net.tfminecraft.simplefactions.war.truce.TruceService.record(
+        "target", "origin", java.time.Instant.now().plus(java.time.Duration.ofDays(6).plusHours(4)).plusSeconds(60), 1);
+    List<String> lore = creator.createWarButton(target, origin).getItemMeta().getLore();
+    assertTrue(lore.contains("§eTruce: 6d 4h left"), String.valueOf(lore));
+  }
+
+  @Test
   void warThresholdAndReparationCardsExplainCostsDurationAndTicketRequirements() {
     assertEquals(Material.AIR, creator.createWarButton(target, origin).getType());
     type("war", "threshold.amount", -10, "threshold.mutual", true);

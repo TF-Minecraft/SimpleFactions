@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +29,7 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.OpinionColourMapper;
 import net.tfminecraft.simplefactions.war.resolution.WarReparationsObligation;
 import net.tfminecraft.simplefactions.war.resolution.WarReparationsService;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class RelationCreator {
@@ -61,6 +63,11 @@ public class RelationCreator {
 			} else {
 				lore.add("§7Select a war goal.");
 			}
+		}
+		Duration truce = TruceService.remaining(origin, target);
+		if (!truce.isZero()) {
+			lore.add("");
+			lore.add("§eTruce: " + TruceService.formatRemaining(truce) + " left");
 		}
 		lore.add(" ");
 		m.setLore(lore);

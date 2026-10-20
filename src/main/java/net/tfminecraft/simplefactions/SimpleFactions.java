@@ -444,6 +444,8 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.inactivity.InactivityService.load();
 		net.tfminecraft.simplefactions.prestige.RecentPlaytime.bind(new File(getDataFolder(), "Cache"));
 		net.tfminecraft.simplefactions.prestige.RecentPlaytime.load();
+		net.tfminecraft.simplefactions.war.truce.TruceService.bind(new File(getDataFolder(), "Cache"));
+		net.tfminecraft.simplefactions.war.truce.TruceService.load();
         try {
             net.tfminecraft.simplefactions.economy.TreasuryActions.recoverTopologyFiles(getDataFolder().toPath().resolve("economy/callers"));
         } catch (Exception error) { failFinancialState(error); return; }

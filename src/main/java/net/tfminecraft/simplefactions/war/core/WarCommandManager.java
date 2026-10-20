@@ -27,6 +27,7 @@ import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalition
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 
 public class WarCommandManager implements CommandExecutor {
 	public static final String CMD = "war";
@@ -41,7 +42,7 @@ public class WarCommandManager implements CommandExecutor {
 		if (args.length < 1) {
 			player.sendMessage("§eUsage: §a/war list");
 			if (Permissions.isAdmin(sender)) {
-				player.sendMessage("§7Staff: §e/war admin end|win|status|path|time|schedule|devmode|raid|reparations §7...");
+				player.sendMessage("§7Staff: §e/war admin end|win|status|path|time|schedule|devmode|raid|reparations|truce §7...");
 			}
 			return true;
 		}
@@ -67,7 +68,7 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 2) {
-			player.sendMessage("§cUsage: /war admin end|win|status|path|time|schedule|devmode|raid|reparations|factions ...");
+			player.sendMessage("§cUsage: /war admin end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions ...");
 			return true;
 		}
 		String subcommand = args[1].toLowerCase(java.util.Locale.ROOT);
@@ -81,9 +82,10 @@ public class WarCommandManager implements CommandExecutor {
 			case "devmode" -> handleDevmode(player, args);
 			case "raid" -> handleRaid(player, args);
 			case "reparations" -> handleReparations(player, args);
+			case "truce" -> handleTruce(player, args);
 			case "factions" -> handleFactions(player, args);
 			default -> {
-				player.sendMessage("§cUnknown admin subcommand. Use: end, win, status, path, time, schedule, devmode, raid, reparations, factions");
+				player.sendMessage("§cUnknown admin subcommand. Use: end, win, status, path, time, schedule, devmode, raid, reparations, truce, factions");
 				yield true;
 			}
 		};
@@ -366,6 +368,45 @@ public class WarCommandManager implements CommandExecutor {
 				WarReparationsAdminService.apply(args[2], args[3], percentArg, daysArg);
 		player.sendMessage(result.message());
 		return true;
+	}
+
+	private boolean handleTruce(Player player, String[] args) {
+		String usage = "§cUsage: /war admin truce list [faction] | clear <factionA> <factionB>";
+		String subcommand = args.length >= 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "";
+		if (subcommand.equals("list") && args.length <= 4) {
+			String factionId = args.length == 4 ? args[3] : null;
+			List<TruceService.Truce> truces = TruceService.list(factionId);
+			if (truces.isEmpty()) {
+				player.sendMessage(factionId == null
+						? "§7No active truces."
+						: "§7No active truces for §f" + factionName(factionId) + "§7.");
+				return true;
+			}
+			player.sendMessage("§7Truces (" + truces.size() + "):");
+			for (TruceService.Truce truce : truces) {
+				player.sendMessage("§f" + factionName(truce.firstId()) + " §7- §f" + factionName(truce.secondId())
+						+ " §7(" + TruceService.formatRemaining(TruceService.remainingUntil(truce.until()))
+						+ " left, war " + truce.warId() + ")");
+			}
+			return true;
+		}
+		if (subcommand.equals("clear") && args.length == 5) {
+			String first = factionName(args[3]);
+			String second = factionName(args[4]);
+			if (TruceService.clear(args[3], args[4])) {
+				player.sendMessage("§aCleared the truce between §f" + first + " §aand §f" + second + "§a.");
+			} else {
+				player.sendMessage("§cNo truce between §f" + first + " §cand §f" + second + "§c.");
+			}
+			return true;
+		}
+		player.sendMessage(usage);
+		return true;
+	}
+
+	private static String factionName(String factionId) {
+		Faction faction = FactionManager.getByString(factionId);
+		return faction != null && faction.getName() != null ? faction.getName() : factionId;
 	}
 
 	private boolean handleSchedule(Player player, String[] args) {

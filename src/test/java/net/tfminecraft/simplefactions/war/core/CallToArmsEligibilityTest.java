@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +20,7 @@ import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 
 class CallToArmsEligibilityTest {
 	private final List<Faction> savedFactions = new ArrayList<>();
@@ -99,6 +102,23 @@ class CallToArmsEligibilityTest {
 		CallToArmsEligibility.Result result = CallToArmsEligibility.canCall(internalWar, dukeA, dukeB);
 		assertFalse(result.allowed());
 		assertEquals(CallToArmsEligibility.ALREADY_IN_WAR, result.message());
+	}
+
+	@Test
+	void truceWithADefender_deniesJoiningTheAttack() {
+		when(dukeB.getName()).thenReturn("Duchy B");
+		when(dukeC.getName()).thenReturn("Duchy C");
+		TruceService.record("dukeC", "dukeB", Instant.now().plus(Duration.ofDays(2)).plusSeconds(60), 9);
+		CallToArmsEligibility.Result result = CallToArmsEligibility.canCall(internalWar, dukeA, dukeC);
+		assertFalse(result.allowed());
+		assertEquals("§cDuchy C §chas a truce with Duchy B §cfor another 2d 0h.", result.message());
+	}
+
+	@Test
+	void truceWithAnAttacker_stillAllowsJoiningTheDefence() {
+		War defensiveWar = new War(2, dukeB, dukeA);
+		TruceService.record("dukeC", "dukeB", Instant.now().plus(Duration.ofDays(2)), 9);
+		assertTrue(CallToArmsEligibility.canCall(defensiveWar, dukeA, dukeC).allowed());
 	}
 
 	@Test

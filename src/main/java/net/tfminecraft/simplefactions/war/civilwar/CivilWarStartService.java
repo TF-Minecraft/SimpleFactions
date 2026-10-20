@@ -31,6 +31,7 @@ import net.tfminecraft.simplefactions.objects.handler.LawHandler;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.civilwar.split.CivilWarLandSplitService.LandSplitPlan;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.enums.Member;
 import net.tfminecraft.simplefactions.enums.Scope;
@@ -52,6 +53,10 @@ public final class CivilWarStartService {
 		Faction host = movement.getFaction();
 		if (host == null) {
 			return CivilWarCopy.COULD_NOT_START;
+		}
+		java.time.Duration cooldown = TruceService.civilWarCooldownRemaining(host);
+		if (!cooldown.isZero()) {
+			return CivilWarCopy.cooldown(TruceService.formatRemaining(cooldown));
 		}
 		WarGoalType goal = CivilWarGoalMapper.fromFirstCause(movement);
 		if (goal == null) {
