@@ -2,6 +2,8 @@ package net.tfminecraft.simplefactions.loaders;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +16,11 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.nodes.MappingNode;
+import org.yaml.snakeyaml.nodes.Node;
+import org.yaml.snakeyaml.nodes.NodeTuple;
+import org.yaml.snakeyaml.nodes.ScalarNode;
 
 import net.tfminecraft.simplefactions.vehicles.VehicleTypeConfig;
 import net.tfminecraft.simplefactions.vehicles.maintenance.UnpaidVehicleEffects;
@@ -43,8 +50,10 @@ public final class VehiclesConfigLoader {
 
     public static void load(File vehiclesYaml) {
         FileConfiguration config = new YamlConfiguration();
+        String text;
         try {
-            config.load(vehiclesYaml);
+            text = Files.readString(vehiclesYaml.toPath(), StandardCharsets.UTF_8);
+            config.loadFromString(text);
         } catch (IOException | InvalidConfigurationException e) {
             e.printStackTrace();
             throw failure("Failed to load vehicles.yml");
@@ -171,6 +180,7 @@ public final class VehiclesConfigLoader {
                 UnpaidVehicleEffects.DEFAULT.blockRepair());
         Map<String, UnpaidVehicleEffects> nextUnpaidByType = new HashMap<>();
         if (config.contains("unpaid-effects")) {
+            rejectDuplicateUnpaidKeys(text);
             ConfigurationSection unpaid = section(config, "unpaid-effects", "unpaid-effects");
             for (String key : unpaid.getKeys(false)) {
                 if (!UNPAID_SECTIONS.contains(key)) {
@@ -303,6 +313,38 @@ public final class VehiclesConfigLoader {
             return null;
         }
         return typesByCategory.get(categoryId).get(vehicleTypeId.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * Bukkit keeps the last of two equal keys in one YAML mapping. Under unpaid-effects that would
+     * silently drop a setting, so refuse it there. Other sections keep Bukkit's behaviour.
+     */
+    private static void rejectDuplicateUnpaidKeys(String text) {
+        if (new Yaml().compose(new java.io.StringReader(text)) instanceof MappingNode root) {
+            for (NodeTuple tuple : root.getValue()) {
+                if ("unpaid-effects".equals(keyOf(tuple))) {
+                    rejectDuplicateKeys(tuple.getValueNode(), "unpaid-effects");
+                }
+            }
+        }
+    }
+
+    private static void rejectDuplicateKeys(Node node, String path) {
+        if (!(node instanceof MappingNode mapping)) {
+            return;
+        }
+        Set<String> seen = new HashSet<>();
+        for (NodeTuple tuple : mapping.getValue()) {
+            String key = keyOf(tuple);
+            if (!seen.add(key)) {
+                throw failure("vehicles.yml " + path + " lists " + key + " twice");
+            }
+            rejectDuplicateKeys(tuple.getValueNode(), path + "." + key);
+        }
+    }
+
+    private static String keyOf(NodeTuple tuple) {
+        return tuple.getKeyNode() instanceof ScalarNode scalar ? scalar.getValue() : String.valueOf(tuple.getKeyNode());
     }
 
     /** Lower-cased id to the key as written, for each entry under unpaid-effects.<group>. */
