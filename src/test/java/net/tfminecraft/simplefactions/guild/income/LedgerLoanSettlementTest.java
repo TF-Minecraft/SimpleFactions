@@ -170,6 +170,59 @@ class LedgerLoanSettlementTest {
 				borrowers.getIncome(Cashflow.LOAN_PAYMENTS) + borrowers.getIncome(Cashflow.INTEREST_PAYMENTS), 1e-9);
 	}
 
+	@Test
+	void theLedgerCountsTheBorrowersIncomeForTheDay() {
+		Guild borrower = guild("borrower", 10.0);
+		Loan loan = runawayLoan(borrower);
+		when(borrower.getLoanHandler().getLoansTaken()).thenReturn(List.of(loan));
+		Ledger borrowers = new Ledger(borrower);
+		when(borrower.getLedger()).thenReturn(borrowers);
+		TradeBreakdown trade = new TradeBreakdown();
+		trade.setIncome(40.0);
+		trade.setUpkeep(15.0);
+		when(borrower.getTradeBreakdown()).thenReturn(trade);
+		Guild lenderGuild = guild("lender", 0.0);
+		when(lenderGuild.getLoanHandler().getLoansGiven()).thenReturn(List.of(loan));
+
+		Ledger lenders = new Ledger(lenderGuild);
+
+		assertEquals(35.0, lenders.getIncome(Cashflow.LOANS) + lenders.getIncome(Cashflow.INTEREST), 1e-9);
+		assertEquals(-35.0,
+				borrowers.getIncome(Cashflow.LOAN_PAYMENTS) + borrowers.getIncome(Cashflow.INTEREST_PAYMENTS), 1e-9);
+	}
+
+	@Test
+	void guildsLendingToEachOtherStillGetAForecast() {
+		Guild first = guild("first", 10.0);
+		Guild second = guild("second", 20.0);
+		Loan toSecond = new Loan(1.0, first, second, System.currentTimeMillis(), 1, 70_000_000.0, 0.0, true);
+		Loan toFirst = new Loan(1.0, second, first, System.currentTimeMillis(), 1, 70_000_000.0, 0.0, true);
+		when(first.getLoanHandler().getLoansGiven()).thenReturn(List.of(toSecond));
+		when(first.getLoanHandler().getLoansTaken()).thenReturn(List.of(toFirst));
+		when(second.getLoanHandler().getLoansGiven()).thenReturn(List.of(toFirst));
+		when(second.getLoanHandler().getLoansTaken()).thenReturn(List.of(toSecond));
+		Ledger firsts = new Ledger(first);
+		when(first.getLedger()).thenReturn(firsts);
+		when(second.getLedger()).thenReturn(new Ledger(second));
+
+		assertEquals(20.0, firsts.getIncome(Cashflow.LOANS) + firsts.getIncome(Cashflow.INTEREST), 1e-9);
+	}
+
+	@Test
+	void aBankruptBorrowersForecastIsItsBalance() {
+		Guild borrower = guild("borrower", 10.0);
+		Loan loan = runawayLoan(borrower);
+		when(borrower.getLoanHandler().getLoansTaken()).thenReturn(List.of(loan));
+		when(borrower.getLedger()).thenReturn(new Ledger(borrower));
+		when(borrower.isBankrupt()).thenReturn(true);
+		Guild lenderGuild = guild("lender", 0.0);
+		when(lenderGuild.getLoanHandler().getLoansGiven()).thenReturn(List.of(loan));
+
+		Ledger lenders = new Ledger(lenderGuild);
+
+		assertEquals(10.0, lenders.getIncome(Cashflow.LOANS) + lenders.getIncome(Cashflow.INTEREST), 1e-9);
+	}
+
 	private double paid(DailyGuildTransfers buffer, Guild borrower) {
 		Map<Guild, Double> to = buffer.getTransfers().get(borrower);
 		return to == null ? 0.0 : to.getOrDefault(lender, 0.0);
