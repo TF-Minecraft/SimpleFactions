@@ -1185,6 +1185,8 @@ class WarMenusCoverageTest {
     assertEquals(Material.BOOK, demands.getItem(11).getType());
     assertTrue(lore(demands.getItem(11)).contains("Click to add a demand"));
     assertTrue(lore(demands.getItem(13)).contains("Always paid by the losing side"));
+    view.click(fixture.ui.click(player, 13), demands, player);
+    assertSame(demands, top());
 
     view.click(fixture.ui.click(player, 11), demands, player);
     Inventory goals = top();
@@ -1445,6 +1447,21 @@ class WarMenusCoverageTest {
     view.click(fixture.ui.click(defending, 22), top(defending), defending);
     assertNull(war.getSecondDemand(false));
     verify(defending).sendMessage("§7Your second demand was removed with it.");
+  }
+
+  @Test
+  void aCounterGoalThatClashesWithTheSecondDemandRemovesIt() {
+    war.setDefenderCounterGoal(WarGoalType.OPEN_MARKET, null);
+    war.setSecondDemand(
+        false, new WarDemand(WarGoalType.TRIBUTARY, "defender", "attacker", null, null, null, null, null));
+    openCounterGoalPicker(defending);
+    view.click(fixture.ui.click(defending, 11), top(defending), defending);
+    assertNotNull(war.getSecondDemand(false));
+    openCounterGoalPicker(defending);
+    view.click(fixture.ui.click(defending, 10), top(defending), defending);
+    assertEquals(WarGoalType.TRIBUTARY, war.getDefenderCounterGoal());
+    assertNull(war.getSecondDemand(false));
+    verify(defending).sendMessage("§7Your second demand clashed with the new counter goal and was removed.");
   }
 
   @Test

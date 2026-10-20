@@ -22,6 +22,7 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.managers.holder.CampaignInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.CampaignRaidLaunchHolder;
 import net.tfminecraft.simplefactions.managers.holder.DeclareWarHolder;
+import net.tfminecraft.simplefactions.managers.holder.WarDemandDraft;
 import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.WarInventoryHolder;
@@ -382,15 +383,16 @@ class InventoryUpdaterCoverageTest {
   @ParameterizedTest
   @EnumSource(value = SFGUI.class, names = {"WAR_DECLARE_GOAL", "WAR_DECLARE_RELATION_TYPE", "WAR_DECLARE_TITLE", "WAR_DECLARE_SUBJECT", "WAR_DECLARE_SETTLEMENT", "WAR_DECLARE_GOVERNMENT"})
   void declarationPickersRetainBothFactionIdsAndGovernmentSelections(SFGUI step) {
-    Inventory inventory = open(new DeclareWarHolder("home", "enemy", step, "government", "leadership"), 54, "Declare War");
+    WarDemandDraft demand = new WarDemandDraft(7, false);
+    Inventory inventory = open(new DeclareWarHolder("home", "enemy", step, "government", "leadership").withDemand(demand), 54, "Declare War");
     updater.updateInventory();
     switch (step) {
-      case WAR_DECLARE_GOAL -> verify(manager.declareWarView).openGoalPicker(player, faction, enemy, inventory);
-      case WAR_DECLARE_RELATION_TYPE -> verify(manager.declareWarView).openRelationTypePicker(player, faction, enemy, inventory);
-      case WAR_DECLARE_TITLE -> verify(manager.declareWarView).openTitlePicker(player, faction, enemy, inventory);
-      case WAR_DECLARE_SUBJECT -> verify(manager.declareWarView).openSubjectPicker(player, faction, enemy, inventory);
-      case WAR_DECLARE_SETTLEMENT -> verify(manager.declareWarView).openSettlementPicker(player, faction, enemy, inventory);
-      case WAR_DECLARE_GOVERNMENT -> verify(manager.declareWarView).openGovernmentPicker(player, faction, enemy, "government", "leadership", inventory);
+      case WAR_DECLARE_GOAL -> verify(manager.declareWarView).openGoalPicker(player, faction, enemy, inventory, demand);
+      case WAR_DECLARE_RELATION_TYPE -> verify(manager.declareWarView).openRelationTypePicker(player, faction, enemy, inventory, demand);
+      case WAR_DECLARE_TITLE -> verify(manager.declareWarView).openTitlePicker(player, faction, enemy, inventory, demand);
+      case WAR_DECLARE_SUBJECT -> verify(manager.declareWarView).openSubjectPicker(player, faction, enemy, inventory, demand);
+      case WAR_DECLARE_SETTLEMENT -> verify(manager.declareWarView).openSettlementPicker(player, faction, enemy, inventory, demand);
+      case WAR_DECLARE_GOVERNMENT -> verify(manager.declareWarView).openGovernmentPicker(player, faction, enemy, "government", "leadership", inventory, demand);
       default -> fail();
     }
     clearInvocations(manager.declareWarView);

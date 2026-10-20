@@ -307,14 +307,17 @@ public class InventoryUpdater {
 		Faction attacker = FactionManager.getByString(h.getAttackerId());
 		Faction defender = FactionManager.getByString(h.getDefenderId());
 		if (attacker == null || defender == null) return;
+		// A second demand's draft must survive the refresh, or the declare-only goals come back.
+		var demand = h.getDemand();
 		switch (h.getStep()) {
-			case WAR_DECLARE_GOAL -> inv.declareWarView.openGoalPicker(p, attacker, defender, i);
-			case WAR_DECLARE_RELATION_TYPE -> inv.declareWarView.openRelationTypePicker(p, attacker, defender, i);
-			case WAR_DECLARE_TITLE -> inv.declareWarView.openTitlePicker(p, attacker, defender, i);
-			case WAR_DECLARE_SUBJECT -> inv.declareWarView.openSubjectPicker(p, attacker, defender, i);
-			case WAR_DECLARE_SETTLEMENT -> inv.declareWarView.openSettlementPicker(p, attacker, defender, i);
+			case WAR_DECLARE_GOAL -> inv.declareWarView.openGoalPicker(p, attacker, defender, i, demand);
+			case WAR_DECLARE_RELATION_TYPE ->
+					inv.declareWarView.openRelationTypePicker(p, attacker, defender, i, demand);
+			case WAR_DECLARE_TITLE -> inv.declareWarView.openTitlePicker(p, attacker, defender, i, demand);
+			case WAR_DECLARE_SUBJECT -> inv.declareWarView.openSubjectPicker(p, attacker, defender, i, demand);
+			case WAR_DECLARE_SETTLEMENT -> inv.declareWarView.openSettlementPicker(p, attacker, defender, i, demand);
 			case WAR_DECLARE_GOVERNMENT -> inv.declareWarView.openGovernmentPicker(
-					p, attacker, defender, h.getGovernmentLawId(), h.getLeadershipLawId(), i);
+					p, attacker, defender, h.getGovernmentLawId(), h.getLeadershipLawId(), i, demand);
 			default -> {}
 		}
 	}

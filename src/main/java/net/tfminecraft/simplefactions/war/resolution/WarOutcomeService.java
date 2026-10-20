@@ -74,7 +74,7 @@ public final class WarOutcomeService {
 	 */
 	private static void applyDemands(War war, boolean attackerSide, WarGoalType firstGoal, Runnable first) {
 		WarDemand second = war.getSecondDemand(attackerSide);
-		if (second == null) {
+		if (second == null || !stillValid(war, attackerSide, second)) {
 			first.run();
 			return;
 		}
@@ -85,6 +85,20 @@ public final class WarOutcomeService {
 		}
 		first.run();
 		applySecondDemand(war, second);
+	}
+
+	/**
+	 * A second demand still needs both factions in the war on the same sides, and must not
+	 * clash with a first demand that changed after it was set.
+	 */
+	private static boolean stillValid(War war, boolean attackerSide, WarDemand demand) {
+		return containsId(WarDemandRules.beneficiaries(war, attackerSide), demand.getBeneficiaryId())
+				&& containsId(WarDemandRules.targets(war, attackerSide), demand.getTargetId())
+				&& !WarDemandRules.conflicts(WarDemandRules.firstDemand(war, attackerSide), demand);
+	}
+
+	private static boolean containsId(java.util.List<Faction> factions, String id) {
+		return id != null && factions.stream().anyMatch(faction -> id.equalsIgnoreCase(faction.getId()));
 	}
 
 	static void applySecondDemand(War war, WarDemand demand) {

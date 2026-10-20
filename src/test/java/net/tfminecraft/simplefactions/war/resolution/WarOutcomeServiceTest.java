@@ -666,6 +666,7 @@ class WarOutcomeServiceTest {
 		FactionManager.factions.add(fx.attacker);
 		FactionManager.factions.add(fx.defender);
 		FactionManager.factions.add(ally);
+		fx.war.getParticipant(fx.attacker).getAllies().put(ally, true);
 		fx.war.setSecondDemand(true, new WarDemand(
 				WarGoalType.TRIBUTARY, "ally", "def", null, null, null, null, null));
 		RelationType tributary = mock(RelationType.class);
@@ -683,11 +684,40 @@ class WarOutcomeServiceTest {
 		Fixture fx = fixture();
 		fx.war.setGoal(WarGoalType.WAR);
 		FactionManager.factions.add(fx.defender);
+		Faction gone = factionWithInstallations();
+		when(gone.getId()).thenReturn("gone");
+		fx.war.getParticipant(fx.attacker).getAllies().put(gone, true);
 		fx.war.setSecondDemand(true, new WarDemand(
 				WarGoalType.TRIBUTARY, "gone", "def", null, null, null, null, null));
 		try (MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
 			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
 			relations.verify(() -> RelationManager.setRelationForced(any(), any(), any()), never());
+		}
+	}
+
+	@Test
+	void secondDemandIsSkippedOnceItsFactionLeftTheWarOrItClashes() {
+		Fixture fx = fixture();
+		fx.war.setGoal(WarGoalType.WAR);
+		Faction ally = factionWithInstallations();
+		when(ally.getId()).thenReturn("ally");
+		FactionManager.factions.add(fx.attacker);
+		FactionManager.factions.add(fx.defender);
+		FactionManager.factions.add(ally);
+		fx.war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+		fx.war.setSecondDemand(false, new WarDemand(
+				WarGoalType.TRIBUTARY, "def", "ally", null, null, null, null, null));
+		RelationType tributary = mock(RelationType.class);
+		try (MockedStatic<RelationLoader> loader = mockStatic(RelationLoader.class);
+				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			loader.when(() -> RelationLoader.getType("tributary")).thenReturn(tributary);
+			WarOutcomeService.apply(fx.war, WarEndReason.DEFENDER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(tributary, ally, fx.defender), never());
+
+			fx.war.setSecondDemand(false, new WarDemand(
+					WarGoalType.SUBJUGATE, "def", "atk", "vassal", null, null, null, null));
+			WarOutcomeService.apply(fx.war, WarEndReason.DEFENDER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(any(), eq(fx.attacker), eq(fx.defender)), times(2));
 		}
 	}
 
@@ -743,6 +773,7 @@ class WarOutcomeServiceTest {
 		FactionManager.factions.add(fx.attacker);
 		FactionManager.factions.add(fx.defender);
 		FactionManager.factions.add(ally);
+		fx.war.getParticipant(fx.attacker).getAllies().put(ally, true);
 		fx.war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
 		fx.war.setSecondDemand(false, new WarDemand(
 				WarGoalType.TRIBUTARY, "def", "ally", null, null, null, null, null));

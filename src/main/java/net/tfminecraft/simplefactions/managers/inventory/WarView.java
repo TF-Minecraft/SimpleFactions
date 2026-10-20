@@ -669,6 +669,11 @@ public class WarView {
 						: "§aDefender counter goal set to " + goal.getDisplayName() + ".");
 				if (goal == null && hadSecondDemand) {
 					p.sendMessage("§7Your second demand was removed with it.");
+				} else if (WarDemandRules.conflicts(
+						WarDemandRules.firstDemand(war, false), war.getSecondDemand(false))) {
+					war.setSecondDemand(false, null);
+					WarManager.persist(war);
+					p.sendMessage("§7Your second demand clashed with the new counter goal and was removed.");
 				}
 			}
 			demandsView(p, war);
