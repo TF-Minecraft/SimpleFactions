@@ -15,6 +15,10 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.diplomacy.coalition.Coalition;
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry;
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService;
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionWars;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.WarRequest;
 import net.tfminecraft.simplefactions.SimpleFactions;
@@ -157,6 +161,7 @@ public class WarManager {
 		WarCommitmentService.commitAllParticipants(war);
 		addWar(war);
 		logWarDeclared(war, attacker, defender);
+		CoalitionWars.announce(war);
 		return war;
 	}
 
@@ -502,12 +507,21 @@ public class WarManager {
 			sender.sendMessage("§cThat leader already has a pending request.");
 			return;
 		}
+		// An ally is always called as an ally; only a non-ally answers as a coalition member.
+		Coalition coalition = RelationManager.getAllies(origin).contains(target)
+				? null : CoalitionWars.callingCoalition(w, origin, target);
 		sender.sendMessage("§aSent a call to arms to "+target.getName());
 		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
+		if(coalition != null) {
+			p.sendMessage("§7They call on you as a fellow member of the "+CoalitionService.displayName(coalition)+" §7coalition. Declining costs more stability than refusing an ally.");
+		}
+		String warning = CoalitionWars.acceptWarning(w, origin, target);
+		if(warning != null) p.sendMessage(warning);
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Type §c/faction decline §7to decline");
 		p.sendMessage("§7Request will time out in "+WarRequest.expiryText());
-		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), w, target.getId()));
+		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), w, target.getId(),
+				coalition == null ? null : coalition.getId()));
 	}
 	
 	public static void acceptRequest(Player p) {
@@ -526,7 +540,7 @@ public class WarManager {
 				|| origin == null || FactionManager.getByString(origin.getId()) != origin
 				|| FactionManager.getByString(reciever.getId()) != reciever
 				|| (requestedFaction != null && !requestedFaction.equalsIgnoreCase(reciever.getId()))
-				|| !RelationManager.getAllies(origin).contains(reciever)
+				|| !(RelationManager.getAllies(origin).contains(reciever) || CoalitionWars.canCallMember(war, origin, reciever))
 				|| !CallToArmsEligibility.canCall(war, origin, reciever).allowed()
 				|| !war.call(origin, reciever)) {
 			p.sendMessage("§cCould not join the war.");
@@ -541,6 +555,8 @@ public class WarManager {
 		p.sendMessage("§aYour faction has joined the "+war.getName());
 		notifyWarDeclared(reciever.getMembers());
 		persist(war);
+		// The joiner may be a coalition's target, which lets that coalition in.
+		CoalitionWars.announce(war);
 	}
 
 	// Refused call to arms. Decay matches the war-end hits in WarOutcomeService.
@@ -555,11 +571,18 @@ public class WarManager {
 		if (receiver != null && receiver.getGovernment() != null) {
 			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
 					"Declined Call to Arms",
-					Cache.warDeclinedAllyStabilityPenalty,
+					req.isCoalitionCall() ? Cache.warDeclinedCoalitionStabilityPenalty : Cache.warDeclinedAllyStabilityPenalty,
 					1));
 		}
 		String who = receiver != null ? receiver.getName() : "They";
 		tellCaller(req, who + " §cdeclined your call to arms");
+		Coalition coalition = CoalitionRegistry.get(req.getCoalitionId());
+		Faction coalitionLeader = coalition == null ? null : CoalitionService.leader(coalition);
+		if (coalitionLeader != null && req.getFaction() != null
+				&& !coalitionLeader.getId().equalsIgnoreCase(req.getFaction().getId())) {
+			CoalitionService.notifyFaction(coalitionLeader, who + " §cdeclined a coalition call to arms from "
+					+ req.getFaction().getName() + "§c.");
+		}
 	}
 
 	// A call to arms that runs out is not a decline: nothing is lost and the caller may send it again.

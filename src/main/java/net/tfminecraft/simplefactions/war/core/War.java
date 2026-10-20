@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionWars;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.declare.InterVassalQueries;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
@@ -1032,7 +1033,10 @@ public class War {
 	public boolean call(Faction caller, Faction joiner) {
 		Participant p = getParticipant(caller);
 		if (p == null) return false;
-		if (!p.getAllies().containsKey(joiner)) return false;
+		if (!p.getAllies().containsKey(joiner)) {
+			// Not an ally: a fellow coalition member may still answer.
+			return CoalitionWars.canCallMember(this, caller, joiner) && p.addCoalitionAlly(joiner);
+		}
 		if (p.getAllies().get(joiner) == true) return false;
 		p.getAllies().put(joiner, true);
 		return true;

@@ -187,6 +187,18 @@ public class WarCreator {
 		return i;
 	}
 	
+	/** Labels a secondary participant item as a coalition member rather than an ally. */
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack markCoalitionMember(ItemStack item) {
+		ItemMeta m = item.getItemMeta();
+		List<String> lore = new ArrayList<>(m.getLore());
+		lore.add(1, StringFormatter.formatHex("#c97a4aCoalition member"));
+		m.setLore(lore);
+		item.setItemMeta(m);
+		return item;
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createParticipantItem(Player p, Participant par, String type, War w, boolean full, boolean warGoal) {
@@ -220,10 +232,11 @@ public class WarCreator {
 			else lore.add(StringFormatter.formatHex("#a39ba8Soldiers: #28ed70"+f.getMilitary().getManpower(offensive)));
 		}
 		if(full && !type.equalsIgnoreCase("secondary_participant")) {
-			if(par.getAllies().size() > 0 || par.getSubjects().size() > 0 || !par.getBackers().isEmpty()) {
+			if(par.getAllies().size() > 0 || par.getSubjects().size() > 0 || !par.getBackers().isEmpty() || !par.getCoalitionAllies().isEmpty()) {
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#65e0bbSecondary Participants:"));
 				if(par.getAllies().size() > 0) lore.add(StringFormatter.formatHex("§7- #975bbdAllies: #bea1d1"+par.getAllies().size()));
+				if(!par.getCoalitionAllies().isEmpty()) lore.add(StringFormatter.formatHex("§7- #c97a4aCoalition: #d9a988"+par.getCoalitionAllies().size()));
 				if(!par.getBackers().isEmpty()) lore.add(StringFormatter.formatHex("§7- #c2bea7Backers: #d4c9ae"+par.getBackers().size()));
 				if(par.getSubjects().size() > 0) lore.add(StringFormatter.formatHex("§7- #768fccSubjects: #a3afcc"+par.getSubjects().size()));
 				lore.add(" ");

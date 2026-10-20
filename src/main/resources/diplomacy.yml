@@ -217,3 +217,25 @@ attitudes:
 thresholds:
     war: -50
     ally: 50
+# Coalitions: independent factions grouped against one target faction (/coalition).
+coalition:
+    enabled: true
+    cost:
+        # Each member pays base * max(1, r)^exponent diplomatic capacity, where r is its
+        # realm prestige (own plus subjects) over the median prestige of active factions.
+        base: 5.0
+        exponent: 1.5
+        # Multiplies the leader's seat.
+        leader-multiplier: 1.0
+    # The target's realm prestige must be at least gate-ratio times the strongest member's.
+    gate-ratio: 1.0
+    # A coalition whose target stops being independent disbands after this many days
+    # unless the leader picks a new target. The countdown waits while a coalition war runs.
+    target-loss-days: 7
+    # A coalition left with one member disbands after this many days.
+    single-member-days: 7
+    # Leaving, being removed, or disbanding by choice blocks joining or forming another for this long.
+    leave-cooldown-days: 7
+    invite-expiry-days: 7
+    name-min-length: 3
+    name-max-length: 32

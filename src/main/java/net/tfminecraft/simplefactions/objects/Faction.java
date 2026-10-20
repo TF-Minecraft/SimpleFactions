@@ -13,18 +13,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.bukkit.Bukkit;
-import org.bukkit.DyeColor;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
-import org.bukkit.block.banner.Pattern;
-import org.bukkit.block.banner.PatternType;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.BannerMeta;
 
 import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.army.Regiment;
@@ -50,6 +42,7 @@ import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
 import net.tfminecraft.simplefactions.government.proposal.FeeKind;
 import net.tfminecraft.simplefactions.objects.handler.VehicleFeeHandler;
 import net.tfminecraft.simplefactions.rest.BannerFetcher;
+import net.tfminecraft.simplefactions.utils.BannerPatterns;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
@@ -300,55 +293,8 @@ public class Faction {
 		updateTier();
 	}
 
-	// Preserve the existing additional-tooltip component selection and legacy item text; hiding the whole tooltip is different.
-	@SuppressWarnings({"deprecation"})
 	private void createBanner(List<String> patterns) {
-		ItemStack item = new ItemStack(
-			Material.valueOf(patterns.get(0).split("\\.")[0].toUpperCase() + "_BANNER"),
-			1
-		);
-
-		BannerMeta meta = (BannerMeta) item.getItemMeta();
-		meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-		for (int i = 1; i < patterns.size(); i++) {
-			String p = patterns.get(i);
-			String[] split = p.split("\\.");
-
-			if (split.length != 2) continue;
-
-			String colourName = split[0].toUpperCase();
-			String patternName = split[1].toLowerCase();
-
-			DyeColor dye;
-			try {
-				dye = DyeColor.valueOf(colourName);
-			} catch (IllegalArgumentException e) {
-				Bukkit.getLogger().warning("Invalid dye color: " + colourName);
-				continue;
-			}
-
-			PatternType patternType = null;
-
-			// 1️⃣ Try vanilla (minecraft namespace)
-			NamespacedKey vanillaKey = NamespacedKey.minecraft(patternName);
-			patternType = io.papermc.paper.registry.RegistryAccess.registryAccess().getRegistry(io.papermc.paper.registry.RegistryKey.BANNER_PATTERN).get(vanillaKey);
-
-			// 2️⃣ Try custom namespace (tfmc)
-			if (patternType == null) {
-				NamespacedKey customKey = new NamespacedKey("tfmc", patternName);
-				patternType = io.papermc.paper.registry.RegistryAccess.registryAccess().getRegistry(io.papermc.paper.registry.RegistryKey.BANNER_PATTERN).get(customKey);
-			}
-
-			if (patternType == null) {
-				Bukkit.getLogger().warning("Invalid banner pattern: " + patternName);
-				continue;
-			}
-
-			meta.addPattern(new Pattern(dye, patternType));
-		}
-		item.setItemMeta(meta);
-		
-		this.banner = item;
+		this.banner = BannerPatterns.toItem(patterns);
 	}
 
 
@@ -625,15 +571,9 @@ public class Faction {
 		}
 	}
 	public void setBanner(ItemStack banner) {
-		BannerMeta b = (BannerMeta) banner.getItemMeta();
+		List<String> patterns = BannerPatterns.fromItem(banner);
 		this.bannerPatterns.clear();
-		this.bannerPatterns.add(banner.getType().toString().replace("_BANNER", ".BASE"));
-		for(Pattern p : b.getPatterns()) {
-			NamespacedKey key = io.papermc.paper.registry.RegistryAccess.registryAccess()
-				.getRegistry(io.papermc.paper.registry.RegistryKey.BANNER_PATTERN).getKey(p.getPattern());
-			if (key == null) continue;
-			this.bannerPatterns.add(p.getColor().name() + "." + key.getKey().toUpperCase());
-		}
+		this.bannerPatterns.addAll(patterns);
 		createBanner(bannerPatterns);
 	}
 	public List<String> getBannerPatterns() {

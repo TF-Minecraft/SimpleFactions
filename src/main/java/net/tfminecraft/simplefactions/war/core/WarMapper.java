@@ -430,6 +430,9 @@ public final class WarMapper {
 				}
 			}
 		}
+		for (Faction member : participant.getCoalitionAllies()) {
+			data.coalitionAllies.add(member.getId());
+		}
 		return data;
 	}
 
@@ -463,6 +466,11 @@ public final class WarMapper {
 
 			Participant participant = new Participant(
 					leader, subjects, allies, backers, new HashMap<>(), participantData.civilWar);
+			if (participantData.coalitionAllies != null) {
+				for (String id : participantData.coalitionAllies) {
+					participant.addCoalitionAlly(FactionManager.getByString(id));
+				}
+			}
 			side.getMainParticipants().add(participant);
 		}
 	}

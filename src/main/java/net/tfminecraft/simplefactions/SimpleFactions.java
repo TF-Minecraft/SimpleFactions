@@ -159,6 +159,8 @@ public class SimpleFactions extends JavaPlugin{
 	private final CapitalMovePrompt capitalMovePrompt = new CapitalMovePrompt();
 	private final DisplayNameGate displayNameGate = new DisplayNameGate();
 	private final DeclareCodePrompt declareCodePrompt = new DeclareCodePrompt();
+	private final net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionCodePrompt coalitionCodePrompt =
+			new net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionCodePrompt();
 	private final ProvincePresenceListener provincePresenceListener = new ProvincePresenceListener();
 	private final BattleManager battleManager = new BattleManager();
 	private final BattleItemDurability.Listener battleItemDurabilityListener =
@@ -283,7 +285,8 @@ public class SimpleFactions extends JavaPlugin{
 	private CharacterMigration.Heirs migrationHeirs = CharacterMigration.SHARED;
 	/** Every command in plugin.yml; each answers "starting up" until the plugin has started. */
 	static final java.util.List<String> COMMANDS = java.util.List.of(
-			"faction", "guild", "warband", "battle", "raid", "war", "movement", "ledger", "company", "mercenaries");
+			"faction", "guild", "warband", "battle", "raid", "war", "movement", "ledger", "company", "mercenaries",
+			"coalition");
 	private static final long IDENTITY_POLL_TICKS = 5L * 20L;
 
 	@Override
@@ -450,6 +453,9 @@ public class SimpleFactions extends JavaPlugin{
             net.tfminecraft.simplefactions.economy.TreasuryActions.recoverTopologyFiles(getDataFolder().toPath().resolve("economy/callers"));
         } catch (Exception error) { failFinancialState(error); return; }
         db.loadFactions();
+		// Coalitions name factions, so they load once the factions are in.
+		net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry.bind(new File(getDataFolder(), "Cache"));
+		net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry.load();
 		try {
 			net.tfminecraft.simplefactions.espionage.EspionageService.loadAptitudes(
 					getDataFolder().toPath().resolve("Cache/character-aptitudes.json"));
@@ -544,6 +550,10 @@ public class SimpleFactions extends JavaPlugin{
 		getCommand(WarCommandManager.CMD).setTabCompleter(warTabCompletion);
 		getCommand(MovementCommandManager.CMD).setExecutor(movementCommandManager);
 		getCommand(MovementCommandManager.CMD).setTabCompleter(new MovementTabCompletion());
+		getCommand(net.tfminecraft.simplefactions.managers.CoalitionCommandManager.CMD)
+				.setExecutor(new net.tfminecraft.simplefactions.managers.CoalitionCommandManager());
+		getCommand(net.tfminecraft.simplefactions.managers.CoalitionCommandManager.CMD)
+				.setTabCompleter(new net.tfminecraft.simplefactions.managers.CoalitionTabCompletion());
 		RequestManager.start();
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.startAutosave();
 		BattleScheduleTickService.start();
@@ -570,6 +580,8 @@ public class SimpleFactions extends JavaPlugin{
             net.tfminecraft.simplefactions.guild.LeaderlessGuilds.closeExpired(System.currentTimeMillis());
             net.tfminecraft.simplefactions.guild.HeldRealms.closeExpired(System.currentTimeMillis(), getDataFolder().toPath());
         }, 72000L, 72000L);
+        getServer().getScheduler().runTaskTimer(this,
+                net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService::tick, 1200L, 1200L);
         net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);
 	}
 	@Override
@@ -603,6 +615,7 @@ public class SimpleFactions extends JavaPlugin{
 		}
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.saveAll();
 		net.tfminecraft.simplefactions.inactivity.InactivityService.save();
+		net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry.save();
 		net.tfminecraft.simplefactions.prestige.RecentPlaytime.stop();
 		saveFactionsForShutdown();
 		for(War w : WarManager.get()){
@@ -642,6 +655,7 @@ public class SimpleFactions extends JavaPlugin{
 		regimentLoader.loadRegiments(new File(getDataFolder(), "regiments.yml"));
 		relationLoader.loadRelationTypes(new File(getDataFolder(), "diplomacy.yml"));
 		relationLoader.loadAttitudes(new File(getDataFolder(), "diplomacy.yml"));
+		net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionSettings.load(new File(getDataFolder(), "diplomacy.yml"));
 		politicalActionLoader.load(new File(getDataFolder(), "political-actions.yml"));
 		lawLoader.load(new File(getDataFolder(), "laws.yml"));
 		tierLoader.load(new File(getDataFolder(), "tiers.yml"));
@@ -666,6 +680,7 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(capitalMovePrompt, this);
 		getServer().getPluginManager().registerEvents(displayNameGate, this);
 		getServer().getPluginManager().registerEvents(declareCodePrompt, this);
+		getServer().getPluginManager().registerEvents(coalitionCodePrompt, this);
 		getServer().getPluginManager().registerEvents(factionManager, this);
 		if (getServer().getPluginManager().getPlugin("ItemsAdder") != null) {
 			getServer().getPluginManager().registerEvents(

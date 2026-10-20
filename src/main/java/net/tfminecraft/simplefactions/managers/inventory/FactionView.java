@@ -19,6 +19,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import net.tfminecraft.simplefactions.diplomacy.coalition.Coalition;
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
@@ -120,6 +122,8 @@ public class FactionView {
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.FACTION_VIEW), 54, "§7Faction View");
 		if (!EspionageService.canViewExact(player, f)) {
 			EspionageView.foreign(i, player, f, inv);
+			// Coalitions are public, so even a foreign view shows them.
+			i.setItem(22, CoalitionView.factionItem(f));
 			if (open) player.openInventory(i);
 			return;
 		}
@@ -143,6 +147,7 @@ public class FactionView {
 		i.setItem(32, creator.createMenuItem(player, f, MenuItemType.INSTALLATIONS));
 		i.setItem(33, creator.createMenuItem(player, f, MenuItemType.TIER));
 		i.setItem(34, creator.createMenuItem(player, f, MenuItemType.TITLES));
+		i.setItem(22, CoalitionView.factionItem(f));
 		i.setItem(53, this.inv.createBackButton(SFGUI.FACTION_VIEW));
 		if(open) player.openInventory(i);
 	}
@@ -266,6 +271,14 @@ public class FactionView {
 			if (!(inventory.getHolder() instanceof SFInventoryHolder holder)) return;
 			Faction viewed = FactionManager.getByString(holder.getId());
 			if (viewed == null) return;
+			if (e.getSlot() == 22) {
+				Coalition coalition = CoalitionService.of(viewed);
+				if (coalition == null && !CoalitionService.targeting(viewed).isEmpty()) {
+					coalition = CoalitionService.targeting(viewed).get(0);
+				}
+				if (coalition != null) inv.coalitionView.menu(p, coalition);
+				return;
+			}
 			if (!EspionageService.canViewExact(p, viewed)
 					&& e.getSlot() != 23 && e.getSlot() != 31 && e.getSlot() != 53 && e.getSlot() != 15 && e.getSlot() != 20) {
                 switch (e.getSlot()) {

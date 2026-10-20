@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import java.util.ArrayList;
@@ -246,6 +247,11 @@ public class RelationManager {
 			if(p != null) p.sendMessage("§cYou have reached the limit for this relation type");
 			return false;
 		}
+		String coalitionBlock = isAllyType(r) ? CoalitionService.allianceBlock(origin, target) : null;
+		if(!forced && coalitionBlock != null) {
+			if(p != null) p.sendMessage(coalitionBlock);
+			return false;
+		}
 		if(!forced && r.hasThreshold()) {
 			Threshold h = r.getThreshold();
 			int opinion = origin.getRelation(target.getId()).getOpinion();
@@ -299,6 +305,8 @@ public class RelationManager {
 		if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Set relation to "+r.getName()));
 		//An alliance or vassalage can make a signed mercenary contract treachery
 		MercenaryLoyaltyWatcher.onRelationChanged(origin, target);
+		// A new overlord ends a coalition membership or target.
+		CoalitionService.onRelationChanged();
 		return true;
 	}
 
@@ -480,6 +488,10 @@ public class RelationManager {
 	/** Whether origin's own relation to target is an alliance. */
 	public static boolean isAlly(Faction origin, Faction target) {
 		return origin != null && target != null && isAlly(origin.getRelation(target.getId()));
+	}
+
+	private static boolean isAllyType(RelationType type) {
+		return "ally".equalsIgnoreCase(type.getId());
 	}
 
 	private static boolean isAlly(Relation relation) {

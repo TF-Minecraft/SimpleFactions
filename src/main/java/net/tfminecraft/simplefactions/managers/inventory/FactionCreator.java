@@ -152,6 +152,11 @@ public class FactionCreator {
 				lore.add(StringFormatter.formatHex("#bccbd1- "+ally.getName()));
 			}
 		}
+		List<String> coalitions = CoalitionView.coalitionLore(f);
+		if(!coalitions.isEmpty()) {
+			lore.add("");
+			lore.addAll(coalitions);
+		}
         return lore;
     }
 
