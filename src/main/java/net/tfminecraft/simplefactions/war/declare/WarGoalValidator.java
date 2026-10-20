@@ -35,6 +35,8 @@ import net.tfminecraft.simplefactions.settlement.Settlement;
  * </pre>
  */
 public class WarGoalValidator {
+	public static final String USURP_OVERLORD =
+			"§cTo usurp your overlord, start a Usurp movement in their government.";
 
 	public WarValidationResult validate(WarDeclareRequest request) {
 		WarValidationResult shared = validateShared(request);
@@ -91,11 +93,10 @@ public class WarGoalValidator {
 		if (!request.isWithinRealm()
 				&& RelationManager.sameRealm(attacker, defender)
 				&& !InterVassalQueries.isInternalPeer(attacker, defender)) {
-			boolean usurpOverlord = request.getGoal() == WarGoalType.USURP
-					&& RelationManager.isOverlord(attacker, defender);
-			if (!usurpOverlord) {
-				return WarValidationResult.fail("§cYou cannot declare war on a faction in the same realm.");
+			if (request.getGoal() == WarGoalType.USURP && RelationManager.isOverlord(attacker, defender)) {
+				return WarValidationResult.fail(USURP_OVERLORD);
 			}
+			return WarValidationResult.fail("§cYou cannot declare war on a faction in the same realm.");
 		}
 		// A truce stops new wars; a demand inside one already being fought is not one.
 		WarValidationResult truce = demand ? WarValidationResult.ok() : validateTruce(attacker, defender);
@@ -194,6 +195,10 @@ public class WarGoalValidator {
 		}
 		if (!canUsurpByRank(attacker.getTier().getTier(), defender.getTier().getTier())) {
 			return WarValidationResult.fail("§cYou cannot usurp a faction of lower rank.");
+		}
+		// The loser becomes the usurper's subject, which a faction without vassals cannot hold.
+		if (!attacker.canHaveVassals()) {
+			return WarValidationResult.fail("§cYour laws do not allow vassals, so you cannot usurp.");
 		}
 		return WarValidationResult.ok();
 	}

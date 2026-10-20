@@ -356,9 +356,9 @@ class CoalitionViewTest extends CoalitionTestBase {
 		WarView unused = new WarView(navigation);
 		assertNotNull(unused);
 		var declare = new net.tfminecraft.simplefactions.managers.inventory.DeclareWarView(navigation);
-		String summary = lore(declare.creator.createConfirmSummaryItem(WarDeclareRequest.of(holy, thalendor, WarGoalType.TRIBUTARY)));
+		String summary = lore(declare.creator.createConfirmSummaryItem(WarDeclareRequest.of(holy, thalendor, WarGoalType.TRIBUTARY), false));
 		assertTrue(summary.contains("Its members can be called into this war."));
-		String quiet = lore(declare.creator.createConfirmSummaryItem(WarDeclareRequest.of(fig, holy, WarGoalType.TRIBUTARY)));
+		String quiet = lore(declare.creator.createConfirmSummaryItem(WarDeclareRequest.of(fig, holy, WarGoalType.TRIBUTARY), false));
 		assertFalse(quiet.contains("coalition"));
 		verify(navigation, never()).warView(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
 	}

@@ -31,8 +31,6 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.tiers.Tier;
-import net.tfminecraft.simplefactions.war.declare.DeclareCodePrompt;
-import net.tfminecraft.simplefactions.war.declare.WarDeclareCodeService;
 import net.tfminecraft.simplefactions.enums.SFGUI;
 
 public class RelationView {
@@ -302,13 +300,7 @@ public class RelationView {
 					p.sendMessage("§cCannot declare war while none of the target faction members are online!");
 					return;
 				}
-				if (WarDeclareCodeService.isRequired(p)) {
-					// Staff bypass the code entirely by permission, which is what makes it
-					// safe for an unreachable ProvinceSystem to fail closed here.
-					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-					DeclareCodePrompt.begin(p, attacker, f);
-					return;
-				}
+				// Leaders browse the goals freely; the staff code is asked for at confirm.
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				inv.openDeclareWarGoalPicker(p, attacker, f);
 			}

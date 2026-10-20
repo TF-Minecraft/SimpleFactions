@@ -108,6 +108,9 @@ class WarDeclareHelperTest {
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
 
+		when(attacker.canHaveVassals()).thenReturn(false);
+		assertFalse(WarDeclareHelper.canDeclareUsurp(attacker, defender), "laws without vassals");
+		when(attacker.canHaveVassals()).thenReturn(true);
 		assertTrue(WarDeclareHelper.canDeclareUsurp(attacker, defender));
 	}
 
@@ -133,7 +136,7 @@ class WarDeclareHelperTest {
 	}
 
 	@Test
-	void canDeclareUsurp_allowsDirectOverlord() {
+	void canDeclareUsurp_refusesTheDirectOverlordWhichIsAMovement() {
 		Faction defender = mockRankedFaction("liege", 4);
 		withTitle(defender);
 		Faction attacker = mockSubject("vassal", "liege");
@@ -142,7 +145,7 @@ class WarDeclareHelperTest {
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
 
-		assertTrue(WarDeclareHelper.canDeclareUsurp(attacker, defender));
+		assertFalse(WarDeclareHelper.canDeclareUsurp(attacker, defender));
 	}
 
 	@Test
@@ -186,6 +189,7 @@ class WarDeclareHelperTest {
 		Faction faction = mockFaction(id);
 		Tier tier = mockTier(tierLevel);
 		when(faction.getTier()).thenReturn(tier);
+		when(faction.canHaveVassals()).thenReturn(true);
 		return faction;
 	}
 
@@ -212,6 +216,7 @@ class WarDeclareHelperTest {
 		relations.put(overlordId, relation);
 		when(faction.getRelations()).thenReturn(relations);
 		when(faction.getRelation(overlordId)).thenReturn(relation);
+		when(faction.canHaveVassals()).thenReturn(true);
 		return faction;
 	}
 }

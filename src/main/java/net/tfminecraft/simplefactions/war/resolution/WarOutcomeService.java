@@ -156,7 +156,14 @@ public final class WarOutcomeService {
 			case TRIBUTARY -> applyTributary(war);
 			case SUBJUGATE -> applySubjugate(war);
 			case TRANSFER_SUBJECT -> applyTransferSubject(war);
-			case USURP -> applyUsurp(war);
+			// A vassal's usurp is won through its movement, which knows who leads the cause.
+			case USURP -> {
+				if (war.getMovementId() != null && !war.getMovementId().isBlank()) {
+					applyMovementWar(war);
+				} else {
+					applyUsurp(war);
+				}
+			}
 			case DE_JURE_ANNEX -> applyDeJureAnnex(war);
 			case OPEN_MARKET -> applyOpenMarket(war);
 			case CHANGE_GOVERNMENT -> applyChangeGovernment(war);

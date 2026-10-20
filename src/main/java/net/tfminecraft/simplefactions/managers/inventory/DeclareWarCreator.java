@@ -25,6 +25,7 @@ import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.DeJureT
 import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.KeptSettlement;
 import net.tfminecraft.simplefactions.war.declare.OpenMarketEligibility;
 import net.tfminecraft.simplefactions.war.declare.PillageEligibility;
+import net.tfminecraft.simplefactions.war.declare.WarGoalPreview;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.laws.Law;
@@ -34,9 +35,10 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class DeclareWarCreator {
 
-	public ItemStack createTributaryGoalItem() {
-		return createGoalItem(WarGoalType.TRIBUTARY, "§lTributary", List.of(
-				"§7Make the defender your tributary."));
+	public ItemStack createTributaryGoalItem(Faction attacker, Faction defender) {
+		List<String> lore = new ArrayList<>(List.of("§7Make the defender your tributary."));
+		lore.addAll(WarGoalPreview.subjectEffects(RelationLoader.getType("tributary"), attacker, defender));
+		return createGoalItem(WarGoalType.TRIBUTARY, "§lTributary", lore);
 	}
 
 	public ItemStack createSubjugateGoalItem() {
@@ -45,16 +47,24 @@ public class DeclareWarCreator {
 				"§7your subject."));
 	}
 
-	public ItemStack createUsurpGoalItem() {
-		return createGoalItem(WarGoalType.USURP, "§lUsurp", List.of(
+	public ItemStack createUsurpGoalItem(Faction defender) {
+		List<String> lore = new ArrayList<>(List.of(
 				"§7Take the defender's primary title",
 				"§7and become their liege."));
+		lore.addAll(WarGoalPreview.usurp(defender));
+		return createGoalItem(WarGoalType.USURP, "§lUsurp", lore);
 	}
 
-	public ItemStack createOpenMarketGoalItem() {
-		return createGoalItem(WarGoalType.OPEN_MARKET, "§lOpen Market", List.of(
+	public ItemStack createOpenMarketGoalItem(Faction defender) {
+		List<String> lore = new ArrayList<>(List.of(
 				"§7Force the defender to adopt",
 				"§7the configured free-trade law."));
+		OpenMarketEligibility.ResolvedLaw resolved =
+				OpenMarketEligibility.resolve(defender, Cache.openMarketApplyDefenderLaw);
+		if (resolved != null && resolved.law() != null && resolved.law().getName() != null) {
+			lore.add("§7Law: §f" + resolved.law().getName());
+		}
+		return createGoalItem(WarGoalType.OPEN_MARKET, "§lOpen Market", lore);
 	}
 
 	public ItemStack createChangeGovernmentGoalItem() {
@@ -63,10 +73,32 @@ public class DeclareWarCreator {
 				"§7government and leadership combo."));
 	}
 
-	public ItemStack createPillageGoalItem() {
-		return createGoalItem(WarGoalType.PILLAGE, "§lPillage", List.of(
+	/** {@code bestLoot}: the richest eligible settlement's line, or null when none is in range. */
+	public ItemStack createPillageGoalItem(String bestLoot) {
+		List<String> lore = new ArrayList<>(List.of(
 				"§7Raid a nearby settlement for",
 				"§7trade income and loot."));
+		lore.add(bestLoot != null ? bestLoot : "§cNo settlement in range to pillage.");
+		return createGoalItem(WarGoalType.PILLAGE, "§lPillage", lore);
+	}
+
+	/** Shown above the goals: what every war wins or costs, and when the staff code is asked for. */
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createOverviewItem(Faction attacker, Faction defender, boolean codeRequired) {
+		ItemStack item = new ItemStack(Material.GOLD_NUGGET);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§6War with " + defender.getName());
+		List<String> lore = new ArrayList<>(WarGoalPreview.reparations(attacker, defender));
+		lore.add(" ");
+		lore.add("§7Hover over a goal to see what it wins.");
+		if (codeRequired) {
+			lore.add("§7You only need a staff war code");
+			lore.add("§7when you confirm the declaration.");
+		}
+		meta.setLore(lore);
+		item.setItemMeta(meta);
+		return item;
 	}
 
 	public ItemStack createDeJureGoalItem() {
@@ -100,13 +132,14 @@ public class DeclareWarCreator {
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public ItemStack createRelationTypeItem(RelationType type, Faction attacker) {
+	public ItemStack createRelationTypeItem(RelationType type, Faction attacker, Faction defender) {
 		ItemStack item = IconGetter.getIcon("war");
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(type.getName());
 		List<String> lore = new ArrayList<>();
 		lore.add("§7The defender becomes this");
 		lore.add("§7kind of subject.");
+		lore.addAll(WarGoalPreview.subjectEffects(type, attacker, defender));
 		if (attacker != null && RelationManager.atLimit(attacker, type)) {
 			lore.add("§cAt limit");
 		}
@@ -174,7 +207,8 @@ public class DeclareWarCreator {
 		ItemStack item = new ItemStack(Material.PAPER, 1);
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName("§7" + settlement.getName());
-		List<String> lore = new ArrayList<>();
+		List<String> lore = new ArrayList<>(WarGoalPreview.pillage(settlement));
+		lore.add(" ");
 		if (option.eligible()) {
 			lore.add("§eClick to declare");
 		} else if (option.blockReason() != null) {
@@ -263,7 +297,7 @@ public class DeclareWarCreator {
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public ItemStack createConfirmSummaryItem(WarDeclareRequest request) {
+	public ItemStack createConfirmSummaryItem(WarDeclareRequest request, boolean asksForCode) {
 		ItemStack item = IconGetter.getIcon("war");
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex("#d42300§lDeclare War?"));
@@ -303,6 +337,7 @@ public class DeclareWarCreator {
 			Settlement settlement = PillageEligibility.findSettlement(request.getTargetSettlementId(), request.getDefender());
 			if (settlement != null && settlement.getName() != null) {
 				lore.add(StringFormatter.formatHex("#a89977Settlement: "+settlement.getName()));
+				lore.addAll(WarGoalPreview.pillage(settlement));
 			}
 		}
 		if (request.getGoal() == WarGoalType.USURP) {
@@ -317,6 +352,11 @@ public class DeclareWarCreator {
 			lore.addAll(coalitionWarnings);
 		}
 		lore.add(" ");
+		lore.addAll(WarGoalPreview.reparations(request.getAttacker(), request.getDefender()));
+		lore.add(" ");
+		if (asksForCode) {
+			lore.add("§eConfirming asks for your staff war code.");
+		}
 		lore.add(StringFormatter.formatHex("#c74c3fThis cannot be undone easily."));
 		meta.setLore(lore);
 		item.setItemMeta(meta);

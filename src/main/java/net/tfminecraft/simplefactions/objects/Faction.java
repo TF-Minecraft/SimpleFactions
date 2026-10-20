@@ -63,6 +63,7 @@ import net.tfminecraft.simplefactions.government.election.Candidate;
 import net.tfminecraft.simplefactions.government.movement.Action;
 import net.tfminecraft.simplefactions.government.movement.CoupService;
 import net.tfminecraft.simplefactions.government.movement.PoliticalAction;
+import net.tfminecraft.simplefactions.government.movement.UsurpCause;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
@@ -1109,6 +1110,9 @@ public class Faction {
 				for(Faction vassal : getVassals()) {
 					RelationManager.endVassalage(vassal, this, false);
 				}
+				break;
+			case USURP:
+				UsurpCause.apply(cause, this);
 				break;
 			case NATIONHOOD:
 				if(cause == null) return; //no cause = no members to give nationhood

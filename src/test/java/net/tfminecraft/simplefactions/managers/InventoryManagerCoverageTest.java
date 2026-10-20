@@ -1559,7 +1559,7 @@ class InventoryManagerCoverageTest {
             faction, defender, net.tfminecraft.simplefactions.war.enums.WarGoalType.WAR);
     ItemStack summary = manager.getFiller(Material.IRON_SWORD);
     manager.declareWarView.creator = mock(DeclareWarCreator.class);
-    when(manager.declareWarView.creator.createConfirmSummaryItem(request)).thenReturn(summary);
+    when(manager.declareWarView.creator.createConfirmSummaryItem(request, false)).thenReturn(summary);
     manager.confirmWarDeclareView(player, request);
     Inventory inventory = player.getOpenInventory().getTopInventory();
     assertSame(summary, inventory.getItem(13));

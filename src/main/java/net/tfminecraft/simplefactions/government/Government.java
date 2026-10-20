@@ -46,6 +46,7 @@ import net.tfminecraft.simplefactions.government.election.Election;
 import net.tfminecraft.simplefactions.government.movement.Action;
 import net.tfminecraft.simplefactions.government.movement.Movement;
 import net.tfminecraft.simplefactions.government.movement.PoliticalAction;
+import net.tfminecraft.simplefactions.government.movement.UsurpCause;
 import net.tfminecraft.simplefactions.government.movement.Pool;
 import net.tfminecraft.simplefactions.government.movement.cause.Cause;
 import net.tfminecraft.simplefactions.government.proposal.Proposal;
@@ -438,6 +439,7 @@ public class Government {
                 break;
             case VASSAL_LEADER:
                 if(!PoliticalActionLoader.getByAction(action).allowFactions()) return false;
+                if(action == Action.USURP && !UsurpCause.canUsurp(FactionManager.getByLeader(name), f)) return false;
             default:
                 break;
             

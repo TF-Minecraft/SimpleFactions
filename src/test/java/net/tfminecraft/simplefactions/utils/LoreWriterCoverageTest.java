@@ -130,6 +130,7 @@ class LoreWriterCoverageTest {
       case DISSOLVE -> "Dissolves the faction";
       case INDEPENDENCE -> "granted independence";
       case NATIONHOOD -> "elevated to nationhood";
+      case USURP -> "takes this faction's highest title";
       case SNAP_ELECTIONS -> "voting lasts for a week";
       default -> "Action:";
     };

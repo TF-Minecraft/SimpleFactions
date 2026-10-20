@@ -403,7 +403,7 @@ class RelationMenusCoverageTest {
 
   @ParameterizedTest
   @CsvSource({"leader,leader", "already,already in a war", "truce,truce", "opinion,opinion", "offline,online", "code,code", "goal,goal"})
-  void warDeclarationRechecksLiveConditionsBeforePromptOrGoalSelection(String scenario, String expected) {
+  void warDeclarationRechecksLiveConditionsBeforeGoalSelection(String scenario, String expected) {
     type("war", "threshold.amount", -10);
     view.diplomacyView(null, player, target, true);
     if (scenario.equals("leader")) when(origin.getLeader()).thenReturn("NewLeader");
@@ -415,8 +415,11 @@ class RelationMenusCoverageTest {
     if (scenario.equals("offline")) when(target.numOnline()).thenReturn(0);
     if (scenario.equals("code")) codes.when(() -> WarDeclareCodeService.isRequired(player)).thenReturn(true);
     click(24);
-    if (scenario.equals("code")) prompts.verify(() -> DeclareCodePrompt.begin(player, origin, target));
-    else if (scenario.equals("goal")) verify(manager).openDeclareWarGoalPicker(player, origin, target);
+    // A required code is only asked for at confirm, so leaders can browse the goals first.
+    if (scenario.equals("code") || scenario.equals("goal")) {
+      verify(manager).openDeclareWarGoalPicker(player, origin, target);
+      prompts.verifyNoInteractions();
+    }
     else {
       prompts.verifyNoInteractions();
       verify(manager, never()).openDeclareWarGoalPicker(any(), any(), any());

@@ -29,6 +29,7 @@ public final class CivilWarGoalMapper {
 			case TAX_CHANGE -> WarGoalType.CHANGE_TAX;
 			case WHITE_PEACE, SURRENDER -> WarGoalType.FORCE_PEACE;
 			case INDEPENDENCE -> WarGoalType.INDEPENDENCE;
+			case USURP -> WarGoalType.USURP;
 			case NATIONHOOD -> WarGoalType.NATIONHOOD;
 			default -> null;
 		};

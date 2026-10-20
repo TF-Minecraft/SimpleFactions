@@ -30,6 +30,16 @@ public final class PillageApplyService {
         applyTreasury(war, hit, snapshotLoot(hit, PillageApplyService::liveTradeIncome, Cache.pillageLootDays), true);
 	}
 
+	/** The guilds a pillage of this settlement would hit, as {@link #apply} finds them. */
+	public static List<Guild> guildsIn(Settlement settlement) {
+		return guildsInSettlement(settlement, FactionManager.getAllGuilds());
+	}
+
+	/** The loot a pillage would pay out today, before the war is fought. */
+	public static double previewLoot(List<Guild> guilds) {
+		return snapshotLoot(guilds, PillageApplyService::liveTradeIncome, Cache.pillageLootDays);
+	}
+
 	static List<Guild> guildsInSettlement(Settlement settlement, List<Guild> all) {
 		List<Guild> hit = new ArrayList<>();
 		if (settlement == null || all == null) {

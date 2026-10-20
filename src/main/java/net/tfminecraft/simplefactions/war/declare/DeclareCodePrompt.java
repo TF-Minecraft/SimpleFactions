@@ -31,23 +31,25 @@ public class DeclareCodePrompt implements Listener {
 	private static final Map<Player, Pending> pending = new ConcurrentHashMap<>();
 
 	private static class Pending {
+		private final WarDeclareRequest request;
 		private final String attackerId;
 		private final String defenderId;
 		private final AtomicBoolean submitted = new AtomicBoolean();
 
-		private Pending(String attackerId, String defenderId) {
-			this.attackerId = attackerId;
-			this.defenderId = defenderId;
+		private Pending(WarDeclareRequest request) {
+			this.request = request;
+			this.attackerId = request.getAttacker().getId();
+			this.defenderId = request.getDefender().getId();
 		}
 	}
 
-	/** Asks the leader for the code that staff handed them. */
-	public static void begin(Player player, Faction attacker, Faction defender) {
-		if (player == null || attacker == null || defender == null) {
+	/** Asks the leader for the code that staff handed them, once they confirm a declaration. */
+	public static void begin(Player player, WarDeclareRequest request) {
+		if (player == null || request == null) {
 			return;
 		}
 		player.closeInventory();
-		Pending state = new Pending(attacker.getId(), defender.getId());
+		Pending state = new Pending(request);
 		pending.put(player, state);
 		WarDeclareCodeService.clearSession(player);
 		player.sendMessage("§eEnter your war declaration code in chat:");
@@ -146,9 +148,9 @@ public class DeclareCodePrompt implements Listener {
 
 		WarDeclareCodeService.openSession(player, new WarDeclareCodeService.Session(
 				code, state.attackerId, state.defenderId));
-		player.sendMessage("§aCode accepted. Choose your war goal.");
+		player.sendMessage("§aCode accepted. Confirm to declare the war.");
 		player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-		FactionManager.getInv().declareWarView.openGoalPicker(player, attacker, defender);
+		FactionManager.getInv().confirmWarDeclareView(player, state.request);
 	}
 
 	@EventHandler

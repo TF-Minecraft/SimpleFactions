@@ -554,6 +554,24 @@ class WarOutcomeServiceTest {
 	}
 
 	@Test
+	void attackerVictory_usurpMovement_appliesTheMovementInsteadOfTheWarLeadersUsurp() {
+		Fixture fx = fixture();
+		Movement movement = mock(Movement.class);
+		fx.war.setGoal(WarGoalType.USURP);
+		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<MovementOutcomeService> gate = mockStatic(MovementOutcomeService.class)) {
+			factions.when(() -> FactionManager.getMovementById("mov-1")).thenReturn(movement);
+			fx.war.setMovementId("mov-1");
+			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
+			gate.verify(() -> MovementOutcomeService.apply(movement, MovementOutcomeSource.WAR));
+			factions.verify(() -> FactionManager.usurp(any(), any(), any()), never());
+			fx.war.setMovementId(" ");
+			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
+			factions.verify(() -> FactionManager.usurp(isNull(), eq(fx.attacker), eq(fx.defender)));
+		}
+	}
+
+	@Test
 	void attackerVictory_movementOrigin_missingMovement_doesNotApply() {
 		Fixture fx = fixture();
 		fx.war.setGoal(WarGoalType.OVERTHROW);

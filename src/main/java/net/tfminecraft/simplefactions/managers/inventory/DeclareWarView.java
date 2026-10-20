@@ -32,11 +32,13 @@ import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
 import net.tfminecraft.simplefactions.war.core.WarDemand;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.declare.ChangeGovernmentEligibility;
+import net.tfminecraft.simplefactions.war.declare.DeclareCodePrompt;
 import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.DeJureTitleOption;
 import net.tfminecraft.simplefactions.war.declare.PillageEligibility;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareCodeService;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
 import net.tfminecraft.simplefactions.war.declare.WarDemandRules;
+import net.tfminecraft.simplefactions.war.declare.WarGoalPreview;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
 import net.tfminecraft.simplefactions.enums.SFGUI;
@@ -75,21 +77,26 @@ public class DeclareWarView {
 		inventory.clear();
 		int slot = 10;
 		boolean withinRealm = withinRealm(demand);
+		if (demand == null) {
+			inventory.setItem(4, creator.createOverviewItem(
+					attacker, defender, WarDeclareCodeService.isRequired(player)));
+		}
 		// A ruler punishing their own vassal cannot set them free as a tributary.
 		if (!withinRealm) {
-			inventory.setItem(slot++, creator.createTributaryGoalItem());
+			inventory.setItem(slot++, creator.createTributaryGoalItem(attacker, defender));
 		}
 		if (attacker.canHaveVassals()) {
 			inventory.setItem(slot++, creator.createSubjugateGoalItem());
 		}
-		inventory.setItem(slot++, creator.createOpenMarketGoalItem());
+		inventory.setItem(slot++, creator.createOpenMarketGoalItem(defender));
 		inventory.setItem(slot++, creator.createChangeGovernmentGoalItem());
 		// Pillage is fought over its own settlement, so it can only be a war's first goal.
 		if (demand == null) {
-			inventory.setItem(slot++, creator.createPillageGoalItem());
+			inventory.setItem(slot++, creator.createPillageGoalItem(
+					WarGoalPreview.bestPillage(PillageEligibility.options(attacker, defender))));
 		}
 		if (!withinRealm && WarDeclareHelper.canDeclareUsurp(attacker, defender)) {
-			inventory.setItem(slot++, creator.createUsurpGoalItem());
+			inventory.setItem(slot++, creator.createUsurpGoalItem(defender));
 		}
 		if (!titleOptions(attacker, defender, demand).isEmpty()) {
 			inventory.setItem(slot++, creator.createDeJureGoalItem());
@@ -123,7 +130,7 @@ public class DeclareWarView {
 		int slot = 0;
 		for (RelationType type : subjectTypes(demand)) {
 			if (slot >= 26) break;
-			inventory.setItem(slot++, creator.createRelationTypeItem(type, attacker));
+			inventory.setItem(slot++, creator.createRelationTypeItem(type, attacker, defender));
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_RELATION_TYPE));
 		relabelForDemand(inventory, demand);
@@ -408,7 +415,19 @@ public class DeclareWarView {
 			returnToPreviousPicker(player, request);
 			return;
 		}
+		if (needsCode(player, request)) {
+			// Staff bypass the code by permission, which is what makes it safe for an
+			// unreachable ProvinceSystem to fail closed here.
+			DeclareCodePrompt.begin(player, request);
+			return;
+		}
 		executeDeclare(player, request);
+	}
+
+	/** True when the leader still has to enter a staff code that covers this pairing. */
+	public static boolean needsCode(Player player, WarDeclareRequest request) {
+		return WarDeclareCodeService.isRequired(player)
+				&& !WarDeclareCodeService.covers(WarDeclareCodeService.session(player), request);
 	}
 
 	/** Back out of a goal's sub-picker. A code session stays open: it covers the pairing, not a goal. */
@@ -522,17 +541,9 @@ public class DeclareWarView {
 	}
 
 	private void executeDeclare(Player player, WarDeclareRequest request) {
-		// The war button gates the entry, but pendingWarDeclares is a separate map, so
-		// the session is re-checked here against the pairing actually confirmed.
-		WarDeclareCodeService.Session session = null;
-		if (WarDeclareCodeService.isRequired(player)) {
-			session = WarDeclareCodeService.session(player);
-			if (!WarDeclareCodeService.covers(session, request)) {
-				WarDeclareCodeService.clearSession(player);
-				player.sendMessage("§cYour war code does not cover this declaration.");
-				return;
-			}
-		}
+		// handleConfirm has already checked that this session covers the confirmed pairing.
+		WarDeclareCodeService.Session session =
+				WarDeclareCodeService.isRequired(player) ? WarDeclareCodeService.session(player) : null;
 		War war = WarManager.declareWar(
 				request.getAttacker(),
 				request.getDefender(),

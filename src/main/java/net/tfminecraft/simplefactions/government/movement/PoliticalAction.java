@@ -39,8 +39,14 @@ public class PoliticalAction {
         this.action = action;
         this.icon = "v.paper";
         this.name = action.getDisplay();
-        this.description = new ArrayList<>();
-        this.pools = Arrays.asList("citizens", "guilds", "factions");
+        this.description = action == Action.USURP
+                ? new ArrayList<>(List.of(StringFormatter.formatHex("#c4c0a1The cause leader's faction takes the highest title"),
+                        StringFormatter.formatHex("#c4c0a1and becomes the overlord of this faction.")))
+                : new ArrayList<>();
+        // Only a vassal can take its overlord's title; everything else is open to all pools.
+        this.pools = action == Action.USURP
+                ? List.of("vassals")
+                : Arrays.asList("citizens", "guilds", "factions");
     }
  
     public Action getAction() {

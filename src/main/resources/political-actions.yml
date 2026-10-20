@@ -19,6 +19,14 @@ independence:
     pools:
       - guilds
       - vassals
+usurp:
+    name: "#62ccd1Usurp"
+    description:
+        - "#c4c0a1The cause leader's faction takes the highest title"
+        - "#c4c0a1and becomes the overlord of this faction."
+        - "#c4c0a1Only direct vassals can lead or join it."
+    pools:
+      - vassals
 snap_elections:
     name: "#62ccd1Snap Elections"
     description:

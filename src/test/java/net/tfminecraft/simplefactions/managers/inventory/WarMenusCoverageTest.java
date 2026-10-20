@@ -45,6 +45,7 @@ import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.DeJureT
 import net.tfminecraft.simplefactions.war.declare.OpenMarketEligibility;
 import net.tfminecraft.simplefactions.war.declare.PillageEligibility;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareCodeService;
+import net.tfminecraft.simplefactions.war.declare.DeclareCodePrompt;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
@@ -585,17 +586,17 @@ class WarMenusCoverageTest {
     Map<WarGoalType, Supplier<ItemStack>> options =
         Map.of(
             WarGoalType.TRIBUTARY,
-            declaration.creator::createTributaryGoalItem,
+            () -> declaration.creator.createTributaryGoalItem(attacker, defender),
             WarGoalType.SUBJUGATE,
             declaration.creator::createSubjugateGoalItem,
             WarGoalType.USURP,
-            declaration.creator::createUsurpGoalItem,
+            () -> declaration.creator.createUsurpGoalItem(defender),
             WarGoalType.OPEN_MARKET,
-            declaration.creator::createOpenMarketGoalItem,
+            () -> declaration.creator.createOpenMarketGoalItem(defender),
             WarGoalType.CHANGE_GOVERNMENT,
             declaration.creator::createChangeGovernmentGoalItem,
             WarGoalType.PILLAGE,
-            declaration.creator::createPillageGoalItem,
+            () -> declaration.creator.createPillageGoalItem(null),
             WarGoalType.DE_JURE_ANNEX,
             declaration.creator::createDeJureGoalItem,
             WarGoalType.TRANSFER_SUBJECT,
@@ -764,10 +765,12 @@ class WarMenusCoverageTest {
     try (MockedConstruction<WarGoalValidator> validators = validating(WarValidationResult.ok());
         MockedStatic<WarDeclareCodeService> codes = mockStatic(WarDeclareCodeService.class)) {
       codes.when(() -> WarDeclareCodeService.isRequired(player)).thenReturn(true);
-      declaration.handleConfirm(
-          player, WarDeclareRequest.of(attacker, defender, WarGoalType.WAR), true);
-      verify(player).sendMessage("§cYour war code does not cover this declaration.");
-      codes.verify(() -> WarDeclareCodeService.clearSession(player));
+      WarDeclareRequest request = WarDeclareRequest.of(attacker, defender, WarGoalType.WAR);
+      // Without a covering code, confirming asks for one instead of declaring.
+      try (MockedStatic<DeclareCodePrompt> prompts = mockStatic(DeclareCodePrompt.class)) {
+        declaration.handleConfirm(player, request, true);
+        prompts.verify(() -> DeclareCodePrompt.begin(player, request));
+      }
       codes
           .when(() -> WarDeclareCodeService.session(player))
           .thenReturn(
@@ -1086,12 +1089,15 @@ class WarMenusCoverageTest {
               "republic",
               "elected",
               "town");
-      ItemStack item = declaration.creator.createConfirmSummaryItem(request);
+      boolean asks = goal == WarGoalType.OPEN_MARKET;
+      ItemStack item = declaration.creator.createConfirmSummaryItem(request, asks);
       String text = lore(item);
       assertEquals("Declare War?", name(item));
       assertTrue(text.contains("Target: defender"));
       assertTrue(text.contains("Goal: " + goal.getDisplayName()));
       assertTrue(text.contains("cannot be undone easily"));
+      assertTrue(text.contains("If you win:"));
+      assertEquals(asks, text.contains("Confirming asks for your staff war code."));
       switch (goal) {
         case DE_JURE_ANNEX -> assertTrue(text.contains("Title: Defender Crown"));
         case SUBJUGATE ->
@@ -1099,7 +1105,10 @@ class WarMenusCoverageTest {
                 text.contains("Subject type: " + RelationLoader.getType("vassal").getName()));
         case TRANSFER_SUBJECT -> assertTrue(text.contains("Subject: attacker"));
         case USURP -> assertTrue(text.contains("Primary title: Defender Crown"));
-        case OPEN_MARKET -> assertTrue(text.contains("Law: republic"));
+        case OPEN_MARKET -> {
+          assertTrue(text.contains("Law: republic"));
+          assertTrue(lore(declaration.creator.createOpenMarketGoalItem(defender)).contains("Law: republic"));
+        }
         case CHANGE_GOVERNMENT -> {
           assertTrue(text.contains("Government: republic"));
           assertTrue(text.contains("Leadership: elected"));
@@ -1112,13 +1121,22 @@ class WarMenusCoverageTest {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void theOverviewShowsReparationsAndSaysWhenTheCodeIsAskedFor(boolean codeRequired) {
+    String text = lore(declaration.creator.createOverviewItem(attacker, defender, codeRequired));
+    assertTrue(text.contains("If you win:"));
+    assertTrue(text.contains("If you lose:"));
+    assertEquals(codeRequired, text.contains("when you confirm the declaration."));
+  }
+
   @Test
   void relationTypeItemExplainsAnExistingLimitButPreservesTheSelectedType() {
     var type = RelationLoader.getType("vassal");
     try (MockedStatic<RelationManager> relations =
         mockStatic(RelationManager.class, CALLS_REAL_METHODS)) {
       relations.when(() -> RelationManager.atLimit(attacker, type)).thenReturn(true);
-      ItemStack item = declaration.creator.createRelationTypeItem(type, attacker);
+      ItemStack item = declaration.creator.createRelationTypeItem(type, attacker, defender);
       assertEquals("vassal", id(item));
       assertTrue(lore(item).contains("At limit"));
     }
