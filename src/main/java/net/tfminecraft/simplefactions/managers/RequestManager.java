@@ -81,7 +81,7 @@ public final class RequestManager {
 		}
 	}
 	
-	// A call to arms that expires is a decline. Package-visible for tests.
+	// A call to arms that runs out is not a decline. Package-visible for tests.
 	static void expireTimedOutRequests() {
 		Iterator<Map.Entry<Player, Request>> iterator = requests.entrySet().iterator();
 		while (iterator.hasNext()) {
@@ -108,7 +108,7 @@ public final class RequestManager {
 					plugin.getVehicleHandoverService().notifyExpired(handoverRequest, entry.getKey());
 				}
 			} else if (request instanceof WarRequest warRequest) {
-				WarManager.declineCallToArms(entry.getKey(), warRequest, false);
+				WarManager.expireCallToArms(entry.getKey(), warRequest);
 			}
 			iterator.remove();
 		}
@@ -118,7 +118,7 @@ public final class RequestManager {
 		if (!hasRequest(p)) return;
 		Request req = requests.remove(p);
 		if (req instanceof WarRequest warRequest) {
-			WarManager.declineCallToArms(p, warRequest, true);
+			WarManager.declineCallToArms(p, warRequest);
 			return;
 		}
 		p.sendMessage("§7You declined the request.");

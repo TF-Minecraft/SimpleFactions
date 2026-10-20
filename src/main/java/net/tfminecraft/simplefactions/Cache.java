@@ -87,6 +87,9 @@ public class Cache {
 	public static double pillageTradeHitPercent = -100;
 	public static int pillageTradeHitDays = 10;
 	public static int warDeclinedAllyStabilityPenalty;
+	public static int warDeclinedCoalitionStabilityPenalty = -45;
+	/** How long a call to arms waits for an answer. Running out is never a decline. */
+	public static int warCallToArmsExpirySeconds = 300;
 	public static boolean warFirstBattleAtBorder;
 	public static int warProvincesBetweenBattles;
 	public static boolean warOccupationIncludeEnemyNeighbors;

@@ -497,11 +497,16 @@ public class WarManager {
 			sender.sendMessage("§cCannot send request, target faction leader is not online!");
 			return;
 		}
+		// A second request must not silently replace one the leader is still reading.
+		if(RequestManager.hasRequest(p)) {
+			sender.sendMessage("§cThat leader already has a pending request.");
+			return;
+		}
 		sender.sendMessage("§aSent a call to arms to "+target.getName());
 		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
 		p.sendMessage("§7Type §a/faction accept §7to accept");
 		p.sendMessage("§7Type §c/faction decline §7to decline");
-		p.sendMessage("§7Request will time out in 60 seconds");
+		p.sendMessage("§7Request will time out in "+WarRequest.expiryText());
 		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), w, target.getId()));
 	}
 	
@@ -538,32 +543,48 @@ public class WarManager {
 		persist(war);
 	}
 
-	// Refused or expired call to arms. Decay matches the war-end hits in WarOutcomeService.
-	public static void declineCallToArms(Player called, WarRequest req, boolean explicit) {
+	// Refused call to arms. Decay matches the war-end hits in WarOutcomeService.
+	public static void declineCallToArms(Player called, WarRequest req) {
 		if (req == null) return;
-		if (explicit && called != null && called.isOnline()) {
+		if (called != null && called.isOnline()) {
 			called.sendMessage("§7You declined the call to arms.");
 		}
 		// No penalty for refusing a war that has already ended.
 		if (req.getWar() == null || !req.getWar().isActive()) return;
-		// Requests made before the target was stored fall back to the called leader's faction.
-		// A stored target that no longer exists penalises nobody.
-		Faction receiver = req.getTargetFactionId() != null
-				? FactionManager.getByString(req.getTargetFactionId())
-				: called != null ? FactionManager.getByLeader(Members.key(called)) : null;
+		Faction receiver = calledFaction(called, req);
 		if (receiver != null && receiver.getGovernment() != null) {
 			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
 					"Declined Call to Arms",
 					Cache.warDeclinedAllyStabilityPenalty,
 					1));
 		}
-		Faction origin = req.getFaction();
-		if (origin != null && origin.getLeader() != null) {
-			Player caller = Members.player(origin.getLeader());
-			if (caller != null && caller.isOnline()) {
-				String who = receiver != null ? receiver.getName() : "They";
-				caller.sendMessage(who + " §cdeclined your call to arms");
-			}
+		String who = receiver != null ? receiver.getName() : "They";
+		tellCaller(req, who + " §cdeclined your call to arms");
+	}
+
+	// A call to arms that runs out is not a decline: nothing is lost and the caller may send it again.
+	public static void expireCallToArms(Player called, WarRequest req) {
+		if (req == null) return;
+		if (called != null && called.isOnline()) {
+			called.sendMessage("§7A call to arms expired without an answer.");
 		}
+		if (req.getWar() == null || !req.getWar().isActive()) return;
+		Faction receiver = calledFaction(called, req);
+		String who = receiver != null ? receiver.getName() : "your ally";
+		tellCaller(req, "§7Your call to arms to " + who + " §7expired. You can send it again.");
+	}
+
+	// Requests made before the target was stored fall back to the called leader's faction.
+	// A stored target that no longer exists penalises nobody.
+	private static Faction calledFaction(Player called, WarRequest req) {
+		if (req.getTargetFactionId() != null) return FactionManager.getByString(req.getTargetFactionId());
+		return called != null ? FactionManager.getByLeader(Members.key(called)) : null;
+	}
+
+	private static void tellCaller(WarRequest req, String message) {
+		Faction origin = req.getFaction();
+		if (origin == null || origin.getLeader() == null) return;
+		Player caller = Members.player(origin.getLeader());
+		if (caller != null && caller.isOnline()) caller.sendMessage(message);
 	}
 }

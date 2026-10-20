@@ -226,6 +226,8 @@ public class ConfigLoader {
 		Cache.warProvincesBetweenBattles = config.getInt("war.battle_cadence.provinces_between_battles", 3);
 		Cache.warOccupationIncludeEnemyNeighbors = config.getBoolean("war.occupation.include_enemy_neighbors", true);
 		Cache.warDeclinedAllyStabilityPenalty = config.getInt("war.declined_ally_stability_penalty", -30);
+		Cache.warDeclinedCoalitionStabilityPenalty = config.getInt("war.declined_coalition_stability_penalty", -45);
+		Cache.warCallToArmsExpirySeconds = Math.max(1, config.getInt("war.call_to_arms_expiry_seconds", 300));
 		Cache.warPathfinderNeutralPenalty = config.getDouble("war.pathfinder.neutral_penalty", 8.0);
 		Cache.warPathfinderSeaPassEnabled = config.getBoolean("war.pathfinder.sea_pass_enabled", true);
 		Cache.warPathfinderWaterCost = config.getDouble("war.pathfinder.water_cost", 0.0);
