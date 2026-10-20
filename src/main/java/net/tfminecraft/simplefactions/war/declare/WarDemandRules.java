@@ -57,7 +57,7 @@ public final class WarDemandRules {
 			WarGoalType.CHANGE_GOVERNMENT);
 
 	public static final String LOCKED = "§cWar demands are locked once the first battle begins.";
-	public static final String NOT_LEADER = "§cOnly the side's leading nation can set its second demand.";
+	public static final String NOT_LEADER = "§cOnly the side's leading nation can set its war demands.";
 	public static final String NO_FIRST_DEMAND = "§cSet a counter goal before adding a second demand.";
 	public static final String NOT_AVAILABLE = "§cThis war cannot carry a second demand.";
 	public static final String REBEL_DEMANDS = "§cIn a civil war the rebels' demands are the movement's causes.";

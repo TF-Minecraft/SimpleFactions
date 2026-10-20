@@ -514,7 +514,7 @@ public class DeclareWarView {
 		Faction beneficiary = request.getAttacker();
 		Faction target = request.getDefender();
 		player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
-		player.sendMessage("§aSecond demand set: §f" + set.describeGoal() + " §aof " + target.getName()
+		player.sendMessage((WarDemandRules.isCivilWar(war) ? "§aWar goal set: §f" : "§aSecond demand set: §f") + set.describeGoal() + " §aof " + target.getName()
 				+ " §afor " + beneficiary.getName() + "§a.");
 		if (editor != null && !editor.getId().equalsIgnoreCase(beneficiary.getId())) {
 			Player ally = Members.player(beneficiary.getLeader());

@@ -1612,6 +1612,8 @@ class WarMenusCoverageTest {
 
     view.warView(null, defending, civil, true);
     assertFalse(lore(top(defending).getItem(48)).contains("reparations"));
+    assertFalse(lore(top(defending).getItem(4)).contains("Reparations"));
+    assertFalse(lore(top(defending).getItem(4)).contains("Defender counter"));
     view.click(fixture.ui.click(defending, 48), top(defending), defending);
     Inventory demands = top(defending);
     assertEquals("§cRebels: Movement Demands", demands.getItem(10).getItemMeta().getDisplayName());
@@ -1646,6 +1648,7 @@ class WarMenusCoverageTest {
     declaration.click(fixture.ui.click(defending, integratedSlot), types, defending);
     assertEquals("backer", civil.getSecondDemand(false).getTargetId());
     assertEquals(integrated.getId(), civil.getSecondDemand(false).getRelationTypeId());
+    verify(defending).sendMessage(startsWith("§aWar goal set: "));
 
     civil.getAttackers().getMainParticipants().removeIf(p -> p.getLeader() == backer);
     assertEquals(WarDemandRules.NO_REBEL_VASSALS, WarDemandRules.editBlock(civil, defender, false));
