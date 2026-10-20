@@ -381,6 +381,9 @@ class CivilWarSplitBoundaryCoverageTest {
     assertEquals(WarGoalType.OVERTHROW, CivilWarGoalMapper.fromFirstCause(supported));
     proposal = new Proposal("Alice", host.getGovernment());
     proposal.setPoliticalActionProposal(new PoliticalAction(Action.NATIONHOOD));
+    assertEquals(WarGoalType.NATIONHOOD, CivilWarGoalMapper.fromFirstCause(new Movement(host, "Alice", proposal)));
+    proposal = new Proposal("Alice", host.getGovernment());
+    proposal.setPoliticalActionProposal(new PoliticalAction(Action.DISSOLVE));
     assertNull(CivilWarGoalMapper.fromFirstCause(new Movement(host, "Alice", proposal)));
   }
 

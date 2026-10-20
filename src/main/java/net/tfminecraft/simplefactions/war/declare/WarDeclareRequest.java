@@ -14,6 +14,7 @@ public final class WarDeclareRequest {
 	private final String leadershipLawId;
 	private final String targetSettlementId;
 	private final boolean demand;
+	private final boolean withinRealm;
 
 	public WarDeclareRequest(
 			Faction attacker,
@@ -58,7 +59,7 @@ public final class WarDeclareRequest {
 			String leadershipLawId,
 			String targetSettlementId) {
 		this(attacker, defender, goal, targetTitleId, subjectFactionId, relationTypeId,
-				governmentLawId, leadershipLawId, targetSettlementId, false);
+				governmentLawId, leadershipLawId, targetSettlementId, false, false);
 	}
 
 	private WarDeclareRequest(
@@ -71,7 +72,8 @@ public final class WarDeclareRequest {
 			String governmentLawId,
 			String leadershipLawId,
 			String targetSettlementId,
-			boolean demand) {
+			boolean demand,
+			boolean withinRealm) {
 		if (attacker == null) {
 			throw new IllegalArgumentException("attacker is required");
 		}
@@ -91,6 +93,7 @@ public final class WarDeclareRequest {
 		this.leadershipLawId = leadershipLawId;
 		this.targetSettlementId = targetSettlementId;
 		this.demand = demand;
+		this.withinRealm = withinRealm;
 	}
 
 	/**
@@ -99,11 +102,24 @@ public final class WarDeclareRequest {
 	 */
 	public WarDeclareRequest asDemand() {
 		return new WarDeclareRequest(attacker, defender, goal, targetTitleId, subjectFactionId,
-				relationTypeId, governmentLawId, leadershipLawId, targetSettlementId, true);
+				relationTypeId, governmentLawId, leadershipLawId, targetSettlementId, true, withinRealm);
+	}
+
+	/**
+	 * The ruler's war goal in a civil war, made of a vassal that backed the rebels. Its
+	 * target is in the ruler's own realm, so the same-realm rule does not apply.
+	 */
+	public WarDeclareRequest asCivilWarDemand() {
+		return new WarDeclareRequest(attacker, defender, goal, targetTitleId, subjectFactionId,
+				relationTypeId, governmentLawId, leadershipLawId, targetSettlementId, true, true);
 	}
 
 	public boolean isDemand() {
 		return demand;
+	}
+
+	public boolean isWithinRealm() {
+		return withinRealm;
 	}
 
 	public static WarDeclareRequest of(Faction attacker, Faction defender, WarGoalType goal) {

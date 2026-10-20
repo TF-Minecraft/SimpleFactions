@@ -182,7 +182,9 @@ public class WarView {
 		lore.add("§9Defenders:");
 		addDemandSummary(lore, WarDemandRules.firstDemand(war, false));
 		addDemandSummary(lore, war.getSecondDemand(false));
-		lore.add("§7The loser also pays war reparations.");
+		if (!WarDemandRules.isCivilWar(war)) {
+			lore.add("§7The loser also pays war reparations.");
+		}
 		lore.add(canEdit ? "§aClick to view or change" : "§aClick to view");
 		meta.setLore(lore);
 		item.setItemMeta(meta);
@@ -204,10 +206,11 @@ public class WarView {
 				27,
 				"§7War Demands");
 		Faction editor = FactionManager.getByLeader(Members.key(player));
+		boolean civilWar = WarDemandRules.isCivilWar(war);
 		inventory.setItem(10, createFirstAttackerDemandItem(war));
-		inventory.setItem(11, createSecondDemandItem(war, editor, true));
-		inventory.setItem(13, createReparationsItem());
-		inventory.setItem(15, createCounterGoalItem(war, player));
+		inventory.setItem(11, civilWar ? notInCivilWar() : createSecondDemandItem(war, editor, true));
+		inventory.setItem(13, civilWar ? notInCivilWar() : createReparationsItem());
+		inventory.setItem(15, civilWar ? notInCivilWar() : createCounterGoalItem(war, player));
 		inventory.setItem(16, createSecondDemandItem(war, editor, false));
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DEMANDS));
 		player.openInventory(inventory);
@@ -218,10 +221,11 @@ public class WarView {
 	private ItemStack createFirstAttackerDemandItem(War war) {
 		ItemStack item = new ItemStack(Material.IRON_SWORD);
 		ItemMeta meta = item.getItemMeta();
-		meta.setDisplayName("§cAttackers: War Goal");
+		boolean civilWar = WarDemandRules.isCivilWar(war);
+		meta.setDisplayName(civilWar ? "§cRebels: Movement Demands" : "§cAttackers: War Goal");
 		List<String> lore = new ArrayList<>();
 		addDemandLore(lore, WarDemandRules.firstDemand(war, true));
-		lore.add("§7Set when the war was declared");
+		lore.add(civilWar ? "§7The movement's causes apply if the rebels win" : "§7Set when the war was declared");
 		meta.setLore(lore);
 		item.setItemMeta(meta);
 		return item;
@@ -234,7 +238,9 @@ public class WarView {
 		String block = WarDemandRules.editBlock(war, editor, attackerSide);
 		ItemStack item = new ItemStack(demand != null ? Material.WRITABLE_BOOK : Material.BOOK);
 		ItemMeta meta = item.getItemMeta();
-		meta.setDisplayName(attackerSide ? "§cAttackers: Second Demand" : "§9Defenders: Second Demand");
+		boolean civilWar = WarDemandRules.isCivilWar(war);
+		meta.setDisplayName(attackerSide ? "§cAttackers: Second Demand"
+				: civilWar ? "§9Ruler: War Goal" : "§9Defenders: Second Demand");
 		List<String> lore = new ArrayList<>();
 		if (demand == null) {
 			lore.add("§7None");
@@ -243,7 +249,9 @@ public class WarView {
 		}
 		if (block == null) {
 			lore.add(demand == null
-					? "§aClick to add a demand, for your nation or an ally"
+					? civilWar
+							? "§aClick to make a demand of a vassal that backed the rebels"
+							: "§aClick to add a demand, for your nation or an ally"
 					: "§aClick to change");
 			if (demand != null) {
 				lore.add("§cRight-click to remove");
@@ -252,12 +260,24 @@ public class WarView {
 			lore.add("§cLocked after the first battle began");
 		} else if (WarDemandRules.NO_FIRST_DEMAND.equals(block) && !attackerSide) {
 			lore.add("§7Needs a counter goal first");
+		} else if (WarDemandRules.NO_REBEL_VASSALS.equals(block)) {
+			lore.add("§7No vassal backed the rebellion");
 		} else {
 			lore.add(attackerSide
 					? "§7Set by the attacking nation before battle"
 					: "§7Set by the defending nation before battle");
 		}
 		meta.setLore(lore);
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	private static ItemStack notInCivilWar() {
+		ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§7Not used in a civil war");
 		item.setItemMeta(meta);
 		return item;
 	}
@@ -603,6 +623,9 @@ public class WarView {
 				return;
 			}
 			if (slot == 15) {
+				if (WarDemandRules.isCivilWar(war)) {
+					return;
+				}
 				if (!canEditCounterGoal(war, p)) {
 					p.sendMessage(war.hasFirstBattleStarted()
 							? WarDemandRules.LOCKED

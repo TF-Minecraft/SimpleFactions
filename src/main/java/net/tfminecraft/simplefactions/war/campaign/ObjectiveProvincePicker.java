@@ -32,7 +32,7 @@ public class ObjectiveProvincePicker {
 		return switch (war.getGoal()) {
 			case DE_JURE_ANNEX -> pickForDeJure(war, defender);
 			case SUBJUGATE, WAR, TRIBUTARY, USURP, OPEN_MARKET, CHANGE_GOVERNMENT,
-					OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE -> pickFromProvinceSet(
+					OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE, INDEPENDENCE, NATIONHOOD -> pickFromProvinceSet(
 					new HashSet<>(TitleManager.getProvinces(defender)),
 					defender);
 			case TRANSFER_SUBJECT -> pickForTransferSubject(war);

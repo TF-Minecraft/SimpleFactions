@@ -49,6 +49,8 @@ public final class WarOutcomeService {
 			case DEFENDER_VICTORY -> {
 				if (CivilWarBorderLock.isCivilWar(war)) {
 					endMovementEmpty(war);
+					// The ruler's single goal on a rebel vassal; the untangle has already restored the realm.
+					applyDemands(war, false, null, () -> {});
 				} else {
 					WarGoalType counter = war.getDefenderCounterGoal();
 					applyDemands(war, false, counter, () -> {
@@ -151,7 +153,7 @@ public final class WarOutcomeService {
 			case OPEN_MARKET -> applyOpenMarket(war);
 			case CHANGE_GOVERNMENT -> applyChangeGovernment(war);
 			case PILLAGE -> PillageApplyService.apply(war);
-			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE -> applyMovementWar(war);
+			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE, INDEPENDENCE, NATIONHOOD -> applyMovementWar(war);
 			case WAR -> {
 			}
 		}

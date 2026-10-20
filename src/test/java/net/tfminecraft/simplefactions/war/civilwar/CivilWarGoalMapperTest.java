@@ -24,8 +24,10 @@ class CivilWarGoalMapperTest {
 		assertEquals(WarGoalType.CHANGE_TAX, CivilWarGoalMapper.fromAction(Action.TAX_CHANGE));
 		assertEquals(WarGoalType.FORCE_PEACE, CivilWarGoalMapper.fromAction(Action.WHITE_PEACE));
 		assertEquals(WarGoalType.FORCE_PEACE, CivilWarGoalMapper.fromAction(Action.SURRENDER));
-		assertNull(CivilWarGoalMapper.fromAction(Action.INDEPENDENCE));
-		assertNull(CivilWarGoalMapper.fromAction(Action.NATIONHOOD));
+		assertEquals(WarGoalType.INDEPENDENCE, CivilWarGoalMapper.fromAction(Action.INDEPENDENCE));
+		assertEquals(WarGoalType.NATIONHOOD, CivilWarGoalMapper.fromAction(Action.NATIONHOOD));
+		assertNull(CivilWarGoalMapper.fromAction(Action.DISSOLVE));
+		assertNull(CivilWarGoalMapper.fromAction(Action.SNAP_ELECTIONS));
 	}
 
 	@Test

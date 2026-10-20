@@ -1284,12 +1284,13 @@ class WarMenusCoverageTest {
 
     assertEquals(List.of(defender), WarDemandRules.targets(war, true));
     assertEquals(List.of(attacker, ally), WarDemandRules.targets(war, false));
-    assertEquals(List.of(attacker, ally), WarDemandRules.beneficiaries(war, true));
+    assertEquals(attacker, WarDemandRules.beneficiaries(war, true).get(0));
+    assertTrue(WarDemandRules.beneficiaries(war, true).contains(ally));
     assertTrue(
         WarDemandRules.validate(
                 war, true, WarDeclareRequest.of(attacker, guard, WarGoalType.TRIBUTARY).asDemand())
             .getMessage()
-            .contains("only be made of the defending nation"));
+            .contains("only be made of the defending side"));
     assertTrue(
         WarDemandRules.validate(
                 war, true, WarDeclareRequest.of(guard, defender, WarGoalType.TRIBUTARY).asDemand())
@@ -1559,6 +1560,95 @@ class WarMenusCoverageTest {
     assertEquals(
         WarGoalType.OPEN_MARKET.getDisplayName(),
         new WarDemand(WarGoalType.OPEN_MARKET, "a", "b", null, null, null, null, null).describeGoal());
+  }
+
+  @Test
+  void subjectsCanBenefitAndAUsurpOnTheOverlordOpensBothSidesAllies() {
+    Faction subject = fixture.saved("subject", "SubjectLeader");
+    fixture.subject(attacker, subject);
+    war.update();
+    assertTrue(WarDemandRules.beneficiaries(war, true).contains(subject));
+
+    Faction guard = fixture.saved("guard", "GuardLeader");
+    var allyType = fixture.relationType("ally", Map.of("name", "Ally"));
+    defender.setRelation(guard, new Relation(allyType, RelationLoader.getDefaultAttitude()));
+    guard.setRelation(defender, new Relation(allyType, RelationLoader.getDefaultAttitude()));
+    war.update();
+    war.getParticipant(defender).getAllies().put(guard, true);
+    assertFalse(WarDemandRules.targets(war, true).contains(guard));
+
+    Faction rebel = fixture.saved("rebel", "RebelLeader");
+    fixture.subject(defender, rebel);
+    War usurp = new War(9, rebel, defender);
+    usurp.setGoal(WarGoalType.USURP);
+    usurp.getParticipant(defender).getAllies().put(guard, true);
+    assertTrue(WarDemandRules.isUsurpOnOverlord(usurp));
+    assertEquals(List.of(defender, guard), WarDemandRules.targets(usurp, true));
+    usurp.setGoal(WarGoalType.TRIBUTARY);
+    assertFalse(WarDemandRules.isUsurpOnOverlord(usurp));
+  }
+
+  @Test
+  void theRulerMakesOneDemandOfAVassalThatBackedTheRebels() {
+    fixture.relationType("tributary", Map.of("name", "Tributary"));
+    routeDemandScreens();
+    Faction rebels = fixture.saved("rebels", "RebelLeader");
+    Faction backer = fixture.saved("backer", "BackerLeader");
+    War civil = new War(8, rebels, defender);
+    civil.setGoal(WarGoalType.INDEPENDENCE);
+    civil.getAttackers().addNewParticipant(backer, civil.getAttackers().getMainParticipants().get(0));
+    var snapshot = new net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot();
+    snapshot.setHostFactionId("defender");
+    snapshot.setTempRebelFactionId("rebels");
+    civil.setCivilWarSnapshot(snapshot);
+    wars.when(() -> WarManager.getById(8)).thenReturn(civil);
+    wars.when(WarManager::getActive).thenReturn(List.of(civil));
+
+    assertTrue(WarDemandRules.isCivilWar(civil));
+    assertEquals(List.of(backer), WarDemandRules.targets(civil, false));
+    assertTrue(WarDemandRules.targets(civil, true).isEmpty());
+    assertEquals(WarDemandRules.REBEL_DEMANDS, WarDemandRules.editBlock(civil, rebels, true));
+    assertNull(WarDemandRules.editBlock(civil, defender, false));
+    assertTrue(
+        WarDemandRules.validate(civil, false, WarDeclareRequest.of(defender, backer, WarGoalType.USURP))
+            .getMessage()
+            .contains("cannot usurp your own vassal"));
+    assertTrue(
+        WarDemandRules.validate(civil, false, WarDeclareRequest.of(defender, rebels, WarGoalType.TRIBUTARY))
+            .getMessage()
+            .contains("vassal that backed the rebellion"));
+
+    view.warView(null, defending, civil, true);
+    assertFalse(lore(top(defending).getItem(48)).contains("reparations"));
+    view.click(fixture.ui.click(defending, 48), top(defending), defending);
+    Inventory demands = top(defending);
+    assertEquals("§cRebels: Movement Demands", demands.getItem(10).getItemMeta().getDisplayName());
+    assertTrue(lore(demands.getItem(10)).contains("Independence"));
+    for (int slot : new int[] {11, 13, 15}) {
+      assertEquals(Material.GRAY_STAINED_GLASS_PANE, demands.getItem(slot).getType());
+    }
+    assertEquals("§9Ruler: War Goal", demands.getItem(16).getItemMeta().getDisplayName());
+    assertTrue(lore(demands.getItem(16)).contains("vassal that backed the rebels"));
+    view.click(fixture.ui.click(defending, 15), demands, defending);
+    assertSame(demands, top(defending));
+
+    view.click(fixture.ui.click(defending, 16), demands, defending);
+    Inventory goals = top(defending);
+    assertEquals("backer", ((DeclareWarHolder) goals.getHolder()).getDefenderId());
+    for (int slot = 0; slot < goals.getSize(); slot++) {
+      ItemStack item = goals.getItem(slot);
+      if (item != null && item.getType() != Material.BARRIER) {
+        assertNotEquals("usurp", string(item, "goal"));
+      }
+    }
+    declaration.click(fixture.ui.click(defending, goalSlot(goals, "tributary")), goals, defending);
+    assertEquals("backer", civil.getSecondDemand(false).getTargetId());
+    assertEquals("defender", civil.getSecondDemand(false).getBeneficiaryId());
+
+    civil.getAttackers().getMainParticipants().removeIf(p -> p.getLeader() == backer);
+    assertEquals(WarDemandRules.NO_REBEL_VASSALS, WarDemandRules.editBlock(civil, defender, false));
+    view.demandsView(defending, civil);
+    assertTrue(lore(top(defending).getItem(16)).contains("No vassal backed the rebellion"));
   }
 
   private int goalSlot(Inventory goals, String goal) {

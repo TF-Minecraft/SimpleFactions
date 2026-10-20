@@ -62,7 +62,7 @@ class CivilWarStartServiceTest {
 
 	@Test
 	void unmappableFirstCause_doesNotFreeze() {
-		Movement movement = baseMovement(Action.INDEPENDENCE, Member.GUILD_LEADER);
+		Movement movement = baseMovement(Action.DISSOLVE, Member.GUILD_LEADER);
 		when(movement.isFrozen()).thenReturn(false);
 
 		String error = CivilWarStartService.start(movement);
@@ -85,7 +85,7 @@ class CivilWarStartServiceTest {
 
 	@Test
 	void staffMayStartACivilWarDuringTheCooldown() {
-		Movement movement = baseMovement(Action.INDEPENDENCE, Member.GUILD_LEADER);
+		Movement movement = baseMovement(Action.DISSOLVE, Member.GUILD_LEADER);
 		TruceService.recordCivilWarCooldown("host", Instant.now().plus(Duration.ofDays(4)), 3);
 
 		assertEquals(CivilWarCopy.UNMAPPABLE_CAUSE, CivilWarStartService.start(movement, true));

@@ -84,13 +84,14 @@ public class DeclareWarView {
 		if (demand == null) {
 			inventory.setItem(slot++, creator.createPillageGoalItem());
 		}
-		if (WarDeclareHelper.canDeclareUsurp(attacker, defender)) {
+		boolean withinRealm = withinRealm(demand);
+		if (!withinRealm && WarDeclareHelper.canDeclareUsurp(attacker, defender)) {
 			inventory.setItem(slot++, creator.createUsurpGoalItem());
 		}
-		if (!WarDeclareHelper.deJureTitleOptions(attacker, defender).isEmpty()) {
+		if (!titleOptions(attacker, defender, demand).isEmpty()) {
 			inventory.setItem(slot++, creator.createDeJureGoalItem());
 		}
-		if (attacker.canHaveVassals() && !WarDeclareHelper.defenderSubjects(defender).isEmpty()) {
+		if (attacker.canHaveVassals() && !subjects(defender, demand).isEmpty()) {
 			inventory.setItem(slot, creator.createTransferSubjectGoalItem());
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_GOAL));
@@ -145,7 +146,7 @@ public class DeclareWarView {
 		}
 		inventory.clear();
 		int slot = 0;
-		for (DeJureTitleOption option : WarDeclareHelper.deJureTitleOptions(attacker, defender)) {
+		for (DeJureTitleOption option : titleOptions(attacker, defender, demand)) {
 			if (slot >= 26) break;
 			inventory.setItem(slot++, creator.createTitleItem(option));
 		}
@@ -173,7 +174,7 @@ public class DeclareWarView {
 		}
 		inventory.clear();
 		int slot = 0;
-		for (Faction subject : WarDeclareHelper.defenderSubjects(defender)) {
+		for (Faction subject : subjects(defender, demand)) {
 			if (slot >= 26) break;
 			inventory.setItem(slot++, creator.createSubjectItem(subject));
 		}
@@ -383,7 +384,7 @@ public class DeclareWarView {
 					openSettlementPicker(player, attacker, defender);
 				}
 			}
-			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE -> {
+			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE, INDEPENDENCE, NATIONHOOD -> {
 			}
 		}
 	}
@@ -434,7 +435,7 @@ public class DeclareWarView {
 		Faction attacker = request.getAttacker();
 		Faction defender = request.getDefender();
 		switch (request.getGoal()) {
-			case WAR, TRIBUTARY, USURP, OPEN_MARKET, OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE ->
+			case WAR, TRIBUTARY, USURP, OPEN_MARKET, OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE, INDEPENDENCE, NATIONHOOD ->
 					backOutOfSubPicker(player, attacker, defender, null);
 			case CHANGE_GOVERNMENT -> openGovernmentPicker(
 					player, attacker, defender, request.getGovernmentLawId(), request.getLeadershipLawId());
@@ -626,6 +627,23 @@ public class DeclareWarView {
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_GOVERNMENT_LAW));
 		relabelForDemand(inventory, demand);
 		player.openInventory(inventory);
+	}
+
+	/** The ruler's goal in a civil war falls inside their own realm, where usurp and the civil war lock do not apply. */
+	private static boolean withinRealm(WarDemandDraft demand) {
+		return demand != null && WarDemandRules.isCivilWar(WarManager.getById(demand.warId()));
+	}
+
+	private static List<DeJureTitleOption> titleOptions(Faction attacker, Faction defender, WarDemandDraft demand) {
+		return withinRealm(demand)
+				? WarDeclareHelper.deJureTitleOptions(attacker, defender, true)
+				: WarDeclareHelper.deJureTitleOptions(attacker, defender);
+	}
+
+	private static List<Faction> subjects(Faction defender, WarDemandDraft demand) {
+		return withinRealm(demand)
+				? WarDeclareHelper.defenderSubjects(defender, true)
+				: WarDeclareHelper.defenderSubjects(defender);
 	}
 
 	private static String title(WarDemandDraft demand, String step) {

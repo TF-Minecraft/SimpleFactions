@@ -56,7 +56,7 @@ public class WarGoalValidator {
 			case OPEN_MARKET -> validateOpenMarket(request);
 			case CHANGE_GOVERNMENT -> validateChangeGovernment(request);
 			case PILLAGE -> validatePillage(request);
-			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE ->
+			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE, INDEPENDENCE, NATIONHOOD ->
 					WarValidationResult.fail("§cThis war goal cannot be declared yet.");
 		};
 	}
@@ -84,7 +84,8 @@ public class WarGoalValidator {
 			}
 			return WarValidationResult.fail("§cYou are already at war with that faction.");
 		}
-		if (RelationManager.sameRealm(attacker, defender)
+		if (!request.isWithinRealm()
+				&& RelationManager.sameRealm(attacker, defender)
 				&& !InterVassalQueries.isInternalPeer(attacker, defender)) {
 			boolean usurpOverlord = request.getGoal() == WarGoalType.USURP
 					&& RelationManager.isOverlord(attacker, defender);
@@ -153,7 +154,7 @@ public class WarGoalValidator {
 		}
 		return switch (request.getGoal()) {
 			case USURP -> WarValidationResult.fail("§cUsurp can only target your direct overlord.");
-			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE ->
+			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE, INDEPENDENCE, NATIONHOOD ->
 					WarValidationResult.fail("§cThis war goal cannot be declared yet.");
 			default -> WarValidationResult.ok();
 		};
@@ -169,7 +170,7 @@ public class WarGoalValidator {
 		if (title == null) {
 			return WarValidationResult.fail("§cThat title does not exist.");
 		}
-		if (CivilWarBorderLock.isLocked(request.getDefender())) {
+		if (!request.isWithinRealm() && CivilWarBorderLock.isLocked(request.getDefender())) {
 			return WarValidationResult.fail(CivilWarCopy.DECLARE_VS_CIVIL_WAR);
 		}
 
@@ -324,7 +325,8 @@ public class WarGoalValidator {
 		if (!RelationManager.isOnOverlordPath(subject, defender)) {
 			return WarValidationResult.fail("§cThat faction is not a subject of the defender.");
 		}
-		if (CivilWarBorderLock.isLocked(defender) || CivilWarBorderLock.isLocked(subject)) {
+		if (!request.isWithinRealm()
+				&& (CivilWarBorderLock.isLocked(defender) || CivilWarBorderLock.isLocked(subject))) {
 			return WarValidationResult.fail(CivilWarCopy.DECLARE_VS_CIVIL_WAR);
 		}
 
