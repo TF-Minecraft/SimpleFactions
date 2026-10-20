@@ -173,6 +173,20 @@ class CoalitionCommandTest extends CoalitionTestBase {
 	}
 
 	@Test
+	void aCodeOfTheWrongKindIsCheckedBeforeItIsSpent() {
+		Coalition league = league();
+		reply = GatewayClient.Result.success("{\"kind\":\"war_declare\"}");
+		CoalitionCodePrompt prompt = new CoalitionCodePrompt();
+		run(tom, "offensive");
+		prompt.onPlayerChat(new AsyncPlayerChatEvent(true, tom, "WAR-CODE", Set.of()));
+		fixture.ui.asyncTasks.removeFirst().run();
+		fixture.ui.runTasks();
+		assertEquals(1, gatewayCalls.size());
+		verify(tom).sendMessage("§cThat code is a war declaration code, not a coalition code.");
+		assertFalse(league.isOffensive());
+	}
+
+	@Test
 	void aRejectedOrStaleCodeChangesNothing() {
 		Coalition league = league();
 		CoalitionCodePrompt.Pending state = new CoalitionCodePrompt.Pending(league.getId(), "thalendor", "holy");

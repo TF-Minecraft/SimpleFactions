@@ -158,7 +158,7 @@ public class CoalitionView {
 		lore.add(hex("#c74c3fTarget"));
 		lore.add(hex("#4793bfRealm prestige: #6eafba") + Math.round(CoalitionCost.realmPrestige(target)));
 		if (CoalitionService.targetLost(coalition)) lore.add(hex("#c74c3fNo longer a valid target"));
-		return item(new ItemStack(target.getBanner()), target.getName(), lore, null, null);
+		return item(bannerOf(target), target.getName(), lore, null, null);
 	}
 
 	private ItemStack seatItem(Faction viewer) {
@@ -174,7 +174,7 @@ public class CoalitionView {
 		lore.add(coalition.isLeader(member.getId()) ? hex("#d4bb98Leader") : hex("#a39ba8Member"));
 		lore.add(hex("#4793bfRealm prestige: #6eafba") + Math.round(CoalitionCost.realmPrestige(member)));
 		lore.add(hex("#a39ba8Seat cost: #d4c9ae") + Math.round(CoalitionCost.costFor(member)) + hex(" #a39ba8DC"));
-		return item(new ItemStack(member.getBanner()), member.getName(), lore, null, null);
+		return item(bannerOf(member), member.getName(), lore, null, null);
 	}
 
 	private ItemStack warItem(War war, Faction caller) {
@@ -314,6 +314,10 @@ public class CoalitionView {
 		}
 		base.setItemMeta(meta);
 		return base;
+	}
+
+	private static ItemStack bannerOf(Faction faction) {
+		return faction.getBanner() == null ? new ItemStack(Material.WHITE_BANNER) : new ItemStack(faction.getBanner());
 	}
 
 	private static String data(ItemStack item, String key) {

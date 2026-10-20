@@ -41,6 +41,10 @@ public class CoalitionCodePrompt implements Listener {
 	}
 
 	public static void begin(Player player, Faction leader) {
+		if (!CoalitionSettings.enabled) {
+			player.sendMessage(CoalitionService.DISABLED);
+			return;
+		}
 		Coalition coalition = CoalitionService.of(leader);
 		if (coalition == null || !coalition.isLeader(leader.getId())) {
 			player.sendMessage(CoalitionService.NOT_LEADER);
@@ -87,8 +91,12 @@ public class CoalitionCodePrompt implements Listener {
 		player.sendMessage("§7Checking your code...");
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-			WarDeclareCodeService.Result result =
-					WarDeclareCodeService.redeemCoalition(code, state.leaderId, state.targetId);
+			// Check the kind before spending: a war code typed here must stay usable.
+			WarDeclareCodeService.Result checked = WarDeclareCodeService.validate(
+					code, state.leaderId, state.targetId, WarDeclareCodeService.Kind.COALITION_OFFENSIVE);
+			WarDeclareCodeService.Result result = checked.ok
+					? WarDeclareCodeService.redeemCoalition(code, state.leaderId, state.targetId)
+					: checked;
 			Bukkit.getScheduler().runTask(plugin, () -> apply(player, state, result));
 		});
 	}

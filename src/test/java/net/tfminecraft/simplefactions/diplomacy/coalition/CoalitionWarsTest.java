@@ -91,11 +91,13 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		league.setOffensive(true);
 		assertSame(league, CoalitionWars.callingCoalition(war, thalendor, bog));
 
-		// Joining mid-war only counts for defence.
+		// Joining mid-war only counts for defence, for the caller as much as the called.
 		Faction late = faction("late", "Lea", 50);
+		War lateWar = war(99, late, holy);
 		clock.now = war.getStartedAt().plus(Duration.ofMinutes(5));
 		join(league, late);
 		assertNull(CoalitionWars.callingCoalition(war, thalendor, late));
+		assertNull(CoalitionWars.callingCoalition(lateWar, late, bog));
 	}
 
 	@Test

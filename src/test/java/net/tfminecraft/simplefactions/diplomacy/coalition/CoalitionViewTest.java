@@ -149,7 +149,7 @@ class CoalitionViewTest extends CoalitionTestBase {
 	}
 
 	@Test
-	void theMenuShowsTheTargetMembersSeatsAndWars() {
+	void theMenuShowsTheTargetMembersSeatsAndWars() throws Exception {
 		War war = WarManager.addWar(new War(95, holy, thalendor));
 		clock.now = war.getStartedAt().minus(Duration.ofHours(1));
 		Coalition league = league();
@@ -180,6 +180,16 @@ class CoalitionViewTest extends CoalitionTestBase {
 		assertTrue(lore(top(tom).getItem(4)).contains("Target: gone"));
 		league.setLeaderId("nobody");
 		assertTrue(lore(CoalitionView.coalitionItem(league, false)).contains("Leader: -"));
+
+		// A faction without a banner yet shows a plain one.
+		Field banner = Faction.class.getDeclaredField("banner");
+		banner.setAccessible(true);
+		banner.set(bog, null);
+		banner.set(holy, null);
+		league.setTargetId("holy");
+		view.menu(tom, league);
+		assertEquals(Material.WHITE_BANNER, top(tom).getItem(10).getType());
+		assertEquals(Material.WHITE_BANNER, top(tom).getItem(2).getType());
 	}
 
 	@Test

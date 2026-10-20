@@ -22,7 +22,7 @@ public final class CoalitionCost {
 	/** What the faction's current seat costs, or 0 when it is in no coalition. */
 	public static double costFor(Faction faction) {
 		Coalition coalition = CoalitionService.of(faction);
-		if (coalition == null) return 0;
+		if (coalition == null || !CoalitionSettings.enabled) return 0;
 		return cost(faction, coalition.isLeader(faction.getId()));
 	}
 

@@ -250,6 +250,7 @@ public final class CoalitionService {
 	}
 
 	public static Result invite(Faction leader, Faction invitee) {
+		if (!CoalitionSettings.enabled) return Result.fail(DISABLED);
 		Coalition coalition = ledBy(leader);
 		if (coalition == null) return Result.fail(of(leader) == null ? NOT_IN_COALITION : NOT_LEADER);
 		if (invitee == null) return Result.fail(NO_FACTION);
@@ -331,6 +332,7 @@ public final class CoalitionService {
 	}
 
 	public static Result retarget(Faction leader, Faction target) {
+		if (!CoalitionSettings.enabled) return Result.fail(DISABLED);
 		Coalition coalition = ledBy(leader);
 		if (coalition == null) return Result.fail(of(leader) == null ? NOT_IN_COALITION : NOT_LEADER);
 		if (!targetLost(coalition)) return Result.fail("§cYou can only choose a new target after losing the old one.");
@@ -419,11 +421,20 @@ public final class CoalitionService {
 	 * countdown, and the single-member timeout.
 	 */
 	public static void tick() {
-		// Without the factions loaded every member would look gone and every coalition would end.
-		if (FactionManager.loading || FactionManager.factions.isEmpty()) return;
 		long now = CoalitionRegistry.now();
 		long elapsed = lastTick == 0 ? 0 : Math.max(0, Math.min(now - lastTick, MAX_PAUSE_STEP));
 		lastTick = now;
+		refreshAll(now, elapsed);
+	}
+
+	/** A relation changed, so someone may have lost their independence. Only the timer advances the pause clock. */
+	public static void onRelationChanged() {
+		refreshAll(CoalitionRegistry.now(), 0);
+	}
+
+	private static void refreshAll(long now, long elapsed) {
+		// Without the factions loaded every member would look gone and every coalition would end.
+		if (FactionManager.loading || FactionManager.factions.isEmpty()) return;
 		boolean changed = false;
 		for (Coalition coalition : CoalitionRegistry.all()) {
 			changed |= refresh(coalition, now, elapsed);
@@ -431,19 +442,13 @@ public final class CoalitionService {
 		if (changed) CoalitionRegistry.save();
 	}
 
-	/** A relation changed, so someone may have lost their independence. */
-	public static void onRelationChanged() {
-		long previous = lastTick;
-		tick();
-		// Only the timer advances the pause clock.
-		lastTick = previous;
-	}
-
 	/** Drops a deleted faction everywhere, since its id may be taken again. */
 	public static void forget(String factionId) {
 		for (Coalition coalition : CoalitionRegistry.all()) {
 			coalition.removeMember(factionId);
 			coalition.removeInvite(factionId);
+			// A new faction may take the id; it must not become the target unseen.
+			if (coalition.isTarget(factionId)) coalition.setTargetId(factionId + " (disbanded)");
 		}
 		CoalitionRegistry.clearCooldown(factionId);
 		onRelationChanged();

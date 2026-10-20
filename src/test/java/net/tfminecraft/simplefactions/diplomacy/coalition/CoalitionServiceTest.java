@@ -397,9 +397,13 @@ class CoalitionServiceTest extends CoalitionTestBase {
 		clock.advance(Duration.ofMinutes(5));
 		CoalitionService.tick();
 		assertEquals(Duration.ofMinutes(5).toMillis(), league.getTargetLossPausedMillis());
+		// A relation change in between re-checks the coalition without pausing it twice.
+		clock.advance(Duration.ofMinutes(1));
+		CoalitionService.onRelationChanged();
+		assertEquals(Duration.ofMinutes(5).toMillis(), league.getTargetLossPausedMillis());
 		WarManager.get().remove(war);
 
-		clock.advance(Duration.ofDays(7).minusMinutes(1));
+		clock.advance(Duration.ofDays(7).minusMinutes(2));
 		CoalitionService.tick();
 		assertNotNull(CoalitionRegistry.get(league.getId()));
 		clock.advance(Duration.ofMinutes(1));
@@ -438,6 +442,33 @@ class CoalitionServiceTest extends CoalitionTestBase {
 		CoalitionService.tick();
 		assertNull(CoalitionRegistry.get(league.getId()));
 		verify(tom).sendMessage("§cThe League §ccoalition disbanded: no other faction joined it.");
+	}
+
+	@Test
+	void aDeletedTargetIsNeverReplacedByANewFactionWithItsId() {
+		Coalition league = league();
+		FactionManager.factions.remove(holy);
+		CoalitionService.forget("holy");
+		assertNotNull(league.getTargetLostAt());
+		assertEquals("holy (disbanded)", league.getTargetId());
+		faction("holy", "Newcomer", 5000);
+		CoalitionService.tick();
+		assertNotNull(league.getTargetLostAt());
+	}
+
+	@Test
+	void turningCoalitionsOffStopsEverythingButLeavingAndStaffTools() {
+		Coalition league = league();
+		CoalitionSettings.enabled = false;
+		assertEquals(CoalitionService.DISABLED, CoalitionService.invite(thalendor, holy).message());
+		assertEquals(CoalitionService.DISABLED, CoalitionService.retarget(thalendor, holy).message());
+		assertEquals(0.0, CoalitionCost.costFor(thalendor));
+		CoalitionCodePrompt.begin(tom, thalendor);
+		verify(tom).sendMessage(CoalitionService.DISABLED);
+		War war = WarManager.addWar(new War(74, holy, thalendor));
+		assertNull(CoalitionWars.callingCoalition(war, thalendor, bog));
+		assertTrue(CoalitionService.leave(fig).ok());
+		assertTrue(league.isMember("bog"));
 	}
 
 	@Test

@@ -8,6 +8,7 @@ import java.util.Set;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
+import net.tfminecraft.simplefactions.war.core.CallToArmsEligibility;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -29,6 +30,7 @@ public final class CoalitionWars {
 	 * applies every ordinary call-to-arms rule on top.
 	 */
 	public static Coalition callingCoalition(War war, Faction caller, Faction target) {
+		if (!CoalitionSettings.enabled) return null;
 		if (caller == null || target == null || caller.getId().equalsIgnoreCase(target.getId())) return null;
 		Coalition coalition = CoalitionService.of(caller);
 		if (coalition == null || !coalition.isMember(target.getId())) return null;
@@ -37,9 +39,9 @@ public final class CoalitionWars {
 		Participant participant = war.getParticipant(caller);
 		if (participant.getAllies().containsKey(target)) return null;
 		if (war.getSide(caller) == war.getAttackers()) {
-			// Joining a coalition mid-war only helps on the defending side.
-			Long joined = coalition.joinedAt(target.getId());
-			if (joined > war.getStartedAt().toEpochMilli()) return null;
+			// Joining a coalition mid-war only helps on the defending side, for caller and called alike.
+			long started = war.getStartedAt().toEpochMilli();
+			if (coalition.joinedAt(target.getId()) > started || coalition.joinedAt(caller.getId()) > started) return null;
 		}
 		return coalition;
 	}
@@ -65,8 +67,10 @@ public final class CoalitionWars {
 		Coalition coalition = CoalitionService.of(caller);
 		if (coalition == null) return result;
 		for (Faction member : CoalitionService.members(coalition)) {
-			if (war.isParticipating(member)) continue;
-			if (canCallMember(war, caller, member)) result.add(member);
+			// Every ordinary call-to-arms rule applies too, so nobody is offered who would be refused.
+			if (CallToArmsEligibility.canCall(war, caller, member).allowed() && canCallMember(war, caller, member)) {
+				result.add(member);
+			}
 		}
 		return result;
 	}
