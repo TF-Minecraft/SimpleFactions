@@ -147,9 +147,9 @@ public class ProvinceHandler {
 			}
 		}
 
-		// 2️⃣ Sea adjacency mode (existing flood logic)
+		// 2️⃣ Sea adjacency mode, sailing only from land that traces back to the capital
 		if (sea) {
-			return isSeaAdjacent(pm, target);
+			return isSeaAdjacentFromSet(pm, target, seaClaimSources(pm));
 		}
 
 		return false;
@@ -308,35 +308,6 @@ public class ProvinceHandler {
 		return false;
 	}
 
-	private boolean isLandConnected(ProvinceManager pm, int startId, int targetId) {
-		Set<Integer> visited = new HashSet<>();
-		ArrayDeque<Integer> queue = new ArrayDeque<>();
-
-		queue.add(startId);
-		visited.add(startId);
-
-		while (!queue.isEmpty()) {
-			int currentId = queue.poll();
-			if (currentId == targetId) return true;
-
-			Province current = pm.get(currentId);
-			if (current == null) continue;
-
-			for (int nId : current.getNeighbours()) {
-				if (visited.contains(nId)) continue;
-				if (!provinces.contains(nId)) continue;
-
-				Province n = pm.get(nId);
-				if (n == null || n.isSea()) continue;
-
-				visited.add(nId);
-				queue.add(nId);
-			}
-		}
-
-		return false;
-	}
-
 	private boolean isSeaAdjacent(ProvinceManager pm, Province target) {
 		Set<Integer> visited = new HashSet<>();
 		ArrayDeque<Integer> queue = new ArrayDeque<>();
@@ -385,11 +356,11 @@ public class ProvinceHandler {
 	public void revalidateClaims() {
 		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
 
+		Set<Integer> legalCapitals = legalGuildCapitals(pm, capital, guildCapitals());
 		for (Guild g : f.getGuildHandler().getGuilds()) {
 			if (!g.hasCapital()) continue;
 
-			int cap = g.getCapital();
-			if (!isCapitalStillLegal(pm, cap, capital)) {
+			if (!legalCapitals.contains(g.getCapital())) {
 				g.setCapital(-1);
 			}
 		}
@@ -419,25 +390,83 @@ public class ProvinceHandler {
 		return lost;
 	}
 
+	private List<Integer> guildCapitals() {
+		if (f.getGuildHandler() == null) return List.of();
+		return f.getGuildHandler().getGuilds().stream()
+				.filter(Guild::hasCapital).map(Guild::getCapital).toList();
+	}
+
 	private Set<Integer> computeLegalProvinces(ProvinceManager pm, int factionCapital) {
-		return computeLegalProvinces(pm, factionCapital, f.getGuildHandler().getGuilds().stream()
-				.filter(Guild::hasCapital).map(Guild::getCapital).toList());
+		return computeLegalProvinces(pm, factionCapital, guildCapitals());
 	}
 
 	private Set<Integer> computeLegalProvinces(ProvinceManager pm, int factionCapital, java.util.Collection<Integer> capitals) {
-		Set<Integer> legal = new HashSet<>();
 		Set<Integer> capitalBlob = capitalLandBlob(pm, factionCapital);
-
-		for (int cap : capitals) {
-			if (!isCapitalStillLegal(pm, cap, factionCapital)) {
-				continue;
-			}
-			legal.add(cap);
-		}
-
+		Set<Integer> seeds = new HashSet<>(legalGuildCapitals(pm, factionCapital, capitals, capitalBlob));
 		if (provinces.contains(factionCapital)) {
-			legal.add(factionCapital);
+			seeds.add(factionCapital);
 		}
+		return expandLegal(pm, seeds, capitalBlob);
+	}
+
+	/**
+	 * Where a sea-mode claim may set sail from: land that traces back to the faction capital.
+	 * A realm without a seated capital keeps sailing from anything it owns.
+	 */
+	private Set<Integer> seaClaimSources(ProvinceManager pm) {
+		if (!provinces.contains(capital)) {
+			return new HashSet<>(provinces);
+		}
+		return computeLegalProvinces(pm, capital);
+	}
+
+	private Set<Integer> legalGuildCapitals(ProvinceManager pm, int factionCapital, java.util.Collection<Integer> candidates) {
+		return legalGuildCapitals(pm, factionCapital, candidates, capitalLandBlob(pm, factionCapital));
+	}
+
+	/**
+	 * Guild capitals that trace back to the faction capital: over owned land, or by water from
+	 * land already traced, so one colony can anchor the next. An enclave cut off from the realm
+	 * cannot vouch for itself by touching its own lake.
+	 */
+	private Set<Integer> legalGuildCapitals(ProvinceManager pm, int factionCapital,
+			java.util.Collection<Integer> candidates, Set<Integer> capitalBlob) {
+		Set<Integer> legal = new HashSet<>();
+		List<Integer> pending = new ArrayList<>();
+		for (int cap : candidates) {
+			Province site = pm.get(cap);
+			if (provinces.contains(cap) && site != null && site.isValid() && !site.isSea()) {
+				pending.add(cap);
+			}
+		}
+		if (!provinces.contains(factionCapital)) {
+			// Without a seated faction capital there is nothing to trace back to.
+			for (int cap : pending) {
+				if (isSeaAdjacent(pm, pm.get(cap))) legal.add(cap);
+			}
+			return legal;
+		}
+
+		Set<Integer> seeds = new HashSet<>(Set.of(factionCapital));
+		boolean changed = true;
+		while (changed) {
+			changed = false;
+			Set<Integer> reached = expandLegal(pm, seeds, capitalBlob);
+			for (java.util.Iterator<Integer> it = pending.iterator(); it.hasNext();) {
+				int cap = it.next();
+				if (capitalBlob.contains(cap) || isSeaAdjacentFromSet(pm, pm.get(cap), reached)) {
+					legal.add(cap);
+					seeds.add(cap);
+					it.remove();
+					changed = true;
+				}
+			}
+		}
+		return legal;
+	}
+
+	private Set<Integer> expandLegal(ProvinceManager pm, Set<Integer> seeds, Set<Integer> capitalBlob) {
+		Set<Integer> legal = new HashSet<>(seeds);
 
 		// Follow the same edges that allowed these claims: owned land, WATER
 		// bridges, and one SEA tile from the proposed capital's land blob.
@@ -469,7 +498,9 @@ public class ProvinceHandler {
 		copy.provinces = new ArrayList<>(owned);
 		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
 		java.util.Map<String, Integer> after = new java.util.LinkedHashMap<>(capitals);
-		after.replaceAll((id, cap) -> cap != -1 && !copy.isCapitalStillLegal(pm, cap, proposedCapital) ? -1 : cap);
+		Set<Integer> legalCapitals = copy.legalGuildCapitals(pm, proposedCapital,
+				after.values().stream().filter(cap -> cap != -1).toList());
+		after.replaceAll((id, cap) -> cap != -1 && !legalCapitals.contains(cap) ? -1 : cap);
 		int effectiveCapital = after.getOrDefault(f.getId(), proposedCapital);
 		copy.capital = effectiveCapital;
 		Set<Integer> legal = copy.computeLegalProvinces(pm, effectiveCapital,
@@ -487,10 +518,11 @@ public class ProvinceHandler {
 		copy.capital = capital;
 		copy.provinces = new ArrayList<>(owned);
 		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
-		Set<Integer> legal = copy.computeLegalProvinces(pm, capital);
-		for (Guild g : f.getGuildHandler().getGuilds()) {
-			if (g.hasCapital() && !copy.isCapitalStillLegal(pm, g.getCapital(), capital)) {
-				legal.remove(g.getCapital());
+		Set<Integer> legal = copy.computeLegalProvinces(pm, capital, guildCapitals());
+		Set<Integer> legalCapitals = copy.legalGuildCapitals(pm, capital, guildCapitals());
+		for (int cap : guildCapitals()) {
+			if (!legalCapitals.contains(cap)) {
+				legal.remove(cap);
 			}
 		}
 		return legal;
@@ -501,19 +533,6 @@ public class ProvinceHandler {
 		capital = restoredCapital;
 		provinces.clear();
 		provinces.addAll(restoredProvinces);
-	}
-
-	private boolean isCapitalStillLegal(ProvinceManager pm, int guildCapitalId, int factionCapitalId) {
-		Province guildCapital = pm.get(guildCapitalId);
-		if (!provinces.contains(guildCapitalId) || guildCapital == null || !guildCapital.isValid()
-				|| guildCapital.isSea()) {
-			return false;
-		}
-		if (factionCapitalId != -1 && isLandConnected(pm, factionCapitalId, guildCapitalId)) {
-			return true;
-		}
-
-		return isSeaAdjacent(pm, guildCapital);
 	}
 
 	private void floodLand(ProvinceManager pm, int start, Set<Integer> out) {
@@ -571,7 +590,7 @@ public class ProvinceHandler {
 				: "§cThis province does not border your current realm.";
 		}
 
-		if (adjacent || isSeaAdjacent(pm, target)) {
+		if (adjacent || isSeaAdjacentFromSet(pm, target, seaClaimSources(pm))) {
 			return "Success";
 		}
 

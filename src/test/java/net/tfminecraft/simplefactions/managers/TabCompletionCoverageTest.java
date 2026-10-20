@@ -248,6 +248,21 @@ class TabCompletionCoverageTest {
   }
 
   @Test
+  void forceRemoveCapitalSuggestsSeatedNonBaseGuilds() {
+    admin();
+    Guild base = mock(Guild.class);
+    when(base.getId()).thenReturn("mainguild");
+    when(base.isBase()).thenReturn(true);
+    when(base.hasCapital()).thenReturn(true);
+    Guild unseated = mock(Guild.class);
+    when(unseated.getId()).thenReturn("miners");
+    when(guild.hasCapital()).thenReturn(true);
+    factions.when(FactionManager::getAllGuilds).thenReturn(Arrays.asList(guild, null, base, unseated));
+    assertEquals(List.of("merchants"), complete("guild", "forceremovecapital", "M"));
+    assertEquals(List.of("realm", "other"), complete("faction", "forceclaim", ""));
+  }
+
+  @Test
   void titleEditingCompletionRequiresStaffAndEnabledProvinces() {
     String[] args = {TitleAdminCommand.SUBCOMMAND, ""};
     assertTrue(complete("faction", args).isEmpty());

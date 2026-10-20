@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.map.AdminLandService;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.economy.TreasuryActions;
 
@@ -531,6 +532,21 @@ public class CommandManager implements Listener, CommandExecutor{
 					}
 				}
 				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("forceremovecapital") && args.length == 2) {
+				if(!Cache.requireProvinces(p)) {
+					return true;
+				}
+				if(!Permissions.isAdmin(sender)) {
+					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
+					return true;
+				}
+				Guild g = FactionManager.getGuildByString(args[1]);
+				if(g == null) {
+					p.sendMessage("§cNo guild by the id "+args[1]);
+					return true;
+				}
+				AdminLandService.forceRemoveCapital(g).forEach(p::sendMessage);
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("forceleader") && args.length >= 3) {
 				if(!Permissions.isAdmin(sender)) {
 					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
@@ -819,6 +835,26 @@ public class CommandManager implements Listener, CommandExecutor{
 					FactionManager.getMap().unclaim(p, f, claim);
 				}
 				
+				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("forceclaim") && args.length == 2) {
+				if(!Cache.requireProvinces(p)) {
+					return true;
+				}
+				if(!Permissions.isAdmin(sender)) {
+					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
+					return true;
+				}
+				Faction f = FactionManager.getByString(args[1]);
+				if(f == null) {
+					p.sendMessage("§cNo faction by the id "+args[1]);
+					return true;
+				}
+				int claim = RestServer.getProvince(p);
+				if(claim == -2) {
+					p.sendMessage("§a[SimpleFactions] §cError! could not resolve province");
+					return true;
+				}
+				AdminLandService.forceClaim(f, claim).forEach(p::sendMessage);
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("accept") && args.length == 1) {
 				if(!RequestManager.hasRequest(p)) {
