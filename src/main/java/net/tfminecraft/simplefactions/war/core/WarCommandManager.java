@@ -371,7 +371,8 @@ public class WarCommandManager implements CommandExecutor {
 	}
 
 	private boolean handleTruce(Player player, String[] args) {
-		String usage = "§cUsage: /war admin truce list [faction] | clear <factionA> <factionB>";
+		String usage = "§cUsage: /war admin truce list [faction] | clear <factionA> <factionB>"
+				+ " | cooldowns | clearcooldown <faction>";
 		String subcommand = args.length >= 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "";
 		if (subcommand.equals("list") && args.length <= 4) {
 			String factionId = args.length == 4 ? args[3] : null;
@@ -397,6 +398,29 @@ public class WarCommandManager implements CommandExecutor {
 				player.sendMessage("§aCleared the truce between §f" + first + " §aand §f" + second + "§a.");
 			} else {
 				player.sendMessage("§cNo truce between §f" + first + " §cand §f" + second + "§c.");
+			}
+			return true;
+		}
+		if (subcommand.equals("cooldowns") && args.length == 3) {
+			List<TruceService.Cooldown> cooldowns = TruceService.listCooldowns();
+			if (cooldowns.isEmpty()) {
+				player.sendMessage("§7No active civil war cooldowns.");
+				return true;
+			}
+			player.sendMessage("§7Civil war cooldowns (" + cooldowns.size() + "):");
+			for (TruceService.Cooldown cooldown : cooldowns) {
+				player.sendMessage("§f" + factionName(cooldown.factionId()) + " §7("
+						+ TruceService.formatRemaining(TruceService.remainingUntil(cooldown.until()))
+						+ " left, war " + cooldown.warId() + ")");
+			}
+			return true;
+		}
+		if (subcommand.equals("clearcooldown") && args.length == 4) {
+			String name = factionName(args[3]);
+			if (TruceService.clearCivilWarCooldown(args[3])) {
+				player.sendMessage("§aCleared the civil war cooldown of §f" + name + "§a.");
+			} else {
+				player.sendMessage("§c" + name + " §chas no civil war cooldown.");
 			}
 			return true;
 		}

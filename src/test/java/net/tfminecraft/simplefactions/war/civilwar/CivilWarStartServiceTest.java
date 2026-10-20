@@ -5,6 +5,7 @@ import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarSeaPortGate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -80,6 +81,16 @@ class CivilWarStartServiceTest {
 		assertEquals(CivilWarCopy.cooldown("4d 0h"), error);
 		assertEquals("§cThis faction fought a civil war too recently. It can start another in 4d 0h.", error);
 		verify(movement, never()).setFrozen(true);
+	}
+
+	@Test
+	void staffMayStartACivilWarDuringTheCooldown() {
+		Movement movement = baseMovement(Action.INDEPENDENCE, Member.GUILD_LEADER);
+		TruceService.recordCivilWarCooldown("host", Instant.now().plus(Duration.ofDays(4)), 3);
+
+		assertEquals(CivilWarCopy.UNMAPPABLE_CAUSE, CivilWarStartService.start(movement, true));
+		assertNotEquals(CivilWarCopy.UNMAPPABLE_CAUSE, CivilWarStartService.start(movement, false));
+		assertNotNull(CivilWarStartService.cooldownError(movement.getFaction()));
 	}
 
 	@Test

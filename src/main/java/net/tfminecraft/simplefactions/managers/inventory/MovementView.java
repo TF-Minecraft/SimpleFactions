@@ -442,6 +442,12 @@ public class MovementView {
         // Send demands button
         else if (slot == 19) {
             if (movement.isLeader(Members.key(p)) && movement.getOrganization() >= 100) {
+                String cooldown = CivilWarStartService.cooldownError(f);
+                if (cooldown != null) {
+                    p.sendMessage(cooldown);
+                    p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
+                    return;
+                }
                 for(Cause cause : movement.getCauses()) {
                     if(cause.getProposal().isPoliticalActionProposal() && cause.getProposal().needsTarget()) {
                         if(!cause.getProposal().hasTarget()) {
@@ -469,6 +475,12 @@ public class MovementView {
         }
         else if (slot == 25) {
             if (!Members.is(p, f.getLeader())) {
+                return;
+            }
+            String cooldown = CivilWarStartService.cooldownError(f);
+            if (cooldown != null) {
+                p.sendMessage(cooldown);
+                p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
                 return;
             }
             if (!MovementCrackdownQueries.canCrush(f, movement)) {

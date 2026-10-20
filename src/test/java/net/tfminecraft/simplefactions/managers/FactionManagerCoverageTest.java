@@ -520,9 +520,15 @@ class FactionManagerCoverageTest {
     home.setRelation(other, new Relation());
     other.setRelation(home, new Relation());
     manager.start(new ArrayList<>(List.of(home, other)));
+    java.time.Instant until = java.time.Instant.now().plus(java.time.Duration.ofDays(2));
+    net.tfminecraft.simplefactions.war.truce.TruceService.record("home", "other", until, 1);
+    net.tfminecraft.simplefactions.war.truce.TruceService.recordCivilWarCooldown("other", until, 2);
 
     FactionManager.deleteFaction(other);
 
+    // A new faction may take the id, so it must not inherit the old truces.
+    assertFalse(net.tfminecraft.simplefactions.war.truce.TruceService.hasTruce(home, other));
+    assertNull(net.tfminecraft.simplefactions.war.truce.TruceService.civilWarCooldownUntil(other));
     assertEquals(List.of(home), FactionManager.factions);
     assertFalse(home.getRelations().containsKey("other"));
     verify(fixture.map).enqueue("nation", "other-rgb");

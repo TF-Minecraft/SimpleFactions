@@ -217,6 +217,47 @@ class TruceServiceTest {
 		assertTrue(TruceService.hasTruce(iron, river));
 	}
 
+	@Test
+	void movementWarsWithoutASnapshotCoolDownTheDefendingLeader() {
+		Faction host = faction("host");
+		Faction rebels = faction("rebels");
+		War war = new War(3, rebels, host);
+		war.setMovementId("movement");
+
+		TruceService.onWarEnded(war, WarEndReason.WHITE_PEACE);
+
+		assertEquals(NOW.plus(Duration.ofDays(10)), TruceService.civilWarCooldownUntil(host));
+		assertFalse(TruceService.hasTruce(host, rebels));
+	}
+
+	@Test
+	void cooldownsAreListedSoonestFirstAndClearedOneAtATime() {
+		TruceService.recordCivilWarCooldown("Later", NOW.plus(Duration.ofDays(3)), 2);
+		TruceService.recordCivilWarCooldown("sooner", NOW.plus(Duration.ofDays(1)), 1);
+		TruceService.recordCivilWarCooldown("sooner", NOW.plus(Duration.ofHours(1)), 9);
+		assertEquals(List.of(
+				new TruceService.Cooldown("sooner", NOW.plus(Duration.ofDays(1)), 1),
+				new TruceService.Cooldown("later", NOW.plus(Duration.ofDays(3)), 2)), TruceService.listCooldowns());
+		assertTrue(TruceService.clearCivilWarCooldown("LATER"));
+		assertFalse(TruceService.clearCivilWarCooldown("later"));
+		assertFalse(TruceService.clearCivilWarCooldown(null));
+		assertEquals(1, TruceService.listCooldowns().size());
+	}
+
+	@Test
+	void forgettingAFactionDropsItsTrucesAndCooldownOnly() {
+		TruceService.record("iron", "river", NOW.plus(Duration.ofDays(1)), 1);
+		TruceService.record("river", "riverbacker", NOW.plus(Duration.ofDays(1)), 1);
+		TruceService.recordCivilWarCooldown("iron", NOW.plus(Duration.ofDays(1)), 2);
+		TruceService.forget(null);
+		TruceService.forget("IRON");
+		assertFalse(TruceService.hasTruce(iron, river));
+		assertTrue(TruceService.hasTruce(river, riverBacker));
+		assertNull(TruceService.civilWarCooldownUntil(iron));
+		TruceService.forget("unknown");
+		assertEquals(1, TruceService.list(null).size());
+	}
+
 	private Faction faction(String id) {
 		Faction faction = mock(Faction.class);
 		when(faction.getId()).thenReturn(id);

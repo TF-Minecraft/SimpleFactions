@@ -93,10 +93,9 @@ public class WarGoalValidator {
 				return WarValidationResult.fail("§cYou cannot declare war on a faction in the same realm.");
 			}
 		}
-		java.time.Duration truce = TruceService.remaining(attacker, defender);
-		if (!truce.isZero()) {
-			return WarValidationResult.fail("§cYou have a truce with " + defender.getName() + " §cfor another "
-					+ TruceService.formatRemaining(truce) + ".");
+		WarValidationResult truce = validateTruce(attacker, defender);
+		if (!truce.isValid()) {
+			return truce;
 		}
 		for (Faction ally : RelationManager.getAllies(attacker)) {
 			if (ally != null && ally.getId().equalsIgnoreCase(defender.getId())) {
@@ -112,6 +111,40 @@ public class WarGoalValidator {
 			return WarValidationResult.fail("§cYou cannot declare war on your tributary.");
 		}
 		return WarValidationResult.ok();
+	}
+
+	/** Direct subjects are pulled into the war with their overlord, so their truces count too. */
+	private static WarValidationResult validateTruce(Faction attacker, Faction defender) {
+		java.time.Duration leaders = TruceService.remaining(attacker, defender);
+		if (!leaders.isZero()) {
+			return WarValidationResult.fail("§cYou have a truce with " + defender.getName() + " §cfor another "
+					+ TruceService.formatRemaining(leaders) + ".");
+		}
+		List<Faction> attackers = withDirectSubjects(attacker);
+		List<Faction> defenders = withDirectSubjects(defender);
+		for (Faction a : attackers) {
+			for (Faction d : defenders) {
+				java.time.Duration truce = TruceService.remaining(a, d);
+				if (!truce.isZero()) {
+					return WarValidationResult.fail("§c" + a.getName() + " §chas a truce with " + d.getName()
+							+ " §cfor another " + TruceService.formatRemaining(truce) + ".");
+				}
+			}
+		}
+		return WarValidationResult.ok();
+	}
+
+	/** Unlike {@code RelationManager.getSubjects}, a validation must not prune stale relations. */
+	private static List<Faction> withDirectSubjects(Faction overlord) {
+		List<Faction> factions = new java.util.ArrayList<>(List.of(overlord));
+		for (var entry : new java.util.HashMap<>(overlord.getRelations()).entrySet()) {
+			Relation relation = entry.getValue();
+			Faction subject = FactionManager.getByString(entry.getKey());
+			if (subject != null && relation != null && relation.getType() != null && relation.getType().isVassalage()) {
+				factions.add(subject);
+			}
+		}
+		return factions;
 	}
 
 	private WarValidationResult validateInternalPeerGoals(WarDeclareRequest request) {

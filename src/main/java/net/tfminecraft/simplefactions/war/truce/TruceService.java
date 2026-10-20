@@ -40,6 +40,9 @@ public final class TruceService {
 		}
 	}
 
+	/** A civil war host's cooldown; the id is stored lowercase. */
+	public record Cooldown(String factionId, Instant until, int warId) {}
+
 	public static final class SavedTruce {
 		public String first;
 		public String second;
@@ -256,6 +259,30 @@ public final class TruceService {
 		return result;
 	}
 
+	/** Active civil war cooldowns, soonest to expire first. */
+	public static synchronized List<Cooldown> listCooldowns() {
+		purge();
+		List<Cooldown> result = new ArrayList<>();
+		cooldowns.forEach((id, saved) -> result.add(new Cooldown(id, parse(saved.until), saved.warId)));
+		result.sort(Comparator.comparing(Cooldown::until));
+		return result;
+	}
+
+	public static synchronized boolean clearCivilWarCooldown(String hostId) {
+		if (hostId == null || cooldowns.remove(hostId.toLowerCase(Locale.ROOT)) == null) return false;
+		save();
+		return true;
+	}
+
+	/** Drops every truce and the cooldown of a deleted faction, since its id may be taken again. */
+	public static synchronized void forget(String factionId) {
+		if (factionId == null) return;
+		String id = factionId.toLowerCase(Locale.ROOT);
+		boolean changed = truces.values().removeIf(truce -> truce.firstId().equals(id) || truce.secondId().equals(id));
+		changed |= cooldowns.remove(id) != null;
+		if (changed) save();
+	}
+
 	/** Time left until the instant, never negative. */
 	public static synchronized Duration remainingUntil(Instant until) {
 		if (until == null) return Duration.ZERO;
@@ -277,7 +304,12 @@ public final class TruceService {
 	}
 
 	static String civilWarHostId(War war) {
-		return war.getCivilWarSnapshot() != null ? war.getCivilWarSnapshot().getHostFactionId() : null;
+		if (war.getCivilWarSnapshot() != null && war.getCivilWarSnapshot().getHostFactionId() != null) {
+			return war.getCivilWarSnapshot().getHostFactionId();
+		}
+		// Movement wars without a snapshot keep the host as the defending leader.
+		Faction host = war.getDefenders().getLeader();
+		return host == null ? null : host.getId();
 	}
 
 	private static void purge() {

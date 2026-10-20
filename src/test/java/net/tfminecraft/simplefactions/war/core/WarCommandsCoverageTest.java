@@ -304,6 +304,9 @@ class WarCommandsCoverageTest {
         Arguments.of("admin truce clear iron", "Usage: /war admin truce"),
         Arguments.of("admin truce clear iron river extra", "Usage: /war admin truce"),
         Arguments.of("admin truce clear iron river", "§cNo truce between"),
+        Arguments.of("admin truce cooldowns extra", "Usage: /war admin truce"),
+        Arguments.of("admin truce clearcooldown", "Usage: /war admin truce"),
+        Arguments.of("admin truce clearcooldown iron", "§ciron §chas no civil war cooldown."),
         Arguments.of("admin schedule", "Usage:"),
         Arguments.of("admin schedule bad forcequorum", "War id must be a number"),
         Arguments.of("admin schedule 999 forcequorum", "No war by that id"),
@@ -405,6 +408,22 @@ class WarCommandsCoverageTest {
     TruceService.clear("hill", "river");
     assertTrue(run("admin", "truce", "list"));
     verify(alice).sendMessage("§7No active truces.");
+  }
+
+  @Test
+  void staffListAndClearCivilWarCooldowns() {
+    assertTrue(run("admin", "truce", "cooldowns"));
+    verify(alice).sendMessage("§7No active civil war cooldowns.");
+    java.time.Instant until = java.time.Instant.now().plus(Duration.ofDays(2)).plusSeconds(60);
+    TruceService.recordCivilWarCooldown("river", until, 6);
+    TruceService.recordCivilWarCooldown("gone", until.plus(Duration.ofDays(1)), 7);
+    assertTrue(run("admin", "truce", "cooldowns"));
+    verify(alice).sendMessage("§7Civil war cooldowns (2):");
+    verify(alice).sendMessage("§friver §7(2d 0h left, war 6)");
+    verify(alice).sendMessage("§fgone §7(3d 0h left, war 7)");
+    assertTrue(run("admin", "truce", "clearcooldown", "RIVER"));
+    verify(alice).sendMessage("§aCleared the civil war cooldown of §friver§a.");
+    assertNull(TruceService.civilWarCooldownUntil(defender));
   }
 
   @Test
@@ -636,7 +655,10 @@ class WarCommandsCoverageTest {
                 "reparations",
                 "truce",
                 "factions")),
-        Arguments.of("admin truce ", List.of("list", "clear")),
+        Arguments.of("admin truce ", List.of("list", "clear", "cooldowns", "clearcooldown")),
+        Arguments.of("admin truce clearc", List.of("clearcooldown")),
+        Arguments.of("admin truce clearcooldown r", List.of("river")),
+        Arguments.of("admin truce cooldowns ", List.of()),
         Arguments.of("admin truce list r", List.of("river")),
         Arguments.of("admin truce clear i", List.of("iron")),
         Arguments.of("admin truce clear iron r", List.of("river")),

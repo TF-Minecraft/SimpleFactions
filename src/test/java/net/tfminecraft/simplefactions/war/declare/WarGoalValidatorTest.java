@@ -442,6 +442,44 @@ class WarGoalValidatorTest {
 	}
 
 	@Test
+	void war_rejectsDeclaringWhileADirectVassalOnEitherSideHasATruce() {
+		Faction north = mockFaction("north", 4);
+		when(north.getName()).thenReturn("North");
+		Faction northVassal = mockSubject("northvassal", "north");
+		when(northVassal.getName()).thenReturn("North March");
+		Faction south = mockFactionWithCapital("south", 42);
+		when(south.getName()).thenReturn("South");
+		Faction southVassal = mockSubject("southvassal", "south");
+		when(southVassal.getName()).thenReturn("South March");
+		addVassal(north, "northvassal");
+		addVassal(south, "southvassal");
+		FactionManager.factions.addAll(List.of(north, northVassal, south, southVassal));
+		Instant until = Instant.now().plus(Duration.ofDays(2)).plusSeconds(60);
+
+		TruceService.record("northvassal", "south", until, 1);
+		WarValidationResult result = validator.validate(WarDeclareRequest.of(north, south, WarGoalType.WAR));
+		assertEquals("§cNorth March §chas a truce with South §cfor another 2d 0h.", result.getMessage());
+
+		TruceService.clear("northvassal", "south");
+		TruceService.record("north", "southvassal", until, 1);
+		result = validator.validate(WarDeclareRequest.of(north, south, WarGoalType.WAR));
+		assertEquals("§cNorth §chas a truce with South March §cfor another 2d 0h.", result.getMessage());
+
+		TruceService.clear("north", "southvassal");
+		assertTrue(validator.validate(WarDeclareRequest.of(north, south, WarGoalType.WAR)).isValid());
+	}
+
+	private static void addVassal(Faction overlord, String vassalId) {
+		Relation relation = mock(Relation.class);
+		RelationType type = mock(RelationType.class);
+		when(type.isVassalage()).thenReturn(true);
+		when(type.getId()).thenReturn("vassal");
+		when(relation.getType()).thenReturn(type);
+		overlord.getRelations().put(vassalId, relation);
+		when(overlord.getRelation(vassalId)).thenReturn(relation);
+	}
+
+	@Test
 	void usurp_rejectsRebellingAgainstTheOverlordDuringATruce() {
 		Faction king = mockFactionWithTitle("king", 5);
 		when(king.getName()).thenReturn("Kingdom");

@@ -47,6 +47,14 @@ public final class CivilWarStartService {
 	private CivilWarStartService() {}
 
 	public static String start(Movement movement) {
+		return start(movement, false);
+	}
+
+	/**
+	 * Players are stopped at sending demands or demanding a disband during the host's
+	 * cooldown; the check here is a backstop. Staff resolving demands may skip it.
+	 */
+	public static String start(Movement movement, boolean ignoreCooldown) {
 		if (movement == null || movement.isFrozen()) {
 			return CivilWarCopy.COULD_NOT_START;
 		}
@@ -54,9 +62,9 @@ public final class CivilWarStartService {
 		if (host == null) {
 			return CivilWarCopy.COULD_NOT_START;
 		}
-		java.time.Duration cooldown = TruceService.civilWarCooldownRemaining(host);
-		if (!cooldown.isZero()) {
-			return CivilWarCopy.cooldown(TruceService.formatRemaining(cooldown));
+		String cooldown = ignoreCooldown ? null : cooldownError(host);
+		if (cooldown != null) {
+			return cooldown;
 		}
 		WarGoalType goal = CivilWarGoalMapper.fromFirstCause(movement);
 		if (goal == null) {
@@ -120,6 +128,12 @@ public final class CivilWarStartService {
 				host.getId(),
 				movement.getPower());
 		return null;
+	}
+
+	/** @return the cooldown refusal while the host may not start another civil war, else null */
+	public static String cooldownError(Faction host) {
+		java.time.Duration cooldown = TruceService.civilWarCooldownRemaining(host);
+		return cooldown.isZero() ? null : CivilWarCopy.cooldown(TruceService.formatRemaining(cooldown));
 	}
 
 	static List<Guild> supportingHostGuilds(Movement movement, Faction host) {
