@@ -12,6 +12,7 @@ public class DeclareWarHolder implements InventoryHolder {
 	private final String governmentLawId;
 	private final String leadershipLawId;
 	private final String pickingGroupId;
+	private WarDemandDraft demand;
 
 	public DeclareWarHolder(String attackerId, String defenderId, SFGUI step) {
 		this(attackerId, defenderId, step, null, null, null);
@@ -63,6 +64,16 @@ public class DeclareWarHolder implements InventoryHolder {
 
 	public String getPickingGroupId() {
 		return pickingGroupId;
+	}
+
+	/** Null for a war declaration; set when the picker is choosing a second demand. */
+	public WarDemandDraft getDemand() {
+		return demand;
+	}
+
+	public DeclareWarHolder withDemand(WarDemandDraft demand) {
+		this.demand = demand;
+		return this;
 	}
 
 	@Override

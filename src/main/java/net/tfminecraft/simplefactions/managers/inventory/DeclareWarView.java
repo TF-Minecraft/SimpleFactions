@@ -20,18 +20,21 @@ import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.holder.DeclareWarHolder;
+import net.tfminecraft.simplefactions.managers.holder.WarDemandDraft;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.LogManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
+import net.tfminecraft.simplefactions.war.core.WarDemand;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.declare.ChangeGovernmentEligibility;
 import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.DeJureTitleOption;
 import net.tfminecraft.simplefactions.war.declare.PillageEligibility;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareCodeService;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
+import net.tfminecraft.simplefactions.war.declare.WarDemandRules;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
 import net.tfminecraft.simplefactions.enums.SFGUI;
@@ -50,16 +53,22 @@ public class DeclareWarView {
 		openGoalPicker(player, attacker, defender, null);
 	}
 
+	public void openGoalPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+		openGoalPicker(player, attacker, defender, inventory, null);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public void openGoalPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+	public void openGoalPicker(
+			Player player, Faction attacker, Faction defender, Inventory inventory, WarDemandDraft demand) {
 		if (!Cache.requireProvinces(player)) {
 			return;
 		}
 		boolean open = inventory == null;
 		if(open) {
-			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_GOAL);
-			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Goal");
+			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_GOAL).withDemand(demand);
+			inventory = SimpleFactions.plugin.getServer().createInventory(
+					holder, 27, demand == null ? "§7Declare War - Goal" : "§7War Demand - Goal");
 		}
 		inventory.clear();
 		int slot = 10;
@@ -69,7 +78,10 @@ public class DeclareWarView {
 		}
 		inventory.setItem(slot++, creator.createOpenMarketGoalItem());
 		inventory.setItem(slot++, creator.createChangeGovernmentGoalItem());
-		inventory.setItem(slot++, creator.createPillageGoalItem());
+		// Pillage is fought over its own settlement, so it can only be a war's first goal.
+		if (demand == null) {
+			inventory.setItem(slot++, creator.createPillageGoalItem());
+		}
 		if (WarDeclareHelper.canDeclareUsurp(attacker, defender)) {
 			inventory.setItem(slot++, creator.createUsurpGoalItem());
 		}
@@ -87,12 +99,17 @@ public class DeclareWarView {
 		openRelationTypePicker(player, attacker, defender, null);
 	}
 
+	public void openRelationTypePicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+		openRelationTypePicker(player, attacker, defender, inventory, null);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public void openRelationTypePicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+	public void openRelationTypePicker(
+			Player player, Faction attacker, Faction defender, Inventory inventory, WarDemandDraft demand) {
 		boolean open = inventory == null;
 		if(open) {
-			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_RELATION_TYPE);
+			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_RELATION_TYPE).withDemand(demand);
 			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Type");
 		}
 		inventory.clear();
@@ -109,12 +126,17 @@ public class DeclareWarView {
 		openTitlePicker(player, attacker, defender, null);
 	}
 
+	public void openTitlePicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+		openTitlePicker(player, attacker, defender, inventory, null);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public void openTitlePicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+	public void openTitlePicker(
+			Player player, Faction attacker, Faction defender, Inventory inventory, WarDemandDraft demand) {
 		boolean open = inventory == null;
 		if(open) {
-			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_TITLE);
+			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_TITLE).withDemand(demand);
 			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Title");
 		}
 		inventory.clear();
@@ -131,12 +153,17 @@ public class DeclareWarView {
 		openSubjectPicker(player, attacker, defender, null);
 	}
 
+	public void openSubjectPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+		openSubjectPicker(player, attacker, defender, inventory, null);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public void openSubjectPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+	public void openSubjectPicker(
+			Player player, Faction attacker, Faction defender, Inventory inventory, WarDemandDraft demand) {
 		boolean open = inventory == null;
 		if(open) {
-			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_SUBJECT);
+			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_SUBJECT).withDemand(demand);
 			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Subject");
 		}
 		inventory.clear();
@@ -153,12 +180,17 @@ public class DeclareWarView {
 		openSettlementPicker(player, attacker, defender, null);
 	}
 
+	public void openSettlementPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+		openSettlementPicker(player, attacker, defender, inventory, null);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
-	public void openSettlementPicker(Player player, Faction attacker, Faction defender, Inventory inventory) {
+	public void openSettlementPicker(
+			Player player, Faction attacker, Faction defender, Inventory inventory, WarDemandDraft demand) {
 		boolean open = inventory == null;
 		if(open) {
-			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_SETTLEMENT);
+			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_SETTLEMENT).withDemand(demand);
 			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Settlement");
 		}
 		inventory.clear();
@@ -180,6 +212,16 @@ public class DeclareWarView {
 		openGovernmentPicker(player, attacker, defender, governmentLawId, leadershipLawId, null);
 	}
 
+	public void openGovernmentPicker(
+			Player player,
+			Faction attacker,
+			Faction defender,
+			String governmentLawId,
+			String leadershipLawId,
+			Inventory inventory) {
+		openGovernmentPicker(player, attacker, defender, governmentLawId, leadershipLawId, inventory, null);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void openGovernmentPicker(
@@ -188,7 +230,8 @@ public class DeclareWarView {
 			Faction defender,
 			String governmentLawId,
 			String leadershipLawId,
-			Inventory inventory) {
+			Inventory inventory,
+			WarDemandDraft demand) {
 		String govId = governmentLawId != null
 				? governmentLawId
 				: ChangeGovernmentEligibility.currentLawId(defender, ChangeGovernmentEligibility.GOVERNMENT_GROUP);
@@ -198,7 +241,7 @@ public class DeclareWarView {
 		boolean open = inventory == null;
 		if(open) {
 			DeclareWarHolder holder = new DeclareWarHolder(
-					attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_GOVERNMENT, govId, leadId);
+					attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_GOVERNMENT, govId, leadId).withDemand(demand);
 			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Government");
 		}
 		inventory.clear();
@@ -220,6 +263,7 @@ public class DeclareWarView {
 	public void click(InventoryClickEvent e, Inventory inventory, Player player) {
 		if (!(inventory.getHolder() instanceof DeclareWarHolder holder)) return;
 		e.setCancelled(true);
+		WarDemandDraft demand = holder.getDemand();
 		ItemStack item = e.getCurrentItem();
 		if (item == null || item.getType().equals(Material.AIR)) return;
 
@@ -230,12 +274,17 @@ public class DeclareWarView {
 		if (item.getType().equals(Material.BARRIER)) {
 			player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			if (holder.getStep() == SFGUI.WAR_DECLARE_GOAL) {
-				inv.diplomacyView(null, player, defender, true);
+				if (demand != null) {
+					returnToDemands(player, demand);
+				} else {
+					inv.diplomacyView(null, player, defender, true);
+				}
 			} else if (holder.getStep() == SFGUI.WAR_DECLARE_GOVERNMENT_LAW) {
 				openGovernmentPicker(
-						player, attacker, defender, holder.getGovernmentLawId(), holder.getLeadershipLawId());
+						player, attacker, defender, holder.getGovernmentLawId(), holder.getLeadershipLawId(),
+						null, demand);
 			} else {
-				backOutOfSubPicker(player, attacker, defender);
+				backOutOfSubPicker(player, attacker, defender, demand);
 			}
 			return;
 		}
@@ -246,7 +295,7 @@ public class DeclareWarView {
 			WarGoalType goal = WarGoalType.fromJson(goalId);
 			if (goal == null) return;
 			player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-			routeGoal(player, attacker, defender, goal);
+			routeGoal(player, attacker, defender, goal, demand);
 			return;
 		}
 
@@ -260,18 +309,18 @@ public class DeclareWarView {
 			if (!"true".equals(eligible)) {
 				return;
 			}
-			openConfirm(player, attacker, defender, WarGoalType.DE_JURE_ANNEX, id, null, null, null, null, null);
+			openConfirm(player, attacker, defender, WarGoalType.DE_JURE_ANNEX, id, null, null, null, null, null, demand);
 		} else if (holder.getStep() == SFGUI.WAR_DECLARE_SETTLEMENT) {
 			NamespacedKey eligibleKey = new NamespacedKey(SimpleFactions.plugin, "eligible");
 			String eligible = item.getItemMeta().getPersistentDataContainer().get(eligibleKey, PersistentDataType.STRING);
 			if (!"true".equals(eligible)) {
 				return;
 			}
-			openConfirm(player, attacker, defender, WarGoalType.PILLAGE, null, null, null, null, null, id);
+			openConfirm(player, attacker, defender, WarGoalType.PILLAGE, null, null, null, null, null, id, demand);
 		} else if (holder.getStep() == SFGUI.WAR_DECLARE_SUBJECT) {
-			openConfirm(player, attacker, defender, WarGoalType.TRANSFER_SUBJECT, null, id, null, null, null, null);
+			openConfirm(player, attacker, defender, WarGoalType.TRANSFER_SUBJECT, null, id, null, null, null, null, demand);
 		} else if (holder.getStep() == SFGUI.WAR_DECLARE_RELATION_TYPE) {
-			openConfirm(player, attacker, defender, WarGoalType.SUBJUGATE, null, null, id, null, null, null);
+			openConfirm(player, attacker, defender, WarGoalType.SUBJUGATE, null, null, id, null, null, null, demand);
 		} else if (holder.getStep() == SFGUI.WAR_DECLARE_GOVERNMENT) {
 			if ("confirm".equals(id)) {
 				openConfirm(
@@ -284,11 +333,12 @@ public class DeclareWarView {
 						null,
 						holder.getGovernmentLawId(),
 						holder.getLeadershipLawId(),
-						null);
+						null,
+						demand);
 				return;
 			}
 			openGovernmentLawPicker(
-					player, attacker, defender, holder.getGovernmentLawId(), holder.getLeadershipLawId(), id);
+					player, attacker, defender, holder.getGovernmentLawId(), holder.getLeadershipLawId(), id, demand);
 		} else if (holder.getStep() == SFGUI.WAR_DECLARE_GOVERNMENT_LAW) {
 			String govId = holder.getGovernmentLawId();
 			String leadId = holder.getLeadershipLawId();
@@ -297,7 +347,7 @@ public class DeclareWarView {
 			} else if (ChangeGovernmentEligibility.LEADERSHIP_GROUP.equalsIgnoreCase(holder.getPickingGroupId())) {
 				leadId = id;
 			}
-			openGovernmentPicker(player, attacker, defender, govId, leadId);
+			openGovernmentPicker(player, attacker, defender, govId, leadId, null, demand);
 		}
 	}
 
@@ -307,16 +357,24 @@ public class DeclareWarView {
 	 * goal picker entirely because the code already pinned the goal.
 	 */
 	public void routeGoal(Player player, Faction attacker, Faction defender, WarGoalType goal) {
+		routeGoal(player, attacker, defender, goal, null);
+	}
+
+	private void routeGoal(Player player, Faction attacker, Faction defender, WarGoalType goal, WarDemandDraft demand) {
 		if (goal == null) return;
 		switch (goal) {
 			case WAR -> player.sendMessage(WarDeclareCodeService.RETIRED_WAR_GOAL);
 			case TRIBUTARY, USURP, OPEN_MARKET ->
-					openConfirm(player, attacker, defender, goal, null, null, null, null, null, null);
-			case CHANGE_GOVERNMENT -> openGovernmentPicker(player, attacker, defender, null, null);
-			case SUBJUGATE -> openRelationTypePicker(player, attacker, defender);
-			case DE_JURE_ANNEX -> openTitlePicker(player, attacker, defender);
-			case TRANSFER_SUBJECT -> openSubjectPicker(player, attacker, defender);
-			case PILLAGE -> openSettlementPicker(player, attacker, defender);
+					openConfirm(player, attacker, defender, goal, null, null, null, null, null, null, demand);
+			case CHANGE_GOVERNMENT -> openGovernmentPicker(player, attacker, defender, null, null, null, demand);
+			case SUBJUGATE -> openRelationTypePicker(player, attacker, defender, null, demand);
+			case DE_JURE_ANNEX -> openTitlePicker(player, attacker, defender, null, demand);
+			case TRANSFER_SUBJECT -> openSubjectPicker(player, attacker, defender, null, demand);
+			case PILLAGE -> {
+				if (demand == null) {
+					openSettlementPicker(player, attacker, defender);
+				}
+			}
 			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE -> {
 			}
 		}
@@ -350,7 +408,11 @@ public class DeclareWarView {
 	 * goal picker must not reappear: the pin is the point, and reopening it would offer
 	 * goals the confirm step is going to refuse anyway.
 	 */
-	private void backOutOfSubPicker(Player player, Faction attacker, Faction defender) {
+	private void backOutOfSubPicker(Player player, Faction attacker, Faction defender, WarDemandDraft demand) {
+		if (demand != null) {
+			openGoalPicker(player, attacker, defender, null, demand);
+			return;
+		}
 		if (WarDeclareCodeService.session(player) != null) {
 			WarDeclareCodeService.clearSession(player);
 			player.sendMessage("§7War declaration cancelled. Your code is still unused.");
@@ -365,7 +427,7 @@ public class DeclareWarView {
 		Faction defender = request.getDefender();
 		switch (request.getGoal()) {
 			case WAR, TRIBUTARY, USURP, OPEN_MARKET, OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE ->
-					backOutOfSubPicker(player, attacker, defender);
+					backOutOfSubPicker(player, attacker, defender, null);
 			case CHANGE_GOVERNMENT -> openGovernmentPicker(
 					player, attacker, defender, request.getGovernmentLawId(), request.getLeadershipLawId());
 			case SUBJUGATE -> openRelationTypePicker(player, attacker, defender);
@@ -386,7 +448,8 @@ public class DeclareWarView {
 			String relationTypeId,
 			String governmentLawId,
 			String leadershipLawId,
-			String targetSettlementId) {
+			String targetSettlementId,
+			WarDemandDraft demand) {
 		WarDeclareRequest request = new WarDeclareRequest(
 				attacker,
 				defender,
@@ -397,12 +460,67 @@ public class DeclareWarView {
 				governmentLawId,
 				leadershipLawId,
 				targetSettlementId);
+		if (demand != null) {
+			finishDemand(player, request.asDemand(), demand);
+			return;
+		}
 		WarValidationResult validation = new WarGoalValidator().validate(request);
 		if (!validation.isValid()) {
 			player.sendMessage(validation.getMessage());
 			return;
 		}
 		inv.confirmWarDeclareView(player, request);
+	}
+
+	/** Opens the goal picker for a war's second demand: the beneficiary demands it of the target. */
+	public void openDemandGoalPicker(Player player, Faction beneficiary, Faction target, WarDemandDraft demand) {
+		openGoalPicker(player, beneficiary, target, null, demand);
+	}
+
+	private void finishDemand(Player player, WarDeclareRequest request, WarDemandDraft demand) {
+		War war = WarManager.getById(demand.warId());
+		if (war == null || !war.isActive()) {
+			player.sendMessage("§cThat war has ended.");
+			player.closeInventory();
+			return;
+		}
+		Faction editor = FactionManager.getByLeader(Members.key(player));
+		String block = WarDemandRules.editBlock(war, editor, demand.attackerSide());
+		if (block != null) {
+			player.sendMessage(block);
+			returnToDemands(player, demand);
+			return;
+		}
+		WarValidationResult validation = WarDemandRules.validate(war, demand.attackerSide(), request);
+		if (!validation.isValid()) {
+			player.sendMessage(validation.getMessage());
+			return;
+		}
+		WarDemand set = WarDemand.fromRequest(request);
+		war.setSecondDemand(demand.attackerSide(), set);
+		WarManager.persist(war);
+		Faction beneficiary = request.getAttacker();
+		Faction target = request.getDefender();
+		player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+		player.sendMessage("§aSecond demand set: §f" + set.describeGoal() + " §aof " + target.getName()
+				+ " §afor " + beneficiary.getName() + "§a.");
+		if (editor != null && !editor.getId().equalsIgnoreCase(beneficiary.getId())) {
+			Player ally = Members.player(beneficiary.getLeader());
+			if (ally != null && ally.isOnline()) {
+				ally.sendMessage(editor.getName() + " §7will demand §f" + set.describeGoal() + " §7of "
+						+ target.getName() + " §7for you if your side wins.");
+			}
+		}
+		returnToDemands(player, demand);
+	}
+
+	private void returnToDemands(Player player, WarDemandDraft demand) {
+		War war = WarManager.getById(demand.warId());
+		if (war == null) {
+			player.closeInventory();
+			return;
+		}
+		inv.warDemandsView(player, war);
 	}
 
 	private void executeDeclare(Player player, WarDeclareRequest request) {
@@ -474,7 +592,8 @@ public class DeclareWarView {
 			Faction defender,
 			String governmentLawId,
 			String leadershipLawId,
-			String groupId) {
+			String groupId,
+			WarDemandDraft demand) {
 		LawGroup group = ChangeGovernmentEligibility.group(defender, groupId);
 		if (group == null || group.getLaws() == null) {
 			return;
@@ -488,7 +607,7 @@ public class DeclareWarView {
 				SFGUI.WAR_DECLARE_GOVERNMENT_LAW,
 				governmentLawId,
 				leadershipLawId,
-				groupId);
+				groupId).withDemand(demand);
 		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Law");
 		int slot = 0;
 		for (Law law : group.getLaws().values()) {

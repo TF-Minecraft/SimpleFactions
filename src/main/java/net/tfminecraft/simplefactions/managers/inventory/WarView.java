@@ -17,6 +17,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
@@ -24,15 +25,19 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
+import net.tfminecraft.simplefactions.managers.holder.WarDemandDraft;
+import net.tfminecraft.simplefactions.managers.holder.WarDemandHolder;
 import net.tfminecraft.simplefactions.managers.holder.WarInventoryHolder;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.core.WarDemand;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.declare.WarDemandRules;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
@@ -132,7 +137,7 @@ public class WarView {
 			i.setItem(49, creator.createCampaignButton(w));
 		}
 		i.setItem(53, inv.createBackButton(SFGUI.WAR_VIEW));
-		i.setItem(48, createCounterGoalItem(w, player));
+		i.setItem(48, createDemandsButton(w, player));
 		if(open) player.openInventory(i);
 	}
 
@@ -142,7 +147,7 @@ public class WarView {
 		ItemStack item = new ItemStack(canEdit ? Material.GOLDEN_SWORD : Material.GOLD_INGOT);
 		ItemMeta meta = item.getItemMeta();
 		WarGoalType selected = war.getDefenderCounterGoal();
-		meta.setDisplayName("§eDefender Counter Goal");
+		meta.setDisplayName("§9Defenders: Counter Goal");
 		List<String> lore = new ArrayList<>();
 		lore.add(selected == null
 				? "§7Selected: None"
@@ -157,6 +162,188 @@ public class WarView {
 		meta.setLore(lore);
 		item.setItemMeta(meta);
 		return item;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	private ItemStack createDemandsButton(War war, Player viewer) {
+		syncFirstBattleStarted(war);
+		Faction editor = viewer == null ? null : FactionManager.getByLeader(Members.key(viewer));
+		boolean canEdit = canEditCounterGoal(war, viewer)
+				|| WarDemandRules.editBlock(war, editor, true) == null
+				|| WarDemandRules.editBlock(war, editor, false) == null;
+		ItemStack item = new ItemStack(canEdit ? Material.GOLDEN_SWORD : Material.GOLD_INGOT);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§eWar Demands");
+		List<String> lore = new ArrayList<>();
+		lore.add("§cAttackers:");
+		addDemandSummary(lore, WarDemandRules.firstDemand(war, true));
+		addDemandSummary(lore, war.getSecondDemand(true));
+		lore.add("§9Defenders:");
+		addDemandSummary(lore, WarDemandRules.firstDemand(war, false));
+		addDemandSummary(lore, war.getSecondDemand(false));
+		lore.add("§7The loser also pays war reparations.");
+		lore.add(canEdit ? "§aClick to view or change" : "§aClick to view");
+		meta.setLore(lore);
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	private void addDemandSummary(List<String> lore, WarDemand demand) {
+		if (demand == null) {
+			return;
+		}
+		Faction target = demand.getTarget();
+		lore.add(" §7- §f" + demand.describeGoal() + " §7of " + (target != null ? target.getName() : demand.getTargetId()));
+	}
+
+	public void demandsView(Player player, War war) {
+		syncFirstBattleStarted(war);
+		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
+				new WarInventoryHolder(war.getId(), SFGUI.WAR_DEMANDS),
+				27,
+				"§7War Demands");
+		Faction editor = FactionManager.getByLeader(Members.key(player));
+		inventory.setItem(10, createFirstAttackerDemandItem(war));
+		inventory.setItem(11, createSecondDemandItem(war, editor, true));
+		inventory.setItem(13, createReparationsItem());
+		inventory.setItem(15, createCounterGoalItem(war, player));
+		inventory.setItem(16, createSecondDemandItem(war, editor, false));
+		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DEMANDS));
+		player.openInventory(inventory);
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	private ItemStack createFirstAttackerDemandItem(War war) {
+		ItemStack item = new ItemStack(Material.IRON_SWORD);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§cAttackers: War Goal");
+		List<String> lore = new ArrayList<>();
+		addDemandLore(lore, WarDemandRules.firstDemand(war, true));
+		lore.add("§7Set when the war was declared");
+		meta.setLore(lore);
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	private ItemStack createSecondDemandItem(War war, Faction editor, boolean attackerSide) {
+		WarDemand demand = war.getSecondDemand(attackerSide);
+		String block = WarDemandRules.editBlock(war, editor, attackerSide);
+		ItemStack item = new ItemStack(demand != null ? Material.WRITABLE_BOOK : Material.BOOK);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(attackerSide ? "§cAttackers: Second Demand" : "§9Defenders: Second Demand");
+		List<String> lore = new ArrayList<>();
+		if (demand == null) {
+			lore.add("§7None");
+		} else {
+			addDemandLore(lore, demand);
+		}
+		if (block == null) {
+			lore.add(demand == null
+					? "§aClick to add a demand, for your nation or an ally"
+					: "§aClick to change");
+			if (demand != null) {
+				lore.add("§cRight-click to remove");
+			}
+		} else if (war.hasFirstBattleStarted()) {
+			lore.add("§cLocked after the first battle began");
+		} else if (WarDemandRules.NO_FIRST_DEMAND.equals(block) && !attackerSide) {
+			lore.add("§7Needs a counter goal first");
+		} else {
+			lore.add(attackerSide
+					? "§7Set by the attacking nation before battle"
+					: "§7Set by the defending nation before battle");
+		}
+		meta.setLore(lore);
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	private void addDemandLore(List<String> lore, WarDemand demand) {
+		if (demand == null) {
+			lore.add("§7None");
+			return;
+		}
+		Faction target = demand.getTarget();
+		Faction beneficiary = demand.getBeneficiary();
+		lore.add("§7Demand: §f" + demand.describeGoal());
+		lore.add("§7Of: §f" + (target != null ? target.getName() : demand.getTargetId()));
+		lore.add("§7For: §f" + (beneficiary != null ? beneficiary.getName() : demand.getBeneficiaryId()));
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	private ItemStack createReparationsItem() {
+		ItemStack item = new ItemStack(Material.GOLD_NUGGET);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§6War Reparations");
+		meta.setLore(List.of(
+				"§7Always paid by the losing side",
+				"§7" + formatPercent(Cache.warReparationsIncomePercent) + "% of each payer guild's gross",
+				"§7trade income for " + Cache.warReparationsDays + " days"));
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	private static String formatPercent(double percent) {
+		return percent == Math.rint(percent) ? String.valueOf((long) percent) : String.valueOf(percent);
+	}
+
+	/** Starts the second demand: choose who it is for, then of whom, then the goal itself. */
+	private void startSecondDemand(Player player, War war, boolean attackerSide) {
+		List<Faction> beneficiaries = WarDemandRules.beneficiaries(war, attackerSide);
+		if (beneficiaries.size() == 1) {
+			chooseDemandTarget(player, war, attackerSide, beneficiaries.get(0));
+			return;
+		}
+		openDemandFactionPicker(player, war, attackerSide, SFGUI.WAR_DEMAND_BENEFICIARY, null,
+				beneficiaries, "§7Second Demand - For");
+	}
+
+	private void chooseDemandTarget(Player player, War war, boolean attackerSide, Faction beneficiary) {
+		List<Faction> targets = WarDemandRules.targets(war, attackerSide);
+		if (targets.size() == 1) {
+			inv.declareWarView.openDemandGoalPicker(
+					player, beneficiary, targets.get(0), new WarDemandDraft(war.getId(), attackerSide));
+			return;
+		}
+		openDemandFactionPicker(player, war, attackerSide, SFGUI.WAR_DEMAND_TARGET, beneficiary.getId(),
+				targets, "§7Second Demand - Of");
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	private void openDemandFactionPicker(
+			Player player,
+			War war,
+			boolean attackerSide,
+			SFGUI step,
+			String beneficiaryId,
+			List<Faction> factions,
+			String title) {
+		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(
+				new WarDemandHolder(war.getId(), step, attackerSide, beneficiaryId), 27, title);
+		int slot = 0;
+		for (Faction faction : factions) {
+			if (slot >= 26) break;
+			ItemStack item = new ItemStack(Material.WHITE_BANNER);
+			ItemMeta meta = item.getItemMeta();
+			meta.setDisplayName(faction.getName());
+			meta.setLore(List.of(step == SFGUI.WAR_DEMAND_BENEFICIARY
+					? "§7Click to make the demand for this nation"
+					: "§7Click to make the demand of this nation"));
+			meta.getPersistentDataContainer().set(
+					new NamespacedKey(SimpleFactions.plugin, "demand_faction"),
+					PersistentDataType.STRING,
+					faction.getId());
+			item.setItemMeta(meta);
+			inventory.setItem(slot++, item);
+		}
+		inventory.setItem(26, inv.createBackButton(step));
+		player.openInventory(inventory);
 	}
 
 	private boolean canEditCounterGoal(War war, Player player) {
@@ -221,7 +408,7 @@ public class WarView {
 				new NamespacedKey(SimpleFactions.plugin, "counter_default"), PersistentDataType.BYTE, (byte) 1);
 		defaultOption.setItemMeta(defaultMeta);
 		inventory.setItem(22, defaultOption);
-		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_VIEW));
+		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DEMANDS));
 		player.openInventory(inventory);
 	}
 
@@ -369,18 +556,93 @@ public class WarView {
 			if (w == null) return;
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			warView(null, p, w, true);
+		} else if (inventory.getHolder() instanceof WarDemandHolder holder) {
+			e.setCancelled(true);
+			War war = WarManager.getById(holder.getId());
+			if (war == null) return;
+			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			if (e.getSlot() == 26) {
+				if (holder.getType() == SFGUI.WAR_DEMAND_TARGET
+						&& WarDemandRules.beneficiaries(war, holder.isAttackerSide()).size() > 1) {
+					startSecondDemand(p, war, holder.isAttackerSide());
+				} else {
+					demandsView(p, war);
+				}
+				return;
+			}
+			Faction editor = FactionManager.getByLeader(Members.key(p));
+			String block = WarDemandRules.editBlock(war, editor, holder.isAttackerSide());
+			if (block != null) {
+				p.sendMessage(block);
+				demandsView(p, war);
+				return;
+			}
+			ItemStack picked = e.getCurrentItem();
+			if (picked == null || picked.getItemMeta() == null) return;
+			String factionId = picked.getItemMeta().getPersistentDataContainer().get(
+					new NamespacedKey(SimpleFactions.plugin, "demand_faction"), PersistentDataType.STRING);
+			Faction faction = FactionManager.getByString(factionId);
+			if (faction == null) return;
+			if (holder.getType() == SFGUI.WAR_DEMAND_BENEFICIARY) {
+				chooseDemandTarget(p, war, holder.isAttackerSide(), faction);
+				return;
+			}
+			Faction beneficiary = FactionManager.getByString(holder.getBeneficiaryId());
+			if (beneficiary == null) return;
+			inv.declareWarView.openDemandGoalPicker(
+					p, beneficiary, faction, new WarDemandDraft(war.getId(), holder.isAttackerSide()));
+		} else if (inventory.getHolder() instanceof WarInventoryHolder holder
+				&& holder.getType() == SFGUI.WAR_DEMANDS) {
+			e.setCancelled(true);
+			War war = WarManager.getById(holder.getId());
+			if (war == null) return;
+			int slot = e.getSlot();
+			if (slot == 26) {
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				warView(null, p, war, true);
+				return;
+			}
+			if (slot == 15) {
+				if (!canEditCounterGoal(war, p)) {
+					p.sendMessage("§cOnly the defending nation's leader can set a counter goal before the first battle begins.");
+					return;
+				}
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				counterGoalView(p, war);
+				return;
+			}
+			if (slot != 11 && slot != 16) {
+				return;
+			}
+			boolean attackerSide = slot == 11;
+			syncFirstBattleStarted(war);
+			Faction editor = FactionManager.getByLeader(Members.key(p));
+			String block = WarDemandRules.editBlock(war, editor, attackerSide);
+			if (block != null) {
+				p.sendMessage(block);
+				return;
+			}
+			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			if (e.isRightClick() && war.getSecondDemand(attackerSide) != null) {
+				war.setSecondDemand(attackerSide, null);
+				WarManager.persist(war);
+				p.sendMessage("§aSecond demand removed.");
+				demandsView(p, war);
+				return;
+			}
+			startSecondDemand(p, war, attackerSide);
 		} else if (inventory.getHolder() instanceof WarInventoryHolder holder
 				&& holder.getType() == SFGUI.WAR_COUNTER_GOAL) {
 			e.setCancelled(true);
 			War war = WarManager.getById(holder.getId());
 			if (war == null) return;
 			if (e.getSlot() == 26) {
-				warView(null, p, war, true);
+				demandsView(p, war);
 				return;
 			}
 			if (!canEditCounterGoal(war, p)) {
 				p.sendMessage("§cCounter goals can only be changed by the defending nation's leader before the first battle begins.");
-				warView(null, p, war, true);
+				demandsView(p, war);
 				return;
 			}
 			ItemStack selected = e.getCurrentItem();
@@ -395,6 +657,7 @@ public class WarView {
 			boolean useDefault = data.has(
 					new NamespacedKey(SimpleFactions.plugin, "counter_default"),
 					PersistentDataType.BYTE);
+			boolean hadSecondDemand = war.getSecondDemand(false) != null;
 			if (useDefault || goalId != null || relationTypeId != null) {
 				WarGoalType goal = useDefault ? null : relationTypeId != null
 						? WarGoalType.SUBJUGATE
@@ -404,8 +667,11 @@ public class WarView {
 				p.sendMessage(goal == null
 						? "§aDefender counter goal cleared. War reparations still apply."
 						: "§aDefender counter goal set to " + goal.getDisplayName() + ".");
+				if (goal == null && hadSecondDemand) {
+					p.sendMessage("§7Your second demand was removed with it.");
+				}
 			}
-			warView(null, p, war, true);
+			demandsView(p, war);
 		} else if(inventory.getHolder() instanceof WarInventoryHolder && ((WarInventoryHolder) inventory.getHolder()).getType().equals(SFGUI.WAR_VIEW)) {
 			e.setCancelled(true);
 			WarInventoryHolder h = (WarInventoryHolder) inventory.getHolder();
@@ -423,11 +689,7 @@ public class WarView {
 				inv.openCampaignView(p, w);
 				return;
 			} else if (e.getSlot() == 48) {
-				if (!canEditCounterGoal(w, p)) {
-					p.sendMessage("§cOnly the defending nation's leader can set a counter goal before the first battle begins.");
-					return;
-				}
-				counterGoalView(p, w);
+				demandsView(p, w);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				return;
 			}

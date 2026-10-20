@@ -59,6 +59,12 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.ClickType;
+import net.tfminecraft.simplefactions.war.declare.WarDemandRules;
+import net.tfminecraft.simplefactions.war.core.WarDemand;
+import net.tfminecraft.simplefactions.managers.holder.WarDemandDraft;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -348,6 +354,9 @@ class WarMenusCoverageTest {
     assertEquals(Material.GOLDEN_SWORD, inventory.getItem(48).getType());
     view.click(fixture.ui.click(defending, 48), inventory, defending);
     inventory = defending.getOpenInventory().getTopInventory();
+    assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) inventory.getHolder()).getType());
+    view.click(fixture.ui.click(defending, 15), inventory, defending);
+    inventory = defending.getOpenInventory().getTopInventory();
     assertEquals(SFGUI.WAR_COUNTER_GOAL, ((WarInventoryHolder) inventory.getHolder()).getType());
     assertEquals(27, inventory.getSize());
     view.click(fixture.ui.click(defending, slot), inventory, defending);
@@ -372,9 +381,7 @@ class WarMenusCoverageTest {
     defender.addTitle(duchy);
     for (int n = 0; n < 12; n++)
       fixture.relationType("type" + n, Map.of("vassal", true, "war", true, "name", "Subject " + n));
-    view.warView(null, defending, war, true);
-    view.click(
-        fixture.ui.click(defending, 48), defending.getOpenInventory().getTopInventory(), defending);
+    openCounterGoalPicker(defending);
     Inventory inventory = defending.getOpenInventory().getTopInventory();
     assertEquals("usurp", string(inventory.getItem(12), "counter_goal"));
     assertNotNull(inventory.getItem(16));
@@ -388,9 +395,7 @@ class WarMenusCoverageTest {
 
   @Test
   void startingTheBattleLocksAnAlreadyOpenCounterGoalPicker() {
-    view.warView(null, defending, war, true);
-    view.click(
-        fixture.ui.click(defending, 48), defending.getOpenInventory().getTopInventory(), defending);
+    openCounterGoalPicker(defending);
     Inventory picker = defending.getOpenInventory().getTopInventory();
     Battle battle = mock(Battle.class);
     when(battle.hasStarted()).thenReturn(true);
@@ -400,7 +405,7 @@ class WarMenusCoverageTest {
     assertNull(war.getDefenderCounterGoal());
     wars.verify(() -> WarManager.persist(war));
     assertTrue(
-        lore(defending.getOpenInventory().getTopInventory().getItem(48))
+        lore(defending.getOpenInventory().getTopInventory().getItem(15))
             .contains("Locked after the first battle began"));
     verify(defending).sendMessage(contains("Counter goals can only be changed"));
   }
@@ -1094,9 +1099,13 @@ class WarMenusCoverageTest {
 
   @Test
   void counterGoalBackReturnsToWarAndTheAttackerCannotEditTheDefenderChoice() {
-    view.warView(null, defending, war, true);
+    openCounterGoalPicker(defending);
     view.click(
-        fixture.ui.click(defending, 48), defending.getOpenInventory().getTopInventory(), defending);
+        fixture.ui.click(defending, 26), defending.getOpenInventory().getTopInventory(), defending);
+    assertEquals(
+        SFGUI.WAR_DEMANDS,
+        ((WarInventoryHolder) defending.getOpenInventory().getTopInventory().getHolder())
+            .getType());
     view.click(
         fixture.ui.click(defending, 26), defending.getOpenInventory().getTopInventory(), defending);
     assertEquals(
@@ -1104,8 +1113,9 @@ class WarMenusCoverageTest {
         ((WarInventoryHolder) defending.getOpenInventory().getTopInventory().getHolder())
             .getType());
     view.warView(null, player, war, true);
+    view.click(fixture.ui.click(player, 48), top(), player);
     Inventory inventory = top();
-    view.click(fixture.ui.click(player, 48), inventory, player);
+    view.click(fixture.ui.click(player, 15), inventory, player);
     assertSame(inventory, top());
     assertNull(war.getDefenderCounterGoal());
     verify(player)
@@ -1162,6 +1172,157 @@ class WarMenusCoverageTest {
     return mockConstruction(
         WarGoalValidator.class,
         (validator, context) -> when(validator.validate(any())).thenReturn(result));
+  }
+
+  @Test
+  void theAttackerAddsAndRemovesASecondDemandThroughTheSharedGoalPicker() {
+    fixture.relationType("tributary", Map.of("name", "Tributary"));
+    routeDemandScreens();
+    view.warView(null, player, war, true);
+    view.click(fixture.ui.click(player, 48), top(), player);
+    Inventory demands = top();
+    assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) demands.getHolder()).getType());
+    assertEquals(Material.BOOK, demands.getItem(11).getType());
+    assertTrue(lore(demands.getItem(11)).contains("Click to add a demand"));
+    assertTrue(lore(demands.getItem(13)).contains("Always paid by the losing side"));
+
+    view.click(fixture.ui.click(player, 11), demands, player);
+    Inventory goals = top();
+    DeclareWarHolder holder = (DeclareWarHolder) goals.getHolder();
+    assertEquals(new WarDemandDraft(7, true), holder.getDemand());
+    assertEquals("attacker", holder.getAttackerId());
+    assertEquals("defender", holder.getDefenderId());
+    for (int slot = 0; slot < goals.getSize(); slot++) {
+      ItemStack item = goals.getItem(slot);
+      if (item != null && item.getType() != Material.BARRIER) {
+        assertNotEquals("pillage", string(item, "goal"));
+      }
+    }
+    assertEquals("tributary", string(goals.getItem(10), "goal"));
+
+    declaration.click(fixture.ui.click(player, 10), goals, player);
+    WarDemand demand = war.getSecondDemand(true);
+    assertEquals(WarGoalType.TRIBUTARY, demand.getGoal());
+    assertEquals("attacker", demand.getBeneficiaryId());
+    assertEquals("defender", demand.getTargetId());
+    wars.verify(() -> WarManager.persist(war));
+    verify(player).sendMessage(contains("Second demand set"));
+    demands = top();
+    assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) demands.getHolder()).getType());
+    assertTrue(lore(demands.getItem(11)).contains("Demand: Tributary"));
+    assertTrue(lore(demands.getItem(11)).contains("Right-click to remove"));
+
+    view.click(rightClick(player, 11), demands, player);
+    assertNull(war.getSecondDemand(true));
+    verify(player).sendMessage("§aSecond demand removed.");
+  }
+
+  @Test
+  void theAttackerCanMakeTheSecondDemandForAJoinedAlly() {
+    fixture.relationType("tributary", Map.of("name", "Tributary"));
+    routeDemandScreens();
+    Faction ally = ally("ally", "AllyLeader");
+    war.getParticipant(attacker).getAllies().put(ally, true);
+    view.warView(null, player, war, true);
+    view.click(fixture.ui.click(player, 48), top(), player);
+    view.click(fixture.ui.click(player, 11), top(), player);
+    Inventory beneficiaries = top();
+    assertEquals(SFGUI.WAR_DEMAND_BENEFICIARY, ((WarInventoryHolder) beneficiaries.getHolder()).getType());
+    assertEquals("attacker", string(beneficiaries.getItem(0), "demand_faction"));
+    assertEquals("ally", string(beneficiaries.getItem(1), "demand_faction"));
+
+    view.click(fixture.ui.click(player, 1), beneficiaries, player);
+    Inventory goals = top();
+    assertEquals("ally", ((DeclareWarHolder) goals.getHolder()).getAttackerId());
+    declaration.click(fixture.ui.click(player, 10), goals, player);
+    assertEquals("ally", war.getSecondDemand(true).getBeneficiaryId());
+    assertEquals("defender", war.getSecondDemand(true).getTargetId());
+  }
+
+  @Test
+  void demandRulesKeepDefensiveAlliesSafeAndNeedACounterGoalFirst() {
+    Faction ally = ally("ally", "AllyLeader");
+    war.getParticipant(attacker).getAllies().put(ally, true);
+    Faction guard = fixture.saved("guard", "GuardLeader");
+    var allyType = RelationLoader.getType("ally");
+    defender.setRelation(guard, new Relation(allyType, RelationLoader.getDefaultAttitude()));
+    guard.setRelation(defender, new Relation(allyType, RelationLoader.getDefaultAttitude()));
+    war.update();
+    war.getParticipant(defender).getAllies().put(guard, true);
+
+    assertEquals(List.of(defender), WarDemandRules.targets(war, true));
+    assertEquals(List.of(attacker, ally), WarDemandRules.targets(war, false));
+    assertEquals(List.of(attacker, ally), WarDemandRules.beneficiaries(war, true));
+    assertTrue(
+        WarDemandRules.validate(
+                war, true, WarDeclareRequest.of(attacker, guard, WarGoalType.TRIBUTARY).asDemand())
+            .getMessage()
+            .contains("only be made of the defending nation"));
+    assertTrue(
+        WarDemandRules.validate(
+                war, true, WarDeclareRequest.of(guard, defender, WarGoalType.TRIBUTARY).asDemand())
+            .getMessage()
+            .contains("is not fighting on your side"));
+
+    assertEquals(WarDemandRules.NOT_LEADER, WarDemandRules.editBlock(war, attacker, false));
+    assertEquals(WarDemandRules.NO_FIRST_DEMAND, WarDemandRules.editBlock(war, defender, false));
+    war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+    assertNull(WarDemandRules.editBlock(war, defender, false));
+    war.setSecondDemand(
+        false, new WarDemand(WarGoalType.OPEN_MARKET, "defender", "ally", null, null, null, null, null));
+    war.setDefenderCounterGoal(null, null);
+    assertNull(war.getSecondDemand(false));
+
+    war.setFirstBattleStarted(true);
+    assertEquals(WarDemandRules.LOCKED, WarDemandRules.editBlock(war, attacker, true));
+    war.setSecondDemand(
+        true, new WarDemand(WarGoalType.OPEN_MARKET, "attacker", "defender", null, null, null, null, null));
+    assertNull(war.getSecondDemand(true));
+  }
+
+  @Test
+  void demandsOnOneFactionClashOnlyWhenTheyOverlap() {
+    WarDemand subjugate =
+        new WarDemand(WarGoalType.SUBJUGATE, "a", "x", "vassal", null, null, null, null);
+    WarDemand tributary =
+        new WarDemand(WarGoalType.TRIBUTARY, "b", "x", null, null, null, null, null);
+    WarDemand market = new WarDemand(WarGoalType.OPEN_MARKET, "a", "x", null, null, null, null, null);
+    WarDemand annexOne = new WarDemand(WarGoalType.DE_JURE_ANNEX, "a", "x", null, "one", null, null, null);
+    WarDemand annexTwo = new WarDemand(WarGoalType.DE_JURE_ANNEX, "a", "x", null, "two", null, null, null);
+    WarDemand elsewhere = new WarDemand(WarGoalType.TRIBUTARY, "a", "y", null, null, null, null, null);
+    assertTrue(WarDemandRules.conflicts(subjugate, tributary));
+    assertTrue(WarDemandRules.conflicts(market, market));
+    assertTrue(WarDemandRules.conflicts(annexOne, annexOne));
+    assertFalse(WarDemandRules.conflicts(annexOne, annexTwo));
+    assertFalse(WarDemandRules.conflicts(subjugate, market));
+    assertFalse(WarDemandRules.conflicts(subjugate, elsewhere));
+    assertFalse(WarDemandRules.conflicts(null, market));
+  }
+
+  private void openCounterGoalPicker(Player viewer) {
+    view.warView(null, viewer, war, true);
+    view.click(fixture.ui.click(viewer, 48), viewer.getOpenInventory().getTopInventory(), viewer);
+    view.click(fixture.ui.click(viewer, 15), viewer.getOpenInventory().getTopInventory(), viewer);
+  }
+
+  private void routeDemandScreens() {
+    navigation.declareWarView = declaration;
+    doAnswer(
+            call -> {
+              view.demandsView(call.getArgument(0), call.getArgument(1));
+              return null;
+            })
+        .when(navigation)
+        .warDemandsView(any(), any());
+  }
+
+  private InventoryClickEvent rightClick(Player viewer, int slot) {
+    return new InventoryClickEvent(
+        viewer.getOpenInventory(),
+        InventoryType.SlotType.CONTAINER,
+        slot,
+        ClickType.RIGHT,
+        InventoryAction.PICKUP_HALF);
   }
 
   private Faction ally(String id, String leader) {

@@ -13,10 +13,13 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.tiers.Title;
+import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.core.WarDemand;
 import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility;
+import net.tfminecraft.simplefactions.war.declare.WarDemandRules;
 import net.tfminecraft.simplefactions.war.declare.OpenMarketEligibility;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -36,8 +39,10 @@ public final class WarOutcomeService {
 		}
 		switch (reason) {
 			case ATTACKER_VICTORY -> {
-				applyAttackerGoal(war);
-				if (!CivilWarBorderLock.isCivilWar(war)) {
+				if (CivilWarBorderLock.isCivilWar(war)) {
+					applyAttackerGoal(war);
+				} else {
+					applyDemands(war, true, war.getGoal(), () -> applyAttackerGoal(war));
 					WarReparationsService.applyFromWar(war, reason);
 				}
 			}
@@ -45,9 +50,12 @@ public final class WarOutcomeService {
 				if (CivilWarBorderLock.isCivilWar(war)) {
 					endMovementEmpty(war);
 				} else {
-					if (war.getDefenderCounterGoal() != null) {
-						applyDefenderCounterGoal(war);
-					}
+					WarGoalType counter = war.getDefenderCounterGoal();
+					applyDemands(war, false, counter, () -> {
+						if (counter != null) {
+							applyDefenderCounterGoal(war);
+						}
+					});
 					WarReparationsService.applyFromWar(war, reason);
 				}
 			}
@@ -57,6 +65,48 @@ public final class WarOutcomeService {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Applies the winning side's first demand and then its second. A demand that changes who
+	 * a faction answers to goes last, so it cannot pull the target into the winner's realm
+	 * before an annexation or law change on that same target lands.
+	 */
+	private static void applyDemands(War war, boolean attackerSide, WarGoalType firstGoal, Runnable first) {
+		WarDemand second = war.getSecondDemand(attackerSide);
+		if (second == null) {
+			first.run();
+			return;
+		}
+		if (WarDemandRules.isRelational(firstGoal) && !WarDemandRules.isRelational(second.getGoal())) {
+			applySecondDemand(war, second);
+			first.run();
+			return;
+		}
+		first.run();
+		applySecondDemand(war, second);
+	}
+
+	static void applySecondDemand(War war, WarDemand demand) {
+		Faction beneficiary = demand.getBeneficiary();
+		Faction target = demand.getTarget();
+		if (beneficiary == null || target == null || demand.getGoal() == null) {
+			return;
+		}
+		War demandWar = new War(
+				war.getId(),
+				new Side(beneficiary),
+				new Side(target),
+				demand.getGoal(),
+				WarDeclareHelper.warTypeForGoal(demand.getGoal()),
+				demand.getTargetTitleId(),
+				war.getObjectiveProvinceId(),
+				war.getStartedAt());
+		demandWar.setRelationTypeId(demand.getRelationTypeId());
+		demandWar.setSubjectFactionId(demand.getSubjectFactionId());
+		demandWar.setGovernmentLawId(demand.getGovernmentLawId());
+		demandWar.setLeadershipLawId(demand.getLeadershipLawId());
+		applyAttackerGoal(demandWar);
 	}
 
 	private static void applyDefenderCounterGoal(War war) {

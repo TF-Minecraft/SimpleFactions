@@ -64,7 +64,9 @@ public class WarGoalValidator {
 	private WarValidationResult validateShared(WarDeclareRequest request) {
 		Faction attacker = request.getAttacker();
 		Faction defender = request.getDefender();
-		if (attacker.getGovernment() != null && !attacker.getGovernment().stateReport().status.canWageWar()) {
+		// A second demand is made inside a war both factions are already fighting.
+		boolean demand = request.isDemand();
+		if (!demand && attacker.getGovernment() != null && !attacker.getGovernment().stateReport().status.canWageWar()) {
 			return WarValidationResult.fail("§cA " + attacker.getGovernment().stateReport().status.getLabel() + " cannot declare war.");
 		}
 		if (attacker.getId().equalsIgnoreCase(defender.getId())) {
@@ -73,7 +75,7 @@ public class WarGoalValidator {
 		if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(defender)) {
 			return WarValidationResult.fail("§c" + defender.getName() + " §chas no living members and cannot be attacked.");
 		}
-		War sharedWar = WarManager.findSharedActiveWar(attacker, defender);
+		War sharedWar = demand ? null : WarManager.findSharedActiveWar(attacker, defender);
 		if (sharedWar != null) {
 			Side attackerSide = sharedWar.getSide(attacker);
 			Side defenderSide = sharedWar.getSide(defender);

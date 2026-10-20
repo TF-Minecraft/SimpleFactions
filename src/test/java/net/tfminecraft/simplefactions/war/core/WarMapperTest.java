@@ -882,6 +882,51 @@ class WarMapperTest {
 		}
 	}
 
+	@Test
+	void secondDemandsRoundTripAndLoadBeforeTheBattleLock() {
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("faction_a");
+		when(defender.getId()).thenReturn("faction_b");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		try {
+			WarData data = minimalWarData();
+			data.goal = "subjugate";
+			data.defenderCounterGoal = "tributary";
+			data.attackerSecondDemand = new net.tfminecraft.simplefactions.database.WarDemandData();
+			data.attackerSecondDemand.goal = "de_jure_annex";
+			data.attackerSecondDemand.beneficiaryId = "ally_a";
+			data.attackerSecondDemand.targetId = "faction_b";
+			data.attackerSecondDemand.targetTitleId = "county_x";
+			data.defenderSecondDemand = new net.tfminecraft.simplefactions.database.WarDemandData();
+			data.defenderSecondDemand.goal = "unknown";
+			data.defenderSecondDemand.beneficiaryId = "faction_b";
+			data.defenderSecondDemand.targetId = "faction_a";
+			data.firstBattleStarted = true;
+
+			War war = WarMapper.fromData(data);
+			WarDemand demand = war.getSecondDemand(true);
+			assertEquals(WarGoalType.DE_JURE_ANNEX, demand.getGoal());
+			assertEquals("ally_a", demand.getBeneficiaryId());
+			assertEquals("faction_b", demand.getTargetId());
+			assertEquals("county_x", demand.getTargetTitleId());
+			assertNull(war.getSecondDemand(false));
+
+			war.setSecondDemand(true, null);
+			assertNotNull(war.getSecondDemand(true));
+			WarData roundTripped = WarMapper.toData(war);
+			assertEquals("de_jure_annex", roundTripped.attackerSecondDemand.goal);
+			assertEquals("ally_a", roundTripped.attackerSecondDemand.beneficiaryId);
+			assertEquals("county_x", roundTripped.attackerSecondDemand.targetTitleId);
+			assertNull(roundTripped.attackerSecondDemand.relationTypeId);
+			assertNull(roundTripped.defenderSecondDemand);
+		} finally {
+			FactionManager.factions.remove(attacker);
+			FactionManager.factions.remove(defender);
+		}
+	}
+
 	private static WarData minimalWarData() {
 		WarData data = new WarData();
 		data.id = 9;

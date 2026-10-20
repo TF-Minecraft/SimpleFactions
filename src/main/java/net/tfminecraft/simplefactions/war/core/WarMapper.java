@@ -23,6 +23,7 @@ import net.tfminecraft.simplefactions.database.ParticipantData;
 import net.tfminecraft.simplefactions.database.ScheduledCampaignBattleData;
 import net.tfminecraft.simplefactions.database.SideData;
 import net.tfminecraft.simplefactions.database.WarData;
+import net.tfminecraft.simplefactions.database.WarDemandData;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.war.campaign.WarCampaignService;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
@@ -62,6 +63,8 @@ public final class WarMapper {
 			data.defenderCounterGoal = war.getDefenderCounterGoal().toJson();
 		}
 		data.defenderCounterRelationTypeId = war.getDefenderCounterRelationTypeId();
+		data.attackerSecondDemand = writeDemand(war.getSecondDemand(true));
+		data.defenderSecondDemand = writeDemand(war.getSecondDemand(false));
 		data.firstBattleStarted = war.hasFirstBattleStarted();
 		if (war.getWarType() != null) {
 			data.warType = war.getWarType().toJson();
@@ -207,6 +210,8 @@ public final class WarMapper {
 		war.setDefenderCounterGoal(
 				WarGoalType.fromJson(data.defenderCounterGoal),
 				data.defenderCounterRelationTypeId);
+		war.setSecondDemand(true, readDemand(data.attackerSecondDemand));
+		war.setSecondDemand(false, readDemand(data.defenderSecondDemand));
 		war.setFirstBattleStarted(data.firstBattleStarted);
 		war.setWarType(WarType.fromJson(data.warType));
 		war.setStatus(status);
@@ -638,6 +643,41 @@ public final class WarMapper {
 			}
 		}
 		return deserialized;
+	}
+
+	private static WarDemandData writeDemand(WarDemand demand) {
+		if (demand == null || demand.getGoal() == null) {
+			return null;
+		}
+		WarDemandData data = new WarDemandData();
+		data.goal = demand.getGoal().toJson();
+		data.beneficiaryId = demand.getBeneficiaryId();
+		data.targetId = demand.getTargetId();
+		data.relationTypeId = demand.getRelationTypeId();
+		data.targetTitleId = demand.getTargetTitleId();
+		data.subjectFactionId = demand.getSubjectFactionId();
+		data.governmentLawId = demand.getGovernmentLawId();
+		data.leadershipLawId = demand.getLeadershipLawId();
+		return data;
+	}
+
+	private static WarDemand readDemand(WarDemandData data) {
+		if (data == null) {
+			return null;
+		}
+		WarGoalType goal = WarGoalType.fromJson(data.goal);
+		if (goal == null || data.beneficiaryId == null || data.targetId == null) {
+			return null;
+		}
+		return new WarDemand(
+				goal,
+				data.beneficiaryId,
+				data.targetId,
+				data.relationTypeId,
+				data.targetTitleId,
+				data.subjectFactionId,
+				data.governmentLawId,
+				data.leadershipLawId);
 	}
 
 	private static void writeCivilWarSnapshot(WarData data, War war) {

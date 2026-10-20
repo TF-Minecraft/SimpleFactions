@@ -38,6 +38,7 @@ import net.tfminecraft.simplefactions.objects.handler.LawHandler;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.core.WarDemand;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.government.Government;
@@ -654,6 +655,93 @@ class WarOutcomeServiceTest {
 		}
 		assertEquals(1, fx.payerObligations.size());
 		assertEquals("def", fx.payerObligations.get(0).getPayeeFactionId());
+	}
+
+	@Test
+	void attackerVictory_secondDemandAppliesForItsBeneficiary() {
+		Fixture fx = fixture();
+		fx.war.setGoal(WarGoalType.WAR);
+		Faction ally = factionWithInstallations();
+		when(ally.getId()).thenReturn("ally");
+		FactionManager.factions.add(fx.attacker);
+		FactionManager.factions.add(fx.defender);
+		FactionManager.factions.add(ally);
+		fx.war.setSecondDemand(true, new WarDemand(
+				WarGoalType.TRIBUTARY, "ally", "def", null, null, null, null, null));
+		RelationType tributary = mock(RelationType.class);
+		try (MockedStatic<RelationLoader> loader = mockStatic(RelationLoader.class);
+				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			loader.when(() -> RelationLoader.getType("tributary")).thenReturn(tributary);
+			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(tributary, fx.defender, ally));
+			relations.verify(() -> RelationManager.setRelationForced(tributary, fx.defender, fx.attacker), never());
+		}
+	}
+
+	@Test
+	void lostSideSecondDemandIsNotApplied() {
+		Fixture fx = fixture();
+		FactionManager.factions.add(fx.attacker);
+		FactionManager.factions.add(fx.defender);
+		fx.war.setSecondDemand(false, new WarDemand(
+				WarGoalType.TRIBUTARY, "def", "atk", null, null, null, null, null));
+		try (MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(any(), eq(fx.attacker), eq(fx.defender)), never());
+		}
+	}
+
+	@Test
+	void relationalFirstGoalWaitsForANonRelationalSecondDemand() {
+		Fixture fx = fixture();
+		fx.war.setGoal(WarGoalType.TRIBUTARY);
+		FactionManager.factions.add(fx.attacker);
+		FactionManager.factions.add(fx.defender);
+		fx.war.setSecondDemand(true, new WarDemand(
+				WarGoalType.OPEN_MARKET, "atk", "def", null, null, null, null, null));
+		Cache.openMarketApplyDefenderLaw = "free_trade";
+		Law law = mock(Law.class);
+		when(law.getId()).thenReturn("free_trade");
+		LawGroup group = mock(LawGroup.class);
+		when(group.getLaws()).thenReturn(java.util.Map.of("free_trade", law));
+		LawHandler handler = mock(LawHandler.class);
+		when(handler.getGroupList()).thenReturn(List.of(group));
+		when(fx.defender.getLawHandler()).thenReturn(handler);
+		List<String> order = new ArrayList<>();
+		doAnswer(invocation -> order.add("open_market")).when(fx.defender).applyLaw(law, group);
+		RelationType tributary = mock(RelationType.class);
+		try (MockedStatic<RelationLoader> loader = mockStatic(RelationLoader.class);
+				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			loader.when(() -> RelationLoader.getType("tributary")).thenReturn(tributary);
+			relations.when(() -> RelationManager.setRelationForced(tributary, fx.defender, fx.attacker))
+					.thenAnswer(invocation -> order.add("tributary"));
+			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
+		} finally {
+			Cache.openMarketApplyDefenderLaw = "";
+		}
+		assertEquals(List.of("open_market", "tributary"), order);
+	}
+
+	@Test
+	void defenderVictory_counterGoalThenSecondDemandOnAnAttackerAlly() {
+		Fixture fx = fixture();
+		Faction ally = factionWithInstallations();
+		when(ally.getId()).thenReturn("ally");
+		FactionManager.factions.add(fx.attacker);
+		FactionManager.factions.add(fx.defender);
+		FactionManager.factions.add(ally);
+		fx.war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+		fx.war.setSecondDemand(false, new WarDemand(
+				WarGoalType.TRIBUTARY, "def", "ally", null, null, null, null, null));
+		RelationType tributary = mock(RelationType.class);
+		try (MockedStatic<RelationLoader> loader = mockStatic(RelationLoader.class);
+				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			loader.when(() -> RelationLoader.getType("tributary")).thenReturn(tributary);
+			WarOutcomeService.apply(fx.war, WarEndReason.DEFENDER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(tributary, fx.attacker, fx.defender));
+			relations.verify(() -> RelationManager.setRelationForced(tributary, ally, fx.defender));
+		}
+		assertEquals(1, fx.payerObligations.size());
 	}
 
 	@Test
