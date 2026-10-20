@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.guild.income;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -335,7 +336,7 @@ public class Ledger {
                 amount = -getOverlordTax();
                 break;
             //Loans
-            // Automatic loan payments show what the borrower's balance would fund, as settlement pays.
+            // Automatic loan payments show what the borrower would fund, as settlement pays.
             case LOAN_PAYMENTS: {
                 for (LoanFunding.Funded funded : projectedLoanPlan().values()) {
                     amount -= funded.principal();
@@ -967,19 +968,54 @@ public class Ledger {
         return g == null || g.getBank() == null ? 0.0 : Math.max(0.0, g.getBank().getWealth());
     }
 
-    /** This guild's automatic loan payments as its current balance would fund them. */
+    /** This guild's automatic loan payments as settlement would fund them. */
     private Map<Loan, LoanFunding.Funded> projectedLoanPlan() {
         if (guild.getLoanHandler() == null) return Map.of();
-        return LoanFunding.plan(loansTaken(), wealthOf(guild));
+        return LoanFunding.plan(loansTaken(), forecastLoanBudget(guild));
     }
 
-    /** What a borrower's current balance would fund of this loan it took. */
+    /** What a borrower would fund of this loan it took, as settlement would pay it. */
     private LoanFunding.Funded projectedFunding(Loan loan) {
         Guild borrower = loan.getBorrower();
         if (borrower == null || borrower.getLoanHandler() == null) return LoanFunding.NONE;
         return LoanFunding.plan(settlement == null ? borrower.getLoanHandler().getLoansTaken()
-                : ledgerOf(borrower).loansTaken(), wealthOf(borrower))
+                : ledgerOf(borrower).loansTaken(), forecastLoanBudget(borrower))
                 .getOrDefault(loan, LoanFunding.NONE);
+    }
+
+    /**
+     * Cashflows left out of the loan forecast. Settlement pays loans from the balance after the
+     * day's income, other payments and upkeep have landed. Loans move together, and dividends,
+     * wages and vehicle upkeep are paid after them. Gambling and vehicle fees are already banked.
+     */
+    private static final Set<Cashflow> NOT_BEFORE_LOANS = EnumSet.of(
+            Cashflow.LOANS, Cashflow.LOAN_PAYMENTS, Cashflow.INTEREST, Cashflow.INTEREST_PAYMENTS,
+            Cashflow.DIVIDENDS, Cashflow.DIVIDEND_PAYMENT, Cashflow.DIVIDEND_PAYOUT,
+            Cashflow.WAGE_PAYMENTS, Cashflow.VEHICLE_UPKEEP, Cashflow.GAMBLING, Cashflow.VEHICLE_FEES);
+
+    /** Set while a forecast reads a borrower's day, so loans between guilds cannot loop back. */
+    private static final ThreadLocal<Boolean> FORECASTING = ThreadLocal.withInitial(() -> false);
+
+    /**
+     * What a guild will have for its loans at the next settlement: its balance plus the day's
+     * expected income, less the payments and upkeep settled before loans. A forecast nested
+     * inside another uses the balance alone.
+     */
+    private double forecastLoanBudget(Guild g) {
+        double wealth = wealthOf(g);
+        if (settlement != null || FORECASTING.get()) return wealth;
+        Ledger ledger = g.getLedger();
+        if (ledger == null || ledger.skipsMoneyMovement()) return wealth;
+        FORECASTING.set(true);
+        try {
+            double net = ledger.getAggregatedLoanPayments() + ledger.getAggregatedInterestPayments();
+            for (Cashflow cf : Cashflow.values()) {
+                if (!NOT_BEFORE_LOANS.contains(cf)) net += ledger.getIncome(cf);
+            }
+            return Math.max(0.0, wealth + net);
+        } finally {
+            FORECASTING.set(false);
+        }
     }
 
     /** Today's funded payment towards a loan this guild took, during settlement. */
