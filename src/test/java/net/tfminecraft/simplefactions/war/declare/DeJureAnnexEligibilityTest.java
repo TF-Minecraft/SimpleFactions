@@ -121,7 +121,7 @@ class DeJureAnnexEligibilityTest {
 			DeJureTitleOption option = DeJureAnnexEligibility.evaluate(attacker, defender, title);
 			assertTrue(option.eligible(), option.blockReason());
 			assertEquals(new DeJureAnnexEligibility.DeJureAnnexPreview(
-					1, 2, List.of(new DeJureAnnexEligibility.KeptSettlement("Defender", "Oakvale")), 0),
+					1, 2, List.of(new DeJureAnnexEligibility.KeptSettlement("Defender", "Oakvale")), 0, 0),
 					option.preview());
 			assertEquals(java.util.Set.of(12),
 					DeJureAnnexEligibility.partition(attacker, defender, title).taken());

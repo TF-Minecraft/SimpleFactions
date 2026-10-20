@@ -33,7 +33,9 @@ public final class DeJureAnnexEligibility {
 	}
 
 	/** What a victory would move: {@code taken} of {@code incoming} provinces, the rest kept by their holders. */
-	public record DeJureAnnexPreview(int taken, int incoming, List<KeptSettlement> keptSettlements, int roadSize) {}
+	/** {@code otherKept}: provinces held back only so the holder's land stays legally connected. */
+	public record DeJureAnnexPreview(
+			int taken, int incoming, List<KeptSettlement> keptSettlements, int roadSize, int otherKept) {}
 
 	public record KeptSettlement(String holderName, String settlementName) {}
 
@@ -140,7 +142,8 @@ public final class DeJureAnnexEligibility {
 			}
 		}
 		return new DeJureAnnexPreview(
-				partition.taken().size(), partition.incoming(), List.copyOf(kept), partition.road().size());
+				partition.taken().size(), partition.incoming(), List.copyOf(kept), partition.road().size(),
+				partition.kept().size() - partition.protectedProvinces().size() - partition.road().size());
 	}
 
 	private static Map<Faction, Set<Integer>> incomingByHolder(Faction attacker, Faction defender, Title title) {

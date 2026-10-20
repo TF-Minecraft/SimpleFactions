@@ -157,6 +157,9 @@ public class DeclareWarCreator {
 		if (preview.roadSize() > 0) {
 			lore.add("§7Road to their capital: §f" + preview.roadSize() + " §7" + provinces(preview.roadSize()));
 		}
+		if (preview.otherKept() > 0) {
+			lore.add("§7Kept so their land stays whole: §f" + preview.otherKept() + " §7" + provinces(preview.otherKept()));
+		}
 	}
 
 	private static String provinces(int count) {

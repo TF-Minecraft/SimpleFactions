@@ -636,19 +636,21 @@ class WarMenusCoverageTest {
                     7,
                     10,
                     List.of(new DeJureAnnexEligibility.KeptSettlement("Holder", "Oakvale")),
-                    2)));
+                    2,
+                    1)));
     assertEquals(
         "Tier: county\n"
             + "Annex 7 of 10 provinces\n"
             + "Kept by Holder: Oakvale (settlement)\n"
             + "Road to their capital: 2 provinces\n"
+            + "Kept so their land stays whole: 1 province\n"
             + " \n"
             + "Click to declare",
         lore(previewed));
     ItemStack roadless =
         declaration.creator.createTitleItem(
             new DeJureTitleOption(
-                title, true, null, new DeJureAnnexEligibility.DeJureAnnexPreview(1, 1, List.of(), 0)));
+                title, true, null, new DeJureAnnexEligibility.DeJureAnnexPreview(1, 1, List.of(), 0, 0)));
     assertTrue(lore(roadless).contains("Annex 1 of 1 province"));
     assertFalse(lore(roadless).contains("Road to their capital"));
   }
