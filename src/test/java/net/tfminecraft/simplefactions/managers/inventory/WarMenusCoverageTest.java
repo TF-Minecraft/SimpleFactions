@@ -1590,31 +1590,23 @@ class WarMenusCoverageTest {
 
   @Test
   void theRulerMakesOneDemandOfAVassalThatBackedTheRebels() {
-    fixture.relationType("tributary", Map.of("name", "Tributary"));
     routeDemandScreens();
-    Faction rebels = fixture.saved("rebels", "RebelLeader");
-    Faction backer = fixture.saved("backer", "BackerLeader");
-    War civil = new War(8, rebels, defender);
-    civil.setGoal(WarGoalType.INDEPENDENCE);
-    civil.getAttackers().addNewParticipant(backer, civil.getAttackers().getMainParticipants().get(0));
-    var snapshot = new net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot();
-    snapshot.setHostFactionId("defender");
-    snapshot.setTempRebelFactionId("rebels");
-    civil.setCivilWarSnapshot(snapshot);
-    wars.when(() -> WarManager.getById(8)).thenReturn(civil);
-    wars.when(WarManager::getActive).thenReturn(List.of(civil));
+    var integrated =
+        fixture.relationType(
+            "integrated_subject",
+            Map.of("vassal", true, "link", "overlord", "can-pick-for-war", false, "name", "Integrated"));
+    War civil = civilWar(8, "rebels", "backer");
+    Faction rebels = FactionManager.getByString("rebels");
+    Faction backer = FactionManager.getByString("backer");
 
     assertTrue(WarDemandRules.isCivilWar(civil));
     assertEquals(List.of(backer), WarDemandRules.targets(civil, false));
     assertTrue(WarDemandRules.targets(civil, true).isEmpty());
+    assertEquals(List.of(defender), WarDemandRules.beneficiaries(civil, false));
     assertEquals(WarDemandRules.REBEL_DEMANDS, WarDemandRules.editBlock(civil, rebels, true));
     assertNull(WarDemandRules.editBlock(civil, defender, false));
     assertTrue(
-        WarDemandRules.validate(civil, false, WarDeclareRequest.of(defender, backer, WarGoalType.USURP))
-            .getMessage()
-            .contains("cannot usurp your own vassal"));
-    assertTrue(
-        WarDemandRules.validate(civil, false, WarDeclareRequest.of(defender, rebels, WarGoalType.TRIBUTARY))
+        WarDemandRules.validate(civil, false, WarDeclareRequest.of(defender, rebels, WarGoalType.OPEN_MARKET))
             .getMessage()
             .contains("vassal that backed the rebellion"));
 
@@ -1639,16 +1631,119 @@ class WarMenusCoverageTest {
       ItemStack item = goals.getItem(slot);
       if (item != null && item.getType() != Material.BARRIER) {
         assertNotEquals("usurp", string(item, "goal"));
+        assertNotEquals("tributary", string(item, "goal"));
       }
     }
-    declaration.click(fixture.ui.click(defending, goalSlot(goals, "tributary")), goals, defending);
+    declaration.click(fixture.ui.click(defending, goalSlot(goals, "subjugate")), goals, defending);
+    Inventory types = top(defending);
+    int integratedSlot = -1;
+    for (int slot = 0; slot < 26; slot++) {
+      if (types.getItem(slot) != null && "integrated_subject".equals(id(types.getItem(slot)))) {
+        integratedSlot = slot;
+      }
+    }
+    assertTrue(integratedSlot >= 0, "Integrated Subject is offered in a civil war");
+    declaration.click(fixture.ui.click(defending, integratedSlot), types, defending);
     assertEquals("backer", civil.getSecondDemand(false).getTargetId());
-    assertEquals("defender", civil.getSecondDemand(false).getBeneficiaryId());
+    assertEquals(integrated.getId(), civil.getSecondDemand(false).getRelationTypeId());
 
     civil.getAttackers().getMainParticipants().removeIf(p -> p.getLeader() == backer);
     assertEquals(WarDemandRules.NO_REBEL_VASSALS, WarDemandRules.editBlock(civil, defender, false));
     view.demandsView(defending, civil);
     assertTrue(lore(top(defending).getItem(16)).contains("No vassal backed the rebellion"));
+  }
+
+  @Test
+  void theRulersGoalIsCheckedAgainstTheRealmTheWarWillRestore() {
+    var march =
+        fixture.relationType("march", Map.of("vassal", true, "link", "overlord", "limit", 1, "name", "March"));
+    fixture.relationType("integrated_subject", Map.of("vassal", true, "link", "overlord", "name", "Integrated"));
+    War civil = civilWar(8, "rebels", "backer", "second");
+    Faction backer = FactionManager.getByString("backer");
+    Faction second = FactionManager.getByString("second");
+    Faction sub = fixture.saved("sub", "SubLeader");
+    fixture.subject(backer, sub);
+    Faction outsider = fixture.saved("outsider", "OutsiderLeader");
+
+    assertEquals(
+        "§cThat goal cannot be made of your own vassal.",
+        validateRuler(civil, backer, WarGoalType.TRIBUTARY, null, null).getMessage());
+    assertEquals(
+        "§cSpecify a subject type.",
+        validateRuler(civil, backer, WarGoalType.SUBJUGATE, "missing", null).getMessage());
+    assertTrue(
+        validateRuler(civil, backer, WarGoalType.SUBJUGATE, "vassal", null).getMessage().contains("already your"));
+    assertTrue(validateRuler(civil, backer, WarGoalType.SUBJUGATE, "integrated_subject", null).isValid());
+    // "second" backed the rebels but is not the ruler's direct vassal.
+    assertEquals(
+        "§cOnly your direct vassals can be given a new subject type.",
+        validateRuler(civil, second, WarGoalType.SUBJUGATE, "integrated_subject", null).getMessage());
+    // The ruler's other rebel march comes back when the war ends, so the one march slot is taken.
+    civil.getCivilWarSnapshot().getWartimeVassalEnds().add(
+        new net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarWartimeVassalEnd("third", "defender", "march"));
+    assertEquals(
+        "§cYou have reached the limit for this relation type.",
+        validateRuler(civil, backer, WarGoalType.SUBJUGATE, "march", null).getMessage());
+
+    assertTrue(validateRuler(civil, backer, WarGoalType.TRANSFER_SUBJECT, null, "sub").isValid());
+    assertTrue(
+        validateRuler(civil, backer, WarGoalType.TRANSFER_SUBJECT, null, "outsider").getMessage()
+            .contains("is not a subject of"));
+    backer.setRelation(sub, new Relation(march, RelationLoader.getDefaultAttitude()));
+    assertEquals(
+        "§cYou have reached the limit for this relation type.",
+        validateRuler(civil, backer, WarGoalType.TRANSFER_SUBJECT, null, "sub").getMessage());
+
+    War other = civilWar(9, "otherrebels", "second");
+    other.getCivilWarSnapshot().getWartimeVassalEnds().add(
+        new net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarWartimeVassalEnd("second", "defender", "vassal"));
+    wars.when(WarManager::getActive).thenReturn(List.of(other, civil));
+    assertEquals(
+        net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy.DECLARE_VS_CIVIL_WAR,
+        validateRuler(civil, second, WarGoalType.OPEN_MARKET, null, null).getMessage());
+    fixture.subject(backer, second);
+    assertEquals(
+        net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy.DECLARE_VS_CIVIL_WAR,
+        validateRuler(civil, backer, WarGoalType.TRANSFER_SUBJECT, null, "second").getMessage());
+    assertNotNull(outsider);
+
+    War bare = new War(10, outsider, defender);
+    bare.setMovementId("bare");
+    assertEquals(
+        "§cOnly your direct vassals can be given a new subject type.",
+        validateRuler(bare, outsider, WarGoalType.SUBJUGATE, "integrated_subject", null).getMessage());
+  }
+
+  private WarValidationResult validateRuler(
+      War civil, Faction target, WarGoalType goal, String relationTypeId, String subjectId) {
+    return WarDemandRules.validate(
+        civil, false, new WarDeclareRequest(defender, target, goal, null, subjectId, relationTypeId));
+  }
+
+  /** A civil war against the defender, with a temporary rebel realm and the given backing vassals. */
+  private War civilWar(int id, String rebelsId, String... backerIds) {
+    Faction rebels = fixture.saved(rebelsId, rebelsId + "Leader");
+    War civil = new War(id, rebels, defender);
+    civil.setGoal(WarGoalType.INDEPENDENCE);
+    var snapshot = new net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot();
+    snapshot.setHostFactionId("defender");
+    snapshot.setTempRebelFactionId(rebelsId);
+    for (String backerId : backerIds) {
+      Faction backer =
+          FactionManager.getByString(backerId) != null
+              ? FactionManager.getByString(backerId)
+              : fixture.saved(backerId, backerId + "Leader");
+      civil.getAttackers().addNewParticipant(backer, civil.getAttackers().getMainParticipants().get(0));
+      if (backerId.equals("backer")) {
+        snapshot.getWartimeVassalEnds().add(
+            new net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarWartimeVassalEnd(
+                backerId, "defender", "vassal"));
+      }
+    }
+    civil.setCivilWarSnapshot(snapshot);
+    wars.when(() -> WarManager.getById(id)).thenReturn(civil);
+    wars.when(WarManager::getActive).thenReturn(List.of(civil));
+    return civil;
   }
 
   private int goalSlot(Inventory goals, String goal) {

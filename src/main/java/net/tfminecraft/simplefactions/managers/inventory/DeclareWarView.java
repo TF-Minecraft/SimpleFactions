@@ -74,7 +74,11 @@ public class DeclareWarView {
 		}
 		inventory.clear();
 		int slot = 10;
-		inventory.setItem(slot++, creator.createTributaryGoalItem());
+		boolean withinRealm = withinRealm(demand);
+		// A ruler punishing their own vassal cannot set them free as a tributary.
+		if (!withinRealm) {
+			inventory.setItem(slot++, creator.createTributaryGoalItem());
+		}
 		if (attacker.canHaveVassals()) {
 			inventory.setItem(slot++, creator.createSubjugateGoalItem());
 		}
@@ -84,7 +88,6 @@ public class DeclareWarView {
 		if (demand == null) {
 			inventory.setItem(slot++, creator.createPillageGoalItem());
 		}
-		boolean withinRealm = withinRealm(demand);
 		if (!withinRealm && WarDeclareHelper.canDeclareUsurp(attacker, defender)) {
 			inventory.setItem(slot++, creator.createUsurpGoalItem());
 		}
@@ -118,7 +121,7 @@ public class DeclareWarView {
 		}
 		inventory.clear();
 		int slot = 0;
-		for (RelationType type : RelationLoader.getWarPickableVassalTypes()) {
+		for (RelationType type : subjectTypes(demand)) {
 			if (slot >= 26) break;
 			inventory.setItem(slot++, creator.createRelationTypeItem(type, attacker));
 		}
@@ -632,6 +635,20 @@ public class DeclareWarView {
 	/** The ruler's goal in a civil war falls inside their own realm, where usurp and the civil war lock do not apply. */
 	private static boolean withinRealm(WarDemandDraft demand) {
 		return demand != null && WarDemandRules.isCivilWar(WarManager.getById(demand.warId()));
+	}
+
+	/** A ruler may give their own vassal any subject type, including ones a war cannot impose. */
+	private static List<RelationType> subjectTypes(WarDemandDraft demand) {
+		if (!withinRealm(demand)) {
+			return RelationLoader.getWarPickableVassalTypes();
+		}
+		List<RelationType> types = new ArrayList<>();
+		for (RelationType type : RelationLoader.types) {
+			if (type.isVassalage()) {
+				types.add(type);
+			}
+		}
+		return types;
 	}
 
 	private static List<DeJureTitleOption> titleOptions(Faction attacker, Faction defender, WarDemandDraft demand) {

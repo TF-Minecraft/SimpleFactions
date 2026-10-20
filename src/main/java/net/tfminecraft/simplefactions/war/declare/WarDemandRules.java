@@ -5,6 +5,11 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
+import net.tfminecraft.simplefactions.diplomacy.RelationType;
+import net.tfminecraft.simplefactions.loaders.RelationLoader;
+import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.war.civilwar.CivilWarCopy;
+import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarWartimeVassalEnd;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
@@ -43,6 +48,14 @@ public final class WarDemandRules {
 			WarGoalType.CHANGE_GOVERNMENT,
 			WarGoalType.DE_JURE_ANNEX);
 
+	/** What a ruler may take from a vassal that backed the rebels: never their freedom, nor its own title. */
+	private static final Set<WarGoalType> CIVIL_WAR_GOALS = EnumSet.of(
+			WarGoalType.SUBJUGATE,
+			WarGoalType.TRANSFER_SUBJECT,
+			WarGoalType.DE_JURE_ANNEX,
+			WarGoalType.OPEN_MARKET,
+			WarGoalType.CHANGE_GOVERNMENT);
+
 	public static final String LOCKED = "§cWar demands are locked once the first battle begins.";
 	public static final String NOT_LEADER = "§cOnly the side's leading nation can set its second demand.";
 	public static final String NO_FIRST_DEMAND = "§cSet a counter goal before adding a second demand.";
@@ -60,10 +73,17 @@ public final class WarDemandRules {
 		return goal != null && RELATIONAL.contains(goal);
 	}
 
-	/** The side leader, then its subjects, then each faction that joined the war with them. */
+	/**
+	 * The side leader, then its subjects, then each faction that joined the war with them.
+	 * In a civil war the ruler's goal is the ruler's alone.
+	 */
 	public static List<Faction> beneficiaries(War war, boolean attackerSide) {
 		Side side = attackerSide ? war.getAttackers() : war.getDefenders();
 		List<Faction> result = new ArrayList<>();
+		if (isCivilWar(war)) {
+			add(result, side.getLeader());
+			return result;
+		}
 		for (Participant participant : side.getMainParticipants()) {
 			add(result, participant.getLeader());
 		}
@@ -81,6 +101,10 @@ public final class WarDemandRules {
 	/** A civil war, where the ruler's single goal falls on the vassals that backed the rebels. */
 	public static boolean isCivilWar(War war) {
 		return CivilWarBorderLock.isCivilWar(war);
+	}
+
+	public static boolean isCivilWarGoal(WarGoalType goal) {
+		return goal != null && CIVIL_WAR_GOALS.contains(goal);
 	}
 
 	/** A usurp war a vassal declared on its own overlord: inside one realm, with no clear victim. */
@@ -226,15 +250,107 @@ public final class WarDemandRules {
 							? "§cDemands can only be made of the defending side."
 							: "§cDemands can only be made of the attackers.");
 		}
-		if (civilWar && request.getGoal() == WarGoalType.USURP) {
-			return WarValidationResult.fail("§cYou cannot usurp your own vassal.");
+		if (civilWar) {
+			return validateCivilWarGoal(war, request);
 		}
 		if (conflicts(firstDemand(war, attackerSide), WarDemand.fromRequest(request))) {
 			return WarValidationResult.fail("§cThat clashes with your first demand on "
 					+ request.getDefender().getName() + "§c.");
 		}
-		// The ruler's goal falls inside the ruler's own realm.
-		return new WarGoalValidator().validate(civilWar ? request.asCivilWarDemand() : request.asDemand());
+		return new WarGoalValidator().validate(request.asDemand());
+	}
+
+	/**
+	 * The ruler's goal on a rebel vassal. It is applied once the war has restored the realm,
+	 * so it is checked against the realm as it will be then, not as the rebellion left it:
+	 * the backing vassals answer to the ruler again and count toward its relation limits.
+	 */
+	static WarValidationResult validateCivilWarGoal(War war, WarDeclareRequest request) {
+		Faction ruler = request.getAttacker();
+		Faction vassal = request.getDefender();
+		if (!isCivilWarGoal(request.getGoal())) {
+			return WarValidationResult.fail("§cThat goal cannot be made of your own vassal.");
+		}
+		if (inAnotherCivilWar(war, vassal)) {
+			return WarValidationResult.fail(CivilWarCopy.DECLARE_VS_CIVIL_WAR);
+		}
+		return switch (request.getGoal()) {
+			case SUBJUGATE -> validateNewSubjectType(war, ruler, vassal, request.getRelationTypeId());
+			case TRANSFER_SUBJECT -> validateTakenSubject(war, ruler, vassal, request.getSubjectFactionId());
+			default -> new WarGoalValidator().validate(request.asCivilWarDemand());
+		};
+	}
+
+	private static WarValidationResult validateNewSubjectType(War war, Faction ruler, Faction vassal, String typeId) {
+		RelationType type = typeId == null ? null : RelationLoader.getType(typeId);
+		if (type == null || !type.isVassalage()) {
+			return WarValidationResult.fail("§cSpecify a subject type.");
+		}
+		CivilWarWartimeVassalEnd end = vassalEnd(war, vassal, ruler);
+		if (end == null) {
+			return WarValidationResult.fail("§cOnly your direct vassals can be given a new subject type.");
+		}
+		if (type.getId().equalsIgnoreCase(end.relationTypeId())) {
+			return WarValidationResult.fail("§cThey are already your " + type.getName() + "§c.");
+		}
+		if (overLimitAfterWar(war, ruler, type, vassal.getId())) {
+			return WarValidationResult.fail("§cYou have reached the limit for this relation type.");
+		}
+		return WarValidationResult.ok();
+	}
+
+	private static WarValidationResult validateTakenSubject(War war, Faction ruler, Faction vassal, String subjectId) {
+		Faction subject = subjectId == null ? null : FactionManager.getByString(subjectId);
+		Faction liege = subject == null ? null : FactionManager.getByString(RelationManager.getOverlord(subject));
+		if (liege == null || !RelationManager.isOnOverlordPath(subject, vassal)) {
+			return WarValidationResult.fail("§cThat faction is not a subject of " + vassal.getName() + "§c.");
+		}
+		if (inAnotherCivilWar(war, subject)) {
+			return WarValidationResult.fail(CivilWarCopy.DECLARE_VS_CIVIL_WAR);
+		}
+		RelationType type = liege.getRelation(subject.getId()).getType();
+		if (overLimitAfterWar(war, ruler, type, null)) {
+			return WarValidationResult.fail("§cYou have reached the limit for this relation type.");
+		}
+		return WarValidationResult.ok();
+	}
+
+	/** Whether a civil war other than this one holds the faction. */
+	private static boolean inAnotherCivilWar(War war, Faction faction) {
+		War other = CivilWarBorderLock.findActiveCivilWarInvolving(faction);
+		return other != null && other.getId() != war.getId();
+	}
+
+	/** The backing vassal's tie to the ruler, suspended for the war and restored when it ends. */
+	private static CivilWarWartimeVassalEnd vassalEnd(War war, Faction vassal, Faction ruler) {
+		if (war.getCivilWarSnapshot() == null) {
+			return null;
+		}
+		for (CivilWarWartimeVassalEnd end : war.getCivilWarSnapshot().getWartimeVassalEnds()) {
+			if (end != null && vassal.getId().equalsIgnoreCase(end.factionId())
+					&& ruler.getId().equalsIgnoreCase(end.formerOverlordId())) {
+				return end;
+			}
+		}
+		return null;
+	}
+
+	/** The ruler's count of this relation type once the war returns its rebel vassals, leaving out one of them. */
+	private static boolean overLimitAfterWar(War war, Faction ruler, RelationType type, String excludeId) {
+		if (type == null || !type.hasLimit()) {
+			return false;
+		}
+		int count = RelationManager.getRelationCount(ruler, type);
+		if (war.getCivilWarSnapshot() != null) {
+			for (CivilWarWartimeVassalEnd end : war.getCivilWarSnapshot().getWartimeVassalEnds()) {
+				if (end != null && ruler.getId().equalsIgnoreCase(end.formerOverlordId())
+						&& type.getId().equalsIgnoreCase(end.relationTypeId())
+						&& !end.factionId().equalsIgnoreCase(excludeId)) {
+					count++;
+				}
+			}
+		}
+		return count >= type.getLimit();
 	}
 
 	private static boolean sameId(String a, String b) {

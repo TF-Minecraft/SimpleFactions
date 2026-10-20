@@ -109,6 +109,14 @@ public final class WarOutcomeService {
 		if (beneficiary == null || target == null || demand.getGoal() == null) {
 			return;
 		}
+		if (demand.getGoal() == WarGoalType.SUBJUGATE && WarDemandRules.isCivilWar(war)) {
+			// The ruler re-types a restored vassal; any subject type is allowed, not only war-pickable ones.
+			RelationType type = RelationLoader.getType(demand.getRelationTypeId());
+			if (type != null && type.isVassalage()) {
+				RelationManager.setRelationForced(type, target, beneficiary);
+			}
+			return;
+		}
 		War demandWar = new War(
 				war.getId(),
 				new Side(beneficiary),

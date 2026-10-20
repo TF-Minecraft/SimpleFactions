@@ -768,6 +768,27 @@ class WarOutcomeServiceTest {
 	}
 
 	@Test
+	void civilWar_rulerRetypesTheRebelVassalWithAnySubjectType() {
+		Fixture fx = fixture();
+		fx.war.setGoal(WarGoalType.INDEPENDENCE);
+		fx.war.setMovementId("movement");
+		when(fx.attacker.getGovernment()).thenReturn(mock(Government.class));
+		when(fx.defender.getGovernment()).thenReturn(mock(Government.class));
+		FactionManager.factions.add(fx.attacker);
+		FactionManager.factions.add(fx.defender);
+		fx.war.setSecondDemand(false, new WarDemand(
+				WarGoalType.SUBJUGATE, "def", "atk", "integrated_subject", null, null, null, null));
+		RelationType integrated = mock(RelationType.class);
+		when(integrated.isVassalage()).thenReturn(true);
+		try (MockedStatic<RelationLoader> loader = mockStatic(RelationLoader.class);
+				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			loader.when(() -> RelationLoader.getType("integrated_subject")).thenReturn(integrated);
+			WarOutcomeService.apply(fx.war, WarEndReason.DEFENDER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(integrated, fx.attacker, fx.defender));
+		}
+	}
+
+	@Test
 	void lostSideSecondDemandIsNotApplied() {
 		Fixture fx = fixture();
 		FactionManager.factions.add(fx.attacker);
