@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -185,7 +185,7 @@ class AttackerNavalContestServiceTest {
 
 		assertTrue(AttackerNavalContestService.applyIfAttackerHasNoBerthedNavy(war, 20));
 		assertEquals(3, war.getInitiativeAttacker());
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getLastBattleOffensiveCoalition());
+		assertEquals(CampaignSideRole.AGGRESSOR, war.getLastBattleOffensiveCoalition());
 		assertTrue(war.getCampaignBattlesFought() >= 1);
 	}
 
@@ -201,8 +201,8 @@ class AttackerNavalContestServiceTest {
 		assertTrue(AttackerNavalContestService.applyIfAttackerHasNoBerthedNavy(war, 20));
 		assertEquals(4, war.getInitiativeAttacker());
 		assertEquals(3, war.getInitiativeDefender());
-		assertEquals(CampaignCoalition.DEFENDER, war.getLastBattleOffensiveCoalition());
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getPostBattleWinnerCoalition());
+		assertEquals(CampaignSideRole.DEFENDER, war.getLastBattleOffensiveCoalition());
+		assertEquals(CampaignSideRole.AGGRESSOR, war.getPostBattleWinnerCoalition());
 	}
 
 	@Test
@@ -246,7 +246,7 @@ class AttackerNavalContestServiceTest {
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
 		war.setInitiativeHolder(BelligerentRole.ATTACKER);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setObjectiveHeldBy(ObjectiveHolder.DEFENDER);

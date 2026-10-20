@@ -29,7 +29,7 @@ import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
@@ -184,7 +184,7 @@ class BattleAutoresolveCoverageTest {
     war.setInitiativeAttacker(4);
     war.setInitiativeDefender(4);
     war.setInitiativeHolder(BelligerentRole.ATTACKER);
-    war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+    war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
     war.setCampaignPhase(CampaignPhase.INVASION);
     war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
     war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);

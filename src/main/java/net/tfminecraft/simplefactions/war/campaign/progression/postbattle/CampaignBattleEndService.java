@@ -6,15 +6,15 @@ package net.tfminecraft.simplefactions.war.campaign.progression.postbattle;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 
 public final class CampaignBattleEndService {
 	private CampaignBattleEndService() {}
 
-	public static void beginPostBattleChoice(War war, CampaignCoalition winner) {
+	public static void beginPostBattleChoice(War war, CampaignSideRole winner) {
 		if (war == null || winner == null) {
 			return;
 		}
@@ -30,7 +30,7 @@ public final class CampaignBattleEndService {
 		snapshotBattleStart(war, CampaignCapabilityService.battleOffensiveCoalition(war));
 	}
 
-	public static void snapshotBattleStart(War war, CampaignCoalition lastBattleOffensive) {
+	public static void snapshotBattleStart(War war, CampaignSideRole lastBattleOffensive) {
 		if (war == null) {
 			return;
 		}
@@ -38,19 +38,19 @@ public final class CampaignBattleEndService {
 	}
 
 	public static void spendOffensiveFuel(War war) {
-		CampaignCoalition offensive = war.getLastBattleOffensiveCoalition();
+		CampaignSideRole offensive = war.getLastBattleOffensiveCoalition();
 		if (offensive == null) {
 			offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
 		}
-		CampaignCoalitionService.spendFuel(war, offensive);
+		CampaignSideService.spendFuel(war, offensive);
 	}
 
 	public static boolean applyPush(War war) {
 		if (war == null || war.getPostBattleWinnerCoalition() == null) {
 			return false;
 		}
-		CampaignCoalition winner = war.getPostBattleWinnerCoalition();
-		CampaignCoalition offensive = war.getLastBattleOffensiveCoalition();
+		CampaignSideRole winner = war.getPostBattleWinnerCoalition();
+		CampaignSideRole offensive = war.getLastBattleOffensiveCoalition();
 		if (offensive == null) {
 			offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
 		}
@@ -60,7 +60,7 @@ public final class CampaignBattleEndService {
 		} else {
 			advanceTowardCapitulationTarget(war, winner);
 		}
-		CampaignCoalitionService.setInitiativeHolderCoalition(war, winner);
+		CampaignSideService.setInitiativeHolderCoalition(war, winner);
 		clearHoldPeace(war);
 		resolveChoicePhase(war);
 		return true;
@@ -70,10 +70,10 @@ public final class CampaignBattleEndService {
 		if (war == null || war.getPostBattleWinnerCoalition() == null) {
 			return false;
 		}
-		CampaignCoalition winner = war.getPostBattleWinnerCoalition();
+		CampaignSideRole winner = war.getPostBattleWinnerCoalition();
 		war.setHoldPeaceProposalActive(true);
-		CampaignCoalitionService.setWhitePeaceProposed(war, winner, true);
-		CampaignCoalitionService.setInitiativeHolderCoalition(war, winner);
+		CampaignSideService.setWhitePeaceProposed(war, winner, true);
+		CampaignSideService.setInitiativeHolderCoalition(war, winner);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.LOSER_ATTACK_PEACE);
 		war.setPostBattleChoiceResolved(false);
 		return true;
@@ -83,8 +83,8 @@ public final class CampaignBattleEndService {
 		if (war == null || war.getPostBattleWinnerCoalition() == null) {
 			return false;
 		}
-		CampaignCoalition loser = war.getPostBattleWinnerCoalition().opposing();
-		CampaignCoalitionService.setInitiativeHolderCoalition(war, loser);
+		CampaignSideRole loser = war.getPostBattleWinnerCoalition().opposing();
+		CampaignSideService.setInitiativeHolderCoalition(war, loser);
 		clearHoldPeace(war);
 		resolveChoicePhase(war);
 		return true;
@@ -130,9 +130,9 @@ public final class CampaignBattleEndService {
 		syncLegacyPhase(war);
 	}
 
-	static void advanceTowardCapitulationTarget(War war, CampaignCoalition winner) {
+	static void advanceTowardCapitulationTarget(War war, CampaignSideRole winner) {
 		int cursor = war.getCursorIndex();
-		if (winner == CampaignCoalition.AGGRESSOR) {
+		if (winner == CampaignSideRole.AGGRESSOR) {
 			war.setCursorIndex(CampaignCapabilityService.clampCursorIndex(war, cursor + 1));
 			if (war.getPushTarget() == CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL) {
 				war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
@@ -145,7 +145,7 @@ public final class CampaignBattleEndService {
 	}
 
 	static void syncLegacyPhase(War war) {
-		war.setCampaignPhase(CampaignCoalitionService.deriveLegacyPhaseFromPushTarget(
+		war.setCampaignPhase(CampaignSideService.deriveLegacyPhaseFromPushTarget(
 				war.getPushTarget(),
 				war.getObjectiveHeldBy()));
 	}

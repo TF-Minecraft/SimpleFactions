@@ -14,7 +14,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.campaign.progression.*;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -107,9 +107,9 @@ class CampaignPostBattleLifecycleCoverageTest {
   }
 
   @ParameterizedTest
-  @EnumSource(CampaignCoalition.class)
+  @EnumSource(CampaignSideRole.class)
   void winnerHoldGivesOnlyTheLosingCoalitionItsResponseAndAttackRestoresVoting(
-      CampaignCoalition winner) {
+      CampaignSideRole winner) {
     army(rig.attacker, "guards", true, 3);
     army(rig.defender, "guards", true, 3);
     CampaignBattleEndService.snapshotBattleStart(rig.war);
@@ -118,11 +118,11 @@ class CampaignPostBattleLifecycleCoverageTest {
     assertEquals(winner, CampaignPostBattleChoiceService.choiceLeaderCoalition(rig.war));
     assertTrue(
         CampaignPostBattleChoiceService.isChoiceLeader(
-            rig.war, winner == CampaignCoalition.AGGRESSOR ? rig.attacker : rig.defender));
+            rig.war, winner == CampaignSideRole.AGGRESSOR ? rig.attacker : rig.defender));
     assertTrue(CampaignChoiceService.applyHold(rig.war));
     assertEquals(winner.opposing(), CampaignPostBattleChoiceService.choiceLeaderCoalition(rig.war));
     assertTrue(rig.war.isHoldPeaceProposalActive());
-    assertTrue(CampaignCoalitionService.isWhitePeaceProposed(rig.war, winner));
+    assertTrue(CampaignSideService.isWhitePeaceProposed(rig.war, winner));
     assertTrue(CampaignChoiceService.applyLoserAttack(rig.war));
     assertFalse(CampaignPostBattleChoiceService.needsAnyChoice(rig.war));
     assertFalse(rig.war.isHoldPeaceProposalActive());
@@ -134,7 +134,7 @@ class CampaignPostBattleLifecycleCoverageTest {
 
   @Test
   void acceptingAHoldPeaceEndsTheActualWarAndClearsItsChoice() {
-    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignCoalition.AGGRESSOR);
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.AGGRESSOR);
     assertTrue(CampaignChoiceService.applyHold(rig.war));
     assertTrue(CampaignChoiceService.applyLoserAcceptPeace(rig.war));
     assertFalse(rig.war.isActive());
@@ -147,21 +147,21 @@ class CampaignPostBattleLifecycleCoverageTest {
   void noArmyForcesHoldButAnActualOffensiveArmyAllowsPush() {
     assertTrue(
         CampaignPostBattleChoiceService.resolveMandatoryHoldIfNeeded(
-            rig.war, CampaignCoalition.AGGRESSOR));
+            rig.war, CampaignSideRole.AGGRESSOR));
     assertTrue(CampaignPostBattleChoiceService.needsLoserResponse(rig.war));
     assertEquals(
-        CampaignCoalition.DEFENDER, CampaignPostBattleChoiceService.choiceLeaderCoalition(rig.war));
+        CampaignSideRole.DEFENDER, CampaignPostBattleChoiceService.choiceLeaderCoalition(rig.war));
     CampaignBattleEndService.resolveChoicePhase(rig.war);
     CampaignBattleEndService.clearHoldPeace(rig.war);
     army(rig.attacker, "guards", true, 3);
     army(rig.defender, "guards", true, 3);
     assertFalse(
         CampaignPostBattleChoiceService.resolveMandatoryHoldIfNeeded(
-            rig.war, CampaignCoalition.AGGRESSOR));
-    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignCoalition.AGGRESSOR);
+            rig.war, CampaignSideRole.AGGRESSOR));
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.AGGRESSOR);
     assertTrue(CampaignChoiceService.applyPush(rig.war));
     assertEquals(2, rig.war.getCursorIndex());
-    assertEquals(CampaignCoalition.AGGRESSOR, rig.war.getInitiativeHolderCoalition());
+    assertEquals(CampaignSideRole.AGGRESSOR, rig.war.getInitiativeHolderCoalition());
     assertFalse(CampaignPostBattleChoiceService.needsAnyChoice(rig.war));
   }
 
@@ -169,7 +169,7 @@ class CampaignPostBattleLifecycleCoverageTest {
   void choiceDeadlinesRespectTheBattleDayAndResolveTheCurrentPhaseOnce() {
     army(rig.attacker, "guards", true, 3);
     army(rig.defender, "guards", true, 3);
-    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignCoalition.AGGRESSOR);
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.AGGRESSOR);
     assertFalse(CampaignPostBattleChoiceService.applyDeadlineIfDue(rig.war, null));
     assertFalse(
         CampaignPostBattleChoiceService.applyDeadlineIfDue(
@@ -218,10 +218,10 @@ class CampaignPostBattleLifecycleCoverageTest {
   @Test
   void absentOrUnchosenBattlesCannotSpendFuelOrPersistAChoice() {
     long writes = rig.warWrites();
-    CampaignBattleEndService.beginPostBattleChoice(null, CampaignCoalition.AGGRESSOR);
+    CampaignBattleEndService.beginPostBattleChoice(null, CampaignSideRole.AGGRESSOR);
     CampaignBattleEndService.beginPostBattleChoice(rig.war, null);
     CampaignBattleEndService.snapshotBattleStart(null);
-    CampaignBattleEndService.snapshotBattleStart(null, CampaignCoalition.DEFENDER);
+    CampaignBattleEndService.snapshotBattleStart(null, CampaignSideRole.DEFENDER);
     CampaignBattleEndService.clearHoldPeace(null);
     CampaignBattleEndService.resolveChoicePhase(null);
     assertFalse(CampaignBattleEndService.applyPush(null));
@@ -235,7 +235,7 @@ class CampaignPostBattleLifecycleCoverageTest {
     assertFalse(CampaignChoiceService.applyLoserAttack(rig.war));
     assertFalse(
         CampaignPostBattleChoiceService.resolveMandatoryHoldIfNeeded(
-            null, CampaignCoalition.AGGRESSOR));
+            null, CampaignSideRole.AGGRESSOR));
     assertFalse(CampaignPostBattleChoiceService.isChoiceLeader(null, rig.attacker));
     assertNull(CampaignPostBattleChoiceService.choiceLeaderCoalition(rig.war));
     assertEquals(writes, rig.warWrites());
@@ -254,8 +254,8 @@ class CampaignPostBattleLifecycleCoverageTest {
   })
   void applyingPushMatchesTheWinnerDirectionAndOnlySpendsTheRecordedOffensiveFuel(
       CampaignPushTarget before,
-      CampaignCoalition offensive,
-      CampaignCoalition winner,
+      CampaignSideRole offensive,
+      CampaignSideRole winner,
       int cursor,
       int expectedCursor,
       CampaignPushTarget after,
@@ -266,7 +266,7 @@ class CampaignPostBattleLifecycleCoverageTest {
         before == CampaignPushTarget.RETAKE_OBJECTIVE
             ? ObjectiveHolder.ATTACKER
             : ObjectiveHolder.DEFENDER);
-    CampaignCoalitionService.setInitiativeHolderCoalition(rig.war, offensive);
+    CampaignSideService.setInitiativeHolderCoalition(rig.war, offensive);
     CampaignBattleEndService.snapshotBattleStart(rig.war, offensive);
     CampaignBattleEndService.spendOffensiveFuel(rig.war);
     CampaignBattleEndService.beginPostBattleChoice(rig.war, winner);
@@ -275,10 +275,10 @@ class CampaignPostBattleLifecycleCoverageTest {
     assertEquals(after, rig.war.getPushTarget());
     assertEquals(holder, rig.war.getObjectiveHeldBy());
     assertEquals(
-        CampaignCoalitionService.deriveLegacyPhaseFromPushTarget(after, holder),
+        CampaignSideService.deriveLegacyPhaseFromPushTarget(after, holder),
         rig.war.getCampaignPhase());
-    assertEquals(4, CampaignCoalitionService.getFuel(rig.war, offensive));
-    assertEquals(5, CampaignCoalitionService.getFuel(rig.war, offensive.opposing()));
+    assertEquals(4, CampaignSideService.getFuel(rig.war, offensive));
+    assertEquals(5, CampaignSideService.getFuel(rig.war, offensive.opposing()));
     assertEquals(winner, rig.war.getInitiativeHolderCoalition());
     assertTrue(rig.war.isPostBattleChoiceResolved());
     assertEquals(PostBattleChoicePhase.NONE, rig.war.getPostBattleChoicePhase());
@@ -308,7 +308,7 @@ class CampaignPostBattleLifecycleCoverageTest {
   void deadlineHoldsForAnUnableWinnerThenAllowsTheLosingCoalitionToAttack() {
     army(rig.attacker, "guards", false, 2);
     army(rig.defender, "raiders", true, 2);
-    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignCoalition.AGGRESSOR);
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.AGGRESSOR);
     var deadline = BattleWindowService.atScheduleHour(Fixture.DAY, 15);
     assertTrue(CampaignPostBattleChoiceService.applyDeadlineIfDue(rig.war, deadline));
     assertTrue(CampaignPostBattleChoiceService.needsLoserResponse(rig.war));
@@ -316,7 +316,7 @@ class CampaignPostBattleLifecycleCoverageTest {
     assertTrue(rig.war.isWhitePeaceProposedByAttacker());
     assertTrue(CampaignPostBattleChoiceService.applyDeadlineIfDue(rig.war, deadline));
     assertFalse(CampaignPostBattleChoiceService.needsAnyChoice(rig.war));
-    assertEquals(CampaignCoalition.DEFENDER, rig.war.getInitiativeHolderCoalition());
+    assertEquals(CampaignSideRole.DEFENDER, rig.war.getInitiativeHolderCoalition());
   }
 
   @Test
@@ -331,7 +331,7 @@ class CampaignPostBattleLifecycleCoverageTest {
     assertNull(BattleManager.getByString("unstarted"));
     assertEquals(1, rig.war.getCampaignBattlesFought());
     assertEquals(4, rig.war.getInitiativeAttacker());
-    assertEquals(CampaignCoalition.DEFENDER, rig.war.getPostBattleWinnerCoalition());
+    assertEquals(CampaignSideRole.DEFENDER, rig.war.getPostBattleWinnerCoalition());
     verify(rig.alice).sendMessage(contains("wins by forfeit"));
     verify(rig.bob).sendMessage(contains("wins by forfeit"));
     long writes = rig.warWrites();
@@ -344,7 +344,7 @@ class CampaignPostBattleLifecycleCoverageTest {
   @Test
   void armedCoalitionsPreventAWalkoverWhileTwoEmptyArmiesEndInWhitePeace() {
     CampaignMilitaryWalkoverService.resolvePendingWalkovers(null);
-    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignCoalition.AGGRESSOR);
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.AGGRESSOR);
     CampaignMilitaryWalkoverService.resolvePendingWalkovers(rig.war);
     assertEquals(0, rig.war.getCampaignBattlesFought());
     CampaignBattleEndService.resolveChoicePhase(rig.war);
@@ -363,7 +363,7 @@ class CampaignPostBattleLifecycleCoverageTest {
     assertEquals(1, rig.war.getCampaignBattlesFought());
     assertEquals(4, rig.war.getInitiativeAttacker());
     assertTrue(CampaignPostBattleChoiceService.needsWinnerChoice(rig.war));
-    assertEquals(CampaignCoalition.DEFENDER, rig.war.getPostBattleWinnerCoalition());
+    assertEquals(CampaignSideRole.DEFENDER, rig.war.getPostBattleWinnerCoalition());
   }
 
   @Test

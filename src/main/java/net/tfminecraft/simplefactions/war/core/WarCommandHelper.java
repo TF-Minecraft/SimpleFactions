@@ -3,7 +3,7 @@ package net.tfminecraft.simplefactions.war.core;
 import java.util.Optional;
 
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 
 public final class WarCommandHelper {
 	private WarCommandHelper() {}
@@ -33,17 +33,17 @@ public final class WarCommandHelper {
 	}
 
 	/** @return coalition for one side, or {@code null} for both */
-	public static CampaignCoalition parseCoalitionScope(String value) {
+	public static CampaignSideRole parseCoalitionScope(String value) {
 		if (value == null || value.isBlank() || value.equalsIgnoreCase("both")) {
 			return null;
 		}
 		if (value.equalsIgnoreCase("aggressor") || value.equalsIgnoreCase("attacker")) {
-			return CampaignCoalition.AGGRESSOR;
+			return CampaignSideRole.AGGRESSOR;
 		}
 		if (value.equalsIgnoreCase("defender")) {
-			return CampaignCoalition.DEFENDER;
+			return CampaignSideRole.DEFENDER;
 		}
-		return CampaignCoalition.fromJson(value);
+		return CampaignSideRole.fromJson(value);
 	}
 
 	public static boolean isValidCoalitionScope(String value) {

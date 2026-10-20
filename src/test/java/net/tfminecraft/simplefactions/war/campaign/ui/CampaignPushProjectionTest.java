@@ -3,7 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.ui;
 
 
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushProjection;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
@@ -52,8 +52,8 @@ class CampaignPushProjectionTest {
 	void canMountOffensiveAfterPush_falseWhenWinnerLacksFuel() {
 		War war = baseWar();
 		war.setInitiativeAttacker(0);
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
-		assertFalse(CampaignPushProjection.canMountOffensiveAfterPush(war, CampaignCoalition.AGGRESSOR));
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
+		assertFalse(CampaignPushProjection.canMountOffensiveAfterPush(war, CampaignSideRole.AGGRESSOR));
 	}
 
 	@Test
@@ -65,7 +65,7 @@ class CampaignPushProjectionTest {
 		when(attackerHandler.getAll()).thenReturn(List.of());
 		when(defenderHandler.getAll()).thenReturn(List.of());
 		War war = baseWar();
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(20, CampaignBattleKind.NAVAL, false, null)));
 		war.setCampaignScheduleIndex(0);
@@ -73,15 +73,15 @@ class CampaignPushProjectionTest {
 				mockStatic(CampaignCapabilityService.class, CALLS_REAL_METHODS)) {
 			capability.when(() -> CampaignCapabilityService.hasOffensiveArmy(any(), any(), anyInt()))
 					.thenReturn(true);
-			assertFalse(CampaignPushProjection.canMountOffensiveAfterPush(war, CampaignCoalition.AGGRESSOR));
+			assertFalse(CampaignPushProjection.canMountOffensiveAfterPush(war, CampaignSideRole.AGGRESSOR));
 		}
 	}
 
 	@Test
 	void canMountOffensiveAfterPush_projectsCursorAdvanceOnOffensiveWin() {
 		War war = baseWar();
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
-		var projected = CampaignPushProjection.afterPush(war, CampaignCoalition.AGGRESSOR);
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
+		var projected = CampaignPushProjection.afterPush(war, CampaignSideRole.AGGRESSOR);
 		assertEquals(3, projected.cursorIndex());
 	}
 
@@ -96,7 +96,7 @@ class CampaignPushProjectionTest {
 		war.setCampaignBattlesFought(1);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setObjectiveHeldBy(ObjectiveHolder.DEFENDER);

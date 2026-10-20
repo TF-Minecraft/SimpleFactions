@@ -11,7 +11,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
@@ -133,7 +133,7 @@ public final class WarScheduleFeedbackFormatter {
 
 	private static String formatBattleChoice(War war) {
 		return "§7Initiative: §e"
-				+ CampaignCoalitionService.getInitiativeHolderCoalition(war).toJson()
+				+ CampaignSideService.getInitiativeHolderCoalition(war).toJson()
 				+ " §7· Push target: §e"
 				+ (war.getPushTarget() != null ? war.getPushTarget().toJson() : "toward_objective");
 	}

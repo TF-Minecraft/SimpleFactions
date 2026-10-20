@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
@@ -51,7 +51,7 @@ class CampaignRaidLaunchAvailabilityTest {
 		CampaignRaid raid = new CampaignRaid();
 		raid.setId("harbor_raid");
 		raid.setState(CampaignRaidState.MUSTER);
-		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 		war.setActiveCampaignRaid(raid);
 
 		var defenderView = CampaignRaidLaunchAvailability.describe(war, defender, raidWindow);
@@ -67,7 +67,7 @@ class CampaignRaidLaunchAvailabilityTest {
 		CampaignRaid raid = new CampaignRaid();
 		raid.setId("harbor_raid");
 		raid.setState(CampaignRaidState.FIGHTING);
-		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 		war.setActiveCampaignRaid(raid);
 
 		var defenderView = CampaignRaidLaunchAvailability.describe(war, defender, raidWindow);

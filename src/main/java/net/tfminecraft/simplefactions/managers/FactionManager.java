@@ -689,6 +689,7 @@ public class FactionManager implements Listener{
 		factions.remove(f);
 		// Faction ids come from names and can be reused, so a new faction must not inherit these.
 		net.tfminecraft.simplefactions.war.truce.TruceService.forget(f.getId());
+		net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService.forget(f.getId());
 		Database db = new Database();
 		db.deleteFaction(f);
 	}

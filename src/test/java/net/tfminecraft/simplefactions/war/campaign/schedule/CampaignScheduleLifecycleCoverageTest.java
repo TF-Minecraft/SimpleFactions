@@ -34,7 +34,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
@@ -107,7 +107,7 @@ class CampaignScheduleLifecycleCoverageTest {
     rig.war.setCursorIndex(1);
     rig.war.setInitiativeAttacker(5);
     rig.war.setInitiativeDefender(5);
-    rig.war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+    rig.war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
     rig.war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
   }
 
@@ -175,7 +175,7 @@ class CampaignScheduleLifecycleCoverageTest {
   @Test
   void reSiegingAnOffAxisFortKeepsItsHomeProvinceAndChronologyAnchor() {
     var fort = rig.install(rig.defender, "off-axis-fort", InstallationKind.FORT, 21);
-    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignSideRole.DEFENDER);
     rig.war.setCampaignBattleSchedule(
         List.of(new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, true, null)));
 
@@ -229,7 +229,7 @@ class CampaignScheduleLifecycleCoverageTest {
     CampaignScheduleService.advanceIndex(rig.war);
     assertTrue(CampaignScheduleService.slotForProvince(rig.war, 12).isEmpty());
     rig.war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
-    rig.war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+    rig.war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
     assertEquals(ScheduleLeg.COUNTER, CampaignScheduleService.activeLeg(rig.war));
     assertEquals(capital, CampaignScheduleService.slotAtActiveIndex(rig.war).orElseThrow());
     CampaignScheduleService.advanceIndex(rig.war);
@@ -257,14 +257,14 @@ class CampaignScheduleLifecycleCoverageTest {
       strings = {"terminal", "retake", "no-objective", "already-later", "friendly", "counter"})
   void reSiegeChecksRespectTheLivePushAndDoNotDuplicateOrAttackFriendlyForts(String state) {
     var fort = rig.install(rig.defender, "defender-fort", InstallationKind.FORT, 20);
-    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignSideRole.DEFENDER);
     rig.war.setCampaignBattleSchedule(List.of(field(20, true)));
     rig.war.setCampaignCounterSchedule(List.of(field(10, true)));
     if (state.equals("terminal")) rig.war.setCursorIndex(3);
     if (state.equals("retake")) rig.war.setPushTarget(CampaignPushTarget.RETAKE_OBJECTIVE);
     if (state.equals("no-objective")) rig.war.setObjectiveProvinceId(999);
     if (state.equals("friendly"))
-      rig.war.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
+      rig.war.putFortController(fort.getStableKey(), CampaignSideRole.AGGRESSOR);
     if (state.equals("already-later"))
       rig.war.setCampaignBattleSchedule(
           List.of(
@@ -272,7 +272,7 @@ class CampaignScheduleLifecycleCoverageTest {
               new ScheduledCampaignBattle(20, CampaignBattleKind.SIEGE, false, fort.getId())));
     if (state.equals("counter")) {
       rig.war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
-      rig.war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+      rig.war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
       rig.war.setCursorIndex(3);
     }
     List<ScheduledCampaignBattle> before = List.copyOf(rig.war.getCampaignBattleSchedule());
@@ -297,7 +297,7 @@ class CampaignScheduleLifecycleCoverageTest {
         ScheduleLeg.INVASION,
         12,
         BattleTrigger.BORDER,
-        CampaignCoalition.AGGRESSOR,
+        CampaignSideRole.AGGRESSOR,
         null,
         null);
     CampaignBattlePlacer.placeBattle(
@@ -306,22 +306,22 @@ class CampaignScheduleLifecycleCoverageTest {
         ScheduleLeg.INVASION,
         12,
         BattleTrigger.BORDER,
-        CampaignCoalition.AGGRESSOR,
+        CampaignSideRole.AGGRESSOR,
         null,
         null);
     CampaignBattlePlacer.placeBattle(
-        ctx, rig.war, null, 12, BattleTrigger.BORDER, CampaignCoalition.AGGRESSOR, null, null);
+        ctx, rig.war, null, 12, BattleTrigger.BORDER, CampaignSideRole.AGGRESSOR, null, null);
     CampaignBattlePlacer.placeBattle(
         ctx,
         rig.war,
         ScheduleLeg.INVASION,
         0,
         BattleTrigger.BORDER,
-        CampaignCoalition.AGGRESSOR,
+        CampaignSideRole.AGGRESSOR,
         null,
         null);
     CampaignBattlePlacer.placeBattle(
-        ctx, rig.war, ScheduleLeg.INVASION, 12, null, CampaignCoalition.AGGRESSOR, null, null);
+        ctx, rig.war, ScheduleLeg.INVASION, 12, null, CampaignSideRole.AGGRESSOR, null, null);
     place(ctx, 30, BattleTrigger.NAVAL, null, " ");
     place(ctx, 30, BattleTrigger.OBJECTIVE, null, null);
     assertTrue(ctx.invasion().isEmpty());
@@ -343,7 +343,7 @@ class CampaignScheduleLifecycleCoverageTest {
   @Test
   void fortPlacementChecksIdentityAndReplacesOnlyOptionalFieldsAtItsChronologyTile() {
     var fort = rig.install(rig.defender, "off-axis", InstallationKind.FORT, 21);
-    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignSideRole.DEFENDER);
     CampaignScheduleBuildContext ctx = context(FortZocIndex.fromGameState());
     place(ctx, 10, BattleTrigger.FORT_ZOC, "absent", null);
     place(ctx, 12, BattleTrigger.FORT_ZOC, "different-fort", null);
@@ -676,7 +676,7 @@ class CampaignScheduleLifecycleCoverageTest {
     assertFalse(BattleManager.get().contains(pending));
     assertEquals(4, rig.war.getInitiativeAttacker());
     assertEquals(1, rig.war.getCampaignBattlesFought());
-    assertEquals(CampaignCoalition.DEFENDER, rig.war.getPostBattleWinnerCoalition());
+    assertEquals(CampaignSideRole.DEFENDER, rig.war.getPostBattleWinnerCoalition());
     verify(rig.alice, times(online ? 1 : 0)).sendMessage(CampaignUiCopy.navalAutoLossBroadcast());
     verify(rig.bob, times(online ? 1 : 0)).sendMessage(CampaignUiCopy.navalAutoLossBroadcast());
     assertFalse(
@@ -730,7 +730,7 @@ class CampaignScheduleLifecycleCoverageTest {
     assertTrue(BattleScheduleService.markScheduledAtProvince(rig.war, 12));
     assertSame(battle, BattleManager.getByWarId(rig.war.getId()));
     rig.war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
-    rig.war.setPostBattleWinnerCoalition(CampaignCoalition.AGGRESSOR);
+    rig.war.setPostBattleWinnerCoalition(CampaignSideRole.AGGRESSOR);
     rig.war.setPostBattleChoiceResolved(false);
     assertNull(BattleScheduleService.resolveScheduledProvinceId(rig.war));
     assertFalse(BattleScheduleService.applyScheduledInstant(rig.war, at));
@@ -780,7 +780,7 @@ class CampaignScheduleLifecycleCoverageTest {
   @Test
   void placementKeepsAnObjectiveUntilItIsUpgradedAndOrdersLegacyNavalKinds() {
     var fort = rig.install(rig.defender, "objective-fort", InstallationKind.FORT, 20);
-    rig.war.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
+    rig.war.putFortController(fort.getStableKey(), CampaignSideRole.DEFENDER);
     var ctx = context(FortZocIndex.fromGameState());
     place(ctx, 20, BattleTrigger.CADENCE, null, null);
     place(ctx, 20, BattleTrigger.FORT_ZOC, fort.getId(), null);
@@ -798,7 +798,7 @@ class CampaignScheduleLifecycleCoverageTest {
         ScheduleLeg.COUNTER,
         12,
         BattleTrigger.NAVAL,
-        CampaignCoalition.DEFENDER,
+        CampaignSideRole.DEFENDER,
         null,
         "port");
     CampaignBattlePlacer.placeBattle(
@@ -807,7 +807,7 @@ class CampaignScheduleLifecycleCoverageTest {
         ScheduleLeg.COUNTER,
         12,
         BattleTrigger.OBJECTIVE,
-        CampaignCoalition.DEFENDER,
+        CampaignSideRole.DEFENDER,
         null,
         null);
     assertEquals(
@@ -992,7 +992,7 @@ class CampaignScheduleLifecycleCoverageTest {
   private void place(
       CampaignScheduleBuildContext ctx, int id, BattleTrigger trigger, String fort, String port) {
     CampaignBattlePlacer.placeBattle(
-        ctx, rig.war, ScheduleLeg.INVASION, id, trigger, CampaignCoalition.AGGRESSOR, fort, port);
+        ctx, rig.war, ScheduleLeg.INVASION, id, trigger, CampaignSideRole.AGGRESSOR, fort, port);
   }
 
   private void link(int a, int b) {

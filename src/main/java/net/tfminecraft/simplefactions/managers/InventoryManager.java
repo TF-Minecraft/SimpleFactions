@@ -41,7 +41,9 @@ import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
 import net.tfminecraft.simplefactions.managers.holder.CampaignInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.CampaignRaidLaunchHolder;
+import net.tfminecraft.simplefactions.managers.holder.CoalitionHolder;
 import net.tfminecraft.simplefactions.managers.holder.DeclareWarHolder;
+import net.tfminecraft.simplefactions.managers.inventory.CoalitionView;
 import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.WarInventoryHolder;
@@ -190,6 +192,7 @@ public class InventoryManager implements Listener{
 	public CampaignInstallationPickView campaignInstallationPickView = new CampaignInstallationPickView(this);
 	public CampaignRaidLaunchView campaignRaidLaunchView = new CampaignRaidLaunchView(this);
 	public DeclareWarView declareWarView = new DeclareWarView(this);
+	public CoalitionView coalitionView = new CoalitionView(this);
 
 	public void warList(Player player) {
 		warView.warList(player);
@@ -1130,7 +1133,8 @@ public class InventoryManager implements Listener{
 				|| holder instanceof CampaignInventoryHolder
 				|| holder instanceof CampaignRaidLaunchHolder
 				|| holder instanceof SFCombinedInventoryHolder
-				|| holder instanceof DeclareWarHolder;
+				|| holder instanceof DeclareWarHolder
+				|| holder instanceof CoalitionHolder;
 	}
 
 	/** Raw slots below the top inventory's size are its own; the rest belong to the player. */
@@ -1157,7 +1161,8 @@ public class InventoryManager implements Listener{
 				|| inv.getHolder() instanceof CampaignInventoryHolder
 				|| inv.getHolder() instanceof CampaignRaidLaunchHolder
 				|| inv.getHolder() instanceof SFCombinedInventoryHolder
-				|| inv.getHolder() instanceof DeclareWarHolder) {
+				|| inv.getHolder() instanceof DeclareWarHolder
+				|| inv.getHolder() instanceof CoalitionHolder) {
 			e.setCancelled(true);
 		}
 		if (inv.getHolder() instanceof SFInventoryHolder) {
@@ -1498,6 +1503,8 @@ public class InventoryManager implements Listener{
 			}
 		} else if (inv.getHolder() instanceof DeclareWarHolder) {
 			declareWarView.click(e, inv, p);
+		} else if (inv.getHolder() instanceof CoalitionHolder) {
+			coalitionView.click(e, inv, p);
 		}
 		if(e.getView().getTitle().equalsIgnoreCase("§7Confirm Action")) {
 			e.setCancelled(true);

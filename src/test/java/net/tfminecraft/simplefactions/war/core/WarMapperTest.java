@@ -38,8 +38,8 @@ import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarStatus;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
@@ -110,7 +110,7 @@ class WarMapperTest {
 		when(war.getCampaignBattlesFought()).thenReturn(2);
 		when(war.getCampaignBattleSchedule()).thenReturn(List.of());
 		when(war.getCampaignScheduleIndex()).thenReturn(0);
-		when(war.getFortControllers()).thenReturn(Map.of("fort_a", CampaignCoalition.DEFENDER));
+		when(war.getFortControllers()).thenReturn(Map.of("fort_a", CampaignSideRole.DEFENDER));
 		when(war.getBattleSchedulePhase()).thenReturn(BattleSchedulePhase.SCHEDULED);
 		when(war.getBattleDay()).thenReturn(LocalDate.parse("2026-08-21"));
 		when(war.getScheduledBattleAt()).thenReturn(Instant.parse("2026-08-21T21:00:00Z"));
@@ -250,7 +250,7 @@ class WarMapperTest {
 
 			assertEquals(0, war.getCampaignBattlesFought());
 			assertEquals(BelligerentRole.ATTACKER, war.getInitiativeHolder());
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getInitiativeHolderCoalition());
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getInitiativeHolderCoalition());
 		} finally {
 			FactionManager.factions.remove(attacker);
 			FactionManager.factions.remove(defender);
@@ -323,7 +323,7 @@ class WarMapperTest {
 
 			War war = WarMapper.fromData(data);
 
-			assertEquals(CampaignCoalition.DEFENDER, war.getInitiativeHolderCoalition());
+			assertEquals(CampaignSideRole.DEFENDER, war.getInitiativeHolderCoalition());
 			assertEquals(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL, war.getPushTarget());
 			assertEquals(PostBattleChoicePhase.NONE, war.getPostBattleChoicePhase());
 		} finally {
@@ -345,12 +345,12 @@ class WarMapperTest {
 			data.schemaVersion = 3;
 			data.id = 12;
 			data.status = "active";
-			data.initiativeHolderCoalition = CampaignCoalition.DEFENDER.toJson();
+			data.initiativeHolderCoalition = CampaignSideRole.DEFENDER.toJson();
 			data.pushTarget = CampaignPushTarget.RETAKE_OBJECTIVE.toJson();
 			data.postBattleChoicePhase = PostBattleChoicePhase.LOSER_ATTACK_PEACE.toJson();
-			data.postBattleWinnerCoalition = CampaignCoalition.AGGRESSOR.toJson();
+			data.postBattleWinnerCoalition = CampaignSideRole.AGGRESSOR.toJson();
 			data.postBattleChoiceResolved = false;
-			data.lastBattleOffensiveCoalition = CampaignCoalition.AGGRESSOR.toJson();
+			data.lastBattleOffensiveCoalition = CampaignSideRole.AGGRESSOR.toJson();
 			data.holdPeaceProposalActive = true;
 			data.campaignPhase = CampaignPhase.INVASION.toJson();
 			data.objectiveHeldBy = ObjectiveHolder.ATTACKER.toJson();
@@ -367,12 +367,12 @@ class WarMapperTest {
 
 			War war = WarMapper.fromData(data);
 
-			assertEquals(CampaignCoalition.DEFENDER, war.getInitiativeHolderCoalition());
+			assertEquals(CampaignSideRole.DEFENDER, war.getInitiativeHolderCoalition());
 			assertEquals(CampaignPushTarget.RETAKE_OBJECTIVE, war.getPushTarget());
 			assertEquals(PostBattleChoicePhase.LOSER_ATTACK_PEACE, war.getPostBattleChoicePhase());
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getPostBattleWinnerCoalition());
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getPostBattleWinnerCoalition());
 			assertFalse(war.isPostBattleChoiceResolved());
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getLastBattleOffensiveCoalition());
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getLastBattleOffensiveCoalition());
 			assertTrue(war.isHoldPeaceProposalActive());
 		} finally {
 			FactionManager.factions.remove(attacker);
@@ -629,13 +629,13 @@ class WarMapperTest {
 			UUID account = UUID.fromString("00000000-0000-0000-0000-000000000007");
 			WarData data = minimalWarData();
 			data.accountCoalitions = new HashMap<>();
-			data.accountCoalitions.put(account.toString(), CampaignCoalition.DEFENDER.toJson());
+			data.accountCoalitions.put(account.toString(), CampaignSideRole.DEFENDER.toJson());
 			data.accountCoalitions.put("bad", "unknown");
 
 			War war = WarMapper.fromData(data);
-			assertEquals(CampaignCoalition.DEFENDER, war.getAccountCoalition(account));
-			assertFalse(war.bindAccountCoalition(account, CampaignCoalition.AGGRESSOR));
-			assertEquals(CampaignCoalition.DEFENDER, war.getAccountCoalition(account));
+			assertEquals(CampaignSideRole.DEFENDER, war.getAccountCoalition(account));
+			assertFalse(war.bindAccountCoalition(account, CampaignSideRole.AGGRESSOR));
+			assertEquals(CampaignSideRole.DEFENDER, war.getAccountCoalition(account));
 
 			WarData roundTripped = WarMapper.toData(war);
 			assertEquals(Map.of(account.toString(), "defender"), roundTripped.accountCoalitions);
@@ -656,13 +656,13 @@ class WarMapperTest {
 		try {
 			WarData data = minimalWarData();
 			data.fortControllers = new HashMap<>();
-			data.fortControllers.put("fort_a", CampaignCoalition.DEFENDER.toJson());
-			data.fortControllers.put("fort_b", CampaignCoalition.AGGRESSOR.toJson());
+			data.fortControllers.put("fort_a", CampaignSideRole.DEFENDER.toJson());
+			data.fortControllers.put("fort_b", CampaignSideRole.AGGRESSOR.toJson());
 			data.fortControllers.put("fort_bad", "unknown");
 
 			War war = WarMapper.fromData(data);
-			assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get("fort_a"));
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get("fort_b"));
+			assertEquals(CampaignSideRole.DEFENDER, war.getFortControllers().get("fort_a"));
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getFortControllers().get("fort_b"));
 			assertFalse(war.getFortControllers().containsKey("fort_bad"));
 
 			WarData roundTripped = WarMapper.toData(war);
@@ -765,7 +765,7 @@ class WarMapperTest {
 		try {
 			War war = new War(42, attacker, defender);
 			war.setBattleDay(LocalDate.parse("2026-08-21"));
-			war.getCampaignRaidsUsed().put(CampaignCoalition.AGGRESSOR.toJson(), "2026-08-21");
+			war.getCampaignRaidsUsed().put(CampaignSideRole.AGGRESSOR.toJson(), "2026-08-21");
 			war.getRaidRepairLockUntil().put(
 					"port-def",
 					Instant.parse("2026-08-27T20:00:00+02:00"));
@@ -775,7 +775,7 @@ class WarMapperTest {
 			raid.setDisplayName("Harbor Raid");
 			raid.setWarId(42);
 			raid.setBattleDay(LocalDate.parse("2026-08-21"));
-			raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+			raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 			raid.setLauncherFactionId("faction_a");
 			raid.setSourceInstallationId("port-atk");
 			raid.setTargetInstallationId("port-def");

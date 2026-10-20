@@ -48,7 +48,7 @@ import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceSe
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
@@ -104,7 +104,7 @@ class CampaignRaidResumeServiceTest {
 		raid.setId("def_port_raid");
 		raid.setDisplayName("Def Port Raid");
 		raid.setWarId(1);
-		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 		raid.setState(CampaignRaidState.FIGHTING);
 		raid.setFightEndsAt(Instant.parse("2026-08-21T20:10:00Z"));
 		raid.setBattleId("def_port_raid");

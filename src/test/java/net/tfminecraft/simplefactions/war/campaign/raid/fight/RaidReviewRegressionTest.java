@@ -15,7 +15,7 @@ import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleCommandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.LaunchResult;
@@ -56,7 +56,7 @@ class RaidReviewRegressionTest {
     assertEquals(CampaignRaidState.MUSTER, raid.getState());
     assertNull(raid.getBattleId());
     assertTrue(BattleManager.get().isEmpty());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignCoalition.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
     assertTrue(
         CampaignRaidWarbandService.isRaidWarbandHiddenFromPlayer(
             CampaignRaidWarbandService.getDefenderWarband(raid), rig.bob));

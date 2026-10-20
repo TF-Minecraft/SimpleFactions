@@ -60,6 +60,10 @@ war:
     vassalage_group: vassalage
     vassalage_law: inclusive
   declined_ally_stability_penalty: -30
+  # Declining a call from a coalition member costs more than declining an ally.
+  declined_coalition_stability_penalty: -45
+  # How long a call to arms waits for an answer. Running out is never a decline.
+  call_to_arms_expiry_seconds: 300
   battle_cadence:
     first_battle_at_border: true
     provinces_between_battles: 3

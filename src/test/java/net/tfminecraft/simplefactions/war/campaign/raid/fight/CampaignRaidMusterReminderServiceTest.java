@@ -28,7 +28,7 @@ import org.mockito.MockedStatic;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -109,7 +109,7 @@ class CampaignRaidMusterReminderServiceTest {
 		raid.setDisplayName("Harbor Raid");
 		raid.setWarId(1);
 		raid.setBattleDay(battleDay);
-		raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
 		raid.setLauncherFactionId("atk");
 		raid.setSourceInstallationId("src");
 		raid.setTargetInstallationId("tgt");

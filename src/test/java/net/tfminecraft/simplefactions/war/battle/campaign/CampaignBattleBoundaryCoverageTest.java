@@ -796,8 +796,8 @@ class CampaignBattleBoundaryCoverageTest {
             .CampaignPostBattleChoiceService.PostBattleChoicePhase.WINNER_PUSH_HOLD);
     rig.war.setPostBattleChoiceResolved(false);
     rig.war.setPostBattleWinnerCoalition(
-        net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService
-            .CampaignCoalition.AGGRESSOR);
+        net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService
+            .CampaignSideRole.AGGRESSOR);
     org.bukkit.Server before = Bukkit.getServer();
     clearInvocations(rig.alice, rig.bob);
     try {
@@ -997,8 +997,8 @@ class CampaignBattleBoundaryCoverageTest {
     assertSame(manual, BattleManager.getByString(manual.getId()));
     assertSame(manualBand, WarbandManager.getByString(manualBand.getId()));
     assertEquals(1, manualBand.getRealMemberCount());
-    verify(rig.alice).sendMessage("§7The war has ended. The attacker coalition wins.");
-    verify(rig.bob).sendMessage("§7The war has ended. The attacker coalition wins.");
+    verify(rig.alice).sendMessage("§7The war has ended. The attacking side wins.");
+    verify(rig.bob).sendMessage("§7The war has ended. The attacking side wins.");
     verify(rig.alice, never()).sendMessage(contains("Choose"));
     verify(rig.bob, never()).sendMessage(contains("Choose"));
   }

@@ -17,7 +17,7 @@ import net.tfminecraft.simplefactions.database.WarData;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
 import net.tfminecraft.simplefactions.war.civilwar.split.CivilWarMemberMove;
@@ -167,7 +167,7 @@ class WarPersistenceCoverageTest {
     war.setCampaignCounterScheduleIndex(1);
     war.setCampaignProvinces(List.of(7, 8));
     war.setConcededScheduleSlots(List.of("attacker:0"));
-    war.setFortControllers(Map.of("fort", CampaignCoalition.AGGRESSOR));
+    war.setFortControllers(Map.of("fort", CampaignSideRole.AGGRESSOR));
     war.setWartimeInstallationOwners(Map.of("fort", defender.getId()));
     war.setLocationBattleCounts(Map.of("7", 2));
     LocalDate day = LocalDate.of(2026, 10, 9);
@@ -221,10 +221,10 @@ class WarPersistenceCoverageTest {
     ScheduledCampaignBattle slot =
         new ScheduledCampaignBattle(7, CampaignBattleKind.FIELD, true, null);
     war.setCampaignBattleSchedule(Arrays.asList(null, slot));
-    Map<String, CampaignCoalition> controllers = new LinkedHashMap<>();
-    controllers.put("", CampaignCoalition.AGGRESSOR);
+    Map<String, CampaignSideRole> controllers = new LinkedHashMap<>();
+    controllers.put("", CampaignSideRole.AGGRESSOR);
     controllers.put("missing", null);
-    controllers.put("fort", CampaignCoalition.DEFENDER);
+    controllers.put("fort", CampaignSideRole.DEFENDER);
     war.setFortControllers(controllers);
     war.getBattleInstallationPicks().put("", new LinkedHashSet<>(List.of("ignored")));
     war.getBattleInstallationPicks().put("missing", null);
@@ -253,7 +253,7 @@ class WarPersistenceCoverageTest {
     War loaded = WarMapper.fromData(WarMapper.toData(war));
 
     assertEquals(List.of(slot), loaded.getCampaignBattleSchedule());
-    assertEquals(Map.of("fort", CampaignCoalition.DEFENDER), loaded.getFortControllers());
+    assertEquals(Map.of("fort", CampaignSideRole.DEFENDER), loaded.getFortControllers());
     assertEquals(Map.of("attacker", Set.of("fort")), loaded.getBattleInstallationPicks());
     assertEquals(Map.of("fort", Instant.EPOCH), loaded.getRaidRepairLockUntil());
     assertEquals(Map.of(player, Set.of(20)), loaded.getBattleVotes());

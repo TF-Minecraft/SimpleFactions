@@ -14,8 +14,8 @@ import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignNavyGate;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
@@ -267,7 +267,7 @@ public class WarCampaignService {
 	}
 
 	static void initProgressionState(War war) {
-		CampaignCoalitionService.setInitiativeHolderCoalition(war, CampaignCoalition.AGGRESSOR);
+		CampaignSideService.setInitiativeHolderCoalition(war, CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);
 		war.setPostBattleChoiceResolved(true);
@@ -281,7 +281,7 @@ public class WarCampaignService {
 		war.setWhitePeaceProposedByAttacker(false);
 		war.setWhitePeaceProposedByDefender(false);
 		war.setCampaignBattlesFought(0);
-		war.setSchemaVersion(CampaignCoalitionService.SCHEMA_VERSION);
+		war.setSchemaVersion(CampaignSideService.SCHEMA_VERSION);
 	}
 
 	static void initScheduleState(War war) {

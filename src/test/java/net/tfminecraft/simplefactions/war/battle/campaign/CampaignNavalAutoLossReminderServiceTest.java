@@ -32,7 +32,7 @@ import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 
 class CampaignNavalAutoLossReminderServiceTest {
@@ -83,7 +83,7 @@ class CampaignNavalAutoLossReminderServiceTest {
 	@Test
 	void processReminders_pingsOffensiveLeaderDuringCounterPush() {
 		War war = navalVotingWar();
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		Player alice = mock(Player.class);
 		Player bob = mock(Player.class);
 		when(alice.isOnline()).thenReturn(true);
@@ -131,7 +131,7 @@ class CampaignNavalAutoLossReminderServiceTest {
 		war.setCampaignStartProvinceId(20);
 		war.setCampaignProvinces(List.of(5, 10, 20, 30));
 		war.setCursorIndex(2);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);
 		war.setPostBattleChoiceResolved(true);

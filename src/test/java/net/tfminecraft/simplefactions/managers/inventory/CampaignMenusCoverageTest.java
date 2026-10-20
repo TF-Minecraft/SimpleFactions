@@ -30,7 +30,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignNavyGate;
 import net.tfminecraft.simplefactions.war.campaign.progression.WhitePeaceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
@@ -507,7 +507,7 @@ class CampaignMenusCoverageTest {
     war.setPostBattleChoicePhase(
         winner ? PostBattleChoicePhase.WINNER_PUSH_HOLD : PostBattleChoicePhase.LOSER_ATTACK_PEACE);
     war.setPostBattleWinnerCoalition(
-        winner ? CampaignCoalition.AGGRESSOR : CampaignCoalition.DEFENDER);
+        winner ? CampaignSideRole.AGGRESSOR : CampaignSideRole.DEFENDER);
     war.setPostBattleChoiceResolved(false);
     view.campaignView(player, war, true);
     Inventory inventory = top();
@@ -853,7 +853,7 @@ class CampaignMenusCoverageTest {
         .sendMessage(
             switch (result) {
               case REJECTED_VOTE_CLOSED -> "§cRetreat is closed for this battle day.";
-              case REJECTED_NOT_LEADER -> "§cOnly the pushed coalition war leader can retreat.";
+              case REJECTED_NOT_LEADER -> "§cOnly the war leader of the pushed side can retreat.";
               case REJECTED_POST_BATTLE_CHOICE -> "§cResolve the post-battle choice first.";
               case REJECTED_NO_ACTIVE_SLOT -> "§cNo active battle slot to concede.";
               case REJECTED_NOT_ELIGIBLE -> "§cYou cannot retreat right now.";
@@ -910,11 +910,11 @@ class CampaignMenusCoverageTest {
     war.setPostBattleChoiceResolved(false);
     if (List.of("push", "hold").contains(action)) {
       war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
-      war.setPostBattleWinnerCoalition(CampaignCoalition.AGGRESSOR);
+      war.setPostBattleWinnerCoalition(CampaignSideRole.AGGRESSOR);
     }
     if (List.of("attack", "loser_peace").contains(action)) {
       war.setPostBattleChoicePhase(PostBattleChoicePhase.LOSER_ATTACK_PEACE);
-      war.setPostBattleWinnerCoalition(CampaignCoalition.DEFENDER);
+      war.setPostBattleWinnerCoalition(CampaignSideRole.DEFENDER);
     }
     if (action.equals("retreat"))
       retreat.when(() -> CampaignRetreatService.canRetreat(war, attacker, NOW)).thenReturn(true);

@@ -41,7 +41,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleLocation;
 import net.tfminecraft.simplefactions.war.battle.template.CapturePointDefinition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults;
@@ -610,7 +610,7 @@ class InstallationProtectionCoverageTest {
     raid.setId("raid_1");
     raid.setWarId(1);
     raid.setBattleDay(war.getBattleDay());
-    raid.setAttackerCoalition(CampaignCoalition.AGGRESSOR);
+    raid.setAttackerCoalition(CampaignSideRole.AGGRESSOR);
     raid.setLauncherFactionId(attacker.getId());
     raid.setSourceInstallationId("harbor");
     raid.setTargetInstallationId("enemy_port");

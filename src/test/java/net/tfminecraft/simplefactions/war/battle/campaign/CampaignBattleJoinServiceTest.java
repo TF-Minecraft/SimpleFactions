@@ -38,7 +38,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService;
 import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandMembershipService;
@@ -90,7 +90,7 @@ class CampaignBattleJoinServiceTest {
 		War war = new War(1, attacker, defender);
 		war.setScheduledBattleProvinceId(PROVINCE_ID);
 		Battle battle = campaignBattle(1);
-		battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+		battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
 		Warband warband = Warband.createCampaignSideShell(
 				"counter_attacker", war, war.getDefenders(), BattleTemplate.ATTACKER_SIDE);
 

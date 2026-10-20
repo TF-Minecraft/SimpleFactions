@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex.OperationalFort;
@@ -117,8 +117,8 @@ class CampaignScheduleServiceTest {
 	void ensureReSiegeInsert_addsSiegeWhenEnemyFortOnPath() {
 		War war = warWithSchedule(field(30));
 		war.setCampaignCounterSchedule(List.of(field(5)));
-		war.putFortController(new OperationalFort("fort_a", attacker, 10, 100L).stableKey(), CampaignCoalition.AGGRESSOR);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.putFortController(new OperationalFort("fort_a", attacker, 10, 100L).stableKey(), CampaignSideRole.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 
 		FortZocIndex index = FortZocIndex.fromForts(List.of(
@@ -135,8 +135,8 @@ class CampaignScheduleServiceTest {
 	void ensureReSiegeInsert_skipsWhenCurrentSlotAlreadySiegeForFort() {
 		War war = warWithSchedule(field(30));
 		war.setCampaignCounterSchedule(List.of(siege(10, "fort_a"), field(5)));
-		war.putFortController(new OperationalFort("fort_a", attacker, 10, 100L).stableKey(), CampaignCoalition.AGGRESSOR);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.putFortController(new OperationalFort("fort_a", attacker, 10, 100L).stableKey(), CampaignSideRole.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 
 		FortZocIndex index = FortZocIndex.fromForts(List.of(
@@ -152,7 +152,7 @@ class CampaignScheduleServiceTest {
 	void currentSlot_counterPush_usesCounterSchedule() {
 		War war = warWithSchedule(field(20), field(30));
 		war.setCampaignCounterSchedule(List.of(field(10), field(5)));
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 		war.setCampaignCounterScheduleIndex(0);
 
@@ -163,7 +163,7 @@ class CampaignScheduleServiceTest {
 	void advanceIndex_counterPush_incrementsCounterIndexOnly() {
 		War war = warWithSchedule(field(20), field(30));
 		war.setCampaignCounterSchedule(List.of(field(10), field(5)));
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 
 		CampaignScheduleService.advanceIndex(war);
@@ -182,13 +182,13 @@ class CampaignScheduleServiceTest {
 		assertEquals(0, war.getCampaignCounterScheduleIndex());
 
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		CampaignScheduleService.advanceIndex(war);
 		assertEquals(1, war.getCampaignScheduleIndex());
 		assertEquals(1, war.getCampaignCounterScheduleIndex());
 
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		assertEquals(30, CampaignScheduleService.currentSlot(war).orElseThrow().provinceId());
 	}
 
@@ -242,7 +242,7 @@ class CampaignScheduleServiceTest {
 		war.setCursorIndex(2);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setCampaignBattleSchedule(List.of(slots));
 		war.setCampaignScheduleIndex(0);

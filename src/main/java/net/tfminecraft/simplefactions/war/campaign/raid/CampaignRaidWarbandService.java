@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceSe
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -127,7 +127,7 @@ public final class CampaignRaidWarbandService {
 		if (warband == null || warband.isIdentityHeld() || warband.hasMember(playerId)) {
 			return;
 		}
-		CampaignCoalition coalition = raid.getAttackerCoalition();
+		CampaignSideRole coalition = raid.getAttackerCoalition();
 		if (CampaignWarbandSideLock.refusal(war, coalition, playerId) != null) {
 			return;
 		}
@@ -150,7 +150,7 @@ public final class CampaignRaidWarbandService {
 		if (warband == null || warband.isIdentityHeld() || warband.hasMember(playerId)) {
 			return;
 		}
-		CampaignCoalition coalition = raid.getAttackerCoalition().opposing();
+		CampaignSideRole coalition = raid.getAttackerCoalition().opposing();
 		if (CampaignWarbandSideLock.refusal(war, coalition, playerId) != null) {
 			return;
 		}
@@ -206,8 +206,8 @@ public final class CampaignRaidWarbandService {
 			if (raid == null || raid.getState() != CampaignRaidState.FIGHTING) {
 				continue;
 			}
-			CampaignCoalition playerCoalition = CampaignRaidService.coalitionForFaction(war, faction);
-			CampaignCoalition defendingCoalition = raid.getAttackerCoalition() != null
+			CampaignSideRole playerCoalition = CampaignRaidService.coalitionForFaction(war, faction);
+			CampaignSideRole defendingCoalition = raid.getAttackerCoalition() != null
 					? raid.getAttackerCoalition().opposing()
 					: null;
 			if (playerCoalition != defendingCoalition) {
@@ -254,7 +254,7 @@ public final class CampaignRaidWarbandService {
 						new java.io.File("plugins/SimpleFactions/Warbands", "warband_" + id + ".json"))) {
 			return;
 		}
-		CampaignCoalition coalition = attacker
+		CampaignSideRole coalition = attacker
 				? raid.getAttackerCoalition()
 				: (raid.getAttackerCoalition() != null ? raid.getAttackerCoalition().opposing() : null);
 		Side side = coalitionSide(war, coalition);
@@ -276,17 +276,17 @@ public final class CampaignRaidWarbandService {
 		}
 	}
 
-	private static String campaignSideIdForCoalition(CampaignCoalition coalition) {
-		return coalition == CampaignCoalition.AGGRESSOR
+	private static String campaignSideIdForCoalition(CampaignSideRole coalition) {
+		return coalition == CampaignSideRole.AGGRESSOR
 				? BattleTemplate.ATTACKER_SIDE
 				: BattleTemplate.DEFENDER_SIDE;
 	}
 
-	private static Side coalitionSide(War war, CampaignCoalition coalition) {
+	private static Side coalitionSide(War war, CampaignSideRole coalition) {
 		if (war == null || coalition == null) {
 			return null;
 		}
-		return coalition == CampaignCoalition.AGGRESSOR ? war.getAttackers() : war.getDefenders();
+		return coalition == CampaignSideRole.AGGRESSOR ? war.getAttackers() : war.getDefenders();
 	}
 
 	private static void deleteIfPresent(Warband warband) {

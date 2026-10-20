@@ -9,8 +9,8 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
@@ -238,7 +238,7 @@ public final class CampaignScheduleService {
 		if (!hasActiveSchedule(war) || !CampaignCapabilityService.isValidWar(war) || fortIndex == null) {
 			return;
 		}
-		CampaignCoalition advancing = CampaignCoalitionService.getInitiativeHolderCoalition(war);
+		CampaignSideRole advancing = CampaignSideService.getInitiativeHolderCoalition(war);
 
 		int index = activeScheduleIndex(war);
 		Optional<ScheduledCampaignBattle> current = activeSlotAt(war, index);

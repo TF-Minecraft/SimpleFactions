@@ -41,7 +41,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.enums.LifeType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService.SideLivesPreview;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 
 import java.lang.reflect.Constructor;
 import java.util.function.Consumer;
@@ -128,7 +128,7 @@ class BattleLivesServiceTest {
 		War war = campaignWar(1);
 		withMockBossBar(bukkit -> {
 			Battle battle = campaignFieldBattle(1, PROVINCE_ID);
-			battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+			battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
 
 			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
 					MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);

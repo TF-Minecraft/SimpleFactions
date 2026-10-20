@@ -8,8 +8,8 @@ import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilit
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.OccupationService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -52,13 +52,13 @@ public final class CampaignRetreatService {
 	private CampaignRetreatService() {
 	}
 
-	public static CampaignCoalition pushedCoalition(War war) {
+	public static CampaignSideRole pushedCoalition(War war) {
 		if (war == null) {
 			return null;
 		}
 		return switch (CampaignCapabilityService.effectivePushTarget(war)) {
-			case TOWARD_OBJECTIVE -> CampaignCoalition.DEFENDER;
-			case TOWARD_AGGRESSOR_CAPITAL -> CampaignCoalition.AGGRESSOR;
+			case TOWARD_OBJECTIVE -> CampaignSideRole.DEFENDER;
+			case TOWARD_AGGRESSOR_CAPITAL -> CampaignSideRole.AGGRESSOR;
 			case RETAKE_OBJECTIVE -> null;
 		};
 	}
@@ -96,8 +96,8 @@ public final class CampaignRetreatService {
 		ScheduledCampaignBattle slot = CampaignScheduleService.slotAtActiveIndex(war).orElseThrow();
 
 		int provinceId = slot.provinceId();
-		CampaignCoalition pusher = CampaignCapabilityService.battleOffensiveCoalition(war);
-		BelligerentRole winnerRole = CampaignCoalitionService.coalitionToBelligerentRole(pusher);
+		CampaignSideRole pusher = CampaignCapabilityService.battleOffensiveCoalition(war);
+		BelligerentRole winnerRole = CampaignSideService.coalitionToBelligerentRole(pusher);
 
 		if (slot.kind() == CampaignBattleKind.SIEGE && slot.fortInstallationId() != null) {
 			FortControlService.setControllerAtProvince(war, slot.fortInstallationId(), slot.provinceId(), pusher);
@@ -108,7 +108,7 @@ public final class CampaignRetreatService {
 		war.addConcededScheduleSlot(slotKey(leg, index));
 		CampaignScheduleService.advanceIndex(war);
 		CampaignBattleEndService.advanceAlongPushTarget(war);
-		CampaignCoalitionService.setInitiativeHolderCoalition(war, pusher);
+		CampaignSideService.setInitiativeHolderCoalition(war, pusher);
 		CampaignBattleEndService.clearHoldPeace(war);
 
 		Optional<WarEndReason> autoEnd = WarResolutionService.tryEndAfterBattle(
@@ -155,9 +155,9 @@ public final class CampaignRetreatService {
 				|| CampaignScheduleService.slotAtActiveIndex(war).isEmpty()) {
 			return RetreatResult.REJECTED_NO_ACTIVE_SLOT;
 		}
-		CampaignCoalition pushed = pushedCoalition(war);
+		CampaignSideRole pushed = pushedCoalition(war);
 		if (pushed == null || leader == null
-				|| !CampaignCoalitionService.isCoalitionWarLeader(war, leader, pushed)) {
+				|| !CampaignSideService.isCoalitionWarLeader(war, leader, pushed)) {
 			return RetreatResult.REJECTED_NOT_LEADER;
 		}
 		return null;

@@ -1,7 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import java.util.Optional;
 
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -16,17 +16,17 @@ public final class WhitePeaceService {
 			return Optional.empty();
 		}
 
-		for (CampaignCoalition coalition : CampaignCoalition.values()) {
+		for (CampaignSideRole coalition : CampaignSideRole.values()) {
 			boolean propose = !CampaignCapabilityService.canReachTarget(war, coalition);
 			if (war.isHoldPeaceProposalActive()
 					&& war.getPostBattleWinnerCoalition() == coalition) {
 				propose = true;
 			}
-			if ((coalition == CampaignCoalition.AGGRESSOR && war.isForcedWhitePeaceByAttacker())
-					|| (coalition == CampaignCoalition.DEFENDER && war.isForcedWhitePeaceByDefender())) {
+			if ((coalition == CampaignSideRole.AGGRESSOR && war.isForcedWhitePeaceByAttacker())
+					|| (coalition == CampaignSideRole.DEFENDER && war.isForcedWhitePeaceByDefender())) {
 				propose = true;
 			}
-			CampaignCoalitionService.setWhitePeaceProposed(war, coalition, propose);
+			CampaignSideService.setWhitePeaceProposed(war, coalition, propose);
 		}
 
 		if (shouldAutoEnd(war)) {

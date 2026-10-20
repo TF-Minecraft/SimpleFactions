@@ -19,7 +19,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidFightScheduler;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationLookup;
@@ -71,7 +71,7 @@ public final class CampaignRaidService {
 			return LaunchResult.REJECTED_RAID_IN_PROGRESS;
 		}
 		if (!WarDevMode.isEnabled()) {
-			CampaignCoalition coalition = coalitionForFaction(war, faction);
+			CampaignSideRole coalition = coalitionForFaction(war, faction);
 			if (coalition == null || isSideQuotaUsed(war, coalition)) {
 				return LaunchResult.REJECTED_QUOTA_SPENT;
 			}
@@ -95,7 +95,7 @@ public final class CampaignRaidService {
 			return gate;
 		}
 
-		CampaignCoalition coalition = coalitionForFaction(war, faction);
+		CampaignSideRole coalition = coalitionForFaction(war, faction);
 
 		LocalDate battleDay = war.getBattleDay();
 		Installation target = CampaignRaidEligibilityService.resolveTargetInstallation(war, faction.getId(), targetInstallationId);
@@ -167,7 +167,7 @@ public final class CampaignRaidService {
 		war.getCampaignRaidsUsed().clear();
 	}
 
-	public static boolean isSideQuotaUsed(War war, CampaignCoalition coalition) {
+	public static boolean isSideQuotaUsed(War war, CampaignSideRole coalition) {
 		if (war == null || coalition == null || war.getBattleDay() == null) {
 			return false;
 		}
@@ -182,14 +182,14 @@ public final class CampaignRaidService {
 	 * @param coalition {@code null} clears both sides; otherwise one coalition
 	 * @return number of coalition quota entries removed
 	 */
-	public static int resetRaidQuota(War war, CampaignCoalition coalition) {
+	public static int resetRaidQuota(War war, CampaignSideRole coalition) {
 		if (war == null) {
 			return 0;
 		}
 		syncBattleDay(war);
 		int cleared = 0;
 		if (coalition == null) {
-			for (CampaignCoalition side : CampaignCoalition.values()) {
+			for (CampaignSideRole side : CampaignSideRole.values()) {
 				if (war.getCampaignRaidsUsed().remove(side.toJson()) != null) {
 					cleared++;
 				}
@@ -289,11 +289,11 @@ public final class CampaignRaidService {
 		if (raid == null || raid.getState() != CampaignRaidState.MUSTER) {
 			return false;
 		}
-		CampaignCoalition coalition = coalitionForFaction(war, faction);
+		CampaignSideRole coalition = coalitionForFaction(war, faction);
 		return coalition == null || coalition != raid.getAttackerCoalition();
 	}
 
-	public static CampaignCoalition coalitionForFaction(War war, Faction faction) {
+	public static CampaignSideRole coalitionForFaction(War war, Faction faction) {
 		if (war == null || faction == null) {
 			return null;
 		}
@@ -302,9 +302,9 @@ public final class CampaignRaidService {
 			return null;
 		}
 		if (side == war.getAttackers()) {
-			return CampaignCoalition.AGGRESSOR;
+			return CampaignSideRole.AGGRESSOR;
 		}
-		return CampaignCoalition.DEFENDER;
+		return CampaignSideRole.DEFENDER;
 	}
 
 	private static LaunchResult mapValidateLaunchResult(ValidateLaunchResult result) {

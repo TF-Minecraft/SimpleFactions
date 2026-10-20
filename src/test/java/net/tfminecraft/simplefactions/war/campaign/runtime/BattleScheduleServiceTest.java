@@ -37,7 +37,7 @@ import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -435,8 +435,8 @@ class BattleScheduleServiceTest {
 		War war = votingWar();
 		war.setInitiativeHolder(net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole.ATTACKER);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
-		war.setPostBattleWinnerCoalition(CampaignCoalition.DEFENDER);
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.AGGRESSOR);
+		war.setPostBattleWinnerCoalition(CampaignSideRole.DEFENDER);
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPostBattleChoiceResolved(false);
 		return war;
 	}

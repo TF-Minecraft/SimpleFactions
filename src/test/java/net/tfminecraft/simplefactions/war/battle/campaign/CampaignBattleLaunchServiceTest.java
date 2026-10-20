@@ -59,7 +59,7 @@ import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignOffensiveForfeitService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
@@ -228,7 +228,7 @@ class CampaignBattleLaunchServiceTest {
 			assertEquals(Integer.valueOf(1), battle.getWarId());
 			assertEquals(Integer.valueOf(20), battle.getProvinceId());
 			assertEquals(BattleType.FIELD, battle.getBattleType());
-			assertEquals(CampaignCoalition.AGGRESSOR, battle.getOffensiveCoalition());
+			assertEquals(CampaignSideRole.AGGRESSOR, battle.getOffensiveCoalition());
 			assertFalse(battle.isLocked());
 			assertTrue(battle.hasTeleport());
 		});
@@ -237,14 +237,14 @@ class CampaignBattleLaunchServiceTest {
 	@Test
 	void prepareScheduledBattle_snapshotsCounterPushOffensive() {
 		War war = scheduledWar();
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 
 		withMockBossBar(() -> {
 			Battle battle = CampaignBattleLaunchService.prepareScheduledBattle(war);
 
-			assertEquals(CampaignCoalition.DEFENDER, battle.getOffensiveCoalition());
+			assertEquals(CampaignSideRole.DEFENDER, battle.getOffensiveCoalition());
 			assertEquals(
-					CampaignCoalition.DEFENDER,
+					CampaignSideRole.DEFENDER,
 					BattleMapper.fromData(BattleMapper.toData(battle)).getOffensiveCoalition());
 		});
 	}
@@ -500,7 +500,7 @@ class CampaignBattleLaunchServiceTest {
 		war.setCursorIndex(2);
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);
 		war.setPostBattleChoiceResolved(true);

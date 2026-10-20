@@ -37,8 +37,8 @@ import net.tfminecraft.simplefactions.war.enums.WarStatus;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
@@ -53,7 +53,7 @@ public final class WarMapper {
 	public static WarData toData(War war) {
 		WarData data = new WarData();
 		data.installationReferenceVersion = 1;
-		data.schemaVersion = CampaignCoalitionService.SCHEMA_VERSION;
+		data.schemaVersion = CampaignSideService.SCHEMA_VERSION;
 		data.id = war.getId();
 		data.status = war.getStatus().toJson();
 		if (war.getGoal() != null) {
@@ -90,14 +90,14 @@ public final class WarMapper {
 		data.initiativeAttacker = war.getInitiativeAttacker();
 		data.initiativeDefender = war.getInitiativeDefender();
 		data.initiativeHolder = war.getInitiativeHolder() != null ? war.getInitiativeHolder().name() : BelligerentRole.ATTACKER.name();
-		CampaignCoalition holderCoalition = war.getInitiativeHolderCoalition();
+		CampaignSideRole holderCoalition = war.getInitiativeHolderCoalition();
 		if (holderCoalition == null) {
-			holderCoalition = CampaignCoalitionService.belligerentRoleToCoalition(war.getInitiativeHolder());
+			holderCoalition = CampaignSideService.belligerentRoleToCoalition(war.getInitiativeHolder());
 		}
-		data.initiativeHolderCoalition = holderCoalition != null ? holderCoalition.toJson() : CampaignCoalition.AGGRESSOR.toJson();
+		data.initiativeHolderCoalition = holderCoalition != null ? holderCoalition.toJson() : CampaignSideRole.AGGRESSOR.toJson();
 		CampaignPushTarget pushTarget = war.getPushTarget();
 		if (pushTarget == null) {
-			pushTarget = CampaignCoalitionService.derivePushTargetFromLegacyPhase(
+			pushTarget = CampaignSideService.derivePushTargetFromLegacyPhase(
 					war.getCampaignPhase(),
 					war.getObjectiveHeldBy());
 		}
@@ -122,7 +122,7 @@ public final class WarMapper {
 		data.lastBattleOccupied = war.getLastBattleOccupied() == null
 				? new ArrayList<>()
 				: new ArrayList<>(war.getLastBattleOccupied());
-		data.campaignPhase = war.getCampaignPhase() != null ? war.getCampaignPhase().toJson() : CampaignCoalitionService.deriveLegacyPhaseFromPushTarget(
+		data.campaignPhase = war.getCampaignPhase() != null ? war.getCampaignPhase().toJson() : CampaignSideService.deriveLegacyPhaseFromPushTarget(
 				pushTarget,
 				war.getObjectiveHeldBy()).toJson();
 		data.objectiveHeldBy = war.getObjectiveHeldBy() != null ? war.getObjectiveHeldBy().toJson() : ObjectiveHolder.DEFENDER.toJson();
@@ -330,12 +330,12 @@ public final class WarMapper {
 		return (int) Math.ceil(schedule.size() * Cache.warInitiativeFactor);
 	}
 
-	private static Map<String, String> serializeCoalitions(Map<String, CampaignCoalition> controllers) {
+	private static Map<String, String> serializeCoalitions(Map<String, CampaignSideRole> controllers) {
 		if (controllers == null || controllers.isEmpty()) {
 			return new HashMap<>();
 		}
 		Map<String, String> serialized = new LinkedHashMap<>();
-		for (Map.Entry<String, CampaignCoalition> entry : controllers.entrySet()) {
+		for (Map.Entry<String, CampaignSideRole> entry : controllers.entrySet()) {
 			if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
 				continue;
 			}
@@ -344,16 +344,16 @@ public final class WarMapper {
 		return serialized;
 	}
 
-	private static Map<String, CampaignCoalition> deserializeCoalitions(Map<String, String> controllers) {
+	private static Map<String, CampaignSideRole> deserializeCoalitions(Map<String, String> controllers) {
 		if (controllers == null || controllers.isEmpty()) {
 			return new HashMap<>();
 		}
-		Map<String, CampaignCoalition> deserialized = new HashMap<>();
+		Map<String, CampaignSideRole> deserialized = new HashMap<>();
 		for (Map.Entry<String, String> entry : controllers.entrySet()) {
 			if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null) {
 				continue;
 			}
-			CampaignCoalition coalition = CampaignCoalition.fromJson(entry.getValue());
+			CampaignSideRole coalition = CampaignSideRole.fromJson(entry.getValue());
 			if (coalition == null) {
 				continue;
 			}
@@ -430,6 +430,9 @@ public final class WarMapper {
 				}
 			}
 		}
+		for (Faction member : participant.getCoalitionAllies()) {
+			data.coalitionAllies.add(member.getId());
+		}
 		return data;
 	}
 
@@ -463,6 +466,11 @@ public final class WarMapper {
 
 			Participant participant = new Participant(
 					leader, subjects, allies, backers, new HashMap<>(), participantData.civilWar);
+			if (participantData.coalitionAllies != null) {
+				for (String id : participantData.coalitionAllies) {
+					participant.addCoalitionAlly(FactionManager.getByString(id));
+				}
+			}
 			side.getMainParticipants().add(participant);
 		}
 	}
@@ -510,14 +518,14 @@ public final class WarMapper {
 	}
 
 	private static void applyCampaignRuntimeFields(War war, WarData data) {
-		CampaignCoalition coalition = CampaignCoalition.fromJson(data.initiativeHolderCoalition);
+		CampaignSideRole coalition = CampaignSideRole.fromJson(data.initiativeHolderCoalition);
 		if (coalition == null) {
-			coalition = CampaignCoalitionService.belligerentRoleToCoalition(
+			coalition = CampaignSideService.belligerentRoleToCoalition(
 					parseInitiativeHolder(data.initiativeHolder));
 		}
 		CampaignPushTarget pushTarget = CampaignPushTarget.fromJson(data.pushTarget);
 		if (pushTarget == null) {
-			pushTarget = CampaignCoalitionService.derivePushTargetFromLegacyPhase(
+			pushTarget = CampaignSideService.derivePushTargetFromLegacyPhase(
 					war.getCampaignPhase(),
 					war.getObjectiveHeldBy());
 		}
@@ -527,11 +535,11 @@ public final class WarMapper {
 		}
 		war.setPushTarget(pushTarget);
 		war.setPostBattleChoicePhase(choicePhase);
-		war.setPostBattleWinnerCoalition(CampaignCoalition.fromJson(data.postBattleWinnerCoalition));
-		war.setLastBattleOffensiveCoalition(CampaignCoalition.fromJson(data.lastBattleOffensiveCoalition));
+		war.setPostBattleWinnerCoalition(CampaignSideRole.fromJson(data.postBattleWinnerCoalition));
+		war.setLastBattleOffensiveCoalition(CampaignSideRole.fromJson(data.lastBattleOffensiveCoalition));
 		war.setHoldPeaceProposalActive(data.holdPeaceProposalActive);
-		CampaignCoalitionService.setInitiativeHolderCoalition(war, coalition);
-		war.setCampaignPhase(CampaignCoalitionService.deriveLegacyPhaseFromPushTarget(
+		CampaignSideService.setInitiativeHolderCoalition(war, coalition);
+		war.setCampaignPhase(CampaignSideService.deriveLegacyPhaseFromPushTarget(
 				pushTarget,
 				war.getObjectiveHeldBy()));
 	}

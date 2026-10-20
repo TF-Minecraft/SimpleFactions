@@ -15,7 +15,7 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.core.War;
 
 class CampaignWarbandSideLockTest {
@@ -25,15 +25,15 @@ class CampaignWarbandSideLockTest {
 	void anUnboundAccountMayJoinEitherSideAndIsSavedOnceWhenBound() {
 		War war = war();
 		try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
-			assertNull(CampaignWarbandSideLock.refusal(war, CampaignCoalition.DEFENDER, account));
+			assertNull(CampaignWarbandSideLock.refusal(war, CampaignSideRole.DEFENDER, account));
 
-			CampaignWarbandSideLock.bind(war, CampaignCoalition.AGGRESSOR, account);
-			CampaignWarbandSideLock.bind(war, CampaignCoalition.DEFENDER, account);
+			CampaignWarbandSideLock.bind(war, CampaignSideRole.AGGRESSOR, account);
+			CampaignWarbandSideLock.bind(war, CampaignSideRole.DEFENDER, account);
 
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(account));
-			assertNull(CampaignWarbandSideLock.refusal(war, CampaignCoalition.AGGRESSOR, account));
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getAccountCoalition(account));
+			assertNull(CampaignWarbandSideLock.refusal(war, CampaignSideRole.AGGRESSOR, account));
 			assertEquals(CampaignWarbandSideLock.OTHER_SIDE,
-					CampaignWarbandSideLock.refusal(war, CampaignCoalition.DEFENDER, account));
+					CampaignWarbandSideLock.refusal(war, CampaignSideRole.DEFENDER, account));
 			wars.verify(() -> WarManager.persist(war));
 		}
 	}
@@ -41,15 +41,15 @@ class CampaignWarbandSideLockTest {
 	@Test
 	void missingInputsNeitherRefuseNorBind() {
 		War war = war();
-		war.bindAccountCoalition(account, CampaignCoalition.AGGRESSOR);
-		assertNull(CampaignWarbandSideLock.refusal(null, CampaignCoalition.DEFENDER, account));
+		war.bindAccountCoalition(account, CampaignSideRole.AGGRESSOR);
+		assertNull(CampaignWarbandSideLock.refusal(null, CampaignSideRole.DEFENDER, account));
 		assertNull(CampaignWarbandSideLock.refusal(war, null, account));
-		assertNull(CampaignWarbandSideLock.refusal(war, CampaignCoalition.DEFENDER, null));
+		assertNull(CampaignWarbandSideLock.refusal(war, CampaignSideRole.DEFENDER, null));
 		assertNull(war.getAccountCoalition(null));
-		assertFalse(war.bindAccountCoalition(null, CampaignCoalition.DEFENDER));
+		assertFalse(war.bindAccountCoalition(null, CampaignSideRole.DEFENDER));
 		assertFalse(war.bindAccountCoalition(UUID.randomUUID(), null));
 		try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
-			CampaignWarbandSideLock.bind(null, CampaignCoalition.DEFENDER, account);
+			CampaignWarbandSideLock.bind(null, CampaignSideRole.DEFENDER, account);
 			wars.verify(() -> WarManager.persist(org.mockito.ArgumentMatchers.any()), never());
 		}
 	}

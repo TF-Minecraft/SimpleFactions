@@ -450,7 +450,7 @@ class RaidRuntimeBoundaryCoverageTest {
   @ParameterizedTest
   @CsvSource({
     "REJECTED_NOT_PARTICIPANT, §cYou are not a belligerent in this war.",
-    "REJECTED_NOT_ATTACKER_COALITION, §cOnly the attacking coalition can join this raid.",
+    "REJECTED_NOT_ATTACKER_COALITION, §cOnly the attacking side can join this raid.",
     "REJECTED_ALREADY_JOINED, §7You are already in this campaign raid muster.",
     "REJECTED_MOUNTED_ON_VEHICLE, §cYou cannot join a raid while mounted on a vehicle."
   })

@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 import java.util.List;
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
@@ -40,11 +40,11 @@ public final class CampaignNavyGate {
 				.orElse(false);
 	}
 
-	public static boolean winnerCanContestNextNaval(War war, CampaignCoalition winner) {
+	public static boolean winnerCanContestNextNaval(War war, CampaignSideRole winner) {
 		if (!nextSlotRequiresNavy(war)) {
 			return true;
 		}
-		Side side = CampaignCoalitionService.toSide(war, winner);
+		Side side = CampaignSideService.toSide(war, winner);
 		if (side == null || side.getLeader() == null) {
 			return false;
 		}

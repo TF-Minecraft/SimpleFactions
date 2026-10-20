@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.core;
 
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionWars;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.declare.InterVassalQueries;
@@ -48,7 +49,11 @@ public final class CallToArmsEligibility {
 		if (topLiegeIsMain(target, war)) {
 			return Result.deny(LIEGE_ALREADY_MAIN);
 		}
-		if (!isUnjoinedAlly(participant, target)) {
+		String coalitionBlock = CoalitionWars.enemyCoalitionBlock(war, caller, target);
+		if (coalitionBlock != null) {
+			return Result.deny(coalitionBlock);
+		}
+		if (!isUnjoinedAlly(participant, target) && !CoalitionWars.canCallMember(war, caller, target)) {
 			return Result.deny(CANNOT_CALL);
 		}
 		// Joining an attack would break a truce; joining the defence never does.

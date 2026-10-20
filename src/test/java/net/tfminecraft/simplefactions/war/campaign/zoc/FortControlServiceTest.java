@@ -16,7 +16,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationKind;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
@@ -90,33 +90,33 @@ class FortControlServiceTest {
 
 		FortControlService.initializeAtDeclare(war);
 
-		assertEquals(CampaignCoalition.DEFENDER, war.getFortControllers().get(defenderFort.getStableKey()));
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get(attackerFort.getStableKey()));
+		assertEquals(CampaignSideRole.DEFENDER, war.getFortControllers().get(defenderFort.getStableKey()));
+		assertEquals(CampaignSideRole.AGGRESSOR, war.getFortControllers().get(attackerFort.getStableKey()));
 		assertFalse(war.getFortControllers().containsKey(neutralFort.getStableKey()));
 	}
 
 	@Test
 	void setController_updatesEntry() {
 		registerFortA();
-		FortControlService.setController(war, "fort_a", CampaignCoalition.DEFENDER);
-		assertEquals(CampaignCoalition.DEFENDER, FortControlService.controller(war, "fort_a").orElseThrow());
+		FortControlService.setController(war, "fort_a", CampaignSideRole.DEFENDER);
+		assertEquals(CampaignSideRole.DEFENDER, FortControlService.controller(war, "fort_a").orElseThrow());
 
-		FortControlService.setController(war, "fort_a", CampaignCoalition.AGGRESSOR);
-		assertEquals(CampaignCoalition.AGGRESSOR, FortControlService.controller(war, "fort_a").orElseThrow());
+		FortControlService.setController(war, "fort_a", CampaignSideRole.AGGRESSOR);
+		assertEquals(CampaignSideRole.AGGRESSOR, FortControlService.controller(war, "fort_a").orElseThrow());
 	}
 
 	@Test
 	void isEnemyControlled_trueWhenControllerDiffersFromAdvancing() {
 		registerFortA();
-		FortControlService.setController(war, "fort_a", CampaignCoalition.DEFENDER);
+		FortControlService.setController(war, "fort_a", CampaignSideRole.DEFENDER);
 
-		assertTrue(FortControlService.isEnemyControlled(war, "fort_a", CampaignCoalition.AGGRESSOR));
-		assertFalse(FortControlService.isEnemyControlled(war, "fort_a", CampaignCoalition.DEFENDER));
+		assertTrue(FortControlService.isEnemyControlled(war, "fort_a", CampaignSideRole.AGGRESSOR));
+		assertFalse(FortControlService.isEnemyControlled(war, "fort_a", CampaignSideRole.DEFENDER));
 	}
 
 	@Test
 	void isEnemyControlled_falseWhenNoController() {
-		assertFalse(FortControlService.isEnemyControlled(war, "missing", CampaignCoalition.AGGRESSOR));
+		assertFalse(FortControlService.isEnemyControlled(war, "missing", CampaignSideRole.AGGRESSOR));
 	}
 	private void registerFortA() {
 		Installation fort = new Installation("fort_a", "Fort A", InstallationKind.FORT, 10, 0, 0, 100L);

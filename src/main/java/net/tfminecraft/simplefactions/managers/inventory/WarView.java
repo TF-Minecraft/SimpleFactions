@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -24,6 +25,7 @@ import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionWars;
 import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.WarDemandDraft;
 import net.tfminecraft.simplefactions.managers.holder.WarDemandHolder;
@@ -48,6 +50,10 @@ import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements.Engagement;
 
 public class WarView {
+	private static final long ALLY_CALL_CONFIRM_MILLIS = 30_000L;
+	private record PendingAllyCall(String key, long until) {}
+	private final Map<java.util.UUID, PendingAllyCall> pendingAllyCalls = new HashMap<>();
+
 	public static final int SIDE_COLUMN_SIZE = 16;
 	public static final HashMap<Player, Integer> engagementPage = new HashMap<>();
 
@@ -556,6 +562,15 @@ public class WarView {
 			i.setItem(slot, creator.createSecondaryItem(player, p, w, backers.get(x), false, true, true));
 			slots++;
 		}
+		offset += backers.size();
+		// Coalition members who answered, then those this participant may still call.
+		List<Faction> coalition = new ArrayList<>(p.getCoalitionAllies());
+		int called = coalition.size();
+		coalition.addAll(CoalitionWars.callableMembers(w, p.getLeader()));
+		for(int x = 0; x < coalition.size() && x+offset < 45; x++) {
+			ItemStack item = creator.createSecondaryItem(player, p, w, coalition.get(x), false, x < called);
+			i.setItem(x+offset, creator.markCoalitionMember(item));
+		}
 		for(int x : gray) {
 			i.setItem(x, inv.getFiller(Material.GRAY_STAINED_GLASS_PANE));
 		}
@@ -788,10 +803,35 @@ public class WarView {
 			if(par.getAllies().containsKey(f)) {
 				if(par.getAllies().get(f)) return;
 				if(!w.canBeCalled(pf, f)) return;
+				String warning = CoalitionWars.allyCallWarning(w, pf, f);
+				if(warning != null && !confirmedAllyCall(p, w, f)) {
+					p.sendMessage(warning);
+					p.sendMessage("§7Click again to call them anyway.");
+					return;
+				}
+				WarManager.sendRequest(p, pf, f, w);
+				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			} else if(CoalitionWars.canCallMember(w, pf, f)) {
 				WarManager.sendRequest(p, pf, f, w);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			}
 		}
+	}
+
+	/**
+	 * Calling a coalition's target hands that coalition the war, so the first click only
+	 * warns; a second click on the same ally within half a minute sends the call.
+	 */
+	private boolean confirmedAllyCall(Player player, War w, Faction ally) {
+		String key = w.getId() + "|" + ally.getId();
+		PendingAllyCall pending = pendingAllyCalls.get(player.getUniqueId());
+		long now = System.currentTimeMillis();
+		if (pending != null && pending.key().equals(key) && now < pending.until()) {
+			pendingAllyCalls.remove(player.getUniqueId());
+			return true;
+		}
+		pendingAllyCalls.put(player.getUniqueId(), new PendingAllyCall(key, now + ALLY_CALL_CONFIRM_MILLIS));
+		return false;
 	}
 
 	private boolean canShowCampaignView(War w, Player player) {

@@ -9,7 +9,7 @@ import java.util.Map;
 import net.tfminecraft.simplefactions.database.WarData;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleSiegeFortService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
@@ -36,8 +36,8 @@ class FortTransferReferencesCoverageTest {
       War otherWar = activeWar(998801, occupier, rig.defender);
       War endedWar = activeWar(998802, occupier, rig.attacker);
       endedWar.end(WarEndReason.ADMIN_END);
-      rig.war.setFortControllers(Map.of(fort.getStableKey(), CampaignCoalition.DEFENDER));
-      otherWar.setFortControllers(Map.of(fort.getStableKey(), CampaignCoalition.DEFENDER));
+      rig.war.setFortControllers(Map.of(fort.getStableKey(), CampaignSideRole.DEFENDER));
+      otherWar.setFortControllers(Map.of(fort.getStableKey(), CampaignSideRole.DEFENDER));
       var field = new ScheduledCampaignBattle(10, CampaignBattleKind.FIELD, true, null);
       var siege =
           new ScheduledCampaignBattle(20, CampaignBattleKind.SIEGE, true, "shared", null, 12);
@@ -92,7 +92,7 @@ class FortTransferReferencesCoverageTest {
                     occupier, BattleSiegeFortService.currentSiegeFortOwner(war).orElse(null)),
             () ->
                 assertEquals(
-                    CampaignCoalition.DEFENDER,
+                    CampaignSideRole.DEFENDER,
                     FortControlService.controllerForInstallation(war, moved).orElseThrow()),
             () ->
                 assertEquals(war.getCampaignBattleSchedule(), restored.getCampaignBattleSchedule()),
@@ -116,11 +116,11 @@ class FortTransferReferencesCoverageTest {
       Installation fort = installation(rig.defender, "shared", InstallationKind.FORT, 20);
       Faction otherAttacker = rig.domain.saved("other_siege_realm", "Cedar");
       War otherWar = activeWar(998803, otherAttacker, rig.defender);
-      rig.war.setFortControllers(Map.of(fort.getStableKey(), CampaignCoalition.AGGRESSOR));
-      otherWar.setFortControllers(Map.of("shared", CampaignCoalition.AGGRESSOR));
+      rig.war.setFortControllers(Map.of(fort.getStableKey(), CampaignSideRole.AGGRESSOR));
+      otherWar.setFortControllers(Map.of("shared", CampaignSideRole.AGGRESSOR));
       WarInstallationMigration.migrate(otherWar);
       assertEquals(
-          CampaignCoalition.AGGRESSOR,
+          CampaignSideRole.AGGRESSOR,
           FortControlService.controllerForInstallation(otherWar, fort).orElseThrow());
 
       rig.writes.clear();
@@ -137,20 +137,20 @@ class FortTransferReferencesCoverageTest {
       assertAll(
           () ->
               assertEquals(
-                  CampaignCoalition.AGGRESSOR,
+                  CampaignSideRole.AGGRESSOR,
                   FortControlService.controllerForInstallation(rig.war, moved).orElse(null)),
           () ->
               assertEquals(
-                  CampaignCoalition.AGGRESSOR,
+                  CampaignSideRole.AGGRESSOR,
                   FortControlService.controllerForInstallation(otherWar, moved).orElse(null),
                   "The transferring war must not orphan another active war's captured controller"),
           () ->
               assertEquals(
-                  CampaignCoalition.AGGRESSOR,
+                  CampaignSideRole.AGGRESSOR,
                   FortControlService.controllerForInstallation(restored, moved).orElse(null)),
           () ->
               assertEquals(
-                  CampaignCoalition.AGGRESSOR,
+                  CampaignSideRole.AGGRESSOR,
                   otherWar.getFortControllers().get(moved.getStableKey())));
     }
   }
@@ -164,13 +164,13 @@ class FortTransferReferencesCoverageTest {
       installation(occupier, "shared", InstallationKind.PORT, 30);
       Installation fort = installation(rig.defender, "shared", InstallationKind.FORT, 20);
       Installation otherFort = installation(rig.attacker, "shared", InstallationKind.FORT, 11);
-      Map<String, CampaignCoalition> controllers = new HashMap<>();
-      controllers.put("shared", CampaignCoalition.AGGRESSOR);
-      controllers.put(otherFort.getStableKey(), CampaignCoalition.DEFENDER);
+      Map<String, CampaignSideRole> controllers = new HashMap<>();
+      controllers.put("shared", CampaignSideRole.AGGRESSOR);
+      controllers.put(otherFort.getStableKey(), CampaignSideRole.DEFENDER);
       if (existingPhysicalController)
-        controllers.put(fort.getStableKey(), CampaignCoalition.DEFENDER);
+        controllers.put(fort.getStableKey(), CampaignSideRole.DEFENDER);
       rig.war.setFortControllers(controllers);
-      CampaignCoalition expected = existingPhysicalController ? CampaignCoalition.DEFENDER : null;
+      CampaignSideRole expected = existingPhysicalController ? CampaignSideRole.DEFENDER : null;
       assertEquals(
           expected, FortControlService.controllerForInstallation(rig.war, fort).orElse(null));
 
@@ -190,7 +190,7 @@ class FortTransferReferencesCoverageTest {
           () -> assertEquals(expected, rig.war.getFortControllers().get(moved.getStableKey())),
           () ->
               assertEquals(
-                  CampaignCoalition.DEFENDER,
+                  CampaignSideRole.DEFENDER,
                   FortControlService.controllerForInstallation(rig.war, otherFort).orElseThrow()),
           () -> assertEquals(controllers, rig.war.getFortControllers()),
           () -> assertTrue(savedWarIds(rig).isEmpty(), "Unchanged war state is not saved"),

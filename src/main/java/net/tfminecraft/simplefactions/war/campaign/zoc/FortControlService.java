@@ -6,8 +6,8 @@ import java.util.Optional;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex.OperationalFort;
 
 public final class FortControlService {
@@ -20,34 +20,34 @@ public final class FortControlService {
 			if (fort.owner() == null || fort.id() == null) continue;
 			Side ownerSide = war.getSide(fort.owner());
 			if (ownerSide == null) continue;
-			war.putFortController(fort.stableKey(), CampaignCoalitionService.coalitionOf(war, ownerSide));
+			war.putFortController(fort.stableKey(), CampaignSideService.coalitionOf(war, ownerSide));
 		}
 	}
 
 	/** Legacy ID lookup is safe only when the ID identifies at most one physical fort. */
-	public static Optional<CampaignCoalition> controller(War war, String fortInstallationId) {
+	public static Optional<CampaignSideRole> controller(War war, String fortInstallationId) {
 		if (war == null || fortInstallationId == null || fortInstallationId.isBlank()) return Optional.empty();
 		var matches = matchingForts(fortInstallationId, null);
 		return matches.size() == 1 ? controllerForFort(war, matches.getFirst()) : Optional.empty();
 	}
 
-	public static Optional<CampaignCoalition> controllerForInstallation(War war, Installation fort) {
+	public static Optional<CampaignSideRole> controllerForInstallation(War war, Installation fort) {
 		if (war == null || fort == null) return Optional.empty();
 		return Optional.ofNullable(war.getFortControllers().get(fort.getStableKey()));
 	}
 
-	public static Optional<CampaignCoalition> controllerForFort(War war, OperationalFort fort) {
+	public static Optional<CampaignSideRole> controllerForFort(War war, OperationalFort fort) {
 		if (war == null || fort == null) return Optional.empty();
 		return Optional.ofNullable(war.getFortControllers().get(fort.stableKey()));
 	}
 
-	public static void setController(War war, String fortInstallationId, CampaignCoalition coalition) {
+	public static void setController(War war, String fortInstallationId, CampaignSideRole coalition) {
 		setControllerAtProvince(war, fortInstallationId, null, coalition);
 	}
 
 	/** A saved siege slot identifies its fort by local ID and home province. */
 	public static void setControllerAtProvince(War war, String fortInstallationId, Integer province,
-			CampaignCoalition coalition) {
+			CampaignSideRole coalition) {
 		if (war == null || fortInstallationId == null || fortInstallationId.isBlank() || coalition == null) return;
 		var matches = matchingForts(fortInstallationId, province);
 		if (matches.size() != 1) return;
@@ -64,11 +64,11 @@ public final class FortControlService {
 				.toList();
 	}
 
-	public static boolean isEnemyControlled(War war, String fortInstallationId, CampaignCoalition advancing) {
+	public static boolean isEnemyControlled(War war, String fortInstallationId, CampaignSideRole advancing) {
 		return advancing != null && controller(war, fortInstallationId).filter(value -> value != advancing).isPresent();
 	}
 
-	public static boolean isEnemyControlledForFort(War war, OperationalFort fort, CampaignCoalition advancing) {
+	public static boolean isEnemyControlledForFort(War war, OperationalFort fort, CampaignSideRole advancing) {
 		return advancing != null && controllerForFort(war, fort).filter(value -> value != advancing).isPresent();
 	}
 }

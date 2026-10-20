@@ -11,8 +11,8 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy;
 import net.tfminecraft.simplefactions.war.core.Side;
@@ -41,8 +41,8 @@ public final class CampaignNavalAutoLossReminderService {
 			return;
 		}
 
-		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
-		Side offensiveSide = CampaignCoalitionService.toSide(war, offensive);
+		CampaignSideRole offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
+		Side offensiveSide = CampaignSideService.toSide(war, offensive);
 		Faction offensiveLeader = offensiveSide != null ? offensiveSide.getLeader() : null;
 		if (offensiveLeader == null || offensiveLeader.getLeader() == null) {
 			return;

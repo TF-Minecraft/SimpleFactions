@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.installation.Installation;
@@ -74,7 +74,7 @@ class ZocRealmTest {
 	void resolveExportControllerFaction_flippedController_returnsCoalitionLeader() {
 		Installation fort = fort("fort_a", 20);
 		War war = war(1, List.of(5, 10, 20, 30));
-		war.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.getStableKey(), CampaignSideRole.AGGRESSOR);
 
 		Faction resolved = ZocRealm.resolveExportControllerFaction(fort, defender, List.of(war));
 
@@ -94,7 +94,7 @@ class ZocRealmTest {
 
 		Installation fort = fort("fort_a", 20);
 		War war = war(1, List.of(5, 10, 20, 30));
-		war.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.getStableKey(), CampaignSideRole.AGGRESSOR);
 
 		List<Integer> zoc = ZocRealm.computeZocProvincesForExport(fort, defender, List.of(war));
 
@@ -107,9 +107,9 @@ class ZocRealmTest {
 	void selectPrimaryWarForFort_multipleWars_prefersAxisWar() {
 		Installation fort = fort("fort_a", 20);
 		War offAxis = war(2, List.of(5, 10, 30));
-		offAxis.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
+		offAxis.putFortController(fort.getStableKey(), CampaignSideRole.DEFENDER);
 		War onAxis = war(1, List.of(5, 10, 20, 30));
-		onAxis.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
+		onAxis.putFortController(fort.getStableKey(), CampaignSideRole.AGGRESSOR);
 
 		War selected = ZocRealm.selectPrimaryWarForFort(fort, List.of(offAxis, onAxis));
 
@@ -120,9 +120,9 @@ class ZocRealmTest {
 	void selectPrimaryWarForFort_multipleWarsNoAxis_returnsNull() {
 		Installation fort = fort("fort_a", 20);
 		War warA = war(1, List.of(5, 10, 30));
-		warA.putFortController(fort.getStableKey(), CampaignCoalition.DEFENDER);
+		warA.putFortController(fort.getStableKey(), CampaignSideRole.DEFENDER);
 		War warB = war(2, List.of(5, 15, 25));
-		warB.putFortController(fort.getStableKey(), CampaignCoalition.AGGRESSOR);
+		warB.putFortController(fort.getStableKey(), CampaignSideRole.AGGRESSOR);
 
 		assertNull(ZocRealm.selectPrimaryWarForFort(fort, List.of(warA, warB)));
 		assertEquals(defender, ZocRealm.resolveExportControllerFaction(fort, defender, List.of(warA, warB)));

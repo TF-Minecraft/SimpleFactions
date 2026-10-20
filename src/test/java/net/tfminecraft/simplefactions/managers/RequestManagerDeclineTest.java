@@ -154,7 +154,7 @@ class RequestManagerDeclineTest {
 	}
 
 	@Test
-	void timeout_warRequests_penaliseEachCalledFaction() throws Exception {
+	void timeout_warRequests_neverPenaliseAndTellTheCaller() throws Exception {
 		Player first = player("One");
 		Player second = player("Two");
 		Player caller = player("AtkLead");
@@ -188,9 +188,11 @@ class RequestManagerDeclineTest {
 		assertFalse(RequestManager.hasRequest(first));
 		assertFalse(RequestManager.hasRequest(second));
 		assertTrue(RequestManager.hasRequest(waiting));
-		verify(firstGovernment).addStabilityModifier(org.mockito.ArgumentMatchers.any(StabilityModifier.class));
-		verify(secondGovernment).addStabilityModifier(org.mockito.ArgumentMatchers.any(StabilityModifier.class));
-		verify(caller, org.mockito.Mockito.times(2)).sendMessage(org.mockito.ArgumentMatchers.contains("declined your call to arms"));
+		verify(firstGovernment, never()).addStabilityModifier(org.mockito.ArgumentMatchers.any(StabilityModifier.class));
+		verify(secondGovernment, never()).addStabilityModifier(org.mockito.ArgumentMatchers.any(StabilityModifier.class));
+		verify(caller).sendMessage("§7Your call to arms to First §7expired. You can send it again.");
+		verify(caller).sendMessage("§7Your call to arms to Second §7expired. You can send it again.");
+		verify(caller, never()).sendMessage(org.mockito.ArgumentMatchers.contains("declined your call to arms"));
 		verify(first, never()).sendMessage("§7You declined the call to arms.");
 	}
 
@@ -218,17 +220,53 @@ class RequestManagerDeclineTest {
 	}
 
 	@Test
-	void warRequest_lastsSixtySeconds() throws Exception {
-		WarRequest request = new WarRequest(mock(Guild.class), activeWar());
-		assertFalse(request.timedOut());
-		assertSixtySecondWindow(request);
+	void warRequest_lastsTheConfiguredWindow() throws Exception {
+		int saved = Cache.warCallToArmsExpirySeconds;
+		try {
+			Cache.warCallToArmsExpirySeconds = 300;
+			WarRequest request = new WarRequest(mock(Guild.class), activeWar());
+			assertFalse(request.timedOut());
+			assertWindow(request, 300_000L);
+			assertEquals("5 minutes", WarRequest.expiryText());
+			Cache.warCallToArmsExpirySeconds = 60;
+			assertEquals("1 minute", WarRequest.expiryText());
+			Cache.warCallToArmsExpirySeconds = 90;
+			assertEquals("90 seconds", WarRequest.expiryText());
+			Cache.warCallToArmsExpirySeconds = 0;
+			assertEquals("1 second", WarRequest.expiryText());
+		} finally {
+			Cache.warCallToArmsExpirySeconds = saved;
+		}
+	}
+
+	@Test
+	void timeout_warRequestForEndedWarOrUnknownFaction_staysQuietOrNamesNobody() throws Exception {
+		Player called = player("Gone");
+		when(called.isOnline()).thenReturn(true);
+		Player caller = player("AtkLead");
+		when(caller.isOnline()).thenReturn(true);
+		Faction origin = faction("atk", "AtkLead", "Attackers");
+		Guild guild = mock(Guild.class);
+		when(guild.getFaction()).thenReturn(origin);
+		WarRequest ended = new WarRequest(guild, mock(War.class), "missing");
+		WarRequest unknown = new WarRequest(guild, activeWar(), "missing");
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.getPlayerExact("AtkLead")).thenReturn(caller);
+			WarManager.expireCallToArms(called, ended);
+			WarManager.expireCallToArms(null, unknown);
+			WarManager.expireCallToArms(called, null);
+		}
+
+		verify(called).sendMessage("§7A call to arms expired without an answer.");
+		verify(caller).sendMessage("§7Your call to arms to your ally §7expired. You can send it again.");
 	}
 
 	@Test
 	void relationRequest_lastsSixtySeconds() throws Exception {
 		RelationRequest request = new RelationRequest(mock(Guild.class), null, true);
 		assertFalse(request.timedOut());
-		assertSixtySecondWindow(request);
+		assertWindow(request, 60_000L);
 	}
 
 	@Test
@@ -343,11 +381,11 @@ class RequestManagerDeclineTest {
 		time.setLong(request, 0L);
 	}
 
-	private static void assertSixtySecondWindow(Request request) throws Exception {
+	private static void assertWindow(Request request, long window) throws Exception {
 		Field time = Request.class.getDeclaredField("time");
 		time.setAccessible(true);
 		long remaining = time.getLong(request) - System.currentTimeMillis();
-		assertTrue(remaining > 55_000L, "remaining was " + remaining);
-		assertTrue(remaining <= 60_000L, "remaining was " + remaining);
+		assertTrue(remaining > window - 5_000L, "remaining was " + remaining);
+		assertTrue(remaining <= window, "remaining was " + remaining);
 	}
 }

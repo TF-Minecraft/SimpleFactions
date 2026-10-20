@@ -47,3 +47,6 @@ commands:
   mercenaries:
       useage: /<command>
       description: Browse and hire mercenary companies
+  coalition:
+      useage: /<command>
+      description: Form, join and run coalitions against a common target

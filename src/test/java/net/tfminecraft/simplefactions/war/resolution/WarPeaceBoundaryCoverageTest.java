@@ -13,8 +13,8 @@ import net.tfminecraft.simplefactions.government.proposal.Proposal;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -185,7 +185,7 @@ class WarPeaceBoundaryCoverageTest {
           WarResolutionService.evaluateAndMaybeEnd(rig.war, null).isEmpty(),
           "A fresh war without a route cannot resolve as a stalemate");
       assertTrue(
-          WarResolutionService.tryEndAfterBattle(null, 20, CampaignCoalition.AGGRESSOR, null, null)
+          WarResolutionService.tryEndAfterBattle(null, 20, CampaignSideRole.AGGRESSOR, null, null)
               .isEmpty());
       assertTrue(WarResolutionService.tryEndAfterBattle(rig.war, 20, null, null, null).isEmpty());
       assertFalse(WarResolutionService.surrender(null, rig.attacker));
@@ -199,7 +199,7 @@ class WarPeaceBoundaryCoverageTest {
           WarResolutionService.evaluateAndMaybeEnd(ended, ResolutionContext.none()).isEmpty());
       assertFalse(WarResolutionService.surrender(ended, rig.attacker));
       assertTrue(
-          WarResolutionService.tryEndAfterBattle(ended, 20, CampaignCoalition.AGGRESSOR, null, null)
+          WarResolutionService.tryEndAfterBattle(ended, 20, CampaignSideRole.AGGRESSOR, null, null)
               .isEmpty());
       assertEquals(WarEndReason.ADMIN_END, ended.getEndReason());
     }
@@ -214,7 +214,7 @@ class WarPeaceBoundaryCoverageTest {
       rig.war.setObjectiveHeldBy(ObjectiveHolder.ATTACKER);
       rig.war.setPushTarget(CampaignPushTarget.RETAKE_OBJECTIVE);
       ResolutionContext context =
-          ResolutionContext.forBattle(rig.war, 20, CampaignCoalition.AGGRESSOR);
+          ResolutionContext.forBattle(rig.war, 20, CampaignSideRole.AGGRESSOR);
       assertEquals(CampaignPushTarget.RETAKE_OBJECTIVE, context.preBattlePushTarget());
       assertEquals(ObjectiveHolder.ATTACKER, context.preBattleObjectiveHeldBy());
       var result =
@@ -223,7 +223,7 @@ class WarPeaceBoundaryCoverageTest {
               : WarResolutionService.tryEndAfterBattle(
                   rig.war,
                   20,
-                  CampaignCoalition.AGGRESSOR,
+                  CampaignSideRole.AGGRESSOR,
                   context.preBattlePushTarget(),
                   context.preBattleObjectiveHeldBy());
       assertEquals(Optional.of(WarEndReason.ATTACKER_VICTORY), result);
@@ -254,7 +254,7 @@ class WarPeaceBoundaryCoverageTest {
       campaign(rig);
       rig.war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
       rig.war.setCursorIndex(0);
-      CampaignCoalitionService.setFuel(rig.war, CampaignCoalition.AGGRESSOR, 0);
+      CampaignSideService.setFuel(rig.war, CampaignSideRole.AGGRESSOR, 0);
 
       assertTrue(
           WarResolutionService.evaluateAndMaybeEnd(rig.war, ResolutionContext.none()).isEmpty());
@@ -263,17 +263,17 @@ class WarPeaceBoundaryCoverageTest {
       assertTrue(rig.war.isWhitePeaceProposedByAttacker());
       assertFalse(rig.war.isWhitePeaceProposedByDefender());
       assertSame(rig.war, WarManager.getById(rig.war.getId()));
-      assertEquals(3, CampaignCoalitionService.getFuel(rig.war, CampaignCoalition.DEFENDER));
+      assertEquals(3, CampaignSideService.getFuel(rig.war, CampaignSideRole.DEFENDER));
     }
   }
 
   @Test
   void missingWarContextAndGuildPillageCleanupAreSafeAtPublicBoundaries() {
-    var context = ResolutionContext.forBattle(null, 7, CampaignCoalition.DEFENDER);
+    var context = ResolutionContext.forBattle(null, 7, CampaignSideRole.DEFENDER);
     assertNull(context.preBattlePushTarget());
     assertNull(context.preBattleObjectiveHeldBy());
     assertEquals(7, context.battleProvinceId());
-    assertEquals(CampaignCoalition.DEFENDER, context.battleWinnerCoalition());
+    assertEquals(CampaignSideRole.DEFENDER, context.battleWinnerCoalition());
     assertEquals(80.0, PillageTradeHit.applyToIncome(null, 80));
     PillageTradeHit.attach(null, -100, 100);
     PillageTradeHit.tick(null);
@@ -311,7 +311,7 @@ class WarPeaceBoundaryCoverageTest {
     rig.war.setObjectiveProvinceId(20);
     rig.war.setCursorIndex(1);
     rig.war.setBattleSchedulePhase(BattleSchedulePhase.IDLE);
-    CampaignCoalitionService.setFuel(rig.war, CampaignCoalition.AGGRESSOR, 3);
-    CampaignCoalitionService.setFuel(rig.war, CampaignCoalition.DEFENDER, 3);
+    CampaignSideService.setFuel(rig.war, CampaignSideRole.AGGRESSOR, 3);
+    CampaignSideService.setFuel(rig.war, CampaignSideRole.DEFENDER, 3);
   }
 }

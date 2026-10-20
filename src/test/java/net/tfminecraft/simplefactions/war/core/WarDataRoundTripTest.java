@@ -13,7 +13,7 @@ import com.google.gson.Gson;
 import net.tfminecraft.simplefactions.database.CivilWarMemberMoveData;
 import net.tfminecraft.simplefactions.database.CommitmentData;
 import net.tfminecraft.simplefactions.database.WarData;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 
@@ -27,12 +27,12 @@ class WarDataRoundTripTest {
 		original.id = 12;
 		original.status = "active";
 		original.initiativeHolder = "DEFENDER";
-		original.initiativeHolderCoalition = CampaignCoalition.DEFENDER.toJson();
+		original.initiativeHolderCoalition = CampaignSideRole.DEFENDER.toJson();
 		original.pushTarget = CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL.toJson();
 		original.postBattleChoicePhase = PostBattleChoicePhase.WINNER_PUSH_HOLD.toJson();
-		original.postBattleWinnerCoalition = CampaignCoalition.DEFENDER.toJson();
+		original.postBattleWinnerCoalition = CampaignSideRole.DEFENDER.toJson();
 		original.postBattleChoiceResolved = false;
-		original.lastBattleOffensiveCoalition = CampaignCoalition.AGGRESSOR.toJson();
+		original.lastBattleOffensiveCoalition = CampaignSideRole.AGGRESSOR.toJson();
 		original.holdPeaceProposalActive = true;
 		original.defenderChoiceResolved = false;
 
@@ -41,12 +41,12 @@ class WarDataRoundTripTest {
 
 		assertNotNull(restored);
 		assertEquals(3, restored.schemaVersion);
-		assertEquals(CampaignCoalition.DEFENDER.toJson(), restored.initiativeHolderCoalition);
+		assertEquals(CampaignSideRole.DEFENDER.toJson(), restored.initiativeHolderCoalition);
 		assertEquals(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL.toJson(), restored.pushTarget);
 		assertEquals(PostBattleChoicePhase.WINNER_PUSH_HOLD.toJson(), restored.postBattleChoicePhase);
-		assertEquals(CampaignCoalition.DEFENDER.toJson(), restored.postBattleWinnerCoalition);
+		assertEquals(CampaignSideRole.DEFENDER.toJson(), restored.postBattleWinnerCoalition);
 		assertEquals(false, restored.postBattleChoiceResolved);
-		assertEquals(CampaignCoalition.AGGRESSOR.toJson(), restored.lastBattleOffensiveCoalition);
+		assertEquals(CampaignSideRole.AGGRESSOR.toJson(), restored.lastBattleOffensiveCoalition);
 		assertTrue(restored.holdPeaceProposalActive);
 	}
 

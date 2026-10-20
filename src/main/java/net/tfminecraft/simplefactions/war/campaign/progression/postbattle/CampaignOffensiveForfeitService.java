@@ -5,8 +5,8 @@ package net.tfminecraft.simplefactions.war.campaign.progression.postbattle;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -33,13 +33,13 @@ public final class CampaignOffensiveForfeitService {
 			return false;
 		}
 
-		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
+		CampaignSideRole offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
 		if (offensive == null || CampaignCapabilityService.canAttack(war, offensive)) {
 			return false;
 		}
 
-		CampaignCoalition winner = offensive.opposing();
-		BelligerentRole winnerRole = CampaignCoalitionService.coalitionToBelligerentRole(winner);
+		CampaignSideRole winner = offensive.opposing();
+		BelligerentRole winnerRole = CampaignSideService.coalitionToBelligerentRole(winner);
 
 		Battle existing = BattleManager.getByWarId(war.getId());
 		if (existing != null && existing.hasStarted()) {
@@ -67,17 +67,17 @@ public final class CampaignOffensiveForfeitService {
 
 	private static void broadcastForfeit(
 			War war,
-			CampaignCoalition offensive,
-			CampaignCoalition winner,
+			CampaignSideRole offensive,
+			CampaignSideRole winner,
 			int battleProvinceId) {
 		if (Bukkit.getServer() == null) {
 			return;
 		}
-		String offensiveLabel = offensive == CampaignCoalition.AGGRESSOR ? "Attacker" : "Defender";
-		String winnerLabel = winner == CampaignCoalition.AGGRESSOR ? "attacker" : "defender";
+		String offensiveLabel = offensive == CampaignSideRole.AGGRESSOR ? "Attacker" : "Defender";
+		String winnerLabel = winner == CampaignSideRole.AGGRESSOR ? "attacker" : "defender";
 		String message = "§e"
 				+ offensiveLabel
-				+ " coalition could not field an offensive army at province "
+				+ " side could not field an offensive army at province "
 				+ battleProvinceId
 				+ ". §7"
 				+ winnerLabel

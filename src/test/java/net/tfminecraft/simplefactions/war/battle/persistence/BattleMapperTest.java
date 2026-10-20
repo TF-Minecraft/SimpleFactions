@@ -37,7 +37,7 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleLocation;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 
 class BattleMapperTest {
 	@BeforeEach
@@ -180,11 +180,11 @@ class BattleMapperTest {
 					.thenReturn(bossBar);
 
 			Battle battle = BattleFactory.createBlank(BattleType.FIELD, "counter_push");
-			battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+			battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
 
 			BattleData data = BattleMapper.toData(battle);
 			assertEquals("defender", data.offensiveCoalition);
-			assertEquals(CampaignCoalition.DEFENDER, BattleMapper.fromData(data).getOffensiveCoalition());
+			assertEquals(CampaignSideRole.DEFENDER, BattleMapper.fromData(data).getOffensiveCoalition());
 		}
 	}
 

@@ -8,7 +8,7 @@ import java.util.Set;
 
 import net.tfminecraft.simplefactions.database.CampaignRaidData;
 import net.tfminecraft.simplefactions.utils.Formatter;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.RaidTargetService.RaidKind;
 
 public class CampaignRaid {
@@ -17,7 +17,7 @@ public class CampaignRaid {
 	private String warbandIdPrefix;
 	private int warId;
 	private LocalDate battleDay;
-	private CampaignCoalition attackerCoalition;
+	private CampaignSideRole attackerCoalition;
 	private String launcherFactionId;
 	private String sourceInstallationId;
 	private String targetInstallationId;
@@ -44,7 +44,7 @@ public class CampaignRaid {
 		if (data.battleDay != null && !data.battleDay.isBlank()) {
 			raid.battleDay = LocalDate.parse(data.battleDay);
 		}
-		raid.attackerCoalition = CampaignCoalition.fromJson(data.attackerCoalition);
+		raid.attackerCoalition = CampaignSideRole.fromJson(data.attackerCoalition);
 		raid.launcherFactionId = data.launcherFactionId;
 		raid.sourceInstallationId = data.sourceInstallationId;
 		raid.targetInstallationId = data.targetInstallationId;
@@ -175,11 +175,11 @@ public class CampaignRaid {
 		this.battleDay = battleDay;
 	}
 
-	public CampaignCoalition getAttackerCoalition() {
+	public CampaignSideRole getAttackerCoalition() {
 		return attackerCoalition;
 	}
 
-	public void setAttackerCoalition(CampaignCoalition attackerCoalition) {
+	public void setAttackerCoalition(CampaignSideRole attackerCoalition) {
 		this.attackerCoalition = attackerCoalition;
 	}
 

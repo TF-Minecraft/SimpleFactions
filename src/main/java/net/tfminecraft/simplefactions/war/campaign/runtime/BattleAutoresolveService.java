@@ -28,8 +28,8 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.core.Side;
@@ -167,10 +167,10 @@ public final class BattleAutoresolveService {
 		war.setFirstBattleStarted(true);
 		WarManager.persist(war);
 
-		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
-		CampaignCoalition defensive = offensive.opposing();
-		Side offensiveSide = CampaignCoalitionService.toSide(war, offensive);
-		Side defensiveSide = CampaignCoalitionService.toSide(war, defensive);
+		CampaignSideRole offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
+		CampaignSideRole defensive = offensive.opposing();
+		Side offensiveSide = CampaignSideService.toSide(war, offensive);
+		Side defensiveSide = CampaignSideService.toSide(war, defensive);
 		int livesPerRegiment = Math.max(0, Cache.warBattleLivesPerRegiment);
 		// Mercenary slots only count members on a battle roster. There is no roster here, so they are omitted.
 		double offensiveLives = (double) livesPerRegiment * committedRegiments(war, provinceId, offensiveSide);
@@ -182,14 +182,14 @@ public final class BattleAutoresolveService {
 				Cache.warAutoresolveLoserLossFraction,
 				random);
 
-		CampaignCoalition winner = prediction.offensiveWins() ? offensive : defensive;
+		CampaignSideRole winner = prediction.offensiveWins() ? offensive : defensive;
 		clearAutoresolveFlags(war);
 		war.setPostponementsThisCycle(0);
 		// The offensive is pinned so fuel is charged to the side that attacked, even if the
 		// casualties change which coalition would be on the offensive next.
 		CampaignBattleOutcomeService.applyCampaignBattleOutcome(
 				war,
-				CampaignCoalitionService.coalitionToBelligerentRole(winner),
+				CampaignSideService.coalitionToBelligerentRole(winner),
 				provinceId,
 				casualtyCarrier(war, provinceId, offensive),
 				Map.of(
@@ -272,7 +272,7 @@ public final class BattleAutoresolveService {
 	}
 
 	/** Unregistered battle so casualties key to the offensive coalition. It is not started. */
-	private static Battle casualtyCarrier(War war, int provinceId, CampaignCoalition offensive) {
+	private static Battle casualtyCarrier(War war, int provinceId, CampaignSideRole offensive) {
 		ScheduledCampaignBattle slot = CampaignScheduleService.slotAtActiveIndex(war).orElse(null);
 		BattleType type = slot != null ? slot.battleType() : BattleType.FIELD;
 		Battle carrier = new Battle("autoresolve-" + war.getId());
@@ -291,7 +291,7 @@ public final class BattleAutoresolveService {
 	private static void broadcastResult(
 			War war,
 			int provinceId,
-			CampaignCoalition winner,
+			CampaignSideRole winner,
 			Prediction prediction) {
 		String message = "§7Autoresolved " + battleName(war, provinceId)
 				+ ": §e" + winnerLabel(war, winner)
@@ -318,15 +318,15 @@ public final class BattleAutoresolveService {
 				provinceId);
 	}
 
-	private static String winnerLabel(War war, CampaignCoalition winner) {
-		Side side = CampaignCoalitionService.toSide(war, winner);
+	private static String winnerLabel(War war, CampaignSideRole winner) {
+		Side side = CampaignSideService.toSide(war, winner);
 		if (side != null && side.getLeader() != null) {
 			String name = side.getLeader().getName();
 			if (name != null && !name.isBlank()) {
 				return name;
 			}
 		}
-		return winner == CampaignCoalition.AGGRESSOR ? "Attacker" : "Defender";
+		return winner == CampaignSideRole.AGGRESSOR ? "Attacker" : "Defender";
 	}
 
 	private static void sendToSide(Side side, String message) {

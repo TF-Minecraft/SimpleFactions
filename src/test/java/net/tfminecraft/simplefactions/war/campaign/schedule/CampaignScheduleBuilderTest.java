@@ -24,7 +24,7 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex.OperationalFort;
 import net.tfminecraft.simplefactions.war.campaign.zoc.PortSeaZocIndex.OperationalPort;
@@ -91,7 +91,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -138,7 +138,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -164,7 +164,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", attacker, 20, 100L);
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignSideRole.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -183,7 +183,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignSideRole.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -382,7 +382,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -417,7 +417,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignSideRole.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -448,7 +448,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<Integer> axis = List.of(5, 795, 705);
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
@@ -488,7 +488,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<Integer> axis = List.of(10, 704, 705);
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
@@ -526,7 +526,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", defender, 20, 100L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -577,7 +577,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 200L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<Integer> axis = List.of(452, 795, 709, 713, 705);
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
@@ -658,7 +658,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("fort_a", attacker, 10, 100L);
 		FortZocIndex index = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.AGGRESSOR);
+		war.putFortController(fort.stableKey(), CampaignSideRole.AGGRESSOR);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.buildCounter(
 				war,
@@ -772,7 +772,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -804,7 +804,7 @@ class CampaignScheduleBuilderTest {
 		OperationalFort fort = new OperationalFort("Greenfort", defender, 713, 100L);
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(fort));
 		War war = war();
-		war.putFortController(fort.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(fort.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,
@@ -845,8 +845,8 @@ class CampaignScheduleBuilderTest {
 		FortZocIndex fortIndex = FortZocIndex.fromForts(List.of(greenfort, airfield));
 		War war = war();
 		war.setObjectiveProvinceId(705);
-		war.putFortController(greenfort.stableKey(), CampaignCoalition.DEFENDER);
-		war.putFortController(airfield.stableKey(), CampaignCoalition.DEFENDER);
+		war.putFortController(greenfort.stableKey(), CampaignSideRole.DEFENDER);
+		war.putFortController(airfield.stableKey(), CampaignSideRole.DEFENDER);
 
 		List<ScheduledCampaignBattle> schedule = CampaignScheduleBuilder.build(
 				war,

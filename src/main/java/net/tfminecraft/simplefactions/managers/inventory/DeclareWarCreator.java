@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionWars;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -309,6 +310,11 @@ public class DeclareWarCreator {
 			if (title != null) {
 				lore.add(StringFormatter.formatHex("#a89977Primary title: "+title.getName()));
 			}
+		}
+		List<String> coalitionWarnings = CoalitionWars.declareWarnings(request.getAttacker(), request.getDefender());
+		if (!coalitionWarnings.isEmpty()) {
+			lore.add(" ");
+			lore.addAll(coalitionWarnings);
 		}
 		lore.add(" ");
 		lore.add(StringFormatter.formatHex("#c74c3fThis cannot be undone easily."));

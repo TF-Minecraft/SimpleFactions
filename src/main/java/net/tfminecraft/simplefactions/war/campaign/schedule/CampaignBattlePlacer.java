@@ -8,7 +8,7 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignScheduleLogger;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
@@ -25,7 +25,7 @@ public final class CampaignBattlePlacer {
 			ScheduleLeg leg,
 			int provinceId,
 			BattleTrigger trigger,
-			CampaignCoalition advancing,
+			CampaignSideRole advancing,
 			String fortInstallationId,
 			String portInstallationId) {
 		if (ctx == null || war == null || leg == null || trigger == null || provinceId <= 0) {
@@ -100,7 +100,7 @@ public final class CampaignBattlePlacer {
 			War war,
 			ScheduleLeg leg,
 			int triggerProvinceId,
-			CampaignCoalition advancing,
+			CampaignSideRole advancing,
 			String fortInstallationId) {
 		if (leg == ScheduleLeg.INVASION && ctx.objectiveAxisIndex() >= 0) {
 			int triggerIndex = axisIndexOf(ctx, triggerProvinceId);

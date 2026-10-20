@@ -19,7 +19,7 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
@@ -63,10 +63,10 @@ class BattleMilitaryBoundaryCoverageTest {
     try (Fixture rig = new Fixture()) {
       Installation port = rig.install(rig.attacker, "shared", InstallationKind.PORT, 10);
       Installation fort = rig.install(rig.defender, "shared", InstallationKind.FORT, 20);
-      rig.war.setFortControllers(Map.of("shared", CampaignCoalition.AGGRESSOR));
+      rig.war.setFortControllers(Map.of("shared", CampaignSideRole.AGGRESSOR));
       WarInstallationMigration.migrate(rig.war);
       assertEquals(
-          CampaignCoalition.AGGRESSOR,
+          CampaignSideRole.AGGRESSOR,
           FortControlService.controllerForInstallation(rig.war, fort).orElseThrow());
 
       WartimeInstallationService.occupy(rig.war, rig.attacker, 20);
@@ -80,7 +80,7 @@ class BattleMilitaryBoundaryCoverageTest {
       War restored = roundTrip(rig.war);
 
       assertEquals(
-          CampaignCoalition.AGGRESSOR,
+          CampaignSideRole.AGGRESSOR,
           FortControlService.controllerForInstallation(restored, moved).orElse(null),
           "A holder-local rename must not orphan an existing legacy controller");
       assertEquals(
@@ -98,15 +98,15 @@ class BattleMilitaryBoundaryCoverageTest {
       Faction defender = domain.saved("fort_river", "Bob");
       Installation fort = fort(defender, "shared", 20);
       War war = war(attacker, defender);
-      war.setFortControllers(Map.of(fort.getStableKey(), CampaignCoalition.DEFENDER));
+      war.setFortControllers(Map.of(fort.getStableKey(), CampaignSideRole.DEFENDER));
 
-      FortControlService.setControllerAtProvince(war, "shared", 30, CampaignCoalition.AGGRESSOR);
+      FortControlService.setControllerAtProvince(war, "shared", 30, CampaignSideRole.AGGRESSOR);
 
       War restored = roundTrip(war);
       assertEquals(
-          CampaignCoalition.DEFENDER,
+          CampaignSideRole.DEFENDER,
           FortControlService.controllerForInstallation(restored, fort).orElseThrow());
-      assertEquals(Map.of(fort.getStableKey(), CampaignCoalition.DEFENDER), restored.getFortControllers());
+      assertEquals(Map.of(fort.getStableKey(), CampaignSideRole.DEFENDER), restored.getFortControllers());
       assertSame(
           defender, ZocRealm.resolveExportControllerFaction(fort, defender, List.of(restored)));
     }
@@ -290,7 +290,7 @@ class BattleMilitaryBoundaryCoverageTest {
       Installation attackerFort = fort(attacker, "shared", 10);
       Installation defenderFort = fort(defender, "shared", 20);
       War war = war(attacker, defender);
-      war.setFortControllers(Map.of("shared", CampaignCoalition.DEFENDER));
+      war.setFortControllers(Map.of("shared", CampaignSideRole.DEFENDER));
 
       War restored = roundTrip(war);
 
@@ -305,7 +305,7 @@ class BattleMilitaryBoundaryCoverageTest {
                   defender,
                   ZocRealm.resolveExportControllerFaction(
                       defenderFort, defender, List.of(restored))));
-      assertEquals(Map.of("shared", CampaignCoalition.DEFENDER), restored.getFortControllers());
+      assertEquals(Map.of("shared", CampaignSideRole.DEFENDER), restored.getFortControllers());
     }
   }
 
@@ -316,23 +316,23 @@ class BattleMilitaryBoundaryCoverageTest {
       Faction defender = domain.saved("fort_river", "Bob");
       Installation defenderFort = fort(defender, "unique", 20);
       War war = war(attacker, defender);
-      war.setFortControllers(Map.of("unique", CampaignCoalition.AGGRESSOR));
+      war.setFortControllers(Map.of("unique", CampaignSideRole.AGGRESSOR));
       WarInstallationMigration.migrate(war);
       assertSame(
           attacker, ZocRealm.resolveExportControllerFaction(defenderFort, defender, List.of(war)));
-      assertTrue(FortControlService.isEnemyControlled(war, "unique", CampaignCoalition.DEFENDER));
+      assertTrue(FortControlService.isEnemyControlled(war, "unique", CampaignSideRole.DEFENDER));
 
-      FortControlService.setController(war, "unique", CampaignCoalition.DEFENDER);
+      FortControlService.setController(war, "unique", CampaignSideRole.DEFENDER);
       War restored = roundTrip(war);
 
       assertSame(
           defender,
           ZocRealm.resolveExportControllerFaction(defenderFort, defender, List.of(restored)));
       assertEquals(
-          CampaignCoalition.DEFENDER,
+          CampaignSideRole.DEFENDER,
           FortControlService.controller(restored, "unique").orElseThrow());
       assertFalse(
-          FortControlService.isEnemyControlled(restored, "unique", CampaignCoalition.DEFENDER));
+          FortControlService.isEnemyControlled(restored, "unique", CampaignSideRole.DEFENDER));
     }
   }
 

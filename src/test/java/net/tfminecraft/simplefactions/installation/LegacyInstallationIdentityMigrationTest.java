@@ -26,7 +26,7 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleSiegeFortService;
@@ -57,7 +57,7 @@ class LegacyInstallationIdentityMigrationTest {
       Installation fort = install(context.defender, "keep", InstallationKind.FORT, 20);
       Installation port = install(context.defender, "harbor", InstallationKind.PORT, 21);
       War war = context.war(990301);
-      war.setFortControllers(Map.of("keep", CampaignCoalition.AGGRESSOR));
+      war.setFortControllers(Map.of("keep", CampaignSideRole.AGGRESSOR));
       war.setWartimeInstallationOwners(Map.of("keep", context.defender.getId()));
       war.setRaidRepairLockUntil(Map.of("harbor", UNTIL));
       Path file = context.saveLegacy(war, omitVersion);
@@ -75,7 +75,7 @@ class LegacyInstallationIdentityMigrationTest {
         assertAll(
             () ->
                 assertEquals(
-                    Map.of(fort.getStableKey(), CampaignCoalition.AGGRESSOR),
+                    Map.of(fort.getStableKey(), CampaignSideRole.AGGRESSOR),
                     loaded.getFortControllers()),
             () ->
                 assertEquals(
@@ -91,7 +91,7 @@ class LegacyInstallationIdentityMigrationTest {
         install(third, "keep", InstallationKind.FORT, 40);
         Installation otherPort = install(third, "harbor", InstallationKind.PORT, 41);
         assertEquals(
-            CampaignCoalition.AGGRESSOR,
+            CampaignSideRole.AGGRESSOR,
             FortControlService.controllerForInstallation(loaded, fort).orElseThrow());
         assertTrue(CampaignRaidService.isInstallationRepairLocked(loaded, port, NOW));
         assertFalse(CampaignRaidService.isInstallationRepairLocked(loaded, otherPort, NOW));
@@ -114,7 +114,7 @@ class LegacyInstallationIdentityMigrationTest {
       install(third, "shared", InstallationKind.PORT, 30);
       War war = context.war(990302);
       war.setFortControllers(
-          Map.of("shared", CampaignCoalition.AGGRESSOR, "missing", CampaignCoalition.DEFENDER));
+          Map.of("shared", CampaignSideRole.AGGRESSOR, "missing", CampaignSideRole.DEFENDER));
       war.setWartimeInstallationOwners(
           Map.of("shared", context.defender.getId(), "missing", context.attacker.getId()));
       war.setRaidRepairLockUntil(Map.of("shared", UNTIL, "missing", UNTIL));
@@ -229,9 +229,9 @@ class LegacyInstallationIdentityMigrationTest {
       war.setFortControllers(
           Map.of(
               "keep",
-              CampaignCoalition.AGGRESSOR,
+              CampaignSideRole.AGGRESSOR,
               fort.getStableKey(),
-              CampaignCoalition.DEFENDER));
+              CampaignSideRole.DEFENDER));
       war.setWartimeInstallationOwners(
           Map.of("keep", context.attacker.getId(), fort.getStableKey(), context.defender.getId()));
       Instant physicalUntil = UNTIL.plusSeconds(7200);
@@ -241,7 +241,7 @@ class LegacyInstallationIdentityMigrationTest {
       assertAll(
           () ->
               assertEquals(
-                  Map.of(fort.getStableKey(), CampaignCoalition.DEFENDER),
+                  Map.of(fort.getStableKey(), CampaignSideRole.DEFENDER),
                   loaded.getFortControllers()),
           () ->
               assertEquals(
@@ -306,7 +306,7 @@ class LegacyInstallationIdentityMigrationTest {
     try (Context context = new Context()) {
       install(context.defender, "keep", InstallationKind.FORT, 20);
       War war = context.war(990306);
-      war.setFortControllers(Map.of("keep", CampaignCoalition.AGGRESSOR));
+      war.setFortControllers(Map.of("keep", CampaignSideRole.AGGRESSOR));
       Path failing = context.saveLegacy(war, false);
       byte[] original = Files.readAllBytes(failing);
       War good = context.war(990307);
@@ -335,7 +335,7 @@ class LegacyInstallationIdentityMigrationTest {
     try (Context context = new Context()) {
       Installation fort = install(context.defender, "keep", InstallationKind.FORT, 20);
       War war = context.war(990308);
-      war.setFortControllers(Map.of("keep", CampaignCoalition.AGGRESSOR));
+      war.setFortControllers(Map.of("keep", CampaignSideRole.AGGRESSOR));
       war.setWartimeInstallationOwners(Map.of("keep", context.attacker.getId()));
       war.setRaidRepairLockUntil(Map.of("keep", UNTIL));
       Path file = context.save(war, 1);
@@ -359,11 +359,11 @@ class LegacyInstallationIdentityMigrationTest {
       Installation fort = install(context.defender, "shared", InstallationKind.FORT, 20);
       install(context.attacker, "shared", InstallationKind.PORT, 11);
       War war = context.war(990309);
-      war.setFortControllers(Map.of("shared", CampaignCoalition.AGGRESSOR));
+      war.setFortControllers(Map.of("shared", CampaignSideRole.AGGRESSOR));
       context.saveLegacy(war, false);
       War loaded = new Database().loadWars().getFirst();
       assertEquals(
-          Map.of(fort.getStableKey(), CampaignCoalition.AGGRESSOR), loaded.getFortControllers());
+          Map.of(fort.getStableKey(), CampaignSideRole.AGGRESSOR), loaded.getFortControllers());
     }
   }
 

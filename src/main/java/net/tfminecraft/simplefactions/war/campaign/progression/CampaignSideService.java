@@ -8,50 +8,50 @@ import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 
-public final class CampaignCoalitionService {
+public final class CampaignSideService {
 	public static final int SCHEMA_VERSION = 3;
 
-	private CampaignCoalitionService() {}
+	private CampaignSideService() {}
 
-	public static Side toSide(War war, CampaignCoalition coalition) {
+	public static Side toSide(War war, CampaignSideRole coalition) {
 		if (war == null || coalition == null) {
 			return null;
 		}
-		return coalition == CampaignCoalition.AGGRESSOR ? war.getAttackers() : war.getDefenders();
+		return coalition == CampaignSideRole.AGGRESSOR ? war.getAttackers() : war.getDefenders();
 	}
 
-	public static CampaignCoalition coalitionOf(War war, Side side) {
+	public static CampaignSideRole coalitionOf(War war, Side side) {
 		if (war == null || side == null) {
 			return null;
 		}
 		if (side == war.getAttackers()) {
-			return CampaignCoalition.AGGRESSOR;
+			return CampaignSideRole.AGGRESSOR;
 		}
 		if (side == war.getDefenders()) {
-			return CampaignCoalition.DEFENDER;
+			return CampaignSideRole.DEFENDER;
 		}
 		return null;
 	}
 
-	public static CampaignCoalition opposing(War war, CampaignCoalition coalition) {
+	public static CampaignSideRole opposing(War war, CampaignSideRole coalition) {
 		if (coalition == null) {
 			return null;
 		}
 		return coalition.opposing();
 	}
 
-	public static CampaignCoalition getInitiativeHolderCoalition(War war) {
+	public static CampaignSideRole getInitiativeHolderCoalition(War war) {
 		if (war == null) {
-			return CampaignCoalition.AGGRESSOR;
+			return CampaignSideRole.AGGRESSOR;
 		}
-		CampaignCoalition coalition = war.getInitiativeHolderCoalition();
+		CampaignSideRole coalition = war.getInitiativeHolderCoalition();
 		if (coalition != null) {
 			return coalition;
 		}
 		return belligerentRoleToCoalition(war.getInitiativeHolder());
 	}
 
-	public static void setInitiativeHolderCoalition(War war, CampaignCoalition coalition) {
+	public static void setInitiativeHolderCoalition(War war, CampaignSideRole coalition) {
 		if (war == null || coalition == null) {
 			return;
 		}
@@ -59,47 +59,47 @@ public final class CampaignCoalitionService {
 		war.setInitiativeHolder(coalitionToBelligerentRole(coalition));
 	}
 
-	public static int getFuel(War war, CampaignCoalition coalition) {
+	public static int getFuel(War war, CampaignSideRole coalition) {
 		if (war == null || coalition == null) {
 			return 0;
 		}
-		return coalition == CampaignCoalition.AGGRESSOR
+		return coalition == CampaignSideRole.AGGRESSOR
 				? war.getInitiativeAttacker()
 				: war.getInitiativeDefender();
 	}
 
-	public static void setFuel(War war, CampaignCoalition coalition, int fuel) {
+	public static void setFuel(War war, CampaignSideRole coalition, int fuel) {
 		if (war == null || coalition == null) {
 			return;
 		}
-		if (coalition == CampaignCoalition.AGGRESSOR) {
+		if (coalition == CampaignSideRole.AGGRESSOR) {
 			war.setInitiativeAttacker(Math.max(0, fuel));
 		} else {
 			war.setInitiativeDefender(Math.max(0, fuel));
 		}
 	}
 
-	public static void spendFuel(War war, CampaignCoalition coalition) {
+	public static void spendFuel(War war, CampaignSideRole coalition) {
 		if (war == null || coalition == null) {
 			return;
 		}
 		setFuel(war, coalition, getFuel(war, coalition) - 1);
 	}
 
-	public static BelligerentRole coalitionToBelligerentRole(CampaignCoalition coalition) {
+	public static BelligerentRole coalitionToBelligerentRole(CampaignSideRole coalition) {
 		if (coalition == null) {
 			return BelligerentRole.ATTACKER;
 		}
-		return coalition == CampaignCoalition.AGGRESSOR
+		return coalition == CampaignSideRole.AGGRESSOR
 				? BelligerentRole.ATTACKER
 				: BelligerentRole.DEFENDER;
 	}
 
-	public static CampaignCoalition belligerentRoleToCoalition(BelligerentRole role) {
+	public static CampaignSideRole belligerentRoleToCoalition(BelligerentRole role) {
 		if (role == BelligerentRole.DEFENDER) {
-			return CampaignCoalition.DEFENDER;
+			return CampaignSideRole.DEFENDER;
 		}
-		return CampaignCoalition.AGGRESSOR;
+		return CampaignSideRole.AGGRESSOR;
 	}
 
 	public static boolean isWarLeader(War war, Faction faction) {
@@ -111,11 +111,11 @@ public final class CampaignCoalitionService {
 				|| id.equalsIgnoreCase(war.getDefenderLeaderId());
 	}
 
-	public static boolean isCoalitionWarLeader(War war, Faction faction, CampaignCoalition coalition) {
+	public static boolean isCoalitionWarLeader(War war, Faction faction, CampaignSideRole coalition) {
 		if (war == null || faction == null || coalition == null || faction.getId() == null) {
 			return false;
 		}
-		String leaderId = coalition == CampaignCoalition.AGGRESSOR
+		String leaderId = coalition == CampaignSideRole.AGGRESSOR
 				? war.getAttackerLeaderId()
 				: war.getDefenderLeaderId();
 		return faction.getId().equalsIgnoreCase(leaderId);
@@ -147,20 +147,20 @@ public final class CampaignCoalitionService {
 		};
 	}
 
-	public static boolean isWhitePeaceProposed(War war, CampaignCoalition coalition) {
+	public static boolean isWhitePeaceProposed(War war, CampaignSideRole coalition) {
 		if (war == null || coalition == null) {
 			return false;
 		}
-		return coalition == CampaignCoalition.AGGRESSOR
+		return coalition == CampaignSideRole.AGGRESSOR
 				? war.isWhitePeaceProposedByAttacker()
 				: war.isWhitePeaceProposedByDefender();
 	}
 
-	public static void setWhitePeaceProposed(War war, CampaignCoalition coalition, boolean proposed) {
+	public static void setWhitePeaceProposed(War war, CampaignSideRole coalition, boolean proposed) {
 		if (war == null || coalition == null) {
 			return;
 		}
-		if (coalition == CampaignCoalition.AGGRESSOR) {
+		if (coalition == CampaignSideRole.AGGRESSOR) {
 			war.setWhitePeaceProposedByAttacker(proposed);
 		} else {
 			war.setWhitePeaceProposedByDefender(proposed);
@@ -171,13 +171,13 @@ public final class CampaignCoalitionService {
 	 * Declare-time war coalition on the campaign axis (maps to {@code war.attackers} / {@code war.defenders}).
 	 * Not the battle-template attacker/defender side ids.
 	 */
-	public enum CampaignCoalition {
+	public enum CampaignSideRole {
 		AGGRESSOR("aggressor"),
 		DEFENDER("defender");
 
 		private final String jsonId;
 
-		CampaignCoalition(String jsonId) {
+		CampaignSideRole(String jsonId) {
 			this.jsonId = jsonId;
 		}
 
@@ -185,11 +185,11 @@ public final class CampaignCoalitionService {
 			return jsonId;
 		}
 
-		public static CampaignCoalition fromJson(String value) {
+		public static CampaignSideRole fromJson(String value) {
 			if (value == null || value.isBlank()) {
 				return null;
 			}
-			for (CampaignCoalition coalition : values()) {
+			for (CampaignSideRole coalition : values()) {
 				if (coalition.jsonId.equalsIgnoreCase(value)) {
 					return coalition;
 				}
@@ -197,7 +197,7 @@ public final class CampaignCoalitionService {
 			return null;
 		}
 
-		public CampaignCoalition opposing() {
+		public CampaignSideRole opposing() {
 			return this == AGGRESSOR ? DEFENDER : AGGRESSOR;
 		}
 	}

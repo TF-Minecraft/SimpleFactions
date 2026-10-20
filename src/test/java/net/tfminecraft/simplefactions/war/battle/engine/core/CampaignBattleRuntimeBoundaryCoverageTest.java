@@ -29,7 +29,7 @@ import net.tfminecraft.simplefactions.war.battle.template.BattleLocation;
 import net.tfminecraft.simplefactions.war.battle.template.ContestArea;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.core.War;
 import org.bukkit.Bukkit;
@@ -249,7 +249,7 @@ class CampaignBattleRuntimeBoundaryCoverageTest {
     try (Fixture rig = new Fixture()) {
       Battle battle = BattleFactory.createBlank(BattleType.FIELD, "boundary_counterattack");
       battle.setWarId(rig.war.getId());
-      battle.setOffensiveCoalition(CampaignCoalition.DEFENDER);
+      battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
       Faction outsider = rig.domain.saved("runtime_outsider", "OutsiderLeader");
       War other = new War(998013, outsider, rig.attacker);
       assertSame(

@@ -15,7 +15,7 @@ import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
 import net.tfminecraft.simplefactions.war.enums.WarType;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService.ScheduleLeg;
@@ -110,7 +110,7 @@ public final class WarMapExporter {
 		if (pushTarget != null) {
 			return pushTarget;
 		}
-		return CampaignCoalitionService.derivePushTargetFromLegacyPhase(
+		return CampaignSideService.derivePushTargetFromLegacyPhase(
 				war.getCampaignPhase(),
 				war.getObjectiveHeldBy());
 	}

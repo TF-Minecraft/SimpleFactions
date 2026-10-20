@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,12 +42,12 @@ class CampaignProgressionServiceTest {
 	@Test
 	void holdsInitiative_followsInitiativeHolderCoalition() {
 		War war = baseWar();
-		assertTrue(CampaignProgressionService.holdsInitiative(war, CampaignCoalition.AGGRESSOR));
-		assertFalse(CampaignProgressionService.holdsInitiative(war, CampaignCoalition.DEFENDER));
+		assertTrue(CampaignProgressionService.holdsInitiative(war, CampaignSideRole.AGGRESSOR));
+		assertFalse(CampaignProgressionService.holdsInitiative(war, CampaignSideRole.DEFENDER));
 
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		war.setInitiativeHolder(BelligerentRole.DEFENDER);
-		assertTrue(CampaignProgressionService.holdsInitiative(war, CampaignCoalition.DEFENDER));
+		assertTrue(CampaignProgressionService.holdsInitiative(war, CampaignSideRole.DEFENDER));
 	}
 
 	@Test
@@ -70,7 +70,7 @@ class CampaignProgressionServiceTest {
 		war.setInitiativeAttacker(4);
 		war.setInitiativeDefender(4);
 		war.setInitiativeHolder(BelligerentRole.ATTACKER);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setObjectiveHeldBy(ObjectiveHolder.DEFENDER);

@@ -363,11 +363,7 @@ public class DeclareWarView {
 		}
 	}
 
-	/**
-	 * Sends a chosen goal to its own sub-picker, or straight to confirm when it needs
-	 * no extra ids. Also the entry point for a validated declare code, which skips the
-	 * goal picker entirely because the code already pinned the goal.
-	 */
+	/** Sends a chosen goal to its own sub-picker, or straight to confirm when it needs no extra ids. */
 	public void routeGoal(Player player, Faction attacker, Faction defender, WarGoalType goal) {
 		routeGoal(player, attacker, defender, goal, null);
 	}
@@ -415,20 +411,10 @@ public class DeclareWarView {
 		executeDeclare(player, request);
 	}
 
-	/**
-	 * Back out of a goal's sub-picker. A code session means the goal was pinned, so the
-	 * goal picker must not reappear: the pin is the point, and reopening it would offer
-	 * goals the confirm step is going to refuse anyway.
-	 */
+	/** Back out of a goal's sub-picker. A code session stays open: it covers the pairing, not a goal. */
 	private void backOutOfSubPicker(Player player, Faction attacker, Faction defender, WarDemandDraft demand) {
 		if (demand != null) {
 			openGoalPicker(player, attacker, defender, null, demand);
-			return;
-		}
-		if (WarDeclareCodeService.session(player) != null) {
-			WarDeclareCodeService.clearSession(player);
-			player.sendMessage("§7War declaration cancelled. Your code is still unused.");
-			inv.diplomacyView(null, player, defender, true);
 			return;
 		}
 		openGoalPicker(player, attacker, defender);
@@ -537,7 +523,7 @@ public class DeclareWarView {
 
 	private void executeDeclare(Player player, WarDeclareRequest request) {
 		// The war button gates the entry, but pendingWarDeclares is a separate map, so
-		// the session is re-checked here against the pairing and goal actually confirmed.
+		// the session is re-checked here against the pairing actually confirmed.
 		WarDeclareCodeService.Session session = null;
 		if (WarDeclareCodeService.isRequired(player)) {
 			session = WarDeclareCodeService.session(player);

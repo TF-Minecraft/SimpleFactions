@@ -17,7 +17,6 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
-import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 
 /**
  * Collects a war declare code from chat, on the {@code RelocationPrompt} pattern:
@@ -145,14 +144,11 @@ public class DeclareCodePrompt implements Listener {
 			return;
 		}
 
-		WarGoalType goal = result.goal;
 		WarDeclareCodeService.openSession(player, new WarDeclareCodeService.Session(
-				code, state.attackerId, state.defenderId, goal));
-		player.sendMessage("§aCode accepted. War goal: §f" + goal.getDisplayName());
+				code, state.attackerId, state.defenderId));
+		player.sendMessage("§aCode accepted. Choose your war goal.");
 		player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-		// Straight to the goal's own sub-picker: a pinned goal never sees the picker,
-		// so the pin is real rather than a filtered list the player could work around.
-		FactionManager.getInv().declareWarView.routeGoal(player, attacker, defender, goal);
+		FactionManager.getInv().declareWarView.openGoalPicker(player, attacker, defender);
 	}
 
 	@EventHandler

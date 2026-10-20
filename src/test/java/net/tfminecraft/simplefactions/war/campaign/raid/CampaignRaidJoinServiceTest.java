@@ -31,7 +31,7 @@ import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarban
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.JoinResult;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.LaunchResult;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -125,7 +125,7 @@ class CampaignRaidJoinServiceTest {
 			Warband atk = CampaignRaidWarbandService.getAttackerWarband(CampaignRaidService.getActive(war));
 			assertNotNull(atk);
 			assertTrue(atk.hasMember(ATTACKER_PLAYER));
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
 		}
 	}
 
@@ -181,7 +181,7 @@ class CampaignRaidJoinServiceTest {
 
 	@Test
 	void join_rejectsAnAccountTiedToTheOtherSide() {
-		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignCoalition.DEFENDER);
+		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignSideRole.DEFENDER);
 
 		assertEquals(
 				JoinResult.REJECTED_OTHER_SIDE,
@@ -195,9 +195,9 @@ class CampaignRaidJoinServiceTest {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
 		CampaignRaidWarbandService.createRaidWarbands(war, raid);
 
-		assertEquals(new CampaignWarbandSideLock.Tie(war, CampaignCoalition.AGGRESSOR),
+		assertEquals(new CampaignWarbandSideLock.Tie(war, CampaignSideRole.AGGRESSOR),
 				CampaignWarbandSideLock.tieOf(CampaignRaidWarbandService.getAttackerWarband(raid)));
-		assertEquals(new CampaignWarbandSideLock.Tie(war, CampaignCoalition.DEFENDER),
+		assertEquals(new CampaignWarbandSideLock.Tie(war, CampaignSideRole.DEFENDER),
 				CampaignWarbandSideLock.tieOf(CampaignRaidWarbandService.getDefenderWarband(raid)));
 	}
 
@@ -206,7 +206,7 @@ class CampaignRaidJoinServiceTest {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
 		CampaignRaidWarbandService.createRaidWarbands(war, raid);
 		Warband atk = CampaignRaidWarbandService.getAttackerWarband(raid);
-		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignCoalition.DEFENDER);
+		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignSideRole.DEFENDER);
 
 		assertEquals(CampaignWarbandSideLock.OTHER_SIDE, CampaignWarbandSignupService.signupMember(
 				ATTACKER_PLAYER, ATTACKER_NAME, atk, attacker, null, raidWindow.plusSeconds(10)));
@@ -228,7 +228,7 @@ class CampaignRaidJoinServiceTest {
 					ATTACKER_PLAYER, ATTACKER_NAME, atk, attacker, null, raidWindow.plusSeconds(10)));
 		}
 		assertTrue(atk.hasMember(ATTACKER_PLAYER));
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
+		assertEquals(CampaignSideRole.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
 	}
 
 	@Test
@@ -246,13 +246,13 @@ class CampaignRaidJoinServiceTest {
 		CampaignWarbandSideLock.bindLoadedMembers();
 		CampaignWarbandSideLock.bindLoadedMembers();
 
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
+		assertEquals(CampaignSideRole.AGGRESSOR, war.getAccountCoalition(ATTACKER_PLAYER));
 		assertNull(war.getAccountCoalition(DEFENDER_PLAYER));
 	}
 
 	@Test
 	void signupAttacker_skipsAnAccountTiedToTheDefenders() {
-		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignCoalition.DEFENDER);
+		war.bindAccountCoalition(ATTACKER_PLAYER, CampaignSideRole.DEFENDER);
 
 		CampaignRaidWarbandService.signupAttacker(war, CampaignRaidService.getActive(war), ATTACKER_PLAYER, ATTACKER_NAME);
 
@@ -263,7 +263,7 @@ class CampaignRaidJoinServiceTest {
 
 	@Test
 	void signupDefender_skipsAnAccountTiedToTheRaiders() {
-		war.bindAccountCoalition(DEFENDER_PLAYER, CampaignCoalition.AGGRESSOR);
+		war.bindAccountCoalition(DEFENDER_PLAYER, CampaignSideRole.AGGRESSOR);
 
 		CampaignRaidWarbandService.signupDefender(war, CampaignRaidService.getActive(war), DEFENDER_PLAYER, DEFENDER_NAME);
 

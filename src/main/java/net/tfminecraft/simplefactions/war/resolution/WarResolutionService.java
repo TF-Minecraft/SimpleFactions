@@ -11,7 +11,7 @@ import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.WhitePeaceService;
@@ -43,7 +43,7 @@ public final class WarResolutionService {
 	public static Optional<WarEndReason> tryEndAfterBattle(
 			War war,
 			int battleProvinceId,
-			CampaignCoalition winner,
+			CampaignSideRole winner,
 			CampaignPushTarget preBattlePushTarget,
 			ObjectiveHolder preBattleObjectiveHeldBy) {
 		if (war == null || !war.isActive() || winner == null) {
@@ -93,7 +93,7 @@ public final class WarResolutionService {
 			return Optional.empty();
 		}
 		Integer provinceId = context.battleProvinceId();
-		CampaignCoalition winner = context.battleWinnerCoalition();
+		CampaignSideRole winner = context.battleWinnerCoalition();
 		if (provinceId == null || provinceId <= 0 || winner == null) {
 			return Optional.empty();
 		}
@@ -102,10 +102,10 @@ public final class WarResolutionService {
 		if (war.getGoal() == WarGoalType.PILLAGE
 				&& objectiveProvinceId != null
 				&& provinceId.equals(objectiveProvinceId)) {
-			if (winner == CampaignCoalition.AGGRESSOR) {
+			if (winner == CampaignSideRole.AGGRESSOR) {
 				return Optional.of(WarEndReason.ATTACKER_VICTORY);
 			}
-			if (winner == CampaignCoalition.DEFENDER) {
+			if (winner == CampaignSideRole.DEFENDER) {
 				return Optional.of(WarEndReason.DEFENDER_VICTORY);
 			}
 		}
@@ -115,12 +115,12 @@ public final class WarResolutionService {
 
 		if (defenderCapital > 0
 				&& provinceId == defenderCapital
-				&& winner == CampaignCoalition.AGGRESSOR) {
+				&& winner == CampaignSideRole.AGGRESSOR) {
 			return Optional.of(WarEndReason.ATTACKER_VICTORY);
 		}
 		if (attackerCapital > 0
 				&& provinceId == attackerCapital
-				&& winner == CampaignCoalition.DEFENDER) {
+				&& winner == CampaignSideRole.DEFENDER) {
 			return Optional.of(WarEndReason.DEFENDER_VICTORY);
 		}
 
@@ -134,7 +134,7 @@ public final class WarResolutionService {
 				&& objectiveHeldBy == ObjectiveHolder.ATTACKER
 				&& objectiveProvinceId != null
 				&& provinceId.equals(objectiveProvinceId)
-				&& winner == CampaignCoalition.AGGRESSOR) {
+				&& winner == CampaignSideRole.AGGRESSOR) {
 			return Optional.of(WarEndReason.ATTACKER_VICTORY);
 		}
 
@@ -158,9 +158,9 @@ public final class WarResolutionService {
 		}
 		int provinceId = next.getAsInt();
 		boolean aggressorCan = CampaignCapabilityService.canMountOffensive(
-				war, CampaignCoalition.AGGRESSOR, provinceId);
+				war, CampaignSideRole.AGGRESSOR, provinceId);
 		boolean defenderCan = CampaignCapabilityService.canMountOffensive(
-				war, CampaignCoalition.DEFENDER, provinceId);
+				war, CampaignSideRole.DEFENDER, provinceId);
 		return !aggressorCan && !defenderCan;
 	}
 

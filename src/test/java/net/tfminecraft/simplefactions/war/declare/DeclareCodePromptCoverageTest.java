@@ -130,7 +130,8 @@ class DeclareCodePromptCoverageTest {
   }
 
   @Test
-  void aValidCodeIsCheckedOffThreadAndOnlyOpensItsPinnedConfirmationOnTheMainCallback() {
+  void aValidCodeIsCheckedOffThreadAndOnlyOpensTheGoalPickerOnTheMainCallback() {
+    fixture.provincesEnabled(true);
     DeclareCodePrompt.begin(player, attacker, defender);
     assertTrue(submit("  chosen-code  ").isCancelled());
     assertTrue(requests.isEmpty());
@@ -145,13 +146,16 @@ class DeclareCodePromptCoverageTest {
 
     fixture.ui.runTasks();
 
-    assertEquals(WarGoalType.TRIBUTARY, WarDeclareCodeService.session(player).goal);
     assertEquals("chosen-code", WarDeclareCodeService.session(player).code);
-    assertSame(defender, inventory.pendingWarDeclares.get(player).getDefender());
-    assertEquals(WarGoalType.TRIBUTARY, inventory.pendingWarDeclares.get(player).getGoal());
-    assertEquals(
-        "defender",
-        fixture.ui.data(player.getOpenInventory().getTopInventory().getItem(11), "war_declare"));
+    assertEquals("war_declare", requests.getFirst().get("kind").getAsString());
+    // The code covers the pairing only; the leader still chooses the goal.
+    assertFalse(inventory.pendingWarDeclares.containsKey(player));
+    verify(player).sendMessage("§aCode accepted. Choose your war goal.");
+    var holder =
+        (net.tfminecraft.simplefactions.managers.holder.DeclareWarHolder)
+            player.getOpenInventory().getTopInventory().getHolder();
+    assertEquals(net.tfminecraft.simplefactions.enums.SFGUI.WAR_DECLARE_GOAL, holder.getStep());
+    assertEquals("defender", holder.getDefenderId());
   }
 
   @Test
@@ -180,13 +184,13 @@ class DeclareCodePromptCoverageTest {
     fixture.ui.asyncTasks.removeFirst().run();
     fixture.ui.runTasks();
     assertEquals("new-code", WarDeclareCodeService.session(player).code);
-    assertSame(alternative, inventory.pendingWarDeclares.get(player).getDefender());
+    assertEquals(alternative.getId(), WarDeclareCodeService.session(player).defenderId);
 
     oldRequest.run();
     fixture.ui.runTasks();
 
     assertEquals("new-code", WarDeclareCodeService.session(player).code);
-    assertSame(alternative, inventory.pendingWarDeclares.get(player).getDefender());
+    assertEquals(alternative.getId(), WarDeclareCodeService.session(player).defenderId);
   }
 
   @Test
@@ -262,7 +266,7 @@ class DeclareCodePromptCoverageTest {
     timed.getLast().callback().run();
 
     assertEquals("valid-code", WarDeclareCodeService.session(player).code);
-    assertSame(defender, inventory.pendingWarDeclares.get(player).getDefender());
+    assertEquals(defender.getId(), WarDeclareCodeService.session(player).defenderId);
     assertEquals(1, requests.size());
     verify(player, never()).sendMessage("§cWar declaration timed out");
     verify(player, never()).sendMessage("§cThe war code service did not answer in time.");
@@ -339,7 +343,7 @@ class DeclareCodePromptCoverageTest {
     WarDeclareCodeService.openSession(
         player,
         new WarDeclareCodeService.Session(
-            "previous", attacker.getId(), defender.getId(), WarGoalType.WAR));
+            "previous", attacker.getId(), defender.getId()));
 
     listener.onPlayerQuit(new PlayerQuitEvent(player, "left"));
     fixture.ui.asyncTasks.removeFirst().run();
@@ -355,7 +359,7 @@ class DeclareCodePromptCoverageTest {
     WarDeclareCodeService.openSession(
         player,
         new WarDeclareCodeService.Session(
-            "previous", attacker.getId(), defender.getId(), WarGoalType.WAR));
+            "previous", attacker.getId(), defender.getId()));
 
     DeclareCodePrompt.begin(player, attacker, alternative);
 

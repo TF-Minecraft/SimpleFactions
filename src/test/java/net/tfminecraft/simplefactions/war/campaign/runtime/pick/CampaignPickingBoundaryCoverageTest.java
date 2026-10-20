@@ -24,7 +24,7 @@ import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
@@ -511,7 +511,7 @@ class CampaignPickingBoundaryCoverageTest {
             ? CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL
             : CampaignPushTarget.TOWARD_OBJECTIVE);
     war.setInitiativeHolderCoalition(
-        counterAttack ? CampaignCoalition.DEFENDER : CampaignCoalition.AGGRESSOR);
+        counterAttack ? CampaignSideRole.DEFENDER : CampaignSideRole.AGGRESSOR);
     ScheduledCampaignBattle naval =
         new ScheduledCampaignBattle(15, CampaignBattleKind.NAVAL, false, null, port.getId());
     if (counterAttack) {

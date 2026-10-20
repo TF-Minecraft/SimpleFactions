@@ -4,7 +4,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression.postbattle;
 
 
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignRetreatService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
@@ -114,7 +114,7 @@ class CampaignRetreatServiceTest {
 		War war = baseWar();
 		war.setPushTarget(CampaignPushTarget.TOWARD_OBJECTIVE);
 
-		assertEquals(CampaignCoalition.DEFENDER, CampaignRetreatService.pushedCoalition(war));
+		assertEquals(CampaignSideRole.DEFENDER, CampaignRetreatService.pushedCoalition(war));
 	}
 
 	@Test
@@ -122,7 +122,7 @@ class CampaignRetreatServiceTest {
 		War war = baseWar();
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 
-		assertEquals(CampaignCoalition.AGGRESSOR, CampaignRetreatService.pushedCoalition(war));
+		assertEquals(CampaignSideRole.AGGRESSOR, CampaignRetreatService.pushedCoalition(war));
 	}
 
 	@Test
@@ -278,12 +278,12 @@ class CampaignRetreatServiceTest {
 		Installation fort = new Installation("fort_a", "Fort", InstallationKind.FORT, 20, 0, 0, 100L);
 		defender.getInstallationHandler().acceptTransferred(fort);
 		FactionManager.factions.add(defender);
-		war.putFortController("fort_a", CampaignCoalition.DEFENDER);
+		war.putFortController("fort_a", CampaignSideRole.DEFENDER);
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		CampaignRetreatService.concedeActiveSlot(war, defender, beforeVoteClose);
 
-		assertEquals(CampaignCoalition.AGGRESSOR, war.getFortControllers().get(fort.getStableKey()));
+		assertEquals(CampaignSideRole.AGGRESSOR, war.getFortControllers().get(fort.getStableKey()));
 		assertEquals(1, war.getCampaignScheduleIndex());
 		assertEquals(0, war.getCampaignBattlesFought());
 	}
@@ -299,7 +299,7 @@ class CampaignRetreatServiceTest {
 		war.setCampaignScheduleIndex(0);
 		war.setCampaignCounterScheduleIndex(0);
 		war.setPushTarget(CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
-		war.setInitiativeHolderCoalition(CampaignCoalition.DEFENDER);
+		war.setInitiativeHolderCoalition(CampaignSideRole.DEFENDER);
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		assertFalse(CampaignRetreatService.canRetreat(war, defender, beforeVoteClose));
@@ -360,7 +360,7 @@ class CampaignRetreatServiceTest {
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
 		war.setCampaignScheduleIndex(0);
-		war.setInitiativeHolderCoalition(CampaignCoalition.AGGRESSOR);
+		war.setInitiativeHolderCoalition(CampaignSideRole.AGGRESSOR);
 		return war;
 	}
 }

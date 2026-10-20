@@ -13,8 +13,8 @@ import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 
 public final class BattlePoolService {
@@ -26,8 +26,8 @@ public final class BattlePoolService {
 		if (war == null || side == null) {
 			return PoolMode.DEFENSIVE;
 		}
-		CampaignCoalition offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
-		CampaignCoalition sideCoalition = CampaignCoalitionService.coalitionOf(war, side);
+		CampaignSideRole offensive = CampaignCapabilityService.battleOffensiveCoalition(war);
+		CampaignSideRole sideCoalition = CampaignSideService.coalitionOf(war, side);
 		if (offensive == null || sideCoalition == null) {
 			return PoolMode.DEFENSIVE;
 		}

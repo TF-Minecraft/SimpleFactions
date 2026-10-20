@@ -37,7 +37,7 @@ import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -192,7 +192,7 @@ class CampaignWarbandSignupServiceTest {
 
 			assertNull(CampaignWarbandSignupService.signupMember(
 					aliceId, "Alice", shell, attacker, null, BattleWindowService.atScheduleHour(BATTLE_DAY, 20)));
-			assertEquals(CampaignCoalition.AGGRESSOR, war.getAccountCoalition(aliceId));
+			assertEquals(CampaignSideRole.AGGRESSOR, war.getAccountCoalition(aliceId));
 			wars.verify(() -> WarManager.persist(war));
 		}
 	}
@@ -206,7 +206,7 @@ class CampaignWarbandSignupServiceTest {
 		WarbandManager.addWarband(attackerShell);
 		WarbandManager.addWarband(defenderShell);
 		UUID accountId = UUID.randomUUID();
-		war.bindAccountCoalition(accountId, CampaignCoalition.AGGRESSOR);
+		war.bindAccountCoalition(accountId, CampaignSideRole.AGGRESSOR);
 		Instant signupHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 20);
 
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
@@ -235,7 +235,7 @@ class CampaignWarbandSignupServiceTest {
 		War war = battleDayWar();
 		CampaignRaid raid = new CampaignRaid();
 		raid.setId("harbor_raid");
-		raid.setAttackerCoalition(net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition.AGGRESSOR);
+		raid.setAttackerCoalition(net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole.AGGRESSOR);
 		raid.setDisplayName("Harbor Raid");
 		raid.setWarId(1);
 		raid.setState(CampaignRaidState.MUSTER);

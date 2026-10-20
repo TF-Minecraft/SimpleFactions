@@ -17,6 +17,7 @@ public class Participant {
 	private List<Faction> subjects = new ArrayList<>();
 	private List<Faction> backers = new ArrayList<>();
 	
+	private List<Faction> coalitionAllies = new ArrayList<>();
 	private HashMap<Faction, WarGoal> warGoals = new HashMap<>();
 
 	private boolean civilWar;
@@ -116,6 +117,23 @@ public class Participant {
 		return backers;
 	}
 
+	/** Coalition members who answered this participant's call. They stay in the war if they leave the coalition. */
+	public List<Faction> getCoalitionAllies() {
+		return coalitionAllies;
+	}
+
+	public boolean hasCoalitionAlly(Faction faction) {
+		return faction != null && containsId(coalitionAllies, faction.getId());
+	}
+
+	public boolean addCoalitionAlly(Faction faction) {
+		if (faction == null || faction.getId() == null || hasCoalitionAlly(faction)) {
+			return false;
+		}
+		coalitionAllies.add(faction);
+		return true;
+	}
+
 	public boolean isJoinedSecondary(Faction faction) {
 		if (faction == null || faction.getId() == null) {
 			return false;
@@ -133,7 +151,7 @@ public class Participant {
 				return true;
 			}
 		}
-		return containsBacker(id);
+		return containsBacker(id) || containsId(coalitionAllies, id);
 	}
 
 	public List<Faction> getJoinedSecondaries() {
@@ -147,15 +165,13 @@ public class Participant {
 			if (backer == null || backer.getId() == null) {
 				continue;
 			}
-			boolean already = false;
-			for (Faction existing : joined) {
-				if (existing.getId() != null && existing.getId().equalsIgnoreCase(backer.getId())) {
-					already = true;
-					break;
-				}
-			}
-			if (!already) {
+			if (!containsId(joined, backer.getId())) {
 				joined.add(backer);
+			}
+		}
+		for (Faction member : coalitionAllies) {
+			if (!containsId(joined, member.getId())) {
+				joined.add(member);
 			}
 		}
 		return joined;
@@ -184,12 +200,22 @@ public class Participant {
 		return false;
 	}
 
+	private static boolean containsId(List<Faction> factions, String factionId) {
+		for (Faction faction : factions) {
+			if (faction.getId() != null && faction.getId().equalsIgnoreCase(factionId)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public void clean(Faction f) {
 		if(subjects.contains(f)) subjects.remove(f);
 		if(allies.containsKey(f)) allies.remove(f);
 		backers.remove(f);
 		if (f != null && f.getId() != null) {
 			backers.removeIf(backer -> backer != null && backer.getId() != null && backer.getId().equalsIgnoreCase(f.getId()));
+			coalitionAllies.removeIf(member -> f.getId().equalsIgnoreCase(member.getId()));
 		}
 	}
 	

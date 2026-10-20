@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.declare;
 
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService;
 import java.util.List;
 
 import net.tfminecraft.simplefactions.Cache;
@@ -71,6 +72,9 @@ public class WarGoalValidator {
 		}
 		if (attacker.getId().equalsIgnoreCase(defender.getId())) {
 			return WarValidationResult.fail("§cYou cannot declare war on your own faction.");
+		}
+		if (!demand && CoalitionService.sameCoalition(attacker, defender)) {
+			return WarValidationResult.fail("§cYou cannot declare war on a member of your coalition.");
 		}
 		if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(defender)) {
 			return WarValidationResult.fail("§c" + defender.getName() + " §chas no living members and cannot be attacked.");

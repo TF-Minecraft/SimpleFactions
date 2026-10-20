@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.diplomacy;
 
+import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionCost;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,6 +56,7 @@ public class DiplomacyHandler {
             if(from == null) continue;
             used += RelationManager.getDiplomaticCost(f, from, r);
         }
+        used += CoalitionCost.costFor(f);
         return used;
     }
 

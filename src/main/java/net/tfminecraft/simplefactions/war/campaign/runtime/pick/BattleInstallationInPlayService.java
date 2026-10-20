@@ -2,7 +2,7 @@ package net.tfminecraft.simplefactions.war.campaign.runtime.pick;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCoalitionService.CampaignCoalition;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
@@ -28,7 +28,7 @@ public final class BattleInstallationInPlayService {
 		if (raid == null || raid.getState() != CampaignRaidState.FIGHTING) {
 			return false;
 		}
-		CampaignCoalition attackerCoalition = raid.getAttackerCoalition();
+		CampaignSideRole attackerCoalition = raid.getAttackerCoalition();
 		if (attackerCoalition == null) {
 			return false;
 		}
@@ -36,7 +36,7 @@ public final class BattleInstallationInPlayService {
 		if (faction == null) {
 			return false;
 		}
-		CampaignCoalition coalition = CampaignRaidService.coalitionForFaction(war, faction);
+		CampaignSideRole coalition = CampaignRaidService.coalitionForFaction(war, faction);
 		if (coalition == null) {
 			return false;
 		}

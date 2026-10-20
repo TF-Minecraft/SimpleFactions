@@ -194,6 +194,28 @@ class WarManagerCoverageTest {
   }
 
   @Test
+  void aCallToALeaderStillReadingAnotherRequestIsRefused() {
+    Faction attacker = fixture.saved("attacker", "Alice");
+    Faction defender = fixture.saved("defender", "Bob");
+    Faction target = fixture.saved("target", "Cara");
+    ally(attacker, target);
+    Player sender = fixture.player("Alice");
+    Player called = fixture.player("Cara");
+    War war = WarManager.addWar(new War(35, attacker, defender));
+    WarManager.sendRequest(sender, attacker, target, war);
+    var first = RequestManager.getRequest(called);
+    clearInvocations(sender);
+
+    WarManager.sendRequest(sender, attacker, target, war);
+
+    assertSame(first, RequestManager.getRequest(called));
+    verify(sender).sendMessage("§cThat leader already has a pending request.");
+    verify(sender, never()).sendMessage(startsWith("§aSent a call to arms"));
+    verify(called).sendMessage("§7Request will time out in 5 minutes");
+    RequestManager.remove(called);
+  }
+
+  @Test
   void aPendingInvitationCannotBeAcceptedForAnotherFactionAfterTheLeaderMoves() {
     Faction attacker = fixture.saved("attacker", "Alice");
     Faction defender = fixture.saved("defender", "Bob");
@@ -514,8 +536,8 @@ class WarManagerCoverageTest {
     String message =
         switch (reason) {
           case WHITE_PEACE -> "§7The war has ended in white peace.";
-          case ATTACKER_VICTORY -> "§7The war has ended. The attacker coalition wins.";
-          case DEFENDER_VICTORY -> "§7The war has ended. The defender coalition wins.";
+          case ATTACKER_VICTORY -> "§7The war has ended. The attacking side wins.";
+          case DEFENDER_VICTORY -> "§7The war has ended. The defending side wins.";
           default -> "§7The war has ended.";
         };
     verify(alice).sendMessage(message);
