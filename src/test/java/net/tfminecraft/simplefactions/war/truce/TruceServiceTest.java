@@ -195,6 +195,28 @@ class TruceServiceTest {
 		assertEquals("{not json", Files.readString(file, StandardCharsets.UTF_8));
 	}
 
+	@Test
+	void unparsableTimesAreDroppedOnLoad(@TempDir Path folder) throws Exception {
+		Files.writeString(folder.resolve("truces.json"),
+				"{\"truces\":[{\"first\":\"iron\",\"second\":\"river\",\"until\":\"soon\"}],"
+						+ "\"civilWarCooldowns\":{\"host\":{\"until\":\"later\",\"warId\":1}}}",
+				StandardCharsets.UTF_8);
+		TruceService.bind(folder.toFile());
+		TruceService.load();
+		assertFalse(TruceService.hasTruce(iron, river));
+		assertTrue(TruceService.list(null).isEmpty());
+		assertEquals(null, TruceService.civilWarCooldownUntil(faction("host")));
+	}
+
+	@Test
+	void aFailedSaveKeepsTheTruceInMemory(@TempDir Path folder) throws Exception {
+		File blocked = folder.resolve("blocked").toFile();
+		Files.writeString(blocked.toPath(), "a file, not a folder", StandardCharsets.UTF_8);
+		TruceService.bind(blocked);
+		TruceService.onWarEnded(new War(4, iron, river), WarEndReason.WHITE_PEACE);
+		assertTrue(TruceService.hasTruce(iron, river));
+	}
+
 	private Faction faction(String id) {
 		Faction faction = mock(Faction.class);
 		when(faction.getId()).thenReturn(id);

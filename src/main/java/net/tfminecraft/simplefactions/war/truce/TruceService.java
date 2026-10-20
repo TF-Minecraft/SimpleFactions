@@ -22,7 +22,6 @@ import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
-import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 
@@ -278,14 +277,7 @@ public final class TruceService {
 	}
 
 	static String civilWarHostId(War war) {
-		if (war.getCivilWarSnapshot() != null && war.getCivilWarSnapshot().getHostFactionId() != null) {
-			return war.getCivilWarSnapshot().getHostFactionId();
-		}
-		// Movement wars without a snapshot keep the host as the defending leader.
-		for (Participant participant : war.getDefenders().getMainParticipants()) {
-			if (participant.getLeader() != null) return participant.getLeader().getId();
-		}
-		return null;
+		return war.getCivilWarSnapshot() != null ? war.getCivilWarSnapshot().getHostFactionId() : null;
 	}
 
 	private static void purge() {
