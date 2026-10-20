@@ -145,7 +145,7 @@ class WarDeclarationBoundaryCoverageTest {
       Faction defender = domain.saved("defender", "DefenderLeader");
       var session =
           new WarDeclareCodeService.Session(
-              "code", attacker.getId(), defender.getId(), WarGoalType.WAR);
+              "code", attacker.getId(), defender.getId());
       WarDeclareCodeService.openSession(player, session);
       try {
         WarDeclareCodeService.openSession(null, session);
@@ -153,7 +153,7 @@ class WarDeclarationBoundaryCoverageTest {
         assertSame(session, WarDeclareCodeService.session(player));
         assertNull(WarDeclareCodeService.session(null));
         assertNull(WarDeclareCodeService.clearSession(null));
-        for (String body : List.of("{", "[]", "null", "{\"goal\":null}", "{\"goal\":{}}", "{\"goal\":\"war\"}")) {
+        for (String body : List.of("{", "[]", "null", "", "{\"kind\":\"coalition_offensive\"}")) {
           WarDeclareCodeService.setGateway((path, json) -> GatewayClient.Result.success(body));
           assertFalse(
               WarDeclareCodeService.validate("code", attacker.getId(), defender.getId()).ok, body);
@@ -176,7 +176,7 @@ class WarDeclarationBoundaryCoverageTest {
         assertSame(session, WarDeclareCodeService.session(player));
         assertFalse(
             WarDeclareCodeService.covers(
-                new WarDeclareCodeService.Session("code", null, defender.getId(), WarGoalType.WAR),
+                new WarDeclareCodeService.Session("code", null, defender.getId()),
                 WarDeclareRequest.of(attacker, defender, WarGoalType.WAR)));
         assertTrue(WarManager.get().isEmpty());
       } finally {

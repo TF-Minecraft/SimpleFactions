@@ -730,7 +730,7 @@ class WarMenusCoverageTest {
   void acceptedDeclarationCodeIsRedeemedOnlyAfterWarCreation(boolean redeemed) {
     WarDeclareRequest request = WarDeclareRequest.of(attacker, defender, WarGoalType.WAR);
     WarDeclareCodeService.Session session =
-        new WarDeclareCodeService.Session("approved", "attacker", "defender", WarGoalType.WAR);
+        new WarDeclareCodeService.Session("approved", "attacker", "defender");
     try (MockedConstruction<WarGoalValidator> validators = validating(WarValidationResult.ok());
         MockedStatic<WarDeclareCodeService> codes = mockStatic(WarDeclareCodeService.class)) {
       codes.when(() -> WarDeclareCodeService.isRequired(player)).thenReturn(true);
@@ -740,7 +740,7 @@ class WarMenusCoverageTest {
           .when(() -> WarDeclareCodeService.redeem("approved", "attacker", "defender", 7))
           .thenReturn(
               redeemed
-                  ? WarDeclareCodeService.Result.success(WarGoalType.WAR)
+                  ? WarDeclareCodeService.Result.success()
                   : WarDeclareCodeService.Result.fail("unavailable"));
       wars.when(
               () ->
@@ -771,11 +771,10 @@ class WarMenusCoverageTest {
       codes
           .when(() -> WarDeclareCodeService.session(player))
           .thenReturn(
-              new WarDeclareCodeService.Session("code", "attacker", "defender", WarGoalType.WAR));
+              new WarDeclareCodeService.Session("code", "attacker", "defender"));
       declaration.handleConfirm(
           player, WarDeclareRequest.of(attacker, defender, WarGoalType.WAR), false);
-      verify(navigation).diplomacyView(null, player, defender, true);
-      verify(player).sendMessage("§7War declaration cancelled. Your code is still unused.");
+      assertEquals(SFGUI.WAR_DECLARE_GOAL, ((DeclareWarHolder) top().getHolder()).getStep());
       assertTrue(fixture.ui.asyncTasks.isEmpty());
     }
   }
@@ -975,7 +974,7 @@ class WarMenusCoverageTest {
   }
 
   @Test
-  void backingOutOfAnUnpinnedSubPickerReturnsToGoalsAndPinnedOneReturnsToDiplomacy() {
+  void backingOutOfASubPickerReturnsToGoalsAndKeepsAnyCodeSession() {
     declaration.openRelationTypePicker(player, attacker, defender);
     declaration.click(fixture.ui.click(player, 26), top(), player);
     assertEquals(SFGUI.WAR_DECLARE_GOAL, ((DeclareWarHolder) top().getHolder()).getStep());
@@ -984,11 +983,11 @@ class WarMenusCoverageTest {
           .when(() -> WarDeclareCodeService.session(player))
           .thenReturn(
               new WarDeclareCodeService.Session(
-                  "approved", "attacker", "defender", WarGoalType.SUBJUGATE));
+                  "approved", "attacker", "defender"));
       declaration.openRelationTypePicker(player, attacker, defender);
       declaration.click(fixture.ui.click(player, 26), top(), player);
-      codes.verify(() -> WarDeclareCodeService.clearSession(player));
-      verify(navigation).diplomacyView(null, player, defender, true);
+      codes.verify(() -> WarDeclareCodeService.clearSession(player), never());
+      assertEquals(SFGUI.WAR_DECLARE_GOAL, ((DeclareWarHolder) top().getHolder()).getStep());
     }
   }
 

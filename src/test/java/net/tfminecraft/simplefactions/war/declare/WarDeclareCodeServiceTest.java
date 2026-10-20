@@ -65,20 +65,18 @@ class WarDeclareCodeServiceTest {
 	}
 
 	@Test
-	void aValidCodeReturnsTheGoalItWasMintedFor() {
+	void aValidCodeIsAcceptedWhateverGoalAnOlderBackendStillNames() {
 		gateway.reply = GatewayClient.Result.success("{\"valid\":true,\"goal\":\"transfer_subject\"}");
+		assertTrue(WarDeclareCodeService.validate("AAAA-BBBB-CCCC", "rhun", "arnor").ok);
 
-		WarDeclareCodeService.Result result =
-				WarDeclareCodeService.validate("AAAA-BBBB-CCCC", "rhun", "arnor");
-
-		assertTrue(result.ok);
-		assertEquals(WarGoalType.TRANSFER_SUBJECT, result.goal);
+		gateway.reply = GatewayClient.Result.success("{\"valid\":true,\"kind\":\"war_declare\",\"goal\":null}");
+		assertTrue(WarDeclareCodeService.validate("AAAA-BBBB-CCCC", "rhun", "arnor").ok);
 		assertEquals("/wars/declare-codes/validate", gateway.paths.get(0));
 	}
 
 	@Test
-	void theRequestCarriesThePairingButNeverARealm() {
-		gateway.reply = GatewayClient.Result.success("{\"goal\":\"war\"}");
+	void theRequestCarriesThePairingAndKindButNeverARealm() {
+		gateway.reply = GatewayClient.Result.success("{}");
 
 		WarDeclareCodeService.validate("  aaaa-bbbb-cccc  ", "rhun", "arnor");
 
@@ -86,6 +84,7 @@ class WarDeclareCodeServiceTest {
 		assertEquals("aaaa-bbbb-cccc", body.get("code").getAsString());
 		assertEquals("rhun", body.get("attacker_faction_id").getAsString());
 		assertEquals("arnor", body.get("defender_faction_id").getAsString());
+		assertEquals("war_declare", body.get("kind").getAsString());
 		// TFMCWeb injects realm_id on the way out; the plugin does not know its realm,
 		// and guessing one here would let a dev code be spent on the live realm.
 		assertFalse(body.has("realm_id"));
@@ -99,7 +98,6 @@ class WarDeclareCodeServiceTest {
 				WarDeclareCodeService.validate("AAAA-BBBB-CCCC", "rhun", "arnor");
 
 		assertFalse(result.ok);
-		assertNull(result.goal);
 		assertTrue(result.error.contains("connection refused"), result.error);
 	}
 
@@ -115,37 +113,57 @@ class WarDeclareCodeServiceTest {
 	}
 
 	@Test
-	void aMovementOriginGoalIsRefusedEvenWhenTheBackendAllowedIt() {
-		// The backend rejects these at mint, but routeGoal has no branch for them, so a
-		// stale row would otherwise send the leader to a GUI that never opens.
-		for (String goal : List.of("overthrow", "change_law", "change_tax", "force_peace")) {
-			gateway.reply = GatewayClient.Result.success("{\"goal\":\"" + goal + "\"}");
-			assertTrue(WarGoalType.fromJson(goal).isMovementOrigin(), goal);
+	void aMissingOrBlankReasonFallsBackToAGenericMessage() {
+		gateway.reply = null;
+		assertEquals("§cCould not reach the war code service.",
+				WarDeclareCodeService.validate("A", "rhun", "arnor").error);
+		gateway.reply = GatewayClient.Result.fail(" ");
+		assertEquals("§cCould not reach the war code service.",
+				WarDeclareCodeService.validate("A", "rhun", "arnor").error);
+		assertEquals("Could not check the code", WarDeclareCodeService.Result.fail(null).error);
+	}
 
-			WarDeclareCodeService.Result result =
-					WarDeclareCodeService.validate("AAAA-BBBB-CCCC", "rhun", "arnor");
-
-			assertFalse(result.ok, goal);
-			assertNull(result.goal, goal);
+	@Test
+	void anUnreadableAnswerIsNotTreatedAsApproval() {
+		for (String reply : new String[] {null, "", "  ", "[1,2]", "{not json"}) {
+			gateway.reply = GatewayClient.Result.success(reply);
+			WarDeclareCodeService.Result result = WarDeclareCodeService.validate("A", "rhun", "arnor");
+			assertFalse(result.ok, String.valueOf(reply));
+			assertEquals("§cThe war code service gave an answer this server cannot read.", result.error);
 		}
 	}
 
 	@Test
-	void anEmptyOrGoallessAnswerIsNotTreatedAsApproval() {
-		gateway.reply = GatewayClient.Result.success("");
-		assertFalse(WarDeclareCodeService.validate("A", "rhun", "arnor").ok);
+	void aCodeOfTheOtherKindIsRefusedEitherWay() {
+		gateway.reply = GatewayClient.Result.success("{\"kind\":\"coalition_offensive\"}");
+		WarDeclareCodeService.Result war = WarDeclareCodeService.validate("A", "rhun", "arnor");
+		assertFalse(war.ok);
+		assertEquals("§cThat code is a coalition code, not a war declaration code.", war.error);
 
+		gateway.reply = GatewayClient.Result.success("{\"kind\":\"war_declare\"}");
+		WarDeclareCodeService.Result coalition = WarDeclareCodeService.validate(
+				"A", "rhun", "arnor", WarDeclareCodeService.Kind.COALITION_OFFENSIVE);
+		assertFalse(coalition.ok);
+		assertEquals("§cThat code is a war declaration code, not a coalition code.", coalition.error);
+		assertEquals("coalition_offensive", gateway.lastBody().get("kind").getAsString());
+
+		// A backend from before kinds only knew war codes, so it can never approve a coalition code.
 		gateway.reply = GatewayClient.Result.success("{\"valid\":true}");
-		assertFalse(WarDeclareCodeService.validate("A", "rhun", "arnor").ok);
-
-		gateway.reply = GatewayClient.Result.success("{\"goal\":\"not_a_goal\"}");
-		assertFalse(WarDeclareCodeService.validate("A", "rhun", "arnor").ok);
+		assertFalse(WarDeclareCodeService.validate(
+				"A", "rhun", "arnor", WarDeclareCodeService.Kind.COALITION_OFFENSIVE).ok);
+		gateway.reply = GatewayClient.Result.success("{\"kind\":null}");
+		assertTrue(WarDeclareCodeService.validate("A", "rhun", "arnor").ok);
 	}
 
 	@Test
 	void aBlankCodeNeverReachesTheBackend() {
 		assertFalse(WarDeclareCodeService.validate("   ", "rhun", "arnor").ok);
 		assertFalse(WarDeclareCodeService.validate(null, "rhun", "arnor").ok);
+		assertFalse(WarDeclareCodeService.validate("A", null, "arnor").ok);
+		assertFalse(WarDeclareCodeService.validate("A", "rhun", null).ok);
+		assertFalse(WarDeclareCodeService.redeem(" ", "rhun", "arnor", 1).ok);
+		assertEquals("§cThat is not a valid war code.",
+				WarDeclareCodeService.redeemCoalition(null, "rhun", "arnor").error);
 
 		assertTrue(gateway.paths.isEmpty());
 	}
@@ -163,25 +181,42 @@ class WarDeclareCodeServiceTest {
 	}
 
 	@Test
-	void aSessionOnlyCoversTheExactPairingAndGoal() {
+	void aCoalitionCodeIsRedeemedForItsLeaderAndTargetWithoutAWar() {
+		gateway.reply = GatewayClient.Result.success("{\"ok\":true,\"kind\":\"coalition_offensive\"}");
+
+		WarDeclareCodeService.Result result =
+				WarDeclareCodeService.redeemCoalition("CODE", "thalendor", "holy_order");
+
+		assertTrue(result.ok);
+		JsonObject body = gateway.lastBody();
+		assertEquals("/wars/declare-codes/redeem", gateway.paths.get(0));
+		assertEquals("thalendor", body.get("attacker_faction_id").getAsString());
+		assertEquals("holy_order", body.get("defender_faction_id").getAsString());
+		assertEquals("coalition_offensive", body.get("kind").getAsString());
+		assertFalse(body.has("war_id"));
+	}
+
+	@Test
+	void aSessionCoversTheExactPairingWhateverGoalIsChosen() {
 		Faction rhun = faction("rhun");
 		Faction arnor = faction("arnor");
 		Faction gondor = faction("gondor");
 		WarDeclareCodeService.Session session = new WarDeclareCodeService.Session(
-				"AAAA-BBBB-CCCC", "rhun", "arnor", WarGoalType.SUBJUGATE);
+				"AAAA-BBBB-CCCC", "rhun", "arnor");
 
 		assertTrue(WarDeclareCodeService.covers(
 				session, WarDeclareRequest.of(rhun, arnor, WarGoalType.SUBJUGATE)));
-		// The war button is one gate, pendingWarDeclares is another map entirely, so a
-		// swapped goal or target has to be caught again at confirm time.
-		assertFalse(WarDeclareCodeService.covers(
+		assertTrue(WarDeclareCodeService.covers(
 				session, WarDeclareRequest.of(rhun, arnor, WarGoalType.PILLAGE)));
+		// The war button is one gate, pendingWarDeclares is another map entirely, so a
+		// swapped target has to be caught again at confirm time.
 		assertFalse(WarDeclareCodeService.covers(
 				session, WarDeclareRequest.of(rhun, gondor, WarGoalType.SUBJUGATE)));
 		assertFalse(WarDeclareCodeService.covers(
 				session, WarDeclareRequest.of(gondor, arnor, WarGoalType.SUBJUGATE)));
 		assertFalse(WarDeclareCodeService.covers(
 				null, WarDeclareRequest.of(rhun, arnor, WarGoalType.SUBJUGATE)));
+		assertFalse(WarDeclareCodeService.covers(session, null));
 	}
 
 	@Test
@@ -189,7 +224,7 @@ class WarDeclareCodeServiceTest {
 		Player leader = player();
 		Player other = player();
 		WarDeclareCodeService.Session session = new WarDeclareCodeService.Session(
-				"AAAA-BBBB-CCCC", "rhun", "arnor", WarGoalType.WAR);
+				"AAAA-BBBB-CCCC", "rhun", "arnor");
 
 		WarDeclareCodeService.openSession(leader, session);
 		assertEquals(session, WarDeclareCodeService.session(leader));

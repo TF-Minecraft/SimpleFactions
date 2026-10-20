@@ -6,13 +6,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.entity.Player;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Permissions;
-import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.api.GatewayClient;
 
 /**
@@ -60,38 +60,50 @@ public final class WarDeclareCodeService {
 		gateway = DEFAULT_GATEWAY;
 	}
 
+	/** What a code was minted for. Each kind is only accepted where it belongs. */
+	public enum Kind {
+		WAR_DECLARE("war_declare"),
+		COALITION_OFFENSIVE("coalition_offensive");
+
+		private final String json;
+
+		Kind(String json) {
+			this.json = json;
+		}
+
+		public String json() {
+			return json;
+		}
+	}
+
 	/** A code the leader has already validated, waiting to be spent on a declare. */
 	public static final class Session {
 		public final String code;
 		public final String attackerId;
 		public final String defenderId;
-		public final WarGoalType goal;
 
-		public Session(String code, String attackerId, String defenderId, WarGoalType goal) {
+		public Session(String code, String attackerId, String defenderId) {
 			this.code = code;
 			this.attackerId = attackerId;
 			this.defenderId = defenderId;
-			this.goal = goal;
 		}
 	}
 
 	public static final class Result {
 		public final boolean ok;
-		public final WarGoalType goal;
 		public final String error;
 
-		private Result(boolean ok, WarGoalType goal, String error) {
+		private Result(boolean ok, String error) {
 			this.ok = ok;
-			this.goal = goal;
 			this.error = error;
 		}
 
-		public static Result success(WarGoalType goal) {
-			return new Result(true, goal, null);
+		public static Result success() {
+			return new Result(true, null);
 		}
 
 		public static Result fail(String error) {
-			return new Result(false, null, error == null ? "Could not check the code" : error);
+			return new Result(false, error == null ? "Could not check the code" : error);
 		}
 	}
 
@@ -106,41 +118,64 @@ public final class WarDeclareCodeService {
 		return player == null || !Permissions.isAdmin(player);
 	}
 
-	/** Non-consuming. Returns the goal the code pins the declare to. */
+	/** Non-consuming check of a war declaration code. Codes no longer pin a war goal. */
 	public static Result validate(String code, String attackerId, String defenderId) {
-		JsonObject body = requestBody(code, attackerId, defenderId);
-		if (body == null) {
-			return Result.fail("§cThat is not a valid war code.");
-		}
-		GatewayClient.Result response = gateway.post(VALIDATE_PATH, body.toString());
-		if (response == null || !response.ok) {
-			return Result.fail(reason(response));
-		}
-		WarGoalType goal = readGoal(response.body);
-		// The backend refuses movement-origin goals at mint, but routeGoal has no branch
-		// for them either, so a stale row must fail loudly here rather than silently open
-		// nothing at all.
-		if (goal == null || goal.isMovementOrigin()) {
-			return Result.fail("§cThat code carries a war goal this server cannot declare.");
-		}
-		if (goal == WarGoalType.WAR) {
-			return Result.fail(RETIRED_WAR_GOAL + " §cAsk staff for a new code.");
-		}
-		return Result.success(goal);
+		return validate(code, attackerId, defenderId, Kind.WAR_DECLARE);
+	}
+
+	/**
+	 * Non-consuming. For a coalition code the attacker is the coalition leader and the
+	 * defender is the coalition's target.
+	 */
+	public static Result validate(String code, String attackerId, String defenderId, Kind kind) {
+		return call(VALIDATE_PATH, requestBody(code, attackerId, defenderId, kind), kind);
 	}
 
 	/** Consuming. Only call this once the war object exists. */
 	public static Result redeem(String code, String attackerId, String defenderId, int warId) {
-		JsonObject body = requestBody(code, attackerId, defenderId);
+		JsonObject body = requestBody(code, attackerId, defenderId, Kind.WAR_DECLARE);
+		if (body != null) {
+			body.addProperty("war_id", String.valueOf(warId));
+		}
+		return call(REDEEM_PATH, body, Kind.WAR_DECLARE);
+	}
+
+	/** Consuming. Spends an offensive coalition code for the leader and target it was minted for. */
+	public static Result redeemCoalition(String code, String leaderId, String targetId) {
+		return call(REDEEM_PATH, requestBody(code, leaderId, targetId, Kind.COALITION_OFFENSIVE),
+				Kind.COALITION_OFFENSIVE);
+	}
+
+	private static Result call(String path, JsonObject body, Kind kind) {
 		if (body == null) {
 			return Result.fail("§cThat is not a valid war code.");
 		}
-		body.addProperty("war_id", String.valueOf(warId));
-		GatewayClient.Result response = gateway.post(REDEEM_PATH, body.toString());
+		GatewayClient.Result response = gateway.post(path, body.toString());
 		if (response == null || !response.ok) {
 			return Result.fail(reason(response));
 		}
-		return Result.success(readGoal(response.body));
+		JsonObject answer = parse(response.body);
+		if (answer == null) {
+			return Result.fail("§cThe war code service gave an answer this server cannot read.");
+		}
+		return kindMatches(answer, kind) ? Result.success() : Result.fail(wrongKind(kind));
+	}
+
+	/**
+	 * A backend from before code kinds answers without one; it only ever minted war
+	 * declaration codes, so a missing kind may stand for those and nothing else.
+	 */
+	private static boolean kindMatches(JsonObject answer, Kind kind) {
+		if (!answer.has("kind") || answer.get("kind").isJsonNull()) {
+			return kind == Kind.WAR_DECLARE;
+		}
+		return kind.json().equalsIgnoreCase(answer.get("kind").getAsString());
+	}
+
+	private static String wrongKind(Kind kind) {
+		return kind == Kind.WAR_DECLARE
+				? "§cThat code is a coalition code, not a war declaration code."
+				: "§cThat code is a war declaration code, not a coalition code.";
 	}
 
 	public static void openSession(Player player, Session session) {
@@ -160,13 +195,11 @@ public final class WarDeclareCodeService {
 
 	/**
 	 * The war button is the front door, but {@code pendingWarDeclares} is a separate
-	 * map, so the confirm step re-checks that the session really covers this request.
+	 * map, so the confirm step re-checks that the session really covers this pairing.
+	 * The leader picks the goals; the code only covers who may fight whom.
 	 */
 	public static boolean covers(Session session, WarDeclareRequest request) {
 		if (session == null || request == null) {
-			return false;
-		}
-		if (session.goal != request.getGoal()) {
 			return false;
 		}
 		return sameId(session.attackerId, request.getAttacker())
@@ -180,7 +213,7 @@ public final class WarDeclareCodeService {
 		return id.equalsIgnoreCase(faction.getId());
 	}
 
-	private static JsonObject requestBody(String code, String attackerId, String defenderId) {
+	private static JsonObject requestBody(String code, String attackerId, String defenderId, Kind kind) {
 		String trimmed = code == null ? "" : code.trim();
 		if (trimmed.isEmpty() || attackerId == null || defenderId == null) {
 			return null;
@@ -189,22 +222,20 @@ public final class WarDeclareCodeService {
 		body.addProperty("code", trimmed);
 		body.addProperty("attacker_faction_id", attackerId);
 		body.addProperty("defender_faction_id", defenderId);
+		body.addProperty("kind", kind.json());
 		// realm_id is deliberately absent: TFMCWeb injects it, because the plugin does
 		// not know which realm it is running in.
 		return body;
 	}
 
-	private static WarGoalType readGoal(String json) {
+	private static JsonObject parse(String json) {
 		if (json == null || json.isBlank()) {
 			return null;
 		}
 		try {
-			JsonObject object = JsonParser.parseString(json).getAsJsonObject();
-			if (!object.has("goal") || object.get("goal").isJsonNull()) {
-				return null;
-			}
-			return WarGoalType.fromJson(object.get("goal").getAsString());
-		} catch (Exception e) {
+			JsonElement element = JsonParser.parseString(json);
+			return element.isJsonObject() ? element.getAsJsonObject() : null;
+		} catch (RuntimeException e) {
 			return null;
 		}
 	}
