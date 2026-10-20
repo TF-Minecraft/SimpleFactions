@@ -31,12 +31,6 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class DeclareWarCreator {
 
-	public ItemStack createWarGoalItem() {
-		return createGoalItem(WarGoalType.WAR, "§lWar", List.of(
-				"§7Fight a campaign with no",
-				"§7automatic political outcome."));
-	}
-
 	public ItemStack createTributaryGoalItem() {
 		return createGoalItem(WarGoalType.TRIBUTARY, "§lTributary", List.of(
 				"§7Make the defender your tributary."));

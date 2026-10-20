@@ -278,7 +278,7 @@ class WarResolutionLifecycleCoverageTest {
       assertTrue(WarReparationsService.activeObligations(null).isEmpty());
       WarReparationsService.tickAfterDailySettlement(null);
       WarReparationsService.tickAfterDailySettlement(rig.attacker);
-      WarReparationsService.applyFromWar(null);
+      WarReparationsService.applyFromWar(null, null);
       assertTrue(WarReparationsService.apply(rig.attacker, rig.defender, 12.5, 2));
       var live = WarReparationsService.findObligation(rig.attacker, rig.defender);
       rig.attacker.getWarReparationsObligations().add(null);

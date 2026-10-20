@@ -358,7 +358,7 @@ class WarMenusCoverageTest {
     verify(defending)
         .sendMessage(
             goalName.equals("default")
-                ? "§aWar reparations set as the default counter."
+                ? "§aDefender counter goal cleared. War reparations still apply."
                 : "§aDefender counter goal set to "
                     + WarGoalType.valueOf(goalName).getDisplayName()
                     + ".");
@@ -578,8 +578,6 @@ class WarMenusCoverageTest {
   void eachWarGoalButtonKeepsItsGoalIdAndDescription() {
     Map<WarGoalType, Supplier<ItemStack>> options =
         Map.of(
-            WarGoalType.WAR,
-            declaration.creator::createWarGoalItem,
             WarGoalType.TRIBUTARY,
             declaration.creator::createTributaryGoalItem,
             WarGoalType.SUBJUGATE,
@@ -627,7 +625,7 @@ class WarMenusCoverageTest {
   @ParameterizedTest
   @EnumSource(
       value = WarGoalType.class,
-      names = {"WAR", "TRIBUTARY", "USURP", "OPEN_MARKET"})
+      names = {"TRIBUTARY", "USURP", "OPEN_MARKET"})
   void goalsWithoutExtraSelectionsOpenAValidatedConfirmation(WarGoalType goal) {
     try (MockedConstruction<WarGoalValidator> validators = validating(WarValidationResult.ok())) {
       declaration.routeGoal(player, attacker, defender, goal);
@@ -640,13 +638,20 @@ class WarMenusCoverageTest {
   }
 
   @Test
+  void theRetiredWarGoalIsRefusedWithoutAConfirmation() {
+    declaration.routeGoal(player, attacker, defender, WarGoalType.WAR);
+    verify(navigation, never()).confirmWarDeclareView(any(), any());
+    verify(player).sendMessage(WarDeclareCodeService.RETIRED_WAR_GOAL);
+  }
+
+  @Test
   void invalidDeclarationShowsItsReasonAndDoesNotOpenOrExecuteConfirmation() {
     try (MockedConstruction<WarGoalValidator> validators =
         validating(WarValidationResult.fail("§cCannot attack this realm"))) {
-      declaration.routeGoal(player, attacker, defender, WarGoalType.WAR);
+      declaration.routeGoal(player, attacker, defender, WarGoalType.TRIBUTARY);
       verify(navigation, never()).confirmWarDeclareView(any(), any());
       declaration.handleConfirm(
-          player, WarDeclareRequest.of(attacker, defender, WarGoalType.WAR), true);
+          player, WarDeclareRequest.of(attacker, defender, WarGoalType.TRIBUTARY), true);
       verify(player, times(2)).sendMessage("§cCannot attack this realm");
       assertEquals(SFGUI.WAR_DECLARE_GOAL, ((DeclareWarHolder) top().getHolder()).getStep());
       wars.verify(
@@ -755,20 +760,20 @@ class WarMenusCoverageTest {
       options.when(() -> WarDeclareHelper.defenderSubjects(defender)).thenReturn(List.of(subject));
       declaration.openGoalPicker(player, attacker, defender);
       Inventory inventory = top();
-      assertEquals("war", string(inventory.getItem(10), "goal"));
-      assertEquals("transfer_subject", string(inventory.getItem(18), "goal"));
-      assertEquals("usurp", string(inventory.getItem(16), "goal"));
-      assertEquals("de_jure_annex", string(inventory.getItem(17), "goal"));
+      assertEquals("tributary", string(inventory.getItem(10), "goal"));
+      assertEquals("transfer_subject", string(inventory.getItem(17), "goal"));
+      assertEquals("usurp", string(inventory.getItem(15), "goal"));
+      assertEquals("de_jure_annex", string(inventory.getItem(16), "goal"));
       declaration.click(fixture.ui.click(player, 10), inventory, player);
       verify(navigation)
-          .confirmWarDeclareView(eq(player), argThat(r -> r.getGoal() == WarGoalType.WAR));
+          .confirmWarDeclareView(eq(player), argThat(r -> r.getGoal() == WarGoalType.TRIBUTARY));
       options.when(() -> WarDeclareHelper.canDeclareUsurp(attacker, defender)).thenReturn(false);
       options
           .when(() -> WarDeclareHelper.deJureTitleOptions(attacker, defender))
           .thenReturn(List.of());
       options.when(() -> WarDeclareHelper.defenderSubjects(defender)).thenReturn(List.of());
       declaration.openGoalPicker(player, attacker, defender, inventory);
-      assertNull(inventory.getItem(16));
+      assertNull(inventory.getItem(15));
       assertSame(inventory, top());
       declaration.click(fixture.ui.click(player, 26), inventory, player);
       verify(navigation).diplomacyView(null, player, defender, true);

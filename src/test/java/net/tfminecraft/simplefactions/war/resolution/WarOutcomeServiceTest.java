@@ -472,7 +472,7 @@ class WarOutcomeServiceTest {
 				MockedStatic<WarReparationsService> reparations = mockStatic(WarReparationsService.class)) {
 			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
 			pillage.verify(() -> PillageApplyService.apply(fx.war));
-			reparations.verify(() -> WarReparationsService.applyFromWar(fx.war), never());
+			reparations.verify(() -> WarReparationsService.applyFromWar(fx.war, WarEndReason.ATTACKER_VICTORY));
 		}
 	}
 
@@ -620,7 +620,28 @@ class WarOutcomeServiceTest {
 	}
 
 	@Test
-	void defenderVictory_selectedCounterGoalAppliesAgainstAttackerInsteadOfReparations() {
+	void attackerVictory_addsObligationOnDefender() {
+		Fixture fx = fixture();
+		fx.war.setGoal(WarGoalType.WAR);
+		WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
+		assertTrue(fx.payerObligations.isEmpty());
+		assertEquals(1, fx.defenderObligations.size());
+		WarReparationsObligation obligation = fx.defenderObligations.get(0);
+		assertEquals("atk", obligation.getPayeeFactionId());
+		assertEquals(25, obligation.getIncomePercent());
+		assertEquals(10, obligation.getDaysRemaining());
+	}
+
+	@Test
+	void whitePeaceAndAdminEnd_doNotChargeDefender() {
+		Fixture fx = fixture();
+		WarOutcomeService.apply(fx.war, WarEndReason.WHITE_PEACE);
+		WarOutcomeService.apply(fx.war, WarEndReason.ADMIN_END);
+		assertTrue(fx.defenderObligations.isEmpty());
+	}
+
+	@Test
+	void defenderVictory_selectedCounterGoalAppliesAgainstAttackerAlongsideReparations() {
 		Fixture fx = fixture();
 		fx.war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
 		RelationType tributary = mock(RelationType.class);
@@ -631,7 +652,8 @@ class WarOutcomeServiceTest {
 			WarOutcomeService.apply(fx.war, WarEndReason.DEFENDER_VICTORY);
 			relations.verify(() -> RelationManager.setRelationForced(tributary, fx.attacker, fx.defender));
 		}
-		assertTrue(fx.payerObligations.isEmpty());
+		assertEquals(1, fx.payerObligations.size());
+		assertEquals("def", fx.payerObligations.get(0).getPayeeFactionId());
 	}
 
 	@Test
@@ -661,6 +683,12 @@ class WarOutcomeServiceTest {
 			fx.payerObligations.add(invocation.getArgument(0));
 			return null;
 		}).when(fx.attacker).addWarReparationsObligation(any());
+		fx.defenderObligations = new ArrayList<>();
+		when(fx.defender.getWarReparationsObligations()).thenReturn(fx.defenderObligations);
+		doAnswer(invocation -> {
+			fx.defenderObligations.add(invocation.getArgument(0));
+			return null;
+		}).when(fx.defender).addWarReparationsObligation(any());
 		fx.war = new War(1, fx.attacker, fx.defender);
 		fx.war.setGoal(WarGoalType.SUBJUGATE);
 		return fx;
@@ -698,6 +726,7 @@ class WarOutcomeServiceTest {
 		Faction defender;
 		War war;
 		List<WarReparationsObligation> payerObligations;
+		List<WarReparationsObligation> defenderObligations;
 	}
 
 	private static final class DeJureLandFixture {

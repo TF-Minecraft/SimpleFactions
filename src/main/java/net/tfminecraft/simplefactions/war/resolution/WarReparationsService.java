@@ -10,15 +10,21 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 
 public final class WarReparationsService {
 	private WarReparationsService() {}
 
-	public static void applyFromWar(War war) {
+	/** The losing side's leader, with its vassals, pays the winning side's leader. */
+	public static void applyFromWar(War war, WarEndReason reason) {
 		if (war == null || war.getAttackers() == null || war.getDefenders() == null) {
 			return;
 		}
-		apply(war.getAttackers().getLeader(), war.getDefenders().getLeader());
+		if (reason == WarEndReason.ATTACKER_VICTORY) {
+			apply(war.getDefenders().getLeader(), war.getAttackers().getLeader());
+		} else if (reason == WarEndReason.DEFENDER_VICTORY) {
+			apply(war.getAttackers().getLeader(), war.getDefenders().getLeader());
+		}
 	}
 
 	public static boolean apply(Faction payer, Faction payee) {

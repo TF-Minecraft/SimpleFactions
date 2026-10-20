@@ -35,14 +35,20 @@ public final class WarOutcomeService {
 			return;
 		}
 		switch (reason) {
-			case ATTACKER_VICTORY -> applyAttackerGoal(war);
+			case ATTACKER_VICTORY -> {
+				applyAttackerGoal(war);
+				if (!CivilWarBorderLock.isCivilWar(war)) {
+					WarReparationsService.applyFromWar(war, reason);
+				}
+			}
 			case DEFENDER_VICTORY -> {
 				if (CivilWarBorderLock.isCivilWar(war)) {
 					endMovementEmpty(war);
-				} else if (war.getDefenderCounterGoal() == null) {
-					WarReparationsService.applyFromWar(war);
 				} else {
-					applyDefenderCounterGoal(war);
+					if (war.getDefenderCounterGoal() != null) {
+						applyDefenderCounterGoal(war);
+					}
+					WarReparationsService.applyFromWar(war, reason);
 				}
 			}
 			case WHITE_PEACE, ADMIN_END -> {

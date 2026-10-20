@@ -145,7 +145,7 @@ public class WarView {
 		meta.setDisplayName("§eDefender Counter Goal");
 		List<String> lore = new ArrayList<>();
 		lore.add(selected == null
-				? "§7Default: War Reparations"
+				? "§7Selected: None"
 				: "§7Selected: " + selected.getDisplayName());
 		if (war.hasFirstBattleStarted()) {
 			lore.add("§cLocked after the first battle began");
@@ -211,8 +211,11 @@ public class WarView {
 				inventory.setItem(slot++, option);
 			}
 		}
-		ItemStack defaultOption = goalOption(Material.PAPER, "§fDefault: War Reparations",
-				"§7Use 25% of each payer guild's gross trade income for 10 days");
+		ItemStack defaultOption = new ItemStack(Material.PAPER);
+		ItemMeta defaultOptionMeta = defaultOption.getItemMeta();
+		defaultOptionMeta.setDisplayName("§fNo Counter Goal");
+		defaultOptionMeta.setLore(List.of("§7Only war reparations apply if the attacker loses"));
+		defaultOption.setItemMeta(defaultOptionMeta);
 		ItemMeta defaultMeta = defaultOption.getItemMeta();
 		defaultMeta.getPersistentDataContainer().set(
 				new NamespacedKey(SimpleFactions.plugin, "counter_default"), PersistentDataType.BYTE, (byte) 1);
@@ -237,7 +240,7 @@ public class WarView {
 		ItemStack item = new ItemStack(material);
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(name);
-		meta.setLore(List.of(description, "§7Choosing this removes war reparations"));
+		meta.setLore(List.of(description, "§7War reparations apply as well"));
 		item.setItemMeta(meta);
 		return item;
 	}
@@ -399,7 +402,7 @@ public class WarView {
 				war.setDefenderCounterGoal(goal, relationTypeId);
 				WarManager.persist(war);
 				p.sendMessage(goal == null
-						? "§aWar reparations set as the default counter."
+						? "§aDefender counter goal cleared. War reparations still apply."
 						: "§aDefender counter goal set to " + goal.getDisplayName() + ".");
 			}
 			warView(null, p, war, true);

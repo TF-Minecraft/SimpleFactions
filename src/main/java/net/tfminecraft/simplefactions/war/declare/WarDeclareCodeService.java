@@ -43,6 +43,13 @@ public final class WarDeclareCodeService {
 
 	private static final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
 
+	/**
+	 * War is no longer offered: every decisive war already ends in reparations from the
+	 * loser. Wars declared with it before keep loading and resolving.
+	 */
+	public static final String RETIRED_WAR_GOAL =
+			"§cWar is no longer a war goal. The loser of every war now pays war reparations.";
+
 	private WarDeclareCodeService() {}
 
 	public static void setGateway(Gateway replacement) {
@@ -115,6 +122,9 @@ public final class WarDeclareCodeService {
 		// nothing at all.
 		if (goal == null || goal.isMovementOrigin()) {
 			return Result.fail("§cThat code carries a war goal this server cannot declare.");
+		}
+		if (goal == WarGoalType.WAR) {
+			return Result.fail(RETIRED_WAR_GOAL + " §cAsk staff for a new code.");
 		}
 		return Result.success(goal);
 	}

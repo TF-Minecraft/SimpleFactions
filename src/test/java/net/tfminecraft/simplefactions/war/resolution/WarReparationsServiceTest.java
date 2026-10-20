@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 
@@ -72,12 +73,34 @@ class WarReparationsServiceTest {
 		war.setGoal(WarGoalType.SUBJUGATE);
 		war.setWarType(WarType.SUBJUGATE);
 
-		WarReparationsService.applyFromWar(war);
+		WarReparationsService.applyFromWar(war, WarEndReason.DEFENDER_VICTORY);
 
 		assertEquals(1, obligations.size());
 		assertEquals("def", obligations.get(0).getPayeeFactionId());
 		assertEquals(25, obligations.get(0).getIncomePercent());
 		assertEquals(10, obligations.get(0).getDaysRemaining());
+	}
+
+	@Test
+	void applyFromWar_defenderPaysAttackerOnAttackerVictory() {
+		War war = new War(1, payee, payer);
+		war.setGoal(WarGoalType.SUBJUGATE);
+		war.setWarType(WarType.SUBJUGATE);
+
+		WarReparationsService.applyFromWar(war, WarEndReason.ATTACKER_VICTORY);
+
+		assertEquals(1, obligations.size());
+		assertEquals("def", obligations.get(0).getPayeeFactionId());
+	}
+
+	@Test
+	void applyFromWar_whitePeaceChargesNobody() {
+		War war = new War(1, payer, payee);
+
+		WarReparationsService.applyFromWar(war, WarEndReason.WHITE_PEACE);
+		WarReparationsService.applyFromWar(war, null);
+
+		assertTrue(obligations.isEmpty());
 	}
 
 	@Test
