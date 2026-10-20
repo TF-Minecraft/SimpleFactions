@@ -25,7 +25,7 @@ public final class CoalitionCommandManager implements CommandExecutor {
 	public static final String CMD = "coalition";
 	public static final List<String> SUBCOMMANDS = List.of(
 			"menu", "list", "create", "invite", "join", "leave", "kick", "leader", "target",
-			"setbanner", "resetbanner", "offensive", "disband");
+			"setbanner", "resetbanner", "setcolour", "offensive", "disband");
 	public static final List<String> ADMIN_SUBCOMMANDS = List.of("disband", "offensive", "kick", "setleader", "cost");
 	static final String NOT_A_LEADER = "§cOnly a faction leader can do that.";
 
@@ -56,6 +56,13 @@ public final class CoalitionCommandManager implements CommandExecutor {
 			case "target" -> withFaction(p, args, "target", CoalitionService::retarget);
 			case "setbanner" -> asLeader(p, leader -> CoalitionService.setBanner(leader, p.getInventory().getItemInMainHand()));
 			case "resetbanner" -> asLeader(p, CoalitionService::resetBanner);
+			case "setcolour", "setcolor" -> {
+				if (args.length != 2) {
+					p.sendMessage("§cUsage: /coalition setcolour <R,G,B|reset>");
+					return true;
+				}
+				asLeader(p, leader -> CoalitionService.setColour(leader, args[1]));
+			}
 			case "offensive" -> {
 				Faction leader = FactionManager.getByLeader(Members.key(p));
 				if (leader == null) p.sendMessage(NOT_A_LEADER);
@@ -138,6 +145,7 @@ public final class CoalitionCommandManager implements CommandExecutor {
 		p.sendMessage("§e/coalition leave|disband §7- leave or end it");
 		p.sendMessage("§e/coalition target <faction> §7- choose a new target after losing one");
 		p.sendMessage("§e/coalition setbanner|resetbanner §7- the coalition banner");
+		p.sendMessage("§e/coalition setcolour <R,G,B|reset> §7- the coalition's colour on the website map");
 		p.sendMessage("§e/coalition offensive §7- enter a staff code to go offensive");
 	}
 

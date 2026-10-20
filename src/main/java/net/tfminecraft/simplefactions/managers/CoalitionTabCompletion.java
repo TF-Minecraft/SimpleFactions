@@ -40,6 +40,7 @@ public class CoalitionTabCompletion implements TabCompleter {
 		return switch (sub) {
 			case "create", "invite", "kick", "leader", "target" -> prefix(args[1], factionIds());
 			case "join" -> prefix(args[1], coalitionNames());
+			case "setcolour", "setcolor" -> prefix(args[1], List.of("reset"));
 			default -> List.of();
 		};
 	}

@@ -118,6 +118,62 @@ class MapPublicationCoverageTest {
   }
 
   @Test
+  void coalitionsAreOnlySentWhenTheyChangeOrTheWebsiteMissedThem() throws Exception {
+    List<String> sent = new ArrayList<>();
+    boolean[] accept = {false};
+    rest.when(() -> RestServer.send(anyString(), any(File.class)))
+        .thenAnswer(
+            call -> {
+              File file = call.getArgument(1);
+              assertTrue(file.isFile());
+              sent.add(Files.readString(file.toPath()));
+              return accept[0];
+            });
+    try {
+      map.prepareLiveFiles();
+      map.uploadLiveFiles();
+      // Refused: the next cycle tries again.
+      map.uploadLiveFiles();
+      assertEquals(2, sent.size());
+      assertEquals(0, read("coalitions").getAsJsonObject().getAsJsonArray("coalitions").size());
+      accept[0] = true;
+      map.uploadLiveFiles();
+      map.uploadLiveFiles();
+      assertEquals(3, sent.size());
+
+      net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry.add(
+          new net.tfminecraft.simplefactions.diplomacy.coalition.Coalition("c1", "Pact", "home", "home", 1));
+      map.prepareLiveFiles();
+      map.uploadLiveFiles();
+      assertEquals(4, sent.size());
+      assertTrue(sent.getLast().contains("\"c1\""));
+      map.uploadLiveFiles();
+      assertEquals(4, sent.size());
+
+      // The hourly refresh and a full regeneration send them again.
+      map.queueAllNations();
+      completeUpload();
+      assertEquals(5, sent.size());
+      map.fullRegen();
+      completeUpload();
+      assertEquals(6, sent.size());
+    } finally {
+      net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry.reset();
+    }
+  }
+
+  @Test
+  void anUnwritableCoalitionExportIsLoggedAndNotSent() throws Exception {
+    Logger logger = mock(Logger.class);
+    when(Bukkit.getLogger()).thenReturn(logger);
+    Files.createDirectory(files.root.resolve("MapAPI/coalitions.json"));
+    map.prepareLiveFiles();
+    verify(logger).severe("[SimpleFactions] Failed to export coalitions.json");
+    map.uploadLiveFiles();
+    rest.verify(() -> RestServer.send(anyString(), any(File.class)), never());
+  }
+
+  @Test
   void repeatedMutationOfTheSameNationDuringUploadIsNotDropped() {
     map.enqueue("nation", "same");
     map.updateMap();
