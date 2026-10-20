@@ -207,6 +207,10 @@ public class InventoryManager implements Listener{
 		warView.warView(i, player, w, open);
 	}
 	
+	public void warDemandsView(Player player, War w) {
+		warView.demandsView(player, w);
+	}
+
 	public void participantView(Inventory i, Player player, War w, Participant p, boolean open) {
 		warView.participantView(i, player, w, p, open); 
 	}
@@ -1469,7 +1473,10 @@ public class InventoryManager implements Listener{
 			}
 		} else if (inv.getHolder() instanceof WarInventoryHolder warHolder) {
 			e.setCancelled(true);
-			if (warHolder.getType() == SFGUI.WAR_VIEW || warHolder.getType() == SFGUI.WAR_COUNTER_GOAL) {
+			if (warHolder.getType() == SFGUI.WAR_VIEW || warHolder.getType() == SFGUI.WAR_COUNTER_GOAL
+					|| warHolder.getType() == SFGUI.WAR_DEMANDS
+					|| warHolder.getType() == SFGUI.WAR_DEMAND_BENEFICIARY
+					|| warHolder.getType() == SFGUI.WAR_DEMAND_TARGET) {
 				warView.click(e, inv, p);
 			}
 		} else if (inv.getHolder() instanceof CampaignInventoryHolder campaignHolder) {

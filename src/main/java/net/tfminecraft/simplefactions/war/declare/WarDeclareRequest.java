@@ -13,6 +13,7 @@ public final class WarDeclareRequest {
 	private final String governmentLawId;
 	private final String leadershipLawId;
 	private final String targetSettlementId;
+	private final boolean demand;
 
 	public WarDeclareRequest(
 			Faction attacker,
@@ -56,6 +57,21 @@ public final class WarDeclareRequest {
 			String governmentLawId,
 			String leadershipLawId,
 			String targetSettlementId) {
+		this(attacker, defender, goal, targetTitleId, subjectFactionId, relationTypeId,
+				governmentLawId, leadershipLawId, targetSettlementId, false);
+	}
+
+	private WarDeclareRequest(
+			Faction attacker,
+			Faction defender,
+			WarGoalType goal,
+			String targetTitleId,
+			String subjectFactionId,
+			String relationTypeId,
+			String governmentLawId,
+			String leadershipLawId,
+			String targetSettlementId,
+			boolean demand) {
 		if (attacker == null) {
 			throw new IllegalArgumentException("attacker is required");
 		}
@@ -74,6 +90,20 @@ public final class WarDeclareRequest {
 		this.governmentLawId = governmentLawId;
 		this.leadershipLawId = leadershipLawId;
 		this.targetSettlementId = targetSettlementId;
+		this.demand = demand;
+	}
+
+	/**
+	 * The same request as a second demand inside a war that is already running, where the
+	 * attacker is the faction that benefits and the defender is the faction it is made of.
+	 */
+	public WarDeclareRequest asDemand() {
+		return new WarDeclareRequest(attacker, defender, goal, targetTitleId, subjectFactionId,
+				relationTypeId, governmentLawId, leadershipLawId, targetSettlementId, true);
+	}
+
+	public boolean isDemand() {
+		return demand;
 	}
 
 	public static WarDeclareRequest of(Faction attacker, Faction defender, WarGoalType goal) {

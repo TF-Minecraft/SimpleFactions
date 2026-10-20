@@ -762,6 +762,8 @@ class InventoryManagerCoverageTest {
     manager.warView(inventory, player, war, false);
     manager.participantView(inventory, player, war, participant, true);
     manager.openDeclareWarGoalPicker(player, faction, defender);
+    manager.warDemandsView(player, war);
+    verify(manager.warView).demandsView(player, war);
     verify(manager.warView).warList(player);
     verify(manager.warView).warList(player, inventory);
     verify(manager.warView).populateWarList(inventory);
@@ -900,6 +902,9 @@ class InventoryManagerCoverageTest {
     return Stream.of(
         Arguments.of(new WarInventoryHolder(7, SFGUI.WAR_VIEW), "war"),
         Arguments.of(new WarInventoryHolder(7, SFGUI.WAR_COUNTER_GOAL), "war"),
+        Arguments.of(new WarInventoryHolder(7, SFGUI.WAR_DEMANDS), "war"),
+        Arguments.of(new WarDemandHolder(7, SFGUI.WAR_DEMAND_BENEFICIARY, true, null), "war"),
+        Arguments.of(new WarDemandHolder(7, SFGUI.WAR_DEMAND_TARGET, false, "realm"), "war"),
         Arguments.of(new CampaignInventoryHolder(7, SFGUI.CAMPAIGN_VIEW), "campaign"),
         Arguments.of(
             new CampaignInventoryHolder(7, SFGUI.CAMPAIGN_INSTALLATION_PICK_VIEW), "installation"),

@@ -43,6 +43,8 @@ public class War {
 	private WarGoalType goal;
 	private WarGoalType defenderCounterGoal;
 	private String defenderCounterRelationTypeId;
+	private WarDemand attackerSecondDemand;
+	private WarDemand defenderSecondDemand;
 	private boolean firstBattleStarted;
 	private WarType warType;
 	private WarStatus status = WarStatus.ACTIVE;
@@ -205,6 +207,26 @@ public class War {
 		}
 		this.defenderCounterGoal = goal;
 		this.defenderCounterRelationTypeId = goal == WarGoalType.SUBJUGATE ? relationTypeId : null;
+		if (goal == null) {
+			// The second demand needs a first one; clearing the counter goal clears it too.
+			defenderSecondDemand = null;
+		}
+	}
+
+	public WarDemand getSecondDemand(boolean attackerSide) {
+		return attackerSide ? attackerSecondDemand : defenderSecondDemand;
+	}
+
+	/** Null clears it. Like the counter goal, it is locked once the first battle starts. */
+	public void setSecondDemand(boolean attackerSide, WarDemand demand) {
+		if (firstBattleStarted) {
+			return;
+		}
+		if (attackerSide) {
+			attackerSecondDemand = demand;
+		} else {
+			defenderSecondDemand = demand;
+		}
 	}
 
 	public boolean hasFirstBattleStarted() {

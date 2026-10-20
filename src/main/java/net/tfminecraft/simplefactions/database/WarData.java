@@ -14,6 +14,8 @@ public class WarData {
     public String goal;
     public String defenderCounterGoal;
     public String defenderCounterRelationTypeId;
+    public WarDemandData attackerSecondDemand;
+    public WarDemandData defenderSecondDemand;
     public boolean firstBattleStarted;
     public String warType;
     public String attackerLeaderId;
