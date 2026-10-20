@@ -49,6 +49,7 @@ import net.tfminecraft.simplefactions.loaders.LawLoader;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.managers.inventory.InstallationView;
+import net.tfminecraft.simplefactions.map.AdminLandService;
 import net.tfminecraft.simplefactions.map.MapSystem;
 import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.BankPlacementValidator;
@@ -1533,6 +1534,35 @@ class CommandManagerCoverageTest {
       verify(player).sendMessage(contains("No faction by the id missing"));
       assertTrue(run("faction", "unclaim", "realm"));
       verify(map, times(2)).unclaim(player, faction, 7);
+    }
+  }
+
+  @Test
+  void forceClaimAndForceRemoveCapitalAreAdminOnlyAndResolveTheirTargets() {
+    try (MockedStatic<RestServer> rest = mockStatic(RestServer.class);
+        MockedStatic<AdminLandService> land = mockStatic(AdminLandService.class)) {
+      land.when(() -> AdminLandService.forceClaim(faction, 7)).thenReturn(List.of("§aGave province 7"));
+      land.when(() -> AdminLandService.forceRemoveCapital(guild)).thenReturn(List.of("§aRemoved the capital"));
+      Cache.provincesEnabled = false;
+      assertTrue(run("faction", "forceclaim", "realm"));
+      assertTrue(run("guild", "forceremovecapital", "merchants"));
+      Cache.provincesEnabled = true;
+      assertTrue(run("faction", "forceclaim", "realm"));
+      assertTrue(run("guild", "forceremovecapital", "merchants"));
+      verify(player, times(2)).sendMessage(contains("do not have access"));
+      admin();
+      assertTrue(run("faction", "forceclaim", "missing"));
+      verify(player).sendMessage(contains("No faction by the id missing"));
+      assertTrue(run("guild", "forceremovecapital", "missing"));
+      verify(player).sendMessage(contains("No guild by the id missing"));
+      rest.when(() -> RestServer.getProvince(player)).thenReturn(-2);
+      assertTrue(run("faction", "forceclaim", "realm"));
+      verify(player).sendMessage(contains("could not resolve province"));
+      rest.when(() -> RestServer.getProvince(player)).thenReturn(7);
+      assertTrue(run("faction", "forceclaim", "realm"));
+      verify(player).sendMessage("§aGave province 7");
+      assertTrue(run("guild", "forceremovecapital", "merchants"));
+      verify(player).sendMessage("§aRemoved the capital");
     }
   }
 

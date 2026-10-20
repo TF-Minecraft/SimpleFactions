@@ -211,7 +211,8 @@ public class TabCompletion implements TabCompleter{
 		if(cmd.getName().equalsIgnoreCase("faction") && sender instanceof Player
 				&& Permissions.isAdmin(sender) && args.length == 2
 				&& (args[0].equalsIgnoreCase("delbank") || args[0].equalsIgnoreCase("startelection")
-						|| args[0].equalsIgnoreCase("endelection") || (Cache.provincesEnabled && args[0].equalsIgnoreCase("unclaim")))) {
+						|| args[0].equalsIgnoreCase("endelection") || (Cache.provincesEnabled
+								&& (args[0].equalsIgnoreCase("unclaim") || args[0].equalsIgnoreCase("forceclaim"))))) {
 			return FactionManager.factions.stream().map(Faction::getId).toList();
 		}
 		if (cmd.getName().equalsIgnoreCase("faction") && args.length >= 2
@@ -275,6 +276,7 @@ public class TabCompletion implements TabCompleter{
 					completions.add("dummify");
 					completions.add("dummyleader");
 					completions.add("forceleader");
+					if(Cache.provincesEnabled) completions.add("forceremovecapital");
 				}
 				return completions;
 			}
@@ -413,6 +415,7 @@ public class TabCompletion implements TabCompleter{
 					completions.addAll(List.of("admin", "delete", "forcedelete", "refresh", "delbank"));
 					completions.add("addguildbank");
 					completions.add("forceleader");
+					if(Cache.provincesEnabled) completions.add("forceclaim");
 					completions.add("forcejoin");
 					completions.add("forcewithdraw");
 					completions.add("forceregiment");
@@ -642,6 +645,12 @@ public class TabCompletion implements TabCompleter{
 					
 					return completions;
 				}
+			} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("forceremovecapital")){
+				List<String> completions = new ArrayList<String>();
+				for(Guild g : FactionManager.getAllGuilds()) {
+					if(g != null && !g.isBase() && g.hasCapital() && g.getId().toLowerCase().startsWith(args[1].toLowerCase())) completions.add(g.getId());
+				}
+				return completions;
 			} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("forceleader")){
 				List<String> completions = new ArrayList<String>();
 				for(Faction f : FactionManager.factions) {
