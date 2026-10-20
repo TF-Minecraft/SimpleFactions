@@ -480,6 +480,17 @@ class WarGoalValidatorTest {
 	}
 
 	@Test
+	void secondDemand_isNotRefusedByATruce() {
+		Faction attacker = mockFaction("attacker", 3);
+		Faction defender = mockFactionWithCapital("defender", 42);
+		FactionManager.factions.add(defender);
+		TruceService.record("defender", "attacker", Instant.now().plus(Duration.ofDays(1)), 1);
+
+		assertTrue(validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.WAR).asDemand()).isValid());
+		TruceService.clear("attacker", "defender");
+	}
+
+	@Test
 	void usurp_rejectsRebellingAgainstTheOverlordDuringATruce() {
 		Faction king = mockFactionWithTitle("king", 5);
 		when(king.getName()).thenReturn("Kingdom");

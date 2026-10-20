@@ -93,7 +93,8 @@ public class WarGoalValidator {
 				return WarValidationResult.fail("§cYou cannot declare war on a faction in the same realm.");
 			}
 		}
-		WarValidationResult truce = validateTruce(attacker, defender);
+		// A truce stops new wars; a demand inside one already being fought is not one.
+		WarValidationResult truce = demand ? WarValidationResult.ok() : validateTruce(attacker, defender);
 		if (!truce.isValid()) {
 			return truce;
 		}
