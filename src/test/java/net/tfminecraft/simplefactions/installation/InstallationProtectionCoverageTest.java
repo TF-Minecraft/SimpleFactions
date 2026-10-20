@@ -115,8 +115,8 @@ class InstallationProtectionCoverageTest {
         new String[] {
           "personalSlotLimit",
           "defaultPerPerson",
-          "maintenanceHourlyDamagePercent",
-          "maintenanceMinHealthPercent",
+          "defaultUnpaidEffects",
+          "unpaidEffectsByType",
           "maintenanceIntervalTicks",
           "categoryIds",
           "typesByCategory",

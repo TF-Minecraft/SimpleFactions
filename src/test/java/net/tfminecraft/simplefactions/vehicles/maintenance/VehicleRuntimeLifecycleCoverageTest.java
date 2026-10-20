@@ -42,6 +42,7 @@ import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 import net.tfminecraft.vehicleframework.events.VehicleRepairStartEvent;
 import net.tfminecraft.vehicleframework.managers.VehicleManager;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
+import net.tfminecraft.vehicleframework.vehicles.HealthDecayRule;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -81,8 +82,8 @@ class VehicleRuntimeLifecycleCoverageTest {
         List.of(
             "personalSlotLimit",
             "defaultPerPerson",
-            "maintenanceHourlyDamagePercent",
-            "maintenanceMinHealthPercent",
+            "defaultUnpaidEffects",
+            "unpaidEffectsByType",
             "maintenanceIntervalTicks",
             "categoryIds",
             "typesByCategory",
@@ -122,8 +123,9 @@ class VehicleRuntimeLifecycleCoverageTest {
             economy,
             balances,
             store,
-            (id, fraction, floor) -> {
-              damage.add(new Damage(id, fraction, floor));
+            (id, effects) -> {
+              damage.add(
+                  new Damage(id, effects.hourlyDamagePercent() / 100, effects.minHealthPercent() / 100));
               return true;
             });
     when(fixture.ui.plugin.getVehicleUpkeepService()).thenReturn(upkeep);
@@ -279,6 +281,31 @@ class VehicleRuntimeLifecycleCoverageTest {
   }
 
   @Test
+  void unpaidVehiclesStayRepairableWhenTheirTypeDoesNotBlockRepair() throws Exception {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("categories.ships.ironclad.upkeep", 20);
+    config.set("categories.ships.ironclad.size", 2);
+    config.set("categories.ships.raft.upkeep", 1);
+    config.set("categories.ships.raft.size", 1);
+    config.set("unpaid-effects.types.raft.block-repair", false);
+    Path file = temporary.resolve("repairable.yml");
+    config.save(file.toFile());
+    VehiclesConfigLoader.load(file.toFile());
+    VehicleMaintenanceRepairListener listener = new VehicleMaintenanceRepairListener(store);
+    store.markUnpaid("raft", 1);
+    store.markUnpaid("ironclad", 1);
+
+    VehicleRepairStartEvent raft = new VehicleRepairStartEvent(player, vehicle("raft", "raft"));
+    listener.onRepairStart(raft);
+    VehicleRepairStartEvent ironclad = new VehicleRepairStartEvent(player, vehicle("ironclad", "ironclad"));
+    listener.onRepairStart(ironclad);
+
+    assertFalse(raft.isCancelled());
+    assertTrue(ironclad.isCancelled());
+    verify(player, times(1)).sendMessage(VehicleMaintenanceMessages.repairBlocked());
+  }
+
+  @Test
   void decayTaskReplacesItsScheduleAndRunsAgainstTheActualUnpaidStore() {
     store.markUnpaid("x", 1);
     BukkitTask first = mock(BukkitTask.class);
@@ -315,20 +342,25 @@ class VehicleRuntimeLifecycleCoverageTest {
   @Test
   void liveDecayAdapterPassesFractionsToVehicleFrameworkOnlyWhenAvailable() {
     VehicleHealthDecayApi api = VehicleHealthDecayApi.Vf.INSTANCE;
-    assertFalse(api.unloadedDamage(null, 0.15, 0.07));
-    assertFalse(api.unloadedDamage(" ", 0.15, 0.07));
-    assertFalse(api.unloadedDamage("x", 0.15, 0.07));
+    UnpaidVehicleEffects effects =
+        new UnpaidVehicleEffects(15, 7, Map.of("Hull", 50.0), true, false, true);
+    HealthDecayRule rule = new HealthDecayRule(0.15, 0.07, Map.of("hull", 0.5), true, false);
+    assertEquals(rule, VehicleHealthDecayApi.Vf.rule(effects));
+    assertFalse(api.unloadedDamage(null, effects));
+    assertFalse(api.unloadedDamage(" ", effects));
+    assertFalse(api.unloadedDamage("x", null));
+    assertFalse(api.unloadedDamage("x", effects));
     PluginManager plugins = Bukkit.getPluginManager();
     when(plugins.isPluginEnabled("VehicleFramework")).thenReturn(true);
-    when(manager.unloadedDamage("x", 0.15, 0.07)).thenReturn(true);
-    assertTrue(api.unloadedDamage("x", 0.15, 0.07));
-    assertFalse(api.unloadedDamage("unknown", 0.15, 0.07));
-    verify(manager).unloadedDamage("x", 0.15, 0.07);
+    when(manager.unloadedDamage("x", rule)).thenReturn(true);
+    assertTrue(api.unloadedDamage("x", effects));
+    assertFalse(api.unloadedDamage("unknown", effects));
+    verify(manager).unloadedDamage("x", rule);
     when(Bukkit.getPluginManager()).thenReturn(null);
-    assertFalse(api.unloadedDamage("x", 0.15, 0.07));
+    assertFalse(api.unloadedDamage("x", effects));
     when(Bukkit.getServer()).thenReturn(null);
-    assertFalse(api.unloadedDamage("x", 0.15, 0.07));
-    verify(manager, times(1)).unloadedDamage("x", 0.15, 0.07);
+    assertFalse(api.unloadedDamage("x", effects));
+    verify(manager, times(1)).unloadedDamage("x", rule);
   }
 
   @Test

@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 
 
 import net.tfminecraft.simplefactions.vehicles.maintenance.DenarEconomyPlayerBank.PlayerBank;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import java.util.Collection;
@@ -66,11 +67,12 @@ public final class VehicleUpkeepService {
     }
 
     public void tickHourlyDecay() {
-        double fraction = VehiclesConfigLoader.getMaintenanceHourlyDamageFraction();
-        double minHealth = VehiclesConfigLoader.getMaintenanceMinHealthFraction();
         for (String uuid : maintenanceStore.unpaidUuids()) {
             if (UpkeepPause.paused(registry, uuid)) continue;
-            decayApi.unloadedDamage(uuid, fraction, minHealth);
+            String typeId = registry.getByVehicleUuid(uuid).map(PlayerVehicleRecord::getVehicleTypeId).orElse(null);
+            UnpaidVehicleEffects effects = VehiclesConfigLoader.getUnpaidEffects(typeId);
+            if (!effects.decays()) continue;
+            decayApi.unloadedDamage(uuid, effects);
         }
     }
 

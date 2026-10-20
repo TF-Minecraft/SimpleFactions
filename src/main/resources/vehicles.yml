@@ -1,8 +1,27 @@
 personal-slot-limit: 3
 
-maintenance-hourly-damage-percent: 20
-maintenance-min-health-percent: 3
+# How often unpaid vehicles take their unpaid-effects damage (72000 ticks = 1 hour).
 maintenance-interval-ticks: 72000
+
+# What unpaid upkeep does to a vehicle. "default" covers every vehicle;
+# categories.<category> and types.<vehicle type> change only the keys they set,
+# and a type wins over its category. Percentages are 0-100.
+#   hourly-damage-percent: share of each part's max health lost per interval (0 = no decay)
+#   min-health-percent: no part decays below this share of its health
+#   part-min-health-percent: floors for single parts, by component (hull, engine,
+#     geared_engine, pump, wings, balloon, harness) or weapon id, e.g. { hull: 50 }
+#   keep-afloat: a floating hull never decays far enough to start sinking
+#   keep-aloft: a balloon never decays far enough to lose its lift
+#   block-repair: the vehicle cannot be repaired until its upkeep is paid
+unpaid-effects:
+  default:
+    hourly-damage-percent: 20
+    min-health-percent: 3
+    keep-afloat: true
+    keep-aloft: true
+    block-repair: true
+  categories: {}
+  types: {}
 
 default-upkeep: 4
 default-per-person: 1

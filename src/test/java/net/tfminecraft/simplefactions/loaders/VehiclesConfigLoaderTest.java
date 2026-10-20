@@ -48,8 +48,8 @@ class VehiclesConfigLoaderTest {
         VehiclesConfigLoader.load(vehiclesYaml.toFile());
 
         assertEquals(1, VehiclesConfigLoader.getPersonalSlotLimit());
-        assertEquals(20, VehiclesConfigLoader.getMaintenanceHourlyDamagePercent());
-        assertEquals(3, VehiclesConfigLoader.getMaintenanceMinHealthPercent());
+        assertEquals(net.tfminecraft.simplefactions.vehicles.maintenance.UnpaidVehicleEffects.DEFAULT,
+                VehiclesConfigLoader.getUnpaidEffects("ironclad"));
         assertEquals(72000L, VehiclesConfigLoader.getMaintenanceIntervalTicks());
         assertEquals(1, VehiclesConfigLoader.getDefaultPerPerson());
         assertEquals(20.0, VehiclesConfigLoader.getUpkeep("ironclad"));
