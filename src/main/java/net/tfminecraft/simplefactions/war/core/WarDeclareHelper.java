@@ -77,7 +77,7 @@ public final class WarDeclareHelper {
 		if (attacker == null || defender == null) {
 			return false;
 		}
-		if (defender.getHighestTitle() == null) {
+		if (defender.getHighestTitle() == null || !attacker.canHaveVassals()) {
 			return false;
 		}
 		if (!WarGoalValidator.canUsurpByRank(attacker.getTier().getTier(), defender.getTier().getTier())) {

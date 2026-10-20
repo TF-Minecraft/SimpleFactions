@@ -8,6 +8,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import net.tfminecraft.simplefactions.database.FactionData;
 import net.tfminecraft.simplefactions.government.movement.Action;
@@ -47,6 +48,7 @@ class UsurpMovementTest {
     for (Action action : Action.values())
       PoliticalActionLoader.map.put(action, new PoliticalAction(action));
     when(Bukkit.getPlayer(anyString())).thenAnswer(call -> fixture.online.get(call.getArgument(0)));
+    fixture.lawGroup("authority", Map.of("effects.faction.rules", List.of("CAN_HAVE_VASSALS true")));
     duke = titled("duke", "Dana", "duke_title", "duchy");
     count = titled("count", "Carl", "count_title", "county");
     fixture.subject(duke, count);
@@ -97,6 +99,9 @@ class UsurpMovementTest {
     fixture.title("extra_duchy", "duchy");
     fixture.subject(prince, king);
     assertTrue(UsurpCause.canUsurp(king, prince), "equal rank may usurp");
+    Faction noVassals = spy(count);
+    when(noVassals.canHaveVassals()).thenReturn(false);
+    assertFalse(UsurpCause.canUsurp(noVassals, duke), "the old overlord must be able to become its subject");
   }
 
   @Test

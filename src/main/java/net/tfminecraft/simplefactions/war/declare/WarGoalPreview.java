@@ -79,7 +79,7 @@ public final class WarGoalPreview {
 		}
 		int subjects = RelationManager.getSubjects(defender).size();
 		if (subjects > 0) {
-			lines.add("§7Their §f" + subjects + " §7" + (subjects == 1 ? "subject becomes" : "subjects become") + " yours");
+			lines.add("§7Subjects that become yours: §f" + subjects);
 		}
 		lines.add("§7They become your subject");
 		return lines;

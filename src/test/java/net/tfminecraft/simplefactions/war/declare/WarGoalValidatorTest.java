@@ -825,6 +825,10 @@ class WarGoalValidatorTest {
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
 
+		when(attacker.canHaveVassals()).thenReturn(false);
+		assertEquals("§cYour laws do not allow vassals, so you cannot usurp.",
+				validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.USURP)).getMessage());
+		when(attacker.canHaveVassals()).thenReturn(true);
 		assertTrue(validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.USURP)).isValid());
 	}
 

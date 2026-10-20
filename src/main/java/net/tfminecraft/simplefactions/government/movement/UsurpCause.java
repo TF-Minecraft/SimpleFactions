@@ -13,9 +13,12 @@ import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 public final class UsurpCause {
 	private UsurpCause() {}
 
-	/** True when {@code vassal} is a direct subject of {@code overlord} and may take its title. */
+	/**
+	 * True when {@code vassal} is a direct subject of {@code overlord} and may take its title.
+	 * The usurper must be allowed vassals, since the old overlord becomes its subject.
+	 */
 	public static boolean canUsurp(Faction vassal, Faction overlord) {
-		if (vassal == null || overlord == null || overlord.getHighestTitle() == null) {
+		if (vassal == null || overlord == null || overlord.getHighestTitle() == null || !vassal.canHaveVassals()) {
 			return false;
 		}
 		if (!RelationManager.isOverlord(vassal, overlord)) {

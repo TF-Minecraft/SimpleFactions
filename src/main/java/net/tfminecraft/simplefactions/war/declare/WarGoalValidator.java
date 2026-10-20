@@ -196,6 +196,10 @@ public class WarGoalValidator {
 		if (!canUsurpByRank(attacker.getTier().getTier(), defender.getTier().getTier())) {
 			return WarValidationResult.fail("§cYou cannot usurp a faction of lower rank.");
 		}
+		// The loser becomes the usurper's subject, which a faction without vassals cannot hold.
+		if (!attacker.canHaveVassals()) {
+			return WarValidationResult.fail("§cYour laws do not allow vassals, so you cannot usurp.");
+		}
 		return WarValidationResult.ok();
 	}
 

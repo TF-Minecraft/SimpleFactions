@@ -92,9 +92,9 @@ class WarGoalPreviewTest {
     Faction king = fixture.saved(data);
     assertEquals(List.of("§7Title: §fcrown", "§7They become your subject"), WarGoalPreview.usurp(king));
     fixture.subject(king, fixture.saved("one", "One"));
-    assertTrue(WarGoalPreview.usurp(king).contains("§7Their §f1 §7subject becomes yours"));
+    assertTrue(WarGoalPreview.usurp(king).contains("§7Subjects that become yours: §f1"));
     fixture.subject(king, fixture.saved("two", "Two"));
-    assertTrue(WarGoalPreview.usurp(king).contains("§7Their §f2 §7subjects become yours"));
+    assertTrue(WarGoalPreview.usurp(king).contains("§7Subjects that become yours: §f2"));
     assertEquals(List.of("§7They become your subject"), WarGoalPreview.usurp(attacker));
   }
 
