@@ -1694,6 +1694,11 @@ class WarMenusCoverageTest {
         "§cYou have reached the limit for this relation type.",
         validateRuler(civil, backer, WarGoalType.TRANSFER_SUBJECT, null, "sub").getMessage());
 
+    // Goals without civil war rules of their own keep their normal checks.
+    assertEquals(
+        "§cOpen Market is not configured.",
+        validateRuler(civil, backer, WarGoalType.OPEN_MARKET, null, null).getMessage());
+
     War other = civilWar(9, "otherrebels", "second");
     other.getCivilWarSnapshot().getWartimeVassalEnds().add(
         new net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarWartimeVassalEnd("second", "defender", "vassal"));
