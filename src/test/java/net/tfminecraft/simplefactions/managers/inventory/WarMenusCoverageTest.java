@@ -1201,6 +1201,8 @@ class WarMenusCoverageTest {
       }
     }
     assertEquals("tributary", string(goals.getItem(10), "goal"));
+    assertTrue(lore(goals.getItem(10)).contains("Make them your tributary."));
+    assertFalse(lore(goals.getItem(10)).contains("defender"));
 
     declaration.click(fixture.ui.click(player, 10), goals, player);
     WarDemand demand = war.getSecondDemand(true);
@@ -1396,6 +1398,9 @@ class WarMenusCoverageTest {
     verify(player).sendMessage(WarDemandRules.LOCKED);
     assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) top(player).getHolder()).getType());
     assertTrue(lore(top(player).getItem(11)).contains("Locked after the first battle began"));
+    view.demandsView(defending, war);
+    view.click(fixture.ui.click(defending, 15), top(defending), defending);
+    verify(defending).sendMessage(WarDemandRules.LOCKED);
   }
 
   @Test

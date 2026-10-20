@@ -604,7 +604,9 @@ public class WarView {
 			}
 			if (slot == 15) {
 				if (!canEditCounterGoal(war, p)) {
-					p.sendMessage("§cOnly the defending nation's leader can set a counter goal before the first battle begins.");
+					p.sendMessage(war.hasFirstBattleStarted()
+							? WarDemandRules.LOCKED
+							: "§cOnly the defending nation's leader can set a counter goal before the first battle begins.");
 					return;
 				}
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

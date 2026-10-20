@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.managers.inventory;
 
 import net.tfminecraft.simplefactions.identity.Members;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
@@ -12,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.simplefactions.Cache;
@@ -68,7 +70,7 @@ public class DeclareWarView {
 		if(open) {
 			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_GOAL).withDemand(demand);
 			inventory = SimpleFactions.plugin.getServer().createInventory(
-					holder, 27, demand == null ? "§7Declare War - Goal" : "§7War Demand - Goal");
+					holder, 27, title(demand, "Goal"));
 		}
 		inventory.clear();
 		int slot = 10;
@@ -92,6 +94,7 @@ public class DeclareWarView {
 			inventory.setItem(slot, creator.createTransferSubjectGoalItem());
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_GOAL));
+		relabelForDemand(inventory, demand);
 		if(open) player.openInventory(inventory);
 	}
 
@@ -110,7 +113,7 @@ public class DeclareWarView {
 		boolean open = inventory == null;
 		if(open) {
 			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_RELATION_TYPE).withDemand(demand);
-			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Type");
+			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, title(demand, "Type"));
 		}
 		inventory.clear();
 		int slot = 0;
@@ -119,6 +122,7 @@ public class DeclareWarView {
 			inventory.setItem(slot++, creator.createRelationTypeItem(type, attacker));
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_RELATION_TYPE));
+		relabelForDemand(inventory, demand);
 		if(open) player.openInventory(inventory);
 	}
 
@@ -137,7 +141,7 @@ public class DeclareWarView {
 		boolean open = inventory == null;
 		if(open) {
 			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_TITLE).withDemand(demand);
-			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Title");
+			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, title(demand, "Title"));
 		}
 		inventory.clear();
 		int slot = 0;
@@ -146,6 +150,7 @@ public class DeclareWarView {
 			inventory.setItem(slot++, creator.createTitleItem(option));
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_TITLE));
+		relabelForDemand(inventory, demand);
 		if(open) player.openInventory(inventory);
 	}
 
@@ -164,7 +169,7 @@ public class DeclareWarView {
 		boolean open = inventory == null;
 		if(open) {
 			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_SUBJECT).withDemand(demand);
-			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Subject");
+			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, title(demand, "Subject"));
 		}
 		inventory.clear();
 		int slot = 0;
@@ -173,6 +178,7 @@ public class DeclareWarView {
 			inventory.setItem(slot++, creator.createSubjectItem(subject));
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_SUBJECT));
+		relabelForDemand(inventory, demand);
 		if(open) player.openInventory(inventory);
 	}
 
@@ -191,7 +197,7 @@ public class DeclareWarView {
 		boolean open = inventory == null;
 		if(open) {
 			DeclareWarHolder holder = new DeclareWarHolder(attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_SETTLEMENT).withDemand(demand);
-			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Settlement");
+			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, title(demand, "Settlement"));
 		}
 		inventory.clear();
 		int slot = 0;
@@ -200,6 +206,7 @@ public class DeclareWarView {
 			inventory.setItem(slot++, creator.createSettlementItem(option));
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_SETTLEMENT));
+		relabelForDemand(inventory, demand);
 		if(open) player.openInventory(inventory);
 	}
 
@@ -242,7 +249,7 @@ public class DeclareWarView {
 		if(open) {
 			DeclareWarHolder holder = new DeclareWarHolder(
 					attacker.getId(), defender.getId(), SFGUI.WAR_DECLARE_GOVERNMENT, govId, leadId).withDemand(demand);
-			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Government");
+			inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, title(demand, "Government"));
 		}
 		inventory.clear();
 		LawGroup government = ChangeGovernmentEligibility.group(defender, ChangeGovernmentEligibility.GOVERNMENT_GROUP);
@@ -257,6 +264,7 @@ public class DeclareWarView {
 			inventory.setItem(22, creator.createGovernmentConfirmItem());
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_GOVERNMENT));
+		relabelForDemand(inventory, demand);
 		if(open) player.openInventory(inventory);
 	}
 
@@ -608,7 +616,7 @@ public class DeclareWarView {
 				governmentLawId,
 				leadershipLawId,
 				groupId).withDemand(demand);
-		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, "§7Declare War - Law");
+		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(holder, 27, title(demand, "Law"));
 		int slot = 0;
 		for (Law law : group.getLaws().values()) {
 			if (slot >= 26) break;
@@ -616,7 +624,39 @@ public class DeclareWarView {
 			inventory.setItem(slot++, creator.createGovernmentLawItem(law, selected));
 		}
 		inventory.setItem(26, inv.createBackButton(SFGUI.WAR_DECLARE_GOVERNMENT_LAW));
+		relabelForDemand(inventory, demand);
 		player.openInventory(inventory);
+	}
+
+	private static String title(WarDemandDraft demand, String step) {
+		return (demand == null ? "§7Declare War - " : "§7War Demand - ") + step;
+	}
+
+	/**
+	 * The pickers are written for a declaration. A second demand can fall on the attacker,
+	 * so it names the target neutrally and asks the player to choose rather than declare.
+	 */
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	private static void relabelForDemand(Inventory inventory, WarDemandDraft demand) {
+		if (demand == null) {
+			return;
+		}
+		for (ItemStack item : inventory.getContents()) {
+			ItemMeta meta = item == null ? null : item.getItemMeta();
+			if (meta == null || meta.getLore() == null) {
+				continue;
+			}
+			List<String> lore = new ArrayList<>();
+			for (String line : meta.getLore()) {
+				lore.add(line.replace("Click to declare", "Click to choose")
+						.replace("The defender becomes", "They become")
+						.replace("the defender's", "their")
+						.replace("the defender", "them"));
+			}
+			meta.setLore(lore);
+			item.setItemMeta(meta);
+		}
 	}
 
 	private static Law lawInGroup(LawGroup group, String lawId) {
