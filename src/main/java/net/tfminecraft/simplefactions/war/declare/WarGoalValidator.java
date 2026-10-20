@@ -114,7 +114,7 @@ public class WarGoalValidator {
 	}
 
 	/** Direct subjects are pulled into the war with their overlord, so their truces count too. */
-	private static WarValidationResult validateTruce(Faction attacker, Faction defender) {
+	public static WarValidationResult validateTruce(Faction attacker, Faction defender) {
 		java.time.Duration leaders = TruceService.remaining(attacker, defender);
 		if (!leaders.isZero()) {
 			return WarValidationResult.fail("§cYou have a truce with " + defender.getName() + " §cfor another "

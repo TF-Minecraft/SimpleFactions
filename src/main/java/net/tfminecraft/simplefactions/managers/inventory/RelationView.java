@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
+import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import java.util.List;
@@ -284,6 +286,12 @@ public class RelationView {
 				if (attacker == null) return;
 				if (WarManager.exists(attacker, f)) {
 					p.sendMessage("§cYour faction is already in a war with that faction.");
+					return;
+				}
+				// Refuse a truce up front rather than after the goal is picked.
+				WarValidationResult truce = WarGoalValidator.validateTruce(attacker, f);
+				if (!truce.isValid()) {
+					p.sendMessage(truce.getMessage());
 					return;
 				}
 				if(attacker.getRelation(f.getId()).getOpinion() > Cache.warDeclareOpinionThreshold) {
