@@ -32,6 +32,7 @@ class VehiclesConfigUnpaidEffectsTest {
                 cloudskimmer:
                   upkeep: 20
                   size: 1
+              static_emplacements: {}
             """;
 
     @TempDir Path temporary;
@@ -144,6 +145,10 @@ class VehiclesConfigUnpaidEffectsTest {
                         "unpaid-effects.categories.boats is not a vehicle category"),
                 Arguments.of("unpaid-effects:\n  types:\n    schooner: {}",
                         "unpaid-effects.types.schooner is not a vehicle type"),
+                Arguments.of("unpaid-effects:\n  categories:\n    static_emplacements: 123",
+                        "unpaid-effects.categories.static_emplacements must be a section"),
+                Arguments.of("unpaid-effects:\n  categories:\n    static_emplacements:\n      hourly-damage-percent: 200",
+                        "unpaid-effects.categories.static_emplacements.hourly-damage-percent must be a number"),
                 Arguments.of("unpaid-effects:\n  types:\n    sloop: 1",
                         "unpaid-effects.types.sloop must be a section"),
                 Arguments.of("unpaid-effects:\n  types:\n    sloop: {}\n    Sloop: {}",

@@ -180,6 +180,11 @@ public final class VehiclesConfigLoader {
             nextDefaultUnpaid = unpaidOverlay(nextDefaultUnpaid, unpaid, "default", "unpaid-effects.default");
             Map<String, String> categoryKeys = unpaidKeys(unpaid, "categories", categories, "vehicle category");
             Map<String, String> typeKeys = unpaidKeys(unpaid, "types", typeToCategory.keySet(), "vehicle type");
+            // Check every category once here; a category with no vehicle types is never resolved below.
+            for (String categoryKey : categoryKeys.values()) {
+                unpaidOverlay(nextDefaultUnpaid, unpaid, "categories." + categoryKey,
+                        "unpaid-effects.categories." + categoryKey);
+            }
             for (Map.Entry<String, String> type : typeToCategory.entrySet()) {
                 UnpaidVehicleEffects effects = nextDefaultUnpaid;
                 String categoryKey = categoryKeys.get(type.getValue());
