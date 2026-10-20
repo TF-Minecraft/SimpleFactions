@@ -40,7 +40,10 @@ public class PoliticalAction {
         this.icon = "v.paper";
         this.name = action.getDisplay();
         this.description = new ArrayList<>();
-        this.pools = Arrays.asList("citizens", "guilds", "factions");
+        // Only a vassal can take its overlord's title; everything else is open to all pools.
+        this.pools = action == Action.USURP
+                ? List.of("vassals")
+                : Arrays.asList("citizens", "guilds", "factions");
     }
  
     public Action getAction() {

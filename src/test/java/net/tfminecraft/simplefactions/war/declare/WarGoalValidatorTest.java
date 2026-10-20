@@ -465,7 +465,7 @@ class WarGoalValidatorTest {
 	}
 
 	@Test
-	void usurp_rejectsRebellingAgainstTheOverlordDuringATruce() {
+	void usurp_sendsTheOverlordCaseToAMovementEvenDuringATruce() {
 		Faction king = mockFactionWithTitle("king", 5);
 		when(king.getName()).thenReturn("Kingdom");
 		Faction duke = mockSubject("duke", "king");
@@ -475,7 +475,7 @@ class WarGoalValidatorTest {
 
 		WarValidationResult result = validator.validate(WarDeclareRequest.of(duke, king, WarGoalType.USURP));
 		assertFalse(result.isValid());
-		assertTrue(result.getMessage().startsWith("§cYou have a truce with Kingdom §cfor another "), result.getMessage());
+		assertEquals(WarGoalValidator.USURP_OVERLORD, result.getMessage());
 	}
 
 	@Test
@@ -829,14 +829,16 @@ class WarGoalValidatorTest {
 	}
 
 	@Test
-	void usurp_allowsDirectOverlord() {
+	void usurp_sendsAVassalToAMovementAgainstItsDirectOverlord() {
 		Faction defender = mockFactionWithTitle("liege", 4);
 		Faction attacker = mockSubject("vassal", "liege");
 		when(attacker.getTier().getTier()).thenReturn(3);
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
 
-		assertTrue(validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.USURP)).isValid());
+		WarValidationResult result = validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.USURP));
+		assertFalse(result.isValid());
+		assertEquals(WarGoalValidator.USURP_OVERLORD, result.getMessage());
 	}
 
 	@Test

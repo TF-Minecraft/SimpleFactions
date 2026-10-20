@@ -156,8 +156,9 @@ class CatalogReloadCoverageTest {
     assertNotNull(PoliticalActionLoader.getByAction(Action.CHANGE_LEADER));
     Files.writeString(file, "SURRENDER: {}\n");
     loader.load(file.toFile());
-    assertEquals(Set.of(Action.NONE, Action.SURRENDER), PoliticalActionLoader.get().keySet());
-    assertEquals(2, PoliticalActionLoader.getList().size());
+    // Usurp is supplied when a server's file predates it.
+    assertEquals(Set.of(Action.NONE, Action.SURRENDER, Action.USURP), PoliticalActionLoader.get().keySet());
+    assertEquals(3, PoliticalActionLoader.getList().size());
     assertNull(PoliticalActionLoader.getByAction(Action.CHANGE_LEADER));
     Object original = PoliticalActionLoader.getByAction(Action.SURRENDER);
     Files.writeString(file, "SURRENDER: {}\ninvalid-action: {}\n");

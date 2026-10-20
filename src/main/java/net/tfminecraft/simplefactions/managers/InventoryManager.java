@@ -1010,7 +1010,7 @@ public class InventoryManager implements Listener{
 		pendingWarDeclares.put(player, request);
 		confirming.put(player, request.getAttacker());
 		Inventory i = SimpleFactions.plugin.getServer().createInventory(null, 27, "§7Confirm Action");
-		i.setItem(13, declareWarView.creator.createConfirmSummaryItem(request));
+		i.setItem(13, declareWarView.creator.createConfirmSummaryItem(request, DeclareWarView.needsCode(player, request)));
 		i.setItem(11, createButton("confirm", "war_declare", request.getDefender().getId()));
 		i.setItem(15, createButton("cancel", "war_declare", request.getDefender().getId()));
 		player.openInventory(i);

@@ -3,8 +3,8 @@
 # Hours under battle_schedule are Europe/Paris (CET/CEST), not UTC.
 
 war:
-  # Production gate: an attacking leader must type a staff-minted Discord code before
-  # the goal picker opens, and the code pins the goal. simplefactions.admin bypasses it.
+  # Production gate: an attacking leader can browse every war goal freely, but must type
+  # a staff-minted Discord code to confirm the declaration. simplefactions.admin bypasses it.
   require_declare_code: true
   # How long to wait for ProvinceSystem to answer a code check before giving up. The
   # gate fails closed, so a slow backend blocks the declare rather than allowing it.

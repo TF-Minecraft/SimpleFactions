@@ -83,14 +83,11 @@ public final class WarDeclareHelper {
 		if (!WarGoalValidator.canUsurpByRank(attacker.getTier().getTier(), defender.getTier().getTier())) {
 			return false;
 		}
-		if (RelationManager.sameRealm(attacker, defender)
-				&& !RelationManager.isOverlord(attacker, defender)) {
+		// A vassal usurps its overlord through a movement in the overlord's government.
+		if (RelationManager.sameRealm(attacker, defender)) {
 			return false;
 		}
-		if (InterVassalQueries.isInternalPeer(attacker, defender)) {
-			return false;
-		}
-		return true;
+		return !InterVassalQueries.isInternalPeer(attacker, defender);
 	}
 
 	static boolean canAnnexByRank(int attackerTierLevel, int titleTierLevel) {

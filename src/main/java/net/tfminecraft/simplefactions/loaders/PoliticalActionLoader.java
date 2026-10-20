@@ -41,6 +41,8 @@ public class PoliticalActionLoader {
                 PoliticalAction action = new PoliticalAction(key, config.getConfigurationSection(key));
                 loaded.put(action.getAction(), action);
             }
+            // Usurp is newer than most servers' copy of this file; it is vassal-only by default.
+            loaded.putIfAbsent(Action.USURP, new PoliticalAction(Action.USURP));
         } catch (IOException | InvalidConfigurationException | RuntimeException e) {
             throw new IllegalStateException("Cannot load definitions from " + configFile, e);
         }

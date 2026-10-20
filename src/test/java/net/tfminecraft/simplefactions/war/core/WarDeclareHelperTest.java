@@ -133,7 +133,7 @@ class WarDeclareHelperTest {
 	}
 
 	@Test
-	void canDeclareUsurp_allowsDirectOverlord() {
+	void canDeclareUsurp_refusesTheDirectOverlordWhichIsAMovement() {
 		Faction defender = mockRankedFaction("liege", 4);
 		withTitle(defender);
 		Faction attacker = mockSubject("vassal", "liege");
@@ -142,7 +142,7 @@ class WarDeclareHelperTest {
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
 
-		assertTrue(WarDeclareHelper.canDeclareUsurp(attacker, defender));
+		assertFalse(WarDeclareHelper.canDeclareUsurp(attacker, defender));
 	}
 
 	@Test

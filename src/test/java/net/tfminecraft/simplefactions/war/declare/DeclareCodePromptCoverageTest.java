@@ -122,6 +122,10 @@ class DeclareCodePromptCoverageTest {
     return (Map<Object, Object>) field(owner, name).get(null);
   }
 
+  private static WarDeclareRequest request(Faction attacker, Faction defender) {
+    return new WarDeclareRequest(attacker, defender, WarGoalType.TRIBUTARY, null, null);
+  }
+
   private AsyncPlayerChatEvent submit(String code) {
     AsyncPlayerChatEvent event = new AsyncPlayerChatEvent(true, player, code, Set.of());
     listener.onPlayerChat(event);
@@ -130,9 +134,9 @@ class DeclareCodePromptCoverageTest {
   }
 
   @Test
-  void aValidCodeIsCheckedOffThreadAndOnlyOpensTheGoalPickerOnTheMainCallback() {
+  void aValidCodeIsCheckedOffThreadAndOnlyReopensTheConfirmationOnTheMainCallback() {
     fixture.provincesEnabled(true);
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("  chosen-code  ").isCancelled());
     assertTrue(requests.isEmpty());
     assertNull(WarDeclareCodeService.session(player));
@@ -148,21 +152,18 @@ class DeclareCodePromptCoverageTest {
 
     assertEquals("chosen-code", WarDeclareCodeService.session(player).code);
     assertEquals("war_declare", requests.getFirst().get("kind").getAsString());
-    // The code covers the pairing only; the leader still chooses the goal.
-    assertFalse(inventory.pendingWarDeclares.containsKey(player));
-    verify(player).sendMessage("§aCode accepted. Choose your war goal.");
-    var holder =
-        (net.tfminecraft.simplefactions.managers.holder.DeclareWarHolder)
-            player.getOpenInventory().getTopInventory().getHolder();
-    assertEquals(net.tfminecraft.simplefactions.enums.SFGUI.WAR_DECLARE_GOAL, holder.getStep());
-    assertEquals("defender", holder.getDefenderId());
+    // The leader already chose the goal; the accepted code brings them back to confirm it.
+    verify(player).sendMessage("§aCode accepted. Confirm to declare the war.");
+    WarDeclareRequest pending = inventory.pendingWarDeclares.get(player);
+    assertEquals(WarGoalType.TRIBUTARY, pending.getGoal());
+    assertEquals(defender, pending.getDefender());
   }
 
   @Test
   void anEarlierPromptTimeoutCannotCancelItsReplacement() {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     Timed oldTimeout = timed.getLast();
-    DeclareCodePrompt.begin(player, attacker, alternative);
+    DeclareCodePrompt.begin(player, request(attacker, alternative));
     clearInvocations(player);
 
     oldTimeout.callback().run();
@@ -176,10 +177,10 @@ class DeclareCodePromptCoverageTest {
 
   @Test
   void anOlderGatewayReplyCannotReplaceTheAcceptedNewerPairing() {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("old-code").isCancelled());
     Runnable oldRequest = fixture.ui.asyncTasks.removeFirst();
-    DeclareCodePrompt.begin(player, attacker, alternative);
+    DeclareCodePrompt.begin(player, request(attacker, alternative));
     assertTrue(submit("new-code").isCancelled());
     fixture.ui.asyncTasks.removeFirst().run();
     fixture.ui.runTasks();
@@ -195,10 +196,10 @@ class DeclareCodePromptCoverageTest {
 
   @Test
   void cancellingAReplacementAlsoInvalidatesTheOlderInFlightCode() {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("old-code").isCancelled());
     Runnable oldRequest = fixture.ui.asyncTasks.removeFirst();
-    DeclareCodePrompt.begin(player, attacker, alternative);
+    DeclareCodePrompt.begin(player, request(attacker, alternative));
     assertTrue(submit("cancel").isCancelled());
     verify(player).sendMessage("§7War declaration cancelled");
 
@@ -211,9 +212,8 @@ class DeclareCodePromptCoverageTest {
 
   @Test
   void absentInputsDoNotPromptAndOrdinaryChatRemainsPublic() {
-    DeclareCodePrompt.begin(null, attacker, defender);
-    DeclareCodePrompt.begin(player, null, defender);
-    DeclareCodePrompt.begin(player, attacker, null);
+    DeclareCodePrompt.begin(null, request(attacker, defender));
+    DeclareCodePrompt.begin(player, null);
 
     assertTrue(timed.isEmpty());
     assertFalse(submit("ordinary chat").isCancelled());
@@ -224,7 +224,7 @@ class DeclareCodePromptCoverageTest {
   @ParameterizedTest
   @ValueSource(strings = {"   ", " CaNcEl "})
   void blankAndCancelConsumeOnlyThePromptWithoutContactingTheGateway(String input) {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit(input).isCancelled());
     verify(player)
         .sendMessage(
@@ -242,7 +242,7 @@ class DeclareCodePromptCoverageTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   void anUnsubmittedPromptExpiresAndOnlyNotifiesAnOnlinePlayer(boolean online) {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertEquals(1200L, timed.getFirst().ticks());
     when(player.isOnline()).thenReturn(online);
 
@@ -255,7 +255,7 @@ class DeclareCodePromptCoverageTest {
 
   @Test
   void aSubmittedCodeSurvivesTheInputDeadlineAndDoesNotCaptureUnrelatedChat() {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     Timed inputDeadline = timed.getFirst();
     assertTrue(submit("valid-code").isCancelled());
     assertFalse(submit("still chatting").isCancelled());
@@ -276,7 +276,7 @@ class DeclareCodePromptCoverageTest {
   @ValueSource(booleans = {true, false})
   void aGatewayTimeoutConsumesTheAttemptAndRejectsItsLateReply(boolean online) {
     Cache.warDeclareCodeTimeoutSeconds = 0;
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("slow-code").isCancelled());
     Timed serviceDeadline = timed.getLast();
     assertEquals(20L, serviceDeadline.ticks());
@@ -295,7 +295,7 @@ class DeclareCodePromptCoverageTest {
 
   @Test
   void anOfflinePlayerDoesNotReceiveOrOpenAGatewayResult() {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("valid-code").isCancelled());
     fixture.ui.asyncTasks.removeFirst().run();
     when(player.isOnline()).thenReturn(false);
@@ -311,7 +311,7 @@ class DeclareCodePromptCoverageTest {
   @Test
   void rejectedCodesReportTheBackendReasonWithoutGrantingADeclarationSession() {
     response = GatewayClient.Result.fail("This code has expired");
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("expired-code").isCancelled());
     fixture.ui.asyncTasks.removeFirst().run();
     fixture.ui.runTasks();
@@ -325,7 +325,7 @@ class DeclareCodePromptCoverageTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   void deletingEitherFactionDuringValidationDoesNotOpenAStaleConfirmation(boolean deleteAttacker) {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("valid-code").isCancelled());
     FactionManager.factions.remove(deleteAttacker ? attacker : defender);
     fixture.ui.asyncTasks.removeFirst().run();
@@ -338,7 +338,7 @@ class DeclareCodePromptCoverageTest {
 
   @Test
   void leavingInvalidatesInFlightValidationEvenBeforeTheOnlineFlagChanges() {
-    DeclareCodePrompt.begin(player, attacker, defender);
+    DeclareCodePrompt.begin(player, request(attacker, defender));
     assertTrue(submit("valid-code").isCancelled());
     WarDeclareCodeService.openSession(
         player,
@@ -361,7 +361,7 @@ class DeclareCodePromptCoverageTest {
         new WarDeclareCodeService.Session(
             "previous", attacker.getId(), defender.getId()));
 
-    DeclareCodePrompt.begin(player, attacker, alternative);
+    DeclareCodePrompt.begin(player, request(attacker, alternative));
 
     assertNull(WarDeclareCodeService.session(player));
     assertTrue(submit("cancel").isCancelled());

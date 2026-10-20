@@ -242,6 +242,9 @@ public class Proposal {
                 case INDEPENDENCE:
                     first.add(StringFormatter.formatHex("#d4c9aeMembers of the cause are granted independence"));
                     break;
+                case USURP:
+                    first.add(StringFormatter.formatHex("#d4c9aeThe cause leader's faction takes this faction's highest title"));
+                    break;
                 case NATIONHOOD:
                     first.add(StringFormatter.formatHex("#d4c9aeMembers of the cause are elevated to nationhood"));
                     break;
