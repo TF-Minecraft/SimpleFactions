@@ -147,10 +147,15 @@ public final class TruceService {
 			String hostId = civilWarHostId(war);
 			if (hostId != null) recordCivilWarCooldown(hostId, until, war.getId());
 		} else {
-			for (Faction attacker : BattleSideMembers.collectParticipatingFactions(war.getAttackers())) {
-				for (Faction defender : BattleSideMembers.collectParticipatingFactions(war.getDefenders())) {
-					record(attacker.getId(), defender.getId(), until, war.getId());
+			try {
+				for (Faction attacker : BattleSideMembers.collectParticipatingFactions(war.getAttackers())) {
+					for (Faction defender : BattleSideMembers.collectParticipatingFactions(war.getDefenders())) {
+						record(attacker.getId(), defender.getId(), until, war.getId());
+					}
 				}
+			} catch (RuntimeException ex) {
+				// A broken side must not stop the war from ending; keep whatever truces were recorded.
+				log("Could not record every truce for war " + war.getId(), ex);
 			}
 		}
 		save();

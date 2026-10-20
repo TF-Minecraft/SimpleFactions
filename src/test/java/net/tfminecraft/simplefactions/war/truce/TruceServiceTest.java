@@ -258,6 +258,14 @@ class TruceServiceTest {
 		assertEquals(1, TruceService.list(null).size());
 	}
 
+	@Test
+	void aBrokenSideStillLetsTheWarEnd() {
+		War war = new War(4, iron, river);
+		war.getDefenders().getMainParticipants().add(null);
+		org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+				() -> TruceService.onWarEnded(war, WarEndReason.ATTACKER_VICTORY));
+	}
+
 	private Faction faction(String id) {
 		Faction faction = mock(Faction.class);
 		when(faction.getId()).thenReturn(id);
