@@ -110,7 +110,7 @@ public final class MovementAdminService {
 					movement.getId(),
 					movement.getFaction() != null ? movement.getFaction().getId() : "-",
 					movement.getPower());
-			String error = CivilWarStartService.start(movement);
+			String error = CivilWarStartService.start(movement, true);
 			if (error != null) {
 				return new Result(false, error);
 			}

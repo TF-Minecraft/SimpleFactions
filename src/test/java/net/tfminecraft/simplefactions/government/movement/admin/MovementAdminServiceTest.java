@@ -235,10 +235,11 @@ class MovementAdminServiceTest {
 				MockedStatic<CivilWarStartService> start = mockStatic(CivilWarStartService.class);
 				MockedConstruction<Database> ignored = mockConstruction(Database.class)) {
 			factions.when(() -> FactionManager.getMovementById("alice_movement")).thenReturn(movement);
-			start.when(() -> CivilWarStartService.start(movement)).thenReturn(null);
+			start.when(() -> CivilWarStartService.start(movement, true)).thenReturn(null);
 			MovementAdminService.Result result = MovementAdminService.demands("alice_movement", "reject");
 			assertTrue(result.ok());
-			start.verify(() -> CivilWarStartService.start(movement));
+			// Staff resolving demands are not held to the host's civil war cooldown.
+			start.verify(() -> CivilWarStartService.start(movement, true));
 			outcomes.verifyNoInteractions();
 			verify(movement, never()).getOrganization();
 		}

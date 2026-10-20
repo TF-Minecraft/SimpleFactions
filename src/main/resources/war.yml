@@ -15,6 +15,9 @@ war:
   reparations:
     income_percent: 25
     days: 10
+  truce:
+    # Real days that factions on opposite sides of a finished war cannot declare on each other.
+    days: 10
   goals:
     DE_JURE_ANNEX:
       max_battles_per_leg: 4

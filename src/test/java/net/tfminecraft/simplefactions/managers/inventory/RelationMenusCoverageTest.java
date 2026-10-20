@@ -402,12 +402,15 @@ class RelationMenusCoverageTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"leader,leader", "already,already in a war", "opinion,opinion", "offline,online", "code,code", "goal,goal"})
+  @CsvSource({"leader,leader", "already,already in a war", "truce,truce", "opinion,opinion", "offline,online", "code,code", "goal,goal"})
   void warDeclarationRechecksLiveConditionsBeforePromptOrGoalSelection(String scenario, String expected) {
     type("war", "threshold.amount", -10);
     view.diplomacyView(null, player, target, true);
     if (scenario.equals("leader")) when(origin.getLeader()).thenReturn("NewLeader");
     if (scenario.equals("already")) wars.when(() -> WarManager.exists(origin, target)).thenReturn(true);
+    if (scenario.equals("truce"))
+      net.tfminecraft.simplefactions.war.truce.TruceService.record(
+          "target", "origin", java.time.Instant.now().plus(java.time.Duration.ofDays(1)), 1);
     if (scenario.equals("opinion")) when(origin.getRelation("target")).thenReturn(new Relation(neutral, indifferent, 20));
     if (scenario.equals("offline")) when(target.numOnline()).thenReturn(0);
     if (scenario.equals("code")) codes.when(() -> WarDeclareCodeService.isRequired(player)).thenReturn(true);
@@ -480,6 +483,16 @@ class RelationMenusCoverageTest {
     diplomacy.verify(() -> RelationManager.setTradeRelation(any(), any(), any(), any(), anyBoolean()), never());
     diplomacy.verify(() -> RelationManager.actorLacksCapacity(any(), any(), any(), any()), never());
     assertEquals(SFGUI.DIPLOMACY_VIEW, menu());
+  }
+
+  @Test
+  void warButtonShowsTheTruceWithTheViewedFaction() {
+    type("war", "threshold.amount", -10, "threshold.mutual", true);
+    assertFalse(text(creator.createWarButton(target, origin)).contains("Truce"));
+    net.tfminecraft.simplefactions.war.truce.TruceService.record(
+        "target", "origin", java.time.Instant.now().plus(java.time.Duration.ofDays(6).plusHours(4)).plusSeconds(60), 1);
+    List<String> lore = creator.createWarButton(target, origin).getItemMeta().getLore();
+    assertTrue(lore.contains("§eTruce: 6d 4h left"), String.valueOf(lore));
   }
 
   @Test

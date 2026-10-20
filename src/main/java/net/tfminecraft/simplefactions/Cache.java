@@ -74,6 +74,7 @@ public class Cache {
 	public static int warPortSeaZocRadius = 2;
 	public static double warReparationsIncomePercent = 25;
 	public static int warReparationsDays = 10;
+	public static int warTruceDays = 10;
 	public static Map<WarGoalType, Integer> warGoalMaxBattles = new EnumMap<>(WarGoalType.class);
 	public static final int MAX_BATTLES_PER_LEG = 4;
 	public static List<String> openMarketDefenderMustNotHave = List.of();

@@ -399,9 +399,10 @@ class MovementMenusCoverageTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"online", "missingTarget", "offline", "lowOrganization", "notLeader"})
+  @ValueSource(strings = {"online", "missingTarget", "offline", "lowOrganization", "notLeader", "cooldown"})
   void sendingDemandsRequiresLeadershipOrganizationTargetsAndAnOnlineRuler(String scenario) {
     view.movementView(player, faction, movement, null);
+    if (scenario.equals("cooldown")) civilWars.when(() -> CivilWarStartService.cooldownError(faction)).thenReturn("Too soon");
     if (scenario.equals("missingTarget")) cause.getProposal().setTarget(null);
     if (scenario.equals("offline")) when(ruler.isOnline()).thenReturn(false);
     if (scenario.equals("lowOrganization")) when(movement.getOrganization()).thenReturn(99.0);
@@ -414,13 +415,15 @@ class MovementMenusCoverageTest {
       verify(ruler, never()).openInventory(any(Inventory.class));
       if (scenario.equals("missingTarget")) verify(player).sendMessage(contains("lack a target"));
       if (scenario.equals("offline")) verify(player).sendMessage(contains("must be online"));
+      if (scenario.equals("cooldown")) verify(player).sendMessage("Too soon");
     }
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"allowed", "blocked", "leaderless", "offline", "notRuler"})
+  @ValueSource(strings = {"allowed", "blocked", "leaderless", "offline", "notRuler", "cooldown"})
   void disbandDemandsRecheckCrackdownRulesAndCurrentLeaders(String scenario) {
     view.movementView(ruler, faction, movement, null);
+    if (scenario.equals("cooldown")) civilWars.when(() -> CivilWarStartService.cooldownError(faction)).thenReturn("Too soon");
     if (scenario.equals("blocked")) crackdown.when(() -> MovementCrackdownQueries.canCrush(faction, movement)).thenReturn(false);
     if (scenario.equals("leaderless")) leader.set(null);
     if (scenario.equals("offline")) online.remove("Alice");
@@ -432,6 +435,7 @@ class MovementMenusCoverageTest {
     } else {
       verify(player, never()).openInventory(any(Inventory.class));
       if (!scenario.equals("notRuler")) verify(ruler).sendMessage(anyString());
+      if (scenario.equals("cooldown")) verify(ruler).sendMessage("Too soon");
     }
   }
 

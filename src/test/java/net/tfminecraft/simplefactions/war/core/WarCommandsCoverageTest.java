@@ -43,6 +43,7 @@ import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.resolution.WarReparationsService;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import org.bukkit.Bukkit;
@@ -297,6 +298,15 @@ class WarCommandsCoverageTest {
         Arguments.of("admin raid resetquota 1 wrong", "Side must be aggressor, defender, or both"),
         Arguments.of("admin reparations iron", "Usage:"),
         Arguments.of("admin reparations iron river 5 7 extra", "Usage:"),
+        Arguments.of("admin truce", "Usage: /war admin truce"),
+        Arguments.of("admin truce wrong", "Usage: /war admin truce"),
+        Arguments.of("admin truce list iron extra", "Usage: /war admin truce"),
+        Arguments.of("admin truce clear iron", "Usage: /war admin truce"),
+        Arguments.of("admin truce clear iron river extra", "Usage: /war admin truce"),
+        Arguments.of("admin truce clear iron river", "§cNo truce between"),
+        Arguments.of("admin truce cooldowns extra", "Usage: /war admin truce"),
+        Arguments.of("admin truce clearcooldown", "Usage: /war admin truce"),
+        Arguments.of("admin truce clearcooldown iron", "§ciron §chas no civil war cooldown."),
         Arguments.of("admin schedule", "Usage:"),
         Arguments.of("admin schedule bad forcequorum", "War id must be a number"),
         Arguments.of("admin schedule 999 forcequorum", "No war by that id"),
@@ -361,6 +371,59 @@ class WarCommandsCoverageTest {
                                 call.getMethod().getName().equals("deleteWar")
                                     && call.getArgument(0) == war)));
     verify(alice).sendMessage(contains("Ended war"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"end", "attacker", "defender", "white_peace"})
+  void onlyWarsThatWereFoughtOutLeaveATruce(String ending) {
+    cache("warTruceDays", 10);
+    War war = war(1);
+    switch (ending) {
+      case "end" -> assertTrue(run("admin", "end", "1"));
+      case "white_peace" -> WarManager.endWar(war, WarEndReason.WHITE_PEACE);
+      default -> assertTrue(run("admin", "win", "1", ending));
+    }
+    assertEquals(!ending.equals("end"), TruceService.hasTruce(attacker, defender));
+    assertEquals(!ending.equals("end"), TruceService.hasTruce(defender, attacker));
+  }
+
+  @Test
+  void staffListAndClearTrucesByFaction() {
+    Faction other = fixture.saved("hill", "Carol");
+    java.time.Instant until = java.time.Instant.now().plus(Duration.ofDays(3)).plusSeconds(60);
+    TruceService.record("iron", "river", until, 4);
+    TruceService.record("hill", "river", until.plus(Duration.ofDays(1)), 5);
+    assertTrue(run("admin", "truce", "list"));
+    verify(alice).sendMessage("§7Truces (2):");
+    verify(alice).sendMessage("§firon §7- §friver §7(3d 0h left, war 4)");
+    verify(alice).sendMessage("§fhill §7- §friver §7(4d 0h left, war 5)");
+    assertTrue(run("admin", "truce", "list", "hill"));
+    verify(alice).sendMessage("§7Truces (1):");
+    assertTrue(run("admin", "truce", "clear", "RIVER", "iron"));
+    verify(alice).sendMessage("§aCleared the truce between §friver §aand §firon§a.");
+    assertFalse(TruceService.hasTruce(attacker, defender));
+    assertTrue(TruceService.hasTruce(other, defender));
+    assertTrue(run("admin", "truce", "list", "iron"));
+    verify(alice).sendMessage("§7No active truces for §firon§7.");
+    TruceService.clear("hill", "river");
+    assertTrue(run("admin", "truce", "list"));
+    verify(alice).sendMessage("§7No active truces.");
+  }
+
+  @Test
+  void staffListAndClearCivilWarCooldowns() {
+    assertTrue(run("admin", "truce", "cooldowns"));
+    verify(alice).sendMessage("§7No active civil war cooldowns.");
+    java.time.Instant until = java.time.Instant.now().plus(Duration.ofDays(2)).plusSeconds(60);
+    TruceService.recordCivilWarCooldown("river", until, 6);
+    TruceService.recordCivilWarCooldown("gone", until.plus(Duration.ofDays(1)), 7);
+    assertTrue(run("admin", "truce", "cooldowns"));
+    verify(alice).sendMessage("§7Civil war cooldowns (2):");
+    verify(alice).sendMessage("§friver §7(2d 0h left, war 6)");
+    verify(alice).sendMessage("§fgone §7(3d 0h left, war 7)");
+    assertTrue(run("admin", "truce", "clearcooldown", "RIVER"));
+    verify(alice).sendMessage("§aCleared the civil war cooldown of §friver§a.");
+    assertNull(TruceService.civilWarCooldownUntil(defender));
   }
 
   @Test
@@ -590,7 +653,16 @@ class WarCommandsCoverageTest {
                 "devmode",
                 "raid",
                 "reparations",
+                "truce",
                 "factions")),
+        Arguments.of("admin truce ", List.of("list", "clear", "cooldowns", "clearcooldown")),
+        Arguments.of("admin truce clearc", List.of("clearcooldown")),
+        Arguments.of("admin truce clearcooldown r", List.of("river")),
+        Arguments.of("admin truce cooldowns ", List.of()),
+        Arguments.of("admin truce list r", List.of("river")),
+        Arguments.of("admin truce clear i", List.of("iron")),
+        Arguments.of("admin truce clear iron r", List.of("river")),
+        Arguments.of("admin truce list iron ", List.of()),
         Arguments.of("admin reparations i", List.of("iron")),
         Arguments.of("admin reparations iron r", List.of("river")),
         Arguments.of("admin factions r", List.of("river")),

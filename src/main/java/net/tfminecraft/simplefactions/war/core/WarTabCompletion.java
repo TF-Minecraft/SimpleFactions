@@ -44,6 +44,7 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[1], "devmode");
 			addIfPrefix(completions, args[1], "raid");
 			addIfPrefix(completions, args[1], "reparations");
+			addIfPrefix(completions, args[1], "truce");
 			addIfPrefix(completions, args[1], "factions");
 			return completions;
 		}
@@ -55,6 +56,23 @@ public class WarTabCompletion implements TabCompleter {
 		}
 		if (args.length == 4 && args[1].equalsIgnoreCase("reparations")) {
 			return factionIds(args[3]);
+		}
+		if (args.length == 3 && args[1].equalsIgnoreCase("truce")) {
+			List<String> completions = new ArrayList<>();
+			addIfPrefix(completions, args[2], "list");
+			addIfPrefix(completions, args[2], "clear");
+			addIfPrefix(completions, args[2], "cooldowns");
+			addIfPrefix(completions, args[2], "clearcooldown");
+			return completions;
+		}
+		if (args.length == 4 && args[1].equalsIgnoreCase("truce")
+				&& (args[2].equalsIgnoreCase("list")
+						|| args[2].equalsIgnoreCase("clear")
+						|| args[2].equalsIgnoreCase("clearcooldown"))) {
+			return factionIds(args[3]);
+		}
+		if (args.length == 5 && args[1].equalsIgnoreCase("truce") && args[2].equalsIgnoreCase("clear")) {
+			return factionIds(args[4]);
 		}
 		if (args.length == 3 && args[1].equalsIgnoreCase("devmode")) {
 			List<String> completions = new ArrayList<>();

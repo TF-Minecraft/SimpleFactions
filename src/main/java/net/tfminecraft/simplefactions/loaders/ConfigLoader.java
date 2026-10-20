@@ -190,6 +190,7 @@ public class ConfigLoader {
 		Cache.warPortSeaZocRadius = config.getInt("war.port_sea_zoc_radius", 2);
 		Cache.warReparationsIncomePercent = config.getDouble("war.reparations.income_percent", 25);
 		Cache.warReparationsDays = config.getInt("war.reparations.days", 10);
+		Cache.warTruceDays = Math.max(0, config.getInt("war.truce.days", 10));
 		Cache.warGoalMaxBattles = new EnumMap<>(WarGoalType.class);
 		for (WarGoalType goal : WarGoalType.values()) {
 			int maxBattles = config.getInt("war.goals." + goal.name() + ".max_battles_per_leg", -1);

@@ -44,6 +44,7 @@ import net.tfminecraft.simplefactions.installation.WartimeInstallationService;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 
 public class WarManager {
 	private WarManager() {}
@@ -413,6 +414,8 @@ public class WarManager {
 		if (w == null || reason == null) {
 			return;
 		}
+		// Read the sides while the war is still active and the rebels still exist.
+		TruceService.onWarEnded(w, reason);
 		FactionManager.getMap().enqueueOccupationFromWar(w);
 		WartimeInstallationService.revert(w);
 		CivilWarUntangleService.restore(w, reason);

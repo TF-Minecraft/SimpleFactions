@@ -5,6 +5,7 @@ import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarSeaPortGate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -17,6 +18,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,6 +46,7 @@ import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
+import net.tfminecraft.simplefactions.war.truce.TruceService;
 import net.tfminecraft.simplefactions.enums.Member;
 import net.tfminecraft.simplefactions.government.Government;
 import net.tfminecraft.simplefactions.government.movement.Action;
@@ -65,6 +69,28 @@ class CivilWarStartServiceTest {
 
 		assertEquals(CivilWarCopy.UNMAPPABLE_CAUSE, error);
 		verify(movement, never()).setFrozen(true);
+	}
+
+	@Test
+	void recentCivilWar_refusesToStartAnother() {
+		Movement movement = baseMovement(Action.CHANGE_LEADER, Member.GUILD_LEADER);
+		TruceService.recordCivilWarCooldown("host", Instant.now().plus(Duration.ofDays(4)).plusSeconds(60), 3);
+
+		String error = CivilWarStartService.start(movement);
+
+		assertEquals(CivilWarCopy.cooldown("4d 0h"), error);
+		assertEquals("§cThis faction fought a civil war too recently. It can start another in 4d 0h.", error);
+		verify(movement, never()).setFrozen(true);
+	}
+
+	@Test
+	void staffMayStartACivilWarDuringTheCooldown() {
+		Movement movement = baseMovement(Action.INDEPENDENCE, Member.GUILD_LEADER);
+		TruceService.recordCivilWarCooldown("host", Instant.now().plus(Duration.ofDays(4)), 3);
+
+		assertEquals(CivilWarCopy.UNMAPPABLE_CAUSE, CivilWarStartService.start(movement, true));
+		assertNotEquals(CivilWarCopy.UNMAPPABLE_CAUSE, CivilWarStartService.start(movement, false));
+		assertNotNull(CivilWarStartService.cooldownError(movement.getFaction()));
 	}
 
 	@Test
