@@ -8,6 +8,7 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.core.WarDemand;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 
 /** Titles under an active de jure annex demand, so defenders cannot shield that land mid-war. */
@@ -25,23 +26,33 @@ public final class ActiveAnnexTitles {
 	 */
 	public static boolean isContested(int provinceId, Faction faction) {
 		for (War war : WarManager.getActive()) {
-			if (war == null || war.getGoal() != WarGoalType.DE_JURE_ANNEX) {
-				continue;
-			}
-			if (faction != null && !againstRealmOf(war, faction)) {
-				continue;
-			}
-			if (titleContains(war.getTargetTitleId(), provinceId)) {
+			Faction defender = war.getDefenders() == null ? null : war.getDefenders().getLeader();
+			if (war.getGoal() == WarGoalType.DE_JURE_ANNEX
+					&& claims(defender, war.getTargetTitleId(), provinceId, faction)) {
 				return true;
+			}
+			// A second demand can annex a title too, from either side's target.
+			for (boolean attackerSide : new boolean[] {true, false}) {
+				WarDemand demand = war.getSecondDemand(attackerSide);
+				if (demand != null && demand.getGoal() == WarGoalType.DE_JURE_ANNEX
+						&& claims(demand.getTarget(), demand.getTargetTitleId(), provinceId, faction)) {
+					return true;
+				}
 			}
 		}
 		return false;
 	}
 
-	private static boolean againstRealmOf(War war, Faction faction) {
-		Faction defender = war.getDefenders() == null ? null : war.getDefenders().getLeader();
-		return defender != null && faction.getId() != null && defender.getId() != null
-				&& DeJureAnnexEligibility.inDefenderRealm(faction, defender);
+	private static boolean claims(Faction target, String titleId, int provinceId, Faction faction) {
+		if (faction != null && !inRealmOf(target, faction)) {
+			return false;
+		}
+		return titleContains(titleId, provinceId);
+	}
+
+	private static boolean inRealmOf(Faction target, Faction faction) {
+		return target != null && faction.getId() != null && target.getId() != null
+				&& DeJureAnnexEligibility.inDefenderRealm(faction, target);
 	}
 
 	private static boolean titleContains(String titleId, int provinceId) {

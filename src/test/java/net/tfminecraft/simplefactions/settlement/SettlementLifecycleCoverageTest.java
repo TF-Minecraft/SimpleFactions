@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.core.WarDemand;
 import net.tfminecraft.simplefactions.war.declare.ActiveAnnexTitles;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -396,6 +397,27 @@ class SettlementLifecycleCoverageTest {
     war.end(WarEndReason.WHITE_PEACE);
     assertFalse(ActiveAnnexTitles.isContested(11));
     assertTrue(settlements.validateFactionCapital(leader, 11, "Fort").isSuccess());
+  }
+
+  @Test
+  void aSecondDemandAnnexingATitleAlsoGuardsIt() {
+    Faction attacker = faction("attacker", "Enemy", 30);
+    fixture.title("demanded_county", "county", 11, 12);
+    War war = new War(1, attacker, home);
+    war.setGoal(WarGoalType.SUBJUGATE);
+    war.setSecondDemand(
+        true,
+        new WarDemand(
+            WarGoalType.DE_JURE_ANNEX, "attacker", home.getId(), null, "demanded_county", null, null, null));
+    war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+    war.setSecondDemand(
+        false, new WarDemand(WarGoalType.OPEN_MARKET, home.getId(), "attacker", null, null, null, null, null));
+    WarManager.get().add(war);
+
+    assertTrue(ActiveAnnexTitles.isContested(11));
+    assertTrue(ActiveAnnexTitles.isContested(12, home));
+    assertFalse(ActiveAnnexTitles.isContested(11, attacker));
+    assertFalse(ActiveAnnexTitles.isContested(10, home));
   }
 
   private Faction faction(String id, String name, int... provinces) {
