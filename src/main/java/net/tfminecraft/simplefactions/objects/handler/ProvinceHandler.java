@@ -477,6 +477,18 @@ public class ProvinceHandler {
 		return new TopologyClaims(owned.stream().filter(legal::contains).toList(), java.util.Map.copyOf(after));
 	}
 
+	/**
+	 * Provinces {@link #revalidateClaims()} would keep if this realm held exactly {@code owned},
+	 * with its current faction and guild capitals.
+	 */
+	public Set<Integer> previewLegalProvinces(java.util.Collection<Integer> owned) {
+		ProvinceHandler copy = new ProvinceHandler(f);
+		copy.capital = capital;
+		copy.provinces = new ArrayList<>(owned);
+		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
+		return copy.computeLegalProvinces(pm, capital);
+	}
+
 	/** Apply the exact saved topology; callers rebuild derived province data after all realms are restored. */
 	public void restoreTopology(int restoredCapital, List<Integer> restoredProvinces) {
 		capital = restoredCapital;

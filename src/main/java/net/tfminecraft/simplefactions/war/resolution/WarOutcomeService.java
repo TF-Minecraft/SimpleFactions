@@ -251,11 +251,9 @@ public final class WarOutcomeService {
 			return;
 		}
 		Set<Faction> formerHolders = new LinkedHashSet<>();
-		for (Integer provinceId : DeJureAnnexEligibility.incomingProvinces(attacker, defender, title)) {
+		// Holders keep their settlements, capitals and the road between them.
+		for (Integer provinceId : DeJureAnnexEligibility.partition(attacker, defender, title).taken()) {
 			Faction holder = DeJureAnnexEligibility.ownerOfProvince(provinceId);
-			if (holder.getCapital() == provinceId) {
-				continue;
-			}
 			InstallationTransferService.transfer(holder, attacker, provinceId);
 			holder.removeProvince(provinceId, false);
 			attacker.addProvince(provinceId);

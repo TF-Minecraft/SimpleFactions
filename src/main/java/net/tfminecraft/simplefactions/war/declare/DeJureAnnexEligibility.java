@@ -2,25 +2,38 @@ package net.tfminecraft.simplefactions.war.declare;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import net.tfminecraft.simplefactions.Cache;
-import net.tfminecraft.simplefactions.diplomacy.RelationType;
-import net.tfminecraft.simplefactions.loaders.RelationLoader;
+import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.tiers.Title;
-import net.tfminecraft.simplefactions.war.enums.WarGoalType;
+import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
+import net.tfminecraft.simplefactions.settlement.Settlement;
 import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
+import net.tfminecraft.simplefactions.tiers.Title;
 
 public final class DeJureAnnexEligibility {
 	private DeJureAnnexEligibility() {}
 
-	public record DeJureTitleOption(Title title, boolean eligible, String blockReason) {}
+	public record DeJureTitleOption(Title title, boolean eligible, String blockReason, DeJureAnnexPreview preview) {
+		public DeJureTitleOption(Title title, boolean eligible, String blockReason) {
+			this(title, eligible, blockReason, null);
+		}
+	}
+
+	/** What a victory would move: {@code taken} of {@code incoming} provinces, the rest kept by their holders. */
+	public record DeJureAnnexPreview(int taken, int incoming, List<KeptSettlement> keptSettlements, int roadSize) {}
+
+	public record KeptSettlement(String holderName, String settlementName) {}
 
 	public static List<DeJureTitleOption> options(Faction attacker, Faction defender) {
 		List<DeJureTitleOption> options = new ArrayList<>();
@@ -65,21 +78,123 @@ public final class DeJureAnnexEligibility {
 			}
 		}
 
-		List<Integer> titleProvinces = TitleManager.getProvinces(title);
-		Set<Integer> provinceSet = new HashSet<>(titleProvinces);
-		if (WarGoalValidator.titleProvincesContainSettlement(
-				provinceSet, collectSettlementProbes(), collectCapitals())) {
-			if (canSuggestSubjugate(attacker, defender)) {
-				return blocked(title, "§cThis title has settlements - use subjugate instead.");
+		AnnexPartition.Result partition = partition(attacker, defender, title);
+		DeJureAnnexPreview preview = preview(attacker, defender, title, partition);
+		if (partition.taken().isEmpty()) {
+			return new DeJureTitleOption(title, false,
+					"§cNothing in this title can be taken: it is all settlements or the road to them.", preview);
+		}
+
+		if (overProjectedProvinceCap(attacker, partition.taken().size())) {
+			return new DeJureTitleOption(title, false,
+					"§cYou do not have enough prestige for the incoming provinces.", preview);
+		}
+
+		return new DeJureTitleOption(title, true, null, preview);
+	}
+
+	/**
+	 * Splits the defender realm's land in {@code title}: holders keep settlements, capitals
+	 * and the road that keeps their other land claimed; the attacker takes the rest.
+	 */
+	public static AnnexPartition.Result partition(Faction attacker, Faction defender, Title title) {
+		Map<Faction, Set<Integer>> byHolder = incomingByHolder(attacker, defender, title);
+		List<AnnexPartition.Holder> holders = new ArrayList<>();
+		for (Map.Entry<Faction, Set<Integer>> entry : byHolder.entrySet()) {
+			Faction holder = entry.getKey();
+			Set<Integer> incoming = entry.getValue();
+			Set<Integer> holdings = new HashSet<>(incoming);
+			if (holder.getProvinces() != null) {
+				holdings.addAll(holder.getProvinces());
 			}
-			return blocked(title, "§cThis title has settlements.");
+			holders.add(new AnnexPartition.Holder(
+					String.valueOf(holder.getId()), holdings, incoming, protectedProvinces(holder, incoming),
+					owned -> previewLegal(holder, owned)));
 		}
-
-		if (overProjectedProvinceCap(attacker, incoming)) {
-			return blocked(title, "§cYou do not have enough prestige for the incoming provinces.");
+		Set<Integer> titleProvinces = new HashSet<>();
+		List<Integer> listed = TitleManager.getProvinces(title);
+		if (listed != null) {
+			for (Integer provinceId : listed) {
+				if (provinceId != null) {
+					titleProvinces.add(provinceId);
+				}
+			}
 		}
+		Set<Integer> attackerLand = attacker.getProvinces() == null
+				? Set.of() : new HashSet<>(attacker.getProvinces());
+		return AnnexPartition.compute(new ProvinceAnnexGraph(provinceManager()), titleProvinces, attackerLand, holders);
+	}
 
-		return new DeJureTitleOption(title, true, null);
+	private static DeJureAnnexPreview preview(
+			Faction attacker, Faction defender, Title title, AnnexPartition.Result partition) {
+		List<KeptSettlement> kept = new ArrayList<>();
+		for (Faction holder : incomingByHolder(attacker, defender, title).keySet()) {
+			List<Settlement> settlements = settlementsOf(holder);
+			settlements.sort((a, b) -> Integer.compare(a.getCenterProvince(), b.getCenterProvince()));
+			for (Settlement settlement : settlements) {
+				if (settlementProvinces(settlement).stream().anyMatch(partition.protectedProvinces()::contains)) {
+					kept.add(new KeptSettlement(holder.getName(), settlement.getName()));
+				}
+			}
+		}
+		return new DeJureAnnexPreview(
+				partition.taken().size(), partition.incoming(), List.copyOf(kept), partition.road().size());
+	}
+
+	private static Map<Faction, Set<Integer>> incomingByHolder(Faction attacker, Faction defender, Title title) {
+		Map<Faction, Set<Integer>> byHolder = new LinkedHashMap<>();
+		for (Integer provinceId : incomingProvinces(attacker, defender, title)) {
+			Faction holder = ownerOfProvince(provinceId);
+			if (holder != null) {
+				byHolder.computeIfAbsent(holder, h -> new TreeSet<>()).add(provinceId);
+			}
+		}
+		return byHolder;
+	}
+
+	/** The holder's settlements and capital inside the title; the annex never takes these. */
+	private static Set<Integer> protectedProvinces(Faction holder, Set<Integer> incoming) {
+		Set<Integer> protectedProvinces = new TreeSet<>();
+		if (incoming.contains(holder.getCapital())) {
+			protectedProvinces.add(holder.getCapital());
+		}
+		for (Settlement settlement : settlementsOf(holder)) {
+			for (int provinceId : settlementProvinces(settlement)) {
+				if (incoming.contains(provinceId)) {
+					protectedProvinces.add(provinceId);
+				}
+			}
+		}
+		return protectedProvinces;
+	}
+
+	private static List<Settlement> settlementsOf(Faction holder) {
+		SettlementHandler handler = holder.getSettlementHandler();
+		return handler == null ? new ArrayList<>() : new ArrayList<>(handler.getAll());
+	}
+
+	private static Set<Integer> settlementProvinces(Settlement settlement) {
+		Set<Integer> provinces = new TreeSet<>();
+		if (settlement.getProvinces() != null) {
+			provinces.addAll(settlement.getProvinces());
+		}
+		provinces.add(settlement.getCenterProvince());
+		return provinces;
+	}
+
+	/** With no province map or handler there is nothing to keep connected, so nothing must stay legal. */
+	private static Set<Integer> previewLegal(Faction holder, Set<Integer> owned) {
+		ProvinceHandler handler = holder.getProvinceHandler();
+		if (handler == null || provinceManager() == null) {
+			return Set.of();
+		}
+		Set<Integer> legal = handler.previewLegalProvinces(owned);
+		return legal == null ? Set.of() : legal;
+	}
+
+	private static ProvinceManager provinceManager() {
+		SimpleFactions plugin = SimpleFactions.getInstance();
+		return plugin == null ? null : plugin.getProvinceManager();
 	}
 
 	static int incomingLandCount(Faction attacker, Faction defender, Title title) {
@@ -132,7 +247,7 @@ public final class DeJureAnnexEligibility {
 		return false;
 	}
 
-	private static boolean inDefenderRealm(Faction holder, Faction defender) {
+	static boolean inDefenderRealm(Faction holder, Faction defender) {
 		if (holder.getId().equalsIgnoreCase(defender.getId())) {
 			return true;
 		}
@@ -158,47 +273,5 @@ public final class DeJureAnnexEligibility {
 		Double prestige = attacker.getPrestige();
 		double prestigeValue = prestige == null ? 0 : prestige;
 		return prestigeValue < Math.max(0, current + incoming - 1) * Cache.provinceCost;
-	}
-
-	private static boolean canSuggestSubjugate(Faction attacker, Faction defender) {
-		RelationType type = firstPickableTypeNotAtLimit(attacker);
-		if (type == null) {
-			return false;
-		}
-		WarDeclareRequest request = new WarDeclareRequest(
-				attacker, defender, WarGoalType.SUBJUGATE, null, null, type.getId());
-		return new WarGoalValidator().validate(request).isValid();
-	}
-
-	private static RelationType firstPickableTypeNotAtLimit(Faction attacker) {
-		for (RelationType type : RelationLoader.getWarPickableVassalTypes()) {
-			if (type != null && !RelationManager.atLimit(attacker, type)) {
-				return type;
-			}
-		}
-		return null;
-	}
-
-	private static List<WarGoalValidator.SettlementProbe> collectSettlementProbes() {
-		List<WarGoalValidator.SettlementProbe> probes = new ArrayList<>();
-		for (Faction faction : FactionManager.factions) {
-			if (faction == null) {
-				continue;
-			}
-			SettlementHandler handler = faction.getSettlementHandler();
-			handler.getAll().forEach(s -> probes.add(new WarGoalValidator.SettlementProbe(s.getCenterProvince())));
-		}
-		return probes;
-	}
-
-	private static List<Integer> collectCapitals() {
-		List<Integer> capitals = new ArrayList<>();
-		for (Faction faction : FactionManager.factions) {
-			if (faction == null) {
-				continue;
-			}
-			capitals.add(faction.getCapital());
-		}
-		return capitals;
 	}
 }

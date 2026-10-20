@@ -36,6 +36,8 @@ import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.LawHandler;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
+import net.tfminecraft.simplefactions.settlement.Settlement;
+import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarDemand;
@@ -383,6 +385,29 @@ class WarOutcomeServiceTest {
 		verify(land.fx.defender).removeProvince(20, false);
 		verify(land.fx.attacker).addProvince(20);
 		verify(land.fx.attacker, never()).addTitle(any());
+		verify(land.defenderHandler).revalidateClaims();
+	}
+
+	@Test
+	void attackerVictory_deJure_leavesSettlementsWithTheirHolder() {
+		DeJureLandFixture land = deJureLandFixture();
+		land.defenderProvinces.add(21);
+		Settlement town = mock(Settlement.class);
+		when(town.getCenterProvince()).thenReturn(21);
+		SettlementHandler settlements = mock(SettlementHandler.class);
+		when(settlements.getAll()).thenReturn(List.of(town));
+		when(land.fx.defender.getSettlementHandler()).thenReturn(settlements);
+		Title title = mock(Title.class);
+		when(title.getId()).thenReturn("county_x");
+		try (MockedStatic<TitleLoader> titles = mockStatic(TitleLoader.class);
+				MockedStatic<TitleManager> titleManager = mockStatic(TitleManager.class)) {
+			titles.when(() -> TitleLoader.getById("county_x")).thenReturn(title);
+			titleManager.when(() -> TitleManager.getProvinces(title)).thenReturn(List.of(20, 21));
+			WarOutcomeService.apply(land.fx.war, WarEndReason.ATTACKER_VICTORY);
+		}
+		assertEquals(List.of(10, 20), land.attackerProvinces);
+		assertEquals(List.of(21), land.defenderProvinces);
+		verify(land.fx.defender, never()).removeProvince(eq(21), anyBoolean());
 		verify(land.defenderHandler).revalidateClaims();
 	}
 

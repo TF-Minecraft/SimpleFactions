@@ -1,7 +1,6 @@
 package net.tfminecraft.simplefactions.war.declare;
 
 import java.util.List;
-import java.util.Set;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
@@ -348,23 +347,4 @@ public class WarGoalValidator {
 	public static boolean canUsurpByRank(int attackerTierLevel, int defenderTierLevel) {
 		return attackerTierLevel <= defenderTierLevel;
 	}
-
-	static boolean titleProvincesContainSettlement(
-			Set<Integer> titleProvinces,
-			List<SettlementProbe> settlements,
-			List<Integer> capitals) {
-		for (SettlementProbe settlement : settlements) {
-			if (titleProvinces.contains(settlement.centerProvince())) {
-				return true;
-			}
-		}
-		for (Integer capital : capitals) {
-			if (capital != null && capital > 0 && titleProvinces.contains(capital)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	record SettlementProbe(int centerProvince) {}
 }
