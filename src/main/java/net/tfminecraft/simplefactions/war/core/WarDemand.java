@@ -94,24 +94,6 @@ public final class WarDemand {
 		return FactionManager.getByString(targetId);
 	}
 
-	/** The demand as a declaration by the beneficiary on the target, for validation. */
-	public WarDeclareRequest toRequest() {
-		Faction beneficiary = getBeneficiary();
-		Faction target = getTarget();
-		if (beneficiary == null || target == null || goal == null) {
-			return null;
-		}
-		return new WarDeclareRequest(
-				beneficiary,
-				target,
-				goal,
-				targetTitleId,
-				subjectFactionId,
-				relationTypeId,
-				governmentLawId,
-				leadershipLawId,
-				null).asDemand();
-	}
 
 	/** Goal name plus the detail it carries, e.g. "Subjugate (Vassal)". */
 	public String describeGoal() {
@@ -132,9 +114,4 @@ public final class WarDemand {
 		return detail == null ? goal.getDisplayName() : goal.getDisplayName() + " §7(" + detail + "§7)";
 	}
 
-	public boolean isFor(String beneficiary, String target) {
-		return beneficiary != null && target != null
-				&& beneficiary.equalsIgnoreCase(beneficiaryId)
-				&& target.equalsIgnoreCase(targetId);
-	}
 }

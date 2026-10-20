@@ -679,6 +679,19 @@ class WarOutcomeServiceTest {
 	}
 
 	@Test
+	void secondDemandForADisbandedFactionIsSkipped() {
+		Fixture fx = fixture();
+		fx.war.setGoal(WarGoalType.WAR);
+		FactionManager.factions.add(fx.defender);
+		fx.war.setSecondDemand(true, new WarDemand(
+				WarGoalType.TRIBUTARY, "gone", "def", null, null, null, null, null));
+		try (MockedStatic<RelationManager> relations = mockStatic(RelationManager.class)) {
+			WarOutcomeService.apply(fx.war, WarEndReason.ATTACKER_VICTORY);
+			relations.verify(() -> RelationManager.setRelationForced(any(), any(), any()), never());
+		}
+	}
+
+	@Test
 	void lostSideSecondDemandIsNotApplied() {
 		Fixture fx = fixture();
 		FactionManager.factions.add(fx.attacker);

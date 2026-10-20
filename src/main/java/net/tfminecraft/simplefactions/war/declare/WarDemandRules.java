@@ -188,21 +188,11 @@ public final class WarDemandRules {
 	}
 
 	private static boolean contains(List<Faction> factions, Faction faction) {
-		if (faction == null || faction.getId() == null) {
-			return false;
-		}
-		for (Faction candidate : factions) {
-			if (faction.getId().equalsIgnoreCase(candidate.getId())) {
-				return true;
-			}
-		}
-		return false;
+		return faction != null && faction.getId() != null
+				&& factions.stream().anyMatch(candidate -> faction.getId().equalsIgnoreCase(candidate.getId()));
 	}
 
 	private static void add(List<Faction> factions, Faction faction) {
-		if (faction == null || faction.getId() == null || contains(factions, faction)) {
-			return;
-		}
-		factions.add(faction);
+		if (faction != null && faction.getId() != null && !contains(factions, faction)) factions.add(faction);
 	}
 }

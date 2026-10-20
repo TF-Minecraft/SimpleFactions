@@ -1299,6 +1299,232 @@ class WarMenusCoverageTest {
     assertFalse(WarDemandRules.conflicts(null, market));
   }
 
+  @Test
+  void theDefenderPicksWhichAttackerToMakeTheDemandOf() {
+    fixture.relationType("tributary", Map.of("name", "Tributary"));
+    routeDemandScreens();
+    Faction ally = ally("ally", "AllyLeader");
+    war.getParticipant(attacker).getAllies().put(ally, true);
+    war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+    view.demandsView(defending, war);
+    view.click(fixture.ui.click(defending, 16), top(defending), defending);
+    Inventory targets = top(defending);
+    assertEquals(SFGUI.WAR_DEMAND_TARGET, ((WarInventoryHolder) targets.getHolder()).getType());
+    assertTrue(lore(targets.getItem(0)).contains("make the demand of this nation"));
+    assertEquals("ally", string(targets.getItem(1), "demand_faction"));
+
+    view.click(fixture.ui.click(defending, 26), targets, defending);
+    assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) top(defending).getHolder()).getType());
+
+    view.click(fixture.ui.click(defending, 16), top(defending), defending);
+    view.click(fixture.ui.click(defending, 1), top(defending), defending);
+    Inventory goals = top(defending);
+    DeclareWarHolder holder = (DeclareWarHolder) goals.getHolder();
+    assertEquals("defender", holder.getAttackerId());
+    assertEquals("ally", holder.getDefenderId());
+    declaration.click(fixture.ui.click(defending, 10), goals, defending);
+    assertEquals("ally", war.getSecondDemand(false).getTargetId());
+    assertEquals("defender", war.getSecondDemand(false).getBeneficiaryId());
+  }
+
+  @Test
+  void aDefensiveAllyIsToldAboutADemandMadeForIt() {
+    fixture.relationType("tributary", Map.of("name", "Tributary"));
+    routeDemandScreens();
+    Faction ally = ally("ally", "AllyLeader");
+    war.getParticipant(attacker).getAllies().put(ally, true);
+    Faction guard = fixture.saved("guard", "GuardLeader");
+    Player guardLeader = fixture.player("GuardLeader");
+    var allyType = RelationLoader.getType("ally");
+    defender.setRelation(guard, new Relation(allyType, RelationLoader.getDefaultAttitude()));
+    guard.setRelation(defender, new Relation(allyType, RelationLoader.getDefaultAttitude()));
+    war.update();
+    war.getParticipant(defender).getAllies().put(guard, true);
+    war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+
+    view.demandsView(defending, war);
+    view.click(fixture.ui.click(defending, 16), top(defending), defending);
+    assertEquals(
+        SFGUI.WAR_DEMAND_BENEFICIARY, ((WarInventoryHolder) top(defending).getHolder()).getType());
+    view.click(fixture.ui.click(defending, 1), top(defending), defending);
+    assertEquals(SFGUI.WAR_DEMAND_TARGET, ((WarInventoryHolder) top(defending).getHolder()).getType());
+    view.click(fixture.ui.click(defending, 26), top(defending), defending);
+    assertEquals(
+        SFGUI.WAR_DEMAND_BENEFICIARY, ((WarInventoryHolder) top(defending).getHolder()).getType());
+    view.click(fixture.ui.click(defending, 1), top(defending), defending);
+
+    FactionManager.factions.remove(guard);
+    Inventory targets = top(defending);
+    view.click(fixture.ui.click(defending, 1), targets, defending);
+    assertSame(targets, top(defending));
+    FactionManager.factions.add(guard);
+
+    view.click(fixture.ui.click(defending, 1), targets, defending);
+    Inventory goals = top(defending);
+    declaration.click(fixture.ui.click(defending, 26), goals, defending);
+    assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) top(defending).getHolder()).getType());
+
+    view.click(fixture.ui.click(defending, 16), top(defending), defending);
+    view.click(fixture.ui.click(defending, 1), top(defending), defending);
+    view.click(fixture.ui.click(defending, 1), top(defending), defending);
+    declaration.click(fixture.ui.click(defending, 10), top(defending), defending);
+    assertEquals("guard", war.getSecondDemand(false).getBeneficiaryId());
+    verify(guardLeader).sendMessage(contains("for you if your side wins"));
+  }
+
+  @Test
+  void secondDemandScreensRefuseWhatTheViewerCannotChange() {
+    routeDemandScreens();
+    war.setGoal(null);
+    view.demandsView(defending, war);
+    Inventory demands = top(defending);
+    assertTrue(lore(demands.getItem(10)).contains("None"));
+    assertTrue(lore(demands.getItem(16)).contains("Needs a counter goal first"));
+    assertTrue(lore(demands.getItem(11)).contains("Set by the attacking nation"));
+    view.click(fixture.ui.click(defending, 11), demands, defending);
+    verify(defending).sendMessage(WarDemandRules.NOT_LEADER);
+    assertSame(demands, top(defending));
+
+    war.setGoal(WarGoalType.TRIBUTARY);
+    view.demandsView(player, war);
+    view.click(fixture.ui.click(player, 11), top(player), player);
+    war.setFirstBattleStarted(true);
+    Inventory goals = top(player);
+    declaration.click(fixture.ui.click(player, goalSlot(goals, "tributary")), goals, player);
+    verify(player).sendMessage(WarDemandRules.LOCKED);
+    assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) top(player).getHolder()).getType());
+    assertTrue(lore(top(player).getItem(11)).contains("Locked after the first battle began"));
+  }
+
+  @Test
+  void aLockedWarRefusesTheDemandFactionPickers() {
+    routeDemandScreens();
+    Faction ally = ally("ally", "AllyLeader");
+    war.getParticipant(attacker).getAllies().put(ally, true);
+    view.demandsView(player, war);
+    view.click(fixture.ui.click(player, 11), top(player), player);
+    Inventory beneficiaries = top(player);
+    war.setFirstBattleStarted(true);
+    view.click(fixture.ui.click(player, 1), beneficiaries, player);
+    verify(player).sendMessage(WarDemandRules.LOCKED);
+    assertEquals(SFGUI.WAR_DEMANDS, ((WarInventoryHolder) top(player).getHolder()).getType());
+  }
+
+  @Test
+  void theDemandGoalPickerHandlesSubPickersEndedWarsAndRefusals() {
+    routeDemandScreens();
+    view.demandsView(player, war);
+    view.click(fixture.ui.click(player, 11), top(player), player);
+    Inventory goals = top(player);
+    declaration.click(fixture.ui.click(player, goalSlot(goals, "change_government")), goals, player);
+    assertEquals(
+        SFGUI.WAR_DECLARE_GOVERNMENT, ((DeclareWarHolder) top(player).getHolder()).getStep());
+    declaration.click(fixture.ui.click(player, 26), top(player), player);
+    assertEquals(SFGUI.WAR_DECLARE_GOAL, ((DeclareWarHolder) top(player).getHolder()).getStep());
+    assertNotNull(((DeclareWarHolder) top(player).getHolder()).getDemand());
+
+    declaration.click(fixture.ui.click(player, 10), top(player), player);
+    verify(player).sendMessage("§cTributary diplomacy is not configured.");
+    assertNull(war.getSecondDemand(true));
+
+    declaration.openDemandGoalPicker(player, attacker, defender, new WarDemandDraft(99, true));
+    declaration.click(fixture.ui.click(player, 10), top(player), player);
+    verify(player).sendMessage("§cThat war has ended.");
+    declaration.openDemandGoalPicker(player, attacker, defender, new WarDemandDraft(99, true));
+    clearInvocations(player);
+    declaration.click(fixture.ui.click(player, 26), top(player), player);
+    verify(player).closeInventory();
+  }
+
+  @Test
+  void clearingTheCounterGoalAlsoClearsTheSecondDemand() {
+    war.setDefenderCounterGoal(WarGoalType.TRIBUTARY, null);
+    war.setSecondDemand(
+        false, new WarDemand(WarGoalType.OPEN_MARKET, "defender", "attacker", null, null, null, null, null));
+    openCounterGoalPicker(defending);
+    view.click(fixture.ui.click(defending, 22), top(defending), defending);
+    assertNull(war.getSecondDemand(false));
+    verify(defending).sendMessage("§7Your second demand was removed with it.");
+  }
+
+  @Test
+  void demandValidationNamesWhatIsWrong() {
+    war.setGoal(WarGoalType.TRIBUTARY);
+    assertEquals(
+        WarDemandRules.NOT_AVAILABLE,
+        WarDemandRules.validate(null, true, WarDeclareRequest.of(attacker, defender, WarGoalType.TRIBUTARY))
+            .getMessage());
+    assertTrue(
+        WarDemandRules.validate(war, true, WarDeclareRequest.of(attacker, defender, WarGoalType.PILLAGE))
+            .getMessage()
+            .contains("cannot be a second demand"));
+    assertTrue(
+        WarDemandRules.validate(war, false, WarDeclareRequest.of(defender, defender, WarGoalType.OPEN_MARKET))
+            .getMessage()
+            .contains("only be made of the attackers"));
+    assertTrue(
+        WarDemandRules.validate(
+                war,
+                true,
+                new WarDeclareRequest(attacker, defender, WarGoalType.SUBJUGATE, null, null, "vassal"))
+            .getMessage()
+            .contains("clashes with your first demand"));
+    WarDemand first = new WarDemand(WarGoalType.TRANSFER_SUBJECT, "a", "x", null, null, "s1", null, null);
+    assertTrue(WarDemandRules.conflicts(first, first));
+    assertFalse(
+        WarDemandRules.conflicts(
+            first, new WarDemand(WarGoalType.TRANSFER_SUBJECT, "a", "x", null, null, "s2", null, null)));
+  }
+
+  @Test
+  void demandsDescribeTheirGoalDetail() {
+    var march = fixture.relationType("march_demand", Map.of("name", "March"));
+    Title title = fixture.title("Frontier", "county", 10);
+    Faction subject = fixture.saved("subject", "Subject");
+    assertEquals("", new WarDemand(null, "a", "b", null, null, null, null, null).describeGoal());
+    assertTrue(
+        new WarDemand(WarGoalType.SUBJUGATE, "a", "b", "march_demand", null, null, null, null)
+            .describeGoal()
+            .contains(march.getName()));
+    assertTrue(
+        new WarDemand(WarGoalType.SUBJUGATE, "a", "b", "unknown_type", null, null, null, null)
+            .describeGoal()
+            .contains("unknown_type"));
+    assertTrue(
+        new WarDemand(WarGoalType.DE_JURE_ANNEX, "a", "b", null, title.getId(), null, null, null)
+            .describeGoal()
+            .contains(title.getName()));
+    assertTrue(
+        new WarDemand(WarGoalType.DE_JURE_ANNEX, "a", "b", null, "nowhere", null, null, null)
+            .describeGoal()
+            .contains("nowhere"));
+    assertTrue(
+        new WarDemand(WarGoalType.TRANSFER_SUBJECT, "a", "b", null, null, subject.getId(), null, null)
+            .describeGoal()
+            .contains(subject.getName()));
+    assertTrue(
+        new WarDemand(WarGoalType.TRANSFER_SUBJECT, "a", "b", null, null, "ghost", null, null)
+            .describeGoal()
+            .contains("ghost"));
+    assertEquals(
+        WarGoalType.OPEN_MARKET.getDisplayName(),
+        new WarDemand(WarGoalType.OPEN_MARKET, "a", "b", null, null, null, null, null).describeGoal());
+  }
+
+  private int goalSlot(Inventory goals, String goal) {
+    for (int slot = 0; slot < goals.getSize(); slot++) {
+      ItemStack item = goals.getItem(slot);
+      if (item != null && item.getType() != Material.BARRIER && goal.equals(string(item, "goal"))) {
+        return slot;
+      }
+    }
+    throw new AssertionError("No " + goal + " goal in the picker");
+  }
+
+  private Inventory top(Player viewer) {
+    return viewer.getOpenInventory().getTopInventory();
+  }
+
   private void openCounterGoalPicker(Player viewer) {
     view.warView(null, viewer, war, true);
     view.click(fixture.ui.click(viewer, 48), viewer.getOpenInventory().getTopInventory(), viewer);
