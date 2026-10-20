@@ -39,8 +39,9 @@ class ProvinceAnnexGraphTest {
 		ProvinceAnnexGraph graph = new ProvinceAnnexGraph(manager);
 
 		assertEquals(List.copyOf(Set.of(2)), List.copyOf(graph.landNeighbours(1)));
-		assertEquals(Set.of(2, 4, 6), Set.copyOf(graph.routeNeighbours(1)));
-		assertTrue(graph.routeNeighbours(2).contains(1));
+		assertEquals(Set.of(4), Set.copyOf(graph.waterNeighbours(1)));
+		assertEquals(Set.of(6), Set.copyOf(graph.seaNeighbours(1)));
+		assertTrue(graph.seaNeighbours(2).isEmpty());
 		assertArrayEquals(new int[] {100, -200}, graph.centre(1));
 		assertNull(graph.centre(2));
 		assertTrue(graph.landNeighbours(7).isEmpty());
@@ -50,7 +51,8 @@ class ProvinceAnnexGraphTest {
 	void withoutAProvinceMapThereIsNothingToRoute() {
 		ProvinceAnnexGraph graph = new ProvinceAnnexGraph(null);
 		assertTrue(graph.landNeighbours(1).isEmpty());
-		assertTrue(graph.routeNeighbours(1).isEmpty());
+		assertTrue(graph.waterNeighbours(1).isEmpty());
+		assertTrue(graph.seaNeighbours(1).isEmpty());
 		assertNull(graph.centre(1));
 	}
 

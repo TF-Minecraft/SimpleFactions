@@ -11,11 +11,13 @@ import java.util.TreeSet;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
+import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.settlement.Settlement;
 import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
@@ -109,7 +111,7 @@ public final class DeJureAnnexEligibility {
 			}
 			holders.add(new AnnexPartition.Holder(
 					String.valueOf(holder.getId()), holdings, incoming, protectedProvinces(holder, incoming),
-					owned -> previewLegal(holder, owned)));
+					holder.getCapital(), guildCapitals(holder), owned -> previewLegal(holder, owned)));
 		}
 		Set<Integer> titleProvinces = new HashSet<>();
 		List<Integer> listed = TitleManager.getProvinces(title);
@@ -166,6 +168,17 @@ public final class DeJureAnnexEligibility {
 			}
 		}
 		return protectedProvinces;
+	}
+
+	private static Set<Integer> guildCapitals(Faction holder) {
+		Set<Integer> capitals = new TreeSet<>();
+		GuildHandler guilds = holder.getGuildHandler();
+		for (Guild guild : guilds == null ? List.<Guild>of() : guilds.getGuilds()) {
+			if (guild.hasCapital()) {
+				capitals.add(guild.getCapital());
+			}
+		}
+		return capitals;
 	}
 
 	private static List<Settlement> settlementsOf(Faction holder) {

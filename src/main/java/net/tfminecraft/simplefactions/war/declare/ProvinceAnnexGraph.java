@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 
@@ -32,22 +33,28 @@ final class ProvinceAnnexGraph implements AnnexPartition.Graph {
 	}
 
 	@Override
-	public Collection<Integer> routeNeighbours(int province) {
+	public Collection<Integer> waterNeighbours(int province) {
+		return across(province, Terrain.WATER);
+	}
+
+	@Override
+	public Collection<Integer> seaNeighbours(int province) {
+		return across(province, Terrain.SEA);
+	}
+
+	/** Land bordering a {@code crossing} tile next to {@code province}, as ProvinceHandler's claim rules allow. */
+	private Collection<Integer> across(int province, Terrain crossing) {
 		Province p = get(province);
 		if (p == null) {
 			return List.of();
 		}
 		Set<Integer> reach = new TreeSet<>();
 		for (int neighbour : p.getNeighbours()) {
-			if (isLand(neighbour)) {
-				reach.add(neighbour);
+			Province tile = get(neighbour);
+			if (tile == null || tile.getTerrain() != crossing) {
 				continue;
 			}
-			Province water = get(neighbour);
-			if (water == null || !water.isSea()) {
-				continue;
-			}
-			for (int across : water.getNeighbours()) {
+			for (int across : tile.getNeighbours()) {
 				if (across != province && isLand(across)) {
 					reach.add(across);
 				}

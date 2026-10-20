@@ -149,16 +149,17 @@ class AnnexPartitionTest {
 
 	@Test
 	void keptProvinceMostlySurroundedByTheAttackerIsTrimmed() {
-		// Without routes the holder first keeps the whole title; 11 then falls to the attacker
-		// it mostly borders, while 10 is still needed to reach the outside holding 3.
-		// 10 also borders the attacker heavily, but holding 3 still needs it.
-		Board board = new Board();
-		board.link(1, 10).link(10, 3).link(10, 11).link(11, 98).link(11, 99).link(10, 96).link(10, 97);
-		AnnexPartition.Graph roadless = roadless(board);
+		// The map misses the 10-3 border the claim rules use, so no road is found and the holder
+		// first keeps the whole title; 11 then falls to the attacker it mostly borders, while 10,
+		// though also mostly bordering the attacker, is still needed to reach the outside holding 3.
+		Board truth = new Board();
+		truth.link(1, 10).link(10, 3).link(10, 11).link(11, 98).link(11, 99).link(10, 96).link(10, 97);
+		Board map = new Board();
+		map.link(1, 10).link(10, 11).link(11, 98).link(11, 99).link(10, 96).link(10, 97);
 		Set<Integer> title = Set.of(10, 11);
 
-		Result result = AnnexPartition.compute(roadless, title, Set.of(96, 97, 98, 99),
-				List.of(board.holder("holder", 1, Set.of(1, 3), title, Set.of())));
+		Result result = AnnexPartition.compute(map, title, Set.of(96, 97, 98, 99),
+				List.of(truth.holder("holder", 1, Set.of(1, 3), title, Set.of())));
 
 		assertEquals(Set.of(11), result.taken());
 		assertEquals(Set.of(10), result.kept());
@@ -169,13 +170,15 @@ class AnnexPartitionTest {
 	void keptProvinceIsNotTakenIntoLandTheAttackerCannotReach() {
 		// The vassal's 20 and 21 are cut off from its capital and from the attacker, so they stay taken;
 		// the liege's 12 borders mostly them, but taking it would only grow that unreachable pocket.
-		Board board = new Board();
-		board.link(1, 10).link(10, 3).link(1, 12).link(12, 20).link(12, 21).link(20, 21).link(30, 99);
-		AnnexPartition.Graph roadless = roadless(board);
-		Holder liege = board.holder("liege", 1, Set.of(1, 3), Set.of(10, 12), Set.of());
-		Holder vassal = board.holder("vassal", 2, Set.of(2), Set.of(20, 21, 30), Set.of());
+		// As above, the map misses the 10-3 border, so the liege first keeps all its title land.
+		Board truth = new Board();
+		truth.link(1, 10).link(10, 3).link(1, 12).link(12, 20).link(12, 21).link(20, 21).link(30, 99);
+		Board map = new Board();
+		map.link(1, 10).link(1, 12).link(12, 20).link(12, 21).link(20, 21).link(30, 99);
+		Holder liege = truth.holder("liege", 1, Set.of(1, 3), Set.of(10, 12), Set.of());
+		Holder vassal = truth.holder("vassal", 2, Set.of(2), Set.of(20, 21, 30), Set.of());
 
-		Result result = AnnexPartition.compute(roadless, Set.of(10, 12, 20, 21, 30), Set.of(99),
+		Result result = AnnexPartition.compute(map, Set.of(10, 12, 20, 21, 30), Set.of(99),
 				List.of(liege, vassal));
 
 		assertEquals(Set.of(10, 12), result.kept());
@@ -195,6 +198,85 @@ class AnnexPartitionTest {
 
 		assertEquals(Set.of(5), result.road());
 		assertEquals(Set.of(2), result.taken());
+	}
+
+	@Test
+	void roadsCrossTheSeaOnlyFromTheCapitalsLand() {
+		// Capital 1 and overseas 3 share a sea with title 10; only 3 shares a second sea with title 11.
+		// Holding 2 is reached over land from 10 or 11, but 11 only links to 3, which cannot cross the sea.
+		Board board = new Board();
+		board.sea(1, 10).sea(1, 3).sea(10, 3).sea(3, 11).link(10, 2).link(11, 2).link(11, 99);
+		Set<Integer> title = Set.of(10, 11);
+
+		Result result = board.partition(title, Set.of(99),
+				board.holder("holder", 1, Set.of(1, 2, 3), title, Set.of()));
+
+		assertEquals(Set.of(10), result.road());
+		assertEquals(Set.of(11), result.taken());
+		assertLegal(board, 1, Set.of(1, 2, 3), result, Set.of());
+	}
+
+	@Test
+	void guildCapitalKeepsItsLandLinkToTheFactionCapital() {
+		// Guild capital 5 stays claimed through 6 across the sea, but would lose its seat without 10.
+		Board board = new Board();
+		board.link(1, 10).link(10, 5).link(5, 6).sea(1, 6).link(10, 11).link(11, 99).link(10, 98);
+		Set<Integer> title = Set.of(10, 11);
+		Set<Integer> outside = Set.of(1, 5, 6);
+
+		Result seated = board.partition(title, Set.of(98, 99),
+				board.holder("holder", 1, outside, title, Set.of(), Set.of(5)));
+		Result unseated = board.partition(title, Set.of(98, 99),
+				board.holder("holder", 1, outside, title, Set.of()));
+
+		assertEquals(Set.of(10), seated.road());
+		assertEquals(Set.of(11), seated.taken());
+		assertEquals(Set.of(10, 11), unseated.taken());
+	}
+
+	@Test
+	void pathThatLegalisesNothingIsRoutedAround() {
+		// The map shows 12 bordering settlement 3, but the claim rules do not; the road takes 10.
+		Board truth = new Board();
+		truth.link(1, 10).link(10, 3).link(10, 11).link(11, 99).link(1, 12).link(12, 97).link(12, 98);
+		Board map = new Board();
+		map.link(1, 10).link(10, 3).link(10, 11).link(11, 99).link(1, 12).link(12, 97).link(12, 98).link(12, 3);
+		Set<Integer> title = Set.of(3, 10, 11, 12);
+
+		Result result = AnnexPartition.compute(map, title, Set.of(97, 98, 99),
+				List.of(truth.holder("holder", 1, Set.of(1), title, Set.of(3))));
+
+		assertEquals(Set.of(10), result.road());
+		assertEquals(Set.of(11, 12), result.taken());
+	}
+
+	@Test
+	void roadMadeRedundantByALaterRoadIsTrimmed() {
+		// Settlement 3 is first reached through 10; the road to 4 runs through 11, which also reaches 3.
+		Board board = new Board();
+		board.link(1, 10).link(10, 3).link(1, 11).link(11, 3).link(11, 4).link(11, 12).link(12, 99)
+				.link(10, 97).link(10, 98);
+		Set<Integer> title = Set.of(3, 4, 10, 11, 12);
+
+		Result result = board.partition(title, Set.of(97, 98, 99),
+				board.holder("holder", 1, Set.of(1), title, Set.of(3, 4)));
+
+		assertEquals(Set.of(11), result.road());
+		assertEquals(Set.of(10, 12), result.taken());
+	}
+
+	@Test
+	void waterBridgesCountFromAnyClaimedLand() {
+		// 2 is reached from capital 1 only across a river from title province 10.
+		Board board = new Board();
+		board.link(1, 10).water(10, 2).link(10, 11).link(11, 99).link(10, 98).link(10, 97);
+		Set<Integer> title = Set.of(10, 11);
+
+		Result result = board.partition(title, Set.of(97, 98, 99),
+				board.holder("holder", 1, Set.of(1, 2), title, Set.of()));
+
+		assertEquals(Set.of(10), result.road());
+		assertEquals(Set.of(11), result.taken());
 	}
 
 	@Test
@@ -243,25 +325,6 @@ class AnnexPartitionTest {
 		assertEquals(2, result.incoming());
 	}
 
-	private static AnnexPartition.Graph roadless(Board board) {
-		return new AnnexPartition.Graph() {
-			@Override
-			public Collection<Integer> landNeighbours(int province) {
-				return board.landNeighbours(province);
-			}
-
-			@Override
-			public Collection<Integer> routeNeighbours(int province) {
-				return Set.of();
-			}
-
-			@Override
-			public int[] centre(int province) {
-				return null;
-			}
-		};
-	}
-
 	private static void assertLegal(Board board, int capital, Set<Integer> outside, Result result,
 			Set<Integer> protectedProvinces) {
 		Set<Integer> holdings = new HashSet<>(outside);
@@ -281,6 +344,7 @@ class AnnexPartitionTest {
 	private static final class Board implements AnnexPartition.Graph {
 		private final Map<Integer, Set<Integer>> land = new HashMap<>();
 		private final Map<Integer, Set<Integer>> sea = new HashMap<>();
+		private final Map<Integer, Set<Integer>> water = new HashMap<>();
 		private final Map<Integer, int[]> centres = new HashMap<>();
 
 		static Board grid(int rows, int cols) {
@@ -310,9 +374,16 @@ class AnnexPartitionTest {
 			return this;
 		}
 
-		void sea(int a, int b) {
+		Board sea(int a, int b) {
 			sea.computeIfAbsent(a, k -> new TreeSet<>()).add(b);
 			sea.computeIfAbsent(b, k -> new TreeSet<>()).add(a);
+			return this;
+		}
+
+		Board water(int a, int b) {
+			water.computeIfAbsent(a, k -> new TreeSet<>()).add(b);
+			water.computeIfAbsent(b, k -> new TreeSet<>()).add(a);
+			return this;
 		}
 
 		@Override
@@ -321,10 +392,13 @@ class AnnexPartitionTest {
 		}
 
 		@Override
-		public Collection<Integer> routeNeighbours(int province) {
-			Set<Integer> out = new TreeSet<>(landNeighbours(province));
-			out.addAll(sea.getOrDefault(province, Set.of()));
-			return out;
+		public Collection<Integer> waterNeighbours(int province) {
+			return water.getOrDefault(province, Set.of());
+		}
+
+		@Override
+		public Collection<Integer> seaNeighbours(int province) {
+			return sea.getOrDefault(province, Set.of());
 		}
 
 		@Override
@@ -333,36 +407,63 @@ class AnnexPartitionTest {
 		}
 
 		Holder holder(String id, int capital, Set<Integer> outside, Set<Integer> incoming, Set<Integer> protect) {
+			return holder(id, capital, outside, incoming, protect, Set.of());
+		}
+
+		Holder holder(String id, int capital, Set<Integer> outside, Set<Integer> incoming, Set<Integer> protect,
+				Set<Integer> guildCapitals) {
 			Set<Integer> holdings = new HashSet<>(outside);
 			holdings.addAll(incoming);
 			Set<Integer> protectedProvinces = new HashSet<>(protect);
 			if (incoming.contains(capital)) {
 				protectedProvinces.add(capital);
 			}
-			return new Holder(id, holdings, incoming, protectedProvinces, owned -> legal(capital, owned));
+			return new Holder(id, holdings, incoming, protectedProvinces, capital, guildCapitals,
+					owned -> legal(capital, guildCapitals, owned));
 		}
 
 		Result partition(Set<Integer> title, Set<Integer> attackerLand, Holder holder) {
 			return AnnexPartition.compute(this, title, attackerLand, new ArrayList<>(List.of(holder)));
 		}
 
-		/** Land from the capital, plus one sea tile from the capital's land blob, then land again. */
 		Set<Integer> legal(int capital, Set<Integer> owned) {
+			return legal(capital, Set.of(), owned);
+		}
+
+		/**
+		 * Mirrors ProvinceHandler: guild capitals stay seated on land connected to the capital; claims
+		 * spread over land and WATER from anything legal, and over SEA only from the capital's land.
+		 */
+		Set<Integer> legal(int capital, Set<Integer> guildCapitals, Set<Integer> owned) {
+			Set<Integer> blob = owned.contains(capital) ? flood(Set.of(capital), owned) : Set.of();
 			Set<Integer> legal = new HashSet<>();
-			if (!owned.contains(capital)) {
-				return legal;
+			if (owned.contains(capital)) {
+				legal.add(capital);
 			}
-			Set<Integer> blob = flood(Set.of(capital), owned);
-			legal.addAll(blob);
-			Set<Integer> overseas = new HashSet<>();
-			for (int from : blob) {
-				for (int across : sea.getOrDefault(from, Set.of())) {
-					if (owned.contains(across)) {
-						overseas.add(across);
+			for (int guildCapital : guildCapitals) {
+				if (blob.contains(guildCapital)) {
+					legal.add(guildCapital);
+				}
+			}
+			ArrayDeque<Integer> queue = new ArrayDeque<>(legal);
+			while (!queue.isEmpty()) {
+				int from = queue.poll();
+				Set<Integer> reach = new HashSet<>(landNeighbours(from));
+				reach.addAll(waterNeighbours(from));
+				if (blob.contains(from)) {
+					reach.addAll(seaNeighbours(from));
+				}
+				for (int next : reach) {
+					if (owned.contains(next) && legal.add(next)) {
+						queue.add(next);
 					}
 				}
 			}
-			legal.addAll(flood(overseas, owned));
+			for (int guildCapital : guildCapitals) {
+				if (!blob.contains(guildCapital)) {
+					legal.remove(guildCapital);
+				}
+			}
 			return legal;
 		}
 
