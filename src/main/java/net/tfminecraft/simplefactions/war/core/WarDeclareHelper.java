@@ -31,20 +31,29 @@ public final class WarDeclareHelper {
 			case OVERTHROW -> WarType.OVERTHROW;
 			case CHANGE_LAW -> WarType.CHANGE_LAW;
 			case CHANGE_TAX -> WarType.CHANGE_TAX;
-			case FORCE_PEACE -> WarType.WAR;
+			case FORCE_PEACE, INDEPENDENCE, NATIONHOOD -> WarType.WAR;
 		};
 	}
 
 	public static List<DeJureTitleOption> deJureTitleOptions(Faction attacker, Faction defender) {
-		if (CivilWarBorderLock.isLocked(defender)) {
+		return deJureTitleOptions(attacker, defender, false);
+	}
+
+	/** {@code withinRealm}: the ruler's goal on a rebel vassal, which the civil war lock must not hide. */
+	public static List<DeJureTitleOption> deJureTitleOptions(Faction attacker, Faction defender, boolean withinRealm) {
+		if (!withinRealm && CivilWarBorderLock.isLocked(defender)) {
 			return List.of();
 		}
 		return DeJureAnnexEligibility.options(attacker, defender);
 	}
 
 	public static List<Faction> defenderSubjects(Faction defender) {
+		return defenderSubjects(defender, false);
+	}
+
+	public static List<Faction> defenderSubjects(Faction defender, boolean withinRealm) {
 		List<Faction> nested = new ArrayList<>();
-		if (CivilWarBorderLock.isLocked(defender)) {
+		if (!withinRealm && CivilWarBorderLock.isLocked(defender)) {
 			return nested;
 		}
 		if (defender == null || defender.getId() == null) {

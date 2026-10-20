@@ -25,6 +25,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.declare.OpenMarketEligibility;
 import net.tfminecraft.simplefactions.war.core.WarGoal;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
@@ -92,13 +93,16 @@ public class WarCreator {
 				}
 			}
 		}
-		if (w.getDefenderCounterGoal() == null) {
-			lore.add(StringFormatter.formatHex("#a39ba8Defender counter: #f5ef42None"));
-		} else {
-			lore.add(StringFormatter.formatHex("#a39ba8Defender counter: #f5ef42"
-					+ w.getDefenderCounterGoal().getDisplayName()));
+		// A civil war has no counter goal and charges no reparations: the realm settles with itself.
+		if (!CivilWarBorderLock.isCivilWar(w)) {
+			if (w.getDefenderCounterGoal() == null) {
+				lore.add(StringFormatter.formatHex("#a39ba8Defender counter: #f5ef42None"));
+			} else {
+				lore.add(StringFormatter.formatHex("#a39ba8Defender counter: #f5ef42"
+						+ w.getDefenderCounterGoal().getDisplayName()));
+			}
+			lore.add(StringFormatter.formatHex("#a39ba8The loser pays #f5ef42War Reparations"));
 		}
-		lore.add(StringFormatter.formatHex("#a39ba8The loser pays #f5ef42War Reparations"));
 		m.setLore(lore);
 		NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
 		m.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, w.getId());

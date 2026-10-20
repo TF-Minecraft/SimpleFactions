@@ -37,6 +37,15 @@ class WarGoalTypeTest {
 	}
 
 	@Test
+	void independenceAndNationhoodAreMovementGoals() {
+		assertTrue(WarGoalType.INDEPENDENCE.isMovementOrigin());
+		assertTrue(WarGoalType.NATIONHOOD.isMovementOrigin());
+		assertEquals("Independence", WarGoalType.INDEPENDENCE.getDisplayName());
+		assertEquals("Nationhood", WarGoalType.NATIONHOOD.getDisplayName());
+		assertEquals(WarGoalType.NATIONHOOD, WarGoalType.fromJson("nationhood"));
+	}
+
+	@Test
 	void toJson_roundTrips() {
 		for (WarGoalType type : WarGoalType.values()) {
 			assertEquals(type, WarGoalType.fromJson(type.toJson()));

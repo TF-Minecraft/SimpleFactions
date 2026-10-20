@@ -49,6 +49,8 @@ public final class WarOutcomeService {
 			case DEFENDER_VICTORY -> {
 				if (CivilWarBorderLock.isCivilWar(war)) {
 					endMovementEmpty(war);
+					// The ruler's single goal on a rebel vassal; the untangle has already restored the realm.
+					applyDemands(war, false, null, () -> {});
 				} else {
 					WarGoalType counter = war.getDefenderCounterGoal();
 					applyDemands(war, false, counter, () -> {
@@ -107,6 +109,14 @@ public final class WarOutcomeService {
 		if (beneficiary == null || target == null || demand.getGoal() == null) {
 			return;
 		}
+		if (demand.getGoal() == WarGoalType.SUBJUGATE && WarDemandRules.isCivilWar(war)) {
+			// The ruler re-types a restored vassal; any subject type is allowed, not only war-pickable ones.
+			RelationType type = RelationLoader.getType(demand.getRelationTypeId());
+			if (type != null && type.isVassalage()) {
+				RelationManager.setRelationForced(type, target, beneficiary);
+			}
+			return;
+		}
 		War demandWar = new War(
 				war.getId(),
 				new Side(beneficiary),
@@ -151,7 +161,7 @@ public final class WarOutcomeService {
 			case OPEN_MARKET -> applyOpenMarket(war);
 			case CHANGE_GOVERNMENT -> applyChangeGovernment(war);
 			case PILLAGE -> PillageApplyService.apply(war);
-			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE -> applyMovementWar(war);
+			case OVERTHROW, CHANGE_LAW, CHANGE_TAX, FORCE_PEACE, INDEPENDENCE, NATIONHOOD -> applyMovementWar(war);
 			case WAR -> {
 			}
 		}

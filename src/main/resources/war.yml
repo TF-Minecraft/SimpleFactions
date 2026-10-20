@@ -52,6 +52,10 @@ war:
       max_battles_per_leg: 4
     FORCE_PEACE:
       max_battles_per_leg: 4
+    INDEPENDENCE:
+      max_battles_per_leg: 4
+    NATIONHOOD:
+      max_battles_per_leg: 4
   civil_war:
     vassalage_group: vassalage
     vassalage_law: inclusive

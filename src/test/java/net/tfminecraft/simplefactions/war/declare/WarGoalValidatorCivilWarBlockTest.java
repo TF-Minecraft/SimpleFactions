@@ -2,7 +2,9 @@ package net.tfminecraft.simplefactions.war.declare;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -83,6 +85,38 @@ class WarGoalValidatorCivilWarBlockTest {
 			WarValidationResult result = validator.validate(request);
 			assertFalse(result.isValid());
 			assertEquals(CivilWarCopy.DECLARE_VS_CIVIL_WAR, result.getMessage());
+		}
+	}
+
+	@Test
+	void theRulersCivilWarGoalIgnoresTheLockAndTheSameRealmRule() {
+		Faction ruler = mockFaction("ruler", 4);
+		when(ruler.getPrestige()).thenReturn(100.0);
+		Faction vassal = mockSubject("vassal", "ruler");
+		Faction subject = mockSubject("subject", "vassal");
+		Title title = mock(Title.class);
+		when(title.getId()).thenReturn("county_x");
+		FactionManager.factions.add(ruler);
+		FactionManager.factions.add(vassal);
+		FactionManager.factions.add(subject);
+
+		try (MockedStatic<TitleLoader> titleLoader = mockStatic(TitleLoader.class);
+				MockedStatic<CivilWarBorderLock> lock = mockStatic(CivilWarBorderLock.class)) {
+			titleLoader.when(() -> TitleLoader.getById("county_x")).thenReturn(title);
+			lock.when(() -> CivilWarBorderLock.isLocked(any(Faction.class))).thenReturn(true);
+
+			WarValidationResult annex = validator.validate(new WarDeclareRequest(
+					ruler, vassal, WarGoalType.DE_JURE_ANNEX, "county_x", null).asCivilWarDemand());
+			assertNotEquals(CivilWarCopy.DECLARE_VS_CIVIL_WAR, annex.getMessage());
+			assertNotEquals("§cYou cannot declare war on a faction in the same realm.", annex.getMessage());
+
+			WarValidationResult transfer = validator.validate(new WarDeclareRequest(
+					ruler, vassal, WarGoalType.TRANSFER_SUBJECT, null, "subject").asCivilWarDemand());
+			assertNotEquals(CivilWarCopy.DECLARE_VS_CIVIL_WAR, transfer.getMessage());
+			assertNotEquals("§cYou cannot declare war on a faction in the same realm.", transfer.getMessage());
+
+			assertFalse(validator.validate(new WarDeclareRequest(
+					ruler, vassal, WarGoalType.TRANSFER_SUBJECT, null, "subject").asDemand()).isValid());
 		}
 	}
 
