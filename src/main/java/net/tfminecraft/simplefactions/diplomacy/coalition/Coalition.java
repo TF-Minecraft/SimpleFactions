@@ -21,6 +21,8 @@ public final class Coalition {
 	private final LinkedHashMap<String, Long> invites = new LinkedHashMap<>();
 	/** Null while the coalition shows its leader's banner. */
 	private List<String> bannerPatterns;
+	/** {@code R,G,B} on the website map; null while it uses its leader's colour. */
+	private String rgb;
 	private final long createdAt;
 	/** When the target stopped being a valid target, or null while it still is one. */
 	private Long targetLostAt;
@@ -131,6 +133,14 @@ public final class Coalition {
 
 	public void setBannerPatterns(List<String> bannerPatterns) {
 		this.bannerPatterns = bannerPatterns == null ? null : new ArrayList<>(bannerPatterns);
+	}
+
+	public String getRgb() {
+		return rgb;
+	}
+
+	public void setRgb(String rgb) {
+		this.rgb = rgb;
 	}
 
 	public long getCreatedAt() {

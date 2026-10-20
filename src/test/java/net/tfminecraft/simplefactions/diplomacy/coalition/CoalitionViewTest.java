@@ -156,6 +156,7 @@ class CoalitionViewTest extends CoalitionTestBase {
 		view.menu(tom, league);
 		Inventory menu = top(tom);
 		assertTrue(lore(menu.getItem(4)).contains("Defensive coalition"));
+		assertTrue(lore(menu.getItem(4)).contains("Map colour: " + thalendor.getRGB() + " (leader's)"));
 		assertTrue(lore(menu.getItem(2)).contains("Realm prestige: 1200"));
 		assertTrue(lore(menu.getItem(6)).contains("Diplomatic capacity used: 0"));
 		assertTrue(lore(menu.getItem(9)).contains("Leader"));
@@ -178,8 +179,12 @@ class CoalitionViewTest extends CoalitionTestBase {
 		view.menu(tom, league);
 		assertNull(top(tom).getItem(2));
 		assertTrue(lore(top(tom).getItem(4)).contains("Target: gone"));
+		league.setRgb("1,1,1");
+		assertTrue(lore(CoalitionView.coalitionItem(league, false)).contains("Map colour: 1,1,1"));
+		league.setRgb(null);
 		league.setLeaderId("nobody");
 		assertTrue(lore(CoalitionView.coalitionItem(league, false)).contains("Leader: -"));
+		assertTrue(lore(CoalitionView.coalitionItem(league, false)).contains("Map colour: - (leader's)"));
 
 		// A faction without a banner yet shows a plain one.
 		Field banner = Faction.class.getDeclaredField("banner");

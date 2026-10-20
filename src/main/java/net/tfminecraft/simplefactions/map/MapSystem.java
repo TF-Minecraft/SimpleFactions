@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.export.ChronicleExport;
+import net.tfminecraft.simplefactions.map.export.CoalitionMapExport;
 import net.tfminecraft.simplefactions.map.export.OccupationMapExport;
 import net.tfminecraft.simplefactions.map.export.Markers;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -41,6 +42,9 @@ public class MapSystem {
 	private boolean mapUploadInProgress;
 	
 	private HashMap<String, List<String>> queues = new HashMap<>();
+	/** The coalition payload last exported, and the one the website last accepted. */
+	private volatile String coalitionsExported;
+	private volatile String coalitionsPublished;
 	
 	public void tick() {
 		if (!Cache.provincesEnabled) {
@@ -68,6 +72,8 @@ public class MapSystem {
 	
 	public void queueAllNations() {
 		fullUpdate = 0;
+		// The hourly refresh also re-sends coalitions, in case the website lost them.
+		coalitionsPublished = null;
 		for(Faction f : FactionManager.factions) {
 			enqueue("nation", f.getRGB());
 		}
@@ -91,6 +97,7 @@ public class MapSystem {
 		exportProvinces();
 		exportGuilds();
 		exportChronicle();
+		exportCoalitions();
 	}
 
 	/** Nation geometry and markers, only worth regenerating when the map queue has work. */
@@ -118,6 +125,24 @@ public class MapSystem {
 		RestServer.upload("province_data", new File("plugins/SimpleFactions/MapAPI/province_data.json"));
 		RestServer.upload("guilds", new File("plugins/SimpleFactions/MapAPI/guilds.json"));
 		RestServer.upload("chronicle", new File("plugins/SimpleFactions/MapAPI/chronicle.json"));
+		// Every coalition upload makes the website repaint its layer, so only send changes.
+		String coalitions = coalitionsExported;
+		if (coalitions != null && !coalitions.equals(coalitionsPublished)
+				&& RestServer.send("coalitions", new File(COALITIONS_FILE))) {
+			coalitionsPublished = coalitions;
+		}
+	}
+
+	private static final String COALITIONS_FILE = "plugins/SimpleFactions/MapAPI/coalitions.json";
+
+	public void exportCoalitions() {
+		try {
+			coalitionsExported = CoalitionMapExport.write(new File(COALITIONS_FILE));
+		} catch (Exception e) {
+			coalitionsExported = null;
+			Bukkit.getLogger().severe("[SimpleFactions] Failed to export coalitions.json");
+			e.printStackTrace();
+		}
 	}
 	
 	public void updateMap() {
@@ -184,6 +209,7 @@ public class MapSystem {
 	
 	public void fullRegen() {
 		lastUpdate = 0;
+		coalitionsPublished = null;
 		Database db = new Database();
 		for(Faction fac : FactionManager.factions) {
 			db.saveFaction(fac);

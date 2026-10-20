@@ -60,8 +60,13 @@ public class RestServer {
 	}
 
 	public static void upload(String mode, File file) {
-		if (!Cache.mapEnabled) return;
-		if (mode.equals("chronicle") && !Cache.chronicleEnabled) return;
+		send(mode, file);
+	}
+
+	/** Uploads like {@link #upload} and says whether the website took it. */
+	public static boolean send(String mode, File file) {
+		if (!Cache.mapEnabled) return false;
+		if (mode.equals("chronicle") && !Cache.chronicleEnabled) return false;
 
 		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
 			var payload = JsonParser.parseReader(reader);
@@ -77,12 +82,13 @@ public class RestServer {
 
 			if (result.ok) {
 				logger().info(mode + " data uploaded");
-			} else {
-				logger().warning("Upload failed for " + mode + ": " + result.error);
+				return true;
 			}
+			logger().warning("Upload failed for " + mode + ": " + result.error);
 		} catch (Exception e) {
 			logger().log(Level.WARNING, "Upload failed for " + mode, e);
 		}
+		return false;
 	}
 
 	static void validate(String mode, JsonElement payload) {
