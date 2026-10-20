@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.enums.Terrain;
+import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.settlement.handler.CapitalResult;
 import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 
@@ -126,6 +128,34 @@ class ProvinceHandlerCapitalPreviewTest {
 
 		assertFalse(withoutName.isSuccess());
 		assertTrue(withName.isSuccess());
+	}
+
+	@Test
+	void legalPreview_leavesOutGuildCapitalsThatWouldLoseTheirSeat() {
+		// Guild capital 3 is claimed through 6 across the sea, but only 2 links it to capital 1 by land.
+		Province one = province(1, Terrain.PLAINS);
+		Province two = province(2, Terrain.PLAINS);
+		Province three = province(3, Terrain.PLAINS);
+		Province sea = province(4, Terrain.SEA);
+		Province six = province(6, Terrain.PLAINS);
+		link(one, two);
+		link(two, three);
+		link(one, sea);
+		link(sea, six);
+		link(six, three);
+		load(one, two, three, sea, six);
+
+		Faction faction = mock(Faction.class);
+		GuildHandler guilds = mock(GuildHandler.class);
+		Guild guild = mock(Guild.class);
+		when(guild.hasCapital()).thenReturn(true);
+		when(guild.getCapital()).thenReturn(3);
+		when(guilds.getGuilds()).thenReturn(List.of(guild));
+		when(faction.getGuildHandler()).thenReturn(guilds);
+		ProvinceHandler handler = new ProvinceHandler(faction, 1, List.of(1, 2, 3, 6));
+
+		assertEquals(Set.of(1, 2, 3, 6), handler.previewLegalProvinces(List.of(1, 2, 3, 6)));
+		assertEquals(Set.of(1, 6), handler.previewLegalProvinces(List.of(1, 3, 6)));
 	}
 
 	private Province province(int id, Terrain terrain) {

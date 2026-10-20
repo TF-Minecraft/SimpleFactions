@@ -248,10 +248,15 @@ class WarResolutionLifecycleCoverageTest {
       rig.defender.addProvince(23);
       Province first = new Province(22, "plains", 0);
       Province second = new Province(23, "plains", 0);
+      Province beyond = new Province(24, "plains", 0);
       first.addNeighbour(23);
       second.addNeighbour(22);
+      // Unheld land past 23, so it is not a sliver enclosed by the capital.
+      second.addNeighbour(24);
+      beyond.addNeighbour(23);
       rig.domain.provinceData.put(22, first);
       rig.domain.provinceData.put(23, second);
+      rig.domain.provinceData.put(24, beyond);
       rig.defender.setCapital(22, false, false);
       var title = rig.domain.title("contested_county", "county", 22, 23);
       rig.attacker.addTitle(title);

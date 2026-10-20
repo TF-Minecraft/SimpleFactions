@@ -15,11 +15,17 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.utils.Formatter;
+import net.tfminecraft.simplefactions.war.declare.ActiveAnnexTitles;
 import net.tfminecraft.simplefactions.settlement.Settlement;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class SettlementHandler {
+    static final String SETTLEMENT_CONTESTED =
+            "§cYou cannot found a settlement here while a de jure annex war claims this land.";
+    static final String CAPITAL_CONTESTED =
+            "§cYou cannot move your capital here while a de jure annex war claims this land.";
+
     private final Faction faction;
     private final Map<String, Settlement> byId = new HashMap<>();
     private final Map<Integer, Settlement> provinceIndex = new HashMap<>();
@@ -89,6 +95,9 @@ public class SettlementHandler {
             return CapitalResult.fail(
                     "§cName required to found your capital city: §e/faction setcapital <name>");
         }
+        if (province != faction.getCapital() && ActiveAnnexTitles.isContested(province, faction)) {
+            return CapitalResult.fail(CAPITAL_CONTESTED);
+        }
         return resolveCapital(player, province, nameOpt, faction.getCapital(), true, true);
     }
 
@@ -99,6 +108,9 @@ public class SettlementHandler {
         if (byId.isEmpty() && (nameOpt == null || nameOpt.isBlank())) {
             return CapitalResult.fail(
                     "§cName required to found your capital city: §e/faction setcapital <name>");
+        }
+        if (province != faction.getCapital() && ActiveAnnexTitles.isContested(province, faction)) {
+            return CapitalResult.fail(CAPITAL_CONTESTED);
         }
         return resolveCapital(player, province, nameOpt, faction.getCapital(), true, false);
     }
@@ -162,6 +174,11 @@ public class SettlementHandler {
         if (existing != null) {
             return CapitalResult.ok(
                     "§aCapital set in §f" + existing.getName(), existing);
+        }
+
+        // A new settlement would be kept by its holder, shielding land the annex war claims.
+        if (ActiveAnnexTitles.isContested(province, faction)) {
+            return CapitalResult.fail(SETTLEMENT_CONTESTED);
         }
 
         if (nameOpt == null || nameOpt.isBlank()) {

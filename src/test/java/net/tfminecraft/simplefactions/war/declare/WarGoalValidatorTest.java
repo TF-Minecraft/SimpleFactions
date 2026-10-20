@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +36,6 @@ import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.truce.TruceService;
-import net.tfminecraft.simplefactions.war.declare.WarGoalValidator.SettlementProbe;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
@@ -77,24 +75,6 @@ class WarGoalValidatorTest {
 		assertTrue(WarGoalValidator.canUsurpByRank(3, 4));
 		assertTrue(WarGoalValidator.canUsurpByRank(4, 4));
 		assertFalse(WarGoalValidator.canUsurpByRank(5, 3));
-	}
-
-	@Test
-	void titleProvincesContainSettlement_blockedWhenSettlementInRegion() {
-		Set<Integer> titleProvinces = Set.of(10, 11, 12);
-		List<SettlementProbe> settlements = List.of(new SettlementProbe(11));
-		List<Integer> capitals = List.of();
-
-		assertTrue(WarGoalValidator.titleProvincesContainSettlement(titleProvinces, settlements, capitals));
-	}
-
-	@Test
-	void titleProvincesContainSettlement_blockedWhenCapitalInRegion() {
-		Set<Integer> titleProvinces = Set.of(10, 11, 12);
-		List<SettlementProbe> settlements = List.of();
-		List<Integer> capitals = List.of(12);
-
-		assertTrue(WarGoalValidator.titleProvincesContainSettlement(titleProvinces, settlements, capitals));
 	}
 
 	@Test
@@ -194,18 +174,15 @@ class WarGoalValidatorTest {
 	}
 
 	@Test
-	void deJureAnnex_rejectsWhenSettlementPresent_suggestsSubjugate() {
-		addPickableVassalType("subject");
+	void deJureAnnex_rejectsWhenOnlySettlementsAreHeldInTitle() {
 		Faction attacker = mockFaction("attacker", 4);
-		Faction defender = mockFaction("defender", 2);
+		Faction defender = mockFactionWithSettlement("defender", 11);
 		when(attacker.getPrestige()).thenReturn(100.0);
 		Title title = mockTitle("county_x", 2);
 		when(attacker.getTitles()).thenReturn(List.of(title));
 		when(defender.getProvinces()).thenReturn(List.of(11));
-		Faction settler = mockFactionWithSettlement("settler", 11);
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
-		FactionManager.factions.add(settler);
 
 		try (MockedStatic<TitleLoader> titleLoader = mockStatic(TitleLoader.class);
 				MockedStatic<TitleManager> titleManager = mockStatic(TitleManager.class)) {
@@ -218,35 +195,32 @@ class WarGoalValidatorTest {
 
 			WarValidationResult result = validator.validate(request);
 			assertFalse(result.isValid());
-			assertEquals("§cThis title has settlements - use subjugate instead.", result.getMessage());
+			assertEquals("§cNothing in this title can be taken: it is all settlements or the road to them.",
+					result.getMessage());
 		}
 	}
 
 	@Test
-	void deJureAnnex_rejectsWhenSettlementPresent_withoutSubjugate() {
+	void deJureAnnex_allowedAroundSettlements() {
 		Faction attacker = mockFaction("attacker", 4);
-		Faction defender = mockSubject("vassal", "liege");
+		Faction defender = mockFactionWithSettlement("defender", 11);
 		when(attacker.getPrestige()).thenReturn(100.0);
 		Title title = mockTitle("county_x", 2);
 		when(attacker.getTitles()).thenReturn(List.of(title));
-		when(defender.getProvinces()).thenReturn(List.of(11));
-		Faction settler = mockFactionWithSettlement("settler", 11);
+		when(defender.getProvinces()).thenReturn(List.of(10, 11));
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
-		FactionManager.factions.add(settler);
 
 		try (MockedStatic<TitleLoader> titleLoader = mockStatic(TitleLoader.class);
 				MockedStatic<TitleManager> titleManager = mockStatic(TitleManager.class)) {
 			titleLoader.when(() -> TitleLoader.getById("county_x")).thenReturn(title);
 			titleManager.when(() -> TitleManager.getOwner(title)).thenReturn(attacker);
-			titleManager.when(() -> TitleManager.getProvinces(title)).thenReturn(List.of(11));
+			titleManager.when(() -> TitleManager.getProvinces(title)).thenReturn(List.of(10, 11));
 
 			WarDeclareRequest request = new WarDeclareRequest(
 					attacker, defender, WarGoalType.DE_JURE_ANNEX, "county_x", null);
 
-			WarValidationResult result = validator.validate(request);
-			assertFalse(result.isValid());
-			assertEquals("§cThis title has settlements.", result.getMessage());
+			assertTrue(validator.validate(request).isValid());
 		}
 	}
 

@@ -190,12 +190,13 @@ class WarGoalLifecycleCoverageTest {
       TitleLoader.getTitles().remove(null);
       rig.attacker.addTitle(target);
       rig.defender.getSettlementHandler().found("Protected", 22, 0, 0);
-      RelationLoader.types.removeIf(type -> type.isVassalage());
-      rig.domain.relationType("exhausted_vassal", Map.of("vassal", true, "limit", 0));
       FactionManager.factions.add(null);
-      assertEquals(
-          "§cThis title has settlements.",
-          DeJureAnnexEligibility.evaluate(rig.attacker, rig.defender, target).blockReason());
+      var around = DeJureAnnexEligibility.evaluate(rig.attacker, rig.defender, target);
+      assertTrue(around.eligible(), around.blockReason());
+      assertEquals(1, around.preview().taken());
+      assertEquals(2, around.preview().incoming());
+      assertEquals(1, around.preview().keptSettlements().size());
+      assertTrue(around.preview().keptSettlements().get(0).settlementName().endsWith("Protected"));
       FactionManager.factions.remove(null);
       target.getProvinces().remove(null);
       assertTrue(rig.attacker.ownsProvince(11));

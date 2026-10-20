@@ -75,21 +75,16 @@ class DeJureAnnexEligibilityTest {
 	}
 
 	@Test
-	void options_includesBlockedSettlementRow() {
+	void options_blocksTitleThatIsAllSettlements() {
 		Faction attacker = mockFaction("attacker", 4);
 		Faction defender = mockFaction("defender", 2);
 		when(attacker.getPrestige()).thenReturn(100.0);
 		Title title = mockTitle("town", 2);
 		when(attacker.getTitles()).thenReturn(List.of(title));
 		when(defender.getProvinces()).thenReturn(List.of(11));
-		Faction settler = mockFaction("settler", 2);
-		net.tfminecraft.simplefactions.settlement.Settlement settlement =
-				mock(net.tfminecraft.simplefactions.settlement.Settlement.class);
-		when(settlement.getCenterProvince()).thenReturn(11);
-		when(settler.getSettlementHandler().getAll()).thenReturn(List.of(settlement));
+		settle(defender, "Oakvale", 11);
 		FactionManager.factions.add(attacker);
 		FactionManager.factions.add(defender);
-		FactionManager.factions.add(settler);
 
 		try (MockedStatic<TitleLoader> titleLoader = mockStatic(TitleLoader.class);
 				MockedStatic<TitleManager> titleManager = mockStatic(TitleManager.class)) {
@@ -100,8 +95,45 @@ class DeJureAnnexEligibilityTest {
 			List<DeJureTitleOption> options = DeJureAnnexEligibility.options(attacker, defender);
 			assertEquals(1, options.size());
 			assertFalse(options.get(0).eligible());
-			assertTrue(options.get(0).blockReason().contains("settlements"));
+			assertEquals("§cNothing in this title can be taken: it is all settlements or the road to them.",
+					options.get(0).blockReason());
+			assertEquals(0, options.get(0).preview().taken());
 		}
+	}
+
+	@Test
+	void evaluate_annexesAroundTheHoldersSettlementAndPreviewsIt() {
+		Faction attacker = mockFaction("attacker", 4);
+		Faction defender = mockFaction("defender", 2);
+		when(defender.getName()).thenReturn("Defender");
+		when(attacker.getPrestige()).thenReturn(100.0);
+		Title title = mockTitle("town", 2);
+		when(attacker.getTitles()).thenReturn(List.of(title));
+		when(defender.getProvinces()).thenReturn(List.of(11, 12));
+		settle(defender, "Oakvale", 11);
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+
+		try (MockedStatic<TitleManager> titleManager = mockStatic(TitleManager.class)) {
+			titleManager.when(() -> TitleManager.getOwner(title)).thenReturn(attacker);
+			titleManager.when(() -> TitleManager.getProvinces(title)).thenReturn(List.of(11, 12));
+
+			DeJureTitleOption option = DeJureAnnexEligibility.evaluate(attacker, defender, title);
+			assertTrue(option.eligible(), option.blockReason());
+			assertEquals(new DeJureAnnexEligibility.DeJureAnnexPreview(
+					1, 2, List.of(new DeJureAnnexEligibility.KeptSettlement("Defender", "Oakvale")), 0, 0),
+					option.preview());
+			assertEquals(java.util.Set.of(12),
+					DeJureAnnexEligibility.partition(attacker, defender, title).taken());
+		}
+	}
+
+	private static void settle(Faction faction, String name, int province) {
+		net.tfminecraft.simplefactions.settlement.Settlement settlement =
+				mock(net.tfminecraft.simplefactions.settlement.Settlement.class);
+		when(settlement.getCenterProvince()).thenReturn(province);
+		when(settlement.getName()).thenReturn(name);
+		when(faction.getSettlementHandler().getAll()).thenReturn(List.of(settlement));
 	}
 
 	private static Faction mockFaction(String id, int tierLevel) {

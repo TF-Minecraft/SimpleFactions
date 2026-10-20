@@ -19,7 +19,9 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.tiers.Title;
+import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.DeJureAnnexPreview;
 import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.DeJureTitleOption;
+import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.KeptSettlement;
 import net.tfminecraft.simplefactions.war.declare.OpenMarketEligibility;
 import net.tfminecraft.simplefactions.war.declare.PillageEligibility;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
@@ -125,6 +127,7 @@ public class DeclareWarCreator {
 		meta.setDisplayName("§7" + title.getName());
 		List<String> lore = new ArrayList<>();
 		lore.add("§7Tier: §f" + title.getTier().getName());
+		addAnnexPreviewLore(lore, option.preview());
 		lore.add(" ");
 		if (option.eligible()) {
 			lore.add("§eClick to declare");
@@ -140,6 +143,27 @@ public class DeclareWarCreator {
 		}
 		item.setItemMeta(meta);
 		return item;
+	}
+
+	private static void addAnnexPreviewLore(List<String> lore, DeJureAnnexPreview preview) {
+		if (preview == null || preview.incoming() < 1) {
+			return;
+		}
+		lore.add("§7Annex §f" + preview.taken() + " §7of §f" + preview.incoming()
+				+ " §7" + provinces(preview.incoming()));
+		for (KeptSettlement kept : preview.keptSettlements()) {
+			lore.add("§7Kept by " + kept.holderName() + ": §f" + kept.settlementName() + " §7(settlement)");
+		}
+		if (preview.roadSize() > 0) {
+			lore.add("§7Road to their capital: §f" + preview.roadSize() + " §7" + provinces(preview.roadSize()));
+		}
+		if (preview.otherKept() > 0) {
+			lore.add("§7Kept so their land stays whole: §f" + preview.otherKept() + " §7" + provinces(preview.otherKept()));
+		}
+	}
+
+	private static String provinces(int count) {
+		return count == 1 ? "province" : "provinces";
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.

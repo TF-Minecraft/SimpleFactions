@@ -40,6 +40,7 @@ import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
 import net.tfminecraft.simplefactions.war.core.WarGoal;
+import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility;
 import net.tfminecraft.simplefactions.war.declare.DeJureAnnexEligibility.DeJureTitleOption;
 import net.tfminecraft.simplefactions.war.declare.OpenMarketEligibility;
 import net.tfminecraft.simplefactions.war.declare.PillageEligibility;
@@ -625,6 +626,33 @@ class WarMenusCoverageTest {
       assertTrue(lore(t).contains(eligible ? "Click to declare" : "Blocked title"));
       assertTrue(lore(city).contains(eligible ? "Click to declare" : "Blocked settlement"));
     }
+    ItemStack previewed =
+        declaration.creator.createTitleItem(
+            new DeJureTitleOption(
+                title,
+                true,
+                null,
+                new DeJureAnnexEligibility.DeJureAnnexPreview(
+                    7,
+                    10,
+                    List.of(new DeJureAnnexEligibility.KeptSettlement("Holder", "Oakvale")),
+                    2,
+                    1)));
+    assertEquals(
+        "Tier: county\n"
+            + "Annex 7 of 10 provinces\n"
+            + "Kept by Holder: Oakvale (settlement)\n"
+            + "Road to their capital: 2 provinces\n"
+            + "Kept so their land stays whole: 1 province\n"
+            + " \n"
+            + "Click to declare",
+        lore(previewed));
+    ItemStack roadless =
+        declaration.creator.createTitleItem(
+            new DeJureTitleOption(
+                title, true, null, new DeJureAnnexEligibility.DeJureAnnexPreview(1, 1, List.of(), 0, 0)));
+    assertTrue(lore(roadless).contains("Annex 1 of 1 province"));
+    assertFalse(lore(roadless).contains("Road to their capital"));
   }
 
   @ParameterizedTest
