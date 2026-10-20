@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import net.tfminecraft.simplefactions.testsupport.GuiTestFixture;
+import net.tfminecraft.simplefactions.vehicles.maintenance.UnpaidVehicleEffects;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.AfterEach;
@@ -38,8 +39,8 @@ class VehiclesConfigLifecycleCoverageTest {
         List.of(
             "personalSlotLimit",
             "defaultPerPerson",
-            "maintenanceHourlyDamagePercent",
-            "maintenanceMinHealthPercent",
+            "defaultUnpaidEffects",
+            "unpaidEffectsByType",
             "maintenanceIntervalTicks",
             "categoryIds",
             "typesByCategory",
@@ -179,8 +180,7 @@ class VehiclesConfigLifecycleCoverageTest {
 
       assertEquals(1, VehiclesConfigLoader.getPersonalSlotLimit());
       assertEquals(1, VehiclesConfigLoader.getDefaultPerPerson());
-      assertEquals(20, VehiclesConfigLoader.getMaintenanceHourlyDamagePercent());
-      assertEquals(3, VehiclesConfigLoader.getMaintenanceMinHealthPercent());
+      assertEquals(UnpaidVehicleEffects.DEFAULT, VehiclesConfigLoader.getUnpaidEffects("RAFT"));
       assertEquals(72000, VehiclesConfigLoader.getMaintenanceIntervalTicks());
       assertEquals(7.5, VehiclesConfigLoader.getUpkeep("RaFt"));
       assertEquals(1, VehiclesConfigLoader.getPerPersonLimit("RAFT"));
@@ -229,11 +229,10 @@ class VehiclesConfigLifecycleCoverageTest {
   private void assertOriginalConfiguration() {
     assertEquals(2, VehiclesConfigLoader.getPersonalSlotLimit());
     assertEquals(3, VehiclesConfigLoader.getDefaultPerPerson());
-    assertEquals(15, VehiclesConfigLoader.getMaintenanceHourlyDamagePercent());
-    assertEquals(7, VehiclesConfigLoader.getMaintenanceMinHealthPercent());
+    assertEquals(
+        new UnpaidVehicleEffects(15, 7, Map.of(), true, true, true),
+        VehiclesConfigLoader.getUnpaidEffects("ironclad"));
     assertEquals(90, VehiclesConfigLoader.getMaintenanceIntervalTicks());
-    assertEquals(0.15, VehiclesConfigLoader.getMaintenanceHourlyDamageFraction());
-    assertEquals(0.07, VehiclesConfigLoader.getMaintenanceMinHealthFraction());
     assertTrue(VehiclesConfigLoader.isFeeExcludedCategory("AIRCRAFT"));
     assertFalse(VehiclesConfigLoader.isFeeExcludedCategory("ships"));
     assertEquals(Set.of("ships", "aircraft"), VehiclesConfigLoader.getCategoryIds());

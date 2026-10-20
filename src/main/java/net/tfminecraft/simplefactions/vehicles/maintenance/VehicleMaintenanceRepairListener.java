@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
+import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.vehicleframework.events.VehicleRepairStartEvent;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
@@ -23,7 +24,8 @@ public final class VehicleMaintenanceRepairListener implements Listener {
         if (vehicle == null || vehicle.getUUID() == null) {
             return;
         }
-        if (!shouldCancelRepair(store, vehicle.getUUID())) {
+        if (!shouldCancelRepair(store, vehicle.getUUID())
+                || !VehiclesConfigLoader.getUnpaidEffects(vehicle.getId()).blockRepair()) {
             return;
         }
         event.setCancelled(true);

@@ -16,13 +16,23 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import net.tfminecraft.simplefactions.vehicles.VehicleTypeConfig;
+import net.tfminecraft.simplefactions.vehicles.maintenance.UnpaidVehicleEffects;
 
 public final class VehiclesConfigLoader {
+    private static final Set<String> UNPAID_SECTIONS = Set.of("default", "categories", "types");
+    private static final Set<String> UNPAID_KEYS = Set.of(
+            "hourly-damage-percent",
+            "min-health-percent",
+            "part-min-health-percent",
+            "keep-afloat",
+            "keep-aloft",
+            "block-repair");
+
     private static int personalSlotLimit = 1;
     private static int defaultPerPerson = 1;
-    private static int maintenanceHourlyDamagePercent = 20;
-    private static int maintenanceMinHealthPercent = 3;
     private static long maintenanceIntervalTicks = 72000L;
+    private static UnpaidVehicleEffects defaultUnpaidEffects = UnpaidVehicleEffects.DEFAULT;
+    private static Map<String, UnpaidVehicleEffects> unpaidEffectsByType = Map.of();
     private static Set<String> categoryIds = Set.of();
     private static Map<String, Map<String, VehicleTypeConfig>> typesByCategory = Map.of();
     private static Map<String, String> categoryByVehicleTypeId = Map.of();
@@ -151,11 +161,45 @@ public final class VehiclesConfigLoader {
             byCategory.put(normalizedCategoryId, Collections.unmodifiableMap(types));
         }
 
+        // The old top-level maintenance keys still set the default decay that unpaid-effects.default leaves out.
+        UnpaidVehicleEffects nextDefaultUnpaid = new UnpaidVehicleEffects(
+                nextMaintenanceHourlyDamagePercent,
+                nextMaintenanceMinHealthPercent,
+                Map.of(),
+                UnpaidVehicleEffects.DEFAULT.keepAfloat(),
+                UnpaidVehicleEffects.DEFAULT.keepAloft(),
+                UnpaidVehicleEffects.DEFAULT.blockRepair());
+        Map<String, UnpaidVehicleEffects> nextUnpaidByType = new HashMap<>();
+        if (config.contains("unpaid-effects")) {
+            ConfigurationSection unpaid = section(config, "unpaid-effects", "unpaid-effects");
+            for (String key : unpaid.getKeys(false)) {
+                if (!UNPAID_SECTIONS.contains(key)) {
+                    throw failure("vehicles.yml unpaid-effects." + key + " is not default, categories or types");
+                }
+            }
+            nextDefaultUnpaid = unpaidOverlay(nextDefaultUnpaid, unpaid, "default", "unpaid-effects.default");
+            Map<String, String> categoryKeys = unpaidKeys(unpaid, "categories", categories, "vehicle category");
+            Map<String, String> typeKeys = unpaidKeys(unpaid, "types", typeToCategory.keySet(), "vehicle type");
+            for (Map.Entry<String, String> type : typeToCategory.entrySet()) {
+                UnpaidVehicleEffects effects = nextDefaultUnpaid;
+                String categoryKey = categoryKeys.get(type.getValue());
+                if (categoryKey != null) {
+                    effects = unpaidOverlay(effects, unpaid, "categories." + categoryKey,
+                            "unpaid-effects.categories." + categoryKey);
+                }
+                String typeKey = typeKeys.get(type.getKey());
+                if (typeKey != null) {
+                    effects = unpaidOverlay(effects, unpaid, "types." + typeKey, "unpaid-effects.types." + typeKey);
+                }
+                nextUnpaidByType.put(type.getKey(), effects);
+            }
+        }
+
         personalSlotLimit = nextPersonalSlotLimit;
         defaultPerPerson = nextDefaultPerPerson;
-        maintenanceHourlyDamagePercent = nextMaintenanceHourlyDamagePercent;
-        maintenanceMinHealthPercent = nextMaintenanceMinHealthPercent;
         maintenanceIntervalTicks = nextMaintenanceIntervalTicks;
+        defaultUnpaidEffects = nextDefaultUnpaid;
+        unpaidEffectsByType = Collections.unmodifiableMap(nextUnpaidByType);
         feeExcludedCategories = Collections.unmodifiableSet(excluded);
         categoryIds = Collections.unmodifiableSet(categories);
         typesByCategory = Collections.unmodifiableMap(byCategory);
@@ -173,24 +217,17 @@ public final class VehiclesConfigLoader {
         return personalSlotLimit;
     }
 
-    public static int getMaintenanceHourlyDamagePercent() {
-        return maintenanceHourlyDamagePercent;
-    }
-
-    public static int getMaintenanceMinHealthPercent() {
-        return maintenanceMinHealthPercent;
-    }
-
     public static long getMaintenanceIntervalTicks() {
         return maintenanceIntervalTicks;
     }
 
-    public static double getMaintenanceHourlyDamageFraction() {
-        return maintenanceHourlyDamagePercent / 100.0;
-    }
-
-    public static double getMaintenanceMinHealthFraction() {
-        return maintenanceMinHealthPercent / 100.0;
+    /** What unpaid upkeep does to a vehicle of this type; unlisted types get the default. */
+    public static UnpaidVehicleEffects getUnpaidEffects(String vehicleTypeId) {
+        if (vehicleTypeId == null) {
+            return defaultUnpaidEffects;
+        }
+        return unpaidEffectsByType.getOrDefault(
+                vehicleTypeId.toLowerCase(java.util.Locale.ROOT), defaultUnpaidEffects);
     }
 
     public static int getDefaultPerPerson() {
@@ -261,6 +298,84 @@ public final class VehiclesConfigLoader {
             return null;
         }
         return typesByCategory.get(categoryId).get(vehicleTypeId.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** Lower-cased id to the key as written, for each entry under unpaid-effects.<group>. */
+    private static Map<String, String> unpaidKeys(
+            ConfigurationSection unpaid, String group, Set<String> known, String kind) {
+        Map<String, String> keys = new HashMap<>();
+        if (!unpaid.contains(group)) {
+            return keys;
+        }
+        for (String key : section(unpaid, group, "unpaid-effects." + group).getKeys(false)) {
+            String normalized = key.toLowerCase(java.util.Locale.ROOT);
+            if (!known.contains(normalized)) {
+                throw failure("vehicles.yml unpaid-effects." + group + "." + key + " is not a " + kind);
+            }
+            keys.put(normalized, key);
+        }
+        return keys;
+    }
+
+    /** {@code base} with whatever the section at {@code key} sets; a missing section changes nothing. */
+    private static UnpaidVehicleEffects unpaidOverlay(
+            UnpaidVehicleEffects base, ConfigurationSection parent, String key, String path) {
+        if (!parent.contains(key)) {
+            return base;
+        }
+        ConfigurationSection section = section(parent, key, path);
+        for (String setting : section.getKeys(false)) {
+            if (!UNPAID_KEYS.contains(setting)) {
+                throw failure("vehicles.yml " + path + "." + setting + " is not an unpaid effect");
+            }
+        }
+        Map<String, Double> parts = new HashMap<>(base.partMinHealthPercent());
+        if (section.contains("part-min-health-percent")) {
+            String partsPath = path + ".part-min-health-percent";
+            ConfigurationSection partsSection = section(section, "part-min-health-percent", partsPath);
+            for (String part : partsSection.getKeys(false)) {
+                parts.put(part.toLowerCase(java.util.Locale.ROOT), percent(partsSection, part, partsPath));
+            }
+        }
+        return new UnpaidVehicleEffects(
+                section.contains("hourly-damage-percent")
+                        ? percent(section, "hourly-damage-percent", path)
+                        : base.hourlyDamagePercent(),
+                section.contains("min-health-percent")
+                        ? percent(section, "min-health-percent", path)
+                        : base.minHealthPercent(),
+                parts,
+                flag(section, "keep-afloat", base.keepAfloat(), path),
+                flag(section, "keep-aloft", base.keepAloft(), path),
+                flag(section, "block-repair", base.blockRepair(), path));
+    }
+
+    private static ConfigurationSection section(ConfigurationSection parent, String key, String path) {
+        ConfigurationSection section = parent.getConfigurationSection(key);
+        if (section == null) {
+            throw failure("vehicles.yml " + path + " must be a section");
+        }
+        return section;
+    }
+
+    private static double percent(ConfigurationSection section, String key, String path) {
+        if (!(section.get(key) instanceof Number number)
+                || !Double.isFinite(number.doubleValue())
+                || number.doubleValue() < 0
+                || number.doubleValue() > 100) {
+            throw failure("vehicles.yml " + path + "." + key + " must be a number between 0 and 100");
+        }
+        return number.doubleValue();
+    }
+
+    private static boolean flag(ConfigurationSection section, String key, boolean fallback, String path) {
+        if (!section.contains(key)) {
+            return fallback;
+        }
+        if (!(section.get(key) instanceof Boolean value)) {
+            throw failure("vehicles.yml " + path + "." + key + " must be true or false");
+        }
+        return value;
     }
 
     private static IllegalStateException failure(String message) {

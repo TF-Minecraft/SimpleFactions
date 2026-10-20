@@ -219,8 +219,41 @@ class VehicleUpkeepServiceTest {
         service.tickHourlyDecay();
         assertEquals(1, decayApi.calls.size());
         assertEquals("vehicle-1", decayApi.calls.get(0).uuid);
-        assertEquals(0.20, decayApi.calls.get(0).fractionOfMax);
-        assertEquals(0.03, decayApi.calls.get(0).minHealthFraction);
+        assertEquals(UnpaidVehicleEffects.DEFAULT, decayApi.calls.get(0).effects);
+    }
+
+    @Test
+    void hourlyDecayUsesEachVehicleTypesUnpaidEffectsAndSkipsTypesThatDoNotDecay() throws IOException {
+        Path vehiclesYaml = tempDir.resolve("unpaid.yml");
+        Files.writeString(vehiclesYaml, """
+            categories:
+              ships:
+                ironclad:
+                  upkeep: 20
+                  size: 1
+                sloop:
+                  upkeep: 8
+                  size: 1
+            unpaid-effects:
+              categories:
+                ships:
+                  min-health-percent: 10
+              types:
+                sloop:
+                  hourly-damage-percent: 0
+            """);
+        VehiclesConfigLoader.load(vehiclesYaml.toFile());
+        UUID owner = UUID.randomUUID();
+        registry.register(new PlayerVehicleRecord(owner, "ship-1", "ironclad", OwnershipMode.PERSONAL, null));
+        registry.register(new PlayerVehicleRecord(owner, "ship-2", "sloop", OwnershipMode.PERSONAL, null));
+        store.markUnpaid("ship-1", 1L);
+        store.markUnpaid("ship-2", 1L);
+
+        service.tickHourlyDecay();
+
+        assertEquals(1, decayApi.calls.size());
+        assertEquals("ship-1", decayApi.calls.get(0).uuid);
+        assertEquals(new UnpaidVehicleEffects(20, 10, Map.of(), true, true, true), decayApi.calls.get(0).effects);
     }
 
 
@@ -268,23 +301,13 @@ class VehicleUpkeepServiceTest {
         private final List<DecayCall> calls = new ArrayList<>();
 
         @Override
-        public boolean unloadedDamage(String vehicleUuid, double fractionOfMax, double minHealthFraction) {
-            calls.add(new DecayCall(vehicleUuid, fractionOfMax, minHealthFraction));
+        public boolean unloadedDamage(String vehicleUuid, UnpaidVehicleEffects effects) {
+            calls.add(new DecayCall(vehicleUuid, effects));
             return true;
         }
     }
 
-    private static final class DecayCall {
-        private final String uuid;
-        private final double fractionOfMax;
-        private final double minHealthFraction;
-
-        private DecayCall(String uuid, double fractionOfMax, double minHealthFraction) {
-            this.uuid = uuid;
-            this.fractionOfMax = fractionOfMax;
-            this.minHealthFraction = minHealthFraction;
-        }
-    }
+    private record DecayCall(String uuid, UnpaidVehicleEffects effects) {}
 
     private static final class TestPlayerBank implements PlayerBank {
         private final Map<UUID, Double> balances = new HashMap<>();

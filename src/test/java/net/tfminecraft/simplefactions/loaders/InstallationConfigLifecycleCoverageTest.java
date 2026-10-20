@@ -49,8 +49,8 @@ class InstallationConfigLifecycleCoverageTest {
         List.of(
             "personalSlotLimit",
             "defaultPerPerson",
-            "maintenanceHourlyDamagePercent",
-            "maintenanceMinHealthPercent",
+            "defaultUnpaidEffects",
+            "unpaidEffectsByType",
             "maintenanceIntervalTicks",
             "categoryIds",
             "typesByCategory",
