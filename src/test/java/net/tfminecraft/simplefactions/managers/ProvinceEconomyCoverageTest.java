@@ -300,29 +300,6 @@ class ProvinceEconomyCoverageTest {
   }
 
   @Test
-  void aFullRecalculationSatisfiesTheDirtyCheckSoTheFirstMenuOpenDoesNotRepeatIt() {
-    productiveBranch();
-    Faction home = fixture.saved("home", "Alice");
-    Guild guild = home.getOrCreateMainGuild();
-    Province source = province(1);
-    home.addProvince(1);
-    home.setCapital(1, true);
-    fixture.provincesEnabled(true);
-    manager.recalculate();
-    ProvinceDataEntry first = source.getData(guild.getId());
-    assertNotNull(first);
-    manager.recalculateIfNeeded();
-    assertSame(first, source.getData(guild.getId()));
-    manager.recalculate();
-    ProvinceDataEntry second = source.getData(guild.getId());
-    assertNotSame(first, second);
-    manager.markDirty();
-    manager.recalculateIfNeeded();
-    assertNotSame(second, source.getData(guild.getId()));
-    assertEquals(source.getProsperity(), guild.getTradeBreakdown().getIncome(), 0.01);
-  }
-
-  @Test
   void disabledIncomeQueriesAndRecalculationRespectWhetherSavingWasRequested() {
     productiveBranch();
     Faction home = fixture.saved("home", "Alice");

@@ -131,8 +131,6 @@ public class ProvinceManager {
             }
             recalculateProsperity();
             for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
-            // The startup run counts, so the first guild view after a restart does not repeat it.
-            lastCalculatedVersion = stateVersion;
         } finally {
             StabilityMemo.end(memo);
             InstallationAccess.endRecalculation();
