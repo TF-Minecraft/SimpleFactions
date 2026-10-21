@@ -595,7 +595,7 @@ public class Government {
     }
 
     public StabilityReport stateReport() {
-        return StateStability.of(f);
+        return net.tfminecraft.simplefactions.government.stability.StabilityMemo.report(f, () -> StateStability.of(f));
     }
 
     public boolean isIllegitimate() {

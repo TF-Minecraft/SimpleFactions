@@ -201,7 +201,7 @@ public class GuildView {
         }
 		if(manager == null) setProvinceManager(SimpleFactions.getInstance().getProvinceManager());
 		if(guild.hasCapital()) {
-			if(guild.getTradeBreakdown().getIncome() == 0) manager.recalculate();
+			if(guild.getTradeBreakdown().getIncome() == 0) manager.recalculateUnlessRecent();
 			manager.getIncome(guild);
 		}
 		manager.recalculateIfNeeded();

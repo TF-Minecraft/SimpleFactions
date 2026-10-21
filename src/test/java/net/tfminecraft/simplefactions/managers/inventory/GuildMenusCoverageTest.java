@@ -869,7 +869,8 @@ class GuildMenusCoverageTest {
     assertNotNull(inventory.getItem(17));
     assertNotNull(inventory.getItem(8));
     assertNotNull(inventory.getItem(19));
-    verify(fixture.provinces).recalculate();
+    verify(fixture.provinces).recalculateUnlessRecent();
+    verify(fixture.provinces, never()).recalculate();
     verify(fixture.provinces).getIncome(display);
     verify(fixture.provinces).recalculateIfNeeded();
     previewTasks.verify(

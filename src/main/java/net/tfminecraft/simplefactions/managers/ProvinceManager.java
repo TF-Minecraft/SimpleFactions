@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.LongSupplier;
 
 import org.bukkit.Bukkit;
 
@@ -33,6 +34,7 @@ import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.war.resolution.PillageTradeHit;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
+import net.tfminecraft.simplefactions.government.stability.StabilityMemo;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
 import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
@@ -47,6 +49,12 @@ public class ProvinceManager {
     private Map<Guild, Map<String, Double>> installationAccess = new HashMap<>();
     private long stateVersion = 0;
     private long lastCalculatedVersion = -1;
+    /** A menu open refreshes trade at most this often. Settlement and staff changes always recalculate. */
+    static final long MENU_REFRESH_MILLIS = 60_000L;
+    /** Monotonic milliseconds, so a wall-clock change cannot hold off menu refreshes. */
+    static LongSupplier clock = () -> System.nanoTime() / 1_000_000L;
+    private boolean calculated;
+    private long lastCalculatedAt;
 
     public void markDirty() {
         stateVersion++;
@@ -57,6 +65,15 @@ public class ProvinceManager {
 
         recalculate();
         lastCalculatedVersion = stateVersion;
+    }
+
+    /**
+     * A menu's refresh. Skipped when a full recalculation finished within the last minute, so
+     * opening a guild that earns no trade does not flood every province each time.
+     */
+    public void recalculateUnlessRecent() {
+        if (calculated && clock.getAsLong() - lastCalculatedAt < MENU_REFRESH_MILLIS) return;
+        recalculate();
     }
 
     public List<Province> getProvinces() { return new ArrayList<>(provinces.values()); }
@@ -116,6 +133,7 @@ public class ProvinceManager {
             return;
         }
         InstallationAccess.beginRecalculation();
+        boolean memo = StabilityMemo.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -129,7 +147,12 @@ public class ProvinceManager {
             }
             recalculateProsperity();
             for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
+            // The startup run counts, so the first guild view after a restart does not repeat it.
+            lastCalculatedVersion = stateVersion;
+            calculated = true;
+            lastCalculatedAt = clock.getAsLong();
         } finally {
+            StabilityMemo.end(memo);
             InstallationAccess.endRecalculation();
         }
     }
@@ -145,6 +168,7 @@ public class ProvinceManager {
         previewGuilds = guilds == null ? List.of() : List.copyOf(guilds);
         previewFactions = factions == null ? List.of() : List.copyOf(factions);
         InstallationAccess.beginRecalculation();
+        boolean memo = StabilityMemo.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -161,6 +185,7 @@ public class ProvinceManager {
             }
             recalculateProsperity();
         } finally {
+            StabilityMemo.end(memo);
             InstallationAccess.endRecalculation();
         }
     }
@@ -176,6 +201,7 @@ public class ProvinceManager {
             return;
         }
         InstallationAccess.beginRecalculation();
+        boolean memo = StabilityMemo.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -189,6 +215,7 @@ public class ProvinceManager {
                 }
             }
         } finally {
+            StabilityMemo.end(memo);
             InstallationAccess.endRecalculation();
         }
     }

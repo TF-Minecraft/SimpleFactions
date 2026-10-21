@@ -133,6 +133,8 @@ class FactionManagerCoverageTest {
     when(faction.getProvinces()).thenReturn(new ArrayList<>());
     when(faction.getTitles()).thenReturn(new ArrayList<>());
     when(faction.getGuildHandler().getGuilds()).thenReturn(new ArrayList<>());
+    when(faction.getGuildHandler().findGuild(any()))
+        .thenAnswer(call -> firstGuild(faction.getGuildHandler().getGuilds(), call.getArgument(0)));
     when(faction.getGovernment().getFaction()).thenReturn(faction);
     when(faction.getGovernment().getMovementById(anyString())).thenReturn(null);
     when(faction.getGovernment().getMovementByLeader(anyString())).thenReturn(null);
@@ -147,6 +149,14 @@ class FactionManagerCoverageTest {
         .when(faction).setRelation(any(Faction.class), any(Relation.class));
     FactionManager.factions.add(faction);
     return faction;
+  }
+
+  /** The real {@code GuildHandler.findGuild} scan over the stubbed guild list. */
+  private static Guild firstGuild(List<Guild> guilds, String id) {
+    for (Guild guild : guilds) {
+      if (guild.getId().equalsIgnoreCase(id)) return guild;
+    }
+    return null;
   }
 
   private Guild guild(Faction faction, String id, String leader) {

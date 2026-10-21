@@ -23,6 +23,14 @@ public class GuildHandler {
         return new ArrayList<>(guilds.values());
     }
 
+    /** The first guild in {@link #getGuilds()} order whose id matches, ignoring case, without copying the list. */
+    public Guild findGuild(String id) {
+        for (Guild guild : guilds.values()) {
+            if (guild.getId().equalsIgnoreCase(id)) return guild;
+        }
+        return null;
+    }
+
     public List<Guild> getReleasableGuilds() {
         List<Guild> releasable = new ArrayList<>();
         for(Guild g : guilds.values()) {

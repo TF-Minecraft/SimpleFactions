@@ -642,9 +642,8 @@ public class FactionManager implements Listener{
 
 	public static Guild getGuildByString(String id) {
 		for(Faction f : factions) {
-			for(Guild guild : f.getGuildHandler().getGuilds()) {
-				if(guild.getId().equalsIgnoreCase(id)) return guild;
-			}
+			Guild guild = f.getGuildHandler().findGuild(id);
+			if(guild != null) return guild;
 		}
 		return null;
 	}

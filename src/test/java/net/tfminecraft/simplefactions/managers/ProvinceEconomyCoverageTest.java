@@ -300,6 +300,40 @@ class ProvinceEconomyCoverageTest {
   }
 
   @Test
+  void menuRefreshSkipsARecentRecalculationAndTheStartupRunSatisfiesTheDirtyCheck() {
+    java.util.function.LongSupplier oldClock = ProvinceManager.clock;
+    long[] now = {1_000_000L};
+    ProvinceManager.clock = () -> now[0];
+    try {
+      productiveBranch();
+      Faction home = fixture.saved("home", "Alice");
+      Guild guild = home.getOrCreateMainGuild();
+      Province source = province(1);
+      home.addProvince(1);
+      home.setCapital(1, true);
+      fixture.provincesEnabled(true);
+      manager.recalculateUnlessRecent();
+      ProvinceDataEntry first = source.getData(guild.getId());
+      assertNotNull(first);
+      manager.recalculateIfNeeded();
+      assertSame(first, source.getData(guild.getId()));
+      now[0] += ProvinceManager.MENU_REFRESH_MILLIS - 1;
+      manager.recalculateUnlessRecent();
+      assertSame(first, source.getData(guild.getId()));
+      now[0] += 1;
+      manager.recalculateUnlessRecent();
+      ProvinceDataEntry second = source.getData(guild.getId());
+      assertNotSame(first, second);
+      now[0] += 5;
+      manager.recalculate();
+      assertNotSame(second, source.getData(guild.getId()));
+      assertEquals(source.getProsperity(), guild.getTradeBreakdown().getIncome(), 0.01);
+    } finally {
+      ProvinceManager.clock = oldClock;
+    }
+  }
+
+  @Test
   void disabledIncomeQueriesAndRecalculationRespectWhetherSavingWasRequested() {
     productiveBranch();
     Faction home = fixture.saved("home", "Alice");
