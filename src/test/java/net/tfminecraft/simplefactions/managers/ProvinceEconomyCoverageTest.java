@@ -322,8 +322,12 @@ class ProvinceEconomyCoverageTest {
     assertEquals(0, guild.getTradeBreakdown().getIncome());
     fixture.provincesEnabled(true);
     Guild noCapital = fixture.guild(home, "landless", "Bob");
+    source.setData(noCapital.getId(), new ProvinceDataEntry(noCapital, 20, 8));
+    noCapital.getTradeBreakdown().setIncome(9);
     manager.recalculateForSingleGuild(noCapital, true);
-    assertEquals(40, source.getProsperity());
+    assertEquals(3.73, source.getProsperity());
+    assertFalse(source.getAllData().containsKey(noCapital.getId()));
+    assertEquals(0, noCapital.getTradeBreakdown().getIncome());
     manager.clearGuildData(null);
     assertEquals(10, source.getStoredGuildTrade(guild));
     manager.clearGuildData(guild.getId());
