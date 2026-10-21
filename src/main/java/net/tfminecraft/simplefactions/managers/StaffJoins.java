@@ -14,6 +14,7 @@ import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
+import net.tfminecraft.tlibs.character.CharacterInfo;
 
 /**
  * Staff tools that put a character straight into a guild, mercenary company or
@@ -24,7 +25,13 @@ public final class StaffJoins {
 	private StaffJoins() {}
 
 	static String noMatch(String input) {
-		return "§cNo online character or character ID matches " + input;
+		return "§cNo living character matches " + input + "§c; use an online character's name or a character ID";
+	}
+
+	/** Typed character IDs reach offline and dead characters too, so only the living pass. */
+	private static String living(String input) {
+		String key = Members.findOnline(input);
+		return key != null && Members.info(key).map(CharacterInfo::alive).orElse(false) ? key : null;
 	}
 
 	/** {@code /guild forcejoin}: a stranger or a member of the base guild joins a guild of the same realm. */
@@ -32,7 +39,7 @@ public final class StaffJoins {
 		if (guild.isBase()) return "§cThis is the base guild, use /faction forcejoin instead";
 		Faction realm = guild.getFaction();
 		if (HeldRealms.isClosing(realm)) return HeldRealms.CLOSING;
-		String key = Members.findOnline(input);
+		String key = living(input);
 		if (key == null) return noMatch(input);
 		if (guild.isMember(key)) return "§c" + Members.display(key) + " §cis already in " + guild.getName();
 		Guild current = FactionManager.getGuildByMember(key);
@@ -60,7 +67,7 @@ public final class StaffJoins {
 
 	/** {@code /company admin add}: enlists a character in a free slot. */
 	public static String company(MercenaryCompany company, String input) {
-		String key = Members.findOnline(input);
+		String key = living(input);
 		if (key == null) return noMatch(input);
 		MercenaryResult result = MercenaryCompanyService.join(company, key);
 		if (!result.ok()) return "§cCannot enlist " + Members.display(key) + ": " + result.message();
@@ -72,7 +79,7 @@ public final class StaffJoins {
 
 	/** {@code /warband forcejoin}: signs a character up as if the warband were open to them. */
 	public static String warband(Warband warband, String input) {
-		String key = Members.findOnline(input);
+		String key = living(input);
 		if (key == null) return noMatch(input);
 		UUID account = Members.accountId(key).orElse(null);
 		if (account == null) return noMatch(input);

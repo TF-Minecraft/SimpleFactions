@@ -134,7 +134,6 @@ public class TabCompletion implements TabCompleter{
 		return completions;
 	}
 
-	/** Drops the subcommand, so a member name that starts at the third word completes like one at the second. */
 	/** Names of the characters being played right now. */
 	static List<String> onlineCharacters() {
 		List<String> names = new ArrayList<>();
@@ -145,6 +144,7 @@ public class TabCompletion implements TabCompleter{
 		return names;
 	}
 
+	/** Drops the subcommand, so a member name that starts at the third word completes like one at the second. */
 	private static String[] afterFirst(String[] args) {
 		return java.util.Arrays.copyOfRange(args, 1, args.length);
 	}

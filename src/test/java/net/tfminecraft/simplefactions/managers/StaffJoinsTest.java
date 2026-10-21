@@ -10,8 +10,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -31,6 +33,9 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
+import net.tfminecraft.tlibs.character.CharacterInfo;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterStatus;
 
 class StaffJoinsTest {
 	private MockedStatic<Members> members;
@@ -58,6 +63,9 @@ class StaffJoinsTest {
 		bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(bob, carl, stranger));
 		members.when(() -> Members.findOnline(anyString())).thenReturn(null);
 		members.when(() -> Members.findOnline("Bob")).thenReturn("Bob");
+		members.when(() -> Members.findOnline("Ghost")).thenReturn("Ghost");
+		members.when(() -> Members.info("Bob")).thenReturn(Optional.of(info("Bob", CharacterStatus.ALIVE)));
+		members.when(() -> Members.info("Ghost")).thenReturn(Optional.of(info("Ghost", CharacterStatus.DEAD)));
 		members.when(() -> Members.display(anyString())).thenAnswer(call -> call.getArgument(0));
 	}
 
@@ -66,6 +74,11 @@ class StaffJoinsTest {
 		bukkit.close();
 		factions.close();
 		members.close();
+	}
+
+	private static CharacterInfo info(String name, CharacterStatus status) {
+		return new CharacterInfo(new CharacterRef(UUID.randomUUID(), UUID.randomUUID()), name, status, "human",
+				Set.of(), 0L, Instant.EPOCH);
 	}
 
 	private Player online(String key) {
@@ -88,7 +101,11 @@ class StaffJoinsTest {
 		when(main.getClosingSince()).thenReturn(5L);
 		assertEquals(HeldRealms.CLOSING, StaffJoins.guild(guild, "Bob"));
 		when(main.getClosingSince()).thenReturn(0L);
-		assertEquals("§cNo online character or character ID matches Nobody", StaffJoins.guild(guild, "Nobody"));
+		assertEquals(StaffJoins.noMatch("Nobody"), StaffJoins.guild(guild, "Nobody"));
+		assertEquals(StaffJoins.noMatch("Ghost"), StaffJoins.guild(guild, "Ghost"));
+		members.when(() -> Members.findOnline("Unknown")).thenReturn("Unknown");
+		members.when(() -> Members.info("Unknown")).thenReturn(Optional.empty());
+		assertEquals(StaffJoins.noMatch("Unknown"), StaffJoins.guild(guild, "Unknown"));
 		when(guild.isMember("Bob")).thenReturn(true);
 		assertEquals("§cBob §cis already in Merchants", StaffJoins.guild(guild, "Bob"));
 		verify(guild, never()).addMember(anyString());
@@ -135,7 +152,7 @@ class StaffJoinsTest {
 			MercenaryCompany company = mock(MercenaryCompany.class);
 			when(company.getName()).thenReturn("Black Lances");
 			when(company.getLeader()).thenReturn("Carl");
-			assertEquals("§cNo online character or character ID matches Nobody", StaffJoins.company(company, "Nobody"));
+			assertEquals(StaffJoins.noMatch("Nobody"), StaffJoins.company(company, "Nobody"));
 			service.when(() -> MercenaryCompanyService.join(company, "Bob"))
 					.thenReturn(MercenaryResult.deny("Every slot is already filled."));
 			assertEquals("§cCannot enlist Bob: Every slot is already filled.", StaffJoins.company(company, "Bob"));
@@ -152,9 +169,9 @@ class StaffJoinsTest {
 			Warband warband = mock(Warband.class);
 			when(warband.getId()).thenReturn("vanguard");
 			UUID account = UUID.randomUUID();
-			assertEquals("§cNo online character or character ID matches Nobody", StaffJoins.warband(warband, "Nobody"));
+			assertEquals(StaffJoins.noMatch("Nobody"), StaffJoins.warband(warband, "Nobody"));
 			members.when(() -> Members.accountId("Bob")).thenReturn(Optional.empty());
-			assertEquals("§cNo online character or character ID matches Bob", StaffJoins.warband(warband, "Bob"));
+			assertEquals(StaffJoins.noMatch("Bob"), StaffJoins.warband(warband, "Bob"));
 			members.when(() -> Members.accountId("Bob")).thenReturn(Optional.of(account));
 			when(warband.hasMember(account)).thenReturn(true);
 			assertEquals("§cBob §cis already in vanguard", StaffJoins.warband(warband, "Bob"));
