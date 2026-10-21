@@ -28,6 +28,7 @@ import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.map.provinces.ProvinceDataEntry;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
+import net.tfminecraft.simplefactions.testsupport.TestTreasuries;
 import net.tfminecraft.simplefactions.war.resolution.PillageTradeHit;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -300,6 +301,36 @@ class ProvinceEconomyCoverageTest {
   }
 
   @Test
+  void treasuryBankruptcyAndRecoveryInvalidateCachedRealmTrade() {
+    productiveBranch();
+    Faction home = fixture.saved("home", "Alice");
+    Guild guild = home.getOrCreateMainGuild();
+    Province source = province(1);
+    home.addProvince(1);
+    home.setCapital(1, true);
+    fixture.provincesEnabled(true);
+    try (TestTreasuries treasury = new TestTreasuries()) {
+      TestTreasuries.set(guild.getBank(), 100);
+      manager.recalculateIfNeeded();
+      assertTrue(source.getStoredGuildTrade(guild) > 0);
+      ProvinceDataEntry solvent = source.getData(guild.getId());
+      TestTreasuries.set(guild.getBank(), 90);
+      manager.recalculateIfNeeded();
+      assertSame(solvent, source.getData(guild.getId()));
+      TestTreasuries.set(guild.getBank(), -11.23);
+      manager.recalculateIfNeeded();
+      assertEquals(0, source.getStoredGuildTrade(guild));
+      assertEquals(0, guild.getTradeBreakdown().getIncome());
+      assertEquals(-11.23, guild.getBank().getWealth(), 0.001);
+      TestTreasuries.set(guild.getBank(), 0);
+      manager.recalculateIfNeeded();
+      assertTrue(source.getStoredGuildTrade(guild) > 0);
+      assertTrue(guild.getTradeBreakdown().getIncome() > 0);
+      assertEquals(0, guild.getBank().getWealth());
+    }
+  }
+
+  @Test
   void disabledIncomeQueriesAndRecalculationRespectWhetherSavingWasRequested() {
     productiveBranch();
     Faction home = fixture.saved("home", "Alice");
@@ -310,6 +341,7 @@ class ProvinceEconomyCoverageTest {
     source.setData(guild.getId(), new ProvinceDataEntry(guild, 10, 3));
     source.setProsperity(40);
     guild.getTradeBreakdown().setIncome(7);
+    manager.recalculateIfNeeded();
     manager.recalculate();
     manager.recalculateQuiet(null, null);
     manager.recalculateForSingleGuild(guild, false);

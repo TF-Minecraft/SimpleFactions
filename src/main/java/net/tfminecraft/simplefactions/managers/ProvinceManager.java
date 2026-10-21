@@ -48,16 +48,24 @@ public class ProvinceManager {
     private Map<Guild, Map<String, Double>> installationAccess = new HashMap<>();
     private long stateVersion = 0;
     private long lastCalculatedVersion = -1;
+    private Map<Guild, Boolean> lastCalculatedBankruptcy = Map.of();
 
     public void markDirty() {
         stateVersion++;
     }
 
     public void recalculateIfNeeded() {
-        if (stateVersion == lastCalculatedVersion) return;
+        if (!Cache.provincesEnabled) return;
+        // Realm treasury sign changes stability even when no map mutation marks us dirty.
+        Map<Guild, Boolean> bankruptcy = new HashMap<>();
+        for (Guild guild : FactionManager.getAllGuilds()) {
+            if (guild.isBase()) bankruptcy.put(guild, guild.isBankrupt());
+        }
+        if (stateVersion == lastCalculatedVersion && bankruptcy.equals(lastCalculatedBankruptcy)) return;
 
         recalculate();
         lastCalculatedVersion = stateVersion;
+        lastCalculatedBankruptcy = bankruptcy;
     }
 
     public List<Province> getProvinces() { return new ArrayList<>(provinces.values()); }

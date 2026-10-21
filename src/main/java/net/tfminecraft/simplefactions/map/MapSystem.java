@@ -85,6 +85,7 @@ public class MapSystem {
 
 	/** Cheap payloads that change continuously and ship on every cycle (main thread). */
 	public void prepareLiveFiles() {
+		SimpleFactions.getInstance().getProvinceManager().recalculateIfNeeded();
 		exportProvinces();
 		exportGuilds();
 		exportChronicle();
