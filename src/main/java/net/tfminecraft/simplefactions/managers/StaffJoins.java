@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -58,9 +59,11 @@ public final class StaffJoins {
 		guild.addMember(key);
 		realm.updatePrestige();
 		Members.online(key).ifPresent(joiner -> joiner.sendMessage("§aStaff added you to the guild " + guild.getName()));
+		// The whole realm hears of it, as with an accepted invite.
+		List<String> realmMembers = realm.getMembers();
 		for (Player online : Bukkit.getOnlinePlayers()) {
 			String member = Members.key(online);
-			if (member != null && !member.equals(key) && guild.isMember(member)) {
+			if (member != null && !member.equals(key) && realmMembers.contains(member)) {
 				online.sendMessage("§a" + Members.display(key) + " joined the guild " + guild.getName() + "§a!");
 			}
 		}

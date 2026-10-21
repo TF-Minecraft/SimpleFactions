@@ -143,9 +143,11 @@ class StaffJoinsTest {
 		when(base.getFaction()).thenReturn(realm);
 		when(base.isBase()).thenReturn(true);
 		factions.when(() -> FactionManager.getGuildByMember("Bob")).thenReturn(base);
-		when(guild.isMember("Carl")).thenReturn(true);
+		// Carl is in the realm's base guild, not in Merchants, and still hears of it.
+		when(realm.getMembers()).thenReturn(List.of("Bob", "Carl"));
 		assertEquals("§aAdded Bob §ato Merchants", StaffJoins.guild(guild, "Bob"));
 		verify(carl).sendMessage("§aBob joined the guild Merchants§a!");
+		verify(bob, never()).sendMessage("§aBob joined the guild Merchants§a!");
 		verify(stranger, never()).sendMessage(anyString());
 	}
 
