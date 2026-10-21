@@ -9,8 +9,10 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.HeldRealms;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.mercenary.MercenaryResult;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanies;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
@@ -69,6 +71,12 @@ public final class StaffJoins {
 	public static String company(MercenaryCompany company, String input) {
 		String key = living(input);
 		if (key == null) return noMatch(input);
+		// The service words these two refusals for the joining player, so staff get their own.
+		if (!MercenaryEligibility.canJoin(key)) {
+			return "§c" + Members.display(key) + " §cdoes not have the mercenary trait, so cannot enlist";
+		}
+		MercenaryCompany current = MercenaryCompanies.findByMember(key);
+		if (current != null) return "§c" + Members.display(key) + " §calready serves in " + current.getName();
 		MercenaryResult result = MercenaryCompanyService.join(company, key);
 		if (!result.ok()) return "§cCannot enlist " + Members.display(key) + ": " + result.message();
 		Members.online(key).ifPresent(joiner -> joiner.sendMessage("§aStaff enlisted you in " + company.getName() + "."));

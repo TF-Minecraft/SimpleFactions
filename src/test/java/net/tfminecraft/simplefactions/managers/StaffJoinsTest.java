@@ -27,8 +27,10 @@ import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.HeldRealms;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.mercenary.MercenaryResult;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanies;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
+import net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
@@ -71,6 +73,7 @@ class StaffJoinsTest {
 
 	@AfterEach
 	void tearDown() {
+		MercenaryEligibility.reset();
 		bukkit.close();
 		factions.close();
 		members.close();
@@ -148,11 +151,19 @@ class StaffJoinsTest {
 
 	@Test
 	void companyJoinsUseTheCompanyRules() {
-		try (var service = mockStatic(MercenaryCompanyService.class)) {
+		try (var service = mockStatic(MercenaryCompanyService.class); var companies = mockStatic(MercenaryCompanies.class)) {
 			MercenaryCompany company = mock(MercenaryCompany.class);
 			when(company.getName()).thenReturn("Black Lances");
 			when(company.getLeader()).thenReturn("Carl");
 			assertEquals(StaffJoins.noMatch("Nobody"), StaffJoins.company(company, "Nobody"));
+			MercenaryEligibility.setProbe(member -> MercenaryEligibility.Status.INELIGIBLE);
+			assertEquals("§cBob §cdoes not have the mercenary trait, so cannot enlist", StaffJoins.company(company, "Bob"));
+			MercenaryEligibility.setProbe(MercenaryEligibility.Probe.OPEN);
+			MercenaryCompany other = mock(MercenaryCompany.class);
+			when(other.getName()).thenReturn("Red Hand");
+			companies.when(() -> MercenaryCompanies.findByMember("Bob")).thenReturn(other);
+			assertEquals("§cBob §calready serves in Red Hand", StaffJoins.company(company, "Bob"));
+			companies.when(() -> MercenaryCompanies.findByMember("Bob")).thenReturn(null);
 			service.when(() -> MercenaryCompanyService.join(company, "Bob"))
 					.thenReturn(MercenaryResult.deny("Every slot is already filled."));
 			assertEquals("§cCannot enlist Bob: Every slot is already filled.", StaffJoins.company(company, "Bob"));
