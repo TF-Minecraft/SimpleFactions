@@ -87,6 +87,60 @@ class ProvinceManagerHubTransportTest {
     }
 
     @Test
+    void losingCapitalClearsTradeAndProductionOnSingleGuildRecalculation() {
+        recalculate();
+        assertTrue(trade(1) > 0);
+        assertTrue(production(1) > 0);
+        when(guild.hasCapital()).thenReturn(false);
+        when(guild.getCapital()).thenReturn(-1);
+
+        recalculate();
+
+        assertEquals(0, trade(1));
+        assertEquals(0, production(1));
+        assertTrue(provinces.get(1).getAllData().isEmpty());
+    }
+
+    @Test
+    void losingCapitalClearsTradeAndProductionOnQuietRecalculation() {
+        recalculate();
+        assertTrue(trade(1) > 0);
+        when(guild.hasCapital()).thenReturn(false);
+        when(guild.getCapital()).thenReturn(-1);
+
+        var breakdown = new net.tfminecraft.simplefactions.guild.income.TradeBreakdown();
+        breakdown.setIncome(50);
+        when(guild.getTradeBreakdown()).thenReturn(breakdown);
+        provinces.recalculateQuiet(List.of(guild), List.of(guild.getFaction()));
+
+        assertEquals(0, trade(1));
+        assertEquals(0, production(1));
+        assertEquals(50, breakdown.getIncome());
+    }
+
+    @Test
+    void losingCapitalClearsTradeAndProductionOnFullRecalculation() {
+        recalculate();
+        assertTrue(trade(1) > 0);
+        when(guild.hasCapital()).thenReturn(false);
+        when(guild.getCapital()).thenReturn(-1);
+        var breakdown = new net.tfminecraft.simplefactions.guild.income.TradeBreakdown();
+        breakdown.setTradePower(20);
+        breakdown.setIncome(50);
+        when(guild.getTradeBreakdown()).thenReturn(breakdown);
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            factions.when(() -> FactionManager.getGuildByString("guild")).thenReturn(guild);
+            factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+            provinces.recalculate();
+        }
+
+        assertEquals(0, trade(1));
+        assertEquals(0, production(1));
+        assertEquals(0, breakdown.getTradePower());
+        assertEquals(0, breakdown.getIncome());
+    }
+
+    @Test
     void snapshotRecalculationKeepsGraphTrade() {
         connect(1, 22);
         recalculate();

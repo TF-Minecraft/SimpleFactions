@@ -121,7 +121,6 @@ public class ProvinceManager {
             TradeGraph.refreshIfLive(this);
             dropMissingGuilds();
             for(Guild g : FactionManager.getAllGuilds()) {
-                if (!g.hasCapital()) continue;
                 recalculateGuild(g);
             }
             for(Guild g : FactionManager.getAllGuilds()) {
@@ -151,7 +150,7 @@ public class ProvinceManager {
             TradeGraph.refreshIfLive(this);
             dropExcept(previewGuilds);
             for (Guild guild : previewGuilds) {
-                if (guild != null && guild.hasCapital()) {
+                if (guild != null) {
                     recalculateGuild(guild);
                 }
             }
@@ -179,7 +178,6 @@ public class ProvinceManager {
         InstallationAccess.beginRecalculation();
         try {
             installationAccess = new HashMap<>();
-            if (!g.hasCapital()) return;
             TradeGraph.refreshIfLive(this);
             dropMissingGuilds();
             recalculateGuild(g);
@@ -210,7 +208,7 @@ public class ProvinceManager {
     }
 
     private void recalculateGuild(Guild guild) {
-        // 1) Clear only this guild’s data
+        // Clear former trade and production even when the guild has lost its capital.
         clearGuildData(guild.getId());
 
         // 2) Recalculate trade graph
