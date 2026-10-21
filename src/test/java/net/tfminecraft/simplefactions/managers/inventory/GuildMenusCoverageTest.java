@@ -869,8 +869,7 @@ class GuildMenusCoverageTest {
     assertNotNull(inventory.getItem(17));
     assertNotNull(inventory.getItem(8));
     assertNotNull(inventory.getItem(19));
-    verify(fixture.provinces).recalculateUnlessRecent();
-    verify(fixture.provinces, never()).recalculate();
+    verify(fixture.provinces).recalculate();
     verify(fixture.provinces).getIncome(display);
     verify(fixture.provinces).recalculateIfNeeded();
     previewTasks.verify(
@@ -881,6 +880,9 @@ class GuildMenusCoverageTest {
         () ->
             BranchIncomePreviewService.schedule(
                 fixture.player, inventory, 38, prepared, display, display.getBranch(0), -1));
+    // A guild that still earns no trade recalculates on every open, however soon it reopens.
+    view.guildView(fixture.player, display, inventory);
+    verify(fixture.provinces, times(2)).recalculate();
     display.setLeader("Other");
     display.kick("Leader");
     display.setCapital(-1);
