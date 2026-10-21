@@ -447,6 +447,20 @@ class MercenaryCommandsCoverageTest {
   }
 
   @Test
+  void staffEnlistACharacterNamedAfterTheCompany() {
+    when(captain.hasPermission(Permissions.Permission_Admin)).thenReturn(true);
+    try (MockedStatic<StaffJoins> joins = mockStatic(StaffJoins.class)) {
+      joins.when(() -> StaffJoins.company(company, "Big Bob")).thenReturn("enlisted");
+      run(captain, "admin", "add", guild.getId());
+      verify(captain).sendMessage("§cUsage: §e/company admin add <company> <character>");
+      run(captain, "admin", "add", "missing", "Bob");
+      verify(captain).sendMessage("§cNo company by that name.");
+      run(captain, "admin", "ADD", guild.getId(), "Big", "Bob");
+      verify(captain).sendMessage("enlisted");
+    }
+  }
+
+  @Test
   void marketCommandOpensTheHallListsAvailabilityAndChecksCompanyLookup() {
     when(command.getName()).thenReturn("mercenaries");
     run(customer);

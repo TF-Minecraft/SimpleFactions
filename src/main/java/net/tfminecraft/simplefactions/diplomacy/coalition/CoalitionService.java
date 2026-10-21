@@ -273,6 +273,22 @@ public final class CoalitionService {
 		if (!coalition.isInvited(joiner.getId(), CoalitionRegistry.now())) {
 			return Result.fail("§cYou have not been invited to that coalition.");
 		}
+		String block = admit(joiner, coalition);
+		return block != null ? Result.fail(block) : Result.ok("§aYou joined the " + displayName(coalition) + " §acoalition.");
+	}
+
+	/** Staff add a faction as if it had accepted an invite; every other joining rule applies. */
+	public static Result adminAdd(Coalition coalition, Faction joiner) {
+		if (!CoalitionSettings.enabled) return Result.fail(DISABLED);
+		if (joiner == null) return Result.fail(NO_FACTION);
+		String block = admit(joiner, coalition);
+		if (block != null) return Result.fail(block);
+		notifyFaction(joiner, "§aStaff added you to the " + displayName(coalition) + " §acoalition.");
+		return Result.ok("§aAdded " + joiner.getName() + " §ato the " + displayName(coalition) + " §acoalition.");
+	}
+
+	/** Adds the faction once the join rules allow it; returns why not otherwise. */
+	private static String admit(Faction joiner, Coalition coalition) {
 		String block = membershipBlock(joiner);
 		Faction target = target(coalition);
 		if (block == null && (target == null || targetLost(coalition))) block = "§cThat coalition has lost its target.";
@@ -292,12 +308,12 @@ public final class CoalitionService {
 			}
 		}
 		if (block == null) block = capacityBlock(joiner, false);
-		if (block != null) return Result.fail(block);
+		if (block != null) return block;
 		notifyMembers(coalition, "§a" + joiner.getName() + " §ajoined the " + displayName(coalition) + " §acoalition.");
 		coalition.addMember(joiner.getId(), CoalitionRegistry.now());
 		coalition.setSingleMemberSince(null);
 		CoalitionRegistry.save();
-		return Result.ok("§aYou joined the " + displayName(coalition) + " §acoalition.");
+		return null;
 	}
 
 	public static Result leave(Faction member) {

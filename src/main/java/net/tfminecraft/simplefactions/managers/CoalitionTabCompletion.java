@@ -31,7 +31,7 @@ public class CoalitionTabCompletion implements TabCompleter {
 			String action = args[1].toLowerCase(Locale.ROOT);
 			if (action.equals("cost")) return prefix(args[args.length - 1], factionIds());
 			if (action.equals("offensive") && args.length == 3) return prefix(args[2], List.of("on", "off"));
-			if ((action.equals("kick") || action.equals("setleader")) && args.length == 3) {
+			if ((action.equals("add") || action.equals("kick") || action.equals("setleader")) && args.length == 3) {
 				return prefix(args[2], factionIds());
 			}
 			return args.length <= 4 ? prefix(args[args.length - 1], coalitionNames()) : List.of();

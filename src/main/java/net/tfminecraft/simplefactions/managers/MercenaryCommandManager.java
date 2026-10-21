@@ -219,8 +219,18 @@ public final class MercenaryCommandManager implements CommandExecutor {
             p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
             return;
         }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("add")) {
+            if (args.length < 4) {
+                p.sendMessage("§cUsage: §e/company admin add <company> <character>");
+                return;
+            }
+            MercenaryCompany company = resolveCompany(args[2]);
+            p.sendMessage(company == null ? "§cNo company by that name."
+                    : StaffJoins.company(company, String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length))));
+            return;
+        }
         if (args.length < 3) {
-            p.sendMessage("§cUsage: §e/company admin give|take <company> [amount]");
+            p.sendMessage("§cUsage: §e/company admin give|take|add <company> [amount|character]");
             return;
         }
         boolean give;

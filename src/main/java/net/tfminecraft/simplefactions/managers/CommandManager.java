@@ -547,6 +547,14 @@ public class CommandManager implements Listener, CommandExecutor{
 				}
 				AdminLandService.forceRemoveCapital(g).forEach(p::sendMessage);
 				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("forcejoin") && args.length >= 3) {
+				if(!Permissions.isAdmin(sender)) {
+					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
+					return true;
+				}
+				Guild g = FactionManager.getGuildByString(args[1]);
+				p.sendMessage(g == null ? "§cNo guild by the id "+args[1] : StaffJoins.guild(g, rest(args, 2)));
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("forceleader") && args.length >= 3) {
 				if(!Permissions.isAdmin(sender)) {
 					p.sendMessage("§a[SimpleFactions]§c You do not have access to this command");

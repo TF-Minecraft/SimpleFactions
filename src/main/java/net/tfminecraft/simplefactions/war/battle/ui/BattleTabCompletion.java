@@ -55,6 +55,7 @@ public class BattleTabCompletion implements TabCompleter{
                 completions.add("toggleopen");
                 completions.add("leave");
                 completions.add("retreat");
+                if(BattlePermissions.isAdmin(sender)) completions.add("forcejoin");
                 return completions;
             }
         } else if(cmd.getName().equalsIgnoreCase("warband") && args.length == 2 && args[0].equalsIgnoreCase("create")){
@@ -84,6 +85,16 @@ public class BattleTabCompletion implements TabCompleter{
                         band, faction, player, CampaignClock.now()) == null) ids.add(band.getId());
             }
             return ids;
+        } else if(cmd.getName().equalsIgnoreCase("warband") && args.length >= 2 && args[0].equalsIgnoreCase("forcejoin")) {
+            if(!BattlePermissions.isAdmin(sender)) return List.of();
+            if(args.length == 2) return WarbandManager.get().stream().map(Warband::getId).toList();
+            List<String> names = new ArrayList<>();
+            for(Player online : Bukkit.getOnlinePlayers()) {
+                if(Members.key(online) != null && WarbandManager.getByMemberId(online.getUniqueId()) == null) {
+                    names.add(Members.name(online));
+                }
+            }
+            return Members.completions(names, java.util.Arrays.copyOfRange(args, 1, args.length));
         } else if(cmd.getName().equalsIgnoreCase("warband") && args.length == 2 && args[0].equalsIgnoreCase("invite")){
             if(sender instanceof Player){
             	List<String> completions = new ArrayList<String>();

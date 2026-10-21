@@ -135,6 +135,16 @@ public class BattleCommandManager implements CommandExecutor{
 				BattlePersistenceService.deleteWarband(w);
 				p.sendMessage("§aWarband "+w.getId()+" §adeleted!");
 				return true;
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("forcejoin") && args.length >= 3) {
+				if(!BattlePermissions.isAdmin(sender)) {
+					p.sendMessage("§a[Battle]§4You do not have access to this command");
+					return true;
+				}
+				Warband w = WarbandManager.getByString(args[1]);
+				p.sendMessage(w == null ? "§cWarband not found"
+						: net.tfminecraft.simplefactions.managers.StaffJoins.warband(w,
+								String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length))));
+				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("toggleopen") && args.length == 1) {
 				Warband w = WarbandManager.getByLeader(p);
 				if(w == null) {

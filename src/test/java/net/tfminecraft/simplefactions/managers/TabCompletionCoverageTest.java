@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.managers.inventory.CharacterKeyFixture;
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 import net.tfminecraft.simplefactions.espionage.EspionageConfig;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationConstruction;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
@@ -95,7 +96,7 @@ class TabCompletionCoverageTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"guild", "unrelated"})
+  @ValueSource(strings = {"unrelated"})
   void factionForceJoinSuggestionsAreNotReturnedForOtherCommands(String command) {
     admin();
     assertTrue(complete(command, "forcejoin", "").isEmpty());
@@ -339,7 +340,7 @@ class TabCompletionCoverageTest {
     factions
         .when(FactionManager::getAllGuilds)
         .thenReturn(Arrays.asList(null, mock(Guild.class), guild, unnamed));
-    assertEquals(List.of("give", "take"), complete("company", "admin", ""));
+    assertEquals(List.of("give", "take", "add"), complete("company", "admin", ""));
     assertEquals(
         List.of("merchants", "unnamed"),
         complete("company", "admin", "give", ""));
@@ -962,6 +963,44 @@ class TabCompletionCoverageTest {
     assertEquals(List.of("merchants"), complete("guild", "forceleader", ""));
     assertEquals(List.of("Alice"), complete("guild", "forceleader", "merchants", "a"));
     assertEquals(List.of(), complete("guild", "forceleader", "missing", ""));
+  }
+
+  @Test
+  void guildForceJoinSuggestsNonBaseGuildsThenOnlineCharactersOutsideIt() {
+    Guild base = mock(Guild.class);
+    when(base.getId()).thenReturn("mainguild");
+    when(base.isBase()).thenReturn(true);
+    factions.when(FactionManager::getAllGuilds).thenReturn(Arrays.asList(guild, null, base));
+    factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(guild);
+    Player alice = gui.player("Alice"), bob = gui.player("Bob"), nobody = gui.player("Nobody");
+    when(Bukkit.getOnlinePlayers()).thenAnswer(call -> List.of(alice, bob, nobody));
+    CharacterKeyFixture keys = CharacterKeyFixture.install();
+    keys.play(alice, "Alice Smith");
+    keys.play(bob, "Bob Smith");
+    when(guild.isMember(Members.key(alice))).thenReturn(true);
+    assertFalse(complete("guild").contains("forcejoin"));
+    admin();
+    assertTrue(complete("guild").contains("forcejoin"));
+    assertEquals(List.of("merchants"), complete("guild", "forcejoin", "M"));
+    assertEquals(List.of("Bob Smith"), complete("guild", "forcejoin", "merchants", ""));
+    assertEquals(List.of("Smith"), complete("guild", "forcejoin", "merchants", "Bob", ""));
+    assertEquals(List.of(), complete("guild", "forcejoin", "missing", ""));
+  }
+
+  @Test
+  void companyAdminAddSuggestsCompaniesThenOnlineCharacters() {
+    admin();
+    MercenaryCompany company = mock(MercenaryCompany.class);
+    when(company.getName()).thenReturn("Lances");
+    when(guild.getCompany()).thenReturn(company);
+    factions.when(FactionManager::getAllGuilds).thenReturn(Arrays.asList(guild));
+    Player alice = gui.player("Alice"), nobody = gui.player("Nobody");
+    when(Bukkit.getOnlinePlayers()).thenAnswer(call -> List.of(alice, nobody));
+    CharacterKeyFixture.install().play(alice, "Alice Smith");
+    assertEquals(List.of("add"), complete("company", "admin", "a"));
+    assertEquals(List.of("Lances", "merchants"), complete("company", "admin", "add", ""));
+    assertEquals(List.of("Alice Smith"), complete("company", "admin", "add", "Lances", "al"));
+    assertEquals(List.of("Smith"), complete("company", "admin", "add", "Lances", "Alice", "S"));
   }
 
   private Faction realm(String id, String name) {
