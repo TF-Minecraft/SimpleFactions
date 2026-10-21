@@ -302,6 +302,10 @@ class MercenarySettlementTest {
 			when(faction.getOrCreateMainGuild()).thenReturn(guild);
 			GuildHandler handler = mock(GuildHandler.class);
 			when(handler.getGuilds()).thenReturn(new ArrayList<>(List.of(guild)));
+			when(handler.findGuild(org.mockito.ArgumentMatchers.any())).thenAnswer(call -> {
+				String id = call.getArgument(0);
+				return guildId.equalsIgnoreCase(id) ? guild : null;
+			});
 			when(faction.getGuildHandler()).thenReturn(handler);
 
 			when(guild.getId()).thenReturn(guildId);

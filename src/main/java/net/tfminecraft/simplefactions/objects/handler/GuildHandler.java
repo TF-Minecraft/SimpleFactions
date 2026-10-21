@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bukkit.Bukkit;
+
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -21,6 +23,23 @@ public class GuildHandler {
 
     public List<Guild> getGuilds() {
         return new ArrayList<>(guilds.values());
+    }
+
+    /**
+     * The first guild in {@link #getGuilds()} order whose id matches, ignoring case. The server
+     * thread reads the map directly; async previews reach this too, so they read a copy, as
+     * before, and a guild created or removed meanwhile cannot break their iteration.
+     */
+    public Guild findGuild(String id) {
+        Iterable<Guild> each = onServerThread() ? guilds.values() : getGuilds();
+        for (Guild guild : each) {
+            if (guild.getId().equalsIgnoreCase(id)) return guild;
+        }
+        return null;
+    }
+
+    private static boolean onServerThread() {
+        return Bukkit.getServer() != null && Bukkit.isPrimaryThread();
     }
 
     public List<Guild> getReleasableGuilds() {

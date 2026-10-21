@@ -26,7 +26,7 @@ public final class StateStability {
 		facts.government = law(faction, "government", "autocracy");
 		facts.electedLeadership = "elected".equalsIgnoreCase(law(faction, "leadership", "fixed"));
 		facts.provinces = faction.getProvinces() == null ? 0 : faction.getProvinces().size();
-		facts.bankrupt = faction.getOrCreateMainGuild() != null && faction.getOrCreateMainGuild().isBankrupt();
+		facts.bankrupt = faction.getOrCreateMainGuild() != null && BankruptcyMemo.isBankrupt(faction.getOrCreateMainGuild());
 		if (faction.getGovernment() != null && faction.getGovernment().getStabilityModifiers() != null) {
 			faction.getGovernment().getStabilityModifiers().forEach(modifier -> {
 				if (modifier != null) {
