@@ -217,7 +217,7 @@ class CoalitionCommandTest extends CoalitionTestBase {
 		Coalition league = league();
 
 		run(staff, "admin");
-		verify(staff).sendMessage("§cUsage: /coalition admin <disband|offensive|kick|setleader|cost>");
+		verify(staff).sendMessage("§cUsage: /coalition admin <disband|offensive|add|kick|setleader|cost>");
 		run(staff, "admin", "offensive", "maybe", "Grand League");
 		verify(staff).sendMessage("§cUsage: /coalition admin offensive <on|off> <coalition>");
 		run(staff, "admin", "offensive", "on");
@@ -234,6 +234,9 @@ class CoalitionCommandTest extends CoalitionTestBase {
 		assertFalse(league.isMember("bog"));
 		run(staff, "admin", "setleader", "fig", "Grand League");
 		assertTrue(league.isLeader("fig"));
+		run(staff, "admin", "add", "bog", "Grand League");
+		assertTrue(league.isMember("bog"));
+		verify(staff).sendMessage("§aAdded bog §ato the Grand League §acoalition.");
 
 		run(staff, "admin", "disband");
 		verify(staff).sendMessage("§cUsage: /coalition admin disband <coalition>");
@@ -276,6 +279,7 @@ class CoalitionCommandTest extends CoalitionTestBase {
 		assertTrue(tabs.onTabComplete(tom, command, "coalition", new String[] {"invite", "bog", ""}).isEmpty());
 		assertTrue(tabs.onTabComplete(tom, command, "coalition", new String[] {"admin", ""}).isEmpty());
 		assertEquals(List.of("cost"), tabs.onTabComplete(staff, command, "coalition", new String[] {"admin", "co"}));
+		assertEquals(List.of("fig"), tabs.onTabComplete(staff, command, "coalition", new String[] {"admin", "add", "f"}));
 		assertEquals(List.of("fig"), tabs.onTabComplete(staff, command, "coalition", new String[] {"admin", "cost", "bog", "f"}));
 		assertEquals(List.of("on", "off"), tabs.onTabComplete(staff, command, "coalition", new String[] {"admin", "offensive", ""}));
 		assertEquals(List.of("Grand League"), tabs.onTabComplete(staff, command, "coalition", new String[] {"admin", "offensive", "on", "G"}));

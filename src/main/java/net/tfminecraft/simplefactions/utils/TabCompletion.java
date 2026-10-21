@@ -69,10 +69,11 @@ public class TabCompletion implements TabCompleter{
 		if(args.length == 2 && args[0].equalsIgnoreCase("admin") && Permissions.isAdmin(p)) {
 			completions.add("give");
 			completions.add("take");
+			completions.add("add");
 			return filtered(completions, args[1]);
 		}
 		if(args.length == 3 && args[0].equalsIgnoreCase("admin") && Permissions.isAdmin(p)
-				&& (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take"))) {
+				&& (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("add"))) {
 			for(Guild g : FactionManager.getAllGuilds()) {
 				if(g == null || g.getCompany() == null) continue;
 				if(g.getCompany().getName() != null && !g.getCompany().getName().contains(" ")) {
@@ -81,6 +82,9 @@ public class TabCompletion implements TabCompleter{
 				completions.add(g.getId());
 			}
 			return filtered(completions, args[2]);
+		}
+		if(args.length >= 4 && args[0].equalsIgnoreCase("admin") && args[1].equalsIgnoreCase("add") && Permissions.isAdmin(p)) {
+			return Members.completions(onlineCharacters(), java.util.Arrays.copyOfRange(args, 2, args.length));
 		}
 		if(args.length == 4 && args[0].equalsIgnoreCase("admin") && Permissions.isAdmin(p)) {
 
@@ -131,6 +135,16 @@ public class TabCompletion implements TabCompleter{
 	}
 
 	/** Drops the subcommand, so a member name that starts at the third word completes like one at the second. */
+	/** Names of the characters being played right now. */
+	static List<String> onlineCharacters() {
+		List<String> names = new ArrayList<>();
+		for(Player online : Bukkit.getOnlinePlayers()) {
+			String key = Members.key(online);
+			if(key != null) names.add(Members.display(key));
+		}
+		return names;
+	}
+
 	private static String[] afterFirst(String[] args) {
 		return java.util.Arrays.copyOfRange(args, 1, args.length);
 	}
@@ -276,6 +290,7 @@ public class TabCompletion implements TabCompleter{
 					completions.add("dummify");
 					completions.add("dummyleader");
 					completions.add("forceleader");
+					completions.add("forcejoin");
 					if(Cache.provincesEnabled) completions.add("forceremovecapital");
 				}
 				return completions;
@@ -649,6 +664,21 @@ public class TabCompletion implements TabCompleter{
 				List<String> completions = new ArrayList<String>();
 				for(Guild g : FactionManager.getAllGuilds()) {
 					if(g != null && !g.isBase() && g.hasCapital() && g.getId().toLowerCase().startsWith(args[1].toLowerCase())) completions.add(g.getId());
+				}
+				return completions;
+			} else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 2 && args[0].equalsIgnoreCase("forcejoin")){
+				if(args.length > 2) {
+					Guild g = FactionManager.getGuildByString(args[1]);
+					List<String> names = new ArrayList<String>();
+					for(Player online : Bukkit.getOnlinePlayers()) {
+						String key = Members.key(online);
+						if(g != null && key != null && !g.isMember(key)) names.add(Members.display(key));
+					}
+					return Members.completions(names, afterFirst(args));
+				}
+				List<String> completions = new ArrayList<String>();
+				for(Guild g : FactionManager.getAllGuilds()) {
+					if(g != null && !g.isBase() && g.getId().toLowerCase().startsWith(args[1].toLowerCase())) completions.add(g.getId());
 				}
 				return completions;
 			} else if(cmd.getName().equalsIgnoreCase("guild") && args.length == 2 && args[0].equalsIgnoreCase("forceleader")){

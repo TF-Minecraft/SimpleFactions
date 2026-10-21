@@ -333,6 +333,24 @@ class CoalitionServiceTest extends CoalitionTestBase {
 	}
 
 	@Test
+	void staffAddWithoutAnInviteButUnderEveryOtherRule() {
+		CoalitionService.create(thalendor, "League", holy);
+		Coalition league = CoalitionService.of(thalendor);
+		assertEquals(CoalitionService.NO_FACTION, CoalitionService.adminAdd(league, null).message());
+		CoalitionSettings.enabled = false;
+		assertEquals(CoalitionService.DISABLED, CoalitionService.adminAdd(league, bog).message());
+		CoalitionSettings.enabled = true;
+		assertEquals("§cOnly independent factions can be in a coalition.", CoalitionService.adminAdd(league, sanctuary).message());
+		assertEquals("§cthalendor §cis already in a coalition.", CoalitionService.adminAdd(league, thalendor).message());
+
+		CoalitionService.Result added = CoalitionService.adminAdd(league, bog);
+		assertEquals("§aAdded bog §ato the League §acoalition.", added.message());
+		assertTrue(league.isMember("bog"));
+		assertNull(league.getSingleMemberSince());
+		verify(bea).sendMessage("§aStaff added you to the League §acoalition.");
+	}
+
+	@Test
 	void alliancesAcrossACoalitionAndItsTargetAreRefused() {
 		Coalition league = league();
 		assertNotNull(CoalitionService.allianceBlock(bog, holy));

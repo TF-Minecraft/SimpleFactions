@@ -1011,6 +1011,20 @@ class CommandManagerCoverageTest {
   }
 
   @Test
+  void forceJoinPutsACharacterInAGuildForAdminsOnly() {
+    try (MockedStatic<StaffJoins> joins = mockStatic(StaffJoins.class)) {
+      joins.when(() -> StaffJoins.guild(guild, "Big Bob")).thenReturn("joined");
+      assertTrue(run("guild", "forcejoin", "merchants", "Big", "Bob"));
+      verify(player).sendMessage(contains("do not have access"));
+      admin();
+      assertTrue(run("guild", "forcejoin", "missing", "Bob"));
+      verify(player).sendMessage("§cNo guild by the id missing");
+      assertTrue(run("guild", "forcejoin", "merchants", "Big", "Bob"));
+      verify(player).sendMessage("joined");
+    }
+  }
+
+  @Test
   void forceLeaderHandsAGuildToAnExistingMemberForAdminsOnly() {
     assertTrue(run("guild", "forceleader", "merchants", "alice"));
     verify(player).sendMessage(contains("do not have access"));

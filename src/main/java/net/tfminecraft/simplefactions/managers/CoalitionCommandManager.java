@@ -26,7 +26,7 @@ public final class CoalitionCommandManager implements CommandExecutor {
 	public static final List<String> SUBCOMMANDS = List.of(
 			"menu", "list", "create", "invite", "join", "leave", "kick", "leader", "target",
 			"setbanner", "resetbanner", "offensive", "disband");
-	public static final List<String> ADMIN_SUBCOMMANDS = List.of("disband", "offensive", "kick", "setleader", "cost");
+	public static final List<String> ADMIN_SUBCOMMANDS = List.of("disband", "offensive", "add", "kick", "setleader", "cost");
 	static final String NOT_A_LEADER = "§cOnly a faction leader can do that.";
 
 	@Override
@@ -164,7 +164,7 @@ public final class CoalitionCommandManager implements CommandExecutor {
 				sender.sendMessage("§7" + CoalitionService.displayName(coalition) + " §7is now "
 						+ (coalition.isOffensive() ? "offensive" : "defensive") + ".");
 			}
-			case "kick", "setleader" -> {
+			case "add", "kick", "setleader" -> {
 				if (args.length < 4) {
 					sender.sendMessage("§cUsage: /coalition admin " + sub + " <faction> <coalition>");
 					return;
@@ -172,12 +172,14 @@ public final class CoalitionCommandManager implements CommandExecutor {
 				Coalition coalition = coalitionArg(sender, args, 3, sub + " <faction> <coalition>");
 				if (coalition == null) return;
 				Faction faction = MercenaryCommandManager.resolveFaction(args[2]);
-				CoalitionService.Result result = sub.equals("kick")
-						? CoalitionService.adminKick(coalition, faction)
-						: CoalitionService.adminSetLeader(coalition, faction);
+				CoalitionService.Result result = switch (sub) {
+					case "add" -> CoalitionService.adminAdd(coalition, faction);
+					case "kick" -> CoalitionService.adminKick(coalition, faction);
+					default -> CoalitionService.adminSetLeader(coalition, faction);
+				};
 				sender.sendMessage(result.message());
 			}
-			default -> sender.sendMessage("§cUsage: /coalition admin <disband|offensive|kick|setleader|cost>");
+			default -> sender.sendMessage("§cUsage: /coalition admin <disband|offensive|add|kick|setleader|cost>");
 		}
 	}
 

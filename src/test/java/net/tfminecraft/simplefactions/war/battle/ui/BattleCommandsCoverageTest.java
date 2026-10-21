@@ -51,6 +51,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
+import net.tfminecraft.simplefactions.managers.StaffJoins;
 
 class BattleCommandsCoverageTest {
   private GuiTestFixture ui;
@@ -212,6 +213,35 @@ class BattleCommandsCoverageTest {
     for (String operation : List.of("edit", "delete", "addside", "addpoint", "setlives", "setspawn", "setjail", "setcontestmin", "setcontestmax", "setcontestduration", "setraidtarget", "setdefenderlives")) {
       assertEquals(List.of("front"), complete(alice, "battle", operation, ""), operation);
     }
+  }
+
+  @Test
+  void staffForceACharacterIntoAWarband() {
+    try (MockedStatic<StaffJoins> joins = mockStatic(StaffJoins.class)) {
+      Warband band = band("scouts", player("Bob"));
+      joins.when(() -> StaffJoins.warband(band, "Big Carl")).thenReturn("added");
+      assertTrue(run("warband", "forcejoin", "scouts", "Big", "Carl"));
+      verify(alice).sendMessage("§a[Battle]§4You do not have access to this command");
+      admin();
+      assertTrue(run("warband", "forcejoin", "missing", "Carl"));
+      verify(alice).sendMessage("§cWarband not found");
+      assertTrue(run("warband", "forcejoin", "scouts", "Big", "Carl"));
+      verify(alice).sendMessage("added");
+    }
+  }
+
+  @Test
+  void staffForceJoinSuggestsWarbandsThenCharactersOutsideAnyWarband() {
+    Player bob = player("Bob");
+    player("Carl");
+    band("scouts", bob);
+    assertFalse(complete(alice, "warband", "").contains("forcejoin"));
+    assertTrue(complete(alice, "warband", "forcejoin", "").isEmpty());
+    admin();
+    assertTrue(complete(alice, "warband", "").contains("forcejoin"));
+    assertEquals(List.of("scouts"), complete(alice, "warband", "forcejoin", "s"));
+    assertEquals(List.of("Carl"), complete(alice, "warband", "forcejoin", "scouts", "C"));
+    assertFalse(complete(alice, "warband", "forcejoin", "scouts", "").contains("Bob"));
   }
 
   @ParameterizedTest
