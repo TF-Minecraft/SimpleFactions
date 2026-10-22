@@ -93,6 +93,18 @@ class MapPublicationCoverageTest {
   }
 
   @Test
+  void liveExportsRefreshEconomicsBeforeReadingPayloads() {
+    doAnswer(call -> {
+      assertFalse(Files.exists(files.root.resolve("MapAPI/chronicle.json")));
+      assertFalse(Files.exists(files.root.resolve("MapAPI/province_data.json")));
+      return null;
+    }).when(fixture.provinces).recalculateIfNeeded();
+    map.prepareLiveFiles();
+    verify(fixture.provinces).recalculateIfNeeded();
+    assertTrue(Files.exists(files.root.resolve("MapAPI/chronicle.json")));
+  }
+
+  @Test
   void mutationsDuringAnUploadRemainQueuedForTheNextPublication() throws Exception {
     map.enqueue("nation", "first");
     map.enqueue("nation", "first");
