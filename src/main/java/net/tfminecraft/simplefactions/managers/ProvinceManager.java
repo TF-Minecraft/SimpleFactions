@@ -57,15 +57,16 @@ public class ProvinceManager {
     public void recalculateIfNeeded() {
         if (!Cache.provincesEnabled) return;
         // Realm treasury sign changes stability even when no map mutation marks us dirty.
+        if (stateVersion == lastCalculatedVersion && realmBankruptcy().equals(lastCalculatedBankruptcy)) return;
+        recalculate();
+    }
+
+    private Map<Guild, Boolean> realmBankruptcy() {
         Map<Guild, Boolean> bankruptcy = new HashMap<>();
         for (Guild guild : FactionManager.getAllGuilds()) {
             if (guild.isBase()) bankruptcy.put(guild, guild.isBankrupt());
         }
-        if (stateVersion == lastCalculatedVersion && bankruptcy.equals(lastCalculatedBankruptcy)) return;
-
-        recalculate();
-        lastCalculatedVersion = stateVersion;
-        lastCalculatedBankruptcy = bankruptcy;
+        return bankruptcy;
     }
 
     public List<Province> getProvinces() { return new ArrayList<>(provinces.values()); }
@@ -124,6 +125,8 @@ public class ProvinceManager {
         if (!Cache.provincesEnabled) {
             return;
         }
+        // A partial or failed flood must not leave the old full snapshot marked fresh.
+        lastCalculatedVersion = -1;
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
         try {
@@ -139,6 +142,8 @@ public class ProvinceManager {
             }
             recalculateProsperity();
             for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
+            lastCalculatedBankruptcy = realmBankruptcy();
+            lastCalculatedVersion = stateVersion;
         } finally {
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();
@@ -188,6 +193,8 @@ public class ProvinceManager {
         if (!Cache.provincesEnabled) {
             return;
         }
+        // A partial or failed flood must not leave the old full snapshot marked fresh.
+        lastCalculatedVersion = -1;
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
         try {

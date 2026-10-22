@@ -330,6 +330,52 @@ class ProvinceEconomyCoverageTest {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void recoveryAfterAnUnguardedFloodRefreshesAgain(boolean singleGuild) {
+    productiveBranch();
+    Faction home = fixture.saved("home", "Alice");
+    Guild guild = home.getOrCreateMainGuild();
+    Province source = province(1);
+    home.addProvince(1);
+    home.setCapital(1, true);
+    fixture.provincesEnabled(true);
+    try (TestTreasuries treasury = new TestTreasuries()) {
+      TestTreasuries.set(guild.getBank(), 100);
+      manager.recalculateIfNeeded();
+      TestTreasuries.set(guild.getBank(), -11.23);
+      if (singleGuild) manager.recalculateForSingleGuild(guild, true);
+      else manager.recalculate();
+      assertEquals(0, source.getStoredGuildTrade(guild));
+      TestTreasuries.set(guild.getBank(), 0);
+      manager.recalculateIfNeeded();
+      assertTrue(source.getStoredGuildTrade(guild) > 0);
+      assertTrue(guild.getTradeBreakdown().getIncome() > 0);
+    }
+  }
+
+  @Test
+  void directFullFloodAlsoUpdatesTheGuardedCache() {
+    ProvinceManager watched = spy(manager);
+    productiveBranch();
+    Faction home = fixture.saved("home", "Alice");
+    Guild guild = home.getOrCreateMainGuild();
+    Province source = province(1);
+    home.addProvince(1);
+    home.setCapital(1, true);
+    fixture.provincesEnabled(true);
+    try (TestTreasuries treasury = new TestTreasuries()) {
+      TestTreasuries.set(guild.getBank(), 100);
+      watched.recalculateIfNeeded();
+      TestTreasuries.set(guild.getBank(), -11.23);
+      watched.recalculate();
+      assertEquals(0, source.getStoredGuildTrade(guild));
+      clearInvocations(watched);
+      watched.recalculateIfNeeded();
+      verify(watched, never()).recalculate();
+    }
+  }
+
   @Test
   void disabledIncomeQueriesAndRecalculationRespectWhetherSavingWasRequested() {
     productiveBranch();
