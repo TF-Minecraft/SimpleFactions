@@ -293,8 +293,14 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				Guild g = FactionManager.getGuildByMember(Members.key(p));
+				if(g.isBase()) {
+					p.sendMessage("§cYou are in the main guild of your faction. Use /faction leave to leave the faction.");
+					return true;
+				}
+				// Leaving a guild keeps you in the faction, back in its main guild.
 				g.kick(Members.key(p));
-				p.sendMessage("§aLeft "+g.getName());
+				g.getFaction().addMember(Members.key(p));
+				p.sendMessage("§aLeft "+g.getName()+" §aand returned to the main guild of "+g.getFaction().getName());
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("kick") && args.length >= 2) {
 				Guild guild = FactionManager.getGuildByLeader(Members.key(p));
@@ -315,9 +321,12 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cYou cannot dismiss the leader!");
 					return true;
 				}
+				// A guild leader can only remove someone from the guild; they stay in the faction's main guild.
 				guild.kick(kicked);
+				guild.getFaction().addMember(kicked);
 				p.sendMessage("§aKicked "+Members.display(kicked));
-				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+guild.getName()));
+				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+guild.getName()
+						+ "§a. You are back in the main guild of "+guild.getFaction().getName()));
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("setbank") && args.length == 1) {
 				if(FactionManager.getGuildByLeader(Members.key(p)) != null) {
@@ -1070,7 +1079,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				}
 				Faction f = FactionManager.getByMember(Members.key(p));
 				if(f.isInGuild(Members.key(p))) {
-					p.sendMessage("§cYou are in a guild, use /guild leave instead");
+					p.sendMessage("§cYou are in a guild. Use /guild leave first, then /faction leave");
 					return true;
 				}
 				f.forceRemoveMember(Members.key(p));

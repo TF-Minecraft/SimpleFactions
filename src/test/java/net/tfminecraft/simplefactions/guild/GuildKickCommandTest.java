@@ -18,16 +18,20 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.managers.CommandManager;
+import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.utils.TabCompletion;
 
 class GuildKickCommandTest {
 
 	@Test
-	void leaderRemovesAMemberAndNotifiesThem() {
+	void leaderRemovesAMemberFromTheGuildButKeepsThemInTheFaction() {
 		Player leader = player("Leader");
 		Player member = player("Steve");
 		Guild guild = guild(false, "Smiths", "Leader", "Leader", "Steve");
+		Faction realm = mock(Faction.class);
+		when(realm.getName()).thenReturn("Avalon");
+		when(guild.getFaction()).thenReturn(realm);
 		Command command = guildCommand();
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
@@ -39,8 +43,9 @@ class GuildKickCommandTest {
 
 			// The typed name finds the member by character name; the stored key is what leaves.
 			verify(guild).kick("Steve");
+			verify(realm).addMember("Steve");
 			verify(leader).sendMessage("§aKicked Steve");
-			verify(member).sendMessage("§aLeader kicked you from Smiths");
+			verify(member).sendMessage("§aLeader kicked you from Smiths§a. You are back in the main guild of Avalon");
 		}
 	}
 
