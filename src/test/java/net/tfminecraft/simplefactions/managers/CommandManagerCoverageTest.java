@@ -895,14 +895,24 @@ class CommandManagerCoverageTest {
     if (name.equals("faction")) {
       when(faction.isInGuild("Leader")).thenReturn(true);
       assertTrue(run(name, "leave"));
-      verify(player).sendMessage(contains("use /guild leave"));
+      verify(player).sendMessage(contains("Use /guild leave first"));
       when(faction.isInGuild("Leader")).thenReturn(false);
+    } else {
+      when(guild.isBase()).thenReturn(true);
+      assertTrue(run(name, "leave"));
+      verify(player).sendMessage(contains("Use /faction leave"));
+      verify(guild, never()).kick("Leader");
+      when(guild.isBase()).thenReturn(false);
+      when(guild.getFaction()).thenReturn(faction);
     }
     assertTrue(run(name, "leave"));
     if (name.equals("faction")) {
       verify(faction).forceRemoveMember("Leader");
       verify(faction).updatePrestige();
-    } else verify(guild).kick("Leader");
+    } else {
+      verify(guild).kick("Leader");
+      verify(faction).addMember("Leader");
+    }
     verify(player).sendMessage(contains("Left "));
   }
 
