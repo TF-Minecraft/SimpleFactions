@@ -32,6 +32,7 @@ import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteRenderer;
+import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiTimeFormatter;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
@@ -494,8 +495,11 @@ public class CampaignView {
 		BattleVoteToggleResult result = BattleVoteService.toggleVote(
 				war, player.getUniqueId(), hour, faction, player.isOnline());
 		switch (result) {
-			case ADDED -> player.sendMessage("§aAdded " + hour + ":00 UTC to your availability.");
-			case REMOVED -> player.sendMessage("§aRemoved " + hour + ":00 UTC from your availability.");
+			// Battle hours are schedule (Europe/Paris) hours; label them the way the vote items do.
+			case ADDED -> player.sendMessage("§aAdded " + CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), hour)
+					+ "§a to your availability.");
+			case REMOVED -> player.sendMessage("§aRemoved " + CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), hour)
+					+ "§a from your availability.");
 			case REJECTED_INVALID_HOUR -> player.sendMessage("§cThat hour is not in the battle window.");
 			case REJECTED_NOT_PARTICIPANT -> player.sendMessage("§cYou are not eligible to vote in this war.");
 			case REJECTED_OFFLINE -> player.sendMessage("§cYou must be online to vote.");
