@@ -158,6 +158,10 @@ public final class StaffAdminService {
 			lines.add("§a[SimpleFactions] §cError! could not resolve province");
 			return null;
 		}
+		if (province == 0) {
+			lines.add("§cThis location has no province!");
+			return null;
+		}
 		if (!faction.ownsProvince(province)) {
 			lines.add("§c" + faction.getName() + " §cdoes not own province " + province
 					+ "§c. Give it to them with §e/faction forceclaim " + faction.getId() + " §cfirst.");
@@ -171,7 +175,8 @@ public final class StaffAdminService {
 					+ "§c. Rename it with §e/faction admin renamesettlement " + faction.getId() + " capital <name>");
 			return null;
 		}
-		if (Members.session(staff).isEmpty()) {
+		// Only a real move goes through the treasury, which needs the character making it.
+		if (faction.hasCapital() && !inCapital && Members.session(staff).isEmpty()) {
 			lines.add(NEEDS_CHARACTER);
 			return null;
 		}

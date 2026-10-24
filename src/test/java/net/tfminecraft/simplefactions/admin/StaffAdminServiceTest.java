@@ -239,6 +239,9 @@ class StaffAdminServiceTest {
 		assertNull(StaffAdminService.previewCapital(staff, faction, -2, null, lines));
 		assertEquals(List.of("§a[SimpleFactions] §cError! could not resolve province"), lines);
 		lines.clear();
+		assertNull(StaffAdminService.previewCapital(staff, faction, 0, null, lines));
+		assertEquals(List.of("§cThis location has no province!"), lines);
+		lines.clear();
 		assertNull(StaffAdminService.previewCapital(staff, faction, 9, null, lines));
 		assertEquals(List.of("§cSunsora §cdoes not own province 9§c. Give it to them with §e/faction forceclaim sunsora §cfirst."), lines);
 		lines.clear();
@@ -267,6 +270,8 @@ class StaffAdminServiceTest {
 		when(faction.hasCapital()).thenReturn(true);
 		when(faction.getCapital()).thenReturn(395);
 		when(settlements.validateFactionCapital(staff, 395, "Sunsora_Castle")).thenReturn(CapitalResult.ok("ok"));
+		// Founding in place needs no character: it does not go through the treasury.
+		members.when(() -> Members.session(staff)).thenReturn(Optional.empty());
 		StaffAdminService.CapitalMove move = StaffAdminService.previewCapital(staff, faction, 395, "Sunsora_Castle", lines);
 		assertEquals(new StaffAdminService.CapitalMove("sunsora", 395, 395, "Sunsora_Castle"), move);
 		assertEquals("§eFound " + StaffAdminService.displayName("Sunsora_Castle") + " §ein the capital of Sunsora §e(province 395)", lines.get(0));
