@@ -1952,6 +1952,7 @@ class CommandManagerCoverageTest {
   @Test
   void quarantineCommandsAreRoutedBeforeAnyPlayerCheck() {
     CommandSender console = mock(CommandSender.class);
+    when(console.hasPermission(Permissions.Permission_Admin)).thenReturn(true);
     try (MockedStatic<net.tfminecraft.simplefactions.migration.QuarantineCommands> quarantine =
         mockStatic(net.tfminecraft.simplefactions.migration.QuarantineCommands.class, CALLS_REAL_METHODS)) {
       quarantine

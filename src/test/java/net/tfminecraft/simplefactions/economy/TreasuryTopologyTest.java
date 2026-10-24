@@ -174,6 +174,15 @@ class TreasuryTopologyTest {
         assertNotNull(origin.getSettlementHandler().getByProvince(4));
         assertEquals(80,origin.getBank().getWealth());
     }
+    @Test void aStaffMoveIsFreeAndLeavesTheFreeCapitalChangeUnspent() {
+        origin.addProvince(4);
+        origin.setCapitalMoves(0);
+        assertTrue(TreasuryTopology.capital(domain.player("Alice"),origin,4,"Staff_Capital",false,0,TreasuryActions.newId(),false));
+        assertEquals(4,origin.getCapital());
+        assertNotNull(origin.getSettlementHandler().getByProvince(4));
+        assertEquals(0,origin.getCapitalMoves());
+        assertEquals(100,origin.getBank().getWealth());
+    }
     @Test void anUnregisteredGuildCannotPublishARelocationIntent() {
         origin.getGuildHandler().restoreTopology(List.of(origin.getOrCreateMainGuild()));
         assertThrows(IllegalStateException.class,()->move(TreasuryActions.newId()));

@@ -25,6 +25,12 @@ public final class TreasuryTopology {
 
     public static boolean capital(Player actor, Faction faction, int province, String name,
             boolean rename, double cost, String operationId) {
+        return capital(actor, faction, province, name, rename, cost, operationId, true);
+    }
+
+    /** {@code countMove} false leaves the faction's free capital change unspent, for staff moves. */
+    public static boolean capital(Player actor, Faction faction, int province, String name,
+            boolean rename, double cost, String operationId, boolean countMove) {
         Boolean prior = TreasuryActions.resume(operationId, actor);
         if (prior != null) return prior;
         var result = rename ? faction.getSettlementHandler().rename(province, name, true)
@@ -41,7 +47,7 @@ public final class TreasuryTopology {
             depart(after, state, old);
             revalidate(after, faction);
         }
-        state.addProperty("capital moves", faction.getCapitalMoves() + 1);
+        state.addProperty("capital moves", faction.getCapitalMoves() + (countMove ? 1 : 0));
         return commit(actor, SettlementGuilds.capital(faction), cost, operationId, "Capital change", before, after);
     }
 

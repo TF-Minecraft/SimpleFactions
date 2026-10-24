@@ -214,6 +214,7 @@ class TabCompletionCoverageTest {
                 "rename",
                 "setbanner",
                 "setcolour",
+                "admin",
                 "dummify",
                 "dummyleader")));
     assertFalse(leader.contains("setcapital"));

@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.admin.StaffAdminCommand;
 import net.tfminecraft.simplefactions.map.AdminLandService;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.economy.TreasuryActions;
@@ -85,8 +86,9 @@ public class CommandManager implements Listener, CommandExecutor{
             return net.tfminecraft.simplefactions.guild.network.TradeGraphCommand.handle(sender, args);
         if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("reloadespionage"))
             return EspionageCommands.reload(sender, args);
-		if(cmd.getName().equalsIgnoreCase(cmd1) && net.tfminecraft.simplefactions.migration.QuarantineCommands.matches(args)) {
-			return net.tfminecraft.simplefactions.migration.QuarantineCommands.handle(sender, args);
+		// Staff fixes (and the quarantine) also work from the console.
+		if(StaffAdminCommand.matches(cmd.getName(), args)) {
+			return StaffAdminCommand.handle(sender, cmd.getName(), args);
 		}
 		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("addguildbank")) {
 			return addGuildBank(sender, args);
