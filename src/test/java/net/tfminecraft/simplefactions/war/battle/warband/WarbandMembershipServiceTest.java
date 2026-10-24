@@ -196,6 +196,34 @@ class WarbandMembershipServiceTest {
 		assertEquals("The Brume Host", shell.getName());
 	}
 
+	@Test
+	void aCharacterWhoLeftTheirFactionLeavesItsWarHostButNotOtherWarbands() throws Exception {
+		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+		CharacterRef ref = warband.getMemberCharacter(memberId).orElseThrow();
+		try (var battles = mockStatic(
+				net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService.class)) {
+			assertFalse(service.removeFromFactionWarband(ref));
+			markAsFaction(warband);
+			assertFalse(service.removeFromFactionWarband(new CharacterRef(memberId, UUID.randomUUID())));
+			assertFalse(service.removeFromFactionWarband(new CharacterRef(UUID.randomUUID(), UUID.randomUUID())));
+			assertTrue(service.removeFromFactionWarband(ref));
+			battles.verify(() -> net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService
+					.processLeave(memberId, null, warband, true));
+			battles.verifyNoMoreInteractions();
+		}
+	}
+
+	@Test
+	void aPlaceKeptAfterQuittingIsDroppedOnlyForThatCharacter() {
+		Warband warband = createOpenWarband("alpha", leaderId, memberId);
+		CharacterRef ref = warband.getMemberCharacter(memberId).orElseThrow();
+		service.handleQuit(member);
+		assertFalse(service.removeFromFactionWarband(new CharacterRef(memberId, UUID.randomUUID())));
+		assertNotNull(service.getPendingRejoin(memberId));
+		assertFalse(service.removeFromFactionWarband(ref));
+		assertNull(service.getPendingRejoin(memberId));
+	}
+
 	private Warband createOpenWarband(String id, UUID leader, UUID member) {
 		Warband warband = Warband.createWithMemberIds(id, leader, false, member);
 		warband.addMember(member, Members.session(this.member).orElseThrow().ref());

@@ -9,6 +9,7 @@ import org.bukkit.inventory.ItemStack;
 import net.tfminecraft.simplefactions.economy.TreasuryActions;
 import net.tfminecraft.simplefactions.economy.TreasuryTopology;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.MemberDepartures;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Bank;
@@ -273,8 +274,7 @@ public final class StaffAdminService {
 						+ "§c. Replace them with §e/guild forceleader §cor delete the guild first.");
 			}
 		}
-		faction.forceRemoveMember(key);
-		faction.updatePrestige();
+		MemberDepartures.leaveRealm(faction, key);
 		Members.online(key).ifPresent(kicked -> kicked.sendMessage("§cStaff removed you from " + faction.getName()));
 		return List.of("§aRemoved " + Members.display(key) + " §afrom " + faction.getName());
 	}
@@ -339,8 +339,7 @@ public final class StaffAdminService {
 			return List.of("§c" + Members.display(key) + " §cleads " + guild.getName()
 					+ "§c. Replace them with §e/guild forceleader §cfirst.");
 		}
-		guild.kick(key);
-		guild.getFaction().addMember(key);
+		MemberDepartures.leaveGuild(guild, key);
 		Members.online(key).ifPresent(kicked -> kicked.sendMessage("§cStaff removed you from " + guild.getName()
 				+ "§c. You are back in the main guild of " + guild.getFaction().getName()));
 		return List.of("§aMoved " + Members.display(key) + " §afrom " + guild.getName() + " §ato the main guild of "

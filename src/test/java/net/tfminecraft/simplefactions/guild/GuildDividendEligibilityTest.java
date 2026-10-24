@@ -51,6 +51,21 @@ class GuildDividendEligibilityTest {
 		}
 	}
 
+	@Test
+	void aDepartedMemberKeepsNoInviteDividendPlaceOrLeadershipOffer() throws Exception {
+		Guild guild = emptyGuild();
+		set(guild, "invites", new ArrayList<>(List.of("Bob", "Ann")));
+		set(guild, "dividendEligible", new ArrayList<>(List.of("Bob", "Ann")));
+		guild.offerLeadership("Bob");
+		guild.forgetDeparted("Bob");
+		assertEquals(List.of("Ann"), guild.getInvites());
+		assertEquals(List.of("Ann"), guild.getDividendEligibleSnapshot());
+		assertEquals(null, guild.getLeaderOffer());
+		guild.offerLeadership("Ann");
+		guild.forgetDeparted("Bob");
+		assertEquals("Ann", guild.getLeaderOffer());
+	}
+
 	private static Guild emptyGuild() throws Exception {
 		Guild guild = mock(Guild.class, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
 		set(guild, "members", new ArrayList<String>());

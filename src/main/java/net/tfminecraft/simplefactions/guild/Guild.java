@@ -497,11 +497,15 @@ public class Guild {
     /** The death journal has already captured any money owed before this removal. */
     public void removeDeadCharacter(String key) {
         members.removeIf(key::equals);
+        forgetDeparted(key);
+        if (key.equals(leader)) leader = "";
+        if (company != null) company.removeDeadCharacter(key);
+    }
+    /** Someone who left this guild keeps no invite, dividend place or leadership offer in it. */
+    public void forgetDeparted(String key) {
         invites.removeIf(key::equals);
         dividendEligible.removeIf(key::equals);
-        if (key.equals(leader)) leader = "";
         if (key.equals(leaderOffer)) leaderOffer = null;
-        if (company != null) company.removeDeadCharacter(key);
     }
 
     public String getLeader() { return isBase() ? host.getLeader() : leader; }

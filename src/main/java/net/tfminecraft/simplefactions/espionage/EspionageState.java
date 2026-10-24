@@ -157,6 +157,14 @@ public class EspionageState {
         return positions.get(SpecialPosition.SPYMASTER);
     }
 
+    /** A Spymaster who left the realm gives up the office; it falls back to the leader, as for any vacancy. */
+    public boolean vacateFor(String memberKey) {
+        var holder = getSpymaster();
+        if (holder == null || !memberKey.equals(holder.memberKey())) return false;
+        removeSpymaster();
+        return true;
+    }
+
     public void removeSpymaster() {
         pendingFounders.remove(SpecialPosition.SPYMASTER);
         pendingFounderCharacters.remove(SpecialPosition.SPYMASTER);

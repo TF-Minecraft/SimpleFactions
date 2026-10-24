@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.admin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -27,6 +28,7 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.economy.TreasuryTopology;
 import net.tfminecraft.simplefactions.guild.Guild;
+import net.tfminecraft.simplefactions.guild.MemberDepartures;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.map.MapSystem;
@@ -44,6 +46,7 @@ class StaffAdminServiceTest {
 	private MockedStatic<Members> members;
 	private MockedStatic<FactionManager> factions;
 	private MockedStatic<RandomRGB> colours;
+	private MockedStatic<MemberDepartures> departures;
 	private Faction faction;
 	private GuildHandler guilds;
 	private Guild base;
@@ -58,6 +61,7 @@ class StaffAdminServiceTest {
 		members = mockStatic(Members.class, CALLS_REAL_METHODS);
 		factions = mockStatic(FactionManager.class, CALLS_REAL_METHODS);
 		colours = mockStatic(RandomRGB.class);
+		departures = mockStatic(MemberDepartures.class);
 		members.when(() -> Members.display(anyString())).thenAnswer(call -> call.getArgument(0));
 		members.when(() -> Members.online(anyString())).thenReturn(Optional.empty());
 		faction = mock(Faction.class);
@@ -97,6 +101,7 @@ class StaffAdminServiceTest {
 
 	@AfterEach
 	void tearDown() {
+		departures.close();
 		colours.close();
 		factions.close();
 		members.close();
@@ -401,13 +406,12 @@ class StaffAdminServiceTest {
 		members.when(() -> Members.find(faction.getMembers(), "carl")).thenReturn("Carl");
 		assertEquals(List.of("§cCarl §cleads the guild Smiths§c. Replace them with §e/guild forceleader §cor delete the guild first."),
 				StaffAdminService.kick(faction, "carl"));
-		verify(faction, never()).forceRemoveMember(anyString());
+		departures.verify(() -> MemberDepartures.leaveRealm(any(), anyString()), never());
 		members.when(() -> Members.find(faction.getMembers(), "bob")).thenReturn("Bob");
 		Player bob = mock(Player.class);
 		members.when(() -> Members.online("Bob")).thenReturn(Optional.of(bob));
 		assertEquals(List.of("§aRemoved Bob §afrom Sunsora"), StaffAdminService.kick(faction, "bob"));
-		verify(faction).forceRemoveMember("Bob");
-		verify(faction).updatePrestige();
+		departures.verify(() -> MemberDepartures.leaveRealm(faction, "Bob"));
 		verify(bob).sendMessage("§cStaff removed you from Sunsora");
 	}
 
@@ -472,11 +476,10 @@ class StaffAdminServiceTest {
 		members.when(() -> Members.find(smiths.getMembers(), "carl")).thenReturn("Carl");
 		assertEquals(List.of("§cCarl §cleads Smiths§c. Replace them with §e/guild forceleader §cfirst."),
 				StaffAdminService.guildKick(smiths, "carl"));
-		verify(smiths, never()).kick(anyString());
+		departures.verify(() -> MemberDepartures.leaveGuild(any(), anyString()), never());
 		members.when(() -> Members.find(smiths.getMembers(), "bob")).thenReturn("Bob");
 		assertEquals(List.of("§aMoved Bob §afrom Smiths §ato the main guild of Sunsora"), StaffAdminService.guildKick(smiths, "bob"));
-		verify(smiths).kick("Bob");
-		verify(faction).addMember("Bob");
+		departures.verify(() -> MemberDepartures.leaveGuild(smiths, "Bob"));
 		Player bob = mock(Player.class);
 		members.when(() -> Members.online("Bob")).thenReturn(Optional.of(bob));
 		StaffAdminService.guildKick(smiths, "bob");

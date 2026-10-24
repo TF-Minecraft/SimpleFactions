@@ -447,8 +447,15 @@ public class Government {
         return true;
     }
 
-    /** Removes only this character's live political rights; other votes retain their order and value. */
     public void removeDeadCharacter(String key) {
+        removeRights(key);
+    }
+
+    /**
+     * Removes only this character's live political rights, on death or on leaving the realm;
+     * other votes retain their order and value.
+     */
+    public void removeRights(String key) {
         council.getMembers().removeIf(key::equals);
         if (council.refuses(key)) council.toggleRefuse(key);
         council.getProposalHandler().getProposals().removeIf(proposal -> key.equals(proposal.getProposer()));

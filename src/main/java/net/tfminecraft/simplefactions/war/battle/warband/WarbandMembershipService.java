@@ -13,6 +13,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService.CampaignBattleContext;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
@@ -126,6 +127,23 @@ public class WarbandMembershipService {
 		if (onlinePlayer != null) {
 			restoreBattleState(onlinePlayer);
 		}
+		return true;
+	}
+
+	/**
+	 * A character who left their faction leaves its war host too, as with {@code /warband leave}:
+	 * the leadership passes on, the battle is told, and no place is kept to rejoin.
+	 */
+	public boolean removeFromFactionWarband(CharacterRef character) {
+		UUID owner = character.ownerId();
+		WarbandRejoinState pending = pendingRejoin.get(owner);
+		if (pending != null && pending.isFor(character)) pendingRejoin.remove(owner);
+		Warband warband = WarbandManager.getByMemberId(owner);
+		if (warband == null || !warband.isFaction()
+				|| !warband.getMemberCharacter(owner).equals(java.util.Optional.of(character))) {
+			return false;
+		}
+		CampaignWarbandBattleService.processLeave(owner, getOnlinePlayer(owner), warband, true);
 		return true;
 	}
 
