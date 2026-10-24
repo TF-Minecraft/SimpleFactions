@@ -219,4 +219,23 @@ class HeldRealmsHeirTest {
         HeldRealms.closeExpired(AT + 180_000L, folder);
         assertEquals(heir, realm.getLeader());
     }
+
+    @Test
+    void anHeirWhoQualifiesAfterTheHeldWeekIsTooLate() {
+        characters.kill(heir);
+        HeldRealms.closeExpired(AT + WAIT, folder);
+        characters.revive(heir);
+        HeldRealms.heirStarted(heir, AT + WEEK);
+        assertTrue(HeldRealms.isHeld(realm), "the week ran out");
+
+        try (var wars = org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class,
+                org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.isAtWar(realm)).thenReturn(true);
+            HeldRealms.closeExpired(AT + WEEK + 1, folder);
+            assertTrue(HeldRealms.isHeld(realm), "a war keeps it open, but not for the heir");
+            assertFalse(realm.isMember(heir));
+        }
+        HeldRealms.closeExpired(AT + WEEK + 2, folder);
+        assertNull(FactionManager.getByString("realm"));
+    }
 }

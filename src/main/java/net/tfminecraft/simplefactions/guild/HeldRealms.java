@@ -204,7 +204,7 @@ public final class HeldRealms {
 
     /**
      * Seats the heir named in the dead leader's will once {@link Cache#heldRealmHeirWaitHours} have passed
-     * since the death. The heir must be alive and in no faction, and the estate neither held nor reverted
+     * since the death and before its held week runs out, even while a war keeps it open. The heir must be alive and in no faction, and the estate neither held nor reverted
      * by staff; an heir in another faction is told to leave it first when they start playing. {@code only}
      * limits it to that heir, who has just started playing.
      * A failed save puts the hold back for the next try.
@@ -212,7 +212,7 @@ public final class HeldRealms {
     private static Restore inherit(Faction faction, Guild main, long now, String only) {
         String dead = main.getDeadLeader();
         if (dead == null || main.getClosingSince() > 0 || !faction.getMembers().isEmpty()
-                || now - main.getLeaderlessSince() < heirWait()
+                || now - main.getLeaderlessSince() < heirWait() || weekOver(faction, main, now)
                 || !Members.info(dead).map(info -> info.status() == CharacterStatus.DEAD).orElse(false)) {
             return Restore.NOT_ELIGIBLE;
         }
