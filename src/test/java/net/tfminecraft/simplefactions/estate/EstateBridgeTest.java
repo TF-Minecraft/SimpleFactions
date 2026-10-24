@@ -79,11 +79,24 @@ class EstateBridgeTest {
         assertFalse(EstateBridge.vehiclesAwaitEstate(null));
     }
 
+    @Test void heirsMayInheritWhileTheLatestDeathsEstateIsOpenOrDecided() {
+        for (EstateState state : EstateState.values()) {
+            estates.when(() -> Estates.stateOf(character)).thenReturn(Optional.of(state));
+            boolean may = state == EstateState.OPEN || state == EstateState.DECIDED;
+            assertEquals(may, EstateBridge.heirMayInherit(character), state.name());
+        }
+        estates.when(() -> Estates.stateOf(character)).thenReturn(Optional.empty());
+        assertFalse(EstateBridge.heirMayInherit(character), "no estate service or no estate");
+        assertFalse(EstateBridge.heirMayInherit(null));
+    }
+
     @Test void estateFailuresNeverEscapeTheBridge() {
         estates.when(() -> Estates.stateOf(character)).thenThrow(new IllegalStateException("off the main thread"));
         assertFalse(EstateBridge.vehiclesAwaitEstate(character));
+        assertFalse(EstateBridge.heirMayInherit(character));
         estates.when(() -> Estates.stateOf(character)).thenThrow(new NoSuchMethodError("older TLibs"));
         assertFalse(EstateBridge.vehiclesAwaitEstate(character));
+        assertFalse(EstateBridge.heirMayInherit(character));
         when(server.getServicesManager()).thenThrow(new IllegalStateException("disabled"));
         EstateBridge.registerFallback(plugin);
         EstateBridge.registerVehicles(plugin, Path.of("data"), new PlayerVehicleRegistry(), new VehicleFeeStore());
@@ -94,6 +107,7 @@ class EstateBridgeTest {
         EstateBridge.useProbe(false);
         estates.when(() -> Estates.stateOf(character)).thenReturn(Optional.of(EstateState.OPEN));
         assertFalse(EstateBridge.vehiclesAwaitEstate(character));
+        assertFalse(EstateBridge.heirMayInherit(character));
         EstateBridge.registerFallback(plugin);
         EstateBridge.registerVehicles(plugin, Path.of("data"), new PlayerVehicleRegistry(), new VehicleFeeStore());
         assertNull(services.load(EstateFallback.class));

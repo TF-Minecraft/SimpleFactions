@@ -61,6 +61,8 @@ public class ConfigLoader {
 		}
 		Cache.maxPlaytimePrestigeExponent = config.getDouble("max-prestige-playtime-exponent", 5);
 		Cache.memberShareWindowDays = Math.max(1, config.getInt("member-share-window-days", 30));
+		double heirWait = config.getDouble("held-realm-heir-wait-hours", 24);
+		Cache.heldRealmHeirWaitHours = Double.isFinite(heirWait) ? Math.max(0, heirWait) : 24;
 		Cache.bankBlock = config.getString("bank-block", "v.lodestone");
 		Cache.maxExtraNodeCapacity = config.getInt("max-extra-node-capacity", 0);
 		

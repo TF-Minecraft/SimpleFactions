@@ -25,6 +25,12 @@ final class EstateCalls {
                 .orElse(false);
     }
 
+    static boolean heirMayInherit(UUID characterId) {
+        return Estates.stateOf(characterId)
+                .map(state -> state == EstateState.OPEN || state == EstateState.DECIDED)
+                .orElse(false);
+    }
+
     static void registerFallback(Plugin plugin) {
         plugin.getServer().getServicesManager().register(EstateFallback.class, new GuildEstateFallback(), plugin,
                 ServicePriority.Normal);

@@ -54,6 +54,11 @@ max-prestige-playtime-exponent: 5
 # characters by how long each was played over this many days.
 member-share-window-days: 30
 max-members: 64
+# Hours after a realm's last member dies before the heir named in their will
+# takes it on; a revive inside the window gives it back to them instead. The
+# heir must be alive and in no faction before the held week runs out. Match it
+# to RPCharacters' estates.wait-hours. Fractions are allowed for rehearsals.
+held-realm-heir-wait-hours: 24
 max-untitled-provinces: 5
 max-free-titles: 3
 province-cost: 50

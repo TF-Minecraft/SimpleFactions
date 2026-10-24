@@ -35,6 +35,8 @@ public class Cache {
 	public static double maxTradeUpkeep = 0.75;
 	public static double maxPlaytimePrestigeExponent = 5;
 	public static int memberShareWindowDays = 30;
+	/** Hours after a held realm's death before the will heir takes it on (HeldRealms). */
+	public static double heldRealmHeirWaitHours = 24;
 	public static String baseYear;
 	public static int baseIrlYear = java.time.Year.now().getValue();
 	public static String bankBlock;

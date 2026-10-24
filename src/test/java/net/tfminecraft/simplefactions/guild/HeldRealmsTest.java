@@ -64,6 +64,7 @@ class HeldRealmsTest {
         main.removeDeadCharacter(ruler);
         realm.succeedDeadLeader(ruler, "");
         HeldRealms.hold(realm, ruler, AT);
+        HeldRealms.heirs = key -> null;
         Files.createDirectories(folder.resolve("Data"));
         Files.writeString(folder.resolve("Data/realm.json"), "{}");
     }
