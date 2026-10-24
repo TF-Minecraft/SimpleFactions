@@ -28,6 +28,7 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 public final class StaffAdminService {
 	/** Faction fields staff set with {@code /faction admin set}. */
 	public static final List<String> FIELDS = List.of("culture", "religion", "rulingsystem", "rulertitle");
+	static final String NEEDS_CHARACTER = "§cPlay a character to move a capital: the treasury records who made the change.";
 
 	private StaffAdminService() {}
 
@@ -55,7 +56,8 @@ public final class StaffAdminService {
 	}
 
 	static boolean isBanner(ItemStack item) {
-		return item != null && item.getType().toString().contains("BANNER");
+		// Not *_BANNER_PATTERN, which has no banner meta.
+		return item != null && item.getType().toString().endsWith("_BANNER");
 	}
 
 	// ---- Faction ----
@@ -161,23 +163,33 @@ public final class StaffAdminService {
 					+ "§c. Give it to them with §e/faction forceclaim " + faction.getId() + " §cfirst.");
 			return null;
 		}
-		if (faction.hasCapital() && faction.getCapital() == province) {
+		SettlementHandler settlements = faction.getSettlementHandler();
+		Settlement existing = settlements.getByProvince(province);
+		boolean inCapital = faction.hasCapital() && faction.getCapital() == province;
+		if (inCapital && existing != null) {
 			lines.add("§cProvince " + province + " §cis already the capital of " + faction.getName()
 					+ "§c. Rename it with §e/faction admin renamesettlement " + faction.getId() + " capital <name>");
 			return null;
 		}
-		SettlementHandler settlements = faction.getSettlementHandler();
-		Settlement existing = settlements.getByProvince(province);
+		if (Members.session(staff).isEmpty()) {
+			lines.add(NEEDS_CHARACTER);
+			return null;
+		}
 		// Also refuses a missing or invalid name when a new settlement would be founded.
 		CapitalResult check = settlements.validateFactionCapital(staff, province, name);
 		if (!check.isSuccess()) {
 			lines.add(check.getMessage());
 			return null;
 		}
-		lines.add("§eMove the capital of " + faction.getName() + " §efrom "
-				+ (faction.hasCapital() ? "province " + faction.getCapital() : "nowhere") + " §eto province " + province
-				+ (existing != null ? " §e(" + existing.getName() + "§e)" : " §e(new settlement " + displayName(name) + "§e)"));
-		List<Integer> lost = faction.hasCapital()
+		if (inCapital) {
+			// A capital whose settlement is gone: found it again in place, as /faction setcapital <name> does.
+			lines.add("§eFound " + displayName(name) + " §ein the capital of " + faction.getName() + " §e(province " + province + ")");
+		} else {
+			lines.add("§eMove the capital of " + faction.getName() + " §efrom "
+					+ (faction.hasCapital() ? "province " + faction.getCapital() : "nowhere") + " §eto province " + province
+					+ (existing != null ? " §e(" + existing.getName() + "§e)" : " §e(new settlement " + displayName(name) + "§e)"));
+		}
+		List<Integer> lost = faction.hasCapital() && !inCapital
 				? faction.getProvinceHandler().previewProvincesLostIfCapitalMoved(province) : List.of();
 		if (!lost.isEmpty()) lines.add("§c" + faction.getName() + " §cwould lose provinces cut off from the new capital: " + lost);
 		lines.add("§7It is free and does not use up their free capital change. Run §e/faction admin confirm §7to apply it.");
@@ -190,14 +202,16 @@ public final class StaffAdminService {
 		if (faction == null) return List.of("§cThat faction no longer exists. Nothing changed.");
 		if (faction.getCapital() != move.fromCapital()) return List.of("§cTheir capital changed since the preview. Nothing changed.");
 		if (standing != move.province()) return List.of("§cStand in province " + move.province() + " §cto confirm. Nothing changed.");
-		if (!faction.hasCapital()) {
-			// A first capital is founded in place, as for a new faction.
+		if (!faction.hasCapital() || faction.getCapital() == move.province()) {
+			// A first capital, or a capital without its settlement, is founded in place.
 			CapitalResult result = faction.getSettlementHandler().applyFactionCapital(staff, move.province(), move.name());
 			if (!result.isSuccess()) return List.of(result.getMessage());
 			faction.setCapital(move.province());
 			faction.getProvinceHandler().revalidateClaims();
 			return List.of(result.getMessage(), "§aSet the capital of " + faction.getName() + " §ato province " + move.province());
 		}
+		// The treasury journal records the character that made the change.
+		if (Members.session(staff).isEmpty()) return List.of(NEEDS_CHARACTER);
 		List<Integer> before = new ArrayList<>(faction.getProvinces());
 		if (!TreasuryTopology.capital(staff, faction, move.province(), move.name(), false, 0, TreasuryActions.newId(), false)) {
 			return List.of("§cThe capital move failed. Nothing changed.");
@@ -227,6 +241,7 @@ public final class StaffAdminService {
 
 	public static List<String> set(Faction faction, String field, String input) {
 		String value = input.replace("_", " ");
+		if (value.startsWith("<") && value.endsWith(">")) return List.of("§cEnter a value instead of " + value + "§c.");
 		switch (field.toLowerCase()) {
 			case "culture" -> faction.setCulture(value);
 			case "religion" -> faction.setReligion(value);

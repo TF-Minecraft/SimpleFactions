@@ -38,6 +38,7 @@ import net.tfminecraft.simplefactions.settlement.Settlement;
 import net.tfminecraft.simplefactions.settlement.handler.CapitalResult;
 import net.tfminecraft.simplefactions.settlement.handler.SettlementHandler;
 import net.tfminecraft.simplefactions.utils.RandomRGB;
+import net.tfminecraft.tlibs.character.CharacterSession;
 
 class StaffAdminServiceTest {
 	private MockedStatic<Members> members;
@@ -91,6 +92,7 @@ class StaffAdminServiceTest {
 		factions.when(FactionManager::getCopy).thenReturn(List.of(faction));
 		colours.when(() -> RandomRGB.isFree(anyString())).thenReturn(true);
 		staff = mock(Player.class);
+		members.when(() -> Members.session(staff)).thenReturn(Optional.of(mock(CharacterSession.class)));
 	}
 
 	@AfterEach
@@ -140,6 +142,7 @@ class StaffAdminServiceTest {
 	void onlyBannersCount() {
 		assertEquals(false, StaffAdminService.isBanner(null));
 		assertEquals(false, StaffAdminService.isBanner(item(Material.STONE)));
+		assertEquals(false, StaffAdminService.isBanner(item(Material.FLOWER_BANNER_PATTERN)));
 		assertTrue(StaffAdminService.isBanner(item(Material.RED_BANNER)));
 	}
 
@@ -242,6 +245,8 @@ class StaffAdminServiceTest {
 		when(faction.ownsProvince(395)).thenReturn(true);
 		when(faction.hasCapital()).thenReturn(true);
 		when(faction.getCapital()).thenReturn(395);
+		Settlement capital = settlement("tower", "Tower", 395);
+		when(settlements.getByProvince(395)).thenReturn(capital);
 		assertNull(StaffAdminService.previewCapital(staff, faction, 395, null, lines));
 		assertEquals(List.of("§cProvince 395 §cis already the capital of Sunsora§c. Rename it with §e/faction admin renamesettlement sunsora capital <name>"), lines);
 		lines.clear();
@@ -249,6 +254,27 @@ class StaffAdminServiceTest {
 		when(settlements.validateFactionCapital(staff, 393, null)).thenReturn(CapitalResult.fail("§cName required"));
 		assertNull(StaffAdminService.previewCapital(staff, faction, 393, null, lines));
 		assertEquals(List.of("§cName required"), lines);
+		lines.clear();
+		members.when(() -> Members.session(staff)).thenReturn(Optional.empty());
+		assertNull(StaffAdminService.previewCapital(staff, faction, 393, null, lines));
+		assertEquals(List.of(StaffAdminService.NEEDS_CHARACTER), lines);
+	}
+
+	@Test
+	void aCapitalWithoutItsSettlementIsFoundedAgainInPlace() {
+		List<String> lines = new ArrayList<>();
+		when(faction.ownsProvince(395)).thenReturn(true);
+		when(faction.hasCapital()).thenReturn(true);
+		when(faction.getCapital()).thenReturn(395);
+		when(settlements.validateFactionCapital(staff, 395, "Sunsora_Castle")).thenReturn(CapitalResult.ok("ok"));
+		StaffAdminService.CapitalMove move = StaffAdminService.previewCapital(staff, faction, 395, "Sunsora_Castle", lines);
+		assertEquals(new StaffAdminService.CapitalMove("sunsora", 395, 395, "Sunsora_Castle"), move);
+		assertEquals("§eFound " + StaffAdminService.displayName("Sunsora_Castle") + " §ein the capital of Sunsora §e(province 395)", lines.get(0));
+		assertEquals(2, lines.size());
+		verify(provinces, never()).previewProvincesLostIfCapitalMoved(395);
+		when(settlements.applyFactionCapital(staff, 395, "Sunsora_Castle")).thenReturn(CapitalResult.ok("§aFounded"));
+		assertEquals(List.of("§aFounded", "§aSet the capital of Sunsora §ato province 395"), StaffAdminService.moveCapital(staff, move, 395));
+		verify(faction).setCapital(395);
 	}
 
 	@Test
@@ -326,6 +352,11 @@ class StaffAdminServiceTest {
 					"§eSunsora §elost provinces cut off from their realm: [12]"), StaffAdminService.moveCapital(staff, move, 393));
 			when(faction.getProvinces()).thenReturn(List.of(395, 393));
 			assertEquals(List.of("§aMoved the capital of Sunsora §ato province 393"), StaffAdminService.moveCapital(staff, move, 393));
+			// The character ended between preview and confirm.
+			members.when(() -> Members.session(staff)).thenReturn(Optional.empty());
+			assertEquals(List.of(StaffAdminService.NEEDS_CHARACTER), StaffAdminService.moveCapital(staff, move, 393));
+			topology.verify(() -> TreasuryTopology.capital(eq(staff), eq(faction), eq(393), isNull(), eq(false), eq(0.0),
+					anyString(), eq(false)), org.mockito.Mockito.times(3));
 		}
 	}
 
@@ -350,6 +381,7 @@ class StaffAdminServiceTest {
 		verify(faction).setGovernment("Monarchy");
 		StaffAdminService.set(faction, "rulertitle", "Queen");
 		verify(faction).setRulerTitle("Queen");
+		assertEquals(List.of("§cEnter a value instead of <culture>§c."), StaffAdminService.set(faction, "culture", "<culture>"));
 		assertEquals(List.of("§cUnknown field motto§c. Use one of: culture, religion, rulingsystem, rulertitle"),
 				StaffAdminService.set(faction, "motto", "x"));
 	}
