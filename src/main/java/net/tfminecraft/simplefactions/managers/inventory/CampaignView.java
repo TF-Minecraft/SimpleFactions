@@ -32,6 +32,7 @@ import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteRenderer;
+import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiTimeFormatter;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
@@ -52,6 +53,7 @@ import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.enums.SFGUI;
+import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class CampaignView {
 	private static final int ROUTE_SLOT_COUNT = 9;
@@ -494,8 +496,11 @@ public class CampaignView {
 		BattleVoteToggleResult result = BattleVoteService.toggleVote(
 				war, player.getUniqueId(), hour, faction, player.isOnline());
 		switch (result) {
-			case ADDED -> player.sendMessage("§aAdded " + hour + ":00 UTC to your availability.");
-			case REMOVED -> player.sendMessage("§aRemoved " + hour + ":00 UTC from your availability.");
+			// Battle hours are schedule (Europe/Paris) hours; label them the way the vote items do (the label can carry hex).
+			case ADDED -> player.sendMessage(StringFormatter.formatHex("§aAdded "
+					+ CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), hour) + "§a to your availability."));
+			case REMOVED -> player.sendMessage(StringFormatter.formatHex("§aRemoved "
+					+ CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), hour) + "§a from your availability."));
 			case REJECTED_INVALID_HOUR -> player.sendMessage("§cThat hour is not in the battle window.");
 			case REJECTED_NOT_PARTICIPANT -> player.sendMessage("§cYou are not eligible to vote in this war.");
 			case REJECTED_OFFLINE -> player.sendMessage("§cYou must be online to vote.");

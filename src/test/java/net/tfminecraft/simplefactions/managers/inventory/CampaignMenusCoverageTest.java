@@ -49,6 +49,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallati
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteRenderer;
+import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiTimeFormatter;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignViewRefreshService;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
@@ -63,6 +64,7 @@ import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.ItemCreator;
+import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -588,11 +590,13 @@ class CampaignMenusCoverageTest {
     view.campaignView(player, war, true);
     click(28);
     assertEquals(Set.of(20), war.getBattleVotes().get(player.getUniqueId()));
-    verify(player).sendMessage("§aAdded 20:00 UTC to your availability.");
+    String label = CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), 20);
+    assertTrue(label.startsWith("20:00 CET"));
+    verify(player).sendMessage(StringFormatter.formatHex("§aAdded " + label + "§a to your availability."));
     assertLore(top().getItem(28), "Click to remove");
     click(28);
     assertFalse(war.getBattleVotes().containsKey(player.getUniqueId()));
-    verify(player).sendMessage("§aRemoved 20:00 UTC from your availability.");
+    verify(player).sendMessage(StringFormatter.formatHex("§aRemoved " + label + "§a from your availability."));
     wars.verify(() -> WarManager.persist(war), times(2));
   }
 
