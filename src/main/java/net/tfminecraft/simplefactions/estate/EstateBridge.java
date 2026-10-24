@@ -60,6 +60,19 @@ public final class EstateBridge {
         }
     }
 
+    /**
+     * Whether a will heir may take on what a dead character left: its latest death's estate is OPEN
+     * or DECIDED, so staff have not held or reverted it. False when that cannot be told.
+     */
+    public static boolean heirMayInherit(UUID characterId) {
+        if (characterId == null || !available()) return false;
+        try {
+            return EstateCalls.heirMayInherit(characterId);
+        } catch (RuntimeException | LinkageError error) {
+            return false;
+        }
+    }
+
     /** Offers the death-guild answers once factions have started. */
     public static void registerFallback(Plugin plugin) {
         if (!available()) {
