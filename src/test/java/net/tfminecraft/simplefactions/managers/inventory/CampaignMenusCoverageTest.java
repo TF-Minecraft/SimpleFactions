@@ -64,6 +64,7 @@ import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.ItemCreator;
+import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -591,11 +592,11 @@ class CampaignMenusCoverageTest {
     assertEquals(Set.of(20), war.getBattleVotes().get(player.getUniqueId()));
     String label = CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), 20);
     assertTrue(label.startsWith("20:00 CET"));
-    verify(player).sendMessage("§aAdded " + label + "§a to your availability.");
+    verify(player).sendMessage(StringFormatter.formatHex("§aAdded " + label + "§a to your availability."));
     assertLore(top().getItem(28), "Click to remove");
     click(28);
     assertFalse(war.getBattleVotes().containsKey(player.getUniqueId()));
-    verify(player).sendMessage("§aRemoved " + label + "§a from your availability.");
+    verify(player).sendMessage(StringFormatter.formatHex("§aRemoved " + label + "§a from your availability."));
     wars.verify(() -> WarManager.persist(war), times(2));
   }
 
