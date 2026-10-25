@@ -20,8 +20,8 @@ public final class MemberDepartures {
 		guild.getFaction().addMember(key);
 	}
 
-	/** Out of the realm and every guild in it: {@code /faction leave} and {@code /faction kick}. */
-	public static void leaveRealm(Faction faction, String key) {
+	/** Out of the realm and every guild in it: {@code /faction leave} ({@code voluntary}) and {@code /faction kick}. */
+	public static void leaveRealm(Faction faction, String key, boolean voluntary) {
 		faction.forceRemoveMember(key);
 		for (Guild guild : faction.getGuildHandler().getGuilds()) guild.forgetDeparted(key);
 		// Council seat, proposals, election ballots and candidacy, movement roles.
@@ -33,7 +33,7 @@ public final class MemberDepartures {
 			if (session != null) session.removeDeadCharacter(key);
 		}
 		faction.getEspionage().vacateFor(key);
-		Members.ref(key).ifPresent(WarbandMembershipService.getInstance()::removeFromFactionWarband);
+		Members.ref(key).ifPresent(ref -> WarbandMembershipService.getInstance().removeFromFactionWarband(ref, voluntary));
 		faction.updatePrestige();
 	}
 }

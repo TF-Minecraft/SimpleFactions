@@ -202,26 +202,44 @@ class WarbandMembershipServiceTest {
 		CharacterRef ref = warband.getMemberCharacter(memberId).orElseThrow();
 		try (var battles = mockStatic(
 				net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService.class)) {
-			assertFalse(service.removeFromFactionWarband(ref));
+			assertFalse(service.removeFromFactionWarband(ref, true));
+			assertTrue(warband.hasMember(memberId));
 			markAsFaction(warband);
-			assertFalse(service.removeFromFactionWarband(new CharacterRef(memberId, UUID.randomUUID())));
-			assertFalse(service.removeFromFactionWarband(new CharacterRef(UUID.randomUUID(), UUID.randomUUID())));
-			assertTrue(service.removeFromFactionWarband(ref));
+			assertFalse(service.removeFromFactionWarband(new CharacterRef(memberId, UUID.randomUUID()), true));
+			assertFalse(service.removeFromFactionWarband(new CharacterRef(UUID.randomUUID(), UUID.randomUUID()), true));
+			assertTrue(service.removeFromFactionWarband(ref, false));
 			battles.verify(() -> net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService
-					.processLeave(memberId, null, warband, true));
+					.processLeave(memberId, null, warband, false));
 			battles.verifyNoMoreInteractions();
 		}
 	}
 
 	@Test
-	void aPlaceKeptAfterQuittingIsDroppedOnlyForThatCharacter() {
-		Warband warband = createOpenWarband("alpha", leaderId, memberId);
-		CharacterRef ref = warband.getMemberCharacter(memberId).orElseThrow();
-		service.handleQuit(member);
-		assertFalse(service.removeFromFactionWarband(new CharacterRef(memberId, UUID.randomUUID())));
+	void aPlaceKeptInAFactionHostIsDroppedOnlyForThatCharacter() throws Exception {
+		Warband host = createOpenWarband("host", leaderId, memberId);
+		markAsFaction(host);
+		CharacterRef ref = host.getMemberCharacter(memberId).orElseThrow();
+		Faction faction = mock(Faction.class);
+		when(faction.getId()).thenReturn("realm");
+		try (var factions = mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class)) {
+			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByMember(ref.characterId()))
+					.thenReturn(faction);
+			service.handleQuit(member);
+		}
+		assertTrue(service.getPendingRejoin(memberId).hasFaction());
+		assertFalse(service.removeFromFactionWarband(new CharacterRef(memberId, UUID.randomUUID()), true));
 		assertNotNull(service.getPendingRejoin(memberId));
-		assertFalse(service.removeFromFactionWarband(ref));
+		assertFalse(service.removeFromFactionWarband(ref, true));
 		assertNull(service.getPendingRejoin(memberId));
+	}
+
+	@Test
+	void aPlaceKeptInAPlayersOwnWarbandSurvivesLeavingTheFaction() {
+		Warband own = createOpenWarband("alpha", leaderId, memberId);
+		CharacterRef ref = own.getMemberCharacter(memberId).orElseThrow();
+		service.handleQuit(member);
+		assertFalse(service.removeFromFactionWarband(ref, true));
+		assertNotNull(service.getPendingRejoin(memberId));
 	}
 
 	private Warband createOpenWarband(String id, UUID leader, UUID member) {

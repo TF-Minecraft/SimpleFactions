@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -406,12 +407,12 @@ class StaffAdminServiceTest {
 		members.when(() -> Members.find(faction.getMembers(), "carl")).thenReturn("Carl");
 		assertEquals(List.of("§cCarl §cleads the guild Smiths§c. Replace them with §e/guild forceleader §cor delete the guild first."),
 				StaffAdminService.kick(faction, "carl"));
-		departures.verify(() -> MemberDepartures.leaveRealm(any(), anyString()), never());
+		departures.verify(() -> MemberDepartures.leaveRealm(any(), anyString(), anyBoolean()), never());
 		members.when(() -> Members.find(faction.getMembers(), "bob")).thenReturn("Bob");
 		Player bob = mock(Player.class);
 		members.when(() -> Members.online("Bob")).thenReturn(Optional.of(bob));
 		assertEquals(List.of("§aRemoved Bob §afrom Sunsora"), StaffAdminService.kick(faction, "bob"));
-		departures.verify(() -> MemberDepartures.leaveRealm(faction, "Bob"));
+		departures.verify(() -> MemberDepartures.leaveRealm(faction, "Bob", false));
 		verify(bob).sendMessage("§cStaff removed you from Sunsora");
 	}
 

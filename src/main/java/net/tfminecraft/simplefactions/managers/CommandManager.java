@@ -993,7 +993,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cPlayer is a member of a guild");
 					return true;
 				}
-				MemberDepartures.leaveRealm(f, kicked);
+				MemberDepartures.leaveRealm(f, kicked, false);
 				p.sendMessage("§aKicked "+Members.display(kicked));
 				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+f.getName()));
 				return true;
@@ -1083,7 +1083,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cYou are in a guild. Use /guild leave first, then /faction leave");
 					return true;
 				}
-				MemberDepartures.leaveRealm(f, Members.key(p));
+				MemberDepartures.leaveRealm(f, Members.key(p), true);
 				p.sendMessage("§aLeft "+f.getName());
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("rename") && args.length == 2) {

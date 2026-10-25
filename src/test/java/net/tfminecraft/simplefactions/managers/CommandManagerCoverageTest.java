@@ -129,6 +129,7 @@ class CommandManagerCoverageTest {
     when(faction.getMembers()).thenReturn(new ArrayList<>(List.of("Leader", "Alice")));
     government = mock(Government.class);
     when(faction.getGovernment()).thenReturn(government);
+    when(faction.getEspionage()).thenReturn(mock(net.tfminecraft.simplefactions.espionage.EspionageState.class));
     guild = mock(Guild.class, RETURNS_DEEP_STUBS);
     when(guild.getId()).thenReturn("merchants");
     when(guild.getIncarnationId()).thenReturn(java.util.UUID.randomUUID());
@@ -908,9 +909,12 @@ class CommandManagerCoverageTest {
     assertTrue(run(name, "leave"));
     if (name.equals("faction")) {
       verify(faction).forceRemoveMember("Leader");
+      // A departure drops the rights only members hold.
+      verify(government).removeRights("Leader");
       verify(faction).updatePrestige();
     } else {
       verify(guild).kick("Leader");
+      verify(guild).forgetDeparted("Leader");
       verify(faction).addMember("Leader");
     }
     verify(player).sendMessage(contains("Left "));
@@ -928,6 +932,7 @@ class CommandManagerCoverageTest {
     when(faction.consumeInvite("Leader")).thenReturn(true);
     when(guild.consumeInvite("Leader")).thenReturn(true);
     Guild previous = mock(Guild.class);
+    when(previous.getFaction()).thenReturn(faction);
     factions.when(() -> FactionManager.getGuildByMember("Leader")).thenReturn(previous);
     Player alice = gui.player("Alice"), outsider = gui.player("Visitor");
     online(alice, outsider);
@@ -1106,6 +1111,7 @@ class CommandManagerCoverageTest {
     online(alice, visitor);
     assertTrue(run("faction", "kick", "Alice"));
     verify(faction).forceRemoveMember("Alice");
+    verify(government).removeRights("Alice");
     verify(alice).sendMessage(contains("kicked you"));
     verify(visitor, never()).sendMessage(anyString());
   }

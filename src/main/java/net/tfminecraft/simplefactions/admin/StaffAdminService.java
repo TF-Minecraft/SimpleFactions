@@ -274,7 +274,7 @@ public final class StaffAdminService {
 						+ "§c. Replace them with §e/guild forceleader §cor delete the guild first.");
 			}
 		}
-		MemberDepartures.leaveRealm(faction, key);
+		MemberDepartures.leaveRealm(faction, key, false);
 		Members.online(key).ifPresent(kicked -> kicked.sendMessage("§cStaff removed you from " + faction.getName()));
 		return List.of("§aRemoved " + Members.display(key) + " §afrom " + faction.getName());
 	}

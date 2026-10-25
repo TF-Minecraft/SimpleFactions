@@ -142,6 +142,7 @@ class GuildDeleteCommandTest {
   void anExistingInvitationStillTransfersMembershipAndNotifiesTheRealm() {
     try (Fixture fixture = new Fixture("Joiner", false)) {
       Guild previous = mock(Guild.class);
+      when(previous.getFaction()).thenReturn(fixture.faction);
       fixture.factions.when(() -> FactionManager.canJoinGuild(fixture.player)).thenReturn(true);
       fixture.factions.when(() -> FactionManager.getGuildByMember("Joiner")).thenReturn(previous);
       when(fixture.guild.consumeInvite("Joiner")).thenReturn(true);
@@ -157,6 +158,26 @@ class GuildDeleteCommandTest {
       verify(fixture.member).sendMessage("§aJoiner joined the guild Smiths§a!");
       assertSame(fixture.guild, fixture.guilds.getGuild("smiths"));
       verifyNoInteractions(fixture.provinces);
+    }
+  }
+
+  @Test
+  void anInvitationFromAnotherRealmCannotPullAMemberOutOfTheirFaction() {
+    try (Fixture fixture = new Fixture("Joiner", false)) {
+      Guild previous = mock(Guild.class);
+      Faction other = mock(Faction.class);
+      when(other.getName()).thenReturn("Other");
+      when(previous.getFaction()).thenReturn(other);
+      fixture.factions.when(() -> FactionManager.canJoinGuild(fixture.player)).thenReturn(true);
+      fixture.factions.when(() -> FactionManager.getGuildByMember("Joiner")).thenReturn(previous);
+      when(fixture.guild.consumeInvite("Joiner")).thenReturn(true);
+
+      assertTrue(fixture.run("join", "smiths"));
+
+      verify(fixture.player).sendMessage("§cYou belong to Other§c. Use §e/faction leave §cfirst.");
+      verify(previous, never()).kick("Joiner");
+      verify(fixture.guild, never()).consumeInvite("Joiner");
+      fixture.assertUntouched();
     }
   }
 

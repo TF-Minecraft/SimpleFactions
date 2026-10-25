@@ -94,7 +94,7 @@ class MemberDeparturesTest {
 		CharacterRef ref = new CharacterRef(UUID.randomUUID(), UUID.fromString(key));
 		members.when(() -> Members.ref(key)).thenReturn(Optional.of(ref));
 
-		MemberDepartures.leaveRealm(faction, key);
+		MemberDepartures.leaveRealm(faction, key, false);
 
 		verify(faction).forceRemoveMember(key);
 		verify(main).forgetDeparted(key);
@@ -102,21 +102,25 @@ class MemberDeparturesTest {
 		verify(government).removeRights(key);
 		verify(session).removeDeadCharacter(key);
 		verify(espionage).vacateFor(key);
-		verify(warbandService).removeFromFactionWarband(ref);
+		verify(warbandService).removeFromFactionWarband(ref, false);
 		verify(faction).updatePrestige();
+
+		// Walking out, unlike a kick, blocks rejoining the battle.
+		MemberDepartures.leaveRealm(faction, key, true);
+		verify(warbandService).removeFromFactionWarband(ref, true);
 	}
 
 	@Test
 	void noPluginSessionOrCharacterIsSkipped() {
-		MemberDepartures.leaveRealm(faction, "Legacy Name");
+		MemberDepartures.leaveRealm(faction, "Legacy Name", true);
 		SimpleFactions instance = mock(SimpleFactions.class);
 		plugin.when(SimpleFactions::getInstance).thenReturn(instance);
-		MemberDepartures.leaveRealm(faction, "Legacy Name");
+		MemberDepartures.leaveRealm(faction, "Legacy Name", true);
 		SessionManager sessions = mock(SessionManager.class);
 		when(instance.getSessionManager()).thenReturn(sessions);
-		MemberDepartures.leaveRealm(faction, "Legacy Name");
+		MemberDepartures.leaveRealm(faction, "Legacy Name", true);
 		verify(government, org.mockito.Mockito.times(3)).removeRights("Legacy Name");
 		verify(sessions).getSession(council);
-		verify(warbandService, never()).removeFromFactionWarband(any());
+		verify(warbandService, never()).removeFromFactionWarband(any(), org.mockito.ArgumentMatchers.anyBoolean());
 	}
 }
