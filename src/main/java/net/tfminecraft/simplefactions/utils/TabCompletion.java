@@ -222,6 +222,10 @@ public class TabCompletion implements TabCompleter{
 			}
 			return completions;
 		}
+		// The console can run /guild admin, and nothing else under /guild.
+		if(cmd.getName().equalsIgnoreCase("guild") && args.length < 2 && !(sender instanceof Player)) {
+			return Permissions.isAdmin(sender) ? List.of(StaffAdminCommand.SUBCOMMAND) : List.of();
+		}
 		if(cmd.getName().equalsIgnoreCase("faction") && sender instanceof Player
 				&& Permissions.isAdmin(sender) && args.length == 2
 				&& (args[0].equalsIgnoreCase("delbank") || args[0].equalsIgnoreCase("startelection")

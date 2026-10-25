@@ -33,8 +33,11 @@ public final class StaffAdminService {
 
 	private StaffAdminService() {}
 
-	/** A move checked by {@link #previewCapital}, applied by {@link #moveCapital} once staff confirm. */
-	public record CapitalMove(String factionId, int fromCapital, int province, String name) {}
+	/**
+	 * A move checked by {@link #previewCapital}, applied by {@link #moveCapital} once staff confirm.
+	 * It holds the faction itself, so a faction deleted and refounded under the same id is not touched.
+	 */
+	public record CapitalMove(Faction faction, int fromCapital, int province, String name) {}
 
 	/** Display name as the player commands store it: {@code _} for spaces, default colour, hex codes. */
 	static String displayName(String input) {
@@ -199,13 +202,13 @@ public final class StaffAdminService {
 				? faction.getProvinceHandler().previewProvincesLostIfCapitalMoved(province) : List.of();
 		if (!lost.isEmpty()) lines.add("§c" + faction.getName() + " §cwould lose provinces cut off from the new capital: " + lost);
 		lines.add("§7It is free and does not use up their free capital change. Run §e/faction admin confirm §7to apply it.");
-		return new CapitalMove(faction.getId(), faction.getCapital(), province, existing != null ? null : name);
+		return new CapitalMove(faction, faction.getCapital(), province, existing != null ? null : name);
 	}
 
 	/** Applies a confirmed move if nothing changed since the preview. */
 	public static List<String> moveCapital(Player staff, CapitalMove move, int standing) {
-		Faction faction = FactionManager.getByString(move.factionId());
-		if (faction == null) return List.of("§cThat faction no longer exists. Nothing changed.");
+		Faction faction = move.faction();
+		if (FactionManager.getByString(faction.getId()) != faction) return List.of("§cThat faction no longer exists. Nothing changed.");
 		if (faction.getCapital() != move.fromCapital()) return List.of("§cTheir capital changed since the preview. Nothing changed.");
 		if (standing != move.province()) return List.of("§cStand in province " + move.province() + " §cto confirm. Nothing changed.");
 		if (!faction.hasCapital() || faction.getCapital() == move.province()) {

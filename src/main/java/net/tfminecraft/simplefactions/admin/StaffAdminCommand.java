@@ -237,7 +237,7 @@ public final class StaffAdminCommand {
 		if (args.length == 3) {
 			List<String> ids = new ArrayList<>();
 			if (guild) {
-				for (Guild each : FactionManager.getAllGuilds()) ids.add(each.getId());
+				for (Guild each : FactionManager.getAllGuilds()) if (each != null) ids.add(each.getId());
 			} else {
 				for (Faction each : FactionManager.getCopy()) ids.add(each.getId());
 			}

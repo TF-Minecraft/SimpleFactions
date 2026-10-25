@@ -221,7 +221,7 @@ class StaffAdminCommandTest {
 
 	@Test
 	void capitalMovesArePreviewedThenConfirmedOnce() {
-		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove("sunsora", 1, 5, "Sunsora_Castle");
+		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove(faction, 1, 5, "Sunsora_Castle");
 		rest.when(() -> RestServer.getProvince(staff)).thenReturn(5);
 		service.when(() -> StaffAdminService.previewCapital(eq(staff), eq(faction), eq(5), eq("Sunsora Castle"), any()))
 				.thenAnswer(call -> {
@@ -241,7 +241,7 @@ class StaffAdminCommandTest {
 
 	@Test
 	void aRefusedOrStalePreviewCannotBeConfirmed() {
-		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove("sunsora", 1, 5, null);
+		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove(faction, 1, 5, null);
 		rest.when(() -> RestServer.getProvince(staff)).thenReturn(5);
 		service.when(() -> StaffAdminService.previewCapital(eq(staff), eq(faction), eq(5), any(), any())).thenReturn(move);
 		run(staff, "faction", "admin", "movecapital", "sunsora");

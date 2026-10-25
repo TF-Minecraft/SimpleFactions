@@ -279,7 +279,7 @@ class StaffAdminServiceTest {
 		// Founding in place needs no character: it does not go through the treasury.
 		members.when(() -> Members.session(staff)).thenReturn(Optional.empty());
 		StaffAdminService.CapitalMove move = StaffAdminService.previewCapital(staff, faction, 395, "Sunsora_Castle", lines);
-		assertEquals(new StaffAdminService.CapitalMove("sunsora", 395, 395, "Sunsora_Castle"), move);
+		assertEquals(new StaffAdminService.CapitalMove(faction, 395, 395, "Sunsora_Castle"), move);
 		assertEquals("§eFound " + StaffAdminService.displayName("Sunsora_Castle") + " §ein the capital of Sunsora §e(province 395)", lines.get(0));
 		assertEquals(2, lines.size());
 		verify(provinces, never()).previewProvincesLostIfCapitalMoved(395);
@@ -297,7 +297,7 @@ class StaffAdminServiceTest {
 		when(settlements.validateFactionCapital(staff, 393, "Sunsora_Castle")).thenReturn(CapitalResult.ok("ok"));
 		when(provinces.previewProvincesLostIfCapitalMoved(393)).thenReturn(List.of(12));
 		StaffAdminService.CapitalMove move = StaffAdminService.previewCapital(staff, faction, 393, "Sunsora_Castle", lines);
-		assertEquals(new StaffAdminService.CapitalMove("sunsora", 395, 393, "Sunsora_Castle"), move);
+		assertEquals(new StaffAdminService.CapitalMove(faction, 395, 393, "Sunsora_Castle"), move);
 		assertEquals("§eMove the capital of Sunsora §efrom province 395 §eto province 393 §e(new settlement "
 				+ StaffAdminService.displayName("Sunsora_Castle") + "§e)", lines.get(0));
 		assertEquals("§cSunsora §cwould lose provinces cut off from the new capital: [12]", lines.get(1));
@@ -308,7 +308,7 @@ class StaffAdminServiceTest {
 		when(settlements.getByProvince(393)).thenReturn(port);
 		when(settlements.validateFactionCapital(staff, 393, null)).thenReturn(CapitalResult.ok("ok"));
 		when(provinces.previewProvincesLostIfCapitalMoved(393)).thenReturn(List.of());
-		assertEquals(new StaffAdminService.CapitalMove("sunsora", 395, 393, null),
+		assertEquals(new StaffAdminService.CapitalMove(faction, 395, 393, null),
 				StaffAdminService.previewCapital(staff, faction, 393, null, lines));
 		assertEquals("§eMove the capital of Sunsora §efrom province 395 §eto province 393 §e(Port§e)", lines.get(0));
 		assertEquals(2, lines.size());
@@ -317,16 +317,25 @@ class StaffAdminServiceTest {
 		when(faction.hasCapital()).thenReturn(false);
 		when(faction.getCapital()).thenReturn(-1);
 		when(settlements.validateFactionCapital(staff, 393, "Ignored")).thenReturn(CapitalResult.ok("ok"));
-		assertEquals(new StaffAdminService.CapitalMove("sunsora", -1, 393, null),
+		assertEquals(new StaffAdminService.CapitalMove(faction, -1, 393, null),
 				StaffAdminService.previewCapital(staff, faction, 393, "Ignored", lines));
 		assertEquals("§eMove the capital of Sunsora §efrom nowhere §eto province 393 §e(Port§e)", lines.get(0));
 	}
 
 	@Test
 	void capitalMoveChecksNothingChangedSincePreview() {
-		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove("gone", 395, 393, null);
-		assertEquals(List.of("§cThat faction no longer exists. Nothing changed."), StaffAdminService.moveCapital(staff, move, 393));
-		move = new StaffAdminService.CapitalMove("sunsora", 395, 393, null);
+		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove(faction, 395, 393, null);
+		when(faction.getCapital()).thenReturn(395);
+		String gone = "§cThat faction no longer exists. Nothing changed.";
+		// Deleted, then refounded under the same id with the same capital: the new faction is left alone.
+		factions.when(() -> FactionManager.getByString("sunsora")).thenReturn(null);
+		assertEquals(List.of(gone), StaffAdminService.moveCapital(staff, move, 393));
+		Faction refounded = mock(Faction.class);
+		when(refounded.getCapital()).thenReturn(395);
+		factions.when(() -> FactionManager.getByString("sunsora")).thenReturn(refounded);
+		assertEquals(List.of(gone), StaffAdminService.moveCapital(staff, move, 393));
+		verify(refounded, never()).getSettlementHandler();
+		factions.when(() -> FactionManager.getByString("sunsora")).thenReturn(faction);
 		when(faction.getCapital()).thenReturn(1);
 		assertEquals(List.of("§cTheir capital changed since the preview. Nothing changed."), StaffAdminService.moveCapital(staff, move, 393));
 		when(faction.getCapital()).thenReturn(395);
@@ -336,7 +345,7 @@ class StaffAdminServiceTest {
 	@Test
 	void aFirstCapitalIsFoundedInPlace() {
 		when(faction.getCapital()).thenReturn(-1);
-		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove("sunsora", -1, 393, "Sunsora_Castle");
+		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove(faction, -1, 393, "Sunsora_Castle");
 		when(settlements.applyFactionCapital(staff, 393, "Sunsora_Castle")).thenReturn(CapitalResult.fail("§cNo"));
 		assertEquals(List.of("§cNo"), StaffAdminService.moveCapital(staff, move, 393));
 		verify(faction, never()).setCapital(393);
@@ -350,7 +359,7 @@ class StaffAdminServiceTest {
 	void anExistingCapitalMovesFreeThroughTheTreasuryWithoutCountingAMove() {
 		when(faction.hasCapital()).thenReturn(true);
 		when(faction.getCapital()).thenReturn(395);
-		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove("sunsora", 395, 393, null);
+		StaffAdminService.CapitalMove move = new StaffAdminService.CapitalMove(faction, 395, 393, null);
 		try (MockedStatic<TreasuryTopology> topology = mockStatic(TreasuryTopology.class)) {
 			topology.when(() -> TreasuryTopology.capital(eq(staff), eq(faction), eq(393), isNull(), eq(false), eq(0.0),
 					anyString(), eq(false))).thenReturn(false);
