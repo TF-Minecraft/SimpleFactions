@@ -116,7 +116,11 @@ public final class CampaignWarbandBattleService {
 		if (player == null || warband == null) {
 			return;
 		}
-		UUID playerId = player.getUniqueId();
+		processLeave(player.getUniqueId(), player, warband, voluntaryLeave);
+	}
+
+	/** {@code player} is null when the account is offline, e.g. a character kicked from its faction. */
+	public static void processLeave(UUID playerId, Player player, Warband warband, boolean voluntaryLeave) {
 		boolean wasLeader = playerId.equals(warband.getLeaderId());
 		CampaignBattleJoinService.CampaignBattleContext ctx =
 				CampaignBattleJoinService.findCampaignBattleForWarband(warband);
@@ -124,7 +128,7 @@ public final class CampaignWarbandBattleService {
 		if (ctx != null && ctx.battle().hasStarted() && voluntaryLeave) {
 			CampaignWarbandLeaveBlock.block(ctx.battle().getId(), warband.getId(), playerId);
 		}
-		detachFromBattle(player, warband);
+		if (player != null) detachFromBattle(player, warband);
 		warband.removeMember(playerId);
 
 		if (wasLeader) {

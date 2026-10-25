@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.admin.StaffAdminCommand;
+import net.tfminecraft.simplefactions.guild.MemberDepartures;
 import net.tfminecraft.simplefactions.map.AdminLandService;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.economy.TreasuryActions;
@@ -85,8 +87,9 @@ public class CommandManager implements Listener, CommandExecutor{
             return net.tfminecraft.simplefactions.guild.network.TradeGraphCommand.handle(sender, args);
         if (cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("reloadespionage"))
             return EspionageCommands.reload(sender, args);
-		if(cmd.getName().equalsIgnoreCase(cmd1) && net.tfminecraft.simplefactions.migration.QuarantineCommands.matches(args)) {
-			return net.tfminecraft.simplefactions.migration.QuarantineCommands.handle(sender, args);
+		// Staff fixes (and the quarantine) also work from the console.
+		if(StaffAdminCommand.matches(cmd.getName(), args)) {
+			return StaffAdminCommand.handle(sender, cmd.getName(), args);
 		}
 		if(cmd.getName().equalsIgnoreCase(cmd1) && args.length >= 1 && args[0].equalsIgnoreCase("addguildbank")) {
 			return addGuildBank(sender, args);
@@ -298,8 +301,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				// Leaving a guild keeps you in the faction, back in its main guild.
-				g.kick(Members.key(p));
-				g.getFaction().addMember(Members.key(p));
+				MemberDepartures.leaveGuild(g, Members.key(p));
 				p.sendMessage("§aLeft "+g.getName()+" §aand returned to the main guild of "+g.getFaction().getName());
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("kick") && args.length >= 2) {
@@ -322,8 +324,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					return true;
 				}
 				// A guild leader can only remove someone from the guild; they stay in the faction's main guild.
-				guild.kick(kicked);
-				guild.getFaction().addMember(kicked);
+				MemberDepartures.leaveGuild(guild, kicked);
 				p.sendMessage("§aKicked "+Members.display(kicked));
 				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+guild.getName()
 						+ "§a. You are back in the main guild of "+guild.getFaction().getName()));
@@ -992,7 +993,7 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cPlayer is a member of a guild");
 					return true;
 				}
-				f.forceRemoveMember(kicked);
+				MemberDepartures.leaveRealm(f, kicked, false);
 				p.sendMessage("§aKicked "+Members.display(kicked));
 				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+f.getName()));
 				return true;
@@ -1082,9 +1083,8 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cYou are in a guild. Use /guild leave first, then /faction leave");
 					return true;
 				}
-				f.forceRemoveMember(Members.key(p));
+				MemberDepartures.leaveRealm(f, Members.key(p), true);
 				p.sendMessage("§aLeft "+f.getName());
-				f.updatePrestige();
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("rename") && args.length == 2) {
 				Faction f = FactionManager.getByLeader(Members.key(p));

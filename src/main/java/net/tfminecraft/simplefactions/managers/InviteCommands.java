@@ -138,11 +138,16 @@ public final class InviteCommands {
 			p.sendMessage("§cNo guild by the id " + id);
 			return;
 		}
+		Guild previous = FactionManager.getGuildByMember(Members.key(p));
+		// An invite sent while they had no faction must not move them out of one they joined since.
+		if (previous != null && previous.getFaction() != g.getFaction()) {
+			p.sendMessage("§cYou belong to " + previous.getFaction().getName() + "§c. Use §e/faction leave §cfirst.");
+			return;
+		}
 		if (!g.consumeInvite(Members.key(p))) {
 			p.sendMessage("§cYou need to be invited to this guild by the leader first!");
 			return;
 		}
-		Guild previous = FactionManager.getGuildByMember(Members.key(p));
 		if (previous != null) {
 			previous.kick(Members.key(p));
 		}

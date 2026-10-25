@@ -1,7 +1,7 @@
 package net.tfminecraft.simplefactions.utils;
 
 import net.tfminecraft.simplefactions.identity.Members;
-import net.tfminecraft.simplefactions.migration.QuarantineCommands;
+import net.tfminecraft.simplefactions.admin.StaffAdminCommand;
 
 import net.tfminecraft.simplefactions.espionage.EspionageCommands;
 
@@ -209,8 +209,8 @@ public class TabCompletion implements TabCompleter{
     }
 
     private List<String> complete(CommandSender sender, Command cmd, String[] args) {
-		if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 2 && args[0].equalsIgnoreCase("admin")) {
-			return QuarantineCommands.complete(sender, args);
+		if(args.length >= 2 && StaffAdminCommand.matches(cmd.getName(), args)) {
+			return StaffAdminCommand.complete(sender, cmd.getName(), args);
 		}
 		if(cmd.getName().equalsIgnoreCase("faction") && args.length < 2 && !(sender instanceof Player)) {
 			List<String> completions = new ArrayList<>();
@@ -221,6 +221,10 @@ public class TabCompletion implements TabCompleter{
 				if(Cache.provincesEnabled) completions.addAll(List.of(TitleAdminCommand.SUBCOMMAND, "tradegraph"));
 			}
 			return completions;
+		}
+		// The console can run /guild admin, and nothing else under /guild.
+		if(cmd.getName().equalsIgnoreCase("guild") && args.length < 2 && !(sender instanceof Player)) {
+			return Permissions.isAdmin(sender) ? List.of(StaffAdminCommand.SUBCOMMAND) : List.of();
 		}
 		if(cmd.getName().equalsIgnoreCase("faction") && sender instanceof Player
 				&& Permissions.isAdmin(sender) && args.length == 2
@@ -287,6 +291,7 @@ public class TabCompletion implements TabCompleter{
 				if(!LeaderlessGuilds.appointable(Members.key(p)).isEmpty()) completions.add("appoint");
 				if(LeaderlessGuilds.offeredTo(Members.key(p)) != null) completions.add("lead");
 				if(Permissions.isAdmin(sender)) {
+					completions.add(StaffAdminCommand.SUBCOMMAND);
 					completions.add("dummify");
 					completions.add("dummyleader");
 					completions.add("forceleader");

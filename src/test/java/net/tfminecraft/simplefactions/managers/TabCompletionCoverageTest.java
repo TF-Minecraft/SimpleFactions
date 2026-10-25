@@ -214,6 +214,7 @@ class TabCompletionCoverageTest {
                 "rename",
                 "setbanner",
                 "setcolour",
+                "admin",
                 "dummify",
                 "dummyleader")));
     assertFalse(leader.contains("setcapital"));
@@ -851,6 +852,14 @@ class TabCompletionCoverageTest {
     assertEquals(List.of("tradegraph"), complete(console, "faction", "trad"));
     assertTrue(complete(console, "faction", "").contains("admin"));
     assertFalse(complete(console, "faction", "").contains("create"));
+    // /guild admin also works from the console, so it is offered there; nothing else is.
+    assertEquals(List.of("admin"), complete(console, "guild", ""));
+    assertEquals(List.of("admin"), complete(console, "guild", "AD"));
+    assertTrue(complete(console, "guild", "cr").isEmpty());
+    factions.when(FactionManager::getAllGuilds).thenReturn(Arrays.asList(guild, null));
+    assertEquals(List.of("merchants"), complete(console, "guild", "admin", "info", "mer"));
+    CommandSender visitor = mock(CommandSender.class);
+    assertTrue(complete(visitor, "guild", "").isEmpty());
     Cache.provincesEnabled = false;
     assertTrue(complete(console, "faction", "tit").isEmpty());
   }
