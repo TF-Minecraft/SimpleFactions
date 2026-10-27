@@ -2184,6 +2184,55 @@ class VehicleInteractionsCoverageTest {
     assertEquals(tag("Owner"), ownerData.getOwner());
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"free", "paid", "busy"})
+  void aBuildOwnerLeftOnAnIdleStationNoLongerBlocksTheNextBuild(String state) {
+    if (state.equals("paid")) {
+      faction.addMember("Owner");
+      faction.getVehicleFeeHandler().applyBracket(FeeKind.REGISTRATION_FEE, new Bracket(0, 10));
+      faction.getVehicleFeeHandler().setRate(FeeKind.REGISTRATION_FEE, null, 2.0);
+      net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(faction.getBank(), 1000.0);
+      fund(owner, 100.0);
+    }
+    String building = UUID.randomUUID().toString();
+    feeStore.beginBuild("world:6:64:7", building);
+    Blueprint blueprint = blueprint("ironclad");
+    ActiveStation station = station();
+    VehicleRegistrationFeeListener fees =
+        new VehicleRegistrationFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save);
+    var build = new BeginVehicleConstructionEvent(owner, blueprint, station, station.getLocation());
+    if (state.equals("busy")) {
+      // Older VFBuilders asked even while the station was building: that build keeps its owner.
+      when(station.hasBlueprint()).thenReturn(true);
+      fees.onBeginVehicleConstruction(build);
+      assertTrue(build.isCancelled());
+      verify(owner).sendMessage("§cThis station is already constructing a vehicle.");
+      assertEquals(building, feeStore.buildOwner("world:6:64:7"));
+      return;
+    }
+    fees.onBeginVehicleConstruction(build);
+    String character =
+        net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref().characterId().toString();
+    if (state.equals("paid")) {
+      // The first click asks for the fee; the second pays it.
+      assertTrue(build.isCancelled());
+      assertTrue(build.isKeepPlacement());
+      build = new BeginVehicleConstructionEvent(owner, blueprint, station, station.getLocation());
+      fees.onBeginVehicleConstruction(build);
+    }
+    assertFalse(build.isCancelled());
+    verify(owner, never()).sendMessage("§cVehicle payment needs staff review or recovery.");
+    VehicleFeeStore persisted = new VehicleFeeStore();
+    persisted.bind(files.root.toFile());
+    persisted.load();
+    String expected = state.equals("free") ? character : null;
+    assertEquals(expected, feeStore.buildOwner("world:6:64:7"));
+    assertEquals(expected, persisted.buildOwner("world:6:64:7"));
+    if (state.equals("paid")) {
+      assertEquals(character, persisted.receipt("build:world:6:64:7").payer().characterId().toString());
+    }
+  }
+
   @Test
   void handoverWithoutAFeeStillPersistsTheCapturedRecipient() {
     Player recipient = fixture.player("Recipient");
