@@ -61,11 +61,6 @@ categories:
       size: 1
       ignore-limit: true
       per-person: 3
-    flat_car:
-      upkeep: 1
-      size: 1
-      ignore-limit: true
-      per-person: 3
   ships:
     show-on-upcoming-battle-icon: true
     gunboat:
