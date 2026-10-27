@@ -73,7 +73,7 @@ public class InstallationCreator {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createInstallationIcon(Installation installation) {
-        ItemStack item = new ItemStack(iconFor(installation.getKind()), 1);
+        ItemStack item = iconFor(installation.getKind());
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(installation.getName());
         meta.setLore(createOperationalLore(installation));
@@ -125,7 +125,7 @@ public class InstallationCreator {
     @SuppressWarnings("deprecation")
     public ItemStack createDetailItem(
             Installation installation, InstallationConstruction pendingUpgrade) {
-        ItemStack item = new ItemStack(iconFor(installation.getKind()), 1);
+        ItemStack item = iconFor(installation.getKind());
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(installation.getName());
         meta.setLore(createOperationalLore(installation, pendingUpgrade));
@@ -272,15 +272,23 @@ public class InstallationCreator {
         return categoryId.replace('_', ' ');
     }
 
-    private Material iconFor(InstallationKind kind) {
-        return kind == InstallationKind.TRAIN_STATION ? Material.MINECART : Material.GREEN_CONCRETE;
+    static ItemStack iconFor(InstallationKind kind) {
+        Material fallback = kind == InstallationKind.TRAIN_STATION ? Material.MINECART : Material.GREEN_CONCRETE;
+        return IconGetter.getIconOrDefault("installation_" + kind.getCommandName(), fallback);
+    }
+
+    static ItemStack vehicleIcon(String vehicleTypeId) {
+        if (vehicleTypeId == null || vehicleTypeId.isBlank()) {
+            return new ItemStack(Material.MINECART, 1);
+        }
+        return IconGetter.getIconOrDefault("vehicle_" + vehicleTypeId.trim(), Material.MINECART);
     }
 
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public ItemStack createBerthedVehicleIcon(
             PlayerVehicleRecord record, Optional<Location> location, boolean leader) {
-        ItemStack item = new ItemStack(Material.MINECART, 1);
+        ItemStack item = vehicleIcon(record.getVehicleTypeId());
         ItemMeta meta = item.getItemMeta();
         String displayName = VehicleFindMessages.resolveVehicleName(record.getVehicleUuid());
         meta.setDisplayName("§e" + displayName);

@@ -190,7 +190,7 @@ public class MilitaryCreator {
 
 	@SuppressWarnings("deprecation")
 	public ItemStack createVehiclePoolIcon(Faction f) {
-		ItemStack item = new ItemStack(Material.MINECART, 1);
+		ItemStack item = IconGetter.getIconOrDefault("vehicle_pool", Material.MINECART);
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName("§eVehicle Pool");
 		PlayerVehicleRegistry registry = SimpleFactions.plugin == null

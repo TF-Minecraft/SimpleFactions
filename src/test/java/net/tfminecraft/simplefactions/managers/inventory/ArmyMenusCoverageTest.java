@@ -73,6 +73,7 @@ class ArmyMenusCoverageTest {
   private MilitaryView military;
   private java.util.Map<Player, Tier> oldForming;
   private final List<MockedStatic<?>> scopes = new ArrayList<>();
+  private MockedStatic<IconGetter> icons;
 
   private <T> MockedStatic<T> scoped(Class<T> type) {
     MockedStatic<T> s = mockStatic(type);
@@ -95,7 +96,10 @@ class ArmyMenusCoverageTest {
     military = new MilitaryView(navigation);
     oldForming = TitleManager.isFormingTitle;
     TitleManager.isFormingTitle = new HashMap<>();
-    scoped(IconGetter.class);
+    icons = scoped(IconGetter.class);
+    icons
+        .when(() -> IconGetter.getIconOrDefault(anyString(), any()))
+        .thenAnswer(call -> new ItemStack((Material) call.getArgument(1)));
     ItemAPI api = mock(ItemAPI.class);
     ItemCreator items = mock(ItemCreator.class);
     when(api.getCreator()).thenReturn(items);
@@ -579,7 +583,11 @@ class ArmyMenusCoverageTest {
     try (MockedStatic<SimpleFactions> plugin =
         mockStatic(SimpleFactions.class, CALLS_REAL_METHODS)) {
       plugin.when(SimpleFactions::getVehicleRegistry).thenReturn(registry);
+      icons
+          .when(() -> IconGetter.getIconOrDefault("vehicle_pool", Material.MINECART))
+          .thenAnswer(call -> new ItemStack(Material.COAL));
       ItemStack item = military.creator.createVehiclePoolIcon(faction);
+      assertEquals(Material.COAL, item.getType());
       assertEquals("Vehicle Pool", name(item));
       assertTrue(lore(item).contains("Unpaid: 1 of 1"));
       assertTrue(lore(item).contains("wagon"));
