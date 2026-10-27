@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.enums.SFGUI;
 import net.tfminecraft.simplefactions.espionage.EspionageService;
@@ -26,6 +27,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.util.LegacyModelData;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleUnberthService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
@@ -182,6 +184,44 @@ class InstallationMenusCoverageTest {
     assertEquals(Material.BARRIER, menu.getItem(53).getType());
     view.click(fixture.ui.click(leader, 12), menu, leader);
     assertEquals("AIRPORT", ((SFInventoryHolder) top().getHolder()).getSecondaryId());
+  }
+
+  @Test
+  void configuredIconsDressInstallationsAndBerthedVehiclesWithoutChangingTheirData() {
+    HashMap<String, String> previous = Cache.icons;
+    Cache.icons = new HashMap<>();
+    Cache.icons.put("installation_train_station", "coal.7417");
+    Cache.icons.put("vehicle_sloop", "coal.7418");
+    try {
+      InstallationCreator creator = new InstallationCreator();
+      Installation station = installation("station", InstallationKind.TRAIN_STATION);
+      ItemStack listed = creator.createInstallationIcon(station);
+      assertEquals(Material.COAL, listed.getType());
+      assertEquals(7417, LegacyModelData.get(listed.getItemMeta()));
+      assertEquals("station", name(listed));
+      assertEquals("station", data(listed, Keys.STRING_KEY));
+      ItemStack detail = creator.createDetailItem(station);
+      assertEquals(Material.COAL, detail.getType());
+      assertEquals("station", data(detail, Keys.STRING_KEY));
+      assertEquals(
+          Material.GREEN_CONCRETE, InstallationCreator.iconFor(InstallationKind.PORT).getType());
+      Cache.icons.remove("installation_train_station");
+      assertEquals(
+          Material.MINECART, InstallationCreator.iconFor(InstallationKind.TRAIN_STATION).getType());
+
+      PlayerVehicleRecord sloop = berth("boat-1", "Sloop", station);
+      ItemStack vehicle = creator.createBerthedVehicleIcon(sloop, Optional.empty(), true);
+      assertEquals(Material.COAL, vehicle.getType());
+      assertEquals(7418, LegacyModelData.get(vehicle.getItemMeta()));
+      assertEquals("boat-1", data(vehicle, Keys.STRING_KEY));
+      assertTrue(lore(vehicle).contains("Type: Sloop"));
+      assertTrue(lore(vehicle).contains("Click to take"));
+      assertEquals(Material.MINECART, InstallationCreator.vehicleIcon("unknown").getType());
+      assertEquals(Material.MINECART, InstallationCreator.vehicleIcon(null).getType());
+      assertEquals(Material.MINECART, InstallationCreator.vehicleIcon("  ").getType());
+    } finally {
+      Cache.icons = previous;
+    }
   }
 
   @Test

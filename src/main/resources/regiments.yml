@@ -17,8 +17,8 @@ artillery:
     upkeep: 6.0
     expansion-time: 21600
     item:
-        material: BLACK_DYE
-        model-data: 12
+        material: COAL
+        model-data: 7408
     description:
         - "#c4a35aField Artillery #a89977slots hold guns."
         - "#a89977Each slot lets the faction keep one"
