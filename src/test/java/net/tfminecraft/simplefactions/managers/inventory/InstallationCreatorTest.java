@@ -8,7 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import org.junit.jupiter.api.AfterEach;
@@ -49,24 +48,22 @@ class InstallationCreatorTest {
 	}
 
 	@Test
-	void everyDefaultVehicleHasADefaultIcon() {
+	void everyVehicleHasItsResourcePackIcon() {
 		List<String> icons = YamlConfiguration
 				.loadConfiguration(Path.of("src/main/resources/config.yml").toFile())
 				.getStringList("icons");
-		ConfigurationSection categories = YamlConfiguration
-				.loadConfiguration(Path.of("src/main/resources/vehicles.yml").toFile())
-				.getConfigurationSection("categories");
-		int vehicles = 0;
-		for (String category : categories.getKeys(false)) {
-			ConfigurationSection section = categories.getConfigurationSection(category);
-			for (String vehicle : section.getKeys(false)) {
-				if (!section.isConfigurationSection(vehicle)) continue;
-				vehicles++;
-				String prefix = "vehicle_" + vehicle + "(coal.";
-				assertTrue(icons.stream().anyMatch(icon -> icon.startsWith(prefix)), vehicle);
-			}
+		// The pack draws one icon per vehicle on COAL 7400-7421, in vehicle id order.
+		List<String> vehicles = List.of(
+				"aa_turret", "anti_air", "behemoth", "biplane",
+				"bomber", "cloudskimmer", "coal_car", "cruiser",
+				"field_artillery", "fixed_artillery", "flat_car", "gunboat",
+				"gyrobomber", "horse_cart", "ironclad", "monoplane",
+				"passenger_car", "simple_locomotive", "sloop", "small_car",
+				"torpedoboat", "wooden_cart");
+		for (int n = 0; n < vehicles.size(); n++) {
+			String icon = "vehicle_" + vehicles.get(n) + "(coal." + (7400 + n) + ")";
+			assertTrue(icons.contains(icon), icon);
 		}
-		assertEquals(22, vehicles);
 		assertTrue(icons.contains("vehicle_pool(coal.7414)"));
 	}
 }
