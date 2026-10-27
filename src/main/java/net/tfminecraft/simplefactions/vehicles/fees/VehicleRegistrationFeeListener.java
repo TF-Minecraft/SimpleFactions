@@ -62,8 +62,15 @@ public final class VehicleRegistrationFeeListener implements Listener {
         String stationKey = stationKey(event.getStation());
         String scope = "build:" + stationKey;
         var payments = VehiclePayments.current();
-        if (payments == null || !payments.ready() || payments.receipt(scope) != null || store.buildOwner(stationKey) != null || stationKey.equals("unknown")) {
+        if (payments == null || !payments.ready() || payments.receipt(scope) != null || stationKey.equals("unknown")) {
             event.setCancelled(true); player.sendMessage("§cVehicle payment needs staff review or recovery."); return;
+        }
+        // VFBuilders only starts a build on an idle station, so a free build's owner still recorded here
+        // is from a build that ended without its construct or cancel event reaching us. No money is held.
+        String stale = store.buildOwner(stationKey);
+        if (stale != null) {
+            store.endBuild(stationKey);
+            log("Dropped the stale build owner " + stale + " of idle station " + stationKey);
         }
         Quote quote = VehicleFeeService.quote(FeeKind.REGISTRATION_FEE, Members.key(player), vehicleTypeId);
         if (quote == null) {
