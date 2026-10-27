@@ -2185,7 +2185,7 @@ class VehicleInteractionsCoverageTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"free", "paid"})
+  @ValueSource(strings = {"free", "paid", "busy"})
   void aBuildOwnerLeftOnAnIdleStationNoLongerBlocksTheNextBuild(String state) {
     if (state.equals("paid")) {
       faction.addMember("Owner");
@@ -2194,12 +2194,22 @@ class VehicleInteractionsCoverageTest {
       net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(faction.getBank(), 1000.0);
       fund(owner, 100.0);
     }
-    feeStore.beginBuild("world:6:64:7", UUID.randomUUID().toString());
+    String building = UUID.randomUUID().toString();
+    feeStore.beginBuild("world:6:64:7", building);
     Blueprint blueprint = blueprint("ironclad");
     ActiveStation station = station();
     VehicleRegistrationFeeListener fees =
         new VehicleRegistrationFeeListener(feeStore, new VehicleFeeConfirmations(), feeStore::save);
     var build = new BeginVehicleConstructionEvent(owner, blueprint, station, station.getLocation());
+    if (state.equals("busy")) {
+      // Older VFBuilders asked even while the station was building: that build keeps its owner.
+      when(station.hasBlueprint()).thenReturn(true);
+      fees.onBeginVehicleConstruction(build);
+      assertTrue(build.isCancelled());
+      verify(owner).sendMessage("§cThis station is already constructing a vehicle.");
+      assertEquals(building, feeStore.buildOwner("world:6:64:7"));
+      return;
+    }
     fees.onBeginVehicleConstruction(build);
     String character =
         net.tfminecraft.simplefactions.identity.Members.session(owner).orElseThrow().ref().characterId().toString();

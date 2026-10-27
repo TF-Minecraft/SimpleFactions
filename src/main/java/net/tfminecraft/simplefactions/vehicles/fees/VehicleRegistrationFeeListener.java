@@ -65,8 +65,12 @@ public final class VehicleRegistrationFeeListener implements Listener {
         if (payments == null || !payments.ready() || payments.receipt(scope) != null || stationKey.equals("unknown")) {
             event.setCancelled(true); player.sendMessage("§cVehicle payment needs staff review or recovery."); return;
         }
-        // VFBuilders only starts a build on an idle station, so a free build's owner still recorded here
-        // is from a build that ended without its construct or cancel event reaching us. No money is held.
+        // VFBuilders before 2.2.1 could ask for a build on a station that is already building.
+        if (event.getStation().hasBlueprint()) {
+            event.setCancelled(true); player.sendMessage("§cThis station is already constructing a vehicle."); return;
+        }
+        // The station is idle, so a free build's owner still recorded here is from a build that ended
+        // without its construct or cancel event reaching us. No money is held.
         String stale = store.buildOwner(stationKey);
         if (stale != null) {
             store.endBuild(stationKey);
