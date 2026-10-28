@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.government.stability;
 
+import java.util.regex.Pattern;
+
 import net.tfminecraft.simplefactions.enums.Stance;
 import net.tfminecraft.simplefactions.government.stability.StabilityFacts.Body;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -11,11 +13,13 @@ import net.tfminecraft.simplefactions.objects.handler.LawHandler;
 
 /** Reads a live faction into {@link StabilityMath}. */
 public final class StateStability {
+	private static final Pattern HEX_COLOUR = Pattern.compile("§x(?:§[0-9a-fA-F]){6}");
+	private static final Pattern COLOUR = Pattern.compile("§.");
 
 	private StateStability() {}
 
 	public static StabilityReport of(Faction faction) {
-		return StabilityMath.assess(facts(faction));
+		return StabilityMemo.report(faction, () -> StabilityMath.assess(facts(faction)));
 	}
 
 	public static StabilityFacts facts(Faction faction) {
@@ -99,6 +103,6 @@ public final class StateStability {
 	}
 
 	private static String strip(String name) {
-		return name.replaceAll("§x(?:§[0-9a-fA-F]){6}", "").replaceAll("§.", "");
+		return COLOUR.matcher(HEX_COLOUR.matcher(name).replaceAll("")).replaceAll("");
 	}
 }
