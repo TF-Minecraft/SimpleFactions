@@ -14,8 +14,8 @@ import net.tfminecraft.simplefactions.guild.Guild;
  * The flood asks for a province owner's stability once per foreign guild it reaches, and each ask
  * reads the realm guild's treasury from the ledger. During a run on the server thread nothing
  * else can post to a treasury or remove a bank, and nothing in a recalculation does, so every ask
- * in that run gets the same answer. Everything else in stability, including unrest that decays
- * over time, is still read live on every ask.
+ * in that run gets the same answer. The rest of a stability report is kept per run by
+ * {@link StabilityMemo}, which also drops its reports when the ledger closes.
  *
  * <p>Runs off the server thread (async previews) read live as before: the server can change a
  * guild's bank while they run. If the ledger is closed, every ask reads live too, because a

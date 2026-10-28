@@ -6,6 +6,8 @@ import java.util.function.Supplier;
 
 import org.bukkit.Bukkit;
 
+import net.tfminecraft.denareconomy.DenarEconomy;
+import net.tfminecraft.denareconomy.ledger.Ledger;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /**
@@ -14,10 +16,16 @@ import net.tfminecraft.simplefactions.objects.Faction;
  * every time it reaches that province, and each ask rebuilt the whole report: laws, guild bodies,
  * vassals and espionage effects. On Main that was about 40 % of a recalculation, which freezes the
  * server for over a second. A recalculation only writes trade, production, income and prosperity,
- * none of which a report reads, so every ask in one run gets the same report. Effects that expire
- * while the run is going (a run takes well under a second) are read as they were at its first ask.
+ * none of which a report reads, so every ask in one run gets the same report.
  *
- * <p>Runs off the server thread (async previews) read live as before, like {@link BankruptcyMemo}.
+ * <p>Time-based inputs are frozen at the run's first ask for that faction: espionage unrest keeps
+ * decaying while a run goes on, and an effect may expire, so a later ask in the same run can see a
+ * slightly older value than a live read would. A run takes well under a second, so this only moves
+ * a value that sits right on a rounding or status boundary, and it keeps one run consistent.
+ *
+ * <p>Like {@link BankruptcyMemo}, a closed ledger drops every cached report (each one read its
+ * treasury while the ledger was open) and reads live from then on. Runs off the server thread
+ * (async previews) read live as before.
  */
 public final class StabilityMemo {
 	private static final ThreadLocal<Map<Faction, StabilityReport>> RUN = new ThreadLocal<>();
@@ -50,12 +58,23 @@ public final class StabilityMemo {
 	static StabilityReport report(Faction faction, Supplier<StabilityReport> build) {
 		Map<Faction, StabilityReport> run = RUN.get();
 		if (run == null || faction == null) return build.get();
+		if (!ledgerOpen()) {
+			// A failed read closes the ledger for good, and reports from before it are stale.
+			run.clear();
+			return build.get();
+		}
 		StabilityReport report = run.get(faction);
 		if (report == null) {
 			report = build.get();
-			run.put(faction, report);
+			// Keep only reports the ledger stayed open for; this very build may have closed it.
+			if (ledgerOpen()) run.put(faction, report);
 		}
 		return report;
+	}
+
+	private static boolean ledgerOpen() {
+		Ledger ledger = DenarEconomy.getLedger();
+		return ledger != null && ledger.isOpen();
 	}
 
 	private static boolean onServerThread() {
