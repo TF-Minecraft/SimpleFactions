@@ -34,6 +34,7 @@ import net.tfminecraft.simplefactions.war.resolution.PillageTradeHit;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
 import net.tfminecraft.simplefactions.government.stability.BankruptcyMemo;
+import net.tfminecraft.simplefactions.government.stability.StabilityMemo;
 import net.tfminecraft.simplefactions.objects.handler.TaxHandler;
 import net.tfminecraft.simplefactions.laws.Law;
 import net.tfminecraft.simplefactions.laws.LawGroup;
@@ -129,6 +130,7 @@ public class ProvinceManager {
         lastCalculatedVersion = -1;
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
+        StabilityMemo.Run stability = StabilityMemo.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -145,6 +147,7 @@ public class ProvinceManager {
             lastCalculatedBankruptcy = realmBankruptcy();
             lastCalculatedVersion = stateVersion;
         } finally {
+            StabilityMemo.end(stability);
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();
         }
@@ -162,6 +165,7 @@ public class ProvinceManager {
         previewFactions = factions == null ? List.of() : List.copyOf(factions);
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
+        StabilityMemo.Run stability = StabilityMemo.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -178,6 +182,7 @@ public class ProvinceManager {
             }
             recalculateProsperity();
         } finally {
+            StabilityMemo.end(stability);
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();
         }
@@ -197,6 +202,7 @@ public class ProvinceManager {
         lastCalculatedVersion = -1;
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
+        StabilityMemo.Run stability = StabilityMemo.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -210,6 +216,7 @@ public class ProvinceManager {
                 }
             }
         } finally {
+            StabilityMemo.end(stability);
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();
         }
