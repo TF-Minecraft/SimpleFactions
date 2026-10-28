@@ -1,11 +1,14 @@
 package net.tfminecraft.simplefactions.guild.income;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -18,9 +21,13 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.bukkit.Bukkit;
+import org.bukkit.Server;
 import org.mockito.MockedStatic;
 
+import net.tfminecraft.denareconomy.DenarEconomy;
 import net.tfminecraft.simplefactions.army.Military;
+import net.tfminecraft.simplefactions.government.stability.BankruptcyMemo;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.loans.LoanHandler;
@@ -76,6 +83,36 @@ class LedgerDividendTest {
 				base,
 				net - ledger.getIncome(Cashflow.DIVIDEND_PAYOUT) - ledger.getIncome(Cashflow.DIVIDEND_PAYMENT),
 				1e-9);
+	}
+
+	@Test
+	void aServerRunReadsTheTreasuryOnceForEveryIncomeAskAndLiveReadsStayLive() {
+		Ledger ledger = payingLedger(100.0, 20.0, 10.0, List.of("Ann", "Bob"), false, 0.0, 0.0);
+		Guild guild = extractGuild(ledger);
+		var previousLedger = DenarEconomy.getLedger();
+		var open = mock(net.tfminecraft.denareconomy.ledger.Ledger.class);
+		when(open.isOpen()).thenReturn(true);
+		DenarEconomy.setLedger(open);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(Bukkit::getServer).thenReturn(mock(Server.class));
+			bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
+			BankruptcyMemo.Run run = BankruptcyMemo.begin();
+			try {
+				double first = ledger.getNetIncome();
+				assertEquals(first, ledger.getNetIncome(), 1e-9);
+				ledger.getDividendBase();
+			} finally {
+				BankruptcyMemo.end(run);
+			}
+			// One read for the whole run; a single live net income asks hundreds of times.
+			verify(guild, times(1)).isBankrupt();
+			ledger.getNetIncome();
+			long live = org.mockito.Mockito.mockingDetails(guild).getInvocations().stream()
+					.filter(call -> call.getMethod().getName().equals("isBankrupt")).count();
+			assertTrue(live > 2, "outside a run every ask reads the treasury, got " + live);
+		} finally {
+			DenarEconomy.setLedger(previousLedger);
+		}
 	}
 
 	@Test

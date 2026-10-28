@@ -13,6 +13,8 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.government.stability.BankruptcyMemo;
+import net.tfminecraft.simplefactions.government.stability.StabilityMemo;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -359,12 +361,21 @@ public class MapSystem {
 
 	public void exportChronicle() {
 		if (!Cache.chronicleEnabled) return;
+		// The snapshot reads every guild's net income, which asks each treasury whether it is
+		// bankrupt many times over (realm income walks its member guilds' ledgers), and each ask
+		// was a SQLite query: 0.3-0.5 s on the server thread every live cycle on Main. The export
+		// only reads, so one answer per treasury and one stability report per faction hold for it.
+		BankruptcyMemo.Run bankruptcy = BankruptcyMemo.begin();
+		StabilityMemo.Run stability = StabilityMemo.begin();
 		try {
 			File out = new File("plugins/SimpleFactions/MapAPI/chronicle.json");
 			ChronicleExport.export(out);
 		} catch (Exception e) {
 			Bukkit.getLogger().severe("[SimpleFactions] Failed to export chronicle.json");
 			e.printStackTrace();
+		} finally {
+			StabilityMemo.end(stability);
+			BankruptcyMemo.end(bankruptcy);
 		}
 	}
 }

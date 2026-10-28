@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.function.ToDoubleFunction;
 
 import net.tfminecraft.denareconomy.api.Denars;
+import net.tfminecraft.simplefactions.government.stability.BankruptcyMemo;
 import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.economy.Money;
 
@@ -128,7 +129,7 @@ public class Ledger {
     }
 
     private boolean bankrupt() {
-        return settlement == null ? guild.isBankrupt() : settlement.wealth < 0;
+        return settlement == null ? BankruptcyMemo.isBankrupt(guild) : settlement.wealth < 0;
     }
 
     public void addCitizenTaxEntry(String p, Double tax) {
