@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -144,6 +145,7 @@ class StabilityMemoTest {
 	@Test
 	void stateStabilityReadsThroughTheRun() {
 		Faction faction = mock(Faction.class);
+		when(faction.getRelations()).thenReturn(new HashMap<>());
 		StabilityMemo.Run run = StabilityMemo.begin();
 		try {
 			assertSame(StateStability.of(faction), StateStability.of(faction));
