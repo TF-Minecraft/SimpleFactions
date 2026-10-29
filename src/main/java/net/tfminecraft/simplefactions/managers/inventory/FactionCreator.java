@@ -7,8 +7,10 @@ import net.tfminecraft.simplefactions.util.LegacyModelData;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.ToIntFunction;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,6 +36,7 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.objects.Modifier;
 import net.tfminecraft.simplefactions.objects.PrestigeRank;
@@ -228,25 +231,47 @@ public class FactionCreator {
 		}
 		else {
 
-			// Mirrors Faction.dissolve in its order: leaderless guilds stay, the others are elevated onto
-			// their capital or go landless, and each one that leaves no longer blocks a shared capital.
-			Set<Integer> kept = new HashSet<>(f.getProvinceHandler().getProvinces());
+			// Mirrors Faction.dissolve step by step. Leaderless guilds stay; each other guild is elevated
+			// onto its capital or goes landless, and its departure re-checks the realm's claims
+			// (GuildHandler.removeGuild -> revalidateClaims): land only its capital made legal is
+			// dropped, and a later guild's capital traced through it is unseated.
+			ProvinceHandler land = f.getProvinceHandler();
+			List<Integer> owned = new ArrayList<>(land.getProvinces());
+			Map<String, Integer> capitals = new LinkedHashMap<>();
+			for (Guild g : f.getGuildHandler().getGuilds()) capitals.put(g.getId(), g.hasCapital() ? g.getCapital() : -1);
+			ToIntFunction<Guild> capitalOf = g -> capitals.getOrDefault(g.getId(), -1);
 			Set<Guild> departed = Collections.newSetFromMap(new IdentityHashMap<>());
+			int lost = 0;
 			for (Guild g : f.getGuildHandler().getGuilds()) {
 				if (g.isBase()) continue;
 				String guild = "#b8a58a• " + g.getName() + " §7(" + g.getType().getName() + "§7)";
 				if (g.isLeaderless()) {
 					lore.add(StringFormatter.formatHex(guild + " #d4c9aehas no leader and stays with #e0cfa6" + f.getName()));
-				} else if (g.canBeElevated(null, departed)) {
-					departed.add(g);
-					if (g.hasCapital()) kept.remove(g.getCapital());
-					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes an independent faction"
-						+ (g.hasCapital() ? " and takes its capital province" : "")));
-				} else {
-					departed.add(g);
-					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes a landless faction"
-						+ (g.hasCapital() ? " #e15757and loses its capital" : "")));
+					continue;
 				}
+				int cap = capitalOf.applyAsInt(g);
+				boolean elevated = g.canBeElevated(null, departed, capitalOf);
+				departed.add(g);
+				capitals.remove(g.getId());
+				ProvinceHandler.TopologyClaims claims = land.previewTopology(f.getCapital(), owned, capitals);
+				lost += owned.size() - claims.provinces().size();
+				owned = new ArrayList<>(claims.provinces());
+				capitals.clear();
+				capitals.putAll(claims.capitals());
+				if (elevated && cap != -1) {
+					// The new faction takes its capital even if the re-check dropped it from the realm.
+					if (!owned.remove(Integer.valueOf(cap)) && land.getProvinces().contains(cap)) lost--;
+					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes an independent faction and takes its capital province"));
+				} else if (elevated) {
+					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes an independent faction"));
+				} else {
+					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes a landless faction"
+						+ (cap != -1 ? " #e15757and loses its capital" : "")));
+				}
+			}
+			if (lost > 0) {
+				lore.add(StringFormatter.formatHex("#e15757• " + (lost == 1 ? "1 province" : lost + " provinces")
+					+ " held only through these guilds' capitals " + (lost == 1 ? "is" : "are") + " lost"));
 			}
 
 			if (f.getGuildHandler().getGuilds().stream().anyMatch(g -> !g.isBase())) {
@@ -271,7 +296,7 @@ public class FactionCreator {
 			if (!lore.get(lore.size() - 1).isEmpty()) lore.add("");
 			lore.add(StringFormatter.formatHex(
 				"#b8a58a• " + f.getName() + " §7(#4ecc5eYou§7)" +
-				" #d4c9aeis not dissolved. " + keeps(kept.size())
+				" #d4c9aeis not dissolved. " + keeps(owned.size())
 			));
 		}
 
