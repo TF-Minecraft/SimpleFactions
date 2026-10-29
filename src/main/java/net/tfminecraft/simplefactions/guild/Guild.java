@@ -1029,6 +1029,14 @@ public class Guild {
     }
 
     public boolean canBeElevated(Player p) {
+        return canBeElevated(p, Set.of());
+    }
+
+    /**
+     * {@code departed} are guilds that have already left the host, as earlier guilds do during
+     * a dissolve, so they no longer hold a capital this guild would share.
+     */
+    public boolean canBeElevated(Player p, Set<Guild> departed) {
         if(isBase()) {
             if(p != null) p.sendMessage("§cCannot elevate the main guild");
             return false;
@@ -1048,6 +1056,7 @@ public class Guild {
         for(Guild g : host.getGuildHandler().getGuilds()) {
             if(g.isBase()) continue;
             if(g.getId().equalsIgnoreCase(id)) continue;
+            if(departed.contains(g)) continue;
             if(g.getCapital() == capital) {
                 if(p != null) p.sendMessage("§cAnother guild already has that capital, move it first");
                 return false;

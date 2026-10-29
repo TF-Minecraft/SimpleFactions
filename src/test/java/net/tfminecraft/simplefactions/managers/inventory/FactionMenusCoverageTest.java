@@ -262,7 +262,7 @@ class FactionMenusCoverageTest {
     when(elevated.getId()).thenReturn("Merchants");
     when(elevated.getName()).thenReturn("Merchants");
     when(elevated.getType().getName()).thenReturn("Trade Guild");
-    when(elevated.canBeElevated(null)).thenReturn(true);
+    when(elevated.canBeElevated(isNull(), any())).thenReturn(true);
     when(elevated.hasCapital()).thenReturn(true);
     when(elevated.getCapital()).thenReturn(3);
     faction.getGuildHandler().addGuild(elevated);
@@ -288,6 +288,22 @@ class FactionMenusCoverageTest {
     assertLore(creator.createDissolveItem(faction), "It keeps its treasury and members\n", true);
     faction.getProvinceHandler().getProvinces().add(1);
     assertLore(creator.createDissolveItem(faction), "It keeps its treasury, members and 1 province\n", true);
+  }
+
+  @Test
+  void releasePreviewFollowsDissolveOrderForGuildsSharingACapital() {
+    faction.getProvinceHandler().getProvinces().addAll(List.of(4, 5));
+    fixture.guild(faction, "Masons", "Mason").setCapital(4, false);
+    fixture.guild(faction, "Carters", "Carter").setCapital(4, false);
+    List<Guild> order = faction.getGuildHandler().getGuilds().stream().filter(g -> !g.isBase()).toList();
+    // The first one still shares its capital with the second and goes landless; once it has
+    // left, the second can be elevated and takes the capital, as Faction.dissolve does.
+    ItemStack item = creator.createDissolveItem(faction);
+    assertLore(item, order.get(0).getName() + " (guild) becomes a landless faction and loses its capital", true);
+    assertLore(item, order.get(1).getName() + " (guild) becomes an independent faction and takes its capital province", true);
+    assertLore(item, "It keeps its treasury, members and 1 province", true);
+    assertTrue(order.get(1).canBeElevated(null, java.util.Set.of(order.get(0))));
+    assertFalse(order.get(1).canBeElevated(null));
   }
 
   @ParameterizedTest

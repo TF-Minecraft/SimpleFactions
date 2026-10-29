@@ -6,7 +6,9 @@ import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -226,18 +228,22 @@ public class FactionCreator {
 		}
 		else {
 
-			// Mirrors Faction.dissolve: leaderless guilds stay, others are elevated onto their capital or go landless.
+			// Mirrors Faction.dissolve in its order: leaderless guilds stay, the others are elevated onto
+			// their capital or go landless, and each one that leaves no longer blocks a shared capital.
 			Set<Integer> kept = new HashSet<>(f.getProvinceHandler().getProvinces());
+			Set<Guild> departed = Collections.newSetFromMap(new IdentityHashMap<>());
 			for (Guild g : f.getGuildHandler().getGuilds()) {
 				if (g.isBase()) continue;
 				String guild = "#b8a58a• " + g.getName() + " §7(" + g.getType().getName() + "§7)";
 				if (g.isLeaderless()) {
 					lore.add(StringFormatter.formatHex(guild + " #d4c9aehas no leader and stays with #e0cfa6" + f.getName()));
-				} else if (g.canBeElevated(null)) {
+				} else if (g.canBeElevated(null, departed)) {
+					departed.add(g);
 					if (g.hasCapital()) kept.remove(g.getCapital());
 					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes an independent faction"
 						+ (g.hasCapital() ? " and takes its capital province" : "")));
 				} else {
+					departed.add(g);
 					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes a landless faction"
 						+ (g.hasCapital() ? " #e15757and loses its capital" : "")));
 				}
