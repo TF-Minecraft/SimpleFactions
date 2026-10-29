@@ -204,8 +204,7 @@ class BranchIncomePublicationCoverageTest {
       calculations
           .when(
               () ->
-                  BranchIncomePreview.estimate(
-                      eq(prepared), eq(guild), anyMap(), anyMap()))
+                  BranchIncomePreview.baseline(eq(prepared), eq(guild), anyMap()))
           .thenThrow(failure);
       compute();
     }
@@ -245,5 +244,94 @@ class BranchIncomePublicationCoverageTest {
       SimpleFactions.plugin = old;
     }
     assertTrue(fixture.ui.asyncTasks.isEmpty());
+  }
+
+  @Test
+  void estimateAlreadyMadeOnThisCopyPaintsAtOnceOnlyOntoTheSameButton() {
+    display(true);
+    schedule(true);
+    compute();
+    fixture.ui.runTasks();
+    String painted = lore();
+    display(true);
+    schedule(true);
+    assertTrue(fixture.ui.asyncTasks.isEmpty());
+    assertEquals(painted, lore());
+    // Another row's button in this slot keeps its own text.
+    display(true);
+    ItemStack item = inventory.getItem(20);
+    var meta = item.getItemMeta();
+    meta.getPersistentDataContainer().set(Keys.BRANCH_ID, PersistentDataType.STRING, "different");
+    item.setItemMeta(meta);
+    inventory.setItem(20, item);
+    schedule(true);
+    assertTrue(fixture.ui.asyncTasks.isEmpty());
+    assertTrue(lore().contains("Calculating"));
+  }
+
+  @Test
+  void missingBranchesAndEmptySlotsAreSkipped() {
+    display(true);
+    BranchIncomePreviewService.schedule(
+        player,
+        inventory,
+        prepared,
+        guild,
+        List.of(
+            new BranchIncomePreviewService.Request(20, null, 1),
+            new BranchIncomePreviewService.Request(30, branch, 1)));
+    inventory.setItem(31, new ItemStack(Material.AIR));
+    BranchIncomePreviewService.schedule(player, inventory, 31, prepared, guild, branch, 1);
+    assertTrue(fixture.ui.asyncTasks.isEmpty());
+    assertTrue(lore().contains("Calculating"));
+  }
+
+  @Test
+  void oneFailedMeasurementMarksEveryButtonOfTheRunUnavailableAndLogsOnce() {
+    var creator = new GuildCreator();
+    inventory.setItem(20, creator.createBranchUpgradeItem(player, guild, branch));
+    inventory.setItem(38, creator.createBranchDowngradeItem(player, guild, branch));
+    BranchIncomePreviewService.schedule(
+        player,
+        inventory,
+        prepared,
+        guild,
+        List.of(
+            new BranchIncomePreviewService.Request(20, branch, 1),
+            new BranchIncomePreviewService.Request(38, branch, -1)));
+    var logger = mock(java.util.logging.Logger.class);
+    when(fixture.ui.plugin.getLogger()).thenReturn(logger);
+    RuntimeException failure = new IllegalStateException("Preview calculation failed");
+    try (var calculations = mockStatic(BranchIncomePreview.class, CALLS_REAL_METHODS)) {
+      calculations
+          .when(() -> BranchIncomePreview.baseline(eq(prepared), eq(guild), anyMap()))
+          .thenThrow(failure);
+      compute();
+    }
+    fixture.ui.runTasks();
+    assertTrue(lore().contains("Income estimate unavailable"));
+    assertTrue(
+        String.join(" ", inventory.getItem(38).getItemMeta().getLore())
+            .contains("Income estimate unavailable"));
+    verify(logger, times(1)).log(eq(java.util.logging.Level.WARNING), anyString(), same(failure));
+  }
+
+  @Test
+  void pluginDisabledDuringAnEstimatePublishesNothing() {
+    display(true);
+    schedule(true);
+    when(fixture.ui.plugin.isEnabled()).thenReturn(true, false);
+    compute();
+    assertTrue(fixture.ui.tasks.isEmpty());
+    assertTrue(lore().contains("Calculating"));
+  }
+
+  @Test
+  void forgettingAPlayerStopsTheirRun() {
+    display(true);
+    schedule(true);
+    BranchIncomePreviewService.forget(player.getUniqueId());
+    compute();
+    assertTrue(fixture.ui.tasks.isEmpty());
   }
 }

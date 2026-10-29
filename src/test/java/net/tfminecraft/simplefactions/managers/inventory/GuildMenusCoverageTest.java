@@ -248,6 +248,74 @@ class GuildMenusCoverageTest {
     }
   }
 
+  private Inventory clickDowngradeWithStubbedViews() {
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
+    guild.updateWealth();
+    view = spy(view);
+    manager.guildView = view;
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class));
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class), anyBoolean());
+    Inventory inventory = open();
+    inventory.setItem(
+        38, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0))));
+    manager.clickButton(fixture.ui.click(fixture.player, 38));
+    return inventory;
+  }
+
+  @Test
+  void aFloodThatCannotBeCopiedRecalculatesOnTheServerThreadAndRepaints() {
+    fixture.ui.online(fixture.player);
+    when(fixture.provinces.prepareBackgroundFlood()).thenThrow(new IllegalStateException("copy failed"));
+    Inventory inventory = clickDowngradeWithStubbedViews();
+    fixture.ui.runTasks();
+    verify(fixture.provinces).recalculate();
+    verify(view).guildView(fixture.player, guild, inventory, false);
+    assertTrue(fixture.ui.asyncTasks.isEmpty());
+  }
+
+  @Test
+  void aBackgroundFloodOutdatedOnArrivalFloodsOnceMoreThenRepaintsOnlyThatGuildsMenus() {
+    Player other = fixture.ui.player("Bob");
+    other.openInventory(fixture.ui.inventory(null, 9, "Chest"));
+    Player rival = fixture.ui.player("Cara");
+    Inventory rivalMenu =
+        fixture.ui.inventory(new SFInventoryHolder("rivals", SFGUI.GUILD_VIEW), 54, "§7Guild View");
+    rival.openInventory(rivalMenu);
+    Player lister = fixture.ui.player("Dan");
+    lister.openInventory(fixture.ui.inventory(new SFInventoryHolder("merchants", SFGUI.GUILD_LIST), 54, "List"));
+    fixture.ui.online(other, rival, lister, fixture.player);
+    net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood flood = mock(net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood.class);
+    when(fixture.provinces.prepareBackgroundFlood()).thenReturn(flood);
+    when(fixture.provinces.adopt(flood)).thenReturn(false, true);
+    when(fixture.ui.plugin.isEnabled()).thenReturn(true);
+    Inventory inventory = clickDowngradeWithStubbedViews();
+    fixture.ui.runTasks();
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    verify(fixture.provinces, times(2)).prepareBackgroundFlood();
+    verify(view, never()).guildView(fixture.player, guild, inventory, false);
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    verify(flood, times(2)).run();
+    verify(fixture.provinces, never()).recalculate();
+    verify(view).guildView(fixture.player, guild, inventory, false);
+    verify(view, never()).guildView(eq(rival), any(), any(Inventory.class), anyBoolean());
+    verify(view, never()).guildView(eq(lister), any(), any(Inventory.class), anyBoolean());
+  }
+
+  @Test
+  void aNewerClickCancelsTheFloodStillRunning() {
+    net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood flood = mock(net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood.class);
+    when(fixture.provinces.prepareBackgroundFlood()).thenReturn(flood);
+    Inventory inventory = clickDowngradeWithStubbedViews();
+    fixture.ui.runTasks();
+    inventory.setItem(
+        20, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchUpgradeItem(fixture.player, guild, guild.getBranch(0))));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
+    manager.clickButton(fixture.ui.click(fixture.player, 20));
+    verify(flood).cancel();
+  }
+
   @Test
   void branchDowngradeImmediatelyRemovesTheOldExpansionValueFromWealth() {
     net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
@@ -260,19 +328,27 @@ class GuildMenusCoverageTest {
     Inventory inventory = open();
     inventory.setItem(
         38, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0))));
-    // The one full pass runs after the downgrade has been applied.
+    // The settled pass sees the downgrade.
     int[] levelAtRecalculation = {-1};
     doAnswer(call -> { levelAtRecalculation[0] = guild.getBranch(0).getLevel(); return null; })
         .when(fixture.provinces).recalculate();
     manager.clickButton(fixture.ui.click(fixture.player, 38));
-    assertEquals(0, levelAtRecalculation[0]);
     assertEquals(0, guild.getSize());
     assertEquals(1080, guild.getBank().getWealth());
     assertEquals(1080, guild.getWealth());
     verify(fixture.host).updatePrestige();
-    verify(fixture.provinces).recalculate();
+    // The trade flood waits for branch clicks to settle instead of stalling the click.
     verify(fixture.provinces, never()).recalculateForSingleGuild(any(), anyBoolean());
-    verify(view).guildView(fixture.player, guild, inventory, false);
+    verify(fixture.provinces, never()).recalculate();
+    fixture.ui.runTasks();
+    // The flood runs off the server thread; the mocked manager has no copy, so it falls back.
+    verify(fixture.provinces).prepareBackgroundFlood();
+    verify(fixture.provinces, never()).recalculate();
+    when(fixture.ui.plugin.isEnabled()).thenReturn(true);
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    verify(fixture.provinces).recalculate();
+    assertEquals(0, levelAtRecalculation[0]);
   }
 
   @Test
@@ -577,7 +653,7 @@ class GuildMenusCoverageTest {
     }
     List<Guild> ranked = new ArrayList<>();
     Guild hidden = mock(Guild.class);
-    when(ranker.visibleGuildValue(fixture.player, hidden, RankType.INCOME)).thenReturn(null);
+    when(ranker.visibleGuildValue(eq(fixture.player), eq(hidden), eq(RankType.INCOME), any())).thenReturn(null);
     ranked.add(hidden);
     for (int n = 0; n < 6; n++) {
       Guild entry = mock(Guild.class, RETURNS_DEEP_STUBS);
@@ -585,10 +661,10 @@ class GuildMenusCoverageTest {
       when(entry.getId()).thenReturn("visible" + n);
       when(entry.getFaction()).thenReturn(fixture.host);
       when(entry.getLedger().getNetIncome()).thenReturn(10.0 + n);
-      when(ranker.visibleGuildValue(fixture.player, entry, RankType.INCOME)).thenReturn(10.0 + n);
+      when(ranker.visibleGuildValue(eq(fixture.player), eq(entry), eq(RankType.INCOME), any())).thenReturn(10.0 + n);
       ranked.add(entry);
     }
-    when(ranker.getVisibleRankedGuildList(fixture.player, RankType.INCOME)).thenReturn(ranked);
+    when(ranker.getVisibleRankedGuildList(eq(fixture.player), eq(RankType.INCOME), any())).thenReturn(ranked);
     ItemStack item = creator.createMenuItem(fixture.player, display, MenuItemType.TRADE_BREAKDOWN);
     assertLore(item, "Strained Government", true);
     assertLore(item, "75.0%", true);
@@ -890,23 +966,26 @@ class GuildMenusCoverageTest {
     assertNotNull(inventory.getItem(17));
     assertNotNull(inventory.getItem(8));
     assertNotNull(inventory.getItem(19));
-    verify(fixture.provinces).recalculate();
     verify(fixture.provinces).getIncome(display);
     verify(fixture.provinces).recalculateIfNeeded();
     previewTasks.verify(
         () ->
             BranchIncomePreviewService.schedule(
-                fixture.player, inventory, 20, prepared, display, display.getBranch(0), 1));
-    previewTasks.verify(
-        () ->
-            BranchIncomePreviewService.schedule(
-                fixture.player, inventory, 38, prepared, display, display.getBranch(0), -1));
-    // A guild that still earns no trade recalculates on every open, however soon it reopens.
+                fixture.player,
+                inventory,
+                prepared,
+                display,
+                List.of(
+                    new BranchIncomePreviewService.Request(20, display.getBranch(0), 1),
+                    new BranchIncomePreviewService.Request(38, display.getBranch(0), -1))));
+    // A guild that still earns no trade refreshes on every open, off the server thread.
     view.guildView(fixture.player, display, inventory);
-    verify(fixture.provinces, times(2)).recalculate();
-    // A caller that has just recalculated skips that refresh; the dirty check still runs.
+    verify(fixture.provinces, never()).recalculate();
+    // Both opens share one background refresh: the second joins the one in flight.
+    verify(fixture.provinces, times(1)).prepareBackgroundFlood();
+    // A repaint after a refresh skips it; the dirty check still runs.
     view.guildView(fixture.player, display, inventory, false);
-    verify(fixture.provinces, times(2)).recalculate();
+    verify(fixture.provinces, times(1)).prepareBackgroundFlood();
     verify(fixture.provinces, times(3)).recalculateIfNeeded();
     display.setLeader("Other");
     display.kick("Leader");
@@ -1085,9 +1164,17 @@ class GuildMenusCoverageTest {
     assertTrue(click.isCancelled());
     assertEquals(before + (scenario.equals("upgrade") ? 1 : 0), branch.getLevel());
     assertEquals(balance - (scenario.equals("upgrade") ? 200 : 0), guild.getBank().getWealth());
+    verify(fixture.provinces, never()).recalculateForSingleGuild(any(), anyBoolean());
+    verify(fixture.provinces, never()).recalculate();
+    verify(view, never()).guildView(fixture.player, guild, inventory);
+    fixture.ui.runTasks();
+    when(fixture.ui.plugin.isEnabled()).thenReturn(true);
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
     if (scenario.equals("upgrade")) {
       verify(fixture.provinces).recalculate();
-      verify(view).guildView(fixture.player, guild, inventory, false);
+    } else {
+      verify(fixture.provinces, never()).recalculate();
     }
     if (scenario.equals("insufficient"))
       verify(fixture.player).sendMessage("§cCannot afford to upgrade");

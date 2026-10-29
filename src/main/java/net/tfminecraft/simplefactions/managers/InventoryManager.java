@@ -43,6 +43,7 @@ import net.tfminecraft.simplefactions.managers.holder.CampaignInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.CampaignRaidLaunchHolder;
 import net.tfminecraft.simplefactions.managers.holder.CoalitionHolder;
 import net.tfminecraft.simplefactions.managers.holder.DeclareWarHolder;
+import net.tfminecraft.simplefactions.managers.inventory.BranchIncomePreviewService;
 import net.tfminecraft.simplefactions.managers.inventory.CoalitionView;
 import net.tfminecraft.simplefactions.managers.holder.SFCombinedInventoryHolder;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
@@ -1093,6 +1094,7 @@ public class InventoryManager implements Listener{
 		}
 		slotChanges.remove(e.getPlayer());
 		menuSessions.remove(e.getPlayer().getUniqueId());
+		BranchIncomePreviewService.forget(e.getPlayer().getUniqueId());
 	}
 
 	@EventHandler

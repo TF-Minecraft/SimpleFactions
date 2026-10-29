@@ -61,6 +61,23 @@ import net.tfminecraft.tlibs.utils.TimeFormatter;
 import net.tfminecraft.tlibs.TLibs;
 
 public class GuildCreator {
+	private static final long TOP_INCOMES_TTL_MS = 10_000;
+	private static final Map<Guild, Double> topIncomes = new HashMap<>();
+	private static long topIncomesAt;
+
+	/**
+	 * Net income of a guild for the Top 5 list. Each one walks a ledger, and every guild menu
+	 * paint lists every guild, so the figures are reused for a few seconds.
+	 */
+	private static double topIncome(Guild guild) {
+		long now = System.currentTimeMillis();
+		if (now - topIncomesAt > TOP_INCOMES_TTL_MS) {
+			topIncomes.clear();
+			topIncomesAt = now;
+		}
+		return topIncomes.computeIfAbsent(guild, g -> g.getLedger().getNetIncome());
+	}
+
     public ItemStack createPublicListItem(Player viewer, Guild guild) {
         return createListItem(viewer, guild);
     }
@@ -212,11 +229,12 @@ public class GuildCreator {
 			lore.add("");
 			lore.add(StringFormatter.formatHex("#c95644Top 5 Guilds:"));
 			x = 0;
-			List<Guild> top = r.getVisibleRankedGuildList(p, RankType.INCOME);
+			java.util.function.ToDoubleFunction<Guild> net = GuildCreator::topIncome;
+			List<Guild> top = r.getVisibleRankedGuildList(p, RankType.INCOME, net);
 			for(Guild g : top) {
-				if (r.visibleGuildValue(p, g, RankType.INCOME) == null) continue;
+				if (r.visibleGuildValue(p, g, RankType.INCOME, net) == null) continue;
 				x++;
-				String income = EspionageService.canViewExact(p, g.getFaction()) ? String.valueOf(g.getLedger().getNetIncome())
+				String income = EspionageService.canViewExact(p, g.getFaction()) ? String.valueOf(net.applyAsDouble(g))
 						: guildIntelligence(EspionageService.report(p, g.getFaction()), g, "Income", "");
 				lore.add(StringFormatter.formatHex("§f - §e"+x+". "+g.getName()+" §7["+g.getSize()+"§7]#d4c9ae: #7fbd73"+income+"d/day"));
 				if(x > 4) break;

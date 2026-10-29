@@ -32,6 +32,17 @@ public class TradeBreakdown {
         tariffs = 0;
     }
 
+    /** Replaces every line with the other breakdown's. */
+    public void copyFrom(TradeBreakdown other) {
+        clear();
+        income = other.income;
+        upkeep = other.upkeep;
+        tradePower = other.tradePower;
+        tariffs = other.tariffs;
+        incomeByFaction.putAll(other.incomeByFaction);
+        tariffsByFaction.putAll(other.tariffsByFaction);
+    }
+
     public double getIncome() {
         return income;
     }
