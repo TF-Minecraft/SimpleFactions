@@ -1813,6 +1813,9 @@ class CommandManagerCoverageTest {
     try (MockedStatic<VehicleFindMessages> finds = mockStatic(VehicleFindMessages.class)) {
       assertTrue(run("faction", "findvehicles", "personal"));
       finds.verify(() -> VehicleFindMessages.sendPersonalVehicles(player));
+      assertTrue(run("faction", "findvehicles", "pool"));
+      finds.verify(() -> VehicleFindMessages.sendPoolVehicles(any(), any()), never());
+
     }
 
     factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(faction);
@@ -1835,6 +1838,8 @@ class CommandManagerCoverageTest {
       Installation fort = installations.getById("fort");
       assertTrue(run("faction", "findvehicles", "fort"));
       finds.verify(() -> VehicleFindMessages.sendInstallationVehicles(player, fort));
+      assertTrue(run("faction", "findvehicles", "INSTALLATION:fort"));
+      finds.verify(() -> VehicleFindMessages.sendInstallationVehicles(player, fort), times(2));
     }
   }
 

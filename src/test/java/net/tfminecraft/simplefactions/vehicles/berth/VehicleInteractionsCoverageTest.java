@@ -1723,6 +1723,7 @@ class VehicleInteractionsCoverageTest {
     verify(leader).sendMessage("§7No vehicles in the faction pool.");
     storeOwned("own", "ironclad", "Owner");
     storeOwned("foreign", "ironclad", "Leader");
+    registry.register(new PlayerVehicleRecord(null, "foreign-pool", "ironclad", OwnershipMode.POOL, null, "other"));
     registry.register(new PlayerVehicleRecord(null, "unassigned", "ironclad", OwnershipMode.PERSONAL, null, null));
     factionVehicle(true);
     VehicleFindMessages.sendPersonalVehicles(owner);
@@ -1730,6 +1731,7 @@ class VehicleInteractionsCoverageTest {
     VehicleFindMessages.sendPoolVehicles(leader, "home");
     verify(VehicleFramework.getVehicleManager()).getOfflineLocation("vehicle-1");
     verify(VehicleFramework.getVehicleManager(), never()).getOfflineLocation("foreign");
+    verify(VehicleFramework.getVehicleManager(), never()).getOfflineLocation("foreign-pool");
     verify(VehicleFramework.getVehicleManager(), never()).getOfflineLocation("unassigned");
   }
 

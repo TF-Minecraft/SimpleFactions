@@ -397,6 +397,18 @@ class TabCompletionCoverageTest {
   }
 
   @Test
+  void vehicleSearchEscapesInstallationIdsThatMatchScopes() {
+    installationChoices();
+    Installation pool = mock(Installation.class);
+    when(pool.getId()).thenReturn("PoOl");
+    Installation personal = mock(Installation.class);
+    when(personal.getId()).thenReturn("personal");
+    when(realm.getInstallationHandler().getAll()).thenReturn(List.of(pool, personal));
+    assertEquals(List.of("installation:PoOl", "installation:personal"),
+        complete("faction", "findvehicles", "installation:"));
+  }
+
+  @Test
   void vehicleArgumentsSuggestPlayersPoolInstallationsAndBankPaymentOnlyAtTheirPositions() {
     installationChoices();
     when(Bukkit.getOnlinePlayers())

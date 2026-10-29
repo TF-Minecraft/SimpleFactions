@@ -823,7 +823,7 @@ public class CommandManager implements Listener, CommandExecutor{
 				var handler = f.getInstallationHandler();
 				Installation installation =
 						net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.resolveInstallation(
-								handler, args[1]);
+								handler, args[1].replaceFirst("(?i)^installation:", ""));
 				if(installation == null) {
 					p.sendMessage(net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.unknownInstallation());
 					return true;

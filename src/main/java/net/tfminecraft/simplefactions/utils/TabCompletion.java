@@ -385,6 +385,8 @@ public class TabCompletion implements TabCompleter{
 			if(sender instanceof Player) {
 				Player p = (Player) sender;
 				List<String> choices = completeInstallationIds(p, "", false);
+				choices.replaceAll(id -> id.equalsIgnoreCase("pool") || id.equalsIgnoreCase("personal")
+						? "installation:" + id : id);
 				choices.add(0, "personal");
 				if(FactionManager.getByLeader(Members.key(p)) != null) choices.add(0, "pool");
 				return VehicleTabCompletions.filter(choices, args[1]);

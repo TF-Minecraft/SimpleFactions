@@ -20,7 +20,8 @@ Use `/faction findvehicles personal` to locate your current character's vehicles
 Faction leaders can also use `/faction findvehicles pool` or
 `/faction findvehicles <installation id>`. Tab completion suggests the available
 choices. Each vehicle shows its world and coordinates when known, including
-stored vehicles.
+stored vehicles. For an installation named `pool` or `personal`, use
+`/faction findvehicles installation:<id>`; tab completion supplies this form.
 
 ## A shared political world
 
