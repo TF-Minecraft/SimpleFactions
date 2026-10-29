@@ -240,11 +240,54 @@ class FactionMenusCoverageTest {
     fixture.subject(overlord, faction);
     try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
       assertLore(creator.createDissolveItem(faction), "transferred to overlord", true);
+      assertEquals("Dissolve Faction", ChatColor.stripColor(creator.createDissolveItem(faction).getItemMeta().getDisplayName()));
+      assertLore(creator.createDissolveItem(faction), "is not dissolved", false);
       wars.when(() -> WarManager.isAtWar(subject)).thenReturn(true);
       assertLore(creator.createDissolveItem(faction), "at war", true);
     }
     assertEquals("Trader", guild.getLeader());
     assertSame(faction, guild.getFaction());
+  }
+
+  @Test
+  void releasePreviewWithoutAnOverlordSaysTheRealmKeepsItsLand() {
+    faction.getProvinceHandler().getProvinces().addAll(List.of(1, 2, 3));
+    Guild crew = fixture.guild(faction, "Crew", "Boss");
+    crew.markLeaderless(crew.getLeader(), 5L);
+    Guild landless = fixture.guild(faction, "Smiths", "Smith");
+    // A guild seated in the realm's own capital cannot be elevated, so it goes landless.
+    faction.setCapital(2, true, false);
+    landless.setCapital(2, false);
+    Guild elevated = mock(Guild.class, RETURNS_DEEP_STUBS);
+    when(elevated.getId()).thenReturn("Merchants");
+    when(elevated.getName()).thenReturn("Merchants");
+    when(elevated.getType().getName()).thenReturn("Trade Guild");
+    when(elevated.canBeElevated(null)).thenReturn(true);
+    when(elevated.hasCapital()).thenReturn(true);
+    when(elevated.getCapital()).thenReturn(3);
+    faction.getGuildHandler().addGuild(elevated);
+
+    ItemStack item = creator.createDissolveItem(faction);
+    assertEquals("Release Guilds and Vassals", ChatColor.stripColor(item.getItemMeta().getDisplayName()));
+    assertLore(item, "Crew (guild) has no leader and stays with realm", true);
+    assertLore(item, "Smiths (guild) becomes a landless faction and loses its capital", true);
+    assertLore(item, "Merchants (Trade Guild) becomes an independent faction and takes its capital province", true);
+    assertLore(item, "realm (You) is not dissolved. It keeps its treasury, members and 2 provinces", true);
+
+    // Without capitals nothing is lost or taken; Smiths still cannot be elevated (Crew shares "no capital").
+    landless.setCapital(-1, false);
+    when(elevated.hasCapital()).thenReturn(false);
+    item = creator.createDissolveItem(faction);
+    assertLore(item, "Smiths (guild) becomes a landless faction\n", true);
+    assertLore(item, "Merchants (Trade Guild) becomes an independent faction\n", true);
+    assertLore(item, "loses its capital", false);
+    assertLore(item, "It keeps its treasury, members and 3 provinces", true);
+
+    faction.getProvinceHandler().getProvinces().retainAll(List.of(3));
+    when(elevated.hasCapital()).thenReturn(true);
+    assertLore(creator.createDissolveItem(faction), "It keeps its treasury and members\n", true);
+    faction.getProvinceHandler().getProvinces().add(1);
+    assertLore(creator.createDissolveItem(faction), "It keeps its treasury, members and 1 province\n", true);
   }
 
   @ParameterizedTest

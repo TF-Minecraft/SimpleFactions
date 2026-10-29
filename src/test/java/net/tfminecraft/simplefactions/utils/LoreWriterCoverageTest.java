@@ -127,7 +127,7 @@ class LoreWriterCoverageTest {
       case CHANGE_LEADER -> "No target";
       case WHITE_PEACE -> "white peace offer";
       case SURRENDER -> "Surrender a chosen war";
-      case DISSOLVE -> "Dissolves the faction";
+      case DISSOLVE -> "the faction keeps its land";
       case INDEPENDENCE -> "granted independence";
       case NATIONHOOD -> "elevated to nationhood";
       case USURP -> "takes this faction's highest title";
