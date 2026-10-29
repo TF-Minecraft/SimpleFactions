@@ -1029,6 +1029,15 @@ public class Guild {
     }
 
     public boolean canBeElevated(Player p) {
+        return canBeElevated(p, Set.of(), Guild::getCapital);
+    }
+
+    /**
+     * For a dissolve preview: {@code departed} are guilds that have already left the host, so they
+     * no longer hold a capital this guild would share, and {@code capitalOf} gives each guild's
+     * capital at that point (-1 once an earlier departure unseated it).
+     */
+    public boolean canBeElevated(Player p, Set<Guild> departed, java.util.function.ToIntFunction<Guild> capitalOf) {
         if(isBase()) {
             if(p != null) p.sendMessage("§cCannot elevate the main guild");
             return false;
@@ -1041,14 +1050,16 @@ public class Guild {
             if(p != null) p.sendMessage("§cHost faction cannot have vassals");
             return false;
         }
-        if(hasCapital() && capital == host.getCapital()) {
+        int own = capitalOf.applyAsInt(this);
+        if(own != -1 && own == host.getCapital()) {
             if(p != null) p.sendMessage("§cGuild capital is the same as the faction capital, move it first");
             return false;
         }
         for(Guild g : host.getGuildHandler().getGuilds()) {
             if(g.isBase()) continue;
             if(g.getId().equalsIgnoreCase(id)) continue;
-            if(g.getCapital() == capital) {
+            if(departed.contains(g)) continue;
+            if(capitalOf.applyAsInt(g) == own) {
                 if(p != null) p.sendMessage("§cAnother guild already has that capital, move it first");
                 return false;
             }

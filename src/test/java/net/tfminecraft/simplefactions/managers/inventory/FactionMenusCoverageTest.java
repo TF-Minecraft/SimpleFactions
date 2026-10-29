@@ -240,11 +240,140 @@ class FactionMenusCoverageTest {
     fixture.subject(overlord, faction);
     try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
       assertLore(creator.createDissolveItem(faction), "transferred to overlord", true);
+      assertEquals("Dissolve Faction", ChatColor.stripColor(creator.createDissolveItem(faction).getItemMeta().getDisplayName()));
+      assertLore(creator.createDissolveItem(faction), "is not dissolved", false);
       wars.when(() -> WarManager.isAtWar(subject)).thenReturn(true);
       assertLore(creator.createDissolveItem(faction), "at war", true);
     }
     assertEquals("Trader", guild.getLeader());
     assertSame(faction, guild.getFaction());
+  }
+
+  private final Map<Integer, net.tfminecraft.simplefactions.map.provinces.Province> land = new HashMap<>();
+
+  /** A real province graph behind the fixture's ProvinceManager, for the claim re-check. */
+  private void province(int id, String terrain) {
+    land.put(id, new net.tfminecraft.simplefactions.map.provinces.Province(id, terrain, 50));
+    when(fixture.provinces.get(anyInt()))
+        .thenAnswer(call -> land.getOrDefault(call.getArgument(0, Integer.class), new net.tfminecraft.simplefactions.map.provinces.Province()));
+  }
+
+  private void link(int a, int b) {
+    land.get(a).addNeighbour(b);
+    land.get(b).addNeighbour(a);
+  }
+
+  @Test
+  void releasePreviewWithoutAnOverlordSaysTheRealmKeepsItsLand() {
+    for (int id : List.of(1, 2, 3)) province(id, "PLAINS");
+    link(1, 2); link(2, 3);
+    faction.getProvinceHandler().getProvinces().addAll(List.of(1, 2, 3));
+    // A guild seated in the realm's own capital cannot be elevated, so it goes landless.
+    faction.setCapital(2, true, false);
+    Guild crew = fixture.guild(faction, "Crew", "Boss");
+    crew.markLeaderless(crew.getLeader(), 5L);
+    Guild landless = fixture.guild(faction, "Smiths", "Smith");
+    landless.setCapital(2, false);
+    Guild elevated = mock(Guild.class, RETURNS_DEEP_STUBS);
+    when(elevated.getId()).thenReturn("Merchants");
+    when(elevated.getName()).thenReturn("Merchants");
+    when(elevated.getType().getName()).thenReturn("Trade Guild");
+    when(elevated.canBeElevated(isNull(), any(), any())).thenReturn(true);
+    when(elevated.hasCapital()).thenReturn(true);
+    when(elevated.getCapital()).thenReturn(3);
+    faction.getGuildHandler().addGuild(elevated);
+
+    ItemStack item = creator.createDissolveItem(faction);
+    assertEquals("Release Guilds and Vassals", ChatColor.stripColor(item.getItemMeta().getDisplayName()));
+    assertLore(item, "Crew (guild) has no leader and stays with realm", true);
+    assertLore(item, "Smiths (guild) becomes a landless faction and loses its capital", true);
+    assertLore(item, "Merchants (Trade Guild) becomes an independent faction and takes its capital province", true);
+    assertLore(item, "realm (You) is not dissolved. It keeps its treasury, members and 2 provinces", true);
+    assertLore(item, "lost", false);
+
+    // Without capitals nothing is lost or taken; Smiths still cannot be elevated (Crew shares "no capital").
+    landless.setCapital(-1, false);
+    when(elevated.hasCapital()).thenReturn(false);
+    item = creator.createDissolveItem(faction);
+    assertLore(item, "Smiths (guild) becomes a landless faction\n", true);
+    assertLore(item, "Merchants (Trade Guild) becomes an independent faction\n", true);
+    assertLore(item, "loses its capital", false);
+    assertLore(item, "It keeps its treasury, members and 3 provinces", true);
+
+    faction.getProvinceHandler().getProvinces().retainAll(List.of(2));
+    assertLore(creator.createDissolveItem(faction), "It keeps its treasury, members and 1 province\n", true);
+    faction.getProvinceHandler().getProvinces().clear();
+    assertLore(creator.createDissolveItem(faction), "It keeps its treasury and members\n", true);
+  }
+
+  @Test
+  void releasePreviewFollowsDissolveOrderForGuildsSharingACapital() {
+    province(4, "PLAINS"); province(5, "PLAINS"); link(4, 5);
+    faction.getProvinceHandler().getProvinces().addAll(List.of(4, 5));
+    faction.setCapital(5, true, false);
+    fixture.guild(faction, "Masons", "Mason").setCapital(4, false);
+    fixture.guild(faction, "Carters", "Carter").setCapital(4, false);
+    List<Guild> order = faction.getGuildHandler().getGuilds().stream().filter(g -> !g.isBase()).toList();
+    // The first one still shares its capital with the second and goes landless; once it has
+    // left, the second can be elevated and takes the capital, as Faction.dissolve does.
+    ItemStack item = creator.createDissolveItem(faction);
+    assertLore(item, order.get(0).getName() + " (guild) becomes a landless faction and loses its capital", true);
+    assertLore(item, order.get(1).getName() + " (guild) becomes an independent faction and takes its capital province", true);
+    assertLore(item, "It keeps its treasury, members and 1 province", true);
+    assertTrue(order.get(1).canBeElevated(null, java.util.Set.of(order.get(0)), Guild::getCapital));
+    assertFalse(order.get(1).canBeElevated(null));
+  }
+
+  @Test
+  void releasePreviewCountsLandOnlyAGuildsColonyHeldAndMatchesTheRealDissolve() {
+    // Realm capital 1; across the sea, colony 4 (the guild's capital) and 5 next to it.
+    province(1, "PLAINS"); province(2, "SEA"); province(3, "SEA"); province(4, "PLAINS"); province(5, "PLAINS");
+    link(1, 2); link(2, 3); link(3, 4); link(4, 5);
+    faction.getProvinceHandler().getProvinces().addAll(List.of(1, 4, 5));
+    faction.setCapital(1, true, false);
+    Guild colony = fixture.guild(faction, "Colonists", "Colonist");
+    colony.setCapital(4, false);
+
+    ItemStack item = creator.createDissolveItem(faction);
+    assertLore(item, "Colonists (guild) becomes an independent faction and takes its capital province", true);
+    assertLore(item, "1 province held only through these guilds' capitals is lost", true);
+    assertLore(item, "It keeps its treasury, members and 1 province\n", true);
+
+    // What the preview promised is what dissolving does.
+    faction.dissolve(new ArrayList<>(), faction.getGuildHandler().getGuilds());
+    assertEquals(List.of(1), faction.getProvinceHandler().getProvinces());
+    assertEquals(List.of(4), colony.getFaction().getProvinceHandler().getProvinces());
+  }
+
+  @Test
+  void releasePreviewShowsALaterGuildLosingACapitalTracedThroughAnEarlierOne() {
+    // Realm capital 1. Colony 4 lies two sea tiles away; colony 6 two more sea tiles beyond 4,
+    // on a separate sea, so 6 is only legal while 4 is a guild capital.
+    for (int id : List.of(1, 4, 6)) province(id, "PLAINS");
+    for (int id : List.of(2, 3, 5, 7)) province(id, "SEA");
+    link(1, 2); link(2, 3); link(3, 4); link(4, 5); link(5, 7); link(7, 6);
+    faction.getProvinceHandler().getProvinces().addAll(List.of(1, 4, 6));
+    faction.setCapital(1, true, false);
+    fixture.guild(faction, "Anchor", "One");
+    fixture.guild(faction, "Outpost", "Two");
+    // Dissolve's order is the guild map's; give the first one the anchoring colony.
+    List<Guild> order = faction.getGuildHandler().getGuilds().stream().filter(g -> !g.isBase()).toList();
+    Guild anchor = order.get(0), outpost = order.get(1);
+    anchor.setCapital(4, false);
+    outpost.setCapital(6, false);
+
+    ItemStack item = creator.createDissolveItem(faction);
+    assertLore(item, anchor.getName() + " (guild) becomes an independent faction and takes its capital province", true);
+    // The anchor leaves first, so the outpost's capital is unseated before its own turn.
+    assertLore(item, outpost.getName() + " (guild) becomes an independent faction\n", true);
+    assertLore(item, "1 province held only through these guilds' capitals is lost", true);
+    assertLore(item, "It keeps its treasury, members and 1 province\n", true);
+
+    faction.dissolve(new ArrayList<>(), faction.getGuildHandler().getGuilds());
+    assertEquals(List.of(1), faction.getProvinceHandler().getProvinces());
+    assertEquals(List.of(4), anchor.getFaction().getProvinceHandler().getProvinces());
+    assertNotSame(faction, outpost.getFaction());
+    assertFalse(outpost.getFaction().getProvinceHandler().getProvinces().contains(6));
   }
 
   @ParameterizedTest

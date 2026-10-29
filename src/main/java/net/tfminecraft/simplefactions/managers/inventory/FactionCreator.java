@@ -6,7 +6,13 @@ import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.util.LegacyModelData;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.ToIntFunction;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.bukkit.Material;
@@ -30,6 +36,7 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.objects.handler.ProvinceHandler;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
 import net.tfminecraft.simplefactions.objects.Modifier;
 import net.tfminecraft.simplefactions.objects.PrestigeRank;
@@ -160,14 +167,22 @@ public class FactionCreator {
         return lore;
     }
 
+	private static String keeps(int provinces) {
+		if (provinces <= 0) return "It keeps its treasury and members";
+		return "It keeps its treasury, members and " + (provinces == 1 ? "1 province" : provinces + " provinces");
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createDissolveItem(Faction f) {
 		ItemStack item = new ItemStack(Material.PRISMARINE_CRYSTALS);
 		ItemMeta meta = item.getItemMeta();
+		Faction overlord = f.getOverlord();
 
-		meta.setDisplayName(StringFormatter.formatHex(
-			"#c45749§lDissolve Faction"
+		// Without an overlord the realm is not removed: Faction.dissolve only lets its guilds and vassals go.
+		meta.setDisplayName(StringFormatter.formatHex(overlord != null
+			? "#c45749§lDissolve Faction"
+			: "#c45749§lRelease Guilds and Vassals"
 		));
 
 		List<String> lore = new ArrayList<>();
@@ -177,7 +192,6 @@ public class FactionCreator {
 		));
 		lore.add("");
 
-		Faction overlord = f.getOverlord();
 		if (overlord != null) {
 
 			// This faction
@@ -217,14 +231,47 @@ public class FactionCreator {
 		}
 		else {
 
-			// Guilds becoming factions
+			// Mirrors Faction.dissolve step by step. Leaderless guilds stay; each other guild is elevated
+			// onto its capital or goes landless, and its departure re-checks the realm's claims
+			// (GuildHandler.removeGuild -> revalidateClaims): land only its capital made legal is
+			// dropped, and a later guild's capital traced through it is unseated.
+			ProvinceHandler land = f.getProvinceHandler();
+			List<Integer> owned = new ArrayList<>(land.getProvinces());
+			Map<String, Integer> capitals = new LinkedHashMap<>();
+			for (Guild g : f.getGuildHandler().getGuilds()) capitals.put(g.getId(), g.hasCapital() ? g.getCapital() : -1);
+			ToIntFunction<Guild> capitalOf = g -> capitals.getOrDefault(g.getId(), -1);
+			Set<Guild> departed = Collections.newSetFromMap(new IdentityHashMap<>());
+			int lost = 0;
 			for (Guild g : f.getGuildHandler().getGuilds()) {
 				if (g.isBase()) continue;
-
-				lore.add(StringFormatter.formatHex(
-					"#b8a58a• " + g.getName() + " §7(" +g.getType().getName()+ "§7)" +
-					" #d4c9aebecomes an independent faction" + (!g.canBeElevated(null) ? "§7(#946538Landless§7)" : "")
-				));
+				String guild = "#b8a58a• " + g.getName() + " §7(" + g.getType().getName() + "§7)";
+				if (g.isLeaderless()) {
+					lore.add(StringFormatter.formatHex(guild + " #d4c9aehas no leader and stays with #e0cfa6" + f.getName()));
+					continue;
+				}
+				int cap = capitalOf.applyAsInt(g);
+				boolean elevated = g.canBeElevated(null, departed, capitalOf);
+				departed.add(g);
+				capitals.remove(g.getId());
+				ProvinceHandler.TopologyClaims claims = land.previewTopology(f.getCapital(), owned, capitals);
+				lost += owned.size() - claims.provinces().size();
+				owned = new ArrayList<>(claims.provinces());
+				capitals.clear();
+				capitals.putAll(claims.capitals());
+				if (elevated && cap != -1) {
+					// The new faction takes its capital even if the re-check dropped it from the realm.
+					if (!owned.remove(Integer.valueOf(cap)) && land.getProvinces().contains(cap)) lost--;
+					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes an independent faction and takes its capital province"));
+				} else if (elevated) {
+					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes an independent faction"));
+				} else {
+					lore.add(StringFormatter.formatHex(guild + " #d4c9aebecomes a landless faction"
+						+ (cap != -1 ? " #e15757and loses its capital" : "")));
+				}
+			}
+			if (lost > 0) {
+				lore.add(StringFormatter.formatHex("#e15757• " + (lost == 1 ? "1 province" : lost + " provinces")
+					+ " held only through these guilds' capitals " + (lost == 1 ? "is" : "are") + " lost"));
 			}
 
 			if (f.getGuildHandler().getGuilds().stream().anyMatch(g -> !g.isBase())) {
@@ -245,6 +292,12 @@ public class FactionCreator {
 					"#9f8f78• #d4c9aeNo other factions or guilds are affected"
 				));
 			}
+
+			if (!lore.get(lore.size() - 1).isEmpty()) lore.add("");
+			lore.add(StringFormatter.formatHex(
+				"#b8a58a• " + f.getName() + " §7(#4ecc5eYou§7)" +
+				" #d4c9aeis not dissolved. " + keeps(owned.size())
+			));
 		}
 
 		lore.add("");

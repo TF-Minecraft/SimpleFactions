@@ -237,7 +237,8 @@ public class Proposal {
                     first.add(StringFormatter.formatHex("#d4c9aeWar: "+ warTargetLabel()));
                     break;
                 case DISSOLVE:
-                    first.add(StringFormatter.formatHex("#d4c9aeDissolves the faction as if the #c9655e'Dissolve Faction' #d4c9aebutton was clicked"));
+                    first.add(StringFormatter.formatHex("#d4c9aeUnder an overlord, the faction dissolves into it"));
+                    first.add(StringFormatter.formatHex("#d4c9aeWithout one, its guilds and vassals are released and the faction keeps its land"));
                     break;
                 case INDEPENDENCE:
                     first.add(StringFormatter.formatHex("#d4c9aeMembers of the cause are granted independence"));
