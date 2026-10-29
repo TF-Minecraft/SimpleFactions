@@ -347,27 +347,33 @@ class FactionMenusCoverageTest {
 
   @Test
   void releasePreviewShowsALaterGuildLosingACapitalTracedThroughAnEarlierOne() {
-    // Colony 4 is reached by sea from the realm; colony 6 only by sea from colony 4.
-    province(1, "PLAINS"); province(2, "SEA"); province(4, "PLAINS"); province(5, "SEA"); province(6, "PLAINS");
-    link(1, 2); link(2, 4); link(4, 5); link(5, 6);
+    // Realm capital 1. Colony 4 lies two sea tiles away; colony 6 two more sea tiles beyond 4,
+    // on a separate sea, so 6 is only legal while 4 is a guild capital.
+    for (int id : List.of(1, 4, 6)) province(id, "PLAINS");
+    for (int id : List.of(2, 3, 5, 7)) province(id, "SEA");
+    link(1, 2); link(2, 3); link(3, 4); link(4, 5); link(5, 7); link(7, 6);
     faction.getProvinceHandler().getProvinces().addAll(List.of(1, 4, 6));
     faction.setCapital(1, true, false);
-    fixture.guild(faction, "First", "One").setCapital(4, false);
-    fixture.guild(faction, "Second", "Two").setCapital(6, false);
+    fixture.guild(faction, "Anchor", "One");
+    fixture.guild(faction, "Outpost", "Two");
+    // Dissolve's order is the guild map's; give the first one the anchoring colony.
     List<Guild> order = faction.getGuildHandler().getGuilds().stream().filter(g -> !g.isBase()).toList();
+    Guild anchor = order.get(0), outpost = order.get(1);
+    anchor.setCapital(4, false);
+    outpost.setCapital(6, false);
+
     ItemStack item = creator.createDissolveItem(faction);
-    String lore = lore(item);
-    if (order.get(0).getName().equals("First")) {
-      // First leaves first, so Second's capital is unseated before its own turn.
-      assertLore(item, "First (guild) becomes an independent faction and takes its capital province", true);
-      assertLore(item, "Second (guild) becomes an independent faction\n", true);
-      assertLore(item, "1 province held only through these guilds' capitals is lost", true);
-    } else {
-      assertLore(item, "Second (guild) becomes an independent faction and takes its capital province", true);
-      assertLore(item, "First (guild) becomes an independent faction and takes its capital province", true);
-      assertFalse(lore.contains("lost"), lore);
-    }
+    assertLore(item, anchor.getName() + " (guild) becomes an independent faction and takes its capital province", true);
+    // The anchor leaves first, so the outpost's capital is unseated before its own turn.
+    assertLore(item, outpost.getName() + " (guild) becomes an independent faction\n", true);
+    assertLore(item, "1 province held only through these guilds' capitals is lost", true);
     assertLore(item, "It keeps its treasury, members and 1 province\n", true);
+
+    faction.dissolve(new ArrayList<>(), faction.getGuildHandler().getGuilds());
+    assertEquals(List.of(1), faction.getProvinceHandler().getProvinces());
+    assertEquals(List.of(4), anchor.getFaction().getProvinceHandler().getProvinces());
+    assertNotSame(faction, outpost.getFaction());
+    assertFalse(outpost.getFaction().getProvinceHandler().getProvinces().contains(6));
   }
 
   @ParameterizedTest
