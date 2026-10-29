@@ -116,8 +116,11 @@ class RecalcLookupsTest {
 		try {
 			RecalcLookups.owner(1, this::owner);
 			RecalcLookups.owner(1, this::owner);
-			RecalcLookups.guild("merchants", this::guild);
-			RecalcLookups.guild("merchants", this::guild);
+			Guild merchants = mock(Guild.class);
+			guilds.put("merchants", merchants);
+			assertSame(merchants, RecalcLookups.guild("merchants", this::guild));
+			guilds.remove("merchants");
+			assertNull(RecalcLookups.guild("merchants", this::guild));
 		} finally {
 			RecalcLookups.end(async);
 		}

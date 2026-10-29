@@ -260,7 +260,12 @@ class GuildMenusCoverageTest {
     Inventory inventory = open();
     inventory.setItem(
         38, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0))));
+    // The one full pass runs after the downgrade has been applied.
+    int[] levelAtRecalculation = {-1};
+    doAnswer(call -> { levelAtRecalculation[0] = guild.getBranch(0).getLevel(); return null; })
+        .when(fixture.provinces).recalculate();
     manager.clickButton(fixture.ui.click(fixture.player, 38));
+    assertEquals(0, levelAtRecalculation[0]);
     assertEquals(0, guild.getSize());
     assertEquals(1080, guild.getBank().getWealth());
     assertEquals(1080, guild.getWealth());
