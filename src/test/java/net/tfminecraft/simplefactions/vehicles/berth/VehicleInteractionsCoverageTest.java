@@ -1716,6 +1716,7 @@ class VehicleInteractionsCoverageTest {
 
   @Test
   void vehicleSearchSeparatesPersonalPoolAndForeignVehicles() {
+    registry.unregister("vehicle-1");
     VehicleFindMessages.sendPersonalVehicles(owner);
     verify(owner).sendMessage("§7You have no personal vehicles.");
     VehicleFindMessages.sendPoolVehicles(leader, "home");
