@@ -11,18 +11,33 @@ import net.tfminecraft.simplefactions.enums.RankType;
 
 public class FactionRanker {
     public Double visibleGuildValue(org.bukkit.entity.Player viewer, Guild guild, RankType type) {
+        return visibleGuildValue(viewer, guild, type, exact(type));
+    }
+
+    /** As {@link #visibleGuildValue(org.bukkit.entity.Player, Guild, RankType)}, reading the exact value from {@code exact}. */
+    public Double visibleGuildValue(org.bukkit.entity.Player viewer, Guild guild, RankType type,
+            java.util.function.ToDoubleFunction<Guild> exact) {
         String metric = type == RankType.MEMBERS ? "Members" : type == RankType.INCOME ? "Income"
                 : type == RankType.TRADE_POWER ? "Trade power" : "Wealth";
         return net.tfminecraft.simplefactions.espionage.EspionageService.visibleValue(viewer, guild.getFaction(),
-                "Guild:" + guild.getId() + ":" + metric,
-                () -> type == RankType.MEMBERS ? guild.getMembers().size() : type == RankType.INCOME ? guild.getLedger().getNetIncome()
-                        : type == RankType.TRADE_POWER ? guild.getTradeBreakdown().getTradePower() : guild.getWealth());
+                "Guild:" + guild.getId() + ":" + metric, () -> exact.applyAsDouble(guild));
+    }
+
+    private static java.util.function.ToDoubleFunction<Guild> exact(RankType type) {
+        return guild -> type == RankType.MEMBERS ? guild.getMembers().size() : type == RankType.INCOME ? guild.getLedger().getNetIncome()
+                : type == RankType.TRADE_POWER ? guild.getTradeBreakdown().getTradePower() : guild.getWealth();
     }
 
     public List<Guild> getVisibleRankedGuildList(org.bukkit.entity.Player viewer, RankType type) {
+        return getVisibleRankedGuildList(viewer, type, exact(type));
+    }
+
+    /** Ranks every guild, reading exact values from {@code exact}, for callers that already hold them. */
+    public List<Guild> getVisibleRankedGuildList(org.bukkit.entity.Player viewer, RankType type,
+            java.util.function.ToDoubleFunction<Guild> exact) {
         List<Guild> guilds = new java.util.ArrayList<>(FactionManager.getAllGuilds());
         java.util.Map<Guild, Double> values = new java.util.HashMap<>();
-        for (Guild guild : guilds) values.put(guild, visibleGuildValue(viewer, guild, type));
+        for (Guild guild : guilds) values.put(guild, visibleGuildValue(viewer, guild, type, exact));
         guilds.sort((first, second) -> {
             Double a = values.get(first), b = values.get(second);
             if (a == null && b != null) return 1;

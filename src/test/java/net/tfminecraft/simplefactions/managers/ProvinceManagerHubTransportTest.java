@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.managers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -162,6 +163,54 @@ class ProvinceManagerHubTransportTest {
         recalculate();
         assertEquals(8, trade(22), 1e-9);
         assertEquals(8, production(22));
+    }
+
+    @Test
+    void backgroundFloodInstallsTheSameTradeAsTheServerThreadFlood() {
+        connect(1, 22);
+        var breakdown = new net.tfminecraft.simplefactions.guild.income.TradeBreakdown();
+        when(guild.getTradeBreakdown()).thenReturn(breakdown);
+        List<Faction> realms = List.of(guild.getFaction());
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            factions.when(() -> FactionManager.getGuildByString("guild")).thenReturn(guild);
+            factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+            factions.when(FactionManager::getCopy).thenReturn(realms);
+
+            ProvinceManager.BackgroundFlood flood = provinces.prepareBackgroundFlood();
+            flood.run();
+            assertEquals(0, trade(22));
+            assertTrue(provinces.adopt(flood));
+            assertEquals(8, trade(22), 1e-9);
+            double power = breakdown.getTradePower();
+            double income = breakdown.getIncome();
+            assertTrue(power > 0);
+
+            breakdown.clear();
+            provinces.recalculate();
+            assertEquals(8, trade(22), 1e-9);
+            assertEquals(power, breakdown.getTradePower(), 1e-9);
+            assertEquals(income, breakdown.getIncome(), 1e-9);
+        }
+    }
+
+    @Test
+    void backgroundFloodIsRefusedOnceLiveDataWasRewritten() {
+        List<Faction> realms = List.of(guild.getFaction());
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            factions.when(() -> FactionManager.getGuildByString("guild")).thenReturn(guild);
+            factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+            factions.when(FactionManager::getCopy).thenReturn(realms);
+            var breakdown = new net.tfminecraft.simplefactions.guild.income.TradeBreakdown();
+            when(guild.getTradeBreakdown()).thenReturn(breakdown);
+
+            ProvinceManager.BackgroundFlood unfinished = provinces.prepareBackgroundFlood();
+            assertFalse(provinces.adopt(unfinished));
+
+            ProvinceManager.BackgroundFlood stale = provinces.prepareBackgroundFlood();
+            stale.run();
+            provinces.recalculateForSingleGuild(guild, false);
+            assertFalse(provinces.adopt(stale));
+        }
     }
 
     @Test

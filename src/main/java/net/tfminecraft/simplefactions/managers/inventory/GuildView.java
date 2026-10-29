@@ -48,6 +48,16 @@ public class GuildView {
 	public GuildCreator creator = new GuildCreator();
 	private ProvinceManager manager;
 
+	private record SharedPreview(ProvinceManager manager, BranchIncomePreview.Prepared prepared, long at) {}
+	private static final long PREVIEW_TTL_MS = 30_000;
+	private static final long RECALC_DELAY_TICKS = 20;
+	private SharedPreview preview;
+	private org.bukkit.scheduler.BukkitTask pendingRecalc;
+	private long recalcRuns;
+	/** The run whose background flood is in flight, or 0. */
+	private long floodingRun;
+	private final java.util.Set<String> pendingRepaint = new java.util.HashSet<>();
+
 	public static HashMap<Player, RankType> currentRanking = new HashMap<>();
 	public static HashMap<Player, Integer> currentPage = new HashMap<>();
 
@@ -94,6 +104,117 @@ public class GuildView {
 
 	public void setProvinceManager(ProvinceManager manager) {
 		this.manager = manager;
+	}
+
+	/** Branch rows and their up/down buttons. Income estimates arrive from one background run. */
+	private void paintBranches(Player player, Guild guild, Inventory i) {
+		boolean leader = guild.isLeader(player);
+		BranchIncomePreview.Prepared tradePreview = guild.hasCapital() && leader ? tradePreview() : null;
+		List<BranchIncomePreviewService.Request> estimates = new ArrayList<>();
+		int group = 0;
+		while(group < 10) {
+			Branch b = guild.getBranch(group);
+			group++;
+			if (b == null) continue;
+			i.setItem(group+28, creator.createBranchItem(player, guild, b));
+			if(leader) {
+				int upgradeSlot = group + 19;
+				int downgradeSlot = group + 37;
+				i.setItem(upgradeSlot, treasuryButton(player, guild, b, creator.createBranchUpgradeItem(player, guild, b)));
+				i.setItem(downgradeSlot, treasuryButton(player, guild, b, creator.createBranchDowngradeItem(player, guild, b)));
+				estimates.add(new BranchIncomePreviewService.Request(upgradeSlot, b, 1));
+				if (b.getLevel() > 0) {
+					estimates.add(new BranchIncomePreviewService.Request(downgradeSlot, b, -1));
+				}
+			}
+		}
+		if (tradePreview != null) {
+			BranchIncomePreviewService.schedule(player, i, tradePreview, guild, estimates);
+		}
+	}
+
+	/** Province copy shared by branch previews until the next full recalculation, or for a short while. */
+	private BranchIncomePreview.Prepared tradePreview() {
+		long now = System.currentTimeMillis();
+		if (preview == null || preview.manager() != manager || now - preview.at() > PREVIEW_TTL_MS) {
+			preview = new SharedPreview(manager, BranchIncomePreview.prepare(manager), now);
+		}
+		return preview.prepared();
+	}
+
+	/**
+	 * One full recalculation after branch clicks settle. Each click restarts the wait, so a run of
+	 * clicks costs one flood, then menus showing those guilds repaint with the settled trade.
+	 */
+	private void recalculateAfterClicks(Guild guild) {
+		pendingRepaint.add(guild.getId());
+		if (pendingRecalc != null) pendingRecalc.cancel();
+		long run = ++recalcRuns;
+		pendingRecalc = org.bukkit.Bukkit.getScheduler().runTaskLater(SimpleFactions.plugin, () -> {
+			if (run != recalcRuns) return;
+			pendingRecalc = null;
+			floodInBackground(run, true);
+		}, RECALC_DELAY_TICKS);
+	}
+
+	/**
+	 * One full recalculation off the server thread for a menu just opened, then menus showing the
+	 * guild repaint. Joins a recalculation that is already waiting or running.
+	 */
+	private void refreshInBackground(Guild guild) {
+		pendingRepaint.add(guild.getId());
+		if (pendingRecalc != null || (floodingRun != 0 && floodingRun == recalcRuns)) return;
+		floodInBackground(++recalcRuns, true);
+	}
+
+	/**
+	 * Floods a copy off the server thread and installs it. When live data was rewritten meanwhile,
+	 * floods once more; after that, or if the background run fails, floods on the server thread.
+	 */
+	private void floodInBackground(long run, boolean retry) {
+		floodingRun = run;
+		ProvinceManager live = manager;
+		ProvinceManager.BackgroundFlood flood = live.prepareBackgroundFlood();
+		org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(SimpleFactions.plugin, () -> {
+			boolean ran;
+			try {
+				flood.run();
+				ran = true;
+			} catch (RuntimeException e) {
+				SimpleFactions.plugin.getLogger().log(java.util.logging.Level.WARNING,
+						"Background trade recalculation failed; recalculating on the server thread", e);
+				ran = false;
+			}
+			boolean finished = ran;
+			if (!SimpleFactions.plugin.isEnabled()) return;
+			org.bukkit.Bukkit.getScheduler().runTask(SimpleFactions.plugin, () -> {
+				// A newer click has its own flood coming; it repaints these guilds too.
+				if (run != recalcRuns) return;
+				floodingRun = 0;
+				if (live != manager) return;
+				if (!finished || !live.adopt(flood)) {
+					if (finished && retry) {
+						floodInBackground(run, false);
+						return;
+					}
+					live.recalculate();
+				}
+				repaintAfterRecalc();
+			});
+		});
+	}
+
+	private void repaintAfterRecalc() {
+		java.util.Set<String> guilds = new java.util.HashSet<>(pendingRepaint);
+		pendingRepaint.clear();
+		preview = null;
+		for (Player viewer : org.bukkit.Bukkit.getOnlinePlayers()) {
+			Inventory top = viewer.getOpenInventory().getTopInventory();
+			if (!(top.getHolder() instanceof SFInventoryHolder holder) || holder.getType() != SFGUI.GUILD_VIEW) continue;
+			if (!guilds.contains(holder.getId())) continue;
+			Guild shown = FactionManager.getGuildByString(holder.getId());
+			if (shown != null) guildView(viewer, shown, top, false);
+		}
 	}
 
 	public void guildList(Player p) {
@@ -201,8 +322,8 @@ public class GuildView {
     }
 
     /**
-     * {@code refreshIdleTrade} false skips the full recalculation a guild with no income gets on
-     * every open; only for a caller that has just run one, so the menu shows the same numbers.
+     * {@code refreshIdleTrade} false skips the background recalculation a guild with no income gets
+     * on every open; for repaints after one, so a guild that earns nothing does not refresh forever.
      */
     public void guildView(Player player, Guild guild, Inventory i, boolean refreshIdleTrade) {
 		if (!EspionageService.canViewExact(player, guild.getFaction())) {
@@ -211,7 +332,9 @@ public class GuildView {
         }
 		if(manager == null) setProvinceManager(SimpleFactions.getInstance().getProvinceManager());
 		if(guild.hasCapital()) {
-			if(refreshIdleTrade && guild.getTradeBreakdown().getIncome() == 0) manager.recalculate();
+			// Trade a guild with no income may be stale, and movement power, civil war and pillage
+			// read it too. Refresh it off the server thread; the menus repaint when it lands.
+			if(refreshIdleTrade && guild.getTradeBreakdown().getIncome() == 0) refreshInBackground(guild);
 			manager.getIncome(guild);
 		}
 		manager.recalculateIfNeeded();
@@ -219,10 +342,14 @@ public class GuildView {
 		// ranks all guilds), and each answer read treasuries from SQLite many times over: about
 		// 185 ms per redraw on Dev. One answer per treasury and one stability report per faction
 		// hold for one render, as for the chronicle export.
+		withReadMemos(() -> render(player, guild, i));
+	}
+
+	private static void withReadMemos(Runnable reads) {
 		BankruptcyMemo.Run bankruptcy = BankruptcyMemo.begin();
 		StabilityMemo.Run stability = StabilityMemo.begin();
 		try {
-			render(player, guild, i);
+			reads.run();
 		} finally {
 			StabilityMemo.end(stability);
 			BankruptcyMemo.end(bankruptcy);
@@ -249,29 +376,7 @@ public class GuildView {
 			}
 			i.setItem(34, creator.createEvictionItem(player, guild));
 		}
-		BranchIncomePreview.Prepared tradePreview = null;
-		if (guild.hasCapital() && guild.isLeader(player)) {
-			tradePreview = BranchIncomePreview.prepare(manager);
-		}
-		int group = 0;
-		while(group < 10) {
-			Branch b = guild.getBranch(group);
-			group++;
-			if (b == null) continue;
-			i.setItem(group+28, creator.createBranchItem(player, guild, b));
-			if(guild.isLeader(player)) {
-				int upgradeSlot = group + 19;
-				int downgradeSlot = group + 37;
-				i.setItem(upgradeSlot, treasuryButton(player, guild, b, creator.createBranchUpgradeItem(player, guild, b)));
-				i.setItem(downgradeSlot, treasuryButton(player, guild, b, creator.createBranchDowngradeItem(player, guild, b)));
-				if (tradePreview != null) {
-					BranchIncomePreviewService.schedule(player, i, upgradeSlot, tradePreview, guild, b, 1);
-					if (b.getLevel() > 0) {
-						BranchIncomePreviewService.schedule(player, i, downgradeSlot, tradePreview, guild, b, -1);
-					}
-				}
-			}
-		}
+		paintBranches(player, guild, i);
 		i.setItem(13, creator.createMenuItem(player, guild, MenuItemType.TRADE_BREAKDOWN));
 		i.setItem(14, creator.createLedgerItem(player, guild));
 		if (!guild.isBase()) {
@@ -549,10 +654,13 @@ public class GuildView {
 				if (!upgrade && guild.getFaction() != null) {
 					guild.getFaction().updatePrestige();
 				}
-				// One full pass. A single-guild pass leaves the snapshot stale, so the redraw ran a
-				// full one right after it (two for a guild with no income).
-				manager.recalculate();
-				guildView(p, guild, inventory, false);
+				// The full flood waits for the clicks to settle; repaint only what the click changed.
+				withReadMemos(() -> {
+					inventory.setItem(12, creator.createMenuItem(p, guild, MenuItemType.WEALTH));
+					inventory.setItem(14, creator.createLedgerItem(p, guild));
+					paintBranches(p, guild, inventory);
+				});
+				recalculateAfterClicks(guild);
 			}
 		}
 		if(h.getType() == SFGUI.UPGRADE_VIEW) {

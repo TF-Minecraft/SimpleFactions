@@ -30,6 +30,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.war.resolution.PillageTradeHit;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
@@ -50,6 +51,8 @@ public class ProvinceManager {
     private long stateVersion = 0;
     private long lastCalculatedVersion = -1;
     private Map<Guild, Boolean> lastCalculatedBankruptcy = Map.of();
+    /** Bumped whenever live province data is rewritten, so a flood computed on a copy can tell it is stale. */
+    private long dataGeneration = 0;
 
     public void markDirty() {
         stateVersion++;
@@ -82,6 +85,7 @@ public class ProvinceManager {
     }
 
     public void start(Map<Integer, Province> map) {
+        dataGeneration++;
         provinces = map;
     }
 
@@ -111,6 +115,7 @@ public class ProvinceManager {
         if (guildId == null) {
             return;
         }
+        dataGeneration++;
         for (Province p : provinces.values()) {
             p.clearGuildData(guildId);
         }
@@ -128,6 +133,7 @@ public class ProvinceManager {
         }
         // A partial or failed flood must not leave the old full snapshot marked fresh.
         lastCalculatedVersion = -1;
+        dataGeneration++;
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
         StabilityMemo.Run stability = StabilityMemo.begin();
@@ -192,6 +198,86 @@ public class ProvinceManager {
         }
     }
 
+    /**
+     * A full flood on a copy, for running off the server thread. Create it on the server thread,
+     * {@link BackgroundFlood#run() run} it anywhere, then {@link #adopt} it on the server thread.
+     */
+    public static final class BackgroundFlood {
+        private final ProvinceManager copy;
+        private final List<Guild> guilds;
+        private final List<Faction> factions;
+        private final FrozenReads reads = FrozenReads.capture();
+        private final Map<Guild, Boolean> bankruptcy;
+        private final long generation;
+        private final long version;
+        private final Map<Guild, TradeBreakdown> breakdowns = new HashMap<>();
+        private volatile boolean done;
+
+        private BackgroundFlood(ProvinceManager live) {
+            copy = live.createSnapshotShell();
+            copy.copyAllDataFrom(live);
+            guilds = List.copyOf(FactionManager.getAllGuilds());
+            factions = FactionManager.getCopy();
+            bankruptcy = live.realmBankruptcy();
+            generation = live.dataGeneration;
+            version = live.stateVersion;
+        }
+
+        public void run() {
+            reads.read(() -> {
+                copy.recalculateQuiet(guilds, factions);
+                try {
+                    for (Guild guild : guilds) {
+                        TradeBreakdown breakdown = new TradeBreakdown();
+                        copy.fillBreakdown(guild, breakdown);
+                        breakdowns.put(guild, breakdown);
+                    }
+                } finally {
+                    copy.clearPreviewLists();
+                }
+                return null;
+            });
+            done = true;
+        }
+    }
+
+    /** Server thread. Refreshes the live trade graph so the copy floods over current track. */
+    public BackgroundFlood prepareBackgroundFlood() {
+        TradeGraph.refreshIfLive(this);
+        return new BackgroundFlood(this);
+    }
+
+    /**
+     * Server thread. Installs a finished flood unless live province data was rewritten since it
+     * was prepared; then the caller should flood again or rely on the newer data.
+     */
+    public boolean adopt(BackgroundFlood flood) {
+        if (!Cache.provincesEnabled || flood == null || !flood.done
+                || flood.generation != dataGeneration || flood.version != stateVersion) {
+            return false;
+        }
+        copyAllDataFrom(flood.copy);
+        for (Map.Entry<Guild, TradeBreakdown> entry : flood.breakdowns.entrySet()) {
+            entry.getKey().getTradeBreakdown().copyFrom(entry.getValue());
+        }
+        dataGeneration++;
+        lastCalculatedBankruptcy = flood.bankruptcy;
+        lastCalculatedVersion = flood.version;
+        return true;
+    }
+
+    /** What {@link #getIncome(Guild, boolean)} writes, into a breakdown that is not the guild's. */
+    private void fillBreakdown(Guild guild, TradeBreakdown breakdown) {
+        if (!Cache.provincesEnabled) {
+            return;
+        }
+        TradeIncome trade = measureIncome(guild, breakdown);
+        breakdown.setTariffs(trade.tariffs());
+        breakdown.setUpkeep(trade.upkeep());
+        breakdown.setIncome(trade.gross());
+        breakdown.setTradePower(getTotalTrade(guild));
+    }
+
     /** Drops the copies {@link #recalculateQuiet} kept for the income read that follows. */
     public void clearPreviewLists() {
         previewGuilds = null;
@@ -204,6 +290,7 @@ public class ProvinceManager {
         }
         // A partial or failed flood must not leave the old full snapshot marked fresh.
         lastCalculatedVersion = -1;
+        dataGeneration++;
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
         StabilityMemo.Run stability = StabilityMemo.begin();

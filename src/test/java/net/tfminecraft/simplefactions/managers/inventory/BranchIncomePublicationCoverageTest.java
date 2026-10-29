@@ -204,8 +204,7 @@ class BranchIncomePublicationCoverageTest {
       calculations
           .when(
               () ->
-                  BranchIncomePreview.estimate(
-                      eq(prepared), eq(guild), anyMap(), anyMap()))
+                  BranchIncomePreview.baseline(eq(prepared), eq(guild), anyMap()))
           .thenThrow(failure);
       compute();
     }

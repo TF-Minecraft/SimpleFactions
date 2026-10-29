@@ -161,6 +161,13 @@ public final class GuiTestFixture implements AutoCloseable {
     pending.forEach(Runnable::run);
   }
 
+  /** Runs the currently queued async tasks on the calling thread. */
+  public void runAsyncTasks() {
+    List<Runnable> pending = new ArrayList<>(asyncTasks);
+    asyncTasks.clear();
+    pending.forEach(Runnable::run);
+  }
+
   public NamespacedKey key(String name) {
     return new NamespacedKey(plugin, name);
   }

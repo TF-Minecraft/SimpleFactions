@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
@@ -32,6 +33,7 @@ public final class BranchIncomePreview {
     public static final class Prepared {
         private final ProvinceManager snapshot;
         private final FrozenReads reads = FrozenReads.capture();
+        private final Map<Object, Estimate> estimates = new ConcurrentHashMap<>();
 
         private Prepared(ProvinceManager snapshot) {
             this.snapshot = snapshot;
@@ -40,6 +42,40 @@ public final class BranchIncomePreview {
         /** Main-thread state as it was when this copy was made, for work off the main thread. */
         public FrozenReads reads() {
             return reads;
+        }
+
+        /** An estimate already computed on this copy for the same guild and modifiers, or null. */
+        public Estimate cached(Guild guild, Map<GuildModifier, Double> current, Map<GuildModifier, Double> hypothetical) {
+            return estimates.get(key(guild, current, hypothetical));
+        }
+
+        public void remember(
+                Guild guild,
+                Map<GuildModifier, Double> current,
+                Map<GuildModifier, Double> hypothetical,
+                Estimate estimate) {
+            if (estimate != null && estimate != Estimate.UNAVAILABLE) {
+                estimates.put(key(guild, current, hypothetical), estimate);
+            }
+        }
+
+        private static Object key(Guild guild, Map<GuildModifier, Double> current, Map<GuildModifier, Double> hypothetical) {
+            return List.of(guild.getId(), guild.getIncarnationId(), Map.copyOf(current), Map.copyOf(hypothetical));
+        }
+    }
+
+    /** The guild's trade on a copy with its current modifiers, shared by every hypothetical change. */
+    public static final class Baseline {
+        private final Prepared prepared;
+        private final Guild guild;
+        private final List<Guild> guilds;
+        private final Map<Guild, TradeIncome> before;
+
+        private Baseline(Prepared prepared, Guild guild, List<Guild> guilds, Map<Guild, TradeIncome> before) {
+            this.prepared = prepared;
+            this.guild = guild;
+            this.guilds = guilds;
+            this.before = before;
         }
     }
 
@@ -73,9 +109,19 @@ public final class BranchIncomePreview {
             Guild guild,
             Map<GuildModifier, Double> current,
             Map<GuildModifier, Double> hypothetical) {
+        return estimate(baseline(prepared, guild, current), hypothetical);
+    }
+
+    public static Baseline baseline(Prepared prepared, Guild guild, Map<GuildModifier, Double> current) {
         List<Guild> guilds = measured(guild);
-        Map<Guild, TradeIncome> before = incomes(copy(prepared.snapshot), guild, current, guilds);
-        Map<Guild, TradeIncome> after = incomes(copy(prepared.snapshot), guild, hypothetical, guilds);
+        return new Baseline(prepared, guild, guilds, incomes(copy(prepared.snapshot), guild, current, guilds));
+    }
+
+    public static Estimate estimate(Baseline baseline, Map<GuildModifier, Double> hypothetical) {
+        Guild guild = baseline.guild;
+        List<Guild> guilds = baseline.guilds;
+        Map<Guild, TradeIncome> before = baseline.before;
+        Map<Guild, TradeIncome> after = incomes(copy(baseline.prepared.snapshot), guild, hypothetical, guilds);
         Faction faction = guild.getFaction();
         String factionId = faction == null ? null : faction.getId();
 

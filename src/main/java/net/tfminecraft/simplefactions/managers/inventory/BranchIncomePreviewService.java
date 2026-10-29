@@ -1,6 +1,10 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
@@ -25,6 +29,14 @@ public final class BranchIncomePreviewService {
 
     private BranchIncomePreviewService() {}
 
+    /** One branch button to paint: its slot, its branch, and up (+1) or down (-1). */
+    public record Request(int slot, Branch branch, int levelDelta) {}
+
+    private record Job(Request request, int level, Map<GuildModifier, Double> hypothetical, long token) {}
+
+    /** Latest preview run per player. A newer menu paint cancels the older run between estimates. */
+    private static final Map<UUID, Long> RUNS = new ConcurrentHashMap<>();
+
     public static void schedule(
             Player player,
             Inventory inventory,
@@ -33,11 +45,20 @@ public final class BranchIncomePreviewService {
             Guild guild,
             Branch branch,
             int levelDelta) {
-        if (player == null || inventory == null || prepared == null || guild == null || branch == null) {
-            return;
-        }
-        ItemStack item = inventory.getItem(slot);
-        if (item == null || !item.hasItemMeta()) {
+        schedule(player, inventory, prepared, guild, List.of(new Request(slot, branch, levelDelta)));
+    }
+
+    /**
+     * Paints every requested button from one background run. The guild's current trade is
+     * measured once and reused for each change; estimates already made on this copy paint at once.
+     */
+    public static void schedule(
+            Player player,
+            Inventory inventory,
+            BranchIncomePreview.Prepared prepared,
+            Guild guild,
+            List<Request> requests) {
+        if (player == null || inventory == null || prepared == null || guild == null || requests == null) {
             return;
         }
         SimpleFactions plugin = SimpleFactions.plugin;
@@ -45,34 +66,78 @@ public final class BranchIncomePreviewService {
             return;
         }
 
-        int level = branch.getLevel();
-        boolean upgrade = levelDelta > 0;
         Map<GuildModifier, Double> current = BranchIncomePreview.modifiers(guild);
-        Map<GuildModifier, Double> hypothetical = BranchIncomePreview.adjust(current, branch, level, levelDelta);
+        List<Job> jobs = new ArrayList<>();
+        for (Request request : requests) {
+            Branch branch = request.branch();
+            if (branch == null) {
+                continue;
+            }
+            ItemStack item = inventory.getItem(request.slot());
+            if (item == null || !item.hasItemMeta()) {
+                continue;
+            }
+            int level = branch.getLevel();
+            Map<GuildModifier, Double> hypothetical =
+                    BranchIncomePreview.adjust(current, branch, level, request.levelDelta());
+            BranchIncomePreview.Estimate known = prepared.cached(guild, current, hypothetical);
+            if (known != null) {
+                write(item, guild, branch, request.levelDelta() > 0, known);
+                inventory.setItem(request.slot(), item);
+                continue;
+            }
+            long token = TOKENS.incrementAndGet();
+            stamp(item, token);
+            inventory.setItem(request.slot(), item);
+            jobs.add(new Job(request, level, hypothetical, token));
+        }
+        UUID viewer = player.getUniqueId();
+        long run = TOKENS.incrementAndGet();
+        RUNS.put(viewer, run);
+        if (jobs.isEmpty()) {
+            return;
+        }
         String guildId = guild.getId();
-        String branchId = branch.getId();
-        long token = TOKENS.incrementAndGet();
-        stamp(item, token);
-        inventory.setItem(slot, item);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            BranchIncomePreview.Estimate estimate;
-            try {
-                estimate = prepared.reads().read(
-                        () -> BranchIncomePreview.estimate(prepared, guild, current, hypothetical));
-            } catch (RuntimeException ex) {
-                plugin.getLogger().log(
-                        Level.WARNING,
-                        "Branch income preview failed for guild " + guildId + " branch " + branchId,
-                        ex);
-                estimate = BranchIncomePreview.Estimate.UNAVAILABLE;
+            BranchIncomePreview.Baseline baseline = null;
+            RuntimeException failure = null;
+            for (Job job : jobs) {
+                if (!plugin.isEnabled() || !Long.valueOf(run).equals(RUNS.get(viewer))) {
+                    return;
+                }
+                Branch branch = job.request().branch();
+                BranchIncomePreview.Estimate estimate;
+                try {
+                    if (failure != null) {
+                        throw failure;
+                    }
+                    if (baseline == null) {
+                        baseline = prepared.reads().read(
+                                () -> BranchIncomePreview.baseline(prepared, guild, current));
+                    }
+                    BranchIncomePreview.Baseline measured = baseline;
+                    estimate = prepared.reads().read(
+                            () -> BranchIncomePreview.estimate(measured, job.hypothetical()));
+                    prepared.remember(guild, current, job.hypothetical(), estimate);
+                } catch (RuntimeException ex) {
+                    if (failure == null) {
+                        plugin.getLogger().log(
+                                Level.WARNING,
+                                "Branch income preview failed for guild " + guildId + " branch " + branch.getId(),
+                                ex);
+                    }
+                    failure = ex;
+                    estimate = BranchIncomePreview.Estimate.UNAVAILABLE;
+                }
+                if (!plugin.isEnabled()) {
+                    return;
+                }
+                BranchIncomePreview.Estimate result = estimate;
+                Bukkit.getScheduler().runTask(plugin, () -> publish(
+                        player, inventory, job.request().slot(), job.token(), guild, branch,
+                        job.request().levelDelta() > 0, job.level(), result));
             }
-            if (!plugin.isEnabled()) {
-                return;
-            }
-            BranchIncomePreview.Estimate result = estimate;
-            Bukkit.getScheduler().runTask(plugin, () -> publish(
-                    player, inventory, slot, token, guild, branch, upgrade, level, result));
         });
     }
 
@@ -96,12 +161,17 @@ public final class BranchIncomePreviewService {
         if (!matches(item, token, branch.getId(), upgrade)) {
             return;
         }
+        write(item, guild, branch, upgrade, estimate);
+        inventory.setItem(slot, item);
+    }
+
+    private static void write(
+            ItemStack item, Guild guild, Branch branch, boolean upgrade, BranchIncomePreview.Estimate estimate) {
         if (upgrade) {
             CREATOR.writeUpgradeEstimate(item, guild, branch, estimate);
         } else {
             CREATOR.writeDowngradeEstimate(item, guild, branch, estimate);
         }
-        inventory.setItem(slot, item);
     }
 
     private static void stamp(ItemStack item, long token) {
