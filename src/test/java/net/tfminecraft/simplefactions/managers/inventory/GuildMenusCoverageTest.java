@@ -851,6 +851,19 @@ class GuildMenusCoverageTest {
   }
 
   @Test
+  void aGuildMenuRendersInsideOneTreasuryAndStabilityRun() {
+    try (var treasuries = mockStatic(net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.class, CALLS_REAL_METHODS);
+        var reports = mockStatic(net.tfminecraft.simplefactions.government.stability.StabilityMemo.class, CALLS_REAL_METHODS)) {
+      view.guildView(fixture.player, guild, true);
+      treasuries.verify(net.tfminecraft.simplefactions.government.stability.BankruptcyMemo::begin, atLeastOnce());
+      treasuries.verify(() -> net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.end(any()), atLeastOnce());
+      reports.verify(net.tfminecraft.simplefactions.government.stability.StabilityMemo::begin, atLeastOnce());
+      reports.verify(() -> net.tfminecraft.simplefactions.government.stability.StabilityMemo.end(any()), atLeastOnce());
+    }
+    assertNotNull(fixture.player.getOpenInventory().getTopInventory().getItem(13));
+  }
+
+  @Test
   void exactGuildRenderingUsesRealBranchControlsAndCurrentMembership() {
     Guild display = displayGuild(guild);
     fixture.factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(display);
