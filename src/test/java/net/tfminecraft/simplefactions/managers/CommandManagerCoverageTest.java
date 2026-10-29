@@ -1810,6 +1810,14 @@ class CommandManagerCoverageTest {
     factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(null);
     assertTrue(run("faction", "findvehicles", "fort"));
     verify(player).sendMessage(VehicleFindMessages.notLeader());
+    try (MockedStatic<VehicleFindMessages> finds = mockStatic(VehicleFindMessages.class)) {
+      assertTrue(run("faction", "findvehicles", "personal"));
+      finds.verify(() -> VehicleFindMessages.sendPersonalVehicles(player));
+      assertTrue(run("faction", "findvehicles", "pool"));
+      finds.verify(() -> VehicleFindMessages.sendPoolVehicles(any(), any()), never());
+
+    }
+
     factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(faction);
     assertTrue(run("faction", "findvehicles"));
     verify(player).sendMessage(VehicleFindMessages.usage());
@@ -1821,11 +1829,17 @@ class CommandManagerCoverageTest {
       finds
           .when(() -> VehicleFindMessages.resolveInstallation(installations, "fort"))
           .thenCallRealMethod();
+      assertTrue(run("faction", "findvehicles", "PeRsOnAl"));
+      finds.verify(() -> VehicleFindMessages.sendPersonalVehicles(player));
+      assertTrue(run("faction", "findvehicles", "PoOl"));
+      finds.verify(() -> VehicleFindMessages.sendPoolVehicles(player, faction.getId()));
       assertTrue(run("faction", "findvehicles", "missing"));
       verify(player).sendMessage(VehicleFindMessages.unknownInstallation());
       Installation fort = installations.getById("fort");
       assertTrue(run("faction", "findvehicles", "fort"));
       finds.verify(() -> VehicleFindMessages.sendInstallationVehicles(player, fort));
+      assertTrue(run("faction", "findvehicles", "INSTALLATION:fort"));
+      finds.verify(() -> VehicleFindMessages.sendInstallationVehicles(player, fort), times(2));
     }
   }
 

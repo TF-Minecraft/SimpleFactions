@@ -803,19 +803,27 @@ public class CommandManager implements Listener, CommandExecutor{
 						p, transferId == null || transferId.isBlank() ? null : transferId);
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("findvehicles")) {
+				if(args.length != 2) {
+					p.sendMessage(net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.usage());
+					return true;
+				}
+				if(args[1].equalsIgnoreCase("personal")) {
+					net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.sendPersonalVehicles(p);
+					return true;
+				}
 				Faction f = FactionManager.getByLeader(Members.key(p));
 				if(f == null) {
 					p.sendMessage(net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.notLeader());
 					return true;
 				}
-				if(args.length < 2) {
-					p.sendMessage(net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.usage());
+				if(args[1].equalsIgnoreCase("pool")) {
+					net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.sendPoolVehicles(p, f.getId());
 					return true;
 				}
 				var handler = f.getInstallationHandler();
 				Installation installation =
 						net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.resolveInstallation(
-								handler, args[1]);
+								handler, args[1].replaceFirst("(?i)^installation:", ""));
 				if(installation == null) {
 					p.sendMessage(net.tfminecraft.simplefactions.vehicles.berth.VehicleFindMessages.unknownInstallation());
 					return true;

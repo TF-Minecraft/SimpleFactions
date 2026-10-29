@@ -16,6 +16,13 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 - **Espionage** — appoint a Spymaster, keep regiments and vehicles secret, and obtain shared daily intelligence estimates.
 - **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
 
+Use `/faction findvehicles personal` to locate your current character's vehicles.
+Faction leaders can also use `/faction findvehicles pool` or
+`/faction findvehicles <installation id>`. Tab completion suggests the available
+choices. Each vehicle shows its world and coordinates when known, including
+stored vehicles. For an installation named `pool` or `personal`, use
+`/faction findvehicles installation:<id>`; tab completion supplies this form.
+
 ## A shared political world
 
 [TFMCWeb](https://github.com/TF-Minecraft/TFMCWeb) presents the world map, borders, settlements, and military activity on the website.

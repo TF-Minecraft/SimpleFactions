@@ -1,10 +1,15 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
+import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
+import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.vehicleframework.data.StoredVehicleMeta;
@@ -15,11 +20,11 @@ public final class VehicleFindMessages {
     private VehicleFindMessages() {}
 
     public static String notLeader() {
-        return VehicleTransferMessages.notLeader();
+        return "§cYou need to be a faction leader to find faction vehicles.";
     }
 
     public static String usage() {
-        return "§cUsage: §e/faction findvehicles <installation id>";
+        return "§cUsage: §e/faction findvehicles <pool|personal|installation id>";
     }
 
     public static String unknownInstallation() {
@@ -87,15 +92,25 @@ public final class VehicleFindMessages {
         return vehicleUuid;
     }
 
-    public static void sendInstallationVehicles(Player player, Installation installation) {
-        player.sendMessage(header(installation));
-        var records =
-                net.tfminecraft.simplefactions.SimpleFactions.getVehicleRegistry()
-                        .getByInstallation(
-                                net.tfminecraft.simplefactions.installation.InstallationOwners.ownerIdOf(installation),
-                                installation.getId());
+    public static void sendPersonalVehicles(Player player) {
+        var character = VehicleOwnershipQueries.characterId(player);
+        var records = SimpleFactions.getVehicleRegistry().getAll().stream()
+                .filter(record -> record.getMode() == OwnershipMode.PERSONAL)
+                .filter(record -> record.getPlayerUuid() != null && record.getPlayerUuid().equals(character))
+                .toList();
+        player.sendMessage("§bYour personal vehicles:");
+        sendVehicles(player, records, "§7You have no personal vehicles.");
+    }
+
+    public static void sendPoolVehicles(Player player, String factionId) {
+        player.sendMessage("§bVehicles in the faction pool:");
+        sendVehicles(player, SimpleFactions.getVehicleRegistry().getPoolVehicles(factionId),
+                "§7No vehicles in the faction pool.");
+    }
+
+    private static void sendVehicles(Player player, List<PlayerVehicleRecord> records, String emptyMessage) {
         if (records.isEmpty()) {
-            player.sendMessage(noneAtInstallation(installation));
+            player.sendMessage(emptyMessage);
             return;
         }
         for (var record : records) {
@@ -104,5 +119,15 @@ public final class VehicleFindMessages {
                     VehicleFramework.getVehicleManager().getOfflineLocation(record.getVehicleUuid());
             player.sendMessage(vehicleLine(name, location));
         }
+    }
+
+    public static void sendInstallationVehicles(Player player, Installation installation) {
+        player.sendMessage(header(installation));
+        var records =
+                net.tfminecraft.simplefactions.SimpleFactions.getVehicleRegistry()
+                        .getByInstallation(
+                                net.tfminecraft.simplefactions.installation.InstallationOwners.ownerIdOf(installation),
+                                installation.getId());
+        sendVehicles(player, records, noneAtInstallation(installation));
     }
 }
