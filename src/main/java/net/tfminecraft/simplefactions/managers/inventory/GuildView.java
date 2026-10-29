@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.government.stability.BankruptcyMemo;
+import net.tfminecraft.simplefactions.government.stability.StabilityMemo;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import net.tfminecraft.simplefactions.espionage.EspionageService;
@@ -195,16 +197,39 @@ public class GuildView {
 	}
 
     public void guildView(Player player, Guild guild, Inventory i) {
+        guildView(player, guild, i, true);
+    }
+
+    /**
+     * {@code refreshIdleTrade} false skips the full recalculation a guild with no income gets on
+     * every open; only for a caller that has just run one, so the menu shows the same numbers.
+     */
+    public void guildView(Player player, Guild guild, Inventory i, boolean refreshIdleTrade) {
 		if (!EspionageService.canViewExact(player, guild.getFaction())) {
             EspionageView.guild(i, player, guild, inv);
             return;
         }
 		if(manager == null) setProvinceManager(SimpleFactions.getInstance().getProvinceManager());
 		if(guild.hasCapital()) {
-			if(guild.getTradeBreakdown().getIncome() == 0) manager.recalculate();
+			if(refreshIdleTrade && guild.getTradeBreakdown().getIncome() == 0) manager.recalculate();
 			manager.getIncome(guild);
 		}
 		manager.recalculateIfNeeded();
+		// The menu only reads, but its items ask every guild's net income (the trade breakdown
+		// ranks all guilds), and each answer read treasuries from SQLite many times over: about
+		// 185 ms per redraw on Dev. One answer per treasury and one stability report per faction
+		// hold for one render, as for the chronicle export.
+		BankruptcyMemo.Run bankruptcy = BankruptcyMemo.begin();
+		StabilityMemo.Run stability = StabilityMemo.begin();
+		try {
+			render(player, guild, i);
+		} finally {
+			StabilityMemo.end(stability);
+			BankruptcyMemo.end(bankruptcy);
+		}
+	}
+
+	private void render(Player player, Guild guild, Inventory i) {
 		i.clear();
 		if(guild.isMember(player)) i.setItem(1, creator.createMenuItem(player, guild, MenuItemType.BANNER_GET));
 		i.setItem(10, creator.createMenuItem(player, guild, MenuItemType.BANNER));
@@ -524,8 +549,10 @@ public class GuildView {
 				if (!upgrade && guild.getFaction() != null) {
 					guild.getFaction().updatePrestige();
 				}
-				manager.recalculateForSingleGuild(guild, true);
-				guildView(p, guild, inventory);
+				// One full pass. A single-guild pass leaves the snapshot stale, so the redraw ran a
+				// full one right after it (two for a guild with no income).
+				manager.recalculate();
+				guildView(p, guild, inventory, false);
 			}
 		}
 		if(h.getType() == SFGUI.UPGRADE_VIEW) {

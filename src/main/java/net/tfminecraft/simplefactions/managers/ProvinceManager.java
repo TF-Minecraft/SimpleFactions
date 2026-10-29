@@ -131,6 +131,7 @@ public class ProvinceManager {
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
         StabilityMemo.Run stability = StabilityMemo.begin();
+        RecalcLookups.Run lookups = RecalcLookups.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -147,6 +148,7 @@ public class ProvinceManager {
             lastCalculatedBankruptcy = realmBankruptcy();
             lastCalculatedVersion = stateVersion;
         } finally {
+            RecalcLookups.end(lookups);
             StabilityMemo.end(stability);
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();
@@ -166,6 +168,7 @@ public class ProvinceManager {
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
         StabilityMemo.Run stability = StabilityMemo.begin();
+        RecalcLookups.Run lookups = RecalcLookups.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -182,6 +185,7 @@ public class ProvinceManager {
             }
             recalculateProsperity();
         } finally {
+            RecalcLookups.end(lookups);
             StabilityMemo.end(stability);
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();
@@ -203,6 +207,7 @@ public class ProvinceManager {
         InstallationAccess.beginRecalculation();
         BankruptcyMemo.Run memo = BankruptcyMemo.begin();
         StabilityMemo.Run stability = StabilityMemo.begin();
+        RecalcLookups.Run lookups = RecalcLookups.begin();
         try {
             installationAccess = new HashMap<>();
             TradeGraph.refreshIfLive(this);
@@ -216,6 +221,7 @@ public class ProvinceManager {
                 }
             }
         } finally {
+            RecalcLookups.end(lookups);
             StabilityMemo.end(stability);
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();

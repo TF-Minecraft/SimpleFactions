@@ -256,15 +256,23 @@ class GuildMenusCoverageTest {
     view = spy(view);
     manager.guildView = view;
     doNothing().when(view).guildView(any(), any(), any(Inventory.class));
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class), anyBoolean());
     Inventory inventory = open();
     inventory.setItem(
         38, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0))));
+    // The one full pass runs after the downgrade has been applied.
+    int[] levelAtRecalculation = {-1};
+    doAnswer(call -> { levelAtRecalculation[0] = guild.getBranch(0).getLevel(); return null; })
+        .when(fixture.provinces).recalculate();
     manager.clickButton(fixture.ui.click(fixture.player, 38));
+    assertEquals(0, levelAtRecalculation[0]);
     assertEquals(0, guild.getSize());
     assertEquals(1080, guild.getBank().getWealth());
     assertEquals(1080, guild.getWealth());
     verify(fixture.host).updatePrestige();
-    verify(fixture.provinces).recalculateForSingleGuild(guild, true);
+    verify(fixture.provinces).recalculate();
+    verify(fixture.provinces, never()).recalculateForSingleGuild(any(), anyBoolean());
+    verify(view).guildView(fixture.player, guild, inventory, false);
   }
 
   @Test
@@ -848,6 +856,19 @@ class GuildMenusCoverageTest {
   }
 
   @Test
+  void aGuildMenuRendersInsideOneTreasuryAndStabilityRun() {
+    try (var treasuries = mockStatic(net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.class, CALLS_REAL_METHODS);
+        var reports = mockStatic(net.tfminecraft.simplefactions.government.stability.StabilityMemo.class, CALLS_REAL_METHODS)) {
+      view.guildView(fixture.player, guild, true);
+      treasuries.verify(net.tfminecraft.simplefactions.government.stability.BankruptcyMemo::begin, atLeastOnce());
+      treasuries.verify(() -> net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.end(any()), atLeastOnce());
+      reports.verify(net.tfminecraft.simplefactions.government.stability.StabilityMemo::begin, atLeastOnce());
+      reports.verify(() -> net.tfminecraft.simplefactions.government.stability.StabilityMemo.end(any()), atLeastOnce());
+    }
+    assertNotNull(fixture.player.getOpenInventory().getTopInventory().getItem(13));
+  }
+
+  @Test
   void exactGuildRenderingUsesRealBranchControlsAndCurrentMembership() {
     Guild display = displayGuild(guild);
     fixture.factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(display);
@@ -883,6 +904,10 @@ class GuildMenusCoverageTest {
     // A guild that still earns no trade recalculates on every open, however soon it reopens.
     view.guildView(fixture.player, display, inventory);
     verify(fixture.provinces, times(2)).recalculate();
+    // A caller that has just recalculated skips that refresh; the dirty check still runs.
+    view.guildView(fixture.player, display, inventory, false);
+    verify(fixture.provinces, times(2)).recalculate();
+    verify(fixture.provinces, times(3)).recalculateIfNeeded();
     display.setLeader("Other");
     display.kick("Leader");
     display.setCapital(-1);
@@ -1061,8 +1086,8 @@ class GuildMenusCoverageTest {
     assertEquals(before + (scenario.equals("upgrade") ? 1 : 0), branch.getLevel());
     assertEquals(balance - (scenario.equals("upgrade") ? 200 : 0), guild.getBank().getWealth());
     if (scenario.equals("upgrade")) {
-      verify(fixture.provinces).recalculateForSingleGuild(guild, true);
-      verify(view).guildView(fixture.player, guild, inventory);
+      verify(fixture.provinces).recalculate();
+      verify(view).guildView(fixture.player, guild, inventory, false);
     }
     if (scenario.equals("insufficient"))
       verify(fixture.player).sendMessage("§cCannot afford to upgrade");
@@ -1397,6 +1422,7 @@ class GuildMenusCoverageTest {
     view = spy(view);
     manager.guildView = view;
     doNothing().when(view).guildView(any(), any(), any(Inventory.class));
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class), anyBoolean());
     doNothing().when(view).upgradeView(any(), any(), any(Inventory.class));
     doNothing().when(view).upgradeView(any(), any());
     doNothing().when(view).ledgerView(any(), any(), any(), anyBoolean());
