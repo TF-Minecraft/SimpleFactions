@@ -256,6 +256,7 @@ class GuildMenusCoverageTest {
     view = spy(view);
     manager.guildView = view;
     doNothing().when(view).guildView(any(), any(), any(Inventory.class));
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class), anyBoolean());
     Inventory inventory = open();
     inventory.setItem(
         38, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0))));
@@ -264,7 +265,9 @@ class GuildMenusCoverageTest {
     assertEquals(1080, guild.getBank().getWealth());
     assertEquals(1080, guild.getWealth());
     verify(fixture.host).updatePrestige();
-    verify(fixture.provinces).recalculateForSingleGuild(guild, true);
+    verify(fixture.provinces).recalculate();
+    verify(fixture.provinces, never()).recalculateForSingleGuild(any(), anyBoolean());
+    verify(view).guildView(fixture.player, guild, inventory, false);
   }
 
   @Test
@@ -883,6 +886,10 @@ class GuildMenusCoverageTest {
     // A guild that still earns no trade recalculates on every open, however soon it reopens.
     view.guildView(fixture.player, display, inventory);
     verify(fixture.provinces, times(2)).recalculate();
+    // A caller that has just recalculated skips that refresh; the dirty check still runs.
+    view.guildView(fixture.player, display, inventory, false);
+    verify(fixture.provinces, times(2)).recalculate();
+    verify(fixture.provinces, times(3)).recalculateIfNeeded();
     display.setLeader("Other");
     display.kick("Leader");
     display.setCapital(-1);
@@ -1061,8 +1068,8 @@ class GuildMenusCoverageTest {
     assertEquals(before + (scenario.equals("upgrade") ? 1 : 0), branch.getLevel());
     assertEquals(balance - (scenario.equals("upgrade") ? 200 : 0), guild.getBank().getWealth());
     if (scenario.equals("upgrade")) {
-      verify(fixture.provinces).recalculateForSingleGuild(guild, true);
-      verify(view).guildView(fixture.player, guild, inventory);
+      verify(fixture.provinces).recalculate();
+      verify(view).guildView(fixture.player, guild, inventory, false);
     }
     if (scenario.equals("insufficient"))
       verify(fixture.player).sendMessage("§cCannot afford to upgrade");
@@ -1397,6 +1404,7 @@ class GuildMenusCoverageTest {
     view = spy(view);
     manager.guildView = view;
     doNothing().when(view).guildView(any(), any(), any(Inventory.class));
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class), anyBoolean());
     doNothing().when(view).upgradeView(any(), any(), any(Inventory.class));
     doNothing().when(view).upgradeView(any(), any());
     doNothing().when(view).ledgerView(any(), any(), any(), anyBoolean());

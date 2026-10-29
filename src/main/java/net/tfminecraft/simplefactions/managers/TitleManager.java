@@ -116,6 +116,10 @@ public class TitleManager implements Listener{
 	}
 
 	public static Faction getByProvince(int province) {
+		return RecalcLookups.owner(province, TitleManager::findByProvince);
+	}
+
+	private static Faction findByProvince(int province) {
 		for(Faction f : FactionManager.factions) {
 			if(f.hasProvince(province)) return f;
 		}

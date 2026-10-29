@@ -641,6 +641,10 @@ public class FactionManager implements Listener{
 	}
 
 	public static Guild getGuildByString(String id) {
+		return RecalcLookups.guild(id, FactionManager::findGuildByString);
+	}
+
+	private static Guild findGuildByString(String id) {
 		for(Faction f : factions) {
 			Guild guild = f.getGuildHandler().findGuild(id);
 			if(guild != null) return guild;
