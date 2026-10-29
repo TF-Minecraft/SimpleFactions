@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.guild.income.EconomicPreview;
 import net.tfminecraft.simplefactions.guild.income.Cashflow;
 import net.tfminecraft.simplefactions.guild.income.TradeBreakdown;
 import net.tfminecraft.simplefactions.guild.income.TradeIncome;
+import net.tfminecraft.simplefactions.guild.income.TradeInputs;
 import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.GuildModifierOverride;
@@ -210,8 +211,10 @@ public class ProvinceManager {
         private final Map<Guild, Boolean> bankruptcy;
         private final long generation;
         private final long version;
+        private final long inputs = TradeInputs.fingerprint();
         private final Map<Guild, TradeBreakdown> breakdowns = new HashMap<>();
         private volatile boolean done;
+        private volatile boolean cancelled;
 
         private BackgroundFlood(ProvinceManager live) {
             copy = live.createSnapshotShell();
@@ -223,11 +226,22 @@ public class ProvinceManager {
             version = live.stateVersion;
         }
 
+        /** Stops a run that is no longer wanted at the next guild; it then never adopts. */
+        public void cancel() {
+            cancelled = true;
+        }
+
         public void run() {
+            if (cancelled) {
+                return;
+            }
             reads.read(() -> {
                 copy.recalculateQuiet(guilds, factions);
                 try {
                     for (Guild guild : guilds) {
+                        if (cancelled) {
+                            return null;
+                        }
                         TradeBreakdown breakdown = new TradeBreakdown();
                         copy.fillBreakdown(guild, breakdown);
                         breakdowns.put(guild, breakdown);
@@ -237,7 +251,7 @@ public class ProvinceManager {
                 }
                 return null;
             });
-            done = true;
+            done = !cancelled;
         }
     }
 
@@ -248,12 +262,13 @@ public class ProvinceManager {
     }
 
     /**
-     * Server thread. Installs a finished flood unless live province data was rewritten since it
-     * was prepared; then the caller should flood again or rely on the newer data.
+     * Server thread. Installs a finished flood unless live province data, tariffs, guild tax or
+     * realms changed since it was prepared; then the caller should flood again or rely on the newer data.
      */
     public boolean adopt(BackgroundFlood flood) {
         if (!Cache.provincesEnabled || flood == null || !flood.done
-                || flood.generation != dataGeneration || flood.version != stateVersion) {
+                || flood.generation != dataGeneration || flood.version != stateVersion
+                || flood.inputs != TradeInputs.fingerprint()) {
             return false;
         }
         copyAllDataFrom(flood.copy);

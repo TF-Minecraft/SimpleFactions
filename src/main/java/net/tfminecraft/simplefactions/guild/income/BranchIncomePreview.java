@@ -33,6 +33,7 @@ public final class BranchIncomePreview {
     public static final class Prepared {
         private final ProvinceManager snapshot;
         private final FrozenReads reads = FrozenReads.capture();
+        private final long inputs = TradeInputs.fingerprint();
         private final Map<Object, Estimate> estimates = new ConcurrentHashMap<>();
 
         private Prepared(ProvinceManager snapshot) {
@@ -86,6 +87,11 @@ public final class BranchIncomePreview {
      */
     public record Estimate(double own, double realm) {
         public static final Estimate UNAVAILABLE = new Estimate(Double.NaN, Double.NaN);
+    }
+
+    /** False once tariffs, guild tax or realms changed after this copy was made. Main thread. */
+    public static boolean current(Prepared prepared) {
+        return prepared.inputs == TradeInputs.fingerprint();
     }
 
     /** Copy province trade data once. Later estimates only read this copy. */

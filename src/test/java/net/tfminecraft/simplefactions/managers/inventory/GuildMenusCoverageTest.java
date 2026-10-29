@@ -248,6 +248,74 @@ class GuildMenusCoverageTest {
     }
   }
 
+  private Inventory clickDowngradeWithStubbedViews() {
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
+    guild.updateWealth();
+    view = spy(view);
+    manager.guildView = view;
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class));
+    doNothing().when(view).guildView(any(), any(), any(Inventory.class), anyBoolean());
+    Inventory inventory = open();
+    inventory.setItem(
+        38, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchDowngradeItem(fixture.player, guild, guild.getBranch(0))));
+    manager.clickButton(fixture.ui.click(fixture.player, 38));
+    return inventory;
+  }
+
+  @Test
+  void aFloodThatCannotBeCopiedRecalculatesOnTheServerThreadAndRepaints() {
+    fixture.ui.online(fixture.player);
+    when(fixture.provinces.prepareBackgroundFlood()).thenThrow(new IllegalStateException("copy failed"));
+    Inventory inventory = clickDowngradeWithStubbedViews();
+    fixture.ui.runTasks();
+    verify(fixture.provinces).recalculate();
+    verify(view).guildView(fixture.player, guild, inventory, false);
+    assertTrue(fixture.ui.asyncTasks.isEmpty());
+  }
+
+  @Test
+  void aBackgroundFloodOutdatedOnArrivalFloodsOnceMoreThenRepaintsOnlyThatGuildsMenus() {
+    Player other = fixture.ui.player("Bob");
+    other.openInventory(fixture.ui.inventory(null, 9, "Chest"));
+    Player rival = fixture.ui.player("Cara");
+    Inventory rivalMenu =
+        fixture.ui.inventory(new SFInventoryHolder("rivals", SFGUI.GUILD_VIEW), 54, "§7Guild View");
+    rival.openInventory(rivalMenu);
+    Player lister = fixture.ui.player("Dan");
+    lister.openInventory(fixture.ui.inventory(new SFInventoryHolder("merchants", SFGUI.GUILD_LIST), 54, "List"));
+    fixture.ui.online(other, rival, lister, fixture.player);
+    net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood flood = mock(net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood.class);
+    when(fixture.provinces.prepareBackgroundFlood()).thenReturn(flood);
+    when(fixture.provinces.adopt(flood)).thenReturn(false, true);
+    when(fixture.ui.plugin.isEnabled()).thenReturn(true);
+    Inventory inventory = clickDowngradeWithStubbedViews();
+    fixture.ui.runTasks();
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    verify(fixture.provinces, times(2)).prepareBackgroundFlood();
+    verify(view, never()).guildView(fixture.player, guild, inventory, false);
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    verify(flood, times(2)).run();
+    verify(fixture.provinces, never()).recalculate();
+    verify(view).guildView(fixture.player, guild, inventory, false);
+    verify(view, never()).guildView(eq(rival), any(), any(Inventory.class), anyBoolean());
+    verify(view, never()).guildView(eq(lister), any(), any(Inventory.class), anyBoolean());
+  }
+
+  @Test
+  void aNewerClickCancelsTheFloodStillRunning() {
+    net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood flood = mock(net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood.class);
+    when(fixture.provinces.prepareBackgroundFlood()).thenReturn(flood);
+    Inventory inventory = clickDowngradeWithStubbedViews();
+    fixture.ui.runTasks();
+    inventory.setItem(
+        20, view.treasuryButton(fixture.player, guild, guild.getBranch(0), creator.createBranchUpgradeItem(fixture.player, guild, guild.getBranch(0))));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);
+    manager.clickButton(fixture.ui.click(fixture.player, 20));
+    verify(flood).cancel();
+  }
+
   @Test
   void branchDowngradeImmediatelyRemovesTheOldExpansionValueFromWealth() {
     net.tfminecraft.simplefactions.testsupport.TestTreasuries.set(guild.getBank(), 1000.0);

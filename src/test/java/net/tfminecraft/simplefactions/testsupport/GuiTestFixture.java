@@ -161,6 +161,11 @@ public final class GuiTestFixture implements AutoCloseable {
     pending.forEach(Runnable::run);
   }
 
+  /** Players that Bukkit reports as online. */
+  public void online(Player... players) {
+    bukkit.when(Bukkit::getOnlinePlayers).thenAnswer(call -> List.of(players));
+  }
+
   /** Runs the currently queued async tasks on the calling thread. */
   public void runAsyncTasks() {
     List<Runnable> pending = new ArrayList<>(asyncTasks);

@@ -56,6 +56,7 @@ public class GuildView {
 	private long recalcRuns;
 	/** The run whose background flood is in flight, or 0. */
 	private long floodingRun;
+	private ProvinceManager.BackgroundFlood flooding;
 	private final java.util.Set<String> pendingRepaint = new java.util.HashSet<>();
 
 	public static HashMap<Player, RankType> currentRanking = new HashMap<>();
@@ -136,7 +137,8 @@ public class GuildView {
 	/** Province copy shared by branch previews until the next full recalculation, or for a short while. */
 	private BranchIncomePreview.Prepared tradePreview() {
 		long now = System.currentTimeMillis();
-		if (preview == null || preview.manager() != manager || now - preview.at() > PREVIEW_TTL_MS) {
+		if (preview == null || preview.manager() != manager || now - preview.at() > PREVIEW_TTL_MS
+				|| !BranchIncomePreview.current(preview.prepared())) {
 			preview = new SharedPreview(manager, BranchIncomePreview.prepare(manager), now);
 		}
 		return preview.prepared();
@@ -149,6 +151,9 @@ public class GuildView {
 	private void recalculateAfterClicks(Guild guild) {
 		pendingRepaint.add(guild.getId());
 		if (pendingRecalc != null) pendingRecalc.cancel();
+		// The flood under way is superseded; its adopt would be skipped anyway.
+		if (flooding != null) flooding.cancel();
+		flooding = null;
 		long run = ++recalcRuns;
 		pendingRecalc = org.bukkit.Bukkit.getScheduler().runTaskLater(SimpleFactions.plugin, () -> {
 			if (run != recalcRuns) return;
@@ -172,9 +177,21 @@ public class GuildView {
 	 * floods once more; after that, or if the background run fails, floods on the server thread.
 	 */
 	private void floodInBackground(long run, boolean retry) {
-		floodingRun = run;
 		ProvinceManager live = manager;
-		ProvinceManager.BackgroundFlood flood = live.prepareBackgroundFlood();
+		ProvinceManager.BackgroundFlood flood;
+		try {
+			flood = live.prepareBackgroundFlood();
+		} catch (RuntimeException e) {
+			SimpleFactions.plugin.getLogger().log(java.util.logging.Level.WARNING,
+					"Could not copy trade for a background recalculation; recalculating on the server thread", e);
+			floodingRun = 0;
+			flooding = null;
+			live.recalculate();
+			repaintAfterRecalc();
+			return;
+		}
+		floodingRun = run;
+		flooding = flood;
 		org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(SimpleFactions.plugin, () -> {
 			boolean ran;
 			try {
@@ -191,6 +208,7 @@ public class GuildView {
 				// A newer click has its own flood coming; it repaints these guilds too.
 				if (run != recalcRuns) return;
 				floodingRun = 0;
+				flooding = null;
 				if (live != manager) return;
 				if (!finished || !live.adopt(flood)) {
 					if (finished && retry) {

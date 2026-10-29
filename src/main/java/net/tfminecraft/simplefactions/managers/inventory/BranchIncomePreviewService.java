@@ -37,6 +37,11 @@ public final class BranchIncomePreviewService {
     /** Latest preview run per player. A newer menu paint cancels the older run between estimates. */
     private static final Map<UUID, Long> RUNS = new ConcurrentHashMap<>();
 
+    /** Stops the player's preview run, if any, and drops its entry. */
+    public static void forget(UUID player) {
+        RUNS.remove(player);
+    }
+
     public static void schedule(
             Player player,
             Inventory inventory,
@@ -82,6 +87,9 @@ public final class BranchIncomePreviewService {
                     BranchIncomePreview.adjust(current, branch, level, request.levelDelta());
             BranchIncomePreview.Estimate known = prepared.cached(guild, current, hypothetical);
             if (known != null) {
+                if (!describes(item, branch.getId(), request.levelDelta() > 0)) {
+                    continue;
+                }
                 write(item, guild, branch, request.levelDelta() > 0, known);
                 inventory.setItem(request.slot(), item);
                 continue;
@@ -184,14 +192,15 @@ public final class BranchIncomePreviewService {
         if (item == null || !item.hasItemMeta()) {
             return false;
         }
+        Long stamped = item.getItemMeta().getPersistentDataContainer().get(Keys.BRANCH_PREVIEW, PersistentDataType.LONG);
+        return stamped != null && stamped == token && describes(item, branchId, upgrade);
+    }
+
+    /** Whether the item is this branch's up (or down) button. Slot numbers alone overlap other rows. */
+    private static boolean describes(ItemStack item, String branchId, boolean upgrade) {
         ItemMeta meta = item.getItemMeta();
-        Long stamped = meta.getPersistentDataContainer().get(Keys.BRANCH_PREVIEW, PersistentDataType.LONG);
         String id = meta.getPersistentDataContainer().get(Keys.BRANCH_ID, PersistentDataType.STRING);
         Boolean flag = meta.getPersistentDataContainer().get(Keys.BOOLEAN_FLAG, PersistentDataType.BOOLEAN);
-        return stamped != null
-                && stamped == token
-                && branchId.equals(id)
-                && flag != null
-                && flag == upgrade;
+        return branchId.equals(id) && flag != null && flag == upgrade;
     }
 }

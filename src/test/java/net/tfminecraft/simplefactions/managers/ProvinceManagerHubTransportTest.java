@@ -214,6 +214,64 @@ class ProvinceManagerHubTransportTest {
     }
 
     @Test
+    void cancelledOrOutdatedBackgroundFloodsAreNeverInstalled() {
+        List<Faction> realms = List.of(guild.getFaction());
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+                MockedStatic<net.tfminecraft.simplefactions.guild.income.TradeInputs> inputs =
+                        mockStatic(net.tfminecraft.simplefactions.guild.income.TradeInputs.class)) {
+            factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+            factions.when(FactionManager::getCopy).thenReturn(realms);
+            when(guild.getTradeBreakdown()).thenReturn(new net.tfminecraft.simplefactions.guild.income.TradeBreakdown());
+            inputs.when(net.tfminecraft.simplefactions.guild.income.TradeInputs::fingerprint).thenReturn(1L);
+
+            ProvinceManager.BackgroundFlood early = provinces.prepareBackgroundFlood();
+            early.cancel();
+            early.run();
+            assertFalse(provinces.adopt(early));
+
+            // Cancelled while flooding: stops before the guild breakdowns.
+            ProvinceManager.BackgroundFlood midway = provinces.prepareBackgroundFlood();
+            when(guild.getModifier(GuildModifier.PRODUCTION)).thenAnswer(call -> {
+                midway.cancel();
+                return 10.0;
+            });
+            midway.run();
+            assertFalse(provinces.adopt(midway));
+            when(guild.getModifier(GuildModifier.PRODUCTION)).thenReturn(10.0);
+
+            // A tariff, guild tax or realm change after preparing outdates the flood.
+            ProvinceManager.BackgroundFlood taxed = provinces.prepareBackgroundFlood();
+            taxed.run();
+            var preview = net.tfminecraft.simplefactions.guild.income.BranchIncomePreview.prepare(provinces);
+            assertTrue(net.tfminecraft.simplefactions.guild.income.BranchIncomePreview.current(preview));
+            inputs.when(net.tfminecraft.simplefactions.guild.income.TradeInputs::fingerprint).thenReturn(2L);
+            assertFalse(provinces.adopt(taxed));
+            // Branch previews made on the old inputs are outdated the same way.
+            assertFalse(net.tfminecraft.simplefactions.guild.income.BranchIncomePreview.current(preview));
+
+            ProvinceManager.BackgroundFlood fresh = provinces.prepareBackgroundFlood();
+            fresh.run();
+            assertTrue(provinces.adopt(fresh));
+        }
+    }
+
+    @Test
+    void backgroundFloodWithProvincesOffLeavesBreakdownsEmpty() {
+        List<Faction> realms = List.of(guild.getFaction());
+        try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
+            factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
+            factions.when(FactionManager::getCopy).thenReturn(realms);
+            var breakdown = new net.tfminecraft.simplefactions.guild.income.TradeBreakdown();
+            when(guild.getTradeBreakdown()).thenReturn(breakdown);
+            ProvinceManager.BackgroundFlood flood = provinces.prepareBackgroundFlood();
+            Cache.provincesEnabled = false;
+            flood.run();
+            assertFalse(provinces.adopt(flood));
+            assertEquals(0, breakdown.getIncome(), 1e-9);
+        }
+    }
+
+    @Test
     void withoutHubs_powerFadesAlongTheRoad() {
         recalculate();
 
