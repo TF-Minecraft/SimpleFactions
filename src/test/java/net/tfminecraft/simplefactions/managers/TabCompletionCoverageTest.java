@@ -383,13 +383,13 @@ class TabCompletionCoverageTest {
   @ParameterizedTest
   @ValueSource(strings = {"upgrade", "deconstruct", "transfervehicle", "findvehicles"})
   void installationCompletionsUseTheLeadersCurrentInstallations(String action) {
-    assertTrue(complete("faction", action, "").isEmpty());
+    assertEquals(action.equals("findvehicles") ? List.of("personal") : List.of(), complete("faction", action, ""));
     installationChoices();
     assertEquals(List.of(action), complete("faction", action));
     List<String> all = complete("faction", action, "");
     assertTrue(all.containsAll(List.of("fort", "port")));
     assertEquals(action.equals("deconstruct"), all.contains("fort_building"));
-    assertEquals(List.of("port"), complete("faction", action, "P"));
+    assertEquals(action.equals("findvehicles") ? List.of("pool", "personal", "port") : List.of("port"), complete("faction", action, "P"));
     if (action.equals("upgrade") || action.equals("deconstruct")) {
       Cache.provincesEnabled = false;
       assertTrue(complete("faction", action, "").isEmpty());

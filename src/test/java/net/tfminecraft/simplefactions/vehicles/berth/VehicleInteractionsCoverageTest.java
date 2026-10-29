@@ -1715,6 +1715,24 @@ class VehicleInteractionsCoverageTest {
   }
 
   @Test
+  void vehicleSearchSeparatesPersonalPoolAndForeignVehicles() {
+    VehicleFindMessages.sendPersonalVehicles(owner);
+    verify(owner).sendMessage("§7You have no personal vehicles.");
+    VehicleFindMessages.sendPoolVehicles(leader, "home");
+    verify(leader).sendMessage("§7No vehicles in the faction pool.");
+    storeOwned("own", "ironclad", "Owner");
+    storeOwned("foreign", "ironclad", "Leader");
+    registry.register(new PlayerVehicleRecord(null, "unassigned", "ironclad", OwnershipMode.PERSONAL, null, null));
+    factionVehicle(true);
+    VehicleFindMessages.sendPersonalVehicles(owner);
+    verify(owner).sendMessage("§eown §7- §7location unknown (stored)");
+    VehicleFindMessages.sendPoolVehicles(leader, "home");
+    verify(VehicleFramework.getVehicleManager()).getOfflineLocation("vehicle-1");
+    verify(VehicleFramework.getVehicleManager(), never()).getOfflineLocation("foreign");
+    verify(VehicleFramework.getVehicleManager(), never()).getOfflineLocation("unassigned");
+  }
+
+  @Test
   void vehicleSearchShowsOnlyThisInstallationsRecordsAndUsesLiveStoredThenIdNames() {
     VehicleManager manager = VehicleFramework.getVehicleManager();
     when(vehicle.getName()).thenReturn("Named ship");
@@ -2286,10 +2304,10 @@ class VehicleInteractionsCoverageTest {
 
   @Test
   void publicVehicleMessagesRenderAbsentOptionalDetailsAndDoNotReportSuccessfulHandoversAsErrors() {
-    assertEquals("§cUsage: §e/faction findvehicles <installation id>", VehicleFindMessages.usage());
+    assertEquals("§cUsage: §e/faction findvehicles <pool|personal|installation id>", VehicleFindMessages.usage());
     assertEquals("§cUnknown installation id.", VehicleFindMessages.unknownInstallation());
     assertEquals(
-        "§cYou need to be a faction leader to transfer vehicles.", VehicleFindMessages.notLeader());
+        "§cYou need to be a faction leader to find faction vehicles.", VehicleFindMessages.notLeader());
     assertNull(VehicleHandoverMessages.forOutcome(null, "Leader"));
     var permitted = handoverService.evaluate(ref(owner), leader.getUniqueId(), "vehicle-1");
     assertEquals(VehicleHandoverService.Status.OK, permitted.status());

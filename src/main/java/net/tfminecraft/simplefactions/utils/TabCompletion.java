@@ -384,7 +384,10 @@ public class TabCompletion implements TabCompleter{
 				&& args[0].equalsIgnoreCase("findvehicles")) {
 			if(sender instanceof Player) {
 				Player p = (Player) sender;
-				return completeTransferVehicleIds(p, args);
+				List<String> choices = completeInstallationIds(p, "", false);
+				choices.add(0, "personal");
+				if(FactionManager.getByLeader(Members.key(p)) != null) choices.add(0, "pool");
+				return VehicleTabCompletions.filter(choices, args[1]);
 			}
 		}
 		else if(cmd.getName().equalsIgnoreCase("faction") && args.length >= 0 && args.length < 2 ) {
@@ -405,6 +408,7 @@ public class TabCompletion implements TabCompleter{
 				completions.add("decline");
 				completions.add("join");
 				completions.add("vehicle");
+				completions.add("findvehicles");
 				
 				if(FactionManager.getByLeader(Members.key(p)) != null) {
 					if(Cache.provincesEnabled) {
@@ -416,7 +420,6 @@ public class TabCompletion implements TabCompleter{
 						completions.add("setcapital");
 					}
 					completions.add("transfervehicle");
-					completions.add("findvehicles");
 					completions.add("withdraw");
 					completions.add("setbank");
 					completions.add("delete");
