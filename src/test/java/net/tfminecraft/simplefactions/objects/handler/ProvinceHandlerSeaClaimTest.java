@@ -71,7 +71,7 @@ class ProvinceHandlerSeaClaimTest {
 	}
 
 	@Test
-	void seaCrossingStopsAfterOneTile() {
+	void seaCrossingCanFollowMultipleTiles() {
 		Province capital = land(1);
 		Province coast = land(2);
 		Province nearSea = sea(3);
@@ -85,7 +85,8 @@ class ProvinceHandlerSeaClaimTest {
 
 		ProvinceHandler handler = handler(1, 1, 2);
 
-		assertFalse(handler.canClaim(5, false));
+		assertTrue(handler.canClaim(5, false));
+		assertTrue(handler.getClaimDeniedReason(5, false).contains("Success"));
 	}
 
 	@Test
@@ -133,6 +134,47 @@ class ProvinceHandlerSeaClaimTest {
 		ProvinceHandler handler = handler(-1, 1);
 
 		assertFalse(handler.canClaim(3, false));
+	}
+
+	@Test
+	void seaRouteCannotCrossUnownedLand() {
+		Province capital = land(1);
+		Province nearSea = sea(2);
+		Province barrier = land(3);
+		Province farSea = sea(4);
+		Province target = land(5);
+		link(capital, nearSea);
+		link(nearSea, barrier);
+		link(barrier, farSea);
+		link(farSea, target);
+		load(capital, nearSea, barrier, farSea, target);
+
+		ProvinceHandler handler = handler(1, 1);
+		assertFalse(handler.canClaim(5, false));
+		assertFalse(handler.getClaimDeniedReason(5, false).contains("Success"));
+	}
+
+	@Test
+	void cyclicSeaRouteThroughWaterKeepsOverseasClaimsLegal() {
+		Province capital = land(1);
+		Province nearSea = sea(2);
+		Province water = new Province(3, Terrain.WATER.name(), 0);
+		Province farSea = sea(4);
+		Province coast = land(5);
+		Province inland = land(6);
+		link(capital, nearSea);
+		link(nearSea, water);
+		link(water, farSea);
+		link(farSea, nearSea);
+		link(farSea, coast);
+		link(coast, inland);
+		load(capital, nearSea, water, farSea, coast, inland);
+
+		ProvinceHandler handler = handler(1, 1);
+		assertTrue(handler.canClaim(5, false));
+		ProvinceHandler owned = handler(1, 1, 5, 6);
+		org.junit.jupiter.api.Assertions.assertEquals(java.util.Set.of(1, 5, 6),
+				owned.previewLegalProvinces(List.of(1, 5, 6)));
 	}
 
 	private ProvinceHandler handler(int capital, int... owned) {

@@ -139,10 +139,10 @@ public class ProvinceHandler {
 		if (target == null || !target.isValid()) return false;
 		if (provinces.isEmpty()) return true;
 
-		// Effective adjacency: land, one water tile, or one sea tile from the capital's land blob
-		Set<Integer> capitalBlob = capitalLandBlob(pm);
+		// Effective adjacency: land, one water tile, or a sea route from the capital's land blob
+		Set<Integer> seaCoasts = seaReachableCoasts(pm, capitalLandBlob(pm));
 		for (int ownedId : provinces) {
-			if (isEffectivelyAdjacent(pm, ownedId, provinceId, capitalBlob)) {
+			if (isEffectivelyAdjacent(pm, ownedId, provinceId, seaCoasts)) {
 				return true;
 			}
 		}
@@ -187,8 +187,9 @@ public class ProvinceHandler {
 			capitalBlob.add(capital);
 			floodLandExcluding(pm, capital, capitalBlob, guild.getCapital());
 		}
+		Set<Integer> seaCoasts = seaReachableCoasts(pm, capitalBlob);
 		for (int ownedId : legalWithoutGuildCapital) {
-			if (isEffectivelyAdjacent(pm, ownedId, provinceId, capitalBlob)) {
+			if (isEffectivelyAdjacent(pm, ownedId, provinceId, seaCoasts)) {
 				return true;
 			}
 		}
@@ -467,9 +468,10 @@ public class ProvinceHandler {
 
 	private Set<Integer> expandLegal(ProvinceManager pm, Set<Integer> seeds, Set<Integer> capitalBlob) {
 		Set<Integer> legal = new HashSet<>(seeds);
+		Set<Integer> seaCoasts = seaReachableCoasts(pm, capitalBlob);
 
 		// Follow the same edges that allowed these claims: owned land, WATER
-		// bridges, and one SEA tile from the proposed capital's land blob.
+		// bridges, and continuous sea routes from the proposed capital's land blob.
 		// Reached overseas holdings may extend inland or over WATER, but do not
 		// become new sources for SEA crossings.
 		ArrayDeque<Integer> queue = new ArrayDeque<>(legal);
@@ -479,7 +481,7 @@ public class ProvinceHandler {
 				if (legal.contains(target)) continue;
 				Province province = pm.get(target);
 				if (province == null || !province.isValid() || province.isSea()) continue;
-				if (isEffectivelyAdjacent(pm, from, target, capitalBlob)) {
+				if (isEffectivelyAdjacent(pm, from, target, seaCoasts)) {
 					legal.add(target);
 					queue.add(target);
 				}
@@ -576,9 +578,9 @@ public class ProvinceHandler {
 		if (provinces.isEmpty()) return "Success";
 
 		boolean adjacent = false;
-		Set<Integer> capitalBlob = capitalLandBlob(pm);
+		Set<Integer> seaCoasts = seaReachableCoasts(pm, capitalLandBlob(pm));
 		for (int ownedId : provinces) {
-			if (isEffectivelyAdjacent(pm, ownedId, provinceId, capitalBlob)) {
+			if (isEffectivelyAdjacent(pm, ownedId, provinceId, seaCoasts)) {
 				adjacent = true;
 				break;
 			}
@@ -614,11 +616,36 @@ public class ProvinceHandler {
 		return blob;
 	}
 
+	/** Shores reachable through SEA/WATER, without crossing any intervening land. */
+	private Set<Integer> seaReachableCoasts(ProvinceManager pm, Set<Integer> capitalBlob) {
+		Set<Integer> coasts = new HashSet<>();
+		Set<Integer> visited = new HashSet<>();
+		ArrayDeque<Integer> queue = new ArrayDeque<>();
+		for (int id : capitalBlob) {
+			Province province = pm.get(id);
+			if (province == null) continue;
+			for (int neighbour : province.getNeighbours()) {
+				Province water = pm.get(neighbour);
+				if (water != null && water.isSea() && visited.add(neighbour)) queue.add(neighbour);
+			}
+		}
+		while (!queue.isEmpty()) {
+			Province water = pm.get(queue.poll());
+			for (int neighbour : water.getNeighbours()) {
+				Province next = pm.get(neighbour);
+				if (next == null) continue;
+				if (!next.isSea()) coasts.add(neighbour);
+				else if (visited.add(neighbour)) queue.add(neighbour);
+			}
+		}
+		return coasts;
+	}
+
 	private boolean isEffectivelyAdjacent(
 			ProvinceManager pm,
 			int fromId,
 			int targetId,
-			Set<Integer> capitalBlob) {
+			Set<Integer> seaCoasts) {
 		Province from = pm.get(fromId);
 		Province target = pm.get(targetId);
 		if (from == null || target == null) return false;
@@ -636,17 +663,6 @@ public class ProvinceHandler {
 			}
 		}
 
-		if (capitalBlob.contains(fromId)) {
-			for (int nId : from.getNeighbours()) {
-				Province sea = pm.get(nId);
-				if (sea == null || sea.getTerrain() != Terrain.SEA) continue;
-
-				if (sea.getNeighbours().contains(targetId)) {
-					return true;
-				}
-			}
-		}
-
-		return false;
+		return seaCoasts.contains(targetId);
 	}
 }
