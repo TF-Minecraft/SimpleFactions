@@ -325,7 +325,7 @@ class FactionMenusCoverageTest {
   }
 
   @Test
-  void releasePreviewCountsLandOnlyAGuildsColonyHeldAndMatchesTheRealDissolve() {
+  void releasePreviewKeepsSeaReachableColonyLandAndMatchesTheRealDissolve() {
     // Realm capital 1; across the sea, colony 4 (the guild's capital) and 5 next to it.
     province(1, "PLAINS"); province(2, "SEA"); province(3, "SEA"); province(4, "PLAINS"); province(5, "PLAINS");
     link(1, 2); link(2, 3); link(3, 4); link(4, 5);
@@ -336,19 +336,19 @@ class FactionMenusCoverageTest {
 
     ItemStack item = creator.createDissolveItem(faction);
     assertLore(item, "Colonists (guild) becomes an independent faction and takes its capital province", true);
-    assertLore(item, "1 province held only through these guilds' capitals is lost", true);
-    assertLore(item, "It keeps its treasury, members and 1 province\n", true);
+    assertLore(item, "1 province held only through these guilds' capitals is lost", false);
+    assertLore(item, "It keeps its treasury, members and 2 provinces", true);
 
     // What the preview promised is what dissolving does.
     faction.dissolve(new ArrayList<>(), faction.getGuildHandler().getGuilds());
-    assertEquals(List.of(1), faction.getProvinceHandler().getProvinces());
+    assertEquals(List.of(1, 5), faction.getProvinceHandler().getProvinces());
     assertEquals(List.of(4), colony.getFaction().getProvinceHandler().getProvinces());
   }
 
   @Test
-  void releasePreviewShowsALaterGuildLosingACapitalTracedThroughAnEarlierOne() {
+  void releasePreviewKeepsTheLaterGuildCapitalReachableThroughOrdinarySeaClaims() {
     // Realm capital 1. Colony 4 lies two sea tiles away; colony 6 two more sea tiles beyond 4,
-    // on a separate sea, so 6 is only legal while 4 is a guild capital.
+    // on a separate sea. Ordinary sea claims now keep 4 legal even after its guild leaves.
     for (int id : List.of(1, 4, 6)) province(id, "PLAINS");
     for (int id : List.of(2, 3, 5, 7)) province(id, "SEA");
     link(1, 2); link(2, 3); link(3, 4); link(4, 5); link(5, 7); link(7, 6);
@@ -364,16 +364,16 @@ class FactionMenusCoverageTest {
 
     ItemStack item = creator.createDissolveItem(faction);
     assertLore(item, anchor.getName() + " (guild) becomes an independent faction and takes its capital province", true);
-    // The anchor leaves first, so the outpost's capital is unseated before its own turn.
-    assertLore(item, outpost.getName() + " (guild) becomes an independent faction\n", true);
-    assertLore(item, "1 province held only through these guilds' capitals is lost", true);
+    // The outpost remains seated because the ordinary sea route still reaches the anchor coast.
+    assertLore(item, outpost.getName() + " (guild) becomes an independent faction and takes its capital province", true);
+    assertLore(item, "1 province held only through these guilds' capitals is lost", false);
     assertLore(item, "It keeps its treasury, members and 1 province\n", true);
 
     faction.dissolve(new ArrayList<>(), faction.getGuildHandler().getGuilds());
     assertEquals(List.of(1), faction.getProvinceHandler().getProvinces());
     assertEquals(List.of(4), anchor.getFaction().getProvinceHandler().getProvinces());
     assertNotSame(faction, outpost.getFaction());
-    assertFalse(outpost.getFaction().getProvinceHandler().getProvinces().contains(6));
+    assertTrue(outpost.getFaction().getProvinceHandler().getProvinces().contains(6));
   }
 
   @ParameterizedTest
