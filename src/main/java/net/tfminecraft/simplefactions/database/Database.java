@@ -326,15 +326,20 @@ public class Database {
 
     /** Office mutations must not acknowledge success unless the faction save completed. */
     public boolean saveFactionChecked(Faction f) {
-        return saveFaction(f, false);
+        return saveFaction(f, false, null);
     }
 
     /** Force the saved state to storage before marking an intent's effects complete. */
     public boolean saveFactionDurably(Faction f) {
-        return saveFaction(f, true);
+        return saveFaction(f, true, null);
     }
 
-    private boolean saveFaction(Faction f, boolean durable) {
+    /** As {@link #saveFactionDurably(Faction)}, but the save is durable only after {@code batch.commit()}. */
+    public boolean saveFactionDurably(Faction f, DurableJson.Batch batch) {
+        return saveFaction(f, true, batch);
+    }
+
+    private boolean saveFaction(Faction f, boolean durable, DurableJson.Batch batch) {
         try {
             File file = new File("plugins/SimpleFactions/Data", f.getId() + ".json");
 
@@ -549,7 +554,8 @@ public class Database {
                 data.warReparationsObligations.add(obligationData);
             }
 
-            if (durable) DurableJson.write(file.toPath(), data);
+            if (batch != null) batch.write(file.toPath(), data);
+            else if (durable) DurableJson.write(file.toPath(), data);
             else JsonUtil.writeJsonAtomic(file, data);
             return true;
 

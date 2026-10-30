@@ -155,6 +155,9 @@ class DatabaseCoverageTest {
     assertEquals(25.0,Database.loadModifiers(saved.guilds.stream().filter(g->g.id.equals("merchants")).findFirst().orElseThrow().wealthModifiers).getFirst().getAmount());
     FactionManager.factions.clear();database.loadFactions();Faction reloaded=FactionManager.getByString("realm");
     assertEquals(faction.getWealth(),reloaded.getWealth());assertEquals(75.0,reloaded.getBank().getWealth());
+    reloaded.getMilitary().getRegiment("guards").setCurrentSlots(4);
+    var batch=new DurableJson.Batch();assertTrue(database.saveFactionDurably(reloaded,batch));batch.commit();
+    assertTrue(JsonUtil.readJson(path.toFile(),FactionData.class).military.getFirst().startsWith("guards.4."));
     database.deleteFaction(reloaded);assertFalse(Files.exists(path));database.deleteFaction(reloaded);
   }
 

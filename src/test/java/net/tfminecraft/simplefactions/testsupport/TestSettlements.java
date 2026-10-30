@@ -27,7 +27,7 @@ public final class TestSettlements {
                             new Leg(Denars.MINT, planned.charge())), JsonUtil.GSON.toJsonTree(changes).getAsJsonObject());
             var directory = Files.createTempDirectory("sf-upkeep-effects-");
             var database = mock(Database.class);
-            when(database.saveFactionDurably(any())).thenReturn(true);
+            when(database.saveFactionDurably(any(), any())).thenReturn(true);
             try {
                 assertEquals(Result.APPLIED, Denars.post("test:upkeep:" + UUID.randomUUID(), "test:upkeep", plan.legs()));
                 new RealmSettlementEffects(directory, database, new PlayerEconomyManager(), (id, paid) -> {}, values -> {}).apply(plan);

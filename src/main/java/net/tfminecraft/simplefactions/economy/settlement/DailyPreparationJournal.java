@@ -66,13 +66,16 @@ public final class DailyPreparationJournal {
         }
         if (!saved.prepared) {
             if (saved.organization == null) {
+                var removed = new DurableJson.Batch();
                 for (Removal removal : saved.removals) {
                     Faction faction = require(removal);
                     // A faction save includes ownership, dependent titles, settlements and installations.
                     if (removal.province() != null && faction.hasProvince(removal.province()))
                         faction.removeProvince(removal.province(), true);
-                    save(faction);
+                    save(faction, removed);
                 }
+                // Every removal is on disk before the journal below lets a replay skip them.
+                removed.commit();
                 saved.organization = new LinkedHashMap<>();
                 for (Removal removal : saved.removals) {
                     Faction faction = require(removal);
@@ -86,6 +89,7 @@ public final class DailyPreparationJournal {
                 saved.offlineDays = FactionCleanup.planOfflineDays(FactionManager.factions);
                 DurableJson.write(path, saved);
             }
+            var organized = new DurableJson.Batch();
             for (Removal removal : saved.removals) {
                 Faction faction = require(removal);
                 for (var value : saved.organization.get(faction.getId()).entrySet()) {
@@ -93,8 +97,10 @@ public final class DailyPreparationJournal {
                     if (movement == null) throw new IOException("Prepared movement disappeared: " + value.getKey());
                     movement.restoreOrganization(value.getValue());
                 }
-                save(faction);
+                save(faction, organized);
             }
+            // Every organization value is on disk before the journal records the day as prepared.
+            organized.commit();
             FactionCleanup.restoreOfflineDays(saved.offlineDays);
             saved.prepared = true;
             DurableJson.write(path, saved);
@@ -125,8 +131,8 @@ public final class DailyPreparationJournal {
         return faction;
     }
 
-    private void save(Faction faction) throws IOException {
-        if (!database.saveFactionDurably(faction)) throw new IOException("Cannot persist day preparation for " + faction.getId());
+    private void save(Faction faction, DurableJson.Batch batch) throws IOException {
+        if (!database.saveFactionDurably(faction, batch)) throw new IOException("Cannot persist day preparation for " + faction.getId());
     }
 
     private Path file(long day) { return folder.resolve(day + ".json"); }
