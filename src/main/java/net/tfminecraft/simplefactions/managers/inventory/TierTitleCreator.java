@@ -128,6 +128,7 @@ public class TierTitleCreator {
 	        lore.add(StringFormatter.formatHex("#28ed70Click to claim"));
 	    } else {
 	        lore.add(StringFormatter.formatHex("#9e4c4fUnavailable"));
+	        if (FactionManager.getTitleOwner(t) == null && t.countyLimitReached(f)) addCountyLimitLore(f, t.getTier(), lore);
 	    }
 	    if(t.getTier().getPrestige() > 0) {
 	    	lore.add(""); // Spacer
@@ -156,6 +157,12 @@ public class TierTitleCreator {
 	    i.setItemMeta(m);
 
 	    return i;
+	}
+	
+	private static void addCountyLimitLore(Faction f, Tier county, List<String> lore) {
+		lore.add(StringFormatter.formatHex("#e07373County limit reached: #f5f5f5" + f.getTitles(county).size() + "/" + f.getMembers().size()
+				+ " #e07373(one per member)"));
+		lore.add(StringFormatter.formatHex("#767a77Recruit more members to hold another county."));
 	}
 	
 	public int getNewTitleCost(Faction f, Tier t) {
@@ -198,7 +205,9 @@ public class TierTitleCreator {
 				lore.add(StringFormatter.formatHex("#767a77Currently: #a1aba3" + current + " #535955[" + percent + "%]"));
 			}
 			lore.add("");
-			if(current >= cost) {
+			boolean limited = t.getId().equalsIgnoreCase("county") && Title.countyLimitReached(f, t);
+			if(limited) addCountyLimitLore(f, t, lore);
+			if(current >= cost && !limited) {
 				lore.add(StringFormatter.formatHex("#28ed70Click to create"));
 			} else {
 				lore.add(StringFormatter.formatHex("#9e4c4fUnavailable"));

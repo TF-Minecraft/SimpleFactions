@@ -127,12 +127,21 @@ public class Title {
 		return true;
 	}
 	
+	/** A realm holds at most one county per member; at the limit it can't claim or form another. */
+	public static boolean countyLimitReached(Faction f, Tier tier) {
+		return tier.getTier() == 2 && f.getTitles(tier).size() >= f.getMembers().size();
+	}
+	
+	public boolean countyLimitReached(Faction f) {
+		return countyLimitReached(f, tier);
+	}
+	
 	public boolean canBeCreatedBy(Faction f, List<Integer> ownedProvinces, List<Title> ownedTitles, double deJure) {
 	    int titleCount = getCurrentAmount(f, ownedProvinces, ownedTitles);
 	    int requiredTitles = getDeJureNeeded(deJure);
 	    int ownedNestedProvinces = nestedProvinceCheck(ownedProvinces, TitleManager.getProvinces(this));
 	    int requiredProvinces = compositeNeeded(deJure);
-		if(tier.getTier() == 2 && f.getTitles(tier).size() >= f.getMembers().size()) return false;
+		if(countyLimitReached(f)) return false;
 	    if (!composite) {
 	        if(titleComplete) return titleCount >= provinces.size();
 	        return titleCount >= getDeJureNeeded(deJure);

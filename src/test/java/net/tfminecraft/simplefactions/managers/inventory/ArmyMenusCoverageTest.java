@@ -383,6 +383,41 @@ class ArmyMenusCoverageTest {
   }
 
   @Test
+  void countyButtonsSayWhenTheOneCountyPerMemberLimitBlocksThem() {
+    Tier county = configureTier("county", 2, 1);
+    Title home = fixture.title("Home", "county", 10);
+    Title east = fixture.title("East", "county", 11);
+    Title foreign = fixture.title("Foreign", "county", 40);
+    faction.addTitle(home);
+    faction.addProvince(11);
+    faction.addProvince(12);
+    Faction other = fixture.saved("other", "Other");
+    other.addProvince(40);
+    other.addTitle(foreign);
+
+    List<ItemStack> rendered =
+        titles.creator.getSortedTitleItems(player, faction, List.of(home, east, foreign));
+    String limit = "County limit reached: 1/1 (one per member)";
+    assertEquals(Material.RED_CONCRETE, rendered.get(1).getType());
+    assertTrue(lore(rendered.get(1)).contains("Unavailable\n" + limit));
+    assertTrue(lore(rendered.get(1)).contains("Recruit more members to hold another county."));
+    assertFalse(lore(rendered.get(0)).contains(limit));
+    assertFalse(lore(rendered.get(2)).contains(limit));
+    ItemStack create = titles.creator.createNewTitleItem(faction, county);
+    assertTrue(lore(create).contains(limit));
+    assertTrue(lore(create).contains("Unavailable"));
+    assertFalse(lore(create).contains("Click to create"));
+
+    faction.addMember("Citizen");
+    rendered = titles.creator.getSortedTitleItems(player, faction, List.of(home, east));
+    assertEquals(Material.YELLOW_CONCRETE, rendered.get(1).getType());
+    assertFalse(lore(rendered.get(1)).contains(limit));
+    create = titles.creator.createNewTitleItem(faction, county);
+    assertFalse(lore(create).contains(limit));
+    assertTrue(lore(create).contains("Click to create"));
+  }
+
+  @Test
   void militaryRendersLiveCountsAndOnlyTheCurrentLeaderGetsAdjustmentButtons() {
     Regiment infantry = regiment("infantry", false, false, 3, 2),
         levy = regiment("levy", true, false, 0, 0);
