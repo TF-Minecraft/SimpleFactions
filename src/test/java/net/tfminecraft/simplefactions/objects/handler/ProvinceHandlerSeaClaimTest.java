@@ -172,6 +172,10 @@ class ProvinceHandlerSeaClaimTest {
 
 		ProvinceHandler handler = handler(1, 1);
 		assertTrue(handler.canClaim(5, false));
+		// Remove the shortcut so WATER is required as part of the sea route.
+		farSea.getNeighbours().remove(Integer.valueOf(nearSea.getId()));
+		nearSea.getNeighbours().remove(Integer.valueOf(farSea.getId()));
+		assertTrue(handler.canClaim(5, false));
 		ProvinceHandler owned = handler(1, 1, 5, 6);
 		org.junit.jupiter.api.Assertions.assertEquals(java.util.Set.of(1, 5, 6),
 				owned.previewLegalProvinces(List.of(1, 5, 6)));
