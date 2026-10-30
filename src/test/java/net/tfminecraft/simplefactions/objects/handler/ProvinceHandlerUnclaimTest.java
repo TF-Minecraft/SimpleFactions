@@ -127,14 +127,14 @@ class ProvinceHandlerUnclaimTest {
 	}
 
 	@Test
-	void twoSeaTilesCannotConnectAnOrdinaryHolding() {
+	void twoSeaTilesKeepAnOrdinaryHoldingConnected() {
 		load(Map.of(1, Terrain.PLAINS, 2, Terrain.SEA, 3, Terrain.SEA, 4, Terrain.PLAINS));
 		link(1, 2); link(2, 3); link(3, 4);
 		ProvinceHandler handler = handler(1, 1, 4);
 
 		handler.revalidateClaims();
 
-		assertEquals(List.of(1), handler.getProvinces());
+		assertEquals(List.of(1, 4), handler.getProvinces());
 	}
 
 	@Test

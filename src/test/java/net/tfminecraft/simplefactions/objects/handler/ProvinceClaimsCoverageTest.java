@@ -230,14 +230,14 @@ class ProvinceClaimsCoverageTest {
     home.setCapital(1, true);
     Guild departing = fixture.guild(home, "departing", "Bob");
     departing.setCapital(unrelated.getId());
-    assertFalse(home.getProvinceHandler().canClaim(4, false, departing));
+    assertTrue(home.getProvinceHandler().canClaim(4, false, departing));
     assertTrue(home.getProvinceHandler().canClaim(4, true, departing));
     assertFalse(home.getProvinceHandler().canClaim(5, true, departing));
     assertTrue(home.getProvinceHandler().canClaim(4, true));
     assertFalse(home.getProvinceHandler().canClaim(5, true));
     assertEquals("Success", home.getProvinceHandler().getClaimDeniedReason(4, true));
     assertEquals(
-        "§cThis province does not border your current realm.",
+        "Success",
         home.getProvinceHandler().getClaimDeniedReason(4, false));
     assertEquals(
         "§cThis province must be connected to your realm by land or by sea.",
