@@ -195,7 +195,7 @@ public class TierTitleView {
 				Tier lower = TierLoader.getByLevel(tier.getTier()-1);
 				if(tier.getId().equalsIgnoreCase("county")) {
 					current = f.getUntitledProvinces().size();
-					if(f.getTitles(tier).size() >= f.getMembers().size()) {
+					if(Title.countyLimitReached(f, tier)) {
 						p.sendMessage("§cYou need more members to form more counties!");
 						return;
 					}
