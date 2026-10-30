@@ -103,9 +103,12 @@ public final class RealmSettlementEffects implements SettlementJournal.Effects {
             faction.getWarReparationsObligations().addAll(entry.getValue());
             save.add(faction);
         }
+        var saves = new DurableJson.Batch();
         for (Faction faction : save) {
-            if (!database.saveFactionDurably(faction)) throw new IOException("Cannot persist settlement for " + faction.getId());
+            if (!database.saveFactionDurably(faction, saves)) throw new IOException("Cannot persist settlement for " + faction.getId());
         }
+        // Every faction is on disk before vehicles, death payments, the clock or the journal move on.
+        saves.commit();
         vehicles.apply(changes.vehicleChanges);
         deaths.apply("sf:settle:" + plan.day(), changes.deathPayments);
         economy.clearAllDaily();

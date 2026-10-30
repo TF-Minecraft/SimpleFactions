@@ -32,7 +32,7 @@ class RealmSettlementServiceTest {
             offline.set(null, new HashMap<>());
             try {
                 var database = mock(Database.class);
-                when(database.saveFactionDurably(any())).thenReturn(true);
+                when(database.saveFactionDurably(any(), any())).thenReturn(true);
                 new DailyPreparationJournal(disk.root.resolve("day-preparation"), database).prepare(5, 1000);
                 deaths.when(CharacterDeaths::pendingPayments).thenReturn(List.of(new OwedPayment("owed", UUID.randomUUID(), UUID.randomUUID(), 100, OwedPayment.Kind.WAGES)));
                 var service = new RealmSettlementService(disk.root, database);
