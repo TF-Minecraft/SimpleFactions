@@ -114,15 +114,17 @@ class DurableJsonTest {
         }
     }
 
-    /** Records directory syncs instead of opening directories, which Windows refuses. */
+    /** Records directory syncs (a forced directory channel) instead of opening directories, which Windows refuses. */
     private static MockedStatic<FileChannel> syncedDirectories(List<Path> synced, Predicate<Path> fail) {
         MockedStatic<FileChannel> channels = mockStatic(FileChannel.class, CALLS_REAL_METHODS);
         channels.when(() -> FileChannel.open(any(Path.class), any(OpenOption[].class))).thenAnswer(call -> {
             Path path = call.getArgument(0);
             if (!Arrays.asList(call.getArguments()).contains(StandardOpenOption.READ)) return call.callRealMethod();
             if (fail.test(path)) throw new IOException("simulated directory sync failure: " + path);
-            synced.add(path);
-            return mock(FileChannel.class);
+            // A sync counts only when the directory is forced, not merely opened.
+            FileChannel channel = mock(FileChannel.class);
+            doAnswer(force -> synced.add(path)).when(channel).force(true);
+            return channel;
         });
         return channels;
     }
