@@ -346,6 +346,25 @@ class FactionMenusCoverageTest {
   }
 
   @Test
+  void releasePreviewCountsDisconnectedLandLossAndMatchesDissolve() {
+    province(1, "PLAINS"); province(2, "SEA"); province(3, "SEA");
+    province(4, "PLAINS"); province(5, "PLAINS");
+    link(1, 2); link(2, 3); link(3, 4);
+    // A saved disconnected holding still falls away when the realm is revalidated.
+    faction.getProvinceHandler().getProvinces().addAll(List.of(1, 4, 5));
+    faction.setCapital(1, true, false);
+    Guild colony = fixture.guild(faction, "Colonists", "Colonist");
+    colony.setCapital(4, false);
+
+    ItemStack item = creator.createDissolveItem(faction);
+    assertLore(item, "1 province held only through these guilds' capitals is lost", true);
+    assertLore(item, "It keeps its treasury, members and 1 province\n", true);
+    faction.dissolve(new ArrayList<>(), faction.getGuildHandler().getGuilds());
+    assertEquals(List.of(1), faction.getProvinceHandler().getProvinces());
+    assertEquals(List.of(4), colony.getFaction().getProvinceHandler().getProvinces());
+  }
+
+  @Test
   void releasePreviewKeepsTheLaterGuildCapitalReachableThroughOrdinarySeaClaims() {
     // Realm capital 1. Colony 4 lies two sea tiles away; colony 6 two more sea tiles beyond 4,
     // on a separate sea. Ordinary sea claims now keep 4 legal even after its guild leaves.

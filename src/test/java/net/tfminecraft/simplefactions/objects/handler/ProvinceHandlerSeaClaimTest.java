@@ -162,19 +162,17 @@ class ProvinceHandlerSeaClaimTest {
 		Province farSea = sea(4);
 		Province coast = land(5);
 		Province inland = land(6);
+		Province loop = sea(7);
 		link(capital, nearSea);
 		link(nearSea, water);
 		link(water, farSea);
-		link(farSea, nearSea);
+		link(nearSea, loop);
+		link(loop, water);
 		link(farSea, coast);
 		link(coast, inland);
-		load(capital, nearSea, water, farSea, coast, inland);
+		load(capital, nearSea, water, farSea, coast, inland, loop);
 
 		ProvinceHandler handler = handler(1, 1);
-		assertTrue(handler.canClaim(5, false));
-		// Remove the shortcut so WATER is required as part of the sea route.
-		farSea.getNeighbours().remove(Integer.valueOf(nearSea.getId()));
-		nearSea.getNeighbours().remove(Integer.valueOf(farSea.getId()));
 		assertTrue(handler.canClaim(5, false));
 		ProvinceHandler owned = handler(1, 1, 5, 6);
 		org.junit.jupiter.api.Assertions.assertEquals(java.util.Set.of(1, 5, 6),
