@@ -109,7 +109,7 @@ public class GovernmentView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void councilSelect(Player player, Faction f, Inventory i, int slot) {
-		int page = i != null && i.getHolder() instanceof SFInventoryHolder holder ? holder.getPage() : 0;
+		int page = i != null && i.getHolder(false) instanceof SFInventoryHolder holder ? holder.getPage() : 0;
 		councilSelect(player, f, i, slot, page);
 	}
 
@@ -123,7 +123,7 @@ public class GovernmentView {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(
 				new SFInventoryHolder(f.getId(), SFGUI.COUNCIL_SELECT, page, false, Integer.toString(slot)), 54, "§7Select Member");
-		((SFInventoryHolder)i.getHolder()).setPage(page);
+		((SFInventoryHolder)i.getHolder(false)).setPage(page);
 		i.clear();
 		int start = page * 45;
 		for(int x = start; x < Math.min(start + 45, members.size()); x++) {
@@ -185,7 +185,7 @@ public class GovernmentView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void warPeaceSelectView(Player player, Faction f, Action action, boolean fromCause, int causeIndex, Inventory i) {
-		boolean open = i == null || !(i.getHolder() instanceof WarPeaceHolder);
+		boolean open = i == null || !(i.getHolder(false) instanceof WarPeaceHolder);
 		if (open) {
 			i = SimpleFactions.plugin.getServer().createInventory(
 					new WarPeaceHolder(player, f, action, fromCause, causeIndex),
@@ -342,12 +342,12 @@ public class GovernmentView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
-		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 		if (h.getType() == SFGUI.GOVERNMENT_VIEW) {
 			e.setCancelled(true);
 			int slot = e.getSlot();
 			ItemStack item = e.getCurrentItem();
-			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
+			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder(false)).getId());
 			if (f == null) return;
 			if(slot == 28 && item != null && item.getItemMeta() != null) {
 				String id = item.getItemMeta().getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
@@ -407,7 +407,7 @@ public class GovernmentView {
 		} else if (h.getType() == SFGUI.PROPOSAL_VIEW) {
 			e.setCancelled(true);
 			int slot = e.getSlot();
-			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
+			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder(false)).getId());
 			if (f == null) return;
 			if(slot == 0) {
 				lawProposalView(p, f, null);
@@ -426,8 +426,8 @@ public class GovernmentView {
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();
 			ItemMeta meta = item.getItemMeta();
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(holder.getId());
 			if(f == null) return;
 			String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
@@ -458,8 +458,8 @@ public class GovernmentView {
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();
 			ItemMeta meta = item.getItemMeta();
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(holder.getId());
 			if(f == null) return;
 			String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
@@ -486,8 +486,8 @@ public class GovernmentView {
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();
 			ItemMeta meta = item.getItemMeta();
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(holder.getId());
 			if(f == null) return;
 			String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
@@ -500,8 +500,8 @@ public class GovernmentView {
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();
 			ItemMeta meta = item.getItemMeta();
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(holder.getId());
 			if(f == null) return;
 			String id = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
@@ -574,8 +574,8 @@ public class GovernmentView {
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();
 			ItemMeta meta = item.getItemMeta();
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(holder.getId());
 			if(f == null) return;
 			String actionName = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
@@ -661,7 +661,7 @@ public class GovernmentView {
 			int slot = e.getSlot();
 			ItemStack item = e.getCurrentItem();
 			if(item == null) return;
-			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
+			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder(false)).getId());
 			if(f == null) return;
 			boolean isLeader = Members.is(p, f.getLeader());
 			if(!isLeader) return;
@@ -688,7 +688,7 @@ public class GovernmentView {
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();
 			if(item == null) return;
-			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder()).getId());
+			Faction f = FactionManager.getByString(((SFInventoryHolder)e.getInventory().getHolder(false)).getId());
 			if(f == null) return;
 			boolean isLeader = Members.is(p, f.getLeader());
 			if(!isLeader) return;
@@ -831,7 +831,7 @@ public class GovernmentView {
 	}
 
 	public Cause displayedWarPeaceCause(Player player, Faction faction, Inventory inventory) {
-		if (!(inventory.getHolder() instanceof WarPeaceHolder holder) || holder.cause == null
+		if (!(inventory.getHolder(false) instanceof WarPeaceHolder holder) || holder.cause == null
 				|| faction.getGovernment().getMovementByMember(Members.key(player)) != holder.movement
 				|| !holder.movement.getCauses().contains(holder.cause)) return null;
 		return holder.cause;

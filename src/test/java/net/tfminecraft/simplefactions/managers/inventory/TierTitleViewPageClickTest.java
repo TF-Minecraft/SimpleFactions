@@ -72,7 +72,7 @@ class TierTitleViewPageClickTest {
 		ItemStack firstTitle = itemWith(PersistentDataType.STRING, "county-a");
 
 		Inventory inventory = mock(Inventory.class);
-		when(inventory.getHolder()).thenReturn(new SFInventoryHolder("faction-1", SFGUI.TITLE_TYPE_VIEW, 0, false, "county"));
+		when(inventory.getHolder(false)).thenReturn(new SFInventoryHolder("faction-1", SFGUI.TITLE_TYPE_VIEW, 0, false, "county"));
 		when(inventory.getContents()).thenReturn(new ItemStack[] { firstTitle });
 
 		InventoryView inventoryView = mock(InventoryView.class);

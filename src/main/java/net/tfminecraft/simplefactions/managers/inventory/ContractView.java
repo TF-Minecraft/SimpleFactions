@@ -128,7 +128,7 @@ public class ContractView {
      * ===================================================== */
 
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
-        if (!(inventory.getHolder() instanceof SFInventoryHolder h)) return;
+        if (!(inventory.getHolder(false) instanceof SFInventoryHolder h)) return;
         e.setCancelled(true);
         Guild guild = FactionManager.getGuildByString(h.getId());
         if (guild == null) return;

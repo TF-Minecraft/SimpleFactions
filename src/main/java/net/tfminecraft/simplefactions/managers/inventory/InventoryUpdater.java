@@ -10,6 +10,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.loans.Loan;
@@ -76,16 +77,18 @@ public class InventoryUpdater {
 		for (Player p : Bukkit.getOnlinePlayers()) {
 			if (p.getOpenInventory().getTopInventory() == null) continue;
 			Inventory i = p.getOpenInventory().getTopInventory();
+			// No snapshot: a block inventory's holder would otherwise copy the whole block state.
+			InventoryHolder holder = i.getHolder(false);
 
-			if (i.getHolder() instanceof SFInventoryHolder h) {
+			if (holder instanceof SFInventoryHolder h) {
 				refreshSFHolder(p, i, h);
-			} else if (i.getHolder() instanceof WarInventoryHolder h) {
+			} else if (holder instanceof WarInventoryHolder h) {
 				War w = WarManager.getById(h.getId());
 				if (w == null) continue;
 				if (h.getType().equals(SFGUI.WAR_VIEW)) {
 					inv.warView(i, p, w, false);
 				}
-			} else if (i.getHolder() instanceof SFCombinedInventoryHolder h) {
+			} else if (holder instanceof SFCombinedInventoryHolder h) {
 				if (h.getType().equals(SFGUI.MERCENARY_ENGAGEMENT_LIST)) {
 					War w = WarManager.getById(h.getWarId());
 					if (w == null) continue;
@@ -98,11 +101,11 @@ public class InventoryUpdater {
 				if (h.getType().equals(SFGUI.PARTICIPANT_VIEW)) {
 					inv.participantView(i, p, w, w.getParticipant(f), false);
 				}
-			} else if (i.getHolder() instanceof DeclareWarHolder h) {
+			} else if (holder instanceof DeclareWarHolder h) {
 				refreshDeclareWar(p, i, h);
-			} else if (i.getHolder() instanceof CampaignInventoryHolder h) {
+			} else if (holder instanceof CampaignInventoryHolder h) {
 				refreshCampaignPick(p, i, h);
-			} else if (i.getHolder() instanceof CampaignRaidLaunchHolder h) {
+			} else if (holder instanceof CampaignRaidLaunchHolder h) {
 				refreshCampaignRaid(p, i, h);
 			} else {
 				// Battle list: match by title (no holder)
@@ -370,7 +373,7 @@ public class InventoryUpdater {
 		for (Player p : Bukkit.getOnlinePlayers()) {
 			if (p.getOpenInventory().getTopInventory() == null) continue;
 			Inventory i = p.getOpenInventory().getTopInventory();
-			if (!(i.getHolder() instanceof SFInventoryHolder h)) continue;
+			if (!(i.getHolder(false) instanceof SFInventoryHolder h)) continue;
 			if (h.getType().equals(gui)) {
 				p.playSound(p, sound, 1f, 1f);
 			}

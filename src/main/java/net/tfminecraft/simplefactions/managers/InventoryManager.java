@@ -1129,7 +1129,10 @@ public class InventoryManager implements Listener{
 	}
 
 	private static boolean isPluginMenu(Inventory inv) {
-		InventoryHolder holder = inv.getHolder();
+		return isPluginHolder(inv.getHolder(false));
+	}
+
+	private static boolean isPluginHolder(InventoryHolder holder) {
 		return holder instanceof SFInventoryHolder
 				|| holder instanceof WarInventoryHolder
 				|| holder instanceof CampaignInventoryHolder
@@ -1154,39 +1157,41 @@ public class InventoryManager implements Listener{
 			return;
 		}
 		Inventory inv = e.getView().getTopInventory();
-		if (inv.getHolder() instanceof SFInventoryHolder
-				&& ((SFInventoryHolder) inv.getHolder()).getType() == SFGUI.PLAYER_LEDGER_VIEW) {
+		// No snapshot: a block inventory's holder would otherwise copy the whole block state.
+		InventoryHolder topHolder = inv.getHolder(false);
+		if (topHolder instanceof SFInventoryHolder
+				&& ((SFInventoryHolder) topHolder).getType() == SFGUI.PLAYER_LEDGER_VIEW) {
 			e.setCancelled(true);
 			return;
 		}
-		if (inv.getHolder() instanceof WarInventoryHolder
-				|| inv.getHolder() instanceof CampaignInventoryHolder
-				|| inv.getHolder() instanceof CampaignRaidLaunchHolder
-				|| inv.getHolder() instanceof SFCombinedInventoryHolder
-				|| inv.getHolder() instanceof DeclareWarHolder
-				|| inv.getHolder() instanceof CoalitionHolder) {
+		if (topHolder instanceof WarInventoryHolder
+				|| topHolder instanceof CampaignInventoryHolder
+				|| topHolder instanceof CampaignRaidLaunchHolder
+				|| topHolder instanceof SFCombinedInventoryHolder
+				|| topHolder instanceof DeclareWarHolder
+				|| topHolder instanceof CoalitionHolder) {
 			e.setCancelled(true);
 		}
-		if (inv.getHolder() instanceof SFInventoryHolder) {
+		if (topHolder instanceof SFInventoryHolder) {
 			e.setCancelled(true);
 		}
 		// Every menu button is in the top inventory. A click in the player's own inventory
 		// carries a slot number too, so it must never reach the views as a button press.
-		if (isPluginMenu(inv) && !isTopInventoryClick(e.getRawSlot(), inv.getSize())) return;
-		if (inv.getHolder() instanceof SFInventoryHolder holder
+		if (isPluginHolder(topHolder) && !isTopInventoryClick(e.getRawSlot(), inv.getSize())) return;
+		if (topHolder instanceof SFInventoryHolder holder
 				&& EspionageAccess.denied(p, holder)) {
 			p.closeInventory();
 			return;
 		}
-		if (inv.getHolder() instanceof SFInventoryHolder holder
+		if (topHolder instanceof SFInventoryHolder holder
 				&& EspionageView.handles(holder.getType())) {
 			EspionageView.click(e, p, holder, this);
 			return;
 		}
 		if(e.getCurrentItem() == null) return;
-		if(inv.getHolder() instanceof SFInventoryHolder) {
+		if(topHolder instanceof SFInventoryHolder) {
 			e.setCancelled(true);
-			SFInventoryHolder h = (SFInventoryHolder) inv.getHolder();
+			SFInventoryHolder h = (SFInventoryHolder) topHolder;
 			Faction f = null;
 			Guild g = null;
 			Movement movement = null;
@@ -1469,16 +1474,16 @@ public class InventoryManager implements Listener{
 				electionView.click(e, inv, p);
 			} else if(h.getType() == SFGUI.TIER_VIEW 
 					|| h.getType() == SFGUI.TITLE_VIEW
-					|| (inv.getHolder() instanceof SFInventoryHolder && ((SFInventoryHolder) inv.getHolder()).getType().equals(SFGUI.TITLE_TYPE_VIEW))) {
+					|| (topHolder instanceof SFInventoryHolder && ((SFInventoryHolder) topHolder).getType().equals(SFGUI.TITLE_TYPE_VIEW))) {
 				tierTitleView.click(e, inv, p);
 			} else if(h.getType() == SFGUI.WAR_LIST) {
 				warView.click(e, inv, p);
-			} else if(inv.getHolder() instanceof SFInventoryHolder && ((SFInventoryHolder) inv.getHolder()).getType().equals(SFGUI.TAX_VIEW)) {
+			} else if(topHolder instanceof SFInventoryHolder && ((SFInventoryHolder) topHolder).getType().equals(SFGUI.TAX_VIEW)) {
 				taxView.click(e, inv, p);
-			} else if(inv.getHolder() instanceof SFInventoryHolder && ((SFInventoryHolder) inv.getHolder()).getType().equals(SFGUI.TAX_VIEW_SPECIFIC)) {
+			} else if(topHolder instanceof SFInventoryHolder && ((SFInventoryHolder) topHolder).getType().equals(SFGUI.TAX_VIEW_SPECIFIC)) {
 				taxView.click(e, inv, p);
 			}
-		} else if (inv.getHolder() instanceof WarInventoryHolder warHolder) {
+		} else if (topHolder instanceof WarInventoryHolder warHolder) {
 			e.setCancelled(true);
 			if (warHolder.getType() == SFGUI.WAR_VIEW || warHolder.getType() == SFGUI.WAR_COUNTER_GOAL
 					|| warHolder.getType() == SFGUI.WAR_DEMANDS
@@ -1486,26 +1491,26 @@ public class InventoryManager implements Listener{
 					|| warHolder.getType() == SFGUI.WAR_DEMAND_TARGET) {
 				warView.click(e, inv, p);
 			}
-		} else if (inv.getHolder() instanceof CampaignInventoryHolder campaignHolder) {
+		} else if (topHolder instanceof CampaignInventoryHolder campaignHolder) {
 			e.setCancelled(true);
 			if (campaignHolder.getType() == SFGUI.CAMPAIGN_VIEW) {
 				campaignView.click(e, inv, p);
 			} else if (campaignHolder.getType() == SFGUI.CAMPAIGN_INSTALLATION_PICK_VIEW) {
 				campaignInstallationPickView.click(e, inv, p);
 			}
-		} else if (inv.getHolder() instanceof CampaignRaidLaunchHolder) {
+		} else if (topHolder instanceof CampaignRaidLaunchHolder) {
 			e.setCancelled(true);
 			campaignRaidLaunchView.click(e, inv, p);
-		} else if (inv.getHolder() instanceof SFCombinedInventoryHolder combinedHolder) {
+		} else if (topHolder instanceof SFCombinedInventoryHolder combinedHolder) {
 			e.setCancelled(true);
 			SFGUI combinedType = combinedHolder.getType();
 			if (combinedType == SFGUI.PARTICIPANT_VIEW
 					|| combinedType == SFGUI.MERCENARY_ENGAGEMENT_LIST) {
 				warView.click(e, inv, p);
 			}
-		} else if (inv.getHolder() instanceof DeclareWarHolder) {
+		} else if (topHolder instanceof DeclareWarHolder) {
 			declareWarView.click(e, inv, p);
-		} else if (inv.getHolder() instanceof CoalitionHolder) {
+		} else if (topHolder instanceof CoalitionHolder) {
 			coalitionView.click(e, inv, p);
 		}
 		if(e.getView().getTitle().equalsIgnoreCase("§7Confirm Action")) {

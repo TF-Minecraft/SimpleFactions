@@ -192,7 +192,7 @@ public class InstallationView {
 
     public void click(InventoryClickEvent event, Inventory inventory, Player player) {
         event.setCancelled(true);
-        if (!(inventory.getHolder() instanceof SFInventoryHolder holder)) {
+        if (!(inventory.getHolder(false) instanceof SFInventoryHolder holder)) {
             return;
         }
 

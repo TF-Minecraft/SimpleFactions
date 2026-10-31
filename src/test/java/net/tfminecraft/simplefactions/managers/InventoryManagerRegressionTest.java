@@ -219,7 +219,7 @@ class InventoryManagerRegressionTest {
 
   private static InventoryDragEvent drag(InventoryHolder holder, String title, Set<Integer> slots) {
     Inventory inventory = mock(Inventory.class);
-    when(inventory.getHolder()).thenReturn(holder);
+    when(inventory.getHolder(false)).thenReturn(holder);
     when(inventory.getSize()).thenReturn(54);
     InventoryView view = mock(InventoryView.class);
     when(view.getTopInventory()).thenReturn(inventory);
@@ -356,7 +356,7 @@ class InventoryManagerRegressionTest {
       manager.movementView = mock(MovementView.class);
       when(movement.getFaction()).thenReturn(faction);
       when(movement.getCauses()).thenReturn(causes);
-      when(inventory.getHolder())
+      when(inventory.getHolder(false))
           .thenReturn(new SFInventoryHolder("movement", SFGUI.TARGET_SELECT, page));
       when(inventory.getSize()).thenReturn(54);
       InventoryView view = mock(InventoryView.class);

@@ -94,7 +94,7 @@ public final class CampaignViewRefreshService implements Listener {
 		if (!(event.getPlayer() instanceof Player player)) {
 			return;
 		}
-		if (event.getInventory().getHolder() instanceof CampaignInventoryHolder holder
+		if (event.getInventory().getHolder(false) instanceof CampaignInventoryHolder holder
 				&& holder.getType() == SFGUI.CAMPAIGN_VIEW) {
 			unregister(player);
 		}

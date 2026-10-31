@@ -66,7 +66,7 @@ class MovementViewCrackdownTest {
 		when(player.getLocation()).thenReturn(mock(Location.class));
 
 		Inventory inventory = mock(Inventory.class);
-		when(inventory.getHolder()).thenReturn(new SFInventoryHolder("mov-1", SFGUI.MOVEMENT_CRACKDOWN));
+		when(inventory.getHolder(false)).thenReturn(new SFInventoryHolder("mov-1", SFGUI.MOVEMENT_CRACKDOWN));
 
 		ItemStack item = mock(ItemStack.class);
 		ItemMeta meta = mock(ItemMeta.class);

@@ -228,7 +228,7 @@ public class GuildView {
 		preview = null;
 		for (Player viewer : org.bukkit.Bukkit.getOnlinePlayers()) {
 			Inventory top = viewer.getOpenInventory().getTopInventory();
-			if (!(top.getHolder() instanceof SFInventoryHolder holder) || holder.getType() != SFGUI.GUILD_VIEW) continue;
+			if (!(top.getHolder(false) instanceof SFInventoryHolder holder) || holder.getType() != SFGUI.GUILD_VIEW) continue;
 			if (!guilds.contains(holder.getId())) continue;
 			Guild shown = FactionManager.getGuildByString(holder.getId());
 			if (shown != null) guildView(viewer, shown, top, false);
@@ -446,8 +446,8 @@ public class GuildView {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
-		if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+		if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+		SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 		if (e.getView().getTitle().equalsIgnoreCase("§7Guild List")) {
 			e.setCancelled(true);
 

@@ -146,7 +146,7 @@ public class VehicleFeeView {
 
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
         e.setCancelled(true);
-        if (!(inventory.getHolder() instanceof SFInventoryHolder h)) {
+        if (!(inventory.getHolder(false) instanceof SFInventoryHolder h)) {
             return;
         }
         ItemStack item = e.getCurrentItem();

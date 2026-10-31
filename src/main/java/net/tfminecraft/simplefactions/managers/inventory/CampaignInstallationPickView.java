@@ -83,7 +83,7 @@ public class CampaignInstallationPickView {
 		List<Installation> installations = new ArrayList<>(
 				BattleInstallationPickEligibility.listPickableInstallations(war, viewerFaction));
 
-		CampaignInventoryHolder holder = (CampaignInventoryHolder) inventory.getHolder();
+		CampaignInventoryHolder holder = (CampaignInventoryHolder) inventory.getHolder(false);
 		int lastPage = Math.max(0, (installations.size() - 1) / PAGE_SIZE);
 		holder.setPage(Math.min(holder.getPage(), lastPage));
 		int start = holder.getPage() * PAGE_SIZE;
@@ -115,7 +115,7 @@ public class CampaignInstallationPickView {
 	}
 
 	public void click(InventoryClickEvent e, Inventory inventory, Player player) {
-		if (!(inventory.getHolder() instanceof CampaignInventoryHolder holder)) {
+		if (!(inventory.getHolder(false) instanceof CampaignInventoryHolder holder)) {
 			return;
 		}
 		if (holder.getType() != SFGUI.CAMPAIGN_INSTALLATION_PICK_VIEW) {

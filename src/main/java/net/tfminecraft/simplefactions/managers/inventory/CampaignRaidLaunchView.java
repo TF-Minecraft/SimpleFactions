@@ -81,7 +81,7 @@ public class CampaignRaidLaunchView {
 		inventory.setItem(SUMMARY_SLOT, creator.createRaidLaunchSummaryItem(
 				war, viewerFaction, null, sources.isEmpty(), now));
 
-		CampaignRaidLaunchHolder holder = (CampaignRaidLaunchHolder) inventory.getHolder();
+		CampaignRaidLaunchHolder holder = (CampaignRaidLaunchHolder) inventory.getHolder(false);
 		int start = preparePage(inventory, holder, sources.size());
 		int end = Math.min(start + PAGE_SIZE, sources.size());
 		for (int index = start; index < end; index++) {
@@ -138,7 +138,7 @@ public class CampaignRaidLaunchView {
 		inventory.setItem(SUMMARY_SLOT, creator.createRaidLaunchSummaryItem(
 				war, viewerFaction, source, targets.isEmpty(), now));
 
-		CampaignRaidLaunchHolder holder = (CampaignRaidLaunchHolder) inventory.getHolder();
+		CampaignRaidLaunchHolder holder = (CampaignRaidLaunchHolder) inventory.getHolder(false);
 		int start = preparePage(inventory, holder, targets.size());
 		int end = Math.min(start + PAGE_SIZE, targets.size());
 		for (int index = start; index < end; index++) {
@@ -159,7 +159,7 @@ public class CampaignRaidLaunchView {
 	}
 
 	public void click(InventoryClickEvent e, Inventory inventory, Player player) {
-		if (!(inventory.getHolder() instanceof CampaignRaidLaunchHolder holder)) {
+		if (!(inventory.getHolder(false) instanceof CampaignRaidLaunchHolder holder)) {
 			return;
 		}
 		e.setCancelled(true);

@@ -591,7 +591,7 @@ public class WarView {
 			if (w == null) return;
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			warView(null, p, w, true);
-		} else if (inventory.getHolder() instanceof WarDemandHolder holder) {
+		} else if (inventory.getHolder(false) instanceof WarDemandHolder holder) {
 			e.setCancelled(true);
 			War war = WarManager.getById(holder.getId());
 			if (war == null) return;
@@ -626,7 +626,7 @@ public class WarView {
 			if (beneficiary == null) return;
 			inv.declareWarView.openDemandGoalPicker(
 					p, beneficiary, faction, new WarDemandDraft(war.getId(), holder.isAttackerSide()));
-		} else if (inventory.getHolder() instanceof WarInventoryHolder holder
+		} else if (inventory.getHolder(false) instanceof WarInventoryHolder holder
 				&& holder.getType() == SFGUI.WAR_DEMANDS) {
 			e.setCancelled(true);
 			War war = WarManager.getById(holder.getId());
@@ -671,7 +671,7 @@ public class WarView {
 				return;
 			}
 			startSecondDemand(p, war, attackerSide);
-		} else if (inventory.getHolder() instanceof WarInventoryHolder holder
+		} else if (inventory.getHolder(false) instanceof WarInventoryHolder holder
 				&& holder.getType() == SFGUI.WAR_COUNTER_GOAL) {
 			e.setCancelled(true);
 			War war = WarManager.getById(holder.getId());
@@ -717,9 +717,9 @@ public class WarView {
 				}
 			}
 			demandsView(p, war);
-		} else if(inventory.getHolder() instanceof WarInventoryHolder && ((WarInventoryHolder) inventory.getHolder()).getType().equals(SFGUI.WAR_VIEW)) {
+		} else if(inventory.getHolder(false) instanceof WarInventoryHolder && ((WarInventoryHolder) inventory.getHolder(false)).getType().equals(SFGUI.WAR_VIEW)) {
 			e.setCancelled(true);
-			WarInventoryHolder h = (WarInventoryHolder) inventory.getHolder();
+			WarInventoryHolder h = (WarInventoryHolder) inventory.getHolder(false);
 			War w = WarManager.getById(h.getId());
 			if (w == null) return;
 			if(e.getSlot() == 53) {
@@ -757,10 +757,10 @@ public class WarView {
 			if(par == null) return;
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			participantView(null, p, w, par, true);
-		} else if(inventory.getHolder() instanceof SFCombinedInventoryHolder
-				&& ((SFCombinedInventoryHolder) inventory.getHolder()).getType().equals(SFGUI.MERCENARY_ENGAGEMENT_LIST)) {
+		} else if(inventory.getHolder(false) instanceof SFCombinedInventoryHolder
+				&& ((SFCombinedInventoryHolder) inventory.getHolder(false)).getType().equals(SFGUI.MERCENARY_ENGAGEMENT_LIST)) {
 			e.setCancelled(true);
-			SFCombinedInventoryHolder h = (SFCombinedInventoryHolder) inventory.getHolder();
+			SFCombinedInventoryHolder h = (SFCombinedInventoryHolder) inventory.getHolder(false);
 			War w = WarManager.getById(h.getWarId());
 			if (w == null) return;
 			if (e.getSlot() == 8) {
@@ -781,9 +781,9 @@ public class WarView {
 				return;
 			}
 			openContractFromItem(e.getCurrentItem(), p, w);
-		} else if(inventory.getHolder() instanceof SFCombinedInventoryHolder && ((SFCombinedInventoryHolder) inventory.getHolder()).getType().equals(SFGUI.PARTICIPANT_VIEW)) {
+		} else if(inventory.getHolder(false) instanceof SFCombinedInventoryHolder && ((SFCombinedInventoryHolder) inventory.getHolder(false)).getType().equals(SFGUI.PARTICIPANT_VIEW)) {
 			e.setCancelled(true);
-			SFCombinedInventoryHolder h = (SFCombinedInventoryHolder) inventory.getHolder();
+			SFCombinedInventoryHolder h = (SFCombinedInventoryHolder) inventory.getHolder(false);
 			War w = WarManager.getById(h.getWarId());
 			if (w == null) return;
 			if(e.getSlot() == 53) {

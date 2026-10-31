@@ -76,7 +76,7 @@ public class CampaignView {
 			return false;
 		}
 		Inventory top = player.getOpenInventory().getTopInventory();
-		if (!(top.getHolder() instanceof CampaignInventoryHolder holder)) {
+		if (!(top.getHolder(false) instanceof CampaignInventoryHolder holder)) {
 			return false;
 		}
 		return holder.getType() == SFGUI.CAMPAIGN_VIEW && holder.getWarId() == warId;
@@ -267,7 +267,7 @@ public class CampaignView {
 	}
 
 	public void click(InventoryClickEvent e, Inventory inventory, Player player) {
-		if (!(inventory.getHolder() instanceof CampaignInventoryHolder holder)) {
+		if (!(inventory.getHolder(false) instanceof CampaignInventoryHolder holder)) {
 			return;
 		}
 		if (holder.getType() != SFGUI.CAMPAIGN_VIEW) {

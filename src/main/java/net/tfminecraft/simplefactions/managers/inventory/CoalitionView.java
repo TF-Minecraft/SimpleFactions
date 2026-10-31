@@ -225,7 +225,7 @@ public class CoalitionView {
 
 	public void click(InventoryClickEvent e, Inventory inventory, Player player) {
 		e.setCancelled(true);
-		CoalitionHolder holder = (CoalitionHolder) inventory.getHolder();
+		CoalitionHolder holder = (CoalitionHolder) inventory.getHolder(false);
 		ItemStack clicked = e.getCurrentItem();
 		if (holder.getType() == CoalitionHolder.Type.LIST) {
 			if (e.getSlot() == PREV_PAGE_SLOT && clicked != null) {

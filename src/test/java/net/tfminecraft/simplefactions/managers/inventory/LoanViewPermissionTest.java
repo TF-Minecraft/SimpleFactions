@@ -47,7 +47,7 @@ class LoanViewPermissionTest {
 
 	private InventoryClickEvent click(SFGUI type, int slot) {
 		Inventory inventory = mock(Inventory.class);
-		when(inventory.getHolder()).thenReturn(new SFInventoryHolder("victim", type));
+		when(inventory.getHolder(false)).thenReturn(new SFInventoryHolder("victim", type));
 		InventoryClickEvent event = mock(InventoryClickEvent.class);
 		when(event.getSlot()).thenReturn(slot);
 		view.click(event, inventory, player);

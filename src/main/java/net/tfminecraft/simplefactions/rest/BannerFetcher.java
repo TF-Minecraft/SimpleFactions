@@ -49,7 +49,7 @@ public final class BannerFetcher {
 	public static void refreshOpenView(Player player, SFGUI type, String id, Supplier<ItemStack> item) {
 		if (player == null || !player.isOnline()) return;
 		Inventory top = player.getOpenInventory().getTopInventory();
-		if (!(top.getHolder() instanceof SFInventoryHolder holder)) return;
+		if (!(top.getHolder(false) instanceof SFInventoryHolder holder)) return;
 		if (holder.getType() != type || id == null || !id.equals(holder.getId())) return;
 		top.setItem(BANNER_SLOT, item.get());
 	}
