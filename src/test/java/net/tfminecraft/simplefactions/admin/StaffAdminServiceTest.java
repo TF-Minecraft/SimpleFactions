@@ -31,6 +31,11 @@ import net.tfminecraft.simplefactions.economy.TreasuryTopology;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.MemberDepartures;
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationConstruction;
+import net.tfminecraft.simplefactions.installation.InstallationKind;
+import net.tfminecraft.simplefactions.installation.handler.ConstructResult;
+import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.map.MapSystem;
 import net.tfminecraft.simplefactions.objects.Bank;
@@ -54,6 +59,7 @@ class StaffAdminServiceTest {
 	private Guild smiths;
 	private SettlementHandler settlements;
 	private ProvinceHandler provinces;
+	private InstallationHandler installations;
 	private MapSystem map;
 	private Player staff;
 
@@ -91,6 +97,8 @@ class StaffAdminServiceTest {
 		when(faction.getSettlementHandler()).thenReturn(settlements);
 		provinces = mock(ProvinceHandler.class);
 		when(faction.getProvinceHandler()).thenReturn(provinces);
+		installations = mock(InstallationHandler.class);
+		when(faction.getInstallationHandler()).thenReturn(installations);
 		map = mock(MapSystem.class);
 		factions.when(FactionManager::getMap).thenReturn(map);
 		factions.when(() -> FactionManager.getByString("sunsora")).thenReturn(faction);
@@ -114,6 +122,16 @@ class StaffAdminServiceTest {
 		when(settlement.getName()).thenReturn(name);
 		when(settlement.getCenterProvince()).thenReturn(province);
 		return settlement;
+	}
+
+	private static InstallationConstruction building(String id, String name, boolean upgrade) {
+		InstallationConstruction building = mock(InstallationConstruction.class);
+		when(building.getId()).thenReturn(id);
+		when(building.getName()).thenReturn(name);
+		when(building.getKind()).thenReturn(InstallationKind.PORT);
+		when(building.getProvince()).thenReturn(225);
+		when(building.isUpgrade()).thenReturn(upgrade);
+		return building;
 	}
 
 	private static ItemStack item(Material type) {
@@ -166,6 +184,10 @@ class StaffAdminServiceTest {
 		Bank bank = mock(Bank.class);
 		when(bank.getWealth()).thenReturn(12.5);
 		when(faction.getBank()).thenReturn(bank);
+		when(installations.getAll()).thenReturn(List.of(
+				new Installation("Sunray_Railway", "Sunray Railway", InstallationKind.TRAIN_STATION, 228, 4768, 3425, 0L, 2)));
+		InstallationConstruction docks = building("Sunray_Docks", "Sunray Docks", false);
+		when(installations.getPendingConstruction()).thenReturn(docks);
 		List<String> lines = StaffAdminService.info(faction);
 		assertEquals("§6=== §fSunsora §7(sunsora) §6===", lines.get(0));
 		assertEquals("§7Leader: §fVerena §7(Verena)§f", lines.get(1));
@@ -174,7 +196,11 @@ class StaffAdminServiceTest {
 		assertEquals("§7Capital: §fprovince 395, Research Tower §7(research_tower)§f §7Capital changes made: §f2", lines.get(4));
 		assertEquals("§7Settlement: §fPort §7(port)§f §7in province §f393", lines.get(5));
 		assertEquals("§7Guild: §fSmiths §7(smiths) led by §fCarl §7(Carl)§f §7with §f2 §7members", lines.get(6));
-		assertEquals("§7Bank: §f12.50d", lines.get(7));
+		assertEquals("§7Installation: §fSunray Railway §7(Sunray_Railway) §ftrain station §7level §f2 §7in province §f228", lines.get(7));
+		assertEquals("§7Building: §fSunray Docks §7(Sunray_Docks) §fport §7in province §f225", lines.get(8));
+		assertEquals("§7Bank: §f12.50d", lines.get(9));
+		when(docks.isUpgrade()).thenReturn(true);
+		assertEquals("§7Upgrading: §fSunray Docks §7(Sunray_Docks) §fport §7in province §f225", StaffAdminService.info(faction).get(8));
 	}
 
 	@Test
@@ -404,6 +430,31 @@ class StaffAdminServiceTest {
 		assertEquals(List.of("§cEnter a value instead of <culture>§c."), StaffAdminService.set(faction, "culture", "<culture>"));
 		assertEquals(List.of("§cUnknown field motto§c. Use one of: culture, religion, rulingsystem, rulertitle"),
 				StaffAdminService.set(faction, "motto", "x"));
+	}
+
+	@Test
+	void installationIdsListBuiltOnesAndANewConstruction() {
+		assertEquals(List.of(), StaffAdminService.installationIds(faction));
+		when(installations.getAll()).thenReturn(List.of(
+				new Installation("Sunray_Railway", "Sunray Railway", InstallationKind.TRAIN_STATION, 228, 4768, 3425, 0L)));
+		InstallationConstruction upgrade = building("Sunray_Railway", "Sunray Railway", true);
+		when(installations.getPendingConstruction()).thenReturn(upgrade);
+		assertEquals(List.of("Sunray_Railway"), StaffAdminService.installationIds(faction));
+		InstallationConstruction docks = building("Sunray_Docks", "Sunray Docks", false);
+		when(installations.getPendingConstruction()).thenReturn(docks);
+		assertEquals(List.of("Sunray_Railway", "Sunray_Docks"), StaffAdminService.installationIds(faction));
+	}
+
+	@Test
+	void removeInstallationDeconstructsWhateverTheCaseOfTheId() {
+		when(installations.getAll()).thenReturn(List.of(
+				new Installation("Sunray_Railway", "Sunray Railway", InstallationKind.TRAIN_STATION, 228, 4768, 3425, 0L)));
+		when(installations.deconstruct("Sunray_Railway")).thenReturn(new ConstructResult(true, "§aDeconstructed"));
+		assertEquals(List.of("§aDeconstructed"), StaffAdminService.removeInstallation(faction, "sunray_railway"));
+		verify(installations).deconstruct("Sunray_Railway");
+		when(installations.deconstruct("Wunderbar")).thenReturn(ConstructResult.fail("§cNo installation with id §fWunderbar"));
+		assertEquals(List.of("§cNo installation with id §fWunderbar§c. §e/faction admin info sunsora §clists them."),
+				StaffAdminService.removeInstallation(faction, "Wunderbar"));
 	}
 
 	@Test
