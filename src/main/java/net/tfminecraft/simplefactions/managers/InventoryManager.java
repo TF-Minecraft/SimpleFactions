@@ -1095,6 +1095,7 @@ public class InventoryManager implements Listener{
 		slotChanges.remove(e.getPlayer());
 		menuSessions.remove(e.getPlayer().getUniqueId());
 		BranchIncomePreviewService.forget(e.getPlayer().getUniqueId());
+		factionView.forgetListItems(e.getPlayer().getUniqueId());
 	}
 
 	@EventHandler

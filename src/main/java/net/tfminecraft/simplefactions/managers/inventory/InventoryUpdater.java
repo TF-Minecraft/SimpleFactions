@@ -130,7 +130,7 @@ public class InventoryUpdater {
 
 		// Screens with no faction/guild id
 		if (type == SFGUI.FACTION_LIST) {
-			inv.factionView.populateFactionList(i, p);
+			inv.factionView.refreshFactionList(i, p);
 			return;
 		}
 		if (type == SFGUI.WAR_LIST) {

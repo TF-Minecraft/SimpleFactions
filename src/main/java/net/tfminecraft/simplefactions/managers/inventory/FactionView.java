@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.NamespacedKey;
 import org.bukkit.Material;
@@ -41,6 +42,7 @@ public class FactionView {
 	public GuildCreator guildCreator = new GuildCreator();
 	
 	FactionRanker r = new FactionRanker();
+	FactionListItems listItems = new FactionListItems(FactionListItems.MAX_AGE_NANOS, System::nanoTime);
 	public static HashMap<Player, RankType> currentRanking = new HashMap<>();
 	public static HashMap<Player, Integer> currentPage = new HashMap<>();
 
@@ -77,6 +79,19 @@ public class FactionView {
 	}
 
 	public void populateFactionList(Inventory inv, Player player) {
+		populateFactionList(inv, player, false);
+	}
+
+	/** The periodic redraw of an open list, which may reuse rows built in the last few seconds. */
+	public void refreshFactionList(Inventory inv, Player player) {
+		populateFactionList(inv, player, true);
+	}
+
+	public void forgetListItems(UUID viewer) {
+		listItems.forget(viewer);
+	}
+
+	private void populateFactionList(Inventory inv, Player player, boolean refresh) {
 		currentRanking.putIfAbsent(player, RankType.PRESTIGE);
 		currentPage.putIfAbsent(player, 0);
 		int page = currentPage.get(player);
@@ -95,11 +110,13 @@ public class FactionView {
 		int startIndex = page * factionsPerPage;
 		int endIndex = Math.min(startIndex + factionsPerPage, factions.size());
 
+		FactionListItems.Drawing rows = listItems.begin(player, refresh);
 		for (int i = startIndex; i < endIndex; i++) {
 			Faction f = factions.get(i);
 			int slot = usableSlots.get(i - startIndex);
-			inv.setItem(slot, creator.createListItem(player, f));
+			inv.setItem(slot, rows.item(f, () -> creator.createListItem(player, f)));
 		}
+		rows.end();
 
 		inv.setItem(8, DefaultCreator.createRankButton(currentRanking.get(player)));
 

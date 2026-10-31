@@ -650,6 +650,25 @@ class FactionMenusCoverageTest {
   }
 
   @Test
+  void periodicRefreshReusesRecentRowsWhileOpeningTheListRebuildsThem() {
+    Faction row = mock(Faction.class);
+    when(row.getId()).thenReturn("f0");
+    view.creator = mock(FactionCreator.class);
+    when(view.creator.createListItem(eq(player), any())).thenAnswer(c -> tag("f0"));
+    when(ranker.getVisibleRankedList(eq(player), any())).thenReturn(List.of(row));
+    view.factionList(player);
+    Inventory list = top();
+    view.refreshFactionList(list, player);
+    verify(view.creator, times(1)).createListItem(player, row);
+    view.factionList(player, list);
+    verify(view.creator, times(2)).createListItem(player, row);
+    view.forgetListItems(player.getUniqueId());
+    view.refreshFactionList(list, player);
+    verify(view.creator, times(3)).createListItem(player, row);
+    assertEquals("f0", id(list.getItem(0)));
+  }
+
+  @Test
   void factionListOnlyOpensRegisteredFactionIds() {
     when(ranker.getVisibleRankedList(eq(player), any())).thenReturn(List.of());
     view.factionList(player);
