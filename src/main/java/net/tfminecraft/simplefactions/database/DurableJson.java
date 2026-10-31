@@ -68,8 +68,10 @@ public final class DurableJson {
 
         private void replaceAll(List<Path> files) throws IOException {
             List<Path> temporary = new ArrayList<>(files.size());
+            Throwable failed = null;
             try {
                 List<FileChannel> channels = new ArrayList<>(files.size());
+                Throwable writeFailed = null;
                 try {
                     for (Path file : files) {
                         Path pendingFile = Files.createTempFile(directory(file), file.getFileName().toString() + ".", ".tmp");
@@ -80,18 +82,60 @@ public final class DurableJson {
                         while (bytes.hasRemaining()) channel.write(bytes);
                     }
                     syncAll(channels);
+                } catch (Throwable failure) {
+                    writeFailed = failure;
+                    throw failure;
                 } finally {
                     // Closed before the renames: Windows cannot rename a file that is still open.
-                    for (FileChannel channel : channels) channel.close();
+                    closeAll(channels, writeFailed);
                 }
                 for (int i = 0; i < files.size(); i++) {
                     Files.move(temporary.get(i), files.get(i), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
                     directories.add(files.get(i).getParent());
                     pending.remove(files.get(i));
                 }
+            } catch (Throwable failure) {
+                failed = failure;
+                throw failure;
             } finally {
-                for (Path pendingFile : temporary) Files.deleteIfExists(pendingFile);
+                deleteAll(temporary, failed);
             }
+        }
+
+        /**
+         * Closes every channel, even after one fails. Close failures are added to {@code cause} so
+         * they never hide it; with no cause the first one is thrown.
+         */
+        static void closeAll(List<FileChannel> channels, Throwable cause) throws IOException {
+            IOException failure = null;
+            for (FileChannel channel : channels) {
+                try {
+                    channel.close();
+                } catch (IOException error) {
+                    if (cause != null) cause.addSuppressed(error);
+                    else if (failure == null) failure = error;
+                    else failure.addSuppressed(error);
+                }
+            }
+            if (failure != null) throw failure;
+        }
+
+        /**
+         * Removes the temporary files a rename did not consume, each on its own. Cleanup failures
+         * are added to {@code cause} so they never hide it; with no cause the first one is thrown.
+         */
+        static void deleteAll(List<Path> temporary, Throwable cause) throws IOException {
+            IOException failure = null;
+            for (Path pendingFile : temporary) {
+                try {
+                    Files.deleteIfExists(pendingFile);
+                } catch (IOException error) {
+                    if (cause != null) cause.addSuppressed(error);
+                    else if (failure == null) failure = error;
+                    else failure.addSuppressed(error);
+                }
+            }
+            if (failure != null) throw failure;
         }
     }
 

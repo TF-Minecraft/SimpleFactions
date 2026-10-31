@@ -160,6 +160,37 @@ class DurableJsonTest {
         try (var files = Files.list(folder)) { assertEquals(count, files.count()); }
     }
 
+    @Test
+    void everyChannelIsClosedAndTheFirstCloseFailureIsThrown() throws Exception {
+        FileChannel first = mock(FileChannel.class), open = mock(FileChannel.class), last = mock(FileChannel.class);
+        IOException failed = new IOException("first close"), later = new IOException("last close");
+        doThrow(failed).when(first).close();
+        doThrow(later).when(last).close();
+        assertSame(failed, assertThrows(IOException.class, () -> DurableJson.Batch.closeAll(List.of(first, open, last), null)));
+        assertArrayEquals(new Throwable[] {later}, failed.getSuppressed());
+        verify(open).close();
+        verify(last).close();
+        DurableJson.Batch.closeAll(List.of(open), null);
+        IOException sync = new IOException("sync");
+        DurableJson.Batch.closeAll(List.of(first), sync);
+        assertEquals(1, sync.getSuppressed().length, "A close failure never hides the write failure");
+    }
+
+    @Test
+    void cleanupGoesOnPastAFileItCannotDeleteAndNeverHidesTheCommitFailure() throws Exception {
+        Path stuck = Files.createDirectories(directory.resolve("stuck"));
+        Files.writeString(stuck.resolve("keep"), "x");
+        Path other = Files.createDirectories(directory.resolve("other"));
+        Files.writeString(other.resolve("keep"), "x");
+        Path loose = Files.writeString(directory.resolve("loose.tmp"), "x");
+        IOException commit = new IOException("commit");
+        DurableJson.Batch.deleteAll(List.of(stuck, loose), commit);
+        assertFalse(Files.exists(loose), "Files after the stuck one are still removed");
+        assertEquals(1, commit.getSuppressed().length);
+        IOException thrown = assertThrows(IOException.class, () -> DurableJson.Batch.deleteAll(List.of(stuck, other), null));
+        assertEquals(1, thrown.getSuppressed().length, "The second cleanup failure rides on the first");
+    }
+
     private static void assertUntouched(Path folder, List<Path> synced) throws IOException {
         assertEquals("{\"n\":0}", Files.readString(folder.resolve("a.json")));
         assertTrue(synced.isEmpty(), "No directory is synced after a failed content sync");

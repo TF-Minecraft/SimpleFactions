@@ -114,7 +114,7 @@ public class FactionView {
 		for (int i = startIndex; i < endIndex; i++) {
 			Faction f = factions.get(i);
 			int slot = usableSlots.get(i - startIndex);
-			inv.setItem(slot, rows.item(f, () -> creator.createListItem(player, f)));
+			inv.setItem(slot, rows.item(f, EspionageService.canViewExact(player, f), () -> creator.createListItem(player, f)));
 		}
 		rows.end();
 

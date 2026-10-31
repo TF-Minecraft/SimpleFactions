@@ -21,13 +21,14 @@ import net.tfminecraft.simplefactions.objects.Faction;
  * stability, guilds, subjects, allies and the viewer's relations and intelligence. Rebuilding
  * every row for every viewer on each pass was the steadiest cost of the menu refresh on Main.
  * A refresh now reuses a row built for the same viewer, character and faction within the last
- * few seconds, so a change reaches an open list at most that much later. Opening the list,
+ * few seconds, so a change reaches an open list at most that much later. A row built with exact
+ * access is never reused once the viewer loses it, or the other way round. Opening the list,
  * paging and changing the ranking always build every row fresh.
  */
 final class FactionListItems {
 	static final long MAX_AGE_NANOS = TimeUnit.SECONDS.toNanos(5);
 
-	private record Row(Faction faction, ItemStack item, long built) {}
+	private record Row(Faction faction, boolean exact, ItemStack item, long built) {}
 
 	private record Viewer(String character, Map<String, Row> rows) {}
 
@@ -64,10 +65,11 @@ final class FactionListItems {
 			previous = last != null && Objects.equals(last.character(), character) ? last.rows() : Map.of();
 		}
 
-		ItemStack item(Faction faction, Supplier<ItemStack> build) {
+		/** {@code exact} is whether the viewer may see this faction's exact values now. */
+		ItemStack item(Faction faction, boolean exact, Supplier<ItemStack> build) {
 			Row row = previous.get(faction.getId());
-			if (row == null || row.faction() != faction || now - row.built() >= maxAge) {
-				row = new Row(faction, build.get(), now);
+			if (row == null || row.faction() != faction || row.exact() != exact || now - row.built() >= maxAge) {
+				row = new Row(faction, exact, build.get(), now);
 			}
 			shown.put(faction.getId(), row);
 			return row.item();

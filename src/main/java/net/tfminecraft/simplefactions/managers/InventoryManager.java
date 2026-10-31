@@ -1108,6 +1108,7 @@ public class InventoryManager implements Listener{
 	@EventHandler
 	public void releaseMenuSession(InventoryCloseEvent e) {
 		menuSessions.remove(e.getPlayer().getUniqueId());
+		factionView.forgetListItems(e.getPlayer().getUniqueId());
 	}
 
 	private static boolean isMenu(InventoryView view) {

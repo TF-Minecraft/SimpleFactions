@@ -79,7 +79,7 @@ class FactionListItemsTest {
 		characters.play(other, first);
 		ItemStack mine = draw(true, realm);
 		var drawing = items.begin(other, true);
-		assertNotSame(mine, drawing.item(realm, counted()));
+		assertNotSame(mine, drawing.item(realm, true, counted()));
 		drawing.end();
 		items.forget(viewer.getUniqueId());
 		assertNotSame(mine, draw(true, realm));
@@ -89,17 +89,31 @@ class FactionListItemsTest {
 	@Test
 	void aMissingViewerStillGetsItsRows() {
 		var drawing = items.begin(null, true);
-		ItemStack built = drawing.item(realm, counted());
+		ItemStack built = drawing.item(realm, true, counted());
 		drawing.end();
 		var again = items.begin(null, true);
-		assertSame(built, again.item(realm, counted()));
+		assertSame(built, again.item(realm, true, counted()));
 		again.end();
 		assertEquals(1, builds[0]);
 	}
 
+	@Test
+	void aRowIsRebuiltWhenExactAccessChanges() {
+		ItemStack exact = draw(true, realm, true);
+		ItemStack reported = draw(true, realm, false);
+		assertNotSame(exact, reported);
+		assertSame(reported, draw(true, realm, false));
+		assertNotSame(reported, draw(true, realm, true));
+		assertEquals(3, builds[0]);
+	}
+
 	private ItemStack draw(boolean refresh, Faction faction) {
+		return draw(refresh, faction, true);
+	}
+
+	private ItemStack draw(boolean refresh, Faction faction, boolean exact) {
 		var drawing = items.begin(viewer, refresh);
-		ItemStack item = drawing.item(faction, counted());
+		ItemStack item = drawing.item(faction, exact, counted());
 		drawing.end();
 		return item;
 	}
