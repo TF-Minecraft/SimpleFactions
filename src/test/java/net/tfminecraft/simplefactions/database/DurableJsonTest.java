@@ -82,8 +82,9 @@ class DurableJsonTest {
             batch.write(first.resolve("b.json"), Map.of("n", 2));
             batch.write(second.resolve("c.json"), Map.of("n", 3));
             assertTrue(synced.isEmpty(), "No directory is synced before commit");
-            assertEquals(2.0, DurableJson.read(first.resolve("b.json"), Map.class).get("n"));
+            assertFalse(Files.exists(first), "No file changes before commit");
             batch.commit();
+            assertEquals(2.0, DurableJson.read(first.resolve("b.json"), Map.class).get("n"));
             var expected = new ArrayList<>(chain(first));
             expected.addAll(chain(second));
             assertEquals(expected, synced);
@@ -112,6 +113,81 @@ class DurableJsonTest {
             batch.commit();
             assertEquals(chain(folder), synced);
         }
+    }
+
+    @Test
+    void aFailedContentSyncRenamesNothingAndKeepsEveryFileForARetry() throws Exception {
+        Path folder = directory.toAbsolutePath().resolve("contents");
+        Files.createDirectories(folder);
+        Files.writeString(folder.resolve("a.json"), "{\"n\":0}");
+        var batch = new DurableJson.Batch();
+        batch.write(folder.resolve("a.json"), Map.of("n", 1));
+        batch.write(folder.resolve("b.json"), Map.of("n", 2));
+        batch.write(folder.resolve("c.json"), Map.of("n", 3));
+        List<Path> synced = new ArrayList<>();
+        try (var channels = syncedDirectories(synced, path -> false)) {
+            failContentSync(channels, synced, Map.of("a.json", new IllegalStateException("simulated"), "b.json", new IOException("simulated")));
+            IOException first = assertThrows(IOException.class, batch::commit);
+            assertInstanceOf(IllegalStateException.class, first.getCause(), "The first file's failure is reported");
+            assertUntouched(folder, synced);
+
+            IOException failed = new IOException("simulated content sync failure");
+            failContentSync(channels, synced, Map.of("c.json", failed));
+            assertSame(failed, assertThrows(IOException.class, batch::commit));
+            assertUntouched(folder, synced);
+
+            failContentSync(channels, synced, Map.of());
+            batch.commit();
+            assertEquals(chain(folder), synced);
+        }
+        assertEquals(1.0, DurableJson.read(folder.resolve("a.json"), Map.class).get("n"));
+        assertEquals(3.0, DurableJson.read(folder.resolve("c.json"), Map.class).get("n"));
+        try (var files = Files.list(folder)) { assertEquals(3, files.count()); }
+    }
+
+    @Test
+    void aBatchLargerThanItsOpenFileLimitReplacesEveryFile() throws Exception {
+        Path folder = directory.toAbsolutePath().resolve("many");
+        var batch = new DurableJson.Batch();
+        int count = DurableJson.OPEN_FILES * 2 + 1;
+        for (int n = 0; n < count; n++) batch.write(folder.resolve(n + ".json"), Map.of("n", n));
+        List<Path> synced = new ArrayList<>();
+        try (var channels = syncedDirectories(synced, path -> false)) {
+            batch.commit();
+        }
+        assertEquals(chain(folder), synced, "One directory sync for the whole batch");
+        for (int n = 0; n < count; n++) assertEquals((double) n, DurableJson.read(folder.resolve(n + ".json"), Map.class).get("n"));
+        try (var files = Files.list(folder)) { assertEquals(count, files.count()); }
+    }
+
+    private static void assertUntouched(Path folder, List<Path> synced) throws IOException {
+        assertEquals("{\"n\":0}", Files.readString(folder.resolve("a.json")));
+        assertTrue(synced.isEmpty(), "No directory is synced after a failed content sync");
+        try (var files = Files.list(folder)) { assertEquals(1, files.count(), "No file renamed, no temporary file left"); }
+    }
+
+    /** Fails the content sync of the named files, on whichever thread runs it. */
+    private static void failContentSync(MockedStatic<FileChannel> channels, List<Path> synced, Map<String, Exception> failures) {
+        channels.when(() -> FileChannel.open(any(Path.class), any(OpenOption[].class))).thenAnswer(call -> {
+            Path path = call.getArgument(0);
+            if (Arrays.asList(call.getArguments()).contains(StandardOpenOption.READ)) {
+                FileChannel directory = mock(FileChannel.class);
+                doAnswer(force -> synced.add(path)).when(directory).force(true);
+                return directory;
+            }
+            String name = path.getFileName().toString();
+            String file = name.substring(0, name.indexOf(".json") + ".json".length());
+            if (!failures.containsKey(file)) return call.callRealMethod();
+            FileChannel channel = mock(FileChannel.class);
+            when(channel.write(any(java.nio.ByteBuffer.class))).thenAnswer(write -> {
+                java.nio.ByteBuffer bytes = write.getArgument(0);
+                int length = bytes.remaining();
+                bytes.position(bytes.limit());
+                return length;
+            });
+            doThrow(failures.get(file)).when(channel).force(true);
+            return channel;
+        });
     }
 
     /** Records directory syncs (a forced directory channel) instead of opening directories, which Windows refuses. */
