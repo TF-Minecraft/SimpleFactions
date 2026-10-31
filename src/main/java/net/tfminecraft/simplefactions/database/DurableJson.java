@@ -8,14 +8,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Durable intent files: sync the new content and the directory entry before any dependent effect. */
 public final class DurableJson {
     /** Directories whose own entry and every parent entry this process has already synced. */
     private static final Set<Path> syncedParents = ConcurrentHashMap.newKeySet();
+    /** Contents a batch syncs at the same time, so the filesystem can share journal commits between them. */
+    static final int PARALLEL_SYNCS = 8;
+    /** Temporary files a batch keeps open at once. */
+    static final int OPEN_FILES = 64;
 
     private DurableJson() {}
 
@@ -29,29 +42,155 @@ public final class DurableJson {
     }
 
     /**
-     * Independent durable replacements that share one sync per directory. Each file's content is
-     * synced before its rename, so a crash leaves every file whole, old or new. The renames are
-     * durable only once {@link #commit()} returns; nothing may depend on them before that.
+     * Independent durable replacements that share their syncs. {@link #write} takes the file's new
+     * content at once but leaves the file alone. {@link #commit()} writes every content to a
+     * temporary file, syncs those contents in parallel, renames each over its file and syncs each
+     * directory once. Each content is synced before its rename, so a crash leaves every file whole,
+     * old or new. The files change only in {@link #commit()} and are durable once it returns;
+     * nothing may depend on them before that. A failed commit keeps what it did not finish for a retry.
      */
     public static final class Batch {
+        private final Map<Path, byte[]> pending = new LinkedHashMap<>();
         private final Set<Path> directories = new LinkedHashSet<>();
 
         public void write(Path file, Object data) throws IOException {
-            directories.add(replace(file, data, JsonUtil.GSON));
+            pending.put(file.toAbsolutePath(), JsonUtil.GSON.toJson(data).getBytes(StandardCharsets.UTF_8));
         }
 
         public void commit() throws IOException {
+            List<Path> files = new ArrayList<>(pending.keySet());
+            for (int start = 0; start < files.size(); start += OPEN_FILES) {
+                replaceAll(files.subList(start, Math.min(files.size(), start + OPEN_FILES)));
+            }
             for (Path directory : directories) syncDirectory(directory);
             directories.clear();
         }
+
+        private void replaceAll(List<Path> files) throws IOException {
+            List<Path> temporary = new ArrayList<>(files.size());
+            Throwable failed = null;
+            try {
+                List<FileChannel> channels = new ArrayList<>(files.size());
+                Throwable writeFailed = null;
+                try {
+                    for (Path file : files) {
+                        Path pendingFile = Files.createTempFile(directory(file), file.getFileName().toString() + ".", ".tmp");
+                        temporary.add(pendingFile);
+                        FileChannel channel = FileChannel.open(pendingFile, StandardOpenOption.WRITE);
+                        channels.add(channel);
+                        ByteBuffer bytes = ByteBuffer.wrap(pending.get(file));
+                        while (bytes.hasRemaining()) channel.write(bytes);
+                    }
+                    syncAll(channels);
+                } catch (Throwable failure) {
+                    writeFailed = failure;
+                    throw failure;
+                } finally {
+                    // Closed before the renames: Windows cannot rename a file that is still open.
+                    closeAll(channels, writeFailed);
+                }
+                for (int i = 0; i < files.size(); i++) {
+                    Files.move(temporary.get(i), files.get(i), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                    directories.add(files.get(i).getParent());
+                    pending.remove(files.get(i));
+                }
+            } catch (Throwable failure) {
+                failed = failure;
+                throw failure;
+            } finally {
+                deleteAll(temporary, failed);
+            }
+        }
+
+        /**
+         * Closes every channel, even after one fails. Close failures are added to {@code cause} so
+         * they never hide it; with no cause the first one is thrown.
+         */
+        static void closeAll(List<FileChannel> channels, Throwable cause) throws IOException {
+            IOException failure = null;
+            for (FileChannel channel : channels) {
+                try {
+                    channel.close();
+                } catch (IOException error) {
+                    if (cause != null) cause.addSuppressed(error);
+                    else if (failure == null) failure = error;
+                    else failure.addSuppressed(error);
+                }
+            }
+            if (failure != null) throw failure;
+        }
+
+        /**
+         * Removes the temporary files a rename did not consume, each on its own. Cleanup failures
+         * are added to {@code cause} so they never hide it; with no cause the first one is thrown.
+         */
+        static void deleteAll(List<Path> temporary, Throwable cause) throws IOException {
+            IOException failure = null;
+            for (Path pendingFile : temporary) {
+                try {
+                    Files.deleteIfExists(pendingFile);
+                } catch (IOException error) {
+                    if (cause != null) cause.addSuppressed(error);
+                    else if (failure == null) failure = error;
+                    else failure.addSuppressed(error);
+                }
+            }
+            if (failure != null) throw failure;
+        }
     }
 
-    private static Path replace(Path file, Object data, com.google.gson.Gson serializer) throws IOException {
-        Path destination = file.toAbsolutePath();
+    /**
+     * Syncs every channel's content and returns once every sync has ended. One after another, each
+     * sync waited for its own filesystem journal commit, so the daily settlement's faction saves
+     * held the server thread for the sum of them. Syncs that run together can share a commit.
+     */
+    private static void syncAll(List<FileChannel> channels) throws IOException {
+        if (channels.size() == 1) {
+            channels.getFirst().force(true);
+            return;
+        }
+        ExecutorService syncs = Executors.newFixedThreadPool(Math.min(channels.size(), PARALLEL_SYNCS), task -> {
+            Thread thread = new Thread(task, "SimpleFactions durable sync");
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            List<CompletableFuture<Void>> running = new ArrayList<>(channels.size());
+            for (FileChannel channel : channels) running.add(CompletableFuture.runAsync(() -> sync(channel), syncs));
+            IOException failure = null;
+            for (CompletableFuture<Void> sync : running) {
+                try {
+                    sync.join();
+                } catch (CompletionException error) {
+                    if (failure == null) failure = error.getCause() instanceof UncheckedIOException io ? io.getCause() : new IOException(error.getCause());
+                }
+            }
+            if (failure != null) throw failure;
+        } finally {
+            syncs.shutdown();
+        }
+    }
+
+    private static void sync(FileChannel channel) {
+        try {
+            channel.force(true);
+        } catch (IOException error) {
+            throw new UncheckedIOException(error);
+        }
+    }
+
+    /** The file's directory, created if it is missing. */
+    private static Path directory(Path destination) throws IOException {
         Path directory = destination.getParent();
         // A directory created here (again) has a new, unsynced entry in its parent.
         if (!Files.isDirectory(directory)) syncedParents.remove(directory);
         Files.createDirectories(directory);
+        return directory;
+    }
+
+    private static Path replace(Path file, Object data, com.google.gson.Gson serializer) throws IOException {
+        Path destination = file.toAbsolutePath();
+        Path directory = directory(destination);
         Path pending = Files.createTempFile(directory, destination.getFileName().toString() + ".", ".tmp");
         try {
             try (FileChannel channel = FileChannel.open(pending, StandardOpenOption.WRITE)) {

@@ -31,7 +31,7 @@ public final class ReportedMenus {
 
     private static void prepare(Inventory inventory) {
         inventory.clear();
-        if (inventory.getHolder() instanceof SFInventoryHolder holder) holder.markReported();
+        if (inventory.getHolder(false) instanceof SFInventoryHolder holder) holder.markReported();
     }
 
     public static ItemStack mask(ItemStack template, String title, List<String> lore) {

@@ -78,7 +78,7 @@ public class TaxView {
 				}
 			}
 		}
-		SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+		SFInventoryHolder holder = (SFInventoryHolder) i.getHolder(false);
 		int lastPage = Math.max(0, (targets.size() - 1) / PAGE_SIZE);
 		holder.setPage(Math.min(holder.getPage(), lastPage));
 		int start = holder.getPage() * PAGE_SIZE;
@@ -94,7 +94,7 @@ public class TaxView {
 
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		e.setCancelled(true);
-        SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+        SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
         Faction f = FactionManager.getByString(holder.getId());
         if(f == null) {
             p.closeInventory();

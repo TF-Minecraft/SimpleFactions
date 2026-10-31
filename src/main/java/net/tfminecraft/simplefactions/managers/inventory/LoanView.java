@@ -156,8 +156,8 @@ public class LoanView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
-        if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-        SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+        if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+        SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
         Guild guild = FactionManager.getGuildByString(h.getId());
         if(guild == null) {
             e.setCancelled(true);

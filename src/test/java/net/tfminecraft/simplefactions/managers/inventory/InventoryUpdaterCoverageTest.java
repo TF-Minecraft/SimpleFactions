@@ -177,7 +177,7 @@ class InventoryUpdaterCoverageTest {
     Inventory inventory = sf(type, "irrelevant", null);
     updater.updateInventory();
     switch (type) {
-      case FACTION_LIST -> verify(manager.factionView).populateFactionList(inventory, player);
+      case FACTION_LIST -> verify(manager.factionView).refreshFactionList(inventory, player);
       case WAR_LIST -> verify(manager.warView).populateWarList(inventory);
       case MERCENARY_MARKET_LIST -> verify(manager.mercenaryMarketView).populateMarketList(inventory, player);
       default -> fail();

@@ -100,7 +100,7 @@ public class MilitaryView {
 
 		String queuePayload = m.getPersistentDataContainer().get(Keys.QUEUE_CANCEL, PersistentDataType.STRING);
 		if (queuePayload != null) {
-			if (!(inventory.getHolder() instanceof SFInventoryHolder holder)) return;
+			if (!(inventory.getHolder(false) instanceof SFInventoryHolder holder)) return;
 			Faction f = FactionManager.getByString(holder.getId());
 			if (f == null || !Members.is(p, f.getLeader())) return;
 			inv.openQueueCancelConfirm(p, f, queuePayload, "§eCancel queued regiment expansion?");

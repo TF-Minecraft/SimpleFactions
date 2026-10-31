@@ -70,7 +70,7 @@ public class ElectionView {
         i.clear();
         Election election = f.getGovernment().getElection();
         List<String> candidates = election.getCandidates(candidateType);
-        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder(false);
         int lastPage = Math.max(0, (candidates.size() - 1) / PAGE_SIZE);
         holder.setPage(Math.min(holder.getPage(), lastPage));
         int start = holder.getPage() * PAGE_SIZE;
@@ -85,7 +85,7 @@ public class ElectionView {
 
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
 		e.setCancelled(true);
-		SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+		SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
         Faction f = FactionManager.getByString(holder.getId());
         if(f == null) return;
         if(holder.getType() == SFGUI.ELECTION_VOTING_VIEW

@@ -64,14 +64,14 @@ public class MovementView {
     }
 
     private Cause causeAt(Inventory inventory, Movement movement, int index) {
-        if (!(inventory.getHolder() instanceof CauseInventoryHolder holder)
+        if (!(inventory.getHolder(false) instanceof CauseInventoryHolder holder)
                 || index < 0 || index >= holder.causes.size()) return null;
         Cause cause = holder.causes.get(index);
         return movement.getCauses().contains(cause) ? cause : null;
     }
 
     public Cause displayedCause(Inventory inventory, Movement movement) {
-        if (!(inventory.getHolder() instanceof CauseInventoryHolder holder)) return null;
+        if (!(inventory.getHolder(false) instanceof CauseInventoryHolder holder)) return null;
         return causeAt(inventory, movement, holder.getPage());
     }
     
@@ -124,12 +124,12 @@ public class MovementView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void causesView(Player player, Faction f, Movement movement, Inventory i) {
-        boolean open = i == null || !(i.getHolder() instanceof CauseInventoryHolder)
-                || ((SFInventoryHolder) i.getHolder()).getType() != SFGUI.CAUSES_VIEW;
+        boolean open = i == null || !(i.getHolder(false) instanceof CauseInventoryHolder)
+                || ((SFInventoryHolder) i.getHolder(false)).getType() != SFGUI.CAUSES_VIEW;
         if (open) {
             i = Bukkit.createInventory(new CauseInventoryHolder(movement.getId(), SFGUI.CAUSES_VIEW), 54, "Causes");
         }
-        ((CauseInventoryHolder) i.getHolder()).bind(movement, 0);
+        ((CauseInventoryHolder) i.getHolder(false)).bind(movement, 0);
         i.clear();
         
         List<Cause> causes = movement.getCauses();
@@ -162,12 +162,12 @@ public class MovementView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void causeView(Player player, Faction f, Movement movement, Cause cause, Inventory i) {
-        boolean open = i == null || !(i.getHolder() instanceof CauseInventoryHolder)
-                || ((SFInventoryHolder) i.getHolder()).getType() != SFGUI.CAUSE_VIEW;
+        boolean open = i == null || !(i.getHolder(false) instanceof CauseInventoryHolder)
+                || ((SFInventoryHolder) i.getHolder(false)).getType() != SFGUI.CAUSE_VIEW;
         if (open) {
             i = Bukkit.createInventory(new CauseInventoryHolder(movement.getId(), SFGUI.CAUSE_VIEW), 54, "Cause Details");
         }
-        ((CauseInventoryHolder) i.getHolder()).bind(movement, cause.getIndex());
+        ((CauseInventoryHolder) i.getHolder(false)).bind(movement, cause.getIndex());
         i.clear();
         
         // Cause leader icon
@@ -196,12 +196,12 @@ public class MovementView {
     // Keep the existing legacy text representation, formatting, and exact-string comparisons.
     @SuppressWarnings("deprecation")
     public void targetSelectionView(Player player, Faction f, Movement movement, Cause cause, Inventory i) {
-        boolean open = i == null || !(i.getHolder() instanceof CauseInventoryHolder)
-                || ((SFInventoryHolder) i.getHolder()).getType() != SFGUI.TARGET_SELECT;
+        boolean open = i == null || !(i.getHolder(false) instanceof CauseInventoryHolder)
+                || ((SFInventoryHolder) i.getHolder(false)).getType() != SFGUI.TARGET_SELECT;
         if (open) {
             i = Bukkit.createInventory(new CauseInventoryHolder(movement.getId(), SFGUI.TARGET_SELECT), 54, "§7Select New Leader");
         }
-        ((CauseInventoryHolder) i.getHolder()).bind(movement, cause.getIndex());
+        ((CauseInventoryHolder) i.getHolder(false)).bind(movement, cause.getIndex());
         i.clear();
         
         int x = 0;
@@ -308,7 +308,7 @@ public class MovementView {
         ItemStack item = e.getCurrentItem();
         if (item == null) return;
         
-        SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+        SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
         if (holder == null) return;
         
         e.setCancelled(true);

@@ -49,7 +49,7 @@ public class RelationView {
 
 	public void diplomacyListView(Inventory i, Player player, Faction f, boolean open) {
 		int page = 0;
-		if (!open && i != null && i.getHolder() instanceof SFInventoryHolder holder) {
+		if (!open && i != null && i.getHolder(false) instanceof SFInventoryHolder holder) {
 			page = Math.max(0, holder.getPage());
 		}
 		diplomacyListView(i, player, f, open, page);
@@ -247,7 +247,7 @@ public class RelationView {
 		ItemStack item = e.getCurrentItem();
         if (item == null) return;
         
-        SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+        SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
         if (holder == null) return;
         
         e.setCancelled(true);
@@ -262,8 +262,8 @@ public class RelationView {
 		}
 		if(e.getView().getTitle().equalsIgnoreCase("§7Diplomacy View")) {
 			e.setCancelled(true);
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(h.getId());
 			if(!h.getType().equals(SFGUI.DIPLOMACY_VIEW)) return;
 			if(f == null || FactionManager.getByMember(Members.key(p)) == null) return;
@@ -307,8 +307,8 @@ public class RelationView {
 			
 		} else if(e.getView().getTitle().equalsIgnoreCase("§7Change Attitude")) {
 			e.setCancelled(true);
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(h.getId());
 			if(!h.getType().equals(SFGUI.ATTITUDE_VIEW)) return;
 			Faction origin = FactionManager.getByMember(Members.key(p));
@@ -325,8 +325,8 @@ public class RelationView {
 		} else if(e.getView().getTitle().equalsIgnoreCase("§7Change Relation")) {
 			e.setCancelled(true);
 			if(e.getCurrentItem().getType().equals(Material.BARRIER)) return;
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(h.getId());
 			if(!h.getType().equals(SFGUI.RELATION_VIEW)) return;
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");

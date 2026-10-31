@@ -280,7 +280,7 @@ public class DeclareWarView {
 	}
 
 	public void click(InventoryClickEvent e, Inventory inventory, Player player) {
-		if (!(inventory.getHolder() instanceof DeclareWarHolder holder)) return;
+		if (!(inventory.getHolder(false) instanceof DeclareWarHolder holder)) return;
 		e.setCancelled(true);
 		WarDemandDraft demand = holder.getDemand();
 		ItemStack item = e.getCurrentItem();

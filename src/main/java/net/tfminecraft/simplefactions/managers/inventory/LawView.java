@@ -47,7 +47,7 @@ public class LawView {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_VIEW), 54, "§7Laws");
 		i.clear();
-        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder(false);
         List<LawGroup> groups = f.getLawHandler().getGroupList();
         int lastPage = Math.max(0, (groups.size() - 1) / LAW_SLOTS.size());
         holder.setPage(Math.min(holder.getPage(), lastPage));
@@ -69,7 +69,7 @@ public class LawView {
 		boolean open = i == null;
 		if(open) i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.LAW_SELECT, group.getId()), 27, "§7Law View");
 		i.clear();
-        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder();
+        SFInventoryHolder holder = (SFInventoryHolder) i.getHolder(false);
         List<Law> laws = new java.util.ArrayList<>(group.getLaws().values());
         int lastPage = Math.max(0, (laws.size() - 1) / 24);
         holder.setPage(Math.min(holder.getPage(), lastPage));
@@ -85,8 +85,8 @@ public class LawView {
 	}
 
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
-		if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-		SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder();
+		if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+		SFInventoryHolder holder = (SFInventoryHolder) inventory.getHolder(false);
         if(holder.getType() == SFGUI.LAW_VIEW || holder.getType() == SFGUI.LAW_SELECT) {
             boolean select = holder.getType() == SFGUI.LAW_SELECT;
             int previous = select ? 24 : 45;

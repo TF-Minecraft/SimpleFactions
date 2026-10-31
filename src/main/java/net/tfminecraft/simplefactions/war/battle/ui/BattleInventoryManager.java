@@ -89,7 +89,7 @@ public class BattleInventoryManager {
 	}
 
 	public void populateBattleList(Inventory inventory) {
-		if (inventory.getHolder() instanceof CollectionPage page) {
+		if (inventory.getHolder(false) instanceof CollectionPage page) {
 			page.render();
 		} else {
 			populateLegacyList(inventory, battleItems());
@@ -127,7 +127,7 @@ public class BattleInventoryManager {
 	}
 
 	public void populateWarbandList(Inventory inventory, Player viewer) {
-		if (inventory.getHolder() instanceof CollectionPage page) {
+		if (inventory.getHolder(false) instanceof CollectionPage page) {
 			page.render();
 		} else {
 			populateLegacyList(inventory, warbandItems(viewer));
@@ -152,7 +152,7 @@ public class BattleInventoryManager {
 	/** Handles only navigation and unsafe transfers; ordinary entries retain their existing title routing. */
 	public static boolean handlePageClick(InventoryClickEvent event) {
 		Inventory top = event.getView().getTopInventory();
-		if (!(top.getHolder() instanceof CollectionPage page)) return false;
+		if (!(top.getHolder(false) instanceof CollectionPage page)) return false;
 		if (page.lastNavigation == event) return true;
 		if (!page.viewer.equals(event.getWhoClicked().getUniqueId())
 				|| event.getRawSlot() < 0 || event.getRawSlot() >= top.getSize()
@@ -438,7 +438,7 @@ public class BattleInventoryManager {
 	}
 	/** The displayed letters can be reused after deletion; only the displayed object may be selected. */
 	public static CapturePoint selectedPoint(Inventory inventory, ItemStack item, List<CapturePoint> livePoints) {
-		if (!(inventory.getHolder() instanceof CollectionPage page)) return null;
+		if (!(inventory.getHolder(false) instanceof CollectionPage page)) return null;
 		CapturePoint point = page.points.get(getPointIdFromItem(item));
 		return point != null && livePoints.contains(point) ? point : null;
 	}

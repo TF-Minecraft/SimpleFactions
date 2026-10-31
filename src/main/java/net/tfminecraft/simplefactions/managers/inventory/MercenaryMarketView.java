@@ -129,7 +129,7 @@ public class MercenaryMarketView {
     }
 
     public void click(InventoryClickEvent e, Inventory inventory, Player p) {
-        if (!(inventory.getHolder() instanceof SFInventoryHolder h)) return;
+        if (!(inventory.getHolder(false) instanceof SFInventoryHolder h)) return;
         if (h.getType() != SFGUI.MERCENARY_MARKET_LIST) return;
         e.setCancelled(true);
         if (e.getSlot() == PREV_PAGE_SLOT) {

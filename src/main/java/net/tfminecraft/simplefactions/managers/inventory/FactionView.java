@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.NamespacedKey;
 import org.bukkit.Material;
@@ -41,6 +42,7 @@ public class FactionView {
 	public GuildCreator guildCreator = new GuildCreator();
 	
 	FactionRanker r = new FactionRanker();
+	FactionListItems listItems = new FactionListItems(FactionListItems.MAX_AGE_NANOS, System::nanoTime);
 	public static HashMap<Player, RankType> currentRanking = new HashMap<>();
 	public static HashMap<Player, Integer> currentPage = new HashMap<>();
 
@@ -77,6 +79,19 @@ public class FactionView {
 	}
 
 	public void populateFactionList(Inventory inv, Player player) {
+		populateFactionList(inv, player, false);
+	}
+
+	/** The periodic redraw of an open list, which may reuse rows built in the last few seconds. */
+	public void refreshFactionList(Inventory inv, Player player) {
+		populateFactionList(inv, player, true);
+	}
+
+	public void forgetListItems(UUID viewer) {
+		listItems.forget(viewer);
+	}
+
+	private void populateFactionList(Inventory inv, Player player, boolean refresh) {
 		currentRanking.putIfAbsent(player, RankType.PRESTIGE);
 		currentPage.putIfAbsent(player, 0);
 		int page = currentPage.get(player);
@@ -95,11 +110,13 @@ public class FactionView {
 		int startIndex = page * factionsPerPage;
 		int endIndex = Math.min(startIndex + factionsPerPage, factions.size());
 
+		FactionListItems.Drawing rows = listItems.begin(player, refresh);
 		for (int i = startIndex; i < endIndex; i++) {
 			Faction f = factions.get(i);
 			int slot = usableSlots.get(i - startIndex);
-			inv.setItem(slot, creator.createListItem(player, f));
+			inv.setItem(slot, rows.item(f, EspionageService.canViewExact(player, f), () -> creator.createListItem(player, f)));
 		}
+		rows.end();
 
 		inv.setItem(8, DefaultCreator.createRankButton(currentRanking.get(player)));
 
@@ -157,7 +174,7 @@ public class FactionView {
 	public void factionGuildsView(Player player, Faction f, Inventory i) {
 		boolean open = i == null;
 		int page = 0;
-		if (i != null && i.getHolder() instanceof SFInventoryHolder existing) {
+		if (i != null && i.getHolder(false) instanceof SFInventoryHolder existing) {
 			page = existing.getPage();
 		}
 		if (open) {
@@ -210,7 +227,7 @@ public class FactionView {
 	// Keep blocking the legacy hotbar action when integrations or older API snapshots emit it.
 	@SuppressWarnings("removal")
 	public void clickPreventions(InventoryClickEvent e, Inventory inventory, Player p) {
-		if(!(inventory != null && inventory.getHolder() instanceof SFInventoryHolder)) return;
+		if(!(inventory != null && inventory.getHolder(false) instanceof SFInventoryHolder)) return;
 		if (e.getClickedInventory() == null) return;
 
 		if (e.getView().getTopInventory().equals(e.getClickedInventory())) {
@@ -268,7 +285,7 @@ public class FactionView {
 			}
 		} else if(e.getView().getTitle().equalsIgnoreCase("§7Faction View")) {
 			e.setCancelled(true);
-			if (!(inventory.getHolder() instanceof SFInventoryHolder holder)) return;
+			if (!(inventory.getHolder(false) instanceof SFInventoryHolder holder)) return;
 			Faction viewed = FactionManager.getByString(holder.getId());
 			if (viewed == null) return;
 			if (e.getSlot() == 22) {
@@ -307,8 +324,8 @@ public class FactionView {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				}
 			} else if(e.getSlot() == 15) {
-				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-				Faction f = FactionManager.getByString(((SFInventoryHolder) inventory.getHolder()).getId());
+				if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+				Faction f = FactionManager.getByString(((SFInventoryHolder) inventory.getHolder(false)).getId());
 				if(f == null) return;
 				inv.ledgerView(p, f.getOrCreateMainGuild(), null);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -397,8 +414,8 @@ public class FactionView {
 					}
 				}
 			} else if(e.getSlot() == 19) {
-				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+				if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 				Faction f = FactionManager.getByString(h.getId());
 				if(!f.isLeader(Members.key(p))) return;
 				BannerFetcher.fetch("faction:" + f.getId(), patterns -> {
@@ -413,16 +430,16 @@ public class FactionView {
 					if (p.isOnline()) p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				});
 			} else if(e.getSlot() == 1) {
-				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+				if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 				Faction f = FactionManager.getByString(h.getId());
 				if (f == null || !f.isMember(Members.key(p))) return;
 				ItemStack i = new ItemStack(f.getBanner());
 				p.getInventory().addItem(i);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(e.getSlot() == 25) {
-				if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+				if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+				SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 				Faction f = FactionManager.getByString(h.getId());
 				inv.taxView(p, f);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
@@ -439,7 +456,7 @@ public class FactionView {
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				}
 			}
-		} else if (inventory.getHolder() instanceof SFInventoryHolder holder
+		} else if (inventory.getHolder(false) instanceof SFInventoryHolder holder
 				&& holder.getType() == SFGUI.FACTION_GUILDS) {
 			e.setCancelled(true);
 			Faction f = FactionManager.getByString(holder.getId());

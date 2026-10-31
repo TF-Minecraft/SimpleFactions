@@ -99,7 +99,7 @@ public class TierTitleView {
 		}
 		if(open) {
 			i = SimpleFactions.plugin.getServer().createInventory(new SFInventoryHolder(f.getId(), SFGUI.TITLE_TYPE_VIEW, page, false, tier.getId()), 54, tier.getName()+"§7 View");
-		} else if (i != null && i.getHolder() instanceof SFInventoryHolder holder) {
+		} else if (i != null && i.getHolder(false) instanceof SFInventoryHolder holder) {
 			holder.setPage(page);
 		}
 		Faction pf = FactionManager.getByLeader(Members.key(player));
@@ -144,8 +144,8 @@ public class TierTitleView {
 			e.setCancelled(true);
 			Material type = clicked.getType();
 			if(!type.equals(Material.YELLOW_CONCRETE)) return;
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(h.getId());
 			if (f == null || !f.isLeader(Members.key(p))) return;
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "index");
@@ -161,8 +161,8 @@ public class TierTitleView {
 			
 		} else if(e.getView().getTitle().equalsIgnoreCase("§7Title View")) {
 			e.setCancelled(true);
-			if(!(inventory.getHolder() instanceof SFInventoryHolder)) return;
-			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+			if(!(inventory.getHolder(false) instanceof SFInventoryHolder)) return;
+			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(h.getId());
 			if (f == null) return;
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
@@ -173,10 +173,10 @@ public class TierTitleView {
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			return;
 			
-		} else if(inventory.getHolder() instanceof SFInventoryHolder && ((SFInventoryHolder) inventory.getHolder()).getType().equals(SFGUI.TITLE_TYPE_VIEW)) {
+		} else if(inventory.getHolder(false) instanceof SFInventoryHolder && ((SFInventoryHolder) inventory.getHolder(false)).getType().equals(SFGUI.TITLE_TYPE_VIEW)) {
 			e.setCancelled(true);
 			Material type = clicked.getType();
-			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder();
+			SFInventoryHolder h = (SFInventoryHolder) inventory.getHolder(false);
 			Faction f = FactionManager.getByString(h.getId());
 			if (f == null) return;
 			if(type.equals(Material.WRITABLE_BOOK)) {
