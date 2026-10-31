@@ -31,7 +31,7 @@ import net.tfminecraft.simplefactions.utils.Permissions;
 public final class StaffAdminCommand {
 	public static final String SUBCOMMAND = "admin";
 	public static final List<String> FACTION_SUBCOMMANDS = List.of("info", "who", "rename", "renamesettlement",
-			"movecapital", "confirm", "setcolour", "setbanner", "set", "kick", "quarantine");
+			"movecapital", "confirm", "setcolour", "setbanner", "set", "kick", "removeinstallation", "quarantine");
 	public static final List<String> GUILD_SUBCOMMANDS = List.of("info", "rename", "setcolour", "setbanner", "kick");
 	static final String[] FACTION_USAGE = {
 			"§6/faction admin info <faction> §7- leader, capital, settlements, guilds and bank",
@@ -44,6 +44,7 @@ public final class StaffAdminCommand {
 			"§6/faction admin setbanner <faction> §7- use the banner in your hand",
 			"§6/faction admin set <faction> <culture|religion|rulingsystem|rulertitle> <value...>",
 			"§6/faction admin kick <faction> <character> §7- remove a member from the faction",
+			"§6/faction admin removeinstallation <faction> <id> §7- take down a station, port, airport or fort, or cancel its construction",
 			"§6/faction admin quarantine list|assign §7- unmatched character records",
 	};
 	static final String[] GUILD_USAGE = {
@@ -128,14 +129,14 @@ public final class StaffAdminCommand {
 		return switch (sub) {
 			case "confirm" -> 2;
 			case "info", "who", "movecapital", "setbanner" -> 3;
-			case "rename", "setcolour", "kick" -> 4;
+			case "rename", "setcolour", "kick", "removeinstallation" -> 4;
 			default -> 5;
 		};
 	}
 
-	/** Whether the arguments fit {@code sub}; these three take nothing after their target. */
+	/** Whether the arguments fit {@code sub}; these take nothing after their target. */
 	static boolean fits(String sub, int length) {
-		boolean exact = sub.equals("confirm") || sub.equals("info") || sub.equals("setbanner");
+		boolean exact = sub.equals("confirm") || sub.equals("info") || sub.equals("setbanner") || sub.equals("removeinstallation");
 		return exact ? length == minArgs(sub) : length >= minArgs(sub);
 	}
 
@@ -174,6 +175,7 @@ public final class StaffAdminCommand {
 				if (player != null) apply(sender, "faction", args, StaffAdminService.setBanner(faction, player.getInventory().getItemInMainHand()));
 			}
 			case "set" -> apply(sender, "faction", args, StaffAdminService.set(faction, args[3], rest(args, 4)));
+			case "removeinstallation" -> apply(sender, "faction", args, StaffAdminService.removeInstallation(faction, args[3]));
 			default -> apply(sender, "faction", args, StaffAdminService.kick(faction, rest(args, 3)));
 		}
 	}
@@ -265,6 +267,7 @@ public final class StaffAdminCommand {
 			case "setcolour" -> args.length == 4 ? filtered(new ArrayList<>(List.of(String.valueOf(faction.getRGB()))), args[3]) : List.of();
 			case "set" -> args.length == 4 ? filtered(new ArrayList<>(StaffAdminService.FIELDS), args[3]) : List.of();
 			case "kick" -> Members.completions(Members.display(faction.getMembers()), target);
+			case "removeinstallation" -> args.length == 4 ? filtered(StaffAdminService.installationIds(faction), args[3]) : List.of();
 			default -> List.of();
 		};
 	}

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -135,6 +136,8 @@ class StaffAdminCommandTest {
 		assertFalse(StaffAdminCommand.fits("kick", 3));
 		assertTrue(StaffAdminCommand.fits("set", 6));
 		assertFalse(StaffAdminCommand.fits("renamesettlement", 4));
+		assertTrue(StaffAdminCommand.fits("removeinstallation", 4));
+		assertFalse(StaffAdminCommand.fits("removeinstallation", 5));
 	}
 
 	@Test
@@ -191,7 +194,10 @@ class StaffAdminCommandTest {
 		service.verify(() -> StaffAdminService.set(faction, "culture", "High Elven"));
 		run(console, "faction", "admin", "kick", "sunsora", "Bob", "Smith");
 		service.verify(() -> StaffAdminService.kick(faction, "Bob Smith"));
-		verify(console, org.mockito.Mockito.times(7)).sendMessage("ok");
+		run(console, "faction", "admin", "removeinstallation", "sunsora", "Sunray_Railway");
+		service.verify(() -> StaffAdminService.removeInstallation(faction, "Sunray_Railway"));
+		verify(logger).info("[StaffAdmin] CONSOLE ran /faction admin removeinstallation sunsora Sunray_Railway: ok");
+		verify(console, org.mockito.Mockito.times(8)).sendMessage("ok");
 		verify(logger).info("[StaffAdmin] CONSOLE ran /faction admin kick sunsora Bob Smith: ok");
 		verify(logger, never()).info("[StaffAdmin] CONSOLE ran /faction admin info sunsora: ok");
 	}
@@ -325,6 +331,10 @@ class StaffAdminCommandTest {
 				StaffAdminCommand.complete(console, "faction", new String[] {"admin", "set", "sunsora", "rul"}));
 		assertEquals(List.of(), StaffAdminCommand.complete(console, "faction", new String[] {"admin", "set", "sunsora", "culture", ""}));
 		assertEquals(List.of("Carl"), StaffAdminCommand.complete(console, "faction", new String[] {"admin", "kick", "sunsora", "c"}));
+		service.when(() -> StaffAdminService.installationIds(faction)).thenReturn(new ArrayList<>(List.of("Sunray_Railway", "Sunray_Docks")));
+		assertEquals(List.of("Sunray_Railway"),
+				StaffAdminCommand.complete(console, "faction", new String[] {"admin", "removeinstallation", "sunsora", "sunray_r"}));
+		assertEquals(List.of(), StaffAdminCommand.complete(console, "faction", new String[] {"admin", "removeinstallation", "sunsora", "x", ""}));
 		assertEquals(List.of(), StaffAdminCommand.complete(console, "faction", new String[] {"admin", "info", "sunsora", ""}));
 	}
 }

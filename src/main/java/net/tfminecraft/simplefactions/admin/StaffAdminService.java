@@ -11,6 +11,10 @@ import net.tfminecraft.simplefactions.economy.TreasuryTopology;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.MemberDepartures;
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.installation.Installation;
+import net.tfminecraft.simplefactions.installation.InstallationConstruction;
+import net.tfminecraft.simplefactions.installation.handler.ConstructResult;
+import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -86,6 +90,18 @@ public final class StaffAdminService {
 			if (guild.isBase()) continue;
 			lines.add("§7Guild: §f" + guild.getName() + " §7(" + guild.getId() + ") led by §f" + character(guild.getLeader())
 					+ " §7with §f" + guild.getMembers().size() + " §7members");
+		}
+		InstallationHandler installations = faction.getInstallationHandler();
+		for (Installation installation : installations.getAll()) {
+			lines.add("§7Installation: §f" + installation.getName() + " §7(" + installation.getId() + ") §f"
+					+ installation.getKind().getDisplayName() + " §7level §f" + installation.getLevel()
+					+ " §7in province §f" + installation.getProvince());
+		}
+		InstallationConstruction building = installations.getPendingConstruction();
+		if (building != null) {
+			lines.add("§7" + (building.isUpgrade() ? "Upgrading" : "Building") + ": §f" + building.getName()
+					+ " §7(" + building.getId() + ") §f" + building.getKind().getDisplayName()
+					+ " §7in province §f" + building.getProvince());
 		}
 		Bank bank = faction.getBank();
 		lines.add("§7Bank: §f" + (bank == null ? "none" : Formatter.formatMoney(bank.getWealth()) + "d"));
@@ -261,6 +277,28 @@ public final class StaffAdminService {
 			}
 		}
 		return List.of("§aSet " + field.toLowerCase() + " of " + faction.getName() + " §ato §f" + value);
+	}
+
+	/** Ids staff can pass to {@link #removeInstallation}: built installations and a new one under construction. */
+	public static List<String> installationIds(Faction faction) {
+		InstallationHandler installations = faction.getInstallationHandler();
+		List<String> ids = new ArrayList<>();
+		for (Installation installation : installations.getAll()) ids.add(installation.getId());
+		InstallationConstruction building = installations.getPendingConstruction();
+		if (building != null && !building.isUpgrade()) ids.add(building.getId());
+		return ids;
+	}
+
+	/** The leader's {@code /faction deconstruct}: takes down an installation or cancels its construction. */
+	public static List<String> removeInstallation(Faction faction, String input) {
+		String id = input;
+		// Ids keep the builder's capitals, so staff need not match them.
+		for (String each : installationIds(faction)) {
+			if (each.equalsIgnoreCase(input)) id = each;
+		}
+		ConstructResult result = faction.getInstallationHandler().deconstruct(id);
+		if (result.isSuccess()) return List.of(result.getMessage());
+		return List.of(result.getMessage() + "§c. §e/faction admin info " + faction.getId() + " §clists them.");
 	}
 
 	/** Removes a character from the faction and any guild in it; leaders must be replaced first. */
