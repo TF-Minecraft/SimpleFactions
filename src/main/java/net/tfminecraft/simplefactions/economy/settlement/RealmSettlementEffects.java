@@ -15,6 +15,8 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.player.PlayerEconomyManager;
 import net.tfminecraft.simplefactions.player.income.PlayerCashflow;
+import net.tfminecraft.simplefactions.prestige.MemberPlaytime;
+import net.tfminecraft.simplefactions.prestige.MemberShare;
 
 /** Applies saved after-values only after the complete realm posting is APPLIED. */
 public final class RealmSettlementEffects implements SettlementJournal.Effects {
@@ -70,6 +72,54 @@ public final class RealmSettlementEffects implements SettlementJournal.Effects {
             faction.getInstallationHandler().restoreSettlement(saved.installations(), saved.construction());
             save.add(faction);
         }
+        withinOnePrestigePass(() -> applyGuilds(changes, save));
+        for (var entry : changes.reparations.entrySet()) {
+            Faction faction = FactionManager.getByString(entry.getKey());
+            if (faction == null) throw new IOException("Settlement reparations payer missing: " + entry.getKey());
+            faction.getWarReparationsObligations().clear();
+            faction.getWarReparationsObligations().addAll(entry.getValue());
+            save.add(faction);
+        }
+        var saves = new DurableJson.Batch();
+        for (Faction faction : save) {
+            if (!database.saveFactionDurably(faction, saves)) throw new IOException("Cannot persist settlement for " + faction.getId());
+        }
+        // Every faction is on disk before vehicles, death payments, the clock or the journal move on.
+        saves.commit();
+        vehicles.apply(changes.vehicleChanges);
+        deaths.apply("sf:settle:" + plan.day(), changes.deathPayments);
+        economy.clearAllDaily();
+        changes.playerIncome.forEach((character, flows) -> flows.forEach((source, amount) ->
+                economy.getLedger(character).add(PlayerCashflow.valueOf(source), amount)));
+        TimerData timer = new TimerData();
+        timer.day = Math.toIntExact(plan.day() + 1);
+        DurableJson.write(folder.resolve("Cache/data.json"), timer);
+        FactionManager.day = Math.max(FactionManager.day, timer.day);
+        FactionManager.timer = 0;
+        notices.forEach(Runnable::run);
+    }
+
+    @FunctionalInterface private interface Step { void run() throws IOException; }
+
+    /**
+     * Each guild's wealth update runs a prestige pass over every realm, and a realm's rank moves at
+     * most one level per pass, so the passes stay one per guild. Each pass looked every member's
+     * character and playtime up again. These steps change no character, account or playtime, so one
+     * set of lookups for all of them gives every pass the answers it looked up before.
+     */
+    private static void withinOnePrestigePass(Step step) throws IOException {
+        IOException[] failed = {null};
+        MemberPlaytime.withinPass(() -> MemberShare.withinPass(() -> {
+            try {
+                step.run();
+            } catch (IOException e) {
+                failed[0] = e;
+            }
+        }));
+        if (failed[0] != null) throw failed[0];
+    }
+
+    private static void applyGuilds(RealmSettlementChanges changes, Set<Faction> save) throws IOException {
         for (var saved : changes.guilds) {
             Guild guild = FactionManager.getGuildByString(saved.id);
             guild.setDonationAmount(saved.donation);
@@ -96,29 +146,5 @@ public final class RealmSettlementEffects implements SettlementJournal.Effects {
             guild.updateWealth();
             save.add(guild.getFaction());
         }
-        for (var entry : changes.reparations.entrySet()) {
-            Faction faction = FactionManager.getByString(entry.getKey());
-            if (faction == null) throw new IOException("Settlement reparations payer missing: " + entry.getKey());
-            faction.getWarReparationsObligations().clear();
-            faction.getWarReparationsObligations().addAll(entry.getValue());
-            save.add(faction);
-        }
-        var saves = new DurableJson.Batch();
-        for (Faction faction : save) {
-            if (!database.saveFactionDurably(faction, saves)) throw new IOException("Cannot persist settlement for " + faction.getId());
-        }
-        // Every faction is on disk before vehicles, death payments, the clock or the journal move on.
-        saves.commit();
-        vehicles.apply(changes.vehicleChanges);
-        deaths.apply("sf:settle:" + plan.day(), changes.deathPayments);
-        economy.clearAllDaily();
-        changes.playerIncome.forEach((character, flows) -> flows.forEach((source, amount) ->
-                economy.getLedger(character).add(PlayerCashflow.valueOf(source), amount)));
-        TimerData timer = new TimerData();
-        timer.day = Math.toIntExact(plan.day() + 1);
-        DurableJson.write(folder.resolve("Cache/data.json"), timer);
-        FactionManager.day = Math.max(FactionManager.day, timer.day);
-        FactionManager.timer = 0;
-        notices.forEach(Runnable::run);
     }
 }
