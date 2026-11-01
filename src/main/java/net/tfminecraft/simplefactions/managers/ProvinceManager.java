@@ -151,7 +151,9 @@ public class ProvinceManager {
                 recalculateProduction(g);
             }
             recalculateProsperity();
-            for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
+            readIncomes(() -> {
+                for(Guild guild : FactionManager.getAllGuilds()) getIncome(guild);
+            });
             lastCalculatedBankruptcy = realmBankruptcy();
             lastCalculatedVersion = stateVersion;
         } finally {
@@ -318,15 +320,32 @@ public class ProvinceManager {
             recalculateProduction(g);
             recalculateProsperity();
             if(save) {
-                for(Guild guild : FactionManager.getAllGuilds()) {
-                    getIncome(guild);
-                }
+                readIncomes(() -> {
+                    for(Guild guild : FactionManager.getAllGuilds()) {
+                        getIncome(guild);
+                    }
+                });
             }
         } finally {
             RecalcLookups.end(lookups);
             StabilityMemo.end(stability);
             BankruptcyMemo.end(memo);
             InstallationAccess.endRecalculation();
+        }
+    }
+
+    /**
+     * Runs income reads for every guild with each province's total trade summed once. Each income
+     * read divides by that total, so a pass over all guilds summed a busy province once per guild
+     * trading there. The reads write only guild trade breakdowns, so the total cannot change while
+     * they run, and each read gets exactly the sum it would have made itself.
+     */
+    private void readIncomes(Runnable reads) {
+        for (Province province : provinces.values()) province.holdTotalTrade(true);
+        try {
+            reads.run();
+        } finally {
+            for (Province province : provinces.values()) province.holdTotalTrade(false);
         }
     }
 

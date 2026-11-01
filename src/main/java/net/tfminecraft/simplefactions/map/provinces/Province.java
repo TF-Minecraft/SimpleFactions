@@ -34,6 +34,9 @@ public class Province {
     private int centerZ;
     private double prosperity = 0;
     private final Set<Integer> neighbours = new HashSet<>();
+    /** See {@link #holdTotalTrade}. */
+    private boolean totalTradeHeld;
+    private double heldTotalTrade = Double.NaN;
 
     public Province() {
         this.id = 0;
@@ -356,7 +359,24 @@ public class Province {
         neighbours.add(provinceId);
     }
 
+    /**
+     * Holds or releases this province's summed trade power. While held, {@link #getTotalTrade()}
+     * sums it once and answers that sum. Only {@link ProvinceManager} holds it, around income reads
+     * for every guild, which write no trade, owner, law or relation that the sum reads.
+     */
+    public void holdTotalTrade(boolean hold) {
+        totalTradeHeld = hold;
+        heldTotalTrade = Double.NaN;
+    }
+
     public double getTotalTrade() {
+        if (!totalTradeHeld) return sumTotalTrade();
+        // A NaN sum is summed again on each read, which gives the same NaN.
+        if (Double.isNaN(heldTotalTrade)) heldTotalTrade = sumTotalTrade();
+        return heldTotalTrade;
+    }
+
+    private double sumTotalTrade() {
         double total = 0;
         for (ProvinceDataEntry entry : data.values()) {
             total += getGuildTrade(entry.getGuild());
