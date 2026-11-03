@@ -29,6 +29,7 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.rest.BannerFetcher;
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.government.stability.ReadMemos;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.utils.FactionRanker;
 import net.tfminecraft.simplefactions.enums.MenuItemType;
@@ -144,6 +145,14 @@ public class FactionView {
 			if (open) player.openInventory(i);
 			return;
 		}
+		// The items read the faction's and guilds' incomes and stability, each asking treasuries
+		// again; the render only reads, so one answer per treasury and one report per faction hold.
+		Inventory view = i;
+		ReadMemos.during(() -> paintExact(player, f, view));
+		if(open) player.openInventory(i);
+	}
+
+	private void paintExact(Player player, Faction f, Inventory i) {
 		i.clear();
 		i.setItem(20, EspionageService.isOwn(player, f) ? EspionageView.positionButton() : EspionageView.foreignPositionsItem(player, f));
 		if(f.getMembers().contains(Members.key(player))) i.setItem(1, creator.createMenuItem(player, f, MenuItemType.BANNER_GET));
@@ -166,7 +175,6 @@ public class FactionView {
 		i.setItem(34, creator.createMenuItem(player, f, MenuItemType.TITLES));
 		i.setItem(22, CoalitionView.factionItem(f));
 		i.setItem(53, this.inv.createBackButton(SFGUI.FACTION_VIEW));
-		if(open) player.openInventory(i);
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -201,6 +209,11 @@ public class FactionView {
 	}
 
 	public void populateFactionGuilds(Inventory inv, Player player, Faction f, int page) {
+		// Each row reads a guild's net income, asking treasuries again; the list only reads.
+		ReadMemos.during(() -> paintFactionGuilds(inv, player, f, page));
+	}
+
+	private void paintFactionGuilds(Inventory inv, Player player, Faction f, int page) {
 		List<Guild> guilds = new ArrayList<>(f.getGuildHandler().getGuilds());
 		List<Integer> usableSlots = new ArrayList<>();
 		for (int i = 0; i < INVENTORY_SIZE; i++) {
