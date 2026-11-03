@@ -32,8 +32,9 @@ import net.tfminecraft.simplefactions.identity.Members;
 public final class InactivityService {
 	private static final File FILE = new File("plugins/SimpleFactions/Cache", "inactivity.json");
 
-	private static final Map<String, DecayClock> guildClocks = new HashMap<>();
-	private static final Map<String, DecayClock> factionClocks = new HashMap<>();
+	// Concurrent: background trade floods read a guild's output factor off the server thread.
+	private static final Map<String, DecayClock> guildClocks = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final Map<String, DecayClock> factionClocks = new java.util.concurrent.ConcurrentHashMap<>();
 	private static long earliestDue = Long.MAX_VALUE;
 	private static boolean loaded;
 	private static boolean saveBlocked;

@@ -59,6 +59,13 @@ class BackgroundRecalculationTest {
     finish();
     verify(live, never()).adopt(any());
     verify(live).recalculateIfNeeded();
+
+    clearInvocations(live);
+    doThrow(new StackOverflowError("deep flood")).when(flood).run();
+    BackgroundRecalculation.request(ui.plugin, live);
+    finish();
+    verify(live, never()).adopt(any());
+    verify(live).recalculateIfNeeded();
   }
 
   @Test

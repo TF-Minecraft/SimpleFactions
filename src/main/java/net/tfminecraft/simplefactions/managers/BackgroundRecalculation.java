@@ -45,7 +45,8 @@ public final class BackgroundRecalculation {
 			try {
 				flood.run();
 				ran = true;
-			} catch (RuntimeException e) {
+			} catch (RuntimeException | Error e) {
+				// Errors too: the step must still land through the server-thread fallback.
 				plugin.getLogger().log(Level.WARNING,
 						"Background trade recalculation failed; recalculating on the server thread", e);
 				ran = false;
