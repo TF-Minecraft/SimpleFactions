@@ -102,7 +102,7 @@ public final class InactivityService {
 	}
 
 	public static int prestigePercent(Faction faction) {
-		if (faction == null) return 0;
+		if (faction == null || faction.getId() == null) return 0;
 		ensureLoaded();
 		DecayClock clock = factionClocks.get(faction.getId());
 		return clock == null ? 0 : clock.getPercent();
@@ -303,6 +303,8 @@ public final class InactivityService {
 	}
 
 	private static int guildPercent(String id) {
+		// The clock maps are concurrent and refuse a null key; an unnamed guild has no clock.
+		if (id == null) return 0;
 		ensureLoaded();
 		DecayClock clock = guildClocks.get(id);
 		return clock == null ? 0 : clock.getPercent();
