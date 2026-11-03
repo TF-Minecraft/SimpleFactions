@@ -13,6 +13,9 @@ import org.bukkit.entity.Player;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.government.stability.BankruptcyMemo;
+import net.tfminecraft.simplefactions.government.stability.StabilityMemo;
+import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -653,7 +656,24 @@ public final class EspionageService {
         values.put("Members", (double) faction.getMembers().size());
         values.put("Wealth", faction.getWealth());
         values.put("Prosperity", faction.getProsperity());
-        values.put("Daily net income", faction.getOrCreateMainGuild().getLedger().getNetIncome());
+        var main = faction.getOrCreateMainGuild();
+        // The ledger reads below ask each guild's net income, and every answer read treasuries and
+        // stability reports from SQLite many times over (~0.8 s for one menu open on Main). Nothing
+        // here writes a treasury or a report input, so one answer per treasury and one report per
+        // faction hold for the rest of this read, as for the guild menu.
+        BankruptcyMemo.Run bankruptcy = BankruptcyMemo.begin();
+        StabilityMemo.Run stability = StabilityMemo.begin();
+        try {
+            ledgerAndForces(values, faction, main);
+        } finally {
+            StabilityMemo.end(stability);
+            BankruptcyMemo.end(bankruptcy);
+        }
+        return values;
+    }
+
+    private static void ledgerAndForces(Map<String, Double> values, Faction faction, Guild main) {
+        values.put("Daily net income", main.getLedger().getNetIncome());
         values.put("Professional army", (double) faction.getMilitary().getRegiments().stream()
                 .filter(regiment -> regiment.isProfessional() && !regiment.isEquipment())
                 .mapToInt(regiment -> regiment.getCurrentSlots()).sum());
@@ -688,6 +708,5 @@ public final class EspionageService {
             values.put("Legitimacy", faction.getGovernment().stateReport().legitimacy);
             values.put("Council size", (double) faction.getGovernment().getCouncil().getCurrentSize());
         }
-        return values;
     }
 }
