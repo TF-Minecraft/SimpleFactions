@@ -353,7 +353,27 @@ class EspionageOperationsCoverageTest {
     assertEquals(IntelligenceReport.VERSION, rebuilt.version);
     assertEquals(report.tier(), rebuilt.tier());
     report = rebuilt;
-    assertEquals(2, EspionageService.regenerateReports());
+    // Each report reads its ledger figures inside one bankruptcy and one stability memo run.
+    try (var bankruptcy =
+            mockStatic(
+                net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.class,
+                CALLS_REAL_METHODS);
+        var stability =
+            mockStatic(
+                net.tfminecraft.simplefactions.government.stability.StabilityMemo.class,
+                CALLS_REAL_METHODS)) {
+      assertEquals(2, EspionageService.regenerateReports());
+      bankruptcy.verify(
+          net.tfminecraft.simplefactions.government.stability.BankruptcyMemo::begin, times(2));
+      bankruptcy.verify(
+          () -> net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.end(any()),
+          times(2));
+      stability.verify(
+          net.tfminecraft.simplefactions.government.stability.StabilityMemo::begin, times(2));
+      stability.verify(
+          () -> net.tfminecraft.simplefactions.government.stability.StabilityMemo.end(any()),
+          times(2));
+    }
     assertNotSame(report, EspionageService.report(leader, target));
     // Each report's read memos end with it: a later bankruptcy read sees the treasury live.
     assertFalse(net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.isBankrupt(guild));
