@@ -1,7 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
-import net.tfminecraft.simplefactions.government.stability.BankruptcyMemo;
-import net.tfminecraft.simplefactions.government.stability.StabilityMemo;
+import net.tfminecraft.simplefactions.government.stability.ReadMemos;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import net.tfminecraft.simplefactions.espionage.EspionageService;
@@ -252,6 +251,11 @@ public class GuildView {
 	}
 
 	public void populateGuildList(Inventory inv, Player p) {
+		// Ranking reads every guild's net income, each asking treasuries again; the list only reads.
+		withReadMemos(() -> paintGuildList(inv, p));
+	}
+
+	private void paintGuildList(Inventory inv, Player p) {
 		currentRanking.putIfAbsent(p, RankType.WEALTH);
 		currentPage.putIfAbsent(p, 0);
 		int page = currentPage.get(p);
@@ -364,14 +368,7 @@ public class GuildView {
 	}
 
 	private static void withReadMemos(Runnable reads) {
-		BankruptcyMemo.Run bankruptcy = BankruptcyMemo.begin();
-		StabilityMemo.Run stability = StabilityMemo.begin();
-		try {
-			reads.run();
-		} finally {
-			StabilityMemo.end(stability);
-			BankruptcyMemo.end(bankruptcy);
-		}
+		ReadMemos.during(reads);
 	}
 
 	private void render(Player player, Guild guild, Inventory i) {

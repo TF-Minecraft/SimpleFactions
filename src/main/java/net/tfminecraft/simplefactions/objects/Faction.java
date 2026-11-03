@@ -347,7 +347,7 @@ public class Faction {
 
 	public double getTotalForeignTaxRate() {
 		double taxRate = 0;
-		for(FactionModifier mod : getModifiers()) {
+		for(FactionModifier mod : getTributeModifiers()) {
 			if(mod.getFrom() == null) continue;
 			if(mod.getFrom().getBank() == null) continue;
 			if(!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
@@ -1313,6 +1313,39 @@ public class Faction {
 	    return all;
 	}
 	
+	/**
+	 * The TRIBUTE modifiers of {@link #getModifiers()}, from the same sources in the same order, so
+	 * sums over them come out bit for bit the same. getModifiers also adds the branch prestige bonus
+	 * and the stability report's prestige malus, which are never TRIBUTE; that report reads every
+	 * guild's treasury from the ledger, and the per-second tax read only needs tribute. The report's
+	 * one lasting side effect, creating a missing main guild for this faction and its vassals, is kept.
+	 */
+	public List<FactionModifier> getTributeModifiers() {
+		List<FactionModifier> tribute = new ArrayList<>();
+		addTribute(tribute, getModifiers(null, Scope.FACTION, null));
+		addTribute(tribute, diplomacyHandler.getModifiers());
+		Faction overlord = getOverlord();
+		if(overlord != null) {
+			addTribute(tribute, overlord.getModifiers(null, Scope.VASSALS, null));
+		}
+		if(rank.hasModifiers()) {
+			addTribute(tribute, rank.getModifiers());
+		}
+		if (getGovernment() != null) {
+			getOrCreateMainGuild();
+			for (Faction vassal : RelationManager.getSubjects(this)) {
+				if (vassal != null) vassal.getOrCreateMainGuild();
+			}
+		}
+		return tribute;
+	}
+
+	private static void addTribute(List<FactionModifier> into, Collection<FactionModifier> from) {
+		for (FactionModifier mod : from) {
+			if (mod.getType() == FactionModifiers.TRIBUTE) into.add(mod);
+		}
+	}
+
 	public Collection<FactionModifier> getCombinedModifiers() {
 	    Map<FactionModifiers, Double> combined = new HashMap<>();
 

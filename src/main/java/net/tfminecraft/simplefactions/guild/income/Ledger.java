@@ -771,7 +771,7 @@ public class Ledger {
         if (HeldRealms.isHeld(f)) return 0.0;
         double base = getInternalTaxableIncome();
         double paid = 0.0;
-        for (FactionModifier mod : f.getModifiers()) {
+        for (FactionModifier mod : f.getTributeModifiers()) {
             if (mod.getFrom() == null) continue;
             if (!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
             paid += base * (mod.getAmount() / 100.0);
@@ -783,7 +783,7 @@ public class Ledger {
         double total = 0.0;
         for(Faction f : FactionManager.factions) {
             if(f.getId().equals(guild.getFaction().getId()) || HeldRealms.isHeld(f)) continue;
-            for(FactionModifier mod : f.getModifiers()) {
+            for(FactionModifier mod : f.getTributeModifiers()) {
                 if(mod.getFrom() == null) continue;
                 if(!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
                 if(!mod.getFrom().getId().equals(guild.getFaction().getId())) continue;

@@ -849,6 +849,63 @@ class FactionCoverageTest {
     assertEquals(30, payer.getTotalForeignTaxRate());
   }
 
+  /** (type, amount, from) of every TRIBUTE modifier in getModifiers(), in its order. */
+  private static List<String> tributeOfAllModifiers(Faction faction) {
+    return faction.getModifiers().stream()
+        .filter(m -> m.getType() == FactionModifiers.TRIBUTE)
+        .map(m -> m.getType() + ":" + m.getAmount() + ":" + (m.getFrom() == null ? null : m.getFrom().getId()))
+        .toList();
+  }
+
+  private static double foreignTaxRateOverAllModifiers(Faction faction) {
+    double rate = 0;
+    for (FactionModifier mod : faction.getModifiers()) {
+      if (mod.getFrom() == null || mod.getFrom().getBank() == null) continue;
+      if (!mod.getType().equals(FactionModifiers.TRIBUTE)) continue;
+      rate += mod.getAmount();
+    }
+    return rate;
+  }
+
+  @Test
+  void tributeModifiersMatchTheTributeAmongAllModifiersFromEverySource() {
+    fixture.lawGroup(
+        "tributes",
+        Map.of(
+            "effects.faction.modifiers",
+            List.of("TRIBUTE(4.1)", "TRADE_POWER(10)"),
+            "effects.vassals.modifiers",
+            List.of("TRIBUTE(2.7)", "TRADE_POWER(20)")));
+    var tributary =
+        fixture.relationType(
+            "tributary-all", Map.of("recieve-modifiers", List.of("TRIBUTE(30.3)", "TRADE_POWER(10)")));
+    Faction ruler = fixture.saved("ruler", "Alice");
+    Faction child = fixture.saved("child", "Bob");
+    Faction recipient = fixture.saved("recipient", "Cara");
+    fixture.subject(ruler, child);
+    child.setRelation(recipient, new Relation(tributary, RelationLoader.getDefaultAttitude()));
+    child.getRank().getModifiers().add(new FactionModifier(recipient, FactionModifiers.TRIBUTE, 0.1));
+    child.getRank().getModifiers().add(new FactionModifier(FactionModifiers.TRADE_POWER, 5));
+    child
+        .getOrCreateMainGuild()
+        .getBranches()
+        .get(0)
+        .getModifiers()
+        .put(GuildModifier.PRESTIGE_BONUS, new BranchModifier(10, 0));
+    for (Faction faction : List.of(ruler, child, recipient)) {
+      assertEquals(
+          tributeOfAllModifiers(faction),
+          faction.getTributeModifiers().stream()
+              .map(m -> m.getType() + ":" + m.getAmount() + ":" + (m.getFrom() == null ? null : m.getFrom().getId()))
+              .toList());
+      // Same modifiers in the same order: the sums agree to the last bit.
+      assertEquals(foreignTaxRateOverAllModifiers(faction), faction.getTotalForeignTaxRate(), 0.0);
+    }
+    assertTrue(child.getTotalForeignTaxRate() > 30);
+    recipient.setBank(null);
+    assertEquals(foreignTaxRateOverAllModifiers(child), child.getTotalForeignTaxRate(), 0.0);
+  }
+
   @Test
   void prestigeRanksRiseAndFallWithRealWealthAndPersistentAchievements() {
     Faction faction = fixture.saved("home", "Alice");

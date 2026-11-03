@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.inactivity.DecayClock.Event;
+import net.tfminecraft.simplefactions.managers.BackgroundRecalculation;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -31,8 +32,9 @@ import net.tfminecraft.simplefactions.identity.Members;
 public final class InactivityService {
 	private static final File FILE = new File("plugins/SimpleFactions/Cache", "inactivity.json");
 
-	private static final Map<String, DecayClock> guildClocks = new HashMap<>();
-	private static final Map<String, DecayClock> factionClocks = new HashMap<>();
+	// Concurrent: background trade floods read a guild's output factor off the server thread.
+	private static final Map<String, DecayClock> guildClocks = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final Map<String, DecayClock> factionClocks = new java.util.concurrent.ConcurrentHashMap<>();
 	private static long earliestDue = Long.MAX_VALUE;
 	private static boolean loaded;
 	private static boolean saveBlocked;
@@ -100,7 +102,7 @@ public final class InactivityService {
 	}
 
 	public static int prestigePercent(Faction faction) {
-		if (faction == null) return 0;
+		if (faction == null || faction.getId() == null) return 0;
 		ensureLoaded();
 		DecayClock clock = factionClocks.get(faction.getId());
 		return clock == null ? 0 : clock.getPercent();
@@ -301,6 +303,8 @@ public final class InactivityService {
 	}
 
 	private static int guildPercent(String id) {
+		// The clock maps are concurrent and refuse a null key; an unnamed guild has no clock.
+		if (id == null) return 0;
 		ensureLoaded();
 		DecayClock clock = guildClocks.get(id);
 		return clock == null ? 0 : clock.getPercent();
@@ -353,7 +357,9 @@ public final class InactivityService {
 		try {
 			SimpleFactions plugin = SimpleFactions.getInstance();
 			if (plugin == null || plugin.getProvinceManager() == null) return;
-			plugin.getProvinceManager().recalculate();
+			// Off the server thread, like the guild menu's flood; it falls back to recalculating here.
+			plugin.getProvinceManager().markDirty();
+			BackgroundRecalculation.request(plugin, plugin.getProvinceManager());
 		} catch (RuntimeException ex) {
 			log(Level.WARNING, "Could not refresh guild output after an inactivity change", ex);
 		}

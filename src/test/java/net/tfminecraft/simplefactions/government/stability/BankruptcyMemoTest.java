@@ -53,6 +53,31 @@ class BankruptcyMemoTest {
 	}
 
 	@Test
+	void readMemosHoldOneAnswerPerTreasuryOnlyWhileTheReadsRun() {
+		Guild realm = mock(Guild.class);
+		AtomicBoolean bankrupt = new AtomicBoolean(true);
+		when(realm.isBankrupt()).thenAnswer(call -> bankrupt.get());
+		ReadMemos.during(() -> {
+			assertTrue(BankruptcyMemo.isBankrupt(realm));
+			bankrupt.set(false);
+			assertTrue(BankruptcyMemo.isBankrupt(realm));
+		});
+		assertFalse(BankruptcyMemo.isBankrupt(realm));
+		bankrupt.set(true);
+		// A failing read still ends both runs.
+		try {
+			ReadMemos.during(() -> {
+				BankruptcyMemo.isBankrupt(realm);
+				throw new IllegalStateException("render failed");
+			});
+		} catch (IllegalStateException expected) {
+			assertEquals("render failed", expected.getMessage());
+		}
+		bankrupt.set(false);
+		assertFalse(BankruptcyMemo.isBankrupt(realm));
+	}
+
+	@Test
 	void aServerRunReadsEachTreasuryOnceAndANestedRunReadsItsOwn() {
 		Guild realm = mock(Guild.class);
 		AtomicBoolean bankrupt = new AtomicBoolean(true);
