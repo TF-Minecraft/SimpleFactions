@@ -355,6 +355,10 @@ class EspionageOperationsCoverageTest {
     report = rebuilt;
     assertEquals(2, EspionageService.regenerateReports());
     assertNotSame(report, EspionageService.report(leader, target));
+    // Each report's read memos end with it: a later bankruptcy read sees the treasury live.
+    assertFalse(net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.isBankrupt(guild));
+    net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), -(guild.getWealth() + 1));
+    assertTrue(net.tfminecraft.simplefactions.government.stability.BankruptcyMemo.isBankrupt(guild));
     assertNotNull(EspionageService.report(foreign, home));
   }
 
