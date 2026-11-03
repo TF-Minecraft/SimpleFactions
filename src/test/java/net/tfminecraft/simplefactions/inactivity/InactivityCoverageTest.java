@@ -230,10 +230,12 @@ class InactivityCoverageTest {
     assertEquals(List.of("Alice", "Bob"), faction.getMembers());
     assertEquals(37, base.getBank().getWealth());
     assertEquals(19, guild.getBank().getWealth());
-    verify(fixture.provinces).recalculate();
+    verify(fixture.provinces).markDirty();
+    verify(fixture.provinces).prepareBackgroundFlood();
     InactivityService.tickIfDue(List.of(faction));
     assertEquals(1, InactivityService.guildPercent(guild));
-    verify(fixture.provinces, times(1)).recalculate();
+    verify(fixture.provinces, times(1)).markDirty();
+    verify(fixture.provinces, times(1)).prepareBackgroundFlood();
   }
 
   @Test
@@ -271,7 +273,8 @@ class InactivityCoverageTest {
     assertEquals(0, InactivityService.prestigePercent(faction));
     assertTrue(saved().guilds.isEmpty());
     assertTrue(saved().factions.isEmpty());
-    verify(fixture.provinces).recalculate();
+    verify(fixture.provinces).markDirty();
+    verify(fixture.provinces).prepareBackgroundFlood();
     state(guild.getId(), 30, faction.getId(), 40, 100000);
     InactivityService.load();
     InactivityService.armAll(List.of(faction), 50);
@@ -307,7 +310,8 @@ class InactivityCoverageTest {
                 (String message) ->
                     message.contains("output penalty cleared")
                         && message.contains("prestige penalty cleared")));
-    verify(fixture.provinces).recalculate();
+    verify(fixture.provinces).markDirty();
+    verify(fixture.provinces).prepareBackgroundFlood();
     assertFalse(saved().guilds.containsKey(guild.getId()));
     InactivityService.onLogin(null);
     Player noCharacter = mock(Player.class);
@@ -391,9 +395,12 @@ class InactivityCoverageTest {
     history(Map.of("Alice", 21));
     state(guild.getId(), 10, faction.getId(), 20, 1);
     InactivityService.load();
+    doThrow(new IllegalStateException("province copy unavailable"))
+        .when(fixture.provinces)
+        .prepareBackgroundFlood();
     doThrow(new IllegalStateException("province refresh unavailable"))
         .when(fixture.provinces)
-        .recalculate();
+        .recalculateIfNeeded();
     assertDoesNotThrow(() -> InactivityService.tickIfDue(List.of(faction)));
     assertEquals(11, InactivityService.guildPercent(guild));
     verify(fixture.ui.plugin.getLogger())

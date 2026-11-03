@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.JsonUtil;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.inactivity.DecayClock.Event;
+import net.tfminecraft.simplefactions.managers.BackgroundRecalculation;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -353,7 +354,9 @@ public final class InactivityService {
 		try {
 			SimpleFactions plugin = SimpleFactions.getInstance();
 			if (plugin == null || plugin.getProvinceManager() == null) return;
-			plugin.getProvinceManager().recalculate();
+			// Off the server thread, like the guild menu's flood; it falls back to recalculating here.
+			plugin.getProvinceManager().markDirty();
+			BackgroundRecalculation.request(plugin, plugin.getProvinceManager());
 		} catch (RuntimeException ex) {
 			log(Level.WARNING, "Could not refresh guild output after an inactivity change", ex);
 		}
