@@ -100,8 +100,9 @@ class WarReparationsLedgerTest {
 	void tributeAndReparationsTogether_doNotRecursivelyOverflow() {
 		Faction suzerain = mockFaction("def");
 		Faction tributary = mockFaction("atk");
-		when(tributary.getModifiers()).thenReturn(List.of(
-				new FactionModifier(suzerain, FactionModifiers.TRIBUTE, 10)));
+		FactionModifier tribute = new FactionModifier(suzerain, FactionModifiers.TRIBUTE, 10);
+		when(tributary.getModifiers()).thenReturn(List.of(tribute));
+		when(tributary.getTributeModifiers()).thenReturn(List.of(tribute));
 		when(tributary.getWarReparationsObligations()).thenReturn(List.of(
 				new WarReparationsObligation("def", 25, 10)));
 		when(suzerain.getWarReparationsObligations()).thenReturn(List.of());
