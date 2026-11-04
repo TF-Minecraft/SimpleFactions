@@ -1,44 +1,62 @@
 package net.tfminecraft.simplefactions.economy;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Logger;
 
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 
+import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.tlibs.character.CharacterRef;
 
 class TaxExemptionsTest {
-    @TempDir Path folder;
     private final Set<UUID> permitted = new HashSet<>();
     private final UUID owner = UUID.randomUUID();
     private final CharacterRef npc = new CharacterRef(owner, UUID.randomUUID());
     private final CharacterRef own = new CharacterRef(owner, UUID.randomUUID());
+    private final CharacterRef citizen = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
+    private MockedStatic<SimpleFactions> plugin;
+    private MockedStatic<Members> members;
+    private Logger logger;
 
     @BeforeEach
     void setUp() {
         TaxExemptions.reset();
-        TaxExemptions.bind(folder);
-        TaxExemptions.load();
         TaxExemptions.setPermissionCheck(permitted::contains);
-        permitted.add(owner);
+        plugin = mockStatic(SimpleFactions.class);
+        SimpleFactions instance = mock(SimpleFactions.class);
+        logger = mock(Logger.class);
+        when(instance.getLogger()).thenReturn(logger);
+        plugin.when(SimpleFactions::getInstance).thenReturn(instance);
+        members = mockStatic(Members.class, CALLS_REAL_METHODS);
+        members.when(() -> Members.display(anyString())).thenReturn("Captain Avalon");
+        members.when(() -> Members.accountName(anyString())).thenReturn("Lucy");
     }
 
     @AfterEach
     void tearDown() {
+        members.close();
+        plugin.close();
         TaxExemptions.reset();
     }
 
@@ -47,115 +65,50 @@ class TaxExemptionsTest {
     }
 
     @Test
-    void onlyTheExemptCharacterOfAPermittedOwnerOwesNoTax() throws IOException {
-        assertFalse(TaxExemptions.exempt(npc));
-        assertTrue(TaxExemptions.set(key(npc), true));
-        assertTrue(TaxExemptions.exempt(npc));
-        assertFalse(TaxExemptions.exempt(own), "the account's other characters stay taxed");
+    void everyCharacterOfAPermittedAccountOwesNoTax() {
+        assertFalse(TaxExemptions.exempt(npc), "without the permission it is taxed");
         assertFalse(TaxExemptions.exempt(null));
-        assertFalse(TaxExemptions.isSet(null));
-
-        permitted.clear();
-        assertFalse(TaxExemptions.exempt(npc), "no permission (offline, off duty) means taxed");
-        assertTrue(TaxExemptions.isSet(key(npc)), "the setting survives losing the permission");
         permitted.add(owner);
         assertTrue(TaxExemptions.exempt(npc));
-
-        assertTrue(TaxExemptions.set(key(npc), false));
-        assertFalse(TaxExemptions.exempt(npc));
+        assertTrue(TaxExemptions.exempt(own), "the rank covers whichever character is played");
+        assertFalse(TaxExemptions.exempt(citizen), "other accounts stay taxed");
+        permitted.clear();
+        assertFalse(TaxExemptions.exempt(npc), "going off duty taxes it again");
     }
 
     @Test
-    void changesAreSavedAndReloaded() throws IOException {
-        assertTrue(TaxExemptions.set(key(npc), true));
-        assertFalse(TaxExemptions.set(key(npc), true), "already on");
-        assertTrue(TaxExemptions.set(key(own), true));
-        assertTrue(Files.exists(folder.resolve(TaxExemptions.FILE_NAME)));
-
-        TaxExemptions.load();
-        List<String> expected = new java.util.ArrayList<>(List.of(key(npc), key(own)));
-        expected.sort(null);
-        assertEquals(expected, TaxExemptions.keys());
-
-        assertTrue(TaxExemptions.set(key(own), false));
-        assertFalse(TaxExemptions.set(key(own), false), "already off");
-        TaxExemptions.load();
-        assertEquals(List.of(key(npc)), TaxExemptions.keys());
+    void theFirstUntaxedEarningOfEachCharacterIsLoggedOnce() {
+        permitted.add(owner);
+        TaxExemptions.exempt(npc);
+        TaxExemptions.exempt(npc);
+        TaxExemptions.exempt(own);
+        verify(logger).info("[TaxExempt] Lucy earned untaxed as Captain Avalon (" + key(npc) + ") through "
+                + TaxExemptions.PERMISSION + "; logged once per character until restart");
+        verify(logger, times(2)).info(startsWith("[TaxExempt] "));
     }
 
     @Test
-    void loadNormalisesIdsAndSkipsJunk() throws IOException {
-        Files.writeString(folder.resolve(TaxExemptions.FILE_NAME),
-                "{\"characters\":[\"" + npc.characterId().toString().toUpperCase(Locale.ROOT) + "\",\"not-an-id\",null]}");
-        TaxExemptions.load();
-        assertEquals(List.of(key(npc)), TaxExemptions.keys());
-        assertTrue(TaxExemptions.exempt(npc));
+    void anUnknownAccountNameFallsBackToItsIdAndNoPluginLogsNothing() {
+        permitted.add(owner);
+        members.when(() -> Members.accountName(anyString())).thenReturn(null);
+        TaxExemptions.exempt(npc);
+        verify(logger).info(startsWith("[TaxExempt] " + owner + " earned untaxed as Captain Avalon"));
+
+        plugin.when(SimpleFactions::getInstance).thenReturn(null);
+        assertTrue(TaxExemptions.exempt(own), "still exempt while the plugin is unavailable");
+        verify(logger, never()).info(startsWith("[TaxExempt] " + owner + " earned untaxed as Captain Avalon (" + key(own)));
     }
 
     @Test
-    void anUnreadableFileExemptsNobodyAndIsNeverOverwritten() throws IOException {
-        assertTrue(TaxExemptions.set(key(npc), true));
-        Path file = folder.resolve(TaxExemptions.FILE_NAME);
-        Files.writeString(file, "{broken");
-        TaxExemptions.load();
-        assertFalse(TaxExemptions.exempt(npc));
-        assertTrue(TaxExemptions.keys().isEmpty());
-        assertThrows(IOException.class, () -> TaxExemptions.set(key(own), true));
-        assertEquals("{broken", Files.readString(file));
-    }
-
-    @Test
-    void aFailedSaveChangesNothing() throws IOException {
-        Path blocker = folder.resolve("blocker");
-        Files.writeString(blocker, "a file where the folder should be");
-        TaxExemptions.bind(blocker);
-        TaxExemptions.load();
-        assertThrows(IOException.class, () -> TaxExemptions.set(key(npc), true));
-        assertFalse(TaxExemptions.isSet(key(npc)));
-        assertFalse(TaxExemptions.exempt(npc));
-    }
-
-    @Test
-    void anEmptyFileOrNoListExemptsNobody() throws IOException {
-        Path file = folder.resolve(TaxExemptions.FILE_NAME);
-        Files.writeString(file, "{\"characters\":null}");
-        TaxExemptions.load();
-        assertTrue(TaxExemptions.keys().isEmpty());
-        assertTrue(TaxExemptions.set(key(npc), true), "a file without a list is still writable");
-
-        Files.writeString(file, "");
-        try (var plugin = org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.SimpleFactions.class)) {
-            var instance = org.mockito.Mockito.mock(net.tfminecraft.simplefactions.SimpleFactions.class);
-            var logger = org.mockito.Mockito.mock(java.util.logging.Logger.class);
-            org.mockito.Mockito.when(instance.getLogger()).thenReturn(logger);
-            plugin.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(instance);
-            TaxExemptions.load();
-            org.mockito.Mockito.verify(logger).log(org.mockito.ArgumentMatchers.eq(java.util.logging.Level.SEVERE),
-                    org.mockito.ArgumentMatchers.contains("no character is tax exempt"), org.mockito.ArgumentMatchers.any(IOException.class));
-        }
-        assertTrue(TaxExemptions.keys().isEmpty());
-        assertThrows(IOException.class, () -> TaxExemptions.set(key(npc), true));
-    }
-
-    @Test
-    void theOwnerMustBeOnlineWithThePermission() throws IOException {
+    void theOwnerMustBeOnlineWithThePermission() {
         TaxExemptions.setPermissionCheck(null);
-        assertTrue(TaxExemptions.set(key(npc), true));
-        try (var bukkit = org.mockito.Mockito.mockStatic(org.bukkit.Bukkit.class)) {
+        try (var bukkit = mockStatic(Bukkit.class)) {
             assertFalse(TaxExemptions.exempt(npc), "offline owner");
-            var player = org.mockito.Mockito.mock(org.bukkit.entity.Player.class);
-            bukkit.when(() -> org.bukkit.Bukkit.getPlayer(owner)).thenReturn(player);
+            Player player = mock(Player.class);
+            bukkit.when(() -> Bukkit.getPlayer(owner)).thenReturn(player);
             assertFalse(TaxExemptions.exempt(npc), "online without the permission");
-            org.mockito.Mockito.when(player.hasPermission(TaxExemptions.PERMISSION)).thenReturn(true);
+            when(player.hasPermission(TaxExemptions.PERMISSION)).thenReturn(true);
             assertTrue(TaxExemptions.exempt(npc));
         }
-    }
-
-    @Test
-    void unboundOrBlankIsRefused() {
-        TaxExemptions.reset();
-        assertThrows(IOException.class, () -> TaxExemptions.set(key(npc), true));
-        assertThrows(IllegalArgumentException.class, () -> TaxExemptions.set(" ", true));
-        assertThrows(IllegalArgumentException.class, () -> TaxExemptions.set(null, true));
     }
 }

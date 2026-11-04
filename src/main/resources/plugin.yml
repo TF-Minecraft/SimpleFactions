@@ -17,8 +17,8 @@ permissions:
     default: false
 
   simplefactions.taxexempt:
-    description: Turn citizen tax off for the character you play as an NPC or lore character (/taxexempt).
-    default: op
+    description: Owe no citizen tax on any character while held. Grant it to the on-duty staff and helper groups, so NPC and lore characters keep the denars they are given.
+    default: false
 
 commands:
   faction:
@@ -54,7 +54,3 @@ commands:
   coalition:
       useage: /<command>
       description: Form, join and run coalitions against a common target
-  taxexempt:
-      usage: /<command> [on|off|list]
-      aliases: [taxtoggle]
-      description: Turn citizen tax off or on for the NPC or lore character you are playing

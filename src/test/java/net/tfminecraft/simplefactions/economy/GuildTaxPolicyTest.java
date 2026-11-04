@@ -13,12 +13,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class GuildTaxPolicyTest {
-    @org.junit.jupiter.api.io.TempDir java.nio.file.Path folder;
-
     @Test
     void taxUsesTheEarningCharacterAndItsRealmHoldingAccount() {
         CharacterRef earner = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
         GuildTaxPolicy policy = new GuildTaxPolicy();
+        TaxExemptions.setPermissionCheck(owner -> false);
         try (var api = mockStatic(SimpleFactionsApi.class); var factions = mockStatic(FactionManager.class)) {
             assertThrows(IllegalStateException.class, () -> policy.tax(earner, 100));
             api.when(SimpleFactionsApi::ready).thenReturn(true);
@@ -42,25 +41,27 @@ class GuildTaxPolicyTest {
             assertEquals(13, tax.cents());
             TaxExemptions.reset();
             try {
-                TaxExemptions.bind(folder);
                 TaxExemptions.setPermissionCheck(earner.ownerId()::equals);
-                TaxExemptions.set(earner.characterId().toString(), true);
-                assertTrue(policy.tax(earner, 101).isEmpty(), "an exempt character owes no citizen tax");
+                assertTrue(policy.tax(earner, 101).isEmpty(), "an account holding the permission owes no citizen tax");
                 TaxExemptions.setPermissionCheck(owner -> false);
                 assertEquals(13, policy.tax(earner, 101).orElseThrow().cents(), "without the permission it is taxed");
                 TaxExemptions.setPermissionCheck(earner.ownerId()::equals);
                 api.when(SimpleFactionsApi::ready).thenReturn(false);
                 assertThrows(IllegalStateException.class, () -> policy.tax(earner, 100), "still waits for startup");
                 api.when(SimpleFactionsApi::ready).thenReturn(true);
-            } catch (java.io.IOException error) {
-                throw new AssertionError(error);
+                when(realm.getTaxRate(TaxTarget.CITIZENS, null, true)).thenReturn(0.0);
+                assertEquals(0, policy.tax(earner, 101).orElseThrow().cents(), "a zero tax is unchanged");
+                when(realm.getTaxRate(TaxTarget.CITIZENS, null, true)).thenReturn(12.5);
             } finally {
                 TaxExemptions.reset();
+                TaxExemptions.setPermissionCheck(owner -> false);
             }
             for (double rate : new double[]{-1, 101, Double.NaN}) {
                 when(realm.getTaxRate(TaxTarget.CITIZENS, null, true)).thenReturn(rate);
                 assertThrows(IllegalStateException.class, () -> policy.tax(earner, 100));
             }
+        } finally {
+            TaxExemptions.reset();
         }
     }
 }

@@ -286,7 +286,7 @@ public class SimpleFactions extends JavaPlugin{
 	/** Every command in plugin.yml; each answers "starting up" until the plugin has started. */
 	static final java.util.List<String> COMMANDS = java.util.List.of(
 			"faction", "guild", "warband", "battle", "raid", "war", "movement", "ledger", "company", "mercenaries",
-			"coalition", "taxexempt");
+			"coalition");
 	private static final long IDENTITY_POLL_TICKS = 5L * 20L;
 
 	@Override
@@ -449,8 +449,6 @@ public class SimpleFactions extends JavaPlugin{
 		net.tfminecraft.simplefactions.prestige.RecentPlaytime.load();
 		net.tfminecraft.simplefactions.war.truce.TruceService.bind(new File(getDataFolder(), "Cache"));
 		net.tfminecraft.simplefactions.war.truce.TruceService.load();
-		net.tfminecraft.simplefactions.economy.TaxExemptions.bind(getDataFolder().toPath().resolve("Cache"));
-		net.tfminecraft.simplefactions.economy.TaxExemptions.load();
         try {
             net.tfminecraft.simplefactions.economy.TreasuryActions.recoverTopologyFiles(getDataFolder().toPath().resolve("economy/callers"));
         } catch (Exception error) { failFinancialState(error); return; }
@@ -471,9 +469,6 @@ public class SimpleFactions extends JavaPlugin{
 		getCommand(commands.cmd1).setTabCompleter(new TabCompletion());
 		getCommand(commands.cmd2).setTabCompleter(new TabCompletion());
 		getCommand(ledgerCommandManager.cmd).setExecutor(ledgerCommandManager);
-		var taxExemptCommand = new net.tfminecraft.simplefactions.managers.TaxExemptCommand();
-		getCommand(net.tfminecraft.simplefactions.managers.TaxExemptCommand.CMD).setExecutor(taxExemptCommand);
-		getCommand(net.tfminecraft.simplefactions.managers.TaxExemptCommand.CMD).setTabCompleter(taxExemptCommand);
 		getCommand(MercenaryCommandManager.CMD).setExecutor(mercenaryCommandManager);
 		getCommand(MercenaryCommandManager.CMD).setTabCompleter(new TabCompletion());
 		getCommand(MercenaryCommandManager.MARKET_CMD).setExecutor(mercenaryCommandManager);

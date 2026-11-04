@@ -14,13 +14,12 @@ import net.tfminecraft.tlibs.character.CharacterRef;
 
 /**
  * Taxes are withheld inside the earner's posting and held until the realm-wide settlement.
- * Characters staff set exempt with {@code /taxexempt} owe none.
+ * Earners whose account holds {@link TaxExemptions#PERMISSION} (helpers and staff on duty) owe none.
  */
 public final class GuildTaxPolicy implements TaxPolicy {
     @Override
     public Optional<TaxLeg> tax(CharacterRef earner, long grossCents) {
         if (!SimpleFactionsApi.ready()) throw new IllegalStateException("Factions are starting up");
-        if (TaxExemptions.exempt(earner)) return Optional.empty();
         Faction realm = FactionManager.getByMember(earner.characterId());
         if (realm == null || grossCents <= 0) return Optional.empty();
         var capital = net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds.capital(realm);
@@ -29,6 +28,8 @@ public final class GuildTaxPolicy implements TaxPolicy {
         if (!Double.isFinite(rate) || rate < 0 || rate > 100) throw new IllegalStateException("Invalid citizen tax: " + rate);
         long cents = BigDecimal.valueOf(grossCents).multiply(BigDecimal.valueOf(rate))
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP).longValueExact();
+        // Asked only when tax would be withheld, so its log names real untaxed earnings.
+        if (cents > 0 && TaxExemptions.exempt(earner)) return Optional.empty();
         return Optional.of(new TaxLeg(Denars.guildTax(capital.getIncarnationId()), cents));
     }
 }
