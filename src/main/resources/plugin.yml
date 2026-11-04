@@ -16,6 +16,10 @@ permissions:
     description: Reload office settings and regenerate all daily intelligence reports for testing.
     default: false
 
+  simplefactions.taxexempt:
+    description: Turn citizen tax off for the character you play as an NPC or lore character (/taxexempt).
+    default: op
+
 commands:
   faction:
       useage: /<command>
@@ -50,3 +54,7 @@ commands:
   coalition:
       useage: /<command>
       description: Form, join and run coalitions against a common target
+  taxexempt:
+      usage: /<command> [on|off|list]
+      aliases: [taxtoggle]
+      description: Turn citizen tax off or on for the NPC or lore character you are playing

@@ -12,11 +12,15 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.tlibs.character.CharacterRef;
 
-/** Taxes are withheld inside the earner's posting and held until the realm-wide settlement. */
+/**
+ * Taxes are withheld inside the earner's posting and held until the realm-wide settlement.
+ * Characters staff set exempt with {@code /taxexempt} owe none.
+ */
 public final class GuildTaxPolicy implements TaxPolicy {
     @Override
     public Optional<TaxLeg> tax(CharacterRef earner, long grossCents) {
         if (!SimpleFactionsApi.ready()) throw new IllegalStateException("Factions are starting up");
+        if (TaxExemptions.exempt(earner)) return Optional.empty();
         Faction realm = FactionManager.getByMember(earner.characterId());
         if (realm == null || grossCents <= 0) return Optional.empty();
         var capital = net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds.capital(realm);

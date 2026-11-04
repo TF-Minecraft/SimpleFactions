@@ -13,6 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class GuildTaxPolicyTest {
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path folder;
+
     @Test
     void taxUsesTheEarningCharacterAndItsRealmHoldingAccount() {
         CharacterRef earner = new CharacterRef(UUID.randomUUID(), UUID.randomUUID());
@@ -38,6 +40,23 @@ class GuildTaxPolicyTest {
             var tax = policy.tax(earner, 101).orElseThrow();
             assertEquals("guildtax:" + incarnation, tax.account());
             assertEquals(13, tax.cents());
+            TaxExemptions.reset();
+            try {
+                TaxExemptions.bind(folder);
+                TaxExemptions.setPermissionCheck(earner.ownerId()::equals);
+                TaxExemptions.set(earner.characterId().toString(), true);
+                assertTrue(policy.tax(earner, 101).isEmpty(), "an exempt character owes no citizen tax");
+                TaxExemptions.setPermissionCheck(owner -> false);
+                assertEquals(13, policy.tax(earner, 101).orElseThrow().cents(), "without the permission it is taxed");
+                TaxExemptions.setPermissionCheck(earner.ownerId()::equals);
+                api.when(SimpleFactionsApi::ready).thenReturn(false);
+                assertThrows(IllegalStateException.class, () -> policy.tax(earner, 100), "still waits for startup");
+                api.when(SimpleFactionsApi::ready).thenReturn(true);
+            } catch (java.io.IOException error) {
+                throw new AssertionError(error);
+            } finally {
+                TaxExemptions.reset();
+            }
             for (double rate : new double[]{-1, 101, Double.NaN}) {
                 when(realm.getTaxRate(TaxTarget.CITIZENS, null, true)).thenReturn(rate);
                 assertThrows(IllegalStateException.class, () -> policy.tax(earner, 100));
