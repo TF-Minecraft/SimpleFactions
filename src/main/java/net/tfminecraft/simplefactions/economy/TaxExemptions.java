@@ -15,8 +15,9 @@ import net.tfminecraft.tlibs.character.CharacterRef;
 /**
  * Helpers and staff on duty owe no citizen tax, so the NPC and lore characters they play keep the
  * denars players hand them. The exemption follows {@link #PERMISSION} on the earning character's
- * account while it is online, on whichever character it plays, so it comes and goes with the duty
- * rank and nobody has to remember a command. The first time each character is found exempt in a
+ * account while it is online and covers every character of that account, including one it is not
+ * playing right now (a shop sale, say), so it comes and goes with the duty rank and nobody has to
+ * remember a command. The first time each character is found exempt in a
  * server run is logged, so staff can see whose income goes untaxed. The check runs before the
  * caller posts the money, so the line records the exemption, not a completed payment.
  */
