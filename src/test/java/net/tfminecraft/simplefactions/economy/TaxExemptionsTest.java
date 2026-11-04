@@ -77,12 +77,12 @@ class TaxExemptionsTest {
     }
 
     @Test
-    void theFirstUntaxedEarningOfEachCharacterIsLoggedOnce() {
+    void theFirstExemptCheckOfEachCharacterIsLoggedOnce() {
         permitted.add(owner);
         TaxExemptions.exempt(npc);
         TaxExemptions.exempt(npc);
         TaxExemptions.exempt(own);
-        verify(logger).info("[TaxExempt] Lucy earned untaxed as Captain Avalon (" + key(npc) + ") through "
+        verify(logger).info("[TaxExempt] Lucy owes no citizen tax as Captain Avalon (" + key(npc) + "): holds "
                 + TaxExemptions.PERMISSION + "; logged once per character until restart");
         verify(logger, times(2)).info(startsWith("[TaxExempt] "));
     }
@@ -92,11 +92,11 @@ class TaxExemptionsTest {
         permitted.add(owner);
         members.when(() -> Members.accountName(anyString())).thenReturn(null);
         TaxExemptions.exempt(npc);
-        verify(logger).info(startsWith("[TaxExempt] " + owner + " earned untaxed as Captain Avalon"));
+        verify(logger).info(startsWith("[TaxExempt] " + owner + " owes no citizen tax as Captain Avalon"));
 
         plugin.when(SimpleFactions::getInstance).thenReturn(null);
         assertTrue(TaxExemptions.exempt(own), "still exempt while the plugin is unavailable");
-        verify(logger, never()).info(startsWith("[TaxExempt] " + owner + " earned untaxed as Captain Avalon (" + key(own)));
+        verify(logger, never()).info(startsWith("[TaxExempt] " + owner + " owes no citizen tax as Captain Avalon (" + key(own)));
     }
 
     @Test

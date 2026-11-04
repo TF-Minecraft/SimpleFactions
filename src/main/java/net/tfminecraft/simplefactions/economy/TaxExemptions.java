@@ -16,13 +16,14 @@ import net.tfminecraft.tlibs.character.CharacterRef;
  * Helpers and staff on duty owe no citizen tax, so the NPC and lore characters they play keep the
  * denars players hand them. The exemption follows {@link #PERMISSION} on the earning character's
  * account while it is online, on whichever character it plays, so it comes and goes with the duty
- * rank and nobody has to remember a command. The first untaxed earning of each character in a
- * server run is logged, so staff can see whose income goes untaxed.
+ * rank and nobody has to remember a command. The first time each character is found exempt in a
+ * server run is logged, so staff can see whose income goes untaxed. The check runs before the
+ * caller posts the money, so the line records the exemption, not a completed payment.
  */
 public final class TaxExemptions {
     public static final String PERMISSION = "simplefactions.taxexempt";
 
-    /** Characters whose untaxed earning has been logged since the server started. */
+    /** Characters whose exemption has been logged since the server started. */
     private static final Set<UUID> logged = ConcurrentHashMap.newKeySet();
     private static volatile Predicate<UUID> permitted = TaxExemptions::onlineWithPermission;
 
@@ -56,7 +57,7 @@ public final class TaxExemptions {
         if (plugin == null) return;
         String key = Members.key(earner.characterId());
         String account = Members.accountName(key);
-        plugin.getLogger().info("[TaxExempt] " + (account == null ? earner.ownerId() : account) + " earned untaxed as "
-                + Members.display(key) + " (" + key + ") through " + PERMISSION + "; logged once per character until restart");
+        plugin.getLogger().info("[TaxExempt] " + (account == null ? earner.ownerId() : account) + " owes no citizen tax as "
+                + Members.display(key) + " (" + key + "): holds " + PERMISSION + "; logged once per character until restart");
     }
 }
