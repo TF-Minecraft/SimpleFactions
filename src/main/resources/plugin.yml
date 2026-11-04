@@ -16,6 +16,10 @@ permissions:
     description: Reload office settings and regenerate all daily intelligence reports for testing.
     default: false
 
+  simplefactions.taxexempt:
+    description: Owe no citizen tax on any character while held. Grant it to the on-duty staff and helper groups, so NPC and lore characters keep the denars they are given.
+    default: false
+
 commands:
   faction:
       useage: /<command>

@@ -12,7 +12,10 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.tlibs.character.CharacterRef;
 
-/** Taxes are withheld inside the earner's posting and held until the realm-wide settlement. */
+/**
+ * Taxes are withheld inside the earner's posting and held until the realm-wide settlement.
+ * Earners whose account holds {@link TaxExemptions#PERMISSION} (helpers and staff on duty) owe none.
+ */
 public final class GuildTaxPolicy implements TaxPolicy {
     @Override
     public Optional<TaxLeg> tax(CharacterRef earner, long grossCents) {
@@ -25,6 +28,8 @@ public final class GuildTaxPolicy implements TaxPolicy {
         if (!Double.isFinite(rate) || rate < 0 || rate > 100) throw new IllegalStateException("Invalid citizen tax: " + rate);
         long cents = BigDecimal.valueOf(grossCents).multiply(BigDecimal.valueOf(rate))
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP).longValueExact();
+        // Asked only when tax would be owed, so it logs only exemptions that skip some tax.
+        if (cents > 0 && TaxExemptions.exempt(earner)) return Optional.empty();
         return Optional.of(new TaxLeg(Denars.guildTax(capital.getIncarnationId()), cents));
     }
 }
