@@ -4,6 +4,8 @@ package net.tfminecraft.simplefactions.war.campaign.admin;
 
 import java.time.Instant;
 
+import java.time.LocalDate;
+
 import java.time.format.DateTimeParseException;
 
 import java.util.List;
@@ -43,6 +45,7 @@ import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceSer
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
@@ -207,11 +210,15 @@ public final class WarScheduleAdminService {
 
 		}
 
-		if (!BattleWindowService.isValidHour(hour)) {
+		Integer normalized = BattleWindowService.normalizeInputHour(hour);
+
+		if (normalized == null) {
 
 			return WarScheduleAdminResult.error("Hour must be within the battle window.");
 
 		}
+
+		hour = normalized;
 
 
 
@@ -276,6 +283,72 @@ public final class WarScheduleAdminService {
 	}
 
 
+
+	/** Moves the war to a new battle day (yyyy-MM-dd). A voting or scheduled war reopens its vote there. */
+	public static WarScheduleAdminResult setDay(War war, String dayArg) {
+		if (war == null) {
+			return WarScheduleAdminResult.error("War not found.");
+		}
+		if (!war.isActive()) {
+			return WarScheduleAdminResult.error("War is not active.");
+		}
+		LocalDate day;
+		try {
+			day = LocalDate.parse(dayArg == null ? "" : dayArg.trim());
+		} catch (DateTimeParseException e) {
+			return WarScheduleAdminResult.error("Day must be yyyy-MM-dd (e.g. 2026-11-07).");
+		}
+		LocalDate today = BattleScheduleService.battleDayDate(CampaignClock.now());
+		if (today != null && day.isBefore(today)) {
+			return WarScheduleAdminResult.error("Battle day " + day + " is in the past (today is " + today + ").");
+		}
+		Battle battle = BattleManager.getByWarId(war.getId());
+		if (battle != null && battle.hasStarted()) {
+			return WarScheduleAdminResult.error("Cannot change the battle day while the battle is running.");
+		}
+		BattleScheduleService.setBattleDay(war, day);
+		return WarScheduleAdminResult.ok(
+				"Battle day set to " + day + " (phase " + war.getBattleSchedulePhase() + ", votes cleared).");
+	}
+
+	/** Schedules the battle on the current battle day at a window hour (0 and 1 mean after midnight). */
+	public static WarScheduleAdminResult setHour(War war, int hour) {
+		if (war == null) {
+			return WarScheduleAdminResult.error("War not found.");
+		}
+		if (!war.isActive()) {
+			return WarScheduleAdminResult.error("War is not active.");
+		}
+		if (war.getBattleDay() == null) {
+			return WarScheduleAdminResult.error("War has no battle day. Use setday first.");
+		}
+		Integer normalized = BattleWindowService.normalizeInputHour(hour);
+		if (normalized == null) {
+			return WarScheduleAdminResult.error(
+					"Hour must be a start hour in the battle window: " + BattleWindowService.listValidHours() + ".");
+		}
+		Battle battle = BattleManager.getByWarId(war.getId());
+		if (battle != null && battle.hasStarted()) {
+			return WarScheduleAdminResult.error("Cannot reschedule while the battle is running.");
+		}
+		Instant scheduledAt = BattleWindowService.computeScheduledBattleAt(war, normalized);
+		if (scheduledAt != null && !scheduledAt.isAfter(CampaignClock.now())) {
+			return WarScheduleAdminResult.error(
+					"That hour has already passed on battle day " + war.getBattleDay()
+							+ ". Use setday to pick a later day, or battlestart to start now.");
+		}
+		if (scheduledAt == null || !BattleScheduleService.applyScheduledInstant(war, scheduledAt)) {
+			return WarScheduleAdminResult.error("Could not set scheduled battle (no single battle province).");
+		}
+		return WarScheduleAdminResult.ok(
+				"Scheduled battle at "
+						+ scheduledAt
+						+ " (battle day "
+						+ war.getBattleDay()
+						+ ", province "
+						+ war.getScheduledBattleProvinceId()
+						+ ").");
+	}
 
 	public static WarScheduleAdminResult setScheduled(War war, String isoInstant) {
 

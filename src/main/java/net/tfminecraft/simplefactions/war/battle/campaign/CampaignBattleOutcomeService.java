@@ -34,6 +34,7 @@ import net.tfminecraft.simplefactions.war.pathfinder.TitleManagerProvinceOwnerLo
 import net.tfminecraft.simplefactions.war.resolution.ResolutionContext;
 import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
@@ -188,6 +189,7 @@ public class CampaignBattleOutcomeService implements Listener {
 
 		if (winner != null) {
 			if (CampaignPostBattleChoiceService.resolveMandatoryHoldIfNeeded(war, winner)) {
+				BattleScheduleService.advanceAfterBattle(war, CampaignClock.now());
 				notifyPostBattleChoicePending(war);
 				return new CampaignBattleApplyResult(progressionApplied, true, Optional.empty());
 			}
@@ -203,6 +205,7 @@ public class CampaignBattleOutcomeService implements Listener {
 		}
 
 		if (WarManager.getById(war.getId()) != null) {
+			BattleScheduleService.advanceAfterBattle(war, CampaignClock.now());
 			BattleScheduleService.openVote(war);
 		}
 

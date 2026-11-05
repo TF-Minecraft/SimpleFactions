@@ -18,6 +18,8 @@ import net.tfminecraft.simplefactions.guild.income.TradeUpkeep;
 import net.tfminecraft.simplefactions.map.export.ChapterIdentity;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleLootMode;
 import net.tfminecraft.simplefactions.war.battle.enums.DefenderRespawnMode;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
+import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.enums.Scope;
 import net.tfminecraft.simplefactions.enums.Terrain;
@@ -235,7 +237,17 @@ public class ConfigLoader {
 		Cache.warPathfinderWaterCost = config.getDouble("war.pathfinder.water_cost", 0.0);
 
 		Cache.warBattleWindowStartHour = config.getInt("war.battle_schedule.window_start_hour", 21);
-		Cache.warBattleWindowEndHour = config.getInt("war.battle_schedule.window_end_hour", 24);
+		// Hours past 24 run into the next morning (25 = 01:00); BattleWindowService caps them at 48.
+		Cache.warBattleWindowEndHour = Math.min(
+				BattleWindowService.MAX_SCHEDULE_HOUR,
+				config.getInt("war.battle_schedule.window_end_hour", 24));
+		int windowHours = Cache.warBattleWindowEndHour - Cache.warBattleWindowStartHour;
+		int menuHours = BattleVoterEligibility.hourToggleSlots().length;
+		if (windowHours > menuHours) {
+			Bukkit.getLogger().warning("[SimpleFactions] war.battle_schedule window has " + windowHours
+					+ " start hours but the vote menu only shows the first "
+					+ menuHours + ".");
+		}
 		Cache.warRaidWindowStartHour = config.getInt("war.battle_schedule.raid_window_start_hour", 19);
 		Cache.warRaidWindowEndHour = config.getInt("war.battle_schedule.raid_window_end_hour", 20);
 		Cache.warVoteCloseHour = config.getInt("war.battle_schedule.vote_close_hour", 16);

@@ -78,7 +78,10 @@ war:
     raid_window_start_hour: 19
     raid_window_end_hour: 20
     window_start_hour: 21
-    window_end_hour: 24
+    # Last valid start hour is window_end_hour - 1. Values past 24 run past midnight:
+    # 26 lets battles start up to 01:00 CET, and the battle day then ends at 02:00.
+    # The vote menu shows at most 5 start hours.
+    window_end_hour: 26
     defender_choice_deadline_hour: 12
     one_battle_per_day: true
     first_battle_day_after_declare: true

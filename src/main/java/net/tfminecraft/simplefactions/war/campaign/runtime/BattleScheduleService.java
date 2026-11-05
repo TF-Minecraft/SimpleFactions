@@ -265,6 +265,66 @@ public final class BattleScheduleService {
 		PreparationFreeze.applyPostponement(war, now);
 	}
 
+	/**
+	 * Moves the war to the battle day after the one just fought. A battle that runs past midnight
+	 * still belongs to the evening it started on, so the next battle day is the day after that
+	 * evening, never the same night. Votes, picks and raids from the fought day are cleared.
+	 */
+	public static void advanceAfterBattle(War war, Instant now) {
+		if (war == null) {
+			return;
+		}
+		LocalDate current = battleDayDate(now != null ? now : Instant.now());
+		LocalDate fought = war.getBattleDay();
+		LocalDate base = fought == null || fought.isBefore(current) ? current : fought;
+		war.setBattleDay(base.plusDays(1));
+		startFreshBattleDay(war);
+	}
+
+	/**
+	 * Sets the battle day by hand. A war that was voting or scheduled goes back to voting on the
+	 * new day with no votes, picks or raids carried over.
+	 */
+	public static boolean setBattleDay(War war, LocalDate day) {
+		if (war == null || day == null) {
+			return false;
+		}
+		war.setBattleDay(day);
+		startFreshBattleDay(war);
+		BattleSchedulePhase phase = war.getBattleSchedulePhase();
+		if (phase == BattleSchedulePhase.VOTING || phase == BattleSchedulePhase.SCHEDULED) {
+			openVote(war);
+		}
+		return true;
+	}
+
+	/**
+	 * A voting war whose battle day already passed (for example while the server was down) moves
+	 * to the current battle day so its vote can close again. Not counted as a postponement.
+	 */
+	public static boolean catchUpStaleBattleDay(War war, Instant now) {
+		if (war == null || now == null || war.getBattleDay() == null) {
+			return false;
+		}
+		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
+			return false;
+		}
+		LocalDate current = battleDayDate(now);
+		if (!war.getBattleDay().isBefore(current)) {
+			return false;
+		}
+		war.setBattleDay(current);
+		startFreshBattleDay(war);
+		return true;
+	}
+
+	private static void startFreshBattleDay(War war) {
+		BattleVoteService.clearVotes(war);
+		war.clearSignupRemindersSent();
+		BattleInstallationPickService.clearForNewBattleDay(war);
+		CampaignRaidService.clearForNewBattleDay(war);
+	}
+
 	public static Integer resolveBattleProvinceId(War war) {
 		if (war == null) {
 			return null;

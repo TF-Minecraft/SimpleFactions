@@ -644,6 +644,7 @@ class WarCommandsCoverageTest {
         Arguments.of(
             "admin ",
             List.of(
+                "declare",
                 "end",
                 "win",
                 "status",
@@ -685,6 +686,8 @@ class WarCommandsCoverageTest {
                 "opencvote",
                 "closevote",
                 "skipday",
+                "setday",
+                "sethour",
                 "castvote",
                 "forcequorum",
                 "setscheduled",
@@ -699,6 +702,12 @@ class WarCommandsCoverageTest {
         Arguments.of("admin schedule 1 choice ", List.of("push", "hold", "attack", "accept")),
         Arguments.of("admin schedule 1 castvote 2", List.of("20", "21", "22", "23")),
         Arguments.of("admin schedule 1 castvote 21 ", List.of("attacker", "defender", "both")),
+        Arguments.of("admin schedule 1 sethour 2", List.of("20", "21", "22", "23")),
+        Arguments.of("admin declare r", List.of("river")),
+        Arguments.of("admin declare river i", List.of("iron")),
+        Arguments.of("admin declare river iron su", List.of("subjugate")),
+        Arguments.of("admin declare river iron transfer_subject r", List.of("river")),
+        Arguments.of("admin declare river iron war ", List.of()),
         Arguments.of("admin unknown arguments", List.of()),
         Arguments.of("list arguments", List.of()));
   }
