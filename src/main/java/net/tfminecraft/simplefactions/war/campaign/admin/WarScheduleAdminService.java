@@ -307,6 +307,9 @@ public final class WarScheduleAdminService {
 		if (battle != null && battle.hasStarted()) {
 			return WarScheduleAdminResult.error("Cannot change the battle day while the battle is running.");
 		}
+		if (war.getBattleSchedulePhase() == BattleSchedulePhase.AUTORESOLVE_PENDING) {
+			return WarScheduleAdminResult.error("Cannot change the battle day while autoresolve is pending.");
+		}
 		BattleScheduleService.setBattleDay(war, day);
 		return WarScheduleAdminResult.ok(
 				"Battle day set to " + day + " (phase " + war.getBattleSchedulePhase() + ", votes cleared).");

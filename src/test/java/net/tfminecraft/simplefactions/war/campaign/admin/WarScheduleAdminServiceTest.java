@@ -157,6 +157,19 @@ class WarScheduleAdminServiceTest {
 	}
 
 	@Test
+	void setDay_rejectsWhileAutoresolvePending() {
+		War war = votingWar();
+		war.setBattleSchedulePhase(BattleSchedulePhase.AUTORESOLVE_PENDING);
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "2026-08-23");
+			assertFalse(result.success());
+		}
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+		assertEquals(BattleSchedulePhase.AUTORESOLVE_PENDING, war.getBattleSchedulePhase());
+	}
+
+	@Test
 	void setDay_rejectsMalformedDate() {
 		War war = votingWar();
 		WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "24/08/2026");

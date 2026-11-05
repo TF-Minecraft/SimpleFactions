@@ -274,10 +274,9 @@ public final class BattleScheduleService {
 		if (war == null) {
 			return;
 		}
-		LocalDate current = battleDayDate(now != null ? now : Instant.now());
 		LocalDate fought = war.getBattleDay();
-		LocalDate base = fought == null || fought.isBefore(current) ? current : fought;
-		war.setBattleDay(base.plusDays(1));
+		war.setBattleDay(firstVotableBattleDay(fought == null ? null : fought.plusDays(1),
+				now != null ? now : Instant.now()));
 		startFreshBattleDay(war);
 	}
 
@@ -300,7 +299,8 @@ public final class BattleScheduleService {
 
 	/**
 	 * A voting war whose battle day already passed (for example while the server was down) moves
-	 * to the current battle day so its vote can close again. Not counted as a postponement.
+	 * to the current battle day so its vote can close again, or to the next one when today's vote
+	 * has already closed. Not counted as a postponement.
 	 */
 	public static boolean catchUpStaleBattleDay(War war, Instant now) {
 		if (war == null || now == null || war.getBattleDay() == null) {
@@ -313,9 +313,22 @@ public final class BattleScheduleService {
 		if (!war.getBattleDay().isBefore(current)) {
 			return false;
 		}
-		war.setBattleDay(current);
+		war.setBattleDay(firstVotableBattleDay(current, now));
 		startFreshBattleDay(war);
 		return true;
+	}
+
+	/**
+	 * {@code candidate}, or the first later battle day whose vote is still open: never a past day,
+	 * and not today once today's vote close hour has passed.
+	 */
+	private static LocalDate firstVotableBattleDay(LocalDate candidate, Instant now) {
+		LocalDate current = battleDayDate(now);
+		LocalDate day = candidate == null || candidate.isBefore(current) ? current : candidate;
+		if (day.equals(current) && battleDayHour(now) >= Cache.warVoteCloseHour) {
+			return current.plusDays(1);
+		}
+		return day;
 	}
 
 	private static void startFreshBattleDay(War war) {

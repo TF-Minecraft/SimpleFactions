@@ -122,6 +122,15 @@ public class WarCommandManager implements CommandExecutor {
 			player.sendMessage("§c" + goal.getDisplayName() + " wars start from movements, not from a declaration.");
 			return true;
 		}
+		int maxArgs = switch (goal) {
+			case DE_JURE_ANNEX, SUBJUGATE, TRANSFER_SUBJECT, PILLAGE -> 6;
+			case CHANGE_GOVERNMENT -> 7;
+			default -> 5;
+		};
+		if (args.length > maxArgs) {
+			player.sendMessage(DECLARE_USAGE);
+			return true;
+		}
 		String arg1 = args.length >= 6 ? args[5] : null;
 		String arg2 = args.length >= 7 ? args[6] : null;
 		String titleId = goal == WarGoalType.DE_JURE_ANNEX ? arg1 : null;

@@ -341,6 +341,21 @@ class WarCommandsCoverageTest {
     assertEquals(Duration.ZERO, CampaignClock.getOffset());
   }
 
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "admin declare iron hill war extra",
+        "admin declare iron hill subjugate vassal extra",
+        "admin declare iron hill change_government a b extra"
+      })
+  void adminDeclareRejectsArgumentsTheGoalDoesNotTake(String input) {
+    fixture.saved("hill", "Carol");
+    int before = WarManager.get().size();
+    assertTrue(run(input.split(" ")));
+    verify(alice).sendMessage(startsWith("§cUsage: /war admin declare"));
+    assertEquals(before, WarManager.get().size());
+  }
+
   @Test
   void inactiveWarsCannotBeWonOrHaveTheirCampaignRegenerated() {
     War war = war(1);
