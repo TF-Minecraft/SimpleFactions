@@ -45,6 +45,7 @@ import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
@@ -209,6 +210,54 @@ class WarScheduleAdminServiceTest {
 		War war = votingWar();
 		WarScheduleAdminResult result = WarScheduleAdminService.setHour(war, 1);
 		assertFalse(result.success());
+	}
+
+	@Test
+	void setDayAndSetHour_rejectMissingOrEndedWars() {
+		assertEquals("War not found.", WarScheduleAdminService.setDay(null, "2026-08-24").message());
+		assertEquals("War not found.", WarScheduleAdminService.setHour(null, 21).message());
+		War ended = votingWar();
+		ended.end(WarEndReason.ADMIN_END);
+		assertEquals("War is not active.", WarScheduleAdminService.setDay(ended, "2026-08-24").message());
+		assertEquals("War is not active.", WarScheduleAdminService.setHour(ended, 21).message());
+		War dayless = votingWar();
+		dayless.setBattleDay(null);
+		assertEquals("War has no battle day. Use setday first.",
+				WarScheduleAdminService.setHour(dayless, 21).message());
+		assertFalse(WarScheduleAdminService.setDay(votingWar(), null).success());
+	}
+
+	@Test
+	void setDayAndSetHour_rejectWhileTheBattleIsRunning() {
+		War war = votingWar();
+		Battle running = mock(Battle.class);
+		when(running.hasStarted()).thenReturn(true);
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class);
+				MockedStatic<BattleManager> battles = mockStatic(BattleManager.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			battles.when(() -> BattleManager.getByWarId(war.getId())).thenReturn(running);
+			assertEquals("Cannot change the battle day while the battle is running.",
+					WarScheduleAdminService.setDay(war, "2026-08-24").message());
+			assertEquals("Cannot reschedule while the battle is running.",
+					WarScheduleAdminService.setHour(war, 21).message());
+		}
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+	}
+
+	@Test
+	void setHour_reportsWhenTheBattleCannotBeScheduled() {
+		War war = votingWar();
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class);
+				MockedStatic<BattleScheduleService> schedule =
+						mockStatic(BattleScheduleService.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			schedule.when(() -> BattleScheduleService.applyScheduledInstant(eq(war), any())).thenReturn(false);
+			WarScheduleAdminResult result = WarScheduleAdminService.setHour(war, 21);
+			assertFalse(result.success());
+			assertTrue(result.message().startsWith("Could not set scheduled battle"));
+		}
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 	}
 
 	@Test

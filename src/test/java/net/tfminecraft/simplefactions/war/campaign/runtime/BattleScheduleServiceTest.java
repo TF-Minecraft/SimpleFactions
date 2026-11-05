@@ -501,6 +501,40 @@ class BattleScheduleServiceTest {
 	}
 
 	@Test
+	void advanceAfterBattle_withoutAFoughtDayUsesTheCurrentBattleDay() {
+		War war = votingWar();
+		war.setBattleDay(null);
+		Instant morning = BattleWindowService.atScheduleHour(BATTLE_DAY, 10);
+
+		BattleScheduleService.advanceAfterBattle(war, morning);
+
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+	}
+
+	@Test
+	void advanceAfterBattle_withoutATimeUsesTheRealClock() {
+		War war = votingWar();
+		war.setBattleDay(LocalDate.of(2000, 1, 1));
+
+		BattleScheduleService.advanceAfterBattle(war, null);
+
+		assertFalse(war.getBattleDay().isBefore(BattleScheduleService.battleDayDate(Instant.now())));
+	}
+
+	@Test
+	void scheduleChanges_ignoreMissingWarsDaysAndTimes() {
+		BattleScheduleService.advanceAfterBattle(null, Instant.now());
+		assertFalse(BattleScheduleService.setBattleDay(null, BATTLE_DAY));
+		War war = votingWar();
+		assertFalse(BattleScheduleService.setBattleDay(war, null));
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(null, Instant.now()));
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(war, null));
+		war.setBattleDay(null);
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(war, Instant.now()));
+		assertNull(war.getBattleDay());
+	}
+
+	@Test
 	void setBattleDay_scheduledWarReopensVoteOnNewDay() {
 		War war = votingWar();
 		addCrossSideVotes(war, 21);

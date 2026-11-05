@@ -115,5 +115,6 @@ class BattleWindowServiceTest {
 		assertEquals(LocalDate.of(2026, 11, 7), BattleWindowService.scheduleDate(twoAm));
 		assertEquals(2, BattleWindowService.scheduleHour(twoAm));
 		assertEquals(twoAm, BattleWindowService.campaignDayStart(LocalDate.of(2026, 11, 7)));
+		assertNull(BattleWindowService.campaignDayStart(null));
 	}
 }
