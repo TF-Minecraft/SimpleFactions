@@ -351,7 +351,9 @@ class PluginLifecycleCoverageTest {
     verify(bankless).updateWealth();
 
     var task = org.mockito.ArgumentCaptor.forClass(Runnable.class);
-    verify(domain.ui.scheduler).runTaskTimer(eq(plugin), task.capture(), eq(72000L), eq(72000L));
+    // Hourly, first at 30.5 min and 11 ticks: off the map's hourly full update, the whole-minute
+    // timers and the once-a-second tasks.
+    verify(domain.ui.scheduler).runTaskTimer(eq(plugin), task.capture(), eq(36611L), eq(72000L));
     task.getValue().run();
     deaths.verify(
         net.tfminecraft.simplefactions.identity.death.CharacterDeaths::reconcile, times(2));
