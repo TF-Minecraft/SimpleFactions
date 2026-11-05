@@ -184,7 +184,7 @@ public class WarTabCompletion implements TabCompleter {
 		if (args.length == 5 && args[1].equalsIgnoreCase("schedule")
 				&& (args[3].equalsIgnoreCase("castvote") || args[3].equalsIgnoreCase("sethour"))) {
 			List<String> completions = new ArrayList<>();
-			for (int hour : BattleWindowService.listValidHours()) {
+			for (int hour : BattleWindowService.listValidInputHours()) {
 				String value = String.valueOf(hour);
 				if (value.startsWith(args[4])) {
 					completions.add(value);

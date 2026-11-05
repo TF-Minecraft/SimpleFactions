@@ -214,7 +214,8 @@ public final class WarScheduleAdminService {
 
 		if (normalized == null) {
 
-			return WarScheduleAdminResult.error("Hour must be within the battle window.");
+			return WarScheduleAdminResult.error(
+					"Hour must be within the battle window: " + BattleWindowService.describeValidHours() + ".");
 
 		}
 
@@ -244,9 +245,9 @@ public final class WarScheduleAdminService {
 
 		return WarScheduleAdminResult.ok(
 
-				"Cast spoof votes for hour "
+				"Cast spoof votes for "
 
-						+ hour
+						+ BattleWindowService.formatHourLabel(hour)
 
 						+ " ("
 
@@ -325,7 +326,7 @@ public final class WarScheduleAdminService {
 		Integer normalized = BattleWindowService.normalizeInputHour(hour);
 		if (normalized == null) {
 			return WarScheduleAdminResult.error(
-					"Hour must be a start hour in the battle window: " + BattleWindowService.listValidHours() + ".");
+					"Hour must be a start hour in the battle window: " + BattleWindowService.describeValidHours() + ".");
 		}
 		Battle battle = BattleManager.getByWarId(war.getId());
 		if (battle != null && battle.hasStarted()) {

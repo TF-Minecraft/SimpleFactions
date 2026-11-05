@@ -42,6 +42,32 @@ public final class BattleWindowService {
 		return Collections.unmodifiableList(hours);
 	}
 
+	/** Start hours as staff type them: 21, 22, 23, 0, 1 rather than 24 and 25. */
+	public static List<Integer> listValidInputHours() {
+		List<Integer> hours = new ArrayList<>();
+		for (int hour : listValidHours()) {
+			int clock = Math.floorMod(hour, 24);
+			if (!hours.contains(clock)) {
+				hours.add(clock);
+			}
+		}
+		return Collections.unmodifiableList(hours);
+	}
+
+	/** Clock label for a battle-day hour, e.g. 25 becomes "01:00 CET". */
+	public static String formatHourLabel(int scheduleHour) {
+		return String.format(java.util.Locale.ROOT, "%02d:00 CET", Math.floorMod(scheduleHour, 24));
+	}
+
+	/** Valid start hours as clock labels, e.g. "21:00, 22:00, 23:00, 00:00, 01:00 CET". */
+	public static String describeValidHours() {
+		List<String> labels = new ArrayList<>();
+		for (int hour : listValidHours()) {
+			labels.add(String.format(java.util.Locale.ROOT, "%02d:00", Math.floorMod(hour, 24)));
+		}
+		return String.join(", ", labels) + " CET";
+	}
+
 	public static boolean isValidHour(int hour) {
 		return hour >= Cache.warBattleWindowStartHour && hour < Cache.warBattleWindowEndHour;
 	}

@@ -70,6 +70,15 @@ class BattleWindowServiceTest {
 	}
 
 	@Test
+	void lateWindow_labelsHoursAsTypedClockHours() {
+		Cache.warBattleWindowEndHour = 26;
+		assertEquals(List.of(21, 22, 23, 0, 1), BattleWindowService.listValidInputHours());
+		assertEquals("01:00 CET", BattleWindowService.formatHourLabel(25));
+		assertEquals("21:00 CET", BattleWindowService.formatHourLabel(21));
+		assertEquals("21:00, 22:00, 23:00, 00:00, 01:00 CET", BattleWindowService.describeValidHours());
+	}
+
+	@Test
 	void lateWindow_hour25_isOneAmNextDateCet() {
 		Cache.warBattleWindowEndHour = 26;
 		LocalDate battleDay = LocalDate.of(2026, 11, 6);
