@@ -12,6 +12,7 @@ import java.util.List;
 
 
 
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.core.War;
 
@@ -299,9 +300,15 @@ public final class WarScheduleAdminService {
 		} catch (DateTimeParseException e) {
 			return WarScheduleAdminResult.error("Day must be yyyy-MM-dd (e.g. 2026-11-07).");
 		}
-		LocalDate today = BattleScheduleService.battleDayDate(CampaignClock.now());
+		Instant now = CampaignClock.now();
+		LocalDate today = BattleScheduleService.battleDayDate(now);
 		if (today != null && day.isBefore(today)) {
 			return WarScheduleAdminResult.error("Battle day " + day + " is in the past (today is " + today + ").");
+		}
+		if (day.equals(today) && BattleScheduleService.battleDayHour(now) >= Cache.warVoteCloseHour) {
+			return WarScheduleAdminResult.error(
+					"Today's vote already closed at " + BattleWindowService.formatHourLabel(Cache.warVoteCloseHour)
+							+ ". Pick " + today.plusDays(1) + " or later.");
 		}
 		Battle battle = BattleManager.getByWarId(war.getId());
 		if (battle != null && battle.hasStarted()) {
@@ -334,6 +341,9 @@ public final class WarScheduleAdminService {
 		Battle battle = BattleManager.getByWarId(war.getId());
 		if (battle != null && battle.hasStarted()) {
 			return WarScheduleAdminResult.error("Cannot reschedule while the battle is running.");
+		}
+		if (war.getBattleSchedulePhase() == BattleSchedulePhase.AUTORESOLVE_PENDING) {
+			return WarScheduleAdminResult.error("Cannot reschedule while autoresolve is pending.");
 		}
 		Instant scheduledAt = BattleWindowService.computeScheduledBattleAt(war, normalized);
 		if (scheduledAt != null && !scheduledAt.isAfter(CampaignClock.now())) {

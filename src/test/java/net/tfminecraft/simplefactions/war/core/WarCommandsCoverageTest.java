@@ -403,7 +403,7 @@ class WarCommandsCoverageTest {
   void adminDeclarePassesEachGoalItsOwnArguments(
       String input, WarGoalType goal, List<String> goalArgs) {
     War declared = war(7);
-    try (MockedStatic<WarManager> manager = mockStatic(WarManager.class, CALLS_REAL_METHODS)) {
+    try (MockedStatic<WarManager> manager = mockStatic(WarManager.class)) {
       manager
           .when(
               () ->
@@ -430,7 +430,7 @@ class WarCommandsCoverageTest {
 
   @Test
   void adminDeclareReportsWhyTheDeclarationFailed() {
-    try (MockedStatic<WarManager> manager = mockStatic(WarManager.class, CALLS_REAL_METHODS)) {
+    try (MockedStatic<WarManager> manager = mockStatic(WarManager.class)) {
       manager
           .when(
               () ->

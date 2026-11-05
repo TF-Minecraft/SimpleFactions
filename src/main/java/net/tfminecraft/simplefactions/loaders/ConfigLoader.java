@@ -332,8 +332,10 @@ public class ConfigLoader {
 		int windowStart = config.getInt("war.battle_schedule.window_start_hour", 21);
 		int windowEnd = config.getInt("war.battle_schedule.window_end_hour", 24);
 
-		if (defenderDeadline < 0 || defenderDeadline >= voteClose) {
-			throw invalidBattleConfiguration("war.battle_schedule.defender_choice_deadline_hour must be >= 0 and < vote_close_hour");
+		// The defender deadline opens the battle day, so it must fall on the battle date itself.
+		if (defenderDeadline < 0 || defenderDeadline > 23 || defenderDeadline >= voteClose) {
+			throw invalidBattleConfiguration(
+					"war.battle_schedule.defender_choice_deadline_hour must be between 0 and 23 and < vote_close_hour");
 		}
 		if (voteClose >= raidStart) {
 			throw invalidBattleConfiguration("war.battle_schedule.vote_close_hour must be < raid_window_start_hour");
