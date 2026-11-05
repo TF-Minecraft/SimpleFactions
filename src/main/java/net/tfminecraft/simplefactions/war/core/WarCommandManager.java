@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
+import net.tfminecraft.simplefactions.managers.LogManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -25,8 +26,10 @@ import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleFeedbackForm
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
+import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.truce.TruceService;
 
 public class WarCommandManager implements CommandExecutor {
@@ -42,7 +45,7 @@ public class WarCommandManager implements CommandExecutor {
 		if (args.length < 1) {
 			player.sendMessage("§eUsage: §a/war list");
 			if (Permissions.isAdmin(sender)) {
-				player.sendMessage("§7Staff: §e/war admin end|win|status|path|time|schedule|devmode|raid|reparations|truce §7...");
+				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions §7...");
 			}
 			return true;
 		}
@@ -68,11 +71,12 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 2) {
-			player.sendMessage("§cUsage: /war admin end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions ...");
+			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions ...");
 			return true;
 		}
 		String subcommand = args[1].toLowerCase(java.util.Locale.ROOT);
 		return switch (subcommand) {
+			case "declare" -> handleDeclare(player, args);
 			case "end" -> handleEnd(player, args);
 			case "win" -> handleWin(player, args);
 			case "status" -> handleStatus(player, args);
@@ -85,10 +89,89 @@ public class WarCommandManager implements CommandExecutor {
 			case "truce" -> handleTruce(player, args);
 			case "factions" -> handleFactions(player, args);
 			default -> {
-				player.sendMessage("§cUnknown admin subcommand. Use: end, win, status, path, time, schedule, devmode, raid, reparations, truce, factions");
+				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, factions");
 				yield true;
 			}
 		};
+	}
+
+	private static final String DECLARE_USAGE =
+			"§cUsage: /war admin declare <attacker> <defender> [goal] [goal args] §7— goals needing args: "
+					+ "de_jure_annex <titleId>, subjugate <relationType>, transfer_subject <subjectFaction>, "
+					+ "pillage <settlementId>, change_government <governmentLaw> <leadershipLaw>";
+
+	/** Declares a war between two factions as staff, through the same validation as the declare GUI. */
+	private boolean handleDeclare(Player player, String[] args) {
+		if (args.length < 4) {
+			player.sendMessage(DECLARE_USAGE);
+			return true;
+		}
+		Faction attacker = FactionManager.getByString(args[2]);
+		Faction defender = FactionManager.getByString(args[3]);
+		if (attacker == null || defender == null) {
+			player.sendMessage("§cUnknown faction: " + (attacker == null ? args[2] : args[3]));
+			return true;
+		}
+		WarGoalType goal = args.length >= 5 ? WarGoalType.fromJson(args[4]) : WarGoalType.WAR;
+		if (goal == null) {
+			player.sendMessage("§cUnknown war goal: " + args[4]);
+			player.sendMessage(DECLARE_USAGE);
+			return true;
+		}
+		if (goal.isMovementOrigin()) {
+			player.sendMessage("§c" + goal.getDisplayName() + " wars start from movements, not from a declaration.");
+			return true;
+		}
+		int maxArgs = switch (goal) {
+			case DE_JURE_ANNEX, SUBJUGATE, TRANSFER_SUBJECT, PILLAGE -> 6;
+			case CHANGE_GOVERNMENT -> 7;
+			default -> 5;
+		};
+		if (args.length > maxArgs) {
+			player.sendMessage(DECLARE_USAGE);
+			return true;
+		}
+		String arg1 = args.length >= 6 ? args[5] : null;
+		String arg2 = args.length >= 7 ? args[6] : null;
+		String titleId = goal == WarGoalType.DE_JURE_ANNEX ? arg1 : null;
+		String relationTypeId = goal == WarGoalType.SUBJUGATE ? arg1 : null;
+		String settlementId = goal == WarGoalType.PILLAGE ? arg1 : null;
+		String governmentLawId = goal == WarGoalType.CHANGE_GOVERNMENT ? arg1 : null;
+		String leadershipLawId = goal == WarGoalType.CHANGE_GOVERNMENT ? arg2 : null;
+		String subjectFactionId = null;
+		if (goal == WarGoalType.TRANSFER_SUBJECT && arg1 != null) {
+			Faction subject = FactionManager.getByString(arg1);
+			if (subject == null) {
+				player.sendMessage("§cUnknown subject faction: " + arg1);
+				return true;
+			}
+			subjectFactionId = subject.getId();
+		}
+		War war = WarManager.declareWar(
+				attacker,
+				defender,
+				goal,
+				titleId,
+				subjectFactionId,
+				relationTypeId,
+				governmentLawId,
+				leadershipLawId,
+				settlementId);
+		if (war == null) {
+			String error = WarManager.getLastDeclareError();
+			player.sendMessage(error != null ? error : "§cCould not declare war.");
+			return true;
+		}
+		LogManager.war(
+				"ADMIN_DECLARE warId=%d by=%s attacker=%s defender=%s goal=%s",
+				war.getId(),
+				player.getName(),
+				attacker.getId(),
+				defender.getId(),
+				goal.toJson());
+		player.sendMessage("§aDeclared war §e#" + war.getId() + "§a: " + attacker.getName() + " §avs "
+				+ defender.getName() + " §a(" + goal.getDisplayName() + "). Battle day: §e" + war.getBattleDay());
+		return true;
 	}
 
 	private boolean handleEnd(Player player, String[] args) {
@@ -468,6 +551,25 @@ public class WarCommandManager implements CommandExecutor {
 				yield WarScheduleAdminService.castVote(w, hour, side);
 			}
 			case "forcequorum" -> WarScheduleAdminService.forceQuorum(w);
+			case "setday" -> {
+				if (args.length < 5) {
+					yield WarScheduleAdminResult.error("Usage: /war admin schedule <id> setday <yyyy-MM-dd>");
+				}
+				yield WarScheduleAdminService.setDay(w, args[4]);
+			}
+			case "sethour" -> {
+				if (args.length < 5) {
+					yield WarScheduleAdminResult.error(
+							"Usage: /war admin schedule <id> sethour <hour> (0 and 1 mean after midnight CET)");
+				}
+				int hour;
+				try {
+					hour = Integer.parseInt(args[4]);
+				} catch (NumberFormatException e) {
+					yield WarScheduleAdminResult.error("Hour must be a number.");
+				}
+				yield WarScheduleAdminService.setHour(w, hour);
+			}
 			case "setscheduled" -> {
 				if (args.length < 5) {
 					yield WarScheduleAdminResult.error(
@@ -497,15 +599,15 @@ public class WarCommandManager implements CommandExecutor {
 				yield WarScheduleAdminService.battleChoice(w, args[4]);
 			}
 			default -> WarScheduleAdminResult.error(
-					"Unknown subcommand. Use: opencvote, closevote, skipday, castvote, forcequorum, "
-							+ "setscheduled, battlecreate, battledelete, battlestart, winbattle, choice");
+					"Unknown subcommand. Use: opencvote, closevote, skipday, setday, sethour, castvote, "
+							+ "forcequorum, setscheduled, battlecreate, battledelete, battlestart, winbattle, choice");
 		};
 		if (result.success()) {
 			WarManager.persist(w);
 			player.sendMessage("§a" + result.message());
 			Integer castHour = null;
 			if ("castvote".equals(subcommand)) {
-				castHour = Integer.parseInt(args[4]);
+				castHour = BattleWindowService.normalizeInputHour(Integer.parseInt(args[4]));
 			}
 			for (String line : WarScheduleFeedbackFormatter.format(subcommand, w, castHour)) {
 				player.sendMessage(line);

@@ -60,4 +60,61 @@ class BattleWindowServiceTest {
 		LocalDate missingDay = null;
 		assertNull(BattleWindowService.computeScheduledBattleAt(missingDay, 21));
 	}
+
+	@Test
+	void lateWindow_listsHoursPastMidnight() {
+		Cache.warBattleWindowEndHour = 26;
+		assertEquals(List.of(21, 22, 23, 24, 25), BattleWindowService.listValidHours());
+		assertTrue(BattleWindowService.isValidHour(25));
+		assertFalse(BattleWindowService.isValidHour(26));
+	}
+
+	@Test
+	void lateWindow_labelsHoursAsTypedClockHours() {
+		Cache.warBattleWindowEndHour = 26;
+		assertEquals(List.of(21, 22, 23, 0, 1), BattleWindowService.listValidInputHours());
+		assertEquals("01:00 CET", BattleWindowService.formatHourLabel(25));
+		assertEquals("21:00 CET", BattleWindowService.formatHourLabel(21));
+		assertEquals("21:00, 22:00, 23:00, 00:00, 01:00 CET", BattleWindowService.describeValidHours());
+	}
+
+	@Test
+	void lateWindow_hour25_isOneAmNextDateCet() {
+		Cache.warBattleWindowEndHour = 26;
+		LocalDate battleDay = LocalDate.of(2026, 11, 6);
+		Instant instant = BattleWindowService.computeScheduledBattleAt(battleDay, 25);
+		assertEquals(
+				LocalDate.of(2026, 11, 7).atTime(1, 0).atZone(BattleWindowService.SCHEDULE_ZONE).toInstant(),
+				instant);
+		assertEquals(25, BattleWindowService.resolveScheduleHour(battleDay, instant));
+	}
+
+	@Test
+	void normalizeInputHour_mapsEarlyMorningOnlyWhenWindowAllowsIt() {
+		assertEquals(21, BattleWindowService.normalizeInputHour(21));
+		assertNull(BattleWindowService.normalizeInputHour(0));
+		Cache.warBattleWindowEndHour = 26;
+		assertEquals(24, BattleWindowService.normalizeInputHour(0));
+		assertEquals(25, BattleWindowService.normalizeInputHour(1));
+		assertEquals(25, BattleWindowService.normalizeInputHour(25));
+		assertNull(BattleWindowService.normalizeInputHour(2));
+		assertNull(BattleWindowService.normalizeInputHour(20));
+	}
+
+	@Test
+	void rollover_keepsEarlyMorningOnPreviousBattleDay() {
+		assertEquals(0, BattleWindowService.rolloverHour());
+		Cache.warBattleWindowEndHour = 26;
+		assertEquals(2, BattleWindowService.rolloverHour());
+		Instant oneThirtyAm = LocalDate.of(2026, 11, 7).atTime(1, 30)
+				.atZone(BattleWindowService.SCHEDULE_ZONE).toInstant();
+		assertEquals(LocalDate.of(2026, 11, 6), BattleWindowService.scheduleDate(oneThirtyAm));
+		assertEquals(25, BattleWindowService.scheduleHour(oneThirtyAm));
+		Instant twoAm = LocalDate.of(2026, 11, 7).atTime(2, 0)
+				.atZone(BattleWindowService.SCHEDULE_ZONE).toInstant();
+		assertEquals(LocalDate.of(2026, 11, 7), BattleWindowService.scheduleDate(twoAm));
+		assertEquals(2, BattleWindowService.scheduleHour(twoAm));
+		assertEquals(twoAm, BattleWindowService.campaignDayStart(LocalDate.of(2026, 11, 7)));
+		assertNull(BattleWindowService.campaignDayStart(null));
+	}
 }

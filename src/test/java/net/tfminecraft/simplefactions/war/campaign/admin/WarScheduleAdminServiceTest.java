@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.admin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -45,7 +46,9 @@ import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
 
 class WarScheduleAdminServiceTest {
@@ -120,6 +123,182 @@ class WarScheduleAdminServiceTest {
 		War war = votingWar();
 		WarScheduleAdminResult result = WarScheduleAdminService.castVote(war, 15, "both");
 		assertFalse(result.success());
+	}
+
+	@Test
+	void castVote_lateWindow_mapsOneAmToHour25() {
+		Cache.warBattleWindowEndHour = 26;
+		War war = votingWar();
+		WarScheduleAdminResult result = WarScheduleAdminService.castVote(war, 1, "both");
+		assertTrue(result.success());
+		assertTrue(war.getBattleVotes().values().stream().allMatch(hours -> hours.equals(Set.of(25))));
+	}
+
+	@Test
+	void setDay_movesWarAndReopensVote() {
+		War war = scheduledWar();
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "2026-08-24");
+			assertTrue(result.success());
+		}
+		assertEquals(LocalDate.of(2026, 8, 24), war.getBattleDay());
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+		assertEquals(null, war.getScheduledBattleAt());
+	}
+
+	@Test
+	void setDay_rejectsPastDate() {
+		War war = votingWar();
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "2026-08-20");
+			assertFalse(result.success());
+		}
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+	}
+
+	@Test
+	void setDay_rejectsWhileAutoresolvePending() {
+		War war = votingWar();
+		war.setBattleSchedulePhase(BattleSchedulePhase.AUTORESOLVE_PENDING);
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "2026-08-23");
+			assertFalse(result.success());
+		}
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+		assertEquals(BattleSchedulePhase.AUTORESOLVE_PENDING, war.getBattleSchedulePhase());
+	}
+
+	@Test
+	void setDay_rejectsTodayOnceItsVoteHasClosed() {
+		War war = votingWar();
+		war.setBattleDay(BATTLE_DAY.plusDays(2));
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			// 18:00 CEST on the battle day, after the 16:00 vote close.
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T16:00:00Z"));
+			WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, BATTLE_DAY.toString());
+			assertFalse(result.success());
+			assertEquals("Today's vote already closed at 16:00 CET. Pick 2026-08-22 or later.", result.message());
+			assertTrue(WarScheduleAdminService.setDay(war, "2026-08-22").success());
+		}
+		assertEquals(LocalDate.of(2026, 8, 22), war.getBattleDay());
+	}
+
+	@Test
+	void setDay_acceptsTodayBeforeItsVoteCloses() {
+		War war = votingWar();
+		war.setBattleDay(BATTLE_DAY.plusDays(2));
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			assertTrue(WarScheduleAdminService.setDay(war, BATTLE_DAY.toString()).success());
+		}
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+	}
+
+	@Test
+	void setHour_rejectsWhileAutoresolvePending() {
+		War war = votingWar();
+		war.setBattleSchedulePhase(BattleSchedulePhase.AUTORESOLVE_PENDING);
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			WarScheduleAdminResult result = WarScheduleAdminService.setHour(war, 22);
+			assertEquals("Cannot reschedule while autoresolve is pending.", result.message());
+		}
+		assertEquals(BattleSchedulePhase.AUTORESOLVE_PENDING, war.getBattleSchedulePhase());
+		assertNull(war.getScheduledBattleAt());
+	}
+
+	@Test
+	void setDay_rejectsMalformedDate() {
+		War war = votingWar();
+		WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "24/08/2026");
+		assertFalse(result.success());
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+	}
+
+	@Test
+	void setHour_lateWindow_schedulesOneAmOnNextDate() {
+		Cache.warBattleWindowEndHour = 26;
+		War war = votingWar();
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			withMockBossBar(() -> {
+				WarScheduleAdminResult result = WarScheduleAdminService.setHour(war, 1);
+				assertTrue(result.success(), result.message());
+				assertEquals(BattleSchedulePhase.SCHEDULED, war.getBattleSchedulePhase());
+				assertEquals(Instant.parse("2026-08-21T23:00:00Z"), war.getScheduledBattleAt());
+				assertEquals(BATTLE_DAY, war.getBattleDay());
+			});
+		}
+	}
+
+	@Test
+	void setHour_rejectsHourAlreadyPassed() {
+		War war = votingWar();
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T20:00:00Z"));
+			WarScheduleAdminResult result = WarScheduleAdminService.setHour(war, 21);
+			assertFalse(result.success());
+			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+		}
+	}
+
+	@Test
+	void setHour_rejectsHourOutsideWindow() {
+		War war = votingWar();
+		WarScheduleAdminResult result = WarScheduleAdminService.setHour(war, 1);
+		assertFalse(result.success());
+	}
+
+	@Test
+	void setDayAndSetHour_rejectMissingOrEndedWars() {
+		assertEquals("War not found.", WarScheduleAdminService.setDay(null, "2026-08-24").message());
+		assertEquals("War not found.", WarScheduleAdminService.setHour(null, 21).message());
+		War ended = votingWar();
+		ended.end(WarEndReason.ADMIN_END);
+		assertEquals("War is not active.", WarScheduleAdminService.setDay(ended, "2026-08-24").message());
+		assertEquals("War is not active.", WarScheduleAdminService.setHour(ended, 21).message());
+		War dayless = votingWar();
+		dayless.setBattleDay(null);
+		assertEquals("War has no battle day. Use setday first.",
+				WarScheduleAdminService.setHour(dayless, 21).message());
+		assertFalse(WarScheduleAdminService.setDay(votingWar(), null).success());
+	}
+
+	@Test
+	void setDayAndSetHour_rejectWhileTheBattleIsRunning() {
+		War war = votingWar();
+		Battle running = mock(Battle.class);
+		when(running.hasStarted()).thenReturn(true);
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class);
+				MockedStatic<BattleManager> battles = mockStatic(BattleManager.class)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			battles.when(() -> BattleManager.getByWarId(war.getId())).thenReturn(running);
+			assertEquals("Cannot change the battle day while the battle is running.",
+					WarScheduleAdminService.setDay(war, "2026-08-24").message());
+			assertEquals("Cannot reschedule while the battle is running.",
+					WarScheduleAdminService.setHour(war, 21).message());
+		}
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+	}
+
+	@Test
+	void setHour_reportsWhenTheBattleCannotBeScheduled() {
+		War war = votingWar();
+		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class);
+				MockedStatic<BattleScheduleService> schedule =
+						mockStatic(BattleScheduleService.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
+			schedule.when(() -> BattleScheduleService.applyScheduledInstant(eq(war), any())).thenReturn(false);
+			WarScheduleAdminResult result = WarScheduleAdminService.setHour(war, 21);
+			assertFalse(result.success());
+			assertTrue(result.message().startsWith("Could not set scheduled battle"));
+		}
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 	}
 
 	@Test

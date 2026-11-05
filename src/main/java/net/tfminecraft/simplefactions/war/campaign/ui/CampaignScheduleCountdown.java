@@ -53,7 +53,7 @@ public final class CampaignScheduleCountdown {
 		}
 
 		if (!BattleScheduleService.isOnBattleDay(war, now)) {
-			Instant target = battleDay.atStartOfDay(BattleWindowService.SCHEDULE_ZONE).toInstant();
+			Instant target = BattleWindowService.campaignDayStart(battleDay);
 			return formatCountdown("Battle day in %s", target, now);
 		}
 

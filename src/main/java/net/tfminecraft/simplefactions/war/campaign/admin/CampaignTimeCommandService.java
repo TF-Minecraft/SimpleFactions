@@ -63,7 +63,8 @@ public final class CampaignTimeCommandService {
 	}
 
 	/**
-	 * Jumps campaign schedule to 00:00 Paris on {@code war.getBattleDay()}.
+	 * Jumps campaign schedule to the start of {@code war.getBattleDay()}: 00:00 Paris, or the
+	 * window end hour on that morning when battles run past midnight.
 	 */
 	public static CampaignTimeResult skipToBattleDay(War war) {
 		if (war == null) {
@@ -72,7 +73,7 @@ public final class CampaignTimeCommandService {
 		if (war.getBattleDay() == null) {
 			return CampaignTimeResult.error("§cWar has no battle day set.");
 		}
-		Instant target = war.getBattleDay().atStartOfDay(BattleWindowService.SCHEDULE_ZONE).toInstant();
+		Instant target = BattleWindowService.campaignDayStart(war.getBattleDay());
 		Duration delta = Duration.between(Instant.now(), target);
 		CampaignClock.reset();
 		CampaignClock.add(delta);

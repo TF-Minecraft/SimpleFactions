@@ -70,7 +70,7 @@ class ConfigurationValidationCoverageTest {
         "raid_window_start_hour=21",
         "raid_window_end_hour=21",
         "window_end_hour=20",
-        "window_end_hour=25"
+        "window_end_hour=37"
       })
   void invalidScheduleOrderingIsRejectedWithTheSettingName(String input) throws Exception {
     String[] parts = input.split("=");
@@ -80,6 +80,15 @@ class ConfigurationValidationCoverageTest {
     IllegalStateException error =
         assertThrows(IllegalStateException.class, () -> new ConfigLoader().loadWar(path.toFile()));
     assertTrue(error.getMessage().contains(parts[0]));
+  }
+
+  @Test
+  void battleWindowMayRunPastMidnight() throws Exception {
+    YamlConfiguration config = new YamlConfiguration();
+    config.set("war.battle_schedule.window_end_hour", 26);
+    Path path = write("war.yml", config.saveToString());
+    new ConfigLoader().loadWar(path.toFile());
+    assertEquals(26, Cache.warBattleWindowEndHour);
   }
 
   @ParameterizedTest
@@ -282,7 +291,7 @@ class ConfigurationValidationCoverageTest {
         "battle_schedule.raid_window_end_hour=21",
         "battle_schedule.window_start_hour=25",
         "battle_schedule.window_end_hour=20",
-        "battle_schedule.window_end_hour=25",
+        "battle_schedule.window_end_hour=37",
         "battle_voting.min_players=0",
         "battle_voting.dev_min_players=0",
         "campaign_raid.muster_seconds=0",

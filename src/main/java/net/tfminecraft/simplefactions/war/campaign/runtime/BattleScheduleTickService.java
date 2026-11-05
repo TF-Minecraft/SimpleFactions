@@ -95,7 +95,7 @@ public final class BattleScheduleTickService {
 			return false;
 		}
 
-		boolean changed = false;
+		boolean changed = BattleScheduleService.catchUpStaleBattleDay(war, now);
 		if (BattleScheduleService.applyPostBattleChoiceDeadline(war, now)) {
 			changed = true;
 		}

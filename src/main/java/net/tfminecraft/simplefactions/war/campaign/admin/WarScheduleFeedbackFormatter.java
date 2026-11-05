@@ -77,7 +77,9 @@ public final class WarScheduleFeedbackFormatter {
 	}
 
 	private static String formatCastVote(War war, Integer castVoteHour) {
-		String hour = castVoteHour != null ? String.valueOf(castVoteHour) : "-";
+		String hour = castVoteHour != null
+				? net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.formatHourLabel(castVoteHour)
+				: "-";
 		int selections = castVoteHour != null ? countVotesAtHour(war, castVoteHour) : 0;
 		return "§7Hour §e" + hour
 				+ " §7· Selections: §e" + selections

@@ -414,6 +414,182 @@ class BattleScheduleServiceTest {
 				war, BattleWindowService.atScheduleHour(BATTLE_DAY, 15)));
 	}
 
+	@Test
+	void closeVote_lateWindow_schedulesOneAmOnNextDate() {
+		Cache.warBattleWindowEndHour = 26;
+		War war = votingWar();
+		addCrossSideVotes(war, 25);
+
+		withMockBossBar(() -> {
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					voteCloseInstant(),
+					uuidToFaction(),
+					name -> null);
+
+			assertEquals(BattleScheduleCloseResult.SCHEDULED, result);
+			assertEquals(25, war.getScheduledBattleHour());
+			assertEquals(
+					BATTLE_DAY.plusDays(1).atTime(1, 0).atZone(BattleWindowService.SCHEDULE_ZONE).toInstant(),
+					war.getScheduledBattleAt());
+		});
+	}
+
+	@Test
+	void lateWindow_battleDayStillOpenAtOneThirtyNextMorning() {
+		Cache.warBattleWindowEndHour = 26;
+		War war = votingWar();
+		Instant oneThirty = BATTLE_DAY.plusDays(1).atTime(1, 30)
+				.atZone(BattleWindowService.SCHEDULE_ZONE).toInstant();
+		assertTrue(BattleScheduleService.isOnBattleDay(war, oneThirty));
+		assertTrue(BattleScheduleService.isBattleWindowOpen(war, oneThirty));
+		assertFalse(BattleScheduleService.isBattleWindowOpen(war, oneThirty.plusSeconds(3600)));
+	}
+
+	@Test
+	void advanceAfterBattle_movesToNextDayAndClearsVotes() {
+		War war = votingWar();
+		addCrossSideVotes(war, 21);
+		Instant afterBattle = BattleWindowService.atScheduleHour(BATTLE_DAY, 22);
+
+		BattleScheduleService.advanceAfterBattle(war, afterBattle);
+
+		assertEquals(BATTLE_DAY.plusDays(1), war.getBattleDay());
+		assertTrue(war.getBattleVotes().isEmpty());
+	}
+
+	@Test
+	void advanceAfterBattle_afterMidnightStillCountsAsFoughtDay() {
+		Cache.warBattleWindowEndHour = 26;
+		War war = votingWar();
+		Instant oneThirty = BATTLE_DAY.plusDays(1).atTime(1, 30)
+				.atZone(BattleWindowService.SCHEDULE_ZONE).toInstant();
+
+		BattleScheduleService.advanceAfterBattle(war, oneThirty);
+
+		assertEquals(BATTLE_DAY.plusDays(1), war.getBattleDay());
+	}
+
+	@Test
+	void advanceAfterBattle_staleBattleDayJumpsPastToday() {
+		War war = votingWar();
+		Instant later = BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(3), 22);
+
+		BattleScheduleService.advanceAfterBattle(war, later);
+
+		assertEquals(BATTLE_DAY.plusDays(4), war.getBattleDay());
+	}
+
+	@Test
+	void advanceAfterBattle_lateResultAfterRolloverMovesOnlyOneDay() {
+		War war = votingWar();
+		Instant threeAmNextDay = BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(1), 3);
+
+		BattleScheduleService.advanceAfterBattle(war, threeAmNextDay);
+
+		assertEquals(BATTLE_DAY.plusDays(1), war.getBattleDay());
+	}
+
+	@Test
+	void advanceAfterBattle_resultAfterNextDaysVoteCloseSkipsToTheDayAfter() {
+		War war = votingWar();
+		Instant afterVoteClose = BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(1), 17);
+
+		BattleScheduleService.advanceAfterBattle(war, afterVoteClose);
+
+		assertEquals(BATTLE_DAY.plusDays(2), war.getBattleDay());
+	}
+
+	@Test
+	void advanceAfterBattle_withoutAFoughtDayUsesTheCurrentBattleDay() {
+		War war = votingWar();
+		war.setBattleDay(null);
+		Instant morning = BattleWindowService.atScheduleHour(BATTLE_DAY, 10);
+
+		BattleScheduleService.advanceAfterBattle(war, morning);
+
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+	}
+
+	@Test
+	void advanceAfterBattle_withoutATimeUsesTheRealClock() {
+		War war = votingWar();
+		war.setBattleDay(LocalDate.of(2000, 1, 1));
+
+		BattleScheduleService.advanceAfterBattle(war, null);
+
+		assertFalse(war.getBattleDay().isBefore(BattleScheduleService.battleDayDate(Instant.now())));
+	}
+
+	@Test
+	void scheduleChanges_ignoreMissingWarsDaysAndTimes() {
+		BattleScheduleService.advanceAfterBattle(null, Instant.now());
+		assertFalse(BattleScheduleService.setBattleDay(null, BATTLE_DAY));
+		War war = votingWar();
+		assertFalse(BattleScheduleService.setBattleDay(war, null));
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(null, Instant.now()));
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(war, null));
+		war.setBattleDay(null);
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(war, Instant.now()));
+		assertNull(war.getBattleDay());
+	}
+
+	@Test
+	void setBattleDay_scheduledWarReopensVoteOnNewDay() {
+		War war = votingWar();
+		addCrossSideVotes(war, 21);
+		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
+
+		assertTrue(BattleScheduleService.setBattleDay(war, BATTLE_DAY.plusDays(2)));
+
+		assertEquals(BATTLE_DAY.plusDays(2), war.getBattleDay());
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+		assertTrue(war.getBattleVotes().isEmpty());
+		assertNull(war.getScheduledBattleAt());
+	}
+
+	@Test
+	void catchUpStaleBattleDay_movesPastVotingDayToToday() {
+		War war = votingWar();
+		addCrossSideVotes(war, 21);
+		Instant twoDaysLater = BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(2), 10);
+
+		assertTrue(BattleScheduleService.catchUpStaleBattleDay(war, twoDaysLater));
+
+		assertEquals(BATTLE_DAY.plusDays(2), war.getBattleDay());
+		assertTrue(war.getBattleVotes().isEmpty());
+		assertEquals(0, war.getPostponementsThisCycle());
+	}
+
+	@Test
+	void catchUpStaleBattleDay_afterTodaysVoteCloseMovesToTomorrow() {
+		War war = votingWar();
+		Instant afterVoteClose = BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(2), 17);
+
+		assertTrue(BattleScheduleService.catchUpStaleBattleDay(war, afterVoteClose));
+
+		assertEquals(BATTLE_DAY.plusDays(3), war.getBattleDay());
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+		assertEquals(0, war.getPostponementsThisCycle());
+	}
+
+	@Test
+	void catchUpStaleBattleDay_leavesCurrentOrFutureDayAlone() {
+		War war = votingWar();
+		addCrossSideVotes(war, 21);
+
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(
+				war, BattleWindowService.atScheduleHour(BATTLE_DAY, 10)));
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(
+				war, BattleWindowService.atScheduleHour(BATTLE_DAY.minusDays(1), 10)));
+
+		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
+		assertFalse(BattleScheduleService.catchUpStaleBattleDay(
+				war, BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(2), 10)));
+		assertEquals(BATTLE_DAY, war.getBattleDay());
+		assertFalse(war.getBattleVotes().isEmpty());
+	}
+
 	private War votingWar() {
 		War war = new War(1, attacker, defender);
 		war.setGoal(WarGoalType.SUBJUGATE);

@@ -11,7 +11,10 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Permissions;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
+import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 
 public class WarTabCompletion implements TabCompleter {
 
@@ -35,6 +38,7 @@ public class WarTabCompletion implements TabCompleter {
 		}
 		if (args.length == 2) {
 			List<String> completions = new ArrayList<>();
+			addIfPrefix(completions, args[1], "declare");
 			addIfPrefix(completions, args[1], "end");
 			addIfPrefix(completions, args[1], "win");
 			addIfPrefix(completions, args[1], "status");
@@ -53,6 +57,9 @@ public class WarTabCompletion implements TabCompleter {
 		}
 		if (args.length == 3 && args[1].equalsIgnoreCase("factions")) {
 			return factionIds(args[2]);
+		}
+		if (args[1].equalsIgnoreCase("declare")) {
+			return declareCompletions(args);
 		}
 		if (args.length == 4 && args[1].equalsIgnoreCase("reparations")) {
 			return factionIds(args[3]);
@@ -136,6 +143,8 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[3], "opencvote");
 			addIfPrefix(completions, args[3], "closevote");
 			addIfPrefix(completions, args[3], "skipday");
+			addIfPrefix(completions, args[3], "setday");
+			addIfPrefix(completions, args[3], "sethour");
 			addIfPrefix(completions, args[3], "castvote");
 			addIfPrefix(completions, args[3], "forcequorum");
 			addIfPrefix(completions, args[3], "setscheduled");
@@ -164,9 +173,18 @@ public class WarTabCompletion implements TabCompleter {
 				return completions;
 			}
 		}
-		if (args.length == 5 && args[1].equalsIgnoreCase("schedule") && args[3].equalsIgnoreCase("castvote")) {
+		if (args.length == 5 && args[1].equalsIgnoreCase("schedule") && args[3].equalsIgnoreCase("setday")) {
 			List<String> completions = new ArrayList<>();
-			for (int hour : BattleWindowService.listValidHours()) {
+			java.time.LocalDate today = BattleScheduleService.battleDayDate(CampaignClock.now());
+			for (int offset = 0; offset < 3; offset++) {
+				addIfPrefix(completions, args[4], today.plusDays(offset).toString());
+			}
+			return completions;
+		}
+		if (args.length == 5 && args[1].equalsIgnoreCase("schedule")
+				&& (args[3].equalsIgnoreCase("castvote") || args[3].equalsIgnoreCase("sethour"))) {
+			List<String> completions = new ArrayList<>();
+			for (int hour : BattleWindowService.listValidInputHours()) {
 				String value = String.valueOf(hour);
 				if (value.startsWith(args[4])) {
 					completions.add(value);
@@ -180,6 +198,25 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[5], "defender");
 			addIfPrefix(completions, args[5], "both");
 			return completions;
+		}
+		return List.of();
+	}
+
+	private static List<String> declareCompletions(String[] args) {
+		if (args.length == 3 || args.length == 4) {
+			return factionIds(args[args.length - 1]);
+		}
+		if (args.length == 5) {
+			List<String> completions = new ArrayList<>();
+			for (WarGoalType goal : WarGoalType.values()) {
+				if (!goal.isMovementOrigin()) {
+					addIfPrefix(completions, args[4], goal.toJson());
+				}
+			}
+			return completions;
+		}
+		if (args.length == 6 && WarGoalType.fromJson(args[4]) == WarGoalType.TRANSFER_SUBJECT) {
+			return factionIds(args[5]);
 		}
 		return List.of();
 	}

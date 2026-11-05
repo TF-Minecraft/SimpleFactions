@@ -169,6 +169,27 @@ class ConfigLoaderBattleScheduleTest {
 		assertThrows(IllegalStateException.class, () -> new ConfigLoader().loadWar(file.toFile()));
 	}
 
+	@Test
+	void loadConfig_defenderDeadlineMustFallOnTheBattleDate() throws IOException {
+		Path file = writeConfig("""
+				war:
+				  battle_schedule:
+				    defender_choice_deadline_hour: 24
+				    vote_close_hour: 25
+				    raid_window_start_hour: 26
+				    raid_window_end_hour: 27
+				    window_start_hour: 28
+				    window_end_hour: 48
+				  battle_voting:
+				    min_players: 4
+				    dev_min_players: 1
+				""");
+
+		IllegalStateException error =
+				assertThrows(IllegalStateException.class, () -> new ConfigLoader().loadWar(file.toFile()));
+		assertTrue(error.getMessage().contains("between 0 and 23"));
+	}
+
 	private Path writeConfig(String yaml) throws IOException {
 		Path file = tempDir.resolve("config.yml");
 		Files.writeString(file, yaml);
