@@ -344,8 +344,14 @@ public class ConfigLoader {
 		if (raidEnd >= windowStart) {
 			throw invalidBattleConfiguration("war.battle_schedule.raid_window_end_hour must be < window_start_hour");
 		}
-		if (windowStart > windowEnd || windowEnd > 24) {
-			throw invalidBattleConfiguration("war.battle_schedule requires window_start_hour <= window_end_hour <= 24");
+		if (windowStart > windowEnd) {
+			throw invalidBattleConfiguration("war.battle_schedule requires window_start_hour <= window_end_hour");
+		}
+		// The window may run past midnight (25 = 01:00) but must close before the next battle day's first deadline.
+		if (windowEnd > 24 + defenderDeadline) {
+			throw invalidBattleConfiguration(
+					"war.battle_schedule.window_end_hour must be <= 24 + defender_choice_deadline_hour ("
+							+ (24 + defenderDeadline) + ")");
 		}
 		if (config.getInt("war.battle_voting.min_players", 4) < 1) {
 			throw invalidBattleConfiguration("war.battle_voting.min_players must be >= 1");
