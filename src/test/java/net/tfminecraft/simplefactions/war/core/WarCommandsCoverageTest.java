@@ -32,6 +32,8 @@ import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
+import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminResult;
+import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleTickService;
@@ -316,6 +318,16 @@ class WarCommandsCoverageTest {
         Arguments.of("admin schedule 1 castvote 15", "Hour must be within the battle window"),
         Arguments.of(
             "admin schedule 1 castvote 21 wrong", "Side must be attacker, defender, or both"),
+        Arguments.of("admin schedule 1 setday", "Usage: /war admin schedule <id> setday"),
+        Arguments.of("admin schedule 1 sethour", "Usage: /war admin schedule <id> sethour"),
+        Arguments.of("admin schedule 1 sethour bad", "Hour must be a number"),
+        Arguments.of("admin declare iron", "Usage: /war admin declare"),
+        Arguments.of("admin declare iron nowhere", "Unknown faction: nowhere"),
+        Arguments.of("admin declare nowhere river", "Unknown faction: nowhere"),
+        Arguments.of("admin declare iron river conquest", "Unknown war goal: conquest"),
+        Arguments.of("admin declare iron river overthrow", "wars start from movements"),
+        Arguments.of(
+            "admin declare iron river transfer_subject nowhere", "Unknown subject faction: nowhere"),
         Arguments.of("admin schedule 1 setscheduled", "Usage:"),
         Arguments.of("admin schedule 1 setscheduled invalid", "Could not parse instant"),
         Arguments.of("admin schedule 1 winbattle", "Usage:"),
@@ -339,6 +351,117 @@ class WarCommandsCoverageTest {
     assertTrue(war.getCampaignRaidsUsed().isEmpty());
     assertEquals(before, writes(war));
     assertEquals(Duration.ZERO, CampaignClock.getOffset());
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "admin declare iron hill war extra",
+        "admin declare iron hill subjugate vassal extra",
+        "admin declare iron hill change_government a b extra"
+      })
+  void adminDeclareRejectsArgumentsTheGoalDoesNotTake(String input) {
+    fixture.saved("hill", "Carol");
+    int before = WarManager.get().size();
+    assertTrue(run(input.split(" ")));
+    verify(alice).sendMessage(startsWith("§cUsage: /war admin declare"));
+    assertEquals(before, WarManager.get().size());
+  }
+
+  static Stream<Arguments> adminDeclareGoalArguments() {
+    return Stream.of(
+        Arguments.of(
+            "admin declare iron river", WarGoalType.WAR, Arrays.asList(null, null, null, null, null, null)),
+        Arguments.of(
+            "admin declare iron river de_jure_annex t1",
+            WarGoalType.DE_JURE_ANNEX,
+            Arrays.asList("t1", null, null, null, null, null)),
+        Arguments.of(
+            "admin declare iron river transfer_subject river",
+            WarGoalType.TRANSFER_SUBJECT,
+            Arrays.asList(null, "river", null, null, null, null)),
+        Arguments.of(
+            "admin declare iron river transfer_subject",
+            WarGoalType.TRANSFER_SUBJECT,
+            Arrays.asList(null, null, null, null, null, null)),
+        Arguments.of(
+            "admin declare iron river subjugate vassal",
+            WarGoalType.SUBJUGATE,
+            Arrays.asList(null, null, "vassal", null, null, null)),
+        Arguments.of(
+            "admin declare iron river change_government gov lead",
+            WarGoalType.CHANGE_GOVERNMENT,
+            Arrays.asList(null, null, null, "gov", "lead", null)),
+        Arguments.of(
+            "admin declare iron river pillage s1",
+            WarGoalType.PILLAGE,
+            Arrays.asList(null, null, null, null, null, "s1")));
+  }
+
+  @ParameterizedTest
+  @MethodSource("adminDeclareGoalArguments")
+  void adminDeclarePassesEachGoalItsOwnArguments(
+      String input, WarGoalType goal, List<String> goalArgs) {
+    War declared = war(7);
+    try (MockedStatic<WarManager> manager = mockStatic(WarManager.class)) {
+      manager
+          .when(
+              () ->
+                  WarManager.declareWar(
+                      any(), any(), any(), any(), any(), any(), any(), any(), any()))
+          .thenReturn(declared);
+      assertTrue(run(input.split(" ")));
+      manager.verify(
+          () ->
+              WarManager.declareWar(
+                  attacker,
+                  defender,
+                  goal,
+                  goalArgs.get(0),
+                  goalArgs.get(1),
+                  goalArgs.get(2),
+                  goalArgs.get(3),
+                  goalArgs.get(4),
+                  goalArgs.get(5)));
+    }
+    verify(alice).sendMessage(contains("§aDeclared war §e#7"));
+    verify(alice).sendMessage(contains("Battle day: §e2026-10-10"));
+  }
+
+  @Test
+  void adminDeclareReportsWhyTheDeclarationFailed() {
+    try (MockedStatic<WarManager> manager = mockStatic(WarManager.class)) {
+      manager
+          .when(
+              () ->
+                  WarManager.declareWar(
+                      any(), any(), any(), any(), any(), any(), any(), any(), any()))
+          .thenReturn(null);
+      manager.when(WarManager::getLastDeclareError).thenReturn("§cAlready at war.", (String) null);
+      assertTrue(run("admin", "declare", "iron", "river"));
+      verify(alice).sendMessage("§cAlready at war.");
+      assertTrue(run("admin", "declare", "iron", "river"));
+      verify(alice).sendMessage("§cCould not declare war.");
+    }
+  }
+
+  @Test
+  void adminSetDayAndSetHourPassTheirArgumentsToTheScheduleService() {
+    War war = war(1);
+    try (MockedStatic<WarScheduleAdminService> admin = mockStatic(WarScheduleAdminService.class)) {
+      admin
+          .when(() -> WarScheduleAdminService.setDay(war, "2026-12-01"))
+          .thenReturn(WarScheduleAdminResult.ok("day moved"));
+      admin
+          .when(() -> WarScheduleAdminService.setHour(war, 1))
+          .thenReturn(WarScheduleAdminResult.ok("hour moved"));
+      assertTrue(run("admin", "schedule", "1", "setday", "2026-12-01"));
+      assertTrue(run("admin", "schedule", "1", "sethour", "1"));
+      admin.verify(() -> WarScheduleAdminService.setDay(war, "2026-12-01"));
+      admin.verify(() -> WarScheduleAdminService.setHour(war, 1));
+    }
+    verify(alice).sendMessage(contains("day moved"));
+    verify(alice).sendMessage(contains("hour moved"));
   }
 
   @Test
@@ -644,6 +767,7 @@ class WarCommandsCoverageTest {
         Arguments.of(
             "admin ",
             List.of(
+                "declare",
                 "end",
                 "win",
                 "status",
@@ -685,6 +809,8 @@ class WarCommandsCoverageTest {
                 "opencvote",
                 "closevote",
                 "skipday",
+                "setday",
+                "sethour",
                 "castvote",
                 "forcequorum",
                 "setscheduled",
@@ -699,6 +825,12 @@ class WarCommandsCoverageTest {
         Arguments.of("admin schedule 1 choice ", List.of("push", "hold", "attack", "accept")),
         Arguments.of("admin schedule 1 castvote 2", List.of("20", "21", "22", "23")),
         Arguments.of("admin schedule 1 castvote 21 ", List.of("attacker", "defender", "both")),
+        Arguments.of("admin schedule 1 sethour 2", List.of("20", "21", "22", "23")),
+        Arguments.of("admin declare r", List.of("river")),
+        Arguments.of("admin declare river i", List.of("iron")),
+        Arguments.of("admin declare river iron su", List.of("subjugate")),
+        Arguments.of("admin declare river iron transfer_subject r", List.of("river")),
+        Arguments.of("admin declare river iron war ", List.of()),
         Arguments.of("admin unknown arguments", List.of()),
         Arguments.of("list arguments", List.of()));
   }
@@ -711,6 +843,19 @@ class WarCommandsCoverageTest {
     war(19).end(WarEndReason.ADMIN_END);
     war(2);
     assertEquals(expected, complete(input.split(" ", -1)));
+  }
+
+  @Test
+  void setDayCompletesTodayAndTheNextTwoBattleDays() {
+    war(1);
+    java.time.Instant noon = java.time.Instant.parse("2026-11-06T11:00:00Z");
+    try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class, CALLS_REAL_METHODS)) {
+      clock.when(CampaignClock::now).thenReturn(noon);
+      assertEquals(
+          List.of("2026-11-06", "2026-11-07", "2026-11-08"),
+          complete("admin", "schedule", "1", "setday", "2026-11"));
+      assertEquals(List.of("2026-11-07"), complete("admin", "schedule", "1", "setday", "2026-11-07"));
+    }
   }
 
   @Test

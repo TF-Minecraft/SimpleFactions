@@ -265,6 +265,79 @@ public final class BattleScheduleService {
 		PreparationFreeze.applyPostponement(war, now);
 	}
 
+	/**
+	 * Moves the war to the battle day after the one just fought. A battle that runs past midnight
+	 * still belongs to the evening it started on, so the next battle day is the day after that
+	 * evening, never the same night. Votes, picks and raids from the fought day are cleared.
+	 */
+	public static void advanceAfterBattle(War war, Instant now) {
+		if (war == null) {
+			return;
+		}
+		LocalDate fought = war.getBattleDay();
+		war.setBattleDay(firstVotableBattleDay(fought == null ? null : fought.plusDays(1),
+				now != null ? now : Instant.now()));
+		startFreshBattleDay(war);
+	}
+
+	/**
+	 * Sets the battle day by hand. A war that was voting or scheduled goes back to voting on the
+	 * new day with no votes, picks or raids carried over.
+	 */
+	public static boolean setBattleDay(War war, LocalDate day) {
+		if (war == null || day == null) {
+			return false;
+		}
+		war.setBattleDay(day);
+		startFreshBattleDay(war);
+		BattleSchedulePhase phase = war.getBattleSchedulePhase();
+		if (phase == BattleSchedulePhase.VOTING || phase == BattleSchedulePhase.SCHEDULED) {
+			openVote(war);
+		}
+		return true;
+	}
+
+	/**
+	 * A voting war whose battle day already passed (for example while the server was down) moves
+	 * to the current battle day so its vote can close again, or to the next one when today's vote
+	 * has already closed. Not counted as a postponement.
+	 */
+	public static boolean catchUpStaleBattleDay(War war, Instant now) {
+		if (war == null || now == null || war.getBattleDay() == null) {
+			return false;
+		}
+		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
+			return false;
+		}
+		LocalDate current = battleDayDate(now);
+		if (!war.getBattleDay().isBefore(current)) {
+			return false;
+		}
+		war.setBattleDay(firstVotableBattleDay(current, now));
+		startFreshBattleDay(war);
+		return true;
+	}
+
+	/**
+	 * {@code candidate}, or the first later battle day whose vote is still open: never a past day,
+	 * and not today once today's vote close hour has passed.
+	 */
+	private static LocalDate firstVotableBattleDay(LocalDate candidate, Instant now) {
+		LocalDate current = battleDayDate(now);
+		LocalDate day = candidate == null || candidate.isBefore(current) ? current : candidate;
+		if (day.equals(current) && battleDayHour(now) >= Cache.warVoteCloseHour) {
+			return current.plusDays(1);
+		}
+		return day;
+	}
+
+	private static void startFreshBattleDay(War war) {
+		BattleVoteService.clearVotes(war);
+		war.clearSignupRemindersSent();
+		BattleInstallationPickService.clearForNewBattleDay(war);
+		CampaignRaidService.clearForNewBattleDay(war);
+	}
+
 	public static Integer resolveBattleProvinceId(War war) {
 		if (war == null) {
 			return null;

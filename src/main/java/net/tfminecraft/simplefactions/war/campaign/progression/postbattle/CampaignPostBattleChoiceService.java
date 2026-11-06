@@ -110,9 +110,6 @@ public final class CampaignPostBattleChoiceService {
 		if (war == null || !war.isActive() || now == null) {
 			return false;
 		}
-		if (!BattleScheduleService.isOnBattleDay(war, now)) {
-			return false;
-		}
 		if (!BattleScheduleService.isPostBattleChoiceDeadlineDue(war, now)) {
 			return false;
 		}
