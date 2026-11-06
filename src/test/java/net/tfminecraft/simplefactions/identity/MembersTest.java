@@ -190,6 +190,44 @@ class MembersTest {
     }
 
     @Test
+    void theCharacterIdShortcutAnswersLikeTheFullParse() {
+        String canonical = UUID.randomUUID().toString();
+        // A UUID's own string is always 36 characters with dashes at 8, 13, 18 and 23, and no
+        // UTF-16 character but the dash equals a dash ignoring case, so the round trip refused
+        // every key the shortcut now refuses.
+        for (int c = Character.MIN_VALUE; c <= Character.MAX_VALUE; c++) {
+            if (String.valueOf((char) c).equalsIgnoreCase("-") != (c == '-')) fail("U+" + Integer.toHexString(c));
+        }
+        for (int dash : new int[] {8, 13, 18, 23}) {
+            for (char c : "0aA+_ \u2010\u2011\u2212\ufe63\uff0d".toCharArray()) {
+                String key = canonical.substring(0, dash) + c + canonical.substring(dash + 1);
+                assertEquals(parsedCharacterId(key), Members.characterId(key), key);
+            }
+        }
+        // Every length up to 72, lenient forms that parse but do not round-trip, and case and
+        // whitespace variants.
+        String longer = canonical + canonical;
+        for (int length = 0; length <= longer.length(); length++) {
+            assertEquals(parsedCharacterId(longer.substring(0, length)), Members.characterId(longer.substring(0, length)));
+        }
+        for (String key : List.of("1-1-1-1-1", "0-0-0-0-0", "00000000-0000-0000-0000-0000000000000",
+                "+0000000-0000-0000-0000-000000000000", canonical.toUpperCase(), " " + canonical)) {
+            assertEquals(parsedCharacterId(key), Members.characterId(key), key);
+        }
+    }
+
+    /** The parse alone, as {@link Members#characterId} was before it ruled keys out first. */
+    private static UUID parsedCharacterId(String key) {
+        if (key == null) return null;
+        try {
+            UUID id = UUID.fromString(key);
+            return id.toString().equalsIgnoreCase(key) ? id : null;
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    @Test
     void keysAreLowerCaseCharacterIds() {
         UUID id = UUID.randomUUID();
         assertEquals(id.toString(), Members.key(id));
@@ -200,6 +238,14 @@ class MembersTest {
         assertNull(Members.characterId("1-1-1-1-1"));
         assertNull(Members.characterId("Steve"));
         assertNull(Members.characterId(null));
+        // Each dash position on its own, and dashed 36-character non-IDs (one does not parse,
+        // one parses through Unicode digits but is not the UUID's own string).
+        String canonical = id.toString();
+        for (int dash : new int[] {8, 13, 18, 23}) {
+            assertNull(Members.characterId(canonical.substring(0, dash) + "0" + canonical.substring(dash + 1)));
+        }
+        assertNull(Members.characterId("zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"));
+        assertNull(Members.characterId("\uff10" + canonical.substring(1)));
         assertTrue(Members.isQuarantined("quarantine:q1"));
         assertFalse(Members.isQuarantined(null));
         assertTrue(Members.online(null).isEmpty());

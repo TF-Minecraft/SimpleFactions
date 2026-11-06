@@ -188,6 +188,19 @@ public class SimpleFactions extends JavaPlugin{
 	private ProvinceManager provinceSnapshot = new ProvinceManager();
 	private ProvinceGrid provinceGrid;
 	private static final long TRACK_REFRESH_TICKS = 300L * 20L;
+	/** The death reconcile and the leaderless and held realm expiries run hourly. */
+	static final long DEATH_RECONCILE_TICKS = 60L * 60L * 20L;
+	/**
+	 * Their first run, 30 min 30 s (and 11 ticks) after start. On the hour after start the vehicle
+	 * decay and the 1- and 5-minute timers run too, and around then so does MapSystem's full map
+	 * update (faction saves and every export), a second later each hour. Together they held the
+	 * server thread for 0.45 s on Main. The odd 11 ticks also keep it off the once-a-second tasks,
+	 * whose FactionManager.time() runs the day and hour steps of the saved clock. Each run reads
+	 * the current state and the wall clock, so an earlier first run only finds the same things
+	 * (or starts a leaderless guild's empty clock) up to half an hour sooner, as any run in the
+	 * hour already could.
+	 */
+	static final long FIRST_DEATH_RECONCILE_TICKS = 30L * 60L * 20L + 30L * 20L + 11L;
 	private BukkitTask trackRefreshTask;
 	private final PlayerVehicleRegistry vehicleRegistry = new PlayerVehicleRegistry();
 	private VehicleRegistryPersistence vehicleRegistryPersistence;
@@ -579,7 +592,7 @@ public class SimpleFactions extends JavaPlugin{
             catch (Exception error) { net.tfminecraft.simplefactions.economy.EconomyRuntime.failClosed(error); return; }
             net.tfminecraft.simplefactions.guild.LeaderlessGuilds.closeExpired(System.currentTimeMillis());
             net.tfminecraft.simplefactions.guild.HeldRealms.closeExpired(System.currentTimeMillis(), getDataFolder().toPath());
-        }, 72000L, 72000L);
+        }, FIRST_DEATH_RECONCILE_TICKS, DEATH_RECONCILE_TICKS);
         getServer().getScheduler().runTaskTimer(this,
                 net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService::tick, 1200L, 1200L);
         net.tfminecraft.simplefactions.identity.LeaderCharacterListener.refresh(null);

@@ -257,7 +257,12 @@ public final class Members {
 
     /** The parsed character ID of a key, or null if it is not one. */
     public static UUID characterId(String key) {
-        if (key == null) return null;
+        // Only the 36-character form with its four dashes can equal a UUID's own string, so
+        // anything else is ruled out without parsing. Parsing threw (or failed the round trip) for
+        // each of them: the hourly death reconcile walks every string in every realm, 0.2 s of the
+        // server thread on Main.
+        if (key == null || key.length() != 36 || key.charAt(8) != '-' || key.charAt(13) != '-'
+                || key.charAt(18) != '-' || key.charAt(23) != '-') return null;
         try {
             UUID id = UUID.fromString(key);
             return id.toString().equalsIgnoreCase(key) ? id : null;
