@@ -11,6 +11,7 @@ import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1600,35 +1601,38 @@ class VehicleInteractionsCoverageTest {
     var clicked = new VehiclePreInteractEvent(actor, vehicle);
     eligibility.onVehiclePreInteract(clicked);
     assertEquals(expected.isDenied(), clicked.isCancelled());
-    eligibility.onVehicleSpawn(new VehicleSpawnEvent(vehicle));
-    verify(vehicle, times(expected.isDenied() ? 1 : 0)).remove(VehicleRemoveReason.ADMIN_KILL);
+    // A denied vehicle that loads (chunk load fires VehicleSpawnEvent) is never removed: only
+    // boarding is refused. Removing it would drop its faction record.
+    var recordBefore = registry.getByVehicleUuid("vehicle-1").map(VehicleInteractionsCoverageTest::ownership);
+    new VehicleSpawnListener(new InstallationVehicleOwnerSync(registry))
+        .onVehicleSpawn(new VehicleSpawnEvent(vehicle));
+    verify(vehicle, never()).remove();
+    verify(vehicle, never()).remove(any(VehicleRemoveReason.class));
+    verify(vehicle, never()).remove(any(VehicleRemovePayload.class));
+    assertEquals(
+        recordBefore,
+        registry.getByVehicleUuid("vehicle-1").map(VehicleInteractionsCoverageTest::ownership));
     if (expected.isDenied())
-      verify(actor, times(2))
-          .sendMessage(BattleVehicleEligibilityService.Messages.forResult(expected));
+      verify(actor).sendMessage(BattleVehicleEligibilityService.Messages.forResult(expected));
     else verify(actor, never()).sendMessage(anyString());
   }
 
+  private static List<Object> ownership(PlayerVehicleRecord record) {
+    return Arrays.asList(record.getMode(), record.getFactionId(), record.getInstallationId());
+  }
+
   @Test
-  void battleNotificationsPreferCurrentOwnerThenRegistryIdentityAndIgnoreIncompleteEvents() {
-    assertSame(owner, BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry));
-    ownerData.setOwner(tag("NotOnline"));
-    assertSame(owner, BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry));
-    when(vehicle.getOwnerData()).thenReturn(null);
-    assertSame(owner, BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry));
-    assertNull(BattleVehicleEligibilityService.resolveNotifyPlayer(null, registry));
-    assertNull(BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, null));
+  void battleEligibilityIgnoresIncompleteEventsAndNeverHandlesVehicleLoads() {
+    // 2026-11-07: a load-time check removed a pre-battle leader's berthed planes and dropped
+    // their installation records. Battle rules may only refuse boarding.
+    for (var method : BattleVehicleEligibilityService.Listener.class.getDeclaredMethods())
+      for (var parameter : method.getParameterTypes())
+        assertNotEquals(VehicleSpawnEvent.class, parameter, method.getName());
     var eligibility = new BattleVehicleEligibilityService.Listener(registry);
     var noPlayer = new VehiclePreInteractEvent(null, vehicle);
     var noVehicle = new VehiclePreInteractEvent(owner, null);
     eligibility.onVehiclePreInteract(noPlayer);
     eligibility.onVehiclePreInteract(noVehicle);
-    eligibility.onVehicleSpawn(new VehicleSpawnEvent(null));
-    when(vehicle.getUUID()).thenReturn(null);
-    assertNull(BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry));
-    eligibility.onVehicleSpawn(new VehicleSpawnEvent(vehicle));
-    when(vehicle.getUUID()).thenReturn("vehicle-1");
-    registry.unregister("vehicle-1");
-    eligibility.onVehicleSpawn(new VehicleSpawnEvent(vehicle));
     assertFalse(noPlayer.isCancelled());
     assertFalse(noVehicle.isCancelled());
     verify(vehicle, never()).remove(any(VehicleRemoveReason.class));
