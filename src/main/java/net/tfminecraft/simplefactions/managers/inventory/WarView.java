@@ -839,14 +839,7 @@ public class WarView {
 			return false;
 		}
 		List<Integer> axis = w.getCampaignProvinces();
-		if (axis == null || axis.isEmpty()) {
-			return false;
-		}
-		Faction faction = FactionManager.getByLeader(Members.key(player));
-		if (faction == null) {
-			faction = FactionManager.getByMember(Members.key(player));
-		}
-		return faction != null && w.getParticipant(faction) != null;
+		return axis != null && !axis.isEmpty();
 	}
 
 	private boolean openContractFromItem(ItemStack item, Player p, War w) {
