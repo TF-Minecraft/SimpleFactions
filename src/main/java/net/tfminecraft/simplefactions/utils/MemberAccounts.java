@@ -18,10 +18,4 @@ public final class MemberAccounts {
         if (Members.characterId(member) != null) return Members.accountId(member).orElse(null);
         return OfflineModifier.playerId(member);
     }
-
-    /** The account behind a character ID; any other UUID is taken to be an account already. */
-    public static UUID accountOf(UUID id) {
-        if (id == null) return null;
-        return Members.accountId(Members.key(id)).orElse(id);
-    }
 }
