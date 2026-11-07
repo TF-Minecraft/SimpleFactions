@@ -16,7 +16,9 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -97,6 +99,8 @@ class WarScheduleAdminServiceTest {
 		War war = votingWar();
 		WarScheduleAdminResult result = WarScheduleAdminService.skipDay(war);
 		assertTrue(result.success());
+		assertEquals("Skipped to battle day " + BATTLE_DAY.plusDays(1) + ". "
+				+ WarScheduleAdminService.NEW_DAY_CLEARED, result.message());
 		assertEquals(BATTLE_DAY.plusDays(1), war.getBattleDay());
 		assertEquals(0, war.getPostponementsThisCycle());
 	}
@@ -137,11 +141,19 @@ class WarScheduleAdminServiceTest {
 	@Test
 	void setDay_movesWarAndReopensVote() {
 		War war = scheduledWar();
+		war.setBattleInstallationPicks(Map.of("home", new LinkedHashSet<>(List.of("harbor"))));
+		war.setBattleInstallationPicksBattleDay(war.getBattleDay());
 		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
 			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
 			WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "2026-08-24");
 			assertTrue(result.success());
+			// Staff are told the move uncommits every installation (2026-11-07 airfield report).
+			assertEquals("Battle day set to 2026-08-24 (phase VOTING). Votes were cleared. Installation"
+					+ " commitments were cleared (a naval defender's port is recommitted automatically), any"
+					+ " running raid was ended and each side's raid for the day is available again. Leaders"
+					+ " must commit their installations again.", result.message());
 		}
+		assertTrue(war.getBattleInstallationPicks().isEmpty());
 		assertEquals(LocalDate.of(2026, 8, 24), war.getBattleDay());
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 		assertEquals(null, war.getScheduledBattleAt());

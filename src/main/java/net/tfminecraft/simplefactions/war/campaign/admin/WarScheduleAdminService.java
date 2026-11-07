@@ -169,6 +169,12 @@ public final class WarScheduleAdminService {
 
 
 
+	/** What moving a war to another battle day resets, so staff are not surprised by it. */
+	static final String NEW_DAY_CLEARED =
+			"Installation commitments were cleared (a naval defender's port is recommitted automatically),"
+					+ " any running raid was ended and each side's raid for the day is available again."
+					+ " Leaders must commit their installations again.";
+
 	public static WarScheduleAdminResult skipDay(War war) {
 
 		if (war == null) {
@@ -191,7 +197,7 @@ public final class WarScheduleAdminService {
 
 		BattleScheduleService.skipBattleDay(war);
 
-		return WarScheduleAdminResult.ok("Skipped to battle day " + war.getBattleDay() + ".");
+		return WarScheduleAdminResult.ok("Skipped to battle day " + war.getBattleDay() + ". " + NEW_DAY_CLEARED);
 
 	}
 
@@ -319,7 +325,8 @@ public final class WarScheduleAdminService {
 		}
 		BattleScheduleService.setBattleDay(war, day);
 		return WarScheduleAdminResult.ok(
-				"Battle day set to " + day + " (phase " + war.getBattleSchedulePhase() + ", votes cleared).");
+				"Battle day set to " + day + " (phase " + war.getBattleSchedulePhase()
+						+ "). Votes were cleared. " + NEW_DAY_CLEARED);
 	}
 
 	/** Schedules the battle on the current battle day at a window hour (0 and 1 mean after midnight). */

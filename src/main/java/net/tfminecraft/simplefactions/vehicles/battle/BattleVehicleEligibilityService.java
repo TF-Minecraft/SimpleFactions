@@ -6,19 +6,14 @@ import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
-import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import java.util.Optional;
-import java.util.UUID;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 
-import net.tfminecraft.vehicleframework.enums.VehicleRemoveReason;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
-import net.tfminecraft.vehicleframework.events.VehicleSpawnEvent;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
@@ -28,7 +23,6 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandVehicleRules;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.utils.MemberAccounts;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
 public final class BattleVehicleEligibilityService {
@@ -122,26 +116,6 @@ public final class BattleVehicleEligibilityService {
 		return decide(war, faction.getId(), vehicle.getId(), recordOpt.orElse(null));
 	}
 
-	public static Player resolveNotifyPlayer(ActiveVehicle vehicle, PlayerVehicleRegistry registry) {
-		if (vehicle == null) {
-			return null;
-		}
-		UUID ownerCharacter = OwnerTags.characterId(
-				vehicle.getOwnerData() == null ? null : vehicle.getOwnerData().getOwner()).orElse(null);
-		Player owner = ownerCharacter == null ? null : Members.online(Members.key(ownerCharacter)).orElse(null);
-		if (owner != null) {
-			return owner;
-		}
-		if (registry == null || vehicle.getUUID() == null) {
-			return null;
-		}
-		return registry.getByVehicleUuid(vehicle.getUUID())
-				.map(PlayerVehicleRecord::getPlayerUuid)
-				.map(MemberAccounts::accountOf)
-				.map(Bukkit::getPlayer)
-				.orElse(null);
-	}
-
 		public enum BattleVehicleEligibilityResult {
 		ALLOWED,
 		NOT_CAMPAIGN_BATTLE,
@@ -183,6 +157,10 @@ public final class BattleVehicleEligibilityService {
 		}
 	}
 
+	/**
+	 * Blocks boarding only. It never removes a vehicle, because a removed vehicle loses its
+	 * faction or installation record and drops out of its faction.
+	 */
 	public static final class Listener implements org.bukkit.event.Listener {
 		private final PlayerVehicleRegistry registry;
 
@@ -208,30 +186,6 @@ public final class BattleVehicleEligibilityService {
 				player.sendMessage(message);
 			}
 			event.setCancelled(true);
-		}
-
-		@EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-		public void onVehicleSpawn(VehicleSpawnEvent event) {
-			ActiveVehicle vehicle = event.getVehicle();
-			if (vehicle == null || vehicle.getUUID() == null) {
-				return;
-			}
-
-			Player player = BattleVehicleEligibilityService.resolveNotifyPlayer(vehicle, registry);
-			if (player == null) {
-				return;
-			}
-
-			BattleVehicleEligibilityResult result = BattleVehicleEligibilityService.check(player, vehicle, registry);
-			if (!result.isDenied()) {
-				return;
-			}
-
-			vehicle.remove(VehicleRemoveReason.ADMIN_KILL);
-			String message = Messages.forResult(result);
-			if (message != null) {
-				player.sendMessage(message);
-			}
 		}
 	}
 }
