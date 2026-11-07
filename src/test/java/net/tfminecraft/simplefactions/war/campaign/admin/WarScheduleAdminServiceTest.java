@@ -97,10 +97,16 @@ class WarScheduleAdminServiceTest {
 	@Test
 	void skipDay_advancesBattleDayOnly() {
 		War war = votingWar();
+		war.setBattleInstallationPicks(Map.of("home", new LinkedHashSet<>(List.of("harbor"))));
+		war.setBattleInstallationPicksBattleDay(war.getBattleDay());
+		war.getCampaignRaidsUsed().put(CampaignSideRole.AGGRESSOR.toJson(), BATTLE_DAY.toString());
 		WarScheduleAdminResult result = WarScheduleAdminService.skipDay(war);
 		assertTrue(result.success());
 		assertEquals("Skipped to battle day " + BATTLE_DAY.plusDays(1) + ". "
 				+ WarScheduleAdminService.NEW_DAY_CLEARED, result.message());
+		// The message is true: commitments and the day's raid allowance are reset.
+		assertTrue(war.getBattleInstallationPicks().isEmpty());
+		assertTrue(war.getCampaignRaidsUsed().isEmpty());
 		assertEquals(BATTLE_DAY.plusDays(1), war.getBattleDay());
 		assertEquals(0, war.getPostponementsThisCycle());
 	}
@@ -143,6 +149,7 @@ class WarScheduleAdminServiceTest {
 		War war = scheduledWar();
 		war.setBattleInstallationPicks(Map.of("home", new LinkedHashSet<>(List.of("harbor"))));
 		war.setBattleInstallationPicksBattleDay(war.getBattleDay());
+		war.getCampaignRaidsUsed().put(CampaignSideRole.AGGRESSOR.toJson(), BATTLE_DAY.toString());
 		try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class)) {
 			clock.when(CampaignClock::now).thenReturn(Instant.parse("2026-08-21T10:00:00Z"));
 			WarScheduleAdminResult result = WarScheduleAdminService.setDay(war, "2026-08-24");
@@ -154,6 +161,7 @@ class WarScheduleAdminServiceTest {
 					+ " must commit their installations again.", result.message());
 		}
 		assertTrue(war.getBattleInstallationPicks().isEmpty());
+		assertTrue(war.getCampaignRaidsUsed().isEmpty());
 		assertEquals(LocalDate.of(2026, 8, 24), war.getBattleDay());
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 		assertEquals(null, war.getScheduledBattleAt());

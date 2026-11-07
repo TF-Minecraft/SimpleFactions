@@ -11,6 +11,7 @@ import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1602,16 +1603,22 @@ class VehicleInteractionsCoverageTest {
     assertEquals(expected.isDenied(), clicked.isCancelled());
     // A denied vehicle that loads (chunk load fires VehicleSpawnEvent) is never removed: only
     // boarding is refused. Removing it would drop its faction record.
-    boolean hadRecord = registry.getByVehicleUuid("vehicle-1").isPresent();
+    var recordBefore = registry.getByVehicleUuid("vehicle-1").map(VehicleInteractionsCoverageTest::ownership);
     new VehicleSpawnListener(new InstallationVehicleOwnerSync(registry))
         .onVehicleSpawn(new VehicleSpawnEvent(vehicle));
     verify(vehicle, never()).remove();
     verify(vehicle, never()).remove(any(VehicleRemoveReason.class));
     verify(vehicle, never()).remove(any(VehicleRemovePayload.class));
-    assertEquals(hadRecord, registry.getByVehicleUuid("vehicle-1").isPresent());
+    assertEquals(
+        recordBefore,
+        registry.getByVehicleUuid("vehicle-1").map(VehicleInteractionsCoverageTest::ownership));
     if (expected.isDenied())
       verify(actor).sendMessage(BattleVehicleEligibilityService.Messages.forResult(expected));
     else verify(actor, never()).sendMessage(anyString());
+  }
+
+  private static List<Object> ownership(PlayerVehicleRecord record) {
+    return Arrays.asList(record.getMode(), record.getFactionId(), record.getInstallationId());
   }
 
   @Test
