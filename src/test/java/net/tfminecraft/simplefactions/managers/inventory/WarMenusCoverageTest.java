@@ -329,7 +329,7 @@ class WarMenusCoverageTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"raiding", "ended", "no_route", "outsider", "member"})
-  void campaignButtonReflectsLiveWarAndViewerEligibility(String reason) {
+  void campaignButtonReflectsLiveWarState(String reason) {
     Player viewer = player;
     if (reason.equals("raiding")) war.setWarType(WarType.RAID);
     if (reason.equals("ended")) war.end(WarEndReason.WHITE_PEACE);
@@ -342,10 +342,10 @@ class WarMenusCoverageTest {
     view.warView(null, viewer, war, true);
     Inventory inventory = viewer.getOpenInventory().getTopInventory();
     assertEquals(
-        reason.equals("member") ? Material.COMPASS : Material.RED_STAINED_GLASS_PANE,
+        (reason.equals("member") || reason.equals("outsider")) ? Material.COMPASS : Material.RED_STAINED_GLASS_PANE,
         inventory.getItem(49).getType());
     view.click(fixture.ui.click(viewer, 49), inventory, viewer);
-    verify(navigation, reason.equals("member") ? times(1) : never()).openCampaignView(viewer, war);
+    verify(navigation, (reason.equals("member") || reason.equals("outsider")) ? times(1) : never()).openCampaignView(viewer, war);
   }
 
   @ParameterizedTest
