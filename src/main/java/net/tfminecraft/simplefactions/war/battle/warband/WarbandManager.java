@@ -6,9 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -118,11 +116,9 @@ public class WarbandManager implements Listener {
 	}
 
 	private void friendIcon(List<Player> list) {
-		Particle.DustOptions dust = new Particle.DustOptions(Color.LIME, 1);
 		for (Player p : list) {
 			for (Player t : list) {
-				if (p.equals(t)) continue;
-				p.spawnParticle(Particle.DUST, t.getLocation().getX(), t.getLocation().getY() + 2, t.getLocation().getZ(), 1, dust);
+				WarbandMarkers.show(p, t, WarbandMarkers.FRIEND);
 			}
 		}
 	}
@@ -132,12 +128,11 @@ public class WarbandManager implements Listener {
 		if (b == null) return;
 		for (BattleSide s : b.getSides()) {
 			if (!s.hasPlayer(list.get(0))) continue;
-			Particle.DustOptions dust = new Particle.DustOptions(Color.BLUE, 1);
 			for (Player p : list) {
 				for (Warband w : s.getBands()) {
 					if (w.hasMember(p)) continue;
 					for (Player t : w.getOnlineMembers()) {
-						p.spawnParticle(Particle.DUST, t.getLocation().getX(), t.getLocation().getY() + 2, t.getLocation().getZ(), 1, dust);
+						WarbandMarkers.show(p, t, WarbandMarkers.ALLY);
 					}
 				}
 			}

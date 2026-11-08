@@ -25,6 +25,13 @@ public final class CampaignWarbandLeaveBlock {
 		blockedKeys.add(blockKey(battleId, warbandId, playerId));
 	}
 
+	/** Lets everyone who left a battle back in, e.g. after staff restart or stop it. */
+	public static void clearBattle(String battleId) {
+		if (battleId != null) {
+			blockedKeys.removeIf(key -> key.startsWith(battleId + ":"));
+		}
+	}
+
 	public static boolean isBlocked(String battleId, String warbandId, UUID playerId) {
 		if (battleId == null || warbandId == null || playerId == null) {
 			return false;

@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.Permissions;
+import net.tfminecraft.simplefactions.utils.StaffConfirm;
 import net.tfminecraft.simplefactions.war.campaign.admin.CampaignTimeCommandService;
 import net.tfminecraft.simplefactions.war.campaign.admin.CampaignTimeResult;
 import net.tfminecraft.simplefactions.war.campaign.admin.WarReparationsAdminService;
@@ -65,9 +66,13 @@ public class WarCommandManager implements CommandExecutor {
 		return true;
 	}
 
-	private boolean handleAdmin(Player player, String[] args) {
+	private boolean handleAdmin(Player player, String[] rawArgs) {
 		if (!Permissions.isAdmin(player)) {
 			player.sendMessage("§a[SimpleFactions]§c You do not have access to this command");
+			return true;
+		}
+		String[] args = StaffConfirm.gate(player, CMD, rawArgs, WarAdminRisks.describe(StaffConfirm.strip(rawArgs)));
+		if (args == null) {
 			return true;
 		}
 		if (args.length < 2) {
@@ -337,7 +342,7 @@ public class WarCommandManager implements CommandExecutor {
 
 	private boolean handleTime(Player player, String[] args) {
 		if (args.length < 3) {
-			player.sendMessage("§cUsage: /war admin time status|reset|add|skip-to-battle-day ...");
+			player.sendMessage("§cUsage: /war admin time status|reset|add|remove|skip-to-battle-day ...");
 			return true;
 		}
 		String subcommand = args[2].toLowerCase(java.util.Locale.ROOT);
@@ -358,7 +363,16 @@ public class WarCommandManager implements CommandExecutor {
 				}
 				CampaignTimeResult result = CampaignTimeCommandService.add(
 						Arrays.copyOfRange(args, 3, args.length));
-				player.sendMessage(result.success() ? result.message() : result.message());
+				player.sendMessage(result.message());
+			}
+			case "remove" -> {
+				if (args.length < 4) {
+					player.sendMessage("§cUsage: /war admin time remove <duration...>");
+					return true;
+				}
+				CampaignTimeResult result = CampaignTimeCommandService.remove(
+						Arrays.copyOfRange(args, 3, args.length));
+				player.sendMessage(result.message());
 			}
 			case "skip-to-battle-day" -> {
 				if (args.length < 4) {
@@ -375,7 +389,7 @@ public class WarCommandManager implements CommandExecutor {
 				player.sendMessage(result.success() ? result.message() : result.message());
 			}
 			default -> player.sendMessage(
-					"§cUnknown subcommand. Use: status, reset, add, skip-to-battle-day");
+					"§cUnknown subcommand. Use: status, reset, add, remove, skip-to-battle-day");
 		}
 		return true;
 	}
@@ -580,6 +594,8 @@ public class WarCommandManager implements CommandExecutor {
 			case "battlecreate" -> WarScheduleAdminService.battleCreate(w);
 			case "battledelete" -> WarScheduleAdminService.battleDelete(w);
 			case "battlestart" -> WarScheduleAdminService.battleStart(w);
+			case "battlerestart", "battleabort", "battleend", "battlehold" -> WarScheduleAdminService.battleStaff(
+					w, subcommand, args.length >= 5 ? args[4] : null, player.getName());
 			case "winbattle" -> {
 				if (args.length < 5) {
 					yield WarScheduleAdminResult.error(
@@ -600,7 +616,8 @@ public class WarCommandManager implements CommandExecutor {
 			}
 			default -> WarScheduleAdminResult.error(
 					"Unknown subcommand. Use: opencvote, closevote, skipday, setday, sethour, castvote, "
-							+ "forcequorum, setscheduled, battlecreate, battledelete, battlestart, winbattle, choice");
+							+ "forcequorum, setscheduled, battlecreate, battledelete, battlestart, battlerestart, "
+							+ "battleabort, battleend, battlehold, winbattle, choice");
 		};
 		if (result.success()) {
 			WarManager.persist(w);

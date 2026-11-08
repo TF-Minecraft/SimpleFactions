@@ -29,6 +29,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.WarDevMode;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
@@ -126,10 +127,107 @@ class CampaignWarbandSignupServiceTest {
 			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
 					.thenReturn(5);
 
-			assertEquals(CampaignWarbandSignupService.SIGNUP_BLOCKED_DURING_RAID,
+			assertEquals("§cCampaign warband signup opens after the raid window, at 20:00.",
 					CampaignWarbandSignupService.signupMember(
 							aliceId, "Alice", shell, attacker, null, raidCall));
 			assertFalse(shell.hasMember(aliceId));
+		}
+	}
+
+	@Test
+	void signupClosedReason_namesTheMissingDayOrTheDayItOpens() {
+		War war = battleDayWar();
+		Instant dayBefore = BattleWindowService.atScheduleHour(BATTLE_DAY.minusDays(1), 21);
+		Instant dayAfter = BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(1), 12);
+		Instant raidHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 19);
+		assertEquals("§cCampaign warband signup opens on the battle day, 2026-08-21, at 20:00.",
+				CampaignWarbandSignupService.signupClosedReason(war, dayBefore));
+		assertEquals("§cSignup opens 2026-08-21 at 20:00", CampaignWarbandSignupService.signupClosedLore(war, dayBefore));
+		assertTrue(CampaignWarbandSignupService.signupClosedReason(war, dayAfter).contains("(2026-08-21) has passed"));
+		assertEquals("§cSignup closed: the battle day has passed", CampaignWarbandSignupService.signupClosedLore(war, dayAfter));
+		assertEquals("§cSignup opens at 20:00", CampaignWarbandSignupService.signupClosedLore(war, raidHour));
+		war.setBattleDay(null);
+		assertTrue(CampaignWarbandSignupService.signupClosedReason(war, dayBefore).contains("battle vote is still open"));
+		assertEquals("§cSignup closed: no battle day yet", CampaignWarbandSignupService.signupClosedLore(war, dayBefore));
+	}
+
+	@Test
+	void staffSignupMember_skipsTheSignupHoursRosterCapAndRejoinBlock() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID aliceId = UUID.randomUUID();
+		Battle battle = BattleManager.getByString("campaign_w1");
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
+			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			assertTrue(CampaignWarbandSignupService.signupMember(aliceId, "Alice", shell, attacker) != null);
+
+			assertNull(CampaignWarbandSignupService.staffSignupMember(aliceId, "Alice", shell, attacker, null));
+			assertTrue(shell.hasMember(aliceId));
+
+			battle.setStarted(true);
+			CampaignWarbandLeaveBlock.block(battle.getId(), shell.getId(), aliceId);
+			assertEquals("You cannot rejoin this warband for this battle", CampaignBattleJoinService
+					.validateWarbandMemberJoin(war, battle, BattleTemplate.ATTACKER_SIDE, shell, "Alice", aliceId));
+			assertNull(CampaignBattleJoinService.validateWarbandMemberJoin(
+					war, battle, BattleTemplate.ATTACKER_SIDE, shell, "Alice", aliceId, true));
+		} finally {
+			CampaignWarbandLeaveBlock.resetForTests();
+		}
+	}
+
+	@Test
+	void staffSignupMember_passesAFullRosterInOpenHoursAndTheRejoinBlockMidBattle() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID aliceId = UUID.randomUUID();
+		Instant signupHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 20);
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+				MockedStatic<net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock> clock =
+						mockStatic(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.class)) {
+			clock.when(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock::now).thenReturn(signupHour);
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
+			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			Cache.warBattleMinSideLives = 0;
+			assertTrue(CampaignWarbandSignupService.signupMember(aliceId, "Alice", shell, attacker, null, signupHour)
+					.startsWith("Cannot join: side roster is full"));
+			assertNull(CampaignWarbandSignupService.staffSignupMember(aliceId, "Alice", shell, attacker, null));
+		}
+	}
+
+	@Test
+	void staffSignupMember_letsSomeoneWhoLeftBackIntoARunningBattle() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID bobId = UUID.randomUUID();
+		Instant signupHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 20);
+		Battle battle = BattleManager.getByString("campaign_w1");
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+			mockBukkitPlayerLookup(bukkit, bobId, "Bob");
+			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(attacker);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			battle.setStarted(true);
+			CampaignWarbandLeaveBlock.block(battle.getId(), shell.getId(), bobId);
+			assertEquals("You cannot rejoin this warband for this battle",
+					CampaignWarbandSignupService.signupMember(bobId, "Bob", shell, attacker, null, signupHour));
+			assertNull(CampaignWarbandSignupService.staffSignupMember(bobId, "Bob", shell, attacker, null));
+			assertTrue(shell.hasMember(bobId));
+		} finally {
+			CampaignWarbandLeaveBlock.resetForTests();
 		}
 	}
 

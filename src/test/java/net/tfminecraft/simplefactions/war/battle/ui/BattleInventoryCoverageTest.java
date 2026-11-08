@@ -260,9 +260,19 @@ class BattleInventoryCoverageTest {
     assertSame(inventory, top());
     assertEquals("§cLocked", name(inventory.getItem(1)));
     assertEquals("§cEnd Battle", name(inventory.getItem(18)));
+    lore(inventory.getItem(18), "Right-click to end the battle now");
+    assertEquals("§eRestart Battle", name(inventory.getItem(19)));
+    lore(inventory.getItem(19), "Right-click: " + BattleStaffCommands.RESTART_RISK);
+    assertEquals("§6Stop Battle (no result)", name(inventory.getItem(20)));
     assertNull(inventory.getItem(8));
     assertNull(inventory.getItem(22));
     assertNull(inventory.getItem(23));
+    battle.setWarId(9);
+    lore(menus.createStopButton(battle), "Casualties so far count and voting reopens.");
+    battle.setBattleType(BattleType.RAID);
+    menus.updateView(alice, battle, inventory);
+    assertNull(inventory.getItem(19));
+    assertNull(inventory.getItem(20));
   }
   @ParameterizedTest
   @ValueSource(strings = {"warbands", "templates"})
@@ -461,6 +471,10 @@ class BattleInventoryCoverageTest {
     assertNull(inventory.getItem(16));
     assertEquals("§fBattle: §efront", name(menus.createBattleInfoItem(battle)));
     lore(menus.createBattleItem(battle), "Participants: 2");
+    battle.setStaffHold(true);
+    lore(menus.createBattleItem(battle), "On hold by staff");
+    battle.setStarted(true);
+    lore(menus.createBattleItem(battle), battle.getSides().getFirst().getId() + " lives: §e");
   }
 
   @ParameterizedTest
@@ -655,15 +669,17 @@ class BattleInventoryCoverageTest {
       campaigns.when(() -> CampaignBattleJoinService.previewSidePoolLives(war, battle, "attacker")).thenReturn(30);
       lives.when(() -> BattleLivesService.previewCampaignSideLives(war, battle, "attacker"))
           .thenReturn(new SideLivesPreview(3, 30, 7, 23, 0));
+      signup.when(() -> CampaignWarbandSignupService.signupClosedLore(eq(war), any(Instant.class)))
+          .thenReturn("§cSignup opens at 20:00");
       ItemStack preview = menus.createWarbandItem(band);
       lore(preview, "Side lives: §e23");
       lore(preview, "Pool §e30");
       lore(preview, "Soldiers: §e7§7/§e30");
-      lore(preview, "Signup closed until 20:00");
+      lore(preview, "Signup opens at 20:00");
       signup.when(() -> CampaignWarbandSignupService.isSignupOpen(eq(war), any(Instant.class))).thenReturn(true);
       lives.when(() -> BattleLivesService.previewCampaignSideLives(war, battle, "attacker"))
           .thenReturn(new SideLivesPreview(0, 0, 0, 0, 0));
-      assertTrue(menus.createWarbandItem(band).getItemMeta().getLore().stream().noneMatch(line -> line.contains("Signup closed")));
+      assertTrue(menus.createWarbandItem(band).getItemMeta().getLore().stream().noneMatch(line -> line.contains("Signup opens")));
       battle.setStarted(true);
       battle.getSideById("attacker").setLives(11);
       lore(menus.createWarbandItem(band), "Lives: §e11");

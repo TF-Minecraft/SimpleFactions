@@ -29,6 +29,18 @@ public final class CampaignWarbandBattleService {
 			Warband warband,
 			String memberKey,
 			UUID playerId) {
+		return validateMidBattleJoin(war, battle, sideId, warband, memberKey, playerId, false);
+	}
+
+	/** {@code staff} lets staff put back someone who left this battle. */
+	public static String validateMidBattleJoin(
+			net.tfminecraft.simplefactions.war.core.War war,
+			Battle battle,
+			String sideId,
+			Warband warband,
+			String memberKey,
+			UUID playerId,
+			boolean staff) {
 		if (war == null || battle == null || warband == null || memberKey == null) {
 			return "Invalid campaign warband join";
 		}
@@ -55,7 +67,7 @@ public final class CampaignWarbandBattleService {
 		if (playerSide == null || playerSide != battleSide) {
 			return "Your faction is not on this battle side";
 		}
-		if (playerId != null
+		if (!staff && playerId != null
 				&& CampaignWarbandLeaveBlock.isBlocked(battle.getId(), warband.getId(), playerId)) {
 			return "You cannot rejoin this warband for this battle";
 		}

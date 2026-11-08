@@ -23,9 +23,6 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
 
 public final class CampaignWarbandSignupService {
-	public static final String SIGNUP_BLOCKED_DURING_RAID =
-			"§cCampaign warband signup opens after the raid window (20:00).";
-
 	private CampaignWarbandSignupService() {
 	}
 
@@ -41,6 +38,36 @@ public final class CampaignWarbandSignupService {
 			return false;
 		}
 		return hour >= Cache.warRaidWindowEndHour;
+	}
+
+	/** Why campaign signup is closed right now: no battle day, a past one, a later one, or the raid window. */
+	public static String signupClosedReason(War war, Instant now) {
+		return closedText(war, now, false);
+	}
+
+	/** The same reason, short enough for item lore. */
+	public static String signupClosedLore(War war, Instant now) {
+		return closedText(war, now, true);
+	}
+
+	private static String closedText(War war, Instant now, boolean lore) {
+		String opens = String.format(java.util.Locale.ROOT, "%02d:00", Cache.warRaidWindowEndHour);
+		java.time.LocalDate day = war.getBattleDay();
+		if (day == null) {
+			return lore ? "§cSignup closed: no battle day yet"
+					: "§cCampaign warband signup is closed: the battle day is not set yet (the battle vote is still open).";
+		}
+		if (day.isBefore(BattleScheduleService.battleDayDate(now))) {
+			return lore ? "§cSignup closed: the battle day has passed"
+					: "§cCampaign warband signup is closed: the battle day (" + day
+							+ ") has passed. It opens again once a new battle day is set.";
+		}
+		if (!BattleScheduleService.isOnBattleDay(war, now)) {
+			return lore ? "§cSignup opens " + day + " at " + opens
+					: "§cCampaign warband signup opens on the battle day, " + day + ", at " + opens + ".";
+		}
+		return lore ? "§cSignup opens at " + opens
+				: "§cCampaign warband signup opens after the raid window, at " + opens + ".";
 	}
 
 	public static String signup(Player player, Warband warband, Faction playerFaction) {
@@ -70,7 +97,27 @@ public final class CampaignWarbandSignupService {
 			Faction playerFaction,
 			Player onlinePlayer,
 			Instant now) {
-		String failure = signupFailure(playerId, memberKey, warband, playerFaction, onlinePlayer, now);
+		return signupMember(playerId, memberKey, warband, playerFaction, onlinePlayer, now, false);
+	}
+
+	/**
+	 * Staff forcejoin: the same as a signup, but past the signup hours, the roster cap and the
+	 * block on rejoining a battle. Side, faction, identity and vehicle checks still apply.
+	 */
+	public static String staffSignupMember(
+			UUID playerId, String memberKey, Warband warband, Faction playerFaction, Player onlinePlayer) {
+		return signupMember(playerId, memberKey, warband, playerFaction, onlinePlayer, CampaignClock.now(), true);
+	}
+
+	private static String signupMember(
+			UUID playerId,
+			String memberKey,
+			Warband warband,
+			Faction playerFaction,
+			Player onlinePlayer,
+			Instant now,
+			boolean staff) {
+		String failure = signupFailure(playerId, memberKey, warband, playerFaction, onlinePlayer, now, staff);
 		if(failure != null) return failure;
 		if(warband.hasMember(playerId)) return null;
 		var character = Warband.participant(playerId, memberKey, onlinePlayer).orElseThrow();
@@ -97,6 +144,11 @@ public final class CampaignWarbandSignupService {
 	/** The same eligibility checks as signup, without changing the roster or binding a side. */
 	public static String signupFailure(UUID playerId, String memberKey, Warband warband,
 			Faction playerFaction, Player onlinePlayer, Instant now) {
+		return signupFailure(playerId, memberKey, warband, playerFaction, onlinePlayer, now, false);
+	}
+
+	private static String signupFailure(UUID playerId, String memberKey, Warband warband,
+			Faction playerFaction, Player onlinePlayer, Instant now, boolean staff) {
 		if (playerId == null || memberKey == null || warband == null) {
 			return "Invalid warband signup";
 		}
@@ -118,15 +170,16 @@ public final class CampaignWarbandSignupService {
 		if (warband.isIdentityHeld()) return "Warband identity is held for staff review";
 
 		CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
-		if (!CampaignRaidWarbandService.isRaidWarband(warband)
+		if (!staff
+				&& !CampaignRaidWarbandService.isRaidWarband(warband)
 				&& ctx != null
 				&& !WarDevMode.isEnabled()
 				&& !isSignupOpen(ctx.war(), now)) {
-			return SIGNUP_BLOCKED_DURING_RAID;
+			return signupClosedReason(ctx.war(), now);
 		}
 		if (ctx != null) {
 			String joinError = CampaignBattleJoinService.validateWarbandMemberJoin(
-					ctx.war(), ctx.battle(), ctx.sideId(), warband, memberKey, playerId);
+					ctx.war(), ctx.battle(), ctx.sideId(), warband, memberKey, playerId, staff);
 			if (joinError != null) {
 				return joinError;
 			}

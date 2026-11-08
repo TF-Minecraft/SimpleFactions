@@ -29,6 +29,7 @@ import net.tfminecraft.simplefactions.war.core.WarDevMode;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleStaffService;
 
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 
@@ -553,6 +554,24 @@ public final class WarScheduleAdminService {
 			return WarScheduleAdminResult.error(startError);
 		}
 		return WarScheduleAdminResult.ok("Started battle " + battle.getDisplayName() + ".");
+	}
+
+	/** Restart, abort, end or hold this war's campaign battle; see {@link BattleStaffService}. */
+	public static WarScheduleAdminResult battleStaff(War war, String action, String arg, String by) {
+		Battle battle = war == null ? null : BattleManager.getByWarId(war.getId());
+		if (battle == null) {
+			return WarScheduleAdminResult.error("No campaign battle for this war.");
+		}
+		BattleStaffService.Result result = switch (action) {
+			case "battlerestart" -> BattleStaffService.restart(battle, by);
+			case "battleabort" -> BattleStaffService.abort(battle, by);
+			case "battleend" -> BattleStaffService.end(battle,
+					arg == null || arg.equalsIgnoreCase("nowinner") ? null : arg, by);
+			default -> "on".equalsIgnoreCase(arg) || "off".equalsIgnoreCase(arg)
+					? BattleStaffService.hold(battle, "on".equalsIgnoreCase(arg), by)
+					: new BattleStaffService.Result(false, "Usage: /war admin schedule <id> battlehold on|off");
+		};
+		return result.ok() ? WarScheduleAdminResult.ok(result.message()) : WarScheduleAdminResult.error(result.message());
 	}
 
 	public static WarScheduleAdminResult winBattle(War war, BelligerentRole winner) {

@@ -72,7 +72,66 @@ public class Battle {
 	private boolean capturePointsEnabled;
 	private int contestHoldRemainingSeconds;
 	private boolean campaignRaid;
+	private boolean staffHold;
+	private boolean firstBattleOfWar;
+	private List<PointStart> pointStarts = new ArrayList<>();
 	private final Set<net.tfminecraft.tlibs.character.CharacterRef> participants = new HashSet<>();
+
+	/** A capture point as it stood when the battle started, for a staff restart. */
+	public record PointStart(String pointId, String controllerSideId, int captureProgress, String advanceSideId) {}
+
+	/** Staff stopped this battle; the campaign scheduler must not start it again on its own. */
+	public boolean isStaffHold() {
+		return staffHold;
+	}
+
+	public void setStaffHold(boolean staffHold) {
+		this.staffHold = staffHold;
+	}
+
+	/** This start was the war's first battle, so stopping it with no result should undo that. */
+	public boolean isFirstBattleOfWar() {
+		return firstBattleOfWar;
+	}
+
+	public void setFirstBattleOfWar(boolean firstBattleOfWar) {
+		this.firstBattleOfWar = firstBattleOfWar;
+	}
+
+	public List<PointStart> getPointStarts() {
+		return List.copyOf(pointStarts);
+	}
+
+	public void setPointStarts(List<PointStart> starts) {
+		pointStarts = starts == null ? new ArrayList<>() : new ArrayList<>(starts);
+	}
+
+	/** Records each side's lives and each capture point as the battle starts. */
+	public void snapshotStart() {
+		for (BattleSide side : sides) {
+			side.setStartLives(side.getLives());
+		}
+		List<PointStart> starts = new ArrayList<>();
+		for (CapturePoint point : points) {
+			starts.add(new PointStart(point.getId(),
+					point.getController() == null ? null : point.getController().getId(),
+					point.getCaptureProgress(), point.getAdvanceSideId()));
+		}
+		pointStarts = starts;
+	}
+
+	/** Puts the capture points back as they were at the start. Points added later keep their state. */
+	public void restorePointStarts() {
+		for (PointStart start : pointStarts) {
+			CapturePoint point = getPointById(start.pointId());
+			if (point == null) {
+				continue;
+			}
+			point.setController(start.controllerSideId() == null ? null : getSideById(start.controllerSideId()));
+			point.setCaptureProgress(start.captureProgress());
+			point.setAdvanceSideId(start.advanceSideId());
+		}
+	}
 
 	public Set<net.tfminecraft.tlibs.character.CharacterRef> getParticipants() {
 		return Set.copyOf(participants);
@@ -294,6 +353,9 @@ public class Battle {
 				return startError;
 			}
 		}
+		net.tfminecraft.simplefactions.war.core.War war = warId == null ? null
+				: net.tfminecraft.simplefactions.managers.WarManager.getById(warId);
+		firstBattleOfWar = war != null && !war.hasFirstBattleStarted();
 		this.started = true;
 		this.startedAt = Instant.now();
 		participants.clear();
@@ -321,6 +383,8 @@ public class Battle {
 		if (battleType == BattleType.FIELD && isCapturePointsEnabled() && isSequentialCapture()) {
 			BattleCapturePoints.syncLinearChain(this);
 		}
+		staffHold = false;
+		snapshotStart();
 		startTitle();
 		pm.setPoints(this.points);
 		if(teleport) {

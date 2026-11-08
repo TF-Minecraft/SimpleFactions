@@ -12,6 +12,8 @@ public class BattleSideData {
 	public List<BattleLocation> respawnPoints = new ArrayList<>();
 	public int lives;
 	public int maxLives;
+	// Absent in saves from before the start was recorded.
+	public Integer startLives;
 	public String lifeType;
 	public List<String> warbandIds = new ArrayList<>();
 }

@@ -15,14 +15,16 @@ import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.tlibs.character.CharacterInfo;
 
 /**
  * Staff tools that put a character straight into a guild, mercenary company or
- * warband. They skip the invite and nothing else: every other joining rule
- * still applies. Each returns the line to show the staff member.
+ * warband. They skip the invite; a warband forcejoin also skips the signup hours,
+ * the roster cap and the rejoin block. Every other joining rule still applies.
+ * Each returns the line to show the staff member.
  */
 public final class StaffJoins {
 	private StaffJoins() {}
@@ -94,15 +96,53 @@ public final class StaffJoins {
 		if (key == null) return noMatch(input);
 		UUID account = Members.accountId(key).orElse(null);
 		if (account == null) return noMatch(input);
-		if (warband.hasMember(account)) return "§c" + Members.display(key) + " §cis already in " + warband.getId();
+		if (holdsSlot(warband, account, key)) return "§c" + Members.display(key) + " §cis already in " + warband.getId();
 		Faction faction = FactionManager.getByMember(key);
 		if (warband.isFaction() && faction == null) {
 			return "§cThis is a faction warband, " + Members.display(key) + " §cneeds a faction to join";
 		}
 		Player online = Members.player(key);
-		String failure = CampaignWarbandSignupService.signupMember(account, key, warband, faction, online);
+		String failure = CampaignWarbandSignupService.staffSignupMember(account, key, warband, faction, online);
 		if (failure != null) return "§cCannot add " + Members.display(key) + ": " + failure;
 		if (online != null) online.sendMessage("§aStaff added you to the warband " + warband.getId());
 		return "§aAdded " + Members.display(key) + " §ato " + warband.getId();
+	}
+
+	/** {@code /warband forcekick}: takes a character out of any warband, as if they had been dismissed. */
+	public static String warbandKick(Warband warband, String input) {
+		String refusal = kickRefusal(warband, input);
+		if (refusal != null) return refusal;
+		String key = Members.findOnline(input);
+		UUID account = Members.accountId(key).orElseThrow();
+		Player online = Members.player(key);
+		CampaignWarbandBattleService.processLeave(account, online, warband, false);
+		if (online != null) online.sendMessage("§cStaff removed you from the warband " + warband.getId());
+		return "§aRemoved " + Members.display(key) + " §afrom " + warband.getId();
+	}
+
+	/** Why {@code /warband forcekick} would refuse, or null when it would remove the character. */
+	public static String kickRefusal(Warband warband, String input) {
+		String key = Members.findOnline(input);
+		UUID account = key == null ? null : Members.accountId(key).orElse(null);
+		if (account == null || !warband.hasMember(account)) {
+			return "§c" + input + " §cis not in " + warband.getId();
+		}
+		if (!holdsSlot(warband, account, key)) {
+			String held = Members.key(warband.getMemberCharacter(account).orElseThrow());
+			return "§c" + Members.display(key) + " §cis not in " + warband.getId() + "§c. Their account's slot is held by "
+					+ Members.display(held) + "§c: kick that character with §e/warband forcekick " + warband.getId() + " " + held;
+		}
+		if (!warband.isFaction() && account.equals(warband.getLeaderId())) {
+			return "§c" + Members.display(key) + " §cleads " + warband.getId()
+					+ "§c. Use /warband delete to remove the whole warband.";
+		}
+		return null;
+	}
+
+	/** The account is in the warband as this character; an old slot with no character recorded counts too. */
+	private static boolean holdsSlot(Warband warband, UUID account, String key) {
+		if (!warband.hasMember(account)) return false;
+		var held = warband.getMemberCharacter(account);
+		return held.isEmpty() || key.equals(Members.key(held.get()));
 	}
 }

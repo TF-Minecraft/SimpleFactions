@@ -13,6 +13,7 @@ import java.time.Instant;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.utils.StaffConfirm;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.BattleWarbandRetreatService.Messages;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.BattleWarbandRetreatService;
@@ -51,6 +52,11 @@ public class BattleCommandManager implements CommandExecutor{
 				p.sendMessage("§a[Battle]§c Error with command format, use the gameplay guide for a list of commands");
 				return true;
 			}
+			if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("list") && args.length == 1
+					&& BattlePermissions.isAdmin(sender)) {
+				new BattleInventoryManager().battleList(p);
+				return true;
+			}
 			if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("list") && args.length == 1) {
 				Warband w = WarbandManager.getByPlayer(p);
 				if(w == null) {
@@ -83,6 +89,12 @@ public class BattleCommandManager implements CommandExecutor{
 				p.sendMessage("§a[Battle]§4You do not have access to this command");
 				return true;
 			}
+			if(cmd.getName().equalsIgnoreCase(cmd2) && BattleStaffCommands.battle(p, args)) {
+				return true;
+			}
+			if(cmd.getName().equalsIgnoreCase(cmd1) && BattleStaffCommands.warband(p, args)) {
+				return true;
+			}
 			if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("create") && args.length == 2) {
 				if (Members.session(p).filter(Members::isCurrent).isEmpty()) {
 					p.sendMessage("§cChoose a character before creating a warband.");
@@ -112,10 +124,17 @@ public class BattleCommandManager implements CommandExecutor{
 				BattlePersistenceService.persistWarband(w);
 				p.sendMessage("§aWarband "+w.getId()+" §acreated!");
 				return true;
-			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("delete") && args.length == 2) {
+			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("delete")
+					&& StaffConfirm.strip(args).length == 2) {
 				Warband w = WarbandManager.getByString(args[1]);
 				if(w == null) {
 					p.sendMessage("§a[Battle]§c Error! Warband does not exist!");
+					return true;
+				}
+				if (BattlePermissions.isAdmin(sender) && (w.isFaction() || !w.isLeader(p))
+						&& StaffConfirm.gate(p, cmd1, args, "deletes " + w.getId() + " and drops all "
+								+ w.getMemberCount() + " of its members" + (w.isFaction()
+										? ", even though it is a campaign warband." : ".")) == null) {
 					return true;
 				}
 				if(!BattlePermissions.isAdmin(sender)) {

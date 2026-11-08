@@ -710,6 +710,8 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(campaignRaidBattleEndService, this);
 		getServer().getPluginManager().registerEvents(campaignBattleOutcomeService, this);
 		getServer().getPluginManager().registerEvents(battleLootService, this);
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.war.battle.ui.BattleStaffNotices(), this);
 		getServer().getPluginManager().registerEvents(installationProtectionListener, this);
 		getServer().getPluginManager().registerEvents(mercenaryStatListener, this);
 		getServer().getPluginManager().registerEvents(attendanceHook, this);

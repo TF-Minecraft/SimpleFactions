@@ -270,6 +270,11 @@ public class BattleInventoryManager {
 		} else {
 			i.setItem(18, createStartButton(b));
 		}
+		boolean staffControls = b.hasStarted() && b.getBattleType() != BattleType.RAID;
+		i.setItem(19, staffControls ? createStaffControlButton(Material.CLOCK, "§eRestart Battle",
+				BattleStaffCommands.RESTART_RISK) : null);
+		i.setItem(20, staffControls ? createStaffControlButton(Material.STRUCTURE_VOID, "§6Stop Battle (no result)",
+				BattleStaffCommands.ABORT_RISK) : null);
 		i.setItem(13, createBattleInfoItem(b));
 		if (b.getWarId() == null && !b.hasStarted()) {
 			i.setItem(22, createDeleteBattleButton(b));
@@ -597,7 +602,7 @@ public class BattleInventoryManager {
 					lore.add("§7Soldiers: §e" + roster + "§7/§e" + maxRoster);
 				}
 				if (!CampaignWarbandSignupService.isSignupOpen(ctx.war(), CampaignClock.now())) {
-					lore.add("§cSignup closed until 20:00");
+					lore.add(CampaignWarbandSignupService.signupClosedLore(ctx.war(), CampaignClock.now()));
 				}
 			}
 		}
@@ -625,6 +630,13 @@ public class BattleInventoryManager {
 			}
 		}
 		lore.add("§7Participants: "+rosterCount);
+		if (b.hasStarted()) {
+			for (BattleSide side : b.getSides()) {
+				lore.add("§7" + side.getId() + " lives: §e" + side.getLives() + "§7/§e" + side.getMaxLives());
+			}
+		} else if (b.isStaffHold()) {
+			lore.add("§cOn hold by staff");
+		}
 		meta.setLore(lore);
 		i.setItemMeta(meta);
 		return i;
@@ -772,6 +784,18 @@ public class BattleInventoryManager {
 		i.setItemMeta(meta);
 		return i;
 	}
+	@SuppressWarnings("deprecation")
+	ItemStack createStaffControlButton(Material material, String name, String effect) {
+		ItemStack i = new ItemStack(material, 1);
+		ItemMeta meta = i.getItemMeta();
+		meta.setDisplayName(name);
+		List<String> lore = new ArrayList<>();
+		lore.add("§7Right-click: " + effect);
+		meta.setLore(lore);
+		i.setItemMeta(meta);
+		return i;
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createStopButton(Battle b) {
@@ -779,7 +803,11 @@ public class BattleInventoryManager {
 		ItemMeta meta = i.getItemMeta();
 		meta.setDisplayName("§cEnd Battle");
 		List<String> lore = new ArrayList<String>();
-		lore.add("§7Stops the battle");
+		lore.add("§7Right-click to end the battle now with no winner.");
+		if (b.getWarId() != null) {
+			lore.add("§7Casualties so far count and voting reopens.");
+			lore.add("§7To keep everything, use Stop Battle instead.");
+		}
 		meta.setLore(lore);
 		i.setItemMeta(meta);
 		return i;

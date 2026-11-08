@@ -33,6 +33,7 @@ import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompanyService;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryEligibility;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
+import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandBattleService;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.tlibs.character.CharacterInfo;
@@ -192,17 +193,67 @@ class StaffJoinsTest {
 			when(warband.isFaction()).thenReturn(true);
 			assertEquals("§cThis is a faction warband, Bob §cneeds a faction to join", StaffJoins.warband(warband, "Bob"));
 			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(realm);
-			signup.when(() -> CampaignWarbandSignupService.signupMember(account, "Bob", warband, realm, bob))
+			signup.when(() -> CampaignWarbandSignupService.staffSignupMember(account, "Bob", warband, realm, bob))
 					.thenReturn("Warband identity is held for staff review");
 			assertEquals("§cCannot add Bob: Warband identity is held for staff review", StaffJoins.warband(warband, "Bob"));
-			signup.when(() -> CampaignWarbandSignupService.signupMember(account, "Bob", warband, realm, bob)).thenReturn(null);
+			signup.when(() -> CampaignWarbandSignupService.staffSignupMember(account, "Bob", warband, realm, bob)).thenReturn(null);
 			assertEquals("§aAdded Bob §ato vanguard", StaffJoins.warband(warband, "Bob"));
 			verify(bob).sendMessage("§aStaff added you to the warband vanguard");
 
 			when(warband.isFaction()).thenReturn(false);
 			members.when(() -> Members.online("Bob")).thenReturn(Optional.empty());
-			signup.when(() -> CampaignWarbandSignupService.signupMember(any(), any(), any(), any(), any())).thenReturn(null);
+			signup.when(() -> CampaignWarbandSignupService.staffSignupMember(any(), any(), any(), any(), any())).thenReturn(null);
 			assertEquals("§aAdded Bob §ato vanguard", StaffJoins.warband(warband, "Bob"));
+		}
+	}
+
+	@Test
+	void aSlotHeldByAnotherCharacterOfTheAccountIsNotTheirs() {
+		try (var battles = mockStatic(CampaignWarbandBattleService.class)) {
+			Warband warband = mock(Warband.class);
+			when(warband.getId()).thenReturn("vanguard");
+			when(warband.isFaction()).thenReturn(true);
+			UUID account = UUID.randomUUID();
+			members.when(() -> Members.accountId("Bob")).thenReturn(Optional.of(account));
+			when(warband.hasMember(account)).thenReturn(true);
+			CharacterRef alice = new CharacterRef(account, UUID.randomUUID());
+			CharacterRef bobRef = new CharacterRef(account, UUID.randomUUID());
+			when(warband.getMemberCharacter(account)).thenReturn(Optional.of(alice));
+			members.when(() -> Members.key(alice)).thenReturn("Alice");
+			members.when(() -> Members.key(bobRef)).thenReturn("Bob");
+			assertEquals("§cBob §cis not in vanguard§c. Their account's slot is held by Alice§c: kick that character with"
+					+ " §e/warband forcekick vanguard Alice", StaffJoins.warbandKick(warband, "Bob"));
+			battles.verifyNoInteractions();
+			when(warband.getMemberCharacter(account)).thenReturn(Optional.of(bobRef));
+			assertEquals("§aRemoved Bob §afrom vanguard", StaffJoins.warbandKick(warband, "Bob"));
+			assertEquals("§cBob §cis already in vanguard", StaffJoins.warband(warband, "Bob"));
+		}
+	}
+
+	@Test
+	void warbandKickRemovesAnyMemberAsADismissal() {
+		try (var battles = mockStatic(CampaignWarbandBattleService.class)) {
+			Warband warband = mock(Warband.class);
+			when(warband.getId()).thenReturn("vanguard");
+			UUID account = UUID.randomUUID();
+			assertEquals("§cNobody §cis not in vanguard", StaffJoins.warbandKick(warband, "Nobody"));
+			members.when(() -> Members.accountId("Bob")).thenReturn(Optional.empty());
+			assertEquals("§cBob §cis not in vanguard", StaffJoins.warbandKick(warband, "Bob"));
+			members.when(() -> Members.accountId("Bob")).thenReturn(Optional.of(account));
+			assertEquals("§cBob §cis not in vanguard", StaffJoins.warbandKick(warband, "Bob"));
+			when(warband.hasMember(account)).thenReturn(true);
+			when(warband.getLeaderId()).thenReturn(account);
+			assertEquals("§cBob §cleads vanguard§c. Use /warband delete to remove the whole warband.",
+					StaffJoins.warbandKick(warband, "Bob"));
+			when(warband.isFaction()).thenReturn(true);
+
+			assertEquals("§aRemoved Bob §afrom vanguard", StaffJoins.warbandKick(warband, "Bob"));
+
+			battles.verify(() -> CampaignWarbandBattleService.processLeave(account, bob, warband, false));
+			verify(bob).sendMessage("§cStaff removed you from the warband vanguard");
+			members.when(() -> Members.online("Bob")).thenReturn(Optional.empty());
+			assertEquals("§aRemoved Bob §afrom vanguard", StaffJoins.warbandKick(warband, "Bob"));
+			battles.verify(() -> CampaignWarbandBattleService.processLeave(account, null, warband, false));
 		}
 	}
 }

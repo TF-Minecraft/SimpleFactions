@@ -417,6 +417,19 @@ public class BattleManager implements Listener{
 			Battle b = currentBattle.get(p);
 			BattleInventoryManager inv = new BattleInventoryManager();
 			e.setCancelled(true);
+			if(b.hasStarted() && e.getSlot() >= 18 && e.getSlot() <= 20
+					&& e.getClick() != org.bukkit.event.inventory.ClickType.RIGHT) {
+				p.sendMessage("§eRight-click the button to confirm. §7Hover it to see what it does.");
+				return;
+			}
+			if(b.hasStarted() && (e.getSlot() == 19 || e.getSlot() == 20)) {
+				BattleStaffService.Result result = e.getSlot() == 19
+						? BattleStaffService.restart(b, p.getName())
+						: BattleStaffService.abort(b, p.getName());
+				p.sendMessage(result.ok() ? result.message() : "§c" + result.message());
+				inv.updateView(p, b, e.getClickedInventory());
+				return;
+			}
 			if(b.hasStarted() && e.getSlot() != 18) {
 				p.sendMessage("§cCannot edit a battle while it has started");
 				p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);

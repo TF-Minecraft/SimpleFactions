@@ -240,6 +240,7 @@ public final class BattleScheduleService {
 		}
 
 		CampaignProgressionService.applyPostponedBattle(war);
+		releaseStaffHold(war);
 		war.setBattleDay(war.getBattleDay().plusDays(1));
 		war.clearSignupRemindersSent();
 		BattleInstallationPickService.clearForNewBattleDay(war);
@@ -258,6 +259,10 @@ public final class BattleScheduleService {
 	public static void skipBattleDay(War war, Instant now) {
 		if (war == null || war.getBattleDay() == null) {
 			return;
+		}
+		// A scheduled war keeps its start time here, so its hold stays: releasing it would start the battle.
+		if (war.getBattleSchedulePhase() != BattleSchedulePhase.SCHEDULED) {
+			releaseStaffHold(war);
 		}
 		war.setBattleDay(war.getBattleDay().plusDays(1));
 		BattleInstallationPickService.clearForNewBattleDay(war);
@@ -332,10 +337,20 @@ public final class BattleScheduleService {
 	}
 
 	private static void startFreshBattleDay(War war) {
+		releaseStaffHold(war);
 		BattleVoteService.clearVotes(war);
 		war.clearSignupRemindersSent();
 		BattleInstallationPickService.clearForNewBattleDay(war);
 		CampaignRaidService.clearForNewBattleDay(war);
+	}
+
+	/** A hold belongs to one battle day; a new day schedules the battle afresh. */
+	static void releaseStaffHold(War war) {
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(war.getId());
+		if (battle != null && !battle.hasStarted() && battle.isStaffHold()) {
+			battle.setStaffHold(false);
+			net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.persistBattle(battle);
+		}
 	}
 
 	public static Integer resolveBattleProvinceId(War war) {
