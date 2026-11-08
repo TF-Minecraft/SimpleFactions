@@ -434,6 +434,57 @@ class BattleStaffUiTest {
 	}
 
 	@Test
+	void vehiclesSwitchRunsStraightAwayAndChecksItsArguments() {
+		staff.when(() -> BattleStaffService.setAllVehiclesUsable(battle, true, "Admin"))
+				.thenReturn(new BattleStaffService.Result(true, "§aV"));
+		staff.when(() -> BattleStaffService.setAllVehiclesUsable(battle, false, "Admin"))
+				.thenReturn(new BattleStaffService.Result(false, "Only campaign"));
+		battleCommand("vehicles", "b1", "on");
+		verify(admin).sendMessage("§aV");
+		battleCommand("vehicles", "b1", "OFF");
+		verify(admin).sendMessage("§cOnly campaign");
+		battleCommand("vehicles", "b1");
+		battleCommand("vehicles", "b1", "maybe");
+		verify(admin, org.mockito.Mockito.times(2)).sendMessage("§cUsage: /battle vehicles <battleId> on|off");
+	}
+
+	@Test
+	void forceVehicleArmsAClickModeForTheWarbandsCampaignSide() {
+		Warband band = Warband.createWithMemberIds("w1", UUID.randomUUID(), false);
+		WarbandManager.addWarband(band);
+		Player lead = player("Lead", false, true);
+		var context = new net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService.CampaignBattleContext(
+				battle, "attacker", mock(net.tfminecraft.simplefactions.war.core.War.class));
+		try (MockedStatic<net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService> campaigns =
+				mockStatic(net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService.class)) {
+			assertTrue(BattleStaffCommands.warband(soldier, new String[] {"forcevehicle", "w1"}));
+			verify(soldier).sendMessage("§a[Battle]§4You do not have access to this command");
+
+			assertTrue(BattleStaffCommands.warband(lead, new String[] {"forcevehicle"}));
+			verify(lead).sendMessage("§cUsage: /warband forcevehicle <warband>|disable");
+			BattleStaffCommands.warband(lead, new String[] {"forcevehicle", "nope"});
+			verify(lead).sendMessage("§cWarband not found");
+			BattleStaffCommands.warband(lead, new String[] {"forcevehicle", "w1"});
+			verify(lead).sendMessage("§cWarband w1 §cis not on a side of a campaign battle,"
+					+ " so there is no battle to assign vehicles to.");
+			assertNull(net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.get(lead.getUniqueId()));
+
+			campaigns.when(() -> net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService
+					.findCampaignBattleForWarband(band)).thenReturn(context);
+			BattleStaffCommands.warband(lead, new String[] {"forcevehicle", "w1"});
+			verify(lead).sendMessage("§aForce-vehicle mode on: right-click vehicles to let attacker use them in b1."
+					+ " Click one again to undo. §7/warband forcevehicle disable to stop.");
+			assertEquals(new net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.Session("b1", "attacker"),
+					net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.get(lead.getUniqueId()));
+
+			BattleStaffCommands.warband(lead, new String[] {"forcevehicle", "DISABLE"});
+			verify(lead).sendMessage("§7Force-vehicle mode off.");
+			BattleStaffCommands.warband(lead, new String[] {"forcevehicle", "disable"});
+			verify(lead).sendMessage("§7Force-vehicle mode was not on.");
+		}
+	}
+
+	@Test
 	void noPromptWhenTheToolWouldOnlyRefuse() {
 		staff.when(() -> BattleStaffService.restart(battle, "Admin")).thenReturn(new BattleStaffService.Result(false, "R"));
 		staff.when(() -> BattleStaffService.abort(battle, "Admin")).thenReturn(new BattleStaffService.Result(false, "A"));
@@ -509,6 +560,8 @@ class BattleStaffUiTest {
 				BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"end", "b1", ""}));
 		assertEquals(List.of("nowinner"), BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"end", "x", ""}));
 		assertEquals(List.of("on", "off"), BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"hold", "b1", ""}));
+		assertEquals(List.of("on", "off"), BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"vehicles", "b1", ""}));
+		assertEquals(List.of("b1"), BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"vehicles", ""}));
 		assertEquals(List.of("attacker", "defender"),
 				BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"lives", "b1", ""}));
 		assertEquals(List.of("add", "remove", "set"),
@@ -528,6 +581,9 @@ class BattleStaffUiTest {
 			members.when(() -> Members.completions(eq(List.of("Soldier")),
 					org.mockito.AdditionalMatchers.aryEq(new String[] {"w1", ""}))).thenReturn(List.of("Soldier"));
 			assertEquals(List.of("w1"), BattleTabCompletion.staffCompletions(admin, "warband", new String[] {"toggleopen", ""}));
+			assertEquals(List.of("w1", "disable"),
+					BattleTabCompletion.staffCompletions(admin, "warband", new String[] {"forcevehicle", ""}));
+			assertEquals(List.of(), BattleTabCompletion.staffCompletions(admin, "warband", new String[] {"forcevehicle", "w1", ""}));
 			assertEquals(List.of("Soldier"),
 					BattleTabCompletion.staffCompletions(admin, "warband", new String[] {"forcekick", "w1", ""}));
 			assertEquals(List.of(), BattleTabCompletion.staffCompletions(admin, "warband", new String[] {"forcekick", "x", ""}));

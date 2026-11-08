@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.managers.StaffJoins;
 import net.tfminecraft.simplefactions.utils.StaffConfirm;
+import net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
@@ -18,8 +19,8 @@ import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 
 /**
- * Staff battle tools: watch, info, restart, abort, end, hold and lives on {@code /battle}, and
- * forcekick and toggleopen on {@code /warband}. Callers have already checked staff access.
+ * Staff battle tools: watch, info, restart, abort, end, hold, lives and vehicles on {@code /battle}, and
+ * forcekick, toggleopen and forcevehicle on {@code /warband}. Callers have already checked staff access.
  */
 public final class BattleStaffCommands {
 	static final String RESTART_RISK = "puts every soldier back at their spawn and resets lives, casualties,"
@@ -40,7 +41,7 @@ public final class BattleStaffCommands {
 			case "restart" -> RESTART_RISK;
 			case "abort" -> ABORT_RISK;
 			case "end" -> END_RISK;
-			case "watch", "info", "hold", "lives" -> null;
+			case "watch", "info", "hold", "lives", "vehicles" -> null;
 			default -> "";
 		};
 		if ("".equals(risk)) {
@@ -83,6 +84,7 @@ public final class BattleStaffCommands {
 			case "abort" -> player.sendMessage(BattleStaffService.abort(battle, by).message());
 			case "end" -> player.sendMessage(end(battle, args, by));
 			case "hold" -> player.sendMessage(hold(battle, args, by));
+			case "vehicles" -> player.sendMessage(vehicles(battle, args, by));
 			default -> player.sendMessage(lives(battle, args, by));
 		}
 		return true;
@@ -118,6 +120,13 @@ public final class BattleStaffCommands {
 		return result(BattleStaffService.hold(battle, args[2].equalsIgnoreCase("on"), by));
 	}
 
+	private static String vehicles(Battle battle, String[] args, String by) {
+		if (args.length != 3 || !(args[2].equalsIgnoreCase("on") || args[2].equalsIgnoreCase("off"))) {
+			return usage("vehicles");
+		}
+		return result(BattleStaffService.setAllVehiclesUsable(battle, args[2].equalsIgnoreCase("on"), by));
+	}
+
 	private static String lives(Battle battle, String[] args, String by) {
 		if (args.length != 5) {
 			return usage("lives");
@@ -139,10 +148,37 @@ public final class BattleStaffCommands {
 		return "§cUsage: /battle " + switch (sub) {
 			case "end" -> "end <battleId> [nowinner|<sideId>]";
 			case "hold" -> "hold <battleId> on|off";
+			case "vehicles" -> "vehicles <battleId> on|off";
 			case "lives" -> "lives <battleId> <sideId> add|remove|set <amount>";
 			case "watch" -> "watch <battleId>|off";
 			default -> sub + " <battleId>";
 		};
+	}
+
+	/**
+	 * {@code /warband forcevehicle <warband>} arms a click mode: each vehicle the staff member
+	 * right-clicks can then be used by that warband's side in its campaign battle.
+	 */
+	private static String forceVehicle(Player player, String[] args) {
+		if (args.length != 2) {
+			return "§cUsage: /warband forcevehicle <warband>|disable";
+		}
+		if (args[1].equalsIgnoreCase("disable")) {
+			return BattleForcedVehicles.disarm(player.getUniqueId())
+					? "§7Force-vehicle mode off."
+					: "§7Force-vehicle mode was not on.";
+		}
+		Warband warband = WarbandManager.getByString(args[1]);
+		if (warband == null) {
+			return "§cWarband not found";
+		}
+		CampaignBattleJoinService.CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
+		if (ctx == null) {
+			return "§cWarband " + warband.getId() + " §cis not on a side of a campaign battle,"
+					+ " so there is no battle to assign vehicles to.";
+		}
+		BattleForcedVehicles.arm(player.getUniqueId(), ctx.battle().getId(), ctx.sideId());
+		return BattleForcedVehicles.armedMessage(ctx.battle(), ctx.sideId());
 	}
 
 	/** Handles {@code /warband forcekick} and staff {@code /warband toggleopen <id>}; false otherwise. */
@@ -153,11 +189,16 @@ public final class BattleStaffCommands {
 		}
 		boolean forcekick = args[0].equalsIgnoreCase("forcekick") && args.length >= 3;
 		boolean toggle = args[0].equalsIgnoreCase("toggleopen") && args.length == 2;
-		if (!forcekick && !toggle) {
+		boolean forceVehicle = args[0].equalsIgnoreCase("forcevehicle");
+		if (!forcekick && !toggle && !forceVehicle) {
 			return false;
 		}
 		if (!BattlePermissions.isAdmin(player)) {
 			player.sendMessage("§a[Battle]§4You do not have access to this command");
+			return true;
+		}
+		if (forceVehicle) {
+			player.sendMessage(forceVehicle(player, args));
 			return true;
 		}
 		Warband warband = WarbandManager.getByString(args[1]);

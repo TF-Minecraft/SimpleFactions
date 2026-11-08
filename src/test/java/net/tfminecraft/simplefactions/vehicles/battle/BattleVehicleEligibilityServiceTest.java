@@ -132,6 +132,11 @@ class BattleVehicleEligibilityServiceTest {
 				"§cOnly faction pool and installation vehicles can be used in a campaign battle.",
 				BattleVehicleEligibilityService.Messages.forResult(
 						BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_NOT_FACTION_VEHICLE));
+		assertEquals(
+				"§cStaff assigned this vehicle to the other side for this battle.",
+				BattleVehicleEligibilityService.Messages.forResult(
+						BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_FORCED_OTHER_SIDE));
+		assertTrue(BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_FORCED_OTHER_SIDE.isDenied());
 	}
 
 	@Test

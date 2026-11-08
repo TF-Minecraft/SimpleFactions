@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationInPlayService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandVehicleRules;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
@@ -98,6 +99,17 @@ public final class BattleVehicleEligibilityService {
 		if (battle == null || battle.getWarId() == null) {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
 		}
+		// Staff overrides come before the berth and pool rules.
+		if (battle.isAllVehiclesUsable()) {
+			return BattleVehicleEligibilityResult.ALLOWED;
+		}
+		String forcedSide = battle.getForcedVehicleSide(vehicle.getUUID());
+		if (forcedSide != null) {
+			BattleSide side = battle.getSideByMemberId(player.getUniqueId());
+			return side != null && side.getId().equalsIgnoreCase(forcedSide)
+					? BattleVehicleEligibilityResult.ALLOWED
+					: BattleVehicleEligibilityResult.DENIED_FORCED_OTHER_SIDE;
+		}
 
 		War war = WarManager.getById(battle.getWarId());
 		if (war == null || !war.isActive()) {
@@ -123,14 +135,16 @@ public final class BattleVehicleEligibilityService {
 		DENIED_NOT_BERTHED,
 		DENIED_NOT_COMMITTED,
 		DENIED_NOT_FACTION_VEHICLE,
-		DENIED_POOL_SIDE;
+		DENIED_POOL_SIDE,
+		DENIED_FORCED_OTHER_SIDE;
 
 		public boolean isDenied() {
 			return this == DENIED_PRE_BATTLE_WARBAND
 					|| this == DENIED_NOT_BERTHED
 					|| this == DENIED_NOT_COMMITTED
 					|| this == DENIED_NOT_FACTION_VEHICLE
-					|| this == DENIED_POOL_SIDE;
+					|| this == DENIED_POOL_SIDE
+					|| this == DENIED_FORCED_OTHER_SIDE;
 		}
 	}
 
@@ -152,6 +166,8 @@ public final class BattleVehicleEligibilityService {
 						"§cOnly faction pool and installation vehicles can be used in a campaign battle.";
 				case DENIED_POOL_SIDE ->
 						"§cThis pool vehicle belongs to a faction that is not on your side.";
+				case DENIED_FORCED_OTHER_SIDE ->
+						"§cStaff assigned this vehicle to the other side for this battle.";
 				case ALLOWED, NOT_CAMPAIGN_BATTLE -> null;
 			};
 		}

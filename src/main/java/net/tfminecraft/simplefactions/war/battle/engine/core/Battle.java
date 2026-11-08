@@ -150,6 +150,10 @@ public class Battle {
 	}
 
 	private final Map<String, Integer> recordedSideCasualties = new LinkedHashMap<>();
+	// Staff overrides for campaign vehicle use: vehicle UUID -> the side allowed to use it.
+	private final Map<String, String> forcedVehicles = new LinkedHashMap<>();
+	// Emergency switch: every vehicle can be used by either side.
+	private boolean allVehiclesUsable;
 	private net.tfminecraft.simplefactions.war.stats.BattleStats stats;
 
 	/** This battle's live stats, created when missing (a battle saved before stats existed). */
@@ -364,6 +368,45 @@ public class Battle {
 
 	public void clearRecordedSideCasualties() {
 		recordedSideCasualties.clear();
+	}
+
+	/** The side staff assigned this vehicle to for this battle, or null. */
+	public String getForcedVehicleSide(String vehicleUuid) {
+		return vehicleUuid == null ? null : forcedVehicles.get(vehicleUuid);
+	}
+
+	public Map<String, String> getForcedVehicles() {
+		return Map.copyOf(forcedVehicles);
+	}
+
+	/** Assigns the vehicle to a side, or removes the assignment when sideId is null. */
+	public void setForcedVehicleSide(String vehicleUuid, String sideId) {
+		if (vehicleUuid == null) {
+			return;
+		}
+		if (sideId == null) {
+			forcedVehicles.remove(vehicleUuid);
+			return;
+		}
+		forcedVehicles.put(vehicleUuid, sideId);
+	}
+
+	public void restoreForcedVehicles(Map<String, String> vehicles) {
+		forcedVehicles.clear();
+		if (vehicles == null) {
+			return;
+		}
+		for (Map.Entry<String, String> entry : vehicles.entrySet()) {
+			setForcedVehicleSide(entry.getKey(), entry.getValue());
+		}
+	}
+
+	public boolean isAllVehiclesUsable() {
+		return allVehiclesUsable;
+	}
+
+	public void setAllVehiclesUsable(boolean allVehiclesUsable) {
+		this.allVehiclesUsable = allVehiclesUsable;
 	}
 	
 	public void setFriendlyFire(boolean b) {

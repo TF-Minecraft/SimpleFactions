@@ -40,6 +40,10 @@ public class BattleData {
 	public Integer defenderLives;
 	public boolean navalVariant;
 	public Map<String, Integer> sideCasualties = new LinkedHashMap<>();
+	// Staff vehicle overrides: vehicle UUID -> side id. Absent in older saves means none.
+	public Map<String, String> forcedVehicles = new LinkedHashMap<>();
+	// Absent in older files reads as false: installation commitments apply.
+	public boolean allVehiclesUsable;
 	// Absent in older saves and for battles that have not started.
 	public net.tfminecraft.simplefactions.war.stats.BattleStats stats;
 	public BattleLocation navalSpawn;

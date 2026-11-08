@@ -60,6 +60,7 @@ public class BattleTabCompletion implements TabCompleter{
                 if(BattlePermissions.isAdmin(sender)) {
                     completions.add("forcejoin");
                     completions.add("forcekick");
+                    completions.add("forcevehicle");
                 }
                 return completions;
             }
@@ -155,7 +156,7 @@ public class BattleTabCompletion implements TabCompleter{
 	                completions.add("setcontestduration");
 	                completions.add("setraidtarget");
 	                completions.add("setdefenderlives");
-	                completions.addAll(List.of("watch", "info", "restart", "abort", "end", "hold", "lives"));
+	                completions.addAll(List.of("watch", "info", "restart", "abort", "end", "hold", "lives", "vehicles"));
                 }
                 return completions;
             }
@@ -240,15 +241,19 @@ public class BattleTabCompletion implements TabCompleter{
         if (!BattlePermissions.isAdmin(sender) || args.length < 2) return null;
         String sub = args[0].toLowerCase(java.util.Locale.ROOT);
         if (command.equalsIgnoreCase("warband")) {
-            if (!sub.equals("forcekick") && !sub.equals("toggleopen")) return null;
-            if (args.length == 2) return WarbandManager.get().stream().map(Warband::getId).toList();
+            if (!sub.equals("forcekick") && !sub.equals("toggleopen") && !sub.equals("forcevehicle")) return null;
+            if (args.length == 2) {
+                List<String> ids = new ArrayList<>(WarbandManager.get().stream().map(Warband::getId).toList());
+                if (sub.equals("forcevehicle")) ids.add("disable");
+                return ids;
+            }
             Warband band = WarbandManager.getByString(args[1]);
             if (!sub.equals("forcekick") || band == null) return List.of();
             return Members.completions(band.getPlayers().stream().map(Members::name).toList(),
                     java.util.Arrays.copyOfRange(args, 1, args.length));
         }
         if (!command.equalsIgnoreCase("battle")
-                || !List.of("watch", "info", "restart", "abort", "end", "hold", "lives").contains(sub)) {
+                || !List.of("watch", "info", "restart", "abort", "end", "hold", "lives", "vehicles").contains(sub)) {
             return null;
         }
         if (args.length == 2) {
@@ -263,7 +268,7 @@ public class BattleTabCompletion implements TabCompleter{
             options.add("nowinner");
             return options;
         }
-        if (args.length == 3 && sub.equals("hold")) return List.of("on", "off");
+        if (args.length == 3 && (sub.equals("hold") || sub.equals("vehicles"))) return List.of("on", "off");
         if (args.length == 3 && sub.equals("lives")) return sides;
         if (args.length == 4 && sub.equals("lives")) return List.of("add", "remove", "set");
         return List.of();
