@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 
@@ -25,9 +24,12 @@ public final class BattleStatsArchive {
 	static final String FOLDER = "BattleStats";
 	private static final int CACHE_SIZE = 16;
 
-	/** What the lists need without opening each file. */
+	/**
+	 * What the lists and war totals need without opening each file: each fighter's
+	 * key, name, kills, deaths, team kills and damage.
+	 */
 	public record Summary(String id, String name, long endedAt, String warKey, String warName,
-			String winner, Set<String> fighters) {}
+			String winner, Map<String, FighterStats> fighters) {}
 
 	private static final List<Summary> INDEX = new CopyOnWriteArrayList<>();
 	private static final Map<String, BattleRecord> CACHE = Collections.synchronizedMap(
@@ -66,6 +68,10 @@ public final class BattleStatsArchive {
 
 	/** Saves a finished battle; one small file write per battle. */
 	public static void save(BattleRecord record) {
+		String base = record.id;
+		for (int n = 2; find(record.id) != null; n++) {
+			record.id = base + "-" + n;
+		}
 		INDEX.add(summary(record));
 		CACHE.put(record.id, record);
 		File folder = folder();
@@ -103,7 +109,7 @@ public final class BattleStatsArchive {
 	public static List<Summary> list(String characterKey) {
 		List<Summary> result = new ArrayList<>();
 		for (Summary summary : INDEX) {
-			if (characterKey == null || summary.fighters().contains(characterKey)) {
+			if (characterKey == null || summary.fighters().containsKey(characterKey)) {
 				result.add(summary);
 			}
 		}
@@ -121,12 +127,19 @@ public final class BattleStatsArchive {
 	}
 
 	private static Summary summary(BattleRecord record) {
-		Set<String> keys = new java.util.HashSet<>();
+		Map<String, FighterStats> fighters = new LinkedHashMap<>();
 		for (FighterStats fighter : record.fighters) {
-			keys.add(fighter.key);
+			FighterStats slim = new FighterStats();
+			slim.key = fighter.key;
+			slim.name = fighter.name;
+			slim.kills = fighter.kills;
+			slim.deaths = fighter.deaths;
+			slim.teamKills = fighter.teamKills;
+			slim.damage = fighter.damage;
+			fighters.put(fighter.key, slim);
 		}
 		return new Summary(record.id, record.name, record.endedAt, record.warKey, record.warName,
-				record.winner, Set.copyOf(keys));
+				record.winner, Collections.unmodifiableMap(fighters));
 	}
 
 	/** Null without a plugin data folder, so nothing is written to the working directory. */

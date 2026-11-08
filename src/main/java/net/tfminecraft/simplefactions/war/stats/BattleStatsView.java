@@ -167,36 +167,35 @@ public final class BattleStatsView {
 		}
 	}
 
+	/** Built from the in-memory summaries only, so a long war reads no files. */
 	private static void warReport(Player player, String viewer, String key, String warKey) {
-		List<BattleRecord> records = new ArrayList<>();
+		List<BattleStatsArchive.Summary> battles = new ArrayList<>();
 		for (BattleStatsArchive.Summary summary : BattleStatsArchive.list(viewer)) {
-			BattleRecord record = warKey.equalsIgnoreCase(summary.warKey()) ? BattleStatsArchive.get(summary.id()) : null;
-			if (record != null) {
-				records.add(record);
+			if (warKey.equalsIgnoreCase(summary.warKey())) {
+				battles.add(summary);
 			}
 		}
-		if (records.isEmpty()) {
+		if (battles.isEmpty()) {
 			player.sendMessage("§cNo battle stats for that war that you fought in.");
 			return;
 		}
-		player.sendMessage("§6§l" + records.get(0).warName + " §7(" + records.size() + " battles)");
+		player.sendMessage("§6§l" + battles.get(0).warName() + " §7(" + battles.size() + " battles)");
 		Map<String, Integer> wins = new LinkedHashMap<>();
 		Map<String, FighterStats> totals = new LinkedHashMap<>();
-		for (BattleRecord record : records) {
-			if (record.winner != null) {
-				wins.merge(record.winner, 1, Integer::sum);
+		for (BattleStatsArchive.Summary battle : battles) {
+			if (battle.winner() != null) {
+				wins.merge(battle.winner(), 1, Integer::sum);
 			}
-			for (FighterStats f : record.fighters) {
+			for (FighterStats f : battle.fighters().values()) {
 				FighterStats sum = totals.computeIfAbsent(f.key, k -> new FighterStats());
 				sum.key = f.key;
-				sum.name = f.name;
 				sum.kills += f.kills;
 				sum.deaths += f.deaths;
 				sum.teamKills += f.teamKills;
 				sum.damage += f.damage;
 			}
-			player.sendMessage(button(" " + record.name + " §8" + (record.winner == null ? "no winner" : "won by " + record.winner),
-					"/battle stats " + record.id, "Open the report"));
+			player.sendMessage(button(" " + battle.name() + " §8" + (battle.winner() == null ? "no winner" : "won by " + battle.winner()),
+					"/battle stats " + battle.id(), "Open the report"));
 		}
 		StringBuilder line = new StringBuilder("§7Wins:");
 		for (Map.Entry<String, Integer> entry : wins.entrySet()) {

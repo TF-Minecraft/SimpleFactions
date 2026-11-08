@@ -634,7 +634,8 @@ class BattleCommandsCoverageTest {
 
   @Test
   void tabCompletionReflectsPermissionsCurrentWarbandsAndSideNames() {
-    assertEquals(List.of("list", "join"), complete(alice, "battle"));
+    assertEquals(List.of("list", "join", "stats"), complete(alice, "battle"));
+    assertEquals(List.of("war"), complete(alice, "battle", "stats", ""));
     assertTrue(complete(alice, "warband").containsAll(List.of("create", "kick", "retreat")));
     assertEquals(List.of(), complete(alice, "warband", "create", ""));
     assertEquals(List.of(), complete(alice, "warband", "delete", ""));

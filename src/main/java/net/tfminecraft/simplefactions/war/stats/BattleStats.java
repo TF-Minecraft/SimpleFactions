@@ -27,7 +27,11 @@ public final class BattleStats {
 
 	/** The fighter for this player on this side, created on first sight; null without a character. */
 	public FighterStats fighter(Player player, BattleSide side) {
-		String key = Members.key(player);
+		return fighter(Members.key(player), player, side);
+	}
+
+	/** As above for a known character key, e.g. a session that is ending. */
+	public FighterStats fighter(String key, Player player, BattleSide side) {
 		if (key == null || side == null) return null;
 		FighterStats fighter = fighters.get(key);
 		if (fighter == null) {

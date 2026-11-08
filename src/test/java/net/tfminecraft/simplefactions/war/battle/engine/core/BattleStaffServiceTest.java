@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.battle.engine.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -166,7 +167,9 @@ class BattleStaffServiceTest {
 		attacker.tickLife();
 		battle.setWarId(4);
 
+		battle.stats();
 		BattleStaffService.Result result = BattleStaffService.abort(battle, "Staff");
+		assertNull(battle.getStats());
 
 		assertTrue(result.ok());
 		assertTrue(result.message().endsWith("(/war admin schedule 4 battlestart) or set a new battle day (setday)."));

@@ -83,6 +83,8 @@ public final class BattleStaffService {
 			player.sendTitle("§eBATTLE STOPPED", "§7Staff stopped the battle. No result was recorded.", 5, 50, 5);
 		}
 		battle.end();
+		// No result: a later end of this held battle must not archive empty stats.
+		battle.setStats(null);
 		battle.setStaffHold(true);
 		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
 		// An aborted first battle did not happen: the war keeps its pre-battle options.
@@ -188,7 +190,7 @@ public final class BattleStaffService {
 			side.resetLivesToStart();
 		}
 		BattleCasualtyLedger.clear(battle);
-		// A restarted or stopped fight keeps no stats from before.
+		// A restarted fight keeps no stats from before.
 		battle.setStats(new net.tfminecraft.simplefactions.war.stats.BattleStats());
 		SiegeContestService.clearBattleState(battle);
 		FieldWinService.clearEmptySideTracking(battle);

@@ -167,6 +167,10 @@ class BattleStatsCoverageTest {
 		hit(carol, alice, 6, true);
 		when(bob.getNoDamageTicks()).thenReturn(15);
 		hit(bob, alice, 6, true);
+		hit(bob, alice, Double.NaN, false);
+		hit(bob, alice, 0, false);
+		when(bob.getHealth()).thenReturn(Double.POSITIVE_INFINITY);
+		hit(bob, alice, Double.POSITIVE_INFINITY, false);
 
 		FighterStats a = live("Alice");
 		assertEquals(24, a.damage, 1e-9);
@@ -190,14 +194,28 @@ class BattleStatsCoverageTest {
 		battle.getStats().takeLastHitter(carol.getUniqueId(), System.currentTimeMillis() + 60_000);
 		die(carol, null);
 		die(bob, bob);
+		Battle idle = BattleFactory.createBlank(BattleType.RAID, "idle");
+		BattleManager.get().add(0, idle);
 		quit(outsider);
 		quit(carol);
+		Player nameless = fixture.player("Nameless");
+		when(nameless.getName()).thenReturn(null);
+		quit(nameless);
+		var session = net.tfminecraft.simplefactions.identity.Members.session(carol).orElseThrow();
+		listener.onSessionEnd(new net.tfminecraft.tlibs.character.CharacterSessionEndEvent(carol, session,
+				net.tfminecraft.tlibs.character.CharacterSessionEndEvent.Reason.SWITCH));
+		listener.onSessionEnd(new net.tfminecraft.tlibs.character.CharacterSessionEndEvent(carol, session,
+				net.tfminecraft.tlibs.character.CharacterSessionEndEvent.Reason.QUIT));
+		var stranger = new net.tfminecraft.tlibs.character.CharacterRef(carol.getUniqueId(), java.util.UUID.randomUUID());
+		listener.onSessionEnd(new net.tfminecraft.tlibs.character.CharacterSessionEndEvent(carol,
+				new net.tfminecraft.tlibs.character.CharacterSession(stranger, 9L),
+				net.tfminecraft.tlibs.character.CharacterSessionEndEvent.Reason.SWITCH));
 
 		assertEquals(2, live("Alice").kills);
 		assertEquals(1, live("Alice").teamKills);
 		assertEquals(4, live("Bob").deaths);
 		assertEquals(2, live("Carol").deaths);
-		assertEquals(1, live("Carol").logouts);
+		assertEquals(2, live("Carol").logouts);
 		assertNull(battle.getStats().fighter(alice, null));
 	}
 
@@ -352,7 +370,10 @@ class BattleStatsCoverageTest {
 		BattleStatsView.command(nameless, new String[] {"stats"});
 		assertTrue(has(said(nameless), "Choose a character"));
 
-		BattleStatsView.command(outsider, new String[] {"stats"});
+		org.bukkit.command.Command battleCommand = mock(org.bukkit.command.Command.class);
+		when(battleCommand.getName()).thenReturn("battle");
+		assertTrue(new net.tfminecraft.simplefactions.war.battle.ui.BattleCommandManager()
+				.onCommand(outsider, battleCommand, "battle", new String[] {"stats"}));
 		assertTrue(has(said(outsider), "No battle stats yet"));
 		BattleStatsView.command(outsider, new String[] {"stats", "war"});
 		assertTrue(has(said(outsider), "No war battles yet"));
@@ -422,6 +443,11 @@ class BattleStatsCoverageTest {
 		side.lives = 4;
 		record.sides.add(side);
 		BattleStatsArchive.save(record);
+		BattleRecord twin = new BattleRecord();
+		twin.id = "manual-1";
+		twin.name = "Twin";
+		BattleStatsArchive.save(twin);
+		assertEquals("manual-1-2", twin.id);
 		BattleStatsView.command(alice, new String[] {"stats", "manual-1"});
 		List<String> lines = said(alice);
 		assertTrue(has(lines, "Naval field raid"), lines.toString());
@@ -434,7 +460,7 @@ class BattleStatsCoverageTest {
 		BattleStatsView.command(alice, new String[] {"stats", "war", "w1-1"});
 		assertTrue(has(said(alice), "No battle stats for that war"));
 
-		for (int i = 0; i < BattleStatsView.PAGE_SIZE; i++) {
+		for (int i = 0; i < BattleStatsView.PAGE_SIZE - 1; i++) {
 			BattleRecord extra = new BattleRecord();
 			extra.id = "extra-" + i;
 			extra.name = "Extra " + i;
