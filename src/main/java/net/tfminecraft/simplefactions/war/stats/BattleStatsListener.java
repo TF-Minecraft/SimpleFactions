@@ -41,7 +41,18 @@ public final class BattleStatsListener implements Listener {
 	/** Who is behind the next damage to a victim that arrives without an attacker, this tick only. */
 	private record Pending(Player attacker, int tick) {}
 
+	/** Damage causes with no attacker that still come from the fight: burns, poison, falls, blasts. */
+	static final java.util.Set<EntityDamageEvent.DamageCause> FIGHT_CAUSES = java.util.EnumSet.of(
+			EntityDamageEvent.DamageCause.FIRE, EntityDamageEvent.DamageCause.FIRE_TICK, EntityDamageEvent.DamageCause.LAVA,
+			EntityDamageEvent.DamageCause.POISON, EntityDamageEvent.DamageCause.WITHER, EntityDamageEvent.DamageCause.MAGIC,
+			EntityDamageEvent.DamageCause.FALL, EntityDamageEvent.DamageCause.BLOCK_EXPLOSION,
+			EntityDamageEvent.DamageCause.ENTITY_EXPLOSION, EntityDamageEvent.DamageCause.CONTACT);
+	/** Most crowd control one aura application can earn, so a long or endless aura cannot inflate it. */
+	static final long MAX_CONTROL_MS = 30_000L;
+
 	private final Map<UUID, Pending> pendingAttackers = new HashMap<>();
+	/** Victims whose hit VehicleFramework took over this tick; its cancelled original is not a blocked hit. */
+	private final Map<UUID, Integer> redirectedAt = new HashMap<>();
 	private Pending pendingHealer;
 	private UUID pendingHealTarget;
 
@@ -66,6 +77,7 @@ public final class BattleStatsListener implements Listener {
 		if (BattleManager.get().isEmpty() || !(event.getEntity() instanceof Player victim)) {
 			return;
 		}
+		redirectedAt.put(victim.getUniqueId(), Bukkit.getCurrentTick());
 		Player attacker = player(event.getDamager());
 		if (attacker != null && attacker != victim) {
 			pendingAttackers.put(victim.getUniqueId(), new Pending(attacker, Bukkit.getCurrentTick()));
@@ -88,7 +100,9 @@ public final class BattleStatsListener implements Listener {
 		}
 		if (event.isCancelled()) {
 			// A seated player's hit was cancelled only to be dealt again; that is not a blocked hit.
-			boolean blocked = attackerSide != place.side() && !victim.isInsideVehicle() && !inHitCooldown(victim);
+			Integer redirected = redirectedAt.get(victim.getUniqueId());
+			boolean blocked = attackerSide != place.side() && !inHitCooldown(victim)
+					&& (redirected == null || redirected != Bukkit.getCurrentTick());
 			FighterStats target = blocked ? place.battle().stats().fighter(victim, place.side()) : null;
 			if (target != null) target.blockedHits++;
 			return;
@@ -115,6 +129,9 @@ public final class BattleStatsListener implements Listener {
 		if (pending != null && pending.tick() == Bukkit.getCurrentTick()) {
 			BattleSide attackerSide = sideOf(place.battle(), pending.attacker());
 			if (attackerSide != null) credit(place, victim, pending.attacker(), attackerSide, event.getFinalDamage());
+			return;
+		}
+		if (!FIGHT_CAUSES.contains(event.getCause())) {
 			return;
 		}
 		BattleStats stats = place.battle().stats();
@@ -164,13 +181,14 @@ public final class BattleStatsListener implements Listener {
 		BattleSide killerSide = killer == null || killer == victim ? null : sideOf(place.battle(), killer);
 		FighterStats credited = killerSide != null ? stats.fighter(killer, killerSide)
 				: hitters.isEmpty() ? null : hitters.get(hitters.size() - 1);
+		boolean teamKill = credited != null && credited.side.equalsIgnoreCase(dead.side);
 		for (FighterStats hitter : hitters) {
-			if (hitter != credited) hitter.assists++;
+			if (hitter != credited && !teamKill) hitter.assists++;
 		}
 		if (credited == null) {
 			return;
 		}
-		if (credited.side.equalsIgnoreCase(dead.side)) {
+		if (teamKill) {
 			credited.teamKills++;
 		} else {
 			credited.kills++;
@@ -222,14 +240,17 @@ public final class BattleStatsListener implements Listener {
 		}
 		Place place = place(target);
 		BattleSide casterSide = place == null ? null : sideOf(place.battle(), caster);
-		if (casterSide == null) {
+		// Support spells lock an ally's jump while they help them; that is not crowd control.
+		if (casterSide == null || (casterSide == place.side() && MythicBattleStats.JUMP_LOCK.equals(kind))) {
 			return;
 		}
 		BattleStats stats = place.battle().stats();
 		FighterStats source = stats.fighter(caster, casterSide);
 		FighterStats victim = stats.fighter(target, place.side());
 		if (source == null || victim == null) return;
-		double seconds = stats.creditControl(target.getUniqueId(), kind, System.currentTimeMillis(), durationMs);
+		String counted = MythicBattleStats.JUMP_LOCK.equals(kind) ? "root" : kind;
+		double seconds = stats.creditControl(target.getUniqueId(), counted, System.currentTimeMillis(),
+				Math.min(durationMs, MAX_CONTROL_MS));
 		if (casterSide == place.side()) {
 			source.friendlyCc += seconds;
 		} else {
@@ -242,6 +263,8 @@ public final class BattleStatsListener implements Listener {
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onQuit(PlayerQuitEvent event) {
 		Player player = event.getPlayer();
+		pendingAttackers.remove(player.getUniqueId());
+		redirectedAt.remove(player.getUniqueId());
 		Members.session(player).ifPresent(session -> logout(player, session.ref()));
 	}
 

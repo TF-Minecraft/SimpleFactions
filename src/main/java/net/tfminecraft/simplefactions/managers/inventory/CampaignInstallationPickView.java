@@ -194,6 +194,7 @@ public class CampaignInstallationPickView {
 			case REMOVED -> "§7Uncommitted " + installationName + ".";
 			case REJECTED_LOCKED -> "§cInstallation choices are locked until the next battle day.";
 			case REJECTED_ZOC_PORT -> "§cThe ZOC port is required for this naval battle.";
+			case REJECTED_FORCED -> "§cStaff committed this installation to the battle; it stays in until the battle day ends.";
 			case REJECTED_NOT_LEADER -> "§cOnly your faction leader can select installations for this battle.";
 			case REJECTED_NOT_PARTICIPANT -> "§cYou are not a belligerent in this war.";
 			case REJECTED_INVALID_INSTALLATION -> "§cThat installation is not available.";

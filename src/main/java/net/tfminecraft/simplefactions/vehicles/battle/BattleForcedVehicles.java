@@ -26,6 +26,8 @@ public final class BattleForcedVehicles {
 	public record Session(String battleId, String sideId) {}
 
 	private static final Map<UUID, Session> SESSIONS = new HashMap<>();
+	/** Staff → vehicle and server tick of the last toggle: a click sent for both hands toggles once. */
+	private static final Map<UUID, Map.Entry<String, Integer>> LAST_TOGGLE = new HashMap<>();
 
 	private BattleForcedVehicles() {}
 
@@ -35,6 +37,7 @@ public final class BattleForcedVehicles {
 
 	/** Ends the click mode; false when it was not armed. */
 	public static boolean disarm(UUID staff) {
+		LAST_TOGGLE.remove(staff);
 		return SESSIONS.remove(staff) != null;
 	}
 
@@ -44,6 +47,7 @@ public final class BattleForcedVehicles {
 
 	static void resetForTests() {
 		SESSIONS.clear();
+		LAST_TOGGLE.clear();
 	}
 
 	public static String armedMessage(Battle battle, String sideId) {
@@ -81,6 +85,10 @@ public final class BattleForcedVehicles {
 				return;
 			}
 			event.setCancelled(true);
+			int tick = org.bukkit.Bukkit.getCurrentTick();
+			Map.Entry<String, Integer> last = LAST_TOGGLE.get(player.getUniqueId());
+			if (last != null && last.getKey().equals(vehicle.getUUID()) && last.getValue() == tick) return;
+			LAST_TOGGLE.put(player.getUniqueId(), Map.entry(vehicle.getUUID(), tick));
 			Battle battle = BattleManager.getByString(session.battleId());
 			BattleSide side = battle == null ? null : battle.getSideById(session.sideId());
 			if (side == null) {
@@ -89,6 +97,12 @@ public final class BattleForcedVehicles {
 				return;
 			}
 			player.sendMessage(toggle(battle, side.getId(), vehicle, player.getName()));
+		}
+
+		/** Click modes end with the session. */
+		@EventHandler
+		public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+			disarm(event.getPlayer().getUniqueId());
 		}
 	}
 }

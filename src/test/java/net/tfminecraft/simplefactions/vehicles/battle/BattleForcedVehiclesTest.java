@@ -48,6 +48,8 @@ class BattleForcedVehiclesTest {
 		BattleManager.resetForTests();
 		BattleForcedVehicles.resetForTests();
 		bukkit = mockStatic(Bukkit.class);
+		java.util.concurrent.atomic.AtomicInteger tick = new java.util.concurrent.atomic.AtomicInteger();
+		bukkit.when(Bukkit::getCurrentTick).thenAnswer(call -> tick.incrementAndGet());
 		bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class), any(BarFlag[].class)))
 				.thenAnswer(call -> mock(BossBar.class));
 		persistence = mockStatic(BattlePersistenceService.class);
@@ -128,6 +130,29 @@ class BattleForcedVehiclesTest {
 		assertNull(BattleForcedVehicles.get(staff.getUniqueId()));
 		assertTrue(battle.getForcedVehicles().isEmpty());
 		persistence.verify(() -> BattlePersistenceService.persistBattle(any()), never());
+	}
+
+	@Test
+	void aClickSentForBothHandsInOneTickTogglesOnce() {
+		bukkit.when(Bukkit::getCurrentTick).thenReturn(40);
+		BattleForcedVehicles.arm(staff.getUniqueId(), "B1", "attacker");
+		click(staff, vehicle);
+		assertTrue(click(staff, vehicle).isCancelled());
+		assertEquals("Attacker", battle.getForcedVehicleSide("veh-1"));
+		ActiveVehicle other = mock(ActiveVehicle.class);
+		when(other.getUUID()).thenReturn("veh-2");
+		when(other.getId()).thenReturn("sloop");
+		click(staff, other);
+		assertEquals("Attacker", battle.getForcedVehicleSide("veh-2"));
+	}
+
+	@Test
+	void leavingTheServerEndsTheMode() {
+		BattleForcedVehicles.arm(staff.getUniqueId(), "b1", "attacker");
+		org.bukkit.event.player.PlayerQuitEvent quit = mock(org.bukkit.event.player.PlayerQuitEvent.class);
+		when(quit.getPlayer()).thenReturn(staff);
+		listener.onQuit(quit);
+		assertNull(BattleForcedVehicles.get(staff.getUniqueId()));
 	}
 
 	@Test

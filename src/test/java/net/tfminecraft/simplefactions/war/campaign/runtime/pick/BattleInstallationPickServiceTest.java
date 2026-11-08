@@ -273,6 +273,9 @@ class BattleInstallationPickServiceTest {
 
 			BattleInstallationPickService.forceAdd(war, attacker, "fort-1");
 			war.getBattleInstallationPicks().get("atk").add("fort-2");
+			// The leader cannot quietly take back what staff committed.
+			assertEquals(InstallationPickToggleResult.REJECTED_FORCED,
+					BattleInstallationPickService.togglePick(war, attacker, "leader", "fort-1", BattleWindowService.atScheduleHour(BATTLE_DAY, 15)));
 
 			assertEquals(BATTLE_DAY, war.getBattleInstallationPicksBattleDay());
 			assertTrue(BattleInstallationPickService.isForced(war, "atk", "fort-1"));

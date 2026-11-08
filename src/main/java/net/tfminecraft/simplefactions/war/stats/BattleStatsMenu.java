@@ -49,7 +49,7 @@ public final class BattleStatsMenu implements Listener {
 
 	@EventHandler
 	public void onClick(InventoryClickEvent event) {
-		if (!(event.getView().getTopInventory().getHolder() instanceof Holder holder)) {
+		if (!(event.getView().getTopInventory().getHolder(false) instanceof Holder holder)) {
 			return;
 		}
 		event.setCancelled(true);
@@ -62,7 +62,7 @@ public final class BattleStatsMenu implements Listener {
 
 	@EventHandler
 	public void onDrag(InventoryDragEvent event) {
-		if (event.getView().getTopInventory().getHolder() instanceof Holder) {
+		if (event.getView().getTopInventory().getHolder(false) instanceof Holder) {
 			event.setCancelled(true);
 		}
 	}
@@ -180,7 +180,7 @@ public final class BattleStatsMenu implements Listener {
 		Map<String, Integer> wins = new LinkedHashMap<>();
 		Map<String, FighterStats> totals = new LinkedHashMap<>();
 		for (BattleStatsArchive.Summary battle : battles) {
-			if (battle.winner() != null) wins.merge(battle.winner(), 1, Integer::sum);
+			if (battle.winner() != null) wins.merge(winnerLabel(battle), 1, Integer::sum);
 			for (FighterStats f : battle.fighters().values()) {
 				add(totals.computeIfAbsent(f.key, k -> new FighterStats()), f);
 			}
@@ -199,6 +199,12 @@ public final class BattleStatsMenu implements Listener {
 		}
 		set(holder, BACK_SLOT, item(Material.ARROW, "§eBack", List.of()), p -> wars(p, 1));
 		viewer.openInventory(inventory);
+	}
+
+	/** Battle sides can swap between battles, so a war counts wins by the war's attackers and defenders. */
+	static String winnerLabel(BattleStatsArchive.Summary battle) {
+		String role = battle.winnerRole();
+		return role == null ? battle.winner() : "ATTACKER".equals(role) ? "the war's attackers" : "the war's defenders";
 	}
 
 	private static void openBattle(Player viewer, String id, int backPage) {

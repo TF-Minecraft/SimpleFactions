@@ -29,6 +29,9 @@ public final class MythicBattleStats implements Listener {
 			"stun_aura", "stun",
 			"vine_wave_stun", "stun");
 
+	/** A jump-cancelling aura: a root on an enemy, a harmless lock when a support spell holds an ally. */
+	static final String JUMP_LOCK = "jumplock";
+
 	private final BattleStatsListener stats;
 
 	public MythicBattleStats(BattleStatsListener stats) {
@@ -48,7 +51,7 @@ public final class MythicBattleStats implements Listener {
 		if (BattleManager.get().isEmpty()) {
 			return;
 		}
-		String kind = event.getAura() instanceof OnJumpMechanic ? "root"
+		String kind = event.getAura() instanceof OnJumpMechanic ? JUMP_LOCK
 				: CONTROL_AURAS.get(String.valueOf(event.getAuraName()).toLowerCase(java.util.Locale.ROOT));
 		if (kind == null || event.getCaster() == null) {
 			return;

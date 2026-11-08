@@ -80,6 +80,9 @@ public final class BattleInstallationPickService {
 			if (isDefenderZocPort(war, faction, installationId)) {
 				return InstallationPickToggleResult.REJECTED_ZOC_PORT;
 			}
+			if (isForced(war, factionId, installationId)) {
+				return InstallationPickToggleResult.REJECTED_FORCED;
+			}
 			factionPicks.remove(installationId);
 			if (factionPicks.isEmpty()) {
 				picks.remove(factionId);
@@ -314,6 +317,7 @@ public final class BattleInstallationPickService {
 			REJECTED_NOT_LEADER,
 			REJECTED_LOCKED,
 			REJECTED_ZOC_PORT,
+			REJECTED_FORCED,
 			REJECTED_INVALID_INSTALLATION
 		}
 	}

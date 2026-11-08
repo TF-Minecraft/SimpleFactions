@@ -163,6 +163,7 @@ public final class VehicleFactionCommands {
                 || plugin.getVehicleReleaseSessionManager().get(id) != null
                 || plugin.getVehicleHandoverSessionManager().get(id) != null
                 || plugin.getVehicleMaintenancePaySessionManager().get(id) != null;
+        active |= net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(id);
         plugin.getVehicleTransferSessionManager().clear(id);
         clearOtherVehicleSessions(plugin, player);
         player.sendMessage(active

@@ -135,9 +135,14 @@ class BattleStatsCoverageTest {
 	}
 
 	private void sourceless(Entity victim, double damage) {
+		sourceless(victim, damage, EntityDamageEvent.DamageCause.FIRE_TICK);
+	}
+
+	private void sourceless(Entity victim, double damage, EntityDamageEvent.DamageCause cause) {
 		EntityDamageEvent event = mock(EntityDamageEvent.class);
 		when(event.getEntity()).thenReturn(victim);
 		when(event.getFinalDamage()).thenReturn(damage);
+		when(event.getCause()).thenReturn(cause);
 		listener.onSourcelessDamage(event);
 	}
 
@@ -264,7 +269,11 @@ class BattleStatsCoverageTest {
 		when(bob.getNoDamageTicks()).thenReturn(15);
 		hit(bob, alice, 6, true);
 		when(bob.getNoDamageTicks()).thenReturn(0);
-		when(bob.isInsideVehicle()).thenReturn(true);
+		// VehicleFramework took this hit over (it fires its own event first); not a blocked hit.
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, null, "ENTITY_ATTACK", 6));
+		hit(bob, alice, 6, true);
+		// The same victim a tick later is a real block again.
+		when(Bukkit.getCurrentTick()).thenReturn(4);
 		hit(bob, alice, 6, true);
 		hit(bob, alice, Double.NaN, false);
 		hit(bob, alice, 0, false);
@@ -275,7 +284,7 @@ class BattleStatsCoverageTest {
 		assertEquals(26, a.damage, 1e-9);
 		assertEquals(3, a.friendlyDamage, 1e-9);
 		assertEquals(26, live("Bob").damageTaken, 1e-9);
-		assertEquals(1, live("Bob").blockedHits);
+		assertEquals(2, live("Bob").blockedHits);
 		assertNull(live("Carol"));
 		assertEquals("attacker", a.side);
 	}
@@ -298,6 +307,9 @@ class BattleStatsCoverageTest {
 		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 3));
 		when(Bukkit.getCurrentTick()).thenReturn(7);
 		sourceless(bob, 5);
+		assertEquals(12, live("Alice").damage, 1e-9);
+		// Hunger, drowning, void and the like are not part of the fight.
+		sourceless(bob, 5, EntityDamageEvent.DamageCause.STARVATION);
 		assertEquals(12, live("Alice").damage, 1e-9);
 		// Fire or a fall with nobody hitting recently goes to nobody.
 		sourceless(carol, 5);
@@ -329,6 +341,7 @@ class BattleStatsCoverageTest {
 		die(outsider, null);
 		hit(bob, carol, 2, false);
 		die(bob, alice);
+		hit(carol, bob, 1, false);
 		die(carol, alice);
 		hit(bob, alice, 2, false);
 		die(bob, null);
@@ -356,6 +369,7 @@ class BattleStatsCoverageTest {
 		assertEquals(1, live("Alice").teamKills);
 		assertEquals(1, live("Carol").assists);
 		assertEquals(0, live("Alice").assists);
+		assertEquals(0, live("Bob").assists);
 		assertEquals(4, live("Bob").deaths);
 		assertEquals(2, live("Carol").deaths);
 		assertEquals(2, live("Carol").logouts);
@@ -417,8 +431,13 @@ class BattleStatsCoverageTest {
 		aura(slow, "Slowed", outsider, bob, 60);
 		aura(slow, "Slowed", mock(Zombie.class), bob, 60);
 		aura(slow, null, alice, bob, 60);
-		assertEquals(5, live("Alice").cc, 0.05);
-		assertEquals(5, live("Bob").ccTaken, 0.05);
+		// A support spell's jump lock on an ally is not crowd control.
+		aura(mock(OnJumpMechanic.class), "3f2a-uuid", alice, carol, 40);
+		// One application earns at most 30 seconds, however long the aura.
+		aura(slow, "Weakened", alice, bob, 20 * 600);
+		assertEquals(35, live("Alice").cc, 0.05);
+		assertEquals(35, live("Bob").ccTaken, 0.05);
+		assertEquals(0, live("Alice").friendlyCc, 0.05);
 		assertEquals(1, live("Carol").friendlyCc, 0.05);
 		assertEquals(0, battle.getStats().creditControl(bob.getUniqueId(), "slow", 0, -5), 1e-9);
 		listener.control(alice, alice, "slow", 1000);
@@ -668,6 +687,24 @@ class BattleStatsCoverageTest {
 			extra.endedAt = i;
 			BattleStatsArchive.save(extra);
 		}
+		BattleRecord roled = new BattleRecord();
+		roled.id = "roled";
+		roled.name = "Roled";
+		roled.warKey = "wr-1";
+		roled.warName = "Role war";
+		roled.winner = "attacker";
+		BattleRecord.SideRecord roleSide = new BattleRecord.SideRecord();
+		roleSide.id = "attacker";
+		roleSide.warRole = "DEFENDER";
+		roled.sides.add(roleSide);
+		BattleRecord.SideRecord unnamed = new BattleRecord.SideRecord();
+		roled.sides.add(0, unnamed);
+		BattleStatsArchive.save(roled);
+		BattleStatsView.command(alice, new String[] {"stats", "war", "wr-1"});
+		assertTrue(text(alice, 4).contains("Won by §ethe war's defenders§7: §f1"), text(alice, 4));
+		roleSide.warRole = "ATTACKER";
+		assertEquals("the war's attackers", BattleStatsMenu.winnerLabel(new BattleStatsArchive.Summary("x", "X", 0, null, null,
+				"attacker", roled.winnerRole(), Map.of())));
 		BattleRecord twin = new BattleRecord();
 		twin.id = "extra-0";
 		BattleStatsArchive.save(twin);

@@ -32,6 +32,8 @@ public final class BattleRecord {
 
 	public static final class SideRecord {
 		public String id;
+		/** ATTACKER or DEFENDER of the war, which a battle side can swap between battles; null outside a war. */
+		public String warRole;
 		public int lives;
 		public int maxLives;
 	}
@@ -58,6 +60,8 @@ public final class BattleRecord {
 		for (BattleSide side : battle.getSides()) {
 			SideRecord saved = new SideRecord();
 			saved.id = side.getId();
+			var role = war == null ? null : net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides.roleFor(war, battle, side.getId());
+			saved.warRole = role == null ? null : role.name();
 			saved.lives = side.getLives();
 			saved.maxLives = side.getMaxLives();
 			record.sides.add(saved);
@@ -89,6 +93,14 @@ public final class BattleRecord {
 	static String safeId(String raw) {
 		String cleaned = (raw == null ? "" : raw).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "_");
 		return cleaned.isEmpty() ? "battle" : cleaned;
+	}
+
+	/** The winning side's role in the war, or null. */
+	String winnerRole() {
+		for (SideRecord side : sides) {
+			if (side.id != null && side.id.equalsIgnoreCase(winner)) return side.warRole;
+		}
+		return null;
 	}
 
 	FighterStats fighter(String key) {

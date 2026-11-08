@@ -128,6 +128,7 @@ class InventoryBoundaryCoverageTest {
         "REMOVED|§7Uncommitted Harbor.",
         "REJECTED_LOCKED|§cInstallation choices are locked until the next battle day.",
         "REJECTED_ZOC_PORT|§cThe ZOC port is required for this naval battle.",
+        "REJECTED_FORCED|§cStaff committed this installation to the battle; it stays in until the battle day ends.",
         "REJECTED_NOT_LEADER|§cOnly your faction leader can select installations for this battle.",
         "REJECTED_NOT_PARTICIPANT|§cYou are not a belligerent in this war.",
         "REJECTED_INVALID_INSTALLATION|§cThat installation is not available.",

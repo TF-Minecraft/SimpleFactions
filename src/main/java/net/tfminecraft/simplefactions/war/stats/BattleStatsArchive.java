@@ -25,7 +25,7 @@ public final class BattleStatsArchive {
 
 	/** What the menus and war totals need without opening each file: the battle and every fighter's numbers. */
 	public record Summary(String id, String name, long endedAt, String warKey, String warName,
-			String winner, Map<String, FighterStats> fighters) {}
+			String winner, String winnerRole, Map<String, FighterStats> fighters) {}
 
 	private static final Map<String, Summary> INDEX = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final Map<String, BattleRecord> CACHE = Collections.synchronizedMap(
@@ -117,7 +117,7 @@ public final class BattleStatsArchive {
 			fighters.put(fighter.key, fighter);
 		}
 		return new Summary(record.id, record.name, record.endedAt, record.warKey, record.warName,
-				record.winner, Collections.unmodifiableMap(fighters));
+				record.winner, record.winnerRole(), Collections.unmodifiableMap(fighters));
 	}
 
 	/** Null without a plugin data folder, so nothing is written to the working directory. */
