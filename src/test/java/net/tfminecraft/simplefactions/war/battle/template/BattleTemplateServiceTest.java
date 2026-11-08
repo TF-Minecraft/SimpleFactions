@@ -72,6 +72,29 @@ class BattleTemplateServiceTest {
 	}
 
 	@Test
+	void getModeConfig_warnsAndKeepsManaRefillOffForANonBooleanValue() {
+		YamlConfiguration config = new YamlConfiguration();
+		config.set("type", "siege");
+		config.set("mana_refill_on_respawn", "ture");
+		java.util.List<String> warnings = new java.util.ArrayList<>();
+		java.util.logging.Logger log = java.util.logging.Logger.getLogger("SimpleFactions");
+		java.util.logging.Handler handler = new java.util.logging.Handler() {
+			@Override public void publish(java.util.logging.LogRecord record) { warnings.add(record.getMessage()); }
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		log.addHandler(handler);
+		try {
+			BattleTemplateLoader.putForTests(new BattleTemplate("typo_siege", config));
+			assertFalse(service.getModeConfig("typo_siege").getManaRefillOnRespawn());
+		} finally {
+			log.removeHandler(handler);
+		}
+		assertTrue(warnings.stream().anyMatch(w -> w.contains("mana_refill_on_respawn must be true or false, not 'ture'")),
+				warnings.toString());
+	}
+
+	@Test
 	void getModeConfig_defaultsLootOffForCampaignRaidTemplate() {
 		YamlConfiguration config = new YamlConfiguration();
 		config.set("type", "raid");

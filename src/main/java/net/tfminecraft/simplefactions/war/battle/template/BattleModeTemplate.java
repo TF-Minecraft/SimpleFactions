@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.battle.template;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -9,6 +10,8 @@ import net.tfminecraft.simplefactions.war.battle.enums.DefenderRespawnMode;
 import net.tfminecraft.simplefactions.war.battle.enums.LifeType;
 
 public class BattleModeTemplate {
+	private static final Logger LOG = Logger.getLogger("SimpleFactions");
+
 	private TemplateSideConfig attacker;
 	private TemplateSideConfig defender;
 	private Boolean friendlyFire;
@@ -41,8 +44,14 @@ public class BattleModeTemplate {
 		if (section.contains("loot_enabled")) {
 			mode.lootEnabled = section.getBoolean("loot_enabled");
 		}
-		if (section.contains("mana_refill_on_respawn")) {
+		if (section.isBoolean("mana_refill_on_respawn")) {
 			mode.manaRefillOnRespawn = section.getBoolean("mana_refill_on_respawn");
+		} else if (section.contains("mana_refill_on_respawn")) {
+			// A typo must not pass silently. The rule keeps its default (off) and the
+			// other templates still load.
+			LOG.warning("[SimpleFactions] Battle template '" + section.getName()
+					+ "': mana_refill_on_respawn must be true or false, not '"
+					+ section.get("mana_refill_on_respawn") + "'. Using false.");
 		}
 		mode.lifeType = LifeType.fromJson(section.getString("life_type"));
 		if (section.contains("lives")) {
