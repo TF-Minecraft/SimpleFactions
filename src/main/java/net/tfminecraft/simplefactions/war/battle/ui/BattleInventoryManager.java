@@ -265,6 +265,7 @@ public class BattleInventoryManager {
 		i.setItem(6, createGameRuleButton("TP on start", b.hasTeleport()));
 		i.setItem(7, createTemplateButton(b));
 		i.setItem(14, createGameRuleButton("Battle Loot", b.hasLootEnabled()));
+		i.setItem(15, createGameRuleButton("Mana Refill on Respawn", b.hasManaRefillOnRespawn()));
 		if(b.hasStarted()) {
 			i.setItem(18, createStopButton(b));
 		} else {
