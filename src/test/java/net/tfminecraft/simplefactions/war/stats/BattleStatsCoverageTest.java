@@ -269,8 +269,12 @@ class BattleStatsCoverageTest {
 		when(bob.getNoDamageTicks()).thenReturn(15);
 		hit(bob, alice, 6, true);
 		when(bob.getNoDamageTicks()).thenReturn(0);
-		// VehicleFramework took this hit over (it fires its own event first); not a blocked hit.
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, null, "ENTITY_ATTACK", 6));
+		// VehicleFramework named the attacker but another plugin stopped the hit: still a blocked hit.
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "ENTITY_ATTACK", 6));
+		hit(bob, alice, 6, true);
+		// VehicleFramework dealt the hit again: its cancelled original is not a blocked hit.
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "ENTITY_ATTACK", 0));
+		sourceless(bob, 0);
 		hit(bob, alice, 6, true);
 		// The same victim a tick later is a real block again.
 		when(Bukkit.getCurrentTick()).thenReturn(4);
@@ -284,7 +288,7 @@ class BattleStatsCoverageTest {
 		assertEquals(26, a.damage, 1e-9);
 		assertEquals(3, a.friendlyDamage, 1e-9);
 		assertEquals(26, live("Bob").damageTaken, 1e-9);
-		assertEquals(2, live("Bob").blockedHits);
+		assertEquals(3, live("Bob").blockedHits);
 		assertNull(live("Carol"));
 		assertEquals("attacker", a.side);
 	}

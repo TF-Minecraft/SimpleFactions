@@ -51,7 +51,7 @@ public final class BattleStatsListener implements Listener {
 	static final long MAX_CONTROL_MS = 30_000L;
 
 	private final Map<UUID, Pending> pendingAttackers = new HashMap<>();
-	/** Victims whose hit VehicleFramework took over this tick; its cancelled original is not a blocked hit. */
+	/** Victims whose hit VehicleFramework dealt again this tick; the cancelled original is not a blocked hit. */
 	private final Map<UUID, Integer> redirectedAt = new HashMap<>();
 	private Pending pendingHealer;
 	private UUID pendingHealTarget;
@@ -77,7 +77,6 @@ public final class BattleStatsListener implements Listener {
 		if (BattleManager.get().isEmpty() || !(event.getEntity() instanceof Player victim)) {
 			return;
 		}
-		redirectedAt.put(victim.getUniqueId(), Bukkit.getCurrentTick());
 		Player attacker = player(event.getDamager());
 		if (attacker != null && attacker != victim) {
 			pendingAttackers.put(victim.getUniqueId(), new Pending(attacker, Bukkit.getCurrentTick()));
@@ -127,6 +126,8 @@ public final class BattleStatsListener implements Listener {
 			return;
 		}
 		if (pending != null && pending.tick() == Bukkit.getCurrentTick()) {
+			// VehicleFramework dealt the hit again, so its cancelled original is not a blocked hit.
+			redirectedAt.put(victim.getUniqueId(), pending.tick());
 			BattleSide attackerSide = sideOf(place.battle(), pending.attacker());
 			if (attackerSide != null) credit(place, victim, pending.attacker(), attackerSide, event.getFinalDamage());
 			return;
