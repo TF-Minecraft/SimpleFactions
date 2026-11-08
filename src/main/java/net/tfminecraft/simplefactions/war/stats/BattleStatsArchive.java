@@ -110,7 +110,7 @@ public final class BattleStatsArchive {
 				result.add(summary);
 			}
 		}
-		result.sort(Comparator.comparingLong(Summary::endedAt).reversed());
+		result.sort(Comparator.comparingLong(Summary::endedAt).reversed().thenComparing(Summary::id));
 		return result;
 	}
 
