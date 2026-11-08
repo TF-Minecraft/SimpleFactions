@@ -45,4 +45,7 @@ public class BattleData {
 	public List<Integer> allowedProvinceIds = new ArrayList<>();
 	public List<BattleSideData> sides = new ArrayList<>();
 	public List<CapturePointData> points = new ArrayList<>();
+	// Capture points as they stood at the start, for a staff restart. Only id and state are set.
+	public List<CapturePointData> startPoints = new ArrayList<>();
+	public boolean staffHold;
 }

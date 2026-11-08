@@ -260,9 +260,19 @@ class BattleInventoryCoverageTest {
     assertSame(inventory, top());
     assertEquals("§cLocked", name(inventory.getItem(1)));
     assertEquals("§cEnd Battle", name(inventory.getItem(18)));
+    lore(inventory.getItem(18), "Right-click to end the battle now");
+    assertEquals("§eRestart Battle", name(inventory.getItem(19)));
+    lore(inventory.getItem(19), "Right-click: " + BattleStaffCommands.RESTART_RISK);
+    assertEquals("§6Stop Battle (no result)", name(inventory.getItem(20)));
     assertNull(inventory.getItem(8));
     assertNull(inventory.getItem(22));
     assertNull(inventory.getItem(23));
+    battle.setWarId(9);
+    lore(menus.createStopButton(battle), "Casualties so far count and voting reopens.");
+    battle.setBattleType(BattleType.RAID);
+    menus.updateView(alice, battle, inventory);
+    assertNull(inventory.getItem(19));
+    assertNull(inventory.getItem(20));
   }
   @ParameterizedTest
   @ValueSource(strings = {"warbands", "templates"})
@@ -461,6 +471,10 @@ class BattleInventoryCoverageTest {
     assertNull(inventory.getItem(16));
     assertEquals("§fBattle: §efront", name(menus.createBattleInfoItem(battle)));
     lore(menus.createBattleItem(battle), "Participants: 2");
+    battle.setStaffHold(true);
+    lore(menus.createBattleItem(battle), "On hold by staff");
+    battle.setStarted(true);
+    lore(menus.createBattleItem(battle), battle.getSides().getFirst().getId() + " lives: §e");
   }
 
   @ParameterizedTest

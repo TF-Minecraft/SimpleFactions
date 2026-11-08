@@ -702,19 +702,25 @@ class BattleEngineListenersCoverageTest {
     when(offline.isOnline()).thenReturn(false);
     band(null, null, offline);
     online.remove("Offline");
+    for (Player soldier : List.of(alice, bob, carol, enemy)) {
+      when(soldier.getWorld()).thenReturn(ui.world);
+      when(soldier.getBoundingBox()).thenReturn(new org.bukkit.util.BoundingBox(-0.3, 64, -0.3, 0.3, 65.8, 0.3));
+    }
     menus.warbandList(alice);
     Inventory inventory = top();
     warbandListener.start();
     assertEquals(1, ui.repeatingTasks.size());
     ui.repeatingTasks.getFirst().run();
-    verify(alice).spawnParticle(eq(Particle.DUST), eq(0d), eq(66d), eq(0d), eq(1),
-        argThat((Particle.DustOptions dust) -> dust.getColor().equals(Color.LIME)));
-    verify(alice).spawnParticle(eq(Particle.DUST), eq(0d), eq(66d), eq(0d), eq(1),
-        argThat((Particle.DustOptions dust) -> dust.getColor().equals(Color.BLUE)));
+    double above = 65.8 + net.tfminecraft.simplefactions.war.battle.warband.WarbandMarkers.ABOVE_HEAD;
+    verify(alice).spawnParticle(eq(Particle.DUST), eq(0d), eq(above), eq(0d), anyInt(), anyDouble(), anyDouble(),
+        anyDouble(), anyDouble(), argThat((Particle.DustOptions dust) -> dust.getColor().equals(Color.LIME)), eq(true));
+    verify(alice).spawnParticle(eq(Particle.DUST), eq(0d), eq(above), eq(0d), anyInt(), anyDouble(), anyDouble(),
+        anyDouble(), anyDouble(), argThat((Particle.DustOptions dust) -> dust.equals(
+            net.tfminecraft.simplefactions.war.battle.warband.WarbandMarkers.ALLY)), eq(true));
     assertSame(inventory, top());
     assertNotNull(inventory.getItem(0));
     verify(enemy, never()).spawnParticle(eq(Particle.DUST), anyDouble(), anyDouble(), anyDouble(), anyInt(),
-        any(Particle.DustOptions.class));
+        anyDouble(), anyDouble(), anyDouble(), anyDouble(), any(Particle.DustOptions.class), anyBoolean());
   }
 
   @ParameterizedTest
@@ -738,6 +744,12 @@ class BattleEngineListenersCoverageTest {
   }
 
   private void click(int slot) { listener.invenClick(ui.click(alice, slot)); }
+
+  private void rightClick(int slot) {
+    listener.invenClick(new org.bukkit.event.inventory.InventoryClickEvent(alice.getOpenInventory(),
+        org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER, slot,
+        org.bukkit.event.inventory.ClickType.RIGHT, org.bukkit.event.inventory.InventoryAction.PICKUP_HALF));
+  }
 
   private ItemStack labelled(Material material, String name) {
     ItemStack item = new ItemStack(material);
@@ -831,6 +843,9 @@ class BattleEngineListenersCoverageTest {
     persistence.verify(() -> BattlePersistenceService.persistBattle(battle));
     edit(battle);
     click(18);
+    assertTrue(battle.hasStarted());
+    verify(alice).sendMessage("§eRight-click the button to confirm. §7Hover it to see what it does.");
+    rightClick(18);
     assertFalse(battle.hasStarted());
     assertEquals("§7Battle View", alice.getOpenInventory().getTitle());
     persistence.verify(() -> BattlePersistenceService.persistBattle(battle), times(2));
@@ -858,11 +873,33 @@ class BattleEngineListenersCoverageTest {
       verify(war).setFirstBattleStarted(true);
       wars.verify(() -> WarManager.persist(war));
       edit(battle);
-      click(18);
+      rightClick(18);
       assertFalse(battle.hasStarted());
       assertFalse(BattleManager.currentBattle.containsKey(alice));
       assertEquals("Crafting", alice.getOpenInventory().getTitle());
       verify(alice).sendMessage("§aBattle ended.");
+    }
+  }
+
+  @Test
+  void restartAndStopButtonsNeedARightClickAndCallTheStaffService() {
+    Battle battle = battle("front", BattleType.FIELD);
+    battle.setStarted(true);
+    try (MockedStatic<BattleStaffService> staff = mockStatic(BattleStaffService.class)) {
+      staff.when(() -> BattleStaffService.restart(battle, "Alice"))
+          .thenReturn(new BattleStaffService.Result(true, "§aRestarted"));
+      staff.when(() -> BattleStaffService.abort(battle, "Alice"))
+          .thenReturn(new BattleStaffService.Result(false, "Not now"));
+      edit(battle);
+      click(19);
+      staff.verifyNoInteractions();
+      rightClick(19);
+      verify(alice).sendMessage("§aRestarted");
+      rightClick(20);
+      verify(alice).sendMessage("§cNot now");
+      battle.setStarted(false);
+      rightClick(19);
+      staff.verify(() -> BattleStaffService.restart(battle, "Alice"));
     }
   }
 

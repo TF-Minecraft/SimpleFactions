@@ -331,6 +331,27 @@ class CampaignBattleLaunchServiceTest {
 	}
 
 	@Test
+	void tryStartScheduledBattle_leavesARunningOrHeldBattleAlone() {
+		War war = scheduledWar();
+		Instant startAt = war.getScheduledBattleAt();
+		SimpleFactions plugin = mock(SimpleFactions.class);
+		when(plugin.getLogger()).thenReturn(java.util.logging.Logger.getLogger("test"));
+
+		withMockBossBar(() -> {
+			SimpleFactions.plugin = plugin;
+			CampaignBattleLaunchService.prepareScheduledBattle(war);
+			Battle battle = BattleManager.getByWarId(war.getId());
+			placeSpawnsAndJails(battle);
+			battle.setStaffHold(true);
+			assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
+			assertFalse(battle.hasStarted());
+			battle.setStaffHold(false);
+			battle.setStarted(true);
+			assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
+		});
+	}
+
+	@Test
 	void tryStartScheduledBattle_navalWithoutShips_appliesAutoLossAndDoesNotStart() {
 		War war = scheduledNavalWar();
 		Instant startAt = war.getScheduledBattleAt();

@@ -29,6 +29,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.WarDevMode;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
@@ -126,10 +127,50 @@ class CampaignWarbandSignupServiceTest {
 			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
 					.thenReturn(5);
 
-			assertEquals(CampaignWarbandSignupService.SIGNUP_BLOCKED_DURING_RAID,
+			assertEquals("§cCampaign warband signup opens after the raid window, at 20:00.",
 					CampaignWarbandSignupService.signupMember(
 							aliceId, "Alice", shell, attacker, null, raidCall));
 			assertFalse(shell.hasMember(aliceId));
+		}
+	}
+
+	@Test
+	void signupClosedReason_namesTheMissingDayOrTheDayItOpens() {
+		War war = battleDayWar();
+		Instant otherDay = BattleWindowService.atScheduleHour(BATTLE_DAY.minusDays(1), 21);
+		assertEquals("§cCampaign warband signup opens on the battle day, 2026-08-21, at 20:00.",
+				CampaignWarbandSignupService.signupClosedReason(war, otherDay));
+		war.setBattleDay(null);
+		assertTrue(CampaignWarbandSignupService.signupClosedReason(war, otherDay).contains("battle vote is still open"));
+	}
+
+	@Test
+	void staffSignupMember_skipsTheSignupHoursRosterCapAndRejoinBlock() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID aliceId = UUID.randomUUID();
+		Battle battle = BattleManager.getByString("campaign_w1");
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
+			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			assertTrue(CampaignWarbandSignupService.signupMember(aliceId, "Alice", shell, attacker) != null);
+
+			assertNull(CampaignWarbandSignupService.staffSignupMember(aliceId, "Alice", shell, attacker, null));
+			assertTrue(shell.hasMember(aliceId));
+
+			battle.setStarted(true);
+			CampaignWarbandLeaveBlock.block(battle.getId(), shell.getId(), aliceId);
+			assertEquals("You cannot rejoin this warband for this battle", CampaignBattleJoinService
+					.validateWarbandMemberJoin(war, battle, BattleTemplate.ATTACKER_SIDE, shell, "Alice", aliceId));
+			assertNull(CampaignBattleJoinService.validateWarbandMemberJoin(
+					war, battle, BattleTemplate.ATTACKER_SIDE, shell, "Alice", aliceId, true));
+		} finally {
+			CampaignWarbandLeaveBlock.resetForTests();
 		}
 	}
 

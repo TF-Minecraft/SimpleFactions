@@ -57,6 +57,41 @@ class CampaignTimeCommandServiceTest {
 	}
 
 	@Test
+	void remove_movesTheClockBackAndMayGoBehindRealTime() {
+		CampaignClock.add(Duration.ofHours(2));
+
+		CampaignTimeResult back = CampaignTimeCommandService.remove("30m");
+		assertTrue(back.success());
+		assertEquals(Duration.ofMinutes(90), CampaignClock.getOffset());
+		assertTrue(back.message().contains("moved back by §e30m"));
+		assertFalse(back.message().contains("behind real time"));
+
+		CampaignTimeResult behind = CampaignTimeCommandService.remove("2h");
+		assertTrue(behind.message().contains("behind real time"));
+		assertEquals(Duration.ofMinutes(-30), CampaignClock.getOffset());
+	}
+
+	@Test
+	void remove_invalidDuration_returnsError() {
+		CampaignTimeResult result = CampaignTimeCommandService.remove("soon");
+
+		assertFalse(result.success());
+		assertTrue(result.message().contains("/war admin time remove"));
+	}
+
+	@Test
+	void remove_reportsUpdatedWars() {
+		War war = warWithBattleDay();
+		WarManager.get().add(war);
+		CampaignTimeCommandService.skipToBattleDay(war);
+		CampaignClock.add(Duration.ofHours(20));
+
+		CampaignTimeResult result = CampaignTimeCommandService.remove("1s");
+
+		assertTrue(result.success());
+	}
+
+	@Test
 	void reset_clearsOffset() {
 		CampaignClock.add(Duration.ofHours(2));
 

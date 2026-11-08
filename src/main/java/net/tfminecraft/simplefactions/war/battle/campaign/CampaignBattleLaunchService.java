@@ -100,6 +100,10 @@ public final class CampaignBattleLaunchService {
 		}
 
 		Battle battle = BattleManager.getByWarId(war.getId());
+		// A running battle was started by staff or an earlier tick; a held one waits for staff.
+		if (battle != null && (battle.hasStarted() || battle.isStaffHold())) {
+			return false;
+		}
 		String mismatch = preparedSiegeMismatch(war, battle);
 		if (mismatch != null) {
 			logWarning(mismatch);

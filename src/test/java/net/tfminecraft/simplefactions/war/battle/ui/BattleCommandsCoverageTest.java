@@ -355,8 +355,31 @@ class BattleCommandsCoverageTest {
     assertEquals(2, WarbandManager.get().size());
     admin();
     assertTrue(run("warband", "delete", "campaign"));
+    assertTrue(WarbandManager.get().contains(campaign));
+    verify(alice).sendMessage(contains("even though it is a campaign warband."));
+    assertTrue(run("warband", "delete", "campaign", "confirm"));
     assertFalse(WarbandManager.get().contains(campaign));
+    assertTrue(run("warband", "delete", "scouts"));
     assertTrue(WarbandManager.get().contains(band));
+    assertTrue(run("warband", "delete", "scouts", "confirm"));
+    assertFalse(WarbandManager.get().contains(band));
+    Warband own = band("mine", alice);
+    assertTrue(run("warband", "delete", "mine"));
+    assertFalse(WarbandManager.get().contains(own));
+  }
+
+  @Test
+  void staffListBattlesWithoutAWarbandAndReachTheStaffTools() {
+    admin();
+    assertTrue(run("battle", "list"));
+    verify(menus.constructed().getLast()).battleList(alice);
+    assertTrue(run("battle", "info", "nope"));
+    verify(alice).sendMessage("§cThere is no battle with the id nope");
+    assertTrue(run("warband", "toggleopen", "nope"));
+    verify(alice).sendMessage("§cWarband not found");
+    assertTrue(complete(alice, "battle", "").containsAll(List.of("watch", "info", "restart", "abort", "end", "hold", "lives")));
+    assertTrue(complete(alice, "warband", "").contains("forcekick"));
+    assertEquals(List.of("on", "off"), complete(alice, "battle", "hold", "x", ""));
   }
 
   @Test
@@ -557,9 +580,9 @@ class BattleCommandsCoverageTest {
       clock.when(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock::now).thenReturn(now);
       campaigns.when(() -> CampaignBattleJoinService.findCampaignBattleForWarband(shell)).thenReturn(context);
       assertEquals(List.of("campaign"), complete(alice, "warband", "join", "c"));
-      campaigns.when(() -> CampaignBattleJoinService.validateWarbandMemberJoin(war, battle, "attacker", shell, "Alice", alice.getUniqueId())).thenReturn("Roster full");
+      campaigns.when(() -> CampaignBattleJoinService.validateWarbandMemberJoin(war, battle, "attacker", shell, "Alice", alice.getUniqueId(), false)).thenReturn("Roster full");
       assertTrue(complete(alice, "warband", "join", "").isEmpty());
-      campaigns.when(() -> CampaignBattleJoinService.validateWarbandMemberJoin(war, battle, "attacker", shell, "Alice", alice.getUniqueId())).thenReturn(null);
+      campaigns.when(() -> CampaignBattleJoinService.validateWarbandMemberJoin(war, battle, "attacker", shell, "Alice", alice.getUniqueId(), false)).thenReturn(null);
       when(war.getBattleDay()).thenReturn(day.plusDays(1));
       assertTrue(complete(alice, "warband", "join", "").isEmpty());
       verify(shell, never()).addMember(any(), any());

@@ -21,6 +21,7 @@ public class BattleSide {
 	private LifeType lt;
 	private int lives;
 	private int maxLives;
+	private Integer startLives;
 	private List<Location> respawnPoints = new ArrayList<Location>();
 	private Location jail;
 	
@@ -52,6 +53,22 @@ public class BattleSide {
 
 	public int getMaxLives() {
 		return maxLives;
+	}
+
+	/** Lives when the battle started, or null for a battle that has not started since this was added. */
+	public Integer getStartLives() {
+		return startLives;
+	}
+
+	public void setStartLives(Integer startLives) {
+		this.startLives = startLives;
+	}
+
+	/** Back to the lives the side started with (the max for battles saved before the start was recorded). */
+	public int resetLivesToStart() {
+		int start = startLives != null ? startLives : maxLives;
+		restoreLives(start, start);
+		return start;
 	}
 
 	public void restoreLives(int lives, int maxLives) {

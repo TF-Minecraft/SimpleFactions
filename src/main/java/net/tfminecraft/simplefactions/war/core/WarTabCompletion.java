@@ -108,6 +108,7 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[2], "status");
 			addIfPrefix(completions, args[2], "reset");
 			addIfPrefix(completions, args[2], "add");
+			addIfPrefix(completions, args[2], "remove");
 			addIfPrefix(completions, args[2], "skip-to-battle-day");
 			return completions;
 		}
@@ -130,7 +131,8 @@ public class WarTabCompletion implements TabCompleter {
 				&& args[2].equalsIgnoreCase("skip-to-battle-day")) {
 			return activeWarIds(args[3]);
 		}
-		if (args.length == 4 && args[1].equalsIgnoreCase("time") && args[2].equalsIgnoreCase("add")) {
+		if (args.length == 4 && args[1].equalsIgnoreCase("time")
+				&& (args[2].equalsIgnoreCase("add") || args[2].equalsIgnoreCase("remove"))) {
 			List<String> completions = new ArrayList<>();
 			addIfPrefix(completions, args[3], "1h");
 			addIfPrefix(completions, args[3], "1d");
@@ -151,6 +153,10 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[3], "battlecreate");
 			addIfPrefix(completions, args[3], "battledelete");
 			addIfPrefix(completions, args[3], "battlestart");
+			addIfPrefix(completions, args[3], "battlerestart");
+			addIfPrefix(completions, args[3], "battleabort");
+			addIfPrefix(completions, args[3], "battleend");
+			addIfPrefix(completions, args[3], "battlehold");
 			addIfPrefix(completions, args[3], "winbattle");
 			addIfPrefix(completions, args[3], "choice");
 			addIfPrefix(completions, args[3], "battlechoice");
@@ -158,6 +164,19 @@ public class WarTabCompletion implements TabCompleter {
 			return completions;
 		}
 		if (args.length == 5 && args[1].equalsIgnoreCase("schedule")) {
+			if ("battleend".equalsIgnoreCase(args[3])) {
+				List<String> completions = new ArrayList<>();
+				addIfPrefix(completions, args[4], "nowinner");
+				addIfPrefix(completions, args[4], "attacker");
+				addIfPrefix(completions, args[4], "defender");
+				return completions;
+			}
+			if ("battlehold".equalsIgnoreCase(args[3])) {
+				List<String> completions = new ArrayList<>();
+				addIfPrefix(completions, args[4], "on");
+				addIfPrefix(completions, args[4], "off");
+				return completions;
+			}
 			if ("winbattle".equalsIgnoreCase(args[3])) {
 				List<String> completions = new ArrayList<>();
 				addIfPrefix(completions, args[4], "attacker");

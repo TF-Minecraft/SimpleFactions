@@ -40,6 +40,8 @@ public class BattleTabCompletion implements TabCompleter{
 
     private List<String> complete(CommandSender sender, Command cmd, String[] args) {
         if (!(sender instanceof Player)) return List.of();
+        List<String> staff = staffCompletions(sender, cmd.getName(), args);
+        if (staff != null) return staff;
         if(cmd.getName().equalsIgnoreCase("warband") && args.length < 2) {
             if(sender instanceof Player){
                 List<String> completions = new ArrayList<>();
@@ -55,7 +57,10 @@ public class BattleTabCompletion implements TabCompleter{
                 completions.add("toggleopen");
                 completions.add("leave");
                 completions.add("retreat");
-                if(BattlePermissions.isAdmin(sender)) completions.add("forcejoin");
+                if(BattlePermissions.isAdmin(sender)) {
+                    completions.add("forcejoin");
+                    completions.add("forcekick");
+                }
                 return completions;
             }
         } else if(cmd.getName().equalsIgnoreCase("warband") && args.length == 2 && args[0].equalsIgnoreCase("create")){
@@ -149,6 +154,7 @@ public class BattleTabCompletion implements TabCompleter{
 	                completions.add("setcontestduration");
 	                completions.add("setraidtarget");
 	                completions.add("setdefenderlives");
+	                completions.addAll(List.of("watch", "info", "restart", "abort", "end", "hold", "lives"));
                 }
                 return completions;
             }
@@ -223,6 +229,40 @@ public class BattleTabCompletion implements TabCompleter{
                 return List.of();
             }
         }
+        return List.of();
+    }
+
+    /** Completions for the staff battle tools, or null when {@code args} is not one of them. */
+    static List<String> staffCompletions(CommandSender sender, String command, String[] args) {
+        if (!BattlePermissions.isAdmin(sender) || args.length < 2) return null;
+        String sub = args[0].toLowerCase(java.util.Locale.ROOT);
+        if (command.equalsIgnoreCase("warband")) {
+            if (!sub.equals("forcekick") && !sub.equals("toggleopen")) return null;
+            if (args.length == 2) return WarbandManager.get().stream().map(Warband::getId).toList();
+            Warband band = WarbandManager.getByString(args[1]);
+            if (!sub.equals("forcekick") || band == null) return List.of();
+            return Members.completions(band.getPlayers().stream().map(Members::name).toList(),
+                    java.util.Arrays.copyOfRange(args, 2, args.length));
+        }
+        if (!command.equalsIgnoreCase("battle")
+                || !List.of("watch", "info", "restart", "abort", "end", "hold", "lives").contains(sub)) {
+            return null;
+        }
+        if (args.length == 2) {
+            List<String> ids = new ArrayList<>(BattleManager.get().stream().map(Battle::getId).toList());
+            if (sub.equals("watch")) ids.add("off");
+            return ids;
+        }
+        Battle battle = BattleManager.getByString(args[1]);
+        List<String> sides = battle == null ? List.of() : battle.getSides().stream().map(BattleSide::getId).toList();
+        if (args.length == 3 && sub.equals("end")) {
+            List<String> options = new ArrayList<>(sides);
+            options.add("nowinner");
+            return options;
+        }
+        if (args.length == 3 && sub.equals("hold")) return List.of("on", "off");
+        if (args.length == 3 && sub.equals("lives")) return sides;
+        if (args.length == 4 && sub.equals("lives")) return List.of("add", "remove", "set");
         return List.of();
     }
 }

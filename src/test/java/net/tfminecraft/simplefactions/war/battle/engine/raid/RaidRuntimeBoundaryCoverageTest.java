@@ -424,6 +424,17 @@ class RaidRuntimeBoundaryCoverageTest {
   }
 
   @Test
+  void movingTheClockBackStillTicksAWarWhoseVoteIsDue() throws Exception {
+    rig.remember(Cache.class, "warBattleVotingMaxPostponements");
+    Cache.warBattleVotingMaxPostponements = 2;
+    rig.time(BattleWindowService.atScheduleHour(Fixture.DAY, 19));
+    var result = CampaignTimeCommandService.remove("1h");
+    assertTrue(result.success());
+    assertTrue(result.message().contains("1 war(s) updated"), result.message());
+    assertEquals(18, BattleWindowService.scheduleHour(rig.now()));
+  }
+
+  @Test
   void zeroOffsetStatusExplicitlyReportsRealTime() {
     CampaignClock.reset();
     assertTrue(CampaignTimeCommandService.statusLines().getFirst().contains("real time"));

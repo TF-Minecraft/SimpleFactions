@@ -21,6 +21,8 @@ public final class CampaignTimeCommandService {
 			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 	private static final String INVALID_DURATION =
 			"§cInvalid duration. Example: §e/war admin time add 1h 31m";
+	private static final String INVALID_REMOVE_DURATION =
+			"§cInvalid duration. Example: §e/war admin time remove 1h 31m";
 
 	private CampaignTimeCommandService() {}
 
@@ -49,7 +51,34 @@ public final class CampaignTimeCommandService {
 		int ticked = applyClockChange();
 		String paris = CampaignClock.now().atZone(BattleWindowService.SCHEDULE_ZONE).format(SCHEDULE_FORMAT);
 		String message = "§aCampaign time advanced by §e" + formatOffset(duration)
-				+ "§a. Paris: §e" + paris + "§a.";
+				+ "§a. Paris: §e" + paris + "§a. §7This clock is shared by every active war;"
+				+ " use §e/war admin time remove§7 or §ereset§7 to move it back.";
+		if (ticked > 0) {
+			message += " §7(" + ticked + " war(s) updated)";
+		}
+		return CampaignTimeResult.ok(message);
+	}
+
+	/**
+	 * Moves the campaign clock back. Anything that already fired while the clock was ahead
+	 * (closed votes, started battles, raids) stays as it is. Going behind real time is allowed.
+	 */
+	public static CampaignTimeResult remove(String... durationTokens) {
+		Duration duration;
+		try {
+			duration = CampaignDurationParser.parse(durationTokens);
+			CampaignClock.add(duration.negated());
+		} catch (IllegalArgumentException ex) {
+			return CampaignTimeResult.error(INVALID_REMOVE_DURATION);
+		}
+		int ticked = applyClockChange();
+		String paris = CampaignClock.now().atZone(BattleWindowService.SCHEDULE_ZONE).format(SCHEDULE_FORMAT);
+		String message = "§aCampaign time moved back by §e" + formatOffset(duration).substring(1)
+				+ "§a. Offset now §e" + formatOffset(CampaignClock.getOffset()) + "§a. Paris: §e" + paris + "§a."
+				+ " §7Anything that already happened while the clock was ahead stays done.";
+		if (CampaignClock.getOffset().isNegative()) {
+			message += " §eThe campaign clock is now behind real time.";
+		}
 		if (ticked > 0) {
 			message += " §7(" + ticked + " war(s) updated)";
 		}

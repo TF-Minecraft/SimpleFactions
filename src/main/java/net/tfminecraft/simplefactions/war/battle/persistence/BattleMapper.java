@@ -75,6 +75,15 @@ public final class BattleMapper {
 		for (CapturePoint point : battle.getPoints()) {
 			data.points.add(toPointData(point));
 		}
+		for (Battle.PointStart start : battle.getPointStarts()) {
+			CapturePointData pointData = new CapturePointData();
+			pointData.id = start.pointId();
+			pointData.controllerSideId = start.controllerSideId();
+			pointData.captureProgress = start.captureProgress();
+			pointData.advanceSideId = start.advanceSideId();
+			data.startPoints.add(pointData);
+		}
+		data.staffHold = battle.isStaffHold();
 		return data;
 	}
 
@@ -131,6 +140,14 @@ public final class BattleMapper {
 			}
 		}
 		battle.getPointManager().setPoints(battle.getPoints());
+		List<Battle.PointStart> starts = new ArrayList<>();
+		for (CapturePointData start : java.util.Objects.requireNonNullElse(data.startPoints, List.<CapturePointData>of())) {
+			if (start != null && start.id != null) {
+				starts.add(new Battle.PointStart(start.id, start.controllerSideId, start.captureProgress, start.advanceSideId));
+			}
+		}
+		battle.setPointStarts(starts);
+		battle.setStaffHold(data.staffHold);
 		return battle;
 	}
 
@@ -147,6 +164,7 @@ public final class BattleMapper {
 		}
 		data.lives = side.getLives();
 		data.maxLives = side.getMaxLives();
+		data.startLives = side.getStartLives();
 		data.lifeType = side.getLt() != null ? side.getLt().name() : LifeType.COLLECTIVE.name();
 		for (Warband warband : side.getBands()) {
 			if (warband != null) {
@@ -174,6 +192,7 @@ public final class BattleMapper {
 		int lives = data.lives;
 		int maxLives = data.maxLives > 0 ? data.maxLives : lives;
 		side.restoreLives(lives, maxLives);
+		side.setStartLives(data.startLives);
 		return side;
 	}
 

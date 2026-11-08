@@ -1,0 +1,86 @@
+package net.tfminecraft.simplefactions.war.core;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+
+import java.time.Duration;
+import java.util.List;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedStatic;
+
+import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
+
+class WarAdminRisksTest {
+	private MockedStatic<WarManager> wars;
+
+	@BeforeEach
+	void setUp() {
+		CampaignClock.reset();
+		wars = mockStatic(WarManager.class);
+		wars.when(WarManager::getActive).thenReturn(List.of(mock(War.class)));
+	}
+
+	@AfterEach
+	void tearDown() {
+		wars.close();
+		CampaignClock.reset();
+	}
+
+	private static String risk(String... args) {
+		return WarAdminRisks.describe(args);
+	}
+
+	@Test
+	void shortOrSafeCommandsRunWithoutAsking() {
+		assertNull(WarAdminRisks.describe(null));
+		assertNull(risk("admin", "end"));
+		assertNull(risk("admin", "status", "1"));
+		assertNull(risk("admin", "win", "1"));
+		assertNull(risk("admin", "devmode", "status"));
+		assertNull(risk("admin", "time", "status"));
+		assertNull(risk("admin", "time", "remove", "1h"));
+		assertNull(risk("admin", "time", "reset"));
+		assertNull(risk("admin", "schedule", "1"));
+		assertNull(risk("admin", "schedule", "1", "sethour", "20"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"setday", "skipday", "closevote", "forcequorum", "battledelete", "battlestart",
+			"winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice", "holdchoice", "battlerestart",
+			"battleabort", "battleend"})
+	void irreversibleScheduleCommandsAsk(String action) {
+		assertNotNull(risk("admin", "schedule", "1", action.toUpperCase()));
+	}
+
+	@Test
+	void warEndingAndRouteCommandsAsk() {
+		assertTrue(risk("admin", "end", "1").contains("no winner"));
+		assertTrue(risk("admin", "win", "1", "Attacker").contains("attacker victory"));
+		assertTrue(risk("admin", "path", "1").contains("route"));
+		assertTrue(risk("admin", "devmode", "on").contains("dummy"));
+		assertTrue(risk("admin", "devmode", "off").contains("dummy"));
+	}
+
+	@Test
+	void movingTheClockForwardAsksAndNamesHowManyWars() {
+		assertTrue(risk("admin", "time", "add", "1h").contains("the 1 active war"));
+		assertNotNull(risk("admin", "time", "skip-to-battle-day", "1"));
+		wars.when(WarManager::getActive).thenReturn(List.of(mock(War.class), mock(War.class)));
+		assertTrue(risk("admin", "time", "add", "1h").contains("all 2 active wars"));
+	}
+
+	@Test
+	void resetAsksOnlyWhenItMovesTheClockForward() {
+		CampaignClock.add(Duration.ofHours(-1));
+		assertNotNull(risk("admin", "time", "reset"));
+	}
+}

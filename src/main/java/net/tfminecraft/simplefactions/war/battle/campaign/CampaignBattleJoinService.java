@@ -93,6 +93,18 @@ public final class CampaignBattleJoinService {
 			Warband warband,
 			String memberKey,
 			java.util.UUID playerId) {
+		return validateWarbandMemberJoin(war, battle, sideId, warband, memberKey, playerId, false);
+	}
+
+	/** {@code staff} skips the roster cap and the rejoin block, for staff forcejoin. */
+	public static String validateWarbandMemberJoin(
+			War war,
+			Battle battle,
+			String sideId,
+			Warband warband,
+			String memberKey,
+			java.util.UUID playerId,
+			boolean staff) {
 		if (war == null || battle == null || warband == null || memberKey == null) {
 			return "Invalid campaign warband join";
 		}
@@ -118,9 +130,9 @@ public final class CampaignBattleJoinService {
 		}
 		if (battle.hasStarted()) {
 			return CampaignWarbandBattleService.validateMidBattleJoin(
-					war, battle, sideId, warband, memberKey, playerId);
+					war, battle, sideId, warband, memberKey, playerId, staff);
 		}
-		return validateRosterHasRoom(war, battle, sideId, warband, 1);
+		return staff ? null : validateRosterHasRoom(war, battle, sideId, warband, 1);
 	}
 
 	public static Side rosterSideFor(War war, String memberKey, Faction faction) {

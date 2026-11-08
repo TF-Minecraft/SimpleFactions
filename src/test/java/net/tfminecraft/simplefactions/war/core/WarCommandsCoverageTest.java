@@ -170,7 +170,16 @@ class WarCommandsCoverageTest {
     databases.close();
   }
 
+  /** Runs a command as already confirmed, so tests of its effect skip the confirm prompt. */
   private boolean run(String... args) {
+    boolean risky = WarAdminRisks.describe(args) != null
+        && !net.tfminecraft.simplefactions.utils.StaffConfirm.isConfirmed(args);
+    String[] confirmed = risky ? java.util.Arrays.copyOf(args, args.length + 1) : args;
+    if (risky) confirmed[args.length] = "confirm";
+    return runRaw(confirmed);
+  }
+
+  private boolean runRaw(String... args) {
     return commands.onCommand(alice, command, "war", args);
   }
 
@@ -210,6 +219,56 @@ class WarCommandsCoverageTest {
     war.setOccupiedByDefender(new ArrayList<>());
     WarManager.addWar(war);
     return war;
+  }
+
+  @Test
+  void irreversibleAdminCommandsWaitForConfirm() {
+    War war = war(31);
+    assertTrue(runRaw("admin", "end", "31"));
+    verify(alice).sendMessage("§6This cannot be undone: §eends the war at once, with no winner.");
+    assertTrue(war.isActive());
+    assertTrue(runRaw("admin", "time", "add", "1h"));
+    assertEquals(Duration.ZERO, CampaignClock.getOffset());
+  }
+
+  @Test
+  void timeRemoveMovesTheClockBack() {
+    assertTrue(run("admin", "time", "remove"));
+    verify(alice).sendMessage("§cUsage: /war admin time remove <duration...>");
+    assertTrue(run("admin", "time", "add", "2h", "confirm"));
+    assertTrue(run("admin", "time", "remove", "30m"));
+    assertEquals(Duration.ofMinutes(90), CampaignClock.getOffset());
+    assertTrue(complete("admin", "time", "re").containsAll(List.of("reset", "remove")));
+    assertTrue(complete("admin", "time", "remove", "").contains("1h"));
+  }
+
+  @Test
+  void scheduleBattleStaffToolsReachTheWarsBattle() {
+    War war = war(32);
+    assertTrue(run("admin", "schedule", "32", "battlehold", "on"));
+    verify(alice).sendMessage("§cNo campaign battle for this war.");
+    Battle battle = new Battle("campaign_w32_p20");
+    battle.setWarId(32);
+    BattleManager.addBattle(battle);
+
+    assertTrue(run("admin", "schedule", "32", "battlerestart", "confirm"));
+    assertTrue(run("admin", "schedule", "32", "battleabort", "confirm"));
+    assertTrue(run("admin", "schedule", "32", "battleend", "confirm"));
+    assertTrue(run("admin", "schedule", "32", "battleend", "nowinner", "confirm"));
+    assertTrue(run("admin", "schedule", "32", "battleend", "attacker", "confirm"));
+    verify(alice, org.mockito.Mockito.times(5)).sendMessage("§cThat battle is not running.");
+    assertTrue(run("admin", "schedule", "32", "battlehold", "maybe"));
+    verify(alice).sendMessage("§cUsage: /war admin schedule <id> battlehold on|off");
+    assertTrue(run("admin", "schedule", "32", "battlehold", "on"));
+    assertTrue(battle.isStaffHold());
+    assertTrue(run("admin", "schedule", "32", "battlehold", "off"));
+    assertFalse(battle.isStaffHold());
+    assertTrue(war.isActive());
+
+    assertTrue(complete("admin", "schedule", "32", "battle").containsAll(
+        List.of("battlerestart", "battleabort", "battleend", "battlehold")));
+    assertEquals(List.of("nowinner", "attacker", "defender"), complete("admin", "schedule", "32", "battleend", ""));
+    assertEquals(List.of("on", "off"), complete("admin", "schedule", "32", "battlehold", ""));
   }
 
   @Test
@@ -794,7 +853,7 @@ class WarCommandsCoverageTest {
         Arguments.of("admin raid ", List.of("resetquota")),
         Arguments.of("admin raid resetquota 1", List.of("1")),
         Arguments.of("admin raid resetquota 1 ", List.of("aggressor", "defender", "both")),
-        Arguments.of("admin time ", List.of("status", "reset", "add", "skip-to-battle-day")),
+        Arguments.of("admin time ", List.of("status", "reset", "add", "remove", "skip-to-battle-day")),
         Arguments.of("admin end 1", List.of("1")),
         Arguments.of("admin win 1", List.of("1")),
         Arguments.of("admin status 1", List.of("1")),
@@ -817,6 +876,10 @@ class WarCommandsCoverageTest {
                 "battlecreate",
                 "battledelete",
                 "battlestart",
+                "battlerestart",
+                "battleabort",
+                "battleend",
+                "battlehold",
                 "winbattle",
                 "choice",
                 "battlechoice",
