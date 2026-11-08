@@ -167,6 +167,7 @@ public class Battle {
 		this.friendlyFire = true;
 		this.keepInventory = true;
 		this.lootEnabled = true;
+		this.manaRefillOnRespawn = false;
 		this.teleport = false;
 		this.started = false;
 		this.locked = true;
