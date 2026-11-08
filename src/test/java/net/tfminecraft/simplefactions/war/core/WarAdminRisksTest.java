@@ -85,6 +85,45 @@ class WarAdminRisksTest {
 	}
 
 	@Test
+	void startEndAndReleaseAskOnlyWhenTheyWouldActOnTheBattle() {
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.resetForTests();
+		try {
+			var battle = new net.tfminecraft.simplefactions.war.battle.engine.core.Battle("campaign_w1");
+			battle.setWarId(1);
+			battle.setBattleType(net.tfminecraft.simplefactions.war.battle.enums.BattleType.FIELD);
+			var side = mock(net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide.class);
+			org.mockito.Mockito.when(side.getId()).thenReturn("attacker");
+			battle.addSide(side);
+			assertNull(risk("admin", "schedule", "1", "battlehold", "off"));
+			net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.addBattle(battle);
+			assertNotNull(risk("admin", "schedule", "1", "battlestart"));
+			battle.setStarted(true);
+			assertNull(risk("admin", "schedule", "1", "battlestart"));
+			assertNotNull(risk("admin", "schedule", "1", "battleend"));
+			assertNotNull(risk("admin", "schedule", "1", "battleend", "NOWINNER"));
+			assertNotNull(risk("admin", "schedule", "1", "battleend", "attacker"));
+			assertNull(risk("admin", "schedule", "1", "battleend", "nobody"));
+
+			battle.setStarted(false);
+			War war = mock(War.class);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			org.mockito.Mockito.when(war.getBattleSchedulePhase())
+					.thenReturn(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
+			org.mockito.Mockito.when(war.getScheduledBattleAt()).thenReturn(java.time.Instant.EPOCH);
+			assertNull(risk("admin", "schedule", "1", "battlehold", "off"));
+			battle.setStaffHold(true);
+			assertNotNull(risk("admin", "schedule", "1", "battlehold", "off"));
+			assertNotNull(risk("admin", "schedule", "1", "battlehold", "off", "x"));
+			assertNull(risk("admin", "schedule", "1", "battlehold", "on"));
+			assertNull(risk("admin", "schedule", "1", "battlehold"));
+			org.mockito.Mockito.when(war.getScheduledBattleAt()).thenReturn(null);
+			assertNull(risk("admin", "schedule", "1", "battlehold", "off"));
+		} finally {
+			net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.resetForTests();
+		}
+	}
+
+	@Test
 	void clockCommandsThatWouldFailAnywayDoNotAsk() {
 		assertNull(risk("admin", "time", "add", "soon"));
 		assertNull(risk("admin", "time", "skip-to-battle-day", "7"));

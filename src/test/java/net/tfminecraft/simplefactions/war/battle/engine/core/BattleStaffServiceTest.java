@@ -167,7 +167,7 @@ class BattleStaffServiceTest {
 		BattleStaffService.Result result = BattleStaffService.abort(battle, "Staff");
 
 		assertTrue(result.ok());
-		assertTrue(result.message().endsWith("(/war admin schedule 4 battlestart)."));
+		assertTrue(result.message().endsWith("(/war admin schedule 4 battlestart) or set a new battle day (setday)."));
 		assertFalse(battle.hasStarted());
 		assertTrue(battle.isStaffHold());
 		assertEquals(10, attacker.getLives());
@@ -193,6 +193,17 @@ class BattleStaffServiceTest {
 			BattleStaffService.abort(battle, "Staff");
 			verify(war).setFirstBattleStarted(false);
 		}
+	}
+
+	@Test
+	void onlyAPreparedCampaignBattleStartsOnRelease() {
+		assertFalse(BattleStaffService.startsOnRelease(null));
+		battle.setStarted(true);
+		battle.setWarId(4);
+		assertFalse(BattleStaffService.startsOnRelease(battle));
+		battle.setStarted(false);
+		battle.setWarId(null);
+		assertFalse(BattleStaffService.startsOnRelease(battle));
 	}
 
 	@Test

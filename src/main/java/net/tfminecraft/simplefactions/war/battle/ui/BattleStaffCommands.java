@@ -28,6 +28,8 @@ public final class BattleStaffCommands {
 			+ " until staff start it again. Mercenary pay already charged for it stays charged.";
 	static final String END_RISK = "ends the battle now. In a campaign battle the casualties so far count;"
 			+ " a named winner wins the battle, and with no winner voting reopens.";
+	static final String RELEASE_RISK = "its start time has passed, so releasing the hold starts the battle"
+			+ " within a minute and teleports its soldiers.";
 
 	private BattleStaffCommands() {}
 
@@ -57,8 +59,16 @@ public final class BattleStaffCommands {
 		if (sub.equals("lives")) {
 			risk = livesRisk(battle, args);
 		}
+		if (sub.equals("end") && args.length >= 3 && !args[2].equalsIgnoreCase("nowinner")
+				&& battle.getSideById(args[2]) == null) {
+			risk = null;
+		}
+		if (sub.equals("hold")) {
+			risk = args.length == 3 && args[2].equalsIgnoreCase("off") && battle.isStaffHold()
+					&& BattleStaffService.startsOnRelease(battle) ? RELEASE_RISK : null;
+		}
 		// Not running, or a raid that cannot be restarted or stopped: let the tool say so without asking.
-		if (!battle.hasStarted()
+		if ((!battle.hasStarted() && !sub.equals("hold"))
 				|| (battle.getBattleType() == BattleType.RAID && (sub.equals("restart") || sub.equals("abort")))) {
 			risk = null;
 		}
@@ -156,13 +166,19 @@ public final class BattleStaffCommands {
 			return true;
 		}
 		if (forcekick) {
+			String target = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+			String refusal = StaffJoins.kickRefusal(warband, target);
+			if (refusal != null) {
+				player.sendMessage(refusal);
+				return true;
+			}
 			CampaignBattleJoinService.CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
 			String risk = ctx != null && ctx.battle().hasStarted() ? "removes them from the running battle " + ctx.battle()
 					.getDisplayName() + ". If they were their side's last soldier, that side loses at once." : null;
 			if (StaffConfirm.gate(player, "warband", rawArgs, risk) == null) {
 				return true;
 			}
-			player.sendMessage(StaffJoins.warbandKick(warband, String.join(" ", Arrays.copyOfRange(args, 2, args.length))));
+			player.sendMessage(StaffJoins.warbandKick(warband, target));
 			return true;
 		}
 		warband.setLocked(!warband.isLocked());

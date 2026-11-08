@@ -208,6 +208,28 @@ class StaffJoinsTest {
 	}
 
 	@Test
+	void aSlotHeldByAnotherCharacterOfTheAccountIsNotTheirs() {
+		try (var battles = mockStatic(CampaignWarbandBattleService.class)) {
+			Warband warband = mock(Warband.class);
+			when(warband.getId()).thenReturn("vanguard");
+			when(warband.isFaction()).thenReturn(true);
+			UUID account = UUID.randomUUID();
+			members.when(() -> Members.accountId("Bob")).thenReturn(Optional.of(account));
+			when(warband.hasMember(account)).thenReturn(true);
+			CharacterRef alice = new CharacterRef(account, UUID.randomUUID());
+			CharacterRef bobRef = new CharacterRef(account, UUID.randomUUID());
+			when(warband.getMemberCharacter(account)).thenReturn(Optional.of(alice));
+			members.when(() -> Members.key(alice)).thenReturn("Alice");
+			members.when(() -> Members.key(bobRef)).thenReturn("Bob");
+			assertEquals("§cBob §cis not in vanguard", StaffJoins.warbandKick(warband, "Bob"));
+			battles.verifyNoInteractions();
+			when(warband.getMemberCharacter(account)).thenReturn(Optional.of(bobRef));
+			assertEquals("§aRemoved Bob §afrom vanguard", StaffJoins.warbandKick(warband, "Bob"));
+			assertEquals("§cBob §cis already in vanguard", StaffJoins.warband(warband, "Bob"));
+		}
+	}
+
+	@Test
 	void warbandKickRemovesAnyMemberAsADismissal() {
 		try (var battles = mockStatic(CampaignWarbandBattleService.class)) {
 			Warband warband = mock(Warband.class);

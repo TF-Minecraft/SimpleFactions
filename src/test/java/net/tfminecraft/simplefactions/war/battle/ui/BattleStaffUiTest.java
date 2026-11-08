@@ -354,6 +354,36 @@ class BattleStaffUiTest {
 	}
 
 	@Test
+	void releasingAHoldThatStartsAnOverdueBattleAsksFirst() {
+		staff.when(() -> BattleStaffService.hold(battle, false, "Admin")).thenReturn(new BattleStaffService.Result(true, "§aO"));
+		staff.when(() -> BattleStaffService.hold(battle, true, "Admin")).thenReturn(new BattleStaffService.Result(true, "§aH"));
+		staff.when(() -> BattleStaffService.startsOnRelease(battle)).thenReturn(true);
+		battleCommand("hold", "b1", "off");
+		verify(admin).sendMessage("§aO");
+		battle.setStaffHold(true);
+		battleCommand("hold", "b1", "on");
+		verify(admin).sendMessage("§aH");
+		battleCommand("hold", "b1", "off");
+		verify(admin).sendMessage("§6This cannot be undone: §e" + BattleStaffCommands.RELEASE_RISK);
+		battleCommand("hold", "b1", "off", "confirm");
+		verify(admin, org.mockito.Mockito.times(2)).sendMessage("§aO");
+		staff.when(() -> BattleStaffService.startsOnRelease(battle)).thenReturn(false);
+		battleCommand("hold", "b1", "off");
+		verify(admin, org.mockito.Mockito.times(3)).sendMessage("§aO");
+	}
+
+	@Test
+	void endingForASideThatDoesNotExistShowsTheErrorWithoutAsking() {
+		battle.setStarted(true);
+		staff.when(() -> BattleStaffService.end(battle, "nobody", "Admin"))
+				.thenReturn(new BattleStaffService.Result(false, "No side nobody in this battle."));
+		battleCommand("end", "b1", "nobody");
+		verify(admin).sendMessage("§cNo side nobody in this battle.");
+		battleCommand("end", "b1", "defender");
+		verify(admin).sendMessage("§6This cannot be undone: §e" + BattleStaffCommands.END_RISK);
+	}
+
+	@Test
 	void takingASideToZeroLivesAsksFirst() {
 		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker"}));
 		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "nobody", "set", "0"}));
@@ -389,9 +419,12 @@ class BattleStaffUiTest {
 			campaigns.when(() -> net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService
 					.findCampaignBattleForWarband(band)).thenReturn(context);
 			joins.when(() -> StaffJoins.warbandKick(band, "Bob")).thenReturn("kicked");
+			joins.when(() -> StaffJoins.kickRefusal(band, "Ghost")).thenReturn("§cGhost §cis not in w1");
+			BattleStaffCommands.warband(lead, new String[] {"forcekick", "w1", "Ghost"});
+			verify(lead).sendMessage("§cGhost §cis not in w1");
 			BattleStaffCommands.warband(lead, new String[] {"forcekick", "w1", "Bob"});
 			verify(lead).sendMessage(org.mockito.ArgumentMatchers.startsWith("§6This cannot be undone: §eremoves them"));
-			joins.verifyNoInteractions();
+			joins.verify(() -> StaffJoins.warbandKick(band, "Bob"), org.mockito.Mockito.never());
 			BattleStaffCommands.warband(lead, new String[] {"forcekick", "w1", "Bob", "confirm"});
 			verify(lead).sendMessage("kicked");
 			battle.setStarted(false);

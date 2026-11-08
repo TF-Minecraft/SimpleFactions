@@ -240,6 +240,7 @@ public final class BattleScheduleService {
 		}
 
 		CampaignProgressionService.applyPostponedBattle(war);
+		releaseStaffHold(war);
 		war.setBattleDay(war.getBattleDay().plusDays(1));
 		war.clearSignupRemindersSent();
 		BattleInstallationPickService.clearForNewBattleDay(war);
@@ -258,6 +259,10 @@ public final class BattleScheduleService {
 	public static void skipBattleDay(War war, Instant now) {
 		if (war == null || war.getBattleDay() == null) {
 			return;
+		}
+		// A scheduled war keeps its start time here, so its hold stays: releasing it would start the battle.
+		if (war.getBattleSchedulePhase() != BattleSchedulePhase.SCHEDULED) {
+			releaseStaffHold(war);
 		}
 		war.setBattleDay(war.getBattleDay().plusDays(1));
 		BattleInstallationPickService.clearForNewBattleDay(war);

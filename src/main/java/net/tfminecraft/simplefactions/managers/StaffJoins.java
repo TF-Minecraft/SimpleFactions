@@ -96,7 +96,7 @@ public final class StaffJoins {
 		if (key == null) return noMatch(input);
 		UUID account = Members.accountId(key).orElse(null);
 		if (account == null) return noMatch(input);
-		if (warband.hasMember(account)) return "§c" + Members.display(key) + " §cis already in " + warband.getId();
+		if (holdsSlot(warband, account, key)) return "§c" + Members.display(key) + " §cis already in " + warband.getId();
 		Faction faction = FactionManager.getByMember(key);
 		if (warband.isFaction() && faction == null) {
 			return "§cThis is a faction warband, " + Members.display(key) + " §cneeds a faction to join";
@@ -110,18 +110,34 @@ public final class StaffJoins {
 
 	/** {@code /warband forcekick}: takes a character out of any warband, as if they had been dismissed. */
 	public static String warbandKick(Warband warband, String input) {
+		String refusal = kickRefusal(warband, input);
+		if (refusal != null) return refusal;
+		String key = Members.findOnline(input);
+		UUID account = Members.accountId(key).orElseThrow();
+		Player online = Members.player(key);
+		CampaignWarbandBattleService.processLeave(account, online, warband, false);
+		if (online != null) online.sendMessage("§cStaff removed you from the warband " + warband.getId());
+		return "§aRemoved " + Members.display(key) + " §afrom " + warband.getId();
+	}
+
+	/** Why {@code /warband forcekick} would refuse, or null when it would remove the character. */
+	public static String kickRefusal(Warband warband, String input) {
 		String key = Members.findOnline(input);
 		UUID account = key == null ? null : Members.accountId(key).orElse(null);
-		if (account == null || !warband.hasMember(account)) {
+		if (account == null || !holdsSlot(warband, account, key)) {
 			return "§c" + input + " §cis not in " + warband.getId();
 		}
 		if (!warband.isFaction() && account.equals(warband.getLeaderId())) {
 			return "§c" + Members.display(key) + " §cleads " + warband.getId()
 					+ "§c. Use /warband delete to remove the whole warband.";
 		}
-		Player online = Members.player(key);
-		CampaignWarbandBattleService.processLeave(account, online, warband, false);
-		if (online != null) online.sendMessage("§cStaff removed you from the warband " + warband.getId());
-		return "§aRemoved " + Members.display(key) + " §afrom " + warband.getId();
+		return null;
+	}
+
+	/** The account is in the warband as this character; an old slot with no character recorded counts too. */
+	private static boolean holdsSlot(Warband warband, UUID account, String key) {
+		if (!warband.hasMember(account)) return false;
+		var held = warband.getMemberCharacter(account);
+		return held.isEmpty() || key.equals(Members.key(held.get()));
 	}
 }

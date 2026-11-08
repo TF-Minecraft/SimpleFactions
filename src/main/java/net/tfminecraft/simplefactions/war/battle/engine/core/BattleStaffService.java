@@ -94,7 +94,7 @@ public final class BattleStaffService {
 		return done(battle, by, "ABORT", "stopped " + battle.getDisplayName()
 				+ " with no result. It stays on hold until staff start it again"
 				+ (battle.getWarId() == null ? " (/battle edit)." : " (/war admin schedule " + battle.getWarId()
-						+ " battlestart)."));
+						+ " battlestart) or set a new battle day (setday)."));
 	}
 
 	/** Ends the running battle now; {@code winnerSideId} null means no winner. */
@@ -123,11 +123,10 @@ public final class BattleStaffService {
 		if (battle.hasStarted()) {
 			return Result.error("That battle is already running. Stop it with abort instead.");
 		}
+		boolean overdue = startsOnRelease(battle);
 		battle.setStaffHold(on);
 		BattlePersistenceService.persistBattle(battle);
 		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
-		boolean overdue = war != null && war.getBattleSchedulePhase() == BattleSchedulePhase.SCHEDULED
-				&& war.getScheduledBattleAt() != null && !war.getScheduledBattleAt().isAfter(CampaignClock.now());
 		String name = battle.getDisplayName();
 		String text;
 		if (war == null) {
@@ -140,6 +139,14 @@ public final class BattleStaffService {
 					: ". It starts when its battle is scheduled and due.");
 		}
 		return done(battle, by, on ? "HOLD" : "RELEASE", text);
+	}
+
+	/** True when the battle waits only for its hold: its war is scheduled and the start time has passed. */
+	public static boolean startsOnRelease(Battle battle) {
+		War war = battle == null || battle.hasStarted() || battle.getWarId() == null ? null
+				: WarManager.getById(battle.getWarId());
+		return war != null && war.getBattleSchedulePhase() == BattleSchedulePhase.SCHEDULED
+				&& war.getScheduledBattleAt() != null && !war.getScheduledBattleAt().isAfter(CampaignClock.now());
 	}
 
 	/** Adds, removes or sets a side's lives during the battle. */

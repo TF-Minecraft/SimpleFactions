@@ -45,12 +45,28 @@ public final class WarAdminRisks {
 	/** The battle tools only ask when the war's battle is running and, to restart or stop it, not a raid. */
 	private static String scheduleIfApplies(String[] args) {
 		String action = lower(args[3]);
+		if (action.equals("battlestart") || action.equals("battlehold")) {
+			var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(
+					WarCommandHelper.parseWarId(args[2]).orElseThrow());
+			if (action.equals("battlehold")) {
+				return args.length >= 5 && lower(args[4]).equals("off") && battle != null && battle.isStaffHold()
+						&& net.tfminecraft.simplefactions.war.battle.engine.core.BattleStaffService.startsOnRelease(battle)
+								? "its start time has passed, so releasing the hold starts the battle within a minute"
+										+ " and teleports its soldiers."
+								: null;
+			}
+			return battle != null && battle.hasStarted() ? null : schedule(action);
+		}
 		if (action.equals("battlerestart") || action.equals("battleabort") || action.equals("battleend")) {
 			var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(
 					WarCommandHelper.parseWarId(args[2]).orElseThrow());
 			boolean raid = battle != null
 					&& battle.getBattleType() == net.tfminecraft.simplefactions.war.battle.enums.BattleType.RAID;
 			if (battle == null || !battle.hasStarted() || (raid && !action.equals("battleend"))) {
+				return null;
+			}
+			if (action.equals("battleend") && args.length >= 5 && !lower(args[4]).equals("nowinner")
+					&& battle.getSideById(args[4]) == null) {
 				return null;
 			}
 		}
