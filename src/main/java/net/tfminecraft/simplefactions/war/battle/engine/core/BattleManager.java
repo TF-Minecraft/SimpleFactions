@@ -401,7 +401,7 @@ public class BattleManager implements Listener{
 		String title = e.getView().getTitle().toLowerCase(java.util.Locale.ROOT);
 		boolean editor = switch (title) {
 			case "§7battle view", "§7side view", "§7side edit", "§7point view", "§7contest view",
-					"§7raid target view", "§7template selection" -> true;
+					"§7raid target view", "§7template selection", "§7lives edit" -> true;
 			default -> false;
 		};
 		if (!editor && !title.equals("§7battle list") && !title.equals("§7respawn points")
@@ -421,6 +421,20 @@ public class BattleManager implements Listener{
 			Battle b = currentBattle.get(p);
 			BattleInventoryManager inv = new BattleInventoryManager();
 			e.setCancelled(true);
+			if(e.getSlot() == BattleInventoryManager.ALL_VEHICLES_SLOT && b.getWarId() != null) {
+				if(e.getClick() != org.bukkit.event.inventory.ClickType.RIGHT) {
+					p.sendMessage("§eRight-click the button to confirm. §7Hover it to see what it does.");
+					return;
+				}
+				p.sendMessage(BattleStaffService.setAllVehiclesUsable(b, !b.isAllVehiclesUsable(), p.getName()).message());
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.updateView(p, b, e.getClickedInventory());
+				return;
+			}
+			if(b.hasStarted() && e.getSlot() == BattleInventoryManager.runningLivesSlot(b)) {
+				net.tfminecraft.simplefactions.war.battle.ui.BattleLivesEditor.open(p, b);
+				return;
+			}
 			if(b.hasStarted() && e.getSlot() >= 18 && e.getSlot() <= 20
 					&& e.getClick() != org.bukkit.event.inventory.ClickType.RIGHT) {
 				p.sendMessage("§eRight-click the button to confirm. §7Hover it to see what it does.");
@@ -567,6 +581,13 @@ public class BattleManager implements Listener{
 				} else if (b.getBattleType() == BattleType.RAID) {
 					inv.raidTargetView(p, b);
 				}
+			}
+		} else if(e.getView().getTitle().equalsIgnoreCase(net.tfminecraft.simplefactions.war.battle.ui.BattleLivesEditor.TITLE)) {
+			if(!currentBattle.containsKey(p)) return;
+			Battle b = currentBattle.get(p);
+			if(net.tfminecraft.simplefactions.war.battle.ui.BattleLivesEditor.click(
+					p, b, e.getSlot(), e.getClick(), e.getClickedInventory())) {
+				new BattleInventoryManager().battleView(p, b);
 			}
 		} else if(e.getView().getTitle().equalsIgnoreCase("§7Side View")) {
 			if(!currentBattle.containsKey(p)) return;

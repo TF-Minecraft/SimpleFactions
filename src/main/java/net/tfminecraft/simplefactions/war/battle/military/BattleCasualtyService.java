@@ -75,14 +75,16 @@ public final class BattleCasualtyService {
 	}
 
 	public static int regimentLossesForDeaths(int deaths) {
-		int deathsPerRegiment = Cache.warBattleDeathsPerRegimentLoss;
-		if (deathsPerRegiment <= 0) {
-			deathsPerRegiment = 5;
-		}
 		if (deaths <= 0) {
 			return 0;
 		}
-		return deaths / deathsPerRegiment;
+		return deaths / deathsPerRegimentLoss();
+	}
+
+	/** Deaths that cost a side one regiment when a campaign battle ends (5 when unset). */
+	public static int deathsPerRegimentLoss() {
+		int deathsPerRegiment = Cache.warBattleDeathsPerRegimentLoss;
+		return deathsPerRegiment <= 0 ? 5 : deathsPerRegiment;
 	}
 
 	public static boolean shouldApply(War war, Battle battle, Map<String, Integer> sideCasualties) {

@@ -58,6 +58,8 @@ public class BattleInventoryManager {
 	public static final String TEMPLATE_NONE_ID = "__none__";
 	public static final String SIDE_EDIT_TITLE = "§7Side Edit";
 	public static final int SIDE_EDIT_LIVES_SLOT = 16;
+	public static final int ALL_VEHICLES_SLOT = 24;
+	public static final int RUNNING_LIVES_ALT_SLOT = 21;
 
 	private static NamespacedKey templateKey() {
 		return new NamespacedKey(SimpleFactions.plugin, "battle_template");
@@ -240,7 +242,9 @@ public class BattleInventoryManager {
 				i.setItem(8, null);
 			}
 		} else {
-			if (usesCampaignLivesFormula(b)) {
+			if (b.hasStarted()) {
+				i.setItem(3, createRunningLivesItem(b));
+			} else if (usesCampaignLivesFormula(b)) {
 				i.setItem(3, createCampaignLivesSummaryItem(b));
 			} else {
 				i.setItem(3, createManualSideLivesHintItem(b));
@@ -277,6 +281,9 @@ public class BattleInventoryManager {
 		i.setItem(20, staffControls ? createStaffControlButton(Material.STRUCTURE_VOID, "§6Stop Battle (no result)",
 				BattleStaffCommands.ABORT_RISK) : null);
 		i.setItem(13, createBattleInfoItem(b));
+		i.setItem(RUNNING_LIVES_ALT_SLOT, b.hasStarted() && runningLivesSlot(b) == RUNNING_LIVES_ALT_SLOT
+				? createRunningLivesItem(b) : null);
+		i.setItem(ALL_VEHICLES_SLOT, b.getWarId() != null ? createAllVehiclesButton(b) : null);
 		if (b.getWarId() == null && !b.hasStarted()) {
 			i.setItem(22, createDeleteBattleButton(b));
 		} else if (b.getWarId() != null && !b.hasStarted()) {
@@ -288,6 +295,48 @@ public class BattleInventoryManager {
 		} else {
 			i.setItem(22, null);
 		}
+	}
+
+	/** Field battles show the running lives in slot 3; sieges and raids use slot 3 for their own setting. */
+	public static int runningLivesSlot(Battle b) {
+		return b.getBattleType() == BattleType.SIEGE || b.getBattleType() == BattleType.RAID
+				? RUNNING_LIVES_ALT_SLOT : 3;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createRunningLivesItem(Battle b) {
+		ItemStack i = new ItemStack(Material.RED_DYE, 1);
+		ItemMeta meta = i.getItemMeta();
+		meta.setDisplayName("§eLives");
+		List<String> lore = new ArrayList<>();
+		for (BattleSide side : b.getSides()) {
+			lore.add("§7" + side.getId() + ": §e" + side.getLives() + "§7/§e" + side.getMaxLives());
+		}
+		lore.add(" ");
+		lore.add("§7Click to change lives");
+		meta.setLore(lore);
+		i.setItemMeta(meta);
+		return i;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createAllVehiclesButton(Battle b) {
+		boolean on = b.isAllVehiclesUsable();
+		ItemStack i = new ItemStack(on ? Material.CHEST_MINECART : Material.MINECART, 1);
+		ItemMeta meta = i.getItemMeta();
+		meta.setDisplayName("§fAll vehicles usable: " + (on ? "§bTRUE" : "§cFALSE"));
+		List<String> lore = new ArrayList<>();
+		for (String line : BattleLivesEditor.wrap("Emergencies only: every vehicle can be used by either side,"
+				+ " ignoring installation commitments.", 40)) {
+			lore.add("§c" + line);
+		}
+		lore.add(" ");
+		lore.add("§7Right-click to switch " + (on ? "off" : "on"));
+		meta.setLore(lore);
+		i.setItemMeta(meta);
+		return i;
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.

@@ -50,6 +50,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.capture.BattleCapturePoi
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleInventoryManager;
+import net.tfminecraft.simplefactions.war.battle.ui.BattleLivesEditor;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.tlibs.TLibs;
@@ -909,6 +910,153 @@ class BattleEngineListenersCoverageTest {
       battle.setStarted(false);
       rightClick(19);
       staff.verify(() -> BattleStaffService.restart(battle, "Alice"));
+    }
+  }
+
+  private String itemName(int slot) {
+    ItemStack item = top().getItem(slot);
+    return item == null ? null : item.getItemMeta().getDisplayName();
+  }
+
+  private List<String> itemLore(int slot) {
+    return top().getItem(slot).getItemMeta().getLore();
+  }
+
+  @Test
+  void theAllVehiclesSwitchIsCampaignOnlyAndNeedsARightClickEvenWhileRunning() {
+    Battle manual = battle("manual", BattleType.FIELD);
+    edit(manual);
+    assertNull(top().getItem(BattleInventoryManager.ALL_VEHICLES_SLOT));
+    rightClick(BattleInventoryManager.ALL_VEHICLES_SLOT);
+    assertFalse(manual.isAllVehiclesUsable());
+
+    Battle battle = battle("front", BattleType.FIELD);
+    battle.setWarId(31);
+    edit(battle);
+    assertEquals("§fAll vehicles usable: §cFALSE", itemName(BattleInventoryManager.ALL_VEHICLES_SLOT));
+    assertEquals(List.of("§cEmergencies only: every vehicle can be", "§cused by either side, ignoring",
+        "§cinstallation commitments.", " ", "§7Right-click to switch on"),
+        itemLore(BattleInventoryManager.ALL_VEHICLES_SLOT));
+    click(BattleInventoryManager.ALL_VEHICLES_SLOT);
+    assertFalse(battle.isAllVehiclesUsable());
+    verify(alice).sendMessage("§eRight-click the button to confirm. §7Hover it to see what it does.");
+    battle.setStarted(true);
+    rightClick(BattleInventoryManager.ALL_VEHICLES_SLOT);
+    assertTrue(battle.isAllVehiclesUsable());
+    verify(alice).sendMessage(
+        "§aLet either side use every vehicle in " + battle.getDisplayName() + ", ignoring installation commitments.");
+    assertEquals("§fAll vehicles usable: §bTRUE", itemName(BattleInventoryManager.ALL_VEHICLES_SLOT));
+    assertEquals("§7Right-click to switch off", itemLore(BattleInventoryManager.ALL_VEHICLES_SLOT).getLast());
+    rightClick(BattleInventoryManager.ALL_VEHICLES_SLOT);
+    assertFalse(battle.isAllVehiclesUsable());
+    persistence.verify(() -> BattlePersistenceService.persistBattle(battle), times(2));
+  }
+
+  @Test
+  void aRunningFieldBattleShowsRealLivesAndStagesChangesUntilTheSecondConfirmClick() {
+    Battle battle = battle("front", BattleType.FIELD);
+    battle.setWarId(32);
+    BattleSide attacker = battle.getSideById("attacker");
+    BattleSide defender = battle.getSideById("defender");
+    attacker.restoreLives(20, 30);
+    defender.restoreLives(3, 30);
+    edit(battle);
+    assertNotEquals("§eLives", itemName(3));
+    battle.setStarted(true);
+    battle.setRecordedSideCasualty("attacker", 7);
+    menus.updateView(alice, battle, top());
+    assertEquals("§eLives", itemName(3));
+    assertEquals(List.of("§7attacker: §e20§7/§e30", "§7defender: §e3§7/§e30", " ", "§7Click to change lives"), itemLore(3));
+    assertNull(top().getItem(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT));
+
+    click(3);
+    assertEquals(BattleLivesEditor.TITLE, alice.getOpenInventory().getTitle());
+    assertEquals("§fattacker", itemName(BattleLivesEditor.FIRST_SIDE_SLOT));
+    assertEquals("§fdefender", itemName(BattleLivesEditor.FIRST_SIDE_SLOT + 1));
+    assertNull(top().getItem(BattleLivesEditor.FIRST_SIDE_SLOT + 2));
+    assertTrue(itemLore(BattleLivesEditor.CONFIRM_SLOT).contains("§7No changes staged."));
+    click(BattleLivesEditor.FIRST_SIDE_SLOT);
+    click(BattleLivesEditor.FIRST_SIDE_SLOT);
+    assertEquals("§7New lives: §e30 §7(+10)", itemLore(BattleLivesEditor.FIRST_SIDE_SLOT).get(1));
+    rightClick(BattleLivesEditor.FIRST_SIDE_SLOT + 1);
+    assertEquals("§7New lives: §e0 §7(-3)", itemLore(BattleLivesEditor.FIRST_SIDE_SLOT + 1).get(1));
+    click(BattleLivesEditor.FIRST_SIDE_SLOT + 5);
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    List<String> confirm = itemLore(BattleLivesEditor.CONFIRM_SLOT);
+    assertEquals("§7attacker: §e20 §7to §e30", confirm.get(0));
+    assertEquals("§7defender: §e3 §7to §e0", confirm.get(1));
+    assertEquals("§cClick again to apply", confirm.getLast());
+    assertEquals(20, attacker.getLives());
+    // A staged change disarms the confirm again.
+    rightClick(BattleLivesEditor.FIRST_SIDE_SLOT);
+    assertEquals("§eClick to apply", itemLore(BattleLivesEditor.CONFIRM_SLOT).getLast());
+    click(BattleLivesEditor.FIRST_SIDE_SLOT);
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    attacker.tickLife();
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    // Deaths during the edit still count: 19 lives now plus the staged +10.
+    assertEquals(29, attacker.getLives());
+    assertEquals(0, defender.getLives());
+    verify(alice).sendMessage(contains("Changed attacker lives in"));
+    verify(alice).sendMessage(contains("Changed defender lives in"));
+    assertEquals("§7Battle View", alice.getOpenInventory().getTitle());
+  }
+
+  @Test
+  void theLivesEditorCanGoBackApplyNothingAndRefusesAStoppedBattle() {
+    Battle siege = battle("siege", BattleType.SIEGE);
+    siege.setStarted(true);
+    edit(siege);
+    assertEquals("§eLives", itemName(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT));
+    assertNotEquals("§eLives", itemName(3));
+    click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);
+    assertEquals(BattleLivesEditor.TITLE, alice.getOpenInventory().getTitle());
+    click(BattleLivesEditor.BACK_SLOT);
+    assertEquals("§7Battle View", alice.getOpenInventory().getTitle());
+
+    click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    verify(alice).sendMessage("§7No lives changed.");
+
+    click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);
+    click(BattleLivesEditor.FIRST_SIDE_SLOT);
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    siege.setStarted(false);
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    verify(alice).sendMessage("§cLives can only be corrected while the battle runs. Use setlives before it starts.");
+
+    // A view left open for another battle goes back to the battle view; without an editor nothing happens.
+    siege.setStarted(true);
+    click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);
+    Battle other = battle("other", BattleType.FIELD);
+    BattleManager.currentBattle.put(alice, other);
+    click(BattleLivesEditor.FIRST_SIDE_SLOT);
+    assertEquals("§7Battle View", alice.getOpenInventory().getTitle());
+    BattleManager.currentBattle.put(alice, siege);
+    click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);
+    BattleManager.currentBattle.remove(alice);
+    assertDoesNotThrow(() -> click(BattleLivesEditor.CONFIRM_SLOT));
+    assertEquals(BattleLivesEditor.TITLE, alice.getOpenInventory().getTitle());
+  }
+
+  @Test
+  void theConfirmWarningExplainsThatLivesNeverDeleteRegiments() {
+    Battle battle = battle("front", BattleType.FIELD);
+    assertEquals("Lives only limit respawns. Deaths in this battle cost no regiments."
+        + " At 0 lives a side loses once all its soldiers are dead or jailed.", BattleLivesEditor.regimentWarning(battle));
+    battle.setWarId(33);
+    battle.setStarted(true);
+    battle.setRecordedSideCasualty("defender", 4);
+    int previous = net.tfminecraft.simplefactions.Cache.warBattleDeathsPerRegimentLoss;
+    net.tfminecraft.simplefactions.Cache.warBattleDeathsPerRegimentLoss = 6;
+    try {
+      assertEquals("Lives only limit respawns. Regiments are lost through deaths: every 6 deaths costs a side"
+          + " 1 regiment when the battle ends (attacker: 0 so far, defender: 4 so far). More lives means more"
+          + " possible deaths and losses. At 0 lives a side loses once all its soldiers are dead or jailed.",
+          BattleLivesEditor.regimentWarning(battle));
+    } finally {
+      net.tfminecraft.simplefactions.Cache.warBattleDeathsPerRegimentLoss = previous;
     }
   }
 
