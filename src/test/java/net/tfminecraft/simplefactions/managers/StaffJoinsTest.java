@@ -221,7 +221,8 @@ class StaffJoinsTest {
 			when(warband.getMemberCharacter(account)).thenReturn(Optional.of(alice));
 			members.when(() -> Members.key(alice)).thenReturn("Alice");
 			members.when(() -> Members.key(bobRef)).thenReturn("Bob");
-			assertEquals("§cBob §cis not in vanguard", StaffJoins.warbandKick(warband, "Bob"));
+			assertEquals("§cBob §cis not in vanguard§c. Their account's slot is held by Alice§c: kick that character with"
+					+ " §e/warband forcekick vanguard Alice", StaffJoins.warbandKick(warband, "Bob"));
 			battles.verifyNoInteractions();
 			when(warband.getMemberCharacter(account)).thenReturn(Optional.of(bobRef));
 			assertEquals("§aRemoved Bob §afrom vanguard", StaffJoins.warbandKick(warband, "Bob"));

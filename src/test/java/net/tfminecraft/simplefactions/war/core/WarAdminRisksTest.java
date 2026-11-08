@@ -124,6 +124,14 @@ class WarAdminRisksTest {
 	}
 
 	@Test
+	void schedulingAStartTimeThatHasPassedAsks() {
+		assertNotNull(risk("admin", "schedule", "1", "setscheduled", "2020-01-01T20:00:00Z"));
+		assertNull(risk("admin", "schedule", "1", "setscheduled", "2999-01-01T20:00:00Z"));
+		assertNull(risk("admin", "schedule", "1", "setscheduled", "tonight"));
+		assertNull(risk("admin", "schedule", "1", "setscheduled"));
+	}
+
+	@Test
 	void clockCommandsThatWouldFailAnywayDoNotAsk() {
 		assertNull(risk("admin", "time", "add", "soon"));
 		assertNull(risk("admin", "time", "skip-to-battle-day", "7"));

@@ -124,8 +124,13 @@ public final class StaffJoins {
 	public static String kickRefusal(Warband warband, String input) {
 		String key = Members.findOnline(input);
 		UUID account = key == null ? null : Members.accountId(key).orElse(null);
-		if (account == null || !holdsSlot(warband, account, key)) {
+		if (account == null || !warband.hasMember(account)) {
 			return "§c" + input + " §cis not in " + warband.getId();
+		}
+		if (!holdsSlot(warband, account, key)) {
+			String held = Members.key(warband.getMemberCharacter(account).orElseThrow());
+			return "§c" + Members.display(key) + " §cis not in " + warband.getId() + "§c. Their account's slot is held by "
+					+ Members.display(held) + "§c: kick that character with §e/warband forcekick " + warband.getId() + " " + held;
 		}
 		if (!warband.isFaction() && account.equals(warband.getLeaderId())) {
 			return "§c" + Members.display(key) + " §cleads " + warband.getId()

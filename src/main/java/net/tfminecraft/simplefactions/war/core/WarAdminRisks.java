@@ -45,6 +45,11 @@ public final class WarAdminRisks {
 	/** The battle tools only ask when the war's battle is running and, to restart or stop it, not a raid. */
 	private static String scheduleIfApplies(String[] args) {
 		String action = lower(args[3]);
+		if (action.equals("setscheduled")) {
+			return args.length >= 5 && pastInstant(args[4])
+					? "that time has already passed, so the battle starts within a minute and teleports its soldiers."
+					: null;
+		}
 		if (action.equals("battlestart") || action.equals("battlehold")) {
 			var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(
 					WarCommandHelper.parseWarId(args[2]).orElseThrow());
@@ -101,6 +106,14 @@ public final class WarAdminRisks {
 			case "reset" -> CampaignClock.getOffset().isNegative() ? forward : null;
 			default -> null;
 		};
+	}
+
+	private static boolean pastInstant(String value) {
+		try {
+			return !java.time.Instant.parse(value).isAfter(CampaignClock.now());
+		} catch (java.time.format.DateTimeParseException invalid) {
+			return false;
+		}
 	}
 
 	private static boolean validDuration(String[] args) {
