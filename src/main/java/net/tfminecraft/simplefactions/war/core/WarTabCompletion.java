@@ -276,7 +276,7 @@ public class WarTabCompletion implements TabCompleter {
 			return completions;
 		}
 		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByString(args[2]);
-		War war = battle == null || battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
+		War war = battle == null || battle.getWarId() == null || battle.isCampaignRaid() ? null : WarManager.getById(battle.getWarId());
 		if (war == null) {
 			return completions;
 		}

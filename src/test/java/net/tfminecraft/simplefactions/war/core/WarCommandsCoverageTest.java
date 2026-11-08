@@ -323,6 +323,7 @@ class WarCommandsCoverageTest {
     assertEquals(List.of(), complete("admin", "forceinstallation", "campaign_w41", "iron", "fort-1", ""));
     assertEquals(List.of(), complete("admin", "forceinstallation", "manual", ""));
     assertEquals(List.of(), complete("admin", "forceinstallation", "nope", ""));
+    assertEquals(List.of(), complete("admin", "forceinstallation", "raid_w41", ""));
   }
 
   @Test

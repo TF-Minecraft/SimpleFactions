@@ -279,6 +279,7 @@ public final class BattleInstallationPickService {
 			}
 			Faction faction = FactionManager.getByString(factionId);
 			if (faction == null) {
+				factionPicks.forEach(installationId -> war.getForcedBattleInstallationPicks().remove(forcedKey(factionId, installationId)));
 				factionPicks.clear();
 				continue;
 			}

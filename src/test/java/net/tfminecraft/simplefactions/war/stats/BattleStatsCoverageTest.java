@@ -399,7 +399,8 @@ class BattleStatsCoverageTest {
 		listener.onSessionEnd(new CharacterSessionEndEvent(bob, session, CharacterSessionEndEvent.Reason.SWITCH));
 		die(bob, null);
 		assertEquals(0, live("Alice").kills);
-		assertEquals(0, battle.getStats().creditControl(bob.getUniqueId(), "slow", System.currentTimeMillis(), 1000), 1.0);
+		// The old Slowed was forgotten, so a fresh second counts in full.
+		assertEquals(1.0, battle.getStats().creditControl(bob.getUniqueId(), "slow", System.currentTimeMillis(), 1000), 0.01);
 		battle.takeStats();
 		listener.onStarted(new net.tfminecraft.simplefactions.war.battle.events.BattleStartedEvent(
 				battle.getId(), BattleType.RAID, null, Set.of(), Set.of()));

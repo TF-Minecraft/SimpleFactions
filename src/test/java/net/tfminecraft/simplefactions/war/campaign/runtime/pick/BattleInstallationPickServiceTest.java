@@ -301,6 +301,12 @@ class BattleInstallationPickServiceTest {
 			BattleInstallationPickService.forceAdd(war, attacker, "gone");
 			assertEquals(BATTLE_DAY, war.getBattleInstallationPicksBattleDay());
 			assertEquals(Set.of("fort-1"), BattleInstallationPickService.getPicks(war, "atk"));
+			assertFalse(BattleInstallationPickService.isForced(war, "atk", "gone"));
+			// A deleted faction's picks and their forced marks go together.
+			war.getBattleInstallationPicks().put("ghost", new LinkedHashSet<>(Set.of("fort-9")));
+			war.getForcedBattleInstallationPicks().add("ghost|fort-9");
+			BattleInstallationPickService.getPicks(war, "atk");
+			assertFalse(BattleInstallationPickService.isForced(war, "ghost", "fort-9"));
 		}
 	}
 
