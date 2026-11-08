@@ -46,6 +46,7 @@ class BattleTemplateServiceTest {
 		assertTrue(resolved.getFriendlyFire());
 		assertTrue(resolved.getKeepInventory());
 		assertTrue(resolved.getLootEnabled());
+		assertFalse(resolved.getManaRefillOnRespawn());
 		assertEquals(LifeType.COLLECTIVE, resolved.getLifeType());
 		assertEquals(25, resolved.getLives());
 	}
@@ -58,6 +59,42 @@ class BattleTemplateServiceTest {
 		BattleTemplateLoader.putForTests(new BattleTemplate("no_loot_field", config));
 
 		assertFalse(service.getModeConfig("no_loot_field").getLootEnabled());
+	}
+
+	@Test
+	void getModeConfig_readsExplicitManaRefillFlag() {
+		YamlConfiguration config = new YamlConfiguration();
+		config.set("type", "siege");
+		config.set("mana_refill_on_respawn", true);
+		BattleTemplateLoader.putForTests(new BattleTemplate("refill_siege", config));
+
+		assertTrue(service.getModeConfig("refill_siege").getManaRefillOnRespawn());
+	}
+
+	@Test
+	void getModeConfig_warnsAndKeepsManaRefillOffForANonBooleanValue() {
+		YamlConfiguration config = new YamlConfiguration();
+		config.set("type", "siege");
+		config.set("mana_refill_on_respawn", "ture");
+		java.util.List<String> warnings = new java.util.ArrayList<>();
+		java.util.logging.Logger log = java.util.logging.Logger.getLogger("SimpleFactions");
+		java.util.logging.Handler handler = new java.util.logging.Handler() {
+			@Override public void publish(java.util.logging.LogRecord record) { warnings.add(record.getMessage()); }
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		boolean parentHandlers = log.getUseParentHandlers();
+		log.setUseParentHandlers(false);
+		log.addHandler(handler);
+		try {
+			BattleTemplateLoader.putForTests(new BattleTemplate("typo_siege", config));
+			assertFalse(service.getModeConfig("typo_siege").getManaRefillOnRespawn());
+		} finally {
+			log.removeHandler(handler);
+			log.setUseParentHandlers(parentHandlers);
+		}
+		assertTrue(warnings.stream().anyMatch(w -> w.contains("mana_refill_on_respawn must be an unquoted true or false, not 'ture'")),
+				warnings.toString());
 	}
 
 	@Test

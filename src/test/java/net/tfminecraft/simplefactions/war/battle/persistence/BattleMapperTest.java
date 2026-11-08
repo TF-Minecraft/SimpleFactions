@@ -101,6 +101,24 @@ class BattleMapperTest {
 	}
 
 	@Test
+	void roundTrip_preservesManaRefillFlag() {
+		BossBar bossBar = mock(BossBar.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
+					.thenReturn(bossBar);
+
+			Battle battle = BattleFactory.createBlank(BattleType.SIEGE, "refill_siege");
+			assertFalse(battle.hasManaRefillOnRespawn());
+			battle.setManaRefillOnRespawn(true);
+
+			BattleData data = BattleMapper.toData(battle);
+
+			assertTrue(data.manaRefillOnRespawn);
+			assertTrue(BattleMapper.fromData(data).hasManaRefillOnRespawn());
+		}
+	}
+
+	@Test
 	void fromData_defaultsLootOnWhenKeyIsAbsent() {
 		BossBar bossBar = mock(BossBar.class);
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
@@ -112,6 +130,8 @@ class BattleMapperTest {
 			data.battleType = BattleType.FIELD.toJson();
 
 			assertTrue(BattleMapper.fromData(data).hasLootEnabled());
+			// Files saved before the rule existed get the new default: no mana on respawn.
+			assertFalse(BattleMapper.fromData(data).hasManaRefillOnRespawn());
 		}
 	}
 

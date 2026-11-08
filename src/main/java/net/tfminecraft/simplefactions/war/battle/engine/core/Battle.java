@@ -48,6 +48,8 @@ public class Battle {
 	private boolean friendlyFire;
 	private boolean keepInventory;
 	private boolean lootEnabled;
+	// Off by default: a death in battle must not hand a full mana bar back.
+	private boolean manaRefillOnRespawn;
 	private boolean teleport;
 	private boolean started;
 	private Instant startedAt;
@@ -165,6 +167,7 @@ public class Battle {
 		this.friendlyFire = true;
 		this.keepInventory = true;
 		this.lootEnabled = true;
+		this.manaRefillOnRespawn = false;
 		this.teleport = false;
 		this.started = false;
 		this.locked = true;
@@ -278,6 +281,9 @@ public class Battle {
 	public boolean hasLootEnabled() {
 		return this.lootEnabled;
 	}
+	public boolean hasManaRefillOnRespawn() {
+		return this.manaRefillOnRespawn;
+	}
 	public boolean hasTeleport() {
 		return teleport;
 	}
@@ -344,6 +350,9 @@ public class Battle {
 	}
 	public void setLootEnabled(boolean b) {
 		this.lootEnabled = b;
+	}
+	public void setManaRefillOnRespawn(boolean b) {
+		this.manaRefillOnRespawn = b;
 	}
 	public String start() {
 		if(this.started) return null;
@@ -642,6 +651,7 @@ public class Battle {
 		friendlyFire = true;
 		keepInventory = true;
 		lootEnabled = true;
+		manaRefillOnRespawn = false;
 		teleport = false;
 		locked = true;
 		lt = LifeType.COLLECTIVE;

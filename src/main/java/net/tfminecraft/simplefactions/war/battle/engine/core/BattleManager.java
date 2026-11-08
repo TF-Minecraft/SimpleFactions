@@ -353,8 +353,12 @@ public class BattleManager implements Listener{
 				// Run console commands for resource restoration
 				Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
 						"mmocore admin resource-health give " + p.getName() + " 100");
-				Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-						"mmocore admin resource-mana give " + p.getName() + " 100");
+				// MMOCore keeps mana through a death, so with the rule off a fighter comes
+				// back with what they died with and dying never pays for spells.
+				if (b.hasManaRefillOnRespawn()) {
+					Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+							"mmocore admin resource-mana give " + p.getName() + " 100");
+				}
 
 				if (b.getBattleType() == BattleType.RAID && RaidRespawnService.applyRespawn(b, p, s)) {
 					return;
@@ -479,6 +483,11 @@ public class BattleManager implements Listener{
 				BattlePersistenceService.persistBattle(b);
 			} else if(e.getSlot() == 14) {
 				b.setLootEnabled(!b.hasLootEnabled());
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.updateView(p, b, e.getClickedInventory());
+				BattlePersistenceService.persistBattle(b);
+			} else if(e.getSlot() == 15) {
+				b.setManaRefillOnRespawn(!b.hasManaRefillOnRespawn());
 				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				inv.updateView(p, b, e.getClickedInventory());
 				BattlePersistenceService.persistBattle(b);

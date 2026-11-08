@@ -23,6 +23,8 @@ public class BattleData {
 	// Wrapper on purpose: absent in older files means "decide from campaignRaid",
 	// which a primitive would silently read as false.
 	public Boolean lootEnabled;
+	// Absent in older files reads as false, which is the default: no mana on respawn.
+	public boolean manaRefillOnRespawn;
 	public boolean teleport;
 	public boolean locked;
 	public int lives;

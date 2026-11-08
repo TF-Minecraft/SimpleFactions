@@ -3,12 +3,15 @@ raid_template:
   defender_respawn_mode: infinite
   friendly_fire: true
   keep_inventory: true
+  # true refills mana on every battle respawn. Off, players keep the mana they died with.
+  mana_refill_on_respawn: false
 
 campaign_raid_template:
   type: raid
   defender_respawn_mode: infinite
   friendly_fire: true
   keep_inventory: true
+  mana_refill_on_respawn: false
   campaign_raid: true
   # Campaign raids are the one battle kind that pays no loot.
   loot_enabled: false
@@ -20,9 +23,11 @@ field_default:
   life_type: COLLECTIVE
   friendly_fire: true
   keep_inventory: true
+  mana_refill_on_respawn: false
 
 siege_default:
   type: siege
   contest_duration_seconds: 180
   friendly_fire: true
   keep_inventory: true
+  mana_refill_on_respawn: false

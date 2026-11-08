@@ -54,6 +54,9 @@ public final class BattleTemplateService {
 			// template that omits the key still ends up with loot off.
 			mode.setLootEnabled(!Boolean.TRUE.equals(mode.getCampaignRaid()));
 		}
+		if (mode.getManaRefillOnRespawn() == null) {
+			mode.setManaRefillOnRespawn(false);
+		}
 		if (mode.getLifeType() == null) {
 			mode.setLifeType(LifeType.COLLECTIVE);
 		}
@@ -79,6 +82,7 @@ public final class BattleTemplateService {
 		copy.setFriendlyFire(source.getFriendlyFire());
 		copy.setKeepInventory(source.getKeepInventory());
 		copy.setLootEnabled(source.getLootEnabled());
+		copy.setManaRefillOnRespawn(source.getManaRefillOnRespawn());
 		copy.setLifeType(source.getLifeType());
 		copy.setLives(source.getLives());
 		copy.setCapturePoints(source.getCapturePoints());
