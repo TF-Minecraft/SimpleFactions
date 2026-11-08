@@ -250,6 +250,7 @@ public final class CampaignRaidService {
 		Battle battle = BattleManager.getByString(battleId);
 		if (battle != null && battle.isCampaignRaid() && battle.getBattleType() == BattleType.RAID
 				&& Objects.equals(battle.getWarId(), war.getId())) {
+			net.tfminecraft.simplefactions.war.stats.BattleStatsListener.archiveUnfinished(battle, "RAID_CLEARED");
 			battle.end();
 			BattlePersistenceService.deleteRaidBattle(battle);
 		}

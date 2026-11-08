@@ -475,6 +475,22 @@ class BattleStatsCoverageTest {
 	}
 
 	@Test
+	void unfinishedBattlesAreArchivedWithoutEverBlockingTheirRemoval() {
+		BattleStatsListener.archiveUnfinished(null, "WAR_ENDED");
+		BattleStatsListener.archiveUnfinished(new Battle("idle"), "WAR_ENDED");
+		assertTrue(BattleStatsArchive.list(null).isEmpty());
+		hit(bob, alice, 3, false);
+		BattleStatsListener.archiveUnfinished(battle, "RAID_CLEARED");
+		assertEquals(1, BattleStatsArchive.list(null).size());
+		assertTrue(has(said(alice), "the raid was called off"));
+		Battle broken = mock(Battle.class);
+		when(broken.hasStarted()).thenReturn(true);
+		when(broken.getId()).thenReturn("broken");
+		when(broken.takeStats()).thenThrow(new IllegalStateException("boom"));
+		assertDoesNotThrow(() -> BattleStatsListener.archiveUnfinished(broken, "WAR_ENDED"));
+	}
+
+	@Test
 	void formatsDurationsReasonsAndRanks() {
 		assertEquals("0m", BattleStatsView.duration(-5));
 		assertEquals("59m", BattleStatsView.duration(59 * 60_000L));

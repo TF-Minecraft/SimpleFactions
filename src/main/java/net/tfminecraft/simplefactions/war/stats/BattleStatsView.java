@@ -261,6 +261,7 @@ public final class BattleStatsView {
 			case "RETREAT" -> "retreat";
 			case "TIMER" -> "time ran out";
 			case "WAR_ENDED" -> "the war ended";
+			case "RAID_CLEARED" -> "the raid was called off";
 			default -> "ended";
 		};
 	}

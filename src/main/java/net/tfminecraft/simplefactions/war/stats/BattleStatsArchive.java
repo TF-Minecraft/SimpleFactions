@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -31,7 +30,7 @@ public final class BattleStatsArchive {
 	public record Summary(String id, String name, long endedAt, String warKey, String warName,
 			String winner, Map<String, FighterStats> fighters) {}
 
-	private static final List<Summary> INDEX = new CopyOnWriteArrayList<>();
+	private static final Map<String, Summary> INDEX = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final Map<String, BattleRecord> CACHE = Collections.synchronizedMap(
 			new LinkedHashMap<>(CACHE_SIZE, 0.75f, true) {
 				@Override
@@ -57,9 +56,7 @@ public final class BattleStatsArchive {
 		for (File file : files) {
 			try {
 				BattleRecord record = JsonUtil.readJson(file, BattleRecord.class);
-				if (record != null && record.id != null && find(record.id) == null) {
-					INDEX.add(summary(record));
-				}
+				if (record != null && record.id != null) INDEX.putIfAbsent(record.id, summary(record));
 			} catch (IOException | RuntimeException unreadable) {
 				log("Skipped unreadable battle stats file " + file.getName(), unreadable);
 			}
@@ -69,10 +66,10 @@ public final class BattleStatsArchive {
 	/** Saves a finished battle; one small file write per battle. */
 	public static void save(BattleRecord record) {
 		String base = record.id;
-		for (int n = 2; find(record.id) != null; n++) {
+		for (int n = 2; INDEX.containsKey(record.id); n++) {
 			record.id = base + "-" + n;
 		}
-		INDEX.add(summary(record));
+		INDEX.put(record.id, summary(record));
 		CACHE.put(record.id, record);
 		File folder = folder();
 		if (folder == null) return;
@@ -86,7 +83,7 @@ public final class BattleStatsArchive {
 
 	/** A finished battle by its record ID, or null. */
 	public static BattleRecord get(String id) {
-		if (id == null || !id.equals(BattleRecord.safeId(id)) || find(id) == null || folder() == null) {
+		if (id == null || !id.equals(BattleRecord.safeId(id)) || !INDEX.containsKey(id) || folder() == null) {
 			return null;
 		}
 		BattleRecord cached = CACHE.get(id);
@@ -108,22 +105,13 @@ public final class BattleStatsArchive {
 	/** Newest first; only battles the character fought in, or all of them for a null key. */
 	public static List<Summary> list(String characterKey) {
 		List<Summary> result = new ArrayList<>();
-		for (Summary summary : INDEX) {
+		for (Summary summary : INDEX.values()) {
 			if (characterKey == null || summary.fighters().containsKey(characterKey)) {
 				result.add(summary);
 			}
 		}
 		result.sort(Comparator.comparingLong(Summary::endedAt).reversed());
 		return result;
-	}
-
-	private static Summary find(String id) {
-		for (Summary summary : INDEX) {
-			if (summary.id().equals(id)) {
-				return summary;
-			}
-		}
-		return null;
 	}
 
 	private static Summary summary(BattleRecord record) {

@@ -156,6 +156,22 @@ public final class BattleStatsListener implements Listener {
 		return record;
 	}
 
+	/**
+	 * For code that removes a running battle without an end event (war end, a raid
+	 * called off): archives what was fought, and never lets a stats failure stop the removal.
+	 */
+	public static void archiveUnfinished(Battle battle, String reason) {
+		if (battle == null || !battle.hasStarted()) {
+			return;
+		}
+		try {
+			finish(battle, null, reason);
+		} catch (RuntimeException failed) {
+			org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.WARNING,
+					"[SimpleFactions] Could not archive battle stats for " + battle.getId(), failed);
+		}
+	}
+
 	private static Place place(Player player) {
 		for (Battle battle : BattleManager.get()) {
 			BattleSide side = battle.hasStarted() ? sideOf(battle, player) : null;

@@ -44,7 +44,7 @@ public final class WarCombatTeardownService {
 	private static void purgeBattle(Battle battle) {
 		BattleManager.clearEditorSessions(battle);
 		if (battle.hasStarted()) {
-			net.tfminecraft.simplefactions.war.stats.BattleStatsListener.finish(battle, null, "WAR_ENDED");
+			net.tfminecraft.simplefactions.war.stats.BattleStatsListener.archiveUnfinished(battle, "WAR_ENDED");
 			SiegeContestService.clearBattleState(battle);
 			RaidAttackerEliminationService.clearBattleState(battle);
 			BattleCasualtyLedger.clear(battle);
