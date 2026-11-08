@@ -496,7 +496,7 @@ class VehicleRuntimeLifecycleCoverageTest {
     assertTrue(VehicleMaintenanceMessages.payUsage().contains("No amount needed"));
     assertTrue(VehicleMaintenanceMessages.payUsage().contains("right-click"));
     String commands = VehicleMaintenanceMessages.vehicleUsage();
-    for (String command : List.of("transfer", "take", "give", "handover", "maintenance pay bank")) {
+    for (String command : List.of("transfer", "take", "give", "handover", "maintenance pay bank", "disable")) {
       assertTrue(commands.contains(command), command);
     }
     assertTrue(VehicleMaintenanceMessages.transferUsage().contains("<installation id|pool>"));

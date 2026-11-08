@@ -164,6 +164,9 @@ public final class WarMapper {
 		if (war.getBattleInstallationPicksBattleDay() != null) {
 			data.battleInstallationPicksBattleDay = war.getBattleInstallationPicksBattleDay().toString();
 		}
+		if (!war.getForcedBattleInstallationPicks().isEmpty()) {
+			data.forcedBattleInstallationPicks = new ArrayList<>(war.getForcedBattleInstallationPicks());
+		}
 		if (!war.getCampaignRaidsUsed().isEmpty()) {
 			data.campaignRaidsUsed = new LinkedHashMap<>(war.getCampaignRaidsUsed());
 		}
@@ -287,6 +290,7 @@ public final class WarMapper {
 				: new LinkedHashSet<>(data.signupRemindersSent));
 		war.setBattleVotes(deserializeBattleVotes(data.battleVotes));
 		war.setBattleInstallationPicks(deserializeInstallationPicks(data.battleInstallationPicks));
+		war.setForcedBattleInstallationPicks(data.forcedBattleInstallationPicks);
 		if (data.battleInstallationPicksBattleDay != null && !data.battleInstallationPicksBattleDay.isBlank()) {
 			war.setBattleInstallationPicksBattleDay(LocalDate.parse(data.battleInstallationPicksBattleDay));
 		}

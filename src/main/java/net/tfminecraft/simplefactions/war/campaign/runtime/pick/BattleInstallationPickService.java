@@ -80,6 +80,9 @@ public final class BattleInstallationPickService {
 			if (isDefenderZocPort(war, faction, installationId)) {
 				return InstallationPickToggleResult.REJECTED_ZOC_PORT;
 			}
+			if (isForced(war, factionId, installationId)) {
+				return InstallationPickToggleResult.REJECTED_FORCED;
+			}
 			factionPicks.remove(installationId);
 			if (factionPicks.isEmpty()) {
 				picks.remove(factionId);
@@ -97,6 +100,30 @@ public final class BattleInstallationPickService {
 		}
 		factionPicks.add(installationId);
 		return InstallationPickToggleResult.ADDED;
+	}
+
+	/**
+	 * Staff commit an installation to the coming battle whatever the pick rules say. It stays
+	 * committed until the picks reset for a new battle day, the war's end or a postponement.
+	 */
+	public static void forceAdd(War war, Faction faction, String installationId) {
+		syncBattleDay(war);
+		ensureDefenderZocPort(war);
+		war.getBattleInstallationPicks()
+				.computeIfAbsent(faction.getId(), ignored -> new LinkedHashSet<>())
+				.add(installationId);
+		war.getForcedBattleInstallationPicks().add(forcedKey(faction.getId(), installationId));
+		if (war.getBattleInstallationPicksBattleDay() == null) {
+			war.setBattleInstallationPicksBattleDay(war.getBattleDay());
+		}
+	}
+
+	public static boolean isForced(War war, String factionId, String installationId) {
+		return war.getForcedBattleInstallationPicks().contains(forcedKey(factionId, installationId));
+	}
+
+	private static String forcedKey(String factionId, String installationId) {
+		return factionId + "|" + installationId;
 	}
 
 	public static Set<String> getPicks(War war, String factionId) {
@@ -165,6 +192,7 @@ public final class BattleInstallationPickService {
 			return;
 		}
 		war.getBattleInstallationPicks().clear();
+		war.getForcedBattleInstallationPicks().clear();
 		war.setBattleInstallationPicksBattleDay(null);
 		ensureDefenderZocPort(war);
 	}
@@ -251,6 +279,7 @@ public final class BattleInstallationPickService {
 			}
 			Faction faction = FactionManager.getByString(factionId);
 			if (faction == null) {
+				factionPicks.forEach(installationId -> war.getForcedBattleInstallationPicks().remove(forcedKey(factionId, installationId)));
 				factionPicks.clear();
 				continue;
 			}
@@ -260,7 +289,13 @@ public final class BattleInstallationPickService {
 					return false;
 				}
 				Installation installation = handler.getById(installationId);
-				return installation == null || !BattleInstallationPickEligibility.isPickable(war, faction, installation);
+				if (installation != null && isForced(war, factionId, installationId)) {
+					return false;
+				}
+				boolean drop = installation == null || !BattleInstallationPickEligibility.isPickable(war, faction, installation);
+				// A forced pick whose installation is gone stops being forced with it.
+				if (drop) war.getForcedBattleInstallationPicks().remove(forcedKey(factionId, installationId));
+				return drop;
 			});
 		}
 		war.getBattleInstallationPicks().entrySet().removeIf(
@@ -286,6 +321,7 @@ public final class BattleInstallationPickService {
 			REJECTED_NOT_LEADER,
 			REJECTED_LOCKED,
 			REJECTED_ZOC_PORT,
+			REJECTED_FORCED,
 			REJECTED_INVALID_INSTALLATION
 		}
 	}

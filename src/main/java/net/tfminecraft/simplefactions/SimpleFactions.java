@@ -269,6 +269,9 @@ public class SimpleFactions extends JavaPlugin{
 			new VehicleReclaimFeeListener(vehicleFeeStore, this::saveVehicleFees);
 	private boolean registrationFeeRegistered;
 	private boolean incompatibleCharacterApi;
+	/** The battle stats listener, which the VehicleFramework bridge feeds once VehicleFramework is up. */
+	private net.tfminecraft.simplefactions.war.stats.BattleStatsListener battleStats;
+
 	/** Once-guard for {@link #startVehicles()}, which both start() and VehicleFramework's enable can trigger. */
 	private boolean vehiclesStarted;
 	private static final long VEHICLE_RECONCILE_TICKS = 24L * 60L * 60L * 20L;
@@ -520,6 +523,7 @@ public class SimpleFactions extends JavaPlugin{
         factionManager.prepare();
         WarManager.start();
         net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.loadAll();
+        net.tfminecraft.simplefactions.war.stats.BattleStatsArchive.loadAsync();
         net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock.bindLoadedMembers();
         try {
             for (var guild : FactionManager.getAllGuilds()) {
@@ -712,6 +716,10 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(battleLootService, this);
 		getServer().getPluginManager().registerEvents(
 				new net.tfminecraft.simplefactions.war.battle.ui.BattleStaffNotices(), this);
+		battleStats = new net.tfminecraft.simplefactions.war.stats.BattleStatsListener();
+		getServer().getPluginManager().registerEvents(battleStats, this);
+		getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.war.stats.BattleStatsMenu(), this);
+		if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.war.stats.MythicBattleStats(battleStats), this);
 		getServer().getPluginManager().registerEvents(installationProtectionListener, this);
 		getServer().getPluginManager().registerEvents(mercenaryStatListener, this);
 		getServer().getPluginManager().registerEvents(attendanceHook, this);
@@ -995,6 +1003,8 @@ public class SimpleFactions extends JavaPlugin{
 			return;
 		}
 		vehiclesStarted = true;
+		// Here, not with the other listeners: VehicleFramework may enable after SimpleFactions.
+		if (battleStats != null) getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.war.stats.VehicleBattleStats(battleStats), this);
 		VehicleOwnerApi api = vehicleApiProbe.get();
 		VehicleOwnerWrites.use(api);
 		boolean full = VehicleOwnerWrites.ready();
@@ -1126,6 +1136,8 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(vehicleMaintenancePayListener, this);
 		getServer().getPluginManager().registerEvents(vehicleMaintenanceRepairListener, this);
 		getServer().getPluginManager().registerEvents(battleVehicleEligibilityListener, this);
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.Listener(), this);
 		getServer().getPluginManager().registerEvents(vehicleHandoverListener, this);
 		getServer().getPluginManager().registerEvents(vehicleReclaimFeeListener, this);
 		if (full) {

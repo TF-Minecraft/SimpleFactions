@@ -8,6 +8,7 @@ import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.
 import net.tfminecraft.simplefactions.vehicles.berth.VehicleTransferSessionManager.VehicleTransferSession;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult;
+import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import java.util.UUID;
@@ -22,6 +23,7 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.installation.InstallationBounds;
+import net.tfminecraft.simplefactions.installation.InstallationOwners;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 import net.tfminecraft.vehicleframework.vehicles.ActiveVehicle;
 
@@ -30,6 +32,7 @@ public final class VehicleTransferListener implements Listener {
     private final InstallationVehicleService installationVehicleService;
     private final VehicleTransferConsentService consentService;
     private final FactionVehiclePoolService poolService;
+    private final PlayerVehicleRegistry registry;
 
     public VehicleTransferListener(
             VehicleTransferSessionManager sessionManager,
@@ -41,6 +44,7 @@ public final class VehicleTransferListener implements Listener {
         this.installationVehicleService = installationVehicleService;
         this.consentService = consentService;
         this.poolService = poolService;
+        this.registry = registry;
     }
 
     @EventHandler
@@ -78,6 +82,13 @@ public final class VehicleTransferListener implements Listener {
 
         ActiveVehicle vehicle = event.getVehicle();
         if (vehicle == null || vehicle.getUUID() == null) {
+            return;
+        }
+
+        if (isBerthedAt(installation, vehicle)) {
+            // Nothing to transfer: end the click mode and let this click mount the vehicle.
+            sessionManager.clear(leader.getUniqueId());
+            leader.sendMessage(VehicleTransferMessages.alreadyBerthedHere(installation));
             return;
         }
 
@@ -228,6 +239,15 @@ public final class VehicleTransferListener implements Listener {
             sessionManager.clear(leader.getUniqueId());
         }
         event.setCancelled(true);
+    }
+
+    private boolean isBerthedAt(Installation installation, ActiveVehicle vehicle) {
+        return registry.getByVehicleUuid(vehicle.getUUID())
+                .filter(record -> record.getMode() == OwnershipMode.INSTALLATION
+                        && installation.getId().equals(record.getInstallationId())
+                        && java.util.Objects.equals(
+                                InstallationOwners.ownerIdOf(installation), record.getFactionId()))
+                .isPresent();
     }
 
     /** The character owning the vehicle when it is not the leader's current one, else null. */

@@ -64,7 +64,9 @@ class VehicleTransferMessagesTest {
     @Test
     void commandArmed_includesInstallationName() {
         String message = VehicleTransferMessages.commandArmed(port);
-        assertEquals("§aRight-click the vehicle to transfer it to Harbour.", message);
+        assertEquals(
+                "§aRight-click the vehicle to transfer it to Harbour. §7(/faction vehicle disable to stop)",
+                message);
         assertFalse(message.contains("—"));
     }
 

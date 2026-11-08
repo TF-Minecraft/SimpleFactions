@@ -61,7 +61,8 @@ public final class VehicleMaintenanceMessages {
     public static String vehicleUsage() {
         return "§cUsage: §e/faction vehicle transfer <installation id|pool>§7, §e/faction vehicle take§7, "
                 + "§e/faction vehicle give <player>§7, §e/faction vehicle handover <player>§7, "
-                + "or §e/faction vehicle maintenance pay bank";
+                + "§e/faction vehicle maintenance pay bank§7, "
+                + "or §e/faction vehicle disable §7(stops right-click mode)";
     }
 
     public static String transferUsage() {

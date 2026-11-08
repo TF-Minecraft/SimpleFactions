@@ -52,6 +52,12 @@
         </dependency>
         <dependency>
             <groupId>local</groupId>
+            <artifactId>MythicMobs</artifactId>
+            <version>5.13.1-SNAPSHOT-88530541-tfmc-6df72b5b331d</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>local</groupId>
             <artifactId>MMOCore</artifactId>
             <version>1.13.1-SNAPSHOT-tfmc-81d511d08309</version>
             <scope>provided</scope>

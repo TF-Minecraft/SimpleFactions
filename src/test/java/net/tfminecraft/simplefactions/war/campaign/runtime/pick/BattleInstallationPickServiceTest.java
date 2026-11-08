@@ -262,6 +262,55 @@ class BattleInstallationPickServiceTest {
 	}
 
 	@Test
+	void forceAdd_keepsAStaffCommittedFortUntilThePicksReset() {
+		try (MockedStatic<TitleManager> titleManager = mockStatic(TitleManager.class)) {
+			stubProvinceOwnership(titleManager);
+			War war = votingWar();
+			mockInstallation(attacker, "fort-1", InstallationKind.FORT, ATTACKER_PROVINCE);
+			mockInstallation(attacker, "fort-2", InstallationKind.FORT, ATTACKER_PROVINCE);
+			mockInstallation(defender, "fort-1", InstallationKind.FORT, DEFENDER_PROVINCE);
+			war.getBattleInstallationPicks().put("def", new LinkedHashSet<>(Set.of("fort-1")));
+
+			BattleInstallationPickService.forceAdd(war, attacker, "fort-1");
+			war.getBattleInstallationPicks().get("atk").add("fort-2");
+			// The leader cannot quietly take back what staff committed.
+			assertEquals(InstallationPickToggleResult.REJECTED_FORCED,
+					BattleInstallationPickService.togglePick(war, attacker, "leader", "fort-1", BattleWindowService.atScheduleHour(BATTLE_DAY, 15)));
+
+			assertEquals(BATTLE_DAY, war.getBattleInstallationPicksBattleDay());
+			assertTrue(BattleInstallationPickService.isForced(war, "atk", "fort-1"));
+			// Forced for one faction only: the defender's fort with the same id is still pruned.
+			assertEquals(Set.of("fort-1"), BattleInstallationPickService.getPicks(war, "atk"));
+			assertTrue(BattleInstallationPickService.getPicks(war, "def").isEmpty());
+			assertTrue(BattleInstallationInPlayService.isInPlay(war, "atk", "fort-1"));
+
+			BattleInstallationPickService.clearForNewBattleDay(war);
+			assertFalse(BattleInstallationPickService.isForced(war, "atk", "fort-1"));
+			assertTrue(BattleInstallationPickService.getPicks(war, "atk").isEmpty());
+		}
+	}
+
+	@Test
+	void forceAdd_keepsAnExistingPicksDayAndDropsAForcedPickWhoseInstallationIsGone() {
+		try (MockedStatic<TitleManager> titleManager = mockStatic(TitleManager.class)) {
+			stubProvinceOwnership(titleManager);
+			War war = votingWar();
+			mockInstallation(attacker, "fort-1", InstallationKind.FORT, ATTACKER_PROVINCE);
+			war.setBattleInstallationPicksBattleDay(BATTLE_DAY);
+			BattleInstallationPickService.forceAdd(war, attacker, "fort-1");
+			BattleInstallationPickService.forceAdd(war, attacker, "gone");
+			assertEquals(BATTLE_DAY, war.getBattleInstallationPicksBattleDay());
+			assertEquals(Set.of("fort-1"), BattleInstallationPickService.getPicks(war, "atk"));
+			assertFalse(BattleInstallationPickService.isForced(war, "atk", "gone"));
+			// A deleted faction's picks and their forced marks go together.
+			war.getBattleInstallationPicks().put("ghost", new LinkedHashSet<>(Set.of("fort-9")));
+			war.getForcedBattleInstallationPicks().add("ghost|fort-9");
+			BattleInstallationPickService.getPicks(war, "atk");
+			assertFalse(BattleInstallationPickService.isForced(war, "ghost", "fort-9"));
+		}
+	}
+
+	@Test
 	void isLocked_trueAtVoteCloseHour() {
 		War war = votingWar();
 		assertFalse(BattleInstallationPickService.isLocked(

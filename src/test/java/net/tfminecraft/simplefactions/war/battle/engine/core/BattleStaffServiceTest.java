@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.battle.engine.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -105,8 +106,10 @@ class BattleStaffServiceTest {
 		CampaignWarbandLeaveBlock.block("b1", "w", UUID.randomUUID());
 		BattleRespawnRouting.scheduleJailRespawn(soldier.getUniqueId(), true);
 		battle.setStartedAt(Instant.EPOCH);
+		battle.stats().fighters.put("ghost", new net.tfminecraft.simplefactions.war.stats.FighterStats());
 
 		BattleStaffService.Result result = BattleStaffService.restart(battle, "Staff");
+		assertTrue(battle.getStats().fighters.isEmpty());
 
 		assertTrue(result.ok());
 		assertEquals("§aRestarted b1. Lives: attacker 10, defender 8.", result.message());
@@ -121,6 +124,28 @@ class BattleStaffServiceTest {
 		persistence.verify(() -> BattlePersistenceService.persistBattle(battle));
 		notices.verify(() -> BattleStaffNotices.toStaff("§6[Battle] §eStaff §6restarted b1. Lives: attacker 10, defender 8.",
 				"Staff"));
+	}
+
+	@Test
+	void theVehicleSwitchIsForCampaignBattlesAndTellsTheOtherStaff() {
+		BattleStaffService.Result refused = BattleStaffService.setAllVehiclesUsable(battle, true, "Staff");
+		assertFalse(refused.ok());
+		assertEquals("Only campaign battles limit vehicles, so there is nothing to switch.", refused.message());
+		assertFalse(BattleStaffService.setAllVehiclesUsable(null, true, "Staff").ok());
+		assertFalse(battle.isAllVehiclesUsable());
+
+		battle.setWarId(4);
+		BattleStaffService.Result on = BattleStaffService.setAllVehiclesUsable(battle, true, "Staff");
+		assertTrue(on.ok());
+		assertEquals("§aLet either side use every vehicle in b1, ignoring installation commitments.", on.message());
+		assertTrue(battle.isAllVehiclesUsable());
+		notices.verify(() -> BattleStaffNotices.toStaff(
+				"§6[Battle] §eStaff §6let either side use every vehicle in b1, ignoring installation commitments.", "Staff"));
+
+		BattleStaffService.Result off = BattleStaffService.setAllVehiclesUsable(battle, false, "Staff");
+		assertEquals("§aRestored the normal vehicle rules in b1.", off.message());
+		assertFalse(battle.isAllVehiclesUsable());
+		persistence.verify(() -> BattlePersistenceService.persistBattle(battle), org.mockito.Mockito.times(2));
 	}
 
 	@Test
@@ -164,7 +189,9 @@ class BattleStaffServiceTest {
 		attacker.tickLife();
 		battle.setWarId(4);
 
+		battle.stats();
 		BattleStaffService.Result result = BattleStaffService.abort(battle, "Staff");
+		assertNull(battle.getStats());
 
 		assertTrue(result.ok());
 		assertTrue(result.message().endsWith("(/war admin schedule 4 battlestart) or set a new battle day (setday)."));

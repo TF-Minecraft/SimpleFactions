@@ -272,6 +272,61 @@ class WarCommandsCoverageTest {
   }
 
   @Test
+  void forceInstallationCommitsAWarFactionsInstallationPastThePickRules() {
+    War war = war(41);
+    net.tfminecraft.simplefactions.installation.Installation fort =
+        new net.tfminecraft.simplefactions.installation.Installation(
+            "fort-1", "Iron Fort", net.tfminecraft.simplefactions.installation.InstallationKind.FORT, 10, 0, 0, 0L);
+    attacker.getInstallationHandler().acceptTransferred(fort);
+    Faction neutral = fixture.saved("plain", "Carl");
+    Battle battle = new Battle("campaign_w41");
+    battle.setWarId(41);
+    BattleManager.addBattle(battle);
+    BattleManager.addBattle(new Battle("manual"));
+    Battle raid = new Battle("raid_w41");
+    raid.setWarId(41);
+    raid.setCampaignRaid(true);
+    raid.setDisplayName("Harbour Raid");
+    BattleManager.addBattle(raid);
+    assertTrue(run("admin", "forceinstallation", "raid_w41", "iron", "fort-1"));
+    verify(alice).sendMessage("§cHarbour Raid is a raid; only its source and target installations take part.");
+
+    assertTrue(run("admin", "forceinstallation", "campaign_w41"));
+    verify(alice).sendMessage("§cUsage: /war admin forceinstallation <battle> <faction> <installation>");
+    assertTrue(run("admin", "forceinstallation", "nope", "iron", "fort-1"));
+    verify(alice).sendMessage("§cThere is no battle with the id nope");
+    assertTrue(run("admin", "forceinstallation", "manual", "iron", "fort-1"));
+    verify(alice).sendMessage("§cmanual is not a battle of an active war.");
+    assertTrue(run("admin", "forceinstallation", "campaign_w41", "ghost", "fort-1"));
+    verify(alice).sendMessage("§cUnknown faction: ghost");
+    assertTrue(run("admin", "forceinstallation", "campaign_w41", "plain", "fort-1"));
+    verify(alice).sendMessage("§c" + neutral.getName() + " is not on a side of war #41.");
+    assertTrue(run("admin", "forceinstallation", "campaign_w41", "iron", "nope"));
+    verify(alice).sendMessage("§c" + attacker.getName() + " has no installation with the id nope.");
+
+    assertTrue(runRaw("admin", "forceinstallation", "campaign_w41", "iron", "fort-1"));
+    verify(alice).sendMessage("§6This cannot be undone: §ecommits Iron Fort to this battle: vehicles berthed there"
+        + " can be used, it can't berth or unberth, and it's open to attack until the battle day ends.");
+    assertTrue(war.getForcedBattleInstallationPicks().isEmpty());
+    assertTrue(runRaw("admin", "forceinstallation", "campaign_w41", "iron", "fort-1", "confirm"));
+    verify(alice).sendMessage("§aCommitted §eIron Fort §a(" + attacker.getName() + ") to campaign_w41 until the battle day ends.");
+    assertEquals(java.util.Set.of("fort-1"),
+        net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService.getPicks(war, "iron"));
+    assertTrue(writes(war) > 0);
+
+    assertTrue(complete("admin", "force").contains("forceinstallation"));
+    assertEquals(List.of("campaign_w41"), complete("admin", "forceinstallation", ""));
+    assertEquals(List.of("iron", "river"), complete("admin", "forceinstallation", "campaign_w41", ""));
+    assertEquals(List.of("fort-1"), complete("admin", "forceinstallation", "campaign_w41", "iron", ""));
+    assertEquals(List.of(), complete("admin", "forceinstallation", "campaign_w41", "plain", ""));
+    assertEquals(List.of(), complete("admin", "forceinstallation", "campaign_w41", "ghost", ""));
+    assertEquals(List.of(), complete("admin", "forceinstallation", "campaign_w41", "iron", "fort-1", ""));
+    assertEquals(List.of(), complete("admin", "forceinstallation", "manual", ""));
+    assertEquals(List.of(), complete("admin", "forceinstallation", "nope", ""));
+    assertEquals(List.of(), complete("admin", "forceinstallation", "raid_w41", ""));
+  }
+
+  @Test
   void uppercaseAdminCommandsRemainUsableInTurkishLocale() {
     Locale previous = Locale.getDefault();
     try {
@@ -837,7 +892,8 @@ class WarCommandsCoverageTest {
                 "raid",
                 "reparations",
                 "truce",
-                "factions")),
+                "factions",
+                "forceinstallation")),
         Arguments.of("admin truce ", List.of("list", "clear", "cooldowns", "clearcooldown")),
         Arguments.of("admin truce clearc", List.of("clearcooldown")),
         Arguments.of("admin truce clearcooldown r", List.of("river")),

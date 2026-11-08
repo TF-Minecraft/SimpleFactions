@@ -98,6 +98,8 @@ public class War {
 	private Map<UUID, Set<Integer>> battleVotes = new HashMap<>();
 	private Map<String, LinkedHashSet<String>> battleInstallationPicks = new LinkedHashMap<>();
 	private LocalDate battleInstallationPicksBattleDay;
+	// Picks staff forced past the pick rules, as "factionId|installationId"; cleared with the picks.
+	private Set<String> forcedBattleInstallationPicks = new LinkedHashSet<>();
 	private Map<String, String> campaignRaidsUsed = new LinkedHashMap<>();
 	private CampaignRaid activeCampaignRaid;
 	private Map<String, Instant> raidRepairLockUntil = new LinkedHashMap<>();
@@ -734,6 +736,14 @@ public class War {
 			copy.put(entry.getKey(), new LinkedHashSet<>(entry.getValue()));
 		}
 		this.battleInstallationPicks = copy;
+	}
+
+	public Set<String> getForcedBattleInstallationPicks() {
+		return forcedBattleInstallationPicks;
+	}
+
+	public void setForcedBattleInstallationPicks(Collection<String> forced) {
+		this.forcedBattleInstallationPicks = forced == null ? new LinkedHashSet<>() : new LinkedHashSet<>(forced);
 	}
 
 	public LocalDate getBattleInstallationPicksBattleDay() {

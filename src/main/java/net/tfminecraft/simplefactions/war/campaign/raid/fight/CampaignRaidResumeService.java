@@ -74,6 +74,7 @@ public final class CampaignRaidResumeService {
 			Battle saved = BattleManager.getByString(savedId);
 			if (saved != null && CampaignRaidBattleService.isCampaignRaidBattle(war, saved)
 					&& CampaignRaidBattleService.matchesRaidBattle(raid, saved.getId())) {
+				net.tfminecraft.simplefactions.war.stats.BattleStatsListener.archiveUnfinished(saved, "RAID_CLEARED");
 				saved.end();
 				net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.deleteRaidBattle(saved);
 			}

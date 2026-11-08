@@ -147,9 +147,40 @@ public class Battle {
 	public void captureParticipant(Player player) {
 		net.tfminecraft.simplefactions.identity.Members.session(player)
 				.map(net.tfminecraft.tlibs.character.CharacterSession::ref).ifPresent(participants::add);
+		// Fighters who join mid-battle count even if they leave before doing anything.
+		BattleSide side = stats == null ? null : getSideByPlayer(player);
+		if (side != null) stats.fighter(player, side);
 	}
 
 	private final Map<String, Integer> recordedSideCasualties = new LinkedHashMap<>();
+	// Staff overrides for campaign vehicle use: vehicle UUID -> the side allowed to use it.
+	private final Map<String, String> forcedVehicles = new LinkedHashMap<>();
+	// Emergency switch: every vehicle can be used by either side.
+	private boolean allVehiclesUsable;
+	private net.tfminecraft.simplefactions.war.stats.BattleStats stats;
+
+	/** This battle's live stats, created when missing (a battle saved before stats existed). */
+	public net.tfminecraft.simplefactions.war.stats.BattleStats stats() {
+		if (stats == null) {
+			stats = new net.tfminecraft.simplefactions.war.stats.BattleStats();
+		}
+		return stats;
+	}
+
+	public net.tfminecraft.simplefactions.war.stats.BattleStats getStats() {
+		return stats;
+	}
+
+	public void setStats(net.tfminecraft.simplefactions.war.stats.BattleStats stats) {
+		this.stats = stats;
+	}
+
+	/** Hands the stats over once, for archiving, and leaves none behind. */
+	public net.tfminecraft.simplefactions.war.stats.BattleStats takeStats() {
+		net.tfminecraft.simplefactions.war.stats.BattleStats taken = stats;
+		stats = null;
+		return taken;
+	}
 	public List<CapturePoint> getPoints() {
 		return points;
 	}
@@ -341,6 +372,45 @@ public class Battle {
 	public void clearRecordedSideCasualties() {
 		recordedSideCasualties.clear();
 	}
+
+	/** The side staff assigned this vehicle to for this battle, or null. */
+	public String getForcedVehicleSide(String vehicleUuid) {
+		return vehicleUuid == null ? null : forcedVehicles.get(vehicleUuid);
+	}
+
+	public Map<String, String> getForcedVehicles() {
+		return Map.copyOf(forcedVehicles);
+	}
+
+	/** Assigns the vehicle to a side, or removes the assignment when sideId is null. */
+	public void setForcedVehicleSide(String vehicleUuid, String sideId) {
+		if (vehicleUuid == null) {
+			return;
+		}
+		if (sideId == null) {
+			forcedVehicles.remove(vehicleUuid);
+			return;
+		}
+		forcedVehicles.put(vehicleUuid, sideId);
+	}
+
+	public void restoreForcedVehicles(Map<String, String> vehicles) {
+		forcedVehicles.clear();
+		if (vehicles == null) {
+			return;
+		}
+		for (Map.Entry<String, String> entry : vehicles.entrySet()) {
+			setForcedVehicleSide(entry.getKey(), entry.getValue());
+		}
+	}
+
+	public boolean isAllVehiclesUsable() {
+		return allVehiclesUsable;
+	}
+
+	public void setAllVehiclesUsable(boolean allVehiclesUsable) {
+		this.allVehiclesUsable = allVehiclesUsable;
+	}
 	
 	public void setFriendlyFire(boolean b) {
 		this.friendlyFire = b;
@@ -367,6 +437,7 @@ public class Battle {
 		firstBattleOfWar = war != null && !war.hasFirstBattleStarted();
 		this.started = true;
 		this.startedAt = Instant.now();
+		this.stats = new net.tfminecraft.simplefactions.war.stats.BattleStats();
 		participants.clear();
 		getAllParticipants().forEach(this::captureParticipant);
 		fireStartedEvent();
@@ -652,6 +723,7 @@ public class Battle {
 		keepInventory = true;
 		lootEnabled = true;
 		manaRefillOnRespawn = false;
+		allVehiclesUsable = false;
 		teleport = false;
 		locked = true;
 		lt = LifeType.COLLECTIVE;

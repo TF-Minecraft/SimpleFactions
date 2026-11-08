@@ -50,7 +50,11 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[1], "reparations");
 			addIfPrefix(completions, args[1], "truce");
 			addIfPrefix(completions, args[1], "factions");
+			addIfPrefix(completions, args[1], "forceinstallation");
 			return completions;
+		}
+		if (args[1].equalsIgnoreCase("forceinstallation")) {
+			return forceInstallationCompletions(args);
 		}
 		if (args.length == 3 && args[1].equalsIgnoreCase("reparations")) {
 			return factionIds(args[2]);
@@ -255,6 +259,40 @@ public class WarTabCompletion implements TabCompleter {
 			String id = String.valueOf(war.getId());
 			if (id.startsWith(lower)) {
 				completions.add(id);
+			}
+		}
+		return completions;
+	}
+
+	/** Campaign battle ids, then the factions of that battle's war, then that faction's installations. */
+	private static List<String> forceInstallationCompletions(String[] args) {
+		List<String> completions = new ArrayList<>();
+		if (args.length == 3) {
+			for (var battle : net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get()) {
+				if (battle.getWarId() != null && !battle.isCampaignRaid()) {
+					addIfPrefix(completions, args[2], battle.getId());
+				}
+			}
+			return completions;
+		}
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByString(args[2]);
+		War war = battle == null || battle.getWarId() == null || battle.isCampaignRaid() ? null : WarManager.getById(battle.getWarId());
+		if (war == null) {
+			return completions;
+		}
+		if (args.length == 4) {
+			for (Side side : List.of(war.getAttackers(), war.getDefenders())) {
+				for (Faction faction : net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers
+						.collectParticipatingFactions(side)) {
+					addIfPrefix(completions, args[3], faction.getId());
+				}
+			}
+			return completions;
+		}
+		Faction faction = FactionManager.getByString(args[3]);
+		if (args.length == 5 && faction != null && war.getSide(faction) != null) {
+			for (var installation : faction.getInstallationHandler().getAll()) {
+				addIfPrefix(completions, args[4], installation.getId());
 			}
 		}
 		return completions;

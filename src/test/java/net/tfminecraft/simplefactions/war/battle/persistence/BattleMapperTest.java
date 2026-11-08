@@ -119,6 +119,45 @@ class BattleMapperTest {
 	}
 
 	@Test
+	void roundTrip_preservesStaffVehicleOverrides() {
+		BossBar bossBar = mock(BossBar.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
+					.thenReturn(bossBar);
+
+			Battle battle = BattleFactory.createBlank(BattleType.FIELD, "vehicle_field");
+			assertFalse(battle.isAllVehiclesUsable());
+			assertTrue(battle.getForcedVehicles().isEmpty());
+			battle.setAllVehiclesUsable(true);
+			battle.setForcedVehicleSide("veh-1", "attacker");
+			battle.setForcedVehicleSide("veh-2", "defender");
+			battle.setForcedVehicleSide("veh-2", null);
+			battle.setForcedVehicleSide(null, "attacker");
+
+			BattleData data = BattleMapper.toData(battle);
+			assertTrue(data.allVehiclesUsable);
+			assertEquals(java.util.Map.of("veh-1", "attacker"), data.forcedVehicles);
+
+			Battle restored = BattleMapper.fromData(data);
+			assertTrue(restored.isAllVehiclesUsable());
+			assertEquals("attacker", restored.getForcedVehicleSide("veh-1"));
+			assertNull(restored.getForcedVehicleSide("veh-2"));
+			assertNull(restored.getForcedVehicleSide(null));
+
+			// Older files carry neither key.
+			data.forcedVehicles = null;
+			data.allVehiclesUsable = false;
+			Battle legacy = BattleMapper.fromData(data);
+			assertFalse(legacy.isAllVehiclesUsable());
+			assertTrue(legacy.getForcedVehicles().isEmpty());
+			java.util.Map<String, String> withNull = new java.util.HashMap<>();
+			withNull.put("veh-3", null);
+			legacy.restoreForcedVehicles(withNull);
+			assertTrue(legacy.getForcedVehicles().isEmpty());
+		}
+	}
+
+	@Test
 	void fromData_defaultsLootOnWhenKeyIsAbsent() {
 		BossBar bossBar = mock(BossBar.class);
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
