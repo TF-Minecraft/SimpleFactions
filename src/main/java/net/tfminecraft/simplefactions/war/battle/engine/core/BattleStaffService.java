@@ -202,8 +202,9 @@ public final class BattleStaffService {
 			side.resetLivesToStart();
 		}
 		BattleCasualtyLedger.clear(battle);
-		// A restarted fight keeps no stats from before.
+		// A restarted fight keeps no stats from before, but everyone in it is still a fighter.
 		battle.setStats(new net.tfminecraft.simplefactions.war.stats.BattleStats());
+		battle.getAllParticipants().forEach(battle::captureParticipant);
 		SiegeContestService.clearBattleState(battle);
 		FieldWinService.clearEmptySideTracking(battle);
 		battle.restorePointStarts();

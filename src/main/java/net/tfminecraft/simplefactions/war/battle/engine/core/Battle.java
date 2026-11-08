@@ -147,6 +147,9 @@ public class Battle {
 	public void captureParticipant(Player player) {
 		net.tfminecraft.simplefactions.identity.Members.session(player)
 				.map(net.tfminecraft.tlibs.character.CharacterSession::ref).ifPresent(participants::add);
+		// Fighters who join mid-battle count even if they leave before doing anything.
+		BattleSide side = stats == null ? null : getSideByPlayer(player);
+		if (side != null) stats.fighter(player, side);
 	}
 
 	private final Map<String, Integer> recordedSideCasualties = new LinkedHashMap<>();

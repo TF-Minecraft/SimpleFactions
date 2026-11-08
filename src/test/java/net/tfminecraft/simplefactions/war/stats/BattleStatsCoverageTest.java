@@ -291,7 +291,8 @@ class BattleStatsCoverageTest {
 		assertEquals(3, a.friendlyDamage, 1e-9);
 		assertEquals(26, live("Bob").damageTaken, 1e-9);
 		assertEquals(3, live("Bob").blockedHits);
-		assertNull(live("Carol"));
+		assertEquals(0, live("Carol").blockedHits);
+		assertEquals(0, live("Carol").damageTaken, 1e-9);
 		assertEquals("attacker", a.side);
 	}
 
@@ -319,7 +320,7 @@ class BattleStatsCoverageTest {
 		assertEquals(12, live("Alice").damage, 1e-9);
 		// Fire or a fall with nobody hitting recently goes to nobody.
 		sourceless(carol, 5);
-		assertNull(live("Carol"));
+		assertEquals(0, live("Carol").damageTaken, 1e-9);
 		// An outsider gunner, a dead source, non-players and battle-less states are ignored.
 		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, outsider, "BULLET", 1));
 		sourceless(bob, 1);
@@ -626,6 +627,11 @@ class BattleStatsCoverageTest {
 		when(nameless.getName()).thenReturn(null);
 		BattleStatsView.command(nameless, new String[] {"stats"});
 		assertTrue(has(said(nameless), "Choose a character"));
+		// A menu left open across a character switch: no character, no battles.
+		BattleStatsMenu.home(nameless, 1);
+		BattleStatsMenu.wars(nameless, 1);
+		BattleStatsMenu.war(nameless, first.warKey);
+		assertEquals(3, said(nameless).stream().filter(line -> line.contains("Choose a character")).count());
 
 		org.bukkit.command.Command battleCommand = mock(org.bukkit.command.Command.class);
 		when(battleCommand.getName()).thenReturn("battle");
@@ -699,8 +705,10 @@ class BattleStatsCoverageTest {
 		BattleStatsView.command(bob, new String[] {"stats", "war", first.warKey});
 		assertTrue(text(bob, 4).contains("§72 battles"), text(bob, 4));
 		assertTrue(text(bob, 13).contains("(#3 of 4)"), text(bob, 13));
+		assertTrue(text(bob, 19).contains("You did not fight here"), text(bob, 19));
+		said(bob);
 		click(bob, 19);
-		assertTrue(has(said(bob), "You did not fight in that battle"));
+		assertTrue(said(bob).isEmpty());
 
 		when(outsider.hasPermission("warbands.admin")).thenReturn(true);
 		BattleStatsView.command(outsider, new String[] {"stats", first.id});

@@ -67,10 +67,21 @@ public final class BattleStatsMenu implements Listener {
 		}
 	}
 
+	/** A player without a character (e.g. a menu left open across a switch) sees nothing. */
+	private static boolean noViewer(Player viewer, String key, boolean staff) {
+		if (key != null || staff) {
+			return false;
+		}
+		viewer.closeInventory();
+		viewer.sendMessage("§cChoose a character to see your battle stats.");
+		return true;
+	}
+
 	/** Your record over all battles and the list of battles (all battles for staff). */
 	static void home(Player viewer, int page) {
 		String key = Members.key(viewer);
 		boolean staff = BattlePermissions.isAdmin(viewer);
+		if (noViewer(viewer, key, staff)) return;
 		List<BattleStatsArchive.Summary> battles = BattleStatsArchive.list(staff ? null : key);
 		Holder holder = new Holder();
 		Inventory inventory = create(holder, staff ? "§8Battle stats (all battles)" : "§8Your battle stats");
@@ -132,6 +143,7 @@ public final class BattleStatsMenu implements Listener {
 	static void wars(Player viewer, int page) {
 		String key = Members.key(viewer);
 		boolean staff = BattlePermissions.isAdmin(viewer);
+		if (noViewer(viewer, key, staff)) return;
 		Map<String, List<BattleStatsArchive.Summary>> wars = new LinkedHashMap<>();
 		for (BattleStatsArchive.Summary summary : BattleStatsArchive.list(staff ? null : key)) {
 			if (summary.warKey() != null) {
@@ -165,6 +177,7 @@ public final class BattleStatsMenu implements Listener {
 	static void war(Player viewer, String warKey) {
 		String key = Members.key(viewer);
 		boolean staff = BattlePermissions.isAdmin(viewer);
+		if (noViewer(viewer, key, staff)) return;
 		boolean fought = false;
 		for (BattleStatsArchive.Summary summary : BattleStatsArchive.list(staff ? null : key)) {
 			fought |= warKey.equalsIgnoreCase(summary.warKey());
@@ -200,7 +213,12 @@ public final class BattleStatsMenu implements Listener {
 		}
 		for (int i = 0; i < Math.min(battles.size(), 27); i++) {
 			BattleStatsArchive.Summary summary = battles.get(i);
-			set(holder, 18 + i, battleItem(summary, key), p -> openBattle(p, summary.id(), 1));
+			if (staff || summary.fighters().containsKey(key)) {
+				set(holder, 18 + i, battleItem(summary, key), p -> openBattle(p, summary.id(), 1));
+			} else {
+				inventory.setItem(18 + i, item(Material.PAPER, "§7" + summary.name(),
+						List.of(summary.winner() == null ? "§7No winner" : "§7Won by §e" + summary.winner(), "§8You did not fight here")));
+			}
 		}
 		set(holder, BACK_SLOT, item(Material.ARROW, "§eBack", List.of()), p -> wars(p, 1));
 		viewer.openInventory(inventory);
@@ -214,12 +232,11 @@ public final class BattleStatsMenu implements Listener {
 
 	private static void openBattle(Player viewer, String id, int backPage) {
 		BattleRecord record = BattleStatsArchive.get(id);
-		if (record == null) {
-			viewer.sendMessage("§cThat battle's stats could not be read.");
-			return;
-		}
-		if (!BattlePermissions.isAdmin(viewer) && record.fighter(Members.key(viewer)) == null) {
-			viewer.sendMessage("§cYou did not fight in that battle, so its report stays closed.");
+		// The menus only offer battles the viewer fought (all for staff); this is the safety net.
+		boolean closed = record != null && !BattlePermissions.isAdmin(viewer) && record.fighter(Members.key(viewer)) == null;
+		if (record == null || closed) {
+			viewer.sendMessage(closed ? "§cYou did not fight in that battle, so its report stays closed."
+					: "§cThat battle's stats could not be read.");
 			return;
 		}
 		battle(viewer, record, backPage);

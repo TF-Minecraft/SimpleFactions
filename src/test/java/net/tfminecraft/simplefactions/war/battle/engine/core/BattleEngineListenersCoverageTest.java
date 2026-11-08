@@ -1032,6 +1032,8 @@ class BattleEngineListenersCoverageTest {
     click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);
     click(BattleLivesEditor.FIRST_SIDE_SLOT);
     int before = siege.getSides().get(0).getLives();
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    assertEquals("§cClick again to apply", itemLore(BattleLivesEditor.CONFIRM_SLOT).getLast());
     siege.setStartedAt(java.time.Instant.EPOCH.plusSeconds(60));
     click(BattleLivesEditor.CONFIRM_SLOT);
     verify(alice).sendMessage("§cThe battle was restarted, so nothing was changed. Stage the lives again.");
