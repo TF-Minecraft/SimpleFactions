@@ -332,10 +332,20 @@ public final class BattleScheduleService {
 	}
 
 	private static void startFreshBattleDay(War war) {
+		releaseStaffHold(war);
 		BattleVoteService.clearVotes(war);
 		war.clearSignupRemindersSent();
 		BattleInstallationPickService.clearForNewBattleDay(war);
 		CampaignRaidService.clearForNewBattleDay(war);
+	}
+
+	/** A hold belongs to one battle day; a new day schedules the battle afresh. */
+	static void releaseStaffHold(War war) {
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(war.getId());
+		if (battle != null && !battle.hasStarted() && battle.isStaffHold()) {
+			battle.setStaffHold(false);
+			net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.persistBattle(battle);
+		}
 	}
 
 	public static Integer resolveBattleProvinceId(War war) {

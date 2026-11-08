@@ -305,6 +305,7 @@ class BattleStaffUiTest {
 
 	@Test
 	void restartAbortAndEndAskFirst() {
+		battle.setStarted(true);
 		battleCommand("restart", "b1");
 		verify(admin).sendMessage("§6This cannot be undone: §e" + BattleStaffCommands.RESTART_RISK);
 		staff.verifyNoInteractions();
@@ -364,6 +365,7 @@ class BattleStaffUiTest {
 				.startsWith("leaves attacker with no lives"));
 		assertTrue(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker", "REMOVE", "10"}) != null);
 
+		battle.setStarted(true);
 		battleCommand("lives", "b1", "attacker", "set", "0");
 		staff.verifyNoInteractions();
 		staff.when(() -> BattleStaffService.adjustLives(battle, "attacker", "set", 0, "Admin"))
@@ -396,6 +398,23 @@ class BattleStaffUiTest {
 			BattleStaffCommands.warband(lead, new String[] {"forcekick", "w1", "Bob"});
 			verify(lead, org.mockito.Mockito.times(2)).sendMessage("kicked");
 		}
+	}
+
+	@Test
+	void noPromptWhenTheToolWouldOnlyRefuse() {
+		staff.when(() -> BattleStaffService.restart(battle, "Admin")).thenReturn(new BattleStaffService.Result(false, "R"));
+		staff.when(() -> BattleStaffService.abort(battle, "Admin")).thenReturn(new BattleStaffService.Result(false, "A"));
+		staff.when(() -> BattleStaffService.end(battle, null, "Admin")).thenReturn(new BattleStaffService.Result(true, "§aE"));
+		battleCommand("restart", "b1");
+		verify(admin).sendMessage("R");
+		battle.setStarted(true);
+		battle.setBattleType(BattleType.RAID);
+		battleCommand("abort", "b1");
+		verify(admin).sendMessage("A");
+		battleCommand("end", "b1");
+		staff.verify(() -> BattleStaffService.end(battle, null, "Admin"), org.mockito.Mockito.never());
+		battleCommand("lives", "b1", "attacker", "set", "0");
+		staff.verify(() -> BattleStaffService.adjustLives(battle, "attacker", "set", 0, "Admin"), org.mockito.Mockito.never());
 	}
 
 	@Test

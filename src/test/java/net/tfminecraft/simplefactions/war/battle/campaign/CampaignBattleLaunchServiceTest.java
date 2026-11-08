@@ -331,6 +331,36 @@ class CampaignBattleLaunchServiceTest {
 	}
 
 	@Test
+	void startRecordsTheStartStateAndWhetherItIsTheWarsFirstBattle() {
+		War war = scheduledWar();
+		SimpleFactions plugin = mock(SimpleFactions.class);
+		when(plugin.getLogger()).thenReturn(java.util.logging.Logger.getLogger("test"));
+
+		withMockBossBar(() -> {
+			SimpleFactions.plugin = plugin;
+			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
+				wars.when(() -> WarManager.getById(war.getId())).thenReturn(war);
+				CampaignBattleLaunchService.prepareScheduledBattle(war);
+				Battle battle = BattleManager.getByWarId(war.getId());
+				placeSpawnsAndJails(battle);
+				battle.setStaffHold(true);
+				assertFalse(war.hasFirstBattleStarted());
+
+				assertNull(CampaignBattleLaunchService.startPreparedBattle(war, battle));
+
+				assertTrue(battle.isFirstBattleOfWar());
+				assertFalse(battle.isStaffHold());
+				for (var side : battle.getSides()) {
+					assertEquals(Integer.valueOf(side.getLives()), side.getStartLives());
+				}
+				battle.end();
+				assertNull(CampaignBattleLaunchService.startPreparedBattle(war, battle));
+				assertFalse(battle.isFirstBattleOfWar());
+			}
+		});
+	}
+
+	@Test
 	void tryStartScheduledBattle_leavesARunningOrHeldBattleAlone() {
 		War war = scheduledWar();
 		Instant startAt = war.getScheduledBattleAt();
@@ -343,6 +373,7 @@ class CampaignBattleLaunchServiceTest {
 			Battle battle = BattleManager.getByWarId(war.getId());
 			placeSpawnsAndJails(battle);
 			battle.setStaffHold(true);
+			assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
 			assertFalse(CampaignBattleLaunchService.tryStartScheduledBattle(war, startAt));
 			assertFalse(battle.hasStarted());
 			battle.setStaffHold(false);

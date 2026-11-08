@@ -40,6 +40,7 @@ public final class CampaignBattleLaunchService {
 			.withZone(BattleWindowService.SCHEDULE_ZONE);
 	private static final Map<String, String> belligerentStartFailure = new ConcurrentHashMap<>();
 	private static final Map<String, String> adminStartFailure = new ConcurrentHashMap<>();
+	private static final java.util.Set<String> heldDueAlerts = ConcurrentHashMap.newKeySet();
 
 	private CampaignBattleLaunchService() {
 	}
@@ -47,6 +48,7 @@ public final class CampaignBattleLaunchService {
 	static void resetStartFailureAlertsForTests() {
 		belligerentStartFailure.clear();
 		adminStartFailure.clear();
+		heldDueAlerts.clear();
 	}
 
 	public static Battle prepareScheduledBattle(War war) {
@@ -101,7 +103,15 @@ public final class CampaignBattleLaunchService {
 
 		Battle battle = BattleManager.getByWarId(war.getId());
 		// A running battle was started by staff or an earlier tick; a held one waits for staff.
-		if (battle != null && (battle.hasStarted() || battle.isStaffHold())) {
+		if (battle != null && battle.hasStarted()) {
+			return false;
+		}
+		if (battle != null && battle.isStaffHold()) {
+			if (heldDueAlerts.add(battle.getId() + "@" + scheduledAt)) {
+				logWarning(battle.getDisplayName() + " is due but on hold by staff.");
+				sendToOnlineAdmins("§e" + battle.getDisplayName() + " §eis due but on hold by staff. Start it with §6/war admin"
+						+ " schedule " + war.getId() + " battlestart§e or release it with §6battlehold off§e.");
+			}
 			return false;
 		}
 		String mismatch = preparedSiegeMismatch(war, battle);

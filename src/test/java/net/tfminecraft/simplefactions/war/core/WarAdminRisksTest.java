@@ -56,10 +56,40 @@ class WarAdminRisksTest {
 
 	@ParameterizedTest
 	@ValueSource(strings = {"setday", "skipday", "closevote", "forcequorum", "battledelete", "battlestart",
-			"winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice", "holdchoice", "battlerestart",
-			"battleabort", "battleend"})
+			"winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice", "holdchoice"})
 	void irreversibleScheduleCommandsAsk(String action) {
 		assertNotNull(risk("admin", "schedule", "1", action.toUpperCase()));
+	}
+
+	@Test
+	void battleToolsAskOnlyForARunningBattleThatTheyCanAffect() {
+		net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.resetForTests();
+		try {
+			assertNull(risk("admin", "schedule", "1", "battlerestart"));
+			var battle = new net.tfminecraft.simplefactions.war.battle.engine.core.Battle("campaign_w1");
+			battle.setWarId(1);
+			battle.setBattleType(net.tfminecraft.simplefactions.war.battle.enums.BattleType.FIELD);
+			net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.addBattle(battle);
+			assertNull(risk("admin", "schedule", "1", "battleabort"));
+			battle.setStarted(true);
+			assertNotNull(risk("admin", "schedule", "1", "battlerestart"));
+			assertNotNull(risk("admin", "schedule", "1", "battleabort"));
+			assertNotNull(risk("admin", "schedule", "1", "battleend"));
+			battle.setBattleType(net.tfminecraft.simplefactions.war.battle.enums.BattleType.RAID);
+			assertNull(risk("admin", "schedule", "1", "battlerestart"));
+			assertNull(risk("admin", "schedule", "1", "battleabort"));
+			assertNotNull(risk("admin", "schedule", "1", "battleend"));
+		} finally {
+			net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.resetForTests();
+		}
+	}
+
+	@Test
+	void clockCommandsThatWouldFailAnywayDoNotAsk() {
+		assertNull(risk("admin", "time", "add", "soon"));
+		assertNull(risk("admin", "time", "skip-to-battle-day", "7"));
+		assertNull(risk("admin", "time", "skip-to-battle-day"));
+		assertNotNull(risk("admin", "time", "skip-to-battle-day", "1"));
 	}
 
 	@Test

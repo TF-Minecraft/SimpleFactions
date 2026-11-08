@@ -5,6 +5,7 @@ import java.util.Locale;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignDurationParser;
 
 /**
  * Which {@code /war admin} commands have effects staff cannot take back, and what those
@@ -27,7 +28,7 @@ public final class WarAdminRisks {
 					? "rebuilds the campaign route and resets its progression and occupation." : null;
 			case "devmode" -> devmode(lower(args[2]));
 			case "time" -> time(args);
-			case "schedule" -> args.length >= 4 && knownWar(args[2]) ? schedule(lower(args[3])) : null;
+			case "schedule" -> args.length >= 4 && knownWar(args[2]) ? scheduleIfApplies(args) : null;
 			case "reparations" -> args.length >= 4 && FactionManager.getByString(args[2]) != null
 					&& FactionManager.getByString(args[3]) != null
 					? "makes one faction pay part of its income to another for days." : null;
@@ -39,6 +40,21 @@ public final class WarAdminRisks {
 	/** Unknown or malformed war ids skip the prompt, so the command itself says what is wrong. */
 	private static boolean knownWar(String id) {
 		return WarCommandHelper.parseWarId(id).map(WarManager::getById).isPresent();
+	}
+
+	/** The battle tools only ask when the war's battle is running and, to restart or stop it, not a raid. */
+	private static String scheduleIfApplies(String[] args) {
+		String action = lower(args[3]);
+		if (action.equals("battlerestart") || action.equals("battleabort") || action.equals("battleend")) {
+			var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(
+					WarCommandHelper.parseWarId(args[2]).orElseThrow());
+			boolean raid = battle != null
+					&& battle.getBattleType() == net.tfminecraft.simplefactions.war.battle.enums.BattleType.RAID;
+			if (battle == null || !battle.hasStarted() || (raid && !action.equals("battleend"))) {
+				return null;
+			}
+		}
+		return schedule(action);
 	}
 
 	private static String truce(String action) {
@@ -64,10 +80,20 @@ public final class WarAdminRisks {
 				+ ". Votes, battle starts, raids and reminders due in that time happen now,"
 				+ " and moving the clock back later does not undo them.";
 		return switch (action) {
-			case "add", "skip-to-battle-day" -> forward;
+			case "add" -> validDuration(args) ? forward : null;
+			case "skip-to-battle-day" -> args.length >= 4 && knownWar(args[3]) ? forward : null;
 			case "reset" -> CampaignClock.getOffset().isNegative() ? forward : null;
 			default -> null;
 		};
+	}
+
+	private static boolean validDuration(String[] args) {
+		try {
+			CampaignDurationParser.parse(java.util.Arrays.copyOfRange(args, 3, args.length));
+			return true;
+		} catch (IllegalArgumentException invalid) {
+			return false;
+		}
 	}
 
 	private static String schedule(String action) {
@@ -84,7 +110,7 @@ public final class WarAdminRisks {
 			case "battlerestart" -> "puts every soldier back at their spawn and resets lives, casualties,"
 					+ " capture points and the battle timer. Dropped items and broken vehicles stay.";
 			case "battleabort" -> "stops the battle with no winner and no casualties, and holds it until staff"
-					+ " start it again.";
+					+ " start it again. Mercenary pay already charged for it stays charged.";
 			case "battleend" -> "ends the running battle now. Casualties so far count; a named winner wins the battle,"
 					+ " and with no winner voting reopens.";
 			default -> null;

@@ -12,6 +12,7 @@ import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinServ
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleStaffService;
+import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
@@ -24,7 +25,7 @@ public final class BattleStaffCommands {
 	static final String RESTART_RISK = "puts every soldier back at their spawn and resets lives, casualties,"
 			+ " capture points and the battle timer. Dropped items and broken vehicles stay.";
 	static final String ABORT_RISK = "stops the battle with no winner and no casualties. It stays on hold"
-			+ " until staff start it again.";
+			+ " until staff start it again. Mercenary pay already charged for it stays charged.";
 	static final String END_RISK = "ends the battle now. In a campaign battle the casualties so far count;"
 			+ " a named winner wins the battle, and with no winner voting reopens.";
 
@@ -55,6 +56,11 @@ public final class BattleStaffCommands {
 		}
 		if (sub.equals("lives")) {
 			risk = livesRisk(battle, args);
+		}
+		// Not running, or a raid that cannot be restarted or stopped: let the tool say so without asking.
+		if (!battle.hasStarted()
+				|| (battle.getBattleType() == BattleType.RAID && (sub.equals("restart") || sub.equals("abort")))) {
+			risk = null;
 		}
 		if (StaffConfirm.gate(player, "battle", rawArgs, risk) == null) {
 			return true;
