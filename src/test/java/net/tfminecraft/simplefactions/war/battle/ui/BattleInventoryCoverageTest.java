@@ -250,6 +250,7 @@ class BattleInventoryCoverageTest {
     assertEquals("§fBattle: §eNorthern Front", name(inventory.getItem(13)));
     lore(inventory.getItem(13), "Id: front");
     assertEquals("§fBattle Loot: §cFALSE", name(inventory.getItem(14)));
+    assertEquals("§fMana Refill on Respawn: §cFALSE", name(inventory.getItem(15)));
     assertEquals("§aSTART BATTLE", name(inventory.getItem(18)));
     assertEquals("§cDelete battle", name(inventory.getItem(22)));
     assertEquals("§fCapture Points: §e0", name(inventory.getItem(23)));

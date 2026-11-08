@@ -256,6 +256,7 @@ class BattleTemplateLifecycleCoverageTest {
           friendly_fire: false
           keep_inventory: false
           loot_enabled: false
+          mana_refill_on_respawn: true
           life_type: COLLECTIVE
           lives: 43
           attacker:
@@ -305,6 +306,7 @@ class BattleTemplateLifecycleCoverageTest {
     assertFalse(battle.hasFriendlyFire());
     assertFalse(battle.hasKeepInventory());
     assertFalse(battle.hasLootEnabled());
+    assertTrue(battle.hasManaRefillOnRespawn());
     assertTrue(battle.isCampaignRaid());
     assertTrue(battle.isCapturePointsEnabled());
     assertEquals(LifeType.COLLECTIVE, battle.getLifeType());

@@ -44,6 +44,7 @@ public final class BattleMapper {
 		data.friendlyFire = battle.hasFriendlyFire();
 		data.keepInventory = battle.hasKeepInventory();
 		data.lootEnabled = battle.hasLootEnabled();
+		data.manaRefillOnRespawn = battle.hasManaRefillOnRespawn();
 		data.teleport = battle.hasTeleport();
 		data.locked = battle.isLocked();
 		data.lives = battle.getLives();
@@ -105,6 +106,7 @@ public final class BattleMapper {
 		// Files written before loot existed carry no key. Campaign raids are the only
 		// battles that ship with it off, so derive the rest as on.
 		battle.setLootEnabled(data.lootEnabled != null ? data.lootEnabled : !data.campaignRaid);
+		battle.setManaRefillOnRespawn(data.manaRefillOnRespawn);
 		battle.setTeleport(data.teleport);
 		battle.setLocked(data.locked);
 		battle.setLives(data.lives);

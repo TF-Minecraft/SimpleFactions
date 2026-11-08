@@ -14,6 +14,7 @@ public class BattleModeTemplate {
 	private Boolean friendlyFire;
 	private Boolean keepInventory;
 	private Boolean lootEnabled;
+	private Boolean manaRefillOnRespawn;
 	private LifeType lifeType;
 	private int lives;
 	private List<CapturePointDefinition> capturePoints = new ArrayList<>();
@@ -39,6 +40,9 @@ public class BattleModeTemplate {
 		}
 		if (section.contains("loot_enabled")) {
 			mode.lootEnabled = section.getBoolean("loot_enabled");
+		}
+		if (section.contains("mana_refill_on_respawn")) {
+			mode.manaRefillOnRespawn = section.getBoolean("mana_refill_on_respawn");
 		}
 		mode.lifeType = LifeType.fromJson(section.getString("life_type"));
 		if (section.contains("lives")) {
@@ -137,6 +141,14 @@ public class BattleModeTemplate {
 
 	public void setLootEnabled(Boolean lootEnabled) {
 		this.lootEnabled = lootEnabled;
+	}
+
+	public Boolean getManaRefillOnRespawn() {
+		return manaRefillOnRespawn;
+	}
+
+	public void setManaRefillOnRespawn(Boolean manaRefillOnRespawn) {
+		this.manaRefillOnRespawn = manaRefillOnRespawn;
 	}
 
 	public LifeType getLifeType() {

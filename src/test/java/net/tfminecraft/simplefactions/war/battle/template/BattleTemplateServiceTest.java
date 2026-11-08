@@ -46,6 +46,7 @@ class BattleTemplateServiceTest {
 		assertTrue(resolved.getFriendlyFire());
 		assertTrue(resolved.getKeepInventory());
 		assertTrue(resolved.getLootEnabled());
+		assertFalse(resolved.getManaRefillOnRespawn());
 		assertEquals(LifeType.COLLECTIVE, resolved.getLifeType());
 		assertEquals(25, resolved.getLives());
 	}
@@ -58,6 +59,16 @@ class BattleTemplateServiceTest {
 		BattleTemplateLoader.putForTests(new BattleTemplate("no_loot_field", config));
 
 		assertFalse(service.getModeConfig("no_loot_field").getLootEnabled());
+	}
+
+	@Test
+	void getModeConfig_readsExplicitManaRefillFlag() {
+		YamlConfiguration config = new YamlConfiguration();
+		config.set("type", "siege");
+		config.set("mana_refill_on_respawn", true);
+		BattleTemplateLoader.putForTests(new BattleTemplate("refill_siege", config));
+
+		assertTrue(service.getModeConfig("refill_siege").getManaRefillOnRespawn());
 	}
 
 	@Test

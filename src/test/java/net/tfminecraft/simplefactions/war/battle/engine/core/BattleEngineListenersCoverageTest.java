@@ -503,8 +503,10 @@ class BattleEngineListenersCoverageTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"FIELD,attacker,false,spawn", "FIELD,attacker,true,jail", "RAID,attacker,false,jail", "RAID,defender,false,spawn"})
-  void delayedRespawnRestoresResourcesAndUsesTheCurrentSideRouting(BattleType type, String sideId, boolean jail, String destination) {
+  @CsvSource({"FIELD,attacker,false,spawn,false", "FIELD,attacker,true,jail,true", "RAID,attacker,false,jail,false",
+      "RAID,defender,false,spawn,true"})
+  void delayedRespawnRestoresResourcesAndUsesTheCurrentSideRouting(BattleType type, String sideId, boolean jail, String destination,
+      boolean manaRefill) {
     PlayerRespawnEvent event = mock(PlayerRespawnEvent.class);
     when(event.getPlayer()).thenReturn(alice);
     listener.playerRespawn(event);
@@ -515,6 +517,7 @@ class BattleEngineListenersCoverageTest {
     assertTrue(ui.tasks.isEmpty());
     battle.setStarted(true);
     battle.setDefenderRespawnMode(DefenderRespawnMode.INFINITE);
+    battle.setManaRefillOnRespawn(manaRefill);
     BattleSide side = battle.getSideById(sideId);
     Location spawn = new Location(ui.world, 2, 64, 2);
     Location cell = new Location(ui.world, 8, 64, 8);
@@ -526,7 +529,10 @@ class BattleEngineListenersCoverageTest {
     assertEquals(1, ui.tasks.size());
     ui.runTasks();
     verify(alice).setFoodLevel(20);
-    assertEquals(List.of("mmocore admin resource-health give Alice 100", "mmocore admin resource-mana give Alice 100"), consoleCommands);
+    // Health always comes back; mana only when the battle rule asks for it.
+    assertEquals(manaRefill
+        ? List.of("mmocore admin resource-health give Alice 100", "mmocore admin resource-mana give Alice 100")
+        : List.of("mmocore admin resource-health give Alice 100"), consoleCommands);
     verify(alice).teleport(destination.equals("jail") ? cell : spawn);
     if (type == BattleType.FIELD && !jail) assertEquals("§7Respawn Points", alice.getOpenInventory().getTitle());
   }
@@ -768,10 +774,13 @@ class BattleEngineListenersCoverageTest {
     click(5); assertFalse(battle.hasKeepInventory());
     click(6); assertTrue(battle.hasTeleport());
     click(14); assertFalse(battle.hasLootEnabled());
+    assertFalse(battle.hasManaRefillOnRespawn());
+    click(15); assertTrue(battle.hasManaRefillOnRespawn());
+    click(15); assertFalse(battle.hasManaRefillOnRespawn());
     var lifeMode = battle.getLifeType();
     click(2); assertSame(lifeMode, battle.getLifeType());
     click(3); assertEquals(25, battle.getLives());
-    persistence.verify(() -> BattlePersistenceService.persistBattle(battle), times(5));
+    persistence.verify(() -> BattlePersistenceService.persistBattle(battle), times(7));
     battle.setStarted(true);
     click(1);
     assertFalse(battle.isLocked());

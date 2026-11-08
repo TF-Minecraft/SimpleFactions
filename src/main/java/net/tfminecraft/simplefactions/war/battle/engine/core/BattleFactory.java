@@ -105,6 +105,9 @@ public final class BattleFactory {
 		if (config.getLootEnabled() != null) {
 			battle.setLootEnabled(config.getLootEnabled());
 		}
+		if (config.getManaRefillOnRespawn() != null) {
+			battle.setManaRefillOnRespawn(config.getManaRefillOnRespawn());
+		}
 		battle.setLifeType(config.getLifeType());
 		battle.setLives(config.getLives());
 		if (config.getCapturePointsEnabled() != null) {
