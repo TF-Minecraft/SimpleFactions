@@ -293,7 +293,7 @@ class BattleStatsCoverageTest {
 		try (MockedStatic<PlayerData> mmo = mockStatic(PlayerData.class)) {
 			PlayerData data = mock(PlayerData.class);
 			PlayerClass mage = mock(PlayerClass.class);
-			when(mage.getName()).thenReturn("Mage");
+			when(mage.getName()).thenReturn("§x§a§a§5§5§5§5§lMa§Lge");
 			when(data.getProfess()).thenReturn(mage);
 			mmo.when(() -> PlayerData.get(alice)).thenReturn(data);
 			mmo.when(() -> PlayerData.get(bob)).thenReturn(null);

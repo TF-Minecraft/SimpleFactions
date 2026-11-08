@@ -4,7 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginManager;
 
-/** The MMOCore class a player is playing, or null when MMOCore is missing. */
+/** The MMOCore class a player is playing, without colour codes, or null when MMOCore is missing. */
 final class FighterClass {
 	private FighterClass() {
 	}
@@ -25,7 +25,7 @@ final class FighterClass {
 		static String name(Player player) {
 			var data = net.Indyuce.mmocore.api.player.PlayerData.get(player);
 			var profess = data == null ? null : data.getProfess();
-			return profess == null ? null : profess.getName();
+			return profess == null ? null : profess.getName().replaceAll("(?i)§[0-9a-fk-orx]", "");
 		}
 	}
 }
