@@ -377,8 +377,9 @@ class BattleCommandsCoverageTest {
     verify(alice).sendMessage("§cThere is no battle with the id nope");
     assertTrue(run("warband", "toggleopen", "nope"));
     verify(alice).sendMessage("§cWarband not found");
-    assertTrue(complete(alice, "battle", "").containsAll(List.of("watch", "info", "restart", "abort", "end", "hold", "lives")));
+    assertTrue(complete(alice, "battle", "").containsAll(List.of("watch", "info", "restart", "abort", "end", "hold", "lives", "vehicles")));
     assertTrue(complete(alice, "warband", "").contains("forcekick"));
+    assertTrue(complete(alice, "warband", "").contains("forcevehicle"));
     assertEquals(List.of("on", "off"), complete(alice, "battle", "hold", "x", ""));
   }
 

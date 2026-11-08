@@ -20,6 +20,8 @@ class VehicleTabCompletionsTest {
         assertTrue(completions.contains("take"));
         assertTrue(completions.contains("give"));
         assertTrue(completions.contains("maintenance"));
+        assertTrue(completions.contains("disable"));
+        assertEquals(List.of("disable"), VehicleTabCompletions.subcommands("di"));
     }
 
     @Test

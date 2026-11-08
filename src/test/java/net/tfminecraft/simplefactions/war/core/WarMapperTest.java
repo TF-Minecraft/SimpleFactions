@@ -717,14 +717,18 @@ class WarMapperTest {
 			picks.put("faction_a", atkPicks);
 			war.setBattleInstallationPicks(picks);
 			war.setBattleInstallationPicksBattleDay(LocalDate.parse("2026-08-21"));
+			assertNull(WarMapper.toData(war).forcedBattleInstallationPicks);
+			war.getForcedBattleInstallationPicks().add("faction_a|fort-1");
 
 			WarData data = WarMapper.toData(war);
+			assertEquals(List.of("faction_a|fort-1"), data.forcedBattleInstallationPicks);
 			assertEquals(List.of("fort-1", "airport-2"), data.battleInstallationPicks.get("faction_a"));
 			assertEquals("2026-08-21", data.battleInstallationPicksBattleDay);
 
 			War restored = WarMapper.fromData(data);
 			assertEquals(Set.of("fort-1", "airport-2"), restored.getBattleInstallationPicks().get("faction_a"));
 			assertEquals(LocalDate.parse("2026-08-21"), restored.getBattleInstallationPicksBattleDay());
+			assertEquals(Set.of("faction_a|fort-1"), restored.getForcedBattleInstallationPicks());
 		} finally {
 			FactionManager.factions.remove(attacker);
 			FactionManager.factions.remove(defender);
@@ -844,6 +848,7 @@ class WarMapperTest {
 		try {
 			War war = WarMapper.fromData(minimalWarData());
 			assertTrue(war.getBattleInstallationPicks().isEmpty());
+			assertTrue(war.getForcedBattleInstallationPicks().isEmpty());
 			assertNull(war.getBattleInstallationPicksBattleDay());
 		} finally {
 			FactionManager.factions.remove(attacker);

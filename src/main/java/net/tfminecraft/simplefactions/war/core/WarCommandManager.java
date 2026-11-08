@@ -46,7 +46,7 @@ public class WarCommandManager implements CommandExecutor {
 		if (args.length < 1) {
 			player.sendMessage("§eUsage: §a/war list");
 			if (Permissions.isAdmin(sender)) {
-				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions §7...");
+				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions|forceinstallation §7...");
 			}
 			return true;
 		}
@@ -76,7 +76,7 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 2) {
-			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions ...");
+			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions|forceinstallation ...");
 			return true;
 		}
 		String subcommand = args[1].toLowerCase(java.util.Locale.ROOT);
@@ -93,8 +93,12 @@ public class WarCommandManager implements CommandExecutor {
 			case "reparations" -> handleReparations(player, args);
 			case "truce" -> handleTruce(player, args);
 			case "factions" -> handleFactions(player, args);
+			case "forceinstallation" -> {
+				player.sendMessage(WarForceInstallation.run(args, player.getName()));
+				yield true;
+			}
 			default -> {
-				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, factions");
+				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, factions, forceinstallation");
 				yield true;
 			}
 		};

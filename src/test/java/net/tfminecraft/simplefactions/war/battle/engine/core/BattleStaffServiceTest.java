@@ -127,6 +127,28 @@ class BattleStaffServiceTest {
 	}
 
 	@Test
+	void theVehicleSwitchIsForCampaignBattlesAndTellsTheOtherStaff() {
+		BattleStaffService.Result refused = BattleStaffService.setAllVehiclesUsable(battle, true, "Staff");
+		assertFalse(refused.ok());
+		assertEquals("Only campaign battles limit vehicles, so there is nothing to switch.", refused.message());
+		assertFalse(BattleStaffService.setAllVehiclesUsable(null, true, "Staff").ok());
+		assertFalse(battle.isAllVehiclesUsable());
+
+		battle.setWarId(4);
+		BattleStaffService.Result on = BattleStaffService.setAllVehiclesUsable(battle, true, "Staff");
+		assertTrue(on.ok());
+		assertEquals("§aLet either side use every vehicle in b1, ignoring installation commitments.", on.message());
+		assertTrue(battle.isAllVehiclesUsable());
+		notices.verify(() -> BattleStaffNotices.toStaff(
+				"§6[Battle] §eStaff §6let either side use every vehicle in b1, ignoring installation commitments.", "Staff"));
+
+		BattleStaffService.Result off = BattleStaffService.setAllVehiclesUsable(battle, false, "Staff");
+		assertEquals("§aRestored the normal vehicle rules in b1.", off.message());
+		assertFalse(battle.isAllVehiclesUsable());
+		persistence.verify(() -> BattlePersistenceService.persistBattle(battle), org.mockito.Mockito.times(2));
+	}
+
+	@Test
 	void restartingABattleSavedBeforeStartStatesSaysWhatItCouldNotReset() {
 		defender.setStartLives(null);
 		assertTrue(BattleStaffService.restart(battle, "Staff").message().endsWith("capture points stayed as they were."));

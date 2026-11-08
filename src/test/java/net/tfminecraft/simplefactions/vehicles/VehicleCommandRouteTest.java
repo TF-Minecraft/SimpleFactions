@@ -83,6 +83,16 @@ class VehicleCommandRouteTest {
     }
 
     @Test
+    void disableAndCancelRoutes() {
+        assertTrue(VehicleCommandRoute.isDisable(new String[] {"vehicle", "disable"}));
+        assertTrue(VehicleCommandRoute.isDisable(new String[] {"VEHICLE", "Cancel"}));
+        assertFalse(VehicleCommandRoute.isDisable(new String[] {"vehicle", "take"}));
+        assertFalse(VehicleCommandRoute.isDisable(new String[] {"vehicle"}));
+        assertFalse(VehicleCommandRoute.isDisable(new String[] {"war", "disable"}));
+        assertFalse(VehicleCommandRoute.isDisable(null));
+    }
+
+    @Test
     void takeAndGiveRoutes() {
         assertTrue(VehicleCommandRoute.isTake(new String[] {"vehicle", "take"}));
         assertFalse(VehicleCommandRoute.isTake(new String[] {"vehicle", "give", "Bob"}));

@@ -24,7 +24,7 @@ import net.tfminecraft.simplefactions.war.battle.ui.BattleWatchService;
 
 /**
  * Staff controls for a running battle: restart it from its start, stop it without a result,
- * end it now, hold it, and correct a side's lives. None of them fire the battle start or end
+ * end it now, hold it, correct a side's lives and open every vehicle to both sides. None of them fire the battle start or end
  * events again, so mercenary pay and loot are not counted twice. Restart and stop also clear
  * the battle's stats.
  */
@@ -183,6 +183,18 @@ public final class BattleStaffService {
 		BattlePersistenceService.persistBattle(battle);
 		return done(battle, by, "LIVES", "changed " + side.getId() + " lives in " + battle.getDisplayName()
 				+ " from " + before + " to " + lives + ".");
+	}
+
+	/** Emergency switch for a campaign battle: every vehicle can be used by either side. */
+	public static Result setAllVehiclesUsable(Battle battle, boolean on, String by) {
+		if (battle == null || battle.getWarId() == null) {
+			return Result.error("Only campaign battles limit vehicles, so there is nothing to switch.");
+		}
+		battle.setAllVehiclesUsable(on);
+		BattlePersistenceService.persistBattle(battle);
+		return done(battle, by, on ? "VEHICLES_ALL" : "VEHICLES_NORMAL", on
+				? "let either side use every vehicle in " + battle.getDisplayName() + ", ignoring installation commitments."
+				: "restored the normal vehicle rules in " + battle.getDisplayName() + ".");
 	}
 
 	private static void resetToStart(Battle battle) {

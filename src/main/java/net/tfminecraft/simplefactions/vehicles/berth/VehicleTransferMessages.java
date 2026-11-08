@@ -52,11 +52,24 @@ public final class VehicleTransferMessages {
     }
 
     public static String commandArmed(Installation installation) {
-        return "§aRight-click the vehicle to transfer it to " + installation.getName() + ".";
+        return "§aRight-click the vehicle to transfer it to " + installation.getName() + "."
+                + " §7(/faction vehicle disable to stop)";
     }
 
     public static String poolCommandArmed() {
         return "§aRight-click the vehicle to transfer it to the faction vehicle pool.";
+    }
+
+    public static String alreadyBerthedHere(Installation installation) {
+        return "§eThis vehicle is already berthed at " + installation.getName() + ".";
+    }
+
+    public static String clickModeCancelled() {
+        return "§aVehicle click mode cancelled.";
+    }
+
+    public static String noClickMode() {
+        return "§7No vehicle click mode was active.";
     }
 
     public static String poolSuccess() {

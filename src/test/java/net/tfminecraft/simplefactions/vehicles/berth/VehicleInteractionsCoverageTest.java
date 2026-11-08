@@ -496,6 +496,30 @@ class VehicleInteractionsCoverageTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"here", "other_installation", "other_faction", "pool_record"})
+  void clickingAVehicleAlreadyBerthedAtTheTargetEndsTheModeAndLetsTheLeaderMount(String state) {
+    arm(false);
+    ownerData.setOwner("faction_home");
+    PlayerVehicleRecord berthed =
+        new PlayerVehicleRecord(
+            owner.getUniqueId(),
+            "vehicle-1",
+            "ironclad",
+            state.equals("pool_record") ? OwnershipMode.POOL : OwnershipMode.INSTALLATION,
+            state.equals("other_installation") ? "fort" : "harbor",
+            state.equals("other_faction") ? "enemy" : "home");
+    registry.register(berthed);
+    VehiclePreInteractEvent event = click();
+    boolean here = state.equals("here");
+    assertEquals(!here, event.isCancelled());
+    assertEquals(here, sessions.get(leader.getUniqueId()) == null);
+    assertSame(berthed, registry.getByVehicleUuid("vehicle-1").orElseThrow());
+    if (here) verify(leader).sendMessage(VehicleTransferMessages.alreadyBerthedHere(port));
+    else verify(leader).sendMessage(startsWith("§c"));
+    verify(fixture.ui.plugin, never()).saveVehicleRegistry();
+  }
+
+  @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void aLeadersOwnInvalidVehicleIsRefusedByTheSameStoreValidation(boolean pool) {
     arm(pool);
@@ -1519,7 +1543,10 @@ class VehicleInteractionsCoverageTest {
         "missing_war",
         "ended_war",
         "no_faction",
-        "nonparticipant"
+        "nonparticipant",
+        "forced_here",
+        "forced_other",
+        "all_usable"
       })
   void battleEntryAndSpawnUseTheSameLiveRosterAndFactionOwnershipRules(String state) {
     Faction enemy = fixture.saved("enemy", "Enemy");
@@ -1550,6 +1577,10 @@ class VehicleInteractionsCoverageTest {
     if (state.equals("manual_battle")) battle.setWarId(null);
     if (state.equals("missing_war")) WarManager.get().remove(war);
     if (state.equals("ended_war")) war.end(WarEndReason.WHITE_PEACE);
+    // Staff overrides beat the personal-vehicle refusal below.
+    if (state.equals("forced_here")) battle.setForcedVehicleSide("vehicle-1", "ATTACKERS");
+    if (state.equals("forced_other")) battle.setForcedVehicleSide("vehicle-1", "defenders");
+    if (state.equals("all_usable")) battle.setAllVehiclesUsable(true);
     if (state.startsWith("pool")) {
       when(vehicle.getId()).thenReturn("simple_locomotive");
       registry.register(
@@ -1574,8 +1605,11 @@ class VehicleInteractionsCoverageTest {
               "home"));
     var expected =
         switch (state) {
-          case "pool_home", "committed" ->
+          case "pool_home", "committed", "forced_here", "all_usable" ->
               BattleVehicleEligibilityService.BattleVehicleEligibilityResult.ALLOWED;
+          case "forced_other" ->
+              BattleVehicleEligibilityService.BattleVehicleEligibilityResult
+                  .DENIED_FORCED_OTHER_SIDE;
           case "pool_enemy", "pool_no_faction" ->
               BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_POOL_SIDE;
           case "uncommitted" ->

@@ -99,6 +99,30 @@ public final class BattleInstallationPickService {
 		return InstallationPickToggleResult.ADDED;
 	}
 
+	/**
+	 * Staff commit an installation to the coming battle whatever the pick rules say. It stays
+	 * committed until the picks reset for a new battle day, the war's end or a postponement.
+	 */
+	public static void forceAdd(War war, Faction faction, String installationId) {
+		syncBattleDay(war);
+		ensureDefenderZocPort(war);
+		war.getBattleInstallationPicks()
+				.computeIfAbsent(faction.getId(), ignored -> new LinkedHashSet<>())
+				.add(installationId);
+		war.getForcedBattleInstallationPicks().add(forcedKey(faction.getId(), installationId));
+		if (war.getBattleInstallationPicksBattleDay() == null) {
+			war.setBattleInstallationPicksBattleDay(war.getBattleDay());
+		}
+	}
+
+	public static boolean isForced(War war, String factionId, String installationId) {
+		return war.getForcedBattleInstallationPicks().contains(forcedKey(factionId, installationId));
+	}
+
+	private static String forcedKey(String factionId, String installationId) {
+		return factionId + "|" + installationId;
+	}
+
 	public static Set<String> getPicks(War war, String factionId) {
 		if (war == null || factionId == null || factionId.isBlank()) {
 			return Set.of();
@@ -165,6 +189,7 @@ public final class BattleInstallationPickService {
 			return;
 		}
 		war.getBattleInstallationPicks().clear();
+		war.getForcedBattleInstallationPicks().clear();
 		war.setBattleInstallationPicksBattleDay(null);
 		ensureDefenderZocPort(war);
 	}
@@ -260,6 +285,9 @@ public final class BattleInstallationPickService {
 					return false;
 				}
 				Installation installation = handler.getById(installationId);
+				if (installation != null && isForced(war, factionId, installationId)) {
+					return false;
+				}
 				return installation == null || !BattleInstallationPickEligibility.isPickable(war, faction, installation);
 			});
 		}

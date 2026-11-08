@@ -1131,6 +1131,8 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(vehicleMaintenancePayListener, this);
 		getServer().getPluginManager().registerEvents(vehicleMaintenanceRepairListener, this);
 		getServer().getPluginManager().registerEvents(battleVehicleEligibilityListener, this);
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.Listener(), this);
 		getServer().getPluginManager().registerEvents(vehicleHandoverListener, this);
 		getServer().getPluginManager().registerEvents(vehicleReclaimFeeListener, this);
 		if (full) {
