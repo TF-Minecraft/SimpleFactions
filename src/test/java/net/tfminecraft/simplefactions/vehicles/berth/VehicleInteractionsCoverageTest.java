@@ -496,6 +496,30 @@ class VehicleInteractionsCoverageTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"here", "other_installation", "other_faction", "pool_record"})
+  void clickingAVehicleAlreadyBerthedAtTheTargetEndsTheModeAndLetsTheLeaderMount(String state) {
+    arm(false);
+    ownerData.setOwner("faction_home");
+    PlayerVehicleRecord berthed =
+        new PlayerVehicleRecord(
+            owner.getUniqueId(),
+            "vehicle-1",
+            "ironclad",
+            state.equals("pool_record") ? OwnershipMode.POOL : OwnershipMode.INSTALLATION,
+            state.equals("other_installation") ? "fort" : "harbor",
+            state.equals("other_faction") ? "enemy" : "home");
+    registry.register(berthed);
+    VehiclePreInteractEvent event = click();
+    boolean here = state.equals("here");
+    assertEquals(!here, event.isCancelled());
+    assertEquals(here, sessions.get(leader.getUniqueId()) == null);
+    assertSame(berthed, registry.getByVehicleUuid("vehicle-1").orElseThrow());
+    if (here) verify(leader).sendMessage(VehicleTransferMessages.alreadyBerthedHere(port));
+    else verify(leader).sendMessage(startsWith("§c"));
+    verify(fixture.ui.plugin, never()).saveVehicleRegistry();
+  }
+
+  @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void aLeadersOwnInvalidVehicleIsRefusedByTheSameStoreValidation(boolean pool) {
     arm(pool);

@@ -764,6 +764,10 @@ public class CommandManager implements Listener, CommandExecutor{
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("vehicle")) {
+				if(VehicleCommandRoute.isDisable(args)) {
+					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.disarm(p);
+					return true;
+				}
 				if(VehicleCommandRoute.isMaintenancePay(args)) {
 					net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.armMaintenancePay(
 							p, VehicleCommandRoute.maintenancePaymentSource(args));

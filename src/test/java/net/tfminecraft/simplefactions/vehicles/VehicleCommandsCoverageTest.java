@@ -138,6 +138,42 @@ class VehicleCommandsCoverageTest {
     assertEquals("harbor", transfer.get(leader.getUniqueId()).getInstallationId());
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"transfer", "release", "handover", "maintenance"})
+  void disableClearsEveryClickModeForThatPlayerOnly(String kind) {
+    long expiry = System.currentTimeMillis() + 60_000;
+    UUID id = leader.getUniqueId();
+    switch (kind) {
+      case "transfer" ->
+          transfer.put(id, new VehicleTransferSessionManager.VehicleTransferSession("harbor", expiry));
+      case "release" ->
+          release.put(
+              id,
+              new VehicleReleaseSessionManager.VehicleReleaseSession(
+                  VehicleReleaseSessionManager.Kind.TAKE, expiry));
+      case "handover" ->
+          handover.put(id, new VehicleHandoverSessionManager.Session("Old", UUID.randomUUID(), expiry));
+      default ->
+          maintenance.put(
+              id, new VehicleMaintenancePaySessionManager.VehicleMaintenancePaySession(expiry));
+    }
+    seed(other);
+    VehicleFactionCommands.disarm(leader);
+    only(leader, "none");
+    verify(leader).sendMessage(VehicleTransferMessages.clickModeCancelled());
+    assertNotNull(transfer.get(other.getUniqueId()));
+    VehicleFactionCommands.disarm(leader);
+    verify(leader).sendMessage(VehicleTransferMessages.noClickMode());
+  }
+
+  @Test
+  void disableWithAllModesArmedClearsThemAll() {
+    seed(leader);
+    VehicleFactionCommands.disarm(leader);
+    only(leader, "none");
+    verify(leader).sendMessage(VehicleTransferMessages.clickModeCancelled());
+  }
+
   @Test
   void takeReplacesOtherActionsAndRecordsTheReleaseKind() {
     seed(leader);

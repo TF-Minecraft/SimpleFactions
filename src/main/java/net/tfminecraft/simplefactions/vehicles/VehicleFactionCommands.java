@@ -155,6 +155,21 @@ public final class VehicleFactionCommands {
         player.sendMessage(VehicleHandoverMessages.armed(Members.name(target)));
     }
 
+    /** Stops every armed vehicle click mode, so the next right-click mounts the vehicle again. */
+    public static void disarm(Player player) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        java.util.UUID id = player.getUniqueId();
+        boolean active = plugin.getVehicleTransferSessionManager().get(id) != null
+                || plugin.getVehicleReleaseSessionManager().get(id) != null
+                || plugin.getVehicleHandoverSessionManager().get(id) != null
+                || plugin.getVehicleMaintenancePaySessionManager().get(id) != null;
+        plugin.getVehicleTransferSessionManager().clear(id);
+        clearOtherVehicleSessions(plugin, player);
+        player.sendMessage(active
+                ? VehicleTransferMessages.clickModeCancelled()
+                : VehicleTransferMessages.noClickMode());
+    }
+
     private static void clearOtherVehicleSessions(SimpleFactions plugin, Player player) {
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
@@ -258,6 +273,14 @@ public final class VehicleFactionCommands {
             return args != null && args.length >= 1 && args[0].equalsIgnoreCase("vehicle");
         }
 
+        /** "/faction vehicle disable" (or "cancel") stops any armed vehicle click mode. */
+        public static boolean isDisable(String[] args) {
+            return args != null
+                    && args.length >= 2
+                    && args[0].equalsIgnoreCase("vehicle")
+                    && (args[1].equalsIgnoreCase("disable") || args[1].equalsIgnoreCase("cancel"));
+        }
+
         public static boolean isTake(String[] args) {
             return args != null
                     && args.length >= 2
@@ -303,7 +326,7 @@ public final class VehicleFactionCommands {
         private VehicleTabCompletions() {}
 
         public static List<String> subcommands(String prefix) {
-            return filter(List.of("transfer", "take", "give", "handover", "maintenance"), prefix);
+            return filter(List.of("transfer", "take", "give", "handover", "maintenance", "disable"), prefix);
         }
 
         public static List<String> maintenanceActions(String prefix) {

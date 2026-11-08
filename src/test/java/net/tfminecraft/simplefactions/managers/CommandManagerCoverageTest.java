@@ -1765,13 +1765,17 @@ class CommandManagerCoverageTest {
         "vehicle handover Alice",
         "vehicle handover",
         "vehicle maintenance pay",
-        "vehicle maintenance pay bank"
+        "vehicle maintenance pay bank",
+        "vehicle disable",
+        "vehicle cancel"
       })
   void vehicleCommandsRouteEachActionAndOptionalTarget(String command) {
     String[] args = command.split(" ");
     try (MockedStatic<VehicleFactionCommands> vehicles = mockStatic(VehicleFactionCommands.class)) {
       assertTrue(run("faction", args));
-      if (command.contains("transfer"))
+      if (command.endsWith("disable") || command.endsWith("cancel"))
+        vehicles.verify(() -> VehicleFactionCommands.disarm(player));
+      else if (command.contains("transfer"))
         vehicles.verify(
             () ->
                 VehicleFactionCommands.armTransfer(
