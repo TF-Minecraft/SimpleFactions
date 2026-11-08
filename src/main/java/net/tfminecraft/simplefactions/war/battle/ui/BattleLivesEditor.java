@@ -52,10 +52,6 @@ public final class BattleLivesEditor {
 
 	private BattleLivesEditor() {}
 
-	static void resetForTests() {
-		DRAFTS.clear();
-	}
-
 	public static void open(Player player, Battle battle) {
 		Draft draft = new Draft(battle.getId());
 		DRAFTS.put(player.getUniqueId(), draft);
