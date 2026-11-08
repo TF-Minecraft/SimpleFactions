@@ -49,8 +49,8 @@ public class BattleModeTemplate {
 		} else if (section.contains("mana_refill_on_respawn")) {
 			// A typo must not pass silently. The rule keeps its default (off) and the
 			// other templates still load.
-			LOG.warning("[SimpleFactions] Battle template '" + section.getName()
-					+ "': mana_refill_on_respawn must be true or false, not '"
+			LOG.warning("Battle template '" + section.getName()
+					+ "': mana_refill_on_respawn must be an unquoted true or false, not '"
 					+ section.get("mana_refill_on_respawn") + "'. Using false.");
 		}
 		mode.lifeType = LifeType.fromJson(section.getString("life_type"));

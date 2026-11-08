@@ -83,14 +83,17 @@ class BattleTemplateServiceTest {
 			@Override public void flush() { }
 			@Override public void close() { }
 		};
+		boolean parentHandlers = log.getUseParentHandlers();
+		log.setUseParentHandlers(false);
 		log.addHandler(handler);
 		try {
 			BattleTemplateLoader.putForTests(new BattleTemplate("typo_siege", config));
 			assertFalse(service.getModeConfig("typo_siege").getManaRefillOnRespawn());
 		} finally {
 			log.removeHandler(handler);
+			log.setUseParentHandlers(parentHandlers);
 		}
-		assertTrue(warnings.stream().anyMatch(w -> w.contains("mana_refill_on_respawn must be true or false, not 'ture'")),
+		assertTrue(warnings.stream().anyMatch(w -> w.contains("mana_refill_on_respawn must be an unquoted true or false, not 'ture'")),
 				warnings.toString());
 	}
 
