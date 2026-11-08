@@ -175,6 +175,55 @@ class CampaignWarbandSignupServiceTest {
 	}
 
 	@Test
+	void staffSignupMember_passesAFullRosterInOpenHoursAndTheRejoinBlockMidBattle() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID aliceId = UUID.randomUUID();
+		Instant signupHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 20);
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+				MockedStatic<net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock> clock =
+						mockStatic(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.class)) {
+			clock.when(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock::now).thenReturn(signupHour);
+			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
+			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			Cache.warBattleMinSideLives = 0;
+			assertTrue(CampaignWarbandSignupService.signupMember(aliceId, "Alice", shell, attacker, null, signupHour) != null);
+			assertNull(CampaignWarbandSignupService.staffSignupMember(aliceId, "Alice", shell, attacker, null));
+		}
+	}
+
+	@Test
+	void staffSignupMember_letsSomeoneWhoLeftBackIntoARunningBattle() {
+		War war = battleDayWar();
+		Warband shell = createShellOnBattle(war);
+		UUID bobId = UUID.randomUUID();
+		Instant signupHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 20);
+		Battle battle = BattleManager.getByString("campaign_w1");
+
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
+				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+			mockBukkitPlayerLookup(bukkit, bobId, "Bob");
+			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(attacker);
+			wars.when(() -> WarManager.getById(1)).thenReturn(war);
+			battle.setStarted(true);
+			CampaignWarbandLeaveBlock.block(battle.getId(), shell.getId(), bobId);
+			assertEquals("You cannot rejoin this warband for this battle",
+					CampaignWarbandSignupService.signupMember(bobId, "Bob", shell, attacker, null, signupHour));
+			assertNull(CampaignWarbandSignupService.staffSignupMember(bobId, "Bob", shell, attacker, null));
+			assertTrue(shell.hasMember(bobId));
+		} finally {
+			CampaignWarbandLeaveBlock.resetForTests();
+		}
+	}
+
+	@Test
 	void unassignedAccountStillReceivesCampaignValidationBeforeAnyRosterMutation() {
 		War war = battleDayWar();
 		Warband shell = createShellOnBattle(war);

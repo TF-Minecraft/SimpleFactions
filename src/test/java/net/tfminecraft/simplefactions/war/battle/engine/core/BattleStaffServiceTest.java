@@ -170,6 +170,58 @@ class BattleStaffServiceTest {
 	}
 
 	@Test
+	void abortingTheWarsFirstBattleGivesBackItsPreBattleOptions() {
+		battle.setWarId(4);
+		net.tfminecraft.simplefactions.war.core.War war = mock(net.tfminecraft.simplefactions.war.core.War.class);
+		when(war.hasFirstBattleStarted()).thenReturn(true);
+		try (MockedStatic<net.tfminecraft.simplefactions.managers.WarManager> wars =
+				mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class)) {
+			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(4)).thenReturn(war);
+			BattleStaffService.abort(battle, "Staff");
+			verify(war).setFirstBattleStarted(false);
+			wars.verify(() -> net.tfminecraft.simplefactions.managers.WarManager.persist(war));
+
+			when(war.getCampaignBattlesFought()).thenReturn(1);
+			battle.setStarted(true);
+			BattleStaffService.abort(battle, "Staff");
+			when(war.getCampaignBattlesFought()).thenReturn(0);
+			when(war.hasFirstBattleStarted()).thenReturn(false);
+			battle.setStarted(true);
+			BattleStaffService.abort(battle, "Staff");
+			verify(war).setFirstBattleStarted(false);
+		}
+	}
+
+	@Test
+	void releasingAnOverdueCampaignBattleSaysItStartsAtOnce() {
+		battle.setStarted(false);
+		battle.setWarId(4);
+		net.tfminecraft.simplefactions.war.core.War war = mock(net.tfminecraft.simplefactions.war.core.War.class);
+		try (MockedStatic<net.tfminecraft.simplefactions.managers.WarManager> wars =
+				mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class)) {
+			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(4)).thenReturn(war);
+			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith("on schedule again."));
+			when(war.getScheduledBattleAt()).thenReturn(Instant.now().plusSeconds(3600));
+			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith("on schedule again."));
+			when(war.getScheduledBattleAt()).thenReturn(Instant.EPOCH);
+			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith("starts within a minute."));
+		}
+	}
+
+	@Test
+	void correctingARaidsLivesLeavesItsOwnBarsAlone() {
+		battle.setCampaignRaid(true);
+		BattleStaffService.adjustLives(battle, "defender", "set", 5, "Staff");
+		assertEquals(5, defender.getLives());
+	}
+
+	@Test
+	void endingLeavesTheStaffNoticeToTheBattlesEndEvent() {
+		BattleStaffService.end(battle, null, "Staff");
+		notices.verifyNoInteractions();
+	}
+
+	@Test
 	void abortingAManualBattlePointsToTheEditor() {
 		assertTrue(BattleStaffService.abort(battle, "Staff").message().endsWith("(/battle edit)."));
 	}

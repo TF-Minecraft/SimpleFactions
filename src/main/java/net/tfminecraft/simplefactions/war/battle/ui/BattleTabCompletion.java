@@ -242,7 +242,7 @@ public class BattleTabCompletion implements TabCompleter{
             Warband band = WarbandManager.getByString(args[1]);
             if (!sub.equals("forcekick") || band == null) return List.of();
             return Members.completions(band.getPlayers().stream().map(Members::name).toList(),
-                    java.util.Arrays.copyOfRange(args, 2, args.length));
+                    java.util.Arrays.copyOfRange(args, 1, args.length));
         }
         if (!command.equalsIgnoreCase("battle")
                 || !List.of("watch", "info", "restart", "abort", "end", "hold", "lives").contains(sub)) {

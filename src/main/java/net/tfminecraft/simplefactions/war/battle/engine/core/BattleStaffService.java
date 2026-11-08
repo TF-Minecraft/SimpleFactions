@@ -6,6 +6,9 @@ import java.util.Locale;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.managers.LogManager;
+import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
+import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandLeaveBlock;
 import net.tfminecraft.simplefactions.war.battle.engine.capture.BattleCapturePoints;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.RaidAttackerEliminationService;
@@ -73,10 +76,16 @@ public final class BattleStaffService {
 		RaidAttackerEliminationService.clearBattleState(battle);
 		for (Player player : battle.getAllParticipants()) {
 			BattleRespawnRouting.clear(player.getUniqueId());
-			player.sendTitle("§eBATTLE STOPPED", "§7Staff stopped the battle. Nothing was lost.", 5, 50, 5);
+			player.sendTitle("§eBATTLE STOPPED", "§7Staff stopped the battle. No result was recorded.", 5, 50, 5);
 		}
 		battle.end();
 		battle.setStaffHold(true);
+		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
+		// An aborted first battle did not happen: the war keeps its pre-battle options.
+		if (war != null && war.getCampaignBattlesFought() == 0 && war.hasFirstBattleStarted()) {
+			war.setFirstBattleStarted(false);
+			WarManager.persist(war);
+		}
 		BattleWatchService.clearBattle(battle.getId());
 		BattlePersistenceService.persistBattle(battle);
 		return done(battle, by, "ABORT", "stopped " + battle.getDisplayName()
@@ -98,8 +107,9 @@ public final class BattleStaffService {
 		if (battle.getWarId() == null) {
 			BattlePersistenceService.persistBattle(battle);
 		}
+		// The battle's own end notice tells the other staff, so no second line from here.
 		return done(battle, by, "END", "ended " + battle.getDisplayName()
-				+ (winner == null ? " with no winner." : " with " + winner + " as the winner."));
+				+ (winner == null ? " with no winner." : " with " + winner + " as the winner."), false);
 	}
 
 	/** Holds a prepared battle so the scheduler does not start it, or releases the hold. */
@@ -112,9 +122,14 @@ public final class BattleStaffService {
 		}
 		battle.setStaffHold(on);
 		BattlePersistenceService.persistBattle(battle);
+		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
+		boolean overdue = war != null && war.getScheduledBattleAt() != null
+				&& !war.getScheduledBattleAt().isAfter(CampaignClock.now());
 		return done(battle, by, on ? "HOLD" : "RELEASE", on
 				? "put " + battle.getDisplayName() + " on hold. It will not start on schedule."
-				: "released the hold on " + battle.getDisplayName() + ". It starts on schedule again.");
+				: "released the hold on " + battle.getDisplayName() + (overdue
+						? ". Its start time has passed, so it starts within a minute."
+						: ". It starts on schedule again."));
 	}
 
 	/** Adds, removes or sets a side's lives during the battle. */
@@ -141,7 +156,10 @@ public final class BattleStaffService {
 		}
 		int lives = (int) Math.max(0, Math.min(Integer.MAX_VALUE, after));
 		side.restoreLives(lives, side.getMaxLives());
-		side.updateBossBar(battle.getAllParticipants());
+		// Campaign raids draw their own bars and hide the side bars.
+		if (!battle.isCampaignRaid()) {
+			side.updateBossBar(battle.getAllParticipants());
+		}
 		BattlePersistenceService.persistBattle(battle);
 		return done(battle, by, "LIVES", "changed " + side.getId() + " lives in " + battle.getDisplayName()
 				+ " from " + before + " to " + lives + ".");
@@ -183,8 +201,14 @@ public final class BattleStaffService {
 	}
 
 	private static Result done(Battle battle, String by, String action, String text) {
+		return done(battle, by, action, text, true);
+	}
+
+	private static Result done(Battle battle, String by, String action, String text, boolean notify) {
 		LogManager.war("STAFF_BATTLE_%s battle=%s war=%s by=%s: %s", action, battle.getId(), battle.getWarId(), by, text);
-		BattleStaffNotices.toStaff("§6[Battle] §e" + by + " §6" + text, by);
+		if (notify) {
+			BattleStaffNotices.toStaff("§6[Battle] §e" + by + " §6" + text, by);
+		}
 		return Result.ok("§a" + Character.toUpperCase(text.charAt(0)) + text.substring(1));
 	}
 }

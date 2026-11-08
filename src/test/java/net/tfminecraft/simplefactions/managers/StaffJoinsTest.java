@@ -219,6 +219,10 @@ class StaffJoinsTest {
 			members.when(() -> Members.accountId("Bob")).thenReturn(Optional.of(account));
 			assertEquals("§cBob §cis not in vanguard", StaffJoins.warbandKick(warband, "Bob"));
 			when(warband.hasMember(account)).thenReturn(true);
+			when(warband.getLeaderId()).thenReturn(account);
+			assertEquals("§cBob §cleads vanguard§c. Use /warband delete to remove the whole warband.",
+					StaffJoins.warbandKick(warband, "Bob"));
+			when(warband.isFaction()).thenReturn(true);
 
 			assertEquals("§aRemoved Bob §afrom vanguard", StaffJoins.warbandKick(warband, "Bob"));
 

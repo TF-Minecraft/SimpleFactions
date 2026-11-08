@@ -115,6 +115,10 @@ public final class StaffJoins {
 		if (account == null || !warband.hasMember(account)) {
 			return "§c" + input + " §cis not in " + warband.getId();
 		}
+		if (!warband.isFaction() && account.equals(warband.getLeaderId())) {
+			return "§c" + Members.display(key) + " §cleads " + warband.getId()
+					+ "§c. Use /warband delete to remove the whole warband.";
+		}
 		Player online = Members.player(key);
 		CampaignWarbandBattleService.processLeave(account, online, warband, false);
 		if (online != null) online.sendMessage("§cStaff removed you from the warband " + warband.getId());

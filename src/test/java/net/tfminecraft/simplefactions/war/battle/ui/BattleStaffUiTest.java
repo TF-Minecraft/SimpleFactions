@@ -427,8 +427,8 @@ class BattleStaffUiTest {
 		WarbandManager.get().add(band);
 		try (MockedStatic<Members> members = mockStatic(Members.class)) {
 			members.when(() -> Members.name(soldier)).thenReturn("Soldier");
-			members.when(() -> Members.completions(eq(List.of("Soldier")), any(String[].class)))
-					.thenReturn(List.of("Soldier"));
+			members.when(() -> Members.completions(eq(List.of("Soldier")),
+					org.mockito.AdditionalMatchers.aryEq(new String[] {"w1", ""}))).thenReturn(List.of("Soldier"));
 			assertEquals(List.of("w1"), BattleTabCompletion.staffCompletions(admin, "warband", new String[] {"toggleopen", ""}));
 			assertEquals(List.of("Soldier"),
 					BattleTabCompletion.staffCompletions(admin, "warband", new String[] {"forcekick", "w1", ""}));
