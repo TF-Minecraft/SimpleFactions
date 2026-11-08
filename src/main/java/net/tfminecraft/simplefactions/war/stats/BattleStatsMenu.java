@@ -165,13 +165,18 @@ public final class BattleStatsMenu implements Listener {
 	static void war(Player viewer, String warKey) {
 		String key = Members.key(viewer);
 		boolean staff = BattlePermissions.isAdmin(viewer);
-		List<BattleStatsArchive.Summary> battles = new ArrayList<>();
+		boolean fought = false;
 		for (BattleStatsArchive.Summary summary : BattleStatsArchive.list(staff ? null : key)) {
+			fought |= warKey.equalsIgnoreCase(summary.warKey());
+		}
+		// Totals and ranks cover every battle of the war, not only the ones this viewer fought in.
+		List<BattleStatsArchive.Summary> battles = new ArrayList<>();
+		for (BattleStatsArchive.Summary summary : BattleStatsArchive.list(null)) {
 			if (warKey.equalsIgnoreCase(summary.warKey())) {
 				battles.add(summary);
 			}
 		}
-		if (battles.isEmpty()) {
+		if (!fought) {
 			viewer.sendMessage("§cNo battle stats for that war that you fought in.");
 			return;
 		}
@@ -211,6 +216,10 @@ public final class BattleStatsMenu implements Listener {
 		BattleRecord record = BattleStatsArchive.get(id);
 		if (record == null) {
 			viewer.sendMessage("§cThat battle's stats could not be read.");
+			return;
+		}
+		if (!BattlePermissions.isAdmin(viewer) && record.fighter(Members.key(viewer)) == null) {
+			viewer.sendMessage("§cYou did not fight in that battle, so its report stays closed.");
 			return;
 		}
 		battle(viewer, record, backPage);

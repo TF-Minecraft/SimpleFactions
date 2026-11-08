@@ -98,6 +98,12 @@ public final class BattleStats {
 		return (until - credited) / 1000.0;
 	}
 
+	/** The account switched character: its hit and control history belongs to the old one. */
+	void forgetVictim(UUID account) {
+		recentHitters().remove(account);
+		controlledUntil().remove(account);
+	}
+
 	private Map<UUID, Map<String, Long>> recentHitters() {
 		if (recentHitters == null) {
 			recentHitters = new HashMap<>();

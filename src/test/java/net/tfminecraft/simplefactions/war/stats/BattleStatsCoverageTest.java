@@ -75,6 +75,7 @@ class BattleStatsCoverageTest {
 	private FactionDomainFixture fixture;
 	private BattleStatsListener listener;
 	private MythicBattleStats mythic;
+	private VehicleBattleStats vehicles;
 	private BattleStatsMenu menu;
 	private Player alice;
 	private Player carol;
@@ -96,6 +97,7 @@ class BattleStatsCoverageTest {
 		outsider = fighter("Outsider");
 		listener = new BattleStatsListener();
 		mythic = new MythicBattleStats(listener);
+		vehicles = new VehicleBattleStats(listener);
 		menu = new BattleStatsMenu();
 		battle = BattleFactory.createBlank(BattleType.RAID, "Test Battle");
 		Warband attackers = new Warband("atk", alice);
@@ -270,10 +272,10 @@ class BattleStatsCoverageTest {
 		hit(bob, alice, 6, true);
 		when(bob.getNoDamageTicks()).thenReturn(0);
 		// VehicleFramework named the attacker but another plugin stopped the hit: still a blocked hit.
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "ENTITY_ATTACK", 6));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "ENTITY_ATTACK", 6));
 		hit(bob, alice, 6, true);
 		// VehicleFramework dealt the hit again: its cancelled original is not a blocked hit.
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "ENTITY_ATTACK", 0));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "ENTITY_ATTACK", 0));
 		sourceless(bob, 0);
 		hit(bob, alice, 6, true);
 		// The same victim a tick later is a real block again.
@@ -300,15 +302,15 @@ class BattleStatsCoverageTest {
 		listener.onSeatedHit(hitEvent(bob, alice, 4, false));
 		sourceless(bob, 4);
 		// A vehicle gun names its gunner first.
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 3));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 3));
 		sourceless(bob, 3);
 		assertEquals(7, live("Alice").damage, 1e-9);
 		// Friendly vehicle fire.
-		listener.onVehicleDamage(new VFEntityDamageEvent(carol, alice, "BULLET", 2));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(carol, alice, "BULLET", 2));
 		sourceless(carol, 2);
 		assertEquals(2, live("Alice").friendlyDamage, 1e-9);
 		// The pending attacker only holds for the same tick, then the last enemy hitter takes it.
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 3));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 3));
 		when(Bukkit.getCurrentTick()).thenReturn(7);
 		sourceless(bob, 5);
 		assertEquals(12, live("Alice").damage, 1e-9);
@@ -319,11 +321,11 @@ class BattleStatsCoverageTest {
 		sourceless(carol, 5);
 		assertNull(live("Carol"));
 		// An outsider gunner, a dead source, non-players and battle-less states are ignored.
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, outsider, "BULLET", 1));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, outsider, "BULLET", 1));
 		sourceless(bob, 1);
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, null, "BULLET", 1));
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, bob, "BULLET", 1));
-		listener.onVehicleDamage(new VFEntityDamageEvent(mock(Zombie.class), alice, "BULLET", 1));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, null, "BULLET", 1));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, bob, "BULLET", 1));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(mock(Zombie.class), alice, "BULLET", 1));
 		listener.onSeatedHit(hitEvent(bob, mock(Zombie.class), 1, false));
 		listener.onSeatedHit(hitEvent(carol, alice, 1, false));
 		listener.onSeatedHit(hitEvent(mock(Zombie.class), alice, 1, false));
@@ -332,7 +334,7 @@ class BattleStatsCoverageTest {
 		sourceless(outsider, 1);
 		assertEquals(12, live("Alice").damage, 1e-9);
 		BattleManager.resetForTests();
-		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 1));
+		vehicles.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 1));
 		listener.onSeatedHit(hitEvent(bob, alice, 1, false));
 		sourceless(bob, 1);
 		regain(bob, 1, EntityRegainHealthEvent.RegainReason.MAGIC);
@@ -379,6 +381,28 @@ class BattleStatsCoverageTest {
 		assertEquals(2, live("Carol").logouts);
 		assertNull(battle.getStats().fighter(alice, null));
 		assertNull(battle.getStats().lastHitter(bob.getUniqueId(), System.currentTimeMillis()));
+	}
+
+	@Test
+	void everyoneInTheBattleAtTheStartIsAFighterAndASwitchForgetsTheOldCharactersHits() {
+		listener.onStarted(new net.tfminecraft.simplefactions.war.battle.events.BattleStartedEvent(
+				battle.getId(), BattleType.RAID, null, Set.of(), Set.of()));
+		assertEquals(Set.of("Alice", "Carol", "Bob"), battle.getStats().fighters.keySet());
+		listener.onStarted(new net.tfminecraft.simplefactions.war.battle.events.BattleStartedEvent(
+				"missing", BattleType.RAID, null, Set.of(), Set.of()));
+		hit(bob, alice, 2, false);
+		aura(mock(Aura.class), "Slowed", alice, bob, 60);
+		CharacterSession session = net.tfminecraft.simplefactions.identity.Members.session(bob).orElseThrow();
+		Battle idle = new Battle("idle");
+		BattleManager.get().add(0, idle);
+		listener.onSessionEnd(new CharacterSessionEndEvent(bob, session, CharacterSessionEndEvent.Reason.SWITCH));
+		die(bob, null);
+		assertEquals(0, live("Alice").kills);
+		assertEquals(0, battle.getStats().creditControl(bob.getUniqueId(), "slow", System.currentTimeMillis(), 1000), 1.0);
+		battle.takeStats();
+		listener.onStarted(new net.tfminecraft.simplefactions.war.battle.events.BattleStartedEvent(
+				battle.getId(), BattleType.RAID, null, Set.of(), Set.of()));
+		assertNull(battle.getStats());
 	}
 
 	@Test
@@ -656,6 +680,27 @@ class BattleStatsCoverageTest {
 		assertTrue(text(alice, 4).contains("No winner §8(the war ended)"));
 		BattleStatsView.command(alice, new String[] {"stats", "5"});
 		assertEquals("§8Your battle stats", title(alice));
+
+		// A battle of the same war that Bob did not fight still counts in the war's totals, but stays closed to him.
+		BattleRecord other = new BattleRecord();
+		other.id = "other-war-battle";
+		other.name = "Other";
+		other.warKey = first.warKey;
+		other.warName = first.warName;
+		other.winner = "defender";
+		other.endedAt = first.endedAt - 1;
+		FighterStats stranger = new FighterStats();
+		stranger.key = "Stranger";
+		stranger.name = "Stranger";
+		stranger.side = "defender";
+		stranger.kills = 5;
+		other.fighters.add(stranger);
+		BattleStatsArchive.save(other);
+		BattleStatsView.command(bob, new String[] {"stats", "war", first.warKey});
+		assertTrue(text(bob, 4).contains("§72 battles"), text(bob, 4));
+		assertTrue(text(bob, 13).contains("(#3 of 4)"), text(bob, 13));
+		click(bob, 19);
+		assertTrue(has(said(bob), "You did not fight in that battle"));
 
 		when(outsider.hasPermission("warbands.admin")).thenReturn(true);
 		BattleStatsView.command(outsider, new String[] {"stats", first.id});

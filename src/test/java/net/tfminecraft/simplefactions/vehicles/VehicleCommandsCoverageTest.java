@@ -167,6 +167,13 @@ class VehicleCommandsCoverageTest {
   }
 
   @Test
+  void staffForceVehicleModeEndsThePlayersOwnClickModes() {
+    seed(leader);
+    VehicleFactionCommands.clearFactionClickModes(leader);
+    only(leader, "none");
+  }
+
+  @Test
   void disableAlsoEndsTheStaffForceVehicleMode() {
     net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.arm(leader.getUniqueId(), "b1", "attacker");
     VehicleFactionCommands.disarm(leader);

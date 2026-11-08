@@ -77,6 +77,7 @@ public final class VehicleFactionCommands {
         SimpleFactions plugin = SimpleFactions.getInstance();
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().put(
@@ -111,6 +112,7 @@ public final class VehicleFactionCommands {
         SimpleFactions plugin = SimpleFactions.getInstance();
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().put(
@@ -146,6 +148,7 @@ public final class VehicleFactionCommands {
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         clearOtherVehicleSessions(plugin, player);
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().put(
                 player.getUniqueId(),
                 new VehicleHandoverSessionManager.Session(
@@ -153,6 +156,16 @@ public final class VehicleFactionCommands {
                         target.getUniqueId(),
                         System.currentTimeMillis() + timeoutMillis));
         player.sendMessage(VehicleHandoverMessages.armed(Members.name(target)));
+    }
+
+    /** Staff force-vehicle mode takes over the clicks: the player's own vehicle click modes end. */
+    public static void clearFactionClickModes(Player player) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        if (plugin == null) return;
+        plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
+        plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
     }
 
     /** Stops every armed vehicle click mode, so the next right-click mounts the vehicle again. */
@@ -172,6 +185,7 @@ public final class VehicleFactionCommands {
     }
 
     private static void clearOtherVehicleSessions(SimpleFactions plugin, Player player) {
+        net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
@@ -201,6 +215,7 @@ public final class VehicleFactionCommands {
         SimpleFactions plugin = SimpleFactions.getInstance();
         long timeoutMillis = InstallationConfigLoader.getTransferRequestTimeoutSeconds() * 1000L;
         plugin.getVehicleTransferSessionManager().clear(player.getUniqueId());
+        net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().put(

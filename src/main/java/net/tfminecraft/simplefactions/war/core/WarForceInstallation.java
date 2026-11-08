@@ -33,6 +33,9 @@ final class WarForceInstallation {
 		if (battle == null) {
 			return new Resolved(null, "There is no battle with the id " + args[2]);
 		}
+		if (battle.isCampaignRaid()) {
+			return new Resolved(null, battle.getDisplayName() + " is a raid; only its source and target installations take part.");
+		}
 		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
 		if (war == null || !war.isActive()) {
 			return new Resolved(null, battle.getDisplayName() + " is not a battle of an active war.");

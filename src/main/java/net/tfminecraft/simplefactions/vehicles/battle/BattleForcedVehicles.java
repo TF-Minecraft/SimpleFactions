@@ -80,6 +80,11 @@ public final class BattleForcedVehicles {
 			if (session == null) {
 				return;
 			}
+			// Staff rights can be taken away while the mode is armed.
+			if (!net.tfminecraft.simplefactions.war.battle.ui.BattlePermissions.isAdmin(player)) {
+				disarm(player.getUniqueId());
+				return;
+			}
 			ActiveVehicle vehicle = event.getVehicle();
 			if (vehicle == null || vehicle.getUUID() == null) {
 				return;

@@ -291,7 +291,10 @@ public final class BattleInstallationPickService {
 				if (installation != null && isForced(war, factionId, installationId)) {
 					return false;
 				}
-				return installation == null || !BattleInstallationPickEligibility.isPickable(war, faction, installation);
+				boolean drop = installation == null || !BattleInstallationPickEligibility.isPickable(war, faction, installation);
+				// A forced pick whose installation is gone stops being forced with it.
+				if (drop) war.getForcedBattleInstallationPicks().remove(forcedKey(factionId, installationId));
+				return drop;
 			});
 		}
 		war.getBattleInstallationPicks().entrySet().removeIf(

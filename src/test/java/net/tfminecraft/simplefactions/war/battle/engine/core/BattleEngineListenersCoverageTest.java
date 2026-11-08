@@ -1026,6 +1026,23 @@ class BattleEngineListenersCoverageTest {
     click(BattleLivesEditor.CONFIRM_SLOT);
     verify(alice).sendMessage("§cLives can only be corrected while the battle runs. Use setlives before it starts.");
 
+    // A staff restart after staging starts a new fight: the staged change is dropped, not applied to it.
+    siege.setStarted(true);
+    siege.setStartedAt(java.time.Instant.EPOCH);
+    click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);
+    click(BattleLivesEditor.FIRST_SIDE_SLOT);
+    int before = siege.getSides().get(0).getLives();
+    siege.setStartedAt(java.time.Instant.EPOCH.plusSeconds(60));
+    click(BattleLivesEditor.CONFIRM_SLOT);
+    verify(alice).sendMessage("§cThe battle was restarted, so nothing was changed. Stage the lives again.");
+    assertEquals(before, siege.getSides().get(0).getLives());
+    assertEquals("§7Battle View", alice.getOpenInventory().getTitle());
+    siege.setStarted(false);
+    BattleSide huge = siege.getSides().get(0);
+    huge.restoreLives(Integer.MAX_VALUE, Integer.MAX_VALUE);
+    assertEquals(Integer.MAX_VALUE, BattleLivesEditor.newLives(huge, 5));
+    assertEquals(0, BattleLivesEditor.newLives(huge, Integer.MIN_VALUE));
+
     // A view left open for another battle goes back to the battle view; without an editor nothing happens.
     siege.setStarted(true);
     click(BattleInventoryManager.RUNNING_LIVES_ALT_SLOT);

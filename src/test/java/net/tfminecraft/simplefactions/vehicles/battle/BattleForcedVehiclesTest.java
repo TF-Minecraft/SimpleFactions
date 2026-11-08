@@ -62,6 +62,7 @@ class BattleForcedVehiclesTest {
 		staff = mock(Player.class);
 		when(staff.getUniqueId()).thenReturn(UUID.randomUUID());
 		when(staff.getName()).thenReturn("Staff");
+		when(staff.hasPermission("warbands.admin")).thenReturn(true);
 		vehicle = mock(ActiveVehicle.class);
 		when(vehicle.getUUID()).thenReturn("veh-1");
 		when(vehicle.getId()).thenReturn("biplane");
@@ -144,6 +145,15 @@ class BattleForcedVehiclesTest {
 		when(other.getId()).thenReturn("sloop");
 		click(staff, other);
 		assertEquals("Attacker", battle.getForcedVehicleSide("veh-2"));
+	}
+
+	@Test
+	void staffWhoLostTheirRightsCannotAssignAndTheModeEnds() {
+		BattleForcedVehicles.arm(staff.getUniqueId(), "B1", "attacker");
+		when(staff.hasPermission("warbands.admin")).thenReturn(false);
+		assertFalse(click(staff, vehicle).isCancelled());
+		assertNull(battle.getForcedVehicleSide("veh-1"));
+		assertNull(BattleForcedVehicles.get(staff.getUniqueId()));
 	}
 
 	@Test

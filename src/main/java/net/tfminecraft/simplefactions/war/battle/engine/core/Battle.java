@@ -720,6 +720,7 @@ public class Battle {
 		keepInventory = true;
 		lootEnabled = true;
 		manaRefillOnRespawn = false;
+		allVehiclesUsable = false;
 		teleport = false;
 		locked = true;
 		lt = LifeType.COLLECTIVE;

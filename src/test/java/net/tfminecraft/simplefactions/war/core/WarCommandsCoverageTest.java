@@ -283,6 +283,13 @@ class WarCommandsCoverageTest {
     battle.setWarId(41);
     BattleManager.addBattle(battle);
     BattleManager.addBattle(new Battle("manual"));
+    Battle raid = new Battle("raid_w41");
+    raid.setWarId(41);
+    raid.setCampaignRaid(true);
+    raid.setDisplayName("Harbour Raid");
+    BattleManager.addBattle(raid);
+    assertTrue(run("admin", "forceinstallation", "raid_w41", "iron", "fort-1"));
+    verify(alice).sendMessage("§cHarbour Raid is a raid; only its source and target installations take part.");
 
     assertTrue(run("admin", "forceinstallation", "campaign_w41"));
     verify(alice).sendMessage("§cUsage: /war admin forceinstallation <battle> <faction> <installation>");

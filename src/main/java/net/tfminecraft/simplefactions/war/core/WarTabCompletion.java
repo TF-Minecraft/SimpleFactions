@@ -269,7 +269,7 @@ public class WarTabCompletion implements TabCompleter {
 		List<String> completions = new ArrayList<>();
 		if (args.length == 3) {
 			for (var battle : net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.get()) {
-				if (battle.getWarId() != null) {
+				if (battle.getWarId() != null && !battle.isCampaignRaid()) {
 					addIfPrefix(completions, args[2], battle.getId());
 				}
 			}

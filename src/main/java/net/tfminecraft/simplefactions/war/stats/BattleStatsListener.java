@@ -27,7 +27,6 @@ import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.tlibs.character.CharacterSessionEndEvent;
-import net.tfminecraft.vehicleframework.events.VFEntityDamageEvent;
 
 /**
  * Counts hits, kills, assists, deaths, healing, crowd control and logouts in running
@@ -71,13 +70,15 @@ public final class BattleStatsListener implements Listener {
 		}
 	}
 
-	/** Vehicle weapons name the gunner here, just before VehicleFramework deals the damage. */
-	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-	public void onVehicleDamage(VFEntityDamageEvent event) {
-		if (BattleManager.get().isEmpty() || !(event.getEntity() instanceof Player victim)) {
+	/**
+	 * Called by the VehicleFramework bridge just before VehicleFramework deals damage without a
+	 * source: vehicle weapons name the gunner, a redirected hit names the original attacker.
+	 */
+	void vehicleHit(Entity victimEntity, Entity damager) {
+		if (BattleManager.get().isEmpty() || !(victimEntity instanceof Player victim)) {
 			return;
 		}
-		Player attacker = player(event.getDamager());
+		Player attacker = player(damager);
 		if (attacker != null && attacker != victim) {
 			pendingAttackers.put(victim.getUniqueId(), new Pending(attacker, Bukkit.getCurrentTick()));
 		}
@@ -99,9 +100,11 @@ public final class BattleStatsListener implements Listener {
 		}
 		if (event.isCancelled()) {
 			// A seated player's hit was cancelled only to be dealt again; that is not a blocked hit.
-			Integer redirected = redirectedAt.get(victim.getUniqueId());
-			boolean blocked = attackerSide != place.side() && !inHitCooldown(victim)
-					&& (redirected == null || redirected != Bukkit.getCurrentTick());
+			Integer redirectedTick = redirectedAt.get(victim.getUniqueId());
+			boolean redirected = redirectedTick != null && redirectedTick == Bukkit.getCurrentTick();
+			// Stopped before VehicleFramework could deal it again: nothing will use the remembered attacker.
+			if (!redirected) pendingAttackers.remove(victim.getUniqueId());
+			boolean blocked = attackerSide != place.side() && !inHitCooldown(victim) && !redirected;
 			FighterStats target = blocked ? place.battle().stats().fighter(victim, place.side()) : null;
 			if (target != null) target.blockedHits++;
 			return;
@@ -274,6 +277,12 @@ public final class BattleStatsListener implements Listener {
 	public void onSessionEnd(CharacterSessionEndEvent event) {
 		if (event.getReason() == CharacterSessionEndEvent.Reason.SWITCH) {
 			logout(event.getPlayer(), event.getSession().ref());
+			// Hits on the old character must not credit kills or assists against the next one.
+			UUID account = event.getPlayer().getUniqueId();
+			pendingAttackers.remove(account);
+			for (Battle battle : BattleManager.get()) {
+				if (battle.getStats() != null) battle.getStats().forgetVictim(account);
+			}
 		}
 	}
 
@@ -290,6 +299,23 @@ public final class BattleStatsListener implements Listener {
 						if (fighter != null) fighter.logouts++;
 						return;
 					}
+				}
+			}
+		}
+	}
+
+	/** Everyone in the battle when it starts is a fighter, even if they leave before doing anything. */
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void onStarted(net.tfminecraft.simplefactions.war.battle.events.BattleStartedEvent event) {
+		Battle battle = BattleManager.getByString(event.getBattleId());
+		BattleStats stats = battle == null ? null : battle.getStats();
+		if (stats == null) {
+			return;
+		}
+		for (BattleSide side : battle.getSides()) {
+			for (Warband band : side.getBands()) {
+				for (Player player : band.getPlayers()) {
+					stats.fighter(player, side);
 				}
 			}
 		}

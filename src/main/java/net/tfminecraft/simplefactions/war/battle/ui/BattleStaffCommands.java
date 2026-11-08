@@ -177,6 +177,7 @@ public final class BattleStaffCommands {
 			return "§cWarband " + warband.getId() + " §cis not on a side of a campaign battle,"
 					+ " so there is no battle to assign vehicles to.";
 		}
+		net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.clearFactionClickModes(player);
 		BattleForcedVehicles.arm(player.getUniqueId(), ctx.battle().getId(), ctx.sideId());
 		return BattleForcedVehicles.armedMessage(ctx.battle(), ctx.sideId());
 	}

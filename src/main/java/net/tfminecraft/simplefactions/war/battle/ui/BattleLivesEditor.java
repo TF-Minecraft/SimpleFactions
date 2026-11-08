@@ -38,11 +38,14 @@ public final class BattleLivesEditor {
 
 	private static final class Draft {
 		private final String battleId;
+		/** The fight the change was staged for; a restart starts a new one. */
+		private final java.time.Instant startedAt;
 		private final Map<String, Integer> changes = new LinkedHashMap<>();
 		private boolean armed;
 
-		private Draft(String battleId) {
+		private Draft(String battleId, java.time.Instant startedAt) {
 			this.battleId = battleId;
+			this.startedAt = startedAt;
 		}
 
 		private int change(BattleSide side) {
@@ -53,7 +56,7 @@ public final class BattleLivesEditor {
 	private BattleLivesEditor() {}
 
 	public static void open(Player player, Battle battle) {
-		Draft draft = new Draft(battle.getId());
+		Draft draft = new Draft(battle.getId(), battle.getStartedAt());
 		DRAFTS.put(player.getUniqueId(), draft);
 		Inventory inventory = SimpleFactions.plugin.getServer().createInventory(null, 27, TITLE);
 		render(inventory, battle, draft);
@@ -65,6 +68,11 @@ public final class BattleLivesEditor {
 		Draft draft = DRAFTS.get(player.getUniqueId());
 		if (slot == BACK_SLOT || draft == null || !draft.battleId.equalsIgnoreCase(battle.getId())) {
 			DRAFTS.remove(player.getUniqueId());
+			return true;
+		}
+		if (!java.util.Objects.equals(draft.startedAt, battle.getStartedAt())) {
+			DRAFTS.remove(player.getUniqueId());
+			player.sendMessage("§cThe battle was restarted, so nothing was changed. Stage the lives again.");
 			return true;
 		}
 		if (slot == CONFIRM_SLOT) {
@@ -100,12 +108,17 @@ public final class BattleLivesEditor {
 			}
 			changed = true;
 			BattleStaffService.Result result = BattleStaffService.adjustLives(
-					battle, side.getId(), "set", Math.max(0, side.getLives() + change), player.getName());
+					battle, side.getId(), "set", newLives(side, change), player.getName());
 			player.sendMessage(result.ok() ? result.message() : "§c" + result.message());
 		}
 		if (!changed) {
 			player.sendMessage("§7No lives changed.");
 		}
+	}
+
+	/** Lives after the staged change, kept between 0 and the largest int. */
+	public static int newLives(BattleSide side, int change) {
+		return (int) Math.max(0L, Math.min(Integer.MAX_VALUE, (long) side.getLives() + change));
 	}
 
 	private static void render(Inventory inventory, Battle battle, Draft draft) {
@@ -128,7 +141,7 @@ public final class BattleLivesEditor {
 		meta.setDisplayName("§f" + side.getId());
 		List<String> lore = new ArrayList<>();
 		lore.add("§7Lives now: §e" + side.getLives() + "§7/§e" + side.getMaxLives());
-		lore.add("§7New lives: §e" + Math.max(0, side.getLives() + change)
+		lore.add("§7New lives: §e" + newLives(side, change)
 				+ (change == 0 ? "" : " §7(" + (change > 0 ? "+" : "") + change + ")"));
 		lore.add(" ");
 		lore.add("§7Left-click: §a+" + STEP);
@@ -148,7 +161,7 @@ public final class BattleLivesEditor {
 		for (BattleSide side : battle.getSides()) {
 			int change = draft.change(side);
 			if (change != 0) {
-				lore.add("§7" + side.getId() + ": §e" + side.getLives() + " §7to §e" + Math.max(0, side.getLives() + change));
+				lore.add("§7" + side.getId() + ": §e" + side.getLives() + " §7to §e" + newLives(side, change));
 			}
 		}
 		if (lore.isEmpty()) {
