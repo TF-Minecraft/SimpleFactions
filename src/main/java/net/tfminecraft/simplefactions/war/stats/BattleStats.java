@@ -1,7 +1,9 @@
 package net.tfminecraft.simplefactions.war.stats;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -14,16 +16,17 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 
 /**
  * Counters for a battle in progress. Saved with the battle file, so a restart
- * mid-battle keeps them; the last-hit memory is not saved.
+ * mid-battle keeps them; the short-lived hit and crowd-control memory is not saved.
  */
 public final class BattleStats {
-	/** How long an enemy hit still earns the kill when the death has no killer. */
+	/** How long an enemy hit still earns the kill, an assist, or credit for damage with no attacker. */
 	static final long LAST_HIT_WINDOW_MS = 10_000L;
 
 	public final Map<String, FighterStats> fighters = new LinkedHashMap<>();
-	private transient Map<UUID, LastHit> lastHits;
-
-	private record LastHit(String attackerKey, long at) {}
+	/** Victim account → enemy fighter keys that hit them, with the time of their last hit. */
+	private transient Map<UUID, Map<String, Long>> recentHitters;
+	/** Victim account → crowd-control kind → when the control already credited ends. */
+	private transient Map<UUID, Map<String, Long>> controlledUntil;
 
 	/** The fighter for this player on this side, created on first sight; null without a character. */
 	public FighterStats fighter(Player player, BattleSide side) {
@@ -48,22 +51,64 @@ public final class BattleStats {
 	}
 
 	void recordHit(UUID victimId, String attackerKey, long now) {
-		hits().put(victimId, new LastHit(attackerKey, now));
+		recentHitters().computeIfAbsent(victimId, id -> new LinkedHashMap<>()).put(attackerKey, now);
 	}
 
-	/** The fighter whose enemy hit landed last within the window, and forgets it. */
-	FighterStats takeLastHitter(UUID victimId, long now) {
-		LastHit hit = hits().remove(victimId);
-		if (hit == null || now - hit.at() > LAST_HIT_WINDOW_MS) {
-			return null;
+	/** The enemy fighter who hit last within the window, without forgetting the hits. */
+	FighterStats lastHitter(UUID victimId, long now) {
+		Map<String, Long> hits = recentHitters().get(victimId);
+		String latest = null;
+		long at = Long.MIN_VALUE;
+		if (hits != null) {
+			for (Map.Entry<String, Long> hit : hits.entrySet()) {
+				if (now - hit.getValue() <= LAST_HIT_WINDOW_MS && hit.getValue() >= at) {
+					latest = hit.getKey();
+					at = hit.getValue();
+				}
+			}
 		}
-		return fighters.get(hit.attackerKey());
+		return latest == null ? null : fighters.get(latest);
 	}
 
-	private Map<UUID, LastHit> hits() {
-		if (lastHits == null) {
-			lastHits = new HashMap<>();
+	/** Every enemy fighter who hit the victim within the window, latest last; forgets them all. */
+	List<FighterStats> takeHitters(UUID victimId, long now) {
+		Map<String, Long> hits = recentHitters().remove(victimId);
+		List<FighterStats> result = new ArrayList<>();
+		if (hits != null) {
+			hits.entrySet().stream()
+					.filter(hit -> now - hit.getValue() <= LAST_HIT_WINDOW_MS)
+					.sorted(Map.Entry.comparingByValue())
+					.forEach(hit -> result.add(fighters.get(hit.getKey())));
 		}
-		return lastHits;
+		return result;
+	}
+
+	/**
+	 * Seconds of new control for this kind on this victim. Refreshing a control that is
+	 * still running only counts the time it adds, so re-applied auras are not counted twice.
+	 */
+	double creditControl(UUID victimId, String kind, long now, long durationMs) {
+		Map<String, Long> kinds = controlledUntil().computeIfAbsent(victimId, id -> new HashMap<>());
+		long until = now + Math.max(0L, durationMs);
+		long credited = Math.max(now, kinds.getOrDefault(kind, 0L));
+		if (until <= credited) {
+			return 0.0;
+		}
+		kinds.put(kind, until);
+		return (until - credited) / 1000.0;
+	}
+
+	private Map<UUID, Map<String, Long>> recentHitters() {
+		if (recentHitters == null) {
+			recentHitters = new HashMap<>();
+		}
+		return recentHitters;
+	}
+
+	private Map<UUID, Map<String, Long>> controlledUntil() {
+		if (controlledUntil == null) {
+			controlledUntil = new HashMap<>();
+		}
+		return controlledUntil;
 	}
 }

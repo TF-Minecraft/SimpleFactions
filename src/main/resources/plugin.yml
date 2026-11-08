@@ -5,7 +5,7 @@ version: ${project.version}
 author: Drefvelin
 
 depend: [DenarEconomy, TLibs]
-softdepend: [MMOItems, MythicLib, MMOCore, TFMCWeb, VehicleFramework, VFBuilders, ConditionalEvents, RPCharacters, ItemsAdder]
+softdepend: [MMOItems, MythicLib, MMOCore, MythicMobs, TFMCWeb, VehicleFramework, VFBuilders, ConditionalEvents, RPCharacters, ItemsAdder]
 
 permissions:
   simplefactions.espionage.bypass:

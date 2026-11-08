@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -18,12 +19,20 @@ import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
+import org.bukkit.damage.DamageSource;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +40,12 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.mockito.invocation.Invocation;
 
+import io.lumine.mythic.api.adapters.AbstractEntity;
+import io.lumine.mythic.api.skills.SkillCaster;
+import io.lumine.mythic.bukkit.events.MythicAuraStartEvent;
+import io.lumine.mythic.bukkit.events.MythicHealMechanicEvent;
+import io.lumine.mythic.core.skills.auras.Aura;
+import io.lumine.mythic.core.skills.mechanics.OnJumpMechanic;
 import net.Indyuce.mmocore.api.player.PlayerData;
 import net.Indyuce.mmocore.api.player.profess.PlayerClass;
 import net.kyori.adventure.text.Component;
@@ -49,12 +64,18 @@ import net.tfminecraft.simplefactions.war.battle.persistence.BattleMapper;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.tlibs.character.CharacterRef;
+import net.tfminecraft.tlibs.character.CharacterSession;
+import net.tfminecraft.tlibs.character.CharacterSessionEndEvent;
+import net.tfminecraft.vehicleframework.events.VFEntityDamageEvent;
 
 class BattleStatsCoverageTest {
 	@TempDir
 	Path dir;
 	private FactionDomainFixture fixture;
 	private BattleStatsListener listener;
+	private MythicBattleStats mythic;
+	private BattleStatsMenu menu;
 	private Player alice;
 	private Player carol;
 	private Player bob;
@@ -74,6 +95,8 @@ class BattleStatsCoverageTest {
 		bob = fighter("Bob");
 		outsider = fighter("Outsider");
 		listener = new BattleStatsListener();
+		mythic = new MythicBattleStats(listener);
+		menu = new BattleStatsMenu();
 		battle = BattleFactory.createBlank(BattleType.RAID, "Test Battle");
 		Warband attackers = new Warband("atk", alice);
 		attackers.addPlayer(carol);
@@ -93,17 +116,29 @@ class BattleStatsCoverageTest {
 	private Player fighter(String name) {
 		Player player = fixture.player(name);
 		when(player.getHealth()).thenReturn(20.0);
+		when(player.getMaxHealth()).thenReturn(20.0);
 		when(player.getMaximumNoDamageTicks()).thenReturn(20);
 		return player;
 	}
 
-	private void hit(org.bukkit.entity.Entity victim, Object damager, double damage, boolean cancelled) {
+	private EntityDamageByEntityEvent hitEvent(Entity victim, Object damager, double damage, boolean cancelled) {
 		EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
 		when(event.getEntity()).thenReturn(victim);
-		when(event.getDamager()).thenReturn((org.bukkit.entity.Entity) damager);
+		when(event.getDamager()).thenReturn((Entity) damager);
 		when(event.getFinalDamage()).thenReturn(damage);
 		when(event.isCancelled()).thenReturn(cancelled);
-		listener.onDamage(event);
+		return event;
+	}
+
+	private void hit(Entity victim, Object damager, double damage, boolean cancelled) {
+		listener.onDamage(hitEvent(victim, damager, damage, cancelled));
+	}
+
+	private void sourceless(Entity victim, double damage) {
+		EntityDamageEvent event = mock(EntityDamageEvent.class);
+		when(event.getEntity()).thenReturn(victim);
+		when(event.getFinalDamage()).thenReturn(damage);
+		listener.onSourcelessDamage(event);
 	}
 
 	private void die(Player victim, Player killer) {
@@ -117,6 +152,39 @@ class BattleStatsCoverageTest {
 		PlayerQuitEvent event = mock(PlayerQuitEvent.class);
 		when(event.getPlayer()).thenReturn(player);
 		listener.onQuit(event);
+	}
+
+	private void regain(Player target, double amount, EntityRegainHealthEvent.RegainReason reason) {
+		EntityRegainHealthEvent event = mock(EntityRegainHealthEvent.class);
+		when(event.getEntity()).thenReturn(target);
+		when(event.getAmount()).thenReturn(amount);
+		when(event.getRegainReason()).thenReturn(reason);
+		listener.onRegain(event);
+	}
+
+	private void healEvent(Entity healer, Entity target) {
+		MythicHealMechanicEvent event = mock(MythicHealMechanicEvent.class);
+		when(event.getEntity()).thenReturn(healer);
+		when(event.getTarget()).thenReturn(target);
+		mythic.onHeal(event);
+	}
+
+	private void aura(Aura aura, String name, Entity caster, Entity target, int ticks) {
+		MythicAuraStartEvent event = mock(MythicAuraStartEvent.class);
+		when(event.getAura()).thenReturn(aura);
+		when(event.getAuraName()).thenReturn(name);
+		if (caster != null) {
+			SkillCaster skillCaster = mock(SkillCaster.class);
+			AbstractEntity casterEntity = mock(AbstractEntity.class);
+			when(casterEntity.getBukkitEntity()).thenReturn(caster);
+			when(skillCaster.getEntity()).thenReturn(casterEntity);
+			when(event.getCaster()).thenReturn(skillCaster);
+		}
+		AbstractEntity targetEntity = mock(AbstractEntity.class);
+		when(targetEntity.getBukkitEntity()).thenReturn(target);
+		when(event.getTargetEntity()).thenReturn(Optional.of(targetEntity));
+		when(event.getDuration()).thenReturn(ticks);
+		mythic.onAura(event);
 	}
 
 	private FighterStats live(String key) {
@@ -140,10 +208,29 @@ class BattleStatsCoverageTest {
 		return lines.stream().anyMatch(line -> line.contains(part));
 	}
 
+	private Inventory open(Player player) {
+		return player.getOpenInventory().getTopInventory();
+	}
+
+	private String title(Player player) {
+		return player.getOpenInventory().getTitle();
+	}
+
+	// The test fixture stores legacy names and lore.
+	@SuppressWarnings("deprecation")
+	private String text(Player player, int slot) {
+		ItemStack item = open(player).getItem(slot);
+		if (item == null) return null;
+		return item.getItemMeta().getDisplayName() + " | " + String.join(" | ", item.getItemMeta().getLore());
+	}
+
+	private void click(Player player, int slot) {
+		menu.onClick(fixture.ui.click(player, slot));
+	}
+
 	private BattleRecord end(String winner) {
-		BattleEndedEvent event = new BattleEndedEvent(battle.getId(), BattleType.RAID, null, winner, Map.of(),
-				Set.of(), BattleEndReason.SIDE_WIN, false, false);
-		listener.onEnded(event);
+		listener.onEnded(new BattleEndedEvent(battle.getId(), BattleType.RAID, null, winner, Map.of(), Set.of(),
+				BattleEndReason.SIDE_WIN, false, false));
 		List<BattleStatsArchive.Summary> all = BattleStatsArchive.list(null);
 		return all.isEmpty() ? null : BattleStatsArchive.get(all.get(0).id());
 	}
@@ -161,11 +248,23 @@ class BattleStatsCoverageTest {
 		Arrow wild = mock(Arrow.class);
 		when(wild.getShooter()).thenReturn(zombie);
 		hit(bob, wild, 4, false);
+		TNTPrimed tnt = mock(TNTPrimed.class);
+		EntityDamageByEntityEvent blast = hitEvent(bob, tnt, 2, false);
+		DamageSource source = mock(DamageSource.class);
+		when(source.getCausingEntity()).thenReturn(alice);
+		when(blast.getDamageSource()).thenReturn(source);
+		listener.onDamage(blast);
+		EntityDamageByEntityEvent unowned = hitEvent(bob, tnt, 2, false);
+		when(unowned.getDamageSource()).thenReturn(mock(DamageSource.class));
+		listener.onDamage(unowned);
 		hit(bob, alice, 50, false);
 		hit(carol, alice, 3, false);
 		hit(bob, alice, 6, true);
 		hit(carol, alice, 6, true);
 		when(bob.getNoDamageTicks()).thenReturn(15);
+		hit(bob, alice, 6, true);
+		when(bob.getNoDamageTicks()).thenReturn(0);
+		when(bob.isInsideVehicle()).thenReturn(true);
 		hit(bob, alice, 6, true);
 		hit(bob, alice, Double.NaN, false);
 		hit(bob, alice, 0, false);
@@ -173,17 +272,62 @@ class BattleStatsCoverageTest {
 		hit(bob, alice, Double.POSITIVE_INFINITY, false);
 
 		FighterStats a = live("Alice");
-		assertEquals(24, a.damage, 1e-9);
+		assertEquals(26, a.damage, 1e-9);
 		assertEquals(3, a.friendlyDamage, 1e-9);
-		assertEquals(24, live("Bob").damageTaken, 1e-9);
+		assertEquals(26, live("Bob").damageTaken, 1e-9);
 		assertEquals(1, live("Bob").blockedHits);
 		assertNull(live("Carol"));
 		assertEquals("attacker", a.side);
 	}
 
 	@Test
-	void deathsCreditTheKillerOrTheLastEnemyHitAndCountTeamKills() {
+	void seatedAndVehicleHitsAreCreditedWhenTheyComeBackWithoutAnAttacker() {
+		// A seated defender is hit; VehicleFramework cancels it and deals it again with no source.
+		when(bob.isInsideVehicle()).thenReturn(true);
+		listener.onSeatedHit(hitEvent(bob, alice, 4, false));
+		sourceless(bob, 4);
+		// A vehicle gun names its gunner first.
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 3));
+		sourceless(bob, 3);
+		assertEquals(7, live("Alice").damage, 1e-9);
+		// Friendly vehicle fire.
+		listener.onVehicleDamage(new VFEntityDamageEvent(carol, alice, "BULLET", 2));
+		sourceless(carol, 2);
+		assertEquals(2, live("Alice").friendlyDamage, 1e-9);
+		// The pending attacker only holds for the same tick, then the last enemy hitter takes it.
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 3));
+		when(Bukkit.getCurrentTick()).thenReturn(7);
+		sourceless(bob, 5);
+		assertEquals(12, live("Alice").damage, 1e-9);
+		// Fire or a fall with nobody hitting recently goes to nobody.
+		sourceless(carol, 5);
+		assertNull(live("Carol"));
+		// An outsider gunner, a dead source, non-players and battle-less states are ignored.
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, outsider, "BULLET", 1));
+		sourceless(bob, 1);
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, null, "BULLET", 1));
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, bob, "BULLET", 1));
+		listener.onVehicleDamage(new VFEntityDamageEvent(mock(Zombie.class), alice, "BULLET", 1));
+		listener.onSeatedHit(hitEvent(bob, mock(Zombie.class), 1, false));
+		listener.onSeatedHit(hitEvent(carol, alice, 1, false));
+		listener.onSeatedHit(hitEvent(mock(Zombie.class), alice, 1, false));
+		listener.onSourcelessDamage(hitEvent(bob, alice, 1, false));
+		sourceless(mock(Zombie.class), 1);
+		sourceless(outsider, 1);
+		assertEquals(12, live("Alice").damage, 1e-9);
+		BattleManager.resetForTests();
+		listener.onVehicleDamage(new VFEntityDamageEvent(bob, alice, "BULLET", 1));
+		listener.onSeatedHit(hitEvent(bob, alice, 1, false));
+		sourceless(bob, 1);
+		regain(bob, 1, EntityRegainHealthEvent.RegainReason.MAGIC);
+		healEvent(alice, carol);
+		aura(mock(Aura.class), "Slowed", alice, bob, 20);
+	}
+
+	@Test
+	void deathsCreditTheKillerOrTheLastEnemyHitWithAssistsAndTeamKills() {
 		die(outsider, null);
+		hit(bob, carol, 2, false);
 		die(bob, alice);
 		die(carol, alice);
 		hit(bob, alice, 2, false);
@@ -191,7 +335,7 @@ class BattleStatsCoverageTest {
 		die(alice, null);
 		die(bob, outsider);
 		hit(carol, bob, 1, false);
-		battle.getStats().takeLastHitter(carol.getUniqueId(), System.currentTimeMillis() + 60_000);
+		battle.getStats().takeHitters(carol.getUniqueId(), System.currentTimeMillis() + 60_000);
 		die(carol, null);
 		die(bob, bob);
 		Battle idle = BattleFactory.createBlank(BattleType.RAID, "idle");
@@ -201,26 +345,87 @@ class BattleStatsCoverageTest {
 		Player nameless = fixture.player("Nameless");
 		when(nameless.getName()).thenReturn(null);
 		quit(nameless);
-		var session = net.tfminecraft.simplefactions.identity.Members.session(carol).orElseThrow();
-		listener.onSessionEnd(new net.tfminecraft.tlibs.character.CharacterSessionEndEvent(carol, session,
-				net.tfminecraft.tlibs.character.CharacterSessionEndEvent.Reason.SWITCH));
-		listener.onSessionEnd(new net.tfminecraft.tlibs.character.CharacterSessionEndEvent(carol, session,
-				net.tfminecraft.tlibs.character.CharacterSessionEndEvent.Reason.QUIT));
-		var stranger = new net.tfminecraft.tlibs.character.CharacterRef(carol.getUniqueId(), java.util.UUID.randomUUID());
-		listener.onSessionEnd(new net.tfminecraft.tlibs.character.CharacterSessionEndEvent(carol,
-				new net.tfminecraft.tlibs.character.CharacterSession(stranger, 9L),
-				net.tfminecraft.tlibs.character.CharacterSessionEndEvent.Reason.SWITCH));
+		CharacterSession session = net.tfminecraft.simplefactions.identity.Members.session(carol).orElseThrow();
+		listener.onSessionEnd(new CharacterSessionEndEvent(carol, session, CharacterSessionEndEvent.Reason.SWITCH));
+		listener.onSessionEnd(new CharacterSessionEndEvent(carol, session, CharacterSessionEndEvent.Reason.QUIT));
+		CharacterRef stranger = new CharacterRef(carol.getUniqueId(), java.util.UUID.randomUUID());
+		listener.onSessionEnd(new CharacterSessionEndEvent(carol, new CharacterSession(stranger, 9L),
+				CharacterSessionEndEvent.Reason.SWITCH));
 
 		assertEquals(2, live("Alice").kills);
 		assertEquals(1, live("Alice").teamKills);
+		assertEquals(1, live("Carol").assists);
+		assertEquals(0, live("Alice").assists);
 		assertEquals(4, live("Bob").deaths);
 		assertEquals(2, live("Carol").deaths);
 		assertEquals(2, live("Carol").logouts);
 		assertNull(battle.getStats().fighter(alice, null));
+		assertNull(battle.getStats().lastHitter(bob.getUniqueId(), System.currentTimeMillis()));
 	}
 
 	@Test
-	void finishArchivesOnceTellsFightersAndRanksThem() {
+	void skillHealsGoToTheHealerAndOtherMagicHealsAreSelfHealing() {
+		when(carol.getHealth()).thenReturn(12.0);
+		healEvent(alice, carol);
+		regain(carol, 5, EntityRegainHealthEvent.RegainReason.CUSTOM);
+		assertEquals(5, live("Alice").healing, 1e-9);
+		// Capped at what the target was missing.
+		healEvent(alice, carol);
+		regain(carol, 50, EntityRegainHealthEvent.RegainReason.CUSTOM);
+		assertEquals(13, live("Alice").healing, 1e-9);
+		// Lifesteal and potions: self-healing.
+		regain(carol, 2, EntityRegainHealthEvent.RegainReason.MAGIC);
+		assertEquals(2, live("Carol").selfHealing, 1e-9);
+		healEvent(carol, carol);
+		regain(carol, 1, EntityRegainHealthEvent.RegainReason.CUSTOM);
+		assertEquals(3, live("Carol").selfHealing, 1e-9);
+		// Healing an enemy counts for nobody; a stale heal from another tick is self-healing.
+		when(bob.getHealth()).thenReturn(10.0);
+		healEvent(alice, bob);
+		regain(bob, 4, EntityRegainHealthEvent.RegainReason.CUSTOM);
+		assertEquals(13, live("Alice").healing, 1e-9);
+		healEvent(alice, carol);
+		when(Bukkit.getCurrentTick()).thenReturn(3);
+		regain(carol, 1, EntityRegainHealthEvent.RegainReason.CUSTOM);
+		assertEquals(4, live("Carol").selfHealing, 1e-9);
+		// Food, full health, outsiders, non-player heals and non-player healers are ignored.
+		regain(carol, 1, EntityRegainHealthEvent.RegainReason.SATIATED);
+		when(carol.getHealth()).thenReturn(20.0);
+		regain(carol, 1, EntityRegainHealthEvent.RegainReason.MAGIC);
+		regain(outsider, 1, EntityRegainHealthEvent.RegainReason.MAGIC);
+		EntityRegainHealthEvent mob = mock(EntityRegainHealthEvent.class);
+		when(mob.getRegainReason()).thenReturn(EntityRegainHealthEvent.RegainReason.MAGIC);
+		when(mob.getEntity()).thenReturn(mock(Zombie.class));
+		listener.onRegain(mob);
+		healEvent(mock(Zombie.class), carol);
+		healEvent(alice, mock(Zombie.class));
+		assertEquals(4, live("Carol").selfHealing, 1e-9);
+	}
+
+	@Test
+	void crowdControlCountsOnlyNewControlTimePerKind() {
+		Aura slow = mock(Aura.class);
+		aura(slow, "Slowed", alice, bob, 60);
+		aura(slow, "Slowed", alice, bob, 60);
+		aura(mock(OnJumpMechanic.class), "3f2a-uuid", alice, bob, 40);
+		aura(slow, "Frozen", alice, bob, 40);
+		aura(slow, "Silenced", carol, alice, 20);
+		aura(slow, "Slowed", alice, alice, 60);
+		aura(slow, "SomeBuff", alice, bob, 60);
+		aura(slow, "Slowed", null, bob, 60);
+		aura(slow, "Slowed", alice, mock(Zombie.class), 60);
+		aura(slow, "Slowed", outsider, bob, 60);
+		aura(slow, "Slowed", mock(Zombie.class), bob, 60);
+		aura(slow, null, alice, bob, 60);
+		assertEquals(5, live("Alice").cc, 0.05);
+		assertEquals(5, live("Bob").ccTaken, 0.05);
+		assertEquals(1, live("Carol").friendlyCc, 0.05);
+		assertEquals(0, battle.getStats().creditControl(bob.getUniqueId(), "slow", 0, -5), 1e-9);
+		listener.control(alice, alice, "slow", 1000);
+	}
+
+	@Test
+	void finishArchivesOnceAndPointsFightersToTheirStats() {
 		hit(bob, alice, 9, false);
 		die(bob, alice);
 		hit(carol, bob, 4, false);
@@ -234,12 +439,9 @@ class BattleStatsCoverageTest {
 		assertEquals(1, BattleStatsArchive.list(null).size());
 		assertTrue(record.id.startsWith("test_battle-"));
 		assertEquals(3, record.fighters.size());
-
 		List<String> lines = said(alice);
-		assertTrue(has(lines, "Winner: §eattacker"), lines.toString());
-		assertTrue(has(lines, "Kills §e1 §7(#1 of 3)"), lines.toString());
-		assertTrue(has(lines, "Battle history"), lines.toString());
-		assertTrue(has(said(bob), "Damage §e4 §7(#2 of 3)"));
+		assertTrue(has(lines, "Test Battle §6is over"), lines.toString());
+		assertTrue(has(said(bob), "/battle stats"));
 		assertTrue(Files.exists(dir.resolve(BattleStatsArchive.FOLDER).resolve(record.id + ".json")));
 	}
 
@@ -250,7 +452,7 @@ class BattleStatsCoverageTest {
 		String json = JsonUtil.GSON.toJson(data);
 		Battle loaded = BattleMapper.fromData(JsonUtil.GSON.fromJson(json, BattleData.class));
 		assertEquals(7, loaded.getStats().fighters.get("Alice").damage, 1e-9);
-		assertNull(loaded.getStats().takeLastHitter(bob.getUniqueId(), 0));
+		assertTrue(loaded.getStats().takeHitters(bob.getUniqueId(), 0).isEmpty());
 		Battle fresh = new Battle("fresh");
 		assertNull(fresh.getStats());
 		assertNotNull(fresh.stats());
@@ -287,7 +489,7 @@ class BattleStatsCoverageTest {
 	}
 
 	@Test
-	void fighterClassComesFromMmoCoreWhenItIsEnabled() {
+	void fighterClassComesFromMmoCoreWithoutColourCodes() {
 		assertNull(FighterClass.of(alice));
 		when(Bukkit.getPluginManager().isPluginEnabled("MMOCore")).thenReturn(true);
 		try (MockedStatic<PlayerData> mmo = mockStatic(PlayerData.class)) {
@@ -349,21 +551,29 @@ class BattleStatsCoverageTest {
 	}
 
 	@Test
-	void commandListsReportsAndWarsForPlayersAndStaff() {
+	void menusShowYourRecordBattlesWarsAndReportsWithRanks() {
 		War war = mock(War.class);
 		when(war.getId()).thenReturn(2);
 		when(war.getName()).thenReturn("Red vs. Blue");
 		WarManager.get().add(war);
 		battle.setWarId(2);
 		hit(bob, alice, 9, false);
+		when(carol.getHealth()).thenReturn(10.0);
+		healEvent(alice, carol);
+		regain(carol, 4, EntityRegainHealthEvent.RegainReason.CUSTOM);
+		aura(mock(Aura.class), "Slowed", alice, bob, 60);
 		die(bob, alice);
 		BattleRecord first = end("attacker");
+		try {
+			Thread.sleep(5);
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+		}
 		assertNull(battle.start());
 		battle.setWarId(null);
 		hit(alice, bob, 2, false);
 		BattleRecord second = BattleStatsListener.finish(battle, null, "WAR_ENDED");
 		said(alice);
-		said(bob);
 
 		Player nameless = fixture.player("Nameless");
 		when(nameless.getName()).thenReturn(null);
@@ -374,104 +584,151 @@ class BattleStatsCoverageTest {
 		when(battleCommand.getName()).thenReturn("battle");
 		assertTrue(new net.tfminecraft.simplefactions.war.battle.ui.BattleCommandManager()
 				.onCommand(outsider, battleCommand, "battle", new String[] {"stats"}));
-		assertTrue(has(said(outsider), "No battle stats yet"));
-		BattleStatsView.command(outsider, new String[] {"stats", "war"});
-		assertTrue(has(said(outsider), "No war battles yet"));
-		BattleStatsView.command(outsider, new String[] {"stats", "war", first.warKey});
-		assertTrue(has(said(outsider), "No battle stats for that war"));
+		assertEquals("§8Your battle stats", title(outsider));
+		assertTrue(text(outsider, 22).contains("No battles yet"));
+		assertTrue(text(outsider, 4).contains("Battles: §f0"));
 		BattleStatsView.command(outsider, new String[] {"stats", first.id});
 		assertTrue(has(said(outsider), "No battle stats with that ID"));
-		BattleStatsView.command(alice, new String[] {"stats", "nope"});
-		assertTrue(has(said(alice), "No battle stats with that ID"));
+		BattleStatsView.command(outsider, new String[] {"stats", "war"});
+		assertTrue(text(outsider, 22).contains("No war battles yet"));
+		BattleStatsView.command(outsider, new String[] {"stats", "war", first.warKey});
+		assertTrue(has(said(outsider), "No battle stats for that war"));
 
 		BattleStatsView.command(alice, new String[] {"stats"});
-		List<String> lines = said(alice);
-		assertTrue(has(lines, "Battle history §7(page 1 of 1"), lines.toString());
-		assertTrue(has(lines, "won by attacker"));
-		assertTrue(has(lines, "no winner"));
-		BattleStatsView.command(alice, new String[] {"stats", "5"});
-		assertTrue(has(said(alice), "page 1 of 1"));
+		assertEquals("§8Your battle stats", title(alice));
+		String record = text(alice, 4);
+		assertTrue(record.contains("Battles: §f2 §8(§a1 won§8, §c0 lost§8, §71 no result§8)"), record);
+		assertTrue(record.contains("Kills §e1"), record);
+		assertTrue(record.contains("Healing §a4"), record);
+		assertTrue(text(alice, 9).contains("No winner") && text(alice, 10).contains("Won by §eattacker"));
+		assertEquals(org.bukkit.Material.GOLDEN_SWORD, open(alice).getItem(10).getType());
+		assertNull(open(alice).getItem(BattleStatsMenu.NEXT_SLOT));
 
-		BattleStatsView.command(alice, new String[] {"stats", second.id.toUpperCase()});
-		lines = said(alice);
-		assertTrue(has(lines, "No winner §8(the war ended)"), lines.toString());
-		assertFalse(has(lines, "Fighters"));
-
+		click(alice, 10);
+		assertEquals("§8Battle report", title(alice));
+		assertTrue(text(alice, 4).contains("War: §fRed vs. Blue"));
+		assertTrue(text(alice, 20).contains("fighters"), text(alice, 20));
+		String you = text(alice, 31);
+		assertTrue(you.contains("Kills §e1 §7(#1 of 3)"), you);
+		assertTrue(you.contains("Healing §a4 §7(#1 of 3)"), you);
+		assertTrue(you.contains("Crowd control §b3s §7(#1 of 3)"), you);
+		assertNull(open(alice).getItem(40));
+		click(alice, BattleStatsMenu.BACK_SLOT);
+		assertEquals("§8Your battle stats", title(alice));
+		click(alice, 8);
+		assertEquals("§8Wars", title(alice));
+		assertTrue(text(alice, 9).contains("Red vs. Blue"));
+		click(alice, 9);
+		assertEquals("§8War report", title(alice));
+		assertTrue(text(alice, 4).contains("Won by §eattacker§7: §f1"));
+		assertTrue(text(alice, 13).contains("Kills §e1 §7(#1 of 3)"));
+		click(alice, 18);
+		assertEquals("§8Battle report", title(alice));
+		click(alice, 0);
+		menu.onClick(fixture.ui.click(alice, -1));
 		BattleStatsView.command(alice, new String[] {"stats", "war"});
-		assertTrue(has(said(alice), "Red vs. Blue"));
-		BattleStatsView.command(alice, new String[] {"stats", "war", first.warKey});
-		lines = said(alice);
-		assertTrue(has(lines, "§7Wins: §eattacker §f1"), lines.toString());
-		assertTrue(has(lines, "in this war: §fKills §e1 §7(#1 of 3)"), lines.toString());
+		click(alice, BattleStatsMenu.BACK_SLOT);
+		assertEquals("§8Your battle stats", title(alice));
+		BattleStatsView.command(alice, new String[] {"stats", second.id.toUpperCase()});
+		assertTrue(text(alice, 4).contains("No winner §8(the war ended)"));
+		BattleStatsView.command(alice, new String[] {"stats", "5"});
+		assertEquals("§8Your battle stats", title(alice));
 
 		when(outsider.hasPermission("warbands.admin")).thenReturn(true);
 		BattleStatsView.command(outsider, new String[] {"stats", first.id});
-		lines = said(outsider);
-		assertTrue(has(lines, "Fighters"), lines.toString());
-		assertTrue(has(lines, "§fAlice §7attacker §e1/0/0 §f9"), lines.toString());
-		assertTrue(has(lines, "No class §73 §e100%"), lines.toString());
-		assertTrue(has(lines, "War: §fRed vs. Blue"));
+		String staff = text(outsider, 40);
+		assertTrue(staff.contains("No class §73 §e100% §a100%"), staff);
+		assertNull(open(outsider).getItem(31));
+		click(outsider, 40);
+		List<String> table = said(outsider);
+		assertTrue(has(table, "§fAlice §7attacker §e1/0/0/0 §f9 §a4 §b3"), table.toString());
+		BattleStatsView.command(outsider, new String[] {"stats", first.id, "table"});
+		assertTrue(has(said(outsider), "Classes"));
+		BattleStatsView.command(outsider, new String[] {"stats"});
+		assertEquals("§8Battle stats (all battles)", title(outsider));
 		BattleStatsView.command(outsider, new String[] {"stats", "war", first.warKey});
-		lines = said(outsider);
-		assertFalse(has(lines, "in this war"));
-		assertTrue(has(lines, "Wins:"));
+		assertNull(open(outsider).getItem(13));
+
+		// The staff button only reaches a readable record; a vanished file says so.
+		BattleStatsView.command(alice, new String[] {"stats"});
+		BattleStatsArchive.resetForTests();
+		click(alice, 9);
+		assertTrue(has(said(alice), "could not be read"));
 	}
 
 	@Test
-	void staffDetailShowsBlockedHitsLogoutsClassesAndPaging() {
+	void menusPageAndIgnoreDragsAndOtherInventories() {
 		when(alice.hasPermission("warbands.admin")).thenReturn(true);
-		BattleRecord record = new BattleRecord();
-		record.id = "manual-1";
-		record.name = "Manual";
-		record.type = "FIELD";
-		record.raid = true;
-		record.naval = true;
-		record.endReason = "RETREAT";
-		record.winner = "defender";
-		FighterStats one = new FighterStats();
-		one.key = "Alice";
-		one.name = "Alice";
-		one.side = "attacker";
-		one.className = "Mage";
-		one.faction = "Aldmark";
-		one.blockedHits = 2;
-		one.logouts = 1;
-		record.fighters.add(one);
-		BattleRecord.SideRecord side = new BattleRecord.SideRecord();
-		side.id = "attacker";
-		side.maxLives = 10;
-		side.lives = 4;
-		record.sides.add(side);
-		BattleStatsArchive.save(record);
-		BattleRecord twin = new BattleRecord();
-		twin.id = "manual-1";
-		twin.name = "Twin";
-		BattleStatsArchive.save(twin);
-		assertEquals("manual-1-2", twin.id);
-		BattleStatsView.command(alice, new String[] {"stats", "manual-1"});
-		List<String> lines = said(alice);
-		assertTrue(has(lines, "Naval field raid"), lines.toString());
-		assertTrue(has(lines, "retreat"));
-		assertTrue(has(lines, "blocked 2"));
-		assertTrue(has(lines, "logouts 1"));
-		assertTrue(has(lines, "Mage §71 §e0%"));
-		assertTrue(has(lines, "lives 4/10"));
-		assertTrue(has(lines, "(Aldmark"));
-		BattleStatsView.command(alice, new String[] {"stats", "war", "w1-1"});
-		assertTrue(has(said(alice), "No battle stats for that war"));
-
-		for (int i = 0; i < BattleStatsView.PAGE_SIZE - 1; i++) {
+		for (int i = 0; i < BattleStatsMenu.PER_PAGE + 1; i++) {
 			BattleRecord extra = new BattleRecord();
 			extra.id = "extra-" + i;
 			extra.name = "Extra " + i;
-			extra.warName = "Some war";
+			extra.warKey = "w" + i + "-0";
+			extra.warName = "War " + i;
 			extra.endedAt = i;
 			BattleStatsArchive.save(extra);
 		}
-		BattleStatsView.command(alice, new String[] {"stats", "1"});
-		assertTrue(has(said(alice), "Next page"));
-		BattleStatsView.command(alice, new String[] {"stats", "2"});
-		assertTrue(has(said(alice), "page 2 of 2"));
+		BattleRecord twin = new BattleRecord();
+		twin.id = "extra-0";
+		BattleStatsArchive.save(twin);
+		assertEquals("extra-0-2", twin.id);
+		BattleStatsView.command(alice, new String[] {"stats"});
+		assertNotNull(open(alice).getItem(BattleStatsMenu.NEXT_SLOT));
+		click(alice, BattleStatsMenu.NEXT_SLOT);
+		assertNotNull(open(alice).getItem(BattleStatsMenu.BACK_SLOT));
+		click(alice, BattleStatsMenu.BACK_SLOT);
+		assertNull(open(alice).getItem(BattleStatsMenu.BACK_SLOT));
+		BattleStatsView.command(alice, new String[] {"stats", "war"});
+		click(alice, BattleStatsMenu.NEXT_SLOT);
+		assertNotNull(open(alice).getItem(9));
+
+		var menuView = alice.getOpenInventory();
+		assertSame(open(alice), ((BattleStatsMenu.Holder) open(alice).getHolder()).getInventory());
+		InventoryDragEvent drag = mock(InventoryDragEvent.class);
+		when(drag.getView()).thenReturn(menuView);
+		menu.onDrag(drag);
+		verify(drag).setCancelled(true);
+		alice.closeInventory();
+		var plainView = alice.getOpenInventory();
+		InventoryDragEvent other = mock(InventoryDragEvent.class);
+		when(other.getView()).thenReturn(plainView);
+		menu.onDrag(other);
+		verify(other, never()).setCancelled(true);
+		var outside = fixture.ui.click(alice, 3);
+		menu.onClick(outside);
+		assertFalse(outside.isCancelled());
+
+		BattleRecord many = new BattleRecord();
+		many.id = "many";
+		many.name = "Many";
+		many.type = "FIELD";
+		many.naval = true;
+		many.raid = true;
+		many.endReason = "RETREAT";
+		for (String id : List.of("attacker", "defender", "third")) {
+			BattleRecord.SideRecord side = new BattleRecord.SideRecord();
+			side.id = id;
+			many.sides.add(side);
+		}
+		FighterStats f = new FighterStats();
+		f.key = "Alice";
+		f.name = "Alice";
+		f.side = "third";
+		f.faction = "Aldmark";
+		f.className = "Mage";
+		f.blockedHits = 2;
+		f.logouts = 1;
+		many.fighters.add(f);
+		BattleStatsArchive.save(many);
+		BattleStatsView.command(alice, new String[] {"stats", "many"});
+		assertTrue(text(alice, 4).contains("Naval field raid"));
+		assertTrue(text(alice, 4).contains("retreat"));
+		assertTrue(text(alice, 21).contains("(Aldmark"), text(alice, 21));
+		assertEquals(org.bukkit.Material.WHITE_BANNER, open(alice).getItem(21).getType());
+		BattleStatsView.fighterTable(alice, many);
+		List<String> lines = said(alice);
+		assertTrue(has(lines, "blocked 2") && has(lines, "logouts 1") && has(lines, "Mage §71 §e0% §a0%"), lines.toString());
+		assertArrayEquals(new int[] {19, 20, 21, 22, 23, 24, 25}, BattleStatsMenu.sideSlots(9));
 	}
 
 	@Test
@@ -482,7 +739,7 @@ class BattleStatsCoverageTest {
 		hit(bob, alice, 3, false);
 		BattleStatsListener.archiveUnfinished(battle, "RAID_CLEARED");
 		assertEquals(1, BattleStatsArchive.list(null).size());
-		assertTrue(has(said(alice), "the raid was called off"));
+		assertTrue(has(said(alice), "is over"));
 		Battle broken = mock(Battle.class);
 		when(broken.hasStarted()).thenReturn(true);
 		when(broken.getId()).thenReturn("broken");
@@ -495,17 +752,11 @@ class BattleStatsCoverageTest {
 		assertEquals("0m", BattleStatsView.duration(-5));
 		assertEquals("59m", BattleStatsView.duration(59 * 60_000L));
 		assertEquals("1h 57m", BattleStatsView.duration(117 * 60_000L));
-		BattleRecord record = new BattleRecord();
-		record.id = "r";
-		record.name = "R";
-		for (String reason : new String[] {"SIDE_WIN", "TIMER", "OTHER"}) {
-			record.endReason = reason;
-			BattleStatsView.report(alice, record, null, false);
-		}
-		List<String> lines = said(alice);
-		assertTrue(has(lines, "side won"));
-		assertTrue(has(lines, "time ran out"));
-		assertTrue(has(lines, "(ended)"));
+		assertEquals("side won", BattleStatsView.reason("SIDE_WIN"));
+		assertEquals("time ran out", BattleStatsView.reason("TIMER"));
+		assertEquals("the raid was called off", BattleStatsView.reason("RAID_CLEARED"));
+		assertEquals("ended", BattleStatsView.reason(null));
+		assertEquals("Battle", BattleStatsView.kind(new BattleRecord()));
 		FighterStats low = new FighterStats();
 		FighterStats high = new FighterStats();
 		high.kills = 3;
@@ -514,5 +765,6 @@ class BattleStatsCoverageTest {
 		List<FighterStats> all = List.of(low, high, tie);
 		assertEquals(3, BattleStatsView.rank(all, low, f -> f.kills));
 		assertEquals(1, BattleStatsView.rank(all, tie, f -> f.kills));
+		assertEquals("0%", BattleStatsView.percent(1, 0));
 	}
 }

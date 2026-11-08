@@ -713,7 +713,10 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(battleLootService, this);
 		getServer().getPluginManager().registerEvents(
 				new net.tfminecraft.simplefactions.war.battle.ui.BattleStaffNotices(), this);
-		getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.war.stats.BattleStatsListener(), this);
+		var battleStats = new net.tfminecraft.simplefactions.war.stats.BattleStatsListener();
+		getServer().getPluginManager().registerEvents(battleStats, this);
+		getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.war.stats.BattleStatsMenu(), this);
+		if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) getServer().getPluginManager().registerEvents(new net.tfminecraft.simplefactions.war.stats.MythicBattleStats(battleStats), this);
 		getServer().getPluginManager().registerEvents(installationProtectionListener, this);
 		getServer().getPluginManager().registerEvents(mercenaryStatListener, this);
 		getServer().getPluginManager().registerEvents(attendanceHook, this);

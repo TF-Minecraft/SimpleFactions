@@ -23,10 +23,7 @@ public final class BattleStatsArchive {
 	static final String FOLDER = "BattleStats";
 	private static final int CACHE_SIZE = 16;
 
-	/**
-	 * What the lists and war totals need without opening each file: each fighter's
-	 * key, name, kills, deaths, team kills and damage.
-	 */
+	/** What the menus and war totals need without opening each file: the battle and every fighter's numbers. */
 	public record Summary(String id, String name, long endedAt, String warKey, String warName,
 			String winner, Map<String, FighterStats> fighters) {}
 
@@ -117,14 +114,7 @@ public final class BattleStatsArchive {
 	private static Summary summary(BattleRecord record) {
 		Map<String, FighterStats> fighters = new LinkedHashMap<>();
 		for (FighterStats fighter : record.fighters) {
-			FighterStats slim = new FighterStats();
-			slim.key = fighter.key;
-			slim.name = fighter.name;
-			slim.kills = fighter.kills;
-			slim.deaths = fighter.deaths;
-			slim.teamKills = fighter.teamKills;
-			slim.damage = fighter.damage;
-			fighters.put(fighter.key, slim);
+			fighters.put(fighter.key, fighter);
 		}
 		return new Summary(record.id, record.name, record.endedAt, record.warKey, record.warName,
 				record.winner, Collections.unmodifiableMap(fighters));
