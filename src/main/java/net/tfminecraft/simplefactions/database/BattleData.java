@@ -38,6 +38,8 @@ public class BattleData {
 	public Integer defenderLives;
 	public boolean navalVariant;
 	public Map<String, Integer> sideCasualties = new LinkedHashMap<>();
+	// Absent in older saves and for battles that have not started.
+	public net.tfminecraft.simplefactions.war.stats.BattleStats stats;
 	public BattleLocation navalSpawn;
 	public BattleLocation contestMin;
 	public BattleLocation contestMax;

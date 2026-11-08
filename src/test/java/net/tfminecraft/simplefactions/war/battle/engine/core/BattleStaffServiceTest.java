@@ -105,8 +105,10 @@ class BattleStaffServiceTest {
 		CampaignWarbandLeaveBlock.block("b1", "w", UUID.randomUUID());
 		BattleRespawnRouting.scheduleJailRespawn(soldier.getUniqueId(), true);
 		battle.setStartedAt(Instant.EPOCH);
+		battle.stats().fighters.put("ghost", new net.tfminecraft.simplefactions.war.stats.FighterStats());
 
 		BattleStaffService.Result result = BattleStaffService.restart(battle, "Staff");
+		assertTrue(battle.getStats().fighters.isEmpty());
 
 		assertTrue(result.ok());
 		assertEquals("§aRestarted b1. Lives: attacker 10, defender 8.", result.message());

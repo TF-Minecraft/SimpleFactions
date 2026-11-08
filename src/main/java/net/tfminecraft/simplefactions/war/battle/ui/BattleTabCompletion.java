@@ -140,6 +140,7 @@ public class BattleTabCompletion implements TabCompleter{
                 List<String> completions = new ArrayList<>();
                 completions.add("list");
                 completions.add("join");
+                completions.add("stats");
                 if(BattlePermissions.isAdmin(sender)) {
 	                completions.add("create");
 	                completions.add("edit");
@@ -158,6 +159,8 @@ public class BattleTabCompletion implements TabCompleter{
                 }
                 return completions;
             }
+        } else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 2 && args[0].equalsIgnoreCase("stats")) {
+        	return List.of("war");
         } else if(cmd.getName().equalsIgnoreCase("battle") && args.length == 2 && args[0].equalsIgnoreCase("join")) {
         	List<String> completions = new ArrayList<>();
         	for(Battle b : BattleManager.get()) {

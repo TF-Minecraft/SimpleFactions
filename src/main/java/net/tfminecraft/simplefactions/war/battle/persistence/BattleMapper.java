@@ -63,6 +63,7 @@ public final class BattleMapper {
 		data.defenderLives = battle.getDefenderLives();
 		data.navalVariant = battle.isNavalVariant();
 		data.sideCasualties = new LinkedHashMap<>(battle.getRecordedSideCasualties());
+		data.stats = battle.getStats();
 		data.navalSpawn = BattleLocation.fromBukkitLocation(battle.getNavalSpawn());
 		if (battle.getContestArea() != null) {
 			data.contestMin = battle.getContestArea().getMin();
@@ -122,6 +123,7 @@ public final class BattleMapper {
 		battle.setDefenderLives(data.defenderLives);
 		battle.setNavalVariant(data.navalVariant);
 		battle.restoreSideCasualties(data.sideCasualties);
+		battle.setStats(data.stats);
 		battle.setNavalSpawn(toLocation(data.navalSpawn));
 		if (data.contestMin != null && data.contestMax != null) {
 			battle.setContestArea(new ContestArea(data.contestMin, data.contestMax));

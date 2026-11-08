@@ -148,6 +148,30 @@ public class Battle {
 	}
 
 	private final Map<String, Integer> recordedSideCasualties = new LinkedHashMap<>();
+	private net.tfminecraft.simplefactions.war.stats.BattleStats stats;
+
+	/** This battle's live stats, created when missing (a battle saved before stats existed). */
+	public net.tfminecraft.simplefactions.war.stats.BattleStats stats() {
+		if (stats == null) {
+			stats = new net.tfminecraft.simplefactions.war.stats.BattleStats();
+		}
+		return stats;
+	}
+
+	public net.tfminecraft.simplefactions.war.stats.BattleStats getStats() {
+		return stats;
+	}
+
+	public void setStats(net.tfminecraft.simplefactions.war.stats.BattleStats stats) {
+		this.stats = stats;
+	}
+
+	/** Hands the stats over once, for archiving, and leaves none behind. */
+	public net.tfminecraft.simplefactions.war.stats.BattleStats takeStats() {
+		net.tfminecraft.simplefactions.war.stats.BattleStats taken = stats;
+		stats = null;
+		return taken;
+	}
 	public List<CapturePoint> getPoints() {
 		return points;
 	}
@@ -358,6 +382,7 @@ public class Battle {
 		firstBattleOfWar = war != null && !war.hasFirstBattleStarted();
 		this.started = true;
 		this.startedAt = Instant.now();
+		this.stats = new net.tfminecraft.simplefactions.war.stats.BattleStats();
 		participants.clear();
 		getAllParticipants().forEach(this::captureParticipant);
 		fireStartedEvent();

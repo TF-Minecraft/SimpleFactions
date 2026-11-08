@@ -25,7 +25,8 @@ import net.tfminecraft.simplefactions.war.battle.ui.BattleWatchService;
 /**
  * Staff controls for a running battle: restart it from its start, stop it without a result,
  * end it now, hold it, and correct a side's lives. None of them fire the battle start or end
- * events again, so mercenary pay, stats and loot are not counted twice.
+ * events again, so mercenary pay and loot are not counted twice. Restart and stop also clear
+ * the battle's stats.
  */
 public final class BattleStaffService {
 	public record Result(boolean ok, String message) {
@@ -187,6 +188,8 @@ public final class BattleStaffService {
 			side.resetLivesToStart();
 		}
 		BattleCasualtyLedger.clear(battle);
+		// A restarted or stopped fight keeps no stats from before.
+		battle.setStats(new net.tfminecraft.simplefactions.war.stats.BattleStats());
 		SiegeContestService.clearBattleState(battle);
 		FieldWinService.clearEmptySideTracking(battle);
 		battle.restorePointStarts();

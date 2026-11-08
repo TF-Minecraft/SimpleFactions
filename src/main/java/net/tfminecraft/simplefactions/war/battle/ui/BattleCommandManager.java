@@ -85,6 +85,10 @@ public class BattleCommandManager implements CommandExecutor{
 				p.sendMessage("§aJoined "+args[2]+" in the battle "+b.getId());
 				return true;
 			}
+			if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("stats")) {
+				net.tfminecraft.simplefactions.war.stats.BattleStatsView.command(p, args);
+				return true;
+			}
 			if(cmd.getName().equalsIgnoreCase(cmd2) && !BattlePermissions.isAdmin(sender)) {
 				p.sendMessage("§a[Battle]§4You do not have access to this command");
 				return true;
