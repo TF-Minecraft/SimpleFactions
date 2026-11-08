@@ -109,6 +109,7 @@ class BattleStartSnapshotTest {
 	void snapshotAndHoldSurviveASaveAndLoad() {
 		battle.snapshotStart();
 		battle.setStaffHold(true);
+		battle.setFirstBattleOfWar(true);
 		attacker.tickLife();
 
 		BattleData data = BattleMapper.toData(battle);
@@ -118,6 +119,7 @@ class BattleStartSnapshotTest {
 		Battle restored = BattleMapper.fromData(data);
 
 		assertTrue(restored.isStaffHold());
+		assertTrue(restored.isFirstBattleOfWar());
 		assertEquals(Integer.valueOf(7), restored.getSideById("attacker").getStartLives());
 		assertEquals(6, restored.getSideById("attacker").getLives());
 		assertEquals(List.of(new Battle.PointStart("A", "defender", 100, "attacker"),

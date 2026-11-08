@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.core;
 
 import java.util.Locale;
 
+import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 
@@ -19,12 +20,31 @@ public final class WarAdminRisks {
 		}
 		String sub = lower(args[1]);
 		return switch (sub) {
-			case "end" -> "ends the war at once, with no winner.";
-			case "win" -> args.length >= 4 ? "ends the war as a " + lower(args[3]) + " victory." : null;
-			case "path" -> "rebuilds the campaign route and resets its progression and occupation.";
+			case "end" -> knownWar(args[2]) ? "ends the war at once, with no winner." : null;
+			case "win" -> args.length >= 4 && knownWar(args[2])
+					? "ends the war as a " + lower(args[3]) + " victory." : null;
+			case "path" -> knownWar(args[2])
+					? "rebuilds the campaign route and resets its progression and occupation." : null;
 			case "devmode" -> devmode(lower(args[2]));
 			case "time" -> time(args);
-			case "schedule" -> args.length >= 4 ? schedule(lower(args[3])) : null;
+			case "schedule" -> args.length >= 4 && knownWar(args[2]) ? schedule(lower(args[3])) : null;
+			case "reparations" -> args.length >= 4 && FactionManager.getByString(args[2]) != null
+					&& FactionManager.getByString(args[3]) != null
+					? "makes one faction pay part of its income to another for days." : null;
+			case "truce" -> truce(lower(args[2]));
+			default -> null;
+		};
+	}
+
+	/** Unknown or malformed war ids skip the prompt, so the command itself says what is wrong. */
+	private static boolean knownWar(String id) {
+		return WarCommandHelper.parseWarId(id).map(WarManager::getById).isPresent();
+	}
+
+	private static String truce(String action) {
+		return switch (action) {
+			case "clear" -> "ends the truce between the two factions, so they can declare war on each other again.";
+			case "clearcooldown" -> "lets the faction start a civil war again straight away.";
 			default -> null;
 		};
 	}

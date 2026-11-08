@@ -27,6 +27,7 @@ class WarAdminRisksTest {
 		CampaignClock.reset();
 		wars = mockStatic(WarManager.class);
 		wars.when(WarManager::getActive).thenReturn(List.of(mock(War.class)));
+		wars.when(() -> WarManager.getById(1)).thenReturn(mock(War.class));
 	}
 
 	@AfterEach
@@ -59,6 +60,32 @@ class WarAdminRisksTest {
 			"battleabort", "battleend"})
 	void irreversibleScheduleCommandsAsk(String action) {
 		assertNotNull(risk("admin", "schedule", "1", action.toUpperCase()));
+	}
+
+	@Test
+	void unknownOrMalformedWarIdsRunSoTheCommandCanSayWhatIsWrong() {
+		assertNull(risk("admin", "end", "7"));
+		assertNull(risk("admin", "win", "x", "attacker"));
+		assertNull(risk("admin", "path", "7"));
+		assertNull(risk("admin", "schedule", "7", "battlestart"));
+	}
+
+	@Test
+	void reparationsAndTruceRemovalsAsk() {
+		assertNull(risk("admin", "reparations", "a"));
+		try (MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
+				mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class)) {
+			assertNull(risk("admin", "reparations", "a", "b"));
+			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("a"))
+					.thenReturn(mock(net.tfminecraft.simplefactions.objects.Faction.class));
+			assertNull(risk("admin", "reparations", "a", "b"));
+			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("b"))
+					.thenReturn(mock(net.tfminecraft.simplefactions.objects.Faction.class));
+			assertNotNull(risk("admin", "reparations", "a", "b"));
+		}
+		assertNotNull(risk("admin", "truce", "clear", "a", "b"));
+		assertNotNull(risk("admin", "truce", "clearcooldown", "a"));
+		assertNull(risk("admin", "truce", "list"));
 	}
 
 	@Test

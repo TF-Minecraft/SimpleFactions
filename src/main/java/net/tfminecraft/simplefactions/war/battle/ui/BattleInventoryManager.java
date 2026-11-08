@@ -602,8 +602,7 @@ public class BattleInventoryManager {
 					lore.add("§7Soldiers: §e" + roster + "§7/§e" + maxRoster);
 				}
 				if (!CampaignWarbandSignupService.isSignupOpen(ctx.war(), CampaignClock.now())) {
-					lore.add("§cSignup closed until " + String.format(java.util.Locale.ROOT, "%02d:00",
-							net.tfminecraft.simplefactions.Cache.warRaidWindowEndHour));
+					lore.add(CampaignWarbandSignupService.signupClosedLore(ctx.war(), CampaignClock.now()));
 				}
 			}
 		}

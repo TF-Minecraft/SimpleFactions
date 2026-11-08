@@ -84,6 +84,7 @@ public final class BattleMapper {
 			data.startPoints.add(pointData);
 		}
 		data.staffHold = battle.isStaffHold();
+		data.firstBattleOfWar = battle.isFirstBattleOfWar();
 		return data;
 	}
 
@@ -148,6 +149,7 @@ public final class BattleMapper {
 		}
 		battle.setPointStarts(starts);
 		battle.setStaffHold(data.staffHold);
+		battle.setFirstBattleOfWar(data.firstBattleOfWar);
 		return battle;
 	}
 

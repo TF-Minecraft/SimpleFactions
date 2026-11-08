@@ -48,4 +48,5 @@ public class BattleData {
 	// Capture points as they stood at the start, for a staff restart. Only id and state are set.
 	public List<CapturePointData> startPoints = new ArrayList<>();
 	public boolean staffHold;
+	public boolean firstBattleOfWar;
 }

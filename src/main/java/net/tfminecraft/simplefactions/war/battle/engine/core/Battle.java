@@ -73,6 +73,7 @@ public class Battle {
 	private int contestHoldRemainingSeconds;
 	private boolean campaignRaid;
 	private boolean staffHold;
+	private boolean firstBattleOfWar;
 	private List<PointStart> pointStarts = new ArrayList<>();
 	private final Set<net.tfminecraft.tlibs.character.CharacterRef> participants = new HashSet<>();
 
@@ -86,6 +87,15 @@ public class Battle {
 
 	public void setStaffHold(boolean staffHold) {
 		this.staffHold = staffHold;
+	}
+
+	/** This start was the war's first battle, so stopping it with no result should undo that. */
+	public boolean isFirstBattleOfWar() {
+		return firstBattleOfWar;
+	}
+
+	public void setFirstBattleOfWar(boolean firstBattleOfWar) {
+		this.firstBattleOfWar = firstBattleOfWar;
 	}
 
 	public List<PointStart> getPointStarts() {
@@ -343,6 +353,9 @@ public class Battle {
 				return startError;
 			}
 		}
+		net.tfminecraft.simplefactions.war.core.War war = warId == null ? null
+				: net.tfminecraft.simplefactions.managers.WarManager.getById(warId);
+		firstBattleOfWar = war != null && !war.hasFirstBattleStarted();
 		this.started = true;
 		this.startedAt = Instant.now();
 		participants.clear();

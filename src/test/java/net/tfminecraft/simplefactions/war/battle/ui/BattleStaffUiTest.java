@@ -353,6 +353,52 @@ class BattleStaffUiTest {
 	}
 
 	@Test
+	void takingASideToZeroLivesAsksFirst() {
+		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker"}));
+		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "nobody", "set", "0"}));
+		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker", "set", "x"}));
+		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker", "set", "1"}));
+		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker", "remove", "9"}));
+		assertNull(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker", "add", "0"}));
+		assertTrue(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker", "set", "0"})
+				.startsWith("leaves attacker with no lives"));
+		assertTrue(BattleStaffCommands.livesRisk(battle, new String[] {"lives", "b1", "attacker", "REMOVE", "10"}) != null);
+
+		battleCommand("lives", "b1", "attacker", "set", "0");
+		staff.verifyNoInteractions();
+		staff.when(() -> BattleStaffService.adjustLives(battle, "attacker", "set", 0, "Admin"))
+				.thenReturn(new BattleStaffService.Result(true, "§aZ"));
+		battleCommand("lives", "b1", "attacker", "set", "0", "confirm");
+		verify(admin).sendMessage("§aZ");
+	}
+
+	@Test
+	void forcekickDuringARunningBattleAsksFirst() {
+		Warband band = Warband.createWithMemberIds("w1", UUID.randomUUID(), false);
+		WarbandManager.addWarband(band);
+		Player lead = player("Lead", false, true);
+		assertFalse(BattleStaffCommands.warband(lead, new String[] {"confirm"}));
+		battle.setStarted(true);
+		var context = new net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService.CampaignBattleContext(
+				battle, "attacker", mock(net.tfminecraft.simplefactions.war.core.War.class));
+		try (MockedStatic<StaffJoins> joins = mockStatic(StaffJoins.class);
+				MockedStatic<net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService> campaigns =
+						mockStatic(net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService.class)) {
+			campaigns.when(() -> net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService
+					.findCampaignBattleForWarband(band)).thenReturn(context);
+			joins.when(() -> StaffJoins.warbandKick(band, "Bob")).thenReturn("kicked");
+			BattleStaffCommands.warband(lead, new String[] {"forcekick", "w1", "Bob"});
+			verify(lead).sendMessage(org.mockito.ArgumentMatchers.startsWith("§6This cannot be undone: §eremoves them"));
+			joins.verifyNoInteractions();
+			BattleStaffCommands.warband(lead, new String[] {"forcekick", "w1", "Bob", "confirm"});
+			verify(lead).sendMessage("kicked");
+			battle.setStarted(false);
+			BattleStaffCommands.warband(lead, new String[] {"forcekick", "w1", "Bob"});
+			verify(lead, org.mockito.Mockito.times(2)).sendMessage("kicked");
+		}
+	}
+
+	@Test
 	void usageCoversEveryTool() {
 		assertEquals("§cUsage: /battle end <battleId> [nowinner|<sideId>]", BattleStaffCommands.usage("end"));
 		assertEquals("§cUsage: /battle watch <battleId>|off", BattleStaffCommands.usage("watch"));

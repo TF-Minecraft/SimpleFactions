@@ -40,15 +40,34 @@ public final class CampaignWarbandSignupService {
 		return hour >= Cache.warRaidWindowEndHour;
 	}
 
-	/** Why campaign signup is closed right now: no battle day yet, not the battle day, or the raid window. */
+	/** Why campaign signup is closed right now: no battle day, a past one, a later one, or the raid window. */
 	public static String signupClosedReason(War war, Instant now) {
+		return closedText(war, now, false);
+	}
+
+	/** The same reason, short enough for item lore. */
+	public static String signupClosedLore(War war, Instant now) {
+		return closedText(war, now, true);
+	}
+
+	private static String closedText(War war, Instant now, boolean lore) {
 		String opens = String.format(java.util.Locale.ROOT, "%02d:00", Cache.warRaidWindowEndHour);
-		if (!BattleScheduleService.isOnBattleDay(war, now)) {
-			return war.getBattleDay() == null
-					? "§cCampaign warband signup is closed: the battle day is not set yet (the battle vote is still open)."
-					: "§cCampaign warband signup opens on the battle day, " + war.getBattleDay() + ", at " + opens + ".";
+		java.time.LocalDate day = war.getBattleDay();
+		if (day == null) {
+			return lore ? "§cSignup closed: no battle day yet"
+					: "§cCampaign warband signup is closed: the battle day is not set yet (the battle vote is still open).";
 		}
-		return "§cCampaign warband signup opens after the raid window, at " + opens + ".";
+		if (day.isBefore(BattleScheduleService.battleDayDate(now))) {
+			return lore ? "§cSignup closed: the battle day has passed"
+					: "§cCampaign warband signup is closed: the battle day (" + day
+							+ ") has passed. It opens again once a new battle day is set.";
+		}
+		if (!BattleScheduleService.isOnBattleDay(war, now)) {
+			return lore ? "§cSignup opens " + day + " at " + opens
+					: "§cCampaign warband signup opens on the battle day, " + day + ", at " + opens + ".";
+		}
+		return lore ? "§cSignup opens at " + opens
+				: "§cCampaign warband signup opens after the raid window, at " + opens + ".";
 	}
 
 	public static String signup(Player player, Warband warband, Faction playerFaction) {

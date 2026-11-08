@@ -124,6 +124,12 @@ class BattleStaffServiceTest {
 	}
 
 	@Test
+	void restartingABattleSavedBeforeStartStatesSaysWhatItCouldNotReset() {
+		defender.setStartLives(null);
+		assertTrue(BattleStaffService.restart(battle, "Staff").message().endsWith("capture points stayed as they were."));
+	}
+
+	@Test
 	void restartWithoutASpawnLeavesSoldiersWhereTheyStand() {
 		attacker.setSpawn(null);
 		BattleStaffService.restart(battle, "Staff");
@@ -173,19 +179,16 @@ class BattleStaffServiceTest {
 	void abortingTheWarsFirstBattleGivesBackItsPreBattleOptions() {
 		battle.setWarId(4);
 		net.tfminecraft.simplefactions.war.core.War war = mock(net.tfminecraft.simplefactions.war.core.War.class);
-		when(war.hasFirstBattleStarted()).thenReturn(true);
 		try (MockedStatic<net.tfminecraft.simplefactions.managers.WarManager> wars =
 				mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class)) {
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(4)).thenReturn(war);
+			battle.setFirstBattleOfWar(true);
 			BattleStaffService.abort(battle, "Staff");
 			verify(war).setFirstBattleStarted(false);
 			wars.verify(() -> net.tfminecraft.simplefactions.managers.WarManager.persist(war));
 
-			when(war.getCampaignBattlesFought()).thenReturn(1);
-			battle.setStarted(true);
-			BattleStaffService.abort(battle, "Staff");
-			when(war.getCampaignBattlesFought()).thenReturn(0);
-			when(war.hasFirstBattleStarted()).thenReturn(false);
+			// A later battle (after raids, a no-winner end or autoresolve) leaves the flag alone.
+			battle.setFirstBattleOfWar(false);
 			battle.setStarted(true);
 			BattleStaffService.abort(battle, "Staff");
 			verify(war).setFirstBattleStarted(false);
@@ -200,11 +203,17 @@ class BattleStaffServiceTest {
 		try (MockedStatic<net.tfminecraft.simplefactions.managers.WarManager> wars =
 				mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class)) {
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(4)).thenReturn(war);
-			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith("on schedule again."));
-			when(war.getScheduledBattleAt()).thenReturn(Instant.now().plusSeconds(3600));
-			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith("on schedule again."));
+			assertTrue(BattleStaffService.hold(battle, true, "Staff").message().endsWith("will not start on schedule."));
+			String due = "It starts when its battle is scheduled and due.";
+			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith(due));
 			when(war.getScheduledBattleAt()).thenReturn(Instant.EPOCH);
+			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith(due));
+			when(war.getBattleSchedulePhase()).thenReturn(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
 			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith("starts within a minute."));
+			when(war.getScheduledBattleAt()).thenReturn(null);
+			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith(due));
+			when(war.getScheduledBattleAt()).thenReturn(Instant.now().plusSeconds(3600));
+			assertTrue(BattleStaffService.hold(battle, false, "Staff").message().endsWith(due));
 		}
 	}
 
@@ -259,9 +268,9 @@ class BattleStaffServiceTest {
 		assertFalse(BattleStaffService.hold(battle, true, "Staff").ok());
 		battle.setStarted(false);
 
-		assertTrue(BattleStaffService.hold(battle, true, "Staff").message().contains("will not start on schedule"));
+		assertEquals("§aPut b1 on hold.", BattleStaffService.hold(battle, true, "Staff").message());
 		assertTrue(battle.isStaffHold());
-		assertTrue(BattleStaffService.hold(battle, false, "Staff").message().contains("starts on schedule again"));
+		assertEquals("§aReleased the hold on b1.", BattleStaffService.hold(battle, false, "Staff").message());
 		assertFalse(battle.isStaffHold());
 	}
 

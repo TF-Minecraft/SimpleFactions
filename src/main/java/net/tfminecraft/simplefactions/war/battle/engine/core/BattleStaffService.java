@@ -9,6 +9,7 @@ import net.tfminecraft.simplefactions.managers.LogManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandLeaveBlock;
 import net.tfminecraft.simplefactions.war.battle.engine.capture.BattleCapturePoints;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.RaidAttackerEliminationService;
@@ -45,6 +46,7 @@ public final class BattleStaffService {
 		if (refusal != null) {
 			return refusal;
 		}
+		boolean recorded = battle.getSides().stream().allMatch(side -> side.getStartLives() != null);
 		resetToStart(battle);
 		battle.setStartedAt(Instant.now());
 		if (battle.getBattleType() == BattleType.SIEGE) {
@@ -56,14 +58,15 @@ public final class BattleStaffService {
 			if (side.getSpawn() != null) {
 				player.teleport(side.getSpawn());
 			}
-			player.sendTitle("§eBATTLE RESTARTED", "§7Lives and points are back to the start", 5, 50, 5);
+			player.sendTitle("§eBATTLE RESTARTED", "§7Staff restarted the battle", 5, 50, 5);
 		}
 		for (BattleSide side : battle.getSides()) {
 			side.updateBossBar(battle.getAllParticipants());
 		}
 		BattlePersistenceService.persistBattle(battle);
 		return done(battle, by, "RESTART", "restarted " + battle.getDisplayName()
-				+ ". Lives: " + livesSummary(battle) + ".");
+				+ ". Lives: " + livesSummary(battle) + "." + (recorded ? "" : " It started before start states were"
+						+ " recorded, so lives went to each side's max and capture points stayed as they were."));
 	}
 
 	/** Stops the battle with no winner and no casualties, and holds it until staff start it again. */
@@ -82,7 +85,7 @@ public final class BattleStaffService {
 		battle.setStaffHold(true);
 		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
 		// An aborted first battle did not happen: the war keeps its pre-battle options.
-		if (war != null && war.getCampaignBattlesFought() == 0 && war.hasFirstBattleStarted()) {
+		if (war != null && battle.isFirstBattleOfWar()) {
 			war.setFirstBattleStarted(false);
 			WarManager.persist(war);
 		}
@@ -123,13 +126,20 @@ public final class BattleStaffService {
 		battle.setStaffHold(on);
 		BattlePersistenceService.persistBattle(battle);
 		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
-		boolean overdue = war != null && war.getScheduledBattleAt() != null
-				&& !war.getScheduledBattleAt().isAfter(CampaignClock.now());
-		return done(battle, by, on ? "HOLD" : "RELEASE", on
-				? "put " + battle.getDisplayName() + " on hold. It will not start on schedule."
-				: "released the hold on " + battle.getDisplayName() + (overdue
-						? ". Its start time has passed, so it starts within a minute."
-						: ". It starts on schedule again."));
+		boolean overdue = war != null && war.getBattleSchedulePhase() == BattleSchedulePhase.SCHEDULED
+				&& war.getScheduledBattleAt() != null && !war.getScheduledBattleAt().isAfter(CampaignClock.now());
+		String name = battle.getDisplayName();
+		String text;
+		if (war == null) {
+			text = on ? "put " + name + " on hold." : "released the hold on " + name + ".";
+		} else if (on) {
+			text = "put " + name + " on hold. It will not start on schedule.";
+		} else {
+			text = "released the hold on " + name + (overdue
+					? ". Its start time has passed, so it starts within a minute."
+					: ". It starts when its battle is scheduled and due.");
+		}
+		return done(battle, by, on ? "HOLD" : "RELEASE", text);
 	}
 
 	/** Adds, removes or sets a side's lives during the battle. */

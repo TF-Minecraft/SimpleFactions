@@ -137,11 +137,18 @@ class CampaignWarbandSignupServiceTest {
 	@Test
 	void signupClosedReason_namesTheMissingDayOrTheDayItOpens() {
 		War war = battleDayWar();
-		Instant otherDay = BattleWindowService.atScheduleHour(BATTLE_DAY.minusDays(1), 21);
+		Instant dayBefore = BattleWindowService.atScheduleHour(BATTLE_DAY.minusDays(1), 21);
+		Instant dayAfter = BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(1), 12);
+		Instant raidHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 19);
 		assertEquals("§cCampaign warband signup opens on the battle day, 2026-08-21, at 20:00.",
-				CampaignWarbandSignupService.signupClosedReason(war, otherDay));
+				CampaignWarbandSignupService.signupClosedReason(war, dayBefore));
+		assertEquals("§cSignup opens 2026-08-21 at 20:00", CampaignWarbandSignupService.signupClosedLore(war, dayBefore));
+		assertTrue(CampaignWarbandSignupService.signupClosedReason(war, dayAfter).contains("(2026-08-21) has passed"));
+		assertEquals("§cSignup closed: the battle day has passed", CampaignWarbandSignupService.signupClosedLore(war, dayAfter));
+		assertEquals("§cSignup opens at 20:00", CampaignWarbandSignupService.signupClosedLore(war, raidHour));
 		war.setBattleDay(null);
-		assertTrue(CampaignWarbandSignupService.signupClosedReason(war, otherDay).contains("battle vote is still open"));
+		assertTrue(CampaignWarbandSignupService.signupClosedReason(war, dayBefore).contains("battle vote is still open"));
+		assertEquals("§cSignup closed: no battle day yet", CampaignWarbandSignupService.signupClosedLore(war, dayBefore));
 	}
 
 	@Test
@@ -192,7 +199,8 @@ class CampaignWarbandSignupServiceTest {
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
 			Cache.warBattleMinSideLives = 0;
-			assertTrue(CampaignWarbandSignupService.signupMember(aliceId, "Alice", shell, attacker, null, signupHour) != null);
+			assertTrue(CampaignWarbandSignupService.signupMember(aliceId, "Alice", shell, attacker, null, signupHour)
+					.startsWith("Cannot join: side roster is full"));
 			assertNull(CampaignWarbandSignupService.staffSignupMember(aliceId, "Alice", shell, attacker, null));
 		}
 	}

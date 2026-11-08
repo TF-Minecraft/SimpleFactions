@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.managers.StaffJoins;
 import net.tfminecraft.simplefactions.utils.StaffConfirm;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleJoinService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleStaffService;
@@ -52,6 +53,9 @@ public final class BattleStaffCommands {
 			player.sendMessage(args.length < 2 ? usage(sub) : "§cThere is no battle with the id " + args[1]);
 			return true;
 		}
+		if (sub.equals("lives")) {
+			risk = livesRisk(battle, args);
+		}
 		if (StaffConfirm.gate(player, "battle", rawArgs, risk) == null) {
 			return true;
 		}
@@ -66,6 +70,24 @@ public final class BattleStaffCommands {
 			default -> player.sendMessage(lives(battle, args, by));
 		}
 		return true;
+	}
+
+	/** Taking a side to 0 lives can end the battle on the next check, so it asks first. */
+	static String livesRisk(Battle battle, String[] args) {
+		if (args.length != 5 || battle.getSideById(args[2]) == null) {
+			return null;
+		}
+		int lives = battle.getSideById(args[2]).getLives();
+		String operation = args[3].toLowerCase(Locale.ROOT);
+		long amount;
+		try {
+			amount = Long.parseLong(args[4]);
+		} catch (NumberFormatException invalid) {
+			return null;
+		}
+		boolean empties = (operation.equals("set") && amount == 0) || (operation.equals("remove") && amount >= lives);
+		return empties ? "leaves " + args[2] + " with no lives. If nobody on that side can still fight,"
+				+ " the side loses the battle on the next check." : null;
 	}
 
 	private static String end(Battle battle, String[] args, String by) {
@@ -108,7 +130,11 @@ public final class BattleStaffCommands {
 	}
 
 	/** Handles {@code /warband forcekick} and staff {@code /warband toggleopen <id>}; false otherwise. */
-	public static boolean warband(Player player, String[] args) {
+	public static boolean warband(Player player, String[] rawArgs) {
+		String[] args = StaffConfirm.strip(rawArgs);
+		if (args.length == 0) {
+			return false;
+		}
 		boolean forcekick = args[0].equalsIgnoreCase("forcekick") && args.length >= 3;
 		boolean toggle = args[0].equalsIgnoreCase("toggleopen") && args.length == 2;
 		if (!forcekick && !toggle) {
@@ -124,6 +150,12 @@ public final class BattleStaffCommands {
 			return true;
 		}
 		if (forcekick) {
+			CampaignBattleJoinService.CampaignBattleContext ctx = CampaignBattleJoinService.findCampaignBattleForWarband(warband);
+			String risk = ctx != null && ctx.battle().hasStarted() ? "removes them from the running battle " + ctx.battle()
+					.getDisplayName() + ". If they were their side's last soldier, that side loses at once." : null;
+			if (StaffConfirm.gate(player, "warband", rawArgs, risk) == null) {
+				return true;
+			}
 			player.sendMessage(StaffJoins.warbandKick(warband, String.join(" ", Arrays.copyOfRange(args, 2, args.length))));
 			return true;
 		}
