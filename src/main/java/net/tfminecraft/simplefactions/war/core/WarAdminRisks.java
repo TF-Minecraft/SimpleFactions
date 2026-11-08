@@ -33,6 +33,7 @@ public final class WarAdminRisks {
 					&& FactionManager.getByString(args[3]) != null
 					? "makes one faction pay part of its income to another for days." : null;
 			case "truce" -> truce(lower(args[2]));
+			case "forceinstallation" -> WarForceInstallation.risk(args);
 			default -> null;
 		};
 	}

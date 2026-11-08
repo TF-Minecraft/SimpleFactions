@@ -74,6 +74,8 @@ public class WarData {
     public Map<String, List<Integer>> battleVotes;
     public Map<String, List<String>> battleInstallationPicks;
     public String battleInstallationPicksBattleDay;
+    // Absent in older files: no staff-forced picks.
+    public List<String> forcedBattleInstallationPicks;
     public Map<String, String> campaignRaidsUsed;
     public CampaignRaidData activeCampaignRaid;
     public Map<String, String> raidRepairLockUntil;

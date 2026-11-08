@@ -41,6 +41,12 @@ class WarAdminRisksTest {
 	}
 
 	@Test
+	void forceInstallationOnlyAsksForATargetItCanCommit() {
+		assertNull(risk("admin", "forceinstallation", "nope", "iron", "fort-1"));
+		assertNull(risk("admin", "forceinstallation", "nope"));
+	}
+
+	@Test
 	void shortOrSafeCommandsRunWithoutAsking() {
 		assertNull(WarAdminRisks.describe(null));
 		assertNull(risk("admin", "end"));
