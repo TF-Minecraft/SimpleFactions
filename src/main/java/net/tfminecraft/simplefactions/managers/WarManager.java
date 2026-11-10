@@ -444,7 +444,8 @@ public class WarManager {
 	}
 
 	public static void endWar(War w, WarEndReason reason) {
-		if (w == null || reason == null) {
+		// An ended war is never ended twice: truce, outcome and messages would all repeat.
+		if (w == null || reason == null || !w.isActive()) {
 			return;
 		}
 		// Read the sides while the war is still active and the rebels still exist.

@@ -115,7 +115,8 @@ public final class BattleScheduleTickService {
 				|| result == BattleScheduleCloseResult.POSTPONED
 				|| result == BattleScheduleCloseResult.AUTORESOLVE_PENDING
 				|| result == BattleScheduleCloseResult.AUTORESOLVED
-				|| result == BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE) {
+				|| result == BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE
+				|| result == BattleScheduleCloseResult.WAR_ENDED) {
 			changed = true;
 		}
 		return changed;

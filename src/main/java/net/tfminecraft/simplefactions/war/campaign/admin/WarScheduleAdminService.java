@@ -165,6 +165,10 @@ public final class WarScheduleAdminService {
 					"Vote close found no battle left to fight after the last postponement. "
 							+ formatWarEndSummary(WarEndReason.WHITE_PEACE));
 
+			case WAR_ENDED -> WarScheduleAdminResult.ok(
+
+					"The post-battle choice was settled at its deadline and that ended the war.");
+
 			case BLOCKED_DEFENDER_CHOICE -> WarScheduleAdminResult.error(
 
 					"Vote close blocked: defender choice unresolved.");

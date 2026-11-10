@@ -169,6 +169,16 @@ class WarManagerCoverageTest {
   }
 
   @Test
+  void anEndedWarIsNeverEndedTwice() {
+    War ended = mock(War.class);
+    when(ended.isActive()).thenReturn(false);
+
+    WarManager.endWar(ended, net.tfminecraft.simplefactions.war.enums.WarEndReason.WHITE_PEACE);
+
+    verify(ended, never()).end(any());
+  }
+
+  @Test
   void disabledProvincesAndInvalidDeclarationsLeaveWarStateUnchanged() {
     Faction attacker = fixture.saved("attacker", "Alice");
     Faction defender = fixture.saved("defender", "Bob");

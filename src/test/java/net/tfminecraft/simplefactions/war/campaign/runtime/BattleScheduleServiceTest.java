@@ -9,8 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -261,6 +263,35 @@ class BattleScheduleServiceTest {
 			assertNull(war.getPreparationFrozenUntil());
 		} finally {
 			Cache.warPostponeFreezeHours = freezeHours;
+		}
+	}
+
+	@Test
+	void closeVote_stopsWhenThePostBattleDeadlineEndsTheWar() {
+		Cache.warBattleVotingMaxPostponements = 1;
+		War war = votingWar();
+		try (MockedStatic<net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService> choice =
+				mockStatic(net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.class);
+				MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
+			choice.when(() -> net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService
+					.needsAnyChoice(war)).thenReturn(true);
+			war.setPostBattleChoiceResolved(false);
+			// The loser could not attack, so its deadline accepted peace and the war ended.
+			choice.when(() -> net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService
+					.applyDeadlineIfDue(eq(war), any())).thenAnswer(call -> {
+						war.end(WarEndReason.WHITE_PEACE);
+						return true;
+					});
+
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					voteCloseInstant(),
+					uuidToFaction(),
+					name -> null);
+
+			assertEquals(BattleScheduleCloseResult.WAR_ENDED, result);
+			assertEquals(0, war.getPostponementsThisCycle(), "An ended war is not postponed");
+			warManager.verify(() -> WarManager.endWar(any(), any()), never());
 		}
 	}
 

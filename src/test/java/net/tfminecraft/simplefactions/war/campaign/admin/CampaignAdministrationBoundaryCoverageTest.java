@@ -300,7 +300,9 @@ class CampaignAdministrationBoundaryCoverageTest {
             BattleScheduleCloseResult.SKIPPED, "Vote close skipped.",
             BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE,
                 "Vote close found no battle left to fight after the last postponement."
-                    + " War ended (white peace).");
+                    + " War ended (white peace).",
+            BattleScheduleCloseResult.WAR_ENDED,
+                "The post-battle choice was settled at its deadline and that ended the war.");
     WarScheduleAdminResult rendered =
         WarScheduleAdminService.formatVoteCloseResult(rig.war, result);
     assertEquals(messages.get(result), rendered.message());

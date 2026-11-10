@@ -160,6 +160,10 @@ public final class BattleScheduleService {
 
 		if (needsPostBattleChoice(war) && !isPostBattleChoiceResolved(war)) {
 			applyPostBattleChoiceDeadline(war, now);
+			if (!war.isActive()) {
+				// The deadline's peace or push ended the war; postponing or ending it again would repeat the end.
+				return BattleScheduleCloseResult.WAR_ENDED;
+			}
 			if (!isPostBattleChoiceResolved(war)) {
 				return BattleScheduleCloseResult.BLOCKED_DEFENDER_CHOICE;
 			}
