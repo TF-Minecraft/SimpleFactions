@@ -158,6 +158,9 @@ public final class CoalitionService {
 	static String membershipBlock(Faction faction) {
 		if (!isIndependent(faction)) return "§cOnly independent factions can be in a coalition.";
 		if (of(faction) != null) return "§c" + faction.getName() + " §cis already in a coalition.";
+		if (WarManager.isAtWar(faction)) {
+			return "§c" + faction.getName() + " §cis at war and cannot form or join a coalition until the war ends.";
+		}
 		Long until = CoalitionRegistry.cooldownUntil(faction.getId());
 		if (until != null) {
 			return "§c" + faction.getName() + " §cleft a coalition recently and can join or form one again in "
@@ -312,14 +315,6 @@ public final class CoalitionService {
 			List<Faction> withJoiner = new ArrayList<>(members);
 			withJoiner.add(joiner);
 			block = gateBlock(withJoiner, target);
-		}
-		if (block == null) {
-			for (Faction member : members) {
-				if (WarManager.existsHostile(joiner, member)) {
-					block = "§cYou are at war with " + member.getName() + "§c, a member of that coalition.";
-					break;
-				}
-			}
 		}
 		if (block == null) block = capacityBlock(joiner, false);
 		if (block != null) return block;

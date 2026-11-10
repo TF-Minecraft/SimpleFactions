@@ -54,17 +54,18 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		return (Map<Player, Request>) field.get(null);
 	}
 
-	/** A war that started after the league was formed. */
+	/** A war that starts after the league was formed; the test declares it with {@code WarManager.addWar}. */
 	private War war(int id, Faction attacker, Faction defender) {
 		War war = new War(id, attacker, defender);
 		clock.now = war.getStartedAt().minus(Duration.ofHours(1));
-		return WarManager.addWar(war);
+		return war;
 	}
 
 	@Test
 	void aDefensiveCoalitionAnswersWhenAMemberIsAttackedByTheTarget() {
 		War war = war(80, holy, thalendor);
 		Coalition league = league();
+		WarManager.addWar(war);
 		CallToArmsService.snapshotCallable(war);
 
 		assertSame(league, CoalitionWars.callingCoalition(war, thalendor, bog));
@@ -88,6 +89,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void aDefensiveCoalitionDoesNotJoinItsMembersAttacks() {
 		War war = war(81, thalendor, holy);
 		Coalition league = league();
+		WarManager.addWar(war);
 		assertNull(CoalitionWars.callingCoalition(war, thalendor, bog));
 		assertFalse(war.call(thalendor, bog));
 		league.setOffensive(true);
@@ -107,6 +109,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		Faction raider = faction("raider", "Rex", 300);
 		War war = war(82, raider, thalendor);
 		Coalition league = league();
+		WarManager.addWar(war);
 		assertNull(CoalitionWars.callingCoalition(war, thalendor, bog));
 
 		war.getParticipant(raider).getAllies().put(holy, true);
@@ -118,6 +121,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void everyOtherWarIsLeftAlone() {
 		War war = war(83, holy, thalendor);
 		Coalition league = league();
+		WarManager.addWar(war);
 		Faction outsider = faction("outsider", "Otto", 20);
 		assertNull(CoalitionWars.callingCoalition(war, null, bog));
 		assertNull(CoalitionWars.callingCoalition(war, thalendor, null));
@@ -149,6 +153,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		Faction raider = faction("raider", "Rex", 300);
 		War war = war(84, raider, thalendor);
 		league();
+		WarManager.addWar(war);
 		allies(raider, bog);
 		war.getParticipant(raider).update(war);
 		CallToArmsService.snapshotCallable(war);
@@ -181,6 +186,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		Faction raider = faction("raider", "Rex", 300);
 		War war = war(85, raider, thalendor);
 		Coalition league = league();
+		WarManager.addWar(war);
 		assertEquals("§cCalling holy §cwill let the Grand League §ccoalition (thalendor§c, bog§c, fig§c) join this war against you.",
 				CoalitionWars.allyCallWarning(war, raider, holy));
 		assertEquals("§cAccepting will let the Grand League §ccoalition, which targets you, join this war.",
@@ -201,6 +207,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void membersHearOnceThatTheyCanBeCalled() {
 		War war = war(87, holy, thalendor);
 		league();
+		WarManager.addWar(war);
 		Faction outsider = faction("outsider", "Otto", 20);
 		war.getAttackers().addNewParticipant(outsider, war.getParticipant(holy));
 
@@ -214,6 +221,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void aCoalitionCallIsSentAnsweredAndRememberedAsOne() throws Exception {
 		War war = war(88, holy, thalendor);
 		Coalition league = league();
+		WarManager.addWar(war);
 		// The league already stood when the war was declared.
 		CallToArmsService.snapshotCallable(war);
 		CallToArmsService.send(tom, thalendor, bog, war);
@@ -243,6 +251,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void decliningACoalitionCallCostsMoreAndTellsTheCoalitionLeader() throws Exception {
 		War war = war(89, holy, fig);
 		league();
+		WarManager.addWar(war);
 		CallToArmsService.snapshotCallable(war);
 		Government government = mock(Government.class);
 		Field field = Faction.class.getDeclaredField("government");
@@ -272,6 +281,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		allies(raider, holy);
 		War war = war(91, raider, thalendor);
 		league();
+		WarManager.addWar(war);
 		CallToArmsService.send(fixture.player("Rex"), raider, holy, war);
 		verify(hana).sendMessage("§cAccepting will let the Grand League §ccoalition, which targets you, join this war.");
 		assertFalse(war.getCallsToArms().get("holy").isCoalitionCall());
@@ -282,9 +292,14 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	}
 
 	@Test
-	void aCoalitionFormedAfterTheDeclarationCannotBeCalledIn() {
+	void aCoalitionMemberWhoJoinedAfterTheDeclarationCannotBeCalledIn() {
 		War war = war(92, holy, thalendor);
-		league();
+		assertTrue(CoalitionService.create(thalendor, "Grand League", holy).ok());
+		Coalition league = CoalitionService.of(thalendor);
+		join(league, fig);
+		WarManager.addWar(war);
+		// The Bog is not at war, so it may still join, but it was no partner when the war began.
+		join(league, bog);
 
 		CallToArmsEligibility.Result result = CallToArmsEligibility.canCall(war, thalendor, bog);
 

@@ -151,9 +151,10 @@ class CoalitionViewTest extends CoalitionTestBase {
 
 	@Test
 	void theMenuShowsTheTargetMembersSeatsAndWars() throws Exception {
-		War war = WarManager.addWar(new War(95, holy, thalendor));
+		War war = new War(95, holy, thalendor);
 		clock.now = war.getStartedAt().minus(Duration.ofHours(1));
 		Coalition league = league();
+		WarManager.addWar(war);
 		CallToArmsService.snapshotCallable(war);
 		view.menu(tom, league);
 		Inventory menu = top(tom);
@@ -304,9 +305,10 @@ class CoalitionViewTest extends CoalitionTestBase {
 
 	@Test
 	void theWarMenuListsCoalitionMembersAndCallsThemOneByOne() {
-		War war = WarManager.addWar(new War(97, holy, thalendor));
+		War war = new War(97, holy, thalendor);
 		clock.now = war.getStartedAt().minus(Duration.ofHours(1));
 		league();
+		WarManager.addWar(war);
 		CallToArmsService.snapshotCallable(war);
 		WarView warView = new WarView(navigation);
 		Participant defence = war.getParticipant(thalendor);
@@ -343,8 +345,9 @@ class CoalitionViewTest extends CoalitionTestBase {
 		Faction raider = faction("raider", "Rex", 300);
 		Player rex = fixture.player("Rex");
 		allies(raider, holy);
-		War war = WarManager.addWar(new War(98, raider, thalendor));
+		War war = new War(98, raider, thalendor);
 		league();
+		WarManager.addWar(war);
 		WarView warView = new WarView(navigation);
 		warView.participantView(null, rex, war, war.getParticipant(raider), true);
 		Inventory menu = top(rex);

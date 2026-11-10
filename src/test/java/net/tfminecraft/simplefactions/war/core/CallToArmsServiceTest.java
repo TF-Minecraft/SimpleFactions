@@ -169,6 +169,28 @@ class CallToArmsServiceTest {
   }
 
   @Test
+  void anAllyCannotJoinWhileABattleOfTheWarIsBeingFought() {
+    Player called = fixture.player("Cara");
+    War war = war(39);
+    CallToArmsService.send(fixture.player("Alice"), attacker, target, war);
+    var battle = mock(net.tfminecraft.simplefactions.war.battle.engine.core.Battle.class);
+    when(battle.hasStarted()).thenReturn(true);
+    try (var battles = mockStatic(net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.class)) {
+      battles.when(() -> net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(39))
+          .thenReturn(battle);
+
+      CallToArmsService.accept(called, war);
+    }
+
+    verify(called).sendMessage("§cA battle of this war is being fought. Answer the call once it ends.");
+    assertFalse(war.isParticipating(target));
+    assertTrue(war.getCallsToArms().containsKey("target"));
+    // Between battles the same call can be accepted.
+    CallToArmsService.accept(called, war);
+    assertTrue(war.isParticipating(target));
+  }
+
+  @Test
   void acceptingAfterTheWarEndsDoesNotRecreateItsSaveOrCommitTroops() {
     Player called = fixture.player("Cara");
     War war = war(37);

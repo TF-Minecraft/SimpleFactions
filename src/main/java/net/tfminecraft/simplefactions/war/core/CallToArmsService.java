@@ -21,6 +21,8 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.notice.WarNotices;
@@ -160,6 +162,11 @@ public final class CallToArmsService {
 
 	public static void accept(Player player, War war) {
 		Faction receiver = FactionManager.getByLeader(Members.key(player));
+		if (battleUnderway(war)) {
+			// Allies join between battles, never into one already being fought.
+			player.sendMessage("§cA battle of this war is being fought. Answer the call once it ends.");
+			return;
+		}
 		CallToArms call = takeCall(player, receiver, war);
 		if (call == null) {
 			return;
@@ -230,6 +237,11 @@ public final class CallToArmsService {
 			player.sendMessage("§cYour faction has no call to arms in that war.");
 		}
 		return call;
+	}
+
+	static boolean battleUnderway(War war) {
+		Battle battle = war == null ? null : BattleManager.getByWarId(war.getId());
+		return battle != null && battle.hasStarted();
 	}
 
 	private static void addId(Set<String> ids, Faction faction) {
