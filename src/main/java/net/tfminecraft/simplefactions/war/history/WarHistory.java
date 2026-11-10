@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.history;
 
 import java.io.File;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.function.IntConsumer;
@@ -28,16 +29,19 @@ import net.tfminecraft.simplefactions.war.stats.BattleStatsArchive;
  * Nothing here may break the war code, so every entry point swallows its own failures.
  */
 public final class WarHistory {
-	static final String FOLDER = "WarHistory";
+	public static final String FOLDER = "WarHistory";
 	static final String FILE = "outbox.jsonl";
 	/** Ten seconds between sends. */
 	static final long SEND_TICKS = 200L;
+	/** Coalesced vote changes are checked every second, on the main thread. */
+	static final long VOTE_TICKS = 20L;
 	/** Battle records as SimpleFactions saves them under BattleStats/, compact. */
 	private static final Gson RECORDS = new Gson();
 
 	private static WarHistoryOutbox outbox;
 	private static WarHistorySender sender;
 	private static BukkitTask task;
+	private static BukkitTask voteTask;
 	private static Logger logger;
 
 	private WarHistory() {
@@ -57,6 +61,7 @@ public final class WarHistory {
 		sender = new WarHistorySender(outbox, (path, json) -> GatewayClient.request("POST", path, json),
 				GatewayClient::realmId, WarHistory::warn, Clock.systemUTC());
 		task = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, WarHistory::flush, SEND_TICKS, SEND_TICKS);
+		voteTask = Bukkit.getScheduler().runTaskTimer(plugin, WarVoteChanges::flushDue, VOTE_TICKS, VOTE_TICKS);
 		logger.info("War history " + (Cache.warHistoryEnabled ? "on" : "off") + ": " + outbox.size()
 				+ " items waiting to be sent to the website");
 	}
@@ -66,7 +71,12 @@ public final class WarHistory {
 		if (task != null) {
 			task.cancel();
 		}
+		if (voteTask != null) {
+			voteTask.cancel();
+		}
 		task = null;
+		voteTask = null;
+		WarVoteChanges.clear();
 		outbox = null;
 		sender = null;
 	}
@@ -84,6 +94,11 @@ public final class WarHistory {
 		}
 	}
 
+	/** One send now, off the main thread: website actions send their vote changes before reporting. */
+	public static void sendNow() {
+		flush();
+	}
+
 	/** Queues one war event with a snapshot of the war as it is now. */
 	static void event(War war, String type, JsonObject payload) {
 		event(war, type, payload, null);
@@ -94,6 +109,15 @@ public final class WarHistory {
 	 * for the website's notifications (null for none). The website never publishes it.
 	 */
 	static void event(War war, String type, JsonObject payload, JsonObject notify) {
+		event(war, type, payload, notify, null);
+	}
+
+	/**
+	 * As {@link #event(War, String, JsonObject, JsonObject)}, with the private top-level block every
+	 * event carries: {@code private.voting}, the war's open vote, plus the fields of {@code extra}
+	 * (null for none). The website keeps the latest block per war and never publishes it.
+	 */
+	static void event(War war, String type, JsonObject payload, JsonObject notify, JsonObject extra) {
 		WarHistoryOutbox current = outbox;
 		if (current == null) {
 			return;
@@ -103,13 +127,29 @@ public final class WarHistory {
 		event.addProperty("id", id);
 		event.addProperty("war_key", WarHistoryJson.warKey(war));
 		event.addProperty("type", type);
-		event.addProperty("at", WarHistoryJson.instant(CampaignClock.now().truncatedTo(ChronoUnit.MILLIS)));
+		Instant now = CampaignClock.now();
+		event.addProperty("at", WarHistoryJson.instant(now.truncatedTo(ChronoUnit.MILLIS)));
 		event.add("state", WarHistoryJson.state(war));
 		event.add("payload", payload);
 		if (notify != null) {
 			event.add("notify", notify);
 		}
+		event.add("private", privateBlock(war, now, extra));
 		current.append(Kind.EVENT, id, event);
+	}
+
+	/** A vote that cannot be read leaves the block without {@code voting}; the event is still recorded. */
+	private static JsonObject privateBlock(War war, Instant now, JsonObject extra) {
+		JsonObject block = new JsonObject();
+		try {
+			block.add("voting", WarVoting.json(war, now));
+		} catch (RuntimeException failed) {
+			warn("Could not read the votes of war " + war.getId() + ": " + failed);
+		}
+		if (extra != null) {
+			extra.entrySet().forEach(entry -> block.add(entry.getKey(), entry.getValue()));
+		}
+		return block;
 	}
 
 	/**
@@ -178,6 +218,7 @@ public final class WarHistory {
 
 	public static synchronized void resetForTests() {
 		stop();
+		WarVoteChanges.resetForTests();
 		logger = null;
 	}
 }

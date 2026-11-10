@@ -50,6 +50,7 @@ import net.tfminecraft.simplefactions.war.campaign.ui.CampaignViewRefreshService
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleVoteToggleResult;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -538,6 +539,7 @@ public class CampaignView {
 
 		if (result == BattleVoteToggleResult.ADDED || result == BattleVoteToggleResult.REMOVED) {
 			WarManager.persist(war);
+			WarHistoryEvents.votesChanged(war);
 			player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			campaignView(player, war, !isViewingCampaign(player, war.getId()));
 		}
@@ -559,6 +561,7 @@ public class CampaignView {
 			}
 		}
 		WarManager.persist(war);
+		WarHistoryEvents.votesChanged(war);
 		player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 		campaignView(player, war, !isViewingCampaign(player, war.getId()));
 	}

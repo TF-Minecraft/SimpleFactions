@@ -161,6 +161,7 @@ public final class BuildupService {
 		tellBothSides(war, "§eThe first battle of " + war.getName() + " §eis on §f"
 				+ CampaignUiCopy.formatBattleDay(chosen) + "§e. Vote on its hour in §a/war list§e.");
 		WarHistoryEvents.dayVoteClosed(war, chosen, quorum);
+		WarHistoryEvents.votesChanged(war);
 		return new DayVoteResult(chosen, quorum);
 	}
 

@@ -113,6 +113,7 @@ public final class BattleScheduleService {
 		clearScheduledTargets(war);
 		war.setDefenderChoiceResolved(false);
 		WarHistoryEvents.nextBattleDay(war);
+		WarHistoryEvents.votesChanged(war);
 	}
 
 	public static BattleScheduleCloseResult closeVote(
@@ -124,6 +125,20 @@ public final class BattleScheduleService {
 	}
 
 	public static BattleScheduleCloseResult closeVote(
+			War war,
+			Instant now,
+			Function<UUID, Faction> uuidToFaction,
+			Function<String, UUID> memberNameToUuid,
+			CloseVoteOptions options) {
+		BattleScheduleCloseResult result = closeVoteNow(war, now, uuidToFaction, memberNameToUuid, options);
+		if (result != BattleScheduleCloseResult.SKIPPED) {
+			// The website shows the hour vote as closed.
+			WarHistoryEvents.votesChanged(war);
+		}
+		return result;
+	}
+
+	private static BattleScheduleCloseResult closeVoteNow(
 			War war,
 			Instant now,
 			Function<UUID, Faction> uuidToFaction,

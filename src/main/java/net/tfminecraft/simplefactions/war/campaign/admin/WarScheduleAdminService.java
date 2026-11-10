@@ -51,6 +51,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 
 public final class WarScheduleAdminService {
 
@@ -250,6 +251,8 @@ public final class WarScheduleAdminService {
 				BattleScheduleLookups.spoofMemberNameToUuid(),
 
 				sides);
+
+		WarHistoryEvents.votesChanged(war);
 
 		return WarScheduleAdminResult.ok(
 

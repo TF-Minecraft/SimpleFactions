@@ -23,6 +23,12 @@ war:
     # finished battle records to the website's war pages, through TFMCWeb. Unsent items wait in
     # WarHistory/outbox.jsonl, so a website outage loses nothing. Off: nothing is recorded or sent.
     enabled: true
+    # Applies the day and hour votes and the call to arms answers players make on the website's
+    # war page or from a Discord DM. The website queues them; every five seconds the server fetches
+    # them and checks each exactly as it checks the same click in game. Results of the last 1000 are
+    # kept in WarHistory/actions-applied.json, so none is applied twice. Off: they wait on the website
+    # (and expire there after ten minutes).
+    actions_enabled: true
   goals:
     DE_JURE_ANNEX:
       max_battles_per_leg: 4

@@ -37,6 +37,11 @@ import net.tfminecraft.simplefactions.war.notice.WarNotices;
 public final class CallToArmsService {
 	public static final String NOT_ALLIED_AT_DECLARATION =
 			"§cOnly factions allied when the war was declared can be called to arms.";
+	/** Why an answer was refused, as plain sentences: they also go to the website and Discord. */
+	public static final String BATTLE_UNDERWAY = "A battle of this war is being fought. Answer the call once it ends.";
+	public static final String NOT_A_LEADER = "Only a faction leader can answer a call to arms.";
+	public static final String NO_CALL = "Your faction has no call to arms in that war.";
+	public static final String COULD_NOT_JOIN = "Could not join the war.";
 
 	/** An open call and the war it belongs to. */
 	public record Pending(War war, CallToArms call) {
@@ -93,6 +98,7 @@ public final class CallToArmsService {
 		war.getCallsToArms().put(key(target), new CallToArms(target.getId(), origin.getId(),
 				coalition == null ? null : coalition.getId(), Instant.now()));
 		WarManager.persist(war);
+		WarHistoryEvents.callToArmsSent(war, origin, target, coalition != null);
 		sender.sendMessage("§aSent a call to arms to " + target.getName()
 				+ "§a. It stays open until their leader answers.");
 		String leader = target.getLeader();
@@ -162,17 +168,36 @@ public final class CallToArmsService {
 		return true;
 	}
 
+	/** How answering a call went: {@code reason} is a plain sentence for the leader when it was refused. */
+	public record Answer(boolean done, String reason) {
+		static Answer ok() {
+			return new Answer(true, null);
+		}
+
+		static Answer refused(String reason) {
+			return new Answer(false, reason);
+		}
+	}
+
+	/** In game: the player answers for the faction their current character leads. */
 	public static void accept(Player player, War war) {
-		Faction receiver = FactionManager.getByLeader(Members.key(player));
+		tell(player, accept(war, FactionManager.getByLeader(Members.key(player))));
+	}
+
+	/**
+	 * The leader of {@code receiver} accepts its call, in game or from the website. The same checks
+	 * either way, only between battles; what the leader is told goes through {@link WarNotices}.
+	 */
+	public static Answer accept(War war, Faction receiver) {
 		if (battleUnderway(war)) {
 			// Allies join between battles, never into one already being fought.
-			player.sendMessage("§cA battle of this war is being fought. Answer the call once it ends.");
-			return;
+			return Answer.refused(BATTLE_UNDERWAY);
 		}
-		CallToArms call = takeCall(player, receiver, war);
-		if (call == null) {
-			return;
+		Answer missing = missingCall(receiver, war);
+		if (missing != null) {
+			return missing;
 		}
+		CallToArms call = war.getCallsToArms().remove(key(receiver));
 		Faction origin = FactionManager.getByString(call.callerFactionId());
 		// An ended or replaced war object must not be saved again: that would bring back its file.
 		boolean current = war.isActive() && WarManager.getById(war.getId()) == war;
@@ -183,33 +208,42 @@ public final class CallToArmsService {
 				|| !war.call(origin, receiver)) {
 			if (current) {
 				WarManager.persist(war);
+				// The call was used up, so the website must stop offering it.
+				WarHistoryEvents.callToArmsClosed(war, receiver, false);
 			}
-			player.sendMessage("§cCould not join the war.");
-			return;
+			return Answer.refused(COULD_NOT_JOIN);
 		}
 		WarHistoryEvents.joined(war, receiver, CampaignClock.now());
+		WarHistoryEvents.callToArmsClosed(war, receiver, true);
 		WarCommitmentService.commitFaction(war, receiver);
 		WarCommitmentService.snapshotLevyForFighter(war, receiver);
 		// A secondary only counts as a participant once it has joined, so contracts are re-checked here.
 		MercenaryLoyaltyWatcher.onWarJoined(receiver);
 		WarNotices.send(origin.getLeader(), receiver.getName() + " §aaccepted your call to arms: "
 				+ war.getName() + "§a.");
-		player.sendMessage("§aYour faction has joined the war: " + war.getName());
+		WarNotices.send(receiver.getLeader(), "§aYour faction has joined the war: " + war.getName());
 		WarManager.notifyWarDeclared(receiver.getMembers());
 		WarManager.persist(war);
 		// The joiner may be a coalition's target, which lets that coalition in.
 		CoalitionWars.announce(war);
+		return Answer.ok();
 	}
 
-	/** Refused call to arms. Decay matches the war-end hits in WarOutcomeService. */
+	/** In game: the player declines for the faction their current character leads. */
 	public static void decline(Player player, War war) {
-		Faction receiver = FactionManager.getByLeader(Members.key(player));
-		CallToArms call = takeCall(player, receiver, war);
-		if (call == null) {
-			return;
+		tell(player, decline(war, FactionManager.getByLeader(Members.key(player))));
+	}
+
+	/** Refused call to arms, in game or from the website. Decay matches the war-end hits in WarOutcomeService. */
+	public static Answer decline(War war, Faction receiver) {
+		Answer missing = missingCall(receiver, war);
+		if (missing != null) {
+			return missing;
 		}
+		CallToArms call = war.getCallsToArms().remove(key(receiver));
 		WarManager.persist(war);
-		player.sendMessage("§7You declined the call to arms.");
+		WarHistoryEvents.callToArmsClosed(war, receiver, false);
+		WarNotices.send(receiver.getLeader(), "§7You declined the call to arms.");
 		if (receiver.getGovernment() != null) {
 			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
 					"Declined Call to Arms",
@@ -228,18 +262,24 @@ public final class CallToArmsService {
 			CoalitionService.notifyFaction(coalitionLeader, receiver.getName()
 					+ " §cdeclined a coalition call to arms from " + origin.getName() + "§c.");
 		}
+		return Answer.ok();
 	}
 
-	private static CallToArms takeCall(Player player, Faction receiver, War war) {
+	private static void tell(Player player, Answer answer) {
+		if (!answer.done()) {
+			player.sendMessage("§c" + answer.reason());
+		}
+	}
+
+	/** Null when {@code receiver} leads a faction with an open call in this war. */
+	private static Answer missingCall(Faction receiver, War war) {
 		if (receiver == null) {
-			player.sendMessage("§cOnly a faction leader can answer a call to arms.");
-			return null;
+			return Answer.refused(NOT_A_LEADER);
 		}
-		CallToArms call = war == null ? null : war.getCallsToArms().remove(key(receiver));
-		if (call == null) {
-			player.sendMessage("§cYour faction has no call to arms in that war.");
+		if (war == null || !war.getCallsToArms().containsKey(key(receiver))) {
+			return Answer.refused(NO_CALL);
 		}
-		return call;
+		return null;
 	}
 
 	static boolean battleUnderway(War war) {

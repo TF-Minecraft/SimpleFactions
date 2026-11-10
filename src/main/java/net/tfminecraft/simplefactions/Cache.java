@@ -79,6 +79,8 @@ public class Cache {
 	public static int warTruceDays = 10;
 	/** Sends war events and battle records to the website's war pages (war.history.enabled). */
 	public static boolean warHistoryEnabled = true;
+	/** Applies the votes and call to arms answers players make on the website or Discord (war.history.actions_enabled). */
+	public static boolean warActionsEnabled = true;
 	public static Map<WarGoalType, Integer> warGoalMaxBattles = new EnumMap<>(WarGoalType.class);
 	public static final int MAX_BATTLES_PER_LEG = 4;
 	public static List<String> openMarketDefenderMustNotHave = List.of();

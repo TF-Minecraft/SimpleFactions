@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.google.gson.JsonArray;
@@ -148,16 +149,84 @@ public final class WarHistoryEvents {
 		});
 	}
 
+	/**
+	 * Votes changed: in game, by staff, by an applied web action, or because a vote opened or
+	 * closed. Silent (no timeline entry, no post); it only carries the new {@code private.voting}.
+	 * At most one per war every five seconds, with the latest state.
+	 */
+	public static void votesChanged(War war) {
+		if (war == null || !WarHistory.isRecording()) {
+			return;
+		}
+		try {
+			WarVoteChanges.changed(war);
+		} catch (RuntimeException failed) {
+			WarHistory.warn("Could not record votes_changed for war " + war.getId() + ": " + failed);
+		}
+	}
+
+	/** What {@link WarVoteChanges} sends when a war's window allows it. */
+	static void votesChangedNow(War war) {
+		record(war, "votes_changed", JsonObject::new);
+	}
+
+	/**
+	 * A call to arms was sent. Silent; the website DMs the called leader, so the leader's account and
+	 * character go under {@code private.notify}.
+	 */
+	public static void callToArmsSent(War war, Faction caller, Faction target, boolean coalition) {
+		record(war, "call_to_arms_sent", () -> {
+			JsonObject payload = new JsonObject();
+			payload.add("caller", WarHistoryJson.factionRef(caller));
+			payload.add("target", WarHistoryJson.factionRef(target));
+			payload.addProperty("side", WarHistoryJson.sideOf(war, caller));
+			payload.addProperty("coalition", coalition);
+			return payload;
+		}, () -> null, () -> {
+			JsonObject notify = new JsonObject();
+			String leader = target.getLeader();
+			notify.addProperty("leader_account", leaderAccount(war, leader));
+			notify.addProperty("leader_character_id", Members.characterId(leader) == null ? null : leader);
+			JsonObject extra = new JsonObject();
+			extra.add("notify", notify);
+			return extra;
+		});
+	}
+
+	/** A call to arms was answered and is no longer open. Silent; an accepted call also sends participant_joined. */
+	public static void callToArmsClosed(War war, Faction target, boolean accepted) {
+		record(war, "call_to_arms_closed", () -> {
+			JsonObject payload = new JsonObject();
+			payload.add("target", WarHistoryJson.factionRef(target));
+			payload.addProperty("result", accepted ? "accepted" : "declined");
+			return payload;
+		});
+	}
+
+	private static String leaderAccount(War war, String leader) {
+		try {
+			return Members.accountId(leader).map(UUID::toString).orElse(null);
+		} catch (RuntimeException failed) {
+			WarHistory.warn("Could not read the account of the called leader in war " + war.getId() + ": " + failed);
+			return null;
+		}
+	}
+
 	private static void record(War war, String type, Supplier<JsonObject> payload) {
 		record(war, type, payload, () -> null);
 	}
 
 	private static void record(War war, String type, Supplier<JsonObject> payload, Supplier<JsonObject> notify) {
+		record(war, type, payload, notify, () -> null);
+	}
+
+	private static void record(War war, String type, Supplier<JsonObject> payload, Supplier<JsonObject> notify,
+			Supplier<JsonObject> extra) {
 		if (war == null || !WarHistory.isRecording()) {
 			return;
 		}
 		try {
-			WarHistory.event(war, type, payload.get(), notify.get());
+			WarHistory.event(war, type, payload.get(), notify.get(), extra.get());
 		} catch (RuntimeException failed) {
 			WarHistory.warn("Could not record " + type + " for war " + war.getId() + ": " + failed);
 		}

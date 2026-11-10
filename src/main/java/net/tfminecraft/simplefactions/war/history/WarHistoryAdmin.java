@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.war.actions.WarActions;
 
 /** {@code /war admin history status|upload-battles}. */
 public final class WarHistoryAdmin {
@@ -44,13 +45,29 @@ public final class WarHistoryAdmin {
 		lines.add("§6War history: " + (Cache.warHistoryEnabled ? "§aon" : "§coff (war.history.enabled)"));
 		if (status == null) {
 			lines.add("§7Not started.");
-			return lines;
+		} else {
+			lines.add("§7Waiting to send: §f" + status.events() + " §7events, §f" + status.battles() + " §7battle records.");
+			lines.add("§7Last sent: §f" + (status.lastSuccess() == null ? "never this run" : status.lastSuccess()));
+			if (status.lastError() != null) {
+				lines.add("§7Last error: §c" + status.lastError() + " §7at §f" + status.lastErrorAt());
+			}
 		}
-		lines.add("§7Waiting to send: §f" + status.events() + " §7events, §f" + status.battles() + " §7battle records.");
-		lines.add("§7Last sent: §f" + (status.lastSuccess() == null ? "never this run" : status.lastSuccess()));
-		if (status.lastError() != null) {
-			lines.add("§7Last error: §c" + status.lastError() + " §7at §f" + status.lastErrorAt());
-		}
+		actionLines(lines);
 		return lines;
+	}
+
+	/** The website's votes and call to arms answers, applied here. */
+	private static void actionLines(List<String> lines) {
+		lines.add("§6Website actions: " + (Cache.warActionsEnabled ? "§aon" : "§coff (war.history.actions_enabled)"));
+		var actions = WarActions.status();
+		if (actions == null) {
+			lines.add("§7Not polling the website.");
+			return;
+		}
+		lines.add("§7Applied this run: §f" + actions.appliedThisRun() + " §7(" + actions.remembered()
+				+ " results remembered). Last fetch: §f" + (actions.lastPoll() == null ? "never this run" : actions.lastPoll()));
+		if (actions.lastError() != null) {
+			lines.add("§7Last error: §c" + actions.lastError() + " §7at §f" + actions.lastErrorAt());
+		}
 	}
 }

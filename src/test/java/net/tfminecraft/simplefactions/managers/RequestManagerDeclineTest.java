@@ -151,6 +151,8 @@ class RequestManagerDeclineTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedConstruction<Database> ignored = mockConstruction(Database.class)) {
 			bukkit.when(() -> Bukkit.getPlayerExact("AtkLead")).thenReturn(caller);
+			// The called leader is told through war notices, which reach the online character.
+			bukkit.when(() -> Bukkit.getPlayerExact("AllyLead")).thenReturn(calledPlayer);
 
 			assertTrue(new CommandManager().onCommand(
 					calledPlayer, factionCommand(), "faction", new String[] {"decline"}));

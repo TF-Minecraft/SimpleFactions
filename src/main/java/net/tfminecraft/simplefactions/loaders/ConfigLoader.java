@@ -196,6 +196,7 @@ public class ConfigLoader {
 		Cache.warReparationsDays = config.getInt("war.reparations.days", 10);
 		Cache.warTruceDays = Math.max(0, config.getInt("war.truce.days", 10));
 		Cache.warHistoryEnabled = config.getBoolean("war.history.enabled", true);
+		Cache.warActionsEnabled = config.getBoolean("war.history.actions_enabled", true);
 		Cache.warGoalMaxBattles = new EnumMap<>(WarGoalType.class);
 		for (WarGoalType goal : WarGoalType.values()) {
 			int maxBattles = config.getInt("war.goals." + goal.name() + ".max_battles_per_leg", -1);

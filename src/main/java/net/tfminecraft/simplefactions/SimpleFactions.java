@@ -525,6 +525,7 @@ public class SimpleFactions extends JavaPlugin{
         net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.loadAll();
         net.tfminecraft.simplefactions.war.stats.BattleStatsArchive.loadAsync();
         net.tfminecraft.simplefactions.war.history.WarHistory.start(this);
+        net.tfminecraft.simplefactions.war.actions.WarActions.start(this);
         net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSideLock.bindLoadedMembers();
         try {
             for (var guild : FactionManager.getAllGuilds()) {
@@ -625,6 +626,7 @@ public class SimpleFactions extends JavaPlugin{
 		vehicleMaintenanceDecayTask.stop();
 		CampaignViewRefreshService.stop();
 		BattleManager.shutdown();
+		net.tfminecraft.simplefactions.war.actions.WarActions.stop();
 		net.tfminecraft.simplefactions.war.history.WarHistory.stop();
 		net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService.stopAutosave();
 		sessionManager.end();

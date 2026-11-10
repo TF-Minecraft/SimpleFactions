@@ -571,4 +571,336 @@ class WarHistoryEventsTest {
 		assertTrue(ref.get("founded_at").isJsonNull());
 		assertTrue(ref.get("rgb").isJsonNull());
 	}
+
+	private int[] windowBefore;
+
+	/** Battle hours 21 to 25 (01:00), the vote closing at 16:00 on the battle day, as on Main. */
+	private void mainWindow() {
+		windowBefore = new int[] {Cache.warBattleWindowStartHour, Cache.warBattleWindowEndHour, Cache.warVoteCloseHour};
+		Cache.warBattleWindowStartHour = 21;
+		Cache.warBattleWindowEndHour = 26;
+		Cache.warVoteCloseHour = 16;
+	}
+
+	private Boolean buildupBefore;
+
+	private void buildup(War war) {
+		buildupBefore = Cache.warBuildupEnabled;
+		Cache.warBuildupEnabled = true;
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.VOTING);
+		assertTrue(BuildupService.start(war, CampaignClock.now()));
+	}
+
+	@AfterEach
+	void restoreWindow() {
+		if (buildupBefore != null) {
+			Cache.warBuildupEnabled = buildupBefore;
+		}
+		if (windowBefore != null) {
+			Cache.warBattleWindowStartHour = windowBefore[0];
+			Cache.warBattleWindowEndHour = windowBefore[1];
+			Cache.warVoteCloseHour = windowBefore[2];
+		}
+	}
+
+	private static JsonObject voting(JsonObject event) {
+		return event.getAsJsonObject("private").getAsJsonObject("voting");
+	}
+
+	private static List<String> strings(JsonArray array) {
+		List<String> out = new ArrayList<>();
+		array.forEach(item -> out.add(item.getAsString()));
+		return out;
+	}
+
+	@Test
+	void everyEventCarriesTheOpenDayVoteOnlyInItsPrivateBlock() {
+		CharacterKeyFixture characters = CharacterKeyFixture.install();
+		UUID ann = UUID.randomUUID();
+		UUID dee = UUID.randomUUID();
+		attacker.addMember(characters.offline(ann, "Ann"));
+		attacker.addMember(characters.offline(ann, "Ann's heir"));
+		defender.addMember(characters.offline(dee, "Dee"));
+
+		War war = war(60);
+		// Declaring starts the buildup before the event; addWar alone does not.
+		buildup(war);
+		WarHistoryEvents.declared(war);
+
+		JsonObject event = last("war_declared");
+		JsonObject voting = voting(event);
+		assertEquals("day", voting.get("kind").getAsString());
+		LocalDate first = war.getDayVoteFirstDay();
+		List<String> days = new ArrayList<>();
+		for (int i = 0; i < Cache.warBuildupDayOptions; i++) {
+			days.add(first.plusDays(i).toString());
+		}
+		assertEquals(days, strings(voting.getAsJsonArray("options")));
+		assertEquals(java.time.format.DateTimeFormatter.ofPattern("EEE dd/MM", java.util.Locale.ENGLISH).format(first),
+				voting.getAsJsonArray("option_labels").get(0).getAsString());
+		assertEquals(war.getDayVoteClosesAt().toString(), voting.get("closes_at").getAsString());
+		JsonObject eligible = voting.getAsJsonObject("eligible");
+		assertEquals(2, eligible.size(), "One entry per account: " + eligible);
+		assertEquals("attacker", eligible.get(ann.toString()).getAsString());
+		assertEquals("defender", eligible.get(dee.toString()).getAsString());
+		assertEquals(0, voting.getAsJsonObject("votes").size());
+		assertEquals(Cache.warBuildupDayOptions, voting.getAsJsonArray("tally").size());
+		assertFalse(event.getAsJsonObject("state").toString().contains(ann.toString()), "Accounts stay private");
+		assertFalse(event.getAsJsonObject("payload").toString().contains(ann.toString()));
+
+		war.getDayVotes().put(ann, new java.util.HashSet<>(java.util.Set.of(2, 0)));
+		war.getDayVotes().put(dee, new java.util.HashSet<>(java.util.Set.of(2, 99)));
+		war.getDayVotes().put(UUID.randomUUID(), new java.util.HashSet<>(java.util.Set.of(99)));
+		WarHistoryEvents.votesChanged(war);
+
+		JsonObject changed = last("votes_changed");
+		assertEquals(new JsonObject(), payload(changed), "Silent: nothing public");
+		JsonObject votes = voting(changed).getAsJsonObject("votes");
+		assertEquals(List.of(days.get(0), days.get(2)), strings(votes.getAsJsonArray(ann.toString())));
+		assertEquals(List.of(days.get(2)), strings(votes.getAsJsonArray(dee.toString())), "Picks no longer offered drop out");
+		assertEquals(2, votes.size(), "An account with no valid pick is left out");
+		JsonObject third = voting(changed).getAsJsonArray("tally").get(2).getAsJsonObject();
+		assertEquals(days.get(2), third.get("option").getAsString());
+		assertEquals(1, third.get("attacker").getAsInt());
+		assertEquals(1, third.get("defender").getAsInt());
+	}
+
+	@Test
+	void theHourVoteListsBattleHoursUntilItClosesOnTheBattleDay() {
+		mainWindow();
+		CharacterKeyFixture characters = CharacterKeyFixture.install();
+		UUID ann = UUID.randomUUID();
+		attacker.addMember(characters.offline(ann, "Ann"));
+		War war = war(61);
+		LocalDate day = net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService
+				.scheduleDate(CampaignClock.now()).plusDays(9);
+		BuildupService.setFirstBattleDay(war, day, CampaignClock.now(), true);
+		war.getBattleVotes().put(ann, new java.util.HashSet<>(java.util.Set.of(25, 21, 30)));
+
+		WarHistoryEvents.postponed(war);
+
+		JsonObject voting = voting(last("battle_postponed"));
+		assertEquals("hour", voting.get("kind").getAsString());
+		assertEquals("[21,22,23,24,25]", voting.getAsJsonArray("options").toString());
+		assertEquals(List.of("21:00 CET", "22:00 CET", "23:00 CET", "00:00 CET", "01:00 CET"),
+				strings(voting.getAsJsonArray("option_labels")));
+		assertEquals(day.atTime(16, 0).atZone(java.time.ZoneId.of("Europe/Paris")).toInstant().toString(),
+				voting.get("closes_at").getAsString());
+		assertEquals("[21,25]", voting.getAsJsonObject("votes").getAsJsonArray(ann.toString()).toString());
+		JsonObject first = voting.getAsJsonArray("tally").get(0).getAsJsonObject();
+		assertEquals(21, first.get("option").getAsInt());
+		assertEquals(1, first.get("attacker").getAsInt());
+
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
+		WarHistoryEvents.postponed(war);
+		JsonObject closed = voting(last("battle_postponed"));
+		assertTrue(closed.get("kind").isJsonNull(), "No vote open");
+		assertEquals(0, closed.getAsJsonArray("options").size());
+		assertEquals(0, closed.getAsJsonArray("tally").size());
+		assertEquals(0, closed.getAsJsonObject("votes").size());
+		assertTrue(closed.get("closes_at").isJsonNull());
+		assertEquals("attacker", closed.getAsJsonObject("eligible").get(ann.toString()).getAsString(),
+				"Who may vote is still known");
+	}
+
+	@Test
+	void unreadableVotesLeaveThePrivateBlockWithoutThem() {
+		War war = war(62);
+		Members.Resolver offline = mock(Members.Resolver.class);
+		when(offline.info(anyString())).thenThrow(new IllegalStateException("characters offline"));
+		Members.setResolver(offline);
+		defender.addMember(UUID.randomUUID().toString());
+
+		WarHistoryEvents.postponed(war);
+
+		JsonObject event = last("battle_postponed");
+		assertFalse(event.getAsJsonObject("private").has("voting"));
+		verify(logger).warning("[WarHistory] Could not read the votes of war " + war.getId()
+				+ ": java.lang.IllegalStateException: characters offline");
+	}
+
+	@Test
+	void voteChangesAreSentAtMostOncePerWarEveryFiveSeconds() {
+		java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(1_000_000L);
+		WarVoteChanges.clock = now::get;
+		War war = war(63);
+		buildup(war);
+		War other = war(64);
+
+		WarHistoryEvents.votesChanged(war);
+		now.addAndGet(1000);
+		WarHistoryEvents.votesChanged(war);
+		war.getDayVotes().put(UUID.randomUUID(), new java.util.HashSet<>(java.util.Set.of(1)));
+		now.addAndGet(1000);
+		WarHistoryEvents.votesChanged(war);
+		WarHistoryEvents.votesChanged(other);
+		assertEquals(2, count("votes_changed"), "The first change of each war goes at once");
+		assertEquals(1, WarVoteChanges.waitingForTests());
+
+		now.addAndGet(2000);
+		WarVoteChanges.flushDue();
+		assertEquals(2, count("votes_changed"), "Still inside the five seconds");
+
+		now.addAndGet(1000);
+		WarVoteChanges.flushDue();
+		assertEquals(3, count("votes_changed"));
+		assertEquals(1, voting(last("votes_changed")).getAsJsonObject("votes").size(), "The latest state wins");
+		WarVoteChanges.flushDue();
+		assertEquals(3, count("votes_changed"));
+
+		now.addAndGet(1000);
+		WarHistoryEvents.votesChanged(war);
+		war.end(WarEndReason.WHITE_PEACE);
+		now.addAndGet(10_000);
+		WarVoteChanges.flushDue();
+		assertEquals(3, count("votes_changed"), "An ended war's last state went with war_ended");
+
+		now.addAndGet(10_000);
+		WarVoteChanges.flushDue();
+		WarHistoryEvents.votesChanged(other);
+		assertEquals(4, count("votes_changed"), "A window that is over is forgotten");
+	}
+
+	@Test
+	void voteChangesAreNotRecordedWhileHistoryIsOffAndNeverThrow() {
+		War broken = mock(War.class);
+		when(broken.getId()).thenReturn(8);
+		when(broken.getStartedAt()).thenThrow(new IllegalStateException("no start"));
+
+		WarHistoryEvents.votesChanged(null);
+		WarHistoryEvents.votesChanged(broken);
+		verify(logger).warning("[WarHistory] Could not record votes_changed for war 8: java.lang.IllegalStateException: no start");
+
+		WarHistory.resetForTests();
+		WarHistoryEvents.votesChanged(war(65));
+		assertEquals(0, count("votes_changed"));
+	}
+
+	@Test
+	void openingClosingAndCastingVotesAllTellTheWebsite() {
+		mainWindow();
+		java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(100_000L);
+		WarVoteChanges.clock = now::get;
+		War war = war(66);
+		BuildupService.setFirstBattleDay(war, net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService
+				.scheduleDate(CampaignClock.now()).plusDays(3), CampaignClock.now(), true);
+		assertEquals(1, count("votes_changed"), "Closing the day vote");
+		now.addAndGet(10_000);
+		BattleScheduleService.openVote(war);
+		assertEquals(2, count("votes_changed"));
+		now.addAndGet(10_000);
+		net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminService.castVote(war, 21, "both");
+		assertEquals(3, count("votes_changed"));
+		now.addAndGet(10_000);
+		BattleScheduleService.closeVote(war, CampaignClock.now(), uuid -> null, name -> null,
+				net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions.admin(false));
+		assertEquals(4, count("votes_changed"), "Closing the hour vote");
+		now.addAndGet(10_000);
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
+		BattleScheduleService.closeVote(war, CampaignClock.now(), uuid -> null, name -> null);
+		assertEquals(4, count("votes_changed"), "Nothing closed, nothing sent");
+	}
+
+	@Test
+	void aCallToArmsIsRecordedPrivatelyWithTheCalledLeadersAccount() {
+		CharacterKeyFixture characters = CharacterKeyFixture.install();
+		UUID cara = UUID.randomUUID();
+		String leader = characters.offline(cara, "Cara");
+		target.setLeader(leader);
+		target.addMember(leader);
+		Player sender = fixture.player("Alice");
+		War war = war(67);
+
+		CallToArmsService.send(sender, attacker, target, war);
+
+		JsonObject event = last("call_to_arms_sent");
+		JsonObject payload = payload(event);
+		assertEquals("attacker", payload.getAsJsonObject("caller").get("id").getAsString());
+		assertEquals("target", payload.getAsJsonObject("target").get("id").getAsString());
+		assertEquals("attacker", payload.get("side").getAsString());
+		assertFalse(payload.get("coalition").getAsBoolean());
+		JsonObject notify = event.getAsJsonObject("private").getAsJsonObject("notify");
+		assertEquals(cara.toString(), notify.get("leader_account").getAsString());
+		assertEquals(leader, notify.get("leader_character_id").getAsString());
+		assertTrue(event.getAsJsonObject("private").has("voting"));
+		assertFalse(event.has("notify"), "Only war_declared has the Phase 3 notify field");
+		assertFalse(payload.toString().contains(cara.toString()));
+	}
+
+	@Test
+	void aCalledLeaderWithoutAKnownAccountIsSentWithoutOne() {
+		War war = war(68);
+		WarHistoryEvents.callToArmsSent(war, attacker, target, true);
+		JsonObject event = last("call_to_arms_sent");
+		JsonObject notify = event.getAsJsonObject("private").getAsJsonObject("notify");
+		assertTrue(notify.get("leader_account").isJsonNull(), "Name-keyed test leaders have no account");
+		assertTrue(notify.get("leader_character_id").isJsonNull());
+		assertTrue(payload(event).get("coalition").getAsBoolean());
+
+		Members.Resolver offline = mock(Members.Resolver.class);
+		when(offline.info(anyString())).thenThrow(new IllegalStateException("characters offline"));
+		Members.setResolver(offline);
+		String key = UUID.randomUUID().toString();
+		target.setLeader(key);
+		WarHistoryEvents.callToArmsSent(war, attacker, target, false);
+		notify = last("call_to_arms_sent").getAsJsonObject("private").getAsJsonObject("notify");
+		assertTrue(notify.get("leader_account").isJsonNull());
+		assertEquals(key, notify.get("leader_character_id").getAsString());
+		verify(logger).warning("[WarHistory] Could not read the account of the called leader in war " + war.getId()
+				+ ": java.lang.IllegalStateException: characters offline");
+	}
+
+	@Test
+	void answeringACallClosesItOnTheWebsite() {
+		Player sender = fixture.player("Alice");
+		Player called = fixture.player("Cara");
+		War war = war(69);
+		CallToArmsService.send(sender, attacker, target, war);
+		CallToArmsService.accept(called, war);
+		JsonObject accepted = payload(last("call_to_arms_closed"));
+		assertEquals("target", accepted.getAsJsonObject("target").get("id").getAsString());
+		assertEquals("accepted", accepted.get("result").getAsString());
+
+		Faction other = fixture.saved("other", "Olga");
+		ally(attacker, other);
+		War second = war(70);
+		CallToArmsService.send(sender, attacker, other, second);
+		CallToArmsService.decline(fixture.player("Olga"), second);
+		assertEquals("declined", payload(last("call_to_arms_closed")).get("result").getAsString());
+		assertEquals("other", payload(last("call_to_arms_closed")).getAsJsonObject("target").get("id").getAsString());
+	}
+
+	private int count(String type) {
+		int found = 0;
+		for (JsonObject event : events()) {
+			if (event.get("type").getAsString().equals(type)) {
+				found++;
+			}
+		}
+		return found;
+	}
+
+	@Test
+	void theVoteListsStayBounded() {
+		CharacterKeyFixture characters = CharacterKeyFixture.install();
+		for (int i = 0; i < 3; i++) {
+			attacker.addMember(characters.offline(UUID.randomUUID(), "Ann " + i));
+			defender.addMember(characters.offline(UUID.randomUUID(), "Dee " + i));
+		}
+		War war = war(71);
+		buildup(war);
+		for (int i = 0; i < 3; i++) {
+			war.getDayVotes().put(UUID.randomUUID(), new java.util.HashSet<>(java.util.Set.of(0)));
+		}
+		int before = WarVoting.maxAccounts;
+		WarVoting.maxAccounts = 2;
+		try {
+			WarHistoryEvents.postponed(war);
+		} finally {
+			WarVoting.maxAccounts = before;
+		}
+		JsonObject voting = voting(last("battle_postponed"));
+		assertEquals(2, voting.getAsJsonObject("eligible").size());
+		assertEquals(2, voting.getAsJsonObject("votes").size());
+	}
 }

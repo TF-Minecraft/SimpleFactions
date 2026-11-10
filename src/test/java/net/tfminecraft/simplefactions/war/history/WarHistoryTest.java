@@ -239,7 +239,8 @@ class WarHistoryTest {
 		WarHistory.flush();
 
 		assertEquals("§7Last sent: §f" + Instant.EPOCH, WarHistoryAdmin.statusLines().get(2));
-		assertEquals(3, WarHistoryAdmin.statusLines().size(), "No error line");
+		List<String> lines = WarHistoryAdmin.statusLines();
+		assertEquals("§6Website actions: §aon", lines.get(3), "No error line before the website actions");
 	}
 
 	@Test
