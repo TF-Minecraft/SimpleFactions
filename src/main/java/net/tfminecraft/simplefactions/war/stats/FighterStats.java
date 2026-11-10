@@ -10,6 +10,11 @@ public final class FighterStats {
 	public String name;
 	public String side;
 	public String faction;
+	/** The fighter's own faction when first seen, null without one; with the founding stamp it names one incarnation. */
+	public String factionId;
+	public Long factionFoundedAt;
+	/** The faction that hired the fighter as a mercenary for this war, null when they fought unhired. */
+	public String hirerFactionId;
 	/** MMOCore class (or subclass) the character played when first seen in the battle. */
 	public String className;
 	public int kills;

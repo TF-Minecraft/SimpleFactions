@@ -114,6 +114,22 @@ class CoalitionServiceTest extends CoalitionTestBase {
 	}
 
 	@Test
+	void aFactionAtWarCanNeitherFormNorJoinACoalition() {
+		Coalition league = league();
+		Faction outsider = faction("outsider", "Otto", 100);
+		War war = WarManager.addWar(new War(73, outsider, holy));
+		try {
+			assertEquals("§coutsider §cis at war and cannot form or join a coalition until the war ends.",
+					CoalitionService.create(outsider, "Late League", holy).message());
+			CoalitionService.invite(thalendor, outsider);
+			assertEquals("§coutsider §cis at war and cannot form or join a coalition until the war ends.",
+					CoalitionService.join(outsider, league).message());
+		} finally {
+			WarManager.get().remove(war);
+		}
+	}
+
+	@Test
 	void theGateComparesWholeRealmsAgainstTheStrongestMember() {
 		thalendor.setPrestige(1150.0);
 		// The Holy Order alone (1000) is weaker, but its realm with Sanctuary (1200) is not.
@@ -173,7 +189,8 @@ class CoalitionServiceTest extends CoalitionTestBase {
 		bog.setPrestige(124.0);
 
 		War war = WarManager.addWar(new War(70, bog, thalendor));
-		assertEquals("§cYou are at war with thalendor§c, a member of that coalition.", CoalitionService.join(bog, league).message());
+		assertEquals("§cbog §cis at war and cannot form or join a coalition until the war ends.",
+				CoalitionService.join(bog, league).message());
 		WarManager.get().remove(war);
 
 		CoalitionSettings.costBase = 1_000_000;

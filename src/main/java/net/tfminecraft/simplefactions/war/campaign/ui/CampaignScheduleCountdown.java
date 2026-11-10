@@ -43,6 +43,11 @@ public final class CampaignScheduleCountdown {
 			return Optional.empty();
 		}
 
+		if (phase == BattleSchedulePhase.BUILDUP) {
+			Instant closes = war.getDayVoteClosesAt();
+			return closes == null ? Optional.empty() : formatCountdown("Day vote closes in %s", closes, now);
+		}
+
 		if (phase != BattleSchedulePhase.VOTING) {
 			return Optional.empty();
 		}

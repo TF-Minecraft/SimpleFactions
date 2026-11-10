@@ -28,6 +28,8 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
+import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
+import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
@@ -48,6 +50,7 @@ import net.tfminecraft.simplefactions.war.campaign.ui.CampaignViewRefreshService
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleVoteToggleResult;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -204,6 +207,10 @@ public class CampaignView {
 	}
 
 	private void populateHourToggles(Inventory inventory, War war, Faction viewerFaction, UUID viewerUuid) {
+		if (BuildupService.isDayVoteOpen(war)) {
+			populateDayToggles(inventory, war, viewerFaction, viewerUuid);
+			return;
+		}
 		inventory.setItem(VOTING_HELP_SLOT, creator.createVotingHelpItem());
 		boolean clickable = BattleVoterEligibility.canToggleVote(
 				war, viewerFaction, CampaignClock.now());
@@ -221,6 +228,24 @@ public class CampaignView {
 			inventory.setItem(
 					entry.slot(),
 					creator.createHourToggleItem(war, entry.hour(), selected, clickable, tally));
+		}
+	}
+
+	private void populateDayToggles(Inventory inventory, War war, Faction viewerFaction, UUID viewerUuid) {
+		inventory.setItem(VOTING_HELP_SLOT, creator.createDayVotingHelpItem());
+		boolean clickable = BuildupService.canToggleDayVote(war, viewerFaction);
+		Set<Integer> selections = BuildupService.getPlayerSelections(war, viewerUuid);
+		var tally = BuildupService.buildDayTally(war, BattleScheduleLookups.uuidToFactionForWar(war));
+		int[] slots = BattleVoterEligibility.hourToggleSlots();
+		List<Integer> options = BuildupService.dayOptions();
+		for (int i = 0; i < slots.length; i++) {
+			if (i >= options.size()) {
+				inventory.setItem(slots[i], creator.createUnusedHourSlotItem());
+				continue;
+			}
+			int offset = options.get(i);
+			inventory.setItem(slots[i], creator.createDayToggleItem(war, offset, selections.contains(offset), clickable,
+					tally.getOrDefault(offset, new BattleHourTally(0, 0))));
 		}
 	}
 
@@ -303,6 +328,11 @@ public class CampaignView {
 				PersistentDataType.INTEGER);
 		if (voteWarId != null && voteHour != null && voteWarId == war.getId()) {
 			handleHourToggleClick(player, war, voteHour);
+			return;
+		}
+		Integer voteDay = meta.getPersistentDataContainer().get(CampaignCreator.dayVoteKey(), PersistentDataType.INTEGER);
+		if (voteWarId != null && voteDay != null && voteWarId == war.getId()) {
+			handleDayToggleClick(player, war, voteDay);
 			return;
 		}
 
@@ -509,9 +539,31 @@ public class CampaignView {
 
 		if (result == BattleVoteToggleResult.ADDED || result == BattleVoteToggleResult.REMOVED) {
 			WarManager.persist(war);
+			WarHistoryEvents.votesChanged(war);
 			player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			campaignView(player, war, !isViewingCampaign(player, war.getId()));
 		}
+	}
+
+	private void handleDayToggleClick(Player player, War war, int offset) {
+		Faction faction = FactionManager.getByMember(Members.key(player));
+		if (!BuildupService.canToggleDayVote(war, faction)) {
+			player.sendMessage("§cYou cannot vote for the first battle day right now.");
+			return;
+		}
+		String day = CampaignUiCopy.formatBattleDay(BuildupService.dayOf(war, offset));
+		switch (BuildupService.toggleDayVote(war, player.getUniqueId(), offset, faction, player.isOnline())) {
+			case ADDED -> player.sendMessage("§aAdded " + day + " §ato the days you can fight.");
+			case REMOVED -> player.sendMessage("§aRemoved " + day + " §afrom the days you can fight.");
+			default -> {
+				player.sendMessage("§cYou cannot vote for that day.");
+				return;
+			}
+		}
+		WarManager.persist(war);
+		WarHistoryEvents.votesChanged(war);
+		player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+		campaignView(player, war, !isViewingCampaign(player, war.getId()));
 	}
 
 	private void handleAutoresolveClick(
@@ -587,6 +639,11 @@ public class CampaignView {
 				player.sendMessage("§aFront held. White peace proposed.");
 			}
 			case "campaign_attack" -> {
+				if (canMakePostBattleChoice(player, war)
+						&& !CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war)) {
+					player.sendMessage("§c" + CampaignPostBattleChoiceService.LOSER_CANNOT_ATTACK);
+					return;
+				}
 				if (!canMakePostBattleChoice(player, war) || !CampaignChoiceService.applyLoserAttack(war)) {
 					player.sendMessage("§cCould not schedule attack.");
 					return;

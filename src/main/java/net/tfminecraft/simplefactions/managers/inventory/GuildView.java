@@ -716,6 +716,14 @@ public class GuildView {
 						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 						return;
 					}
+					String frozen = u.isWarRelated()
+							? net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.refusal(guild.getFaction(), "war upgrades")
+							: null;
+					if(frozen != null) {
+						p.sendMessage("§c" + frozen);
+						p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+						return;
+					}
 					guild.enqueueUpgrade(u);
 					p.sendMessage("§eQueued " + u.getName());
 					p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

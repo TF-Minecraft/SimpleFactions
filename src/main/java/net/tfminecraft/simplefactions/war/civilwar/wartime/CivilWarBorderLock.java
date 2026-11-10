@@ -26,6 +26,11 @@ public final class CivilWarBorderLock {
 		if (war == null || !war.isActive()) {
 			return false;
 		}
+		return wasCivilWar(war);
+	}
+
+	/** As {@link #isCivilWar}, but still true once the war has ended, for what it leaves behind. */
+	public static boolean wasCivilWar(War war) {
 		if (war.getCivilWarSnapshot() != null) {
 			return true;
 		}

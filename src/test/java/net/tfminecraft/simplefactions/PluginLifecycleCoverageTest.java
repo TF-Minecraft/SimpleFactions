@@ -1003,9 +1003,11 @@ class PluginLifecycleCoverageTest {
       verify(logger).severe(contains("TFMCWeb is not loaded"));
       verify(logger).info(contains("VehicleFramework is not enabled"));
       scoped(ProvincePresenceTickService.class).verify(ProvincePresenceTickService::start);
-      // Track refresh, death reconcile, the coalition timer, and the recent playtime tick and autosave.
-      assertEquals(5, domain.ui.repeatingTasks.size());
-      domain.ui.repeatingTasks.getFirst().run();
+      // Track refresh, death reconcile, the coalition timer, the recent playtime tick and autosave,
+      // and the war history vote changes.
+      assertEquals(6, domain.ui.repeatingTasks.size());
+      // The vote changes timer starts with war history, before the track refresh.
+      domain.ui.repeatingTasks.get(1).run();
       plugin.onDisable();
       var taskField = SimpleFactions.class.getDeclaredField("trackRefreshTask");
       taskField.setAccessible(true);

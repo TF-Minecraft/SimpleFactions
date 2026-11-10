@@ -31,16 +31,18 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 public final class BattleCasualtyService {
 	private BattleCasualtyService() {}
 
-	public static void applyBattleCasualties(War war, Battle battle, Map<String, Integer> sideCasualties) {
+	/** Applies the losses and returns, per faction and regiment, what was actually taken. */
+	public static BattleCasualtyTally applyBattleCasualties(War war, Battle battle, Map<String, Integer> sideCasualties) {
+		BattleCasualtyTally tally = BattleCasualtyTally.empty();
 		if (!shouldApply(war, battle, sideCasualties)) {
-			return;
+			return tally;
 		}
 
 		Integer battleProvinceId = battle.getProvinceId() != null
 				? battle.getProvinceId()
 				: war.getScheduledBattleProvinceId();
 		if (battleProvinceId == null) {
-			return;
+			return tally;
 		}
 
 		int attackerRegimentLosses = regimentLossesForDeaths(
@@ -48,22 +50,24 @@ public final class BattleCasualtyService {
 		int defenderRegimentLosses = regimentLossesForDeaths(
 				sideCasualties.getOrDefault(BattleTemplate.DEFENDER_SIDE, 0));
 		if (attackerRegimentLosses <= 0 && defenderRegimentLosses <= 0) {
-			return;
+			return tally;
 		}
 
 		Set<Faction> affectedFactions = new HashSet<>();
+		Side attackerSide = CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE);
+		Side defenderSide = CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE);
 		int attackerLosses = applySide(
 				war,
 				battleProvinceId,
-				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE),
+				attackerSide,
 				attackerRegimentLosses,
-				affectedFactions);
+				new Debits(affectedFactions, tally, war, attackerSide));
 		int defenderLosses = applySide(
 				war,
 				battleProvinceId,
-				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE),
+				defenderSide,
 				defenderRegimentLosses,
-				affectedFactions);
+				new Debits(affectedFactions, tally, war, defenderSide));
 
 		persistCommitments(war);
 		for (Faction faction : affectedFactions) {
@@ -72,6 +76,7 @@ public final class BattleCasualtyService {
 			}
 		}
 		broadcastLosses(war, attackerLosses, defenderLosses);
+		return tally;
 	}
 
 	public static int regimentLossesForDeaths(int deaths) {
@@ -120,7 +125,7 @@ public final class BattleCasualtyService {
 			int battleProvinceId,
 			Side side,
 			int casualties,
-			Set<Faction> affectedFactions) {
+			Debits debits) {
 		if (casualties <= 0 || side == null) {
 			return 0;
 		}
@@ -145,7 +150,7 @@ public final class BattleCasualtyService {
 				continue;
 			}
 			int take = Math.min(remaining, militiaCount);
-			debitOwnRegiment(war, factionId, BattlePoolService.MILITIA_REGIMENT_ID, take, affectedFactions);
+			debitOwnRegiment(war, factionId, BattlePoolService.MILITIA_REGIMENT_ID, take, debits);
 			remaining -= take;
 			if (remaining <= 0) {
 				return casualties;
@@ -173,9 +178,9 @@ public final class BattleCasualtyService {
 			}
 			remaining -= amount;
 			if (WarCommitment.LEVY_REGIMENT_ID.equalsIgnoreCase(target.regimentId())) {
-				debitLevyForHolder(war, target.factionId(), amount, affectedFactions);
+				debitLevyForHolder(war, target.factionId(), amount, debits);
 			} else {
-				debitOwnRegiment(war, target.factionId(), target.regimentId(), amount, affectedFactions);
+				debitOwnRegiment(war, target.factionId(), target.regimentId(), amount, debits);
 			}
 		}
 		return casualties - remaining;
@@ -186,7 +191,7 @@ public final class BattleCasualtyService {
 			String factionId,
 			String regimentId,
 			int amount,
-			Set<Faction> affectedFactions) {
+			Debits debits) {
 		WarCommitmentService.debitCount(war.getId(), factionId, null, regimentId, amount);
 		Faction faction = FactionManager.getByString(factionId);
 		if (faction == null || faction.getMilitary() == null) {
@@ -199,14 +204,15 @@ public final class BattleCasualtyService {
 		for (int i = 0; i < amount; i++) {
 			regiment.sizeDecrease();
 		}
-		affectedFactions.add(faction);
+		debits.affected().add(faction);
+		debits.tally().add(faction, debits.side(), regiment, amount);
 	}
 
 	private static void debitLevyForHolder(
 			War war,
 			String holderFactionId,
 			int amount,
-			Set<Faction> affectedFactions) {
+			Debits debits) {
 		List<LevyRowTarget> levyRows = new ArrayList<>();
 		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
 			if (!commitment.isLevyRow()) {
@@ -234,7 +240,7 @@ public final class BattleCasualtyService {
 			if (rowDebit <= 0) {
 				continue;
 			}
-			debitLevyRow(war, target.factionId(), target.regimentId(), rowDebit, affectedFactions);
+			debitLevyRow(war, target.factionId(), target.regimentId(), rowDebit, debits);
 		}
 	}
 
@@ -243,21 +249,21 @@ public final class BattleCasualtyService {
 			String holderFactionId,
 			String sourceFactionId,
 			int amount,
-			Set<Faction> affectedFactions) {
+			Debits debits) {
 		WarCommitmentService.debitCount(
 				war.getId(),
 				holderFactionId,
 				sourceFactionId,
 				WarCommitment.LEVY_REGIMENT_ID,
 				amount);
-		debitSourceForLevy(war, sourceFactionId, amount, affectedFactions);
+		debitSourceForLevy(war, sourceFactionId, amount, debits);
 	}
 
 	private static void debitSourceForLevy(
 			War war,
 			String sourceFactionId,
 			int amount,
-			Set<Faction> affectedFactions) {
+			Debits debits) {
 		List<RegimentTarget> sourceTargets = new ArrayList<>();
 		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
 			if (commitment.isLevyRow()) {
@@ -293,7 +299,7 @@ public final class BattleCasualtyService {
 			if (debit <= 0) {
 				continue;
 			}
-			debitOwnRegiment(war, target.factionId(), target.regimentId(), debit, affectedFactions);
+			debitOwnRegiment(war, target.factionId(), target.regimentId(), debit, debits);
 		}
 
 		if (source == null || source.getMilitary() == null) {
@@ -310,7 +316,7 @@ public final class BattleCasualtyService {
 			int reduce = Math.min(amount, sent);
 			regiment.setSentToOverlord(sent - reduce);
 			amount -= reduce;
-			affectedFactions.add(source);
+			debits.affected().add(source);
 			if (amount <= 0) {
 				break;
 			}
@@ -370,6 +376,13 @@ public final class BattleCasualtyService {
 	}
 
 	record RegimentTarget(String factionId, String regimentId, int weight) {}
+
+	/** Who was hit while applying one side's losses, and which war side that is. */
+	private record Debits(Set<Faction> affected, BattleCasualtyTally tally, String side) {
+		Debits(Set<Faction> affected, BattleCasualtyTally tally, War war, Side warSide) {
+			this(affected, tally, warSide == war.getAttackers() ? "attacker" : "defender");
+		}
+	}
 
 	private record LevyRowTarget(String holderId, String sourceId, int weight) {}
 

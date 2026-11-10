@@ -809,10 +809,10 @@ public class WarView {
 					p.sendMessage("§7Click again to call them anyway.");
 					return;
 				}
-				WarManager.sendRequest(p, pf, f, w);
+				net.tfminecraft.simplefactions.war.core.CallToArmsService.send(p, pf, f, w);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			} else if(CoalitionWars.canCallMember(w, pf, f)) {
-				WarManager.sendRequest(p, pf, f, w);
+				net.tfminecraft.simplefactions.war.core.CallToArmsService.send(p, pf, f, w);
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 			}
 		}

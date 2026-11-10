@@ -195,6 +195,8 @@ public class ConfigLoader {
 		Cache.warReparationsIncomePercent = config.getDouble("war.reparations.income_percent", 25);
 		Cache.warReparationsDays = config.getInt("war.reparations.days", 10);
 		Cache.warTruceDays = Math.max(0, config.getInt("war.truce.days", 10));
+		Cache.warHistoryEnabled = config.getBoolean("war.history.enabled", true);
+		Cache.warActionsEnabled = config.getBoolean("war.history.actions_enabled", true);
 		Cache.warGoalMaxBattles = new EnumMap<>(WarGoalType.class);
 		for (WarGoalType goal : WarGoalType.values()) {
 			int maxBattles = config.getInt("war.goals." + goal.name() + ".max_battles_per_leg", -1);
@@ -231,7 +233,6 @@ public class ConfigLoader {
 		Cache.warOccupationIncludeEnemyNeighbors = config.getBoolean("war.occupation.include_enemy_neighbors", true);
 		Cache.warDeclinedAllyStabilityPenalty = config.getInt("war.declined_ally_stability_penalty", -30);
 		Cache.warDeclinedCoalitionStabilityPenalty = config.getInt("war.declined_coalition_stability_penalty", -45);
-		Cache.warCallToArmsExpirySeconds = Math.max(1, config.getInt("war.call_to_arms_expiry_seconds", 300));
 		Cache.warPathfinderNeutralPenalty = config.getDouble("war.pathfinder.neutral_penalty", 8.0);
 		Cache.warPathfinderSeaPassEnabled = config.getBoolean("war.pathfinder.sea_pass_enabled", true);
 		Cache.warPathfinderWaterCost = config.getDouble("war.pathfinder.water_cost", 0.0);
@@ -269,6 +270,14 @@ public class ConfigLoader {
 		Cache.warPostponeFreezeHours = Math.max(
 				0,
 				config.getInt("war.battle_voting.postpone_freeze_hours", 24));
+		Cache.warBuildupEnabled = config.getBoolean("war.buildup.enabled", true);
+		Cache.warBuildupFirstOptionDay = Math.max(1, config.getInt("war.buildup.first_option_day", 7));
+		// The day vote shares the hour vote's five menu slots.
+		Cache.warBuildupDayOptions = Math.max(1, Math.min(
+				BattleVoterEligibility.hourToggleSlots().length,
+				config.getInt("war.buildup.day_options", 5)));
+		Cache.warBuildupDayVoteCloseHours = Math.max(1, config.getInt("war.buildup.day_vote_close_hours", 72));
+		Cache.warNoticeKeepDays = Math.max(1, config.getInt("war.notices.keep_days", 14));
 		double autoresolveLuck = config.getDouble("war.autoresolve.luck", 0.15);
 		if (autoresolveLuck < 0) {
 			autoresolveLuck = 0;

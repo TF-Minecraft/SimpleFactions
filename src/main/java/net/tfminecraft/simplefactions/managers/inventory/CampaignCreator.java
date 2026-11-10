@@ -29,8 +29,10 @@ import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
+import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.pathfinder.TitleManagerProvinceOwnerLookup;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignNavyGate;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteRenderer;
@@ -173,6 +175,43 @@ public class CampaignCreator {
 		return item;
 	}
 
+	/** The schedule lines of a war still voting on its first battle day. */
+	static List<String> buildDayVoteInfoLines(War war, UUID viewerUuid, Function<UUID, Faction> uuidToFaction) {
+		List<String> lines = new ArrayList<>();
+		lines.add(StringFormatter.formatHex(CampaignUiCopy.WARNING + "Buildup: frozen until the first battle"));
+		lines.add(StringFormatter.formatHex(
+				CampaignUiCopy.LABEL + "Day Vote Closes: "
+						+ CampaignUiCopy.VALUE + CampaignUiTimeFormatter.formatDateTime(war.getDayVoteClosesAt())));
+		lines.add(StringFormatter.formatHex(
+				CampaignUiCopy.LABEL + "Status: "
+						+ CampaignUiCopy.STATUS_HIGHLIGHT + CampaignUiCopy.resolveActivityStatus(war)));
+		lines.add(StringFormatter.formatHex(CampaignUiCopy.STATUS_HIGHLIGHT + "First Battle Day Votes:"));
+		lines.add(StringFormatter.formatHex(CampaignUiCopy.MUTED + "("
+				+ war.getAttackers().getLeader().getName() + "/" + war.getDefenders().getLeader().getName() + ")"));
+		Function<UUID, Faction> factionLookup = uuidToFaction != null
+				? uuidToFaction
+				: BattleScheduleLookups.uuidToFactionForWar(war);
+		Map<Integer, BattleHourTally> tally = BuildupService.buildDayTally(war, factionLookup);
+		for (int offset : BuildupService.dayOptions()) {
+			BattleHourTally counts = tally.getOrDefault(offset, new BattleHourTally(0, 0));
+			lines.add(StringFormatter.formatHex(CampaignUiCopy.LABEL
+					+ CampaignUiCopy.formatBattleDay(BuildupService.dayOf(war, offset))
+					+ CampaignUiCopy.VALUE + " · " + counts.attackerCount() + "/" + counts.defenderCount()));
+		}
+		lines.add(StringFormatter.formatHex(CampaignUiCopy.LABEL + "Total voters: " + CampaignUiCopy.VALUE
+				+ BattleQuorumService.countDistinctVoters(war.getDayVotes())));
+		Set<Integer> picks = viewerUuid != null
+				? new TreeSet<>(BuildupService.getPlayerSelections(war, viewerUuid))
+				: Set.of();
+		String yourDays = picks.isEmpty()
+				? "-"
+				: picks.stream()
+						.map(offset -> CampaignUiCopy.formatBattleDay(BuildupService.dayOf(war, offset)))
+						.collect(Collectors.joining(", "));
+		lines.add(StringFormatter.formatHex(CampaignUiCopy.LABEL + "Your Days: " + CampaignUiCopy.VALUE + yourDays));
+		return lines;
+	}
+
 	public static List<String> buildScheduleInfoLines(
 			War war,
 			UUID viewerUuid,
@@ -182,6 +221,12 @@ public class CampaignCreator {
 			return lines;
 		}
 
+		if (BuildupService.isDayVoteOpen(war)) {
+			return buildDayVoteInfoLines(war, viewerUuid, uuidToFaction);
+		}
+		if (war.isBuildupFrozen()) {
+			lines.add(StringFormatter.formatHex(CampaignUiCopy.WARNING + "Buildup: frozen until the first battle"));
+		}
 		LocalDate battleDay = war.getBattleDay();
 		lines.add(StringFormatter.formatHex(
 				CampaignUiCopy.LABEL + "Battle Day: " + CampaignUiCopy.VALUE + CampaignUiCopy.formatBattleDay(battleDay)));
@@ -345,6 +390,59 @@ public class CampaignCreator {
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
+	public ItemStack createDayToggleItem(
+			War war,
+			int offset,
+			boolean selected,
+			boolean clickable,
+			BattleHourTally tally) {
+		String iconId = selected ? "mcicons:icon_confirm" : "mcicons:icon_cancel";
+		ItemStack item = TLibs.getItemAPI().getCreator().getItemsAdderItem(iconId);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(StringFormatter.formatHex((selected ? CampaignUiCopy.SELECT : CampaignUiCopy.REMOVE)
+				+ CampaignUiCopy.formatBattleDay(BuildupService.dayOf(war, offset))));
+		List<String> lore = new ArrayList<>();
+		lore.add(StringFormatter.formatHex(CampaignUiCopy.VALUE
+				+ (tally != null ? tally.attackerCount() : 0) + "/" + (tally != null ? tally.defenderCount() : 0)));
+		lore.add(StringFormatter.formatHex(CampaignUiCopy.MUTED + "("
+				+ war.getAttackers().getLeader().getName() + "/" + war.getDefenders().getLeader().getName() + ")"));
+		if (clickable) {
+			lore.add(StringFormatter.formatHex(selected
+					? CampaignUiCopy.REMOVE + "Click to remove this day"
+					: CampaignUiCopy.SELECT + "Click to select this day"));
+			meta.getPersistentDataContainer().set(dayVoteKey(), PersistentDataType.INTEGER, offset);
+			meta.getPersistentDataContainer().set(
+					new NamespacedKey(SimpleFactions.plugin, "campaign_vote_war"), PersistentDataType.INTEGER, war.getId());
+		} else {
+			lore.add(StringFormatter.formatHex(CampaignUiCopy.LABEL + "Voting closed or you are not eligible"));
+		}
+		meta.setLore(lore);
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	public static NamespacedKey dayVoteKey() {
+		return new NamespacedKey(SimpleFactions.plugin, "campaign_vote_day");
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createDayVotingHelpItem() {
+		ItemStack item = new ItemStack(Material.WRITABLE_BOOK, 1);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName(StringFormatter.formatHex(CampaignUiCopy.VALUE + "First battle day voting"));
+		meta.setLore(List.of(
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "The war is in its buildup: no new"),
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "regiments, installations or vehicles"),
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "until the first battle starts"),
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Pick every day you could fight"),
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "The hour vote follows on the chosen day")));
+		item.setItemMeta(meta);
+		return item;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
 	public ItemStack createVotingHelpItem() {
 		ItemStack item = new ItemStack(Material.WRITABLE_BOOK, 1);
 		ItemMeta meta = item.getItemMeta();
@@ -476,6 +574,16 @@ public class CampaignCreator {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createLoserAttackButton(War war) {
+		if (!CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war)) {
+			ItemStack item = new ItemStack(Material.GRAY_CONCRETE, 1);
+			ItemMeta meta = item.getItemMeta();
+			meta.setDisplayName(StringFormatter.formatHex(CampaignUiCopy.MUTED + "Attack"));
+			meta.setLore(List.of(
+					StringFormatter.formatHex(CampaignUiCopy.LABEL + "No initiative left, or no battle to fight"),
+					StringFormatter.formatHex(CampaignUiCopy.LABEL + "You can only accept peace")));
+			item.setItemMeta(meta);
+			return item;
+		}
 		ItemStack item = new ItemStack(Material.RED_CONCRETE, 1);
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex(CampaignUiCopy.REMOVE + "Attack"));

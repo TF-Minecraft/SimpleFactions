@@ -83,6 +83,15 @@ public class WarData {
     public boolean autoresolveProposedByDefender;
     public Integer postponementsThisCycle;
     public String preparationFrozenUntil;
+    // Absent in older files: no buildup, no day vote, no stored calls to arms.
+    public Boolean buildup;
+    public String dayVoteFirstDay;
+    public String dayVoteClosesAt;
+    public Map<String, List<Integer>> dayVotes;
+    public List<CallToArmsData> callsToArms;
+    public List<String> callableFactionIds;
+    // Absent in older files: nobody joined by a call to arms yet.
+    public Map<String, String> joinedAt;
     public boolean defenderChoiceResolved;
     public String initiativeHolderCoalition;
     public String pushTarget;

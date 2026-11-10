@@ -114,6 +114,25 @@ class MercenaryCompanyUpgradeTest {
     }
 
     @Test
+    void aFrozenCompanyCannotQueueUpgrades() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = formedCompany(fixture);
+        try (org.mockito.MockedStatic<net.tfminecraft.simplefactions.war.freeze.PreparationFreeze> freeze =
+                org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.class,
+                        org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            freeze.when(() -> net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.refusal(company, "company upgrades"))
+                    .thenReturn("A battle of yours was postponed. No new company upgrades can be started for 3h 0m.");
+
+            MercenaryResult result = MercenaryCompanyService.upgrade(fixture.guild, "Ivar", "company_mana");
+
+            assertFalse(result.ok());
+            assertEquals("A battle of yours was postponed. No new company upgrades can be started for 3h 0m.",
+                    result.message());
+            assertTrue(company.getUpgradeQueue().isEmpty());
+        }
+    }
+
+    @Test
     void aQueuedUpgradeLevelsUpWhenItFinishes() {
         CompanyFixture fixture = new CompanyFixture(0);
         MercenaryCompany company = formedCompany(fixture);

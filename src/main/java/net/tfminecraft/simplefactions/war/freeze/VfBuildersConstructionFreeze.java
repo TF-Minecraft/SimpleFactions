@@ -9,10 +9,11 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.ServicePriority;
 
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.tlibs.character.Characters;
 import net.tfminecraft.vfbuilders.api.ConstructionFreeze;
 
-/** Holds VFBuilders projects started by players whose battle was postponed. */
+/** Holds VFBuilders projects of players whose war is in its buildup or had a battle postponed. */
 public final class VfBuildersConstructionFreeze implements ConstructionFreeze {
 
 	/**
@@ -22,7 +23,7 @@ public final class VfBuildersConstructionFreeze implements ConstructionFreeze {
 	public static void register(Plugin plugin) {
 		Bukkit.getServicesManager().register(
 				ConstructionFreeze.class, new VfBuildersConstructionFreeze(), plugin, ServicePriority.Normal);
-		plugin.getLogger().info("VFBuilders projects freeze with postponed battles");
+		plugin.getLogger().info("VFBuilders projects freeze with war buildups and postponed battles");
 	}
 
 	@Override
@@ -43,12 +44,12 @@ public final class VfBuildersConstructionFreeze implements ConstructionFreeze {
 	}
 
 	private static String reason(String key) {
-		Instant now = Instant.now();
-		Instant until = PreparationFreeze.frozenUntil(key, now);
-		if (until == null) {
+		Instant now = CampaignClock.now();
+		PreparationFreeze.Freeze freeze = PreparationFreeze.freeze(key, now);
+		if (freeze == null) {
 			return null;
 		}
-		return "battle postponed (" + PreparationFreeze.formatRemaining(until, now) + ")";
+		return PreparationFreeze.reasonText(freeze, now);
 	}
 
 	/** Projects belong to accounts: the character playing now, else the account's legacy heir. */

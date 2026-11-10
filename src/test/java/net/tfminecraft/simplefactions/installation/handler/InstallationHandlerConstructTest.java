@@ -108,6 +108,34 @@ class InstallationHandlerConstructTest {
 
 
 	@Test
+	void aFrozenFactionCannotStartAnInstallationOrAnUpgradeButStaffInstantBuildsStillWork() {
+		Fixture fx = fixture();
+		Installation station = new Installation("central_station", "Central", InstallationKind.TRAIN_STATION, PROVINCE, X, Z, 1L);
+		fx.handler.acceptTransferred(station);
+		try (TestMocks mocks = testMocks(fx, false);
+				MockedStatic<net.tfminecraft.simplefactions.war.freeze.PreparationFreeze> freeze = mockStatic(
+						net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.class,
+						org.mockito.Mockito.CALLS_REAL_METHODS)) {
+			freeze.when(() -> net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.refusal(eq(fx.faction), anyString()))
+					.thenAnswer(call -> "Your war is in its buildup. No new " + call.getArgument(1)
+							+ " can be started until the first battle.");
+
+			ConstructResult build = fx.handler.construct(InstallationKind.FORT, DISPLAY_NAME, PROVINCE, X, Z);
+			ConstructResult upgrade = fx.handler.upgrade(station.getId());
+
+			assertFalse(build.isSuccess());
+			assertEquals("§cYour war is in its buildup. No new installations can be started until the first battle.",
+					build.getMessage());
+			assertFalse(upgrade.isSuccess());
+			assertEquals("§cYour war is in its buildup. No new installation upgrades can be started until the first battle.",
+					upgrade.getMessage());
+			assertNull(fx.handler.getPendingConstruction());
+			assertEquals(1, station.getLevel());
+			assertTrue(fx.handler.constructInstant(InstallationKind.FORT, DISPLAY_NAME, PROVINCE, X, Z).isSuccess());
+		}
+	}
+
+	@Test
 	void constructInstant_fort_success() {
 		Fixture fx = fixture();
 		try (TestMocks mocks = testMocks(fx, false)) {

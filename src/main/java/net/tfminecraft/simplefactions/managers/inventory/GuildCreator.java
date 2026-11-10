@@ -877,7 +877,7 @@ public class GuildCreator {
 		if(index == 0) {
 			lore.add("§7Time Left: §e" + TimeFormatter.formatTime(expansion.getTimeLeft()));
 			if(expansion.getUpgrade().isWarRelated()) {
-				String frozen = PreparationFreeze.frozenLore(PreparationFreeze.frozenUntil(guild.getFaction(), java.time.Instant.now()));
+				String frozen = PreparationFreeze.frozenLore(PreparationFreeze.freeze(guild.getFaction(), net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.now()));
 				if(frozen != null) lore.add(frozen);
 			}
 		} else {

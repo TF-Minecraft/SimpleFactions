@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -58,6 +59,10 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
+import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignBattleEndService;
+import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
+import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
+import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.enums.Terrain;
 
 class CampaignBattleOutcomeServiceTest {
@@ -143,6 +148,55 @@ class CampaignBattleOutcomeServiceTest {
 		assertEquals(CampaignSideRole.AGGRESSOR, war.getFortControllers().get(fort.getStableKey()));
 		assertEquals(1, war.getCampaignScheduleIndex());
 		assertEquals(1, war.getCampaignBattlesFought());
+	}
+
+	@Test
+	void applyCampaignBattleOutcome_recordsHowTheBattleWasSettled(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
+		var outbox = new net.tfminecraft.simplefactions.war.history.WarHistoryOutbox(dir.resolve("outbox.jsonl"), m -> {});
+		net.tfminecraft.simplefactions.war.history.WarHistory.startForTests(outbox);
+		try {
+			War war = baseWar();
+			war.setCampaignBattleSchedule(List.of(
+					new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
+			war.setCampaignScheduleIndex(0);
+			war.setCampaignBattlesFought(2);
+			warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.ATTACKER, 20);
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20,
+					net.tfminecraft.simplefactions.war.history.BattleResolution.FORFEIT);
+
+			var events = outbox.peek(net.tfminecraft.simplefactions.war.history.WarHistoryOutbox.Kind.EVENT, 10).stream()
+					.map(item -> com.google.gson.JsonParser.parseString(item.json()).getAsJsonObject())
+					.filter(event -> event.get("type").getAsString().equals("battle_resolved"))
+					.map(event -> event.getAsJsonObject("payload"))
+					.toList();
+			assertEquals(2, events.size());
+			assertEquals("staff", events.get(0).get("resolution").getAsString());
+			assertEquals(3, events.get(0).get("battle_number").getAsInt());
+			assertEquals("attacker", events.get(0).get("winner").getAsString());
+			assertEquals("invasion", events.get(0).get("leg").getAsString());
+			assertEquals("forfeit", events.get(1).get("resolution").getAsString());
+		} finally {
+			net.tfminecraft.simplefactions.war.history.WarHistory.resetForTests();
+		}
+	}
+
+	@Test
+	void applyCampaignBattleOutcome_settledWithoutAFight_endsTheBuildupFreeze() {
+		War war = baseWar();
+		war.setCampaignBattleSchedule(List.of(
+				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
+		war.setCampaignScheduleIndex(0);
+		war.setBuildup(true);
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+		assertTrue(war.isBuildupFrozen());
+
+		// A forfeit or naval auto-loss applies the outcome without the battle ever starting.
+		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.ATTACKER, 20);
+
+		assertFalse(war.hasFirstBattleStarted());
+		assertFalse(war.isBuildupFrozen());
 	}
 
 	@Test
@@ -446,6 +500,51 @@ class CampaignBattleOutcomeServiceTest {
 		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.ATTACKER, 20);
 
 		assertEquals(0, war.getPostponementsThisCycle());
+	}
+
+	@Test
+	void repeatedDefenderWinsExhaustTheInvasionLegThenTheVoteCloseEndsTheWar() {
+		int maxPostponements = Cache.warBattleVotingMaxPostponements;
+		War war = baseWar();
+		war.setCampaignBattleSchedule(List.of(
+				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null),
+				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
+		war.setCampaignScheduleIndex(0);
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+		try {
+			// First defender win: the defender holds and the attacker still has a slot to attack.
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20);
+			assertEquals(1, war.getCampaignScheduleIndex());
+			assertTrue(CampaignPostBattleChoiceService.applyHoldChoice(war));
+			assertTrue(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war));
+			CampaignBattleEndService.applyLoserAttack(war);
+
+			// Second defender win uses the last invasion slot: the attacker has no battle left.
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20);
+			assertEquals(2, war.getCampaignScheduleIndex());
+			assertTrue(CampaignPostBattleChoiceService.applyHoldChoice(war));
+			assertFalse(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war));
+			assertFalse(CampaignPostBattleChoiceService.applyLoserAttack(war));
+
+			// A war that got here before the fix attacked anyway and now waits for a battle that cannot come.
+			CampaignBattleEndService.applyLoserAttack(war);
+			BattleScheduleService.openVote(war);
+			Cache.warBattleVotingMaxPostponements = 1;
+			war.setPostponementsThisCycle(1);
+
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					java.time.Instant.now(),
+					uuid -> null,
+					name -> null,
+					new CloseVoteOptions(true, true));
+
+			assertEquals(BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE, result);
+			warManagerMock.verify(() -> WarManager.endWar(war, WarEndReason.WHITE_PEACE));
+			assertEquals(1, war.getPostponementsThisCycle());
+		} finally {
+			Cache.warBattleVotingMaxPostponements = maxPostponements;
+		}
 	}
 
 	private War baseWar() {

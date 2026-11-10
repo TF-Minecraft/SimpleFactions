@@ -124,6 +124,20 @@ class CampaignScheduleCountdownTest {
 		assertFalse(text.isPresent());
 	}
 
+	@Test
+	void buildup_showsWhenTheDayVoteCloses() {
+		War war = votingWar();
+		Instant now = BattleWindowService.atScheduleHour(BATTLE_DAY, 12);
+		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
+		war.setBattleDay(null);
+		war.setDayVoteClosesAt(now.plusSeconds(2 * 3600L));
+
+		assertEquals(Optional.of("Day vote closes in 2h"), CampaignScheduleCountdown.formatNextMilestone(war, now));
+
+		war.setDayVoteClosesAt(null);
+		assertFalse(CampaignScheduleCountdown.formatNextMilestone(war, now).isPresent());
+	}
+
 	private War votingWar() {
 		Faction attacker = mock(Faction.class);
 		Faction defender = mock(Faction.class);

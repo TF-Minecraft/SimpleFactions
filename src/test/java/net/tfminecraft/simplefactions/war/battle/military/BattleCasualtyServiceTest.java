@@ -129,10 +129,12 @@ class BattleCasualtyServiceTest {
 			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
 			stubFactions(factions);
 
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+			BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
 
 			assertEquals(8, commitmentCount(war.getId(), "atk", null, "professional"));
 			assertEquals(4, commitmentCount(war.getId(), "ally", null, "professional"));
+			assertEquals(java.util.Set.of("atk attacker professional 2", "ally attacker professional 1"),
+					new java.util.HashSet<>(lines(tally)));
 			assertEquals(8, liveSlots("atk", "professional"));
 			assertEquals(4, liveSlots("ally", "professional"));
 		}
@@ -337,11 +339,46 @@ class BattleCasualtyServiceTest {
 			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(attacker);
 			stubFactions(factions);
 
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+			BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
 
 			assertEquals(10, commitmentCount(war.getId(), "atk", null, "professional"));
 			assertEquals(7, commitmentCount(war.getId(), "def", null, "professional"));
+			// The battle's attacking side was the war's defenders, so the losses are theirs.
+			assertEquals(List.of("def defender professional 3"), lines(tally));
 		}
+	}
+
+	@Test
+	void theTallySumsRepeatedDebitsOfOneRegimentAndKeepsItsName() {
+		Faction faction = fighter("atk", Map.of("professional", 4));
+		Regiment regiment = faction.getMilitary().getRegiment("professional");
+		when(regiment.getName()).thenReturn("#c9a227Professionals");
+		BattleCasualtyTally tally = BattleCasualtyTally.empty();
+
+		tally.add(faction, "attacker", regiment, 1);
+		tally.add(faction, "attacker", regiment, 2);
+		tally.add(faction, "defender", regiment, 1);
+
+		assertEquals(List.of("atk attacker professional 3", "atk defender professional 1"), lines(tally));
+		assertEquals("#c9a227Professionals", tally.losses().get(0).regimentName());
+	}
+
+	@Test
+	void nothingIsTalliedWhenNoCasualtiesApply() {
+		Faction attacker = fighter("atk", Map.of("professional", 5));
+		Faction defender = fighter("def", Map.of("professional", 4));
+		War war = baseWar(10, attacker, defender);
+		Battle battle = campaignBattle(war, PROVINCE_ID);
+
+		assertTrue(BattleCasualtyService.applyBattleCasualties(war, battle, Map.of()).losses().isEmpty());
+	}
+
+	private static List<String> lines(BattleCasualtyTally tally) {
+		List<String> lines = new ArrayList<>();
+		for (BattleCasualtyTally.Loss loss : tally.losses()) {
+			lines.add(loss.faction().getId() + " " + loss.side() + " " + loss.regimentId() + " " + loss.count());
+		}
+		return lines;
 	}
 
 	@Test
@@ -383,11 +420,13 @@ class BattleCasualtyServiceTest {
 			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
 			stubFactions(factions);
 
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+			BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
 
 			assertEquals(3, commitmentCount(war.getId(), "atk", "src", WarCommitment.LEVY_REGIMENT_ID));
 			assertEquals(5, commitmentCount(war.getId(), "src", null, "professional"));
 			assertEquals(5, liveSlots("src", "professional"));
+			// The lending subject is the one that lost the regiments.
+			assertEquals(List.of("src attacker professional 3"), lines(tally));
 		}
 	}
 

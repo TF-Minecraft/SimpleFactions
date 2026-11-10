@@ -103,7 +103,7 @@ public class InstallationCreator {
         lore.add("§7Province: §e" + construction.getProvince());
         lore.add("§7Coords: §e" + construction.getCenterX() + ", " + construction.getCenterZ());
         lore.add("§7Time left: §e" + TimeFormatter.formatTime(construction.getTimeLeft()));
-        String frozen = PreparationFreeze.frozenLore(PreparationFreeze.frozenUntil(faction, java.time.Instant.now()));
+        String frozen = PreparationFreeze.frozenLore(PreparationFreeze.freeze(faction, net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.now()));
         if (frozen != null) lore.add(frozen);
         lore.add("§cClick to cancel");
         meta.setLore(lore);

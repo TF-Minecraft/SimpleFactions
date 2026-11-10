@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
+import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
@@ -50,6 +52,9 @@ public final class InstallationVehicleService {
 
         if (registry.isBerthed(vehicle.getVehicleUuid())) {
             return CanRegisterResult.ALREADY_BERTHED;
+        }
+        if (PreparationFreeze.isFrozen(FactionManager.getByString(InstallationOwners.ownerIdOf(installation)))) {
+            return CanRegisterResult.FROZEN;
         }
 
         OwnerData ownerData = vehicle.getOwnerData();
@@ -181,7 +186,9 @@ public final class InstallationVehicleService {
         UNSUPPORTED_CATEGORY,
         NO_CAPACITY,
         OUT_OF_RADIUS,
-        REPAIR_LOCKED
+        REPAIR_LOCKED,
+        /** The installation's faction is in a war buildup or had a battle postponed. */
+        FROZEN
     }
 
     public enum TryRegisterResult {

@@ -11,6 +11,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.vfbuilders.core.Blueprint;
 import net.tfminecraft.vfbuilders.events.BeginVehicleConstructionEvent;
@@ -24,6 +26,12 @@ public final class VehicleIntegrationListener implements Listener {
     public void onBeginVehicleConstruction(BeginVehicleConstructionEvent event) {
         Player constructor = event.getConstructor();
         if (constructor == null) {
+            return;
+        }
+        String frozen = PreparationFreeze.refusalForMember(Members.key(constructor), "vehicles");
+        if (frozen != null) {
+            event.setCancelled(true);
+            constructor.sendMessage("§c" + frozen);
             return;
         }
 

@@ -62,6 +62,24 @@ class VehicleTransferMessagesTest {
     }
 
     @Test
+    void frozen_explainsTheFreezeOrFallsBackToAPlainRefusal() {
+        net.tfminecraft.simplefactions.objects.Faction faction =
+                org.mockito.Mockito.mock(net.tfminecraft.simplefactions.objects.Faction.class);
+        try (MockedStatic<net.tfminecraft.simplefactions.war.freeze.PreparationFreeze> freeze = mockStatic(
+                net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.class, CALLS_REAL_METHODS)) {
+            freeze.when(() -> net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.refusal(faction, "vehicles"))
+                    .thenReturn("Your war is in its buildup. No new vehicles can be started until the first battle.");
+
+            assertEquals("§cYour war is in its buildup. No new vehicles can be started until the first battle.",
+                    VehicleTransferMessages.forPoolResult(
+                            net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService.CanAddResult.FROZEN,
+                            "coal_car", faction));
+        }
+        assertEquals("§cYour faction cannot take on vehicles right now.",
+                VehicleTransferMessages.forResult(CanRegisterResult.FROZEN, port, null, "ironclad"));
+    }
+
+    @Test
     void commandArmed_includesInstallationName() {
         String message = VehicleTransferMessages.commandArmed(port);
         assertEquals(

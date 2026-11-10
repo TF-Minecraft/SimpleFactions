@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.installation.handler;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -128,6 +129,10 @@ public class InstallationHandler {
             int province,
             int x,
             int z) {
+        String frozen = PreparationFreeze.refusal(faction, "installations");
+        if (frozen != null) {
+            return ConstructResult.fail("§c" + frozen);
+        }
         ValidatedConstruct validated = validateConstruct(kind, displayName, province, x, z);
         if (validated.failed()) {
             return validated.failure;
@@ -273,6 +278,10 @@ public class InstallationHandler {
         }
         if (pendingConstruction != null) {
             return ConstructResult.fail("§cYour faction is already building an installation");
+        }
+        String frozen = PreparationFreeze.refusal(faction, "installation upgrades");
+        if (frozen != null) {
+            return ConstructResult.fail("§c" + frozen);
         }
         Installation installation = getById(id);
         if (installation == null) {

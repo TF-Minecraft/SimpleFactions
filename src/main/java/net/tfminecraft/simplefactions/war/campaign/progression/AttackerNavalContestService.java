@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression;
 
 
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.war.history.BattleResolution;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import java.util.Optional;
@@ -93,7 +94,8 @@ public final class AttackerNavalContestService {
 				battleProvinceId,
 				null,
 				null,
-				offensive);
+				offensive,
+				BattleResolution.NAVAL_DEFAULT);
 		CampaignBattleOutcomeService.finalizeCampaignBattleAfterOutcome(war);
 		broadcastAutoLoss(war);
 		return true;

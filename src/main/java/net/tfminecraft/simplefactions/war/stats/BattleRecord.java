@@ -7,6 +7,8 @@ import java.util.Locale;
 
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
+import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -23,6 +25,8 @@ public final class BattleRecord {
 	/** War ID plus the war's start, unique across reused war IDs; null outside a war. */
 	public String warKey;
 	public String warName;
+	/** Where the battle was fought; null when unknown. */
+	public Integer provinceId;
 	public long startedAt;
 	public long endedAt;
 	public String winner;
@@ -47,6 +51,7 @@ public final class BattleRecord {
 		record.naval = battle.isNavalVariant();
 		record.raid = battle.isCampaignRaid();
 		record.warId = battle.getWarId();
+		record.provinceId = battle.getProvinceId();
 		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
 		if (war != null) {
 			record.warKey = warKey(war);
@@ -71,12 +76,22 @@ public final class BattleRecord {
 			if (!"Unknown".equals(current)) {
 				fighter.name = current;
 			}
+			if (war != null) {
+				fighter.hirerFactionId = hirerId(war, fighter.key);
+			}
 			record.fighters.add(fighter);
 		}
 		return record;
 	}
 
-	static String warKey(War war) {
+	/** The faction whose active contract brought this character into the war, or null. */
+	private static String hirerId(War war, String key) {
+		MercenaryEngagements.Engagement engagement = MercenaryEngagements.forPlayer(war, key);
+		Faction hirer = engagement == null ? null : engagement.hirer();
+		return hirer == null ? null : hirer.getId();
+	}
+
+	public static String warKey(War war) {
 		Instant started = war.getStartedAt();
 		return "w" + war.getId() + "-" + (started == null ? 0L : started.getEpochSecond());
 	}

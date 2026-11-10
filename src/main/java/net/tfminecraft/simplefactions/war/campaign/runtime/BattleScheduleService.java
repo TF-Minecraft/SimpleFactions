@@ -16,6 +16,8 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
+import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleLaunchService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
@@ -111,6 +113,8 @@ public final class BattleScheduleService {
 		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		clearScheduledTargets(war);
 		war.setDefenderChoiceResolved(false);
+		WarHistoryEvents.nextBattleDay(war);
+		WarHistoryEvents.votesChanged(war);
 	}
 
 	public static BattleScheduleCloseResult closeVote(
@@ -122,6 +126,20 @@ public final class BattleScheduleService {
 	}
 
 	public static BattleScheduleCloseResult closeVote(
+			War war,
+			Instant now,
+			Function<UUID, Faction> uuidToFaction,
+			Function<String, UUID> memberNameToUuid,
+			CloseVoteOptions options) {
+		BattleScheduleCloseResult result = closeVoteNow(war, now, uuidToFaction, memberNameToUuid, options);
+		if (result != BattleScheduleCloseResult.SKIPPED && war.isActive()) {
+			// The website shows the hour vote as closed. An ended war already sent war_ended.
+			WarHistoryEvents.votesChanged(war);
+		}
+		return result;
+	}
+
+	private static BattleScheduleCloseResult closeVoteNow(
 			War war,
 			Instant now,
 			Function<UUID, Faction> uuidToFaction,
@@ -142,6 +160,10 @@ public final class BattleScheduleService {
 
 		if (needsPostBattleChoice(war) && !isPostBattleChoiceResolved(war)) {
 			applyPostBattleChoiceDeadline(war, now);
+			if (!war.isActive()) {
+				// The deadline's peace or push ended the war; postponing or ending it again would repeat the end.
+				return BattleScheduleCloseResult.WAR_ENDED;
+			}
 			if (!isPostBattleChoiceResolved(war)) {
 				return BattleScheduleCloseResult.BLOCKED_DEFENDER_CHOICE;
 			}
@@ -164,8 +186,29 @@ public final class BattleScheduleService {
 		if (BattleAutoresolveService.resolve(war)) {
 			return BattleScheduleCloseResult.AUTORESOLVED;
 		}
+		if (hasNoNextBattle(war)) {
+			// Postponing again would only freeze both sides for another day: no battle can follow.
+			WarResolutionService.endWhitePeace(war);
+			return BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE;
+		}
 		postpone(war, now);
 		return BattleScheduleCloseResult.POSTPONED;
+	}
+
+	/**
+	 * True when no battle can ever follow on this war: none has started, no post-battle choice is
+	 * open, and the side with the initiative has no fuel or no battle left on its route. A started
+	 * battle still ends on its own, so it never counts.
+	 */
+	static boolean hasNoNextBattle(War war) {
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(war.getId());
+		if (battle != null && battle.hasStarted()) {
+			return false;
+		}
+		if (needsPostBattleChoice(war)) {
+			return false;
+		}
+		return resolveScheduledProvinceId(war) == null;
 	}
 
 	public static boolean scheduleFromVotes(War war, Function<UUID, Faction> uuidToFaction) {
@@ -250,6 +293,7 @@ public final class BattleScheduleService {
 		war.setPostponementsThisCycle(war.getPostponementsThisCycle() + 1);
 		war.setDefenderChoiceResolved(false);
 		PreparationFreeze.applyPostponement(war, now);
+		WarHistoryEvents.postponed(war);
 	}
 
 	public static void skipBattleDay(War war) {
@@ -268,6 +312,7 @@ public final class BattleScheduleService {
 		BattleInstallationPickService.clearForNewBattleDay(war);
 		CampaignRaidService.clearForNewBattleDay(war);
 		PreparationFreeze.applyPostponement(war, now);
+		WarHistoryEvents.postponed(war);
 	}
 
 	/**
@@ -320,6 +365,7 @@ public final class BattleScheduleService {
 		}
 		war.setBattleDay(firstVotableBattleDay(current, now));
 		startFreshBattleDay(war);
+		WarHistoryEvents.nextBattleDay(war);
 		return true;
 	}
 
@@ -327,7 +373,7 @@ public final class BattleScheduleService {
 	 * {@code candidate}, or the first later battle day whose vote is still open: never a past day,
 	 * and not today once today's vote close hour has passed.
 	 */
-	private static LocalDate firstVotableBattleDay(LocalDate candidate, Instant now) {
+	public static LocalDate firstVotableBattleDay(LocalDate candidate, Instant now) {
 		LocalDate current = battleDayDate(now);
 		LocalDate day = candidate == null || candidate.isBefore(current) ? current : candidate;
 		if (day.equals(current) && battleDayHour(now) >= Cache.warVoteCloseHour) {
@@ -379,7 +425,12 @@ public final class BattleScheduleService {
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
 		war.setPostponementsThisCycle(0);
 		CampaignBattleLaunchService.prepareScheduledBattle(war);
-		return war.getScheduledBattleAt() != null;
+		// Preparing can settle the battle at once (forfeit, naval default), which clears the time.
+		boolean scheduled = war.getScheduledBattleAt() != null;
+		if (scheduled) {
+			WarHistoryEvents.scheduled(war, provinceId);
+		}
+		return scheduled;
 	}
 
 	public static boolean markScheduledAtProvince(War war, int provinceId) {
@@ -390,7 +441,11 @@ public final class BattleScheduleService {
 		war.setScheduledBattleProvinceId(provinceId);
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
 		war.setPostponementsThisCycle(0);
-		return CampaignBattleLaunchService.prepareScheduledBattle(war) != null;
+		boolean prepared = CampaignBattleLaunchService.prepareScheduledBattle(war) != null;
+		if (prepared) {
+			WarHistoryEvents.scheduled(war, provinceId);
+		}
+		return prepared;
 	}
 
 	public static Integer resolveScheduledProvinceId(War war) {

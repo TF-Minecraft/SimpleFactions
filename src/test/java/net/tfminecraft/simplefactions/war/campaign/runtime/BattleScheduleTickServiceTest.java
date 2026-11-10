@@ -128,6 +128,29 @@ class BattleScheduleTickServiceTest {
 	}
 
 	@Test
+	void tick_closesADueDayVoteAndSavesTheWar() {
+		boolean enabled = Cache.warBuildupEnabled;
+		Cache.warBuildupEnabled = true;
+		War war = votingWar();
+		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+		Instant now = Instant.parse("2026-08-18T10:00:00Z");
+		try (org.mockito.MockedConstruction<net.tfminecraft.simplefactions.database.Database> databases =
+				org.mockito.Mockito.mockConstruction(net.tfminecraft.simplefactions.database.Database.class)) {
+			assertTrue(net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService.start(
+					war, now.minus(Duration.ofHours(Cache.warBuildupDayVoteCloseHours))));
+			WarManager.get().add(war);
+
+			withMockBossBar(() -> BattleScheduleTickService.tick(now));
+
+			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+			assertTrue(war.getBattleDay() != null);
+			org.mockito.Mockito.verify(databases.constructed().get(0)).saveWar(war);
+		} finally {
+			Cache.warBuildupEnabled = enabled;
+		}
+	}
+
+	@Test
 	void shouldRunForHour_onlyOncePerUtcHour() {
 		assertTrue(BattleScheduleTickService.shouldRunForHour(Instant.parse("2026-08-21T12:00:00Z")));
 		assertFalse(BattleScheduleTickService.shouldRunForHour(Instant.parse("2026-08-21T12:30:00Z")));

@@ -182,6 +182,26 @@ class BattleVoteServiceTest {
 		assertTrue(BattleVoteService.pickHour(war, uuidToFaction).isEmpty());
 	}
 
+	@Test
+	void buildTally_countsAnyVoteOverItsOwnOptions() {
+		java.util.Map<UUID, Set<Integer>> days = new java.util.HashMap<>();
+		days.put(attackerVoter, Set.of(0, 2, 9));
+		days.put(defenderVoter, Set.of(2));
+		Function<UUID, Faction> uuidToFaction = uuid -> uuid.equals(attackerVoter) ? attacker : defender;
+
+		var tally = BattleVoteService.buildTally(war, days, java.util.List.of(0, 1, 2), uuidToFaction);
+
+		assertEquals(java.util.List.of(0, 1, 2), java.util.List.copyOf(tally.keySet()));
+		assertEquals(new VoteResults.BattleHourTally(1, 0), tally.get(0));
+		assertEquals(new VoteResults.BattleHourTally(1, 1), tally.get(2));
+		assertEquals(OptionalInt.of(2), BattleVoteService.pickBest(tally));
+		assertTrue(BattleVoteService.buildTally(null, days, java.util.List.of(0), uuidToFaction).isEmpty());
+		assertTrue(BattleVoteService.buildTally(war, days, java.util.List.of(0), null).isEmpty());
+		assertTrue(BattleVoteService.countVotes(war, days, java.util.List.of(0), null, uuidToFaction).isEmpty());
+		assertTrue(BattleVoteService.buildHourTally(null, uuidToFaction).isEmpty());
+		assertTrue(BattleVoteService.countVotesByHour(null, null, uuidToFaction).isEmpty());
+	}
+
 	private void addAttackerVotes(UUID uuid, int... hours) {
 		war.getBattleVotes().put(uuid, hoursToSet(hours));
 	}

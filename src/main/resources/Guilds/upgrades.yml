@@ -1,5 +1,5 @@
-# Set war-related: true on an upgrade to hold its timer while a postponed battle
-# freezes the guild's faction (see war.battle_voting.postpone_freeze_hours).
+# Set war-related: true on an upgrade to hold its timer, and refuse new ones, while a war's
+# buildup or a postponed battle freezes the guild's faction (see war.buildup).
 max_admin_power:
   name: "#76ad9dMax Administative Power"
   icon: "writable_book.0"

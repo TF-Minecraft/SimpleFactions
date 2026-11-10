@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.enums.Rules;
 import net.tfminecraft.simplefactions.enums.SFGUI;
 import net.tfminecraft.simplefactions.enums.Scope;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 
 public class Military {
 	Faction f;
@@ -145,6 +146,10 @@ public class Military {
 	public ExpandResult canExpand(Regiment r) {
 		if (r == null) {
 			return ExpandResult.deny("Unknown regiment.");
+		}
+		String frozen = PreparationFreeze.refusal(f, "regiments");
+		if (frozen != null) {
+			return ExpandResult.deny(frozen);
 		}
 		if (!r.isProfessional()) {
 			return ExpandResult.ok();

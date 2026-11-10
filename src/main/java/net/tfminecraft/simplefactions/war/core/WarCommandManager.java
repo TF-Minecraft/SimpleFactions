@@ -13,6 +13,10 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.LogManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiTimeFormatter;
+import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
+import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
@@ -32,6 +36,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.truce.TruceService;
+import net.tfminecraft.simplefactions.war.history.WarHistoryAdmin;
 
 public class WarCommandManager implements CommandExecutor {
 	public static final String CMD = "war";
@@ -44,9 +49,9 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 1) {
-			player.sendMessage("§eUsage: §a/war list");
+			player.sendMessage("§eUsage: §a/war list§e, §a/war calls§e, §a/war call accept|decline <war id>");
 			if (Permissions.isAdmin(sender)) {
-				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions|forceinstallation §7...");
+				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation §7...");
 			}
 			return true;
 		}
@@ -62,7 +67,34 @@ public class WarCommandManager implements CommandExecutor {
 		if (args[0].equalsIgnoreCase("admin")) {
 			return handleAdmin(player, args);
 		}
-		player.sendMessage("§cUnknown subcommand. Use §e/war list");
+		if (args[0].equalsIgnoreCase("calls") && args.length == 1) {
+			CallToArmsService.list(player);
+			return true;
+		}
+		if (args[0].equalsIgnoreCase("call")) {
+			return handleCall(player, args);
+		}
+		player.sendMessage("§cUnknown subcommand. Use §e/war list§c or §e/war calls");
+		return true;
+	}
+
+	private boolean handleCall(Player player, String[] args) {
+		boolean accept = args.length == 3 && args[1].equalsIgnoreCase("accept");
+		boolean decline = args.length == 3 && args[1].equalsIgnoreCase("decline");
+		if (!accept && !decline) {
+			player.sendMessage("§eUsage: §a/war call accept|decline <war id>");
+			return true;
+		}
+		War war = WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElse(null);
+		if (war == null || !war.isActive()) {
+			player.sendMessage("§cNo active war with id §f" + args[2]);
+			return true;
+		}
+		if (accept) {
+			CallToArmsService.accept(player, war);
+		} else {
+			CallToArmsService.decline(player, war);
+		}
 		return true;
 	}
 
@@ -76,7 +108,7 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 2) {
-			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|devmode|raid|reparations|truce|factions|forceinstallation ...");
+			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation ...");
 			return true;
 		}
 		String subcommand = args[1].toLowerCase(java.util.Locale.ROOT);
@@ -88,17 +120,22 @@ public class WarCommandManager implements CommandExecutor {
 			case "path" -> handlePath(player, args);
 			case "time" -> handleTime(player, args);
 			case "schedule" -> handleSchedule(player, args);
+			case "buildup" -> handleBuildup(player, args);
 			case "devmode" -> handleDevmode(player, args);
 			case "raid" -> handleRaid(player, args);
 			case "reparations" -> handleReparations(player, args);
 			case "truce" -> handleTruce(player, args);
+			case "history" -> {
+				WarHistoryAdmin.handle(player, args);
+				yield true;
+			}
 			case "factions" -> handleFactions(player, args);
 			case "forceinstallation" -> {
 				player.sendMessage(WarForceInstallation.run(args, player.getName()));
 				yield true;
 			}
 			default -> {
-				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, factions, forceinstallation");
+				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, history, factions, forceinstallation");
 				yield true;
 			}
 		};
@@ -179,7 +216,11 @@ public class WarCommandManager implements CommandExecutor {
 				defender.getId(),
 				goal.toJson());
 		player.sendMessage("§aDeclared war §e#" + war.getId() + "§a: " + attacker.getName() + " §avs "
-				+ defender.getName() + " §a(" + goal.getDisplayName() + "). Battle day: §e" + war.getBattleDay());
+				+ defender.getName() + " §a(" + goal.getDisplayName() + ")."
+				+ (BuildupService.isDayVoteOpen(war)
+						? " In its buildup; the day vote closes §e"
+								+ CampaignUiTimeFormatter.formatDateTime(war.getDayVoteClosesAt())
+						: " Battle day: §e" + war.getBattleDay()));
 		return true;
 	}
 
@@ -534,6 +575,75 @@ public class WarCommandManager implements CommandExecutor {
 		return faction != null && faction.getName() != null ? faction.getName() : factionId;
 	}
 
+	/** Schedule and battle tools that would leave a war voting on its day in a broken state. */
+	static final java.util.Set<String> BUILDUP_REFUSED = java.util.Set.of(
+			"opencvote", "closevote", "skipday", "castvote", "forcequorum", "setday", "sethour", "setscheduled",
+			"battlecreate", "battlestart", "winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice",
+			"holdchoice");
+
+	private boolean handleBuildup(Player player, String[] args) {
+		if (args.length < 4) {
+			player.sendMessage("§cUsage: /war admin buildup <warId> status|end|closevote|setday <yyyy-MM-dd>");
+			return true;
+		}
+		War w = WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElse(null);
+		if (w == null || !w.isActive()) {
+			player.sendMessage("§cNo active war by that id");
+			return true;
+		}
+		java.time.Instant now = CampaignClock.now();
+		switch (args[3].toLowerCase(java.util.Locale.ROOT)) {
+			case "status" -> {
+				player.sendMessage("§eWar " + w.getId() + " buildup: " + (w.isBuildupFrozen()
+						? "§cfrozen until the first battle" : "§anot frozen by a buildup"));
+				if (BuildupService.isDayVoteOpen(w)) {
+					player.sendMessage("§7Day vote closes " + CampaignUiTimeFormatter.formatDateTime(w.getDayVoteClosesAt())
+							+ "§7, " + BattleQuorumService.countDistinctVoters(w.getDayVotes()) + " voters.");
+				} else {
+					player.sendMessage("§7First battle day: "
+							+ net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy.formatBattleDay(w.getBattleDay()));
+				}
+				return true;
+			}
+			case "end" -> {
+				BuildupService.end(w, now);
+				player.sendMessage("§aEnded the buildup of war " + w.getId() + ". Its factions can build again.");
+			}
+			case "closevote" -> {
+				if (!BuildupService.isDayVoteOpen(w)) {
+					player.sendMessage("§cWar " + w.getId() + " is not voting on its first battle day.");
+					return true;
+				}
+				BuildupService.DayVoteResult result = BuildupService.closeDayVote(w, now,
+						BattleScheduleLookups.uuidToFactionForWar(w), BattleScheduleLookups.memberNameToUuid());
+				player.sendMessage("§aClosed the day vote" + (result.quorum() ? "" : " §7(no quorum)")
+						+ "§a. First battle day: " + result.day());
+			}
+			case "setday" -> {
+				java.time.LocalDate day;
+				try {
+					day = args.length >= 5 ? java.time.LocalDate.parse(args[4]) : null;
+				} catch (java.time.format.DateTimeParseException e) {
+					day = null;
+				}
+				if (day == null || !w.isBuildupFrozen()) {
+					player.sendMessage(day == null
+							? "§cUsage: /war admin buildup <warId> setday <yyyy-MM-dd>"
+							: "§cWar " + w.getId() + " is not in a buildup. Use §e/war admin schedule setday§c.");
+					return true;
+				}
+				BuildupService.DayVoteResult result = BuildupService.setFirstBattleDay(w, day, now, true);
+				player.sendMessage("§aFirst battle day of war " + w.getId() + ": " + result.day());
+			}
+			default -> {
+				player.sendMessage("§cUsage: /war admin buildup <warId> status|end|closevote|setday <yyyy-MM-dd>");
+				return true;
+			}
+		}
+		WarManager.persist(w);
+		return true;
+	}
+
 	private boolean handleSchedule(Player player, String[] args) {
 		if (args.length < 4) {
 			player.sendMessage("§cUsage: /war admin schedule <warId> <subcommand> ...");
@@ -550,6 +660,11 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		String subcommand = args[3].toLowerCase(java.util.Locale.ROOT);
+		if (BuildupService.isDayVoteOpen(w) && BUILDUP_REFUSED.contains(subcommand)) {
+			player.sendMessage("§cWar " + w.getId() + " is still voting on its first battle day. Use §e/war admin buildup "
+					+ w.getId() + " setday|closevote|end§c first.");
+			return true;
+		}
 		WarScheduleAdminResult result = switch (subcommand) {
 			case "opencvote" -> WarScheduleAdminService.openVote(w);
 			case "closevote" -> WarScheduleAdminService.closeVote(w, CampaignClock.now());
@@ -624,7 +739,10 @@ public class WarCommandManager implements CommandExecutor {
 							+ "battleabort, battleend, battlehold, winbattle, choice");
 		};
 		if (result.success()) {
-			WarManager.persist(w);
+			// A command that ended the war already deleted its file; saving it would bring it back.
+			if (w.isActive()) {
+				WarManager.persist(w);
+			}
 			player.sendMessage("§a" + result.message());
 			Integer castHour = null;
 			if ("castvote".equals(subcommand)) {

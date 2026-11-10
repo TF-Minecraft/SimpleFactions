@@ -81,10 +81,15 @@ class VfBuildersConstructionFreezeTest {
 		bukkit.when(() -> Bukkit.getPlayer(account)).thenReturn(builder);
 		try (MockedStatic<PreparationFreeze> freeze = mockStatic(PreparationFreeze.class,
 				org.mockito.Mockito.CALLS_REAL_METHODS)) {
-			freeze.when(() -> PreparationFreeze.frozenUntil(org.mockito.ArgumentMatchers.eq(Members.key(character)),
-					any())).thenReturn(Instant.now().plusSeconds(3600));
+			freeze.when(() -> PreparationFreeze.freeze(org.mockito.ArgumentMatchers.eq(Members.key(character)),
+					any(Instant.class))).thenReturn(new PreparationFreeze.Freeze(
+							PreparationFreeze.Reason.POSTPONED, Instant.now().plusSeconds(3600)));
 			String reason = new VfBuildersConstructionFreeze().freezeReason(account, character);
 			assertEquals(true, reason.startsWith("battle postponed ("));
+			freeze.when(() -> PreparationFreeze.freeze(org.mockito.ArgumentMatchers.eq(Members.key(character)),
+					any(Instant.class))).thenReturn(new PreparationFreeze.Freeze(PreparationFreeze.Reason.BUILDUP, null));
+			assertEquals("war buildup, until the first battle",
+					new VfBuildersConstructionFreeze().freezeReason(account, character));
 			assertNull(new VfBuildersConstructionFreeze().freezeReason(account, null),
 					"Without a captured character the account's current character decides");
 			assertNull(new VfBuildersConstructionFreeze().freezeReason(account, UUID.randomUUID()));

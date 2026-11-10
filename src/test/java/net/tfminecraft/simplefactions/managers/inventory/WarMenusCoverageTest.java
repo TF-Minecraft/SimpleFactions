@@ -36,6 +36,7 @@ import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
+import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
@@ -92,6 +93,7 @@ class WarMenusCoverageTest {
   private WarView view;
   private DeclareWarView declaration;
   private MockedStatic<WarManager> wars;
+  private MockedStatic<CallToArmsService> calls;
   private final List<MockedStatic<?>> scopes = new ArrayList<>();
   private Map<Player, Integer> oldPages;
 
@@ -129,6 +131,7 @@ class WarMenusCoverageTest {
     wars = scoped(WarManager.class);
     wars.when(() -> WarManager.getById(7)).thenReturn(war);
     wars.when(WarManager::getActive).thenReturn(List.of(war));
+    calls = scoped(CallToArmsService.class);
     scoped(BattleManager.class);
     MockedStatic<IconGetter> icons = scoped(IconGetter.class);
     icons
@@ -221,6 +224,16 @@ class WarMenusCoverageTest {
     assertTrue(lore(item).contains("Called!"));
   }
 
+  @Test
+  void anAllyWithAnOpenCallShowsItAsWaitingForAnAnswer() {
+    war.getCallsToArms().put("defender",
+        new net.tfminecraft.simplefactions.war.core.CallToArms("defender", "attacker", null, null));
+    ItemStack item =
+        view.creator.createSecondaryItem(player, war.getParticipant(attacker), war, defender, false, false);
+    assertTrue(lore(item).contains("Call to arms sent"));
+    assertFalse(lore(item).contains("Click to call!"));
+  }
+
   @ParameterizedTest
   @EnumSource(
       value = SFGUI.class,
@@ -239,7 +252,7 @@ class WarMenusCoverageTest {
     assertTrue(event.isCancelled());
     assertEquals(2, FactionManager.factions.size());
     verify(navigation, never()).contractDetailView(any(), any(), anyString());
-    wars.verify(() -> WarManager.sendRequest(any(), any(), any(), any()), never());
+    calls.verify(() -> CallToArmsService.send(any(), any(), any(), any()), never());
   }
 
   @Test
@@ -420,12 +433,12 @@ class WarMenusCoverageTest {
     Inventory inventory = top();
     assertTrue(lore(inventory.getItem(9)).contains("Click to call!"));
     view.click(fixture.ui.click(player, 9), inventory, player);
-    wars.verify(() -> WarManager.sendRequest(player, attacker, ally, war));
+    calls.verify(() -> CallToArmsService.send(player, attacker, ally, war));
     participant.getAllies().put(ally, true);
     view.participantView(inventory, player, war, participant, false);
     assertTrue(lore(inventory.getItem(9)).contains("Called!"));
     view.click(fixture.ui.click(player, 9), inventory, player);
-    wars.verify(() -> WarManager.sendRequest(player, attacker, ally, war), times(1));
+    calls.verify(() -> CallToArmsService.send(player, attacker, ally, war), times(1));
   }
 
   @Test

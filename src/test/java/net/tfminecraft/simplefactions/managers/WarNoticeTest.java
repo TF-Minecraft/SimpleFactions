@@ -30,6 +30,7 @@ import net.tfminecraft.simplefactions.army.Military;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 
@@ -91,6 +92,10 @@ class WarNoticeTest {
 
 			verifyDeclared(online.get("AtkLead"));
 			verifyDeclared(online.get("DefLead"));
+			String news = "§cAttackers §cdeclared war on Defenders§c: " + war.getName() + "§c.";
+			verify(online.get("AtkLead")).sendMessage(news);
+			verify(online.get("DefLead")).sendMessage(news);
+			verify(online.get("JoinedMember"), never()).sendMessage(news);
 			verifyDeclared(online.get("SubjectMember"));
 			verify(online.get("JoinedMember"), never()).sendTitle(anyString(), anyString(), anyInt(), anyInt(), anyInt());
 			verify(online.get("PendingMember"), never()).sendTitle(anyString(), anyString(), anyInt(), anyInt(), anyInt());
@@ -143,19 +148,20 @@ class WarNoticeTest {
 			War war = new War(42, attacker, defender);
 			WarManager.addWar(war);
 			org.mockito.Mockito.clearInvocations(sender, allyLeader, allyGrunt);
-			WarManager.sendRequest(sender, attacker, ally, war);
+			CallToArmsService.send(sender, attacker, ally, war);
 
-			verify(allyLeader).sendMessage("§7Type §c/faction decline §7to decline");
-			assertTrue(RequestManager.hasRequest(allyLeader));
+			verify(allyLeader).sendMessage("§7Answer with §a/war call accept 42 §7or §c/war call decline 42§7."
+					+ " §e/war calls §7lists every open call.");
+			assertTrue(war.getCallsToArms().containsKey("ally"));
 
-			RequestManager.accept(allyLeader);
+			CallToArmsService.accept(allyLeader, war);
 
-			verify(allyLeader).sendMessage(startsWith("§aYour faction has joined the "));
+			verify(allyLeader).sendMessage(startsWith("§aYour faction has joined the war: "));
 			verifyDeclared(allyLeader);
 			verifyDeclared(allyGrunt);
 			verify(sender, never()).sendTitle(anyString(), anyString(), anyInt(), anyInt(), anyInt());
-			verify(sender).sendMessage("Allies §aaccepted your call to arms");
-			assertFalse(RequestManager.hasRequest(allyLeader));
+			verify(sender).sendMessage("Allies §aaccepted your call to arms: " + war.getName() + "§a.");
+			assertTrue(war.getCallsToArms().isEmpty());
 		}
 	}
 

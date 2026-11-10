@@ -734,6 +734,40 @@ class CampaignBattleLifecycleCoverageTest {
   }
 
   @Test
+  void aWarWithNoBattleLeftEndsInWhitePeaceAtTheLastVoteCloseInsteadOfFreezingAgain()
+      throws Exception {
+    configureCampaign();
+    rig.remember(Cache.class, "warPostponeFreezeHours");
+    Cache.warPostponeFreezeHours = 24;
+    rig.war.setInitiativeAttacker(0);
+    rig.war.setPostponementsThisCycle(Cache.warBattleVotingMaxPostponements);
+    WarScheduleAdminResult result = WarScheduleAdminService.closeVote(rig.war, rig.now());
+    assertTrue(result.success(), result.message());
+    assertTrue(result.message().contains("white peace"), result.message());
+    assertFalse(rig.war.isActive());
+    assertEquals(WarEndReason.WHITE_PEACE, rig.war.getEndReason());
+    assertNull(WarManager.getById(rig.war.getId()));
+    assertEquals(Fixture.DAY, rig.war.getBattleDay());
+    assertNull(rig.war.getPreparationFrozenUntil());
+    assertEquals(0, rig.war.getCampaignBattlesFought());
+  }
+
+  @Test
+  void staffCannotOrderALoserWithoutInitiativeToAttack() throws Exception {
+    configureCampaign();
+    prepareArmies();
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.AGGRESSOR);
+    assertTrue(WarScheduleAdminService.battleChoice(rig.war, "hold").success());
+    rig.war.setInitiativeDefender(0);
+    WarScheduleAdminResult result = WarScheduleAdminService.battleChoice(rig.war, "attack");
+    assertFalse(result.success());
+    assertTrue(result.message().contains("cannot attack"), result.message());
+    assertEquals(PostBattleChoicePhase.LOSER_ATTACK_PEACE, rig.war.getPostBattleChoicePhase());
+    assertTrue(WarScheduleAdminService.battleChoice(rig.war, "accept").success());
+    assertFalse(rig.war.isActive());
+  }
+
+  @Test
   void administrativeWinAppliesAnActualOutcomeAndRefusesAnotherUntilChoiceIsResolved()
       throws Exception {
     configureCampaign();

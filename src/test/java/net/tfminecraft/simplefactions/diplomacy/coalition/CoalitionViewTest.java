@@ -44,6 +44,7 @@ import net.tfminecraft.simplefactions.managers.inventory.IconGetter;
 import net.tfminecraft.simplefactions.managers.inventory.WarView;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.Request;
+import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
@@ -150,9 +151,11 @@ class CoalitionViewTest extends CoalitionTestBase {
 
 	@Test
 	void theMenuShowsTheTargetMembersSeatsAndWars() throws Exception {
-		War war = WarManager.addWar(new War(95, holy, thalendor));
+		War war = new War(95, holy, thalendor);
 		clock.now = war.getStartedAt().minus(Duration.ofHours(1));
 		Coalition league = league();
+		WarManager.addWar(war);
+		CallToArmsService.snapshotCallable(war);
 		view.menu(tom, league);
 		Inventory menu = top(tom);
 		assertTrue(lore(menu.getItem(4)).contains("Defensive coalition"));
@@ -302,9 +305,11 @@ class CoalitionViewTest extends CoalitionTestBase {
 
 	@Test
 	void theWarMenuListsCoalitionMembersAndCallsThemOneByOne() {
-		War war = WarManager.addWar(new War(97, holy, thalendor));
+		War war = new War(97, holy, thalendor);
 		clock.now = war.getStartedAt().minus(Duration.ofHours(1));
 		league();
+		WarManager.addWar(war);
+		CallToArmsService.snapshotCallable(war);
 		WarView warView = new WarView(navigation);
 		Participant defence = war.getParticipant(thalendor);
 		warView.participantView(null, tom, war, defence, true);
@@ -315,8 +320,8 @@ class CoalitionViewTest extends CoalitionTestBase {
 		assertEquals("fig", data(menu.getItem(10), "id"));
 
 		warView.click(fixture.ui.click(tom, 9), menu, tom);
-		assertTrue(RequestManager.getRequest(bea) != null);
-		RequestManager.accept(bea);
+		assertTrue(war.getCallsToArms().containsKey("bog"));
+		CallToArmsService.accept(bea, war);
 		assertTrue(defence.hasCoalitionAlly(bog));
 		warView.participantView(menu, tom, war, defence, false);
 		assertTrue(lore(menu.getItem(9)).contains("Called!"));
@@ -329,7 +334,7 @@ class CoalitionViewTest extends CoalitionTestBase {
 		tagged.setItemMeta(meta);
 		menu.setItem(20, tagged);
 		warView.click(fixture.ui.click(tom, 20), menu, tom);
-		assertNull(RequestManager.getRequest(fixture.player("Stra")));
+		assertFalse(war.getCallsToArms().containsKey("stranger"));
 
 		String summary = lore(warView.creator.createParticipantItem(tom, defence, "main_defender", war, true, false));
 		assertTrue(summary.contains("Coalition: 1"));
@@ -340,8 +345,9 @@ class CoalitionViewTest extends CoalitionTestBase {
 		Faction raider = faction("raider", "Rex", 300);
 		Player rex = fixture.player("Rex");
 		allies(raider, holy);
-		War war = WarManager.addWar(new War(98, raider, thalendor));
+		War war = new War(98, raider, thalendor);
 		league();
+		WarManager.addWar(war);
 		WarView warView = new WarView(navigation);
 		warView.participantView(null, rex, war, war.getParticipant(raider), true);
 		Inventory menu = top(rex);
@@ -349,9 +355,9 @@ class CoalitionViewTest extends CoalitionTestBase {
 
 		warView.click(fixture.ui.click(rex, 9), menu, rex);
 		verify(rex).sendMessage("§7Click again to call them anyway.");
-		assertNull(RequestManager.getRequest(hana));
+		assertNull(war.getCallsToArms().get("holy"));
 		warView.click(fixture.ui.click(rex, 9), menu, rex);
-		assertNotNull(RequestManager.getRequest(hana));
+		assertNotNull(war.getCallsToArms().get("holy"));
 		verify(hana).sendMessage("§cAccepting will let the Grand League §ccoalition, which targets you, join this war.");
 	}
 

@@ -210,6 +210,20 @@ class InstallationVehicleServiceTest {
     }
 
     @Test
+    void canRegister_frozenOwner_returnsFrozen() {
+        VehicleBerthTarget vehicle = ownedTarget("vehicle-1", "ironclad");
+
+        try (MockedStatic<net.tfminecraft.simplefactions.war.freeze.PreparationFreeze> freeze = mockStatic(
+                net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.class,
+                org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            freeze.when(() -> net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.isFrozen((Faction) any()))
+                    .thenReturn(true);
+
+            assertEquals(CanRegisterResult.FROZEN, service.canRegister(port, vehicle));
+        }
+    }
+
+    @Test
     void canRegister_landVehicleAtFort_returnsOk() {
         VehicleBerthTarget vehicle = ownedTarget("vehicle-1", "horse_cart");
 

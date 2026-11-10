@@ -77,6 +77,13 @@ class CampaignUiCopyTest {
 	}
 
 	@Test
+	void resolveActivityStatus_namesTheBuildupDayVote() {
+		War war = baseWar();
+		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
+		assertEquals("Buildup: Voting on the Day", CampaignUiCopy.resolveActivityStatus(war));
+	}
+
+	@Test
 	void resolveActivityStatus_awaitingDecisionWhenChoicePending() {
 		War war = baseWar();
 		war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);

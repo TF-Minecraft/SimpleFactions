@@ -107,6 +107,19 @@ public class War {
 	private boolean autoresolveProposedByDefender;
 	private int postponementsThisCycle;
 	private Instant preparationFrozenUntil;
+	/** Set at declaration when the war waits, frozen, for its first battle. */
+	private boolean buildup;
+	/** First day the buildup's day vote offers; null once the vote has closed. */
+	private LocalDate dayVoteFirstDay;
+	private Instant dayVoteClosesAt;
+	/** Day vote picks, as offsets from {@link #dayVoteFirstDay}, keyed by account like hour votes. */
+	private Map<UUID, Set<Integer>> dayVotes = new HashMap<>();
+	/** Unanswered calls to arms, keyed by the called faction's lower-case id. */
+	private Map<String, CallToArms> callsToArms = new LinkedHashMap<>();
+	/** Lower-case ids of the factions that may be called to arms; null on wars from before it was kept. */
+	private Set<String> callableFactionIds;
+	/** Lower-case faction id → when it answered a call to arms; factions there at declaration are absent. */
+	private Map<String, Instant> joinedAt = new LinkedHashMap<>();
 	private boolean defenderChoiceResolved;
 	private CampaignSideRole initiativeHolderCoalition = CampaignSideRole.AGGRESSOR;
 	private CampaignPushTarget pushTarget = CampaignPushTarget.TOWARD_OBJECTIVE;
@@ -826,8 +839,74 @@ public class War {
 		this.preparationFrozenUntil = preparationFrozenUntil;
 	}
 
+	/** True while a buildup or a postponed battle freezes the war's factions. */
 	public boolean isPreparationFrozen(Instant now) {
+		return isBuildupFrozen() || isPostponementFrozen(now);
+	}
+
+	public boolean isPostponementFrozen(Instant now) {
 		return isActive() && preparationFrozenUntil != null && now != null && now.isBefore(preparationFrozenUntil);
+	}
+
+	/** The buildup freeze holds until the war's first battle or raid starts. */
+	public boolean isBuildupFrozen() {
+		return isActive() && buildup && !firstBattleStarted;
+	}
+
+	public boolean isBuildup() {
+		return buildup;
+	}
+
+	public void setBuildup(boolean buildup) {
+		this.buildup = buildup;
+	}
+
+	public LocalDate getDayVoteFirstDay() {
+		return dayVoteFirstDay;
+	}
+
+	public void setDayVoteFirstDay(LocalDate dayVoteFirstDay) {
+		this.dayVoteFirstDay = dayVoteFirstDay;
+	}
+
+	public Instant getDayVoteClosesAt() {
+		return dayVoteClosesAt;
+	}
+
+	public void setDayVoteClosesAt(Instant dayVoteClosesAt) {
+		this.dayVoteClosesAt = dayVoteClosesAt;
+	}
+
+	public Map<UUID, Set<Integer>> getDayVotes() {
+		return dayVotes;
+	}
+
+	public void setDayVotes(Map<UUID, Set<Integer>> dayVotes) {
+		this.dayVotes = dayVotes != null ? dayVotes : new HashMap<>();
+	}
+
+	public Map<String, CallToArms> getCallsToArms() {
+		return callsToArms;
+	}
+
+	public void setCallsToArms(Map<String, CallToArms> callsToArms) {
+		this.callsToArms = callsToArms != null ? callsToArms : new LinkedHashMap<>();
+	}
+
+	public Set<String> getCallableFactionIds() {
+		return callableFactionIds;
+	}
+
+	public void setCallableFactionIds(Set<String> callableFactionIds) {
+		this.callableFactionIds = callableFactionIds;
+	}
+
+	public Map<String, Instant> getJoinedAt() {
+		return joinedAt;
+	}
+
+	public void setJoinedAt(Map<String, Instant> joinedAt) {
+		this.joinedAt = joinedAt == null ? new LinkedHashMap<>() : new LinkedHashMap<>(joinedAt);
 	}
 
 	public boolean isDefenderChoiceResolved() {

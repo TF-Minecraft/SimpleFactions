@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -54,6 +55,50 @@ class WarCampaignServiceTest {
 		WarCampaignService.initScheduleState(war);
 		org.mockito.Mockito.verify(war).setBattleDay(LocalDate.of(2026, 10, 12));
 		org.mockito.Mockito.verify(war).setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+	}
+
+	@Test
+	void aWarDeclaredJustAfterMidnightBelongsToTheEveningBefore() {
+		Cache.warFirstBattleDayAfterDeclare = true;
+		int windowEnd = Cache.warBattleWindowEndHour;
+		Cache.warBattleWindowEndHour = 26;
+		try {
+			War war = mock(War.class);
+			// 01:30 in Paris on the 13th: the schedule's day is still the 12th until 02:00.
+			when(war.getStartedAt()).thenReturn(Instant.parse("2026-10-12T23:30:00Z"));
+			WarCampaignService.initScheduleState(war);
+			org.mockito.Mockito.verify(war).setBattleDay(LocalDate.of(2026, 10, 13));
+		} finally {
+			Cache.warBattleWindowEndHour = windowEnd;
+		}
+	}
+
+	@Test
+	void regeneratingTheRouteKeepsTheBuildupAndItsChosenDay() {
+		Faction a = mock(Faction.class);
+		Faction b = mock(Faction.class);
+		when(a.getId()).thenReturn("a");
+		when(b.getId()).thenReturn("b");
+		War voting = new War(1, a, b);
+		voting.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+		assertTrue(net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService.start(voting, Instant.now()));
+		LocalDate firstOption = voting.getDayVoteFirstDay();
+
+		WarCampaignService.initScheduleState(voting);
+
+		assertEquals(BattleSchedulePhase.BUILDUP, voting.getBattleSchedulePhase());
+		assertEquals(firstOption, voting.getDayVoteFirstDay());
+		assertNull(voting.getBattleDay());
+
+		War chosen = new War(2, a, b);
+		chosen.setBuildup(true);
+		chosen.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
+		chosen.setBattleDay(LocalDate.of(2026, 11, 20));
+
+		WarCampaignService.initScheduleState(chosen);
+
+		assertEquals(BattleSchedulePhase.VOTING, chosen.getBattleSchedulePhase());
+		assertEquals(LocalDate.of(2026, 11, 20), chosen.getBattleDay());
 	}
 
 	private ProvinceManager pm;

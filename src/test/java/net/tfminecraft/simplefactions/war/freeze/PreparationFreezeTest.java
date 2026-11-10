@@ -55,9 +55,10 @@ class PreparationFreezeTest {
 
 		Instant until = NOW.plus(24, ChronoUnit.HOURS);
 		assertEquals(until, war.getPreparationFrozenUntil());
-		assertEquals(until, PreparationFreeze.frozenUntil(attacker, NOW));
-		assertEquals(until, PreparationFreeze.frozenUntil(defender, NOW));
-		assertNull(PreparationFreeze.frozenUntil(outsider, NOW));
+		assertEquals(new PreparationFreeze.Freeze(PreparationFreeze.Reason.POSTPONED, until),
+				PreparationFreeze.freeze(attacker, NOW));
+		assertEquals(until, PreparationFreeze.freeze(defender, NOW).until());
+		assertNull(PreparationFreeze.freeze(outsider, NOW));
 	}
 
 	@Test
@@ -66,8 +67,8 @@ class PreparationFreezeTest {
 		PreparationFreeze.applyPostponement(war, NOW);
 
 		Instant later = NOW.plus(24, ChronoUnit.HOURS);
-		assertNotNull(PreparationFreeze.frozenUntil(attacker, later.minusSeconds(1)));
-		assertNull(PreparationFreeze.frozenUntil(attacker, later));
+		assertNotNull(PreparationFreeze.freeze(attacker, later.minusSeconds(1)));
+		assertNull(PreparationFreeze.freeze(attacker, later));
 	}
 
 	@Test
@@ -85,7 +86,7 @@ class PreparationFreezeTest {
 		PreparationFreeze.applyPostponement(war, NOW);
 		war.end(net.tfminecraft.simplefactions.war.enums.WarEndReason.WHITE_PEACE);
 
-		assertNull(PreparationFreeze.frozenUntil(attacker, NOW));
+		assertNull(PreparationFreeze.freeze(attacker, NOW));
 	}
 
 	@Test
@@ -113,14 +114,80 @@ class PreparationFreezeTest {
 	}
 
 	@Test
-	void hiringBlockedMessage_onlyForFrozenFactions() {
+	void refusal_onlyForFrozenFactions() {
 		War war = war();
 		PreparationFreeze.applyPostponement(war, NOW);
 
-		String message = PreparationFreeze.hiringBlockedMessage(attacker, NOW);
-		assertNotNull(message);
-		assertTrue(message.contains("24h 0m"));
-		assertNull(PreparationFreeze.hiringBlockedMessage(outsider, NOW));
+		String message = PreparationFreeze.refusal(PreparationFreeze.freeze(attacker, NOW), "regiments", NOW);
+		assertEquals("A battle of yours was postponed. No new regiments can be started for 24h 0m.", message);
+		assertNull(PreparationFreeze.refusal(PreparationFreeze.freeze(outsider, NOW), "regiments", NOW));
+	}
+
+	@Test
+	void buildup_freezesBothSidesUntilTheFirstBattle() {
+		War war = war();
+		war.setBuildup(true);
+
+		PreparationFreeze.Freeze freeze = PreparationFreeze.freeze(attacker, NOW);
+		assertEquals(new PreparationFreeze.Freeze(PreparationFreeze.Reason.BUILDUP, null), freeze);
+		assertEquals(PreparationFreeze.Reason.BUILDUP, PreparationFreeze.freeze(defender, NOW).reason());
+		assertNull(PreparationFreeze.freeze(outsider, NOW));
+		assertEquals("Your war is in its buildup. No new installations can be started until the first battle.",
+				PreparationFreeze.refusal(freeze, "installations", NOW));
+		assertEquals("war buildup, until the first battle", PreparationFreeze.reasonText(freeze, NOW));
+		assertEquals("§cFrozen: war buildup, until the first battle", PreparationFreeze.frozenLore(freeze));
+
+		war.setFirstBattleStarted(true);
+		assertNull(PreparationFreeze.freeze(attacker, NOW));
+	}
+
+	@Test
+	void buildup_outranksAPostponementOnEitherSide() {
+		War postponed = war();
+		PreparationFreeze.applyPostponement(postponed, NOW);
+		War built = war();
+		built.setBuildup(true);
+
+		assertEquals(PreparationFreeze.Reason.BUILDUP, PreparationFreeze.freeze(attacker, NOW).reason());
+
+		wars.clear();
+		wars.add(built);
+		wars.add(postponed);
+		assertEquals(PreparationFreeze.Reason.BUILDUP, PreparationFreeze.freeze(attacker, NOW).reason());
+	}
+
+	@Test
+	void postponedWarsKeepTheLatestEnd() {
+		War first = war();
+		PreparationFreeze.applyPostponement(first, NOW);
+		War second = war();
+		second.setPreparationFrozenUntil(NOW.plus(48, ChronoUnit.HOURS));
+
+		assertEquals(NOW.plus(48, ChronoUnit.HOURS), PreparationFreeze.freeze(attacker, NOW).until());
+		second.setPreparationFrozenUntil(NOW.plus(1, ChronoUnit.HOURS));
+		assertEquals(NOW.plus(24, ChronoUnit.HOURS), PreparationFreeze.freeze(attacker, NOW).until());
+	}
+
+	@Test
+	void postponedLoreAndReasonShowTheTimeLeft() {
+		PreparationFreeze.Freeze freeze = new PreparationFreeze.Freeze(
+				PreparationFreeze.Reason.POSTPONED, NOW.plus(3, ChronoUnit.HOURS));
+
+		assertEquals("battle postponed (3h 0m left)", PreparationFreeze.reasonText(freeze, NOW));
+		assertTrue(PreparationFreeze.frozenLore(freeze).startsWith("§cFrozen: battle postponed ("));
+		assertNull(PreparationFreeze.frozenLore(null));
+	}
+
+	@Test
+	void currentClockRefusalsAndChecks() {
+		War war = war();
+		war.setBuildup(true);
+
+		assertTrue(PreparationFreeze.isFrozen(attacker));
+		assertFalse(PreparationFreeze.isFrozen(outsider));
+		assertTrue(PreparationFreeze.refusal(attacker, "regiments").contains("No new regiments"));
+		assertNull(PreparationFreeze.refusal(outsider, "regiments"));
+		assertNull(PreparationFreeze.freeze((Faction) null, NOW));
 	}
 
 	@Test

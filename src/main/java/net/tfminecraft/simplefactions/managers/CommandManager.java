@@ -888,14 +888,18 @@ public class CommandManager implements Listener, CommandExecutor{
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("accept") && args.length == 1) {
 				if(!RequestManager.hasRequest(p)) {
-					p.sendMessage("§cYou have no requests to accept");
+					if(!net.tfminecraft.simplefactions.war.core.CallToArmsService.answerOnly(p, true)) {
+						p.sendMessage("§cYou have no requests to accept");
+					}
 					return true;
 				}
 				RequestManager.accept(p);
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("decline") && args.length == 1) {
 				if(!RequestManager.hasRequest(p)) {
-					p.sendMessage("§cYou have no requests to decline");
+					if(!net.tfminecraft.simplefactions.war.core.CallToArmsService.answerOnly(p, false)) {
+						p.sendMessage("§cYou have no requests to decline");
+					}
 					return true;
 				}
 				RequestManager.decline(p);

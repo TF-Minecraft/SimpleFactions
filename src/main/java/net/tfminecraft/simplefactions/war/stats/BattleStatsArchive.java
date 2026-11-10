@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.database.JsonUtil;
+import net.tfminecraft.simplefactions.war.history.WarHistory;
 
 /**
  * Finished battles, one JSON file each under {@code BattleStats/}. Only a small
@@ -28,6 +29,8 @@ public final class BattleStatsArchive {
 			String winner, String winnerRole, Map<String, FighterStats> fighters) {}
 
 	private static final Map<String, Summary> INDEX = new java.util.concurrent.ConcurrentHashMap<>();
+	/** Battle and war key → the newest record saved for it this run, so a battle outcome can link its record. */
+	private static final Map<String, String> LATEST = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final Map<String, BattleRecord> CACHE = Collections.synchronizedMap(
 			new LinkedHashMap<>(CACHE_SIZE, 0.75f, true) {
 				@Override
@@ -68,6 +71,8 @@ public final class BattleStatsArchive {
 		}
 		INDEX.put(record.id, summary(record));
 		CACHE.put(record.id, record);
+		LATEST.put(latestKey(record.battleId, record.warKey), record.id);
+		WarHistory.battle(record);
 		File folder = folder();
 		if (folder == null) return;
 		try {
@@ -76,6 +81,15 @@ public final class BattleStatsArchive {
 		} catch (IOException | RuntimeException failed) {
 			log("Could not save battle stats " + record.id, failed);
 		}
+	}
+
+	/** The newest record saved this run for a battle of a war, or null. Battle IDs repeat across wars. */
+	public static String latestRecordId(String battleId, String warKey) {
+		return LATEST.get(latestKey(battleId, warKey));
+	}
+
+	private static String latestKey(String battleId, String warKey) {
+		return battleId + "|" + warKey;
 	}
 
 	/** A finished battle by its record ID, or null. */
@@ -130,8 +144,9 @@ public final class BattleStatsArchive {
 		SimpleFactions.plugin.getLogger().log(Level.WARNING, message, cause);
 	}
 
-	static void resetForTests() {
+	public static void resetForTests() {
 		INDEX.clear();
 		CACHE.clear();
+		LATEST.clear();
 	}
 }

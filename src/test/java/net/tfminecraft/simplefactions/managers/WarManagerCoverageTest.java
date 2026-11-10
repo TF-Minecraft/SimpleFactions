@@ -32,9 +32,9 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
-import net.tfminecraft.simplefactions.war.core.CallToArmsEligibility;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarCommitment;
+import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
@@ -169,201 +169,13 @@ class WarManagerCoverageTest {
   }
 
   @Test
-  void acceptingAnInvitationAfterTheWarEndsDoesNotRecreateItsSaveOrCommitTroops() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player sender = fixture.player("Alice");
-    Player called = fixture.player("Cara");
-    War war = WarManager.addWar(new War(31, attacker, defender));
-    WarManager.sendRequest(sender, attacker, target, war);
-    assertTrue(RequestManager.hasRequest(called));
-    WarManager.endWar(war);
-    assertFalse(Files.exists(files.root.resolve("Wars/war_31.json")));
-    clearInvocations(called);
+  void anEndedWarIsNeverEndedTwice() {
+    War ended = mock(War.class);
+    when(ended.isActive()).thenReturn(false);
 
-    RequestManager.accept(called);
+    WarManager.endWar(ended, net.tfminecraft.simplefactions.war.enums.WarEndReason.WHITE_PEACE);
 
-    assertAll(
-        () -> assertFalse(war.isParticipating(target)),
-        () -> assertTrue(WarManager.getCommitmentsForWar(war.getId()).isEmpty()),
-        () -> assertFalse(Files.exists(files.root.resolve("Wars/war_31.json"))),
-        () -> verify(called, never()).sendMessage(startsWith("§aYour faction has joined")));
-    assertFalse(RequestManager.hasRequest(called));
-  }
-
-  @Test
-  void aCallToALeaderStillReadingAnotherRequestIsRefused() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player sender = fixture.player("Alice");
-    Player called = fixture.player("Cara");
-    War war = WarManager.addWar(new War(35, attacker, defender));
-    WarManager.sendRequest(sender, attacker, target, war);
-    var first = RequestManager.getRequest(called);
-    clearInvocations(sender);
-
-    WarManager.sendRequest(sender, attacker, target, war);
-
-    assertSame(first, RequestManager.getRequest(called));
-    verify(sender).sendMessage("§cThat leader already has a pending request.");
-    verify(sender, never()).sendMessage(startsWith("§aSent a call to arms"));
-    verify(called).sendMessage("§7Request will time out in 5 minutes");
-    RequestManager.remove(called);
-  }
-
-  @Test
-  void aPendingInvitationCannotBeAcceptedForAnotherFactionAfterTheLeaderMoves() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    Faction other = fixture.saved("other", "Elena");
-    ally(attacker, target);
-    ally(attacker, other);
-    Player sender = fixture.player("Alice");
-    Player called = fixture.player("Cara");
-    War war = WarManager.addWar(new War(32, attacker, defender));
-    WarManager.sendRequest(sender, attacker, target, war);
-    target.getOrCreateMainGuild().addMember("Dave");
-    target.setLeader("Dave");
-    target.getOrCreateMainGuild().kick("Cara");
-    other.getOrCreateMainGuild().addMember("Cara");
-    other.setLeader("Cara");
-    assertSame(other, FactionManager.getByLeader("Cara"));
-
-    RequestManager.accept(called);
-
-    assertFalse(war.isParticipating(target));
-    assertFalse(war.isParticipating(other));
-    assertTrue(WarManager.getCommitmentsForWar(war.getId()).isEmpty());
-    assertFalse(RequestManager.hasRequest(called));
-  }
-
-  @Test
-  void anInvitationIsRevalidatedWhenTheInvitedAllyBecomesBoundToTheEnemy() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player sender = fixture.player("Alice");
-    Player called = fixture.player("Cara");
-    War war = WarManager.addWar(new War(33, attacker, defender));
-    WarManager.sendRequest(sender, attacker, target, war);
-    fixture.subject(defender, target);
-    assertFalse(CallToArmsEligibility.canCall(war, attacker, target).allowed());
-
-    RequestManager.accept(called);
-
-    assertFalse(war.getAttackers().getMainParticipants().getFirst().getAllies().get(target));
-    assertTrue(WarManager.getCommitmentsForWar(war.getId()).isEmpty());
-    assertFalse(RequestManager.hasRequest(called));
-  }
-
-  @Test
-  void anInvitationCannotRestoreAnOldWarObjectAfterTheManagerReloads() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player called = fixture.player("Cara");
-    War original = WarManager.addWar(new War(34, attacker, defender));
-    WarManager.sendRequest(fixture.player("Alice"), attacker, target, original);
-    WarManager.start();
-    War current = WarManager.getById(34);
-    assertNotSame(original, current);
-    assertTrue(original.isActive());
-    assertTrue(current.isActive());
-
-    RequestManager.accept(called);
-
-    assertFalse(original.isParticipating(target));
-    assertFalse(current.isParticipating(target));
-    assertTrue(WarManager.getCommitmentsForWar(34).isEmpty());
-    assertFalse(RequestManager.hasRequest(called));
-  }
-
-  @Test
-  void breakingTheAllianceInvalidatesAnInvitationBeforeTheNextWarUpdate() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player called = fixture.player("Cara");
-    War war = WarManager.addWar(new War(35, attacker, defender));
-    WarManager.sendRequest(fixture.player("Alice"), attacker, target, war);
-    attacker.getDiplomacyHandler().removeRelation(target.getId());
-    target.getDiplomacyHandler().removeRelation(attacker.getId());
-    assertFalse(RelationManager.getAllies(attacker).contains(target));
-
-    RequestManager.accept(called);
-
-    assertFalse(war.isParticipating(target));
-    assertTrue(WarManager.getCommitmentsForWar(35).isEmpty());
-    assertFalse(RequestManager.hasRequest(called));
-  }
-
-  @Test
-  void acceptingACurrentInvitationCommitsItsFactionAndPersistsItsParticipation() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player sender = fixture.player("Alice");
-    Player called = fixture.player("Cara");
-    War war = WarManager.addWar(new War(36, attacker, defender));
-    WarManager.sendRequest(sender, attacker, target, war);
-
-    RequestManager.accept(called);
-
-    assertTrue(war.isParticipating(target));
-    assertFalse(RequestManager.hasRequest(called));
-    assertFalse(WarManager.getCommitmentsForWar(36).isEmpty());
-    verify(sender).sendMessage(target.getName() + " §aaccepted your call to arms");
-    verify(called).sendMessage("§aYour faction has joined the " + war.getName());
-    assertTrue(new Database().loadWars().getFirst().isParticipating(target));
-  }
-
-  @Test
-  void aLeaderWhoLosesTheirFactionCannotAcceptAndAnAbsentRequestIsHarmless() {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player called = fixture.player("Cara");
-    WarManager.acceptRequest(called);
-    War war = WarManager.addWar(new War(37, attacker, defender));
-    WarManager.sendRequest(fixture.player("Alice"), attacker, target, war);
-    target.getOrCreateMainGuild().addMember("Dave");
-    target.setLeader("Dave");
-
-    RequestManager.accept(called);
-
-    assertFalse(war.isParticipating(target));
-    assertTrue(WarManager.getCommitmentsForWar(37).isEmpty());
-    verify(called).sendMessage("§cYou do not have a faction");
-  }
-
-  @Test
-  void callsRequireAnEligibleTargetAndItsOnlineLeader() throws Exception {
-    Faction attacker = fixture.saved("attacker", "Alice");
-    Faction defender = fixture.saved("defender", "Bob");
-    Faction target = fixture.saved("target", "Cara");
-    ally(attacker, target);
-    Player sender = fixture.player("Alice");
-    War war = WarManager.addWar(new War(38, attacker, defender));
-    WarManager.sendRequest(sender, attacker, defender, war);
-    assertTrue(requests().isEmpty());
-    WarManager.sendRequest(sender, attacker, target, war);
-    verify(sender).sendMessage("§cCannot send request, target faction leader is not online!");
-    Player called = fixture.player("Cara");
-    when(called.isOnline()).thenReturn(false);
-    WarManager.sendRequest(sender, attacker, target, war);
-    verify(sender, times(2))
-        .sendMessage("§cCannot send request, target faction leader is not online!");
-    assertFalse(RequestManager.hasRequest(called));
+    verify(ended, never()).end(any());
   }
 
   @Test
@@ -477,6 +289,36 @@ class WarManagerCoverageTest {
     assertEquals(governmentId, stored.getGovernmentLawId());
     assertEquals(leadershipId, stored.getLeadershipLawId());
     assertEquals(settlementId, stored.getTargetSettlementId());
+    // Every declared war starts in its buildup, frozen, voting on its first battle day.
+    assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
+    assertTrue(war.isBuildupFrozen());
+    assertNull(war.getBattleDay());
+    assertEquals(war.getDayVoteFirstDay(), stored.getDayVoteFirstDay());
+    assertTrue(stored.isBuildupFrozen());
+  }
+
+  @Test
+  void withTheBuildupOffADeclaredWarVotesOnTheNextBattleDayAtOnce() throws Exception {
+    setting("warBuildupEnabled", false);
+    setting("warFirstBattleDayAfterDeclare", true);
+    offensiveArmy();
+    graph(true, false);
+    Faction attacker = fixture.saved("attacker", "Alice");
+    Faction defender = fixture.saved("defender", "Bob");
+    land(attacker, 1);
+    land(defender, 3);
+
+    War war = WarManager.declareWar(attacker, defender, WarGoalType.WAR, null, null);
+
+    assertNotNull(war, WarManager.getLastDeclareError());
+    assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+    assertFalse(war.isBuildupFrozen());
+    assertNull(war.getDayVoteFirstDay());
+    assertEquals(
+        net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.scheduleDate(
+                war.getStartedAt())
+            .plusDays(1),
+        war.getBattleDay());
   }
 
   @Test
@@ -671,6 +513,8 @@ class WarManagerCoverageTest {
     assertTrue(war.getDefenders().getMainParticipants().stream().allMatch(p -> p.isCivilWar()));
     assertEquals("movement", war.getMovementId());
     assertSame(snapshot, war.getCivilWarSnapshot());
+    assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
+    assertTrue(war.isBuildupFrozen());
     assertTrue(war.isParticipating(backer));
     int rebelSlots = attacker.getMilitary().getManpower(true);
     assertEquals(paidSlots, rebelSlots);

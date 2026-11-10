@@ -932,6 +932,117 @@ class WarMapperTest {
 		}
 	}
 
+	@Test
+	void roundTrip_joinTimesOfFactionsThatAnsweredACall() {
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("faction_a");
+		when(defender.getId()).thenReturn("faction_b");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		try {
+			War legacy = WarMapper.fromData(minimalWarData());
+			assertTrue(legacy.getJoinedAt().isEmpty(), "Older saves: everyone was there at declaration");
+			assertNull(WarMapper.toData(legacy).joinedAt);
+
+			WarData data = minimalWarData();
+			data.joinedAt = new java.util.LinkedHashMap<>(Map.of("Ally", "2026-11-12T08:00:00Z"));
+			data.joinedAt.put("broken", "yesterday");
+			War war = WarMapper.fromData(data);
+
+			assertEquals(Map.of("ally", Instant.parse("2026-11-12T08:00:00Z")), war.getJoinedAt(),
+					"An unreadable time only loses that faction's date");
+			assertEquals(Map.of("ally", "2026-11-12T08:00:00Z"), WarMapper.toData(war).joinedAt);
+			war.setJoinedAt(null);
+			assertTrue(war.getJoinedAt().isEmpty());
+		} finally {
+			FactionManager.factions.remove(attacker);
+			FactionManager.factions.remove(defender);
+		}
+	}
+
+	@Test
+	void roundTrip_buildupDayVoteCallsToArmsAndCallableFactions() {
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("faction_a");
+		when(defender.getId()).thenReturn("faction_b");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		try {
+			War legacy = WarMapper.fromData(minimalWarData());
+			assertFalse(legacy.isBuildup());
+			assertNull(legacy.getDayVoteFirstDay());
+			assertNull(legacy.getDayVoteClosesAt());
+			assertTrue(legacy.getDayVotes().isEmpty());
+			assertTrue(legacy.getCallsToArms().isEmpty());
+			assertNull(legacy.getCallableFactionIds(), "Older saves keep calls open to anyone");
+			WarData legacyData = WarMapper.toData(legacy);
+			assertNull(legacyData.buildup);
+			assertNull(legacyData.dayVotes);
+			assertNull(legacyData.callsToArms);
+			assertNull(legacyData.callableFactionIds);
+
+			WarData data = minimalWarData();
+			data.buildup = true;
+			data.dayVoteFirstDay = "2026-11-17";
+			data.dayVoteClosesAt = "2026-11-13T20:00:00Z";
+			UUID voter = UUID.randomUUID();
+			data.dayVotes = Map.of(voter.toString(), List.of(0, 3));
+			net.tfminecraft.simplefactions.database.CallToArmsData call =
+					new net.tfminecraft.simplefactions.database.CallToArmsData();
+			call.targetFactionId = "Ally";
+			call.callerFactionId = "faction_a";
+			call.coalitionId = "league";
+			call.sentAt = "2026-11-10T18:00:00Z";
+			net.tfminecraft.simplefactions.database.CallToArmsData undated =
+					new net.tfminecraft.simplefactions.database.CallToArmsData();
+			undated.targetFactionId = "other";
+			undated.callerFactionId = "faction_b";
+			undated.sentAt = " ";
+			net.tfminecraft.simplefactions.database.CallToArmsData noCaller =
+					new net.tfminecraft.simplefactions.database.CallToArmsData();
+			noCaller.targetFactionId = "broken";
+			net.tfminecraft.simplefactions.database.CallToArmsData noTarget =
+					new net.tfminecraft.simplefactions.database.CallToArmsData();
+			noTarget.callerFactionId = "faction_a";
+			data.callsToArms = new java.util.ArrayList<>(java.util.Arrays.asList(call, null, noCaller, noTarget, undated));
+			data.callableFactionIds = List.of("ally", "other");
+
+			War war = WarMapper.fromData(data);
+
+			assertTrue(war.isBuildup());
+			assertEquals(LocalDate.of(2026, 11, 17), war.getDayVoteFirstDay());
+			assertEquals(Instant.parse("2026-11-13T20:00:00Z"), war.getDayVoteClosesAt());
+			assertEquals(Set.of(0, 3), war.getDayVotes().get(voter));
+			assertEquals(List.of("ally", "other"), List.copyOf(war.getCallsToArms().keySet()));
+			assertEquals(new CallToArms("Ally", "faction_a", "league", Instant.parse("2026-11-10T18:00:00Z")),
+					war.getCallsToArms().get("ally"));
+			assertNull(war.getCallsToArms().get("other").sentAt());
+			assertEquals(Set.of("ally", "other"), war.getCallableFactionIds());
+
+			WarData roundTripped = WarMapper.toData(war);
+			assertEquals(Boolean.TRUE, roundTripped.buildup);
+			assertEquals("2026-11-17", roundTripped.dayVoteFirstDay);
+			assertEquals("2026-11-13T20:00:00Z", roundTripped.dayVoteClosesAt);
+			assertEquals(2, roundTripped.callsToArms.size());
+			assertNull(roundTripped.callsToArms.get(1).sentAt);
+			assertEquals(List.of("ally", "other"), roundTripped.callableFactionIds);
+			War reloaded = WarMapper.fromData(roundTripped);
+			assertEquals(war.getDayVotes(), reloaded.getDayVotes());
+			assertEquals(war.getCallsToArms(), reloaded.getCallsToArms());
+
+			data.dayVoteFirstDay = " ";
+			data.dayVoteClosesAt = "";
+			War blank = WarMapper.fromData(data);
+			assertNull(blank.getDayVoteFirstDay());
+			assertNull(blank.getDayVoteClosesAt());
+		} finally {
+			FactionManager.factions.remove(attacker);
+			FactionManager.factions.remove(defender);
+		}
+	}
+
 	private static WarData minimalWarData() {
 		WarData data = new WarData();
 		data.id = 9;

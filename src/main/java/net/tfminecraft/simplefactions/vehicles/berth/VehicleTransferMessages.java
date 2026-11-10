@@ -1,5 +1,8 @@
 package net.tfminecraft.simplefactions.vehicles.berth;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
+import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.installation.InstallationOwners;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.berth.InstallationVehicleService.CanRegisterResult;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
@@ -33,6 +36,7 @@ public final class VehicleTransferMessages {
             case NO_CAPACITY -> noCapacity(installation, vehicleTypeId);
             case OUT_OF_RADIUS -> outOfRadius(installation, vehicle);
             case REPAIR_LOCKED -> VehicleInstallationLockService.BERTH_BLOCKED;
+            case FROZEN -> frozen(FactionManager.getByString(InstallationOwners.ownerIdOf(installation)));
         };
     }
 
@@ -48,7 +52,13 @@ public final class VehicleTransferMessages {
             case UNKNOWN_TYPE -> "§cThis vehicle is not registered for faction upkeep.";
             case MUST_BERTH -> "§cThis vehicle belongs at an installation, not in the faction pool.";
             case NO_ARTILLERY_CAPACITY -> noArtilleryCapacity(faction);
+            case FROZEN -> frozen(faction);
         };
+    }
+
+    private static String frozen(Faction faction) {
+        String refusal = PreparationFreeze.refusal(faction, "vehicles");
+        return "§c" + (refusal != null ? refusal : "Your faction cannot take on vehicles right now.");
     }
 
     public static String commandArmed(Installation installation) {

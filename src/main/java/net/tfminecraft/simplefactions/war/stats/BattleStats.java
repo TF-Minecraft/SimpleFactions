@@ -44,6 +44,8 @@ public final class BattleStats {
 			fighter.className = FighterClass.of(player);
 			Faction faction = FactionManager.getByMember(player);
 			fighter.faction = faction == null ? null : faction.getName();
+			fighter.factionId = faction == null ? null : faction.getId();
+			fighter.factionFoundedAt = faction == null || faction.getFoundedAt() <= 0 ? null : faction.getFoundedAt();
 			fighters.put(key, fighter);
 		}
 		fighter.side = side.getId();

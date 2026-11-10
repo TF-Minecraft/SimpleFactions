@@ -1,6 +1,5 @@
 package net.tfminecraft.simplefactions.war.freeze;
 
-import net.tfminecraft.simplefactions.identity.Members;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -10,7 +9,6 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -21,16 +19,31 @@ import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.notice.WarNotices;
 
 /**
- * A postponed battle must not buy either side preparation time. Each postponement
- * freezes every build timer of the factions in that war, and of mercenary companies
- * they host or hire, for {@link Cache#warPostponeFreezeHours}. Raid repair locks are
- * pushed back by the same amount and no new mercenaries can be hired meanwhile.
- * Upkeep and wages keep running.
+ * A war's factions must not build up between the declaration and the first battle, and a
+ * postponed battle must not buy either side preparation time. While a war is in its buildup, or
+ * for {@link Cache#warPostponeFreezeHours} after each postponement, every faction in it, and the
+ * mercenary companies they host or hire, is frozen: running build timers pause and new ones
+ * cannot be started. Raid repair locks are pushed back by each postponement. Hiring mercenaries,
+ * upkeep and wages keep running.
  */
 public final class PreparationFreeze {
+
+	/** Why a faction is frozen. */
+	public enum Reason {
+		/** Until the war's first battle starts. */
+		BUILDUP,
+		/** Until a fixed time after a postponement. */
+		POSTPONED
+	}
+
+	/** A freeze in force: {@code until} is null for a buildup, which ends with the first battle. */
+	public record Freeze(Reason reason, Instant until) {
+	}
 
 	private static Supplier<Collection<War>> activeWars = WarManager::getActive;
 
@@ -62,12 +75,12 @@ public final class PreparationFreeze {
 		notifyMembers(war, hours);
 	}
 
-	/** @return when the latest freeze on this faction ends, or null when it is not frozen */
-	public static Instant frozenUntil(Faction faction, Instant now) {
+	/** The freeze on this faction, or null when it is free to build. A buildup outranks a postponement. */
+	public static Freeze freeze(Faction faction, Instant now) {
 		if (faction == null || faction.getId() == null) {
 			return null;
 		}
-		Instant latest = null;
+		Freeze latest = null;
 		for (War war : activeWars.get()) {
 			if (war == null || !war.isPreparationFrozen(now)) {
 				continue;
@@ -75,57 +88,82 @@ public final class PreparationFreeze {
 			if (!participantIds(war).contains(faction.getId().toLowerCase())) {
 				continue;
 			}
-			latest = later(latest, war.getPreparationFrozenUntil());
+			latest = stronger(latest, of(war, now));
 		}
 		return latest;
 	}
 
 	public static boolean isFrozen(Faction faction) {
-		return frozenUntil(faction, Instant.now()) != null;
+		return freeze(faction, CampaignClock.now()) != null;
 	}
 
 	/** A company freezes with its host faction and with every faction it is serving. */
-	public static Instant frozenUntil(MercenaryCompany company, Instant now) {
+	public static Freeze freeze(MercenaryCompany company, Instant now) {
 		if (company == null || !anyWarFrozen(now)) {
 			return null;
 		}
 		Guild guild = company.getGuild();
-		Instant latest = guild != null ? frozenUntil(guild.getFaction(), now) : null;
+		Freeze latest = guild != null ? freeze(guild.getFaction(), now) : null;
 		for (MercenaryContract contract : company.getContractHandler().getActive()) {
-			latest = later(latest, frozenUntil(contract.getHirer(), now));
+			latest = stronger(latest, freeze(contract.getHirer(), now));
 		}
 		return latest;
 	}
 
 	public static boolean isFrozen(MercenaryCompany company) {
-		return frozenUntil(company, Instant.now()) != null;
+		return freeze(company, CampaignClock.now()) != null;
 	}
 
 	/** Freeze covering a player's own projects, through their faction or their company. */
-	public static Instant frozenUntil(String memberKey, Instant now) {
+	public static Freeze freeze(String memberKey, Instant now) {
 		if (memberKey == null || !anyWarFrozen(now)) {
 			return null;
 		}
-		Instant latest = frozenUntil(FactionManager.getByMember(memberKey), now);
-		return later(latest, frozenUntil(MercenaryCompanies.findByMember(memberKey), now));
+		Freeze latest = freeze(FactionManager.getByMember(memberKey), now);
+		return stronger(latest, freeze(MercenaryCompanies.findByMember(memberKey), now));
 	}
 
-	/** Refusal for a hire by this faction, or null when hiring is open. */
-	public static String hiringBlockedMessage(Faction hirer, Instant now) {
-		Instant until = frozenUntil(hirer, now);
-		if (until == null) {
+	/** Refusal, without colour, for starting something new while frozen; null when it may start. */
+	public static String refusal(Freeze freeze, String what, Instant now) {
+		if (freeze == null) {
 			return null;
 		}
-		return "§cA battle of yours was postponed. No mercenaries can be hired for "
-				+ formatRemaining(until, now) + ".";
+		if (freeze.reason() == Reason.BUILDUP) {
+			return "Your war is in its buildup. No new " + what + " can be started until the first battle.";
+		}
+		return "A battle of yours was postponed. No new " + what + " can be started for "
+				+ formatRemaining(freeze.until(), now) + ".";
+	}
+
+	public static String refusal(Faction faction, String what) {
+		Instant now = CampaignClock.now();
+		return refusal(freeze(faction, now), what, now);
+	}
+
+	public static String refusal(MercenaryCompany company, String what) {
+		Instant now = CampaignClock.now();
+		return refusal(freeze(company, now), what, now);
+	}
+
+	public static String refusalForMember(String memberKey, String what) {
+		Instant now = CampaignClock.now();
+		return refusal(freeze(memberKey, now), what, now);
 	}
 
 	/** Queue lore line for a held timer, or null when the timer is running. */
-	public static String frozenLore(Instant until) {
-		if (until == null) {
+	public static String frozenLore(Freeze freeze) {
+		if (freeze == null) {
 			return null;
 		}
-		return "§cFrozen: battle postponed (" + formatRemaining(until, Instant.now()) + " left)";
+		return "§cFrozen: " + reasonText(freeze, CampaignClock.now());
+	}
+
+	/** {@code war buildup, until the first battle} or {@code battle postponed (3h 0m left)}. */
+	public static String reasonText(Freeze freeze, Instant now) {
+		if (freeze.reason() == Reason.BUILDUP) {
+			return "war buildup, until the first battle";
+		}
+		return "battle postponed (" + formatRemaining(freeze.until(), now) + " left)";
 	}
 
 	public static String formatRemaining(Instant until, Instant now) {
@@ -135,6 +173,22 @@ public final class PreparationFreeze {
 		long mins = minutes % 60;
 		if (hours > 0) return hours + "h " + mins + "m";
 		return mins + "m";
+	}
+
+	private static Freeze of(War war, Instant now) {
+		if (war.isBuildupFrozen()) {
+			return new Freeze(Reason.BUILDUP, null);
+		}
+		return new Freeze(Reason.POSTPONED, war.getPreparationFrozenUntil());
+	}
+
+	/** A buildup lasts until the first battle, so it outlasts any postponement. */
+	private static Freeze stronger(Freeze a, Freeze b) {
+		if (a == null) return b;
+		if (b == null) return a;
+		if (a.reason() == Reason.BUILDUP) return a;
+		if (b.reason() == Reason.BUILDUP) return b;
+		return b.until().isAfter(a.until()) ? b : a;
 	}
 
 	/** Cheap check first: every build timer asks this each second. */
@@ -158,12 +212,6 @@ public final class PreparationFreeze {
 		return ids;
 	}
 
-	private static Instant later(Instant a, Instant b) {
-		if (a == null) return b;
-		if (b == null) return a;
-		return b.isAfter(a) ? b : a;
-	}
-
 	private static void notifyMembers(War war, long hours) {
 		if (Bukkit.getServer() == null) {
 			return;
@@ -171,13 +219,11 @@ public final class PreparationFreeze {
 		Set<String> members = new LinkedHashSet<>();
 		members.addAll(BattleSideMembers.collectEligibleMemberNames(war.getAttackers()));
 		members.addAll(BattleSideMembers.collectEligibleMemberNames(war.getDefenders()));
-		String message = "§eThe battle was postponed. For the next " + hours + "h your regiments, installations, "
-				+ "war upgrades, mercenary companies and vehicle projects are frozen, and no mercenaries can be hired.";
+		String message = "§eA battle of " + war.getName() + " §ewas postponed. For the next " + hours
+				+ "h your regiments, installations, war upgrades, mercenary companies and vehicle projects"
+				+ " are frozen, and none can be started.";
 		for (String member : members) {
-			Player player = Members.player(member);
-			if (player != null) {
-				player.sendMessage(message);
-			}
+			WarNotices.send(member, message);
 		}
 	}
 }

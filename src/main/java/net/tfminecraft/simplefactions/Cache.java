@@ -77,6 +77,10 @@ public class Cache {
 	public static double warReparationsIncomePercent = 25;
 	public static int warReparationsDays = 10;
 	public static int warTruceDays = 10;
+	/** Sends war events and battle records to the website's war pages (war.history.enabled). */
+	public static boolean warHistoryEnabled = true;
+	/** Applies the votes and call to arms answers players make on the website or Discord (war.history.actions_enabled). */
+	public static boolean warActionsEnabled = true;
 	public static Map<WarGoalType, Integer> warGoalMaxBattles = new EnumMap<>(WarGoalType.class);
 	public static final int MAX_BATTLES_PER_LEG = 4;
 	public static List<String> openMarketDefenderMustNotHave = List.of();
@@ -90,8 +94,6 @@ public class Cache {
 	public static int pillageTradeHitDays = 10;
 	public static int warDeclinedAllyStabilityPenalty;
 	public static int warDeclinedCoalitionStabilityPenalty = -45;
-	/** How long a call to arms waits for an answer. Running out is never a decline. */
-	public static int warCallToArmsExpirySeconds = 300;
 	public static boolean warFirstBattleAtBorder;
 	public static int warProvincesBetweenBattles;
 	public static boolean warOccupationIncludeEnemyNeighbors;
@@ -117,6 +119,16 @@ public class Cache {
 	public static boolean warBattleVotingDevMinPlayersEnabled;
 	public static int warBattleVotingMaxPostponements = 1;
 	public static int warPostponeFreezeHours = 24;
+	/** A declared war waits in a buildup, frozen, until its first battle; the sides vote on that battle's day. */
+	public static boolean warBuildupEnabled = true;
+	/** Earliest first battle day, counted in battle days after the declaration's. */
+	public static int warBuildupFirstOptionDay = 7;
+	/** How many days, from the first option on, the day vote offers. */
+	public static int warBuildupDayOptions = 5;
+	/** Hours after the declaration at which the day vote closes. */
+	public static int warBuildupDayVoteCloseHours = 72;
+	/** Days an undelivered war notice waits for its character to log in. */
+	public static int warNoticeKeepDays = 14;
 	public static double warAutoresolveLuck = 0.15;
 	public static double warAutoresolveLoserLossFraction = 0.5;
 	public static int warBattleLivesPerRegiment;

@@ -27,6 +27,10 @@ stored vehicles. For an installation named `pool` or `personal`, use
 
 [TFMCWeb](https://github.com/TF-Minecraft/TFMCWeb) presents the world map, borders, settlements, and military activity on the website.
 
+The website's war pages follow each war as it happens: who declared it and who joined, the battle day, every battle with its losses per faction, and how the war ended. SimpleFactions keeps these events and finished battle records in `plugins/SimpleFactions/WarHistory/outbox.jsonl` until the website confirms them, so nothing is lost while it is unreachable. `war.history.enabled` in `war.yml` turns this off. Staff can check what is waiting with `/war admin history status` and send battles fought before the war pages existed with `/war admin history upload-battles`.
+
+Players can also vote on the first battle day and the battle hour on a war's page, and a faction leader can answer a call to arms there or from a Discord DM. The website queues each of these; every five seconds SimpleFactions fetches them, checks each exactly as it checks the same click in game (a web vote does not need the player to be online), and tells the website whether it was applied or why not. The results of the last 1000 are kept in `WarHistory/actions-applied.json`, so an action is never applied twice. `war.history.actions_enabled` in `war.yml` turns this off; `/war admin history status` shows it too.
+
 ## Project background
 
 Created by Drefvelin, with inspiration from Paradox Interactive. The original project notes credit ChatGPT for troubleshooting, some code assistance, and README editing.

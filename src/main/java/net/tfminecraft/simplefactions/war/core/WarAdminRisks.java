@@ -4,8 +4,10 @@ import java.util.Locale;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignDurationParser;
+import net.tfminecraft.simplefactions.war.history.WarHistoryAdmin;
 
 /**
  * Which {@code /war admin} commands have effects staff cannot take back, and what those
@@ -29,10 +31,12 @@ public final class WarAdminRisks {
 			case "devmode" -> devmode(lower(args[2]));
 			case "time" -> time(args);
 			case "schedule" -> args.length >= 4 && knownWar(args[2]) ? scheduleIfApplies(args) : null;
+			case "buildup" -> args.length >= 4 && knownWar(args[2]) ? buildup(args) : null;
 			case "reparations" -> args.length >= 4 && FactionManager.getByString(args[2]) != null
 					&& FactionManager.getByString(args[3]) != null
 					? "makes one faction pay part of its income to another for days." : null;
 			case "truce" -> truce(lower(args[2]));
+			case "history" -> lower(args[2]).equals("upload-battles") ? WarHistoryAdmin.UPLOAD_RISK : null;
 			case "forceinstallation" -> WarForceInstallation.risk(args);
 			default -> null;
 		};
@@ -46,6 +50,10 @@ public final class WarAdminRisks {
 	/** The battle tools only ask when the war's battle is running and, to restart or stop it, not a raid. */
 	private static String scheduleIfApplies(String[] args) {
 		String action = lower(args[3]);
+		War war = WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElseThrow();
+		if (BuildupService.isDayVoteOpen(war) && WarCommandManager.BUILDUP_REFUSED.contains(action)) {
+			return null;
+		}
 		if (action.equals("setscheduled")) {
 			return args.length >= 5 && pastInstant(args[4])
 					? "that time has already passed, so the battle starts within a minute and teleports its soldiers."
@@ -126,6 +134,24 @@ public final class WarAdminRisks {
 		}
 	}
 
+	/** Asks only for commands that will run: a bad date or a war with nothing to change gets its usage line instead. */
+	private static String buildup(String[] args) {
+		War war = WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElseThrow();
+		String action = lower(args[3]);
+		if (action.equals("setday") && (args.length < 5 || !isDate(args[4]) || !war.isBuildupFrozen())) {
+			return null;
+		}
+		if (action.equals("closevote") && !BuildupService.isDayVoteOpen(war)) {
+			return null;
+		}
+		return switch (action) {
+			case "end" -> "lifts the war's buildup freeze now; a war still voting on its day gets the next battle day.";
+			case "closevote" -> "closes the first battle day vote now and fixes its result.";
+			case "setday" -> "sets the first battle day and closes the day vote.";
+			default -> null;
+		};
+	}
+
 	private static String schedule(String action) {
 		return switch (action) {
 			case "setday", "skipday" ->
@@ -154,5 +180,14 @@ public final class WarAdminRisks {
 
 	private static String lower(String value) {
 		return value.toLowerCase(Locale.ROOT);
+	}
+
+	private static boolean isDate(String value) {
+		try {
+			java.time.LocalDate.parse(value);
+			return true;
+		} catch (java.time.format.DateTimeParseException notADate) {
+			return false;
+		}
 	}
 }
