@@ -244,6 +244,24 @@ class WarHistoryEventsTest {
 	}
 
 	@Test
+	void theNextBattleDayIsRecordedWhenItsHourVoteOpens() {
+		War war = war(48);
+		war.setBattleDay(LocalDate.parse("2026-11-19"));
+		BattleScheduleService.openVote(war);
+		assertEquals("2026-11-19", payload(last("next_battle_day")).get("battle_day").getAsString());
+		assertEquals("voting", last("next_battle_day").getAsJsonObject("state").get("schedule_phase").getAsString());
+
+		war.setBattleDay(LocalDate.parse("2026-11-01"));
+		BattleScheduleService.catchUpStaleBattleDay(war, Instant.parse("2026-11-10T09:00:00Z"));
+		assertEquals(war.getBattleDay().toString(), payload(last("next_battle_day")).get("battle_day").getAsString());
+
+		int before = events().size();
+		war.setBattleDay(null);
+		WarHistoryEvents.nextBattleDay(war);
+		assertEquals(before, events().size(), "No battle day, nothing to record");
+	}
+
+	@Test
 	void aScheduledBattleNamesItsKindFromTheActiveSlot() {
 		War war = war(44);
 		war.setScheduledBattleAt(Instant.parse("2026-11-19T20:00:00Z"));
@@ -492,6 +510,8 @@ class WarHistoryEventsTest {
 	@Test
 	void namesLoseTheirColoursAndAMissingLeaderStillNamesTheWar() {
 		assertEquals("Iron Pact", WarHistoryJson.clean(" §x§a§8§3§1§1§6#a83116Iron §lPact "));
+		// Gradient names double the section sign before each colour.
+		assertEquals("The Jolly", WarHistoryJson.clean("§§x§B§C§1§2§3§4T§§x§B§C§1§2§3§5he §§x§B§C§1§2§3§6Jolly"));
 		assertNull(WarHistoryJson.clean(null));
 		War leaderless = mock(War.class);
 		when(leaderless.getId()).thenReturn(7);

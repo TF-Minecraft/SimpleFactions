@@ -42,7 +42,8 @@ public final class WarHistoryJson {
 		if (raw == null) {
 			return null;
 		}
-		return ChatColor.stripColor(HEX.matcher(raw).replaceAll("")).trim();
+		// Gradient names repeat the section sign (§§x§B§C...); a single pass of stripColor would leave one per letter.
+		return ChatColor.stripColor(HEX.matcher(raw.replaceAll("§{2,}", "§")).replaceAll("")).trim();
 	}
 
 	public static String instant(Instant at) {

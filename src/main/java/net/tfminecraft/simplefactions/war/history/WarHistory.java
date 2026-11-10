@@ -57,6 +57,8 @@ public final class WarHistory {
 		sender = new WarHistorySender(outbox, (path, json) -> GatewayClient.request("POST", path, json),
 				GatewayClient::realmId, WarHistory::warn, Clock.systemUTC());
 		task = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, WarHistory::flush, SEND_TICKS, SEND_TICKS);
+		logger.info("War history " + (Cache.warHistoryEnabled ? "on" : "off") + ": " + outbox.size()
+				+ " items waiting to be sent to the website");
 	}
 
 	/** Stops sending; the outbox stays on disk for the next start. */

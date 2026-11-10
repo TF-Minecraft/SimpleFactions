@@ -112,6 +112,7 @@ public final class BattleScheduleService {
 		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		clearScheduledTargets(war);
 		war.setDefenderChoiceResolved(false);
+		WarHistoryEvents.nextBattleDay(war);
 	}
 
 	public static BattleScheduleCloseResult closeVote(
@@ -323,6 +324,7 @@ public final class BattleScheduleService {
 		}
 		war.setBattleDay(firstVotableBattleDay(current, now));
 		startFreshBattleDay(war);
+		WarHistoryEvents.nextBattleDay(war);
 		return true;
 	}
 

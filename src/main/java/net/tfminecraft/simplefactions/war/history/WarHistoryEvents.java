@@ -92,6 +92,18 @@ public final class WarHistoryEvents {
 		});
 	}
 
+	/** The war's hour vote opened on a new battle day, so the website shows the day that is next, not the last one. */
+	public static void nextBattleDay(War war) {
+		if (war.getBattleDay() == null) {
+			return;
+		}
+		record(war, "next_battle_day", () -> {
+			JsonObject payload = new JsonObject();
+			payload.addProperty("battle_day", war.getBattleDay().toString());
+			return payload;
+		});
+	}
+
 	public static void battleResolved(ResolvedBattle facts) {
 		record(facts.war(), "battle_resolved", () -> resolvedPayload(facts));
 	}
