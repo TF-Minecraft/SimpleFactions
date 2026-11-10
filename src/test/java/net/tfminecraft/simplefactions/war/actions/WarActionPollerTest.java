@@ -86,8 +86,9 @@ class WarActionPollerTest {
 
 		assertEquals(List.of("GET " + WarActionPoller.PENDING_PATH + "?realm=dev&limit=50", "flush",
 				"POST " + WarActionPoller.APPLIED_PATH), requests);
-		assertEquals("{\"results\":[{\"id\":1,\"status\":\"applied\",\"reason\":null},"
-				+ "{\"id\":2,\"status\":\"rejected\",\"reason\":\"The vote on the battle hour is closed.\"}]}",
+		assertEquals("{\"results\":[{\"id\":1,\"status\":\"applied\",\"reason\":null,\"retry\":false},"
+				+ "{\"id\":2,\"status\":\"rejected\",\"reason\":\"The vote on the battle hour is closed.\","
+				+ "\"retry\":false}]}",
 				bodies.get(0));
 		verify(applier).apply(argThat(action -> action.id() == 1 && action.kind().equals("hour_vote")
 				&& action.warKey().equals("w3-1762771200") && action.account().equals(UUID.fromString(ACCOUNT))
@@ -217,8 +218,28 @@ class WarActionPollerTest {
 		JsonObject result = lastBody().getAsJsonArray("results").get(0).getAsJsonObject();
 		assertEquals("rejected", result.get("status").getAsString());
 		assertEquals("The server could not apply this action. Try again.", result.get("reason").getAsString());
+		assertTrue(result.get("retry").getAsBoolean(), "A server failure may pass on a later try");
 		assertEquals("Could not apply website action 3 (call_to_arms_answer): java.lang.IllegalStateException: boom",
 				warnings.get(0));
+	}
+
+	@Test
+	void resultsSayWhetherARetryCanWork() {
+		assertFalse(WarActionResult.applied(1).retry());
+		assertTrue(WarActionResult.rejected(2, net.tfminecraft.simplefactions.war.core.CallToArmsService.BATTLE_UNDERWAY).retry());
+		assertFalse(WarActionResult.rejected(3, WarActionApplier.NOT_LEADER).retry());
+		assertFalse(WarActionResult.rejected(3, WarActionApplier.NOT_LEADER).toJson().get("retry").getAsBoolean());
+		// A ledger written before the flag works it out from the reason.
+		JsonObject old = new JsonObject();
+		old.addProperty("id", 4);
+		old.addProperty("status", "rejected");
+		old.addProperty("reason", WarActionResult.APPLY_FAILED);
+		assertTrue(WarActionResult.fromJson(old).retry());
+		old.addProperty("retry", false);
+		assertFalse(WarActionResult.fromJson(old).retry());
+		old.addProperty("status", "applied");
+		old.remove("retry");
+		assertFalse(WarActionResult.fromJson(old).retry());
 	}
 
 	@Test

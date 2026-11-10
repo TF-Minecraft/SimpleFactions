@@ -140,7 +140,7 @@ final class WarActionPoller {
 			return applier.apply(action);
 		} catch (RuntimeException failed) {
 			warn.accept("Could not apply website action " + action.id() + " (" + action.kind() + "): " + failed);
-			return WarActionResult.rejected(action.id(), "The server could not apply this action. Try again.");
+			return WarActionResult.rejected(action.id(), WarActionResult.APPLY_FAILED);
 		}
 	}
 
