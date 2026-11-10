@@ -165,12 +165,16 @@ public final class CallToArmsService {
 			return;
 		}
 		Faction origin = FactionManager.getByString(call.callerFactionId());
-		if (!war.isActive() || WarManager.getById(war.getId()) != war
+		// An ended or replaced war object must not be saved again: that would bring back its file.
+		boolean current = war.isActive() && WarManager.getById(war.getId()) == war;
+		if (!current
 				|| origin == null
 				|| !(RelationManager.getAllies(origin).contains(receiver) || CoalitionWars.canCallMember(war, origin, receiver))
 				|| !CallToArmsEligibility.canCall(war, origin, receiver).allowed()
 				|| !war.call(origin, receiver)) {
-			WarManager.persist(war);
+			if (current) {
+				WarManager.persist(war);
+			}
 			player.sendMessage("§cCould not join the war.");
 			return;
 		}
