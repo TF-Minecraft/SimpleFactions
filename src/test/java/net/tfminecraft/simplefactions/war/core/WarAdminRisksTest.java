@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -169,6 +170,9 @@ class WarAdminRisksTest {
 		assertNotNull(risk("admin", "truce", "clear", "a", "b"));
 		assertNotNull(risk("admin", "truce", "clearcooldown", "a"));
 		assertNull(risk("admin", "truce", "list"));
+		assertEquals(net.tfminecraft.simplefactions.war.history.WarHistoryAdmin.UPLOAD_RISK,
+				risk("admin", "history", "upload-battles"));
+		assertNull(risk("admin", "history", "status"));
 	}
 
 	@Test

@@ -642,6 +642,14 @@ class WarCommandsCoverageTest {
   }
 
   @Test
+  void staffReachTheWarHistoryCommands() {
+    assertTrue(run("admin", "history"));
+    verify(alice).sendMessage(net.tfminecraft.simplefactions.war.history.WarHistoryAdmin.USAGE);
+    assertTrue(run("admin", "history", "status"));
+    verify(alice).sendMessage("§7Not started.");
+  }
+
+  @Test
   void staffListAndClearTrucesByFaction() {
     Faction other = fixture.saved("hill", "Carol");
     java.time.Instant until = java.time.Instant.now().plus(Duration.ofDays(3)).plusSeconds(60);
@@ -918,8 +926,12 @@ class WarCommandsCoverageTest {
                 "raid",
                 "reparations",
                 "truce",
+                "history",
                 "factions",
                 "forceinstallation")),
+        Arguments.of("admin history ", List.of("status", "upload-battles")),
+        Arguments.of("admin history u", List.of("upload-battles")),
+        Arguments.of("admin history status ", List.of()),
         Arguments.of("admin truce ", List.of("list", "clear", "cooldowns", "clearcooldown")),
         Arguments.of("admin truce clearc", List.of("clearcooldown")),
         Arguments.of("admin truce clearcooldown r", List.of("river")),

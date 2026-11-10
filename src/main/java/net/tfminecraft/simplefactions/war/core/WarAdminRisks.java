@@ -7,6 +7,7 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignDurationParser;
+import net.tfminecraft.simplefactions.war.history.WarHistoryAdmin;
 
 /**
  * Which {@code /war admin} commands have effects staff cannot take back, and what those
@@ -35,6 +36,7 @@ public final class WarAdminRisks {
 					&& FactionManager.getByString(args[3]) != null
 					? "makes one faction pay part of its income to another for days." : null;
 			case "truce" -> truce(lower(args[2]));
+			case "history" -> lower(args[2]).equals("upload-battles") ? WarHistoryAdmin.UPLOAD_RISK : null;
 			case "forceinstallation" -> WarForceInstallation.risk(args);
 			default -> null;
 		};

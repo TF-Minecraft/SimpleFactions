@@ -36,6 +36,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.truce.TruceService;
+import net.tfminecraft.simplefactions.war.history.WarHistoryAdmin;
 
 public class WarCommandManager implements CommandExecutor {
 	public static final String CMD = "war";
@@ -50,7 +51,7 @@ public class WarCommandManager implements CommandExecutor {
 		if (args.length < 1) {
 			player.sendMessage("§eUsage: §a/war list§e, §a/war calls§e, §a/war call accept|decline <war id>");
 			if (Permissions.isAdmin(sender)) {
-				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|factions|forceinstallation §7...");
+				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation §7...");
 			}
 			return true;
 		}
@@ -107,7 +108,7 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 2) {
-			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|factions|forceinstallation ...");
+			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation ...");
 			return true;
 		}
 		String subcommand = args[1].toLowerCase(java.util.Locale.ROOT);
@@ -124,13 +125,17 @@ public class WarCommandManager implements CommandExecutor {
 			case "raid" -> handleRaid(player, args);
 			case "reparations" -> handleReparations(player, args);
 			case "truce" -> handleTruce(player, args);
+			case "history" -> {
+				WarHistoryAdmin.handle(player, args);
+				yield true;
+			}
 			case "factions" -> handleFactions(player, args);
 			case "forceinstallation" -> {
 				player.sendMessage(WarForceInstallation.run(args, player.getName()));
 				yield true;
 			}
 			default -> {
-				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, factions, forceinstallation");
+				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, history, factions, forceinstallation");
 				yield true;
 			}
 		};

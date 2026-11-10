@@ -55,6 +55,7 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[1], "raid");
 			addIfPrefix(completions, args[1], "reparations");
 			addIfPrefix(completions, args[1], "truce");
+			addIfPrefix(completions, args[1], "history");
 			addIfPrefix(completions, args[1], "factions");
 			addIfPrefix(completions, args[1], "forceinstallation");
 			return completions;
@@ -73,6 +74,12 @@ public class WarTabCompletion implements TabCompleter {
 		}
 		if (args.length == 4 && args[1].equalsIgnoreCase("reparations")) {
 			return factionIds(args[3]);
+		}
+		if (args.length == 3 && args[1].equalsIgnoreCase("history")) {
+			List<String> completions = new ArrayList<>();
+			addIfPrefix(completions, args[2], "status");
+			addIfPrefix(completions, args[2], "upload-battles");
+			return completions;
 		}
 		if (args.length == 3 && args[1].equalsIgnoreCase("truce")) {
 			List<String> completions = new ArrayList<>();
