@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -60,11 +61,29 @@ public class RestServer {
 	}
 
 	public static void upload(String mode, File file) {
-		if (!Cache.mapEnabled) return;
-		if (mode.equals("chronicle") && !Cache.chronicleEnabled) return;
+		send(mode, file);
+	}
 
-		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-			var payload = JsonParser.parseReader(reader);
+	/** Uploads like {@link #upload} and says whether the website took it. */
+	public static boolean send(String mode, File file) {
+		return post(mode, () -> {
+			try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+				return JsonParser.parseReader(reader);
+			}
+		});
+	}
+
+	/** Uploads this exact JSON, rather than whatever a file holds by the time it is read. */
+	public static boolean sendJson(String mode, String json) {
+		return post(mode, () -> JsonParser.parseString(json));
+	}
+
+	private static boolean post(String mode, Callable<JsonElement> source) {
+		if (!Cache.mapEnabled) return false;
+		if (mode.equals("chronicle") && !Cache.chronicleEnabled) return false;
+
+		try {
+			var payload = source.call();
 
 			validate(mode, payload);
 
@@ -77,12 +96,13 @@ public class RestServer {
 
 			if (result.ok) {
 				logger().info(mode + " data uploaded");
-			} else {
-				logger().warning("Upload failed for " + mode + ": " + result.error);
+				return true;
 			}
+			logger().warning("Upload failed for " + mode + ": " + result.error);
 		} catch (Exception e) {
 			logger().log(Level.WARNING, "Upload failed for " + mode, e);
 		}
+		return false;
 	}
 
 	static void validate(String mode, JsonElement payload) {

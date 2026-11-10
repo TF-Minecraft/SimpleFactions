@@ -36,6 +36,7 @@ class CoalitionStorageAndCostTest extends CoalitionTestBase {
 		league.setTargetLostAt(5L);
 		league.setTargetLossPausedMillis(7L);
 		league.setSingleMemberSince(9L);
+		league.setRgb("9,8,7");
 		CoalitionRegistry.setCooldown("Gone", CoalitionRegistry.now() + 1000);
 		CoalitionRegistry.save();
 
@@ -56,6 +57,7 @@ class CoalitionStorageAndCostTest extends CoalitionTestBase {
 		assertEquals(5L, loaded.getTargetLostAt());
 		assertEquals(7L, loaded.getTargetLossPausedMillis());
 		assertEquals(9L, loaded.getSingleMemberSince());
+		assertEquals("9,8,7", loaded.getRgb());
 		assertEquals(league.getCreatedAt(), loaded.getCreatedAt());
 		assertNotNull(CoalitionRegistry.cooldownUntil("gone"));
 		assertNull(loaded.joinedAt("holy"));
