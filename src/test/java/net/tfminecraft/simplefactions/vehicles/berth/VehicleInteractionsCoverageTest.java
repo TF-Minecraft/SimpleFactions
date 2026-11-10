@@ -175,7 +175,15 @@ class VehicleInteractionsCoverageTest {
     battles.set(null, new ArrayList<>());
     Field warbands = snapshot(WarbandManager.class, "bands");
     warbands.set(null, new ArrayList<>());
-    VehiclesConfigLoader.load(Path.of("src/main/resources/vehicles.yml").toFile());
+    // The fee arithmetic below is written for an ironclad upkeep of 20; pin it so
+    // rebalancing the bundled defaults does not move these expectations.
+    var vehicles =
+        org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+            Path.of("src/main/resources/vehicles.yml").toFile());
+    vehicles.set("categories.ships.ironclad.upkeep", 20);
+    java.io.File vehiclesFile = files.root.resolve("vehicles.yml").toFile();
+    vehicles.save(vehiclesFile);
+    VehiclesConfigLoader.load(vehiclesFile);
     InstallationConfigLoader.load(Path.of("src/main/resources/installations.yml").toFile());
     faction = fixture.saved("home", "Leader");
     faction.getOrCreateMainGuild();

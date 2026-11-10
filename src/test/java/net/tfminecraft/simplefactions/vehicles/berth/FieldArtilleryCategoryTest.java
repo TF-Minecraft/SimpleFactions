@@ -21,7 +21,7 @@ class FieldArtilleryCategoryTest {
 		InstallationConfigLoader.load(resource("installations.yml"));
 
 		assertEquals("artillery", VehiclesConfigLoader.getCategoryId("field_artillery").orElseThrow());
-		assertEquals(4.0, VehiclesConfigLoader.getUpkeep("field_artillery"));
+		assertEquals(1.0, VehiclesConfigLoader.getUpkeep("field_artillery"));
 		assertEquals(1, VehiclesConfigLoader.getSize("field_artillery"));
 		assertEquals("static_emplacements", VehiclesConfigLoader.getCategoryId("fixed_artillery").orElseThrow());
 		assertFalse(VehicleCategoryRules.isBerthableCategory("artillery"));
