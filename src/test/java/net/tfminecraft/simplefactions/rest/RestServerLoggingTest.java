@@ -1,11 +1,16 @@
 package net.tfminecraft.simplefactions.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.endsWith;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -87,6 +92,22 @@ class RestServerLoggingTest {
         for (LogRecord record : records) {
             assertEquals(Level.WARNING, record.getLevel());
             assertSame(failure, record.getThrown());
+        }
+    }
+
+    @Test
+    void sendJsonPostsTheGivenPayloadAndSaysWhetherItWasTaken() {
+        try (var gateway = mockStatic(GatewayClient.class)) {
+            gateway.when(() -> GatewayClient.request(eq("POST"), endsWith("/data/upload/coalitions"), anyString()))
+                    .thenReturn(GatewayClient.Result.success("{}"));
+            assertTrue(RestServer.sendJson("coalitions", "{\"coalitions\": []}"));
+            gateway.verify(() -> GatewayClient.request(eq("POST"), endsWith("/data/upload/coalitions"),
+                    eq("{\"coalitions\":[]}")));
+
+            assertFalse(RestServer.sendJson("coalitions", "{not json"));
+            Cache.mapEnabled = false;
+            assertFalse(RestServer.sendJson("coalitions", "{}"));
+            gateway.verify(() -> GatewayClient.request(anyString(), anyString(), eq("{}")), never());
         }
     }
 }

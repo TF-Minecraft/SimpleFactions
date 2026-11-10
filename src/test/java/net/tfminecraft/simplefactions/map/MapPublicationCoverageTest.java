@@ -133,12 +133,10 @@ class MapPublicationCoverageTest {
   void coalitionsAreOnlySentWhenTheyChangeOrTheWebsiteMissedThem() throws Exception {
     List<String> sent = new ArrayList<>();
     boolean[] accept = {false};
-    rest.when(() -> RestServer.send(anyString(), any(File.class)))
+    rest.when(() -> RestServer.sendJson(eq("coalitions"), anyString()))
         .thenAnswer(
             call -> {
-              File file = call.getArgument(1);
-              assertTrue(file.isFile());
-              sent.add(Files.readString(file.toPath()));
+              sent.add(call.getArgument(1));
               return accept[0];
             });
     try {
@@ -182,7 +180,40 @@ class MapPublicationCoverageTest {
     map.prepareLiveFiles();
     verify(logger).severe("[SimpleFactions] Failed to export coalitions.json");
     map.uploadLiveFiles();
-    rest.verify(() -> RestServer.send(anyString(), any(File.class)), never());
+    rest.verify(() -> RestServer.sendJson(anyString(), anyString()), never());
+  }
+
+  @Test
+  void aCoalitionExportDuringAnUploadIsSentOnTheNextCycle() throws Exception {
+    List<String> sent = new ArrayList<>();
+    rest.when(() -> RestServer.sendJson(eq("coalitions"), anyString()))
+        .thenAnswer(
+            call -> {
+              sent.add(call.getArgument(1));
+              if (sent.size() == 1) {
+                // A later cycle exports while this upload is still in flight.
+                net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry.add(
+                    new net.tfminecraft.simplefactions.diplomacy.coalition.Coalition(
+                        "c1", "Pact", "home", "home", 1));
+                map.exportCoalitions();
+              }
+              return true;
+            });
+    try {
+      map.prepareLiveFiles();
+      map.uploadLiveFiles();
+      assertEquals(1, sent.size());
+      assertFalse(sent.get(0).contains("\"c1\""));
+      assertTrue(Files.readString(files.root.resolve("MapAPI/coalitions.json")).contains("\"c1\""));
+      // The first upload is recorded as the payload it sent, so the newer export still goes out.
+      map.uploadLiveFiles();
+      assertEquals(2, sent.size());
+      assertTrue(sent.get(1).contains("\"c1\""));
+      map.uploadLiveFiles();
+      assertEquals(2, sent.size());
+    } finally {
+      net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry.reset();
+    }
   }
 
   @Test

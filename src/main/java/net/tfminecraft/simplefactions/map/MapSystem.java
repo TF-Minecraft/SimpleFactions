@@ -126,12 +126,18 @@ public class MapSystem {
 		RestServer.upload("guilds", new File("plugins/SimpleFactions/MapAPI/guilds.json"));
 		RestServer.upload("chronicle", new File("plugins/SimpleFactions/MapAPI/chronicle.json"));
 		// Every coalition upload makes the website repaint its layer, so only send changes.
-		String coalitions = coalitionsExported;
-		if (coalitions != null && !coalitions.equals(coalitionsPublished)
-				&& RestServer.send("coalitions", new File(COALITIONS_FILE))) {
-			coalitionsPublished = coalitions;
+		// Send the exported string itself: the file may already hold a later export. One
+		// upload at a time, so what is recorded as published is what the website last took.
+		synchronized (coalitionUploadLock) {
+			String coalitions = coalitionsExported;
+			if (coalitions != null && !coalitions.equals(coalitionsPublished)
+					&& RestServer.sendJson("coalitions", coalitions)) {
+				coalitionsPublished = coalitions;
+			}
 		}
 	}
+
+	private final Object coalitionUploadLock = new Object();
 
 	private static final String COALITIONS_FILE = "plugins/SimpleFactions/MapAPI/coalitions.json";
 

@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -65,11 +66,24 @@ public class RestServer {
 
 	/** Uploads like {@link #upload} and says whether the website took it. */
 	public static boolean send(String mode, File file) {
+		return post(mode, () -> {
+			try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+				return JsonParser.parseReader(reader);
+			}
+		});
+	}
+
+	/** Uploads this exact JSON, rather than whatever a file holds by the time it is read. */
+	public static boolean sendJson(String mode, String json) {
+		return post(mode, () -> JsonParser.parseString(json));
+	}
+
+	private static boolean post(String mode, Callable<JsonElement> source) {
 		if (!Cache.mapEnabled) return false;
 		if (mode.equals("chronicle") && !Cache.chronicleEnabled) return false;
 
-		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-			var payload = JsonParser.parseReader(reader);
+		try {
+			var payload = source.call();
 
 			validate(mode, payload);
 
