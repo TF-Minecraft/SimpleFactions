@@ -125,6 +125,23 @@ class WarNoticesTest {
 	}
 
 	@Test
+	void sendingDropsNoticesTooOldToBeShown() throws Exception {
+		WarNotices.Inbox stored = new WarNotices.Inbox();
+		WarNotices.Notice old = new WarNotices.Notice();
+		old.at = System.currentTimeMillis() - 15 * 86_400_000L;
+		old.text = "old";
+		stored.notices.add(old);
+		Files.createDirectories(inbox(OFFLINE).toPath().getParent());
+		JsonUtil.writeJson(inbox(OFFLINE), stored);
+
+		WarNotices.send(OFFLINE, "fresh");
+
+		WarNotices.Inbox kept = JsonUtil.readJson(inbox(OFFLINE), WarNotices.Inbox.class);
+		assertEquals(1, kept.notices.size());
+		assertEquals("fresh", kept.notices.get(0).text);
+	}
+
+	@Test
 	void anUnreadableInboxIsLoggedAndReplaced() throws Exception {
 		Files.createDirectories(inbox(OFFLINE).toPath().getParent());
 		Files.writeString(inbox(OFFLINE).toPath(), "{ not json");

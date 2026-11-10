@@ -55,6 +55,9 @@ public final class WarNotices {
 			return;
 		}
 		Inbox inbox = read(file);
+		long cutoff = System.currentTimeMillis() - Cache.warNoticeKeepDays * 86_400_000L;
+		// Characters that are never played again must not collect news forever.
+		inbox.notices.removeIf(old -> old == null || old.at < cutoff);
 		Notice notice = new Notice();
 		notice.at = System.currentTimeMillis();
 		notice.text = text;

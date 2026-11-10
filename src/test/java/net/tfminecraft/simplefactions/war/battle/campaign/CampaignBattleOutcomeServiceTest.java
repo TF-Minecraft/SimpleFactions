@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -143,6 +144,23 @@ class CampaignBattleOutcomeServiceTest {
 		assertEquals(CampaignSideRole.AGGRESSOR, war.getFortControllers().get(fort.getStableKey()));
 		assertEquals(1, war.getCampaignScheduleIndex());
 		assertEquals(1, war.getCampaignBattlesFought());
+	}
+
+	@Test
+	void applyCampaignBattleOutcome_settledWithoutAFight_endsTheBuildupFreeze() {
+		War war = baseWar();
+		war.setCampaignBattleSchedule(List.of(
+				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
+		war.setCampaignScheduleIndex(0);
+		war.setBuildup(true);
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+		assertTrue(war.isBuildupFrozen());
+
+		// A forfeit or naval auto-loss applies the outcome without the battle ever starting.
+		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.ATTACKER, 20);
+
+		assertFalse(war.hasFirstBattleStarted());
+		assertFalse(war.isBuildupFrozen());
 	}
 
 	@Test

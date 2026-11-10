@@ -129,6 +129,8 @@ public class CampaignBattleOutcomeService implements Listener {
 		}
 
 		war.setPostponementsThisCycle(0);
+		// A forfeit, naval auto-loss, autoresolve or staff result settles the first battle as surely as a fight.
+		war.setBuildup(false);
 
 		CampaignPushTarget preBattlePushTarget = war.getPushTarget();
 		ObjectiveHolder preBattleObjectiveHeldBy = war.getObjectiveHeldBy();

@@ -573,7 +573,8 @@ public class WarCommandManager implements CommandExecutor {
 	/** Schedule and battle tools that would leave a war voting on its day in a broken state. */
 	private static final java.util.Set<String> BUILDUP_REFUSED = java.util.Set.of(
 			"opencvote", "closevote", "skipday", "castvote", "forcequorum", "setday", "sethour", "setscheduled",
-			"battlecreate", "battlestart");
+			"battlecreate", "battlestart", "winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice",
+			"holdchoice");
 
 	private boolean handleBuildup(Player player, String[] args) {
 		if (args.length < 4) {
