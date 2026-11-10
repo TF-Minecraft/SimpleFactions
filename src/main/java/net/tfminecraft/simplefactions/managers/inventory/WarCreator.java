@@ -170,6 +170,9 @@ public class WarCreator {
 		lore.add(" ");
 		if(called) {
 			lore.add(StringFormatter.formatHex("#2757cc§lCalled!"));
+		} else if(f.getId() != null && w.getCallsToArms().containsKey(f.getId().toLowerCase(java.util.Locale.ROOT))) {
+			lore.add(StringFormatter.formatHex("#d4c9aeCall to arms sent"));
+			lore.add(StringFormatter.formatHex("#a39ba8Waiting for their leader to answer"));
 		} else {
 			lore.add(StringFormatter.formatHex("#8a4152Not Called!"));
 			if(pf != null && par.getLeader().getId().equalsIgnoreCase(pf.getId())) {

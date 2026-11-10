@@ -180,7 +180,7 @@ public class CampaignCreator {
 		lines.add(StringFormatter.formatHex(CampaignUiCopy.WARNING + "Buildup: frozen until the first battle"));
 		lines.add(StringFormatter.formatHex(
 				CampaignUiCopy.LABEL + "Day Vote Closes: "
-						+ CampaignUiCopy.VALUE + CampaignUiTimeFormatter.formatInstant(war.getDayVoteClosesAt())));
+						+ CampaignUiCopy.VALUE + CampaignUiTimeFormatter.formatDateTime(war.getDayVoteClosesAt())));
 		lines.add(StringFormatter.formatHex(
 				CampaignUiCopy.LABEL + "Status: "
 						+ CampaignUiCopy.STATUS_HIGHLIGHT + CampaignUiCopy.resolveActivityStatus(war)));

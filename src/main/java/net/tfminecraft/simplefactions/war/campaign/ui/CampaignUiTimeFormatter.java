@@ -26,6 +26,14 @@ public final class CampaignUiTimeFormatter {
 		return formatInstant(instant);
 	}
 
+	/** {@code 13/11/2026 10:50 CET / 04:50 EST}: for times that are not on the battle day. */
+	public static String formatDateTime(Instant instant) {
+		if (instant == null) {
+			return "-";
+		}
+		return CampaignUiCopy.formatBattleDay(instant.atZone(CET_ZONE).toLocalDate()) + " " + formatInstant(instant);
+	}
+
 	public static String formatInstant(Instant instant) {
 		if (instant == null) {
 			return "-";

@@ -224,6 +224,16 @@ class WarMenusCoverageTest {
     assertTrue(lore(item).contains("Called!"));
   }
 
+  @Test
+  void anAllyWithAnOpenCallShowsItAsWaitingForAnAnswer() {
+    war.getCallsToArms().put("defender",
+        new net.tfminecraft.simplefactions.war.core.CallToArms("defender", "attacker", null, null));
+    ItemStack item =
+        view.creator.createSecondaryItem(player, war.getParticipant(attacker), war, defender, false, false);
+    assertTrue(lore(item).contains("Call to arms sent"));
+    assertFalse(lore(item).contains("Click to call!"));
+  }
+
   @ParameterizedTest
   @EnumSource(
       value = SFGUI.class,

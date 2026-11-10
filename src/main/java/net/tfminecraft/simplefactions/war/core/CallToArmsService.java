@@ -182,9 +182,9 @@ public final class CallToArmsService {
 		WarCommitmentService.snapshotLevyForFighter(war, receiver);
 		// A secondary only counts as a participant once it has joined, so contracts are re-checked here.
 		MercenaryLoyaltyWatcher.onWarJoined(receiver);
-		WarNotices.send(origin.getLeader(), receiver.getName() + " §aaccepted your call to arms in the "
+		WarNotices.send(origin.getLeader(), receiver.getName() + " §aaccepted your call to arms: "
 				+ war.getName() + "§a.");
-		player.sendMessage("§aYour faction has joined the " + war.getName());
+		player.sendMessage("§aYour faction has joined the war: " + war.getName());
 		WarManager.notifyWarDeclared(receiver.getMembers());
 		WarManager.persist(war);
 		// The joiner may be a coalition's target, which lets that coalition in.
@@ -208,7 +208,7 @@ public final class CallToArmsService {
 		}
 		Faction origin = FactionManager.getByString(call.callerFactionId());
 		if (origin != null) {
-			WarNotices.send(origin.getLeader(), receiver.getName() + " §cdeclined your call to arms in the "
+			WarNotices.send(origin.getLeader(), receiver.getName() + " §cdeclined your call to arms: "
 					+ war.getName() + "§c.");
 		}
 		Coalition coalition = CoalitionRegistry.get(call.coalitionId());

@@ -156,11 +156,11 @@ class WarNoticeTest {
 
 			CallToArmsService.accept(allyLeader, war);
 
-			verify(allyLeader).sendMessage(startsWith("§aYour faction has joined the "));
+			verify(allyLeader).sendMessage(startsWith("§aYour faction has joined the war: "));
 			verifyDeclared(allyLeader);
 			verifyDeclared(allyGrunt);
 			verify(sender, never()).sendTitle(anyString(), anyString(), anyInt(), anyInt(), anyInt());
-			verify(sender).sendMessage("Allies §aaccepted your call to arms in the " + war.getName() + "§a.");
+			verify(sender).sendMessage("Allies §aaccepted your call to arms: " + war.getName() + "§a.");
 			assertTrue(war.getCallsToArms().isEmpty());
 		}
 	}

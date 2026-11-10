@@ -228,7 +228,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 
 		assertTrue(war.getParticipant(thalendor).hasCoalitionAlly(bog));
 		assertTrue(war.getCallsToArms().isEmpty());
-		verify(tom).sendMessage("bog §aaccepted your call to arms in the " + war.getName() + "§a.");
+		verify(tom).sendMessage("bog §aaccepted your call to arms: " + war.getName() + "§a.");
 		War restored = WarMapper.fromData(WarMapper.toData(war));
 		assertTrue(restored.getParticipant(thalendor).hasCoalitionAlly(bog));
 		assertTrue(restored.isParticipating(bog));
@@ -256,7 +256,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		verify(government).addStabilityModifier(captor.capture());
 		assertEquals(Cache.warDeclinedCoalitionStabilityPenalty, captor.getValue().getModifier());
 		verify(tom).sendMessage("bog §cdeclined a coalition call to arms from fig§c.");
-		verify(finn).sendMessage("bog §cdeclined your call to arms in the " + war.getName() + "§c.");
+		verify(finn).sendMessage("bog §cdeclined your call to arms: " + war.getName() + "§c.");
 
 		// The leader calling needs no second notice.
 		War second = war(90, holy, thalendor);

@@ -16,6 +16,13 @@ class CampaignUiTimeFormatterTest {
 	}
 
 	@Test
+	void formatDateTime_putsTheDateBeforeTheTime() {
+		java.time.Instant closes = java.time.Instant.parse("2026-11-13T09:50:00Z");
+		assertEquals("13/11/2026 10:50 CET / 04:50 EST", CampaignUiTimeFormatter.formatDateTime(closes));
+		assertEquals("-", CampaignUiTimeFormatter.formatDateTime(null));
+	}
+
+	@Test
 	void formatUtcHour_handlesWinterDate() {
 		LocalDate winterDay = LocalDate.of(2026, 1, 15);
 		assertEquals("16:00 CET / 10:00 EST", CampaignUiTimeFormatter.formatUtcHour(winterDay, 16));

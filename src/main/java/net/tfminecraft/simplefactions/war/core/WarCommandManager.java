@@ -214,7 +214,7 @@ public class WarCommandManager implements CommandExecutor {
 				+ defender.getName() + " §a(" + goal.getDisplayName() + ")."
 				+ (BuildupService.isDayVoteOpen(war)
 						? " In its buildup; the day vote closes §e"
-								+ CampaignUiTimeFormatter.formatInstant(war.getDayVoteClosesAt())
+								+ CampaignUiTimeFormatter.formatDateTime(war.getDayVoteClosesAt())
 						: " Battle day: §e" + war.getBattleDay()));
 		return true;
 	}
@@ -571,7 +571,7 @@ public class WarCommandManager implements CommandExecutor {
 	}
 
 	/** Schedule and battle tools that would leave a war voting on its day in a broken state. */
-	private static final java.util.Set<String> BUILDUP_REFUSED = java.util.Set.of(
+	static final java.util.Set<String> BUILDUP_REFUSED = java.util.Set.of(
 			"opencvote", "closevote", "skipday", "castvote", "forcequorum", "setday", "sethour", "setscheduled",
 			"battlecreate", "battlestart", "winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice",
 			"holdchoice");
@@ -592,7 +592,7 @@ public class WarCommandManager implements CommandExecutor {
 				player.sendMessage("§eWar " + w.getId() + " buildup: " + (w.isBuildupFrozen()
 						? "§cfrozen until the first battle" : "§anot frozen by a buildup"));
 				if (BuildupService.isDayVoteOpen(w)) {
-					player.sendMessage("§7Day vote closes " + CampaignUiTimeFormatter.formatInstant(w.getDayVoteClosesAt())
+					player.sendMessage("§7Day vote closes " + CampaignUiTimeFormatter.formatDateTime(w.getDayVoteClosesAt())
 							+ "§7, " + BattleQuorumService.countDistinctVoters(w.getDayVotes()) + " voters.");
 				} else {
 					player.sendMessage("§7First battle day: "

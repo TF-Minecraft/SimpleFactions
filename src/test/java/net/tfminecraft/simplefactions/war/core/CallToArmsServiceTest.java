@@ -161,8 +161,8 @@ class CallToArmsServiceTest {
     assertTrue(war.isParticipating(target));
     assertTrue(war.getCallsToArms().isEmpty());
     assertFalse(WarManager.getCommitmentsForWar(36).isEmpty());
-    verify(sender).sendMessage("target §aaccepted your call to arms in the " + war.getName() + "§a.");
-    verify(called).sendMessage("§aYour faction has joined the " + war.getName());
+    verify(sender).sendMessage("target §aaccepted your call to arms: " + war.getName() + "§a.");
+    verify(called).sendMessage("§aYour faction has joined the war: " + war.getName());
     War stored = saved(36);
     assertTrue(stored.isParticipating(target));
     assertTrue(stored.getCallsToArms().isEmpty());
@@ -287,7 +287,7 @@ class CallToArmsServiceTest {
     CallToArmsService.decline(called, war);
 
     verify(called).sendMessage("§7You declined the call to arms.");
-    verify(sender).sendMessage("target §cdeclined your call to arms in the " + war.getName() + "§c.");
+    verify(sender).sendMessage("target §cdeclined your call to arms: " + war.getName() + "§c.");
     StabilityModifier modifier = target.getGovernment().getByName("Declined Call to Arms");
     assertEquals(-30, modifier.getModifier());
     assertEquals(1, modifier.getDecay());

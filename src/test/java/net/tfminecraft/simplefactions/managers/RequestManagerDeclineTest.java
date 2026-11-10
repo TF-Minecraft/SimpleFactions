@@ -162,7 +162,7 @@ class RequestManagerDeclineTest {
 		assertEquals("Declined Call to Arms", captor.getValue().getName());
 		assertEquals(-30, captor.getValue().getModifier());
 		assertEquals(1, captor.getValue().getDecay());
-		verify(caller).sendMessage("Allies §cdeclined your call to arms in the " + war.getName() + "§c.");
+		verify(caller).sendMessage("Allies §cdeclined your call to arms: " + war.getName() + "§c.");
 		verify(calledPlayer).sendMessage("§7You declined the call to arms.");
 		verify(calledPlayer, never()).sendMessage("§cYou have no requests to decline");
 	}
