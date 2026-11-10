@@ -2,12 +2,15 @@ package net.tfminecraft.simplefactions.war.history;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
@@ -45,9 +48,31 @@ public final class WarHistoryEvents {
 			BattleCasualtyTally tally) {
 	}
 
-	/** A war was declared or a civil war started. */
+	/**
+	 * A war was declared or a civil war started. Carries, outside the public payload, the accounts
+	 * that play a member of a defending faction, so the website can tell them on Discord.
+	 */
 	public static void declared(War war) {
-		record(war, "war_declared", JsonObject::new);
+		record(war, "war_declared", JsonObject::new, () -> defenderNotice(war));
+	}
+
+	/** {@code {"defender_accounts": [...]}}; empty when the accounts cannot be read, never failing the event. */
+	static JsonObject defenderNotice(War war) {
+		JsonArray accounts = new JsonArray();
+		try {
+			Set<String> seen = new LinkedHashSet<>();
+			for (Faction faction : WarHistoryJson.factions(war.getDefenders())) {
+				for (String member : faction.getMembers()) {
+					Members.accountId(member).ifPresent(owner -> seen.add(owner.toString()));
+				}
+			}
+			seen.forEach(accounts::add);
+		} catch (RuntimeException failed) {
+			WarHistory.warn("Could not list the defending accounts of war " + war.getId() + ": " + failed);
+		}
+		JsonObject notify = new JsonObject();
+		notify.add("defender_accounts", accounts);
+		return notify;
 	}
 
 	/** A faction answered a call to arms; remembers when, for its participant row. */
@@ -124,11 +149,15 @@ public final class WarHistoryEvents {
 	}
 
 	private static void record(War war, String type, Supplier<JsonObject> payload) {
+		record(war, type, payload, () -> null);
+	}
+
+	private static void record(War war, String type, Supplier<JsonObject> payload, Supplier<JsonObject> notify) {
 		if (war == null || !WarHistory.isRecording()) {
 			return;
 		}
 		try {
-			WarHistory.event(war, type, payload.get());
+			WarHistory.event(war, type, payload.get(), notify.get());
 		} catch (RuntimeException failed) {
 			WarHistory.warn("Could not record " + type + " for war " + war.getId() + ": " + failed);
 		}

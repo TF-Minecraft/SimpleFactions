@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.bukkit.entity.Player;
@@ -33,9 +34,11 @@ import net.tfminecraft.simplefactions.api.GatewayClient;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.managers.inventory.CharacterKeyFixture;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
@@ -167,6 +170,8 @@ class WarHistoryEventsTest {
 		Instant at = Instant.parse(event.get("at").getAsString());
 		assertEquals(0, at.getNano() % 1_000_000, "Whole milliseconds, which every ISO parser reads");
 		assertEquals(new JsonObject(), payload(event));
+		assertEquals(0, event.getAsJsonObject("notify").getAsJsonArray("defender_accounts").size(),
+				"Name-keyed test members have no account");
 		JsonObject state = event.getAsJsonObject("state");
 		assertEquals("The Aureate Coterie vs. defender", state.get("name").getAsString());
 		assertEquals("#c9a227The Aureate Coterie #a83116vs. defender", state.get("name_raw").getAsString());
@@ -180,6 +185,49 @@ class WarHistoryEventsTest {
 		assertEquals("1,2,3", leader.get("rgb").getAsString());
 		assertEquals("leader", leader.get("role").getAsString());
 		assertTrue(leader.get("joined_at").isJsonNull(), "Present at declaration");
+	}
+
+	@Test
+	void aDeclaredWarListsTheAccountsOfEveryDefendingMemberOnce() {
+		CharacterKeyFixture characters = CharacterKeyFixture.install();
+		UUID first = UUID.randomUUID();
+		UUID second = UUID.randomUUID();
+		UUID third = UUID.randomUUID();
+		defender.addMember(characters.offline(first, "Bob"));
+		defender.addMember(characters.offline(first, "Bob's heir"));
+		defender.addMember(characters.offline(second, "Bea"));
+		Faction friend = fixture.saved("friend", "Fay");
+		friend.addMember(characters.offline(third, "Fay"));
+		friend.addMember(characters.offline(second, "Bea's alt"));
+		attacker.addMember(characters.offline(UUID.randomUUID(), "Alice"));
+		War war = new War(39, attacker, defender);
+		war.getDefenders().getMainParticipants().get(0).getAllies().put(friend, true);
+
+		WarManager.addWar(war);
+
+		JsonObject event = last("war_declared");
+		List<String> accounts = new ArrayList<>();
+		event.getAsJsonObject("notify").getAsJsonArray("defender_accounts").forEach(id -> accounts.add(id.getAsString()));
+		assertEquals(3, accounts.size(), "Each account once: " + accounts);
+		assertEquals(java.util.Set.of(first.toString(), second.toString(), third.toString()),
+				java.util.Set.copyOf(accounts));
+		assertEquals(new JsonObject(), payload(event), "The accounts stay out of the public payload");
+		assertFalse(event.getAsJsonObject("state").toString().contains(first.toString()));
+	}
+
+	@Test
+	void unreadableAccountsLeaveTheDeclarationWithoutThem() {
+		Members.Resolver offline = mock(Members.Resolver.class);
+		when(offline.info(anyString())).thenThrow(new IllegalStateException("characters offline"));
+		Members.setResolver(offline);
+		defender.addMember(UUID.randomUUID().toString());
+
+		War war = war(38);
+
+		JsonObject event = last("war_declared");
+		assertEquals(0, event.getAsJsonObject("notify").getAsJsonArray("defender_accounts").size());
+		verify(logger).warning("[WarHistory] Could not list the defending accounts of war " + war.getId()
+				+ ": java.lang.IllegalStateException: characters offline");
 	}
 
 	@Test

@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.history;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -63,47 +64,59 @@ public final class WarHistoryJson {
 
 	/** Every faction on one side with its role, leaders first, each faction once. */
 	public static JsonArray participants(War war, Side side) {
-		Map<String, JsonObject> rows = new LinkedHashMap<>();
-		if (side == null) {
-			return new JsonArray();
-		}
-		add(rows, war, side.getLeader(), "leader");
-		for (Participant participant : side.getMainParticipants()) {
-			add(rows, war, participant.getLeader(), "main");
-		}
-		for (Participant participant : side.getMainParticipants()) {
-			addAll(rows, war, participant.getSubjects(), "subject");
-			for (Map.Entry<Faction, Boolean> ally : participant.getAllies().entrySet()) {
-				if (Boolean.TRUE.equals(ally.getValue())) {
-					add(rows, war, ally.getKey(), "ally");
-				}
-			}
-			addAll(rows, war, participant.getCoalitionAllies(), "coalition");
-			addAll(rows, war, participant.getBackers(), "backer");
-		}
 		JsonArray out = new JsonArray();
-		rows.values().forEach(out::add);
+		for (Map.Entry<String, Row> entry : rows(side).entrySet()) {
+			JsonObject row = factionRef(entry.getValue().faction());
+			row.addProperty("role", entry.getValue().role());
+			row.addProperty("joined_at", instant(war.getJoinedAt().get(entry.getKey())));
+			out.add(row);
+		}
 		return out;
 	}
 
-	private static void addAll(Map<String, JsonObject> rows, War war, List<Faction> factions, String role) {
+	/** The factions of {@link #participants}, in the same order. */
+	static List<Faction> factions(Side side) {
+		List<Faction> factions = new ArrayList<>();
+		rows(side).values().forEach(row -> factions.add(row.faction()));
+		return factions;
+	}
+
+	private record Row(Faction faction, String role) {
+	}
+
+	private static Map<String, Row> rows(Side side) {
+		Map<String, Row> rows = new LinkedHashMap<>();
+		if (side == null) {
+			return rows;
+		}
+		add(rows, side.getLeader(), "leader");
+		for (Participant participant : side.getMainParticipants()) {
+			add(rows, participant.getLeader(), "main");
+		}
+		for (Participant participant : side.getMainParticipants()) {
+			addAll(rows, participant.getSubjects(), "subject");
+			for (Map.Entry<Faction, Boolean> ally : participant.getAllies().entrySet()) {
+				if (Boolean.TRUE.equals(ally.getValue())) {
+					add(rows, ally.getKey(), "ally");
+				}
+			}
+			addAll(rows, participant.getCoalitionAllies(), "coalition");
+			addAll(rows, participant.getBackers(), "backer");
+		}
+		return rows;
+	}
+
+	private static void addAll(Map<String, Row> rows, List<Faction> factions, String role) {
 		for (Faction faction : factions) {
-			add(rows, war, faction, role);
+			add(rows, faction, role);
 		}
 	}
 
-	private static void add(Map<String, JsonObject> rows, War war, Faction faction, String role) {
+	private static void add(Map<String, Row> rows, Faction faction, String role) {
 		if (faction == null || faction.getId() == null) {
 			return;
 		}
-		String key = faction.getId().toLowerCase(Locale.ROOT);
-		if (rows.containsKey(key)) {
-			return;
-		}
-		JsonObject row = factionRef(faction);
-		row.addProperty("role", role);
-		row.addProperty("joined_at", instant(war.getJoinedAt().get(key)));
-		rows.put(key, row);
+		rows.putIfAbsent(faction.getId().toLowerCase(Locale.ROOT), new Row(faction, role));
 	}
 
 	/** "attacker" or "defender" for a faction in the war, or null. */

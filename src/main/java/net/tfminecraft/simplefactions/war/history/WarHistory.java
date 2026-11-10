@@ -86,6 +86,14 @@ public final class WarHistory {
 
 	/** Queues one war event with a snapshot of the war as it is now. */
 	static void event(War war, String type, JsonObject payload) {
+		event(war, type, payload, null);
+	}
+
+	/**
+	 * As {@link #event(War, String, JsonObject)}, with a private top-level {@code notify} object
+	 * for the website's notifications (null for none). The website never publishes it.
+	 */
+	static void event(War war, String type, JsonObject payload, JsonObject notify) {
 		WarHistoryOutbox current = outbox;
 		if (current == null) {
 			return;
@@ -98,6 +106,9 @@ public final class WarHistory {
 		event.addProperty("at", WarHistoryJson.instant(CampaignClock.now().truncatedTo(ChronoUnit.MILLIS)));
 		event.add("state", WarHistoryJson.state(war));
 		event.add("payload", payload);
+		if (notify != null) {
+			event.add("notify", notify);
+		}
 		current.append(Kind.EVENT, id, event);
 	}
 
