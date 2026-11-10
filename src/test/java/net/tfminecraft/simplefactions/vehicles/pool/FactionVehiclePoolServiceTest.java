@@ -205,6 +205,22 @@ class FactionVehiclePoolServiceTest {
     }
 
     @Test
+    void aFrozenFactionCannotAddVehiclesToItsPool() {
+        Faction enemy = mock(Faction.class);
+        when(enemy.getId()).thenReturn("blue");
+        net.tfminecraft.simplefactions.war.core.War war = new net.tfminecraft.simplefactions.war.core.War(4801, faction, enemy);
+        war.setBuildup(true);
+        net.tfminecraft.simplefactions.managers.WarManager.get().add(war);
+        try {
+            assertEquals(CanAddResult.FROZEN, service.canAdd(faction, target("v1", "coal_car", ALICE_TAG)));
+            war.setFirstBattleStarted(true);
+            assertEquals(CanAddResult.OK, service.canAdd(faction, target("v1", "coal_car", ALICE_TAG)));
+        } finally {
+            net.tfminecraft.simplefactions.managers.WarManager.get().remove(war);
+        }
+    }
+
+    @Test
     void loreListsTypeUpkeepArtilleryAndUnpaidMaintenance() {
         registry.register(new PlayerVehicleRecord(
                 UUID.randomUUID(), "gun-1", "field_artillery", OwnershipMode.POOL, null, "red"));

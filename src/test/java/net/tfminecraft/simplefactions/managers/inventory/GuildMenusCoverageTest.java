@@ -1232,6 +1232,35 @@ class GuildMenusCoverageTest {
             "§eCancel queued upgrade?");
   }
 
+  @Test
+  void aWarUpgradeCannotBeQueuedWhileTheFactionIsFrozen() {
+    fixture.upgrade("drills", true, 2);
+    guild = fixture.guild("guild", 0);
+    fixture.factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(guild);
+    quietRendering();
+    routingBoundary();
+    Upgrade upgrade = guild.getUpgrade("drills");
+    Inventory inventory = open(SFGUI.UPGRADE_VIEW, "§7Upgrade View");
+    inventory.setItem(0, creator.createUpgradeUpgradeItem(fixture.player, guild, upgrade));
+    try (MockedStatic<net.tfminecraft.simplefactions.war.freeze.PreparationFreeze> freeze =
+        mockStatic(
+            net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.class,
+            org.mockito.Mockito.CALLS_REAL_METHODS)) {
+      freeze
+          .when(
+              () ->
+                  net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.refusal(
+                      guild.getFaction(), "war upgrades"))
+          .thenReturn(
+              "Your war is in its buildup. No new war upgrades can be started until the first battle.");
+      manager.clickButton(fixture.ui.click(fixture.player, 0));
+    }
+    assertTrue(guild.getUpgradeQueue().isEmpty());
+    verify(fixture.player)
+        .sendMessage(
+            "§cYour war is in its buildup. No new war upgrades can be started until the first battle.");
+  }
+
   @ParameterizedTest
   @ValueSource(ints = {14, 16, 19, 25, 17, 8, 37})
   void authorizedGuildNavigationUsesTheRegisteredManagers(int slot) {

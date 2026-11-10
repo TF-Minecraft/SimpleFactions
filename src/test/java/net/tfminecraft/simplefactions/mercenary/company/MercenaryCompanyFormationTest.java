@@ -123,6 +123,27 @@ class MercenaryCompanyFormationTest {
     }
 
     @Test
+    void canFoundRefusesAFrozenFaction() {
+        CompanyFixture fixture = new CompanyFixture(500.0);
+        try (org.mockito.MockedStatic<net.tfminecraft.simplefactions.war.freeze.PreparationFreeze> freeze =
+                org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.class,
+                        org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            freeze.when(() -> net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.refusal(
+                    (net.tfminecraft.simplefactions.objects.Faction) org.mockito.ArgumentMatchers.any(),
+                    org.mockito.ArgumentMatchers.eq("mercenary companies")))
+                    .thenReturn("Your war is in its buildup. No new mercenary companies can be started until the first battle.");
+
+            MercenaryResult check = MercenaryCompanyService.canFound(fixture.guild, "Ivar", "Hired Blades");
+
+            assertFalse(check.ok());
+            assertEquals("Your war is in its buildup. No new mercenary companies can be started until the first battle.",
+                    check.message());
+            assertEquals(500.0, fixture.balance());
+            assertNull(fixture.company());
+        }
+    }
+
+    @Test
     void canFoundRefusesAPoorGuild() {
         CompanyFixture fixture = new CompanyFixture(99.0);
 

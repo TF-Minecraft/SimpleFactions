@@ -23,6 +23,8 @@ import net.tfminecraft.simplefactions.identity.Members;
 public final class WarNotices {
 	static final String FOLDER = "Notices";
 	private static final Pattern SAFE_KEY = Pattern.compile("[a-z0-9-]{1,64}");
+	/** Removes a delivered inbox; tests swap it to see a file that cannot be removed. */
+	static java.util.function.Predicate<File> remover = File::delete;
 
 	/** Stored form of one notice. */
 	public static final class Notice {
@@ -77,7 +79,7 @@ public final class WarNotices {
 				fresh.add(notice.text);
 			}
 		}
-		if (!file.delete()) {
+		if (!remover.test(file)) {
 			log("Could not clear war notices " + file.getName(), null);
 		}
 		if (fresh.isEmpty()) {

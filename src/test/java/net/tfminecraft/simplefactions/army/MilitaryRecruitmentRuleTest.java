@@ -63,6 +63,29 @@ class MilitaryRecruitmentRuleTest {
 		assertTrue(military.canExpand(regiment(false, false)).allowed());
 	}
 
+	@Test
+	void aFrozenFactionCannotQueueRegiments() {
+		Faction faction = mock(Faction.class);
+		when(faction.getId()).thenReturn("atk");
+		Faction enemy = mock(Faction.class);
+		when(enemy.getId()).thenReturn("def");
+		Military military = new Military(faction);
+		net.tfminecraft.simplefactions.war.core.War war = new net.tfminecraft.simplefactions.war.core.War(4802, faction, enemy);
+		war.setBuildup(true);
+		net.tfminecraft.simplefactions.managers.WarManager.get().add(war);
+		try {
+			ExpandResult result = military.canExpand(regiment(false, true));
+
+			assertFalse(result.allowed());
+			assertEquals("Your war is in its buildup. No new regiments can be started until the first battle.",
+					result.reason());
+			assertFalse(military.enqueue(regiment(false, true)));
+			assertTrue(military.getQueue().isEmpty());
+		} finally {
+			net.tfminecraft.simplefactions.managers.WarManager.get().remove(war);
+		}
+	}
+
 	private static Military military(boolean canRecruitProfessional) {
 		Faction faction = mock(Faction.class);
 		when(faction.hasFactionRule(Rules.CAN_RECRUIT_PROFESSIONAL_ARMY)).thenReturn(canRecruitProfessional);
