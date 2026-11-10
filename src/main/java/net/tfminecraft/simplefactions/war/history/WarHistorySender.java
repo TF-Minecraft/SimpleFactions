@@ -63,8 +63,10 @@ final class WarHistorySender {
 			return;
 		}
 		try {
-			send(Kind.EVENT, EVENTS_PATH, "events", MAX_EVENTS);
+			// Records first: a battle's record is saved before its result, so the website then has the
+			// fighters when the battle_resolved event arrives and its Discord post can name the best.
 			send(Kind.BATTLE, BATTLES_PATH, "records", MAX_BATTLES);
+			send(Kind.EVENT, EVENTS_PATH, "events", MAX_EVENTS);
 		} finally {
 			running.set(false);
 		}

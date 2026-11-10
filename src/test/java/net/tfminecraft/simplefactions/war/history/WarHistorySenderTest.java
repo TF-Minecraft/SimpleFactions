@@ -69,19 +69,20 @@ class WarHistorySenderTest {
 		}
 		queue(Kind.BATTLE, "r1");
 		queue(Kind.BATTLE, "r2");
-		replies.add(ok("{\"acked\":[\"e0\",\"e1\",7,{}],\"rejected\":[{\"id\":\"e1\",\"reason\":\"no war_key\"}]}"));
 		replies.add(ok("{\"acked\":[\"r1\",\"r2\"]}"));
+		replies.add(ok("{\"acked\":[\"e0\",\"e1\",7,{}],\"rejected\":[{\"id\":\"e1\",\"reason\":\"no war_key\"}]}"));
 
 		sender.flush();
 
 		assertEquals(2, posts.size());
-		assertEquals(WarHistorySender.EVENTS_PATH, posts.get(0)[0]);
-		JsonObject events = JsonParser.parseString(posts.get(0)[1]).getAsJsonObject();
+		// Records go first, so a battle's fighters are stored before its result arrives.
+		assertEquals(WarHistorySender.BATTLES_PATH, posts.get(0)[0]);
+		assertEquals(2, JsonParser.parseString(posts.get(0)[1]).getAsJsonObject().getAsJsonArray("records").size());
+		assertEquals(WarHistorySender.EVENTS_PATH, posts.get(1)[0]);
+		JsonObject events = JsonParser.parseString(posts.get(1)[1]).getAsJsonObject();
 		assertEquals("dev", events.get("realm_id").getAsString());
 		assertEquals(WarHistorySender.MAX_EVENTS, events.getAsJsonArray("events").size());
 		assertEquals("e0", events.getAsJsonArray("events").get(0).getAsJsonObject().get("id").getAsString());
-		assertEquals(WarHistorySender.BATTLES_PATH, posts.get(1)[0]);
-		assertEquals(2, JsonParser.parseString(posts.get(1)[1]).getAsJsonObject().getAsJsonArray("records").size());
 
 		WarHistorySender.Status status = sender.status();
 		assertEquals(WarHistorySender.MAX_EVENTS, status.events(), "Unacked events stay");
@@ -116,13 +117,13 @@ class WarHistorySenderTest {
 		assertEquals(4, posts.size());
 		assertEquals(2, outbox.size());
 		assertEquals(List.of("Could not send war history, keeping it for later. "
-				+ "/wars/plugin/events: TFMCWeb gateway unavailable: missing"), warnings);
+				+ "/wars/plugin/battles: TFMCWeb gateway unavailable: missing"), warnings);
 		WarHistorySender.Status status = sender.status();
-		assertEquals("/wars/plugin/battles: no reply", status.lastError());
+		assertEquals("/wars/plugin/events: no reply", status.lastError());
 		assertEquals(NOW, status.lastErrorAt());
 
-		replies.add(ok("{\"acked\":[\"e1\"]}"));
 		replies.add(ok("{\"acked\":[\"r1\"]}"));
+		replies.add(ok("{\"acked\":[\"e1\"]}"));
 		sender.flush();
 
 		assertEquals(0, outbox.size());
