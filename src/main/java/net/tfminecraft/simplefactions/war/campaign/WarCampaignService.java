@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
@@ -285,13 +286,18 @@ public class WarCampaignService {
 	}
 
 	static void initScheduleState(War war) {
-		Instant started = war.getStartedAt() != null ? war.getStartedAt() : Instant.now();
-		if (Cache.warFirstBattleDayAfterDeclare) {
-			war.setBattleDay(started.atZone(BattleWindowService.SCHEDULE_ZONE).toLocalDate().plusDays(1));
+		if (war.isBuildupFrozen()) {
+			// Regenerating the route keeps the buildup: its day vote, or the first battle day it chose.
+			if (war.getBattleSchedulePhase() != BattleSchedulePhase.BUILDUP) {
+				war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+			}
 		} else {
-			war.setBattleDay(started.atZone(BattleWindowService.SCHEDULE_ZONE).toLocalDate());
+			Instant started = war.getStartedAt() != null ? war.getStartedAt() : Instant.now();
+			// The schedule's day rolls over at 02:00, so a war declared just after midnight belongs to the evening before.
+			LocalDate declared = BattleWindowService.scheduleDate(started);
+			war.setBattleDay(Cache.warFirstBattleDayAfterDeclare ? declared.plusDays(1) : declared);
+			war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		}
-		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		war.setScheduledBattleAt(null);
 		war.setScheduledBattleHour(0);
 		war.setScheduledBattleProvinceId(null);

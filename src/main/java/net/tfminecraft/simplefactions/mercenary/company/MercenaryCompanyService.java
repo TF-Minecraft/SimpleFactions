@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.mercenary.company;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.Collection;
 import java.util.Locale;
 
@@ -43,6 +44,10 @@ public final class MercenaryCompanyService {
         }
         if (guild.isFoundingCompany()) {
             return MercenaryResult.deny("Your guild is already founding a mercenary company.");
+        }
+        String frozen = PreparationFreeze.refusal(guild.getFaction(), "mercenary companies");
+        if (frozen != null) {
+            return MercenaryResult.deny(frozen);
         }
         if (!MercenaryEligibility.canCreate(actor)) {
             return MercenaryResult.deny("You are not the sort to run a mercenary company.");
@@ -216,6 +221,10 @@ public final class MercenaryCompanyService {
         }
         if (upgrade.isMaxed()) {
             return MercenaryResult.deny(upgrade.getName() + " is already at its maximum level.");
+        }
+        String frozen = PreparationFreeze.refusal(company, "company upgrades");
+        if (frozen != null) {
+            return MercenaryResult.deny(frozen);
         }
         if (!company.enqueueUpgrade(upgrade)) {
             return MercenaryResult.deny("The upgrade queue is full.");

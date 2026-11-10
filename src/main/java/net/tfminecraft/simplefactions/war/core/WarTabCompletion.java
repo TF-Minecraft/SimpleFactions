@@ -28,10 +28,15 @@ public class WarTabCompletion implements TabCompleter {
 			if ("list".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
 				completions.add("list");
 			}
+			addIfPrefix(completions, args[0], "calls");
+			addIfPrefix(completions, args[0], "call");
 			if (Permissions.isAdmin(sender) && "admin".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
 				completions.add("admin");
 			}
 			return completions;
+		}
+		if (args[0].equalsIgnoreCase("call")) {
+			return callCompletions(sender, args);
 		}
 		if (!Permissions.isAdmin(sender) || !args[0].equalsIgnoreCase("admin")) {
 			return List.of();
@@ -45,6 +50,7 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[1], "path");
 			addIfPrefix(completions, args[1], "time");
 			addIfPrefix(completions, args[1], "schedule");
+			addIfPrefix(completions, args[1], "buildup");
 			addIfPrefix(completions, args[1], "devmode");
 			addIfPrefix(completions, args[1], "raid");
 			addIfPrefix(completions, args[1], "reparations");
@@ -121,8 +127,17 @@ public class WarTabCompletion implements TabCompleter {
 						|| args[1].equalsIgnoreCase("win")
 						|| args[1].equalsIgnoreCase("status")
 						|| args[1].equalsIgnoreCase("path")
-						|| args[1].equalsIgnoreCase("schedule"))) {
+						|| args[1].equalsIgnoreCase("schedule")
+						|| args[1].equalsIgnoreCase("buildup"))) {
 			return activeWarIds(args[2]);
+		}
+		if (args.length == 4 && args[1].equalsIgnoreCase("buildup")) {
+			List<String> completions = new ArrayList<>();
+			addIfPrefix(completions, args[3], "status");
+			addIfPrefix(completions, args[3], "end");
+			addIfPrefix(completions, args[3], "closevote");
+			addIfPrefix(completions, args[3], "setday");
+			return completions;
 		}
 		if (args.length == 4 && args[1].equalsIgnoreCase("win")) {
 			List<String> completions = new ArrayList<>();
@@ -317,5 +332,19 @@ public class WarTabCompletion implements TabCompleter {
 		if (candidate.toLowerCase(java.util.Locale.ROOT).startsWith(typed.toLowerCase(java.util.Locale.ROOT))) {
 			completions.add(candidate);
 		}
+	}
+
+	/** {@code /war call accept|decline <war id>}: the wars with an open call to the sender's faction. */
+	private static List<String> callCompletions(CommandSender sender, String[] args) {
+		List<String> completions = new ArrayList<>();
+		if (args.length == 2) {
+			addIfPrefix(completions, args[1], "accept");
+			addIfPrefix(completions, args[1], "decline");
+		} else if (args.length == 3 && sender instanceof org.bukkit.entity.Player player) {
+			for (var pending : net.tfminecraft.simplefactions.war.core.CallToArmsService.pendingFor(player)) {
+				addIfPrefix(completions, args[2], String.valueOf(pending.war().getId()));
+			}
+		}
+		return completions;
 	}
 }

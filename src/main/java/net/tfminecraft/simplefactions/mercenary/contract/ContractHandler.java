@@ -2,7 +2,6 @@ package net.tfminecraft.simplefactions.mercenary.contract;
 
 import net.tfminecraft.simplefactions.identity.Members;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,7 +15,6 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.mercenary.MercenaryResult;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
-import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 
 /**
  * The contracts a company holds, in the shape of
@@ -124,13 +122,6 @@ public class ContractHandler {
         if (hirer == null) {
             return new Offer(MercenaryResult.deny("That faction no longer exists."), null);
         }
-        Instant at = Instant.ofEpochMilli(now);
-        Instant frozenUntil = PreparationFreeze.frozenUntil(hirer, at);
-        if (frozenUntil != null) {
-            return new Offer(MercenaryResult.deny(hirer.getName()
-                    + " had a battle postponed and cannot hire mercenaries for "
-                    + PreparationFreeze.formatRemaining(frozenUntil, at) + "."), null);
-        }
         MercenaryResult valid = ContractValidator.validate(terms, company, now);
         if (!valid.ok()) return new Offer(valid, null);
 
@@ -171,10 +162,6 @@ public class ContractHandler {
         }
         if (hirer.getGovernment() == null || !hirer.getGovernment().isCouncilMember(signer)) {
             return MercenaryResult.deny("Only a member of your government may sign a contract.");
-        }
-        String frozen = PreparationFreeze.hiringBlockedMessage(hirer, Instant.now());
-        if (frozen != null) {
-            return MercenaryResult.deny(frozen);
         }
         MercenaryResult loyal = MercenaryLoyalty.canServe(company, hirer);
         if (!loyal.ok()) {
@@ -303,12 +290,6 @@ public class ContractHandler {
             return MercenaryResult.deny("A battle is underway. Accept the slot change when it ends.");
         }
         int slots = contract.getPendingSlots(now);
-        if (slots > contract.getSlots()) {
-            String frozen = PreparationFreeze.hiringBlockedMessage(hirer, Instant.ofEpochMilli(now));
-            if (frozen != null) {
-                return MercenaryResult.deny(frozen);
-            }
-        }
         if (slots > SlotReservations.maxForAmendment(company, contract, now)) {
             contract.clearPendingSlots();
             tell(company.getLeader(), "§cThe slot change on your contract with "

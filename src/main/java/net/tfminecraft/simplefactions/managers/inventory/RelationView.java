@@ -296,10 +296,6 @@ public class RelationView {
 					p.sendMessage("§cYour opinion of the target is too high");
 					return;
 				}
-				if(f.numOnline() < 1){
-					p.sendMessage("§cCannot declare war while none of the target faction members are online!");
-					return;
-				}
 				// Leaders browse the goals freely; the staff code is asked for at confirm.
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				inv.openDeclareWarGoalPicker(p, attacker, f);

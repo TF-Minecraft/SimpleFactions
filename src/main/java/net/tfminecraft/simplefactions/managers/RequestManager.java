@@ -23,7 +23,6 @@ import net.tfminecraft.simplefactions.objects.request.Request;
 import net.tfminecraft.simplefactions.objects.request.VehicleGiveConsentRequest;
 import net.tfminecraft.simplefactions.objects.request.VehicleHandoverRequest;
 import net.tfminecraft.simplefactions.objects.request.VehicleTransferConsentRequest;
-import net.tfminecraft.simplefactions.objects.request.WarRequest;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService;
 import net.tfminecraft.simplefactions.mercenary.company.MercenaryInvites;
 
@@ -81,7 +80,7 @@ public final class RequestManager {
 		}
 	}
 	
-	// A call to arms that runs out is not a decline. Package-visible for tests.
+	// Package-visible for tests.
 	static void expireTimedOutRequests() {
 		Iterator<Map.Entry<Player, Request>> iterator = requests.entrySet().iterator();
 		while (iterator.hasNext()) {
@@ -107,8 +106,6 @@ public final class RequestManager {
 				if (plugin != null) {
 					plugin.getVehicleHandoverService().notifyExpired(handoverRequest, entry.getKey());
 				}
-			} else if (request instanceof WarRequest warRequest) {
-				WarManager.expireCallToArms(entry.getKey(), warRequest);
 			}
 			iterator.remove();
 		}
@@ -116,11 +113,7 @@ public final class RequestManager {
 
 	public static void decline(Player p) {
 		if (!hasRequest(p)) return;
-		Request req = requests.remove(p);
-		if (req instanceof WarRequest warRequest) {
-			WarManager.declineCallToArms(p, warRequest);
-			return;
-		}
+		requests.remove(p);
 		p.sendMessage("§7You declined the request.");
 	}
 
@@ -139,8 +132,6 @@ public final class RequestManager {
 			} else {
 				RelationManager.acceptRequest(p);
 			}
-		} else if(req instanceof WarRequest){
-			WarManager.acceptRequest(p);
 		} else if(req instanceof AutoresolveRequest) {
 			BattleAutoresolveService.acceptRequest(p);
 		} else if(req instanceof RelocateRequest){

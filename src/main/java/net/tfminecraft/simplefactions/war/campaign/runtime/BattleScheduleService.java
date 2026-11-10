@@ -327,7 +327,7 @@ public final class BattleScheduleService {
 	 * {@code candidate}, or the first later battle day whose vote is still open: never a past day,
 	 * and not today once today's vote close hour has passed.
 	 */
-	private static LocalDate firstVotableBattleDay(LocalDate candidate, Instant now) {
+	public static LocalDate firstVotableBattleDay(LocalDate candidate, Instant now) {
 		LocalDate current = battleDayDate(now);
 		LocalDate day = candidate == null || candidate.isBefore(current) ? current : candidate;
 		if (day.equals(current) && battleDayHour(now) >= Cache.warVoteCloseHour) {

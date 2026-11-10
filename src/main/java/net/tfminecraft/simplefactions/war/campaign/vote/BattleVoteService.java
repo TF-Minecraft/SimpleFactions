@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -86,71 +87,98 @@ public final class BattleVoteService {
 			War war,
 			BelligerentRole side,
 			Function<UUID, Faction> uuidToFaction) {
+		if (war == null) {
+			return Map.of();
+		}
+		return countVotes(war, war.getBattleVotes(), BattleWindowService.listValidHours(), side, uuidToFaction);
+	}
+
+	/** One side's votes per option; picks outside {@code options} are ignored. Shared by the hour and day votes. */
+	public static Map<Integer, Integer> countVotes(
+			War war,
+			Map<UUID, Set<Integer>> votes,
+			List<Integer> options,
+			BelligerentRole side,
+			Function<UUID, Faction> uuidToFaction) {
 		if (war == null || side == null || uuidToFaction == null) {
 			return Map.of();
 		}
 		Map<Integer, Integer> counts = new LinkedHashMap<>();
-		for (int hour : BattleWindowService.listValidHours()) {
-			counts.put(hour, 0);
+		for (int option : options) {
+			counts.put(option, 0);
 		}
-		for (Map.Entry<UUID, Set<Integer>> entry : war.getBattleVotes().entrySet()) {
+		for (Map.Entry<UUID, Set<Integer>> entry : votes.entrySet()) {
 			Faction faction = uuidToFaction.apply(entry.getKey());
 			BelligerentRole voterSide = BattleSideMembers.resolveSide(war, faction);
 			if (voterSide != side) {
 				continue;
 			}
-			Set<Integer> hours = entry.getValue();
-			if (hours == null || hours.isEmpty()) {
+			Set<Integer> picks = entry.getValue();
+			if (picks == null || picks.isEmpty()) {
 				continue;
 			}
-			for (int hour : hours) {
-				if (counts.containsKey(hour)) {
-					counts.put(hour, counts.get(hour) + 1);
+			for (int pick : picks) {
+				if (counts.containsKey(pick)) {
+					counts.put(pick, counts.get(pick) + 1);
 				}
 			}
 		}
 		return counts;
 	}
 
-	public static Map<Integer, VoteResults.BattleHourTally> buildHourTally(War war, Function<UUID, Faction> uuidToFaction) {
+	/** Attacker and defender counts per option, in option order. */
+	public static Map<Integer, VoteResults.BattleHourTally> buildTally(
+			War war,
+			Map<UUID, Set<Integer>> votes,
+			List<Integer> options,
+			Function<UUID, Faction> uuidToFaction) {
 		if (war == null || uuidToFaction == null) {
 			return Map.of();
 		}
-		Map<Integer, Integer> attackerCounts = countVotesByHour(war, BelligerentRole.ATTACKER, uuidToFaction);
-		Map<Integer, Integer> defenderCounts = countVotesByHour(war, BelligerentRole.DEFENDER, uuidToFaction);
+		Map<Integer, Integer> attackerCounts = countVotes(war, votes, options, BelligerentRole.ATTACKER, uuidToFaction);
+		Map<Integer, Integer> defenderCounts = countVotes(war, votes, options, BelligerentRole.DEFENDER, uuidToFaction);
 		Map<Integer, VoteResults.BattleHourTally> tally = new LinkedHashMap<>();
-		for (int hour : BattleWindowService.listValidHours()) {
-			tally.put(
-					hour,
-					new VoteResults.BattleHourTally(
-							attackerCounts.getOrDefault(hour, 0),
-							defenderCounts.getOrDefault(hour, 0)));
+		for (int option : options) {
+			tally.put(option, new VoteResults.BattleHourTally(
+					attackerCounts.getOrDefault(option, 0),
+					defenderCounts.getOrDefault(option, 0)));
 		}
 		return tally;
+	}
+
+	/**
+	 * The option both sides can best make: the highest {@code min(attackers, defenders)}, ties to the
+	 * earliest option. Empty when no option has a vote from each side.
+	 */
+	public static OptionalInt pickBest(Map<Integer, VoteResults.BattleHourTally> tally) {
+		int best = -1;
+		int bestScore = -1;
+		for (Map.Entry<Integer, VoteResults.BattleHourTally> entry : tally.entrySet()) {
+			int option = entry.getKey();
+			VoteResults.BattleHourTally counts = entry.getValue();
+			int score = Math.min(counts.attackerCount(), counts.defenderCount());
+			if (score <= 0) {
+				continue;
+			}
+			if (score > bestScore || (score == bestScore && (best < 0 || option < best))) {
+				bestScore = score;
+				best = option;
+			}
+		}
+		return best < 0 ? OptionalInt.empty() : OptionalInt.of(best);
+	}
+
+	public static Map<Integer, VoteResults.BattleHourTally> buildHourTally(War war, Function<UUID, Faction> uuidToFaction) {
+		if (war == null) {
+			return Map.of();
+		}
+		return buildTally(war, war.getBattleVotes(), BattleWindowService.listValidHours(), uuidToFaction);
 	}
 
 	public static OptionalInt pickHour(War war, Function<UUID, Faction> uuidToFaction) {
 		if (war == null || uuidToFaction == null) {
 			return OptionalInt.empty();
 		}
-		Map<Integer, VoteResults.BattleHourTally> tally = buildHourTally(war, uuidToFaction);
-		int bestHour = -1;
-		int bestScore = -1;
-		for (Map.Entry<Integer, VoteResults.BattleHourTally> entry : tally.entrySet()) {
-			int hour = entry.getKey();
-			VoteResults.BattleHourTally counts = entry.getValue();
-			int score = Math.min(counts.attackerCount(), counts.defenderCount());
-			if (score <= 0) {
-				continue;
-			}
-			if (score > bestScore || (score == bestScore && (bestHour < 0 || hour < bestHour))) {
-				bestScore = score;
-				bestHour = hour;
-			}
-		}
-		if (bestHour < 0) {
-			return OptionalInt.empty();
-		}
-		return OptionalInt.of(bestHour);
+		return pickBest(buildHourTally(war, uuidToFaction));
 	}
 }

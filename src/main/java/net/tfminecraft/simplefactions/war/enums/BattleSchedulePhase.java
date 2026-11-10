@@ -2,6 +2,8 @@ package net.tfminecraft.simplefactions.war.enums;
 
 public enum BattleSchedulePhase {
 	IDLE("idle"),
+	/** Declared and frozen; the sides are voting on the first battle day. */
+	BUILDUP("buildup"),
 	VOTING("voting"),
 	SCHEDULED("scheduled"),
 	AUTORESOLVE_PENDING("autoresolve_pending");

@@ -82,6 +82,9 @@ public final class CampaignUiCopy {
 			return "Awaiting Decision";
 		}
 		BattleSchedulePhase schedulePhase = war.getBattleSchedulePhase();
+		if (schedulePhase == BattleSchedulePhase.BUILDUP) {
+			return "Buildup: Voting on the Day";
+		}
 		if (schedulePhase == BattleSchedulePhase.VOTING) {
 			return "Currently Voting";
 		}

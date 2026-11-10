@@ -29,6 +29,7 @@ public final class WarAdminRisks {
 			case "devmode" -> devmode(lower(args[2]));
 			case "time" -> time(args);
 			case "schedule" -> args.length >= 4 && knownWar(args[2]) ? scheduleIfApplies(args) : null;
+			case "buildup" -> args.length >= 4 && knownWar(args[2]) ? buildup(lower(args[3])) : null;
 			case "reparations" -> args.length >= 4 && FactionManager.getByString(args[2]) != null
 					&& FactionManager.getByString(args[3]) != null
 					? "makes one faction pay part of its income to another for days." : null;
@@ -124,6 +125,15 @@ public final class WarAdminRisks {
 		} catch (IllegalArgumentException invalid) {
 			return false;
 		}
+	}
+
+	private static String buildup(String action) {
+		return switch (action) {
+			case "end" -> "lifts the war's buildup freeze now; a war still voting on its day gets the next battle day.";
+			case "closevote" -> "closes the first battle day vote now and fixes its result.";
+			case "setday" -> "sets the first battle day and closes the day vote.";
+			default -> null;
+		};
 	}
 
 	private static String schedule(String action) {

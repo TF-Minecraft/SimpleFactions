@@ -36,6 +36,10 @@ public final class CallToArmsEligibility {
 		if (war.isParticipating(target)) {
 			return Result.deny(ALREADY_IN_WAR);
 		}
+		String lateAlly = CallToArmsService.notCallableReason(war, target);
+		if (lateAlly != null) {
+			return Result.deny(lateAlly);
+		}
 		if (InterVassalQueries.isOverlordOfMain(target, war)) {
 			return Result.deny(OVERLORD);
 		}

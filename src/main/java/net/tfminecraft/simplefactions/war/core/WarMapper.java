@@ -22,6 +22,7 @@ import net.tfminecraft.simplefactions.database.CampaignRaidData;
 import net.tfminecraft.simplefactions.database.ParticipantData;
 import net.tfminecraft.simplefactions.database.ScheduledCampaignBattleData;
 import net.tfminecraft.simplefactions.database.SideData;
+import net.tfminecraft.simplefactions.database.CallToArmsData;
 import net.tfminecraft.simplefactions.database.WarData;
 import net.tfminecraft.simplefactions.database.WarDemandData;
 import net.tfminecraft.simplefactions.managers.FactionManager;
@@ -182,6 +183,24 @@ public final class WarMapper {
 		}
 		data.defenderChoiceResolved = war.isDefenderChoiceResolved();
 		data.forceQuorumNextClose = war.isForceQuorumNextClose();
+		if (war.isBuildup()) {
+			data.buildup = true;
+		}
+		if (war.getDayVoteFirstDay() != null) {
+			data.dayVoteFirstDay = war.getDayVoteFirstDay().toString();
+		}
+		if (war.getDayVoteClosesAt() != null) {
+			data.dayVoteClosesAt = war.getDayVoteClosesAt().toString();
+		}
+		if (!war.getDayVotes().isEmpty()) {
+			data.dayVotes = serializeBattleVotes(war.getDayVotes());
+		}
+		if (!war.getCallsToArms().isEmpty()) {
+			data.callsToArms = serializeCallsToArms(war.getCallsToArms());
+		}
+		if (war.getCallableFactionIds() != null) {
+			data.callableFactionIds = new ArrayList<>(war.getCallableFactionIds());
+		}
 		if (war.getStartedAt() != null) {
 			data.startedAt = war.getStartedAt().toString();
 		}
@@ -306,6 +325,16 @@ public final class WarMapper {
 			war.setPreparationFrozenUntil(Instant.parse(data.preparationFrozenUntil));
 		}
 		war.setDefenderChoiceResolved(data.defenderChoiceResolved);
+		war.setBuildup(Boolean.TRUE.equals(data.buildup));
+		if (data.dayVoteFirstDay != null && !data.dayVoteFirstDay.isBlank()) {
+			war.setDayVoteFirstDay(LocalDate.parse(data.dayVoteFirstDay));
+		}
+		if (data.dayVoteClosesAt != null && !data.dayVoteClosesAt.isBlank()) {
+			war.setDayVoteClosesAt(Instant.parse(data.dayVoteClosesAt));
+		}
+		war.setDayVotes(deserializeBattleVotes(data.dayVotes));
+		war.setCallsToArms(deserializeCallsToArms(data.callsToArms));
+		war.setCallableFactionIds(data.callableFactionIds == null ? null : new LinkedHashSet<>(data.callableFactionIds));
 		if (data.postBattleChoiceResolved != null) {
 			war.setPostBattleChoiceResolved(data.postBattleChoiceResolved);
 		}
@@ -625,6 +654,35 @@ public final class WarMapper {
 			}
 		}
 		return deserialized;
+	}
+
+	private static List<CallToArmsData> serializeCallsToArms(Map<String, CallToArms> calls) {
+		List<CallToArmsData> out = new ArrayList<>();
+		for (CallToArms call : calls.values()) {
+			CallToArmsData data = new CallToArmsData();
+			data.targetFactionId = call.targetFactionId();
+			data.callerFactionId = call.callerFactionId();
+			data.coalitionId = call.coalitionId();
+			data.sentAt = call.sentAt() != null ? call.sentAt().toString() : null;
+			out.add(data);
+		}
+		return out;
+	}
+
+	private static Map<String, CallToArms> deserializeCallsToArms(List<CallToArmsData> calls) {
+		Map<String, CallToArms> out = new LinkedHashMap<>();
+		if (calls == null) {
+			return out;
+		}
+		for (CallToArmsData data : calls) {
+			if (data == null || data.targetFactionId == null || data.callerFactionId == null) {
+				continue;
+			}
+			Instant sentAt = data.sentAt != null && !data.sentAt.isBlank() ? Instant.parse(data.sentAt) : null;
+			out.put(data.targetFactionId.toLowerCase(java.util.Locale.ROOT),
+					new CallToArms(data.targetFactionId, data.callerFactionId, data.coalitionId, sentAt));
+		}
+		return out;
 	}
 
 	private static Map<String, List<Integer>> serializeBattleVotes(Map<UUID, Set<Integer>> votes) {

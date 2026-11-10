@@ -279,6 +279,10 @@ public class MercenaryCompany {
         if (enlisted.size() < getSlots() + slotQueue.size()) {
             return MercenaryResult.deny("Fill every slot before adding another.");
         }
+        String frozen = PreparationFreeze.refusal(this, "company slots");
+        if (frozen != null) {
+            return MercenaryResult.deny(frozen);
+        }
         return MercenaryResult.ok("Slot queued.");
     }
 

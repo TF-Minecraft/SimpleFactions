@@ -8,6 +8,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleLaunchService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleRosterService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSignupReminderService;
@@ -48,6 +49,9 @@ public final class BattleScheduleTickService {
 
 	public static int tick(Instant now) {
 		for (War war : WarManager.getActive()) {
+			if (BuildupService.closeDayVoteIfDue(war, now)) {
+				WarManager.persist(war);
+			}
 			CampaignBattleSignupReminderService.processReminders(war, now);
 			CampaignNavalAutoLossReminderService.processReminders(war, now);
 			CampaignBattleRosterService.tryEnrollWhenSignupOpens(war, now);

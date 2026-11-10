@@ -14,11 +14,12 @@ public final class BattleQuorumService {
 	private BattleQuorumService() {}
 
 	public static int countDistinctVoters(War war) {
-		if (war == null) {
-			return 0;
-		}
+		return war == null ? 0 : countDistinctVoters(war.getBattleVotes());
+	}
+
+	public static int countDistinctVoters(Map<UUID, Set<Integer>> votes) {
 		int count = 0;
-		for (Set<Integer> hours : war.getBattleVotes().values()) {
+		for (Set<Integer> hours : votes.values()) {
 			if (hours != null && !hours.isEmpty()) {
 				count++;
 			}
@@ -27,6 +28,11 @@ public final class BattleQuorumService {
 	}
 
 	public static boolean isSmallestSideFullyRepresented(War war, Function<String, UUID> memberNameToUuid) {
+		return war != null && isSmallestSideFullyRepresented(war, war.getBattleVotes(), memberNameToUuid);
+	}
+
+	public static boolean isSmallestSideFullyRepresented(
+			War war, Map<UUID, Set<Integer>> votes, Function<String, UUID> memberNameToUuid) {
 		if (war == null || memberNameToUuid == null) {
 			return false;
 		}
@@ -41,7 +47,6 @@ public final class BattleQuorumService {
 			return false;
 		}
 
-		Map<UUID, Set<Integer>> votes = war.getBattleVotes();
 		for (String memberName : members) {
 			UUID uuid = memberNameToUuid.apply(memberName);
 			if (uuid == null) {
@@ -67,8 +72,13 @@ public final class BattleQuorumService {
 		if (war == null) {
 			return new VoteResults.QuorumResult(false, false, false, 0, 0, 0);
 		}
+		return meetsQuorum(war, war.getBattleVotes(), memberNameToUuid);
+	}
 
-		int distinctVoters = countDistinctVoters(war);
+	/** The hour vote's quorum applied to any vote of the war's members, such as the buildup's day vote. */
+	public static VoteResults.QuorumResult meetsQuorum(
+			War war, Map<UUID, Set<Integer>> votes, Function<String, UUID> memberNameToUuid) {
+		int distinctVoters = countDistinctVoters(votes);
 		int attackerEligible = war.getAttackers() != null
 				? BattleSideMembers.countEligibleMembers(war.getAttackers())
 				: 0;
@@ -78,7 +88,7 @@ public final class BattleQuorumService {
 
 		boolean passMinPlayers = distinctVoters >= effectiveMinPlayers();
 		boolean passSmallestSideFull = Cache.warBattleVotingRequireSmallestSideFull
-				&& isSmallestSideFullyRepresented(war, memberNameToUuid);
+				&& isSmallestSideFullyRepresented(war, votes, memberNameToUuid);
 
 		boolean passed;
 		if (Cache.warBattleVotingPassIfEither) {

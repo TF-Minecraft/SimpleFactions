@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.vehicles.pool;
 
+import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -131,6 +132,9 @@ public final class FactionVehiclePoolService {
         if (existing.isPresent() && existing.get().getMode() == OwnershipMode.INSTALLATION) {
             return CanAddResult.ALREADY_BERTHED;
         }
+        if (PreparationFreeze.isFrozen(faction)) {
+            return CanAddResult.FROZEN;
+        }
 
         OwnerData ownerData = vehicle.getOwnerData();
         String owner = ownerData == null ? null : ownerData.getOwner();
@@ -238,6 +242,8 @@ public final class FactionVehiclePoolService {
         ALREADY_BERTHED,
         UNKNOWN_TYPE,
         MUST_BERTH,
-        NO_ARTILLERY_CAPACITY
+        NO_ARTILLERY_CAPACITY,
+        /** The faction's war is in its buildup or had a battle postponed. */
+        FROZEN
     }
 }

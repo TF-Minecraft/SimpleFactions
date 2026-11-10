@@ -20,9 +20,9 @@ import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionRegistry;
 import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionService;
 import net.tfminecraft.simplefactions.diplomacy.coalition.CoalitionWars;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.objects.request.WarRequest;
 import net.tfminecraft.simplefactions.SimpleFactions;
-import net.tfminecraft.simplefactions.war.core.CallToArmsEligibility;
+import net.tfminecraft.simplefactions.war.core.CallToArmsService;
+import net.tfminecraft.simplefactions.war.notice.WarNotices;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarCommitment;
@@ -32,6 +32,8 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallati
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.combat.WarCombatTeardownService;
 import net.tfminecraft.simplefactions.war.campaign.WarCampaignService;
+import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -281,7 +283,12 @@ public class WarManager {
 		if (pm == null) {
 			return false;
 		}
-		return new WarCampaignService(pm).populateCampaign(war);
+		if (!new WarCampaignService(pm).populateCampaign(war)) {
+			return false;
+		}
+		// A newly declared war, civil wars included, waits frozen for its first battle.
+		BuildupService.start(war, CampaignClock.now());
+		return true;
 	}
 
 	public static boolean regenerateCampaign(War war) {
@@ -325,6 +332,7 @@ public class WarManager {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	public static War addWar(War w) {
 		wars.add(w);
+		CallToArmsService.snapshotCallable(w);
 		announceAndPersist(w);
 		return w;
 	}
@@ -332,11 +340,28 @@ public class WarManager {
 	private static void announceAndPersist(War w) {
 		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getAttackers()));
 		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getDefenders()));
+		String news = declaredNews(w);
+		for (String member : BattleSideMembers.collectEligibleMemberNames(w.getAttackers())) {
+			WarNotices.send(member, news);
+		}
+		for (String member : BattleSideMembers.collectEligibleMemberNames(w.getDefenders())) {
+			WarNotices.send(member, news);
+		}
 		persist(w);
 	}
 
+	/** One line for every member of both sides, online now or reading it at their next login. */
+	static String declaredNews(War w) {
+		String line = "§c" + w.getAttackers().getLeader().getName() + " §cdeclared war on "
+				+ w.getDefenders().getLeader().getName() + "§c: " + w.getName() + "§c.";
+		if (w.isBuildupFrozen()) {
+			line += " §7The war is in its buildup until the first battle; vote on its day in §e/war list§7.";
+		}
+		return line;
+	}
+
 	@SuppressWarnings("deprecation")
-	private static void notifyWarDeclared(Iterable<String> members) {
+	public static void notifyWarDeclared(Iterable<String> members) {
 		if (members == null) return;
 		for (String member : members) {
 			if (member == null || member.isBlank()) continue;
@@ -489,125 +514,5 @@ public class WarManager {
 			if(w.getSide(f) != null) return w;
 		}
 		return null;
-	}
-	
-	public static void sendRequest(Player sender, Faction origin, Faction target, War w) {
-		CallToArmsEligibility.Result result = CallToArmsEligibility.canCall(w, origin, target);
-		if(!result.allowed()) {
-			sender.sendMessage(result.message());
-			return;
-		}
-		Player p = Members.player(target.getLeader());
-		if(p == null || !p.isOnline()) {
-			sender.sendMessage("§cCannot send request, target faction leader is not online!");
-			return;
-		}
-		// A second request must not silently replace one the leader is still reading.
-		if(RequestManager.hasRequest(p)) {
-			sender.sendMessage("§cThat leader already has a pending request.");
-			return;
-		}
-		// An ally is always called as an ally; only a non-ally answers as a coalition member.
-		Coalition coalition = RelationManager.getAllies(origin).contains(target)
-				? null : CoalitionWars.callingCoalition(w, origin, target);
-		sender.sendMessage("§aSent a call to arms to "+target.getName());
-		p.sendMessage(FactionManager.getByLeader(Members.key(sender)).getName()+" §7is requesting that you aid them in their war against "+w.getEnemy(origin).getName());
-		if(coalition != null) {
-			p.sendMessage("§7They call on you as a fellow member of the "+CoalitionService.displayName(coalition)+" §7coalition. Declining costs more stability than refusing an ally.");
-		}
-		String warning = CoalitionWars.acceptWarning(w, origin, target);
-		if(warning != null) p.sendMessage(warning);
-		p.sendMessage("§7Type §a/faction accept §7to accept");
-		p.sendMessage("§7Type §c/faction decline §7to decline");
-		p.sendMessage("§7Request will time out in "+WarRequest.expiryText());
-		RequestManager.addRequest(sender, p, new WarRequest(FactionManager.getByLeader(Members.key(sender)).getOrCreateMainGuild(), w, target.getId(),
-				coalition == null ? null : coalition.getId()));
-	}
-	
-	public static void acceptRequest(Player p) {
-		if (!(RequestManager.getRequest(p) instanceof WarRequest req)) {
-			return;
-		}
-		Faction reciever = FactionManager.getByLeader(Members.key(p));
-		if(reciever == null) {
-			p.sendMessage("§cYou do not have a faction");
-			return;
-		}
-		Faction origin = req.getFaction();
-		War war = req.getWar();
-		String requestedFaction = req.getTargetFactionId();
-		if (war == null || !war.isActive() || getById(war.getId()) != war
-				|| origin == null || FactionManager.getByString(origin.getId()) != origin
-				|| FactionManager.getByString(reciever.getId()) != reciever
-				|| (requestedFaction != null && !requestedFaction.equalsIgnoreCase(reciever.getId()))
-				|| !(RelationManager.getAllies(origin).contains(reciever) || CoalitionWars.canCallMember(war, origin, reciever))
-				|| !CallToArmsEligibility.canCall(war, origin, reciever).allowed()
-				|| !war.call(origin, reciever)) {
-			p.sendMessage("§cCould not join the war.");
-			return;
-		}
-		WarCommitmentService.commitFaction(war, reciever);
-		WarCommitmentService.snapshotLevyForFighter(war, reciever);
-		//A secondary only counts as a participant once it has joined, so contracts are re-checked here
-		net.tfminecraft.simplefactions.mercenary.contract.MercenaryLoyaltyWatcher.onWarJoined(reciever);
-		Player sp = Members.player(origin.getLeader());
-		if(sp != null && sp.isOnline()) sp.sendMessage(reciever.getName()+" §aaccepted your call to arms");
-		p.sendMessage("§aYour faction has joined the "+war.getName());
-		notifyWarDeclared(reciever.getMembers());
-		persist(war);
-		// The joiner may be a coalition's target, which lets that coalition in.
-		CoalitionWars.announce(war);
-	}
-
-	// Refused call to arms. Decay matches the war-end hits in WarOutcomeService.
-	public static void declineCallToArms(Player called, WarRequest req) {
-		if (req == null) return;
-		if (called != null && called.isOnline()) {
-			called.sendMessage("§7You declined the call to arms.");
-		}
-		// No penalty for refusing a war that has already ended.
-		if (req.getWar() == null || !req.getWar().isActive()) return;
-		Faction receiver = calledFaction(called, req);
-		if (receiver != null && receiver.getGovernment() != null) {
-			receiver.getGovernment().addStabilityModifier(new StabilityModifier(
-					"Declined Call to Arms",
-					req.isCoalitionCall() ? Cache.warDeclinedCoalitionStabilityPenalty : Cache.warDeclinedAllyStabilityPenalty,
-					1));
-		}
-		String who = receiver != null ? receiver.getName() : "They";
-		tellCaller(req, who + " §cdeclined your call to arms");
-		Coalition coalition = CoalitionRegistry.get(req.getCoalitionId());
-		Faction coalitionLeader = coalition == null ? null : CoalitionService.leader(coalition);
-		if (coalitionLeader != null && req.getFaction() != null
-				&& !coalitionLeader.getId().equalsIgnoreCase(req.getFaction().getId())) {
-			CoalitionService.notifyFaction(coalitionLeader, who + " §cdeclined a coalition call to arms from "
-					+ req.getFaction().getName() + "§c.");
-		}
-	}
-
-	// A call to arms that runs out is not a decline: nothing is lost and the caller may send it again.
-	public static void expireCallToArms(Player called, WarRequest req) {
-		if (req == null) return;
-		if (called != null && called.isOnline()) {
-			called.sendMessage("§7A call to arms expired without an answer.");
-		}
-		if (req.getWar() == null || !req.getWar().isActive()) return;
-		Faction receiver = calledFaction(called, req);
-		String who = receiver != null ? receiver.getName() : "your ally";
-		tellCaller(req, "§7Your call to arms to " + who + " §7expired. You can send it again.");
-	}
-
-	// Requests made before the target was stored fall back to the called leader's faction.
-	// A stored target that no longer exists penalises nobody.
-	private static Faction calledFaction(Player called, WarRequest req) {
-		if (req.getTargetFactionId() != null) return FactionManager.getByString(req.getTargetFactionId());
-		return called != null ? FactionManager.getByLeader(Members.key(called)) : null;
-	}
-
-	private static void tellCaller(WarRequest req, String message) {
-		Faction origin = req.getFaction();
-		if (origin == null || origin.getLeader() == null) return;
-		Player caller = Members.player(origin.getLeader());
-		if (caller != null && caller.isOnline()) caller.sendMessage(message);
 	}
 }
