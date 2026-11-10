@@ -332,12 +332,13 @@ public class WarManager {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	public static War addWar(War w) {
 		wars.add(w);
-		CallToArmsService.snapshotCallable(w);
 		announceAndPersist(w);
 		return w;
 	}
 
+	/** A new war, declared or civil: who may be called later, then the news to both sides. */
 	private static void announceAndPersist(War w) {
+		CallToArmsService.snapshotCallable(w);
 		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getAttackers()));
 		notifyWarDeclared(BattleSideMembers.collectEligibleMemberNames(w.getDefenders()));
 		String news = declaredNews(w);
