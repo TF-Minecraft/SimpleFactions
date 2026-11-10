@@ -316,7 +316,7 @@ class CampaignPickingBoundaryCoverageTest {
             .map(BattleVoterEligibility.HourSlotEntry::hour)
             .filter(java.util.Objects::nonNull)
             .toList());
-    assertEquals(0, BattleQuorumService.countDistinctVoters(null));
+    assertEquals(0, BattleQuorumService.countDistinctVoters((War) null));
     assertFalse(BattleQuorumService.isSmallestSideFullyRepresented(null, name -> alice));
     assertFalse(BattleQuorumService.isSmallestSideFullyRepresented(rig.war, name -> null));
     assertFalse(BattleQuorumService.meetsQuorum(null, name -> alice).passed());

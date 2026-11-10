@@ -370,8 +370,10 @@ class InstallationMenusCoverageTest {
         mockStatic(PreparationFreeze.class, CALLS_REAL_METHODS);
     scopes.add(freeze);
     freeze
-        .when(() -> PreparationFreeze.frozenUntil(eq(faction), any(Instant.class)))
-        .thenReturn(Instant.now().plusSeconds(3600));
+        .when(() -> PreparationFreeze.freeze(eq(faction), any(Instant.class)))
+        .thenReturn(
+            new PreparationFreeze.Freeze(
+                PreparationFreeze.Reason.POSTPONED, Instant.now().plusSeconds(3600)));
     scope(VehiclesConfigLoader.class)
         .when(() -> VehiclesConfigLoader.getCategoryDisplayName("heavy_vehicles"))
         .thenReturn("Heavy Armour");

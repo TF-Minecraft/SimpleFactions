@@ -576,8 +576,10 @@ class ArmyMenusCoverageTest {
     try (MockedStatic<PreparationFreeze> freeze =
         mockStatic(PreparationFreeze.class, CALLS_REAL_METHODS)) {
       freeze
-          .when(() -> PreparationFreeze.frozenUntil(eq(faction), any(Instant.class)))
-          .thenReturn(Instant.now().plusSeconds(3600));
+          .when(() -> PreparationFreeze.freeze(eq(faction), any(Instant.class)))
+          .thenReturn(
+              new PreparationFreeze.Freeze(
+                  PreparationFreeze.Reason.POSTPONED, Instant.now().plusSeconds(3600)));
       ItemStack queue = military.creator.createQueueItem(new MilitaryExpansion(r, 60), 0, faction);
       assertTrue(lore(queue).contains("Frozen: battle postponed"));
       assertEquals(

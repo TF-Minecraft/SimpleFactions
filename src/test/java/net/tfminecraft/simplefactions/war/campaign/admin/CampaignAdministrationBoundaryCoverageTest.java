@@ -115,16 +115,20 @@ class CampaignAdministrationBoundaryCoverageTest {
     War laterWar = new War(918733, rig.attacker, rig.defender);
     laterWar.setPreparationFrozenUntil(now.plusSeconds(1200));
     WarManager.get().add(laterWar);
-    assertEquals(now.plusSeconds(1200), PreparationFreeze.frozenUntil("Alice", now));
-    assertEquals(now.plusSeconds(1200), PreparationFreeze.frozenUntil("Bob", now));
-    assertNull(PreparationFreeze.frozenUntil("Unknown", now));
-    assertNull(PreparationFreeze.frozenUntil((String) null, now));
-    assertTrue(PreparationFreeze.hiringBlockedMessage(rig.attacker, now).contains("20m"));
+    assertEquals(now.plusSeconds(1200), PreparationFreeze.freeze("Alice", now).until());
+    assertEquals(now.plusSeconds(1200), PreparationFreeze.freeze("Bob", now).until());
+    assertNull(PreparationFreeze.freeze("Unknown", now));
+    assertNull(PreparationFreeze.freeze((String) null, now));
+    assertTrue(
+        PreparationFreeze.refusal(PreparationFreeze.freeze(rig.attacker, now), "regiments", now)
+            .contains("20m"));
     assertEquals("1m", PreparationFreeze.formatRemaining(now.plusSeconds(30), now));
     laterWar.end(WarEndReason.ADMIN_END);
-    assertEquals(now.plusSeconds(600), PreparationFreeze.frozenUntil("Alice", now));
-    assertNull(PreparationFreeze.frozenUntil("Alice", now.plusSeconds(600)));
-    assertNull(PreparationFreeze.hiringBlockedMessage(rig.attacker, now.plusSeconds(600)));
+    assertEquals(now.plusSeconds(600), PreparationFreeze.freeze("Alice", now).until());
+    assertNull(PreparationFreeze.freeze("Alice", now.plusSeconds(600)));
+    assertNull(
+        PreparationFreeze.refusal(
+            PreparationFreeze.freeze(rig.attacker, now.plusSeconds(600)), "regiments", now));
   }
 
   @Test
@@ -348,7 +352,9 @@ class CampaignAdministrationBoundaryCoverageTest {
     Instant until = Instant.now().plusSeconds(3600);
     rig.war.setPreparationFrozenUntil(until);
     assertTrue(PreparationFreeze.isFrozen(rig.attacker));
-    String lore = PreparationFreeze.frozenLore(until);
+    String lore =
+        PreparationFreeze.frozenLore(
+            PreparationFreeze.freeze(rig.attacker, net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.now()));
     assertTrue(lore.contains("Frozen: battle postponed"));
     assertTrue(lore.endsWith("left)"));
     assertNull(PreparationFreeze.frozenLore(null));

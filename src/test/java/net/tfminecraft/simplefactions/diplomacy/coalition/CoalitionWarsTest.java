@@ -29,8 +29,9 @@ import net.tfminecraft.simplefactions.managers.RequestManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.Request;
-import net.tfminecraft.simplefactions.objects.request.WarRequest;
+import net.tfminecraft.simplefactions.war.core.CallToArms;
 import net.tfminecraft.simplefactions.war.core.CallToArmsEligibility;
+import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarMapper;
@@ -64,6 +65,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void aDefensiveCoalitionAnswersWhenAMemberIsAttackedByTheTarget() {
 		War war = war(80, holy, thalendor);
 		Coalition league = league();
+		CallToArmsService.snapshotCallable(war);
 
 		assertSame(league, CoalitionWars.callingCoalition(war, thalendor, bog));
 		assertEquals(List.of(bog, fig), CoalitionWars.callableMembers(war, thalendor));
@@ -149,6 +151,7 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		league();
 		allies(raider, bog);
 		war.getParticipant(raider).update(war);
+		CallToArmsService.snapshotCallable(war);
 
 		CallToArmsEligibility.Result result = CallToArmsEligibility.canCall(war, raider, bog);
 
@@ -211,16 +214,21 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void aCoalitionCallIsSentAnsweredAndRememberedAsOne() throws Exception {
 		War war = war(88, holy, thalendor);
 		Coalition league = league();
-		WarManager.sendRequest(tom, thalendor, bog, war);
-		WarRequest request = (WarRequest) RequestManager.getRequest(bea);
-		assertTrue(request.isCoalitionCall());
-		assertEquals(league.getId(), request.getCoalitionId());
+		// The league already stood when the war was declared.
+		CallToArmsService.snapshotCallable(war);
+		CallToArmsService.send(tom, thalendor, bog, war);
+		CallToArms call = war.getCallsToArms().get("bog");
+		assertTrue(call.isCoalitionCall());
+		assertEquals(league.getId(), call.coalitionId());
 		verify(bea).sendMessage(contains("as a fellow member of the Grand League"));
+		CallToArms stored = WarMapper.fromData(WarMapper.toData(war)).getCallsToArms().get("bog");
+		assertEquals(call, stored);
 
-		RequestManager.accept(bea);
+		CallToArmsService.accept(bea, war);
 
 		assertTrue(war.getParticipant(thalendor).hasCoalitionAlly(bog));
-		verify(tom).sendMessage("bog §aaccepted your call to arms");
+		assertTrue(war.getCallsToArms().isEmpty());
+		verify(tom).sendMessage("bog §aaccepted your call to arms in the " + war.getName() + "§a.");
 		War restored = WarMapper.fromData(WarMapper.toData(war));
 		assertTrue(restored.getParticipant(thalendor).hasCoalitionAlly(bog));
 		assertTrue(restored.isParticipating(bog));
@@ -235,22 +243,25 @@ class CoalitionWarsTest extends CoalitionTestBase {
 	void decliningACoalitionCallCostsMoreAndTellsTheCoalitionLeader() throws Exception {
 		War war = war(89, holy, fig);
 		league();
+		CallToArmsService.snapshotCallable(war);
 		Government government = mock(Government.class);
 		Field field = Faction.class.getDeclaredField("government");
 		field.setAccessible(true);
 		field.set(bog, government);
-		WarManager.sendRequest(finn, fig, bog, war);
+		CallToArmsService.send(finn, fig, bog, war);
 
-		RequestManager.decline(bea);
+		CallToArmsService.decline(bea, war);
 
 		ArgumentCaptor<StabilityModifier> captor = ArgumentCaptor.forClass(StabilityModifier.class);
 		verify(government).addStabilityModifier(captor.capture());
 		assertEquals(Cache.warDeclinedCoalitionStabilityPenalty, captor.getValue().getModifier());
 		verify(tom).sendMessage("bog §cdeclined a coalition call to arms from fig§c.");
+		verify(finn).sendMessage("bog §cdeclined your call to arms in the " + war.getName() + "§c.");
 
 		// The leader calling needs no second notice.
-		WarManager.sendRequest(tom, thalendor, bog, war(90, holy, thalendor));
-		RequestManager.decline(bea);
+		War second = war(90, holy, thalendor);
+		CallToArmsService.send(tom, thalendor, bog, second);
+		CallToArmsService.decline(bea, second);
 		verify(tom, never()).sendMessage("bog §cdeclined a coalition call to arms from thalendor§c.");
 		verify(government, times(2)).addStabilityModifier(any());
 	}
@@ -261,13 +272,27 @@ class CoalitionWarsTest extends CoalitionTestBase {
 		allies(raider, holy);
 		War war = war(91, raider, thalendor);
 		league();
-		WarManager.sendRequest(fixture.player("Rex"), raider, holy, war);
+		CallToArmsService.send(fixture.player("Rex"), raider, holy, war);
 		verify(hana).sendMessage("§cAccepting will let the Grand League §ccoalition, which targets you, join this war.");
-		assertFalse(((WarRequest) RequestManager.getRequest(hana)).isCoalitionCall());
+		assertFalse(war.getCallsToArms().get("holy").isCoalitionCall());
 
-		RequestManager.accept(hana);
+		CallToArmsService.accept(hana, war);
 
 		verify(tom).sendMessage(contains("can now be called into"));
+	}
+
+	@Test
+	void aCoalitionFormedAfterTheDeclarationCannotBeCalledIn() {
+		War war = war(92, holy, thalendor);
+		league();
+
+		CallToArmsEligibility.Result result = CallToArmsEligibility.canCall(war, thalendor, bog);
+
+		assertFalse(result.allowed());
+		assertEquals(CallToArmsService.NOT_ALLIED_AT_DECLARATION, result.message());
+		CallToArmsService.send(tom, thalendor, bog, war);
+		verify(tom).sendMessage(CallToArmsService.NOT_ALLIED_AT_DECLARATION);
+		assertTrue(war.getCallsToArms().isEmpty());
 	}
 
 	@Test

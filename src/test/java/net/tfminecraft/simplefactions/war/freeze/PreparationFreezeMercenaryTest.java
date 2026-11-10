@@ -45,18 +45,17 @@ class PreparationFreezeMercenaryTest {
 	}
 
 	@Test
-	void frozenHirer_cannotBeOfferedAContract() {
+	void frozenHirer_canStillBeOfferedAContract() {
 		freeze(fixture.hirer);
 
 		ContractHandler.Offer offer = fixture.company.getContractHandler()
 				.offer(fixture.hirer, ContractFixture.validTerms(1));
 
-		assertFalse(offer.ok());
-		assertTrue(offer.message().contains("cannot hire mercenaries"));
+		assertTrue(offer.ok(), offer.message());
 	}
 
 	@Test
-	void frozenHirer_cannotSignAnOpenOffer() {
+	void frozenHirer_canStillSignAnOpenOffer() {
 		Government government = mock(Government.class);
 		when(government.isCouncilMember("signer")).thenReturn(true);
 		when(fixture.hirer.getGovernment()).thenReturn(government);
@@ -66,8 +65,33 @@ class PreparationFreezeMercenaryTest {
 		MercenaryResult result = fixture.company.getContractHandler()
 				.accept(contract.getId(), fixture.hirer, "signer");
 
+		assertTrue(result.ok(), result.message());
+		assertFalse(contract.isOffered());
+	}
+
+	@Test
+	void frozenHost_refusesNewCompanySlotsAndExplainsWhy() {
+		MercenaryCompany company = fixture.company;
+		for (int i = 0; i < company.getSlots(); i++) {
+			company.enlist("Recruit" + i);
+		}
+		freeze(fixture.host.guild.getFaction());
+
+		MercenaryResult result = company.enqueueExpansion();
+
 		assertFalse(result.ok());
-		assertTrue(contract.isOffered());
+		assertTrue(result.message().contains("No new company slots"), result.message());
+		assertTrue(PreparationFreeze.isFrozen(company));
+		assertTrue(PreparationFreeze.refusal(company, "company upgrades").contains("company upgrades"));
+	}
+
+	@Test
+	void companyOutsideAnyFreeze_hasNoRefusal() {
+		freeze(enemy);
+
+		assertFalse(PreparationFreeze.isFrozen(fixture.company));
+		assertEquals(null, PreparationFreeze.refusal(fixture.company, "company upgrades"));
+		assertEquals(null, PreparationFreeze.freeze((MercenaryCompany) null, Instant.now()));
 	}
 
 	@Test

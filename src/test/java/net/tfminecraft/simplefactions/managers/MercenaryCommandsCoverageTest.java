@@ -796,7 +796,7 @@ class MercenaryCommandsCoverageTest {
   }
 
   @Test
-  void amendmentNotificationsReachOnlyTheHiringGovernmentAndFrozenIncreasesStayPending() {
+  void amendmentNotificationsReachOnlyTheHiringGovernmentAndFrozenHirersMayStillHireMore() {
     assertTrue(company.adminAdjustSlots(1).ok());
     MercenaryContract contract = activeContract();
     Player outsider = fixture.player("Outsider");
@@ -810,11 +810,11 @@ class MercenaryCommandsCoverageTest {
     War frozen = new War(hirer, enemy);
     frozen.setPreparationFrozenUntil(Instant.ofEpochMilli(now + 3600000));
     WarManager.get().add(frozen);
-    assertFalse(
-        company.getContractHandler().acceptSlots(contract.getId(), hirer, "Hirer", now).ok());
-    assertEquals(1, contract.getSlots());
-    assertEquals(2, contract.getPendingSlots(now));
-    assertEquals(1000.0, guild.getBank().getWealth());
+    // A freeze stops new building, never hiring.
+    var accepted = company.getContractHandler().acceptSlots(contract.getId(), hirer, "Hirer", now);
+    assertTrue(accepted.ok(), accepted.message());
+    assertEquals(2, contract.getSlots());
+    assertFalse(contract.hasPendingSlots(now));
   }
 
   @Test
