@@ -633,6 +633,130 @@ class CampaignMenusCoverageTest {
     assertTrue(war.getBattleVotes().isEmpty());
   }
 
+  private int startDayVote(int options) {
+    int previous = Cache.warBuildupDayOptions;
+    Cache.warBuildupDayOptions = options;
+    war.setBuildup(true);
+    war.setBattleDay(null);
+    war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
+    war.setDayVoteFirstDay(LocalDate.of(2026, 10, 14));
+    war.setDayVoteClosesAt(NOW.plusSeconds(72 * 3600L));
+    return previous;
+  }
+
+  @Test
+  void aBuildupWarShowsAndTakesFirstBattleDayVotes() {
+    int previous = startDayVote(3);
+    try {
+      view.campaignView(player, war, true);
+      Inventory first = top();
+      assertEquals("First battle day voting", name(first.getItem(27)));
+      assertLore(first.getItem(27), "The hour vote follows on the chosen day");
+      assertEquals("14/10/2026", name(first.getItem(28)).replaceAll("^\\W+", ""));
+      assertEquals(0, number(first.getItem(28), "campaign_vote_day"));
+      assertEquals(7, number(first.getItem(28), "campaign_vote_war"));
+      assertEquals(2, number(first.getItem(30), "campaign_vote_day"));
+      assertNull(number(first.getItem(31), "campaign_vote_day"));
+      assertLore(first.getItem(4), "Buildup: frozen until the first battle");
+      assertLore(first.getItem(4), "Day Vote Closes:");
+      assertLore(first.getItem(4), "Buildup: Voting on the Day");
+      assertLore(first.getItem(4), "First Battle Day Votes:");
+      assertLore(first.getItem(4), "Your Days: -");
+
+      click(29);
+
+      assertEquals(Set.of(1), war.getDayVotes().get(player.getUniqueId()));
+      verify(player).sendMessage("§aAdded 15/10/2026 §ato the days you can fight.");
+      assertLore(top().getItem(29), "Click to remove this day");
+      assertLore(top().getItem(29), "1/0");
+      assertLore(top().getItem(4), "Your Days: 15/10/2026");
+      assertLore(top().getItem(4), "Total voters: 1");
+      click(29);
+      assertFalse(war.getDayVotes().containsKey(player.getUniqueId()));
+      verify(player).sendMessage("§aRemoved 15/10/2026 §afrom the days you can fight.");
+      wars.verify(() -> WarManager.persist(war), times(2));
+    } finally {
+      Cache.warBuildupDayOptions = previous;
+    }
+  }
+
+  @Test
+  void dayVoteClicksRefuseClosedVotesOutsidersAndInvalidDays() {
+    int previous = startDayVote(5);
+    try {
+      Inventory inventory = open();
+      inventory.setItem(0, creator.createDayToggleItem(war, 0, false, true, null));
+      inventory.setItem(1, creator.createDayToggleItem(war, 9, false, true, null));
+      click(1);
+      verify(player).sendMessage("§cYou cannot vote for that day.");
+      when(player.isOnline()).thenReturn(false);
+      click(0);
+      verify(player, times(2)).sendMessage("§cYou cannot vote for that day.");
+      when(player.isOnline()).thenReturn(true);
+      war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+      click(0);
+      verify(player).sendMessage("§cYou cannot vote for the first battle day right now.");
+      war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
+      removePlayerFromFaction();
+      click(0);
+      verify(player, times(2)).sendMessage("§cYou cannot vote for the first battle day right now.");
+      assertTrue(war.getDayVotes().isEmpty());
+      wars.verify(() -> WarManager.persist(any()), never());
+      ItemStack otherWar = creator.createDayToggleItem(war, 0, false, true, null);
+      ItemMeta meta = otherWar.getItemMeta();
+      meta.getPersistentDataContainer()
+          .set(new NamespacedKey(fixture.ui.plugin, "campaign_vote_war"), PersistentDataType.INTEGER, 8);
+      otherWar.setItemMeta(meta);
+      inventory.setItem(2, otherWar);
+      click(2);
+      assertTrue(war.getDayVotes().isEmpty());
+    } finally {
+      Cache.warBuildupDayOptions = previous;
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true,true", "false,true", "true,false", "false,false"})
+  void dayButtonsDescribeSelectionEligibilityAndOnlyTagAllowedActions(
+      boolean selected, boolean allowed) {
+    int previous = startDayVote(5);
+    try {
+      ItemStack item = creator.createDayToggleItem(war, 2, selected, allowed, new BattleHourTally(2, 3));
+      assertTrue(name(item).endsWith("16/10/2026"));
+      assertLore(item, "2/3");
+      assertLore(item, "attacker/defender");
+      assertLore(
+          item,
+          allowed ? (selected ? "Click to remove this day" : "Click to select this day") : "Voting closed");
+      assertEquals(allowed ? 2 : null, number(item, "campaign_vote_day"));
+      assertLore(creator.createDayToggleItem(war, 2, selected, allowed, null), "0/0");
+    } finally {
+      Cache.warBuildupDayOptions = previous;
+    }
+  }
+
+  @Test
+  void aBuildupWarWithItsDayChosenStillSaysItIsFrozen() {
+    war.setBuildup(true);
+    List<String> lines =
+        CampaignCreator.buildScheduleInfoLines(war, null, null).stream()
+            .map(ChatColor::stripColor)
+            .toList();
+    assertEquals("Buildup: frozen until the first battle", lines.get(0));
+    assertTrue(lines.stream().anyMatch(line -> line.startsWith("Battle Day:")));
+    int previous = startDayVote(2);
+    try {
+      List<String> dayVote =
+          CampaignCreator.buildScheduleInfoLines(war, null, null).stream()
+              .map(ChatColor::stripColor)
+              .toList();
+      assertTrue(dayVote.contains("Your Days: -"), dayVote.toString());
+      assertTrue(dayVote.contains("15/10/2026 · 0/0"), dayVote.toString());
+    } finally {
+      Cache.warBuildupDayOptions = previous;
+    }
+  }
+
   @Test
   void expiredVotingAndFormerMembersCannotUseAnAlreadyOpenHourButton() {
     Inventory inventory = open();

@@ -192,6 +192,32 @@ class BattleQuorumServiceTest {
 		assertEquals(4, BattleQuorumService.effectiveMinPlayers());
 	}
 
+	@Test
+	void anyVoteOfTheWarsMembersUsesTheSameQuorum() {
+		War war = baseWar();
+		UUID alice = UUID.randomUUID();
+		UUID bob = UUID.randomUUID();
+		java.util.Map<UUID, Set<Integer>> days = new java.util.HashMap<>();
+		days.put(alice, Set.of(0));
+		days.put(bob, Set.of(1, 2));
+		days.put(UUID.randomUUID(), Set.of());
+		Function<String, UUID> memberNameToUuid = name -> switch (name) {
+			case "Alice" -> alice;
+			case "Bob" -> bob;
+			default -> null;
+		};
+
+		assertEquals(2, BattleQuorumService.countDistinctVoters(days));
+		assertTrue(BattleQuorumService.isSmallestSideFullyRepresented(war, days, memberNameToUuid));
+		assertFalse(BattleQuorumService.isSmallestSideFullyRepresented(war, days, null));
+		assertFalse(BattleQuorumService.isSmallestSideFullyRepresented(war, memberNameToUuid),
+				"The hour vote is still empty");
+		QuorumResult result = BattleQuorumService.meetsQuorum(war, days, memberNameToUuid);
+		assertTrue(result.passed());
+		assertTrue(result.passSmallestSideFull());
+		assertFalse(BattleQuorumService.meetsQuorum(war, memberNameToUuid).passed());
+	}
+
 	private War baseWar() {
 		War war = new War(1, attacker, defender);
 		war.setGoal(WarGoalType.SUBJUGATE);

@@ -32,9 +32,9 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
-import net.tfminecraft.simplefactions.war.core.CallToArmsEligibility;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarCommitment;
+import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
@@ -279,6 +279,36 @@ class WarManagerCoverageTest {
     assertEquals(governmentId, stored.getGovernmentLawId());
     assertEquals(leadershipId, stored.getLeadershipLawId());
     assertEquals(settlementId, stored.getTargetSettlementId());
+    // Every declared war starts in its buildup, frozen, voting on its first battle day.
+    assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
+    assertTrue(war.isBuildupFrozen());
+    assertNull(war.getBattleDay());
+    assertEquals(war.getDayVoteFirstDay(), stored.getDayVoteFirstDay());
+    assertTrue(stored.isBuildupFrozen());
+  }
+
+  @Test
+  void withTheBuildupOffADeclaredWarVotesOnTheNextBattleDayAtOnce() throws Exception {
+    setting("warBuildupEnabled", false);
+    setting("warFirstBattleDayAfterDeclare", true);
+    offensiveArmy();
+    graph(true, false);
+    Faction attacker = fixture.saved("attacker", "Alice");
+    Faction defender = fixture.saved("defender", "Bob");
+    land(attacker, 1);
+    land(defender, 3);
+
+    War war = WarManager.declareWar(attacker, defender, WarGoalType.WAR, null, null);
+
+    assertNotNull(war, WarManager.getLastDeclareError());
+    assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+    assertFalse(war.isBuildupFrozen());
+    assertNull(war.getDayVoteFirstDay());
+    assertEquals(
+        net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.scheduleDate(
+                war.getStartedAt())
+            .plusDays(1),
+        war.getBattleDay());
   }
 
   @Test
@@ -473,6 +503,8 @@ class WarManagerCoverageTest {
     assertTrue(war.getDefenders().getMainParticipants().stream().allMatch(p -> p.isCivilWar()));
     assertEquals("movement", war.getMovementId());
     assertSame(snapshot, war.getCivilWarSnapshot());
+    assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
+    assertTrue(war.isBuildupFrozen());
     assertTrue(war.isParticipating(backer));
     int rebelSlots = attacker.getMilitary().getManpower(true);
     assertEquals(paidSlots, rebelSlots);
