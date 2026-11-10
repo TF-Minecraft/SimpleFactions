@@ -228,6 +228,22 @@ public final class TruceService {
 		return until;
 	}
 
+	/**
+	 * When the truce this war left behind ends: the leaders' truce, or the host's cooldown after a
+	 * civil war. Null when the war left none, such as a war staff ended.
+	 */
+	public static synchronized Instant recordedFor(War war) {
+		if (CivilWarBorderLock.wasCivilWar(war)) {
+			String hostId = civilWarHostId(war);
+			SavedCooldown cooldown = hostId == null ? null : cooldowns.get(hostId.toLowerCase(Locale.ROOT));
+			return cooldown != null && cooldown.warId == war.getId() ? parse(cooldown.until) : null;
+		}
+		Faction attacker = war.getAttackers().getLeader();
+		Faction defender = war.getDefenders().getLeader();
+		Truce truce = attacker == null || defender == null ? null : find(attacker.getId(), defender.getId());
+		return truce != null && truce.warId() == war.getId() ? truce.until() : null;
+	}
+
 	public static Duration civilWarCooldownRemaining(Faction host) {
 		return remainingUntil(civilWarCooldownUntil(host));
 	}

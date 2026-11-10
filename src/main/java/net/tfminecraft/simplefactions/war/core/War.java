@@ -118,6 +118,8 @@ public class War {
 	private Map<String, CallToArms> callsToArms = new LinkedHashMap<>();
 	/** Lower-case ids of the factions that may be called to arms; null on wars from before it was kept. */
 	private Set<String> callableFactionIds;
+	/** Lower-case faction id → when it answered a call to arms; factions there at declaration are absent. */
+	private Map<String, Instant> joinedAt = new LinkedHashMap<>();
 	private boolean defenderChoiceResolved;
 	private CampaignSideRole initiativeHolderCoalition = CampaignSideRole.AGGRESSOR;
 	private CampaignPushTarget pushTarget = CampaignPushTarget.TOWARD_OBJECTIVE;
@@ -897,6 +899,14 @@ public class War {
 
 	public void setCallableFactionIds(Set<String> callableFactionIds) {
 		this.callableFactionIds = callableFactionIds;
+	}
+
+	public Map<String, Instant> getJoinedAt() {
+		return joinedAt;
+	}
+
+	public void setJoinedAt(Map<String, Instant> joinedAt) {
+		this.joinedAt = joinedAt == null ? new LinkedHashMap<>() : new LinkedHashMap<>(joinedAt);
 	}
 
 	public boolean isDefenderChoiceResolved() {

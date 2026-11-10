@@ -28,6 +28,21 @@ public final class GatewayClient {
 		}
 	}
 
+	/**
+	 * TFMCWeb's realm id ({@code main}, {@code dev}), or null when TFMCWeb is not loaded.
+	 * SimpleFactions has no realm setting of its own.
+	 */
+	public static String realmId() {
+		try {
+			Class<?> cls = Class.forName("net.tfminecraft.tfmcweb.TFMCWeb");
+			Object raw = cls.getMethod("getRealmId").invoke(null);
+			String realm = raw == null ? "" : String.valueOf(raw).trim();
+			return realm.isEmpty() ? null : realm;
+		} catch (Throwable t) {
+			return null;
+		}
+	}
+
 	public static Result request(String method, String path, String jsonBody) {
 		try {
 			Class<?> cls = Class.forName(

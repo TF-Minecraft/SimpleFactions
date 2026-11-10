@@ -18,6 +18,11 @@ war:
   truce:
     # Real days that factions on opposite sides of a finished war cannot declare on each other.
     days: 10
+  history:
+    # Sends war events (declared, joined, battle day, scheduled, postponed, battles, ended) and
+    # finished battle records to the website's war pages, through TFMCWeb. Unsent items wait in
+    # WarHistory/outbox.jsonl, so a website outage loses nothing. Off: nothing is recorded or sent.
+    enabled: true
   goals:
     DE_JURE_ANNEX:
       max_battles_per_leg: 4

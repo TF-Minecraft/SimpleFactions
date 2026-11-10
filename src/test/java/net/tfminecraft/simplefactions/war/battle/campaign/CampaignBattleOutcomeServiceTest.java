@@ -147,6 +147,38 @@ class CampaignBattleOutcomeServiceTest {
 	}
 
 	@Test
+	void applyCampaignBattleOutcome_recordsHowTheBattleWasSettled(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
+		var outbox = new net.tfminecraft.simplefactions.war.history.WarHistoryOutbox(dir.resolve("outbox.jsonl"), m -> {});
+		net.tfminecraft.simplefactions.war.history.WarHistory.startForTests(outbox);
+		try {
+			War war = baseWar();
+			war.setCampaignBattleSchedule(List.of(
+					new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
+			war.setCampaignScheduleIndex(0);
+			war.setCampaignBattlesFought(2);
+			warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.ATTACKER, 20);
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20,
+					net.tfminecraft.simplefactions.war.history.BattleResolution.FORFEIT);
+
+			var events = outbox.peek(net.tfminecraft.simplefactions.war.history.WarHistoryOutbox.Kind.EVENT, 10).stream()
+					.map(item -> com.google.gson.JsonParser.parseString(item.json()).getAsJsonObject())
+					.filter(event -> event.get("type").getAsString().equals("battle_resolved"))
+					.map(event -> event.getAsJsonObject("payload"))
+					.toList();
+			assertEquals(2, events.size());
+			assertEquals("staff", events.get(0).get("resolution").getAsString());
+			assertEquals(3, events.get(0).get("battle_number").getAsInt());
+			assertEquals("attacker", events.get(0).get("winner").getAsString());
+			assertEquals("invasion", events.get(0).get("leg").getAsString());
+			assertEquals("forfeit", events.get(1).get("resolution").getAsString());
+		} finally {
+			net.tfminecraft.simplefactions.war.history.WarHistory.resetForTests();
+		}
+	}
+
+	@Test
 	void applyCampaignBattleOutcome_settledWithoutAFight_endsTheBuildupFreeze() {
 		War war = baseWar();
 		war.setCampaignBattleSchedule(List.of(

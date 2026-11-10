@@ -16,6 +16,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleLaunchService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
@@ -250,6 +251,7 @@ public final class BattleScheduleService {
 		war.setPostponementsThisCycle(war.getPostponementsThisCycle() + 1);
 		war.setDefenderChoiceResolved(false);
 		PreparationFreeze.applyPostponement(war, now);
+		WarHistoryEvents.postponed(war);
 	}
 
 	public static void skipBattleDay(War war) {
@@ -268,6 +270,7 @@ public final class BattleScheduleService {
 		BattleInstallationPickService.clearForNewBattleDay(war);
 		CampaignRaidService.clearForNewBattleDay(war);
 		PreparationFreeze.applyPostponement(war, now);
+		WarHistoryEvents.postponed(war);
 	}
 
 	/**
@@ -379,7 +382,12 @@ public final class BattleScheduleService {
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
 		war.setPostponementsThisCycle(0);
 		CampaignBattleLaunchService.prepareScheduledBattle(war);
-		return war.getScheduledBattleAt() != null;
+		// Preparing can settle the battle at once (forfeit, naval default), which clears the time.
+		boolean scheduled = war.getScheduledBattleAt() != null;
+		if (scheduled) {
+			WarHistoryEvents.scheduled(war, provinceId);
+		}
+		return scheduled;
 	}
 
 	public static boolean markScheduledAtProvince(War war, int provinceId) {
@@ -390,7 +398,11 @@ public final class BattleScheduleService {
 		war.setScheduledBattleProvinceId(provinceId);
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
 		war.setPostponementsThisCycle(0);
-		return CampaignBattleLaunchService.prepareScheduledBattle(war) != null;
+		boolean prepared = CampaignBattleLaunchService.prepareScheduledBattle(war) != null;
+		if (prepared) {
+			WarHistoryEvents.scheduled(war, provinceId);
+		}
+		return prepared;
 	}
 
 	public static Integer resolveScheduledProvinceId(War war) {

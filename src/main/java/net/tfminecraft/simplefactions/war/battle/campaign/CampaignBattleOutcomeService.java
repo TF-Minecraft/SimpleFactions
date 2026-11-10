@@ -17,6 +17,10 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.events.BattleEndedEvent;
 import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyService;
+import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyTally;
+import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
+import net.tfminecraft.simplefactions.war.history.BattleResolution;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.war.battle.campaign.BattleNamingService;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
@@ -78,7 +82,9 @@ public class CampaignBattleOutcomeService implements Listener {
 				winnerRole,
 				battleProvinceId,
 				battle,
-				event.getSideCasualties());
+				event.getSideCasualties(),
+				null,
+				BattleResolution.FOUGHT);
 
 		if (battle != null) {
 			finalizeCampaignBattleAfterOutcome(war, battle);
@@ -101,11 +107,20 @@ public class CampaignBattleOutcomeService implements Listener {
 		finalizeCampaignBattleAfterOutcome(war, war != null ? BattleManager.getByWarId(war.getId()) : null);
 	}
 
+	/** A result without a live battle: a staff decision unless {@code resolution} says otherwise. */
 	public static CampaignBattleApplyResult applyCampaignBattleOutcome(
 			War war,
 			BelligerentRole winnerRole,
 			Integer battleProvinceId) {
-		return applyCampaignBattleOutcome(war, winnerRole, battleProvinceId, null, null);
+		return applyCampaignBattleOutcome(war, winnerRole, battleProvinceId, BattleResolution.STAFF);
+	}
+
+	public static CampaignBattleApplyResult applyCampaignBattleOutcome(
+			War war,
+			BelligerentRole winnerRole,
+			Integer battleProvinceId,
+			BattleResolution resolution) {
+		return applyCampaignBattleOutcome(war, winnerRole, battleProvinceId, null, null, null, resolution);
 	}
 
 	public static CampaignBattleApplyResult applyCampaignBattleOutcome(
@@ -124,10 +139,25 @@ public class CampaignBattleOutcomeService implements Listener {
 			Battle battle,
 			Map<String, Integer> sideCasualties,
 			CampaignSideRole lastBattleOffensiveOverride) {
+		return applyCampaignBattleOutcome(war, winnerRole, battleProvinceId, battle, sideCasualties,
+				lastBattleOffensiveOverride, battle != null ? BattleResolution.FOUGHT : BattleResolution.STAFF);
+	}
+
+	/** {@code resolution} only labels the battle in the war history; the outcome is the same. */
+	public static CampaignBattleApplyResult applyCampaignBattleOutcome(
+			War war,
+			BelligerentRole winnerRole,
+			Integer battleProvinceId,
+			Battle battle,
+			Map<String, Integer> sideCasualties,
+			CampaignSideRole lastBattleOffensiveOverride,
+			BattleResolution resolution) {
 		if (war == null) {
 			return new CampaignBattleApplyResult(false, false, Optional.empty());
 		}
 
+		int battleNumber = war.getCampaignBattlesFought() + 1;
+		CampaignPhase leg = war.getCampaignPhase();
 		war.setPostponementsThisCycle(0);
 		// A forfeit, naval auto-loss, autoresolve or staff result settles the first battle as surely as a fight.
 		war.setBuildup(false);
@@ -141,12 +171,12 @@ public class CampaignBattleOutcomeService implements Listener {
 			CampaignBattleEndService.snapshotBattleStart(war);
 		}
 
-		if (battle != null) {
-			BattleCasualtyService.applyBattleCasualties(
-					war,
-					battle,
-					sideCasualties != null ? sideCasualties : Map.of());
-		}
+		BattleCasualtyTally tally = battle != null
+				? BattleCasualtyService.applyBattleCasualties(
+						war,
+						battle,
+						sideCasualties != null ? sideCasualties : Map.of())
+				: BattleCasualtyTally.empty();
 
 		if (winnerRole != null) {
 			CampaignBattleEndService.spendOffensiveFuel(war);
@@ -174,6 +204,9 @@ public class CampaignBattleOutcomeService implements Listener {
 			war.setCampaignBattlesFought(war.getCampaignBattlesFought() + 1);
 			progressionApplied = true;
 		}
+		// After casualties and occupation, before the battle can end the war.
+		WarHistoryEvents.battleResolved(new WarHistoryEvents.ResolvedBattle(war, resolution, battleNumber, leg,
+				battleProvinceId, foughtSlot, winnerRole, battle, sideCasualties, tally));
 
 		CampaignSideRole winner = winnerRole == null ? null
 				: CampaignSideService.belligerentRoleToCoalition(winnerRole);

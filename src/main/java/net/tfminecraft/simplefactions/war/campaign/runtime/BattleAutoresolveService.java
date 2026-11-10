@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.runtime;
 
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.war.history.BattleResolution;
 
 import java.time.Instant;
 import java.util.Map;
@@ -195,7 +196,8 @@ public final class BattleAutoresolveService {
 				Map.of(
 						BattleTemplate.ATTACKER_SIDE, prediction.offensiveDeaths(),
 						BattleTemplate.DEFENDER_SIDE, prediction.defensiveDeaths()),
-				offensive);
+				offensive,
+				BattleResolution.AUTORESOLVE);
 		if (prepared != null) {
 			BattlePersistenceService.deleteCampaignBattle(prepared);
 		}

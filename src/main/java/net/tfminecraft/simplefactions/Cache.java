@@ -77,6 +77,8 @@ public class Cache {
 	public static double warReparationsIncomePercent = 25;
 	public static int warReparationsDays = 10;
 	public static int warTruceDays = 10;
+	/** Sends war events and battle records to the website's war pages (war.history.enabled). */
+	public static boolean warHistoryEnabled = true;
 	public static Map<WarGoalType, Integer> warGoalMaxBattles = new EnumMap<>(WarGoalType.class);
 	public static final int MAX_BATTLES_PER_LEG = 4;
 	public static List<String> openMarketDefenderMustNotHave = List.of();

@@ -201,6 +201,9 @@ public final class WarMapper {
 		if (war.getCallableFactionIds() != null) {
 			data.callableFactionIds = new ArrayList<>(war.getCallableFactionIds());
 		}
+		if (!war.getJoinedAt().isEmpty()) {
+			data.joinedAt = serializeJoinedAt(war.getJoinedAt());
+		}
 		if (war.getStartedAt() != null) {
 			data.startedAt = war.getStartedAt().toString();
 		}
@@ -335,6 +338,7 @@ public final class WarMapper {
 		war.setDayVotes(deserializeBattleVotes(data.dayVotes));
 		war.setCallsToArms(deserializeCallsToArms(data.callsToArms));
 		war.setCallableFactionIds(data.callableFactionIds == null ? null : new LinkedHashSet<>(data.callableFactionIds));
+		war.setJoinedAt(deserializeJoinedAt(data.joinedAt));
 		if (data.postBattleChoiceResolved != null) {
 			war.setPostBattleChoiceResolved(data.postBattleChoiceResolved);
 		}
@@ -654,6 +658,30 @@ public final class WarMapper {
 			}
 		}
 		return deserialized;
+	}
+
+	private static Map<String, String> serializeJoinedAt(Map<String, Instant> joinedAt) {
+		Map<String, String> out = new LinkedHashMap<>();
+		for (Map.Entry<String, Instant> entry : joinedAt.entrySet()) {
+			out.put(entry.getKey(), entry.getValue().toString());
+		}
+		return out;
+	}
+
+	/** An unreadable time only loses that faction's join date, never the war. */
+	private static Map<String, Instant> deserializeJoinedAt(Map<String, String> joinedAt) {
+		Map<String, Instant> out = new LinkedHashMap<>();
+		if (joinedAt == null) {
+			return out;
+		}
+		for (Map.Entry<String, String> entry : joinedAt.entrySet()) {
+			try {
+				out.put(entry.getKey().toLowerCase(java.util.Locale.ROOT), Instant.parse(entry.getValue()));
+			} catch (RuntimeException unreadable) {
+				// Skipped: the faction shows as present at declaration.
+			}
+		}
+		return out;
 	}
 
 	private static List<CallToArmsData> serializeCallsToArms(Map<String, CallToArms> calls) {

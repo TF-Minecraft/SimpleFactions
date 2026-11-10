@@ -933,6 +933,35 @@ class WarMapperTest {
 	}
 
 	@Test
+	void roundTrip_joinTimesOfFactionsThatAnsweredACall() {
+		Faction attacker = mock(Faction.class);
+		Faction defender = mock(Faction.class);
+		when(attacker.getId()).thenReturn("faction_a");
+		when(defender.getId()).thenReturn("faction_b");
+		FactionManager.factions.add(attacker);
+		FactionManager.factions.add(defender);
+		try {
+			War legacy = WarMapper.fromData(minimalWarData());
+			assertTrue(legacy.getJoinedAt().isEmpty(), "Older saves: everyone was there at declaration");
+			assertNull(WarMapper.toData(legacy).joinedAt);
+
+			WarData data = minimalWarData();
+			data.joinedAt = new java.util.LinkedHashMap<>(Map.of("Ally", "2026-11-12T08:00:00Z"));
+			data.joinedAt.put("broken", "yesterday");
+			War war = WarMapper.fromData(data);
+
+			assertEquals(Map.of("ally", Instant.parse("2026-11-12T08:00:00Z")), war.getJoinedAt(),
+					"An unreadable time only loses that faction's date");
+			assertEquals(Map.of("ally", "2026-11-12T08:00:00Z"), WarMapper.toData(war).joinedAt);
+			war.setJoinedAt(null);
+			assertTrue(war.getJoinedAt().isEmpty());
+		} finally {
+			FactionManager.factions.remove(attacker);
+			FactionManager.factions.remove(defender);
+		}
+	}
+
+	@Test
 	void roundTrip_buildupDayVoteCallsToArmsAndCallableFactions() {
 		Faction attacker = mock(Faction.class);
 		Faction defender = mock(Faction.class);

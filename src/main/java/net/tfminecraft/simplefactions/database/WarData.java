@@ -90,6 +90,8 @@ public class WarData {
     public Map<String, List<Integer>> dayVotes;
     public List<CallToArmsData> callsToArms;
     public List<String> callableFactionIds;
+    // Absent in older files: nobody joined by a call to arms yet.
+    public Map<String, String> joinedAt;
     public boolean defenderChoiceResolved;
     public String initiativeHolderCoalition;
     public String pushTarget;

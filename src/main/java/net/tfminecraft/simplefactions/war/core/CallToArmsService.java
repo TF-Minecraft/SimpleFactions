@@ -24,7 +24,9 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.war.notice.WarNotices;
 
 /**
@@ -185,6 +187,7 @@ public final class CallToArmsService {
 			player.sendMessage("§cCould not join the war.");
 			return;
 		}
+		WarHistoryEvents.joined(war, receiver, CampaignClock.now());
 		WarCommitmentService.commitFaction(war, receiver);
 		WarCommitmentService.snapshotLevyForFighter(war, receiver);
 		// A secondary only counts as a participant once it has joined, so contracts are re-checked here.

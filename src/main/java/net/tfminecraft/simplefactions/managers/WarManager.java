@@ -51,6 +51,7 @@ import net.tfminecraft.simplefactions.war.declare.WarDeclareRequest;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
 import net.tfminecraft.simplefactions.war.declare.WarValidationResult;
 import net.tfminecraft.simplefactions.war.truce.TruceService;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 
 public class WarManager {
 	private WarManager() {}
@@ -349,6 +350,7 @@ public class WarManager {
 			WarNotices.send(member, news);
 		}
 		persist(w);
+		WarHistoryEvents.declared(w);
 	}
 
 	/** One line for every member of both sides, online now or reading it at their next login. */
@@ -453,6 +455,8 @@ public class WarManager {
 		WarOutcomeService.apply(w, reason);
 		WarCombatTeardownService.teardownCombatForWar(w);
 		w.end(reason);
+		// The sides are still whole here, and the war file is deleted below.
+		WarHistoryEvents.ended(w, reason);
 		BattleInstallationPickService.clearForNewBattleDay(w);
 		CampaignRaidService.clearForNewBattleDay(w);
 		clearCommitments(w.getId());

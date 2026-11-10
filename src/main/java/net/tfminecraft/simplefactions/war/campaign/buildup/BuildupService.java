@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.campaign.buildup;
 
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -159,6 +160,7 @@ public final class BuildupService {
 		BattleScheduleService.setBattleDay(war, chosen);
 		tellBothSides(war, "§eThe first battle of " + war.getName() + " §eis on §f"
 				+ CampaignUiCopy.formatBattleDay(chosen) + "§e. Vote on its hour in §a/war list§e.");
+		WarHistoryEvents.dayVoteClosed(war, chosen, quorum);
 		return new DayVoteResult(chosen, quorum);
 	}
 

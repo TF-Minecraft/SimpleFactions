@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.campaign.progression.postbattle;
 
 
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.war.history.BattleResolution;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
@@ -49,7 +50,7 @@ public final class CampaignOffensiveForfeitService {
 		purgeUnstartedBattle(war);
 
 		CampaignBattleEndService.snapshotBattleStart(war);
-		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, winnerRole, battleProvinceId);
+		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, winnerRole, battleProvinceId, BattleResolution.FORFEIT);
 		CampaignBattleOutcomeService.finalizeCampaignBattleAfterOutcome(war);
 		broadcastForfeit(war, offensive, winner, battleProvinceId);
 		return true;
