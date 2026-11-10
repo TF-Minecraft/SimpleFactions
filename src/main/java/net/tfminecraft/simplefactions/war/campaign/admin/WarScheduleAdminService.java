@@ -44,6 +44,7 @@ import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
+import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
@@ -158,6 +159,11 @@ public final class WarScheduleAdminService {
 			case AUTORESOLVE_PENDING -> WarScheduleAdminResult.ok("Vote close set AUTORESOLVE_PENDING.");
 
 			case AUTORESOLVED -> WarScheduleAdminResult.ok("Vote close autoresolved the battle.");
+
+			case ENDED_NO_NEXT_BATTLE -> WarScheduleAdminResult.ok(
+
+					"Vote close found no battle left to fight after the last postponement. "
+							+ formatWarEndSummary(WarEndReason.WHITE_PEACE));
 
 			case BLOCKED_DEFENDER_CHOICE -> WarScheduleAdminResult.error(
 
@@ -632,6 +638,10 @@ public final class WarScheduleAdminService {
 			case "accept", "peace", "acceptpeace", "accept-peace" -> CampaignChoiceService.applyLoserAcceptPeace(war);
 			default -> false;
 		};
+		if (!applied && choice.equalsIgnoreCase("attack") && CampaignPostBattleChoiceService.needsLoserResponse(war)) {
+			return WarScheduleAdminResult.error(
+					"The losing side cannot attack: it has no initiative left or no battle to fight. Use accept.");
+		}
 		if (!applied) {
 			return WarScheduleAdminResult.error("Post-battle choice not available. Use push, hold, attack, or accept.");
 		}

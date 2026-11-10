@@ -59,6 +59,10 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaid;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
+import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignBattleEndService;
+import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
+import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
+import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.enums.Terrain;
 
 class CampaignBattleOutcomeServiceTest {
@@ -496,6 +500,51 @@ class CampaignBattleOutcomeServiceTest {
 		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.ATTACKER, 20);
 
 		assertEquals(0, war.getPostponementsThisCycle());
+	}
+
+	@Test
+	void repeatedDefenderWinsExhaustTheInvasionLegThenTheVoteCloseEndsTheWar() {
+		int maxPostponements = Cache.warBattleVotingMaxPostponements;
+		War war = baseWar();
+		war.setCampaignBattleSchedule(List.of(
+				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null),
+				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
+		war.setCampaignScheduleIndex(0);
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+		try {
+			// First defender win: the defender holds and the attacker still has a slot to attack.
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20);
+			assertEquals(1, war.getCampaignScheduleIndex());
+			assertTrue(CampaignPostBattleChoiceService.applyHoldChoice(war));
+			assertTrue(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war));
+			CampaignBattleEndService.applyLoserAttack(war);
+
+			// Second defender win uses the last invasion slot: the attacker has no battle left.
+			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20);
+			assertEquals(2, war.getCampaignScheduleIndex());
+			assertTrue(CampaignPostBattleChoiceService.applyHoldChoice(war));
+			assertFalse(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war));
+			assertFalse(CampaignPostBattleChoiceService.applyLoserAttack(war));
+
+			// A war that got here before the fix attacked anyway and now waits for a battle that cannot come.
+			CampaignBattleEndService.applyLoserAttack(war);
+			BattleScheduleService.openVote(war);
+			Cache.warBattleVotingMaxPostponements = 1;
+			war.setPostponementsThisCycle(1);
+
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					java.time.Instant.now(),
+					uuid -> null,
+					name -> null,
+					new CloseVoteOptions(true, true));
+
+			assertEquals(BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE, result);
+			warManagerMock.verify(() -> WarManager.endWar(war, WarEndReason.WHITE_PEACE));
+			assertEquals(1, war.getPostponementsThisCycle());
+		} finally {
+			Cache.warBattleVotingMaxPostponements = maxPostponements;
+		}
 	}
 
 	private War baseWar() {

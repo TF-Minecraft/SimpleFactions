@@ -66,7 +66,8 @@ public final class BattleScheduleTickService {
 
 		int persisted = 0;
 		for (War war : WarManager.getActive()) {
-			if (processWar(war, now)) {
+			// A war that ended here already deleted its file; saving it would bring the file back.
+			if (processWar(war, now) && war.isActive()) {
 				WarManager.persist(war);
 				persisted++;
 			}
@@ -113,7 +114,8 @@ public final class BattleScheduleTickService {
 		if (result == BattleScheduleCloseResult.SCHEDULED
 				|| result == BattleScheduleCloseResult.POSTPONED
 				|| result == BattleScheduleCloseResult.AUTORESOLVE_PENDING
-				|| result == BattleScheduleCloseResult.AUTORESOLVED) {
+				|| result == BattleScheduleCloseResult.AUTORESOLVED
+				|| result == BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE) {
 			changed = true;
 		}
 		return changed;

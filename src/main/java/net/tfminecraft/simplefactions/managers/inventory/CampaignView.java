@@ -639,6 +639,11 @@ public class CampaignView {
 				player.sendMessage("§aFront held. White peace proposed.");
 			}
 			case "campaign_attack" -> {
+				if (canMakePostBattleChoice(player, war)
+						&& !CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war)) {
+					player.sendMessage("§c" + CampaignPostBattleChoiceService.LOSER_CANNOT_ATTACK);
+					return;
+				}
 				if (!canMakePostBattleChoice(player, war) || !CampaignChoiceService.applyLoserAttack(war)) {
 					player.sendMessage("§cCould not schedule attack.");
 					return;

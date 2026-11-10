@@ -32,6 +32,7 @@ import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.pathfinder.TitleManagerProvinceOwnerLookup;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
+import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignNavyGate;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteRenderer;
@@ -573,6 +574,16 @@ public class CampaignCreator {
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public ItemStack createLoserAttackButton(War war) {
+		if (!CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war)) {
+			ItemStack item = new ItemStack(Material.GRAY_CONCRETE, 1);
+			ItemMeta meta = item.getItemMeta();
+			meta.setDisplayName(StringFormatter.formatHex(CampaignUiCopy.MUTED + "Attack"));
+			meta.setLore(List.of(
+					StringFormatter.formatHex(CampaignUiCopy.LABEL + "No initiative left, or no battle to fight"),
+					StringFormatter.formatHex(CampaignUiCopy.LABEL + "You can only accept peace")));
+			item.setItemMeta(meta);
+			return item;
+		}
 		ItemStack item = new ItemStack(Material.RED_CONCRETE, 1);
 		ItemMeta meta = item.getItemMeta();
 		meta.setDisplayName(StringFormatter.formatHex(CampaignUiCopy.REMOVE + "Attack"));

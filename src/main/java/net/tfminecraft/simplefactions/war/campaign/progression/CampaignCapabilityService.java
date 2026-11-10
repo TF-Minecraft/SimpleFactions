@@ -164,6 +164,11 @@ public final class CampaignCapabilityService {
 		return CampaignPushProjection.canMountOffensiveAfterPush(war, winner);
 	}
 
+	/** Whether the loser of the last battle has the fuel and a battle to answer it with Attack. */
+	public static boolean canMountOffensiveAfterLoserAttack(War war) {
+		return CampaignPushProjection.canMountOffensiveAfterLoserAttack(war);
+	}
+
 	public static boolean needsPostBattleChoice(War war) {
 		return CampaignPostBattleChoiceService.needsAnyChoice(war);
 	}

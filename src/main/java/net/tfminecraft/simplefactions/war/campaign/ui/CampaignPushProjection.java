@@ -17,7 +17,7 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleServ
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 
 /**
- * Dry-run projection of campaign state after a winner chooses Push.
+ * Dry-run projection of campaign state after a winner chooses Push, or a loser chooses Attack.
  */
 public final class CampaignPushProjection {
 	private CampaignPushProjection() {}
@@ -39,6 +39,26 @@ public final class CampaignPushProjection {
 				.map(slot -> CampaignNavyGate.canChallengeNaval(
 						CampaignSideService.toSide(war, winner).getLeader()))
 				.orElse(true);
+	}
+
+	/**
+	 * Whether the loser of the last battle could fight a battle if it answered Attack: it takes the
+	 * initiative, so it needs fuel and a battle left on the current push target and schedule leg.
+	 * The open choice hides the next battle from {@link CampaignCapabilityService#nextBattleProvince},
+	 * so the route is projected here instead.
+	 */
+	public static boolean canMountOffensiveAfterLoserAttack(War war) {
+		if (war == null || !CampaignCapabilityService.isValidWar(war) || war.getPostBattleWinnerCoalition() == null) {
+			return false;
+		}
+		CampaignSideRole loser = war.getPostBattleWinnerCoalition().opposing();
+		ProjectedState projected = new ProjectedState(
+				war.getCursorIndex(),
+				CampaignCapabilityService.effectivePushTarget(war),
+				war.getObjectiveHeldBy(),
+				loser,
+				war.getCampaignBattlesFought());
+		return nextBattleProvince(war, projected).isPresent();
 	}
 
 	static ProjectedState afterPush(War war, CampaignSideRole winner) {

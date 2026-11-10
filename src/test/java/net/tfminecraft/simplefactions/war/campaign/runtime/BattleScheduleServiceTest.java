@@ -34,12 +34,14 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
+import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
@@ -233,14 +235,47 @@ class BattleScheduleServiceTest {
 	}
 
 	@Test
-	void closeVote_postponesAgainWhenAutoresolveHasNoProvince() {
+	void closeVote_endsInWhitePeaceWhenNoBattleCanFollowTheLastPostponement() {
+		Cache.warBattleVotingMaxPostponements = 1;
+		int freezeHours = Cache.warPostponeFreezeHours;
+		Cache.warPostponeFreezeHours = 24;
+		War war = votingWar();
+		war.setPostponementsThisCycle(1);
+		// The side with the initiative has no fuel left, so no battle can be scheduled.
+		war.setInitiativeAttacker(0);
+
+		try (MockedStatic<BattleAutoresolveService> autoresolve = mockStatic(BattleAutoresolveService.class);
+				MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
+			autoresolve.when(() -> BattleAutoresolveService.resolve(war)).thenReturn(false);
+
+			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
+					war,
+					voteCloseInstant(),
+					uuidToFaction(),
+					name -> null);
+
+			assertEquals(BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE, result);
+			warManager.verify(() -> WarManager.endWar(war, WarEndReason.WHITE_PEACE));
+			assertEquals(BATTLE_DAY, war.getBattleDay());
+			assertEquals(1, war.getPostponementsThisCycle());
+			assertNull(war.getPreparationFrozenUntil());
+		} finally {
+			Cache.warPostponeFreezeHours = freezeHours;
+		}
+	}
+
+	@Test
+	void closeVote_aStartedBattleStillPostponesAtTheLimit() {
 		Cache.warBattleVotingMaxPostponements = 1;
 		War war = votingWar();
 		war.setPostponementsThisCycle(1);
+		war.setInitiativeAttacker(0);
+		Battle running = mock(Battle.class);
+		when(running.getWarId()).thenReturn(war.getId());
+		when(running.hasStarted()).thenReturn(true);
+		BattleManager.addBattle(running);
 
-		try (MockedStatic<BattleAutoresolveService> autoresolve = mockStatic(BattleAutoresolveService.class)) {
-			autoresolve.when(() -> BattleAutoresolveService.resolve(war)).thenReturn(false);
-
+		try (MockedStatic<WarManager> warManager = mockStatic(WarManager.class)) {
 			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
 					war,
 					voteCloseInstant(),
@@ -250,7 +285,22 @@ class BattleScheduleServiceTest {
 			assertEquals(BattleScheduleCloseResult.POSTPONED, result);
 			assertEquals(BATTLE_DAY.plusDays(1), war.getBattleDay());
 			assertEquals(2, war.getPostponementsThisCycle());
+			warManager.verify(() -> WarManager.endWar(any(), any()), org.mockito.Mockito.never());
+		} finally {
+			BattleManager.resetForTests();
 		}
+	}
+
+	@Test
+	void hasNoNextBattle_falseWhileAPostBattleChoiceIsOpen() {
+		War war = defenderChoiceWar();
+		war.setInitiativeAttacker(0);
+		war.setInitiativeDefender(0);
+
+		assertFalse(BattleScheduleService.hasNoNextBattle(war));
+		war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);
+		war.setPostBattleChoiceResolved(true);
+		assertTrue(BattleScheduleService.hasNoNextBattle(war));
 	}
 
 	@Test

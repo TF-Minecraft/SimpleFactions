@@ -86,11 +86,20 @@ public final class CampaignPostBattleChoiceService {
 		return true;
 	}
 
+	/** Shown when the loser of a battle cannot answer it with Attack. */
+	public static final String LOSER_CANNOT_ATTACK =
+			"Your side has no initiative left to attack with, or no battle to fight. You can only accept peace.";
+
+	/**
+	 * The loser takes the initiative and attacks. Refused when it has no fuel or no battle to fight:
+	 * the war would wait forever for a battle that cannot come.
+	 */
 	public static boolean applyLoserAttack(War war) {
 		if (!needsLoserResponse(war)) {
 			return false;
 		}
-		if (!CampaignBattleEndService.applyLoserAttack(war)) {
+		if (!CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war)
+				|| !CampaignBattleEndService.applyLoserAttack(war)) {
 			return false;
 		}
 		afterChoiceResolved(war);
@@ -121,7 +130,11 @@ public final class CampaignPostBattleChoiceService {
 			return applyHoldChoice(war);
 		}
 		if (needsLoserResponse(war)) {
-			return applyLoserAttack(war);
+			// Like the winner's Push or Hold: attack when the loser can, otherwise accept the peace.
+			if (CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war)) {
+				return applyLoserAttack(war);
+			}
+			return applyLoserAcceptPeace(war);
 		}
 		return false;
 	}

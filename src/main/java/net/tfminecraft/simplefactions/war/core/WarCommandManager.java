@@ -739,7 +739,10 @@ public class WarCommandManager implements CommandExecutor {
 							+ "battleabort, battleend, battlehold, winbattle, choice");
 		};
 		if (result.success()) {
-			WarManager.persist(w);
+			// A command that ended the war already deleted its file; saving it would bring it back.
+			if (w.isActive()) {
+				WarManager.persist(w);
+			}
 			player.sendMessage("§a" + result.message());
 			Integer castHour = null;
 			if ("castvote".equals(subcommand)) {

@@ -297,7 +297,10 @@ class CampaignAdministrationBoundaryCoverageTest {
             BattleScheduleCloseResult.AUTORESOLVED, "Vote close autoresolved the battle.",
             BattleScheduleCloseResult.BLOCKED_DEFENDER_CHOICE,
                 "Vote close blocked: defender choice unresolved.",
-            BattleScheduleCloseResult.SKIPPED, "Vote close skipped.");
+            BattleScheduleCloseResult.SKIPPED, "Vote close skipped.",
+            BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE,
+                "Vote close found no battle left to fight after the last postponement."
+                    + " War ended (white peace).");
     WarScheduleAdminResult rendered =
         WarScheduleAdminService.formatVoteCloseResult(rig.war, result);
     assertEquals(messages.get(result), rendered.message());

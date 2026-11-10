@@ -31,7 +31,9 @@ public final class VoteResults {
 		AUTORESOLVE_PENDING,
 		AUTORESOLVED,
 		SKIPPED,
-		BLOCKED_DEFENDER_CHOICE
+		BLOCKED_DEFENDER_CHOICE,
+		/** Out of postponements with no battle left to fight: the war ended in white peace. */
+		ENDED_NO_NEXT_BATTLE
 	}
 
 	public record CloseVoteOptions(boolean forceImmediate, boolean forceQuorum) {

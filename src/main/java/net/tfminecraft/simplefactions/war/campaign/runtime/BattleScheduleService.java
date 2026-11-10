@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
+import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleLaunchService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
@@ -131,8 +132,8 @@ public final class BattleScheduleService {
 			Function<String, UUID> memberNameToUuid,
 			CloseVoteOptions options) {
 		BattleScheduleCloseResult result = closeVoteNow(war, now, uuidToFaction, memberNameToUuid, options);
-		if (result != BattleScheduleCloseResult.SKIPPED) {
-			// The website shows the hour vote as closed.
+		if (result != BattleScheduleCloseResult.SKIPPED && war.isActive()) {
+			// The website shows the hour vote as closed. An ended war already sent war_ended.
 			WarHistoryEvents.votesChanged(war);
 		}
 		return result;
@@ -181,8 +182,29 @@ public final class BattleScheduleService {
 		if (BattleAutoresolveService.resolve(war)) {
 			return BattleScheduleCloseResult.AUTORESOLVED;
 		}
+		if (hasNoNextBattle(war)) {
+			// Postponing again would only freeze both sides for another day: no battle can follow.
+			WarResolutionService.endWhitePeace(war);
+			return BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE;
+		}
 		postpone(war, now);
 		return BattleScheduleCloseResult.POSTPONED;
+	}
+
+	/**
+	 * True when no battle can ever follow on this war: none has started, no post-battle choice is
+	 * open, and the side with the initiative has no fuel or no battle left on its route. A started
+	 * battle still ends on its own, so it never counts.
+	 */
+	static boolean hasNoNextBattle(War war) {
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(war.getId());
+		if (battle != null && battle.hasStarted()) {
+			return false;
+		}
+		if (needsPostBattleChoice(war)) {
+			return false;
+		}
+		return resolveScheduledProvinceId(war) == null;
 	}
 
 	public static boolean scheduleFromVotes(War war, Function<UUID, Faction> uuidToFaction) {

@@ -319,6 +319,66 @@ class CampaignPostBattleLifecycleCoverageTest {
     assertEquals(CampaignSideRole.DEFENDER, rig.war.getInitiativeHolderCoalition());
   }
 
+  /** Winner DEFENDER holds after two invasion slots; the attacker is the loser that must answer. */
+  private void defenderHoldsAfterTwoSlots(int attackerFuel, int scheduleIndex) {
+    army(rig.attacker, "raiders", true, 3);
+    army(rig.defender, "guards", true, 3);
+    rig.war.setCampaignBattleSchedule(
+        List.of(
+            new ScheduledCampaignBattle(11, CampaignBattleKind.FIELD, false, null),
+            new ScheduledCampaignBattle(12, CampaignBattleKind.FIELD, false, null)));
+    rig.war.setCampaignScheduleIndex(scheduleIndex);
+    rig.war.setInitiativeAttacker(attackerFuel);
+    CampaignBattleEndService.snapshotBattleStart(rig.war, CampaignSideRole.AGGRESSOR);
+    CampaignBattleEndService.beginPostBattleChoice(rig.war, CampaignSideRole.DEFENDER);
+    assertTrue(CampaignChoiceService.applyHold(rig.war));
+    assertTrue(CampaignPostBattleChoiceService.needsLoserResponse(rig.war));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"0,1", "5,2"})
+  void aLoserWithoutFuelOrABattleLeftCannotAttackAndItsDeadlineAcceptsWhitePeace(
+      int attackerFuel, int scheduleIndex) {
+    defenderHoldsAfterTwoSlots(attackerFuel, scheduleIndex);
+    assertFalse(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(rig.war));
+    long writes = rig.warWrites();
+    assertFalse(CampaignChoiceService.applyLoserAttack(rig.war));
+    assertTrue(CampaignPostBattleChoiceService.needsLoserResponse(rig.war));
+    assertEquals(CampaignSideRole.DEFENDER, rig.war.getInitiativeHolderCoalition());
+    assertEquals(writes, rig.warWrites());
+
+    assertTrue(
+        CampaignPostBattleChoiceService.applyDeadlineIfDue(
+            rig.war, BattleWindowService.atScheduleHour(Fixture.DAY, 15)));
+    assertFalse(rig.war.isActive());
+    assertEquals(WarEndReason.WHITE_PEACE, rig.war.getEndReason());
+  }
+
+  @Test
+  void aLoserWithFuelAndASlotLeftStillAttacksAtTheDeadline() {
+    defenderHoldsAfterTwoSlots(5, 1);
+    assertTrue(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(rig.war));
+    assertTrue(
+        CampaignPostBattleChoiceService.applyDeadlineIfDue(
+            rig.war, BattleWindowService.atScheduleHour(Fixture.DAY, 15)));
+    assertTrue(rig.war.isActive());
+    assertFalse(CampaignPostBattleChoiceService.needsAnyChoice(rig.war));
+    assertEquals(CampaignSideRole.AGGRESSOR, rig.war.getInitiativeHolderCoalition());
+    assertEquals(12, CampaignCapabilityService.nextBattleProvince(rig.war).getAsInt());
+  }
+
+  @Test
+  void theLoserAttackProjectionNeedsAnOpenLoserChoiceOnAValidWar() {
+    assertFalse(
+        net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushProjection
+            .canMountOffensiveAfterLoserAttack(null));
+    assertFalse(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(rig.war));
+    rig.war.setPostBattleWinnerCoalition(CampaignSideRole.DEFENDER);
+    assertTrue(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(rig.war));
+    rig.war.setCampaignProvinces(List.of());
+    assertFalse(CampaignCapabilityService.canMountOffensiveAfterLoserAttack(rig.war));
+  }
+
   @Test
   void aForfeitDeletesOnlyTheUnstartedBattleAndNotifiesBothCurrentOnlineSides() {
     army(rig.defender, "guards", true, 2);

@@ -184,6 +184,9 @@ class CampaignMenusCoverageTest {
     capability
         .when(() -> CampaignCapabilityService.canMountOffensiveAfterPush(eq(war), any()))
         .thenReturn(true);
+    capability
+        .when(() -> CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war))
+        .thenReturn(true);
     resolution = scoped(WarResolutionService.class);
     ItemAPI api = mock(ItemAPI.class);
     ItemCreator items = mock(ItemCreator.class);
@@ -1006,6 +1009,27 @@ class CampaignMenusCoverageTest {
     verify(player).sendMessage(ended ? "§aSlot conceded. War ended." : "§aActive slot retreated.");
     if (ended) verify(navigation).warList(player);
     else assertTrue(CampaignView.isViewingCampaign(player, 7));
+  }
+
+  @Test
+  void aLoserThatCannotAttackSeesADisabledButtonAndTheReasonOnConfirm() {
+    capability
+        .when(() -> CampaignCapabilityService.canMountOffensiveAfterLoserAttack(war))
+        .thenReturn(false);
+    ItemStack disabled = creator.createLoserAttackButton(war);
+    assertEquals(Material.GRAY_CONCRETE, disabled.getType());
+    assertNull(number(disabled, "campaign_attack"));
+    assertTrue(lore(disabled).contains("accept peace"), lore(disabled));
+    prepareAction("attack");
+    pending();
+    view.handleConfirm(player, "campaign_attack", "7", true);
+    verify(player)
+        .sendMessage(
+            "§c"
+                + net.tfminecraft.simplefactions.war.campaign.progression.postbattle
+                    .CampaignPostBattleChoiceService.LOSER_CANNOT_ATTACK);
+    choices.verify(() -> CampaignChoiceService.applyLoserAttack(any()), never());
+    verify(navigation, never()).warList(any());
   }
 
   @Test
