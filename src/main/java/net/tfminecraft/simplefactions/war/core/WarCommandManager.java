@@ -570,9 +570,10 @@ public class WarCommandManager implements CommandExecutor {
 		return faction != null && faction.getName() != null ? faction.getName() : factionId;
 	}
 
-	/** Hour-vote tools that would leave a war voting on its day in a broken state. */
+	/** Schedule and battle tools that would leave a war voting on its day in a broken state. */
 	private static final java.util.Set<String> BUILDUP_REFUSED = java.util.Set.of(
-			"opencvote", "closevote", "skipday", "castvote", "forcequorum", "setday", "sethour", "setscheduled");
+			"opencvote", "closevote", "skipday", "castvote", "forcequorum", "setday", "sethour", "setscheduled",
+			"battlecreate", "battlestart");
 
 	private boolean handleBuildup(Player player, String[] args) {
 		if (args.length < 4) {
