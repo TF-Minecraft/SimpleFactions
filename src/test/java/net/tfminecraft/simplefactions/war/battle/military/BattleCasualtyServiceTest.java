@@ -1,358 +1,173 @@
 package net.tfminecraft.simplefactions.war.battle.military;
 
-
-import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
+import static net.tfminecraft.simplefactions.war.wounds.WoundFixture.regiment;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
-import java.util.ArrayList;
-import java.util.HashMap;
+
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
-import org.bukkit.Bukkit;
-
-import net.tfminecraft.simplefactions.Cache;
-import net.tfminecraft.simplefactions.army.Military;
-import net.tfminecraft.simplefactions.army.Regiment;
-import net.tfminecraft.simplefactions.managers.FactionManager;
-import net.tfminecraft.simplefactions.managers.TitleManager;
-import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.objects.FactionModifier;
-import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
-import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
-import net.tfminecraft.simplefactions.enums.FactionModifiers;
-
-import java.time.Instant;
+import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.enums.WarEndReason;
+import net.tfminecraft.simplefactions.war.history.BattleResolution;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
+import net.tfminecraft.simplefactions.war.wounds.WarLedger;
+import net.tfminecraft.simplefactions.war.wounds.WoundFixture;
 
 class BattleCasualtyServiceTest {
-	private static final List<Integer> CREATED_WAR_IDS = new ArrayList<>();
 	private static final int PROVINCE_ID = 42;
-	private List<War> savedWars;
-	private Map<String, Faction> factionsById;
-	private MockedStatic<Bukkit> bukkitMock;
-	private MockedStatic<WarManager> warManagerMock;
-	private int savedDeathsPerRegiment;
+	private WoundFixture fixture;
 
 	@BeforeEach
 	void setUp() {
-		savedDeathsPerRegiment = Cache.warBattleDeathsPerRegimentLoss;
-		Cache.warBattleDeathsPerRegimentLoss = 1;
-		savedWars = new ArrayList<>(WarManager.get());
-		WarManager.get().clear();
-		factionsById = new HashMap<>();
-		bukkitMock = mockStatic(Bukkit.class);
-		bukkitMock.when(() -> Bukkit.getPlayerExact(anyString())).thenReturn(null);
-		warManagerMock = mockStatic(WarManager.class, CALLS_REAL_METHODS);
-		warManagerMock.when(() -> WarManager.persist(any())).then(inv -> null);
+		fixture = new WoundFixture();
 	}
 
 	@AfterEach
 	void tearDown() {
-		Cache.warBattleDeathsPerRegimentLoss = savedDeathsPerRegiment;
-		warManagerMock.close();
-		bukkitMock.close();
-		for (War war : new ArrayList<>(WarManager.get())) {
-			WarCommitmentService.clearCommitments(war.getId());
-		}
-		// Test wars are not registered, so their commitment rows are cleared by id.
-		for (int id : CREATED_WAR_IDS) {
-			WarCommitmentService.clearCommitments(id);
-		}
-		CREATED_WAR_IDS.clear();
-		WarManager.get().clear();
-		WarManager.get().addAll(savedWars);
+		fixture.close();
 	}
 
 	@Test
-	void militiaDebitedFirst_onOwnLand() {
-		Faction attacker = fighter("atk", Map.of("professional", 10));
-		Faction defender = fighter("def", Map.of("militia", 6, "garrison", 10));
-		War war = baseWar(1, attacker, defender);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "def", "militia", 6);
-		seedOwnRow(war, "def", "garrison", 10);
+	void aFoughtBattleIsRecordedWithTheForcesItStartedWith() {
+		Faction atk = fixture.faction("atk", regiment("professional", 10, 0));
+		Faction def = fixture.faction("def", regiment("professional", 6, 0));
+		War war = fixture.war(1, atk, def);
+		Battle battle = battle(war, BattleType.FIELD, TestForces.regiments("atk", 10), TestForces.regiments("def", 6));
 
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.DEFENDER_SIDE, 8);
+		BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle,
+				Map.of(BattleTemplate.ATTACKER_SIDE, 12, BattleTemplate.DEFENDER_SIDE, 30), BattleResolution.FOUGHT);
 
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(0, commitmentCount(war.getId(), "def", null, "militia"));
-			assertEquals(8, commitmentCount(war.getId(), "def", null, "garrison"));
-			assertEquals(0, liveSlots("def", "militia"));
-			assertEquals(8, liveSlots("def", "garrison"));
-		}
+		WarLedger.BattleEntry entry = war.getLedger().battle(1);
+		assertEquals("b1", entry.battleId());
+		assertEquals("fought", entry.resolution());
+		assertEquals(PROVINCE_ID, entry.provinceId());
+		assertEquals(12, entry.attacker().deaths());
+		assertEquals(TestForces.regiments("atk", 10), entry.attacker().forces());
+		assertEquals(List.of("atk attacker professional 2", "def defender professional 6"), lines(tally));
+		assertEquals(10, atk.getMilitary().getRegiment("professional").getCurrentSlots(),
+				"nothing is taken until the war ends");
 	}
 
 	@Test
-	void proportionalAcrossContributors() {
-		Faction attacker = fighter("atk", Map.of("professional", 10));
-		Faction ally = fighter("ally", Map.of("professional", 5));
-		Faction defender = fighter("def", Map.of("professional", 1));
-		War war = baseWar(2, attacker, defender);
-		war.getAttackers().getMainParticipants().get(0).getAllies().put(ally, true);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "atk", "professional", 10);
-		seedOwnRow(war, "ally", "professional", 5);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(8, commitmentCount(war.getId(), "atk", null, "professional"));
-			assertEquals(4, commitmentCount(war.getId(), "ally", null, "professional"));
-			assertEquals(java.util.Set.of("atk attacker professional 2", "ally attacker professional 1"),
-					new java.util.HashSet<>(lines(tally)));
-			assertEquals(8, liveSlots("atk", "professional"));
-			assertEquals(4, liveSlots("ally", "professional"));
-		}
-	}
-
-	@Test
-	void overlordMilitiaNotDebited_inVassalLand() {
-		Faction overlord = fighter("o", Map.of("militia", 9, "professional", 2));
-		Faction vassal = fighter("v", Map.of("militia", 4, "garrison", 1));
-		Faction defender = fighter("def", Map.of("professional", 1));
-		War war = baseWar(3, overlord, defender);
-		war.getAttackers().getMainParticipants().get(0).getSubjects().add(vassal);
-		war.setCampaignPhase(CampaignPhase.COUNTER_PUSH);
-		war.setInitiativeHolder(net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole.DEFENDER);
-		seedOwnRow(war, "o", "militia", 9);
-		seedOwnRow(war, "o", "professional", 2);
-		seedOwnRow(war, "v", "militia", 4);
-		seedOwnRow(war, "v", "garrison", 1);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 4);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(vassal);
-			stubFactions(factions);
-
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(9, commitmentCount(war.getId(), "o", null, "militia"));
-			assertEquals(0, commitmentCount(war.getId(), "v", null, "militia"));
-			assertEquals(0, liveSlots("v", "militia"));
-			assertEquals(9, liveSlots("o", "militia"));
-		}
-	}
-
-	@Test
-	void noWinnerStillApplies() {
-		Faction attacker = fighter("atk", Map.of("professional", 5));
-		Faction defender = fighter("def", Map.of("garrison", 4));
-		War war = baseWar(4, attacker, defender);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "atk", "professional", 5);
-		seedOwnRow(war, "def", "garrison", 4);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(
-				BattleTemplate.ATTACKER_SIDE, 2,
-				BattleTemplate.DEFENDER_SIDE, 1);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(3, commitmentCount(war.getId(), "atk", null, "professional"));
-			assertEquals(3, commitmentCount(war.getId(), "def", null, "garrison"));
-		}
-	}
-
-	@Test
-	void deathsBelowOneRegiment_areNotLost() {
-		Cache.warBattleDeathsPerRegimentLoss = 5;
-		Faction attacker = fighter("atk", Map.of("professional", 10));
-		Faction defender = fighter("def", Map.of("militia", 6, "garrison", 10));
-		War war = baseWar(7, attacker, defender);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "def", "militia", 6);
-		seedOwnRow(war, "def", "garrison", 10);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.DEFENDER_SIDE, 4);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(6, commitmentCount(war.getId(), "def", null, "militia"));
-			assertEquals(10, commitmentCount(war.getId(), "def", null, "garrison"));
-			assertEquals(6, liveSlots("def", "militia"));
-			assertEquals(10, liveSlots("def", "garrison"));
-		}
-	}
-
-	@Test
-	void floorDeaths_debitOneRegimentPerFive() {
-		Cache.warBattleDeathsPerRegimentLoss = 5;
-		Faction attacker = fighter("atk", Map.of("professional", 10));
-		Faction defender = fighter("def", Map.of("militia", 6, "professional", 10));
-		War war = baseWar(8, attacker, defender);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "def", "militia", 6);
-		seedOwnRow(war, "def", "professional", 10);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.DEFENDER_SIDE, 12);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(4, commitmentCount(war.getId(), "def", null, "militia"));
-			assertEquals(10, commitmentCount(war.getId(), "def", null, "professional"));
-			assertEquals(4, liveSlots("def", "militia"));
-			assertEquals(10, liveSlots("def", "professional"));
-		}
-	}
-
-	@Test
-	void regimentLossesForDeaths_usesFloor() {
-		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(0));
-		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(-3));
-		Cache.warBattleDeathsPerRegimentLoss = 5;
-		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(4));
-		assertEquals(1, BattleCasualtyService.regimentLossesForDeaths(5));
-		assertEquals(2, BattleCasualtyService.regimentLossesForDeaths(11));
-		Cache.warBattleDeathsPerRegimentLoss = 0;
-		assertEquals(1, BattleCasualtyService.regimentLossesForDeaths(5));
-	}
-
-	@Test
-	void equipmentSlotsAreNotLost() {
-		Faction attacker = fighter("atk", Map.of("professional", 2));
-		Faction defender = fighter("def", Map.of("professional", 4, "artillery", 5));
-		War war = baseWar(8801, attacker, defender);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "def", "professional", 4);
-		seedOwnRow(war, "def", "artillery", 5);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.DEFENDER_SIDE, 5);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(0, commitmentCount(war.getId(), "def", null, "professional"));
-			assertEquals(5, commitmentCount(war.getId(), "def", null, "artillery"));
-			assertEquals(0, liveSlots("def", "professional"));
-			assertEquals(5, liveSlots("def", "artillery"));
-		}
-	}
-
-	@Test
-	void levyDebitSkipsEquipmentOnTheSource() {
-		Faction attacker = fighter("atk", Map.of());
-		Faction source = fighter("src", Map.of("professional", 8, "artillery", 8));
-		Faction defender = fighter("def", Map.of("professional", 1));
-		Regiment artillery = source.getMilitary().getRegiment("artillery");
-		AtomicInteger artillerySent = new AtomicInteger(8);
-		when(artillery.sentToOverlord()).thenAnswer(inv -> artillerySent.get());
-		War war = baseWar(8802, attacker, defender);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "src", "professional", 8);
-		seedOwnRow(war, "src", "artillery", 8);
-		seedLevyRow(war, "atk", "src", 6);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(5, commitmentCount(war.getId(), "src", null, "professional"));
-			assertEquals(8, commitmentCount(war.getId(), "src", null, "artillery"));
-			assertEquals(5, liveSlots("src", "professional"));
-			assertEquals(8, liveSlots("src", "artillery"));
-			assertEquals(8, artillerySent.get());
-		}
-	}
-
-	@Test
-	void counterPush_attackerSideDeathsDebitWarDefenders() {
-		Faction attacker = fighter("atk", Map.of("professional", 10));
-		Faction defender = fighter("def", Map.of("professional", 10));
-		War war = baseWar(9, attacker, defender);
-		war.setInitiativeHolder(BelligerentRole.DEFENDER);
-		seedOwnRow(war, "atk", "professional", 10);
-		seedOwnRow(war, "def", "professional", 10);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
+	void inACounterPushTheBattleAttackersAreTheWarDefenders() {
+		Faction atk = fixture.faction("atk", regiment("professional", 10, 0));
+		Faction def = fixture.faction("def", regiment("professional", 6, 0));
+		War war = fixture.war(2, atk, def);
+		Battle battle = battle(war, BattleType.SIEGE, TestForces.regiments("def", 6), TestForces.regiments("atk", 10));
 		when(battle.getOffensiveCoalition()).thenReturn(CampaignSideRole.DEFENDER);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
 
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(attacker);
-			stubFactions(factions);
+		BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle,
+				Map.of(BattleTemplate.ATTACKER_SIDE, 15), BattleResolution.FOUGHT);
 
-			BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
+		assertEquals(15, war.getLedger().battle(1).defender().deaths());
+		assertEquals(0, war.getLedger().battle(1).attacker().deaths());
+		assertEquals(List.of("def defender professional 3"), lines(tally));
+	}
 
-			assertEquals(10, commitmentCount(war.getId(), "atk", null, "professional"));
-			assertEquals(7, commitmentCount(war.getId(), "def", null, "professional"));
-			// The battle's attacking side was the war's defenders, so the losses are theirs.
-			assertEquals(List.of("def defender professional 3"), lines(tally));
+	@Test
+	void anAutoresolveReadsTheForcesNowAndNoCasualtiesMeansNoDeaths() {
+		War war = fixture.war(3, fixture.faction("atk"), fixture.faction("def"));
+		Battle carrier = mock(Battle.class);
+		when(carrier.getId()).thenReturn("autoresolve-3");
+		when(carrier.getWarId()).thenReturn(3);
+		when(carrier.getBattleType()).thenReturn(BattleType.FIELD);
+		when(carrier.getProvinceId()).thenReturn(null);
+		war.setScheduledBattleProvinceId(PROVINCE_ID);
+		try (MockedStatic<BattleForces> forces = mockStatic(BattleForces.class)) {
+			forces.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), same(war.getAttackers()), eq(carrier), any()))
+					.thenReturn(TestForces.regiments("atk", 3));
+			forces.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), same(war.getDefenders()), eq(carrier), any()))
+					.thenReturn(List.<BattleForce>of());
+
+			BattleCasualtyService.applyBattleCasualties(war, carrier, null, BattleResolution.AUTORESOLVE);
+		}
+
+		WarLedger.BattleEntry entry = war.getLedger().battle(1);
+		assertEquals("autoresolve", entry.resolution());
+		assertEquals(TestForces.regiments("atk", 3), entry.attacker().forces());
+		assertEquals(0, entry.attacker().deaths());
+	}
+
+	@Test
+	void onlyActiveWarFieldBattlesAndSiegesAreRecorded() {
+		War war = fixture.war(4, fixture.faction("atk"), fixture.faction("def"));
+		Battle raid = battle(war, BattleType.RAID, List.of(), List.of());
+		Battle manual = battle(war, BattleType.FIELD, List.of(), List.of());
+		when(manual.getWarId()).thenReturn(null);
+
+		assertTrue(BattleCasualtyService.applyBattleCasualties(war, raid, Map.of(), BattleResolution.FOUGHT).losses().isEmpty());
+		assertFalse(BattleCasualtyService.shouldApply(war, manual));
+		assertFalse(BattleCasualtyService.shouldApply(war, null));
+		assertFalse(BattleCasualtyService.shouldApply(null, raid));
+		war.end(WarEndReason.ADMIN_END);
+		assertFalse(BattleCasualtyService.shouldApply(war, battle(war, BattleType.SIEGE, List.of(), List.of())));
+		assertTrue(war.getLedger().battles().isEmpty());
+	}
+
+	@Test
+	void woundsAreAnnouncedToOnlineMembersOfBothSides() {
+		Faction atk = fixture.faction("atk", regiment("professional", 10, 0));
+		Faction def = fixture.faction("def", regiment("professional", 6, 0));
+		when(atk.getMembers()).thenReturn(List.of("Online", "Offline"));
+		when(def.getMembers()).thenReturn(List.of("Away"));
+		War war = fixture.war(5, atk, def);
+		Player online = mock(Player.class);
+		when(online.isOnline()).thenReturn(true);
+		Player away = mock(Player.class);
+		Battle battle = battle(war, BattleType.FIELD, TestForces.regiments("atk", 10), TestForces.regiments("def", 6));
+
+		try (MockedStatic<Members> members = mockStatic(Members.class)) {
+			members.when(() -> Members.player("Online")).thenReturn(online);
+			members.when(() -> Members.player("Away")).thenReturn(away);
+
+			BattleCasualtyService.applyBattleCasualties(war, battle,
+					Map.of(BattleTemplate.ATTACKER_SIDE, 5, BattleTemplate.DEFENDER_SIDE, 10), BattleResolution.FOUGHT);
+			verify(online).sendMessage("§7Campaign battle wounds: attacker 1, defender 2 regiments."
+					+ " Wounded regiments cannot fight and are lost when the war ends.");
+			verify(away, never()).sendMessage(any(String.class));
+
+			BattleCasualtyService.applyBattleCasualties(war, battle, Map.of(BattleTemplate.ATTACKER_SIDE, 1),
+					BattleResolution.FOUGHT);
+			verify(online).sendMessage(any(String.class));
 		}
 	}
 
 	@Test
-	void theTallySumsRepeatedDebitsOfOneRegimentAndKeepsItsName() {
-		Faction faction = fighter("atk", Map.of("professional", 4));
-		Regiment regiment = faction.getMilitary().getRegiment("professional");
-		when(regiment.getName()).thenReturn("#c9a227Professionals");
+	void deathsTurnIntoSlotsAtTheConfiguredRate() {
+		assertEquals(5, BattleCasualtyService.deathsPerRegimentLoss());
+		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(0));
+		assertEquals(0, BattleCasualtyService.regimentLossesForDeaths(4));
+		assertEquals(2, BattleCasualtyService.regimentLossesForDeaths(11));
+	}
+
+	@Test
+	void theTallySumsRepeatedWoundsOfOneRegimentAndKeepsItsName() {
+		Faction faction = fixture.faction("atk", regiment("professional", 4, 0));
+		var regiment = faction.getMilitary().getRegiment("professional");
 		BattleCasualtyTally tally = BattleCasualtyTally.empty();
 
 		tally.add(faction, "attacker", regiment, 1);
@@ -360,179 +175,30 @@ class BattleCasualtyServiceTest {
 		tally.add(faction, "defender", regiment, 1);
 
 		assertEquals(List.of("atk attacker professional 3", "atk defender professional 1"), lines(tally));
-		assertEquals("#c9a227Professionals", tally.losses().get(0).regimentName());
+		assertEquals("Name professional", tally.losses().get(0).regimentName());
 	}
 
-	@Test
-	void nothingIsTalliedWhenNoCasualtiesApply() {
-		Faction attacker = fighter("atk", Map.of("professional", 5));
-		Faction defender = fighter("def", Map.of("professional", 4));
-		War war = baseWar(10, attacker, defender);
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-
-		assertTrue(BattleCasualtyService.applyBattleCasualties(war, battle, Map.of()).losses().isEmpty());
-	}
-
-	private static List<String> lines(BattleCasualtyTally tally) {
-		List<String> lines = new ArrayList<>();
-		for (BattleCasualtyTally.Loss loss : tally.losses()) {
-			lines.add(loss.faction().getId() + " " + loss.side() + " " + loss.regimentId() + " " + loss.count());
-		}
-		return lines;
-	}
-
-	@Test
-	void skipsManualBattle() {
-		Faction attacker = fighter("atk", Map.of("professional", 5));
-		Faction defender = fighter("def", Map.of("professional", 4));
-		War war = baseWar(5, attacker, defender);
-		seedOwnRow(war, "atk", "professional", 5);
-
+	private static Battle battle(War war, BattleType type, List<BattleForce> attackerForces,
+			List<BattleForce> defenderForces) {
 		Battle battle = mock(Battle.class);
-		when(battle.getWarId()).thenReturn(null);
-		when(battle.getBattleType()).thenReturn(BattleType.FIELD);
-		assertFalse(BattleCasualtyService.shouldApply(war, battle, Map.of(BattleTemplate.ATTACKER_SIDE, 3)));
-		assertEquals(5, commitmentCount(war.getId(), "atk", null, "professional"));
-	}
-
-	@Test
-	void levyDebitsSourceSlots() {
-		Faction attacker = fighter("atk", Map.of());
-		Faction source = fighter("src", Map.of("professional", 8));
-		Faction defender = fighter("def", Map.of("professional", 1));
-		Regiment sourceRegiment = source.getMilitary().getRegiment("professional");
-		AtomicInteger sent = new AtomicInteger(8);
-		when(sourceRegiment.sentToOverlord()).thenAnswer(inv -> sent.get());
-		doAnswer(inv -> {
-			sent.set(inv.getArgument(0, Integer.class));
-			return null;
-		}).when(sourceRegiment).setSentToOverlord(org.mockito.ArgumentMatchers.anyInt());
-		War war = baseWar(6, attacker, defender);
-		war.setCampaignPhase(CampaignPhase.INVASION);
-		seedOwnRow(war, "src", "professional", 8);
-		seedLevyRow(war, "atk", "src", 6);
-
-		Battle battle = campaignBattle(war, PROVINCE_ID);
-		Map<String, Integer> casualties = Map.of(BattleTemplate.ATTACKER_SIDE, 3);
-
-		try (MockedStatic<TitleManager> titles = mockStatic(TitleManager.class);
-				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class)) {
-			titles.when(() -> TitleManager.getByProvince(PROVINCE_ID)).thenReturn(defender);
-			stubFactions(factions);
-
-			BattleCasualtyTally tally = BattleCasualtyService.applyBattleCasualties(war, battle, casualties);
-
-			assertEquals(3, commitmentCount(war.getId(), "atk", "src", WarCommitment.LEVY_REGIMENT_ID));
-			assertEquals(5, commitmentCount(war.getId(), "src", null, "professional"));
-			assertEquals(5, liveSlots("src", "professional"));
-			// The lending subject is the one that lost the regiments.
-			assertEquals(List.of("src attacker professional 3"), lines(tally));
-		}
-	}
-
-	private static Battle campaignBattle(War war, int provinceId) {
-		Battle battle = mock(Battle.class);
+		when(battle.getId()).thenReturn("b1");
 		when(battle.getWarId()).thenReturn(war.getId());
-		when(battle.getProvinceId()).thenReturn(provinceId);
-		when(battle.getBattleType()).thenReturn(BattleType.FIELD);
+		when(battle.getProvinceId()).thenReturn(PROVINCE_ID);
+		when(battle.getBattleType()).thenReturn(type);
+		BattleSide attacker = mock(BattleSide.class);
+		when(attacker.hasForces()).thenReturn(true);
+		when(attacker.getForces()).thenReturn(attackerForces);
+		BattleSide defender = mock(BattleSide.class);
+		when(defender.hasForces()).thenReturn(true);
+		when(defender.getForces()).thenReturn(defenderForces);
+		when(battle.getSideById(BattleTemplate.ATTACKER_SIDE)).thenReturn(attacker);
+		when(battle.getSideById(BattleTemplate.DEFENDER_SIDE)).thenReturn(defender);
 		return battle;
 	}
 
-	private void stubFactions(MockedStatic<FactionManager> factions) {
-		factions.when(() -> FactionManager.getByString(anyString()))
-				.thenAnswer(inv -> factionsById.get(inv.getArgument(0, String.class).toLowerCase()));
-	}
-
-	private static void seedOwnRow(War war, String factionId, String regimentId, int count) {
-		appendRowForTest(new WarCommitment(
-				war.getId(),
-				factionId,
-				null,
-				regimentId,
-				count,
-				Instant.now()));
-	}
-
-	private static void seedLevyRow(War war, String holderId, String sourceId, int count) {
-		appendRowForTest(new WarCommitment(
-				war.getId(),
-				holderId,
-				sourceId,
-				WarCommitment.LEVY_REGIMENT_ID,
-				count,
-				Instant.now()));
-	}
-
-	private static void appendRowForTest(WarCommitment row) {
-		try {
-			java.lang.reflect.Field field = WarCommitmentService.class.getDeclaredField("commitmentsByWar");
-			field.setAccessible(true);
-			@SuppressWarnings("unchecked")
-			Map<Integer, List<WarCommitment>> store =
-					(Map<Integer, List<WarCommitment>>) field.get(null);
-			store.computeIfAbsent(row.warId(), ignored -> new ArrayList<>()).add(row);
-		} catch (ReflectiveOperationException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	private static int commitmentCount(int warId, String factionId, String sourceId, String regimentId) {
-		return BattleCasualtyService.getCommitmentCount(warId, factionId, sourceId, regimentId);
-	}
-
-	private int liveSlots(String factionId, String regimentId) {
-		Faction faction = factionsById.get(factionId.toLowerCase());
-		if (faction == null || faction.getMilitary() == null) {
-			return 0;
-		}
-		Regiment regiment = faction.getMilitary().getRegiment(regimentId);
-		return regiment != null ? regiment.getCurrentSlots() : 0;
-	}
-
-	private static War baseWar(int id, Faction attacker, Faction defender) {
-		when(attacker.getName()).thenReturn("Attacker");
-		when(defender.getName()).thenReturn("Defender");
-		WarCommitmentService.clearCommitments(id);
-		CREATED_WAR_IDS.add(id);
-		War war = new War(id, attacker, defender);
-		war.setCampaignProvinces(List.of(PROVINCE_ID, 43, 44));
-		war.setCursorIndex(0);
-		return war;
-	}
-
-	private Faction fighter(String id, Map<String, Integer> slots) {
-		Faction faction = mock(Faction.class);
-		when(faction.getId()).thenReturn(id);
-		when(faction.getMembers()).thenReturn(List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j"));
-		FactionModifier levy = mock(FactionModifier.class);
-		when(levy.getAmount()).thenReturn(100.0);
-		when(faction.getModifier(FactionModifiers.LEVY)).thenReturn(levy);
-
-		Military military = mock(Military.class);
-		Map<String, Regiment> regimentById = new HashMap<>();
-		List<Regiment> regiments = new ArrayList<>();
-		for (Map.Entry<String, Integer> entry : slots.entrySet()) {
-			AtomicInteger currentSlots = new AtomicInteger(entry.getValue());
-			Regiment regiment = mock(Regiment.class);
-			when(regiment.getId()).thenReturn(entry.getKey());
-			when(regiment.isLevy()).thenReturn(false);
-			when(regiment.isOffensive()).thenReturn("professional".equals(entry.getKey()));
-			when(regiment.isEquipment()).thenReturn("artillery".equals(entry.getKey()));
-			when(regiment.getCurrentSlots()).thenAnswer(inv -> currentSlots.get());
-			doAnswer(inv -> {
-				currentSlots.updateAndGet(value -> Math.max(0, value - 1));
-				return null;
-			}).when(regiment).sizeDecrease();
-			regimentById.put(entry.getKey().toLowerCase(), regiment);
-			regiments.add(regiment);
-		}
-		when(military.getRegiments()).thenReturn(regiments);
-		when(military.getRegiment(anyString())).thenAnswer(inv -> {
-			String regimentId = inv.getArgument(0, String.class);
-			return regimentById.get(regimentId.toLowerCase());
-		});
-		when(faction.getMilitary()).thenReturn(military);
-		factionsById.put(id.toLowerCase(), faction);
-		return faction;
+	private static List<String> lines(BattleCasualtyTally tally) {
+		return tally.losses().stream()
+				.map(loss -> loss.faction().getId() + " " + loss.side() + " " + loss.regimentId() + " " + loss.count())
+				.toList();
 	}
 }

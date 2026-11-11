@@ -330,9 +330,9 @@ class CampaignBattleRuntimeBoundaryCoverageTest {
   void aLargePositiveRegimentCountMustNotCollapseToTheMinimumBattleLives() throws Exception {
     try (Fixture rig = new Fixture()) {
       assertEquals(4, Cache.warBattleLivesPerRegiment);
-      int lives = BattleLivesService.computeSideLives(1_000_000_000, 1);
+      int lives = BattleLivesService.computeSideLives(Integer.MAX_VALUE, 1);
       assertTrue(
-          lives >= 1_000_000_000,
+          lives == Integer.MAX_VALUE - 1,
           "Positive pool multiplication must not wrap before the roster debit: " + lives);
     }
   }

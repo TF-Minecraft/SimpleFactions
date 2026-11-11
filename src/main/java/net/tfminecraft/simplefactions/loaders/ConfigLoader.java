@@ -298,6 +298,9 @@ public class ConfigLoader {
 		Cache.warBattleMinSideLives = config.getInt("war.battle_military.min_side_lives", 1);
 		int deathsPerRegiment = config.getInt("war.battle_military.deaths_per_regiment_loss", 5);
 		Cache.warBattleDeathsPerRegimentLoss = deathsPerRegiment > 0 ? deathsPerRegiment : 5;
+		Cache.warMercenaryHealPercent = Math.max(0, config.getDouble("war.battle_military.mercenary_heal_percent", 25));
+		double healHours = config.getDouble("war.battle_military.mercenary_heal_hours", 6);
+		Cache.warMercenaryHealHours = healHours > 0 ? healHours : 6;
 		Cache.battleLootMode = BattleLootMode.fromJson(config.getString("war.battle_loot.mode", "ITEM"));
 		if (Cache.battleLootMode == null) {
 			Cache.battleLootMode = BattleLootMode.COMMAND;

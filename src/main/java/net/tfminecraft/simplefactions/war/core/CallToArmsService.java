@@ -25,7 +25,6 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.war.notice.WarNotices;
 
@@ -215,8 +214,6 @@ public final class CallToArmsService {
 		}
 		WarHistoryEvents.joined(war, receiver, CampaignClock.now());
 		WarHistoryEvents.callToArmsClosed(war, receiver, true);
-		WarCommitmentService.commitFaction(war, receiver);
-		WarCommitmentService.snapshotLevyForFighter(war, receiver);
 		// A secondary only counts as a participant once it has joined, so contracts are re-checked here.
 		MercenaryLoyaltyWatcher.onWarJoined(receiver);
 		WarNotices.send(origin.getLeader(), receiver.getName() + " §aaccepted your call to arms: "

@@ -128,6 +128,9 @@ public final class BattleStaffCommands {
 	}
 
 	private static String lives(Battle battle, String[] args, String by) {
+		if (args.length == 4 && args[3].equalsIgnoreCase("auto")) {
+			return result(BattleStaffService.adjustLives(battle, args[2], "auto", 0, by));
+		}
 		if (args.length != 5) {
 			return usage("lives");
 		}
@@ -149,7 +152,7 @@ public final class BattleStaffCommands {
 			case "end" -> "end <battleId> [nowinner|<sideId>]";
 			case "hold" -> "hold <battleId> on|off";
 			case "vehicles" -> "vehicles <battleId> on|off";
-			case "lives" -> "lives <battleId> <sideId> add|remove|set <amount>";
+			case "lives" -> "lives <battleId> <sideId> add|remove|set <amount>, or auto before a campaign battle starts";
 			case "watch" -> "watch <battleId>|off";
 			default -> sub + " <battleId>";
 		};

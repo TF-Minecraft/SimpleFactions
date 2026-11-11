@@ -343,6 +343,40 @@ class BattleStaffServiceTest {
 		assertFalse(BattleStaffService.adjustLives(battle, "attacker", "add", 1, "Staff").ok());
 	}
 
+	@Test
+	void beforeACampaignBattleStaffSetTheLivesASideStartsWith() {
+		battle.setStarted(false);
+		battle.setWarId(7);
+		net.tfminecraft.simplefactions.war.core.War war = mock(net.tfminecraft.simplefactions.war.core.War.class);
+		try (MockedStatic<net.tfminecraft.simplefactions.managers.WarManager> wars =
+				mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
+				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattleLivesService> lives =
+						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattleLivesService.class)) {
+			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(7)).thenReturn(war);
+			lives.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleLivesService
+					.previewCampaignSideLives(war, battle, "attacker"))
+					.thenAnswer(call -> new net.tfminecraft.simplefactions.war.battle.military.BattleLivesService
+							.SideLivesPreview(4, 20, 2, attacker.getLivesOverride() == null ? 18 : attacker.getLivesOverride(), 0));
+
+			assertEquals("§aSet attacker to start b1 with 25 lives (was 18). Use auto to go back to what its forces give.",
+					BattleStaffService.adjustLives(battle, "attacker", "add", 7, "Staff").message());
+			assertEquals(Integer.valueOf(25), attacker.getLivesOverride());
+			BattleStaffService.adjustLives(battle, "attacker", "remove", 100, "Staff");
+			assertEquals(Integer.valueOf(0), attacker.getLivesOverride());
+			assertEquals("Use add, remove, set or auto.",
+					BattleStaffService.adjustLives(battle, "attacker", "double", 1, "Staff").message());
+			assertEquals("§aPut attacker back on the lives its forces give in b1 (18 now).",
+					BattleStaffService.adjustLives(battle, "attacker", "AUTO", 0, "Staff").message());
+			assertNull(attacker.getLivesOverride());
+
+			battle.setWarId(8);
+			assertEquals("That battle is not running. Set its lives before it starts with /battle setlives.",
+					BattleStaffService.adjustLives(battle, "attacker", "set", 3, "Staff").message());
+			battle.setWarId(null);
+			assertFalse(BattleStaffService.adjustLives(battle, "attacker", "set", 3, "Staff").ok());
+		}
+	}
+
 	private static void assertSame(Object expected, Object actual) {
 		org.junit.jupiter.api.Assertions.assertSame(expected, actual);
 	}

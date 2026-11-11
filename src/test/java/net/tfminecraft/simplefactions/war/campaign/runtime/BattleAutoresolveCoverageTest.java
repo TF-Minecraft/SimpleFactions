@@ -33,9 +33,8 @@ import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideServi
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
@@ -61,7 +60,6 @@ class BattleAutoresolveCoverageTest {
   private Duration previousOffset;
   private final Map<Field, Object> settings = new LinkedHashMap<>();
   private Map<Player, Request> oldRequests;
-  private Map<Integer, List<WarCommitment>> oldCommitments;
   private List<Battle> oldBattles;
   private Random previousRandom;
 
@@ -72,8 +70,6 @@ class BattleAutoresolveCoverageTest {
     fixture = new FactionDomainFixture();
     oldRequests = new HashMap<>(requests());
     requests().clear();
-    oldCommitments = new LinkedHashMap<>(commitments());
-    commitments().clear();
     oldBattles = new ArrayList<>(BattleManager.get());
     BattleManager.get().clear();
     previousRandom = (Random) field(BattleAutoresolveService.class, "randomOverride").get(null);
@@ -123,10 +119,6 @@ class BattleAutoresolveCoverageTest {
         requests().clear();
         requests().putAll(oldRequests);
       }
-      if (oldCommitments != null) {
-        commitments().clear();
-        commitments().putAll(oldCommitments);
-      }
       if (oldBattles != null) {
         BattleManager.get().clear();
         BattleManager.get().addAll(oldBattles);
@@ -152,12 +144,6 @@ class BattleAutoresolveCoverageTest {
     return (Map<Player, Request>) field(RequestManager.class, "requests").get(null);
   }
 
-  @SuppressWarnings("unchecked")
-  private static Map<Integer, List<WarCommitment>> commitments() throws Exception {
-    return (Map<Integer, List<WarCommitment>>)
-        field(WarCommitmentService.class, "commitmentsByWar").get(null);
-  }
-
   private void setting(String name, Object value) throws Exception {
     Field f = field(Cache.class, name);
     settings.putIfAbsent(f, f.get(null));
@@ -167,6 +153,13 @@ class BattleAutoresolveCoverageTest {
   private void time(Instant instant) {
     CampaignClock.reset();
     CampaignClock.add(Duration.between(Instant.now(), instant));
+  }
+
+  /** Battles only wound: slots stay until the war ends, but wounded ones cannot fight. */
+  private static void assertWounded(Faction faction, int wounded, int available) {
+    Regiment guard = faction.getMilitary().getRegiment("guard");
+    assertEquals(wounded, WarWounds.woundedSlots(faction, guard));
+    assertEquals(available, WarWounds.availableSlots(faction, guard));
   }
 
   private War votingWar(int id) {
@@ -194,12 +187,11 @@ class BattleAutoresolveCoverageTest {
     war.setAutoresolveProposedByAttacker(true);
     war.setAutoresolveProposedByDefender(true);
     WarManager.addWar(war);
-    WarCommitmentService.commitAllParticipants(war);
     return war;
   }
 
   @Test
-  void anAcceptedCurrentRequestAppliesRealCasualtiesAndPersistsTheBattleResult() {
+  void anAcceptedCurrentRequestWoundsRealRegimentsAndPersistsTheBattleResult() {
     War war = votingWar(0);
     assertEquals(
         BattleAutoresolveService.SendResult.SENT,
@@ -211,8 +203,8 @@ class BattleAutoresolveCoverageTest {
     assertFalse(RequestManager.hasRequest(bob));
     assertTrue(war.hasFirstBattleStarted());
     assertEquals(1, war.getCampaignBattlesFought());
-    assertEquals(8, attacker.getMilitary().getRegiment("guard").getCurrentSlots());
-    assertEquals(3, defender.getMilitary().getRegiment("guard").getCurrentSlots());
+    assertWounded(attacker, 2, 8);
+    assertWounded(defender, 3, 3);
     assertFalse(war.isAutoresolveProposedByAttacker());
     assertFalse(war.isAutoresolveProposedByDefender());
     verify(bob).sendMessage("§aBattle vote autoresolve accepted.");
@@ -382,8 +374,8 @@ class BattleAutoresolveCoverageTest {
     assertTrue(BattleAutoresolveService.resolve(war));
 
     verify(alice).sendMessage(contains("§eAttacker §7won"));
-    assertEquals(8, attacker.getMilitary().getRegiment("guard").getCurrentSlots());
-    assertEquals(3, defender.getMilitary().getRegiment("guard").getCurrentSlots());
+    assertWounded(attacker, 2, 8);
+    assertWounded(defender, 3, 3);
   }
 
   @Test
@@ -447,15 +439,16 @@ class BattleAutoresolveCoverageTest {
   }
 
   @Test
-  void largeConfiguredLivesCannotTurnCommittedArmiesIntoZeroCasualtyForces() throws Exception {
+  void largeConfiguredLivesCannotTurnArmiesIntoZeroCasualtyForces() throws Exception {
     setting("warBattleLivesPerRegiment", Integer.MAX_VALUE);
     War war = votingWar(0);
 
     assertTrue(BattleAutoresolveService.resolve(war, new Random(1)));
 
-    verify(alice).sendMessage(contains("§e" + attacker.getName() + " §7won"));
-    assertEquals(0, attacker.getMilitary().getRegiment("guard").getCurrentSlots());
-    assertEquals(0, defender.getMilitary().getRegiment("guard").getCurrentSlots());
+    // Each side's pool is capped at the largest int, so the two armies meet as equals.
+    verify(alice).sendMessage(contains("§e" + defender.getName() + " §7won"));
+    assertWounded(attacker, 10, 0);
+    assertWounded(defender, 6, 0);
     assertEquals(1, war.getCampaignBattlesFought());
     assertFalse(war.isAutoresolveProposedByAttacker());
     assertFalse(war.isAutoresolveProposedByDefender());

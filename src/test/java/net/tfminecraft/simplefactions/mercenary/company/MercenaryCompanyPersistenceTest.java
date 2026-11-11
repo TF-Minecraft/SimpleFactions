@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.mercenary.company;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -116,6 +117,31 @@ class MercenaryCompanyPersistenceTest {
 
         assertEquals("Sigrun", loaded.getLeader());
         assertFalse(loaded.isLeader("Ivar"));
+    }
+
+    @Test
+    void woundsAndWhenTheyStartedHealingRoundTrip() {
+        CompanyFixture fixture = new CompanyFixture(0);
+        MercenaryCompany company = new MercenaryCompany(
+                fixture.guild, "Hired Blades", CompanyFixture.companyRegiment(), 0);
+        java.time.Instant now = java.time.Instant.parse("2026-11-11T12:00:00Z");
+        assertNull(company.serialize().woundLives);
+        assertEquals(1, company.getHealthySlots(now));
+        company.getWounds().add(5, now, company.getSlots());
+
+        MercenaryCompanyData data = company.serialize();
+        assertEquals(5, data.woundLives);
+        assertEquals("2026-11-11T12:00:00Z", data.woundsHealFrom);
+        MercenaryCompany loaded = new MercenaryCompany(fixture.guild, data, CompanyFixture.companyRegiment());
+
+        assertEquals(5, loaded.getWounds().storedLives());
+        assertEquals(now, loaded.getWounds().healFrom());
+        assertEquals(0, loaded.getHealthySlots(now));
+        data.woundsHealFrom = null;
+        assertEquals(java.time.Instant.EPOCH,
+                new MercenaryCompany(fixture.guild, data, CompanyFixture.companyRegiment()).getWounds().healFrom());
+        data.woundLives = 0;
+        assertEquals(0, new MercenaryCompany(fixture.guild, data, CompanyFixture.companyRegiment()).getWounds().storedLives());
     }
 
     private static MercenaryCompany reload(CompanyFixture fixture, MercenaryCompany company) {

@@ -567,6 +567,18 @@ class ArmyMenusCoverageTest {
     assertTrue(lore(military.creator.createMilitarySummary(faction)).contains("6.00d (From 8.00)"));
     assertTrue(
         lore(military.creator.createRegimentIcon(faction, r)).contains("6.00d (1.50d per slot)"));
+    net.tfminecraft.simplefactions.war.core.War war =
+        new net.tfminecraft.simplefactions.war.core.War(990077, faction, faction);
+    war.getLedger().addAdjustment(new net.tfminecraft.simplefactions.war.wounds.WarLedger.Adjustment(
+        faction.getId(), "infantry", 5, "staff", null, "t"));
+    net.tfminecraft.simplefactions.managers.WarManager.get().add(war);
+    try {
+      String wounded = lore(military.creator.createRegimentIcon(faction, r));
+      assertTrue(wounded.contains("Wounded: 1 (cannot fight, lost when the war ends)"), wounded);
+      assertTrue(wounded.contains("4.50d (1.50d per slot)"), wounded);
+    } finally {
+      net.tfminecraft.simplefactions.managers.WarManager.get().remove(war);
+    }
     Regiment levy = regiment("levy", true, false, 0, 0);
     for (int n = 0; n < 12; n++) levy.addLevyEntry(new LevyEntry(faction, n + 1));
     String levyLore = lore(military.creator.createRegimentIcon(faction, levy));

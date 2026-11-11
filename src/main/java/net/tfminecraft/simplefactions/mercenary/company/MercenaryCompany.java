@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.mercenary.company;
 
+import net.tfminecraft.simplefactions.war.wounds.CompanyWounds;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -62,6 +63,8 @@ public class MercenaryCompany {
      * before the daily tick that pays it out.
      */
     private final Map<String, Double> pendingWages = new LinkedHashMap<>();
+    /** Wounds from battles, shared by every contract; they heal over time. */
+    private CompanyWounds wounds = new CompanyWounds();
 
     public MercenaryCompany(Guild guild, String name, Regiment regiment, int formationSeconds) {
         this.guild = guild;
@@ -125,6 +128,10 @@ public class MercenaryCompany {
             for (Map.Entry<String, Double> e : data.pendingWages.entrySet()) {
                 accrueWage(e.getKey(), e.getValue() == null ? 0 : e.getValue());
             }
+        }
+        if (data.woundLives != null && data.woundLives > 0) {
+            wounds = new CompanyWounds(data.woundLives,
+                    data.woundsHealFrom == null ? java.time.Instant.EPOCH : java.time.Instant.parse(data.woundsHealFrom));
         }
         if (data.slotQueue != null && regiment != null) {
             for (String entry : data.slotQueue) {
@@ -252,6 +259,15 @@ public class MercenaryCompany {
 
     public int getFilledSlots() {
         return Math.min(enlisted.size(), getSlots());
+    }
+
+    public CompanyWounds getWounds() {
+        return wounds;
+    }
+
+    /** Slots not wounded right now; only these bring lives to a battle. */
+    public int getHealthySlots(java.time.Instant now) {
+        return wounds.healthySlots(now, getSlots());
     }
 
     public boolean hasFreeSlot() {
@@ -723,6 +739,10 @@ public class MercenaryCompany {
         data.activeWageOverrides = new LinkedHashMap<>(wages.getActiveOverrides());
         data.peacetimeWageOverrides = new LinkedHashMap<>(wages.getPeacetimeOverrides());
         data.pendingWages = new LinkedHashMap<>(pendingWages);
+        if (wounds.storedLives() > 0) {
+            data.woundLives = wounds.storedLives();
+            data.woundsHealFrom = wounds.healFrom().toString();
+        }
         return data;
     }
 }

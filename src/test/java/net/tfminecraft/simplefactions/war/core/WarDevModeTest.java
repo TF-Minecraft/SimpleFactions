@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.core;
 
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -254,8 +256,8 @@ class WarDevModeTest {
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
 				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
 						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool =
+						mockStatic(BattleForces.class)) {
 			mockBossBar(bukkit);
 			Battle battle = BattleFactory.createBlank(BattleType.FIELD, "campaign_w1");
 			battle.setWarId(1);
@@ -267,8 +269,8 @@ class WarDevModeTest {
 					.thenReturn(attacker);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
 					.thenReturn(defender);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					eq(war), eq(20), any())).thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), any(), any(), any(), any()))
+					.thenReturn(TestForces.regiments(5));
 
 			CampaignBattleRosterService.enrollWarbands(war, battle);
 

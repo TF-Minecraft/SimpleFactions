@@ -30,7 +30,8 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -109,10 +110,10 @@ class MercenaryRosterTest {
         war.setScheduledBattleProvinceId(PROVINCE_ID);
 
         try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class, org.mockito.Mockito.CALLS_REAL_METHODS);
-                MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+                MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
             factions.when(() -> FactionManager.getByMember("Sigrun")).thenReturn(enemy);
-            pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-                    .thenReturn(5);
+            pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+                    .thenReturn(TestForces.regiments(5));
 
             assertNull(CampaignBattleJoinService.validateWarbandMemberJoin(
                     war, battle, BattleTemplate.ATTACKER_SIDE, attackers, "Sigrun", sigrunId));
@@ -150,13 +151,13 @@ class MercenaryRosterTest {
         when(enemyGuild.isMember("Sigrun")).thenReturn(true);
 
         try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class, org.mockito.Mockito.CALLS_REAL_METHODS);
-                MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+                MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
             factions.when(() -> FactionManager.getByMember("Sigrun")).thenReturn(enemy);
             factions.when(() -> FactionManager.getByMember("Chancellor")).thenReturn(enemy);
             factions.when(() -> FactionManager.getGuildByMember("Chancellor")).thenReturn(enemyGuild);
             factions.when(() -> FactionManager.getGuildByMember("Sigrun")).thenReturn(enemyGuild);
-            pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-                    .thenReturn(5);
+            pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+                    .thenReturn(TestForces.regiments(5));
 
         fixture.company.enlist("Chancellor");
         MercenaryEngagements.setUuidLookup(name -> "Sigrun".equalsIgnoreCase(name) ? sigrunId
@@ -187,10 +188,10 @@ class MercenaryRosterTest {
                 : "Bjorn".equalsIgnoreCase(name) ? extra : null);
 
         try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class, org.mockito.Mockito.CALLS_REAL_METHODS);
-                MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+                MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
             factions.when(() -> FactionManager.getByMember("Bjorn")).thenReturn(fixture.hirer);
-            pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-                    .thenReturn(5);
+            pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+                    .thenReturn(TestForces.regiments(5));
 
             assertEquals("Every hired slot is already covered",
                     CampaignBattleJoinService.validateWarbandMemberJoin(

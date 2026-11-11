@@ -15,8 +15,7 @@ import net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany;
  * counts secondaries that have already joined, so a contract that was legal at
  * signing turns illegal the moment an ally answers a call to arms, a vassalage
  * lands, or an election changes who sits in a government. There are no Bukkit
- * events for any of the three, so the choke points call in here directly, the way
- * {@code RelationManager.endVassalage} already calls {@code WarCommitmentService}.
+ * events for any of the three, so the choke points call in here directly.
  */
 public final class MercenaryLoyaltyWatcher {
     private MercenaryLoyaltyWatcher() {

@@ -76,6 +76,11 @@ public final class BattleLivesEditor {
 			return true;
 		}
 		if (slot == CONFIRM_SLOT) {
+			if (!battle.hasStarted()) {
+				DRAFTS.remove(player.getUniqueId());
+				player.sendMessage("§cThe battle is not running, so nothing was changed.");
+				return true;
+			}
 			if (!draft.armed) {
 				draft.armed = true;
 				render(inventory, battle, draft);
@@ -189,9 +194,10 @@ public final class BattleLivesEditor {
 		for (BattleSide side : battle.getSides()) {
 			deaths.add(side.getId() + ": " + casualties.getOrDefault(side.getId().toLowerCase(Locale.ROOT), 0) + " so far");
 		}
-		return "Lives only limit respawns. Regiments are lost through deaths: every "
-				+ BattleCasualtyService.deathsPerRegimentLoss() + " deaths costs a side 1 regiment when the battle ends ("
-				+ String.join(", ", deaths) + "). More lives means more possible deaths and losses." + zero;
+		return "Lives only limit respawns. Deaths wound the forces that fought, never more than the lives they"
+				+ " brought, so added lives cost nobody: every " + BattleCasualtyService.deathsPerRegimentLoss()
+				+ " wounded lives wound 1 paid slot until the war ends (" + String.join(", ", deaths) + ")."
+				+ " Fix a finished battle's deaths with /war admin losses." + zero;
 	}
 
 	static List<String> wrap(String text, int width) {

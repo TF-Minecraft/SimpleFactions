@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.war.battle.campaign.warband;
 
 
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandSignupService;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,7 +36,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
@@ -120,12 +122,12 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), org.mockito.ArgumentMatchers.any(), eq(war.getAttackers()), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			assertEquals("§cCampaign warband signup opens after the raid window, at 20:00.",
 					CampaignWarbandSignupService.signupMember(
@@ -161,7 +163,7 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
@@ -191,7 +193,7 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class);
 				MockedStatic<net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock> clock =
 						mockStatic(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.class)) {
 			clock.when(net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock::now).thenReturn(signupHour);
@@ -216,7 +218,7 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			mockBukkitPlayerLookup(bukkit, bobId, "Bob");
 			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
@@ -259,12 +261,12 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), org.mockito.ArgumentMatchers.any(), eq(war.getAttackers()), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			assertNull(CampaignWarbandSignupService.signupMember(
 					aliceId, "Alice", shell, attacker, null, signupHour));
@@ -281,12 +283,12 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), org.mockito.ArgumentMatchers.any(), eq(war.getAttackers()), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			assertNull(CampaignWarbandSignupService.signupMember(
 					aliceId, "Alice", shell, attacker, null, BattleWindowService.atScheduleHour(BATTLE_DAY, 20)));
@@ -310,13 +312,13 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			mockBukkitPlayerLookup(bukkit, accountId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			factions.when(() -> FactionManager.getByMember("Bob")).thenReturn(defender);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID),
-					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			assertEquals(CampaignWarbandSideLock.OTHER_SIDE, CampaignWarbandSignupService.signupMember(
 					accountId, "Bob", defenderShell, defender, null, signupHour));
@@ -350,13 +352,13 @@ class CampaignWarbandSignupServiceTest {
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			mockBukkitPlayerLookup(bukkit, aliceId, "Alice");
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
 			wars.when(WarManager::getActive).thenReturn(List.of(war));
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), org.mockito.ArgumentMatchers.any(), eq(war.getAttackers()), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			assertNull(CampaignWarbandSignupService.signupMember(
 					aliceId, "Alice", raidShell, attacker, null, raidCall));

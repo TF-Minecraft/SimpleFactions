@@ -25,4 +25,8 @@ public class MercenaryCompanyData {
     public Map<String, Double> peacetimeWageOverrides = new LinkedHashMap<>();
     /** Wages accrued but not yet settled, keyed by player name. */
     public Map<String, Double> pendingWages = new LinkedHashMap<>();
+    /** Wounded lives from battles; absent when the company is unwounded. */
+    public Integer woundLives;
+    /** When the stored wounds started healing. */
+    public String woundsHealFrom;
 }

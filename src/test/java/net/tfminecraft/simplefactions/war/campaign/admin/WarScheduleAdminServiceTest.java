@@ -369,10 +369,10 @@ class WarScheduleAdminServiceTest {
 		net.tfminecraft.simplefactions.war.core.WarDevMode.setEnabled(true);
 		Cache.warDevmodePhantomCount = 10;
 		War war = votingWar();
-		try (MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-				mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					any(), any(Integer.class), any())).thenReturn(5);
+		try (MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattleForces> pool =
+				mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattleForces.class)) {
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleForces.build(
+					any(), any(), any(), any(), any())).thenReturn(net.tfminecraft.simplefactions.war.wounds.TestForces.regiments(5));
 			withMockBossBar(() -> {
 				assertTrue(WarScheduleAdminService.battleCreate(war).success());
 				Battle battle = BattleManager.getByWarId(war.getId());
@@ -436,10 +436,10 @@ class WarScheduleAdminServiceTest {
 	@Test
 	void battleDelete_rejectsStartedBattle() {
 		War war = votingWar();
-		try (MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-				mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					any(), any(Integer.class), any())).thenReturn(5);
+		try (MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattleForces> pool =
+				mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattleForces.class)) {
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleForces.build(
+					any(), any(), any(), any(), any())).thenReturn(net.tfminecraft.simplefactions.war.wounds.TestForces.regiments(5));
 			withMockBossBar(() -> {
 				assertTrue(WarScheduleAdminService.battleCreate(war).success());
 				placeSpawnsAndJails(BattleManager.getByWarId(war.getId()));
@@ -454,10 +454,10 @@ class WarScheduleAdminServiceTest {
 	@Test
 	void battleStart_startsExistingCampaignBattle() {
 		War war = votingWar();
-		try (MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-				mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					any(), any(Integer.class), any())).thenReturn(5);
+		try (MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattleForces> pool =
+				mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattleForces.class)) {
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleForces.build(
+					any(), any(), any(), any(), any())).thenReturn(net.tfminecraft.simplefactions.war.wounds.TestForces.regiments(5));
 			withMockBossBar(() -> {
 				assertTrue(WarScheduleAdminService.battleCreate(war).success());
 				placeSpawnsAndJails(BattleManager.getByWarId(war.getId()));

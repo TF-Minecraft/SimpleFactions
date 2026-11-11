@@ -31,9 +31,10 @@ import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
+import net.tfminecraft.simplefactions.war.wounds.WarLedger;
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -51,7 +52,6 @@ class WarManagerCoverageTest {
   private FactionDomainFixture fixture;
   private PersistenceFilesFixture files;
   private Map<Player, Request> previousRequests;
-  private Map<Integer, List<WarCommitment>> previousCommitments;
   private List<Battle> previousBattles;
   private Object previousDeclareError;
   private RelationType alliance;
@@ -64,8 +64,6 @@ class WarManagerCoverageTest {
     fixture = new FactionDomainFixture();
     previousRequests = new HashMap<>(requests());
     requests().clear();
-    previousCommitments = new LinkedHashMap<>(commitments());
-    commitments().clear();
     previousBattles = new ArrayList<>(BattleManager.get());
     BattleManager.get().clear();
     previousDeclareError = field(WarManager.class, "lastDeclareError").get(null);
@@ -91,10 +89,6 @@ class WarManagerCoverageTest {
         requests().clear();
         requests().putAll(previousRequests);
       }
-      if (previousCommitments != null) {
-        commitments().clear();
-        commitments().putAll(previousCommitments);
-      }
       if (previousBattles != null) {
         BattleManager.get().clear();
         BattleManager.get().addAll(previousBattles);
@@ -119,11 +113,6 @@ class WarManagerCoverageTest {
     return (Map<Player, Request>) field(RequestManager.class, "requests").get(null);
   }
 
-  @SuppressWarnings("unchecked")
-  private static Map<Integer, List<WarCommitment>> commitments() throws Exception {
-    return (Map<Integer, List<WarCommitment>>)
-        field(WarCommitmentService.class, "commitmentsByWar").get(null);
-  }
 
   private void ally(Faction first, Faction second) {
     first.setRelation(second, new Relation(alliance, RelationLoader.getDefaultAttitude()));
@@ -188,7 +177,6 @@ class WarManagerCoverageTest {
     assertNull(WarManager.declareWar(attacker, attacker, WarGoalType.WAR, null, null));
     assertTrue(WarManager.getLastDeclareError().contains("own faction"));
     assertTrue(WarManager.get().isEmpty());
-    assertTrue(WarManager.getCommitmentsForWar(0).isEmpty());
   }
 
   @Test
@@ -203,7 +191,6 @@ class WarManagerCoverageTest {
 
     assertTrue(WarManager.getLastDeclareError().contains("offensive regiment"));
     assertTrue(WarManager.get().isEmpty());
-    assertTrue(WarManager.getCommitmentsForWar(0).isEmpty());
   }
 
   @Test
@@ -219,7 +206,6 @@ class WarManagerCoverageTest {
 
     assertTrue(WarManager.getLastDeclareError().contains("no campaign route"));
     assertTrue(WarManager.get().isEmpty());
-    assertTrue(WarManager.getCommitmentsForWar(0).isEmpty());
     assertFalse(Files.exists(files.root.resolve("Wars/war_0.json")));
   }
 
@@ -280,7 +266,7 @@ class WarManagerCoverageTest {
     assertEquals(governmentId, war.getGovernmentLawId());
     assertEquals(leadershipId, war.getLeadershipLawId());
     assertEquals(settlementId, war.getTargetSettlementId());
-    assertFalse(WarManager.getCommitmentsForWar(0).isEmpty());
+    assertTrue(war.getLedger().battles().isEmpty(), "A new war has fought no battles");
     War stored = new Database().loadWars().getFirst();
     assertEquals(goal, stored.getGoal());
     assertEquals(war.getCampaignProvinces(), stored.getCampaignProvinces());
@@ -364,8 +350,10 @@ class WarManagerCoverageTest {
     Player unrelated = fixture.player("Cara");
     when(bob.isOnline()).thenReturn(false);
     War war = WarManager.addWar(new War(39, attacker, defender));
-    WarCommitmentService.commitAllParticipants(war);
-    assertFalse(WarManager.getCommitmentsForWar(39).isEmpty());
+    Regiment guard = attacker.getMilitary().getRegiment("guard");
+    guard.setCurrentSlots(guard.getFreeSlots() + 2);
+    woundBattle(war, "attacker", "guard", 10);
+    assertEquals(2, WarWounds.woundedSlots(attacker, guard));
     clearInvocations(alice, bob, unrelated);
 
     WarManager.endWar(war, reason);
@@ -373,7 +361,9 @@ class WarManagerCoverageTest {
     assertFalse(war.isActive());
     assertEquals(reason, war.getEndReason());
     assertNull(WarManager.getById(39));
-    assertTrue(WarManager.getCommitmentsForWar(39).isEmpty());
+    assertTrue(war.getLedger().isSettled());
+    assertEquals(guard.getFreeSlots(), guard.getCurrentSlots(), "The wounded paid slots are lost; law slots stay");
+    assertEquals(0, WarWounds.woundedSlots(attacker, guard));
     assertFalse(Files.exists(files.root.resolve("Wars/war_39.json")));
     String message =
         switch (reason) {
@@ -451,7 +441,6 @@ class WarManagerCoverageTest {
         WarManager.getLastDeclareError().toLowerCase(java.util.Locale.ROOT).contains("port"),
         WarManager.getLastDeclareError());
     assertTrue(WarManager.get().isEmpty());
-    assertTrue(WarManager.getCommitmentsForWar(0).isEmpty());
   }
 
   @Test
@@ -518,23 +507,13 @@ class WarManagerCoverageTest {
     assertTrue(war.isParticipating(backer));
     int rebelSlots = attacker.getMilitary().getManpower(true);
     assertEquals(paidSlots, rebelSlots);
-    assertEquals(
-        rebelSlots,
-        WarManager.getCommitmentsForWar(war.getId()).stream()
-            .filter(row -> attacker.getId().equals(row.factionId()))
-            .mapToInt(WarCommitment::count)
-            .sum());
+    assertTrue(war.getLedger().battles().isEmpty());
     WarManager.start();
     War restored = WarManager.getById(0);
     assertNotSame(war, restored);
     assertEquals("rebels", restored.getCivilWarSnapshot().getTempRebelFactionId());
     assertEquals(rebelSlots, attacker.getMilitary().getManpower(true));
-    assertEquals(
-        paidSlots,
-        WarManager.getCommitmentsForWar(restored.getId()).stream()
-            .filter(row -> attacker.getId().equals(row.factionId()))
-            .mapToInt(WarCommitment::count)
-            .sum());
+    assertTrue(restored.getLedger().battles().isEmpty());
     assertTrue(restored.isParticipating(extra));
     assertTrue(restored.isParticipating(backer));
   }
@@ -588,24 +567,27 @@ class WarManagerCoverageTest {
   }
 
   @Test
-  void endingOneOfSeveralWarsPreservesOtherWarsAndTheirTroopCommitments() {
+  void endingOneOfSeveralWarsSettlesOnlyItsOwnWounds() {
     Faction attacker = fixture.saved("attacker", "Alice");
     Faction defender = fixture.saved("defender", "Bob");
     Faction other = fixture.saved("other", "Cara");
     War retained = WarManager.addWar(new War(91, attacker, defender));
     War ended = WarManager.addWar(new War(92, attacker, other));
-    WarCommitmentService.commitAllParticipants(retained);
-    WarCommitmentService.commitAllParticipants(ended);
-    var retainedCommitments = new ArrayList<>(WarManager.getCommitmentsForWar(91));
-    assertFalse(retainedCommitments.isEmpty());
+    Regiment guard = attacker.getMilitary().getRegiment("guard");
+    guard.setCurrentSlots(guard.getFreeSlots() + 3);
+    woundBattle(retained, "attacker", "guard", 5);
+    woundBattle(ended, "attacker", "guard", 10);
+    assertEquals(3, WarWounds.woundedSlots(attacker, guard), "One pool: both wars wound the same regiment");
 
     WarManager.endWar(ended);
 
     assertSame(retained, WarManager.getById(91));
     assertTrue(retained.isActive());
     assertNull(WarManager.getById(92));
-    assertEquals(retainedCommitments, WarManager.getCommitmentsForWar(91));
-    assertTrue(WarManager.getCommitmentsForWar(92).isEmpty());
+    assertTrue(ended.getLedger().isSettled());
+    assertFalse(retained.getLedger().isSettled());
+    assertEquals(guard.getFreeSlots() + 1, guard.getCurrentSlots(), "Only the ended war's 2 slots are lost");
+    assertEquals(1, WarWounds.woundedSlots(attacker, guard), "The other war's wound stays pending");
     assertTrue(Files.exists(files.root.resolve("Wars/war_91.json")));
     assertFalse(Files.exists(files.root.resolve("Wars/war_92.json")));
   }
@@ -626,4 +608,16 @@ class WarManagerCoverageTest {
     assertTrue(WarManager.get().isEmpty());
     assertFalse(Files.exists(files.root.resolve("Wars/war_93.json")));
   }
+
+  /** Records one battle in which {@code side}'s faction loses {@code deaths} lives on paid slots of a regiment. */
+  private static void woundBattle(War war, String side, String regiment, int deaths) {
+    String factionId = "attacker".equals(side) ? war.getAttackers().getMainParticipants().getFirst().getLeader().getId()
+        : war.getDefenders().getMainParticipants().getFirst().getLeader().getId();
+    WarLedger.SideRecord wounded = new WarLedger.SideRecord(
+        deaths, List.of(TestForces.faction(factionId, TestForces.paid(regiment, 100))));
+    WarLedger.SideRecord untouched = new WarLedger.SideRecord(0, List.of());
+    war.getLedger().addBattle("battle", "fought", "2026-01-01T00:00:00Z", 1,
+        "attacker".equals(side) ? wounded : untouched, "attacker".equals(side) ? untouched : wounded);
+  }
+
 }

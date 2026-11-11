@@ -1024,7 +1024,7 @@ class BattleEngineListenersCoverageTest {
     click(BattleLivesEditor.CONFIRM_SLOT);
     siege.setStarted(false);
     click(BattleLivesEditor.CONFIRM_SLOT);
-    verify(alice).sendMessage("§cLives can only be corrected while the battle runs. Use setlives before it starts.");
+    verify(alice).sendMessage("§cThe battle is not running, so nothing was changed.");
 
     // A staff restart after staging starts a new fight: the staged change is dropped, not applied to it.
     siege.setStarted(true);
@@ -1070,9 +1070,10 @@ class BattleEngineListenersCoverageTest {
     int previous = net.tfminecraft.simplefactions.Cache.warBattleDeathsPerRegimentLoss;
     net.tfminecraft.simplefactions.Cache.warBattleDeathsPerRegimentLoss = 6;
     try {
-      assertEquals("Lives only limit respawns. Regiments are lost through deaths: every 6 deaths costs a side"
-          + " 1 regiment when the battle ends (attacker: 0 so far, defender: 4 so far). More lives means more"
-          + " possible deaths and losses. At 0 lives a side loses once all its soldiers are dead or jailed.",
+      assertEquals("Lives only limit respawns. Deaths wound the forces that fought, never more than the lives they"
+          + " brought, so added lives cost nobody: every 6 wounded lives wound 1 paid slot until the war ends"
+          + " (attacker: 0 so far, defender: 4 so far). Fix a finished battle's deaths with /war admin losses."
+          + " At 0 lives a side loses once all its soldiers are dead or jailed.",
           BattleLivesEditor.regimentWarning(battle));
     } finally {
       net.tfminecraft.simplefactions.Cache.warBattleDeathsPerRegimentLoss = previous;
@@ -1152,7 +1153,7 @@ class BattleEngineListenersCoverageTest {
     battle.setWarId(12);
     click(16);
     assertEquals(50, side.getLives());
-    verify(alice).sendMessage("§cCampaign battle lives are computed from war commitment");
+    verify(alice).sendMessage("§cCampaign battle lives come from the forces of each side");
     battle.setStarted(true);
     click(10);
     verify(alice).sendMessage("§cCannot edit a battle while it has started");

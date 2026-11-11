@@ -30,9 +30,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
@@ -57,7 +55,6 @@ class PillageMissingBankRegressionTest {
   private ProvinceManager provinces;
   private Province targetProvince;
   private final Map<Field, Object> previousQueues = new LinkedHashMap<>();
-  private List<WarCommitment> previousCommitments;
   private List<Battle> previousBattles;
   private Map<Player, Battle> previousEditors;
   private int previousLootDays, previousHitDays, previousEmptyGrace;
@@ -78,8 +75,6 @@ class PillageMissingBankRegressionTest {
       previousQueues.put(field, field.get(null));
       field.set(null, name.equals("loans") ? new ArrayList<>() : new HashMap<>());
     }
-    previousCommitments = new ArrayList<>(WarCommitmentService.getCommitmentsForWar(WAR_ID));
-    WarCommitmentService.clearCommitments(WAR_ID);
     previousBattles = new ArrayList<>(BattleManager.get());
     BattleManager.get().clear();
     previousEditors = new HashMap<>(BattleManager.currentBattle);
@@ -115,7 +110,6 @@ class PillageMissingBankRegressionTest {
         BattleManager.currentBattle.clear();
         BattleManager.currentBattle.putAll(previousEditors);
       }
-      WarCommitmentService.restoreCommitments(WAR_ID, previousCommitments);
       for (var entry : previousQueues.entrySet()) entry.getKey().set(null, entry.getValue());
       Cache.pillageLootDays = previousLootDays;
       Cache.pillageTradeHitDays = previousHitDays;
@@ -155,13 +149,11 @@ class PillageMissingBankRegressionTest {
     original.setTargetSettlementId("Victim");
     original.setObjectiveProvinceId(2);
     WarManager.addWar(original);
-    WarCommitmentService.commitAllParticipants(original);
     database.saveWar(original);
     assertTrue(Files.exists(disk.root.resolve("Wars/war_" + WAR_ID + ".json")));
 
     FactionManager.factions.clear();
     WarManager.get().clear();
-    WarCommitmentService.clearCommitments(WAR_ID);
     database.loadFactions();
     WarManager.start();
     War restored = WarManager.getById(WAR_ID);
@@ -174,7 +166,7 @@ class PillageMissingBankRegressionTest {
     assertNotNull(loadedMerchant);
     if (bankRemoved) assertNull(loadedAttacker.getBank());
     else assertEquals(100.0, loadedAttacker.getBank().getWealth());
-    assertFalse(WarCommitmentService.getCommitmentsForWar(WAR_ID).isEmpty());
+    assertTrue(restored.getLedger().battles().isEmpty());
     assertEquals(3, loadedAttacker.getMilitary().getRegiment("guard").getCurrentSlots());
     assertEquals(3, loadedDefender.getMilitary().getRegiment("guard").getCurrentSlots());
     targetProvince.setData(loadedMerchant.getId(), new ProvinceDataEntry(loadedMerchant, 10, 0));
@@ -200,7 +192,7 @@ class PillageMissingBankRegressionTest {
     assertFalse(restored.isActive());
     assertEquals(WarEndReason.ATTACKER_VICTORY, restored.getEndReason());
     assertNull(WarManager.getById(WAR_ID));
-    assertTrue(WarCommitmentService.getCommitmentsForWar(WAR_ID).isEmpty());
+    assertTrue(restored.getLedger().isSettled());
     assertFalse(battle.hasStarted());
     assertNull(BattleManager.getByString(battle.getId()));
     assertFalse(Files.exists(disk.root.resolve("Wars/war_" + WAR_ID + ".json")));

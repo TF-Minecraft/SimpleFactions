@@ -42,6 +42,7 @@ import net.tfminecraft.simplefactions.war.battle.enums.LifeType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService.SideLivesPreview;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 
 import java.lang.reflect.Constructor;
 import java.util.function.Consumer;
@@ -58,10 +59,10 @@ class BattleLivesServiceTest {
 
 	@Test
 	void computeSideLives_formula() {
-		assertEquals(48, BattleLivesService.computeSideLives(10, 2));
-		assertEquals(11, BattleLivesService.computeSideLives(3, 4));
+		assertEquals(48, BattleLivesService.computeSideLives(50, 2));
+		assertEquals(11, BattleLivesService.computeSideLives(15, 4));
 		assertEquals(0, BattleLivesService.computeSideLives(0, 10));
-		assertEquals(1, BattleLivesService.computeSideLives(1, 10));
+		assertEquals(1, BattleLivesService.computeSideLives(5, 10));
 	}
 
 	@Test
@@ -70,12 +71,12 @@ class BattleLivesServiceTest {
 		withMockBossBar(bukkit -> {
 			Battle battle = campaignFieldBattle(1, PROVINCE_ID);
 
-			try (MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+			try (MockedStatic<BattleForces> pool = mockStatic(BattleForces.class);
 					MockedStatic<BattleLivesService> lives = mockStatic(BattleLivesService.class, CALLS_REAL_METHODS)) {
-				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-						.thenReturn(10);
-				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
-						.thenReturn(3);
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), eq(war.getAttackers()), any(), any()))
+						.thenReturn(TestForces.regiments(10));
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), eq(war.getDefenders()), any(), any()))
+						.thenReturn(TestForces.regiments(3));
 				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.ATTACKER_SIDE)))
 						.thenReturn(12);
 				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.DEFENDER_SIDE)))
@@ -86,7 +87,7 @@ class BattleLivesServiceTest {
 				SideLivesPreview defender = BattleLivesService.previewCampaignSideLives(
 						war, battle, BattleTemplate.DEFENDER_SIDE);
 
-				assertEquals(10, attacker.committedRegiments());
+				assertEquals(10, attacker.slots());
 				assertEquals(50, attacker.poolLives());
 				assertEquals(12, attacker.rosterFighters());
 				assertEquals(38, attacker.sideLives());
@@ -102,13 +103,13 @@ class BattleLivesServiceTest {
 			Battle battle = campaignFieldBattle(1, PROVINCE_ID);
 
 			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-					MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+					MockedStatic<BattleForces> pool = mockStatic(BattleForces.class);
 					MockedStatic<BattleLivesService> lives = mockStatic(BattleLivesService.class, CALLS_REAL_METHODS)) {
 				wars.when(() -> WarManager.getById(1)).thenReturn(war);
-				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-						.thenReturn(10);
-				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
-						.thenReturn(3);
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), eq(war.getAttackers()), any(), any()))
+						.thenReturn(TestForces.regiments(10));
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), eq(war.getDefenders()), any(), any()))
+						.thenReturn(TestForces.regiments(3));
 				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.ATTACKER_SIDE)))
 						.thenReturn(2);
 				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.DEFENDER_SIDE)))
@@ -131,13 +132,13 @@ class BattleLivesServiceTest {
 			battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
 
 			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-					MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+					MockedStatic<BattleForces> pool = mockStatic(BattleForces.class);
 					MockedStatic<BattleLivesService> lives = mockStatic(BattleLivesService.class, CALLS_REAL_METHODS)) {
 				wars.when(() -> WarManager.getById(1)).thenReturn(war);
-				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-						.thenReturn(10);
-				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
-						.thenReturn(3);
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), eq(war.getAttackers()), any(), any()))
+						.thenReturn(TestForces.regiments(10));
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), eq(war.getDefenders()), any(), any()))
+						.thenReturn(TestForces.regiments(3));
 				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.ATTACKER_SIDE)))
 						.thenReturn(2);
 				lives.when(() -> BattleLivesService.countRosterFighters(battle.getSideById(BattleTemplate.DEFENDER_SIDE)))
@@ -158,17 +159,105 @@ class BattleLivesServiceTest {
 			Battle battle = campaignFieldBattle(2, PROVINCE_ID);
 
 			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-					MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+					MockedStatic<BattleForces> pool = mockStatic(BattleForces.class);
 					MockedStatic<BattleLivesService> lives = mockStatic(BattleLivesService.class, CALLS_REAL_METHODS)) {
 				wars.when(() -> WarManager.getById(2)).thenReturn(war);
-				pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), any(Side.class)))
-						.thenReturn(1);
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), any(Side.class), any(), any()))
+						.thenReturn(TestForces.regiments(1));
 				lives.when(() -> BattleLivesService.countRosterFighters(any())).thenReturn(10);
 
 				BattleLivesService.applyCampaignLives(battle);
 
 				assertEquals(1, battle.getSideById(BattleTemplate.ATTACKER_SIDE).getLives());
 				assertEquals(1, battle.getSideById(BattleTemplate.DEFENDER_SIDE).getLives());
+			}
+		});
+	}
+
+	@Test
+	void applyCampaignLives_recordsForcesAndUsesStaffStartingLives() {
+		War war = campaignWar(4);
+		withMockBossBar(bukkit -> {
+			Battle battle = campaignFieldBattle(4, PROVINCE_ID);
+			battle.getSideById(BattleTemplate.DEFENDER_SIDE).setLivesOverride(7);
+
+			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+					MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+				wars.when(() -> WarManager.getById(4)).thenReturn(war);
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), any(Side.class), any(), any()))
+						.thenReturn(TestForces.regiments(4));
+
+				BattleLivesService.applyCampaignLives(battle);
+
+				BattleSide attacker = battle.getSideById(BattleTemplate.ATTACKER_SIDE);
+				assertEquals(TestForces.regiments(4), attacker.getForces());
+				assertEquals(20, attacker.getLives());
+				assertEquals(7, battle.getSideById(BattleTemplate.DEFENDER_SIDE).getLives());
+				assertEquals(7, BattleLivesService.previewCampaignSideLives(war, battle, BattleTemplate.DEFENDER_SIDE)
+						.sideLives());
+			}
+		});
+	}
+
+	@Test
+	void applyCampaignLives_needsAnActiveWarAndUsesTheScheduledProvince() {
+		War war = campaignWar(5);
+		war.setScheduledBattleProvinceId(PROVINCE_ID);
+		withMockBossBar(bukkit -> {
+			Battle battle = BattleFactory.createBlank(BattleType.SIEGE, "campaign_w5");
+			battle.setWarId(5);
+			battle.removeSide(BattleTemplate.DEFENDER_SIDE);
+			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+					MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), any(Side.class), any(), any()))
+						.thenReturn(TestForces.regiments(2));
+
+				BattleLivesService.applyCampaignLives(battle);
+				assertEquals(false, battle.getSideById(BattleTemplate.ATTACKER_SIDE).hasForces());
+
+				wars.when(() -> WarManager.getById(5)).thenReturn(war);
+				war.end(net.tfminecraft.simplefactions.war.enums.WarEndReason.ADMIN_END);
+				BattleLivesService.applyCampaignLives(battle);
+				assertEquals(false, battle.getSideById(BattleTemplate.ATTACKER_SIDE).hasForces());
+			}
+		});
+		War active = campaignWar(6);
+		active.setScheduledBattleProvinceId(PROVINCE_ID);
+		withMockBossBar(bukkit -> {
+			Battle battle = BattleFactory.createBlank(BattleType.SIEGE, "campaign_w6");
+			battle.setWarId(6);
+			battle.removeSide(BattleTemplate.DEFENDER_SIDE);
+			try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+					MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+				wars.when(() -> WarManager.getById(6)).thenReturn(active);
+				pool.when(() -> BattleForces.build(eq(active), eq(PROVINCE_ID), any(Side.class), any(), any()))
+						.thenReturn(TestForces.regiments(2));
+
+				BattleLivesService.applyCampaignLives(battle);
+				assertEquals(10, battle.getSideById(BattleTemplate.ATTACKER_SIDE).getLives());
+			}
+		});
+	}
+
+	@Test
+	void previewCountsMercenarySlotsAndRefusesUnknownSides() {
+		War war = campaignWar(7);
+		withMockBossBar(bukkit -> {
+			Battle battle = campaignFieldBattle(7, PROVINCE_ID);
+			try (MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+				pool.when(() -> BattleForces.build(eq(war), eq(PROVINCE_ID), any(Side.class), any(), any()))
+						.thenReturn(List.of(TestForces.regiments(2).get(0), TestForces.mercenary("guild", 3)));
+
+				SideLivesPreview preview = BattleLivesService.previewCampaignSideLives(war, battle, BattleTemplate.ATTACKER_SIDE);
+				assertEquals(new SideLivesPreview(5, 25, 0, 25, 3), preview);
+				SideLivesPreview none = new SideLivesPreview(0, 0, 0, 0, 0);
+				assertEquals(none, BattleLivesService.previewCampaignSideLives(null, battle, BattleTemplate.ATTACKER_SIDE));
+				assertEquals(none, BattleLivesService.previewCampaignSideLives(war, null, BattleTemplate.ATTACKER_SIDE));
+				assertEquals(none, BattleLivesService.previewCampaignSideLives(war, battle, null));
+				assertEquals(none, BattleLivesService.previewCampaignSideLives(war, battle, "nobody"));
+				battle.removeSide(BattleTemplate.DEFENDER_SIDE);
+				assertEquals(none, BattleLivesService.previewCampaignSideLives(war, battle, BattleTemplate.DEFENDER_SIDE));
+				assertEquals(0, BattleLivesService.countRosterFighters(null));
 			}
 		});
 	}
@@ -201,7 +290,7 @@ class BattleLivesServiceTest {
 					IllegalStateException.class,
 					() -> BattleSideSetupService.setSideLives(battle, side, 25));
 
-			assertEquals("Campaign battle lives are computed from war commitment", error.getMessage());
+			assertEquals("Campaign battle lives come from the forces of each side", error.getMessage());
 		});
 	}
 

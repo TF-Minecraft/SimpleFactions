@@ -58,8 +58,6 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBat
 import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
@@ -72,7 +70,6 @@ import net.tfminecraft.simplefactions.war.stats.BattleStatsArchive;
 class WarHistoryEventsTest {
 	private FactionDomainFixture fixture;
 	private PersistenceFilesFixture files;
-	private Map<Integer, List<WarCommitment>> previousCommitments;
 	private RelationType alliance;
 	private WarHistoryOutbox outbox;
 	private Logger logger;
@@ -90,8 +87,6 @@ class WarHistoryEventsTest {
 		BattleStatsArchive.resetForTests();
 		when(org.bukkit.Bukkit.createBossBar(anyString(), any(org.bukkit.boss.BarColor.class),
 				any(org.bukkit.boss.BarStyle.class))).thenAnswer(call -> mock(org.bukkit.boss.BossBar.class));
-		previousCommitments = new LinkedHashMap<>(commitments());
-		commitments().clear();
 		previousTruceDays = Cache.warTruceDays;
 		alliance = fixture.relationType("ally", Map.of("link", "ally"));
 		attacker = fixture.saved("attacker", "Alice");
@@ -112,8 +107,6 @@ class WarHistoryEventsTest {
 			WarHistory.resetForTests();
 			BattleStatsArchive.resetForTests();
 			CampaignClock.reset();
-			commitments().clear();
-			commitments().putAll(previousCommitments);
 			Cache.warTruceDays = previousTruceDays;
 			fixture.close();
 		} finally {
@@ -121,12 +114,6 @@ class WarHistoryEventsTest {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private static Map<Integer, List<WarCommitment>> commitments() throws Exception {
-		Field field = WarCommitmentService.class.getDeclaredField("commitmentsByWar");
-		field.setAccessible(true);
-		return (Map<Integer, List<WarCommitment>>) field.get(null);
-	}
 
 	private void ally(Faction first, Faction second) {
 		first.setRelation(second, new Relation(alliance, RelationLoader.getDefaultAttitude()));

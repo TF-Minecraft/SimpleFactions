@@ -38,9 +38,7 @@ import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
 import net.tfminecraft.simplefactions.war.civilwar.split.CivilWarCapitalAssignService;
 import net.tfminecraft.simplefactions.war.civilwar.split.CivilWarLandSplitService;
 import net.tfminecraft.simplefactions.war.civilwar.split.CivilWarLandSplitService.LandSplitPlan;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +53,6 @@ class CivilWarLifecycleCoverageTest {
   private Map<Integer, Province> provinces;
   private String oldVassalageGroup;
   private String oldVassalageLaw;
-  private Map<Integer, List<WarCommitment>> oldCommitments;
 
   @BeforeEach
   void setup() throws Exception {
@@ -64,8 +61,6 @@ class CivilWarLifecycleCoverageTest {
     files = new PersistenceFilesFixture();
     Files.createDirectories(files.root.resolve("Data"));
     fixture = new FactionDomainFixture();
-    oldCommitments = new LinkedHashMap<>(commitments());
-    commitments().clear();
     fixture.lawGroup("constitution", Map.of());
     manager = new ProvinceManager();
     provinces = new LinkedHashMap<>();
@@ -78,10 +73,6 @@ class CivilWarLifecycleCoverageTest {
   @AfterEach
   void close() throws Exception {
     try {
-      if (oldCommitments != null) {
-        commitments().clear();
-        commitments().putAll(oldCommitments);
-      }
       if (fixture != null) fixture.close();
     } finally {
       Cache.civilWarVassalageGroup = oldVassalageGroup;
@@ -206,12 +197,6 @@ class CivilWarLifecycleCoverageTest {
     assertEquals(List.of(1, 2), home.getProvinces());
   }
 
-  @SuppressWarnings("unchecked")
-  private static Map<Integer, List<WarCommitment>> commitments() throws Exception {
-    Field field = WarCommitmentService.class.getDeclaredField("commitmentsByWar");
-    field.setAccessible(true);
-    return (Map<Integer, List<WarCommitment>>) field.get(null);
-  }
 
   @Test
   void aSuccessfulCitizenRebellionMovesItsLeaderOutOfTheHostExactlyOnce() {

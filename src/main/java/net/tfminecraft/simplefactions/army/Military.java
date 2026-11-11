@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.army;
 
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -57,7 +58,7 @@ public class Military {
 	public double getRawTotalUpkeep() {
 		double d = 0;
 		for(Regiment r : regiments) {
-			d += r.getTotalUpkeep();
+			d += r.getTotalUpkeep(WarWounds.woundedSlots(f, r));
 		}
 		return format.formatDouble(d);
 	}
@@ -246,7 +247,7 @@ public class Military {
 					manpower += e.getAmount();
 				}
 			} else {
-				manpower += r.getCurrentSlots();
+				manpower += WarWounds.availableSlots(f, r);
 			}
 		}
 		return manpower;
@@ -258,7 +259,7 @@ public class Military {
 			if(r.isEquipment()) continue;
 			if(offense && !r.isOffensive()) continue;
 			if(r.isLevy()) continue;
-			manpower += r.getCurrentSlots();
+			manpower += WarWounds.availableSlots(f, r);
 		}
 		return manpower;
 	}

@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.engine.core;
 
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,7 +26,7 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 
@@ -128,7 +130,7 @@ class BattleJoinServiceTest {
 		try (MockedStatic<org.bukkit.Bukkit> bukkit = Mockito.mockStatic(org.bukkit.Bukkit.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
 				MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			bukkit.when(() -> org.bukkit.Bukkit.createBossBar(
 					Mockito.anyString(), Mockito.any(BarColor.class), Mockito.any(BarStyle.class)))
 					.thenReturn(bossBar);
@@ -138,8 +140,8 @@ class BattleJoinServiceTest {
 
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
 			factions.when(() -> FactionManager.getByString("atk")).thenReturn(attacker);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), org.mockito.ArgumentMatchers.any(), eq(war.getAttackers()), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			Battle battle = BattleFactory.createBlank(BattleType.FIELD, "campaign_w1");
 			battle.setWarId(1);

@@ -175,7 +175,8 @@ public class CampaignBattleOutcomeService implements Listener {
 				? BattleCasualtyService.applyBattleCasualties(
 						war,
 						battle,
-						sideCasualties != null ? sideCasualties : Map.of())
+						sideCasualties != null ? sideCasualties : Map.of(),
+						resolution)
 				: BattleCasualtyTally.empty();
 
 		if (winnerRole != null) {

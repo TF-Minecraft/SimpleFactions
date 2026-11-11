@@ -1356,6 +1356,32 @@ class InventoryManagerCoverageTest {
     verify(manager.militaryView).militaryView(null, player, faction, true);
   }
 
+  @Test
+  void woundedRegimentSlotsCannotBeDisbandedUntilTheWarEnds() {
+    Military military = mock(Military.class);
+    Regiment regiment = mock(Regiment.class);
+    when(faction.getMilitary()).thenReturn(military);
+    when(military.getRegiment("archers")).thenReturn(regiment);
+    when(regiment.getId()).thenReturn("archers");
+    when(regiment.getPaidSlots()).thenReturn(1);
+    net.tfminecraft.simplefactions.war.core.War war = mock(net.tfminecraft.simplefactions.war.core.War.class);
+    net.tfminecraft.simplefactions.war.wounds.WarLedger ledger = new net.tfminecraft.simplefactions.war.wounds.WarLedger();
+    ledger.addAdjustment(new net.tfminecraft.simplefactions.war.wounds.WarLedger.Adjustment(
+        "realm", "archers", 5, "staff", null, "t"));
+    when(war.getLedger()).thenReturn(ledger);
+    when(war.isActive()).thenReturn(true);
+    net.tfminecraft.simplefactions.managers.WarManager.get().add(war);
+    try {
+      manager.confirming.put(player, faction);
+      manager.confirmView(player, faction, "regiment", "archers");
+      manager.clickButton(gui.click(player, 11));
+      verify(regiment, never()).sizeDecrease();
+      verify(player).sendMessage("§cWounded slots cannot be disbanded. They are lost when the war ends.");
+    } finally {
+      net.tfminecraft.simplefactions.managers.WarManager.get().remove(war);
+    }
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"faction", "leader", "regiment"})
   void staleRegimentConfirmationCannotChangeTheRegiment(String missing) {

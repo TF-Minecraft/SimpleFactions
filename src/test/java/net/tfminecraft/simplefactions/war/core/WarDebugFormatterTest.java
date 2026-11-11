@@ -15,14 +15,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.core.WarDebugFormatter;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
+import net.tfminecraft.simplefactions.war.wounds.WarLedger;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
@@ -33,13 +32,8 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBat
 
 class WarDebugFormatterTest {
 
-	@AfterEach
-	void tearDown() {
-		WarCommitmentService.clearCommitments(3);
-	}
-
 	@Test
-	void formatStatusLines_includesCommitmentRows() {
+	void formatStatusLines_includesTheLedger() {
 		Faction attacker = mock(Faction.class);
 		Faction defender = mock(Faction.class);
 		when(attacker.getId()).thenReturn("faction_a");
@@ -48,34 +42,14 @@ class WarDebugFormatterTest {
 		when(defender.getName()).thenReturn("Defender");
 
 		War war = new War(3, attacker, defender);
-		seedCommitment(new WarCommitment(
-				3, "faction_a", null, "militia", 4, Instant.parse("2026-08-21T10:00:00Z")));
-		seedCommitment(new WarCommitment(
-				3, "faction_a", "subject_a", WarCommitment.LEVY_REGIMENT_ID, 6, Instant.parse("2026-08-21T10:00:00Z")));
+		war.getLedger().addBattle("b", "fought", "2026-08-21T10:00:00Z", 1,
+				new WarLedger.SideRecord(10, TestForces.regiments("faction_a", 4)),
+				new WarLedger.SideRecord(0, List.of()));
 
 		String json = WarDebugFormatter.formatStatusLines(war).get(0);
 
-		assertTrue(json.contains("\"commitments\":2"));
-		assertTrue(json.contains("\"commitmentRows\""));
-		assertTrue(json.contains("\"factionId\":\"faction_a\""));
-		assertTrue(json.contains("\"regimentId\":\"militia\""));
-		assertTrue(json.contains("\"count\":4"));
-		assertTrue(json.contains("\"sourceFactionId\":\"subject_a\""));
-		assertTrue(json.contains("\"regimentId\":\"levy\""));
-		assertTrue(json.contains("\"count\":6"));
-	}
-
-	private static void seedCommitment(WarCommitment row) {
-		try {
-			java.lang.reflect.Field field = WarCommitmentService.class.getDeclaredField("commitmentsByWar");
-			field.setAccessible(true);
-			@SuppressWarnings("unchecked")
-			Map<Integer, List<WarCommitment>> store =
-					(Map<Integer, List<WarCommitment>>) field.get(null);
-			store.computeIfAbsent(row.warId(), ignored -> new ArrayList<>()).add(row);
-		} catch (ReflectiveOperationException e) {
-			throw new RuntimeException(e);
-		}
+		assertTrue(json.contains("\"ledgerBattles\":1"));
+		assertTrue(json.contains("\"factionWoundLives\":{\"faction_a\":{\"professional\":10}}"), json);
 	}
 
 	@Test

@@ -642,7 +642,7 @@ public class BattleInventoryManager {
 					SideLivesPreview preview = BattleLivesService.previewCampaignSideLives(
 							ctx.war(), ctx.battle(), ctx.sideId());
 					lore.add("§7Side lives: §e" + preview.sideLives());
-					if (preview.committedRegiments() > 0) {
+					if (preview.slots() > 0) {
 						lore.add("§8Pool §e" + preview.poolLives()
 								+ " §8- §e" + preview.rosterFighters() + " §8soldiers");
 					}
@@ -936,7 +936,7 @@ public class BattleInventoryManager {
 			Battle battle,
 			String sideId) {
 		SideLivesPreview preview = BattleLivesService.previewCampaignSideLives(war, battle, sideId);
-		if (preview.committedRegiments() <= 0) {
+		if (preview.slots() <= 0) {
 			lore.add("§7" + label + ": §e0");
 			return;
 		}
@@ -946,12 +946,12 @@ public class BattleInventoryManager {
 
 	public static List<String> formatSideLivesPreviewLore(SideLivesPreview preview) {
 		List<String> lore = new ArrayList<>();
-		if (preview.committedRegiments() <= 0) {
-			lore.add("§7Lives: §e0 §8(no committed regiments)");
+		if (preview.slots() <= 0) {
+			lore.add("§7Lives: §e0 §8(no regiments can fight)");
 			return lore;
 		}
 		lore.add("§7Lives: §e" + preview.sideLives());
-		lore.add("§8Regiments §e" + preview.committedRegiments()
+		lore.add("§8Slots §e" + preview.slots()
 				+ " §8| Pool §e" + preview.poolLives()
 				+ " §8- §e" + preview.rosterFighters() + " §8soldiers");
 		return lore;

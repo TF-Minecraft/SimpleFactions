@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.espionage;
 
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import java.time.LocalDate;
@@ -682,7 +683,7 @@ public final class EspionageService {
         values.put("Daily net income", main.getLedger().getNetIncome());
         values.put("Professional army", (double) faction.getMilitary().getRegiments().stream()
                 .filter(regiment -> regiment.isProfessional() && !regiment.isEquipment())
-                .mapToInt(regiment -> regiment.getCurrentSlots()).sum());
+                .mapToInt(regiment -> WarWounds.availableSlots(faction, regiment)).sum());
         values.put("Levies", (double) (faction.getMilitary().getManpower(false) - faction.getMilitary().getManpowerNoLevy(false)));
         values.put("Mercenaries", (double) faction.getMilitary().getMercenaryManpower());
         values.put("Army", values.get("Professional army") + values.get("Levies") + values.get("Mercenaries"));
@@ -706,7 +707,8 @@ public final class EspionageService {
         }
         for (var regiment : faction.getMilitary().getRegiments()) values.put("Regiment:" + regiment.getId()
                 + (regiment.isLevy() ? ":Levies" : ":Soldiers"), (double) (regiment.isLevy()
-                ? regiment.getEntries().stream().mapToInt(net.tfminecraft.simplefactions.army.LevyEntry::getAmount).sum() : regiment.getCurrentSlots()));
+                ? regiment.getEntries().stream().mapToInt(net.tfminecraft.simplefactions.army.LevyEntry::getAmount).sum()
+                : WarWounds.availableSlots(faction, regiment)));
         for (var installation : faction.getInstallationHandler().getAll()) values.put("Installation:" + installation.getId() + ":Level", (double) installation.getLevel());
         if (faction.getGovernment() != null) {
             values.put("Stability", faction.getGovernment().getStability());

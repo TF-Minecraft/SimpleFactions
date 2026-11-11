@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers.inventory;
 
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,11 +86,15 @@ public class MilitaryCreator {
 			} else {
 				lore.add("§7Current Slots: §e"+r.getCurrentSlots());
 			}
+			int wounded = WarWounds.woundedSlots(f, r);
+			if(wounded > 0) {
+				lore.add("§cWounded: "+wounded+" §7(cannot fight, lost when the war ends)");
+			}
 			if(r.sentToOverlord() > 0) {
 				lore.add(StringFormatter.formatHex("#877e7c("+r.sentToOverlord()+" sent as levies)"));
 			}
 			double mod = 1.0 + f.getModifier(FactionModifiers.MILITARY_UPKEEP).getAmount()/100.0;
-			lore.add("§7Current Upkeep: §e"+Formatter.formatMoney(r.getTotalUpkeep()*mod)+"d §7("+Formatter.formatMoney(r.getUpkeep()*mod)+"d per slot)");
+			lore.add("§7Current Upkeep: §e"+Formatter.formatMoney(r.getTotalUpkeep(wounded)*mod)+"d §7("+Formatter.formatMoney(r.getUpkeep()*mod)+"d per slot)");
 		} else {
 			int total = 0;
 			for(LevyEntry e : r.getEntries()) {

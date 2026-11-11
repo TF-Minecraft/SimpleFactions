@@ -14,6 +14,8 @@ public class BattleSideData {
 	public int maxLives;
 	// Absent in saves from before the start was recorded.
 	public Integer startLives;
+	public List<net.tfminecraft.simplefactions.war.wounds.BattleForce> forces;
+	public Integer livesOverride;
 	public String lifeType;
 	public List<String> warbandIds = new ArrayList<>();
 }

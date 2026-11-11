@@ -276,7 +276,7 @@ class BattleRosterBoundaryCoverageTest {
     var preview =
         net.tfminecraft.simplefactions.war.battle.military.BattleLivesService
             .previewCampaignSideLives(rig.war, battle, "attacker");
-    assertEquals(2, preview.committedRegiments());
+    assertEquals(2, preview.slots());
     assertEquals(8, preview.poolLives());
     assertEquals(2, preview.rosterFighters());
     assertEquals(6, preview.sideLives());
@@ -295,15 +295,17 @@ class BattleRosterBoundaryCoverageTest {
   }
 
   @Test
-  void incompleteCampaignLifeContextsLeaveExistingPoolsAloneAndEmptyArmiesReceiveNoLives() {
+  void incompleteCampaignLifeContextsGiveEmptyPreviewsAndEmptyArmiesReceiveNoLives() {
     Battle battle = BattleFactory.createBlank(BattleType.FIELD, "incomplete_lives");
     BattleManager.addBattle(battle);
     battle.setWarId(rig.war.getId());
     BattleSide attacker = battle.getSideById("attacker");
     attacker.setLives(9);
+    // Without a province no militia can defend, but the forces still decide the lives: none here.
     net.tfminecraft.simplefactions.war.battle.military.BattleLivesService.applyCampaignLives(
         battle);
-    assertEquals(9, attacker.getLives());
+    assertEquals(0, attacker.getLives());
+    attacker.setLives(9);
     var empty =
         new net.tfminecraft.simplefactions.war.battle.military.BattleLivesService.SideLivesPreview(
             0, 0, 0, 0, 0);

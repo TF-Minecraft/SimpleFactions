@@ -427,8 +427,8 @@ public class BattleCommandManager implements CommandExecutor{
 				}
 				Battle b = BattleManager.getByString(args[1]);
 				if (b.getWarId() != null) {
-					p.sendMessage("§cCampaign battle lives are computed from war commitment and roster size.");
-					p.sendMessage("§7Adjust regiments in the war pool or roster signups instead.");
+					p.sendMessage("§cCampaign battle lives come from each side's forces and roster.");
+					p.sendMessage("§7Set one side's starting lives with §e/battle lives " + b.getId() + " <side> set <lives>§7.");
 					return true;
 				}
 				Integer lives = parseInteger(p, args[2]);

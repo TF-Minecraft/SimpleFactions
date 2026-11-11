@@ -58,7 +58,13 @@ public class WarTabCompletion implements TabCompleter {
 			addIfPrefix(completions, args[1], "history");
 			addIfPrefix(completions, args[1], "factions");
 			addIfPrefix(completions, args[1], "forceinstallation");
+			addIfPrefix(completions, args[1], "losses");
+			addIfPrefix(completions, args[1], "army");
+			addIfPrefix(completions, args[1], "wounds");
 			return completions;
+		}
+		if (args[1].equalsIgnoreCase("losses") || args[1].equalsIgnoreCase("army") || args[1].equalsIgnoreCase("wounds")) {
+			return armyCompletions(args);
 		}
 		if (args[1].equalsIgnoreCase("forceinstallation")) {
 			return forceInstallationCompletions(args);
@@ -318,6 +324,65 @@ public class WarTabCompletion implements TabCompleter {
 			}
 		}
 		return completions;
+	}
+
+	/**
+	 * {@code losses <war> <battle#> <side> set|add|remove}, {@code army <faction>} and
+	 * {@code wounds <war> <faction> <regiment> add|remove} or {@code wounds company <guild> set}.
+	 */
+	private static List<String> armyCompletions(String[] args) {
+		String sub = args[1].toLowerCase(java.util.Locale.ROOT);
+		String typed = args[args.length - 1];
+		List<String> completions = new ArrayList<>();
+		if (sub.equals("army")) {
+			return args.length == 3 ? factionIds(typed) : completions;
+		}
+		if (args.length == 3) {
+			completions.addAll(activeWarIds(typed));
+			if (sub.equals("wounds")) {
+				addIfPrefix(completions, typed, "company");
+			}
+			return completions;
+		}
+		boolean company = args[2].equalsIgnoreCase("company");
+		War war = company ? null : WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElse(null);
+		List<String> options = switch (sub + ":" + args.length) {
+			case "losses:4" -> war == null ? List.of() : war.getLedger().battles().stream()
+					.map(entry -> String.valueOf(entry.number())).toList();
+			case "losses:5" -> List.of("attacker", "defender");
+			case "losses:6" -> List.of("set", "add", "remove");
+			case "wounds:4" -> company ? companyGuildIds() : factionIds(typed);
+			case "wounds:5" -> company ? List.of("set") : regimentIds(args[3]);
+			case "wounds:6" -> company ? List.of() : List.of("add", "remove");
+			default -> List.of();
+		};
+		for (String option : options) {
+			addIfPrefix(completions, typed, option);
+		}
+		return completions;
+	}
+
+	private static List<String> companyGuildIds() {
+		List<String> ids = new ArrayList<>();
+		for (net.tfminecraft.simplefactions.guild.Guild guild : FactionManager.getAllGuilds()) {
+			if (guild.getCompany() != null) {
+				ids.add(guild.getId());
+			}
+		}
+		return ids;
+	}
+
+	private static List<String> regimentIds(String factionId) {
+		Faction faction = FactionManager.getByString(factionId);
+		List<String> ids = new ArrayList<>();
+		if (faction != null && faction.getMilitary() != null) {
+			for (var regiment : faction.getMilitary().getRegiments()) {
+				if (!regiment.isLevy() && !regiment.isEquipment()) {
+					ids.add(regiment.getId());
+				}
+			}
+		}
+		return ids;
 	}
 
 	private static List<String> factionIds(String prefix) {

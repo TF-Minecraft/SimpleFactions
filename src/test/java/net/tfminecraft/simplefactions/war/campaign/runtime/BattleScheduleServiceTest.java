@@ -728,15 +728,15 @@ class BattleScheduleServiceTest {
 
 	private void withChoiceResolutionMocks(War war, Runnable action) {
 		try (MockedStatic<WarManager> warManager = mockStatic(WarManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattleForces> pool =
+						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattleForces.class)) {
 			warManager.when(() -> WarManager.persist(any())).then(inv -> null);
 			warManager.when(() -> WarManager.getById(war.getId())).thenReturn(war);
 			warManager.when(() -> WarManager.endWar(any(), any())).then(inv -> null);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					any(), any(Integer.class), any())).thenReturn(5);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					any(), any(Integer.class), any(), any())).thenReturn(5);
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleForces.build(
+					any(), any(), any(), any(), any())).thenReturn(net.tfminecraft.simplefactions.war.wounds.TestForces.regiments(5));
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleForces.regimentSlots(
+					any(), any(), any(), any())).thenReturn(5);
 			action.run();
 		}
 	}
@@ -744,17 +744,17 @@ class BattleScheduleServiceTest {
 	private void withMockBossBar(Runnable action) {
 		BossBar bossBar = mock(BossBar.class);
 		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattleForces> pool =
+						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattleForces.class)) {
 			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
 					.thenReturn(bossBar);
 			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class), any()))
 					.thenReturn(bossBar);
 			bukkit.when(() -> Bukkit.getPlayerExact(anyString())).thenReturn(null);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					any(), any(Integer.class), any())).thenReturn(5);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
-					any(), any(Integer.class), any(), any())).thenReturn(5);
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleForces.build(
+					any(), any(), any(), any(), any())).thenReturn(net.tfminecraft.simplefactions.war.wounds.TestForces.regiments(5));
+			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattleForces.regimentSlots(
+					any(), any(), any(), any())).thenReturn(5);
 			action.run();
 		}
 	}

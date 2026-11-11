@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
 
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 import net.tfminecraft.simplefactions.war.battle.campaign.warband.CampaignWarbandLeaveBlock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,7 +38,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleJoinService;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
@@ -95,11 +97,11 @@ class CampaignBattleJoinServiceTest {
 				"counter_attacker", war, war.getDefenders(), BattleTemplate.ATTACKER_SIDE);
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			factions.when(() -> FactionManager.getByMember("Carol")).thenReturn(defender);
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getDefenders()), any(), any()))
+					.thenReturn(TestForces.regiments(5));
 
 			assertNull(CampaignBattleJoinService.validateWarbandMemberJoin(
 					war, battle, BattleTemplate.ATTACKER_SIDE, warband, "Carol", UUID.randomUUID()));
@@ -118,9 +120,9 @@ class CampaignBattleJoinServiceTest {
 		Warband warband = campaignSideWarband(war, BattleTemplate.ATTACKER_SIDE);
 		warband.addMember(UUID.randomUUID());
 
-		try (MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(0);
+		try (MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+					.thenReturn(TestForces.regiments(0));
 
 			String error = CampaignBattleJoinService.validateJoin(
 					war, battle, warband, BattleTemplate.ATTACKER_SIDE);
@@ -137,9 +139,9 @@ class CampaignBattleJoinServiceTest {
 		Warband warband = campaignSideWarband(war, BattleTemplate.ATTACKER_SIDE);
 		WarDevMode.seedDummyMembers(warband, 5);
 
-		try (MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(0);
+		try (MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+					.thenReturn(TestForces.regiments(0));
 
 			String error = CampaignBattleJoinService.validateJoin(
 					war, battle, warband, BattleTemplate.ATTACKER_SIDE);
@@ -156,9 +158,9 @@ class CampaignBattleJoinServiceTest {
 		WarDevMode.seedDummyMembers(warband, 10);
 		battle.getSideById(BattleTemplate.ATTACKER_SIDE).addBand(warband);
 
-		try (MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(10);
+		try (MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+					.thenReturn(TestForces.regiments(10));
 
 			int cap = CampaignBattleJoinService.previewSidePoolLives(
 					war, battle, BattleTemplate.ATTACKER_SIDE);
@@ -199,12 +201,12 @@ class CampaignBattleJoinServiceTest {
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class);
 				MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
 			factions.when(() -> FactionManager.getByString("atk")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+					.thenReturn(TestForces.regiments(5));
 			bukkit.when(() -> Bukkit.getPlayer(any(UUID.class))).thenReturn(null);
 
 			assertTrue(service.evaluateRejoin(warband, leaderId, "leader", attacker, state));
@@ -222,13 +224,13 @@ class CampaignBattleJoinServiceTest {
 
 		try (MockedStatic<FactionManager> factions = mockStatic(FactionManager.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(attacker);
 			wars.when(() -> WarManager.getById(1)).thenReturn(war);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
-					.thenReturn(5);
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+					.thenReturn(TestForces.regiments(5));
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getDefenders()), any(), any()))
+					.thenReturn(TestForces.regiments(5));
 
 			org.bukkit.World world = mock(org.bukkit.World.class);
 			for (net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide side : battle.getSides()) {
@@ -252,9 +254,9 @@ class CampaignBattleJoinServiceTest {
 		Battle battle = campaignBattle(1);
 		Warband warband = campaignSideWarband(war, BattleTemplate.ATTACKER_SIDE);
 
-		try (MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-			pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-					.thenReturn(5);
+		try (MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
+			pool.when(() -> BattleForces.build(eq(war), any(), eq(war.getAttackers()), any(), any()))
+					.thenReturn(TestForces.regiments(5));
 
 			assertNull(CampaignBattleJoinService.validateJoin(
 					war, battle, warband, BattleTemplate.ATTACKER_SIDE));

@@ -21,10 +21,11 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.war.civilwar.CivilWarSnapshot;
-import net.tfminecraft.simplefactions.war.commitment.LevySnapshotCalculator;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.battle.military.PoolMode;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
+import net.tfminecraft.simplefactions.war.wounds.ForceKind;
 import net.tfminecraft.simplefactions.war.core.WarMapper;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.pathfinder.BelligerentTerritory;
@@ -39,14 +40,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 class RealmRelationsBoundaryCoverageTest {
   private static final int WAR_ID = 551091;
   private FactionDomainFixture domain;
-  private List<WarCommitment> previousCommitments;
   private Locale previousLocale;
 
   @BeforeEach
   void setUp() {
     previousLocale = Locale.getDefault();
-    previousCommitments = new ArrayList<>(WarCommitmentService.getCommitmentsForWar(WAR_ID));
-    WarCommitmentService.clearCommitments(WAR_ID);
     domain = new FactionDomainFixture();
   }
 
@@ -55,13 +53,13 @@ class RealmRelationsBoundaryCoverageTest {
     try {
       domain.close();
     } finally {
-      WarCommitmentService.restoreCommitments(WAR_ID, previousCommitments);
+      WarManager.get().removeIf(war -> war.getId() == WAR_ID);
       Locale.setDefault(previousLocale);
     }
   }
 
   @Test
-  void lateSubjectLeviesUseTheSameCaseIndependentIdentityAsWarCommitments() {
+  void lateSubjectsLendToTheirUppercaseHolderUnderTurkishLocale() {
     domain.lawGroup("conscription", Map.of("effects.faction.modifiers", List.of("LEVY(100)")));
     Faction holder = domain.saved("IRON", "IronLeader");
     Faction enemy = domain.saved("enemy", "EnemyLeader");
@@ -72,18 +70,16 @@ class RealmRelationsBoundaryCoverageTest {
     Regiment guard = regiment(source, "guard", 3);
     Locale.setDefault(Locale.forLanguageTag("tr-TR"));
 
-    List<WarCommitment> rows = WarCommitmentService.snapshotLevyForFighter(war, holder);
+    List<BattleForce> levies = levies(war);
 
-    assertEquals(1, rows.size(), "A late subject must still contribute to its uppercase-ID holder");
-    assertEquals(holder.getId(), rows.getFirst().factionId());
-    assertEquals(source.getId(), rows.getFirst().sourceFactionId());
-    assertEquals(1, rows.getFirst().count(), "The one actual member caps the contribution");
-    assertEquals(3, guard.getCurrentSlots(), "Snapshotting must not consume the live army");
-    assertTrue(WarCommitmentService.snapshotLevyForFighter(war, holder).isEmpty());
+    assertEquals(1, levies.size(), "A late subject must still lend to its uppercase-ID holder");
+    assertEquals(source.getId(), levies.getFirst().ownerId());
+    assertEquals(1, levies.getFirst().slots(), "The one actual member caps the levy");
+    assertEquals(3, guard.getCurrentSlots(), "Lending must not consume the live army");
   }
 
   @Test
-  void releasingAnUppercaseSubjectRemovesItsCommittedLevyUnderTurkishLocale() {
+  void aReleasedSubjectLendsNothingButKeepsItsSoldiers() {
     domain.lawGroup("conscription", Map.of("effects.faction.modifiers", List.of("LEVY(100)")));
     Faction holder = domain.saved("holder", "HolderLeader");
     War war = new War(WAR_ID, holder, domain.saved("enemy", "EnemyLeader"));
@@ -91,13 +87,20 @@ class RealmRelationsBoundaryCoverageTest {
     Faction source = domain.saved("IRIS", "IrisLeader");
     domain.subject(holder, source);
     Regiment guard = regiment(source, "guard", 2);
-    assertEquals(1, WarCommitmentService.snapshotLevyForFighter(war, holder).size());
+    guard.setFreeSlots(0);
+    assertEquals(1, levies(war).size());
     Locale.setDefault(Locale.forLanguageTag("tr-TR"));
 
-    WarCommitmentService.removeLevySubtree(source);
+    RelationManager.endVassalage(holder, source, false);
 
-    assertTrue(WarCommitmentService.getCommitmentsForWar(WAR_ID).isEmpty());
+    assertTrue(levies(war).isEmpty());
     assertEquals(2, guard.getCurrentSlots(), "Releasing a levy cannot erase its source soldiers");
+  }
+
+  private static List<BattleForce> levies(War war) {
+    return BattleForces.build(war, null, war.getAttackers(), PoolMode.OFFENSIVE, null, null).stream()
+        .filter(force -> force.kind() == ForceKind.LEVY)
+        .toList();
   }
 
   @Test
@@ -294,11 +297,13 @@ class RealmRelationsBoundaryCoverageTest {
             "conscription", "half", Map.of("effects.faction.modifiers", List.of("LEVY(50)")));
     middle.getLawHandler().getGroup("conscription").setCurrent(half);
     Regiment guard = regiment(source, "guard", 5);
-    assertEquals(2, LevySnapshotCalculator.directLevyContribution(source));
-    assertEquals(1, LevySnapshotCalculator.levyContribution(source, holder));
-    assertSame(
-        middle,
-        LevySnapshotCalculator.findNearestFighterHolder(source, Set.of("middle", "holder")));
+    War war = new War(WAR_ID, holder, domain.saved("enemy", "EnemyLeader"));
+    WarManager.get().add(war);
+    List<Faction> fightingSubjects = war.getAttackers().getMainParticipants().getFirst().getSubjects();
+    assertEquals(2, levySlots(war, source), "A fighting middle overlord receives the levy whole");
+    fightingSubjects.remove(middle);
+    // Two members cap the levy at 2, and the non-fighting middle overlord passes on half of it.
+    assertEquals(1, levySlots(war, source));
     List<LevyEntry> entries = holder.getMilitary().getLevies();
     assertEquals(
         1,
@@ -342,28 +347,24 @@ class RealmRelationsBoundaryCoverageTest {
     Faction middle = domain.saved("middle", "MiddleLeader");
     Faction source = domain.saved("source", "SourceLeader");
     regiment(source, "guard", 2);
-    assertEquals(0, LevySnapshotCalculator.levyContribution(source, holder));
-    assertNull(LevySnapshotCalculator.findNearestFighterHolder(source, Set.of("holder")));
+    War war = new War(WAR_ID, holder, domain.saved("enemy", "EnemyLeader"));
+    WarManager.get().add(war);
+    assertEquals(0, levySlots(war, source), "No relation, no levy");
     domain.subject(holder, middle);
     domain.subject(middle, source);
     var none =
         domain.law("conscription", "none", Map.of("effects.faction.modifiers", List.of("LEVY(0)")));
     middle.getLawHandler().getGroup("conscription").setCurrent(none);
-    assertEquals(0, LevySnapshotCalculator.levyContribution(source, holder));
-    assertTrue(
-        LevySnapshotCalculator.collectLevyRowsForFighter(holder, Set.of("holder")).isEmpty());
-    assertTrue(
-        LevySnapshotCalculator.collectLevyRowsForFighter(holder, Set.of("unrelated_fighter"))
-            .isEmpty());
+    assertEquals(0, levySlots(war, source), "A 0% overlord passes nothing on");
     FactionManager.factions.remove(middle);
-    assertNull(LevySnapshotCalculator.findNearestFighterHolder(source, Set.of("holder")));
-    assertEquals(0, LevySnapshotCalculator.levyContribution(source, holder));
-    assertEquals(0, LevySnapshotCalculator.directLevyContribution(null));
-    assertEquals(0, LevySnapshotCalculator.levyContribution(source, null));
-    assertNull(LevySnapshotCalculator.findNearestFighterHolder(source, Set.of()));
-    assertTrue(LevySnapshotCalculator.collectLevyRows(null).isEmpty());
-    assertTrue(LevySnapshotCalculator.collectLevyRowsForFighter(holder, Set.of()).isEmpty());
-    assertTrue(LevySnapshotCalculator.collectSubjectSubtreeIds(null).isEmpty());
+    assertEquals(0, levySlots(war, source));
+  }
+
+  private static int levySlots(War war, Faction source) {
+    return levies(war).stream()
+        .filter(force -> force.ownerId().equals(source.getId()))
+        .mapToInt(BattleForce::slots)
+        .sum();
   }
 
   @Test

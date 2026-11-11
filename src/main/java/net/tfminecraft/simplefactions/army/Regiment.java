@@ -196,11 +196,10 @@ public class Regiment {
 		currentSlots--;
 	}
 	
-	public double getTotalUpkeep() {
-		double d = 0;
-		int paidSlots = currentSlots-freeSlots;
+	/** Upkeep for the paid slots that are not wounded; wounded slots cost nothing until they are lost. */
+	public double getTotalUpkeep(int woundedSlots) {
+		int paidSlots = currentSlots - freeSlots - Math.max(0, woundedSlots);
 		if(paidSlots < 1) return 0;
-		d += paidSlots*upkeep;
-		return format.formatDouble(d);
+		return format.formatDouble(paidSlots*upkeep);
 	}
 }

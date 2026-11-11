@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.battle.campaign;
 
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -74,8 +76,8 @@ class CampaignBattleRosterServiceTest {
 						mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
 				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
 						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool =
+						mockStatic(BattleForces.class)) {
 			mockBossBar(bukkit);
 			Battle battle = createBattle(1);
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(1)).thenReturn(war);
@@ -83,10 +85,13 @@ class CampaignBattleRosterServiceTest {
 					.thenReturn(attacker);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
 					.thenReturn(defender);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
+			pool.when(() -> BattleForces.build(
 					org.mockito.ArgumentMatchers.eq(war),
-					org.mockito.ArgumentMatchers.eq(20),
-					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			CampaignBattleRosterService.enrollWarbands(war, battle);
 
@@ -110,8 +115,8 @@ class CampaignBattleRosterServiceTest {
 						mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
 				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
 						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool =
+						mockStatic(BattleForces.class)) {
 			mockBossBar(bukkit);
 			Battle battle = createBattle(1);
 			battle.setOffensiveCoalition(CampaignSideRole.DEFENDER);
@@ -120,10 +125,13 @@ class CampaignBattleRosterServiceTest {
 					.thenReturn(attacker);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
 					.thenReturn(defender);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
+			pool.when(() -> BattleForces.build(
 					org.mockito.ArgumentMatchers.eq(war),
-					org.mockito.ArgumentMatchers.eq(20),
-					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			CampaignBattleRosterService.enrollWarbands(war, battle);
 
@@ -148,8 +156,8 @@ class CampaignBattleRosterServiceTest {
 						mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
 				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
 						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool =
+						mockStatic(BattleForces.class)) {
 			mockBossBar(bukkit);
 			Battle battle = createBattle(1);
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(1)).thenReturn(war);
@@ -157,10 +165,13 @@ class CampaignBattleRosterServiceTest {
 					.thenReturn(attacker);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
 					.thenReturn(defender);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
+			pool.when(() -> BattleForces.build(
 					org.mockito.ArgumentMatchers.eq(war),
-					org.mockito.ArgumentMatchers.eq(20),
-					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			CampaignBattleRosterService.ensureEnrolledAt(war, battle, beforeSignup, false, false);
 
@@ -181,8 +192,8 @@ class CampaignBattleRosterServiceTest {
 						mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
 				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
 						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool =
+						mockStatic(BattleForces.class)) {
 			mockBossBar(bukkit);
 			Battle battle = createBattle(1);
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(1)).thenReturn(war);
@@ -190,10 +201,13 @@ class CampaignBattleRosterServiceTest {
 					.thenReturn(attacker);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
 					.thenReturn(defender);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
+			pool.when(() -> BattleForces.build(
 					org.mockito.ArgumentMatchers.eq(war),
-					org.mockito.ArgumentMatchers.eq(20),
-					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			CampaignBattleRosterService.tryEnrollWhenSignupOpens(war, signupHour);
 
@@ -212,8 +226,8 @@ class CampaignBattleRosterServiceTest {
 						mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
 				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
 						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool =
+						mockStatic(BattleForces.class)) {
 			mockBossBar(bukkit);
 			Battle battle = createBattle(1);
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(1)).thenReturn(war);
@@ -221,10 +235,13 @@ class CampaignBattleRosterServiceTest {
 					.thenReturn(attacker);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
 					.thenReturn(defender);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
+			pool.when(() -> BattleForces.build(
 					org.mockito.ArgumentMatchers.eq(war),
-					org.mockito.ArgumentMatchers.eq(20),
-					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			CampaignBattleRosterService.ensureEnrolledForced(war, battle);
 
@@ -243,8 +260,8 @@ class CampaignBattleRosterServiceTest {
 						mockStatic(net.tfminecraft.simplefactions.managers.WarManager.class);
 				MockedStatic<net.tfminecraft.simplefactions.managers.FactionManager> factions =
 						mockStatic(net.tfminecraft.simplefactions.managers.FactionManager.class);
-				MockedStatic<net.tfminecraft.simplefactions.war.battle.military.BattlePoolService> pool =
-						mockStatic(net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool =
+						mockStatic(BattleForces.class)) {
 			mockBossBar(bukkit);
 			Battle battle = createBattle(1);
 			wars.when(() -> net.tfminecraft.simplefactions.managers.WarManager.getById(1)).thenReturn(war);
@@ -252,10 +269,13 @@ class CampaignBattleRosterServiceTest {
 					.thenReturn(attacker);
 			factions.when(() -> net.tfminecraft.simplefactions.managers.FactionManager.getByString("def"))
 					.thenReturn(defender);
-			pool.when(() -> net.tfminecraft.simplefactions.war.battle.military.BattlePoolService.totalCommittedRegiments(
+			pool.when(() -> BattleForces.build(
 					org.mockito.ArgumentMatchers.eq(war),
-					org.mockito.ArgumentMatchers.eq(20),
-					org.mockito.ArgumentMatchers.any())).thenReturn(5);
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.any()))
+					.thenReturn(TestForces.regiments(5));
 
 			CampaignBattleRosterService.enrollWarbands(war, battle);
 			CampaignBattleRosterService.enrollWarbands(war, battle);

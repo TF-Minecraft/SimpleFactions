@@ -3,7 +3,6 @@ package net.tfminecraft.simplefactions.war.battle.military;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.Gson;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +24,10 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortControlService;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex.OperationalFort;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.core.WarMapper;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
+import net.tfminecraft.simplefactions.war.wounds.ForcePart;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -150,7 +149,7 @@ class BattleMilitaryBoundaryCoverageTest {
   }
 
   @Test
-  void missingOrForeignPoolRequestsCannotSpendAnActualArmiesRegiments() {
+  void missingOrForeignForceRequestsCannotSpendAnActualArmiesRegiments() {
     try (FactionDomainFixture domain = new FactionDomainFixture()) {
       Faction attacker = domain.saved("pool_iron", "Alice");
       Faction defender = domain.saved("pool_river", "Bob");
@@ -158,22 +157,18 @@ class BattleMilitaryBoundaryCoverageTest {
       Regiment guard = regiment(attacker, "guard", 7, true);
       War war = war(attacker, defender);
       War other = new War(998012, outsider, defender);
-      assertEquals(
-          PoolMode.DEFENSIVE, BattlePoolService.resolvePoolMode(null, 10, war.getAttackers()));
-      assertEquals(PoolMode.DEFENSIVE, BattlePoolService.resolvePoolMode(war, 10, null));
-      assertEquals(
-          PoolMode.DEFENSIVE, BattlePoolService.resolvePoolMode(war, 10, other.getAttackers()));
-      assertFalse(BattlePoolService.isMilitiaEligible(null, 10));
+      assertEquals(PoolMode.DEFENSIVE, BattleForces.resolvePoolMode(null, war.getAttackers()));
+      assertEquals(PoolMode.DEFENSIVE, BattleForces.resolvePoolMode(war, null));
+      assertEquals(PoolMode.DEFENSIVE, BattleForces.resolvePoolMode(war, other.getAttackers()));
+      assertFalse(BattleForces.isMilitiaEligible(null, 10));
       outsider.setId(null);
-      assertFalse(BattlePoolService.isMilitiaEligible(outsider, 10));
-      assertTrue(
-          BattlePoolService.eligibleRegiments(null, 10, war.getAttackers(), PoolMode.OFFENSIVE)
-              .isEmpty());
-      assertTrue(BattlePoolService.eligibleRegiments(war, 10, null, PoolMode.OFFENSIVE).isEmpty());
-      assertTrue(BattlePoolService.eligibleRegiments(war, 10, war.getAttackers(), null).isEmpty());
-      assertEquals(
-          Map.of(attacker.getId(), Map.of("guard", 7)),
-          BattlePoolService.eligibleRegiments(war, 10, war.getAttackers(), PoolMode.OFFENSIVE));
+      assertFalse(BattleForces.isMilitiaEligible(outsider, 10));
+      assertTrue(BattleForces.build(null, 10, war.getAttackers(), PoolMode.OFFENSIVE, null, null).isEmpty());
+      assertTrue(BattleForces.build(war, 10, null, PoolMode.OFFENSIVE, null, null).isEmpty());
+      assertTrue(BattleForces.build(war, 10, war.getAttackers(), null, null, null).isEmpty());
+      List<BattleForce> forces = BattleForces.build(war, 10, war.getAttackers(), PoolMode.OFFENSIVE, null, null);
+      assertEquals(attacker.getId(), forces.getFirst().ownerId());
+      assertEquals(List.of(new ForcePart("guard", false, 7, 0)), forces.getFirst().parts());
       assertEquals(7, guard.getCurrentSlots());
     }
   }
@@ -182,6 +177,7 @@ class BattleMilitaryBoundaryCoverageTest {
   @ValueSource(booleans = {false, true})
   void largeConfiguredArmiesCannotWrapTheirAvailablePoolBelowOneContributingArmy(boolean levies) {
     try (FactionDomainFixture domain = new FactionDomainFixture()) {
+      domain.lawGroup("conscription", Map.of("effects.faction.modifiers", List.of("LEVY(100)")));
       Faction attacker = domain.saved("pool_iron", "Alice");
       Faction defender = domain.saved("pool_river", "Bob");
       Faction firstSource = levies ? domain.saved("pool_first_subject", "Charlie") : attacker;
@@ -193,41 +189,15 @@ class BattleMilitaryBoundaryCoverageTest {
       Regiment first = regiment(firstSource, "first", 1_500_000_000, !levies);
       Regiment second = regiment(secondSource, "second", 1_500_000_000, !levies);
       War war = war(attacker, defender);
-      List<WarCommitment> previous = WarCommitmentService.getCommitmentsForWar(war.getId());
-      try {
-        WarCommitmentService.restoreCommitments(
-            war.getId(),
-            levies
-                ? List.of(
-                    new WarCommitment(
-                        war.getId(),
-                        attacker.getId(),
-                        firstSource.getId(),
-                        WarCommitment.LEVY_REGIMENT_ID,
-                        1_500_000_000,
-                        Instant.EPOCH),
-                    new WarCommitment(
-                        war.getId(),
-                        attacker.getId(),
-                        secondSource.getId(),
-                        WarCommitment.LEVY_REGIMENT_ID,
-                        1_500_000_000,
-                        Instant.EPOCH))
-                : List.of());
+      // Subjects that do not fight themselves lend levies.
+      war.getAttackers().getMainParticipants().getFirst().getSubjects().clear();
 
-        int available =
-            BattlePoolService.totalCommittedRegiments(
-                war, 10, war.getAttackers(), PoolMode.OFFENSIVE);
+      int available = BattleForces.regimentSlots(war, 10, war.getAttackers(), PoolMode.OFFENSIVE);
 
-        assertTrue(
-            available >= 1_500_000_000,
-            "Adding a second positive army must not overflow to a smaller or empty pool: "
-                + available);
-        assertEquals(1_500_000_000, first.getCurrentSlots());
-        assertEquals(1_500_000_000, second.getCurrentSlots());
-      } finally {
-        WarCommitmentService.restoreCommitments(war.getId(), previous);
-      }
+      // Two huge armies saturate instead of wrapping; a subject lends no more than its one member.
+      assertEquals(levies ? 2 : Integer.MAX_VALUE, available);
+      assertEquals(1_500_000_000, first.getCurrentSlots());
+      assertEquals(1_500_000_000, second.getCurrentSlots());
     }
   }
 

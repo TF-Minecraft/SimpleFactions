@@ -124,6 +124,18 @@ public final class MercenaryEngagements {
         return found;
     }
 
+    /** How many of the company's enlisted players are on this battle side's roster, whatever the contracts. */
+    public static int membersOnRoster(MercenaryCompany company, BattleSide side) {
+        int found = 0;
+        for (String name : company.getEnlisted()) {
+            UUID id = uuids == null ? null : uuids.uuidOf(name);
+            if (id != null && isOnRoster(side, id)) {
+                found++;
+            }
+        }
+        return found;
+    }
+
     private static boolean isOnRoster(BattleSide side, UUID id) {
         for (Warband band : side.getBands()) {
             if (band != null && band.hasMember(id)) return true;
