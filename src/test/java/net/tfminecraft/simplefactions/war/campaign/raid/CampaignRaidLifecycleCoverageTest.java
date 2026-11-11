@@ -128,7 +128,7 @@ public class CampaignRaidLifecycleCoverageTest {
     CampaignRaidLaunchService.startFight(rig.war, raid.getMusterEndsAt());
 
     assertFalse(
-        CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR),
+        CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()),
         "A fight which cannot be created must not consume the coalition's daily raid");
     assertFalse(rig.war.getRaidRepairLockUntil().containsKey(rig.target.getId()));
     assertTrue(BattleManager.get().isEmpty());
@@ -161,7 +161,7 @@ public class CampaignRaidLifecycleCoverageTest {
     assertNull(CampaignRaidService.getActive(rig.war));
     assertTrue(BattleManager.get().isEmpty());
     assertTrue(WarbandManager.get().isEmpty());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     assertTrue(rig.war.getRaidRepairLockUntil().isEmpty());
   }
 
@@ -188,7 +188,7 @@ public class CampaignRaidLifecycleCoverageTest {
     assertEquals(rig.attacker.getId(), raid.getLauncherFactionId());
     assertEquals(2, WarbandManager.get().size());
     assertTrue(CampaignRaidWarbandService.getAttackerWarband(raid).isPendingLeader());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     assertTrue(rig.warWrites() > before);
     verify(rig.alice).sendMessage("§aCampaign raid muster started.");
     verify(rig.navigation.campaignView).campaignView(rig.alice, rig.war, true);
@@ -414,7 +414,7 @@ public class CampaignRaidLifecycleCoverageTest {
     assertEquals(CampaignRaidState.FIGHTING, raid.getState());
     assertTrue(attackers.hasMember(rig.alice));
     assertTrue(CampaignRaidWarbandService.getDefenderWarband(raid).hasMember(rig.bob));
-    assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     assertTrue(
         CampaignRaidService.isRepairLocked(rig.war, rig.target.getId(), raid.getMusterEndsAt()));
     List<Warband> bands = new ArrayList<>(WarbandManager.get());
@@ -654,7 +654,7 @@ public class CampaignRaidLifecycleCoverageTest {
     rig.time(raid.getFightEndsAt());
     end.run();
     assertFalse(battle.hasStarted());
-    assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     assertSame(rig.target, rig.defender.getInstallationHandler().getById(rig.target.getId()));
   }
 
@@ -756,7 +756,7 @@ public class CampaignRaidLifecycleCoverageTest {
         () -> assertEquals(started, manual.hasStarted()),
         () -> assertEquals(List.of(manual), BattleManager.get()),
         () ->
-            assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR)),
+            assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now())),
         () -> assertFalse(rig.war.getRaidRepairLockUntil().containsKey(rig.target.getId())),
         () -> assertNull(CampaignRaidService.getActive(rig.war)),
         () -> assertTrue(WarbandManager.get().isEmpty()));
@@ -863,7 +863,7 @@ public class CampaignRaidLifecycleCoverageTest {
     assertFalse(existing.hasStarted());
     assertEquals(List.of(existing), BattleManager.get());
     assertNull(CampaignRaidService.getActive(rig.war));
-    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     assertTrue(WarbandManager.get().isEmpty());
   }
 
@@ -929,7 +929,7 @@ public class CampaignRaidLifecycleCoverageTest {
         () -> assertNull(CampaignRaidService.getActive(rig.war)),
         () -> assertTrue(BattleManager.get().isEmpty()),
         () ->
-            assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR)),
+            assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now())),
         () -> assertTrue(rig.war.getRaidRepairLockUntil().isEmpty()));
   }
 
@@ -1053,7 +1053,7 @@ public class CampaignRaidLifecycleCoverageTest {
       assertEquals(CampaignRaidState.MUSTER, restored.getState());
       assertTrue(BattleManager.get().isEmpty());
       assertEquals(original.getMusterEndsAt(), restored.getMusterEndsAt());
-      assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+      assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     }
   }
 
@@ -1090,7 +1090,7 @@ public class CampaignRaidLifecycleCoverageTest {
     rig.time(raid.getFightEndsAt().plusSeconds(1));
     CampaignRaidResumeService.resumeAll();
     assertFalse(battle.hasStarted());
-    assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     assertEquals(rig.war.getId(), battle.getWarId());
   }
 
@@ -1136,7 +1136,7 @@ public class CampaignRaidLifecycleCoverageTest {
     CampaignRaidMusterReminderService.processReminders(rig.war, rig.now());
     assertTrue(WarbandManager.get().isEmpty());
     assertTrue(rig.domain.ui.tasks.isEmpty());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     saved.attackerCoalition = null;
     CampaignRaid withoutCoalition = CampaignRaid.fromData(saved);
     CampaignRaidWarbandService.enrollOnlineDefenders(rig.war, withoutCoalition);
@@ -1322,7 +1322,7 @@ public class CampaignRaidLifecycleCoverageTest {
     rig.war.setActiveCampaignRaid(restored);
     CampaignRaidResumeService.resumeAll();
     assertTrue(BattleManager.get().isEmpty());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
   }
 
   @Test
@@ -1486,7 +1486,7 @@ public class CampaignRaidLifecycleCoverageTest {
         },
         () -> assertTrue(WarbandManager.get().isEmpty()),
         () ->
-            assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR)));
+            assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now())));
   }
 
   @Test
@@ -1516,9 +1516,9 @@ public class CampaignRaidLifecycleCoverageTest {
             assertTrue(
                 actualRaiders.hasMember(rig.bob), "Successful signup must reach the actual roster"),
         () -> assertSame(raid, CampaignRaidService.getActive(rig.war)),
-        () -> assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.DEFENDER)),
+        () -> assertTrue(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.DEFENDER, rig.now())),
         () ->
-            assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR)),
+            assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now())),
         () -> {
           assertNotNull(battle, "A valid defender-launched raid must start");
           assertTrue(battle.hasStarted());

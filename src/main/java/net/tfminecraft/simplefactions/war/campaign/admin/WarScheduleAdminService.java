@@ -12,6 +12,7 @@ import java.util.List;
 
 
 
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.core.War;
 
@@ -138,7 +139,8 @@ public final class WarScheduleAdminService {
 
 	/**
 	 * Sets a battle day's start time (0 and 1 mean after midnight); the next battle day when no date
-	 * is given. The next battle day is set on its province at once.
+	 * is given. The next battle day is set on its province once its picks have locked
+	 * ({@code vote_close_hour} that day): at once when that time has come.
 	 */
 	public static WarScheduleAdminResult setHour(War war, int hour, String dayArg, Instant now) {
 		WarScheduleAdminResult invalid = requireScheduling(war);
@@ -161,7 +163,9 @@ public final class WarScheduleAdminService {
 		}
 		return WarScheduleAdminResult.ok("Battle day " + day + " starts at " + BattleWindowService.formatHourLabel(normalized)
 				+ (war.getScheduledBattleAt() != null && day.equals(war.getBattleDay())
-						? " (province " + war.getScheduledBattleProvinceId() + ")." : "."));
+						? " (province " + war.getScheduledBattleProvinceId() + ")."
+						: ". It is set on its province from " + BattleWindowService.formatHourLabel(Cache.warVoteCloseHour)
+								+ " that day."));
 	}
 
 	/** Dev: marks an hour of a date for every member of the given sides, under test accounts. */

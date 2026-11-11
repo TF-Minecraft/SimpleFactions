@@ -35,14 +35,14 @@ public final class CampaignRaidLaunchAvailability {
 
 		CampaignSideRole coalition = coalitionForFaction(war, faction);
 		if (coalition != null) {
-			boolean ownQuota = CampaignRaidService.isSideQuotaUsed(war, coalition);
+			boolean ownQuota = CampaignRaidService.isSideQuotaUsed(war, coalition, now);
 			String ownQuotaLabel = WarDevMode.isEnabled()
 					? CampaignUiCopy.SELECT + "bypassed (devmode)"
 					: (ownQuota ? CampaignUiCopy.REMOVE + "spent" : CampaignUiCopy.SELECT + "available");
 			lore.add(StringFormatter.formatHex(
 					CampaignUiCopy.LABEL + "Your raid quota: " + ownQuotaLabel));
 			CampaignSideRole enemy = coalition.opposing();
-			boolean enemyQuota = CampaignRaidService.isSideQuotaUsed(war, enemy);
+			boolean enemyQuota = CampaignRaidService.isSideQuotaUsed(war, enemy, now);
 			String enemyLabel = enemy == CampaignSideRole.AGGRESSOR ? "Attacker" : "Defender";
 			String enemyQuotaLabel = WarDevMode.isEnabled()
 					? CampaignUiCopy.SELECT + "bypassed (devmode)"

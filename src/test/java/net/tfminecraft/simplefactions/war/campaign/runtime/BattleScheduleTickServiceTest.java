@@ -110,7 +110,7 @@ class BattleScheduleTickServiceTest {
 	}
 
 	@Test
-	void tick_withSpoofedClock_setsTheBattleAtItsTimeLock() {
+	void tick_withSpoofedClock_fixesTheTimeAtItsLockAndSetsTheBattleWhenPicksLock() {
 		War war = votingWar();
 		addCrossSideMarks(war, 21);
 
@@ -120,6 +120,11 @@ class BattleScheduleTickServiceTest {
 
 		withMockBossBar(() -> {
 			WarManager.addWar(war);
+			assertEquals(1, BattleScheduleTickService.tick(CampaignClock.now()));
+			assertEquals(21, war.getAvailability().battleDay(BATTLE_DAY).hour());
+			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+
+			CampaignClock.add(Duration.between(CampaignClock.now(), BattleWindowService.atScheduleHour(BATTLE_DAY, 16)));
 			assertEquals(1, BattleScheduleTickService.tick(CampaignClock.now()));
 			assertEquals(BattleSchedulePhase.SCHEDULED, war.getBattleSchedulePhase());
 			assertEquals(

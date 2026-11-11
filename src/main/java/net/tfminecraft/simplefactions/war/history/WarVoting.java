@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.history;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,17 +78,33 @@ public final class WarVoting {
 		voting.add("hours", hourList);
 		voting.add("hour_labels", labels);
 		List<LocalDate> visible = AvailabilityCalendar.visibleDates(war, now);
-		voting.add("dates", dates(war, visible, now));
+		List<LocalDate> shown = shownDates(war, visible, now);
+		voting.add("dates", dates(war, shown, now));
 		voting.addProperty("closes_at", WarHistoryJson.instant(AvailabilityCalendar.nextLockAt(war, now)));
 		JsonObject need = new JsonObject();
 		need.addProperty(WarHistoryJson.ATTACKER, AvailabilityTally.need(war, BelligerentRole.ATTACKER));
 		need.addProperty(WarHistoryJson.DEFENDER, AvailabilityTally.need(war, BelligerentRole.DEFENDER));
 		voting.add("need", need);
 		voting.add("eligible", eligible(war));
-		voting.add("marks", marks(war.getAvailability(), visible));
+		voting.add("marks", marks(war.getAvailability(), shown));
 		voting.add("none", none(war.getAvailability(), visible));
-		voting.add("tally", tally(war, visible));
+		voting.add("tally", tally(war, shown));
 		return voting;
+	}
+
+	/**
+	 * The dates the website shows: the battle days whose time is already locked (so they left the
+	 * markable dates) until their battle window closes, then the markable dates, in date order.
+	 */
+	static List<LocalDate> shownDates(War war, List<LocalDate> visible, Instant now) {
+		List<LocalDate> shown = new ArrayList<>();
+		for (LockedBattleDay day : war.getAvailability().battleDays()) {
+			if (day.date().isBefore(visible.get(0)) && now.isBefore(AvailabilityCalendar.windowClosesAt(day.date()))) {
+				shown.add(day.date());
+			}
+		}
+		shown.addAll(visible);
+		return shown;
 	}
 
 	private static JsonArray dates(War war, List<LocalDate> visible, Instant now) {

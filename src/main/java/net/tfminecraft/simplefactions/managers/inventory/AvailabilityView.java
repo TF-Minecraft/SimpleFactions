@@ -61,15 +61,15 @@ public class AvailabilityView {
 		this.inv = inv;
 	}
 
-	/** Opens the grid for a player who marks in this war, or says why not. */
-	public void open(Player player, War war) {
+	/** Opens the grid for a player who marks in this war, or says why not. Returns whether it opened. */
+	public boolean open(Player player, War war) {
 		if (war == null || !AvailabilityScheduler.isScheduling(war)) {
 			player.sendMessage("§c" + AvailabilityMarks.NO_SCHEDULE);
-			return;
+			return false;
 		}
 		if (BattleScheduleLookups.voterFaction(war, player) == null) {
 			player.sendMessage("§c" + AvailabilityMarks.NOT_ELIGIBLE);
-			return;
+			return false;
 		}
 		Instant now = CampaignClock.now();
 		List<LocalDate> dates = AvailabilityCalendar.visibleDates(war, now);
@@ -77,6 +77,7 @@ public class AvailabilityView {
 				new AvailabilityHolder(war.getId(), dates), 54, war.getName() + " §7When can you fight?");
 		populate(inventory, war, dates, player.getUniqueId(), now);
 		player.openInventory(inventory);
+		return true;
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -89,7 +90,8 @@ public class AvailabilityView {
 				List.of(CampaignUiCopy.LABEL + "Each row is a start time, each column a day.")));
 		for (int row = 1; row <= HOUR_ROWS; row++) {
 			inventory.setItem(row * 9, row - 1 < hours.size()
-					? item(Material.CLOCK, CampaignUiCopy.VALUE + CampaignUiTimeFormatter.formatUtcHour(first, hours.get(row - 1)),
+					// The schedule's own clock is the same on every date; each cell gives its date's other time zones.
+					? item(Material.CLOCK, CampaignUiCopy.VALUE + BattleWindowService.formatHourLabel(hours.get(row - 1)),
 							List.of())
 					: inv.getFiller(Material.GRAY_STAINED_GLASS_PANE));
 		}
@@ -135,7 +137,7 @@ public class AvailabilityView {
 		} else if (state == DateState.NO_BATTLE) {
 			material = Material.GRAY_DYE;
 			name = CampaignUiCopy.MUTED + label + ": no battle";
-			lore.add(CampaignUiCopy.LABEL + "Not enough people could come at the same time.");
+			lore.add(CampaignUiCopy.LABEL + noBattleText(war.getAvailability().noBattleReason(date)));
 		} else {
 			material = Material.PAPER;
 			name = CampaignUiCopy.VALUE + label;
@@ -216,6 +218,17 @@ public class AvailabilityView {
 		}
 		return item(Material.BARRIER, CampaignUiCopy.REMOVE + "None of these days work for me",
 				List.of(CampaignUiCopy.LABEL + "Clears your marks and stops the reminders."));
+	}
+
+	/** Why a decided date has no battle, as the date's header says it. */
+	static String noBattleText(BattleAvailability.NoBattleReason reason) {
+		if (reason == null) {
+			return "Not enough people could come at the same time.";
+		}
+		return switch (reason) {
+			case QUEUE_FULL -> "Battles were already planned.";
+			case TOO_LATE -> "It was decided too late to plan a battle.";
+		};
 	}
 
 	/** {@code 3 of each side}, or {@code 3 attackers and 1 defender}. */

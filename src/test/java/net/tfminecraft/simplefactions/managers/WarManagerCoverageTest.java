@@ -356,10 +356,14 @@ class WarManagerCoverageTest {
     woundBattle(war, "attacker", "guard", 10);
     assertEquals(2, WarWounds.woundedSlots(attacker, guard));
     clearInvocations(alice, bob, unrelated);
+    war.getAvailability().putBattleDay(
+        net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay.open(
+            java.time.LocalDate.of(2026, 11, 20), false));
 
     WarManager.endWar(war, reason);
 
     assertFalse(war.isActive());
+    assertTrue(war.getAvailability().battleDays().isEmpty(), "No battle day of an ended war is still to come");
     assertEquals(reason, war.getEndReason());
     assertNull(WarManager.getById(39));
     assertTrue(war.getLedger().isSettled());

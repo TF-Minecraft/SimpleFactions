@@ -319,7 +319,7 @@ public class CampaignCreator {
 		meta.setLore(List.of(
 				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Propose skipping the battle vote"),
 				StringFormatter.formatHex(CampaignUiCopy.LABEL + "Opposing war leader must accept"),
-				StringFormatter.formatHex(CampaignUiCopy.LABEL + "(60s request, before the start time is decided)")));
+				StringFormatter.formatHex(CampaignUiCopy.LABEL + "(60s request, until the battle is set on its province)")));
 		NamespacedKey warKey = new NamespacedKey(SimpleFactions.plugin, "campaign_autoresolve_war");
 		NamespacedKey sideKey = new NamespacedKey(SimpleFactions.plugin, "campaign_autoresolve_side");
 		meta.getPersistentDataContainer().set(warKey, PersistentDataType.INTEGER, war.getId());

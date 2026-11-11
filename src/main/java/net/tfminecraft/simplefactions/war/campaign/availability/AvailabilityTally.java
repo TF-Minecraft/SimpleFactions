@@ -97,25 +97,28 @@ public final class AvailabilityTally {
 
 	/**
 	 * Accounts that count toward a side's size: members of its factions not inactive for four
-	 * weeks, and the mercenaries under contract to it, each account once.
+	 * weeks, and the mercenaries under contract to it, each account once, and only when its marks
+	 * count for this side (an account with characters on both sides marks for one of them).
 	 */
 	public static int sideSize(War war, BelligerentRole role) {
 		Side side = role == BelligerentRole.ATTACKER ? war.getAttackers() : war.getDefenders();
 		Function<String, UUID> accounts = BattleScheduleLookups.memberNameToUuid();
+		Function<UUID, BelligerentRole> sideOf = sides(war);
 		Set<UUID> counted = new LinkedHashSet<>();
 		for (String member : InactivityService.activeOnly(BattleSideMembers.collectEligibleMemberNames(side))) {
-			addAccount(counted, accounts.apply(member));
+			addAccount(counted, accounts.apply(member), role, sideOf);
 		}
 		for (MercenaryEngagements.Engagement engagement : MercenaryEngagements.on(war, side)) {
 			for (String enlisted : InactivityService.activeOnly(engagement.company().getEnlisted())) {
-				addAccount(counted, accounts.apply(enlisted));
+				addAccount(counted, accounts.apply(enlisted), role, sideOf);
 			}
 		}
 		return counted.size();
 	}
 
-	private static void addAccount(Set<UUID> counted, UUID account) {
-		if (account != null) {
+	private static void addAccount(Set<UUID> counted, UUID account, BelligerentRole role,
+			Function<UUID, BelligerentRole> sideOf) {
+		if (account != null && sideOf.apply(account) == role) {
 			counted.add(account);
 		}
 	}

@@ -92,8 +92,12 @@ class BattleAvailabilityTest {
 		availability.setNone(dee, DAY);
 		availability.markReminderSent("mark_availability|" + DAY.minusDays(1));
 		availability.markReminderSent("mark_availability|" + DAY);
+		availability.setNoBattleReason(DAY.minusDays(1), BattleAvailability.NoBattleReason.QUEUE_FULL);
+		availability.setNoBattleReason(DAY, BattleAvailability.NoBattleReason.TOO_LATE);
 
 		assertTrue(availability.pruneBefore(DAY));
+		assertNull(availability.noBattleReason(DAY.minusDays(1)));
+		assertEquals(BattleAvailability.NoBattleReason.TOO_LATE, availability.noBattleReason(DAY));
 
 		assertEquals(Map.of(ann, Map.of(DAY, Set.of(21))), availability.marks());
 		assertEquals(Map.of(dee, DAY), availability.none());
@@ -112,6 +116,10 @@ class BattleAvailabilityTest {
 		availability.setLastDayLockProcessed(DAY.plusDays(1));
 		availability.setEarliestBattleDay(DAY.minusDays(3));
 		availability.markReminderSent("battle_day_locked|" + DAY);
+		availability.setNoBattleReason(DAY.plusDays(2), BattleAvailability.NoBattleReason.QUEUE_FULL);
+		availability.setNoBattleReason(DAY.plusDays(3), BattleAvailability.NoBattleReason.TOO_LATE);
+		availability.setNoBattleReason(DAY.plusDays(3), null);
+		availability.setNoBattleReason(DAY.plusDays(4), BattleAvailability.NoBattleReason.TOO_LATE);
 
 		Gson gson = new Gson();
 		BattleAvailability.Data data = gson.fromJson(gson.toJson(availability.toData()), BattleAvailability.Data.class);
@@ -124,6 +132,9 @@ class BattleAvailabilityTest {
 		assertEquals(DAY.plusDays(1), loaded.getLastDayLockProcessed());
 		assertEquals(DAY.minusDays(3), loaded.getEarliestBattleDay());
 		assertEquals(availability.remindersSent(), loaded.remindersSent());
+		assertEquals(BattleAvailability.NoBattleReason.QUEUE_FULL, loaded.noBattleReason(DAY.plusDays(2)));
+		assertNull(loaded.noBattleReason(DAY.plusDays(3)));
+		assertEquals(BattleAvailability.NoBattleReason.TOO_LATE, loaded.noBattleReason(DAY.plusDays(4)));
 		assertEquals(List.of(21, 25), data.marks.get(ann.toString()).get(DAY.toString()));
 	}
 
@@ -141,6 +152,7 @@ class BattleAvailabilityTest {
 		dates.put(DAY.toString(), List.of(21));
 		dates.put("someday", List.of(21));
 		dates.put(DAY.plusDays(1).toString(), null);
+		dates.put(DAY.plusDays(2).toString(), Arrays.asList(22, null));
 		data.marks.put(ann.toString(), dates);
 		data.marks.put("not-an-account", Map.of(DAY.toString(), List.of(22)));
 		data.marks.put(dee.toString(), null);
@@ -157,13 +169,22 @@ class BattleAvailabilityTest {
 		data.battleDays = new ArrayList<>(Arrays.asList(good, null, bad));
 		data.lastDayLockProcessed = "yesterday";
 		data.remindersSent = List.of("mark_availability|" + DAY);
+		data.noBattleReasons = new HashMap<>();
+		data.noBattleReasons.put(DAY.toString(), "QUEUE_FULL");
+		data.noBattleReasons.put("someday", "QUEUE_FULL");
+		data.noBattleReasons.put(DAY.plusDays(1).toString(), "BORED");
+		data.noBattleReasons.put(DAY.plusDays(2).toString(), null);
 
 		BattleAvailability loaded = BattleAvailability.fromData(data);
 
-		assertEquals(Map.of(ann, Map.of(DAY, Set.of(21))), loaded.marks());
+		assertEquals(Map.of(ann, Map.of(DAY, Set.of(21), DAY.plusDays(2), Set.of(22))), loaded.marks(),
+				"An empty hour is dropped, the rest of its date kept");
 		assertEquals(Map.of(ann, DAY), loaded.none());
 		assertEquals(List.of(new LockedBattleDay(DAY, 22, false, false)), loaded.battleDays());
 		assertNull(loaded.getLastDayLockProcessed());
 		assertEquals(Set.of("mark_availability|" + DAY), loaded.remindersSent());
+		assertEquals(BattleAvailability.NoBattleReason.QUEUE_FULL, loaded.noBattleReason(DAY));
+		assertNull(loaded.noBattleReason(DAY.plusDays(1)));
+		assertNull(loaded.noBattleReason(DAY.plusDays(2)));
 	}
 }

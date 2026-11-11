@@ -202,6 +202,36 @@ class CampaignRetreatServiceTest {
 	}
 
 	@Test
+	void canRetreat_stillAfterTheTimeLockUntilThePicksLock() {
+		int[] saved = {Cache.warBattleWindowStartHour, Cache.warBattleWindowEndHour, Cache.warAvailabilityDayLockHours,
+				Cache.warAvailabilityTimeLockHours};
+		Cache.warBattleWindowStartHour = 21;
+		Cache.warBattleWindowEndHour = 26;
+		Cache.warAvailabilityDayLockHours = 48;
+		Cache.warAvailabilityTimeLockHours = 24;
+		try {
+			War war = retreatableWar();
+			war.getAvailability().setEarliestBattleDay(BATTLE_DAY);
+			war.getAvailability().setLastDayLockProcessed(BATTLE_DAY.plusDays(1));
+			war.getAvailability().putBattleDay(
+					net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay.open(BATTLE_DAY, false));
+
+			// The time lock fixes the start time the evening before; the battle is not set on its province yet.
+			net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler.process(war,
+					net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar.timeLockAt(BATTLE_DAY));
+
+			assertEquals(21, war.getAvailability().battleDay(BATTLE_DAY).hour());
+			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+			assertTrue(CampaignRetreatService.canRetreat(war, defender, beforeVoteClose));
+		} finally {
+			Cache.warBattleWindowStartHour = saved[0];
+			Cache.warBattleWindowEndHour = saved[1];
+			Cache.warAvailabilityDayLockHours = saved[2];
+			Cache.warAvailabilityTimeLockHours = saved[3];
+		}
+	}
+
+	@Test
 	void concedeActiveSlot_advancesScheduleIndexAndCursor() {
 		War war = retreatableWar();
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);

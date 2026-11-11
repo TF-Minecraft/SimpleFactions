@@ -103,11 +103,44 @@ class BattleScheduleServiceTest {
 	}
 
 	@Test
-	void isRaidWindowOpen_falseOffBattleDay() {
+	void isRaidWindowOpen_everyDayOnceTheBuildupIsOver() {
 		War war = votingWar();
-		war.setBattleDay(BATTLE_DAY.plusDays(1));
-		assertFalse(BattleScheduleService.isRaidWindowOpen(
-				war, BattleWindowService.atScheduleHour(BATTLE_DAY, 19)));
+		Instant raidHour = BattleWindowService.atScheduleHour(BATTLE_DAY, 19);
+		// The next battle day is days away, or there is none yet: raids are called anyway.
+		war.setBattleDay(BATTLE_DAY.plusDays(3));
+		assertTrue(BattleScheduleService.isRaidWindowOpen(war, raidHour));
+		war.setBattleDay(null);
+		assertTrue(BattleScheduleService.isRaidWindowOpen(war, raidHour));
+		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
+		assertTrue(BattleScheduleService.isRaidWindowOpen(war, raidHour));
+		assertFalse(BattleScheduleService.isRaidWindowOpen(war, null));
+		assertFalse(BattleScheduleService.isRaidWindowOpen(null, raidHour));
+
+		// Not while the buildup lasts: in its phase, or before its first possible battle day.
+		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
+		assertFalse(BattleScheduleService.isRaidWindowOpen(war, raidHour));
+		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+		war.setBuildup(true);
+		war.getAvailability().setEarliestBattleDay(BATTLE_DAY.plusDays(1));
+		assertFalse(BattleScheduleService.isRaidWindowOpen(war, raidHour));
+		assertTrue(BattleScheduleService.isRaidWindowOpen(war, BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(1), 19)));
+		war.setBuildup(false);
+		assertTrue(BattleScheduleService.isRaidWindowOpen(war, raidHour), "After a battle the earliest day only limits battles");
+
+		// Not while the war's battle is being fought.
+		net.tfminecraft.simplefactions.war.battle.engine.core.Battle running =
+				org.mockito.Mockito.mock(net.tfminecraft.simplefactions.war.battle.engine.core.Battle.class);
+		org.mockito.Mockito.when(running.hasStarted()).thenReturn(true);
+		try (org.mockito.MockedStatic<net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager> battles =
+				org.mockito.Mockito.mockStatic(net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.class)) {
+			battles.when(() -> net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(war.getId()))
+					.thenReturn(running);
+			assertFalse(BattleScheduleService.isRaidWindowOpen(war, raidHour));
+			org.mockito.Mockito.when(running.hasStarted()).thenReturn(false);
+			assertTrue(BattleScheduleService.isRaidWindowOpen(war, raidHour));
+		}
+		war.end(net.tfminecraft.simplefactions.war.enums.WarEndReason.ADMIN_END);
+		assertFalse(BattleScheduleService.isRaidWindowOpen(war, raidHour));
 	}
 
 	@Test
@@ -279,13 +312,16 @@ class BattleScheduleServiceTest {
 	}
 
 	@Test
-	void advanceAfterBattle_neverMovesTheEarliestDayBack() {
+	void advanceAfterBattle_theDayAfterTheBattleIsTheEarliestDayAndCountsTheChoiceDeadline() {
+		// Staff brought the first battle forward, before the buildup's earliest day.
 		War war = votingWar();
 		war.getAvailability().setEarliestBattleDay(BATTLE_DAY.plusDays(9));
 
 		BattleScheduleService.advanceAfterBattle(war, BattleWindowService.atScheduleHour(BATTLE_DAY, 22));
 
-		assertEquals(BATTLE_DAY.plusDays(9), war.getAvailability().getEarliestBattleDay());
+		assertEquals(BATTLE_DAY.plusDays(1), war.getAvailability().getEarliestBattleDay());
+		assertTrue(BattleScheduleService.isPostBattleChoiceDeadlineDue(war,
+				BattleWindowService.atScheduleHour(BATTLE_DAY.plusDays(1), Cache.warDefenderChoiceDeadlineHour)));
 	}
 
 	@Test

@@ -191,7 +191,7 @@ class CampaignRaidMusterSchedulerTest {
 	@Test
 	void processOverdue_startsFightWithNoJoiners() {
 		Instant musterEnd = raidWindow.plusSeconds(60);
-		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
 
 		World world = mock(World.class);
 		when(world.getName()).thenReturn("world");
@@ -216,7 +216,7 @@ class CampaignRaidMusterSchedulerTest {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
 		assertNotNull(raid);
 		assertEquals(CampaignRaidState.FIGHTING, raid.getState());
-		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
+		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
 		assertTrue(raid.getMusterParticipantIds().isEmpty());
 		assertFalse(CampaignRaidMusterScheduler.processOverdue(war, musterEnd));
 	}

@@ -448,6 +448,8 @@ public class WarManager {
 		WarOutcomeService.apply(w, reason);
 		WarCombatTeardownService.teardownCombatForWar(w);
 		w.end(reason);
+		// No battle day of an ended war is still to come: the final state lists none.
+		w.getAvailability().clearBattleDays();
 		// The sides are still whole here, and the war file is deleted below.
 		WarHistoryEvents.ended(w, reason);
 		BattleInstallationPickService.clearForNewBattleDay(w);

@@ -254,8 +254,7 @@ public final class CampaignRaidEligibilityService {
 		if (WarDevMode.isEnabled()) {
 			return true;
 		}
-		return war.getBattleDay() != null
-				&& BattleScheduleService.isRaidWindowOpen(war, now);
+		return BattleScheduleService.isRaidWindowOpen(war, now);
 	}
 
 	private static Installation resolveOwnedInstallation(Faction faction, String installationId) {

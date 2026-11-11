@@ -40,6 +40,7 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.managers.holder.AvailabilityHolder;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
+import net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability;
 import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -140,8 +141,8 @@ class AvailabilityViewTest {
 		assertEquals(List.of(FRI, FRI.plusDays(1), FRI.plusDays(2), FRI.plusDays(3), FRI.plusDays(4), FRI.plusDays(5),
 				FRI.plusDays(6)), ((AvailabilityHolder) grid.getHolder(false)).getDates());
 		assertEquals("Start times", name(grid.getItem(0)));
-		assertEquals("21:00 CET / 15:00 EST", name(grid.getItem(9)));
-		assertEquals("01:00 CET / 19:00 EST (20/11/2026)", name(grid.getItem(45)));
+		assertEquals("21:00 CET", name(grid.getItem(9)), "The schedule's clock, the same on every date");
+		assertEquals("01:00 CET", name(grid.getItem(45)));
 		assertEquals("Fri 20/11", name(grid.getItem(1)));
 		assertEquals(Material.PAPER, grid.getItem(1).getType());
 		assertEquals("Battle or not is decided 18/11/2026 21:00 CET / 15:00 EST\nClick: mark every time", lore(grid.getItem(1)));
@@ -299,6 +300,19 @@ class AvailabilityViewTest {
 		click(37);
 		click(4);
 		assertTrue(war.getAvailability().marks().isEmpty());
+	}
+
+	@Test
+	void aDateWithoutABattleSaysWhy() {
+		war.getAvailability().setLastDayLockProcessed(FRI.plusDays(1));
+		war.getAvailability().setNoBattleReason(FRI.plusDays(1), BattleAvailability.NoBattleReason.QUEUE_FULL);
+		war.getAvailability().setNoBattleReason(FRI, BattleAvailability.NoBattleReason.TOO_LATE);
+		view.open(player, war);
+
+		assertEquals("Fri 20/11: no battle", name(top().getItem(1)));
+		assertTrue(lore(top().getItem(1)).startsWith("It was decided too late to plan a battle."));
+		assertTrue(lore(top().getItem(2)).startsWith("Battles were already planned."));
+		assertEquals("Not enough people could come at the same time.", AvailabilityView.noBattleText(null));
 	}
 
 	@Test

@@ -129,19 +129,38 @@ class AvailabilityTallyTest {
 				}
 				return active;
 			});
+			net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract contract =
+					mock(net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract.class);
+			Faction hirer = war.getDefenders().getMainParticipants().get(0).getLeader();
+			when(contract.getHirer()).thenReturn(hirer);
 			engagements.when(() -> MercenaryEngagements.on(war, war.getDefenders()))
-					.thenReturn(List.of(new MercenaryEngagements.Engagement(company, null)));
+					.thenReturn(List.of(new MercenaryEngagements.Engagement(company, contract)));
 			engagements.when(() -> MercenaryEngagements.on(war, war.getAttackers())).thenReturn(List.of());
+			engagements.when(() -> MercenaryEngagements.on(war, null)).thenReturn(List.of());
 
 			assertEquals(3, AvailabilityTally.sideSize(war, BelligerentRole.ATTACKER), "Dot is inactive");
 			assertEquals(3, AvailabilityTally.sideSize(war, BelligerentRole.DEFENDER), "Eve, Fay and the mercenary");
 		}
 		try (MockedStatic<BattleScheduleLookups> lookups = mockStatic(BattleScheduleLookups.class, CALLS_REAL_METHODS)) {
-			UUID shared = UUID.randomUUID();
+			UUID shared = spoof("Alice");
 			lookups.when(BattleScheduleLookups::memberNameToUuid)
 					.thenReturn((java.util.function.Function<String, UUID>) name -> name.equals("Cid") ? null : shared);
 			assertEquals(1, AvailabilityTally.sideSize(war, BelligerentRole.ATTACKER),
 					"Characters of one account count once; one with no account not at all");
+		}
+	}
+
+	@Test
+	void anAccountWithCharactersOnBothSidesCountsOnlyForTheSideItMarksFor() {
+		// Fay is played from Alice's account: its marks count for the attackers, whose roster comes first.
+		try (MockedStatic<BattleScheduleLookups> lookups = mockStatic(BattleScheduleLookups.class, CALLS_REAL_METHODS)) {
+			lookups.when(BattleScheduleLookups::memberNameToUuid)
+					.thenReturn((java.util.function.Function<String, UUID>) name -> spoof(name.equals("Fay") ? "Alice" : name));
+			assertEquals(BelligerentRole.ATTACKER, AvailabilityTally.sides(war).apply(spoof("Alice")));
+
+			assertEquals(4, AvailabilityTally.sideSize(war, BelligerentRole.ATTACKER));
+			assertEquals(1, AvailabilityTally.sideSize(war, BelligerentRole.DEFENDER), "Only Eve marks for the defenders");
+			assertEquals(1, AvailabilityTally.need(war, BelligerentRole.DEFENDER));
 		}
 	}
 

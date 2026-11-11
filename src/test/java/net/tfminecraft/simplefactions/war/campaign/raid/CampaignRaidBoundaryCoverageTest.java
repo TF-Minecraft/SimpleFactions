@@ -40,7 +40,7 @@ class CampaignRaidBoundaryCoverageTest {
   }
 
   @Test
-  void changingBattleDayReleasesTheOldMusterAndItsMembers() {
+  void aMusterKeepsItsMembersWhenTheWarGetsAnotherBattleDay() {
     CampaignRaid raid = muster();
     assertEquals(
         JoinResult.OK,
@@ -49,17 +49,14 @@ class CampaignRaidBoundaryCoverageTest {
     var band = CampaignRaidWarbandService.getAttackerWarband(raid);
     rig.war.setBattleDay(Fixture.DAY.plusDays(1));
 
-    CampaignRaidService.syncBattleDay(rig.war);
-
-    assertNull(rig.war.getActiveCampaignRaid());
-    assertNull(WarbandManager.getByString(band.getId()));
-    assertNull(WarbandManager.getByMemberId(rig.alice.getUniqueId()));
-    assertEquals(CampaignRaidState.ENDED, raid.getState());
+    // Raids belong to the day they are called on, not to the war's next battle day.
+    assertSame(raid, CampaignRaidService.getActive(rig.war));
+    assertSame(band, WarbandManager.getByMemberId(rig.alice.getUniqueId()));
+    assertEquals(CampaignRaidState.MUSTER, raid.getState());
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void clearingABattleDayStopsItsRunningRaidAndReleasesPlayers(boolean explicitClear) {
+  @Test
+  void clearingABattleDayStopsItsRunningRaidAndReleasesPlayers() {
     CampaignRaid raid = muster();
     assertEquals(
         JoinResult.OK,
@@ -71,11 +68,7 @@ class CampaignRaidBoundaryCoverageTest {
     assertTrue(battle.hasStarted());
     assertTrue(battle.getAllParticipants().contains(rig.alice));
 
-    if (explicitClear) CampaignRaidService.clearForNewBattleDay(rig.war);
-    else {
-      rig.war.setBattleDay(null);
-      CampaignRaidService.syncBattleDay(rig.war);
-    }
+    CampaignRaidService.clearForNewBattleDay(rig.war);
 
     assertNull(rig.war.getActiveCampaignRaid());
     assertFalse(battle.hasStarted());
@@ -101,7 +94,6 @@ class CampaignRaidBoundaryCoverageTest {
 
   @Test
   void missingWarAndRequestInputsHaveNoSideEffects() {
-    CampaignRaidService.syncBattleDay(null);
     CampaignRaidService.endRaid(null, rig.now());
     CampaignRaidService.clearForNewBattleDay(null);
     assertNull(CampaignRaidService.getActive(null));
@@ -126,7 +118,7 @@ class CampaignRaidBoundaryCoverageTest {
   }
 
   @Test
-  void launchingOutsideTheWindowOrWithoutABattleDayIsRejected() {
+  void launchingOutsideTheWindowIsRejectedButNoBattleDayIsNeeded() {
     assertEquals(
         LaunchResult.REJECTED_OUTSIDE_WINDOW,
         CampaignRaidService.beginMuster(
@@ -135,12 +127,13 @@ class CampaignRaidBoundaryCoverageTest {
             rig.source.getId(),
             rig.target.getId(),
             rig.now().minusSeconds(7200)));
+    assertNull(rig.war.getActiveCampaignRaid());
     rig.war.setBattleDay(null);
     assertEquals(
-        LaunchResult.REJECTED_WAR_INACTIVE,
+        LaunchResult.STARTED,
         CampaignRaidService.beginMuster(
             rig.war, rig.attacker, rig.source.getId(), rig.target.getId(), rig.now()));
-    assertNull(rig.war.getActiveCampaignRaid());
+    assertEquals(Fixture.DAY, rig.war.getActiveCampaignRaid().getBattleDay());
   }
 
   @Test
@@ -158,7 +151,7 @@ class CampaignRaidBoundaryCoverageTest {
     assertEquals(0, CampaignRaidService.resetRaidQuota(rig.war, CampaignSideRole.AGGRESSOR));
     assertTrue(CampaignRaidService.isInstallationRepairLocked(rig.war, rig.target, rig.now()));
     assertEquals(Map.of(rig.target.getStableKey(), lock), rig.war.getRaidRepairLockUntil());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(null, CampaignSideRole.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(null, CampaignSideRole.AGGRESSOR, rig.now()));
   }
 
   @Test

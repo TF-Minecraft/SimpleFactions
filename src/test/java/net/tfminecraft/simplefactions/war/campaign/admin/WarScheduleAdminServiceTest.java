@@ -228,8 +228,9 @@ class WarScheduleAdminServiceTest {
 		War war = votingWar();
 		withMockBossBar(() -> {
 			WarScheduleAdminResult result =
-					WarScheduleAdminService.setHour(war, 1, null, Instant.parse("2026-08-21T10:00:00Z"));
+					WarScheduleAdminService.setHour(war, 1, null, Instant.parse("2026-08-21T14:00:00Z"));
 			assertTrue(result.success(), result.message());
+			// 16:00 CEST: the picks have locked, so the battle is set at once.
 			assertEquals("Battle day 2026-08-21 starts at 01:00 CET (province 20).", result.message());
 			assertEquals(BattleSchedulePhase.SCHEDULED, war.getBattleSchedulePhase());
 			assertEquals(Instant.parse("2026-08-21T23:00:00Z"), war.getScheduledBattleAt());
@@ -244,7 +245,8 @@ class WarScheduleAdminServiceTest {
 		war.getAvailability().putBattleDay(LockedBattleDay.open(later, false));
 		WarScheduleAdminResult result =
 				WarScheduleAdminService.setHour(war, 22, later.toString(), Instant.parse("2026-08-21T10:00:00Z"));
-		assertEquals("Battle day 2026-08-22 starts at 22:00 CET.", result.message());
+		assertEquals("Battle day 2026-08-22 starts at 22:00 CET. It is set on its province from 16:00 CET that day.",
+				result.message());
 		assertEquals(22, war.getAvailability().battleDay(later).hour());
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 	}

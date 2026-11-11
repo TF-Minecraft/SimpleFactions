@@ -262,12 +262,15 @@ public class ConfigLoader {
 		// war.battle_voting.* and war.buildup.day_options / day_vote_close_hours belonged to the old votes; ignored.
 		Cache.warBuildupEnabled = config.getBoolean("war.buildup.enabled", true);
 		Cache.warBuildupFirstOptionDay = Math.max(1, config.getInt("war.buildup.first_option_day", 7));
-		Cache.warAvailabilityDaysShown = Math.max(1, Math.min(AvailabilityView.DATE_COLUMNS,
-				config.getInt("war.availability.days_shown", 7)));
 		Cache.warAvailabilityTimeLockHours = Math.max(1, config.getInt("war.availability.time_lock_hours_before", 24));
 		// The day must be decided before its time can be.
 		Cache.warAvailabilityDayLockHours = Math.max(Cache.warAvailabilityTimeLockHours + 1,
 				config.getInt("war.availability.day_lock_hours_before", 48));
+		// The grid starts at the first date whose time lock is ahead; the dates before their day lock come
+		// after those between the two locks, so enough must be shown to reach an open one.
+		int betweenLocks = (Cache.warAvailabilityDayLockHours - Cache.warAvailabilityTimeLockHours + 23) / 24;
+		Cache.warAvailabilityDaysShown = Math.max(Math.min(AvailabilityView.DATE_COLUMNS, betweenLocks + 1),
+				Math.min(AvailabilityView.DATE_COLUMNS, config.getInt("war.availability.days_shown", 7)));
 		Cache.warAvailabilityMinPerSide = Math.max(1, config.getInt("war.availability.min_per_side", 3));
 		Cache.warAvailabilityMaxDaysWithoutBattle = Math.max(0, config.getInt("war.availability.max_days_without_battle", 3));
 		Cache.warAvailabilityVoteUrl = config.getString("war.availability.vote_url", "");

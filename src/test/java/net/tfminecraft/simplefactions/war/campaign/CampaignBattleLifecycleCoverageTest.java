@@ -632,7 +632,14 @@ class CampaignBattleLifecycleCoverageTest {
     configureCampaign();
     rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY, false));
     assertTrue(WarScheduleAdminService.castVote(rig.war, Fixture.DAY.toString(), 21, "both").success());
+    // Before the picks lock at 16:00 the time is fixed, and the battle is set on its province later.
     WarScheduleAdminResult result = WarScheduleAdminService.setHour(rig.war, 21, null, rig.now());
+    assertTrue(result.success(), result.message());
+    assertTrue(result.message().endsWith("It is set on its province from 16:00 CET that day."), result.message());
+    assertEquals(BattleSchedulePhase.VOTING, rig.war.getBattleSchedulePhase());
+    assertTrue(BattleManager.get().isEmpty());
+    rig.time(BattleWindowService.atScheduleHour(Fixture.DAY, 16));
+    result = WarScheduleAdminService.setHour(rig.war, 21, null, rig.now());
     assertTrue(result.success(), result.message());
     assertTrue(result.message().contains("(province 20)"), result.message());
     assertEquals(BattleSchedulePhase.SCHEDULED, rig.war.getBattleSchedulePhase());
@@ -658,6 +665,7 @@ class CampaignBattleLifecycleCoverageTest {
     configureCampaign();
     var availability = rig.war.getAvailability();
     availability.setEarliestBattleDay(Fixture.DAY.plusDays(2));
+    availability.setLastDayLockProcessed(Fixture.DAY.plusDays(1));
     // Nobody marked the first date: at its day lock it gets no battle.
     assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY, 20)));
     assertNull(availability.battleDay(Fixture.DAY.plusDays(2)));
@@ -682,7 +690,10 @@ class CampaignBattleLifecycleCoverageTest {
     assertTrue(BattleManager.get().isEmpty());
     rig.war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);
     rig.war.setPostBattleChoiceResolved(true);
-    assertTrue(AvailabilityScheduler.process(rig.war, timeLock.plusSeconds(60)));
+    AvailabilityScheduler.process(rig.war, timeLock.plusSeconds(60));
+    // Until the picks lock at 16:00 on the battle day, retreats and picks stay open.
+    assertEquals(BattleSchedulePhase.VOTING, rig.war.getBattleSchedulePhase());
+    assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY.plusDays(3), 16)));
     assertEquals(BattleSchedulePhase.SCHEDULED, rig.war.getBattleSchedulePhase());
     assertEquals(BattleWindowService.atScheduleHour(Fixture.DAY.plusDays(3), 21), rig.war.getScheduledBattleAt());
     assertEquals(20, rig.war.getScheduledBattleProvinceId());
@@ -752,6 +763,9 @@ class CampaignBattleLifecycleCoverageTest {
     rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY.plusDays(1), true));
     assertTrue(WarScheduleAdminService.castVote(rig.war, Fixture.DAY.plusDays(1).toString(), 22, "attacker").success());
     assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY, 20)));
+    assertTrue(rig.war.getAvailability().battleDay(Fixture.DAY.plusDays(1)).autoresolve());
+    assertEquals(0, rig.war.getCampaignBattlesFought(), "Resolved when its picks lock, like a battle set then");
+    assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY.plusDays(1), 16)));
     assertEquals(1, rig.war.getCampaignBattlesFought());
     assertTrue(BattleManager.get().isEmpty());
     assertTrue(rig.war.hasFirstBattleStarted());
@@ -763,7 +777,7 @@ class CampaignBattleLifecycleCoverageTest {
     configureCampaign();
     rig.war.setInitiativeAttacker(0);
     rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY, false).withHour(21, false));
-    assertTrue(AvailabilityScheduler.process(rig.war, rig.now()));
+    assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY, 16)));
     assertFalse(rig.war.isActive());
     assertEquals(WarEndReason.WHITE_PEACE, rig.war.getEndReason());
     assertNull(WarManager.getById(rig.war.getId()));

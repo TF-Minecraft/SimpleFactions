@@ -126,7 +126,7 @@ class CampaignRaidServiceTest {
 		assertEquals(CampaignSideRole.AGGRESSOR, raid.getAttackerCoalition());
 		assertEquals(RaidKind.NAVAL, raid.getRaidKind());
 		assertEquals(raidWindow.plusSeconds(60), raid.getMusterEndsAt());
-		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
 	}
 
 	@Test
@@ -145,7 +145,7 @@ class CampaignRaidServiceTest {
 		CampaignRaid raid = CampaignRaidService.getActive(war);
 		assertEquals(CampaignRaidState.FIGHTING, raid.getState());
 		assertEquals(musterEnd.plusSeconds(600), raid.getFightEndsAt());
-		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
+		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
 		CampaignRaidService.endRaid(war, musterEnd.plusSeconds(1));
 		assertEquals(LaunchResult.REJECTED_QUOTA_SPENT,
 				CampaignRaidService.canLaunch(war, attacker, musterEnd.plusSeconds(2)));
@@ -164,8 +164,8 @@ class CampaignRaidServiceTest {
 		CampaignRaidService.transitionToFighting(war, raidWindow.plusSeconds(60));
 		CampaignRaidService.endRaid(war, raidWindow.plusSeconds(700));
 
-		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
-		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.DEFENDER));
+		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.DEFENDER, raidWindow));
 		assertEquals(LaunchResult.STARTED,
 				CampaignRaidService.canLaunch(war, defender, raidWindow.plusSeconds(701)));
 	}
@@ -202,15 +202,42 @@ class CampaignRaidServiceTest {
 	}
 
 	@Test
-	void syncBattleDay_clearsStaleRaidWhenBattleDayAdvances() {
+	void eachSideRaidsOnceADayWhetherOrNotItIsABattleDay() {
+		// Friday is the next battle day; raids are called on the Wednesday and Thursday before it.
+		LocalDate wednesday = BATTLE_DAY.minusDays(2);
+		war.setBattleDay(BATTLE_DAY);
+		Instant wednesdayRaid = BattleWindowService.atScheduleHour(wednesday, 19);
+		assertEquals(LaunchResult.STARTED,
+				CampaignRaidService.beginMuster(war, attacker, "port-atk", "port-def", wednesdayRaid));
+		assertEquals(wednesday, CampaignRaidService.getActive(war).getBattleDay());
+		CampaignRaidService.transitionToFighting(war, wednesdayRaid.plusSeconds(60));
+		CampaignRaidService.endRaid(war, wednesdayRaid.plusSeconds(600));
+
+		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, wednesdayRaid));
+		assertEquals(LaunchResult.REJECTED_QUOTA_SPENT, CampaignRaidService.canLaunch(war, attacker, wednesdayRaid));
+		Instant thursdayRaid = BattleWindowService.atScheduleHour(wednesday.plusDays(1), 19);
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, thursdayRaid));
+		assertEquals(LaunchResult.STARTED, CampaignRaidService.canLaunch(war, attacker, thursdayRaid));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, null));
+	}
+
+	@Test
+	void anEndedWarCallsNoRaid() {
+		war.end(net.tfminecraft.simplefactions.war.enums.WarEndReason.ADMIN_END);
+
+		assertEquals(LaunchResult.REJECTED_WAR_INACTIVE,
+				CampaignRaidService.beginMuster(war, attacker, "port-atk", "port-def", raidWindow));
+	}
+
+	@Test
+	void aRaidOutlivesTheWarGettingANewBattleDay() {
+		war.setBattleDay(null);
 		CampaignRaidService.beginMuster(war, attacker, "port-atk", "port-def", raidWindow);
-		war.getCampaignRaidsUsed().put(CampaignSideRole.AGGRESSOR.toJson(), BATTLE_DAY.toString());
 
-		war.setBattleDay(BATTLE_DAY.plusDays(1));
-		CampaignRaidService.syncBattleDay(war);
+		war.setBattleDay(BATTLE_DAY.plusDays(2));
 
-		assertNull(CampaignRaidService.getActive(war));
-		assertTrue(war.getCampaignRaidsUsed().isEmpty());
+		assertNotNull(CampaignRaidService.getActive(war));
+		assertEquals(BATTLE_DAY, CampaignRaidService.getActive(war).getBattleDay());
 	}
 
 	@Test
@@ -220,8 +247,8 @@ class CampaignRaidServiceTest {
 
 		assertEquals(1, CampaignRaidService.resetRaidQuota(war, CampaignSideRole.AGGRESSOR));
 
-		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
-		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.DEFENDER));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
+		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.DEFENDER, raidWindow));
 	}
 
 	@Test
@@ -231,14 +258,14 @@ class CampaignRaidServiceTest {
 
 		assertEquals(2, CampaignRaidService.resetRaidQuota(war, null));
 
-		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
-		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.DEFENDER));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
+		assertFalse(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.DEFENDER, raidWindow));
 	}
 
 	@Test
 	void canLaunch_okWhenQuotaSpentAndWarDevmodeEnabled() {
 		war.getCampaignRaidsUsed().put(CampaignSideRole.AGGRESSOR.toJson(), BATTLE_DAY.toString());
-		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR));
+		assertTrue(CampaignRaidService.isSideQuotaUsed(war, CampaignSideRole.AGGRESSOR, raidWindow));
 
 		WarDevMode.setEnabled(true);
 		try {

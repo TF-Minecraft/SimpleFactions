@@ -553,8 +553,12 @@ class CampaignMenusCoverageTest {
     navigation.availabilityView = mock(AvailabilityView.class);
     view.campaignView(player, war, true);
     Inventory inventory = top();
+    // Refused (not someone who marks): the campaign stays open and keeps refreshing.
     click(27);
     verify(navigation.availabilityView).open(player, war);
+    refresh.verify(() -> CampaignViewRefreshService.unregister(player), never());
+    when(navigation.availabilityView.open(player, war)).thenReturn(true);
+    click(27);
     refresh.verify(() -> CampaignViewRefreshService.unregister(player));
     ItemStack other = creator.createAvailabilityButton(war);
     ItemMeta meta = other.getItemMeta();
@@ -563,7 +567,7 @@ class CampaignMenusCoverageTest {
     other.setItemMeta(meta);
     inventory.setItem(0, other);
     click(0);
-    verify(navigation.availabilityView, times(1)).open(any(), any());
+    verify(navigation.availabilityView, times(2)).open(any(), any());
   }
 
   @Test

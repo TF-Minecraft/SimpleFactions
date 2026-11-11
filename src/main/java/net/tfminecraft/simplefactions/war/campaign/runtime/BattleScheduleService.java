@@ -70,11 +70,29 @@ public final class BattleScheduleService {
 		return isOnBattleDay(war, now) && battleDayHour(now) < Cache.warVoteCloseHour;
 	}
 
+	/**
+	 * Raids can be called every day from {@code raid_window_start_hour} to {@code raid_window_end_hour}
+	 * once the war is past its buildup (VOTING or SCHEDULED, and not before the buildup's first
+	 * possible battle day while it is still frozen), unless its battle is being fought. Battle days
+	 * are rarer now that they come from availability, so raids no longer wait for one.
+	 */
 	public static boolean isRaidWindowOpen(War war, Instant now) {
 		if (WarDevMode.isEnabled() && war != null && war.isActive()) {
 			return true;
 		}
-		if (!isOnBattleDay(war, now)) {
+		if (war == null || now == null || !war.isActive()) {
+			return false;
+		}
+		BattleSchedulePhase phase = war.getBattleSchedulePhase();
+		if (phase != BattleSchedulePhase.VOTING && phase != BattleSchedulePhase.SCHEDULED) {
+			return false;
+		}
+		LocalDate earliest = war.getAvailability().getEarliestBattleDay();
+		if (war.isBuildupFrozen() && earliest != null && battleDayDate(now).isBefore(earliest)) {
+			return false;
+		}
+		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(war.getId());
+		if (battle != null && battle.hasStarted()) {
 			return false;
 		}
 		int hour = battleDayHour(now);
@@ -157,9 +175,10 @@ public final class BattleScheduleService {
 
 	/**
 	 * After a battle (fought, autoresolved or settled without a fight): its battle day leaves the
-	 * queue, the next battle day (if one is locked) becomes the war's, and no date before the day
-	 * after the battle can become one. A battle that runs past midnight still belongs to the evening
-	 * it started on. Picks and raids of the fought day are cleared.
+	 * queue, the next battle day (if one is locked) becomes the war's, and the earliest battle day is
+	 * the day after the battle (a battle ends the buildup, so a later buildup bound goes too; the
+	 * post-battle choice deadline is counted from it). A battle that runs past midnight still belongs
+	 * to the evening it started on. Picks and raids of the fought day are cleared.
 	 */
 	public static void advanceAfterBattle(War war, Instant now) {
 		if (war == null) {
@@ -171,8 +190,7 @@ public final class BattleScheduleService {
 			availability.removeBattleDay(fought);
 		}
 		LocalDate dayAfter = (fought != null ? fought : battleDayDate(now != null ? now : Instant.now())).plusDays(1);
-		LocalDate earliest = availability.getEarliestBattleDay();
-		availability.setEarliestBattleDay(earliest == null || earliest.isBefore(dayAfter) ? dayAfter : earliest);
+		availability.setEarliestBattleDay(dayAfter);
 		LockedBattleDay next = availability.head();
 		war.setBattleDay(next == null ? null : next.date());
 		clearForNewBattleDay(war);

@@ -34,6 +34,8 @@ public final class BuildupService {
 		war.setBuildup(true);
 		BattleAvailability availability = new BattleAvailability();
 		availability.setEarliestBattleDay(BattleWindowService.scheduleDate(now).plusDays(Cache.warBuildupFirstOptionDay));
+		// Every later day lock is the war's own: dates from the declaration on are walked in order.
+		availability.setLastDayLockProcessed(AvailabilityScheduler.lastDayLockPassed(now));
 		war.setAvailability(availability);
 		war.setBattleDay(null);
 		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
@@ -51,6 +53,9 @@ public final class BuildupService {
 		if (availability.getEarliestBattleDay() == null || availability.getEarliestBattleDay().isAfter(today)) {
 			availability.setEarliestBattleDay(today);
 		}
-		AvailabilityScheduler.sync(war);
+		// A legacy raid war has no battle schedule: it stays IDLE.
+		if (AvailabilityScheduler.isScheduling(war)) {
+			AvailabilityScheduler.sync(war);
+		}
 	}
 }

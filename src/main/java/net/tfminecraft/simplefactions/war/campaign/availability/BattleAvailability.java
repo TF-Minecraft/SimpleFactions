@@ -34,6 +34,16 @@ public final class BattleAvailability {
 	private LocalDate earliestBattleDay;
 	/** Reminders already sent, as {@code reason|date}, so a restart does not send them again. */
 	private final Set<String> remindersSent = new LinkedHashSet<>();
+	/** Why a date got no battle when it was not for lack of people. */
+	private final Map<LocalDate, NoBattleReason> noBattleReasons = new TreeMap<>();
+
+	/** Why a decided date has no battle, when it is not that too few could come at one time. */
+	public enum NoBattleReason {
+		/** Battle days were already waiting to be fought when the date was decided. */
+		QUEUE_FULL,
+		/** The date's lock came before the war could plan it, or no start time was left at its time lock. */
+		TOO_LATE
+	}
 
 	public Set<Integer> marksOn(UUID account, LocalDate date) {
 		Map<LocalDate, Set<Integer>> byDate = marks.get(account);
@@ -137,6 +147,19 @@ public final class BattleAvailability {
 		this.earliestBattleDay = earliestBattleDay;
 	}
 
+	/** Why the date has no battle; null when too few could come at one time (or it is not decided). */
+	public NoBattleReason noBattleReason(LocalDate date) {
+		return noBattleReasons.get(date);
+	}
+
+	public void setNoBattleReason(LocalDate date, NoBattleReason reason) {
+		if (reason == null) {
+			noBattleReasons.remove(date);
+		} else {
+			noBattleReasons.put(date, reason);
+		}
+	}
+
 	/** Records a reminder; false when it was already sent. */
 	public boolean markReminderSent(String key) {
 		return remindersSent.add(key);
@@ -157,6 +180,7 @@ public final class BattleAvailability {
 		}
 		changed |= marks.values().removeIf(Map::isEmpty);
 		changed |= none.values().removeIf(until -> until.isBefore(today));
+		changed |= noBattleReasons.keySet().removeIf(date -> date.isBefore(today));
 		changed |= remindersSent.removeIf(key -> {
 			String date = key.substring(key.indexOf('|') + 1);
 			return date.compareTo(today.toString()) < 0;
@@ -173,6 +197,8 @@ public final class BattleAvailability {
 		public String lastDayLockProcessed;
 		public String earliestBattleDay;
 		public List<String> remindersSent;
+		/** ISO date → {@link NoBattleReason} name. */
+		public Map<String, String> noBattleReasons;
 	}
 
 	public static final class DayData {
@@ -205,6 +231,8 @@ public final class BattleAvailability {
 		data.lastDayLockProcessed = lastDayLockProcessed == null ? null : lastDayLockProcessed.toString();
 		data.earliestBattleDay = earliestBattleDay == null ? null : earliestBattleDay.toString();
 		data.remindersSent = new ArrayList<>(remindersSent);
+		data.noBattleReasons = new LinkedHashMap<>();
+		noBattleReasons.forEach((date, reason) -> data.noBattleReasons.put(date.toString(), reason.name()));
 		return data;
 	}
 
@@ -221,7 +249,13 @@ public final class BattleAvailability {
 					dates.forEach((date, hours) -> {
 						LocalDate day = date(date);
 						if (day != null && hours != null) {
-							availability.setMarks(id, day, new TreeSet<>(hours));
+							Set<Integer> valid = new TreeSet<>();
+							for (Integer hour : hours) {
+								if (hour != null) {
+									valid.add(hour);
+								}
+							}
+							availability.setMarks(id, day, valid);
 						}
 					});
 				}
@@ -250,12 +284,29 @@ public final class BattleAvailability {
 		if (data.remindersSent != null) {
 			availability.remindersSent.addAll(data.remindersSent);
 		}
+		if (data.noBattleReasons != null) {
+			data.noBattleReasons.forEach((date, reason) -> {
+				LocalDate day = date(date);
+				NoBattleReason why = reason(reason);
+				if (day != null && why != null) {
+					availability.setNoBattleReason(day, why);
+				}
+			});
+		}
 		return availability;
 	}
 
 	private static UUID uuid(String text) {
 		try {
 			return text == null ? null : UUID.fromString(text);
+		} catch (IllegalArgumentException unreadable) {
+			return null;
+		}
+	}
+
+	private static NoBattleReason reason(String text) {
+		try {
+			return text == null ? null : NoBattleReason.valueOf(text);
 		} catch (IllegalArgumentException unreadable) {
 			return null;
 		}

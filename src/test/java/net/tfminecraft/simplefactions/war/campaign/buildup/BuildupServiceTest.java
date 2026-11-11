@@ -62,6 +62,9 @@ class BuildupServiceTest {
 		assertTrue(war.isBuildupFrozen());
 		assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
 		assertEquals(BattleWindowService.scheduleDate(NOW).plusDays(7), war.getAvailability().getEarliestBattleDay());
+		// The day locks are walked from the declaration on, so the first week's are never decided later.
+		assertEquals(net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler.lastDayLockPassed(NOW),
+				war.getAvailability().getLastDayLockProcessed());
 		assertNull(war.getBattleDay());
 		assertTrue(war.getAvailability().marks().isEmpty());
 	}
@@ -91,6 +94,18 @@ class BuildupServiceTest {
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
 		assertEquals(TODAY, war.getAvailability().getEarliestBattleDay());
 		assertNull(war.getBattleDay());
+	}
+
+	@Test
+	void end_leavesAWarWithoutABattleScheduleIdle() {
+		War war = votingWar();
+		war.setBattleSchedulePhase(BattleSchedulePhase.IDLE);
+		war.setBuildup(true);
+
+		BuildupService.end(war, NOW);
+
+		assertFalse(war.isBuildupFrozen());
+		assertEquals(BattleSchedulePhase.IDLE, war.getBattleSchedulePhase());
 	}
 
 	@Test

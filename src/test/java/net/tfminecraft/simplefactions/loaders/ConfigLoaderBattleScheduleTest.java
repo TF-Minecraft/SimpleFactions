@@ -169,8 +169,25 @@ class ConfigLoaderBattleScheduleTest {
 				    time_lock_hours_before: 24
 				""");
 		new ConfigLoader().loadWar(tight.toFile());
-		assertEquals(1, Cache.warAvailabilityDaysShown);
+		assertEquals(2, Cache.warAvailabilityDaysShown, "From 20:00 to 21:00 the first date shown is already decided");
 		assertEquals(25, Cache.warAvailabilityDayLockHours);
+
+		// 48 and 24 hours: the first date shown is between its locks, so at least one more must follow.
+		Path one = writeConfig("""
+				war:
+				  availability:
+				    days_shown: 1
+				""");
+		new ConfigLoader().loadWar(one.toFile());
+		assertEquals(2, Cache.warAvailabilityDaysShown);
+		Path far = writeConfig("""
+				war:
+				  availability:
+				    days_shown: 2
+				    day_lock_hours_before: 400
+				""");
+		new ConfigLoader().loadWar(far.toFile());
+		assertEquals(7, Cache.warAvailabilityDaysShown, "Never more than the menu's columns");
 	}
 
 	@Test

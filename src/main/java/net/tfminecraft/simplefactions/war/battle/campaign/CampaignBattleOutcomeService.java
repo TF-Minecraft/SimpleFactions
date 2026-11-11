@@ -226,6 +226,9 @@ public class CampaignBattleOutcomeService implements Listener {
 		if (winner != null) {
 			if (CampaignPostBattleChoiceService.resolveMandatoryHoldIfNeeded(war, winner)) {
 				BattleScheduleService.advanceAfterBattle(war, CampaignClock.now());
+				// Back to VOTING like any other battle: a war left SCHEDULED is never scheduled again,
+				// and its choice deadline never applies.
+				BattleScheduleService.openVote(war);
 				notifyPostBattleChoicePending(war);
 				return new CampaignBattleApplyResult(progressionApplied, true, Optional.empty());
 			}

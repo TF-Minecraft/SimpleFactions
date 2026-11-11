@@ -278,9 +278,11 @@ public class CampaignView {
 		Integer availabilityWarId = meta.getPersistentDataContainer().get(
 				CampaignCreator.availabilityWarKey(), PersistentDataType.INTEGER);
 		if (availabilityWarId != null && availabilityWarId == war.getId()) {
-			CampaignViewRefreshService.unregister(player);
-			inv.availabilityView.open(player, war);
-			player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			// Refused (with the reason in chat), the campaign stays open and keeps refreshing.
+			if (inv.availabilityView.open(player, war)) {
+				CampaignViewRefreshService.unregister(player);
+				player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			}
 			return;
 		}
 

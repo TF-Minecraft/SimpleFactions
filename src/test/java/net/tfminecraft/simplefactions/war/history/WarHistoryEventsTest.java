@@ -719,6 +719,49 @@ class WarHistoryEventsTest {
 	}
 
 	@Test
+	void battleDaysWhoseTimeIsLockedStayShownUntilTheirWindowCloses() {
+		mainWindow();
+		War war = war(62);
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
+		LocalDate thu = LocalDate.of(2026, 11, 19);
+		LocalDate fri = thu.plusDays(1);
+		LocalDate sat = thu.plusDays(2);
+		UUID ann = UUID.randomUUID();
+		war.getAvailability().putBattleDay(LockedBattleDay.open(thu, false).withHour(22, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(fri, true).withHour(21, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(sat, false));
+		war.getAvailability().setLastDayLockProcessed(sat);
+		war.getAvailability().setMarks(ann, thu, java.util.Set.of(22));
+		war.setBattleDay(thu);
+		// Thursday 22:00: Thursday's battle is on, Friday's time is locked, Saturday is the first date to mark.
+		Instant thursdayNight = net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.atScheduleHour(thu, 22);
+
+		JsonObject voting = WarVoting.json(war, thursdayNight);
+
+		JsonArray dates = voting.getAsJsonArray("dates");
+		assertEquals(9, dates.size(), "Two time-locked battle days before the seven dates to mark");
+		JsonObject thursday = dates.get(0).getAsJsonObject();
+		assertEquals(thu.toString(), thursday.get("date").getAsString());
+		assertEquals("battle", thursday.get("state").getAsString());
+		assertEquals(22, thursday.get("hour").getAsInt());
+		assertFalse(thursday.get("editable").getAsBoolean());
+		JsonObject friday = dates.get(1).getAsJsonObject();
+		assertEquals(fri.toString(), friday.get("date").getAsString());
+		assertEquals(21, friday.get("hour").getAsInt());
+		assertTrue(friday.get("forced").getAsBoolean());
+		assertFalse(friday.get("editable").getAsBoolean());
+		assertEquals(sat.toString(), dates.get(2).getAsJsonObject().get("date").getAsString());
+		assertTrue(dates.get(2).getAsJsonObject().get("editable").getAsBoolean());
+		assertEquals("{\"" + thu + "\":[22]}", voting.getAsJsonObject("marks").getAsJsonObject(ann.toString()).toString());
+		assertEquals(45, voting.getAsJsonArray("tally").size());
+
+		// Once Thursday's window has closed (02:00), only Friday is still shown before the grid.
+		JsonArray later = WarVoting.json(war, Instant.parse("2026-11-20T01:30:00Z")).getAsJsonArray("dates");
+		assertEquals(fri.toString(), later.get(0).getAsJsonObject().get("date").getAsString());
+		assertEquals(8, later.size());
+	}
+
+	@Test
 	void aReminderNamesItsAccountsOnlyInItsPrivateNotify() {
 		War war = war(59);
 		UUID ann = UUID.randomUUID();

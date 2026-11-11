@@ -67,7 +67,7 @@ public final class BattleAutoresolveService {
 
 	/**
 	 * Leaders may agree to autoresolve the next battle once its day is locked and until the battle is
-	 * set on its province (at its time lock, or later while a post-battle choice is open).
+	 * set on its province ({@code vote_close_hour} on its day, or later while a post-battle choice is open).
 	 */
 	public static boolean canProposeAutoresolveNow(War war, Instant now) {
 		if (war == null || !war.isActive() || now == null) {
@@ -126,7 +126,7 @@ public final class BattleAutoresolveService {
 		}
 
 		if (!canProposeAutoresolveNow(war, CampaignClock.now())) {
-			acceptor.sendMessage("§cAutoresolve is only possible until the battle's start time is decided.");
+			acceptor.sendMessage("§cAutoresolve is only possible until the battle is set on its province.");
 			return;
 		}
 

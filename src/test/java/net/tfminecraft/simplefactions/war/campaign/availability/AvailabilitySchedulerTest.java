@@ -74,7 +74,8 @@ class AvailabilitySchedulerTest {
 	void setUp() {
 		saved.addAll(List.of(Cache.warBattleWindowStartHour, Cache.warBattleWindowEndHour, Cache.warAvailabilityDayLockHours,
 				Cache.warAvailabilityTimeLockHours, Cache.warAvailabilityMinPerSide, Cache.warAvailabilityMaxDaysWithoutBattle,
-				Cache.warAvailabilityDaysShown));
+				Cache.warAvailabilityDaysShown, Cache.warVoteCloseHour));
+		Cache.warVoteCloseHour = 16;
 		Cache.warBattleWindowStartHour = 21;
 		Cache.warBattleWindowEndHour = 26;
 		Cache.warAvailabilityDayLockHours = 48;
@@ -116,6 +117,7 @@ class AvailabilitySchedulerTest {
 		Cache.warAvailabilityMinPerSide = (Integer) saved.get(4);
 		Cache.warAvailabilityMaxDaysWithoutBattle = (Integer) saved.get(5);
 		Cache.warAvailabilityDaysShown = (Integer) saved.get(6);
+		Cache.warVoteCloseHour = (Integer) saved.get(7);
 	}
 
 	private static Faction faction(String id, String... members) {
@@ -159,6 +161,7 @@ class AvailabilitySchedulerTest {
 	@Test
 	void aDateBecomesABattleDayAtItsDayLockWhenEnoughOfBothSidesCanComeAtOneTime() {
 		war.getAvailability().setEarliestBattleDay(FRI);
+		war.getAvailability().setLastDayLockProcessed(THU);
 		enoughAt22(FRI);
 		Instant dayLock = AvailabilityCalendar.dayLockAt(FRI);
 
@@ -181,6 +184,7 @@ class AvailabilitySchedulerTest {
 	@Test
 	void sidesNeedMarksAtTheSameHourAndASmallSideNeedsAllOfItself() {
 		war.getAvailability().setEarliestBattleDay(FRI);
+		war.getAvailability().setLastDayLockProcessed(THU);
 		for (String member : List.of("A1", "A2", "A3")) {
 			mark(member, FRI, 21);
 		}
@@ -202,6 +206,7 @@ class AvailabilitySchedulerTest {
 	@Test
 	void theThirdDateInARowWithoutABattleBecomesOneAnyway() {
 		war.getAvailability().setEarliestBattleDay(THU);
+		war.getAvailability().setLastDayLockProcessed(THU.minusDays(1));
 		mark("A1", SAT, 22);
 		assertTrue(AvailabilityScheduler.process(war, AvailabilityCalendar.dayLockAt(FRI)));
 		assertEquals(2, war.getAvailability().getNoBattleStreak());
@@ -218,6 +223,7 @@ class AvailabilitySchedulerTest {
 	void withoutAFallbackDatesStayWithoutABattle() {
 		Cache.warAvailabilityMaxDaysWithoutBattle = 0;
 		war.getAvailability().setEarliestBattleDay(THU);
+		war.getAvailability().setLastDayLockProcessed(THU.minusDays(1));
 		assertTrue(AvailabilityScheduler.process(war, AvailabilityCalendar.dayLockAt(SAT.plusDays(2))));
 		// Thursday's and Friday's windows had closed: only Saturday to Monday were decided.
 		assertEquals(3, war.getAvailability().getNoBattleStreak());
@@ -225,25 +231,56 @@ class AvailabilitySchedulerTest {
 	}
 
 	@Test
-	void battlesCanFollowEachOtherButNoMoreThanTwoWait() {
+	void battlesCanFollowOnThreeDaysInARowBecauseADayWhoseWindowOpenedNoLongerWaits() {
 		war.getAvailability().setEarliestBattleDay(THU);
+		war.getAvailability().setLastDayLockProcessed(THU.minusDays(1));
 		enoughAt22(THU);
 		enoughAt22(FRI);
 		enoughAt22(SAT);
 		war.getAvailability().setNoBattleStreak(2);
 
+		// Saturday's day lock is Thursday 21:00, when Thursday's window opens: only Friday still waits.
 		assertTrue(AvailabilityScheduler.process(war, AvailabilityCalendar.dayLockAt(SAT)));
 
 		assertNotNull(day(THU));
 		assertNotNull(day(FRI));
-		assertNull(day(SAT), "Two battle days are already waiting");
+		assertNotNull(day(SAT));
 		assertEquals(0, war.getAvailability().getNoBattleStreak());
 		assertEquals(THU, war.getBattleDay());
 	}
 
 	@Test
+	void noMoreThanTwoBattleDaysWaitForTheirWindowAndTheThirdSaysWhy() {
+		// Locks 72 hours ahead: Saturday is decided on Wednesday, before Thursday's and Friday's windows open.
+		Cache.warAvailabilityDayLockHours = 72;
+		war.getAvailability().setEarliestBattleDay(THU);
+		war.getAvailability().setLastDayLockProcessed(FRI);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(THU, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(FRI, false));
+		enoughAt22(SAT);
+		war.getAvailability().setNoBattleStreak(2);
+
+		assertTrue(AvailabilityScheduler.process(war, AvailabilityCalendar.dayLockAt(SAT)));
+
+		assertNull(day(SAT), "Two battle days are already waiting");
+		assertEquals(BattleAvailability.NoBattleReason.QUEUE_FULL, war.getAvailability().noBattleReason(SAT));
+		assertEquals(0, war.getAvailability().getNoBattleStreak());
+		assertEquals(2, AvailabilityScheduler.waitingBattleDays(war, AvailabilityCalendar.dayLockAt(SAT)));
+
+		// A battle being fought does not wait, even when staff started it before its window.
+		Battle running = mock(Battle.class);
+		when(running.hasStarted()).thenReturn(true);
+		war.setBattleDay(THU);
+		try (MockedStatic<BattleManager> battles = mockStatic(BattleManager.class)) {
+			battles.when(() -> BattleManager.getByWarId(war.getId())).thenReturn(running);
+			assertEquals(1, AvailabilityScheduler.waitingBattleDays(war, AvailabilityCalendar.dayLockAt(SAT)));
+		}
+	}
+
+	@Test
 	void aDayStaffAlreadyLockedIsLeftAsItIs() {
 		war.getAvailability().setEarliestBattleDay(FRI);
+		war.getAvailability().setLastDayLockProcessed(THU);
 		war.getAvailability().putBattleDay(LockedBattleDay.open(FRI, false).withHour(23, false));
 		war.getAvailability().setNoBattleStreak(2);
 
@@ -261,6 +298,7 @@ class AvailabilitySchedulerTest {
 	@Test
 	void afterDowntimeDatesWhoseWindowClosedAreSkippedAndTheRestDecided() {
 		war.getAvailability().setEarliestBattleDay(LocalDate.of(2026, 10, 1));
+		war.getAvailability().setLastDayLockProcessed(LocalDate.of(2026, 11, 1));
 		enoughAt22(LocalDate.of(2026, 11, 17));
 		// Wednesday noon: Monday's and Tuesday's windows are over, Wednesday's and Thursday's days are due.
 		Instant wednesdayNoon = at(LocalDate.of(2026, 11, 18), 12);
@@ -280,6 +318,56 @@ class AvailabilitySchedulerTest {
 	}
 
 	@Test
+	void datesWhoseDayLockHadPassedWhenTheWarIsFirstProcessedAreNeverDecided() {
+		// A new war (or one migrated) on Monday noon: Monday's and Tuesday's day locks are behind it.
+		LocalDate monday = LocalDate.of(2026, 11, 16);
+		LocalDate tuesday = monday.plusDays(1);
+		war.getAvailability().setEarliestBattleDay(monday);
+		enoughAt22(monday);
+		enoughAt22(tuesday);
+
+		assertTrue(AvailabilityScheduler.process(war, at(monday, 12)));
+
+		assertTrue(war.getAvailability().battleDays().isEmpty());
+		assertEquals(tuesday, war.getAvailability().getLastDayLockProcessed());
+		assertEquals(0, war.getAvailability().getNoBattleStreak());
+		assertEquals(AvailabilityCalendar.DateState.NO_BATTLE, AvailabilityCalendar.state(war, tuesday));
+		history.verify(() -> WarHistoryEvents.battleDayLocked(any(), any(), any(), anyBoolean()), never());
+
+		// Wednesday is decided at its own lock, Monday 21:00, as usual.
+		enoughAt22(monday.plusDays(2));
+		assertTrue(AvailabilityScheduler.process(war, AvailabilityCalendar.dayLockAt(monday.plusDays(2))));
+		assertNotNull(day(monday.plusDays(2)));
+	}
+
+	@Test
+	void theCursorFollowsTheLocksDuringTheBuildupSoEndingItEarlyDecidesNoPastLock() {
+		// Declared Monday: the first battle can be a week later.
+		LocalDate monday = LocalDate.of(2026, 11, 16);
+		war.setBuildup(true);
+		war.getAvailability().setEarliestBattleDay(monday.plusDays(7));
+		AvailabilityScheduler.process(war, at(monday, 12));
+		assertTrue(AvailabilityScheduler.process(war, AvailabilityCalendar.dayLockAt(THU)));
+		assertEquals(THU, war.getAvailability().getLastDayLockProcessed(), "Thursday's lock passed, undecided");
+
+		// Staff end the buildup that Tuesday evening: Tuesday to Thursday stay without a battle.
+		Instant tuesdayEvening = AvailabilityCalendar.dayLockAt(THU).plusSeconds(60);
+		net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService.end(war, tuesdayEvening);
+		enoughAt22(THU);
+		AvailabilityScheduler.process(war, tuesdayEvening);
+
+		assertNull(day(THU));
+		assertEquals(0, war.getAvailability().getNoBattleStreak());
+	}
+
+	@Test
+	void theCursorIsPlacedAtTheLastDayLockThatPassed() {
+		Instant tuesday21 = AvailabilityCalendar.dayLockAt(THU);
+		assertEquals(THU, AvailabilityScheduler.lastDayLockPassed(tuesday21));
+		assertEquals(LocalDate.of(2026, 11, 18), AvailabilityScheduler.lastDayLockPassed(tuesday21.minusSeconds(1)));
+	}
+
+	@Test
 	void theTimeLockFixesTheHourMostOfBothSidesCanMake() {
 		war.getAvailability().setEarliestBattleDay(FRI);
 		war.getAvailability().setLastDayLockProcessed(FRI);
@@ -295,9 +383,69 @@ class AvailabilitySchedulerTest {
 			assertTrue(AvailabilityScheduler.process(war, timeLock));
 
 			assertEquals(22, day(FRI).hour());
+			// Retreats, picks and intel keep their timing: the war votes until 16:00 on the battle day.
+			schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(any(), anyInt(), any()), never());
+			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+			AvailabilityScheduler.process(war, at(FRI, 16).minusSeconds(1));
+			schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(any(), anyInt(), any()), never());
+
+			assertTrue(AvailabilityScheduler.process(war, at(FRI, 16)));
 			schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(war, 20, at(FRI, 22)));
 		}
 		notices.verify(() -> WarNotices.send(eq("A1"), contains("starts at 22:00 CET / 16:00 EST")));
+	}
+
+	@Test
+	void aTimeLockProcessedLatePicksOnlyStartTimesStillAhead() {
+		war.getAvailability().setEarliestBattleDay(FRI);
+		war.getAvailability().setLastDayLockProcessed(FRI);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(FRI, false));
+		enoughAt22(FRI);
+		mark("A1", FRI, 22, 23);
+		mark("D1", FRI, 22, 23);
+
+		// Back up at 21:55 on Friday: 22:00 is less than ten minutes away, 23:00 is the best time left.
+		AvailabilityScheduler.process(war, at(FRI, 22).minusSeconds(5 * 60));
+
+		assertEquals(23, day(FRI).hour());
+		schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(war, 20, at(FRI, 23)));
+	}
+
+	@Test
+	void aTimeLockProcessedTooLateForAnyStartTimeDropsTheDayWithoutCountingIt() {
+		war.getAvailability().setEarliestBattleDay(FRI);
+		war.getAvailability().setLastDayLockProcessed(SAT.plusDays(1));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(FRI, false));
+		war.setBattleDay(FRI);
+		war.getAvailability().setNoBattleStreak(1);
+		enoughAt22(FRI);
+
+		// 00:55 after Friday: 01:00, the last start time, is five minutes away.
+		assertTrue(AvailabilityScheduler.process(war, at(FRI, 25).minusSeconds(5 * 60)));
+
+		assertNull(day(FRI));
+		assertNull(war.getBattleDay());
+		assertEquals(1, war.getAvailability().getNoBattleStreak(), "A dropped day is not a day without a battle");
+		assertEquals(BattleAvailability.NoBattleReason.TOO_LATE, war.getAvailability().noBattleReason(FRI));
+		schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(any(), anyInt(), any()), never());
+		notices.verify(() -> WarNotices.send(eq("A1"), contains("could not be decided in time")));
+	}
+
+	@Test
+	void aDayLockedAfterItsTimeLockSendsNoReminderToMarkIt() {
+		war.getAvailability().setEarliestBattleDay(THU);
+		war.getAvailability().setLastDayLockProcessed(THU.minusDays(1));
+		enoughAt22(THU);
+
+		// Back up on Thursday at 20:00: Thursday's day lock is still processed, its time lock passed too.
+		Instant thursdayEvening = at(THU, 20);
+		assertTrue(AvailabilityScheduler.process(war, thursdayEvening));
+
+		assertEquals(22, day(THU).hour());
+		reminders.verify(() -> BattleVoteReminders.battleDayLocked(any(), any(), any()), never());
+		notices.verify(() -> WarNotices.send("A1", "§6⚔ Thu 19/11 §eis a battle day in " + war.getName() + "§e."));
+		history.verify(() -> WarHistoryEvents.battleDayLocked(war, THU, AvailabilityCalendar.timeLockAt(THU), false));
+		schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(war, 20, at(THU, 22)));
 	}
 
 	@Test
@@ -342,7 +490,9 @@ class AvailabilitySchedulerTest {
 		try (MockedStatic<BattleAutoresolveService> autoresolve = mockStatic(BattleAutoresolveService.class)) {
 			autoresolve.when(() -> BattleAutoresolveService.resolve(war)).thenReturn(true);
 
-			assertTrue(AvailabilityScheduler.process(war, at(THU, 22)));
+			AvailabilityScheduler.process(war, at(THU, 22));
+			autoresolve.verifyNoInteractions();
+			assertTrue(AvailabilityScheduler.process(war, at(FRI, 16)));
 
 			autoresolve.verify(() -> BattleAutoresolveService.resolve(war));
 			schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(any(), anyInt(), any()), never());
@@ -354,7 +504,7 @@ class AvailabilitySchedulerTest {
 		war.getAvailability().putBattleDay(LockedBattleDay.open(FRI, false).withHour(21, false));
 		war.getAvailability().setEarliestBattleDay(FRI);
 		war.getAvailability().setLastDayLockProcessed(FRI);
-		Instant now = at(THU, 22);
+		Instant now = at(FRI, 16);
 		try (MockedStatic<WarResolutionService> resolution = mockStatic(WarResolutionService.class)) {
 			schedule.when(() -> BattleScheduleService.resolveScheduledProvinceId(war)).thenReturn(null);
 			schedule.when(() -> BattleScheduleService.hasNoNextBattle(war)).thenReturn(false);
@@ -398,6 +548,7 @@ class AvailabilitySchedulerTest {
 		// Sunday 25 October 2026: summer time ends that morning.
 		LocalDate sunday = LocalDate.of(2026, 10, 25);
 		war.getAvailability().setEarliestBattleDay(sunday);
+		war.getAvailability().setLastDayLockProcessed(sunday.minusDays(1));
 		for (String member : List.of("A1", "A2", "A3", "D1", "D2", "D3")) {
 			mark(member, sunday, 25);
 		}
@@ -408,14 +559,17 @@ class AvailabilitySchedulerTest {
 			assertTrue(AvailabilityScheduler.process(war, Instant.parse("2026-10-24T19:00:00Z")));
 
 			assertEquals(25, day(sunday).hour());
-			// 01:00 CET on Monday, after the change.
+			// Set from 16:00 on Sunday, already winter time (15:00 UTC): 01:00 CET on Monday, after the change.
+			AvailabilityScheduler.process(war, Instant.parse("2026-10-25T14:59:00Z"));
+			schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(any(), anyInt(), any()), never());
+			AvailabilityScheduler.process(war, Instant.parse("2026-10-25T15:00:00Z"));
 			schedule.verify(() -> BattleScheduleService.scheduleBattleAtProvince(war, 20, Instant.parse("2026-10-26T00:00:00Z")));
 		}
 	}
 
 	@Test
 	void aBattleDayThatPassedUnfoughtIsDroppedUnlessItsBattleIsSet() {
-		war.getAvailability().putBattleDay(LockedBattleDay.open(THU, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(THU, false).withHour(22, false));
 		war.getAvailability().putBattleDay(LockedBattleDay.open(SAT, false));
 		war.getAvailability().setEarliestBattleDay(THU);
 		war.getAvailability().setLastDayLockProcessed(SAT);

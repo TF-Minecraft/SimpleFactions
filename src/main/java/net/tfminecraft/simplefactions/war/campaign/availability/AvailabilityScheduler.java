@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.campaign.availability;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityTally.HourCount;
+import net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability.NoBattleReason;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleAutoresolveService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
@@ -36,17 +38,24 @@ import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
  * <li>Day lock ({@code day_lock_hours_before} the date's window opens): the date becomes a battle
  * day when, at one start hour, enough of each side ({@link AvailabilityTally#need}) marked it.
  * After {@code max_days_without_battle} dates in a row without one, the last becomes a battle day
- * anyway (forced). At most {@value #MAX_QUEUED} battle days wait to be fought at once.</li>
- * <li>Time lock ({@code time_lock_hours_before}): a battle day gets its start hour. A forced day one
- * side never marked is autoresolved instead.</li>
- * <li>The earliest battle day with its hour fixed is set on its province once no battle is being
- * fought.</li>
+ * anyway (forced). At most {@value #MAX_QUEUED} battle days whose window has not opened yet wait at
+ * once.</li>
+ * <li>Time lock ({@code time_lock_hours_before}): a battle day gets its start hour, among the hours
+ * still at least {@link #MIN_LEAD} ahead. A forced day one side never marked is autoresolved
+ * instead.</li>
+ * <li>From {@code vote_close_hour} (16:00) on its date, when installation picks lock, the earliest
+ * battle day with its hour fixed is set on its province, once no battle is being fought. Until then
+ * the war stays VOTING, so retreats, picks and intel keep their timing.</li>
  * </ul>
- * A date whose battle window closed before its lock was processed (the server was down) is skipped.
+ * Dates whose day lock had passed before the war's locks were first processed (a new war, a migrated
+ * one) are never decided, and neither is a date whose battle window closed before its lock was
+ * processed (the server was down).
  */
 public final class AvailabilityScheduler {
 	/** Battle days that may wait to be fought at once, e.g. Thursday with its time fixed and Friday. */
 	static final int MAX_QUEUED = 2;
+	/** A start time fixed late must still be at least this far ahead. */
+	static final Duration MIN_LEAD = Duration.ofMinutes(10);
 
 	private AvailabilityScheduler() {
 	}
@@ -78,7 +87,7 @@ public final class AvailabilityScheduler {
 			changed = true;
 		}
 		if (war.isActive()) {
-			changed |= scheduleNext(war);
+			changed |= scheduleNext(war, now);
 		}
 		if (changed && war.isActive()) {
 			WarHistoryEvents.votesChanged(war);
@@ -86,21 +95,30 @@ public final class AvailabilityScheduler {
 		return changed;
 	}
 
+	/**
+	 * Walks the day locks that fell due since the last pass, in date order. The cursor follows every
+	 * date's lock, also before the war's earliest battle day (those dates are not decided), so a date
+	 * whose lock passed while it could not be a battle day is never decided later: when the buildup
+	 * ends early, for example. The first pass only places the cursor, so the dates whose lock had
+	 * already passed then (a new war, a migrated one) are not decided and do not count in the streak.
+	 */
 	static boolean processDayLocks(War war, Instant now) {
 		BattleAvailability availability = war.getAvailability();
-		LocalDate date = availability.getEarliestBattleDay();
 		LocalDate decided = availability.getLastDayLockProcessed();
-		if (decided != null && !decided.isBefore(date)) {
-			date = decided.plusDays(1);
+		if (decided == null) {
+			availability.setLastDayLockProcessed(lastDayLockPassed(now));
+			return true;
 		}
+		LocalDate date = decided.plusDays(1);
 		// A date two days back has closed its window whatever the config, so a long downtime is not walked day by day.
 		LocalDate stale = BattleWindowService.scheduleDate(now).minusDays(2);
 		if (date.isBefore(stale)) {
 			date = stale;
 		}
+		LocalDate earliest = availability.getEarliestBattleDay();
 		boolean changed = false;
 		while (!AvailabilityCalendar.dayLockAt(date).isAfter(now)) {
-			if (now.isBefore(AvailabilityCalendar.windowClosesAt(date))) {
+			if ((earliest == null || !date.isBefore(earliest)) && now.isBefore(AvailabilityCalendar.windowClosesAt(date))) {
 				decide(war, date, now);
 			}
 			availability.setLastDayLockProcessed(date);
@@ -110,11 +128,26 @@ public final class AvailabilityScheduler {
 		return changed;
 	}
 
+	/** The latest date whose day lock is not after {@code now}. */
+	public static LocalDate lastDayLockPassed(Instant now) {
+		LocalDate date = BattleWindowService.scheduleDate(now).plusDays(Math.max(0, Cache.warAvailabilityDayLockHours) / 24 + 2);
+		while (AvailabilityCalendar.dayLockAt(date).isAfter(now)) {
+			date = date.minusDays(1);
+		}
+		return date;
+	}
+
 	private static void decide(War war, LocalDate date, Instant now) {
 		BattleAvailability availability = war.getAvailability();
-		if (availability.battleDay(date) != null || availability.battleDays().size() >= MAX_QUEUED) {
-			// Staff locked it already, or two battle days are waiting: either way battles are coming.
+		if (availability.battleDay(date) != null) {
+			// Staff locked it already.
 			availability.setNoBattleStreak(0);
+			return;
+		}
+		if (waitingBattleDays(war, now) >= MAX_QUEUED) {
+			// Battle days are waiting: battles are coming, so this is no day without one.
+			availability.setNoBattleStreak(0);
+			availability.setNoBattleReason(date, NoBattleReason.QUEUE_FULL);
 			return;
 		}
 		List<HourCount> counts = AvailabilityTally.count(war, date);
@@ -131,16 +164,38 @@ public final class AvailabilityScheduler {
 		availability.setNoBattleStreak(streak);
 	}
 
-	/** Makes the date a battle day and tells everyone. */
+	/**
+	 * Battle days that count toward {@link #MAX_QUEUED}: those whose battle window has not opened yet.
+	 * A day whose window is open, or whose battle is being fought, is under way, so the next days can
+	 * still become battle days (Thursday, Friday and Saturday in a row).
+	 */
+	static int waitingBattleDays(War war, Instant now) {
+		Battle battle = BattleManager.getByWarId(war.getId());
+		LocalDate fighting = battle != null && battle.hasStarted() ? war.getBattleDay() : null;
+		int waiting = 0;
+		for (LockedBattleDay day : war.getAvailability().battleDays()) {
+			if (!day.date().equals(fighting)
+					&& now.isBefore(BattleWindowService.atScheduleHour(day.date(), Cache.warBattleWindowStartHour))) {
+				waiting++;
+			}
+		}
+		return waiting;
+	}
+
+	/** Makes the date a battle day and tells everyone. Players are asked for their times only while they can still change. */
 	static void lock(War war, LocalDate date, boolean forced, Instant now) {
 		BattleAvailability availability = war.getAvailability();
 		availability.putBattleDay(LockedBattleDay.open(date, forced));
 		availability.setNoBattleStreak(0);
+		availability.setNoBattleReason(date, null);
 		Instant timeLock = AvailabilityCalendar.timeLockAt(date);
 		WarHistoryEvents.battleDayLocked(war, date, timeLock, forced);
-		tellEveryone(war, "§6⚔ " + AvailabilityCalendar.label(date) + " §eis a battle day in " + war.getName()
-				+ "§e. Its start time is decided " + CampaignUiTimeFormatter.formatDateTime(timeLock) + "§e.");
-		BattleVoteReminders.battleDayLocked(war, date, now);
+		boolean timeOpen = timeLock.isAfter(now);
+		tellEveryone(war, "§6⚔ " + AvailabilityCalendar.label(date) + " §eis a battle day in " + war.getName() + "§e."
+				+ (timeOpen ? " Its start time is decided " + CampaignUiTimeFormatter.formatDateTime(timeLock) + "§e." : ""));
+		if (timeOpen) {
+			BattleVoteReminders.battleDayLocked(war, date, now);
+		}
 	}
 
 	static boolean processTimeLocks(War war, Instant now) {
@@ -155,8 +210,22 @@ public final class AvailabilityScheduler {
 				// A battle window with no start hour (window_start_hour = window_end_hour) has no time to fix.
 				continue;
 			}
+			// Processed late (after downtime), only start times still ahead can be picked.
+			Instant earliestStart = now.plus(MIN_LEAD);
+			List<HourCount> ahead = counts.stream()
+					.filter(count -> !BattleWindowService.atScheduleHour(day.date(), count.hour()).isBefore(earliestStart))
+					.toList();
+			if (ahead.isEmpty()) {
+				// Too late for any start time: no battle that day, and the streak goes on as it was.
+				availability.removeBattleDay(day.date());
+				availability.setNoBattleReason(day.date(), NoBattleReason.TOO_LATE);
+				tellEveryone(war, "§6⚔ §eNo battle of " + war.getName() + " §eon " + AvailabilityCalendar.label(day.date())
+						+ "§e: its start time could not be decided in time.");
+				changed = true;
+				continue;
+			}
 			boolean resolve = day.forced() && AvailabilityTally.oneSideAbsent(counts);
-			int hour = day.forced() ? AvailabilityTally.pickForcedHour(counts) : AvailabilityTally.pickHour(counts);
+			int hour = day.forced() ? AvailabilityTally.pickForcedHour(ahead) : AvailabilityTally.pickHour(ahead);
 			availability.putBattleDay(day.withHour(hour, resolve));
 			tellEveryone(war, resolve
 					? "§6⚔ §eOne side of " + war.getName() + " §emarked no time on " + AvailabilityCalendar.label(day.date())
@@ -214,10 +283,14 @@ public final class AvailabilityScheduler {
 		return changed;
 	}
 
-	/** Sets the earliest battle day on its province once its hour is fixed and nothing is being fought. */
-	static boolean scheduleNext(War war) {
+	/**
+	 * Sets the earliest battle day on its province once its hour is fixed, its picks have locked
+	 * ({@code vote_close_hour} on that day, or later when processed late) and nothing is being fought.
+	 */
+	static boolean scheduleNext(War war, Instant now) {
 		LockedBattleDay head = war.getAvailability().head();
-		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING || head == null || head.hour() == null) {
+		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING || head == null || head.hour() == null
+				|| now.isBefore(BattleWindowService.atScheduleHour(head.date(), Cache.warVoteCloseHour))) {
 			return false;
 		}
 		Battle battle = BattleManager.getByWarId(war.getId());
@@ -275,7 +348,10 @@ public final class AvailabilityScheduler {
 		return null;
 	}
 
-	/** Staff: fixes a battle day's start hour (already normalised). Sets the battle at once when it is the next one. */
+	/**
+	 * Staff: fixes a battle day's start hour (already normalised). When it is the next battle day, a
+	 * battle already set goes back to waiting and is set again at once when its picks have locked.
+	 */
 	public static String setHour(War war, LocalDate date, int hour, Instant now) {
 		LockedBattleDay day = war.getAvailability().battleDay(date);
 		if (day == null) {
@@ -292,7 +368,7 @@ public final class AvailabilityScheduler {
 		war.getAvailability().putBattleDay(day.withHour(hour, false));
 		if (next) {
 			reopen(war);
-			scheduleNext(war);
+			scheduleNext(war, now);
 		}
 		WarHistoryEvents.votesChanged(war);
 		return null;
