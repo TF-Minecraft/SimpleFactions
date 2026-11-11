@@ -347,7 +347,8 @@ public class WarManager {
 		String line = "§c" + w.getAttackers().getLeader().getName() + " §cdeclared war on "
 				+ w.getDefenders().getLeader().getName() + "§c: " + w.getName() + "§c.";
 		if (w.isBuildupFrozen()) {
-			line += " §7The war is in its buildup until the first battle; vote on its day in §e/war list§7.";
+			line += " §7The war is in its buildup until the first battle. Mark the days and times you can fight with §e/war vote "
+					+ w.getId() + "§7.";
 		}
 		return line;
 	}
