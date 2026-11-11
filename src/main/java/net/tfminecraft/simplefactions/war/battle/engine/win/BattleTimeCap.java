@@ -32,7 +32,8 @@ public final class BattleTimeCap {
 		if (now.isBefore(deadline)) {
 			return;
 		}
-		BattleEndSupport.endBattle(battle, winnerByLives(battle), BattleEndReason.TIMER);
+		String winner = FieldControlService.isActive(battle) ? FieldControlService.controlLeader(battle) : null;
+		BattleEndSupport.endBattle(battle, winner != null ? winner : winnerByLives(battle), BattleEndReason.TIMER);
 	}
 
 	private static String winnerByLives(Battle battle) {

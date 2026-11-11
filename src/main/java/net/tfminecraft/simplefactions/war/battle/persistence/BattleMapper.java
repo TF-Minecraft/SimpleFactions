@@ -87,6 +87,16 @@ public final class BattleMapper {
 			pointData.advanceSideId = start.advanceSideId();
 			data.startPoints.add(pointData);
 		}
+		if (battle.hasStarted()) {
+			for (CapturePoint point : battle.getPointManager().getPoints()) {
+				CapturePointData pointData = new CapturePointData();
+				pointData.id = point.getId();
+				pointData.controllerSideId = point.getController() != null ? point.getController().getId() : null;
+				pointData.captureProgress = point.getCaptureProgress();
+				data.livePoints.add(pointData);
+			}
+		}
+		data.controlScores = new LinkedHashMap<>(battle.getControlScores());
 		data.staffHold = battle.isStaffHold();
 		data.firstBattleOfWar = battle.isFirstBattleOfWar();
 		return data;
@@ -149,6 +159,8 @@ public final class BattleMapper {
 			}
 		}
 		battle.getPointManager().setPoints(battle.getPoints());
+		restoreLivePoints(battle, data.livePoints);
+		battle.restoreControlScores(data.controlScores);
 		List<Battle.PointStart> starts = new ArrayList<>();
 		for (CapturePointData start : java.util.Objects.requireNonNullElse(data.startPoints, List.<CapturePointData>of())) {
 			if (start != null && start.id != null) {
@@ -215,6 +227,25 @@ public final class BattleMapper {
 		data.sequenceIndex = point.getSequenceIndex();
 		data.advanceSideId = point.getAdvanceSideId();
 		return data;
+	}
+
+	/** A running battle picks up its points where they stood, not where they started. */
+	private static void restoreLivePoints(Battle battle, List<CapturePointData> live) {
+		for (CapturePointData state : java.util.Objects.requireNonNullElse(live, List.<CapturePointData>of())) {
+			if (state == null || state.id == null) {
+				continue;
+			}
+			for (CapturePoint point : battle.getPointManager().getPoints()) {
+				if (!point.getId().equalsIgnoreCase(state.id)) {
+					continue;
+				}
+				BattleSide controller = state.controllerSideId == null ? null : battle.getSideById(state.controllerSideId);
+				if (controller != null) {
+					point.setController(controller);
+				}
+				point.setCaptureProgress(state.captureProgress);
+			}
+		}
 	}
 
 	private static CapturePoint fromPointData(CapturePointData data, Battle battle) {

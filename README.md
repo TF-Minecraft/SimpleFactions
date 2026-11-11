@@ -16,6 +16,8 @@ Players shape a world of provinces and titles, organise settlements and guilds, 
 - **Espionage** — appoint a Spymaster, keep regiments and vehicles secret, and obtain shared daily intelligence estimates.
 - **Campaign warfare** — pursue war goals through scheduled battles, player voting, warband participation, and campaign progression.
 
+A field battle with capture points ends when a side runs out of lives, retreats, or wins by control. Each second, the side holding more points than any other gains `per_second` × its share of the points, and holding every point multiplies that by `all_points_multiplier`. A point counts as held at 50% capture. The first side to `target` wins. The settings are under `battle.control` in `config.yml` (defaults: 1000, 0.5 and 4, so holding 2 of 3 points takes about 50 minutes and holding all of them about 8). Sieges keep their contest timer.
+
 Use `/faction findvehicles personal` to locate your current character's vehicles.
 Faction leaders can also use `/faction findvehicles pool` or
 `/faction findvehicles <installation id>`. Tab completion suggests the available

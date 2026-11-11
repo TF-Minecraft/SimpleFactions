@@ -124,6 +124,11 @@ public class ConfigLoader {
 		Cache.battleEmptySideGraceSeconds = Math.max(0, config.getInt("battle.empty_side_grace_seconds", 300));
 		Cache.battleTimeCapEnabled = config.getBoolean("battle.time_cap_enabled", false);
 		Cache.battleTimeCapMinutes = config.getInt("battle.time_cap_minutes", 120);
+		Cache.battleControlEnabled = config.getBoolean("battle.control.enabled", true);
+		Cache.battleControlTarget = Math.max(1, config.getInt("battle.control.target", 1000));
+		Cache.battleControlPerSecond = Math.max(0.0, config.getDouble("battle.control.per_second", 0.5));
+		Cache.battleControlAllPointsMultiplier = Math.max(1.0,
+				config.getDouble("battle.control.all_points_multiplier", 4.0));
 
 		Cache.branchUpgradeCost = config.getDouble("branch-upgrade-cost", 100.0);
 		Cache.branchUpgradeExponent = config.getDouble("branch-upgrade-exponent", 1.1);

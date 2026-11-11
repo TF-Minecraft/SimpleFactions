@@ -149,6 +149,10 @@ public class Cache {
 	public static int battleEmptySideGraceSeconds = 300;
 	public static boolean battleTimeCapEnabled = false;
 	public static int battleTimeCapMinutes = 120;
+	public static boolean battleControlEnabled = true;
+	public static int battleControlTarget = 1000;
+	public static double battleControlPerSecond = 0.5;
+	public static double battleControlAllPointsMultiplier = 4.0;
 	public static int battleProvincePollIntervalTicks;
 	public static int battleProvinceLeaveCountdownSeconds;
 	public static boolean battleProvinceBlockProtectionEnabled;

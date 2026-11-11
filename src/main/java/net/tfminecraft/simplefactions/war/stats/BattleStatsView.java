@@ -141,6 +141,7 @@ public final class BattleStatsView {
 			case "SIDE_WIN" -> "side won";
 			case "RETREAT" -> "retreat";
 			case "TIMER" -> "time ran out";
+			case "CONTROL" -> "control of the field";
 			case "WAR_ENDED" -> "the war ended";
 			case "RAID_CLEARED" -> "the raid was called off";
 			default -> "ended";

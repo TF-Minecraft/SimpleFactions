@@ -55,6 +55,10 @@ public class BattleData {
 	public List<CapturePointData> points = new ArrayList<>();
 	// Capture points as they stood at the start, for a staff restart. Only id and state are set.
 	public List<CapturePointData> startPoints = new ArrayList<>();
+	// Capture points as they stand in a running battle. Only id and state are set.
+	public List<CapturePointData> livePoints = new ArrayList<>();
+	// Field battle control per side id. Absent in older saves means none.
+	public Map<String, Double> controlScores = new LinkedHashMap<>();
 	public boolean staffHold;
 	public boolean firstBattleOfWar;
 }

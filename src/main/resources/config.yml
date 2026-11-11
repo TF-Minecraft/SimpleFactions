@@ -175,10 +175,21 @@ battle:
   # A side with nobody online is eliminated only after this many seconds
   # empty, from the battle start or from when its last player left.
   empty_side_grace_seconds: 300
-  # Ends campaign field and siege battles after this long. The side with more lives left wins,
-  # equal lives is a draw. Off until the server decides to enforce it.
+  # Ends campaign field and siege battles after this long. In a field battle scored by
+  # control the side with more control wins; otherwise, or on equal control, the side with
+  # more lives left wins, and equal lives is a draw. Off until the server decides to enforce it.
   time_cap_enabled: false
   time_cap_minutes: 120
+  # Field battles with capture points can also be won by control. Each second the side
+  # holding more points than any other gains per_second x its share of the points
+  # (2 of 3 held: 0.5 x 2/3 = 0.33 a second). Holding every point multiplies that by
+  # all_points_multiplier. A point counts as held at 50% capture or more. The first side
+  # to reach target wins; running out of lives or retreating still loses as before.
+  control:
+    enabled: true
+    target: 1000
+    per_second: 0.5
+    all_points_multiplier: 4
 
 # A province's prosperity is unchanged up to prosperity-soft-cap. Past it the
 # excess grows with a square root, so each point is worth less: half at

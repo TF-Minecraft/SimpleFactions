@@ -18,6 +18,7 @@ import net.tfminecraft.vehicleframework.VehicleFramework;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.capture.CapturePoint;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
+import net.tfminecraft.simplefactions.war.battle.engine.win.FieldControlService;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 
 public class PointManager {
@@ -76,6 +77,11 @@ public class PointManager {
 		}
 		Score scoreDivider = obj.getScore(ChatColor.RED + "=-=-=-=-=-=-=-=-=-=-=");
 		scoreDivider.setScore(i);
+		List<String> control = FieldControlService.scoreboardLines(b, b.getSideByPlayer(p));
+		for (int line = control.size() - 1; line >= 0; line--) {
+			i++;
+			obj.getScore(control.get(line)).setScore(i);
+		}
 		p.setScoreboard(board);
 	}
 	public boolean isOnSide(BattleSide s, Player p) {
