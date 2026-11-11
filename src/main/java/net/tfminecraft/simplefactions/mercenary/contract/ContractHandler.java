@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.mercenary.contract;
 
+import net.tfminecraft.simplefactions.war.history.WarVoting;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import java.util.ArrayList;
@@ -174,6 +175,8 @@ public class ContractHandler {
             return alongside;
         }
         contract.activate();
+        // The company now votes on the hirer's battles.
+        WarVoting.mercenaryVotersChanged(hirer);
         return MercenaryResult.ok(company.getName() + " has entered your service.");
     }
 

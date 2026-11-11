@@ -65,6 +65,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
+import net.tfminecraft.simplefactions.managers.InventoryManager;
 
 class WarCommandsCoverageTest {
   private FactionDomainFixture fixture;
@@ -412,7 +413,7 @@ class WarCommandsCoverageTest {
     assertTrue(commands.onCommand(console, command, "war", new String[] {"admin", "end", "1"}));
     verifyNoInteractions(console);
     assertTrue(run());
-    verify(alice).sendMessage("§eUsage: §a/war list§e, §a/war calls§e, §a/war call accept|decline <war id>");
+    verify(alice).sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
     verify(alice).sendMessage(contains("Staff:"));
     when(alice.hasPermission("simplefactions.admin")).thenReturn(false);
     assertTrue(run("admin", "devmode", "on"));
@@ -421,6 +422,16 @@ class WarCommandsCoverageTest {
     assertTrue(run("list"));
     assertNotEquals("Crafting", alice.getOpenInventory().getTitle());
     assertNotNull(alice.getOpenInventory().getTopInventory().getHolder());
+  }
+
+  @Test
+  void voteOpensThatWarsCampaignView() {
+    War war = war(41);
+    try (MockedConstruction<InventoryManager> views = mockConstruction(InventoryManager.class)) {
+      assertTrue(run("vote", "41"));
+      InventoryManager opened = views.constructed().get(views.constructed().size() - 1);
+      verify(opened).openCampaignView(alice, war);
+    }
   }
 
   static Stream<Arguments> rejectedCommands() {
@@ -493,6 +504,9 @@ class WarCommandsCoverageTest {
         Arguments.of("admin schedule 1 choice invalid", "Post-battle choice not available"),
         Arguments.of("admin schedule 1 wrong", "Unknown subcommand"),
         Arguments.of("calls extra", "Unknown subcommand"),
+        Arguments.of("vote", "Unknown subcommand"),
+        Arguments.of("vote bad", "No active war with id"),
+        Arguments.of("vote 999", "No active war with id"),
         Arguments.of("call", "Usage: §a/war call accept|decline"),
         Arguments.of("call accept", "Usage: §a/war call accept|decline"),
         Arguments.of("call maybe 1", "Usage: §a/war call accept|decline"),
@@ -944,8 +958,10 @@ class WarCommandsCoverageTest {
 
   static Stream<Arguments> completionCases() {
     return Stream.of(
-        Arguments.of("", List.of("list", "calls", "call", "admin")),
+        Arguments.of("", List.of("list", "vote", "calls", "call", "admin")),
         Arguments.of("ca", List.of("calls", "call")),
+        Arguments.of("vote ", List.of("1", "2")),
+        Arguments.of("vote 1 ", List.of()),
         Arguments.of("call ", List.of("accept", "decline")),
         Arguments.of("call d", List.of("decline")),
         Arguments.of("call accept ", List.of()),
@@ -1066,7 +1082,7 @@ class WarCommandsCoverageTest {
     assertTrue(complete("").isEmpty());
     when(command.getName()).thenReturn("war");
     when(alice.hasPermission("simplefactions.admin")).thenReturn(false);
-    assertEquals(List.of("list", "calls", "call"), complete(""));
+    assertEquals(List.of("list", "vote", "calls", "call"), complete(""));
     assertTrue(complete("admin", "").isEmpty());
   }
 

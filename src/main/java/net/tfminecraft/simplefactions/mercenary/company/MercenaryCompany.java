@@ -376,6 +376,7 @@ public class MercenaryCompany {
     public boolean enlist(String player) {
         if (player == null || isEnlisted(player) || !hasFreeSlot()) return false;
         enlisted.add(player);
+        votersChanged();
         return true;
     }
 
@@ -396,7 +397,15 @@ public class MercenaryCompany {
         // Every roster or slot change funnels through the one guarded check, so no
         // caller has to know which of the two can put the company under its promise.
         ContractTerminationService.checkSlotCommitments(this);
+        votersChanged();
         return true;
+    }
+
+    /** A soldier joined or left: each hirer's wars relearn who may vote. */
+    private void votersChanged() {
+        for (MercenaryContract contract : contractHandler.getActive()) {
+            net.tfminecraft.simplefactions.war.history.WarVoting.mercenaryVotersChanged(contract.getHirer());
+        }
     }
 
     /* =====================================================

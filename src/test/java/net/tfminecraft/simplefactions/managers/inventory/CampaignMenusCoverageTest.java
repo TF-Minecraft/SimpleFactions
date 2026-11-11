@@ -145,11 +145,14 @@ class CampaignMenusCoverageTest {
     scoped(BattleManager.class);
     scoped(InstallationConfigLoader.class);
     refresh = scoped(CampaignViewRefreshService.class);
+    // Like the real roster lookup: a player who left the attacker's faction no longer votes for it.
     Function<UUID, Faction> lookup =
-        uuid -> uuid.equals(player.getUniqueId()) ? attacker : defender;
-    scoped(BattleScheduleLookups.class)
-        .when(() -> BattleScheduleLookups.uuidToFactionForWar(war))
-        .thenReturn(lookup);
+        uuid -> !uuid.equals(player.getUniqueId()) ? defender
+            : attacker.isMember("Leader") ? attacker : null;
+    var lookups = scoped(BattleScheduleLookups.class);
+    lookups.when(() -> BattleScheduleLookups.uuidToFactionForWar(war)).thenReturn(lookup);
+    lookups.when(() -> BattleScheduleLookups.voterFaction(any(), any())).thenCallRealMethod();
+    lookups.when(() -> BattleScheduleLookups.votingFaction(any(), any())).thenCallRealMethod();
     routes =
         mockStatic(
             CampaignRouteRenderer.class,

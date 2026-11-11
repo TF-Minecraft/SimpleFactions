@@ -144,7 +144,7 @@ public final class BuildupService {
 	 */
 	public static DayVoteResult closeDayVote(
 			War war, Instant now, Function<UUID, Faction> uuidToFaction, Function<String, UUID> memberNameToUuid) {
-		boolean quorum = BattleQuorumService.meetsQuorum(war, war.getDayVotes(), memberNameToUuid).passed();
+		boolean quorum = BattleQuorumService.meetsQuorum(war, war.getDayVotes(), memberNameToUuid, uuidToFaction).passed();
 		OptionalInt picked = quorum ? BattleVoteService.pickBest(buildDayTally(war, uuidToFaction)) : OptionalInt.empty();
 		LocalDate day = dayOf(war, picked.orElse(0));
 		return setFirstBattleDay(war, day, now, quorum);

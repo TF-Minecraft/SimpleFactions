@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidFightScheduler;
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidMusterScheduler;
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidResumeService;
+import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteReminders;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
 
@@ -52,6 +53,7 @@ public final class BattleScheduleTickService {
 			if (BuildupService.closeDayVoteIfDue(war, now)) {
 				WarManager.persist(war);
 			}
+			BattleVoteReminders.process(war, now);
 			CampaignBattleSignupReminderService.processReminders(war, now);
 			CampaignNavalAutoLossReminderService.processReminders(war, now);
 			CampaignBattleRosterService.tryEnrollWhenSignupOpens(war, now);

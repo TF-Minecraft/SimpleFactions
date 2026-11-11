@@ -28,6 +28,7 @@ public class WarTabCompletion implements TabCompleter {
 			if ("list".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
 				completions.add("list");
 			}
+			addIfPrefix(completions, args[0], "vote");
 			addIfPrefix(completions, args[0], "calls");
 			addIfPrefix(completions, args[0], "call");
 			if (Permissions.isAdmin(sender) && "admin".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
@@ -37,6 +38,19 @@ public class WarTabCompletion implements TabCompleter {
 		}
 		if (args[0].equalsIgnoreCase("call")) {
 			return callCompletions(sender, args);
+		}
+		if (args[0].equalsIgnoreCase("vote")) {
+			List<String> completions = new ArrayList<>();
+			if (args.length == 2) {
+				for (net.tfminecraft.simplefactions.war.core.War war : net.tfminecraft.simplefactions.managers.WarManager.getActive()) {
+					// Only wars whose vote menu can open: raids and wars without a route have none.
+					if (war.getWarType() != net.tfminecraft.simplefactions.war.enums.WarType.RAID
+							&& war.getCampaignProvinces() != null && !war.getCampaignProvinces().isEmpty()) {
+						addIfPrefix(completions, args[1], String.valueOf(war.getId()));
+					}
+				}
+			}
+			return completions;
 		}
 		if (!Permissions.isAdmin(sender) || !args[0].equalsIgnoreCase("admin")) {
 			return List.of();
