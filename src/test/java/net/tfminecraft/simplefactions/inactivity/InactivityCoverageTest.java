@@ -183,7 +183,7 @@ class InactivityCoverageTest {
 
   @Test
   void inactivityMembershipSkipsPlaceholdersAndUsesCurrentOnlinePresence() throws Exception {
-    history(Map.of("Alice", 21, "Bob", 20, "Cara", 35));
+    history(Map.of("Alice", 28, "Bob", 20, "Cara", 35));
     assertFalse(InactivityService.isMemberInactive(null));
     assertFalse(InactivityService.isMemberInactive(" "));
     assertFalse(InactivityService.isMemberInactive("DUMMY_guard"));
@@ -211,7 +211,7 @@ class InactivityCoverageTest {
     Guild guild = fixture.guild(faction, "merchants", "Bob");
     net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(base.getBank(), 37.0);
     net.tfminecraft.simplefactions.testsupport.TestTreasuries.add(guild.getBank(), 19.0);
-    history(Map.of("Alice", 21, "Bob", 22));
+    history(Map.of("Alice", 28, "Bob", 29));
     InactivityService.armAll(null, 1000);
     InactivityService.armAll(Arrays.asList(null, faction), 1000);
     assertEquals(
@@ -242,7 +242,7 @@ class InactivityCoverageTest {
   void dueSweepArmsUntrackedInactiveGroupsAndSkipsGroupsStillWaiting() throws Exception {
     Faction armed = fixture.saved("armed", "Alice");
     Faction fresh = fixture.saved("fresh", "Bob");
-    history(Map.of("Alice", 21, "Bob", 22));
+    history(Map.of("Alice", 28, "Bob", 29));
     state(armed.getOrCreateMainGuild().getId(), 0, armed.getId(), 0, 1);
     InactivityService.load();
     InactivityService.tickIfDue(null);
@@ -289,7 +289,7 @@ class InactivityCoverageTest {
     Faction faction = fixture.saved("home", "Alice");
     Guild guild = fixture.guild(faction, "merchants", "Bob");
     Guild base = faction.getOrCreateMainGuild();
-    history(Map.of("Alice", 22, "Bob", 30, "Stranger", 21, "Cara", 20));
+    history(Map.of("Alice", 29, "Bob", 30, "Stranger", 28, "Cara", 20));
     state(guild.getId(), 35, faction.getId(), 40, 1);
     var snapshot = saved();
     InactivityService.SavedClock baseClock = new InactivityService.SavedClock();
@@ -323,7 +323,7 @@ class InactivityCoverageTest {
     Player stranger = fixture.player("Stranger");
     InactivityService.onLogin(stranger);
     verify(stranger).sendMessage("§aYou are active again.");
-    history(Map.of("Bob", 21));
+    history(Map.of("Bob", 28));
     InactivityService.onLogin(bob);
     verify(bob).sendMessage("§aYou are active again.");
   }
@@ -343,7 +343,7 @@ class InactivityCoverageTest {
       faction.setCapital(1, false, false);
       Guild guild = fixture.guild(faction, "merchants", "Bob");
       if (!capitalOnly) guild.setCapital(2, false);
-      history(Map.of("Alice", 21, "Bob", 21));
+      history(Map.of("Alice", 28, "Bob", 28));
       state(guild.getId(), 0, faction.getId(), 0, 1);
       InactivityService.load();
       InactivityService.tickIfDue(List.of(faction));
@@ -369,7 +369,7 @@ class InactivityCoverageTest {
       Faction faction = fixture.saved("home", "Alice");
       fixture.provinceData.put(1, new Province(1, "PLAINS", 1));
       faction.addProvince(1);
-      history(Map.of("Alice", 21));
+      history(Map.of("Alice", 28));
       state(faction.getOrCreateMainGuild().getId(), 0, faction.getId(), 0, 1);
       InactivityService.load();
       InactivityService.tickIfDue(List.of(faction));
@@ -392,7 +392,7 @@ class InactivityCoverageTest {
   void persistenceAndEconomyFailuresAreLoggedWithoutEscapingTheLifecycle() throws Exception {
     Faction faction = fixture.saved("home", "Alice");
     Guild guild = faction.getOrCreateMainGuild();
-    history(Map.of("Alice", 21));
+    history(Map.of("Alice", 28));
     state(guild.getId(), 10, faction.getId(), 20, 1);
     InactivityService.load();
     doThrow(new IllegalStateException("province copy unavailable"))
@@ -446,7 +446,7 @@ class InactivityCoverageTest {
   void failedAtomicSaveKeepsTheCompletePreviousHistoryAndCanBeRetried() throws Exception {
     Faction faction = fixture.saved("home", "Alice");
     Guild guild = faction.getOrCreateMainGuild();
-    history(Map.of("Alice", 21));
+    history(Map.of("Alice", 28));
     state(guild.getId(), 10, faction.getId(), 20, 1);
     InactivityService.load();
     var file = disk.root.resolve("Cache/inactivity.json");
@@ -475,7 +475,7 @@ class InactivityCoverageTest {
   void oneFailingGuildLogDoesNotPreventTheNextFactionFromAdvancing() throws Exception {
     Faction failing = fixture.saved("failing", "Alice");
     Faction next = fixture.saved("next", "Bob");
-    history(Map.of("Alice", 21, "Bob", 21));
+    history(Map.of("Alice", 28, "Bob", 28));
     InactivityService.armAll(List.of(failing, next), 0);
     String failedGuildName = failing.getOrCreateMainGuild().getName();
     Logger logger = fixture.ui.plugin.getLogger();
@@ -493,7 +493,7 @@ class InactivityCoverageTest {
   @Test
   void duePenaltiesCanBeLoggedDuringShutdownWithoutALivePlugin() throws Exception {
     Faction faction = fixture.saved("home", "Alice");
-    history(Map.of("Alice", 21));
+    history(Map.of("Alice", 28));
     state(faction.getOrCreateMainGuild().getId(), 0, faction.getId(), 0, 1);
     InactivityService.load();
     SimpleFactions previous = SimpleFactions.plugin;

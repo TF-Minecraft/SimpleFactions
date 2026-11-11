@@ -15,7 +15,7 @@ import java.util.Locale;
  * sheds provinces in claim order. The capital is last, and it does go.
  */
 public final class InactivityRules {
-	public static final int DAYS_UNTIL_INACTIVE = 21;
+	public static final int DAYS_UNTIL_INACTIVE = 28;
 	public static final long DECAY_INTERVAL_MILLIS = 4L * 60L * 60L * 1000L;
 	public static final int DECAY_STEP_PERCENT = 1;
 	public static final int DECAY_CAP_PERCENT = 100;
