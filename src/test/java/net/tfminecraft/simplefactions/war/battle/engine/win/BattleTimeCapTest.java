@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.util.ArrayList;
 
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -18,6 +20,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.war.battle.engine.capture.CapturePoint;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleEndSupport;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
@@ -89,6 +92,31 @@ class BattleTimeCapTest {
 			try (MockedStatic<BattleEndSupport> end = mockStatic(BattleEndSupport.class)) {
 				BattleTimeCap.check(battle, battle.getStartedAt().plusSeconds(120 * 60L));
 				end.verify(() -> BattleEndSupport.endBattle(battle, null, BattleEndReason.TIMER));
+			}
+		});
+	}
+
+	@Test
+	void moreControl_winsAFieldBattle_andEqualControlFallsBackToLives() {
+		withBossBar(() -> {
+			Cache.battleTimeCapEnabled = true;
+			Battle battle = campaignBattle(BattleType.FIELD, "cap_control");
+			battle.getSideById(BattleTemplate.ATTACKER_SIDE).setLives(2);
+			battle.getSideById(BattleTemplate.DEFENDER_SIDE).setLives(9);
+			battle.getPointManager().setPoints(java.util.List.of(new CapturePoint("A",
+					new Location(mock(World.class), 0, 64, 0), battle.getSideById(BattleTemplate.ATTACKER_SIDE), 100)));
+			battle.setControl(BattleTemplate.ATTACKER_SIDE, 40);
+			battle.setControl(BattleTemplate.DEFENDER_SIDE, 10);
+
+			try (MockedStatic<BattleEndSupport> end = mockStatic(BattleEndSupport.class)) {
+				BattleTimeCap.check(battle, battle.getStartedAt().plusSeconds(120 * 60L));
+				end.verify(() -> BattleEndSupport.endBattle(
+						battle, BattleTemplate.ATTACKER_SIDE, BattleEndReason.TIMER));
+
+				battle.setControl(BattleTemplate.DEFENDER_SIDE, 40);
+				BattleTimeCap.check(battle, battle.getStartedAt().plusSeconds(120 * 60L));
+				end.verify(() -> BattleEndSupport.endBattle(
+						battle, BattleTemplate.DEFENDER_SIDE, BattleEndReason.TIMER));
 			}
 		});
 	}

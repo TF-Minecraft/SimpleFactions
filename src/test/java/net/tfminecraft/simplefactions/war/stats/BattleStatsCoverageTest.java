@@ -849,6 +849,7 @@ class BattleStatsCoverageTest {
 		assertEquals("1h 57m", BattleStatsView.duration(117 * 60_000L));
 		assertEquals("side won", BattleStatsView.reason("SIDE_WIN"));
 		assertEquals("time ran out", BattleStatsView.reason("TIMER"));
+		assertEquals("control of the field", BattleStatsView.reason("CONTROL"));
 		assertEquals("the raid was called off", BattleStatsView.reason("RAID_CLEARED"));
 		assertEquals("ended", BattleStatsView.reason(null));
 		assertEquals("Battle", BattleStatsView.kind(new BattleRecord()));

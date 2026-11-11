@@ -127,6 +127,55 @@ class BattleStartSnapshotTest {
 	}
 
 	@Test
+	void aRunningBattleSavesWhereItsPointsStandAndItsControl() {
+		pointsInALoadedWorld();
+		battle.setStarted(true);
+		battle.getPointManager().setPoints(battle.getPoints());
+		CapturePoint live = battle.getPointManager().getPoints().getFirst();
+		live.setController(attacker);
+		live.setCaptureProgress(64);
+		battle.setControl("attacker", 120.5);
+
+		BattleData data = BattleMapper.toData(battle);
+		assertEquals(2, data.livePoints.size());
+		data.livePoints.add(null);
+		data.livePoints.add(new CapturePointData());
+		CapturePointData gone = new CapturePointData();
+		gone.id = "Z";
+		data.livePoints.add(gone);
+		Battle restored = BattleMapper.fromData(data);
+
+		CapturePoint restoredLive = restored.getPointManager().getPoints().getFirst();
+		assertEquals("attacker", restoredLive.getController().getId());
+		assertEquals(64, restoredLive.getCaptureProgress());
+		assertEquals("defender", restored.getPointById("A").getController().getId());
+		assertEquals(100, restored.getPointById("A").getCaptureProgress());
+		assertEquals(120.5, restored.getControl("attacker"));
+	}
+
+	@Test
+	void aBattleNotRunningSavesNoLivePointsAndOldSavesLoadWithoutControl() {
+		pointsInALoadedWorld();
+		BattleData data = BattleMapper.toData(battle);
+		assertTrue(data.livePoints.isEmpty());
+		data.livePoints = null;
+		data.controlScores = null;
+		Battle restored = BattleMapper.fromData(data);
+		assertTrue(restored.getControlScores().isEmpty());
+		assertEquals(100, restored.getPointManager().getPoints().getFirst().getCaptureProgress());
+	}
+
+	/** Points whose world is loaded, so they survive a save and load. */
+	private void pointsInALoadedWorld() {
+		org.bukkit.World world = mock(org.bukkit.World.class);
+		org.mockito.Mockito.when(world.getName()).thenReturn("w");
+		bukkit.when(() -> Bukkit.getWorld("w")).thenReturn(world);
+		battle.clearPoints();
+		battle.addPoint(new CapturePoint("A", new BattleLocation("w", 1, 2, 3, 0f, 0f).toBukkitLocation(), defender, 100));
+		battle.addPoint(new CapturePoint("B", new BattleLocation("w", 4, 2, 3, 0f, 0f).toBukkitLocation(), null, 0));
+	}
+
+	@Test
 	void oldSavesLoadWithoutHoldOrSnapshot() {
 		BattleData data = BattleMapper.toData(battle);
 		data.startPoints = null;

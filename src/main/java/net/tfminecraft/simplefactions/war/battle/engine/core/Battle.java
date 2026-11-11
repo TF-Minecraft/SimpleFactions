@@ -30,6 +30,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.raid.BattleRaidSetup;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.RaidAttackerEliminationService;
 import net.tfminecraft.simplefactions.war.battle.engine.raid.RaidWinService;
 import net.tfminecraft.simplefactions.war.battle.engine.win.BattleTimeCap;
+import net.tfminecraft.simplefactions.war.battle.engine.win.FieldControlService;
 import net.tfminecraft.simplefactions.war.battle.engine.win.FieldWinService;
 import net.tfminecraft.simplefactions.war.battle.engine.win.SiegeContestService;
 import net.tfminecraft.simplefactions.war.battle.engine.win.SiegeWinService;
@@ -77,6 +78,8 @@ public class Battle {
 	private boolean staffHold;
 	private boolean firstBattleOfWar;
 	private List<PointStart> pointStarts = new ArrayList<>();
+	// Field battle control per side id, kept in insertion order for display.
+	private final Map<String, Double> controlScores = new LinkedHashMap<>();
 	private final Set<net.tfminecraft.tlibs.character.CharacterRef> participants = new HashSet<>();
 
 	/** A capture point as it stood when the battle started, for a staff restart. */
@@ -98,6 +101,47 @@ public class Battle {
 
 	public void setFirstBattleOfWar(boolean firstBattleOfWar) {
 		this.firstBattleOfWar = firstBattleOfWar;
+	}
+
+	/** Control a side has built up in a field battle; 0 when it has none. */
+	public double getControl(String sideId) {
+		if (sideId == null) {
+			return 0.0;
+		}
+		Double score = controlScores.get(sideId.toLowerCase(Locale.ROOT));
+		return score == null ? 0.0 : score;
+	}
+
+	public void setControl(String sideId, double score) {
+		if (sideId == null) {
+			return;
+		}
+		String key = sideId.toLowerCase(Locale.ROOT);
+		if (score <= 0.0 || Double.isNaN(score)) {
+			controlScores.remove(key);
+			return;
+		}
+		controlScores.put(key, score);
+	}
+
+	public Map<String, Double> getControlScores() {
+		return Map.copyOf(controlScores);
+	}
+
+	public void restoreControlScores(Map<String, Double> scores) {
+		controlScores.clear();
+		if (scores == null) {
+			return;
+		}
+		for (Map.Entry<String, Double> entry : scores.entrySet()) {
+			if (entry.getValue() != null) {
+				setControl(entry.getKey(), entry.getValue());
+			}
+		}
+	}
+
+	public void resetControl() {
+		controlScores.clear();
 	}
 
 	public List<PointStart> getPointStarts() {
@@ -437,6 +481,7 @@ public class Battle {
 		firstBattleOfWar = war != null && !war.hasFirstBattleStarted();
 		this.started = true;
 		this.startedAt = Instant.now();
+		controlScores.clear();
 		this.stats = new net.tfminecraft.simplefactions.war.stats.BattleStats();
 		participants.clear();
 		getAllParticipants().forEach(this::captureParticipant);
@@ -578,6 +623,10 @@ public class Battle {
 			}
 		}
 		if (battleType == BattleType.FIELD) {
+			FieldControlService.tick(this);
+			if (!started) {
+				return;
+			}
 			FieldWinService.checkFieldWin(this);
 		}
 		if (battleType == BattleType.SIEGE) {

@@ -201,6 +201,11 @@ class ConfigLoaderBattlePresenceTest {
 				  empty_side_grace_seconds: 45
 				  time_cap_enabled: true
 				  time_cap_minutes: 90
+				  control:
+				    enabled: false
+				    target: 0
+				    per_second: -2
+				    all_points_multiplier: 0.5
 				""");
 
 		new ConfigLoader().loadConfig(file.toFile());
@@ -208,6 +213,14 @@ class ConfigLoaderBattlePresenceTest {
 		assertEquals(45, Cache.battleEmptySideGraceSeconds);
 		assertTrue(Cache.battleTimeCapEnabled);
 		assertEquals(90, Cache.battleTimeCapMinutes);
+		assertFalse(Cache.battleControlEnabled);
+		assertEquals(1, Cache.battleControlTarget);
+		assertEquals(0.0, Cache.battleControlPerSecond);
+		assertEquals(1.0, Cache.battleControlAllPointsMultiplier);
+		Cache.battleControlEnabled = true;
+		Cache.battleControlTarget = 1000;
+		Cache.battleControlPerSecond = 0.5;
+		Cache.battleControlAllPointsMultiplier = 4.0;
 	}
 
 	private Path writeConfig(String yaml) throws IOException {

@@ -211,6 +211,9 @@ public final class BattleStaffService {
 		if (battle.getBattleType() == BattleType.FIELD && battle.isCapturePointsEnabled() && battle.isSequentialCapture()) {
 			BattleCapturePoints.syncLinearChain(battle);
 		}
+		// The running battle captures on its own copies of the points; put those back too.
+		battle.getPointManager().setPoints(battle.getPoints());
+		battle.resetControl();
 		CampaignWarbandLeaveBlock.clearBattle(battle.getId());
 	}
 

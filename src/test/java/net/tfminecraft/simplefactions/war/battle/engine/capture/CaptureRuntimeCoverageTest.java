@@ -130,6 +130,18 @@ class CaptureRuntimeCoverageTest {
   }
 
   @Test
+  void holdingTheFieldToTheControlTargetEndsTheBattleFromItsTick() {
+    addPoint("West", "attacker", new Location(ui.world, 0, 64, 0), 100);
+    start();
+    battle.setControl("attacker", 999.9);
+
+    battle.tick();
+
+    assertFalse(battle.hasStarted());
+    assertEquals(1000.0, battle.getControl("attacker"));
+  }
+
+  @Test
   void replacingRuntimePointsFromTheirCurrentListPreservesThemAndResetsCopies() {
     addPoint("West", "attacker", new Location(ui.world, 0, 64, 0), 100);
     start();
@@ -156,7 +168,15 @@ class CaptureRuntimeCoverageTest {
     assertEquals(
         Map.of(
             "§aWest - Friendly §f: 100%",
-            0, "§cEast - Enemy §f: 100%", 1, "§c=-=-=-=-=-=-=-=-=-=-=", 2),
+            0,
+            "§cEast - Enemy §f: 100%",
+            1,
+            "§c=-=-=-=-=-=-=-=-=-=-=",
+            2,
+            "§cEnemy control§f: 0/1000",
+            3,
+            "§aFriendly control§f: 0/1000",
+            4),
         boards.getFirst().scores());
     verify(boards.getFirst().objective()).setDisplaySlot(DisplaySlot.SIDEBAR);
     verify(alice).sendTitle(eq(" "), contains("West - FRIENDLY"), eq(0), eq(20), eq(0));

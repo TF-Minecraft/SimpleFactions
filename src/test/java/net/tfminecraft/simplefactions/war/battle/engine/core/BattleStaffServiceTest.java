@@ -99,6 +99,11 @@ class BattleStaffServiceTest {
 		CapturePoint point = new CapturePoint("A", mock(Location.class), defender, 100);
 		battle.addPoint(point);
 		battle.snapshotStart();
+		battle.getPointManager().setPoints(battle.getPoints());
+		CapturePoint live = battle.getPointManager().getPoints().getFirst();
+		live.setController(attacker);
+		live.setCaptureProgress(70);
+		battle.setControl("attacker", 250);
 		point.setController(attacker);
 		point.setCaptureProgress(40);
 		attacker.tickLife();
@@ -116,6 +121,9 @@ class BattleStaffServiceTest {
 		assertEquals(10, attacker.getLives());
 		assertSame(defender, point.getController());
 		assertEquals(100, point.getCaptureProgress());
+		assertSame(defender, battle.getPointManager().getPoints().getFirst().getController());
+		assertEquals(100, battle.getPointManager().getPoints().getFirst().getCaptureProgress());
+		assertEquals(0.0, battle.getControl("attacker"));
 		assertTrue(battle.getRecordedSideCasualties().isEmpty());
 		assertTrue(battle.getStartedAt().isAfter(Instant.EPOCH));
 		assertFalse(BattleRespawnRouting.consumeJailRespawn(soldier.getUniqueId()));
