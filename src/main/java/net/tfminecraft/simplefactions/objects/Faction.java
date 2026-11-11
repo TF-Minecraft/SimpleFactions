@@ -599,6 +599,13 @@ public class Faction {
 	public List<String> getMembers() {
 		return guildHandler.getAllMembers();
 	}
+	/** Members not marked inactive. Inactive members stay in the realm but count for nothing. */
+	public List<String> getActiveMembers() {
+		return net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(getMembers());
+	}
+	public List<String> getActiveVassalMembers() {
+		return net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(getVassalMembers());
+	}
 	public List<String> getVassalMembers() {
 		List<String> members = new ArrayList<>();
 		for(Faction vassal : RelationManager.getSubjects(this)) {
@@ -644,6 +651,7 @@ public class Faction {
 	public boolean canBecomeLeader(String member) {
 		if(isLeader(member)) return false;
 		if(!isMember(member)) return false;
+		if(net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(member)) return false;
 		for(Guild g : guildHandler.getGuilds()) {
 			if(g.isLeader(member)) return false;
 		}
@@ -779,7 +787,7 @@ public class Faction {
 
 		// Two halves: headcount, where each account is one member split across its
 		// characters by recent play, plus what each counted member's online time is worth.
-		var headcount = net.tfminecraft.simplefactions.prestige.MemberShare.count(guildHandler.getAllMembers());
+		var headcount = net.tfminecraft.simplefactions.prestige.MemberShare.count(getActiveMembers());
 		double members = Math.pow(headcount.heads()+4, 1.8)+5
 				+ net.tfminecraft.simplefactions.prestige.MemberPlaytime.totalFor(headcount.counted());
 
@@ -994,6 +1002,7 @@ public class Faction {
 		government.ping();
 	}
 	public boolean canVote(String p) {
+		if(net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(p)) return false;
 		if(isMember(p)) return true;
 		if(hasFactionRule(Rules.VASSAL_VOTING_RIGHTS)) {
 			if(getVassalMembers().contains(p)) return true;

@@ -369,7 +369,7 @@ class ArmyMenusCoverageTest {
     faction.addProvince(11);
     titles.titleTypeView(null, player, faction, county, true, 0);
     titles.click(fixture.ui.click(player, 52), top(), player);
-    verify(player).sendMessage("§cYou need more members to form more counties!");
+    verify(player).sendMessage("§cYou need more active members to form more counties!");
     assertFalse(TitleManager.isFormingTitle.containsKey(player));
     faction.addMember("Citizen");
     Faction liege = fixture.saved("liege", "Liege");
@@ -397,10 +397,10 @@ class ArmyMenusCoverageTest {
 
     List<ItemStack> rendered =
         titles.creator.getSortedTitleItems(player, faction, List.of(home, east, foreign));
-    String limit = "County limit reached: 1/1 (one per member)";
+    String limit = "County limit reached: 1/1 (one per active member)";
     assertEquals(Material.RED_CONCRETE, rendered.get(1).getType());
     assertTrue(lore(rendered.get(1)).contains("Unavailable\n" + limit));
-    assertTrue(lore(rendered.get(1)).contains("Recruit more members to hold another county."));
+    assertTrue(lore(rendered.get(1)).contains("Recruit members, or bring inactive ones back, to hold another county."));
     assertFalse(lore(rendered.get(0)).contains(limit));
     assertFalse(lore(rendered.get(2)).contains(limit));
     ItemStack create = titles.creator.createNewTitleItem(faction, county);

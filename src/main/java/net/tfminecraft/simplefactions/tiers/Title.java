@@ -127,9 +127,12 @@ public class Title {
 		return true;
 	}
 	
-	/** A realm holds at most one county per member; at the limit it can't claim or form another. */
+	/**
+	 * A realm forms at most one county per active member; at the limit it can't claim or form another.
+	 * Counties it already holds are kept while it has one per member, active or not.
+	 */
 	public static boolean countyLimitReached(Faction f, Tier tier) {
-		return tier.getTier() == 2 && f.getTitles(tier).size() >= f.getMembers().size();
+		return tier.getTier() == 2 && f.getTitles(tier).size() >= f.getActiveMembers().size();
 	}
 	
 	public boolean countyLimitReached(Faction f) {

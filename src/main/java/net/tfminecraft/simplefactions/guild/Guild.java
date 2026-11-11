@@ -869,12 +869,18 @@ public class Guild {
         return Formatter.formatDouble(getStabilityEffect()*0.5);
     }
 
+    /** Members not marked inactive. */
+    public List<String> getActiveMembers() {
+        return net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(members);
+    }
+
     public double getMemberPercentage() {
-        int totalMembers = host.getMembers().size() + host.getVassalMembers().size();
+        int totalMembers = net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(host.getMembers()).size()
+                + net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(host.getVassalMembers()).size();
         if (totalMembers <= 0) {
             return 0.0;
         }
-        return (double) members.size() / (double) totalMembers;
+        return (double) getActiveMembers().size() / (double) totalMembers;
     }
 
     public double getStabilityEffect() {

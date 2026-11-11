@@ -51,9 +51,15 @@ public final class EspionageService {
         return member != null && (faction.isMember(member) || faction.isLeader(member));
     }
 
+    /** An inactive Spymaster gives up the post; the leader keeps the default holding. */
+    private static boolean serving(Faction faction, String member) {
+        return eligible(faction, member)
+                && (faction.isLeader(member) || !net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(member));
+    }
+
     /** The leader's default holding follows the leadership; deliberate appointments stay. */
     private static boolean validHolder(Faction faction, SpecialPositionAssignment holder) {
-        return holder != null && eligible(faction, holder.memberKey()) && !deadCharacter(holder)
+        return holder != null && serving(faction, holder.memberKey()) && !deadCharacter(holder)
                 && !(holder.automatic && !faction.isLeader(holder.memberKey()));
     }
 

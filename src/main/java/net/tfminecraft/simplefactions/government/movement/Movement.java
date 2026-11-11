@@ -196,6 +196,7 @@ public class Movement {
         }
         checkSupporters();
         checkForeignBackers();
+        if (hasLeader() && net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(leader)) leader = null;
         if(causes.size() == 0) {
             f.getGovernment().endMovement(this);
         }
@@ -562,15 +563,17 @@ public class Movement {
 
     public double getPower() {
         double base = 0;
-        double memberCount = supporters.getAllMembers().size();
+        // Inactive members count on neither side of the share.
+        double memberCount = net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(supporters.getAllMembers()).size();
         for(Cause cause : causes) {
-            memberCount += cause.getPool().getAllMembers().size();
+            memberCount += net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(cause.getPool().getAllMembers()).size();
         }
         for(Faction backer : foreignBackers) {
-            memberCount += (backer.getMembers().size() + backer.getVassalMembers().size())/2.0; //backers count half
+            memberCount += (backer.getActiveMembers().size() + backer.getActiveVassalMembers().size())/2.0; //backers count half
         }
-        if((f.getMembers().size()+f.getVassalMembers().size()) > 0) {
-            base += (100.0* (memberCount/(f.getMembers().size()+f.getVassalMembers().size())));
+        int realmMembers = f.getActiveMembers().size() + f.getActiveVassalMembers().size();
+        if(realmMembers > 0) {
+            base += (100.0* (memberCount/realmMembers));
         }
         if(f.getTotalTradePower() > 0) {
             base += (30.0* (getTotalTradePower()/f.getTotalTradePower()));

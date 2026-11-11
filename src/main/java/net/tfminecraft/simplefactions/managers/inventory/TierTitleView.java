@@ -196,7 +196,7 @@ public class TierTitleView {
 				if(tier.getId().equalsIgnoreCase("county")) {
 					current = f.getUntitledProvinces().size();
 					if(Title.countyLimitReached(f, tier)) {
-						p.sendMessage("§cYou need more members to form more counties!");
+						p.sendMessage("§cYou need more active members to form more counties!");
 						return;
 					}
 				} else {

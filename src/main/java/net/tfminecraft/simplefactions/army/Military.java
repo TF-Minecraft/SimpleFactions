@@ -271,12 +271,13 @@ public class Military {
 				subjectLevies = subject.getMilitary().getLevies();
 			}
 			int total = 0;
+			int activeMembers = net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(subject.getMembers()).size();
 			for(Regiment r : subject.getMilitary().getRegiments()) {
 				if (r.isEquipment()) continue;
 				int count = r.getCurrentSlots();
 				count = (int) Math.round(count * (subject.getModifier(FactionModifiers.LEVY).getAmount()/100));
-				if(total+count >= subject.getMembers().size()) {
-					count = subject.getMembers().size() - total;
+				if(total+count >= activeMembers) {
+					count = activeMembers - total;
 				}
 				count = Math.max(0, count);
 				total += count;

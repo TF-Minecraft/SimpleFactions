@@ -160,9 +160,9 @@ public class TierTitleCreator {
 	}
 	
 	private static void addCountyLimitLore(Faction f, Tier county, List<String> lore) {
-		lore.add(StringFormatter.formatHex("#e07373County limit reached: #f5f5f5" + f.getTitles(county).size() + "/" + f.getMembers().size()
-				+ " #e07373(one per member)"));
-		lore.add(StringFormatter.formatHex("#767a77Recruit more members to hold another county."));
+		lore.add(StringFormatter.formatHex("#e07373County limit reached: #f5f5f5" + f.getTitles(county).size() + "/" + f.getActiveMembers().size()
+				+ " #e07373(one per active member)"));
+		lore.add(StringFormatter.formatHex("#767a77Recruit members, or bring inactive ones back, to hold another county."));
 	}
 	
 	public int getNewTitleCost(Faction f, Tier t) {

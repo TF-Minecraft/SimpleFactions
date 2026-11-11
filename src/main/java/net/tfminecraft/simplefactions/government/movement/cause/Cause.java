@@ -81,6 +81,7 @@ public class Cause {
 
     public boolean canBeLeader(String p) {
         if(p == null || !pool.getAllMembers().contains(p)) return false;
+        if(net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(p)) return false;
         Member relation = movement.getFaction().getRelationToFaction(p);
         if (relation == null) return false;
         return switch (relation) {
