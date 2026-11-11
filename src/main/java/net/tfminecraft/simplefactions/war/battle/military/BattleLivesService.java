@@ -1,27 +1,32 @@
 package net.tfminecraft.simplefactions.war.battle.military;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
-import net.tfminecraft.simplefactions.war.core.Side;
-import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.enums.LifeType;
-import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
+import net.tfminecraft.simplefactions.war.core.Side;
+import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
+import net.tfminecraft.simplefactions.war.wounds.ForceKind;
 
+/**
+ * A campaign battle side's lives: the lives its forces bring minus the soldiers on its roster,
+ * at least {@code min_side_lives}, unless staff set the starting lives themselves. The forces
+ * are recorded on the side when the battle starts, so its deaths can be shared out later.
+ */
 public final class BattleLivesService {
-	private static final Logger LOGGER = Logger.getLogger(BattleLivesService.class.getName());
-
 	public record SideLivesPreview(
-			int committedRegiments,
+			int slots,
 			int poolLives,
 			int rosterFighters,
 			int sideLives,
@@ -38,54 +43,53 @@ public final class BattleLivesService {
 		if (war == null || !war.isActive()) {
 			return;
 		}
-		Integer provinceId = resolveProvinceId(war, battle);
-		if (provinceId == null) {
-			return;
-		}
-
 		battle.setLifeType(LifeType.COLLECTIVE);
-		applySideLives(
-				battle,
-				BattleTemplate.ATTACKER_SIDE,
-				war,
-				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE),
-				provinceId);
-		applySideLives(
-				battle,
-				BattleTemplate.DEFENDER_SIDE,
-				war,
-				CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE),
-				provinceId);
+		for (String battleSideId : List.of(BattleTemplate.ATTACKER_SIDE, BattleTemplate.DEFENDER_SIDE)) {
+			BattleSide battleSide = battle.getSideById(battleSideId);
+			Side warSide = CampaignBattleSides.warSideFor(war, battle, battleSideId);
+			if (battleSide != null && warSide != null) {
+				List<BattleForce> forces = BattleForces.build(war, provinceId(war, battle), warSide, battle, battleSide);
+				battleSide.setForces(forces);
+				battleSide.setLives(livesFor(battleSide, forces));
+			}
+		}
 	}
 
 	public static SideLivesPreview previewCampaignSideLives(War war, Battle battle, String battleSideId) {
 		if (war == null || battle == null || battleSideId == null) {
 			return new SideLivesPreview(0, 0, 0, 0, 0);
 		}
-		Integer provinceId = resolveProvinceId(war, battle);
-		Side warSide = resolveWarSide(war, battle, battleSideId);
+		Side warSide = CampaignBattleSides.warSideFor(war, battle, battleSideId);
 		BattleSide battleSide = battle.getSideById(battleSideId);
 		if (warSide == null || battleSide == null) {
 			return new SideLivesPreview(0, 0, 0, 0, 0);
 		}
-		int committedRegiments = 0;
-		if (provinceId != null) {
-			committedRegiments = BattlePoolService.totalCommittedRegiments(war, provinceId, warSide);
+		List<BattleForce> forces = BattleForces.build(war, provinceId(war, battle), warSide, battle, battleSide);
+		int slots = 0;
+		int mercenarySlots = 0;
+		for (BattleForce force : forces) {
+			slots += force.slots();
+			if (force.kind() == ForceKind.MERCENARY) {
+				mercenarySlots += force.slots();
+			}
 		}
-		int mercenarySlots = mercenarySlots(war, warSide, battleSide);
-		committedRegiments = (int) Math.min(Integer.MAX_VALUE, (long) committedRegiments + mercenarySlots);
-		int rosterFighters = countRosterFighters(battleSide);
-		int poolLives = (int) Math.min(Integer.MAX_VALUE, (long) Cache.warBattleLivesPerRegiment * committedRegiments);
-		int sideLives = computeSideLives(committedRegiments, rosterFighters);
-		return new SideLivesPreview(committedRegiments, poolLives, rosterFighters, sideLives, mercenarySlots);
+		return new SideLivesPreview(slots, BattleForce.lives(forces), countRosterFighters(battleSide),
+				livesFor(battleSide, forces), mercenarySlots);
 	}
 
-	public static int computeSideLives(int committedRegiments, int rosterFighters) {
-		if (committedRegiments <= 0) {
+	private static int livesFor(BattleSide side, List<BattleForce> forces) {
+		if (side.getLivesOverride() != null) {
+			return side.getLivesOverride();
+		}
+		return computeSideLives(BattleForce.lives(forces), countRosterFighters(side));
+	}
+
+	/** Pool lives minus the roster, at least {@code min_side_lives}; 0 when the side brought nothing. */
+	public static int computeSideLives(int poolLives, int rosterFighters) {
+		if (poolLives <= 0) {
 			return 0;
 		}
-		long raw = (long) Cache.warBattleLivesPerRegiment * committedRegiments - rosterFighters;
-		return (int) Math.min(Integer.MAX_VALUE, Math.max(Cache.warBattleMinSideLives, raw));
+		return (int) Math.max(Cache.warBattleMinSideLives, (long) poolLives - rosterFighters);
 	}
 
 	public static int countRosterFighters(BattleSide side) {
@@ -94,10 +98,9 @@ public final class BattleLivesService {
 		}
 		Set<UUID> uniqueMembers = new HashSet<>();
 		for (Warband warband : side.getBands()) {
-			if (warband == null) {
-				continue;
+			if (warband != null) {
+				uniqueMembers.addAll(warband.getMemberIds());
 			}
-			uniqueMembers.addAll(warband.getMemberIds());
 		}
 		return uniqueMembers.size();
 	}
@@ -110,48 +113,7 @@ public final class BattleLivesService {
 		return type == BattleType.FIELD || type == BattleType.SIEGE;
 	}
 
-	private static void applySideLives(
-			Battle battle,
-			String battleSideId,
-			War war,
-			Side warSide,
-			int provinceId) {
-		BattleSide battleSide = battle.getSideById(battleSideId);
-		if (battleSide == null || warSide == null) {
-			return;
-		}
-		int committedRegiments = BattlePoolService.totalCommittedRegiments(war, provinceId, warSide);
-		int mercenarySlots = mercenarySlots(war, warSide, battleSide);
-		committedRegiments = (int) Math.min(Integer.MAX_VALUE, (long) committedRegiments + mercenarySlots);
-		if (committedRegiments <= 0) {
-			LOGGER.info(
-					"Campaign battle " + battle.getId() + " side " + battleSideId
-							+ " has zero committed regiments; applying min side lives floor");
-		}
-		int rosterFighters = countRosterFighters(battleSide);
-		int sideLives = computeSideLives(committedRegiments, rosterFighters);
-		battleSide.setLives(sideLives);
-	}
-
-	private static int mercenarySlots(War war, Side warSide, BattleSide battleSide) {
-		long total = 0;
-		for (net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements.Engagement engagement
-				: net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements.on(war, warSide)) {
-			total += net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements
-					.coveringMembers(engagement, battleSide);
-		}
-		return (int) Math.min(Integer.MAX_VALUE, total);
-	}
-
-	private static Integer resolveProvinceId(War war, Battle battle) {
-		Integer provinceId = battle.getProvinceId();
-		if (provinceId == null && war != null) {
-			provinceId = war.getScheduledBattleProvinceId();
-		}
-		return provinceId;
-	}
-
-	static Side resolveWarSide(War war, Battle battle, String battleSideId) {
-		return CampaignBattleSides.warSideFor(war, battle, battleSideId);
+	private static Integer provinceId(War war, Battle battle) {
+		return battle.getProvinceId() != null ? battle.getProvinceId() : war.getScheduledBattleProvinceId();
 	}
 }

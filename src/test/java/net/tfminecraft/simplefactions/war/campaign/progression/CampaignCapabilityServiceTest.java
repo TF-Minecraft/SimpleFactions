@@ -23,7 +23,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
 import net.tfminecraft.simplefactions.war.battle.military.PoolMode;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
@@ -156,14 +156,14 @@ class CampaignCapabilityServiceTest {
 	}
 
 	@Test
-	void offensiveAndDefensiveRegiments_delegateToBattlePoolService() {
+	void offensiveAndDefensiveRegiments_delegateToBattleForces() {
 		War war = baseWar();
 		Side attackers = war.getAttackers();
 		Side defenders = war.getDefenders();
-		try (MockedStatic<BattlePoolService> pools = mockStatic(BattlePoolService.class)) {
-			pools.when(() -> BattlePoolService.totalCommittedRegiments(
+		try (MockedStatic<BattleForces> pools = mockStatic(BattleForces.class)) {
+			pools.when(() -> BattleForces.regimentSlots(
 					eq(war), eq(BATTLE_PROVINCE), eq(attackers), eq(PoolMode.OFFENSIVE))).thenReturn(10);
-			pools.when(() -> BattlePoolService.totalCommittedRegiments(
+			pools.when(() -> BattleForces.regimentSlots(
 					eq(war), eq(BATTLE_PROVINCE), eq(defenders), eq(PoolMode.DEFENSIVE))).thenReturn(6);
 
 			assertEquals(
@@ -172,9 +172,9 @@ class CampaignCapabilityServiceTest {
 			assertEquals(
 					6,
 					CampaignCapabilityService.defensiveRegiments(war, BATTLE_PROVINCE, CampaignSideRole.DEFENDER));
-			pools.verify(() -> BattlePoolService.totalCommittedRegiments(
+			pools.verify(() -> BattleForces.regimentSlots(
 					eq(war), eq(BATTLE_PROVINCE), eq(attackers), eq(PoolMode.OFFENSIVE)));
-			pools.verify(() -> BattlePoolService.totalCommittedRegiments(
+			pools.verify(() -> BattleForces.regimentSlots(
 					eq(war), eq(BATTLE_PROVINCE), eq(defenders), eq(PoolMode.DEFENSIVE)));
 		}
 	}

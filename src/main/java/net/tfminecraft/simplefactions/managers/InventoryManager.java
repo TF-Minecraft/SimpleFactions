@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import net.tfminecraft.simplefactions.espionage.EspionageAccess;
@@ -1565,6 +1566,10 @@ public class InventoryManager implements Listener{
 				if(f == null || !Members.is(p, f.getLeader())) return;
 				Regiment r = f.getMilitary().getRegiment(data);
 				if(r == null) return;
+				if(WarWounds.availablePaidSlots(f, r) <= 0 && WarWounds.woundedSlots(f, r) > 0) {
+					p.sendMessage("§cWounded slots cannot be disbanded. They are lost when the war ends.");
+					return;
+				}
 				r.sizeDecrease();
 				p.sendMessage("§cDecreased size of "+r.getName());
 				p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);

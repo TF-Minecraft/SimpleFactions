@@ -52,7 +52,6 @@ public class RelationManager {
 
 	public static boolean endVassalage(Faction origin, Faction target, boolean hostile) {
 		if(isOverlord(origin, target) || isOverlord(target, origin)) {
-			net.tfminecraft.simplefactions.war.commitment.WarCommitmentService.onVassalageEnded(origin, target);
 			reset(origin, target, hostile);
 			net.tfminecraft.simplefactions.espionage.EspionageService.forgetReports(origin, target);
 			MercenaryLoyaltyWatcher.onRelationChanged(origin, target);

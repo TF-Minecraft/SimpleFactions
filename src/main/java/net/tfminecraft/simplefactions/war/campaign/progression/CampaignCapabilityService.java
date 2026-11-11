@@ -11,7 +11,7 @@ import java.util.OptionalInt;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
 import net.tfminecraft.simplefactions.war.battle.military.PoolMode;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
 import net.tfminecraft.simplefactions.war.enums.ObjectiveHolder;
@@ -59,7 +59,7 @@ public final class CampaignCapabilityService {
 		if (side == null) {
 			return 0;
 		}
-		return BattlePoolService.totalCommittedRegiments(war, provinceId, side, PoolMode.OFFENSIVE);
+		return BattleForces.regimentSlots(war, provinceId, side, PoolMode.OFFENSIVE);
 	}
 
 	public static int defensiveRegiments(War war, int provinceId, CampaignSideRole coalition) {
@@ -67,7 +67,7 @@ public final class CampaignCapabilityService {
 		if (side == null) {
 			return 0;
 		}
-		return BattlePoolService.totalCommittedRegiments(war, provinceId, side, PoolMode.DEFENSIVE);
+		return BattleForces.regimentSlots(war, provinceId, side, PoolMode.DEFENSIVE);
 	}
 
 	public static boolean canDefend(War war, int provinceId, CampaignSideRole coalition) {

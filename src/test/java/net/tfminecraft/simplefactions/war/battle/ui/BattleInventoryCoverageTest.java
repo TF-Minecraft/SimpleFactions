@@ -621,8 +621,8 @@ class BattleInventoryCoverageTest {
       lore(top().getItem(3), "Defender: §e0");
       menus.sideView(alice, battle);
       lore(top().getItem(0), "Lives: §e23");
-      lore(top().getItem(0), "Regiments §e3");
-      lore(top().getItem(1), "no committed regiments");
+      lore(top().getItem(0), "Slots §e3");
+      lore(top().getItem(1), "no regiments can fight");
       battle.setCampaignRaid(true);
       menus.battleView(alice, battle);
       assertEquals("§cCampaign raid", name(top().getItem(22)));

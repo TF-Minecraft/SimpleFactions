@@ -17,7 +17,6 @@ import java.util.UUID;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.database.CivilWarMemberMoveData;
 import net.tfminecraft.simplefactions.database.CivilWarVassalEndData;
-import net.tfminecraft.simplefactions.database.CommitmentData;
 import net.tfminecraft.simplefactions.database.CampaignRaidData;
 import net.tfminecraft.simplefactions.database.ParticipantData;
 import net.tfminecraft.simplefactions.database.ScheduledCampaignBattleData;
@@ -27,7 +26,6 @@ import net.tfminecraft.simplefactions.database.WarData;
 import net.tfminecraft.simplefactions.database.WarDemandData;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.war.campaign.WarCampaignService;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
@@ -215,7 +213,7 @@ public final class WarMapper {
 		}
 		data.attackers = serializeSide(war.getAttackers());
 		data.defenders = serializeSide(war.getDefenders());
-		data.commitments = serializeCommitments(WarCommitmentService.getCommitmentsForWar(war.getId()));
+		data.ledger = war.getLedger() == null ? null : war.getLedger().toData();
 		return data;
 	}
 
@@ -355,7 +353,7 @@ public final class WarMapper {
 		war.getDefenders().getMainParticipants().clear();
 		loadParticipants(data.attackers, war.getAttackers());
 		loadParticipants(data.defenders, war.getDefenders());
-		WarCommitmentService.restoreCommitments(war.getId(), deserializeCommitments(data.commitments, war.getId()));
+		war.setLedger(net.tfminecraft.simplefactions.war.wounds.WarLedger.fromData(data.ledger));
 
 		return war;
 	}
@@ -510,48 +508,6 @@ public final class WarMapper {
 			}
 			side.getMainParticipants().add(participant);
 		}
-	}
-
-	private static List<CommitmentData> serializeCommitments(List<WarCommitment> commitments) {
-		if (commitments == null || commitments.isEmpty()) {
-			return null;
-		}
-		List<CommitmentData> serialized = new ArrayList<>();
-		for (WarCommitment commitment : commitments) {
-			CommitmentData data = new CommitmentData();
-			data.factionId = commitment.factionId();
-			data.sourceFactionId = commitment.sourceFactionId();
-			data.regimentId = commitment.regimentId();
-			data.count = commitment.count();
-			if (commitment.committedAt() != null) {
-				data.committedAt = commitment.committedAt().toString();
-			}
-			serialized.add(data);
-		}
-		return serialized;
-	}
-
-	private static List<WarCommitment> deserializeCommitments(List<CommitmentData> commitments, int warId) {
-		if (commitments == null || commitments.isEmpty()) {
-			return List.of();
-		}
-		List<WarCommitment> deserialized = new ArrayList<>();
-		for (CommitmentData data : commitments) {
-			if (data == null || data.factionId == null || data.regimentId == null || data.count <= 0) {
-				continue;
-			}
-			Instant committedAt = data.committedAt != null && !data.committedAt.isBlank()
-					? Instant.parse(data.committedAt)
-					: Instant.EPOCH;
-			deserialized.add(new WarCommitment(
-					warId,
-					data.factionId,
-					data.sourceFactionId,
-					data.regimentId,
-					data.count,
-					committedAt));
-		}
-		return deserialized;
 	}
 
 	private static void applyCampaignRuntimeFields(War war, WarData data) {

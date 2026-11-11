@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.war.battle.engine.win.SiegeContestService;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleEndReason;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyLedger;
+import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleStaffNotices;
 import net.tfminecraft.simplefactions.war.battle.ui.BattleWatchService;
@@ -152,10 +153,15 @@ public final class BattleStaffService {
 				&& war.getScheduledBattleAt() != null && !war.getScheduledBattleAt().isAfter(CampaignClock.now());
 	}
 
-	/** Adds, removes or sets a side's lives during the battle. */
+	/**
+	 * Adds, removes or sets a side's lives. During the battle this changes the lives left. Before
+	 * it starts it sets the lives the side starts with, instead of the ones its forces would give;
+	 * {@code auto} goes back to those. Lives only limit respawns: deaths beyond what the forces
+	 * brought wound nobody.
+	 */
 	public static Result adjustLives(Battle battle, String sideId, String operation, int amount, String by) {
-		if (battle == null || !battle.hasStarted()) {
-			return Result.error("Lives can only be corrected while the battle runs. Use setlives before it starts.");
+		if (battle == null) {
+			return Result.error("No such battle.");
 		}
 		BattleSide side = battle.getSideById(sideId);
 		if (side == null) {
@@ -164,13 +170,12 @@ public final class BattleStaffService {
 		if (amount < 0) {
 			return Result.error("The amount must be 0 or more.");
 		}
+		String op = operation.toLowerCase(Locale.ROOT);
+		if (!battle.hasStarted()) {
+			return adjustStartLives(battle, side, op, amount, by);
+		}
 		int before = side.getLives();
-		long after = switch (operation.toLowerCase(Locale.ROOT)) {
-			case "add" -> (long) before + amount;
-			case "remove" -> (long) before - amount;
-			case "set" -> amount;
-			default -> Long.MIN_VALUE;
-		};
+		long after = newLives(op, before, amount);
 		if (after == Long.MIN_VALUE) {
 			return Result.error("Use add, remove or set.");
 		}
@@ -183,6 +188,40 @@ public final class BattleStaffService {
 		BattlePersistenceService.persistBattle(battle);
 		return done(battle, by, "LIVES", "changed " + side.getId() + " lives in " + battle.getDisplayName()
 				+ " from " + before + " to " + lives + ".");
+	}
+
+	private static Result adjustStartLives(Battle battle, BattleSide side, String op, int amount, String by) {
+		War war = battle.getWarId() == null ? null : WarManager.getById(battle.getWarId());
+		if (war == null) {
+			return Result.error("That battle is not running. Set its lives before it starts with /battle setlives.");
+		}
+		// The current starting lives: a staff value already set, or what the forces give.
+		int before = BattleLivesService.previewCampaignSideLives(war, battle, side.getId()).sideLives();
+		if (op.equals("auto")) {
+			side.setLivesOverride(null);
+			BattlePersistenceService.persistBattle(battle);
+			int lives = BattleLivesService.previewCampaignSideLives(war, battle, side.getId()).sideLives();
+			return done(battle, by, "START_LIVES", "put " + side.getId() + " back on the lives its forces give in "
+					+ battle.getDisplayName() + " (" + lives + " now).");
+		}
+		long after = newLives(op, before, amount);
+		if (after == Long.MIN_VALUE) {
+			return Result.error("Use add, remove, set or auto.");
+		}
+		int lives = (int) Math.max(0, Math.min(Integer.MAX_VALUE, after));
+		side.setLivesOverride(lives);
+		BattlePersistenceService.persistBattle(battle);
+		return done(battle, by, "START_LIVES", "set " + side.getId() + " to start " + battle.getDisplayName()
+				+ " with " + lives + " lives (was " + before + "). Use auto to go back to what its forces give.");
+	}
+
+	private static long newLives(String op, int before, int amount) {
+		return switch (op) {
+			case "add" -> (long) before + amount;
+			case "remove" -> (long) before - amount;
+			case "set" -> amount;
+			default -> Long.MIN_VALUE;
+		};
 	}
 
 	/** Emergency switch for a campaign battle: every vehicle can be used by either side. */

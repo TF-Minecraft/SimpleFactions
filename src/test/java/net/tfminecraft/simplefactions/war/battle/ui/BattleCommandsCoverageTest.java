@@ -835,8 +835,8 @@ class BattleCommandsCoverageTest {
     battle.setWarId(12);
     assertTrue(run("battle", "setlives", "front", "50"));
     assertEquals(37, battle.getLives());
-    verify(alice).sendMessage(contains("computed from war commitment"));
-    verify(alice).sendMessage(contains("Adjust regiments"));
+    verify(alice).sendMessage(contains("come from each side's forces"));
+    verify(alice).sendMessage(contains("/battle lives front <side> set <lives>"));
   }
 
   @ParameterizedTest

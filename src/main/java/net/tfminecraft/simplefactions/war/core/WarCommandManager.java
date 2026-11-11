@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.core;
 
+import net.tfminecraft.simplefactions.war.wounds.WarArmyAdmin;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -108,7 +109,7 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 2) {
-			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation ...");
+			player.sendMessage("§cUsage: /war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation|losses|army|wounds ...");
 			return true;
 		}
 		String subcommand = args[1].toLowerCase(java.util.Locale.ROOT);
@@ -134,8 +135,20 @@ public class WarCommandManager implements CommandExecutor {
 				player.sendMessage(WarForceInstallation.run(args, player.getName()));
 				yield true;
 			}
+			case "losses" -> {
+				WarArmyAdmin.losses(args, player.getName()).forEach(player::sendMessage);
+				yield true;
+			}
+			case "army" -> {
+				WarArmyAdmin.army(args).forEach(player::sendMessage);
+				yield true;
+			}
+			case "wounds" -> {
+				WarArmyAdmin.wounds(args, player.getName()).forEach(player::sendMessage);
+				yield true;
+			}
 			default -> {
-				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, history, factions, forceinstallation");
+				player.sendMessage("§cUnknown admin subcommand. Use: declare, end, win, status, path, time, schedule, devmode, raid, reparations, truce, history, factions, forceinstallation, losses, army, wounds");
 				yield true;
 			}
 		};

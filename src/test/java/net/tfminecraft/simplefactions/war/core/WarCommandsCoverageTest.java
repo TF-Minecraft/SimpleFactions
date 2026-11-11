@@ -40,7 +40,6 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleTickService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -83,8 +82,6 @@ class WarCommandsCoverageTest {
   private final Map<Field, Object> previousCache = new LinkedHashMap<>();
   private MockedStatic<TLibs> tlibs;
   private MockedStatic<BattlePersistenceService> battlePersistence;
-  private Map<Integer, List<WarCommitment>> commitments;
-  private Map<Integer, List<WarCommitment>> previousCommitments;
 
   @BeforeEach
   void setUp() {
@@ -109,15 +106,6 @@ class WarCommandsCoverageTest {
     CampaignClock.reset();
     previousDevmode = WarDevMode.isEnabled();
     WarDevMode.resetForTests();
-    try {
-      Field field = WarCommitmentService.class.getDeclaredField("commitmentsByWar");
-      field.setAccessible(true);
-      commitments = (Map<Integer, List<WarCommitment>>) field.get(null);
-      previousCommitments = new LinkedHashMap<>(commitments);
-      commitments.clear();
-    } catch (ReflectiveOperationException error) {
-      throw new AssertionError(error);
-    }
     cache("warBattleWindowStartHour", 20);
     cache("warBattleWindowEndHour", 24);
     cache("warVoteCloseHour", 16);
@@ -155,8 +143,6 @@ class WarCommandsCoverageTest {
     BattleManager.get().addAll(previousBattles);
     WarbandManager.get().clear();
     WarbandManager.get().addAll(previousBands);
-    commitments.clear();
-    commitments.putAll(previousCommitments);
     previousCache.forEach(
         (field, value) -> {
           try {
@@ -220,6 +206,62 @@ class WarCommandsCoverageTest {
     war.setOccupiedByDefender(new ArrayList<>());
     WarManager.addWar(war);
     return war;
+  }
+
+  @Test
+  void theArmyToolsAnswerAndComplete() {
+    War war = war(78);
+    org.bukkit.configuration.file.YamlConfiguration yaml = new org.bukkit.configuration.file.YamlConfiguration();
+    yaml.set("item.material", "PAPER");
+    net.tfminecraft.simplefactions.army.Regiment guard = new net.tfminecraft.simplefactions.army.Regiment("guard", yaml);
+    guard.setCurrentSlots(4);
+    attacker.getMilitary().getRegiments().add(guard);
+    org.bukkit.configuration.file.YamlConfiguration levyYaml = new org.bukkit.configuration.file.YamlConfiguration();
+    levyYaml.set("item.material", "PAPER");
+    levyYaml.set("levy", true);
+    attacker.getMilitary().getRegiments().add(new net.tfminecraft.simplefactions.army.Regiment("levy", levyYaml));
+    war.getLedger().addBattle("b", "fought", "t", 10,
+        new net.tfminecraft.simplefactions.war.wounds.WarLedger.SideRecord(10,
+            net.tfminecraft.simplefactions.war.wounds.TestForces.regiments("iron", 4)),
+        new net.tfminecraft.simplefactions.war.wounds.WarLedger.SideRecord(0, List.of()));
+    net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany company =
+        mock(net.tfminecraft.simplefactions.mercenary.company.MercenaryCompany.class);
+    net.tfminecraft.simplefactions.guild.Guild guild = attacker.getOrCreateMainGuild();
+    when(company.getGuild()).thenReturn(guild);
+    when(company.getName()).thenReturn("Blades");
+    when(company.getWounds()).thenReturn(new net.tfminecraft.simplefactions.war.wounds.CompanyWounds());
+    guild.setCompany(company);
+
+    assertTrue(run("admin", "losses", "78"));
+    verify(alice).sendMessage("§6War 78: 1 recorded battles");
+    assertTrue(run("admin", "army", "iron"));
+    verify(alice).sendMessage(contains("§eguard§7: 4 slots"));
+    assertTrue(run("admin", "wounds", "78", "iron", "guard", "add", "5"));
+    verify(alice).sendMessage("§aWar 78: added 5 wounded lives on iron guard.");
+
+    assertTrue(complete("admin", "lo").contains("losses"));
+    assertTrue(complete("admin", "ar").contains("army"));
+    assertTrue(complete("admin", "wou").contains("wounds"));
+    assertEquals(List.of("iron"), complete("admin", "army", "ir"));
+    assertEquals(List.of(), complete("admin", "army", "iron", ""));
+    assertTrue(complete("admin", "losses", "").contains("78"));
+    assertFalse(complete("admin", "losses", "").contains("company"));
+    assertTrue(complete("admin", "wounds", "").containsAll(List.of("78", "company")));
+    assertEquals(List.of("1"), complete("admin", "losses", "78", ""));
+    assertEquals(List.of(), complete("admin", "losses", "999", ""));
+    assertEquals(List.of("attacker", "defender"), complete("admin", "losses", "78", "1", ""));
+    assertEquals(List.of("set", "add", "remove"), complete("admin", "losses", "78", "1", "attacker", ""));
+    assertEquals(List.of(), complete("admin", "losses", "78", "1", "attacker", "set", ""));
+    assertEquals(List.of("iron"), complete("admin", "wounds", "78", "ir"));
+    assertTrue(complete("admin", "wounds", "78", "iron", "").contains("guard"));
+    assertFalse(complete("admin", "wounds", "78", "iron", "").contains("levy"));
+    assertEquals(List.of(), complete("admin", "wounds", "78", "ghost", ""));
+    assertEquals(List.of("add", "remove"), complete("admin", "wounds", "78", "iron", "guard", ""));
+    assertEquals(List.of(guild.getId()), complete("admin", "wounds", "company", guild.getId().substring(0, 1)).stream()
+        .filter(guild.getId()::equals).toList());
+    assertEquals(List.of("set"), complete("admin", "wounds", "company", guild.getId(), ""));
+    assertEquals(List.of(), complete("admin", "wounds", "company", guild.getId(), "set", ""));
+    guild.setCompany(null);
   }
 
   @Test
@@ -928,7 +970,10 @@ class WarCommandsCoverageTest {
                 "truce",
                 "history",
                 "factions",
-                "forceinstallation")),
+                "forceinstallation",
+                "losses",
+                "army",
+                "wounds")),
         Arguments.of("admin history ", List.of("status", "upload-battles")),
         Arguments.of("admin history u", List.of("upload-battles")),
         Arguments.of("admin history status ", List.of()),

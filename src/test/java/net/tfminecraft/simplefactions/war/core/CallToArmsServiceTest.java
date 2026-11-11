@@ -22,7 +22,6 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +31,6 @@ import org.junit.jupiter.api.Test;
 class CallToArmsServiceTest {
   private FactionDomainFixture fixture;
   private PersistenceFilesFixture files;
-  private Map<Integer, List<WarCommitment>> previousCommitments;
   private RelationType alliance;
   private int previousAllyPenalty;
   private Faction attacker;
@@ -44,8 +42,6 @@ class CallToArmsServiceTest {
     files = new PersistenceFilesFixture();
     Files.createDirectories(files.root.resolve("Data"));
     fixture = new FactionDomainFixture();
-    previousCommitments = new LinkedHashMap<>(commitments());
-    commitments().clear();
     previousAllyPenalty = Cache.warDeclinedAllyStabilityPenalty;
     Cache.warDeclinedAllyStabilityPenalty = -30;
     alliance = fixture.relationType("ally", Map.of("link", "ally"));
@@ -59,8 +55,6 @@ class CallToArmsServiceTest {
   @AfterEach
   void close() throws Exception {
     try {
-      commitments().clear();
-      commitments().putAll(previousCommitments);
       Cache.warDeclinedAllyStabilityPenalty = previousAllyPenalty;
       fixture.close();
     } finally {
@@ -68,12 +62,6 @@ class CallToArmsServiceTest {
     }
   }
 
-  @SuppressWarnings("unchecked")
-  private static Map<Integer, List<WarCommitment>> commitments() throws Exception {
-    Field field = WarCommitmentService.class.getDeclaredField("commitmentsByWar");
-    field.setAccessible(true);
-    return (Map<Integer, List<WarCommitment>>) field.get(null);
-  }
 
   private void ally(Faction first, Faction second) {
     first.setRelation(second, new Relation(alliance, RelationLoader.getDefaultAttitude()));
@@ -160,7 +148,6 @@ class CallToArmsServiceTest {
 
     assertTrue(war.isParticipating(target));
     assertTrue(war.getCallsToArms().isEmpty());
-    assertFalse(WarManager.getCommitmentsForWar(36).isEmpty());
     verify(sender).sendMessage("target §aaccepted your call to arms: " + war.getName() + "§a.");
     verify(called).sendMessage("§aYour faction has joined the war: " + war.getName());
     War stored = saved(36);
@@ -201,7 +188,6 @@ class CallToArmsServiceTest {
     CallToArmsService.accept(called, war);
 
     assertFalse(war.isParticipating(target));
-    assertTrue(WarManager.getCommitmentsForWar(37).isEmpty());
     assertFalse(Files.exists(files.root.resolve("Wars/war_37.json")));
     verify(called).sendMessage("§cCould not join the war.");
   }
@@ -219,7 +205,6 @@ class CallToArmsServiceTest {
 
     assertFalse(original.isParticipating(target));
     assertFalse(current.isParticipating(target));
-    assertTrue(WarManager.getCommitmentsForWar(38).isEmpty());
     assertTrue(saved(38).getCallsToArms().containsKey("target"), "The live war's save is untouched");
     CallToArmsService.accept(called, current);
     assertTrue(current.isParticipating(target));
@@ -277,7 +262,6 @@ class CallToArmsServiceTest {
     CallToArmsService.accept(called, war);
 
     assertFalse(war.isParticipating(target));
-    assertTrue(WarManager.getCommitmentsForWar(41).isEmpty());
     verify(called).sendMessage("§cCould not join the war.");
     assertTrue(saved(41).getCallsToArms().isEmpty(), "The spent call is saved as gone");
   }

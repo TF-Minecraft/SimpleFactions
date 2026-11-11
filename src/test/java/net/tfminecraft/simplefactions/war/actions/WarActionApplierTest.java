@@ -33,10 +33,8 @@ import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.history.WarHistory;
 import net.tfminecraft.simplefactions.war.history.WarHistoryJson;
@@ -48,7 +46,6 @@ class WarActionApplierTest {
 	private FactionDomainFixture fixture;
 	private PersistenceFilesFixture files;
 	private CharacterKeyFixture characters;
-	private Map<Integer, List<WarCommitment>> previousCommitments;
 	private final Map<String, Object> previousCache = new LinkedHashMap<>();
 	private WarHistoryOutbox outbox;
 	private Faction attacker;
@@ -65,8 +62,6 @@ class WarActionApplierTest {
 		Files.createDirectories(files.root.resolve("Data"));
 		fixture = new FactionDomainFixture();
 		CampaignClock.reset();
-		previousCommitments = new LinkedHashMap<>(commitments());
-		commitments().clear();
 		previousCache.put("start", Cache.warBattleWindowStartHour);
 		previousCache.put("end", Cache.warBattleWindowEndHour);
 		previousCache.put("close", Cache.warVoteCloseHour);
@@ -101,8 +96,6 @@ class WarActionApplierTest {
 		try {
 			WarHistory.resetForTests();
 			CampaignClock.reset();
-			commitments().clear();
-			commitments().putAll(previousCommitments);
 			Cache.warBattleWindowStartHour = (Integer) previousCache.get("start");
 			Cache.warBattleWindowEndHour = (Integer) previousCache.get("end");
 			Cache.warVoteCloseHour = (Integer) previousCache.get("close");
@@ -114,12 +107,6 @@ class WarActionApplierTest {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private static Map<Integer, List<WarCommitment>> commitments() throws Exception {
-		Field field = WarCommitmentService.class.getDeclaredField("commitmentsByWar");
-		field.setAccessible(true);
-		return (Map<Integer, List<WarCommitment>>) field.get(null);
-	}
 
 	private War war(int id) {
 		return WarManager.addWar(new War(id, attacker, defender));

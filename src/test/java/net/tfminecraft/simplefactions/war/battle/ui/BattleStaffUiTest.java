@@ -346,9 +346,13 @@ class BattleStaffUiTest {
 		battleCommand("hold", "b1", "maybe");
 		verify(admin, org.mockito.Mockito.times(2)).sendMessage("§cUsage: /battle hold <battleId> on|off");
 		battleCommand("lives", "b1", "attacker");
-		verify(admin).sendMessage("§cUsage: /battle lives <battleId> <sideId> add|remove|set <amount>");
+		verify(admin).sendMessage("§cUsage: /battle lives <battleId> <sideId> add|remove|set <amount>, or auto before a campaign battle starts");
 		battleCommand("lives", "b1", "attacker", "add", "lots");
 		verify(admin).sendMessage("§cThe amount must be a whole number.");
+		staff.when(() -> BattleStaffService.adjustLives(battle, "attacker", "auto", 0, "Admin"))
+				.thenReturn(new BattleStaffService.Result(true, "§aBack to the forces"));
+		battleCommand("lives", "b1", "attacker", "AUTO");
+		verify(admin).sendMessage("§aBack to the forces");
 		battleCommand("hold", "b1", "off");
 		staff.verify(() -> BattleStaffService.hold(battle, false, "Admin"));
 	}
@@ -564,7 +568,7 @@ class BattleStaffUiTest {
 		assertEquals(List.of("b1"), BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"vehicles", ""}));
 		assertEquals(List.of("attacker", "defender"),
 				BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"lives", "b1", ""}));
-		assertEquals(List.of("add", "remove", "set"),
+		assertEquals(List.of("add", "remove", "set", "auto"),
 				BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"lives", "b1", "attacker", ""}));
 		assertEquals(List.of(), BattleTabCompletion.staffCompletions(admin, "battle", new String[] {"restart", "b1", ""}));
 	}

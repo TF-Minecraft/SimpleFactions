@@ -187,6 +187,8 @@ public final class BattleMapper {
 		data.lives = side.getLives();
 		data.maxLives = side.getMaxLives();
 		data.startLives = side.getStartLives();
+		data.forces = side.hasForces() ? side.getForces() : null;
+		data.livesOverride = side.getLivesOverride();
 		data.lifeType = side.getLt() != null ? side.getLt().name() : LifeType.COLLECTIVE.name();
 		for (Warband warband : side.getBands()) {
 			if (warband != null) {
@@ -215,6 +217,8 @@ public final class BattleMapper {
 		int maxLives = data.maxLives > 0 ? data.maxLives : lives;
 		side.restoreLives(lives, maxLives);
 		side.setStartLives(data.startLives);
+		side.setForces(data.forces);
+		side.setLivesOverride(data.livesOverride);
 		return side;
 	}
 

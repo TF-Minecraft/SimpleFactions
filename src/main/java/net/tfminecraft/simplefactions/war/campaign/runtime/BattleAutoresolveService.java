@@ -24,7 +24,8 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyService;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
@@ -172,10 +173,10 @@ public final class BattleAutoresolveService {
 		CampaignSideRole defensive = offensive.opposing();
 		Side offensiveSide = CampaignSideService.toSide(war, offensive);
 		Side defensiveSide = CampaignSideService.toSide(war, defensive);
-		int livesPerRegiment = Math.max(0, Cache.warBattleLivesPerRegiment);
-		// Mercenary slots only count members on a battle roster. There is no roster here, so they are omitted.
-		double offensiveLives = (double) livesPerRegiment * committedRegiments(war, provinceId, offensiveSide);
-		double defensiveLives = (double) livesPerRegiment * committedRegiments(war, provinceId, defensiveSide);
+		// The same forces a fought battle would record. Mercenaries only count members on a roster;
+		// there is none here, so they bring nothing.
+		double offensiveLives = BattleForce.lives(BattleForces.build(war, provinceId, offensiveSide, null, null));
+		double defensiveLives = BattleForce.lives(BattleForces.build(war, provinceId, defensiveSide, null, null));
 		Prediction prediction = predict(
 				offensiveLives,
 				defensiveLives,
@@ -267,10 +268,6 @@ public final class BattleAutoresolveService {
 		}
 		double roll = random == null ? 0.5 : random.nextDouble();
 		return (1.0 - luck) + roll * (2.0 * luck);
-	}
-
-	private static int committedRegiments(War war, int provinceId, Side side) {
-		return Math.max(0, BattlePoolService.totalCommittedRegiments(war, provinceId, side));
 	}
 
 	/** Unregistered battle so casualties key to the offensive coalition. It is not started. */

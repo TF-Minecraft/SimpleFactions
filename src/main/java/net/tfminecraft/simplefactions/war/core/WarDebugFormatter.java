@@ -66,29 +66,9 @@ public final class WarDebugFormatter {
 		summary.put("defenderChoiceResolved", war.isDefenderChoiceResolved());
 		summary.put("forceQuorumNextClose", war.isForceQuorumNextClose() ? true : null);
 		summary.put("startedAt", war.getStartedAt() != null ? war.getStartedAt().toString() : null);
-		List<Map<String, Object>> commitmentRows = serializeCommitmentRows(
-				WarManager.getCommitmentsForWar(war.getId()));
-		summary.put("commitmentRows", commitmentRows);
-		summary.put("commitments", commitmentRows.size());
+		summary.put("ledgerBattles", war.getLedger().battles().size());
+		summary.put("factionWoundLives", war.getLedger().factionWoundLives());
 		return List.of("§7" + GSON.toJson(summary));
-	}
-
-	private static List<Map<String, Object>> serializeCommitmentRows(List<WarCommitment> commitments) {
-		List<Map<String, Object>> rows = new ArrayList<>();
-		if (commitments == null || commitments.isEmpty()) {
-			return rows;
-		}
-		for (WarCommitment commitment : commitments) {
-			Map<String, Object> row = new LinkedHashMap<>();
-			row.put("factionId", commitment.factionId());
-			if (commitment.sourceFactionId() != null) {
-				row.put("sourceFactionId", commitment.sourceFactionId());
-			}
-			row.put("regimentId", commitment.regimentId());
-			row.put("count", commitment.count());
-			rows.add(row);
-		}
-		return rows;
 	}
 
 	private static List<Map<String, Object>> serializeCampaignSchedule(

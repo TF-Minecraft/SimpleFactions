@@ -42,7 +42,7 @@ public final class BattleSideSetupService {
 
 	public static void setSideLives(Battle battle, BattleSide side, int lives) {
 		if (battle != null && battle.getWarId() != null) {
-			throw new IllegalStateException("Campaign battle lives are computed from war commitment");
+			throw new IllegalStateException("Campaign battle lives come from the forces of each side");
 		}
 		if (side == null) {
 			throw new IllegalArgumentException("Side is required");

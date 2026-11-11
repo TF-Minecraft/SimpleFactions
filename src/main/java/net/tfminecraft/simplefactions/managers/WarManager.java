@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.managers;
 
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import java.time.Instant;
@@ -25,7 +26,6 @@ import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.notice.WarNotices;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
 import net.tfminecraft.simplefactions.war.core.WarDeclareHelper;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService;
@@ -34,7 +34,6 @@ import net.tfminecraft.simplefactions.war.combat.WarCombatTeardownService;
 import net.tfminecraft.simplefactions.war.campaign.WarCampaignService;
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.war.enums.WarType;
@@ -161,7 +160,6 @@ public class WarManager {
 			lastDeclareError = navy.getMessage();
 			return null;
 		}
-		WarCommitmentService.commitAllParticipants(war);
 		addWar(war);
 		logWarDeclared(war, attacker, defender);
 		CoalitionWars.announce(war);
@@ -259,7 +257,6 @@ public class WarManager {
 		// Register the snapshot before refreshing, so the military recognizes the active rebellion.
 		wars.add(war);
 		refreshTempRebelSlots(war);
-		WarCommitmentService.commitAllParticipants(war);
 		announceAndPersist(war);
 		logWarDeclared(war, attacker, defender);
 		return war;
@@ -320,14 +317,6 @@ public class WarManager {
 			return null;
 		}
 		return plugin.getProvinceManager();
-	}
-
-	public static List<WarCommitment> getCommitmentsForWar(int warId) {
-		return WarCommitmentService.getCommitmentsForWar(warId);
-	}
-
-	static void clearCommitments(int warId) {
-		WarCommitmentService.clearCommitments(warId);
 	}
 
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
@@ -452,6 +441,9 @@ public class WarManager {
 		TruceService.onWarEnded(w, reason);
 		FactionManager.getMap().enqueueOccupationFromWar(w);
 		WartimeInstallationService.revert(w);
+		// Every wounded paid slot of this war is lost now, once, while civil war rebels still hold
+		// the regiments they fought with.
+		WarWounds.settle(w);
 		CivilWarUntangleService.restore(w, reason);
 		WarOutcomeService.apply(w, reason);
 		WarCombatTeardownService.teardownCombatForWar(w);
@@ -460,7 +452,6 @@ public class WarManager {
 		WarHistoryEvents.ended(w, reason);
 		BattleInstallationPickService.clearForNewBattleDay(w);
 		CampaignRaidService.clearForNewBattleDay(w);
-		clearCommitments(w.getId());
 		for (War war : wars) {
 			if (war.getId() == w.getId()) {
 				wars.remove(war);

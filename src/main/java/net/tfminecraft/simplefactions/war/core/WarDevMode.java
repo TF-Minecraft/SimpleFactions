@@ -14,7 +14,8 @@ import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleRosterSe
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
 import net.tfminecraft.simplefactions.war.battle.persistence.BattlePersistenceService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
@@ -186,8 +187,7 @@ public final class WarDevMode {
 		if (side == null) {
 			return;
 		}
-		int committedRegiments = BattlePoolService.totalCommittedRegiments(war, provinceId, side);
-		int poolLives = Cache.warBattleLivesPerRegiment * committedRegiments;
+		int poolLives = BattleForce.lives(BattleForces.build(war, provinceId, side, null, null));
 		int count = Math.min(
 				Cache.warDevmodePhantomCount,
 				Math.max(0, poolLives - warband.getMemberCount()));

@@ -270,7 +270,7 @@ public class BattleTabCompletion implements TabCompleter{
         }
         if (args.length == 3 && (sub.equals("hold") || sub.equals("vehicles"))) return List.of("on", "off");
         if (args.length == 3 && sub.equals("lives")) return sides;
-        if (args.length == 4 && sub.equals("lives")) return List.of("add", "remove", "set");
+        if (args.length == 4 && sub.equals("lives")) return List.of("add", "remove", "set", "auto");
         return List.of();
     }
 }

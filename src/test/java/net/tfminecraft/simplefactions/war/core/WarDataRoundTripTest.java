@@ -11,8 +11,10 @@ import org.junit.jupiter.api.Test;
 import com.google.gson.Gson;
 
 import net.tfminecraft.simplefactions.database.CivilWarMemberMoveData;
-import net.tfminecraft.simplefactions.database.CommitmentData;
 import net.tfminecraft.simplefactions.database.WarData;
+import net.tfminecraft.simplefactions.war.wounds.ForceKind;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
+import net.tfminecraft.simplefactions.war.wounds.WarLedger;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService.PostBattleChoicePhase;
@@ -51,33 +53,37 @@ class WarDataRoundTripTest {
 	}
 
 	@Test
-	void warData_gsonRoundTrip_preservesCommitments() {
+	void warData_gsonRoundTrip_preservesTheBattleLedger() {
+		WarLedger ledger = new WarLedger();
+		ledger.addBattle("battle-1", "fought", "2026-08-21T10:00:00Z", 159,
+				new WarLedger.SideRecord(12, List.of(
+						TestForces.faction("faction_a", TestForces.militia(2, 1), TestForces.paid("professional", 3)),
+						TestForces.mercenary("guild_m", 2))),
+				new WarLedger.SideRecord(4, TestForces.regiments("faction_b", 2)));
+		ledger.addAdjustment(new WarLedger.Adjustment("faction_a", "professional", -3, "Staff", "bug", "2026-08-21T11:00:00Z"));
+		ledger.addNote(new WarLedger.Note("2026-08-21T11:00:00Z", "Staff", "fixed"));
 		WarData original = new WarData();
 		original.id = 9;
-		CommitmentData ownRow = new CommitmentData();
-		ownRow.factionId = "faction_a";
-		ownRow.regimentId = "professional";
-		ownRow.count = 7;
-		ownRow.committedAt = "2026-08-21T10:00:00Z";
+		original.ledger = ledger.toData();
 
-		CommitmentData levyRow = new CommitmentData();
-		levyRow.factionId = "faction_a";
-		levyRow.sourceFactionId = "subject_a";
-		levyRow.regimentId = "levy";
-		levyRow.count = 4;
-		levyRow.committedAt = "2026-08-21T10:00:00Z";
+		WarData restored = GSON.fromJson(GSON.toJson(original), WarData.class);
+		WarLedger reloaded = WarLedger.fromData(restored.ledger);
 
-		original.commitments = new java.util.ArrayList<>(List.of(ownRow, levyRow));
+		assertEquals(ledger.battles(), reloaded.battles());
+		assertEquals(ledger.adjustments(), reloaded.adjustments());
+		assertEquals(ledger.notes(), reloaded.notes());
+		assertEquals(ledger.factionWoundLives(), reloaded.factionWoundLives());
+		assertEquals(ForceKind.MERCENARY, reloaded.battle(1).attacker().forces().get(1).kind());
+	}
 
-		String json = GSON.toJson(original);
-		WarData restored = GSON.fromJson(json, WarData.class);
+	@Test
+	void warData_withoutALedger_loadsAnEmptyOne() {
+		WarData restored = GSON.fromJson("{\"id\":9,\"commitments\":[{\"factionId\":\"a\"}]}", WarData.class);
 
-		assertNotNull(restored.commitments);
-		assertEquals(2, restored.commitments.size());
-		assertEquals("professional", restored.commitments.get(0).regimentId);
-		assertEquals(Integer.valueOf(7), Integer.valueOf(restored.commitments.get(0).count));
-		assertEquals("subject_a", restored.commitments.get(1).sourceFactionId);
-		assertEquals(Integer.valueOf(4), Integer.valueOf(restored.commitments.get(1).count));
+		WarLedger ledger = WarLedger.fromData(restored.ledger);
+
+		assertTrue(ledger.battles().isEmpty());
+		assertTrue(ledger.factionWoundLives().isEmpty());
 	}
 
 	@Test

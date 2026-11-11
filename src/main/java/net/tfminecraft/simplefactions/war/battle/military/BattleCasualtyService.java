@@ -1,426 +1,99 @@
 package net.tfminecraft.simplefactions.war.battle.military;
 
-import net.tfminecraft.simplefactions.identity.Members;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-import net.tfminecraft.simplefactions.Cache;
-import net.tfminecraft.simplefactions.army.Regiment;
-import net.tfminecraft.simplefactions.database.Database;
-import net.tfminecraft.simplefactions.managers.FactionManager;
-import net.tfminecraft.simplefactions.managers.WarManager;
-import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.core.Side;
-import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.core.WarCommitment;
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
+import net.tfminecraft.simplefactions.war.battle.engine.core.BattleSide;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
+import net.tfminecraft.simplefactions.war.core.Side;
+import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.history.BattleResolution;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
+import net.tfminecraft.simplefactions.war.wounds.WarLedger;
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 
+/**
+ * Puts a resolved field battle or siege in its war's ledger: what each force brought (recorded
+ * when the battle started, or read now for an autoresolve) and each side's deaths. The wounds
+ * follow from that; nothing is taken from a faction until the war ends.
+ */
 public final class BattleCasualtyService {
 	private BattleCasualtyService() {}
 
-	/** Applies the losses and returns, per faction and regiment, what was actually taken. */
-	public static BattleCasualtyTally applyBattleCasualties(War war, Battle battle, Map<String, Integer> sideCasualties) {
-		BattleCasualtyTally tally = BattleCasualtyTally.empty();
-		if (!shouldApply(war, battle, sideCasualties)) {
-			return tally;
+	/** Records the battle and returns, per faction regiment, the slots it wounded. */
+	public static BattleCasualtyTally applyBattleCasualties(War war, Battle battle, Map<String, Integer> sideCasualties,
+			BattleResolution resolution) {
+		if (!shouldApply(war, battle)) {
+			return BattleCasualtyTally.empty();
 		}
-
-		Integer battleProvinceId = battle.getProvinceId() != null
-				? battle.getProvinceId()
-				: war.getScheduledBattleProvinceId();
-		if (battleProvinceId == null) {
-			return tally;
-		}
-
-		int attackerRegimentLosses = regimentLossesForDeaths(
-				sideCasualties.getOrDefault(BattleTemplate.ATTACKER_SIDE, 0));
-		int defenderRegimentLosses = regimentLossesForDeaths(
-				sideCasualties.getOrDefault(BattleTemplate.DEFENDER_SIDE, 0));
-		if (attackerRegimentLosses <= 0 && defenderRegimentLosses <= 0) {
-			return tally;
-		}
-
-		Set<Faction> affectedFactions = new HashSet<>();
-		Side attackerSide = CampaignBattleSides.warSideFor(war, battle, BattleTemplate.ATTACKER_SIDE);
-		Side defenderSide = CampaignBattleSides.warSideFor(war, battle, BattleTemplate.DEFENDER_SIDE);
-		int attackerLosses = applySide(
-				war,
-				battleProvinceId,
-				attackerSide,
-				attackerRegimentLosses,
-				new Debits(affectedFactions, tally, war, attackerSide));
-		int defenderLosses = applySide(
-				war,
-				battleProvinceId,
-				defenderSide,
-				defenderRegimentLosses,
-				new Debits(affectedFactions, tally, war, defenderSide));
-
-		persistCommitments(war);
-		for (Faction faction : affectedFactions) {
-			if (faction != null) {
-				new Database().saveFaction(faction);
+		Integer provinceId = battle.getProvinceId() != null ? battle.getProvinceId() : war.getScheduledBattleProvinceId();
+		WarLedger.SideRecord attacker = new WarLedger.SideRecord(0, List.of());
+		WarLedger.SideRecord defender = new WarLedger.SideRecord(0, List.of());
+		for (String battleSideId : List.of(BattleTemplate.ATTACKER_SIDE, BattleTemplate.DEFENDER_SIDE)) {
+			Side warSide = CampaignBattleSides.warSideFor(war, battle, battleSideId);
+			BattleSide battleSide = battle.getSideById(battleSideId);
+			List<BattleForce> forces = battleSide != null && battleSide.hasForces() ? battleSide.getForces()
+					: BattleForces.build(war, provinceId, warSide, battle, battleSide);
+			int deaths = sideCasualties == null ? 0 : sideCasualties.getOrDefault(battleSideId, 0);
+			WarLedger.SideRecord record = new WarLedger.SideRecord(deaths, forces);
+			if (warSide == war.getAttackers()) {
+				attacker = record;
+			} else {
+				defender = record;
 			}
 		}
-		broadcastLosses(war, attackerLosses, defenderLosses);
+		BattleCasualtyTally tally = WarWounds.recordBattle(war, battle.getId(), resolution.toJson(), provinceId,
+				attacker, defender);
+		broadcast(war, tally);
 		return tally;
 	}
 
-	public static int regimentLossesForDeaths(int deaths) {
-		if (deaths <= 0) {
-			return 0;
-		}
-		return deaths / deathsPerRegimentLoss();
-	}
-
-	/** Deaths that cost a side one regiment when a campaign battle ends (5 when unset). */
+	/** Deaths that wound a side one regiment slot (5 when unset). */
 	public static int deathsPerRegimentLoss() {
-		int deathsPerRegiment = Cache.warBattleDeathsPerRegimentLoss;
-		return deathsPerRegiment <= 0 ? 5 : deathsPerRegiment;
+		return WarWounds.deathsPerSlot();
 	}
 
-	public static boolean shouldApply(War war, Battle battle, Map<String, Integer> sideCasualties) {
+	public static int regimentLossesForDeaths(int deaths) {
+		return deaths <= 0 ? 0 : deaths / deathsPerRegimentLoss();
+	}
+
+	public static boolean shouldApply(War war, Battle battle) {
 		if (war == null || !war.isActive() || battle == null || battle.getWarId() == null) {
 			return false;
 		}
 		BattleType type = battle.getBattleType();
-		if (type == BattleType.RAID) {
-			return false;
-		}
-		if (type != BattleType.FIELD && type != BattleType.SIEGE) {
-			return false;
-		}
-		if (sideCasualties == null || sideCasualties.isEmpty()) {
-			return false;
-		}
-		for (int casualties : sideCasualties.values()) {
-			if (casualties > 0) {
-				return true;
-			}
-		}
-		return false;
+		return type == BattleType.FIELD || type == BattleType.SIEGE;
 	}
 
-	public static void persistCommitments(War war) {
-		if (war != null) {
-			WarManager.persist(war);
-		}
-	}
-
-	private static int applySide(
-			War war,
-			int battleProvinceId,
-			Side side,
-			int casualties,
-			Debits debits) {
-		if (casualties <= 0 || side == null) {
-			return 0;
-		}
-
-		PoolMode mode = BattlePoolService.resolvePoolMode(war, battleProvinceId, side);
-		Map<String, Map<String, Integer>> eligible = BattlePoolService.eligibleRegiments(
-				war,
-				battleProvinceId,
-				side,
-				mode);
-		if (eligible.isEmpty()) {
-			return 0;
-		}
-
-		int remaining = casualties;
-
-		for (Map.Entry<String, Map<String, Integer>> factionEntry : eligible.entrySet()) {
-			String factionId = factionEntry.getKey();
-			Map<String, Integer> regimentCounts = factionEntry.getValue();
-			Integer militiaCount = regimentCounts.get(BattlePoolService.MILITIA_REGIMENT_ID);
-			if (militiaCount == null) {
-				continue;
-			}
-			int take = Math.min(remaining, militiaCount);
-			debitOwnRegiment(war, factionId, BattlePoolService.MILITIA_REGIMENT_ID, take, debits);
-			remaining -= take;
-			if (remaining <= 0) {
-				return casualties;
-			}
-		}
-
-		List<RegimentTarget> targets = new ArrayList<>();
-		for (Map.Entry<String, Map<String, Integer>> factionEntry : eligible.entrySet()) {
-			String factionId = factionEntry.getKey();
-			for (Map.Entry<String, Integer> regimentEntry : factionEntry.getValue().entrySet()) {
-				if (BattlePoolService.MILITIA_REGIMENT_ID.equalsIgnoreCase(regimentEntry.getKey())) {
-					continue;
-				}
-				int weight = regimentEntry.getValue();
-				targets.add(new RegimentTarget(factionId, regimentEntry.getKey(), weight));
-			}
-		}
-
-		Map<RegimentTarget, Integer> allocation = allocateProportionally(remaining, targets);
-		for (Map.Entry<RegimentTarget, Integer> entry : allocation.entrySet()) {
-			RegimentTarget target = entry.getKey();
-			int amount = entry.getValue();
-			if (amount <= 0) {
-				continue;
-			}
-			remaining -= amount;
-			if (WarCommitment.LEVY_REGIMENT_ID.equalsIgnoreCase(target.regimentId())) {
-				debitLevyForHolder(war, target.factionId(), amount, debits);
+	private static void broadcast(War war, BattleCasualtyTally tally) {
+		int attacker = 0;
+		int defender = 0;
+		for (BattleCasualtyTally.Loss loss : tally.losses()) {
+			if (WarLedger.ATTACKER.equals(loss.side())) {
+				attacker += loss.count();
 			} else {
-				debitOwnRegiment(war, target.factionId(), target.regimentId(), amount, debits);
+				defender += loss.count();
 			}
 		}
-		return casualties - remaining;
-	}
-
-	private static void debitOwnRegiment(
-			War war,
-			String factionId,
-			String regimentId,
-			int amount,
-			Debits debits) {
-		WarCommitmentService.debitCount(war.getId(), factionId, null, regimentId, amount);
-		Faction faction = FactionManager.getByString(factionId);
-		if (faction == null || faction.getMilitary() == null) {
+		if (attacker <= 0 && defender <= 0) {
 			return;
 		}
-		Regiment regiment = faction.getMilitary().getRegiment(regimentId);
-		if (regiment == null) {
-			return;
-		}
-		for (int i = 0; i < amount; i++) {
-			regiment.sizeDecrease();
-		}
-		debits.affected().add(faction);
-		debits.tally().add(faction, debits.side(), regiment, amount);
-	}
-
-	private static void debitLevyForHolder(
-			War war,
-			String holderFactionId,
-			int amount,
-			Debits debits) {
-		List<LevyRowTarget> levyRows = new ArrayList<>();
-		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
-			if (!commitment.isLevyRow()) {
-				continue;
-			}
-			if (!commitment.factionId().equalsIgnoreCase(holderFactionId)) {
-				continue;
-			}
-			if (commitment.count() <= 0) {
-				continue;
-			}
-			levyRows.add(new LevyRowTarget(
-					commitment.factionId(),
-					commitment.sourceFactionId(),
-					commitment.count()));
-		}
-		List<RegimentTarget> rowTargets = new ArrayList<>();
-		for (LevyRowTarget row : levyRows) {
-			rowTargets.add(new RegimentTarget(row.holderId(), row.sourceId(), row.weight()));
-		}
-		Map<RegimentTarget, Integer> rowAllocation = allocateProportionally(amount, rowTargets);
-		for (Map.Entry<RegimentTarget, Integer> entry : rowAllocation.entrySet()) {
-			RegimentTarget target = entry.getKey();
-			int rowDebit = entry.getValue();
-			if (rowDebit <= 0) {
-				continue;
-			}
-			debitLevyRow(war, target.factionId(), target.regimentId(), rowDebit, debits);
-		}
-	}
-
-	private static void debitLevyRow(
-			War war,
-			String holderFactionId,
-			String sourceFactionId,
-			int amount,
-			Debits debits) {
-		WarCommitmentService.debitCount(
-				war.getId(),
-				holderFactionId,
-				sourceFactionId,
-				WarCommitment.LEVY_REGIMENT_ID,
-				amount);
-		debitSourceForLevy(war, sourceFactionId, amount, debits);
-	}
-
-	private static void debitSourceForLevy(
-			War war,
-			String sourceFactionId,
-			int amount,
-			Debits debits) {
-		List<RegimentTarget> sourceTargets = new ArrayList<>();
-		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(war.getId())) {
-			if (commitment.isLevyRow()) {
-				continue;
-			}
-			if (commitment.factionId() == null || !commitment.factionId().equalsIgnoreCase(sourceFactionId)) {
-				continue;
-			}
-			if (commitment.count() <= 0) {
-				continue;
-			}
-			if (isEquipmentRegiment(sourceFactionId, commitment.regimentId())) {
-				continue;
-			}
-			sourceTargets.add(new RegimentTarget(sourceFactionId, commitment.regimentId(), commitment.count()));
-		}
-		Faction source = FactionManager.getByString(sourceFactionId);
-		if (sourceTargets.isEmpty() && source != null && source.getMilitary() != null) {
-			// A subject lending levies need not be a direct fighter with its own snapshot rows.
-			for (Regiment regiment : source.getMilitary().getRegiments()) {
-				if (regiment.isLevy() || regiment.isOffensive() || regiment.isEquipment()) continue;
-				int sent = Math.min(regiment.sentToOverlord(), regiment.getCurrentSlots());
-				if (sent > 0) sourceTargets.add(new RegimentTarget(sourceFactionId, regiment.getId(), sent));
+		String message = "§7Campaign battle wounds: attacker " + attacker + ", defender " + defender
+				+ " regiments. Wounded regiments cannot fight and are lost when the war ends.";
+		for (Side side : List.of(war.getAttackers(), war.getDefenders())) {
+			for (String memberName : BattleSideMembers.collectEligibleMemberNames(side)) {
+				Player player = Members.player(memberName);
+				if (player != null && player.isOnline()) {
+					player.sendMessage(message);
+				}
 			}
 		}
-		if (sourceTargets.isEmpty()) return;
-
-		Map<RegimentTarget, Integer> allocation = allocateProportionally(amount, sourceTargets);
-		amount = allocation.values().stream().mapToInt(Integer::intValue).sum();
-		for (Map.Entry<RegimentTarget, Integer> entry : allocation.entrySet()) {
-			RegimentTarget target = entry.getKey();
-			int debit = entry.getValue();
-			if (debit <= 0) {
-				continue;
-			}
-			debitOwnRegiment(war, target.factionId(), target.regimentId(), debit, debits);
-		}
-
-		if (source == null || source.getMilitary() == null) {
-			return;
-		}
-		for (Regiment regiment : source.getMilitary().getRegiments()) {
-			if (regiment.isLevy() || regiment.isOffensive() || regiment.isEquipment()) {
-				continue;
-			}
-			int sent = regiment.sentToOverlord();
-			if (sent <= 0) {
-				continue;
-			}
-			int reduce = Math.min(amount, sent);
-			regiment.setSentToOverlord(sent - reduce);
-			amount -= reduce;
-			debits.affected().add(source);
-			if (amount <= 0) {
-				break;
-			}
-		}
-	}
-
-	private static Map<RegimentTarget, Integer> allocateProportionally(int total, List<RegimentTarget> targets) {
-		if (total <= 0 || targets == null || targets.isEmpty()) {
-			return Map.of();
-		}
-		long weightSum = 0;
-		for (RegimentTarget target : targets) {
-			weightSum += target.weight();
-		}
-
-		total = (int) Math.min((long) total, weightSum);
-		Map<RegimentTarget, Integer> allocation = new LinkedHashMap<>();
-		List<RemainderEntry> remainders = new ArrayList<>();
-		int assigned = 0;
-		for (RegimentTarget target : targets) {
-			double exact = (double) total * target.weight() / weightSum;
-			int floor = (int) Math.floor(exact);
-			allocation.put(target, floor);
-			assigned += floor;
-			remainders.add(new RemainderEntry(target, exact - floor));
-		}
-		remainders.sort(Comparator.comparingDouble(RemainderEntry::remainder).reversed());
-		int leftover = total - assigned;
-		for (int i = 0; i < leftover && i < remainders.size(); i++) {
-			RegimentTarget target = remainders.get(i).target();
-			allocation.put(target, allocation.getOrDefault(target, 0) + 1);
-		}
-		return allocation;
-	}
-
-	private static void broadcastLosses(War war, int attackerLosses, int defenderLosses) {
-		if (attackerLosses <= 0 && defenderLosses <= 0) {
-			return;
-		}
-		String message = "§7Campaign battle losses: attacker "
-				+ attackerLosses
-				+ ", defender "
-				+ defenderLosses
-				+ " regiments.";
-		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getAttackers())) {
-			Player player = Members.player(memberName);
-			if (player != null && player.isOnline()) {
-				player.sendMessage(message);
-			}
-		}
-		for (String memberName : BattleSideMembers.collectEligibleMemberNames(war.getDefenders())) {
-			Player player = Members.player(memberName);
-			if (player != null && player.isOnline()) {
-				player.sendMessage(message);
-			}
-		}
-	}
-
-	record RegimentTarget(String factionId, String regimentId, int weight) {}
-
-	/** Who was hit while applying one side's losses, and which war side that is. */
-	private record Debits(Set<Faction> affected, BattleCasualtyTally tally, String side) {
-		Debits(Set<Faction> affected, BattleCasualtyTally tally, War war, Side warSide) {
-			this(affected, tally, warSide == war.getAttackers() ? "attacker" : "defender");
-		}
-	}
-
-	private record LevyRowTarget(String holderId, String sourceId, int weight) {}
-
-	private record RemainderEntry(RegimentTarget target, double remainder) {}
-
-	private static boolean isEquipmentRegiment(String factionId, String regimentId) {
-		Faction faction = FactionManager.getByString(factionId);
-		if (faction == null || faction.getMilitary() == null || regimentId == null) {
-			return false;
-		}
-		Regiment regiment = faction.getMilitary().getRegiment(regimentId);
-		return regiment != null && regiment.isEquipment();
-	}
-
-	static int getCommitmentCount(int warId, String factionId, String sourceFactionId, String regimentId) {
-		for (WarCommitment commitment : WarCommitmentService.getCommitmentsForWar(warId)) {
-			if (!matchesCommitment(commitment, factionId, sourceFactionId, regimentId)) {
-				continue;
-			}
-			return commitment.count();
-		}
-		return 0;
-	}
-
-	private static boolean matchesCommitment(
-			WarCommitment commitment,
-			String factionId,
-			String sourceFactionId,
-			String regimentId) {
-		if (commitment.factionId() == null || !commitment.factionId().equalsIgnoreCase(factionId)) {
-			return false;
-		}
-		if (!commitment.regimentId().equalsIgnoreCase(regimentId)) {
-			return false;
-		}
-		if (sourceFactionId == null) {
-			return commitment.sourceFactionId() == null;
-		}
-		return sourceFactionId.equalsIgnoreCase(commitment.sourceFactionId());
 	}
 }

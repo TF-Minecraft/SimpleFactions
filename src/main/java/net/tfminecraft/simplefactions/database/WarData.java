@@ -106,7 +106,8 @@ public class WarData {
     public String endReason;
     public SideData attackers;
     public SideData defenders;
-    public List<CommitmentData> commitments;
+    /** The war's battle ledger; absent in saves from before wounds. */
+    public net.tfminecraft.simplefactions.war.wounds.WarLedger.Data ledger;
 
     public WarData() {
         campaignProvinces = new ArrayList<>();

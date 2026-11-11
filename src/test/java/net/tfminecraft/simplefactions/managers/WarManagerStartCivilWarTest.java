@@ -23,7 +23,6 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignNavyGate;
-import net.tfminecraft.simplefactions.war.commitment.WarCommitmentService;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.declare.WarGoalValidator;
@@ -59,7 +58,6 @@ class WarManagerStartCivilWarTest {
 		try (MockedStatic<WarGoalValidator> validator = mockStatic(WarGoalValidator.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class, CALLS_REAL_METHODS);
 				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class);
-				MockedStatic<WarCommitmentService> commit = mockStatic(WarCommitmentService.class);
 				MockedStatic<CampaignNavyGate> navy = mockStatic(CampaignNavyGate.class);
 				MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
 			wars.when(() -> WarManager.populateCampaignIfNeeded(any())).thenReturn(true);
@@ -102,7 +100,6 @@ class WarManagerStartCivilWarTest {
 		try (MockedStatic<WarGoalValidator> validator = mockStatic(WarGoalValidator.class);
 				MockedStatic<WarManager> wars = mockStatic(WarManager.class, CALLS_REAL_METHODS);
 				MockedStatic<RelationManager> relations = mockStatic(RelationManager.class);
-				MockedStatic<WarCommitmentService> commit = mockStatic(WarCommitmentService.class);
 				MockedStatic<CampaignNavyGate> navy = mockStatic(CampaignNavyGate.class);
 				MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
 			wars.when(() -> WarManager.populateCampaignIfNeeded(any())).thenReturn(true);

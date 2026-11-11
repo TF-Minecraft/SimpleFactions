@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.war.campaign.ui;
 
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -125,7 +126,7 @@ final class CampaignBattleIconLore {
 			if (regiment == null || regiment.isLevy() || regiment.isEquipment()) {
 				continue;
 			}
-			total += Math.max(0, regiment.getCurrentSlots());
+			total += Math.max(0, WarWounds.availableSlots(faction, regiment));
 		}
 		return total;
 	}

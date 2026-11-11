@@ -79,6 +79,8 @@ public class War {
 	private boolean forcedWhitePeaceByAttacker;
 	private boolean forcedWhitePeaceByDefender;
 	private int campaignBattlesFought;
+	/** What the war's battles cost; see {@link net.tfminecraft.simplefactions.war.wounds.WarWounds}. */
+	private net.tfminecraft.simplefactions.war.wounds.WarLedger ledger = new net.tfminecraft.simplefactions.war.wounds.WarLedger();
 	private List<ScheduledCampaignBattle> campaignBattleSchedule = new ArrayList<>();
 	private int campaignScheduleIndex;
 	private List<ScheduledCampaignBattle> campaignCounterSchedule = new ArrayList<>();
@@ -510,6 +512,14 @@ public class War {
 
 	public void setForcedWhitePeaceByDefender(boolean forcedWhitePeaceByDefender) {
 		this.forcedWhitePeaceByDefender = forcedWhitePeaceByDefender;
+	}
+
+	public net.tfminecraft.simplefactions.war.wounds.WarLedger getLedger() {
+		return ledger;
+	}
+
+	public void setLedger(net.tfminecraft.simplefactions.war.wounds.WarLedger ledger) {
+		this.ledger = ledger == null ? new net.tfminecraft.simplefactions.war.wounds.WarLedger() : ledger;
 	}
 
 	public int getCampaignBattlesFought() {

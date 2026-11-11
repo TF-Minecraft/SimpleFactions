@@ -33,31 +33,17 @@ import org.junit.jupiter.api.Test;
 
 class WarPersistenceCoverageTest {
   private PersistenceFilesFixture files;
-  private java.lang.reflect.Field commitmentStore;
-  private Object previousCommitments;
   private FactionDomainFixture fixture;
 
   @BeforeEach
   void setup() throws Exception {
     files = new PersistenceFilesFixture();
     fixture = new FactionDomainFixture();
-    commitmentStore =
-        net.tfminecraft.simplefactions.war.commitment.WarCommitmentService.class.getDeclaredField(
-            "commitmentsByWar");
-    commitmentStore.setAccessible(true);
-    previousCommitments = new LinkedHashMap<>((Map<?, ?>) commitmentStore.get(null));
-    ((Map<?, ?>) commitmentStore.get(null)).clear();
   }
 
   @AfterEach
   void close() throws Exception {
     try {
-      if (commitmentStore != null) {
-        @SuppressWarnings("unchecked")
-        Map<Object, Object> store = (Map<Object, Object>) commitmentStore.get(null);
-        store.clear();
-        store.putAll((Map) previousCommitments);
-      }
       if (fixture != null) fixture.close();
     } finally {
       if (files != null) files.close();
@@ -65,27 +51,23 @@ class WarPersistenceCoverageTest {
   }
 
   @Test
-  void theFirstAllocatedWarPreservesItsRegimentCommitmentsAcrossDiskReload() throws Exception {
+  void theFirstAllocatedWarPreservesItsBattleLedgerAcrossDiskReload() throws Exception {
     fixture.regiment("guard", false, 3, 0);
     Faction attacker = fixture.saved("attacker", "Alice");
     Faction defender = fixture.saved("defender", "Bob");
     War war =
         new War(net.tfminecraft.simplefactions.managers.WarManager.newId(), attacker, defender);
-    var expected =
-        net.tfminecraft.simplefactions.war.commitment.WarCommitmentService.commitFaction(
-            war, attacker);
-    assertFalse(expected.isEmpty());
+    war.getLedger().addBattle("b", "fought", "2026-08-21T10:00:00Z", 1,
+        new net.tfminecraft.simplefactions.war.wounds.WarLedger.SideRecord(
+            7, net.tfminecraft.simplefactions.war.wounds.TestForces.regiments("attacker", 3)),
+        new net.tfminecraft.simplefactions.war.wounds.WarLedger.SideRecord(0, List.of()));
     var path = files.write("Wars/war_" + war.getId() + ".json", "{}");
     JsonUtil.writeJson(path.toFile(), WarMapper.toData(war));
-    net.tfminecraft.simplefactions.war.commitment.WarCommitmentService.clearCommitments(
-        war.getId());
     List<War> loaded = new Database().loadWars();
     assertEquals(1, loaded.size());
     assertEquals(war.getId(), loaded.getFirst().getId());
-    assertEquals(
-        expected,
-        net.tfminecraft.simplefactions.war.commitment.WarCommitmentService.getCommitmentsForWar(
-            war.getId()));
+    assertEquals(war.getLedger().battles(), loaded.getFirst().getLedger().battles());
+    assertFalse(loaded.getFirst().getLedger().factionWoundLives().isEmpty());
   }
 
   @Test

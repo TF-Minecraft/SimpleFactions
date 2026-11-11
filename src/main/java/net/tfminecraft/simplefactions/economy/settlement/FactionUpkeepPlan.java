@@ -1,5 +1,6 @@
 package net.tfminecraft.simplefactions.economy.settlement;
 
+import net.tfminecraft.simplefactions.war.wounds.WarWounds;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -41,19 +42,23 @@ public record FactionUpkeepPlan(String faction, Map<String, Integer> regimentSlo
         boolean bank = SettlementGuilds.capital(faction).getBank() != null;
         double wealth = bank ? available : 0;
         double factor = 1 + faction.getModifier(FactionModifiers.MILITARY_UPKEEP).getAmount() / 100;
-        double army = armyCost(regiments, factor);
+        double army = armyCost(faction, regiments, factor);
+        // Unpaid upkeep only disbands slots that cost something: wounded slots are free and stay
+        // until the war ends, so their wounds never move onto new recruits.
         if (!bank && army > 0) {
             for (Regiment regiment : regiments) {
-                if (!regiment.isLevy()) regiment.setCurrentSlots(Math.min(regiment.getCurrentSlots(), regiment.getFreeSlots()));
+                if (!regiment.isLevy()) regiment.setCurrentSlots(Math.min(regiment.getCurrentSlots(),
+                        regiment.getFreeSlots() + WarWounds.woundedSlots(faction, regiment)));
             }
             army = 0;
         }
         int guard = 0;
         while (army > 0 && wealth < army && guard++ < 100000) {
-            Regiment shrink = regiments.stream().filter(r -> !r.isLevy() && r.getCurrentSlots() > r.getFreeSlots()).findFirst().orElse(null);
+            Regiment shrink = regiments.stream().filter(r -> !r.isLevy()
+                    && r.getCurrentSlots() > r.getFreeSlots() + WarWounds.woundedSlots(faction, r)).findFirst().orElse(null);
             if (shrink == null) break;
             shrink.sizeDecrease();
-            army = armyCost(regiments, factor);
+            army = armyCost(faction, regiments, factor);
         }
         long charge = bank && army > 0 ? Money.cents(army) : 0;
         wealth -= Money.denars(charge);
@@ -98,9 +103,9 @@ public record FactionUpkeepPlan(String faction, Map<String, Integer> regimentSlo
                 faction.getInstallationHandler().serializeConstruction(), 0, 0, 0);
     }
 
-    private static double armyCost(List<Regiment> regiments, double factor) {
+    private static double armyCost(Faction faction, List<Regiment> regiments, double factor) {
         double raw = 0;
-        for (Regiment regiment : regiments) raw += regiment.getTotalUpkeep();
+        for (Regiment regiment : regiments) raw += regiment.getTotalUpkeep(WarWounds.woundedSlots(faction, regiment));
         return Formatter.formatDouble(Formatter.formatDouble(raw) * factor);
     }
 }

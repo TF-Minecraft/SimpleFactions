@@ -4,12 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -22,6 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.army.Military;
+import net.tfminecraft.simplefactions.army.Regiment;
+import net.tfminecraft.simplefactions.mercenary.company.CompanyFixture;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
@@ -30,7 +34,6 @@ import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleType;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService;
 import net.tfminecraft.simplefactions.war.battle.military.BattleLivesService.SideLivesPreview;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -48,6 +51,7 @@ class MercenaryLivesTest {
         Cache.warBattleMinSideLives = 1;
         fixture = ContractFixture.formed(2);
         when(fixture.hirer.getRelations()).thenReturn(new HashMap<>());
+        giveRegiments(fixture.hirer, 2);
         when(MercenaryLoyalty.hostFaction(fixture.company).getRelations())
                 .thenReturn(new HashMap<>());
         enemy = ContractFixture.faction("lives_enemy");
@@ -71,6 +75,15 @@ class MercenaryLivesTest {
         MercenaryEngagements.setUuidLookup(null);
         BattleManager.resetForTests();
         ContractFixture.tearDown();
+    }
+
+    /** Two paid offensive slots, so the hirer's side brings regiments of its own. */
+    private static void giveRegiments(Faction faction, int slots) {
+        Regiment regiment = CompanyFixture.regularPrototype("professional", slots, 1.0);
+        when(regiment.getPaidSlots()).thenReturn(slots);
+        Military military = mock(Military.class);
+        when(military.getRegiments()).thenReturn(new ArrayList<>(List.of(regiment)));
+        when(faction.getMilitary()).thenReturn(military);
     }
 
     private War war() {
@@ -100,25 +113,18 @@ class MercenaryLivesTest {
 
         Battle empty = battle(1);
 
-        try (MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
-            pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-                    .thenReturn(2);
-            pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
-                    .thenReturn(2);
+        SideLivesPreview attending = BattleLivesService.previewCampaignSideLives(
+                war, withMerc, BattleTemplate.ATTACKER_SIDE);
+        assertEquals(1, attending.mercenarySlots());
+        assertEquals(3, attending.slots());
+        assertEquals(15, attending.poolLives());
+        assertEquals(1, attending.rosterFighters());
+        assertEquals(14, attending.sideLives());
 
-            SideLivesPreview attending = BattleLivesService.previewCampaignSideLives(
-                    war, withMerc, BattleTemplate.ATTACKER_SIDE);
-            assertEquals(1, attending.mercenarySlots());
-            assertEquals(3, attending.committedRegiments());
-            assertEquals(15, attending.poolLives());
-            assertEquals(1, attending.rosterFighters());
-            assertEquals(14, attending.sideLives());
-
-            SideLivesPreview vacant = BattleLivesService.previewCampaignSideLives(
-                    war, empty, BattleTemplate.ATTACKER_SIDE);
-            assertEquals(0, vacant.mercenarySlots());
-            assertEquals(2, vacant.committedRegiments());
-        }
+        SideLivesPreview vacant = BattleLivesService.previewCampaignSideLives(
+                war, empty, BattleTemplate.ATTACKER_SIDE);
+        assertEquals(0, vacant.mercenarySlots());
+        assertEquals(2, vacant.slots());
     }
 
     @Test
@@ -128,18 +134,13 @@ class MercenaryLivesTest {
         Warband band = Warband.createWithMemberIds("atk", sigrun, true, sigrun);
         live.getSideById(BattleTemplate.ATTACKER_SIDE).addBand(band);
 
-        try (MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class);
-                MockedStatic<WarManager> wars = mockStatic(WarManager.class);
+        try (MockedStatic<WarManager> wars = mockStatic(WarManager.class);
                 MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             BossBar bar = mock(BossBar.class);
             bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
                     .thenReturn(bar);
             bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class), any()))
                     .thenReturn(bar);
-            pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getAttackers())))
-                    .thenReturn(2);
-            pool.when(() -> BattlePoolService.totalCommittedRegiments(eq(war), eq(PROVINCE_ID), eq(war.getDefenders())))
-                    .thenReturn(2);
             wars.when(() -> WarManager.getById(1)).thenReturn(war);
 
             SideLivesPreview preview = BattleLivesService.previewCampaignSideLives(

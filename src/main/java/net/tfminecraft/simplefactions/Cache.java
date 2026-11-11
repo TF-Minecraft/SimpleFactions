@@ -134,6 +134,8 @@ public class Cache {
 	public static int warBattleLivesPerRegiment;
 	public static int warBattleMinSideLives;
 	public static int warBattleDeathsPerRegimentLoss;
+	public static double warMercenaryHealPercent = 25;
+	public static double warMercenaryHealHours = 6;
 	public static BattleLootMode battleLootMode;
 	public static List<String> battleLootCommands = new ArrayList<>();
 	public static String battleLootItemPath;

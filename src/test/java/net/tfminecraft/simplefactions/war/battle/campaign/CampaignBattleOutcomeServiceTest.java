@@ -405,7 +405,7 @@ class CampaignBattleOutcomeServiceTest {
 		List<String> steps = new ArrayList<>();
 		try (MockedStatic<BattleCasualtyService> casualtyMock = mockStatic(BattleCasualtyService.class);
 				MockedStatic<BattleScheduleService> scheduleMock = mockStatic(BattleScheduleService.class)) {
-			casualtyMock.when(() -> BattleCasualtyService.applyBattleCasualties(any(), any(), any()))
+			casualtyMock.when(() -> BattleCasualtyService.applyBattleCasualties(any(), any(), any(), any()))
 					.then(inv -> {
 						steps.add("casualties");
 						return null;

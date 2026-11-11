@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.war.battle.enums.LifeType;
 import net.tfminecraft.simplefactions.war.battle.warband.Warband;
+import net.tfminecraft.simplefactions.war.wounds.BattleForce;
 
 public class BattleSide {
 	private String id;
@@ -22,6 +23,10 @@ public class BattleSide {
 	private int lives;
 	private int maxLives;
 	private Integer startLives;
+	/** What each force brought, recorded when a campaign battle starts; null before that. */
+	private List<BattleForce> forces;
+	/** Starting lives staff set before the battle, used instead of the computed ones. */
+	private Integer livesOverride;
 	private List<Location> respawnPoints = new ArrayList<Location>();
 	private Location jail;
 	
@@ -53,6 +58,26 @@ public class BattleSide {
 
 	public int getMaxLives() {
 		return maxLives;
+	}
+
+	public boolean hasForces() {
+		return forces != null;
+	}
+
+	public List<BattleForce> getForces() {
+		return forces == null ? List.of() : forces;
+	}
+
+	public void setForces(List<BattleForce> forces) {
+		this.forces = forces == null ? null : List.copyOf(forces);
+	}
+
+	public Integer getLivesOverride() {
+		return livesOverride;
+	}
+
+	public void setLivesOverride(Integer livesOverride) {
+		this.livesOverride = livesOverride;
 	}
 
 	/** Lives when the battle started, or null for a battle that has not started since this was added. */

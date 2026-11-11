@@ -128,11 +128,19 @@ war:
     loser_loss_fraction: 0.5
   devmode:
     phantom_count: 10
+  # Every slot a force brings puts lives_per_regiment lives in its side's shared pool. When a
+  # battle ends, the side's deaths become wounds: split between forces by the lives each brought,
+  # militia first inside a force, then law and paid slots in proportion. Law slots are full again
+  # after every battle. Every deaths_per_regiment_loss wounded lives make one paid slot wounded:
+  # it brings no lives and costs no upkeep, and it is lost when the war ends. Mercenary companies
+  # never lose slots; their wounds heal by mercenary_heal_percent of the company's slots every
+  # mercenary_heal_hours.
   battle_military:
     lives_per_regiment: 5
     min_side_lives: 1
-    # Recorded deaths on a side become regiment losses at this rate. Leftover deaths are not lost.
     deaths_per_regiment_loss: 5
+    mercenary_heal_percent: 25
+    mercenary_heal_hours: 6
   # One reward per player for every fighter still present when the battle
   # ended, win, lose, or draw. The per-battle toggle lives in the battle editor;
   # campaign raids ship with it off.

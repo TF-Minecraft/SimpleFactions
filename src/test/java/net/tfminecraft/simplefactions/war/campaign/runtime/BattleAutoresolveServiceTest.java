@@ -42,7 +42,8 @@ import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSides;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.military.BattleCasualtyService;
-import net.tfminecraft.simplefactions.war.battle.military.BattlePoolService;
+import net.tfminecraft.simplefactions.war.battle.military.BattleForces;
+import net.tfminecraft.simplefactions.war.wounds.TestForces;
 import net.tfminecraft.simplefactions.war.battle.template.BattleTemplate;
 import net.tfminecraft.simplefactions.war.campaign.progression.AttackerNavalContestService;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
@@ -67,7 +68,7 @@ class BattleAutoresolveServiceTest {
 	private MockedStatic<WarManager> warManager;
 	private MockedStatic<TitleManager> titles;
 	private MockedStatic<CampaignCapabilityService> capability;
-	private MockedStatic<BattlePoolService> pools;
+	private MockedStatic<BattleForces> pools;
 	private MockedStatic<BattleCasualtyService> casualties;
 
 	@BeforeEach
@@ -210,7 +211,7 @@ class BattleAutoresolveServiceTest {
 
 		try (MockedStatic<AttackerNavalContestService> naval = mockStatic(AttackerNavalContestService.class);
 				MockedStatic<BattleCasualtyService> casualty = mockStatic(BattleCasualtyService.class);
-				MockedStatic<BattlePoolService> pool = mockStatic(BattlePoolService.class)) {
+				MockedStatic<BattleForces> pool = mockStatic(BattleForces.class)) {
 			naval.when(() -> AttackerNavalContestService.applyIfAttackerHasNoBerthedNavy(any(), anyInt()))
 					.thenReturn(true);
 
@@ -220,10 +221,10 @@ class BattleAutoresolveServiceTest {
 			assertFalse(war.isAutoresolveProposedByAttacker());
 			assertEquals(0, war.getCampaignBattlesFought());
 			casualty.verify(
-					() -> BattleCasualtyService.applyBattleCasualties(any(), any(), any()),
+					() -> BattleCasualtyService.applyBattleCasualties(any(), any(), any(), any()),
 					never());
 			pool.verify(
-					() -> BattlePoolService.totalCommittedRegiments(any(), anyInt(), any()),
+					() -> BattleForces.build(any(), any(), any(), any(), any()),
 					never());
 		}
 	}
@@ -266,11 +267,11 @@ class BattleAutoresolveServiceTest {
 
 		AtomicReference<Battle> carrier = new AtomicReference<>();
 		AtomicReference<Map<String, Integer>> deaths = new AtomicReference<>();
-		pools = mockStatic(BattlePoolService.class, org.mockito.Mockito.CALLS_REAL_METHODS);
-		pools.when(() -> BattlePoolService.totalCommittedRegiments(any(), anyInt(), any()))
-				.thenAnswer(invocation -> invocation.getArgument(2) == heavySide ? 10 : 6);
+		pools = mockStatic(BattleForces.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+		pools.when(() -> BattleForces.build(any(), any(), any(), any(), any()))
+				.thenAnswer(invocation -> TestForces.regiments(invocation.getArgument(2) == heavySide ? 10 : 6));
 		casualties = mockStatic(BattleCasualtyService.class, org.mockito.Mockito.CALLS_REAL_METHODS);
-		casualties.when(() -> BattleCasualtyService.applyBattleCasualties(any(), any(), any()))
+		casualties.when(() -> BattleCasualtyService.applyBattleCasualties(any(), any(), any(), any()))
 				.thenAnswer(invocation -> {
 					carrier.set(invocation.getArgument(1));
 					@SuppressWarnings("unchecked")
