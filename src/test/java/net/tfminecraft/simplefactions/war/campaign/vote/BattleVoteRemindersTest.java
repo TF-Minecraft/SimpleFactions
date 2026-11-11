@@ -51,10 +51,16 @@ class BattleVoteRemindersTest {
 	private Instant closes;
 	private MockedStatic<Bukkit> bukkit;
 	private MockedStatic<Members> members;
+	private int previousVoteCloseHour;
+	private int previousWindowStartHour;
+	private int previousWindowEndHour;
 
 	@BeforeEach
 	void setUp() {
 		BattleVoteReminders.clearForTests();
+		previousVoteCloseHour = Cache.warVoteCloseHour;
+		previousWindowStartHour = Cache.warBattleWindowStartHour;
+		previousWindowEndHour = Cache.warBattleWindowEndHour;
 		Cache.warVoteCloseHour = 16;
 		Cache.warBattleWindowStartHour = 21;
 		Cache.warBattleWindowEndHour = 26;
@@ -85,6 +91,9 @@ class BattleVoteRemindersTest {
 		bukkit.close();
 		FactionManager.factions.clear();
 		BattleVoteReminders.clearForTests();
+		Cache.warVoteCloseHour = previousVoteCloseHour;
+		Cache.warBattleWindowStartHour = previousWindowStartHour;
+		Cache.warBattleWindowEndHour = previousWindowEndHour;
 	}
 
 	private Player player(String key) {
@@ -121,6 +130,9 @@ class BattleVoteRemindersTest {
 		UUID account = UUID.randomUUID();
 		assertFalse(BattleVoteReminders.hasVoted(war, account, WarVoting.Kind.HOUR));
 		war.getBattleVotes().put(account, new HashSet<>());
+		assertFalse(BattleVoteReminders.hasVoted(war, account, WarVoting.Kind.HOUR));
+		// An hour no longer offered is not a vote.
+		war.getBattleVotes().put(account, new HashSet<>(Set.of(30)));
 		assertFalse(BattleVoteReminders.hasVoted(war, account, WarVoting.Kind.HOUR));
 		war.getBattleVotes().put(account, new HashSet<>(Set.of(21)));
 		assertTrue(BattleVoteReminders.hasVoted(war, account, WarVoting.Kind.HOUR));

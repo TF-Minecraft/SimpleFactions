@@ -64,6 +64,14 @@ class WarVotingMercenaryTest {
 	}
 
 	@Test
+	void noHirerNoUpdate() {
+		try (MockedStatic<WarHistoryEvents> history = org.mockito.Mockito.mockStatic(WarHistoryEvents.class)) {
+			WarVoting.mercenaryVotersChanged(null);
+			history.verifyNoInteractions();
+		}
+	}
+
+	@Test
 	void theAccountCapAlsoStopsTheMercenaries() {
 		WarVoting.maxAccounts = 0;
 		try (MockedStatic<Members> members = mockStatic(Members.class, CALLS_REAL_METHODS)) {

@@ -17,6 +17,7 @@ import com.google.gson.JsonObject;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
@@ -75,6 +76,21 @@ public final class WarVoting {
 	/** The day vote's offsets or the hour vote's hours, in order. */
 	public static List<Integer> options(Kind kind) {
 		return kind == Kind.DAY ? BuildupService.dayOptions() : BattleWindowService.listValidHours();
+	}
+
+	/**
+	 * A mercenary company hired by this faction gained or lost a soldier or a contract: the website relearns
+	 * who may vote in the faction's wars.
+	 */
+	public static void mercenaryVotersChanged(Faction hirer) {
+		if (hirer == null) {
+			return;
+		}
+		for (War war : WarManager.getActive()) {
+			if (war.isParticipating(hirer)) {
+				WarHistoryEvents.votesChanged(war);
+			}
+		}
 	}
 
 	/** The account's faction in this war, by the same lookup the vote tallies use; null for none. */

@@ -173,7 +173,7 @@ public final class BattleScheduleService {
 		clearForceQuorumNextClose(war);
 
 		boolean quorumPassed = forceQuorum
-				|| BattleQuorumService.meetsQuorum(war, memberNameToUuid).passed();
+				|| BattleQuorumService.meetsQuorum(war, war.getBattleVotes(), memberNameToUuid, uuidToFaction).passed();
 		if (quorumPassed && scheduleFromVotes(war, uuidToFaction)) {
 			return BattleScheduleCloseResult.SCHEDULED;
 		}

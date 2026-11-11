@@ -162,6 +162,30 @@ class MercenaryBattleVotesTest {
 	}
 
 	@Test
+	void aMercenaryCountsTowardQuorumOnlyWhileUnderContract() {
+		int min = Cache.warBattleVotingMinPlayers;
+		boolean dev = Cache.warBattleVotingDevMinPlayersEnabled;
+		try {
+			Cache.warBattleVotingMinPlayers = 1;
+			Cache.warBattleVotingDevMinPlayersEnabled = false;
+			hireWithSigrun();
+			war.getBattleVotes().put(sigrun(), new java.util.HashSet<>(Set.of(22)));
+			war.getBattleVotes().put(BattleScheduleLookups.spoofMemberUuid("Stranger"), new java.util.HashSet<>(Set.of(22)));
+
+			assertEquals(1, BattleQuorumService.meetsQuorum(war, war.getBattleVotes(),
+					BattleScheduleLookups.spoofMemberNameToUuid(), BattleScheduleLookups.uuidToFactionForWar(war)).distinctVoters());
+
+			fixture.company.getContractHandler().getActive().get(0)
+					.finish(net.tfminecraft.simplefactions.mercenary.contract.ContractStatus.TERMINATED);
+			assertEquals(0, BattleQuorumService.meetsQuorum(war, war.getBattleVotes(),
+					BattleScheduleLookups.spoofMemberNameToUuid(), BattleScheduleLookups.uuidToFactionForWar(war)).distinctVoters());
+		} finally {
+			Cache.warBattleVotingMinPlayers = min;
+			Cache.warBattleVotingDevMinPlayersEnabled = dev;
+		}
+	}
+
+	@Test
 	void theTallyIgnoresAMercenaryWhoseContractEnded() {
 		hireWithSigrun();
 		war.getBattleVotes().put(sigrun(), new java.util.HashSet<>(Set.of(22)));

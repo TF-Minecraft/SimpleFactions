@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
@@ -21,6 +22,21 @@ public final class BattleQuorumService {
 		int count = 0;
 		for (Set<Integer> hours : votes.values()) {
 			if (hours != null && !hours.isEmpty()) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * Voters whose vote counts now, by the same lookup the tally uses: a vote left by someone who has
+	 * since left the side, or whose mercenary contract ended, does not count toward quorum.
+	 */
+	static int countSideVoters(War war, Map<UUID, Set<Integer>> votes, Function<UUID, Faction> uuidToFaction) {
+		int count = 0;
+		for (Map.Entry<UUID, Set<Integer>> entry : votes.entrySet()) {
+			if (entry.getValue() != null && !entry.getValue().isEmpty()
+					&& BattleSideMembers.resolveSide(war, uuidToFaction.apply(entry.getKey())) != null) {
 				count++;
 			}
 		}
@@ -78,7 +94,20 @@ public final class BattleQuorumService {
 	/** The hour vote's quorum applied to any vote of the war's members, such as the buildup's day vote. */
 	public static VoteResults.QuorumResult meetsQuorum(
 			War war, Map<UUID, Set<Integer>> votes, Function<String, UUID> memberNameToUuid) {
-		int distinctVoters = countDistinctVoters(votes);
+		return quorum(war, votes, memberNameToUuid, countDistinctVoters(votes));
+	}
+
+	/** Quorum counting only the voters the tally counts (see {@link #countSideVoters}). */
+	public static VoteResults.QuorumResult meetsQuorum(
+			War war,
+			Map<UUID, Set<Integer>> votes,
+			Function<String, UUID> memberNameToUuid,
+			Function<UUID, Faction> uuidToFaction) {
+		return quorum(war, votes, memberNameToUuid, countSideVoters(war, votes, uuidToFaction));
+	}
+
+	private static VoteResults.QuorumResult quorum(
+			War war, Map<UUID, Set<Integer>> votes, Function<String, UUID> memberNameToUuid, int distinctVoters) {
 		int attackerEligible = war.getAttackers() != null
 				? BattleSideMembers.countEligibleMembers(war.getAttackers())
 				: 0;

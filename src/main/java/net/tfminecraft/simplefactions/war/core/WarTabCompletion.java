@@ -43,7 +43,11 @@ public class WarTabCompletion implements TabCompleter {
 			List<String> completions = new ArrayList<>();
 			if (args.length == 2) {
 				for (net.tfminecraft.simplefactions.war.core.War war : net.tfminecraft.simplefactions.managers.WarManager.getActive()) {
-					addIfPrefix(completions, args[1], String.valueOf(war.getId()));
+					// Only wars whose vote menu can open: raids and wars without a route have none.
+					if (war.getWarType() != net.tfminecraft.simplefactions.war.enums.WarType.RAID
+							&& war.getCampaignProvinces() != null && !war.getCampaignProvinces().isEmpty()) {
+						addIfPrefix(completions, args[1], String.valueOf(war.getId()));
+					}
 				}
 			}
 			return completions;

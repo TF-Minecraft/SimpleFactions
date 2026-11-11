@@ -39,6 +39,8 @@ public final class ContractTerminationService {
     public static double terminate(MercenaryContract contract, TerminationReason reason) {
         if (contract == null || reason == null) return 0;
         if (!contract.finish(reason.getOutcome())) return 0;
+        // The company's soldiers no longer vote on the hirer's battles.
+        net.tfminecraft.simplefactions.war.history.WarVoting.mercenaryVotersChanged(contract.getHirer());
         if (reason.movesReputation()) {
             reputation.onTermination(contract, reason);
         }

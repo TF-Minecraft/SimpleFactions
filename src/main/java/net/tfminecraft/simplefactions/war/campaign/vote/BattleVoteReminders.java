@@ -57,11 +57,11 @@ public final class BattleVoteReminders {
 		return closesAt == null || !now.isBefore(closesAt) ? null : new OpenVote(kind, closesAt);
 	}
 
-	/** Whether the account has picked anything in this vote. */
+	/** Whether the account has picked an option still on offer in this vote; outdated picks don't count. */
 	public static boolean hasVoted(War war, UUID account, WarVoting.Kind kind) {
 		Map<UUID, Set<Integer>> votes = kind == WarVoting.Kind.DAY ? war.getDayVotes() : war.getBattleVotes();
 		Set<Integer> picks = votes.get(account);
-		return picks != null && !picks.isEmpty();
+		return picks != null && picks.stream().anyMatch(WarVoting.options(kind)::contains);
 	}
 
 	/** The reminder hours due now for this vote, each only once. */
