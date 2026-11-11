@@ -50,11 +50,18 @@ class WarCampaignServiceTest {
 	void scheduleCanStartOnTheDeclarationDay() {
 		Cache.warFirstBattleDayAfterDeclare = false;
 		War war = mock(War.class);
+		var availability = new net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability();
+		when(war.getAvailability()).thenReturn(availability);
 		Instant started = Instant.parse("2026-10-12T12:00:00Z");
 		when(war.getStartedAt()).thenReturn(started);
 		WarCampaignService.initScheduleState(war);
-		org.mockito.Mockito.verify(war).setBattleDay(LocalDate.of(2026, 10, 12));
-		org.mockito.Mockito.verify(war).setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+		assertEquals(LocalDate.of(2026, 10, 12), availability.getEarliestBattleDay());
+		org.mockito.Mockito.verify(war).setBattleDay(null);
+		// A route regenerated later keeps the earliest day it already had.
+		availability.setEarliestBattleDay(LocalDate.of(2026, 10, 20));
+		WarCampaignService.initScheduleState(war);
+		assertEquals(LocalDate.of(2026, 10, 20), availability.getEarliestBattleDay());
+		org.mockito.Mockito.verify(war, org.mockito.Mockito.times(2)).setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 	}
 
 	@Test
@@ -64,10 +71,15 @@ class WarCampaignServiceTest {
 		Cache.warBattleWindowEndHour = 26;
 		try {
 			War war = mock(War.class);
+			var availability = new net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability();
+			availability.putBattleDay(net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay
+					.open(LocalDate.of(2026, 10, 15), false));
+			when(war.getAvailability()).thenReturn(availability);
 			// 01:30 in Paris on the 13th: the schedule's day is still the 12th until 02:00.
 			when(war.getStartedAt()).thenReturn(Instant.parse("2026-10-12T23:30:00Z"));
 			WarCampaignService.initScheduleState(war);
-			org.mockito.Mockito.verify(war).setBattleDay(LocalDate.of(2026, 10, 13));
+			assertEquals(LocalDate.of(2026, 10, 13), availability.getEarliestBattleDay());
+			org.mockito.Mockito.verify(war).setBattleDay(LocalDate.of(2026, 10, 15));
 		} finally {
 			Cache.warBattleWindowEndHour = windowEnd;
 		}
@@ -82,12 +94,12 @@ class WarCampaignServiceTest {
 		War voting = new War(1, a, b);
 		voting.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		assertTrue(net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService.start(voting, Instant.now()));
-		LocalDate firstOption = voting.getDayVoteFirstDay();
+		LocalDate firstOption = voting.getAvailability().getEarliestBattleDay();
 
 		WarCampaignService.initScheduleState(voting);
 
 		assertEquals(BattleSchedulePhase.BUILDUP, voting.getBattleSchedulePhase());
-		assertEquals(firstOption, voting.getDayVoteFirstDay());
+		assertEquals(firstOption, voting.getAvailability().getEarliestBattleDay());
 		assertNull(voting.getBattleDay());
 
 		War chosen = new War(2, a, b);
@@ -216,8 +228,8 @@ class WarCampaignServiceTest {
 			assertTrue(war.getOccupiedByAttacker().isEmpty());
 			assertFalse(war.isWhitePeaceProposedByAttacker());
 			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-			assertEquals(LocalDate.parse("2026-08-20"), war.getBattleDay());
-			assertTrue(war.getBattleVotes().isEmpty());
+			assertNull(war.getBattleDay());
+			assertEquals(LocalDate.parse("2026-08-20"), war.getAvailability().getEarliestBattleDay());
 			assertEquals(0, war.getPostponementsThisCycle());
 		}
 	}

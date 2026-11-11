@@ -8,7 +8,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleLaunchService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleRosterService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleSignupReminderService;
@@ -18,8 +18,6 @@ import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidFightS
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidMusterScheduler;
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidResumeService;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteReminders;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
 
 public final class BattleScheduleTickService {
 	private static int lastProcessedUtcHour = -1;
@@ -48,12 +46,20 @@ public final class BattleScheduleTickService {
 		lastProcessedUtcDate = null;
 	}
 
+	/** Returns how many wars were saved because something fell due. */
 	public static int tick(Instant now) {
+		int persisted = 0;
 		for (War war : WarManager.getActive()) {
-			if (BuildupService.closeDayVoteIfDue(war, now)) {
+			// Locks and reminders first, so a battle set this minute can be prepared and started below.
+			boolean changed = AvailabilityScheduler.process(war, now);
+			changed |= BattleVoteReminders.process(war, now);
+			if (changed && war.isActive()) {
 				WarManager.persist(war);
+				persisted++;
 			}
-			BattleVoteReminders.process(war, now);
+			if (!war.isActive()) {
+				continue;
+			}
 			CampaignBattleSignupReminderService.processReminders(war, now);
 			CampaignNavalAutoLossReminderService.processReminders(war, now);
 			CampaignBattleRosterService.tryEnrollWhenSignupOpens(war, now);
@@ -63,10 +69,9 @@ public final class BattleScheduleTickService {
 		}
 
 		if (!shouldRunForHour(now)) {
-			return 0;
+			return persisted;
 		}
 
-		int persisted = 0;
 		for (War war : WarManager.getActive()) {
 			// A war that ended here already deleted its file; saving it would bring the file back.
 			if (processWar(war, now) && war.isActive()) {
@@ -91,36 +96,12 @@ public final class BattleScheduleTickService {
 		return true;
 	}
 
+	/** Hourly: an autoresolve that staff or a battle left pending. Locks and scheduling run every minute. */
 	static boolean processWar(War war, Instant now) {
 		if (war == null || !war.isActive()) {
 			return false;
 		}
-		if (war.getBattleSchedulePhase() == BattleSchedulePhase.AUTORESOLVE_PENDING) {
-			return BattleAutoresolveService.resolve(war);
-		}
-		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
-			return false;
-		}
-
-		boolean changed = BattleScheduleService.catchUpStaleBattleDay(war, now);
-		if (BattleScheduleService.applyPostBattleChoiceDeadline(war, now)) {
-			changed = true;
-		}
-
-		BattleScheduleCloseResult result = BattleScheduleService.closeVote(
-				war,
-				now,
-				BattleScheduleLookups.uuidToFactionForWar(war),
-				BattleScheduleLookups.memberNameToUuid(),
-				CloseVoteOptions.scheduled());
-		if (result == BattleScheduleCloseResult.SCHEDULED
-				|| result == BattleScheduleCloseResult.POSTPONED
-				|| result == BattleScheduleCloseResult.AUTORESOLVE_PENDING
-				|| result == BattleScheduleCloseResult.AUTORESOLVED
-				|| result == BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE
-				|| result == BattleScheduleCloseResult.WAR_ENDED) {
-			changed = true;
-		}
-		return changed;
+		return war.getBattleSchedulePhase() == BattleSchedulePhase.AUTORESOLVE_PENDING
+				&& BattleAutoresolveService.resolve(war);
 	}
 }

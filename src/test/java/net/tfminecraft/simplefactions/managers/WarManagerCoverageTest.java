@@ -275,11 +275,12 @@ class WarManagerCoverageTest {
     assertEquals(governmentId, stored.getGovernmentLawId());
     assertEquals(leadershipId, stored.getLeadershipLawId());
     assertEquals(settlementId, stored.getTargetSettlementId());
-    // Every declared war starts in its buildup, frozen, voting on its first battle day.
+    // Every declared war starts in its buildup, frozen, marking when it can fight a week ahead.
     assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
     assertTrue(war.isBuildupFrozen());
     assertNull(war.getBattleDay());
-    assertEquals(war.getDayVoteFirstDay(), stored.getDayVoteFirstDay());
+    assertEquals(
+        war.getAvailability().getEarliestBattleDay(), stored.getAvailability().getEarliestBattleDay());
     assertTrue(stored.isBuildupFrozen());
   }
 
@@ -299,12 +300,12 @@ class WarManagerCoverageTest {
     assertNotNull(war, WarManager.getLastDeclareError());
     assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
     assertFalse(war.isBuildupFrozen());
-    assertNull(war.getDayVoteFirstDay());
+    assertNull(war.getBattleDay());
     assertEquals(
         net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.scheduleDate(
                 war.getStartedAt())
             .plusDays(1),
-        war.getBattleDay());
+        war.getAvailability().getEarliestBattleDay());
   }
 
   @Test
@@ -355,10 +356,14 @@ class WarManagerCoverageTest {
     woundBattle(war, "attacker", "guard", 10);
     assertEquals(2, WarWounds.woundedSlots(attacker, guard));
     clearInvocations(alice, bob, unrelated);
+    war.getAvailability().putBattleDay(
+        net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay.open(
+            java.time.LocalDate.of(2026, 11, 20), false));
 
     WarManager.endWar(war, reason);
 
     assertFalse(war.isActive());
+    assertTrue(war.getAvailability().battleDays().isEmpty(), "No battle day of an ended war is still to come");
     assertEquals(reason, war.getEndReason());
     assertNull(WarManager.getById(39));
     assertTrue(war.getLedger().isSettled());

@@ -2,85 +2,47 @@ package net.tfminecraft.simplefactions.war.history;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import net.tfminecraft.simplefactions.Cache;
-import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar.DateState;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityTally;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityTally.HourCount;
+import net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
+import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
-import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
-import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
-import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
-import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 
 /**
- * A war's open vote as the website shows it: the buildup's vote on the first battle day, or the
- * vote on a battle day's hour. Day picks are stored as offsets from the first day offered and shown
- * as ISO dates; hours are battle-day hours as in game (24 and 25 after midnight). This is private
- * data: it goes to the website under an event's {@code private} block and is never published.
+ * A war's battle availability as the website shows it ({@code kind: "availability"}, contract
+ * v1.4): the start hours, the dates players can see with their state and locks, each eligible
+ * account's marks and "none of these days" answers, and the marks per side. Hours are battle-day
+ * hours as in game (24 and 25 after midnight). Private: it goes to the website under an event's
+ * {@code private} block and is never published.
  */
 public final class WarVoting {
-	/** At most this many accounts are listed as eligible, and at most this many accounts' picks. Tests lower it. */
+	public static final String KIND = "availability";
+	/** At most this many accounts are listed as eligible, and at most this many accounts' marks. Tests lower it. */
 	static int maxAccounts = 2000;
-	private static final DateTimeFormatter DAY_LABEL = DateTimeFormatter.ofPattern("EEE dd/MM", Locale.ENGLISH);
-
-	/** Which vote is open. */
-	public enum Kind {
-		DAY("day"),
-		HOUR("hour");
-
-		private final String json;
-
-		Kind(String json) {
-			this.json = json;
-		}
-
-		public String toJson() {
-			return json;
-		}
-	}
 
 	private WarVoting() {
 	}
 
-	/** The vote players can change now, or null; the same conditions as the in-game vote items. */
-	public static Kind open(War war, Instant now) {
-		if (BuildupService.isDayVoteOpen(war)) {
-			return Kind.DAY;
-		}
-		if (war != null && war.isActive() && war.getBattleSchedulePhase() == BattleSchedulePhase.VOTING
-				&& !BattleScheduleService.isVoteCloseDue(war, now)) {
-			return Kind.HOUR;
-		}
-		return null;
-	}
-
-	/** The day vote's offsets or the hour vote's hours, in order. */
-	public static List<Integer> options(Kind kind) {
-		return kind == Kind.DAY ? BuildupService.dayOptions() : BattleWindowService.listValidHours();
-	}
-
 	/**
 	 * A mercenary company hired by this faction gained or lost a soldier or a contract: the website relearns
-	 * who may vote in the faction's wars.
+	 * who may mark in the faction's wars.
 	 */
 	public static void mercenaryVotersChanged(Faction hirer) {
 		if (hirer == null) {
@@ -93,146 +55,137 @@ public final class WarVoting {
 		}
 	}
 
-	/** The account's faction in this war, by the same lookup the vote tallies use; null for none. */
+	/** The account's faction in this war, by the same lookup the tallies use; null for none. */
 	public static Faction factionOf(War war, UUID account) {
 		return BattleScheduleLookups.votingFaction(war, account);
 	}
 
-	/** A day pick as the website sends it ({@code 2026-11-17}), as the offset the war stores; null if not offered. */
-	public static Integer dayOffset(War war, String isoDate) {
-		LocalDate first = war.getDayVoteFirstDay();
-		LocalDate day;
-		try {
-			day = LocalDate.parse(isoDate);
-		} catch (RuntimeException unreadable) {
-			return null;
-		}
-		if (first == null) {
-			return null;
-		}
-		long offset = java.time.temporal.ChronoUnit.DAYS.between(first, day);
-		return offset >= 0 && offset < Cache.warBuildupDayOptions ? (int) offset : null;
-	}
-
-	/** {@code private.voting}, built from the live war. */
+	/** {@code private.voting}, built from the live war. {@code kind} is null for a war without a battle schedule. */
 	static JsonObject json(War war, Instant now) {
-		Kind kind = open(war, now);
 		JsonObject voting = new JsonObject();
-		voting.addProperty("kind", kind == null ? null : kind.toJson());
-		JsonArray options = new JsonArray();
-		JsonArray labels = new JsonArray();
-		JsonObject votes = new JsonObject();
-		JsonArray tally = new JsonArray();
-		if (kind != null) {
-			for (int option : options(kind)) {
-				addOption(options, war, kind, option);
-				labels.add(label(war, kind, option));
-			}
-			Map<UUID, Set<Integer>> stored = kind == Kind.DAY ? war.getDayVotes() : war.getBattleVotes();
-			List<Integer> valid = options(kind);
-			for (Map.Entry<UUID, Set<Integer>> entry : stored.entrySet()) {
-				if (votes.size() >= maxAccounts) {
-					break;
-				}
-				JsonArray picks = picks(war, kind, valid, entry.getValue());
-				if (entry.getKey() != null && !picks.isEmpty()) {
-					votes.add(entry.getKey().toString(), picks);
-				}
-			}
-			Map<Integer, BattleHourTally> counts = BattleVoteService.buildTally(war, stored, valid,
-					BattleScheduleLookups.uuidToFactionForWar(war));
-			for (int option : valid) {
-				BattleHourTally count = counts.getOrDefault(option, new BattleHourTally(0, 0));
-				JsonObject row = new JsonObject();
-				if (kind == Kind.DAY) {
-					row.addProperty("option", day(war, option));
-				} else {
-					row.addProperty("option", option);
-				}
-				row.addProperty(WarHistoryJson.ATTACKER, count.attackerCount());
-				row.addProperty(WarHistoryJson.DEFENDER, count.defenderCount());
-				tally.add(row);
-			}
+		if (!AvailabilityScheduler.isScheduling(war)) {
+			voting.addProperty("kind", (String) null);
+			return voting;
 		}
-		voting.add("options", options);
-		voting.add("option_labels", labels);
-		voting.addProperty("closes_at", WarHistoryJson.instant(closesAt(war, kind)));
+		voting.addProperty("kind", KIND);
+		List<Integer> hours = BattleWindowService.listValidHours();
+		JsonArray hourList = new JsonArray();
+		JsonArray labels = new JsonArray();
+		for (int hour : hours) {
+			hourList.add(hour);
+			labels.add(BattleWindowService.formatHourLabel(hour));
+		}
+		voting.add("hours", hourList);
+		voting.add("hour_labels", labels);
+		List<LocalDate> visible = AvailabilityCalendar.visibleDates(war, now);
+		List<LocalDate> shown = shownDates(war, visible, now);
+		voting.add("dates", dates(war, shown, now));
+		voting.addProperty("closes_at", WarHistoryJson.instant(AvailabilityCalendar.nextLockAt(war, now)));
+		JsonObject need = new JsonObject();
+		need.addProperty(WarHistoryJson.ATTACKER, AvailabilityTally.need(war, BelligerentRole.ATTACKER));
+		need.addProperty(WarHistoryJson.DEFENDER, AvailabilityTally.need(war, BelligerentRole.DEFENDER));
+		voting.add("need", need);
 		voting.add("eligible", eligible(war));
-		voting.add("votes", votes);
-		voting.add("tally", tally);
+		voting.add("marks", marks(war.getAvailability(), shown));
+		voting.add("none", none(war.getAvailability(), visible));
+		voting.add("tally", tally(war, shown));
 		return voting;
 	}
 
 	/**
-	 * Every account playing a member of a participating faction, then every mercenary under contract to
-	 * a side, with its side; attackers first, as the tallies read them.
+	 * The dates the website shows: the battle days whose time is already locked (so they left the
+	 * markable dates) until their battle window closes, then the markable dates, in date order.
 	 */
+	static List<LocalDate> shownDates(War war, List<LocalDate> visible, Instant now) {
+		List<LocalDate> shown = new ArrayList<>();
+		for (LockedBattleDay day : war.getAvailability().battleDays()) {
+			if (day.date().isBefore(visible.get(0)) && now.isBefore(AvailabilityCalendar.windowClosesAt(day.date()))) {
+				shown.add(day.date());
+			}
+		}
+		shown.addAll(visible);
+		return shown;
+	}
+
+	private static JsonArray dates(War war, List<LocalDate> visible, Instant now) {
+		JsonArray dates = new JsonArray();
+		for (LocalDate date : visible) {
+			DateState state = AvailabilityCalendar.state(war, date);
+			LockedBattleDay battle = war.getAvailability().battleDay(date);
+			JsonObject row = new JsonObject();
+			row.addProperty("date", date.toString());
+			row.addProperty("label", AvailabilityCalendar.label(date));
+			row.addProperty("state", state.toJson());
+			row.addProperty("day_locks_at", WarHistoryJson.instant(AvailabilityCalendar.dayLockAt(date)));
+			row.addProperty("time_locks_at", WarHistoryJson.instant(AvailabilityCalendar.timeLockAt(date)));
+			row.addProperty("hour", battle == null ? null : battle.hour());
+			row.addProperty("editable", AvailabilityCalendar.editable(war, date, now));
+			row.addProperty("forced", battle != null && battle.forced());
+			dates.add(row);
+		}
+		return dates;
+	}
+
+	/** Every account that may mark, with its side; attackers first, mercenaries after members. */
 	static JsonObject eligible(War war) {
-		Map<String, String> accounts = new LinkedHashMap<>();
-		addSide(accounts, BattleSideMembers.collectParticipatingFactions(war.getAttackers()), WarHistoryJson.ATTACKER);
-		addSide(accounts, BattleSideMembers.collectParticipatingFactions(war.getDefenders()), WarHistoryJson.DEFENDER);
-		addMercenaries(accounts, war, war.getAttackers(), WarHistoryJson.ATTACKER);
-		addMercenaries(accounts, war, war.getDefenders(), WarHistoryJson.DEFENDER);
 		JsonObject eligible = new JsonObject();
-		accounts.forEach(eligible::addProperty);
+		for (Map.Entry<UUID, BelligerentRole> entry : AvailabilityTally.eligibleAccounts(war).entrySet()) {
+			if (eligible.size() >= maxAccounts) {
+				break;
+			}
+			eligible.addProperty(entry.getKey().toString(),
+					entry.getValue() == BelligerentRole.ATTACKER ? WarHistoryJson.ATTACKER : WarHistoryJson.DEFENDER);
+		}
 		return eligible;
 	}
 
-	private static void addSide(Map<String, String> accounts, List<Faction> factions, String side) {
-		for (Faction faction : factions) {
-			for (String member : new ArrayList<>(faction.getMembers())) {
-				if (accounts.size() >= maxAccounts) {
-					return;
+	/** Each account's marks on the dates shown, by ISO date; accounts with none there are left out. */
+	private static JsonObject marks(BattleAvailability availability, List<LocalDate> visible) {
+		JsonObject marks = new JsonObject();
+		for (Map.Entry<UUID, Map<LocalDate, Set<Integer>>> entry : availability.marks().entrySet()) {
+			if (marks.size() >= maxAccounts) {
+				break;
+			}
+			JsonObject byDate = new JsonObject();
+			for (LocalDate date : visible) {
+				Set<Integer> hours = entry.getValue().get(date);
+				if (hours != null) {
+					JsonArray list = new JsonArray();
+					hours.forEach(list::add);
+					byDate.add(date.toString(), list);
 				}
-				Members.accountId(member).ifPresent(owner -> accounts.putIfAbsent(owner.toString(), side));
+			}
+			if (byDate.size() > 0) {
+				marks.add(entry.getKey().toString(), byDate);
 			}
 		}
+		return marks;
 	}
 
-	private static void addMercenaries(Map<String, String> accounts, War war, Side side, String label) {
-		for (MercenaryEngagements.Engagement engagement : MercenaryEngagements.on(war, side)) {
-			for (String enlisted : new ArrayList<>(engagement.company().getEnlisted())) {
-				if (accounts.size() >= maxAccounts) {
-					return;
-				}
-				Members.accountId(enlisted).ifPresent(owner -> accounts.putIfAbsent(owner.toString(), label));
+	/** Accounts whose "none of these days work" answer still covers a date shown. */
+	private static JsonArray none(BattleAvailability availability, List<LocalDate> visible) {
+		JsonArray none = new JsonArray();
+		for (Map.Entry<UUID, LocalDate> entry : availability.none().entrySet()) {
+			if (!entry.getValue().isBefore(visible.get(0)) && none.size() < maxAccounts) {
+				none.add(entry.getKey().toString());
 			}
 		}
+		return none;
 	}
 
-	/** One account's picks still on offer, in order. */
-	private static JsonArray picks(War war, Kind kind, List<Integer> valid, Set<Integer> stored) {
-		JsonArray picks = new JsonArray();
-		for (int pick : stored == null ? Set.<Integer>of() : new TreeSet<>(stored)) {
-			if (valid.contains(pick)) {
-				addOption(picks, war, kind, pick);
+	private static JsonArray tally(War war, List<LocalDate> visible) {
+		JsonArray tally = new JsonArray();
+		var sides = AvailabilityTally.sides(war);
+		for (LocalDate date : visible) {
+			for (HourCount count : AvailabilityTally.count(war, date, sides)) {
+				JsonObject row = new JsonObject();
+				row.addProperty("date", date.toString());
+				row.addProperty("hour", count.hour());
+				row.addProperty(WarHistoryJson.ATTACKER, count.attackers());
+				row.addProperty(WarHistoryJson.DEFENDER, count.defenders());
+				tally.add(row);
 			}
 		}
-		return picks;
-	}
-
-	/** When the open vote closes; null for none. */
-	public static Instant closesAt(War war, Kind kind) {
-		if (kind == Kind.DAY) {
-			return war.getDayVoteClosesAt();
-		}
-		return kind == Kind.HOUR ? BattleWindowService.atScheduleHour(war.getBattleDay(), Cache.warVoteCloseHour) : null;
-	}
-
-	private static void addOption(JsonArray into, War war, Kind kind, int option) {
-		if (kind == Kind.DAY) {
-			into.add(day(war, option));
-		} else {
-			into.add(option);
-		}
-	}
-
-	private static String day(War war, int offset) {
-		return BuildupService.dayOf(war, offset).toString();
-	}
-
-	private static String label(War war, Kind kind, int option) {
-		return kind == Kind.DAY ? DAY_LABEL.format(BuildupService.dayOf(war, option))
-				: BattleWindowService.formatHourLabel(option);
+		return tally;
 	}
 }

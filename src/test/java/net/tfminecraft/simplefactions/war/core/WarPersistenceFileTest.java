@@ -2,6 +2,7 @@ package net.tfminecraft.simplefactions.war.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -99,9 +100,10 @@ class WarPersistenceFileTest {
 		war.setBattleDay(LocalDate.parse("2026-08-21"));
 		war.setScheduledBattleHour(21);
 		war.setScheduledBattleProvinceId(23);
-		Map<UUID, Set<Integer>> votes = new HashMap<>();
-		votes.put(UUID.fromString("00000000-0000-0000-0000-000000000003"), new HashSet<>(List.of(20)));
-		war.setBattleVotes(votes);
+		war.getAvailability().setMarks(UUID.fromString("00000000-0000-0000-0000-000000000003"),
+				LocalDate.parse("2026-08-21"), Set.of(20));
+		war.getAvailability().putBattleDay(
+				net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay.open(LocalDate.parse("2026-08-21"), false));
 		war.setPostponementsThisCycle(1);
 		war.setStartedAt(Instant.parse("2026-08-19T12:00:00Z"));
 		war.getDefenders().getMainParticipants().get(0).setCivilWar(true);
@@ -141,7 +143,8 @@ class WarPersistenceFileTest {
 		assertEquals("2026-08-21", restoredData.battleDay);
 		assertEquals(Integer.valueOf(21), restoredData.scheduledBattleHour);
 		assertEquals(Integer.valueOf(23), restoredData.scheduledBattleProvinceId);
-		assertEquals(List.of(20), restoredData.battleVotes.get("00000000-0000-0000-0000-000000000003"));
+		assertEquals(List.of(20), restoredData.availability.marks.get("00000000-0000-0000-0000-000000000003").get("2026-08-21"));
+		assertNull(restoredData.battleVotes);
 		assertEquals(Integer.valueOf(1), restoredData.postponementsThisCycle);
 		assertTrue(restoredData.defenders.participants.get(0).civilWar);
 
@@ -173,7 +176,8 @@ class WarPersistenceFileTest {
 		assertEquals(LocalDate.parse("2026-08-21"), restored.getBattleDay());
 		assertEquals(21, restored.getScheduledBattleHour());
 		assertEquals(Integer.valueOf(23), restored.getScheduledBattleProvinceId());
-		assertEquals(1, restored.getBattleVotes().size());
+		assertEquals(Set.of(20), restored.getAvailability().marksOn(
+				UUID.fromString("00000000-0000-0000-0000-000000000003"), LocalDate.parse("2026-08-21")));
 		assertEquals(1, restored.getPostponementsThisCycle());
 		assertTrue(restored.getDefenders().getMainParticipants().get(0).isCivilWar());
 	}

@@ -162,7 +162,6 @@ public class WarTabCompletion implements TabCompleter {
 			List<String> completions = new ArrayList<>();
 			addIfPrefix(completions, args[3], "status");
 			addIfPrefix(completions, args[3], "end");
-			addIfPrefix(completions, args[3], "closevote");
 			addIfPrefix(completions, args[3], "setday");
 			return completions;
 		}
@@ -188,13 +187,12 @@ public class WarTabCompletion implements TabCompleter {
 		}
 		if (args.length == 4 && args[1].equalsIgnoreCase("schedule")) {
 			List<String> completions = new ArrayList<>();
-			addIfPrefix(completions, args[3], "opencvote");
-			addIfPrefix(completions, args[3], "closevote");
-			addIfPrefix(completions, args[3], "skipday");
-			addIfPrefix(completions, args[3], "setday");
+			addIfPrefix(completions, args[3], "availability");
+			addIfPrefix(completions, args[3], "lockday");
+			addIfPrefix(completions, args[3], "unlockday");
 			addIfPrefix(completions, args[3], "sethour");
+			addIfPrefix(completions, args[3], "skipday");
 			addIfPrefix(completions, args[3], "castvote");
-			addIfPrefix(completions, args[3], "forcequorum");
 			addIfPrefix(completions, args[3], "setscheduled");
 			addIfPrefix(completions, args[3], "battlecreate");
 			addIfPrefix(completions, args[3], "battledelete");
@@ -238,33 +236,55 @@ public class WarTabCompletion implements TabCompleter {
 				return completions;
 			}
 		}
-		if (args.length == 5 && args[1].equalsIgnoreCase("schedule") && args[3].equalsIgnoreCase("setday")) {
-			List<String> completions = new ArrayList<>();
-			java.time.LocalDate today = BattleScheduleService.battleDayDate(CampaignClock.now());
-			for (int offset = 0; offset < 3; offset++) {
-				addIfPrefix(completions, args[4], today.plusDays(offset).toString());
-			}
-			return completions;
+		if (args.length == 5 && args[1].equalsIgnoreCase("schedule") && isDayArgument(args[3])) {
+			return upcomingDays(args[4]);
 		}
-		if (args.length == 5 && args[1].equalsIgnoreCase("schedule")
-				&& (args[3].equalsIgnoreCase("castvote") || args[3].equalsIgnoreCase("sethour"))) {
-			List<String> completions = new ArrayList<>();
-			for (int hour : BattleWindowService.listValidInputHours()) {
-				String value = String.valueOf(hour);
-				if (value.startsWith(args[4])) {
-					completions.add(value);
-				}
-			}
-			return completions;
+		if (args.length == 5 && args[1].equalsIgnoreCase("buildup") && args[3].equalsIgnoreCase("setday")) {
+			return upcomingDays(args[4]);
+		}
+		if (args.length == 5 && args[1].equalsIgnoreCase("schedule") && args[3].equalsIgnoreCase("sethour")) {
+			return startHours(args[4]);
 		}
 		if (args.length == 6 && args[1].equalsIgnoreCase("schedule") && args[3].equalsIgnoreCase("castvote")) {
+			return startHours(args[5]);
+		}
+		if (args.length == 6 && args[1].equalsIgnoreCase("schedule") && args[3].equalsIgnoreCase("sethour")) {
+			return upcomingDays(args[5]);
+		}
+		if (args.length == 7 && args[1].equalsIgnoreCase("schedule") && args[3].equalsIgnoreCase("castvote")) {
 			List<String> completions = new ArrayList<>();
-			addIfPrefix(completions, args[5], "attacker");
-			addIfPrefix(completions, args[5], "defender");
-			addIfPrefix(completions, args[5], "both");
+			addIfPrefix(completions, args[6], "attacker");
+			addIfPrefix(completions, args[6], "defender");
+			addIfPrefix(completions, args[6], "both");
 			return completions;
 		}
 		return List.of();
+	}
+
+	private static boolean isDayArgument(String subcommand) {
+		return subcommand.equalsIgnoreCase("lockday") || subcommand.equalsIgnoreCase("unlockday")
+				|| subcommand.equalsIgnoreCase("castvote");
+	}
+
+	/** The next week's battle days, as staff type them. */
+	private static List<String> upcomingDays(String prefix) {
+		List<String> completions = new ArrayList<>();
+		java.time.LocalDate today = BattleScheduleService.battleDayDate(CampaignClock.now());
+		for (int offset = 0; offset < 7; offset++) {
+			addIfPrefix(completions, prefix, today.plusDays(offset).toString());
+		}
+		return completions;
+	}
+
+	private static List<String> startHours(String prefix) {
+		List<String> completions = new ArrayList<>();
+		for (int hour : BattleWindowService.listValidInputHours()) {
+			String value = String.valueOf(hour);
+			if (value.startsWith(prefix)) {
+				completions.add(value);
+			}
+		}
+		return completions;
 	}
 
 	private static List<String> declareCompletions(String[] args) {

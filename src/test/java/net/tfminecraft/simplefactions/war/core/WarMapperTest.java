@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.war.core;
 
+import net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -116,14 +118,15 @@ class WarMapperTest {
 		when(war.getScheduledBattleAt()).thenReturn(Instant.parse("2026-08-21T21:00:00Z"));
 		when(war.getScheduledBattleHour()).thenReturn(21);
 		when(war.getScheduledBattleProvinceId()).thenReturn(23);
-		Map<UUID, Set<Integer>> votes = new HashMap<>();
-		votes.put(UUID.fromString("00000000-0000-0000-0000-000000000001"), new HashSet<>(List.of(20, 21)));
-		when(war.getBattleVotes()).thenReturn(votes);
+		BattleAvailability availability = new BattleAvailability();
+		availability.setMarks(UUID.fromString("00000000-0000-0000-0000-000000000001"), LocalDate.parse("2026-08-21"),
+				new HashSet<>(List.of(20, 21)));
+		availability.putBattleDay(LockedBattleDay.open(LocalDate.parse("2026-08-21"), false).withHour(21, false));
+		when(war.getAvailability()).thenReturn(availability);
 		when(war.isAutoresolveProposedByAttacker()).thenReturn(true);
 		when(war.isAutoresolveProposedByDefender()).thenReturn(false);
 		when(war.getPostponementsThisCycle()).thenReturn(1);
 		when(war.isDefenderChoiceResolved()).thenReturn(true);
-		when(war.isForceQuorumNextClose()).thenReturn(true);
 		when(war.getSubjectFactionId()).thenReturn(null);
 		when(war.getRelationTypeId()).thenReturn("march");
 		when(war.getStartedAt()).thenReturn(Instant.parse("2026-08-19T12:00:00Z"));
@@ -159,11 +162,13 @@ class WarMapperTest {
 		assertEquals("2026-08-21T21:00:00Z", data.scheduledBattleAt);
 		assertEquals(Integer.valueOf(21), data.scheduledBattleHour);
 		assertEquals(Integer.valueOf(23), data.scheduledBattleProvinceId);
-		assertEquals(List.of(20, 21), data.battleVotes.get("00000000-0000-0000-0000-000000000001"));
+		assertEquals(List.of(20, 21),
+				data.availability.marks.get("00000000-0000-0000-0000-000000000001").get("2026-08-21"));
+		assertEquals(Integer.valueOf(21), data.availability.battleDays.get(0).hour);
+		assertNull(data.battleVotes, "The old votes are never written again");
 		assertTrue(data.autoresolveProposedByAttacker);
 		assertEquals(Integer.valueOf(1), data.postponementsThisCycle);
 		assertTrue(data.defenderChoiceResolved);
-		assertTrue(data.forceQuorumNextClose);
 		assertEquals("2026-08-19T12:00:00Z", data.startedAt);
 		assertNull(data.endReason);
 		assertTrue(data.attackers.participants.get(0).warGoals.isEmpty());
@@ -286,7 +291,7 @@ class WarMapperTest {
 			assertNull(war.getBattleDay());
 			assertNull(war.getScheduledBattleAt());
 			assertEquals(0, war.getScheduledBattleHour());
-			assertTrue(war.getBattleVotes().isEmpty());
+			assertTrue(war.getAvailability().marks().isEmpty());
 			assertEquals(0, war.getPostponementsThisCycle());
 		} finally {
 			FactionManager.factions.remove(attacker);
@@ -972,9 +977,8 @@ class WarMapperTest {
 		try {
 			War legacy = WarMapper.fromData(minimalWarData());
 			assertFalse(legacy.isBuildup());
-			assertNull(legacy.getDayVoteFirstDay());
-			assertNull(legacy.getDayVoteClosesAt());
-			assertTrue(legacy.getDayVotes().isEmpty());
+			assertNull(legacy.getAvailability().getEarliestBattleDay());
+			assertTrue(legacy.getAvailability().marks().isEmpty());
 			assertTrue(legacy.getCallsToArms().isEmpty());
 			assertNull(legacy.getCallableFactionIds(), "Older saves keep calls open to anyone");
 			WarData legacyData = WarMapper.toData(legacy);
@@ -1012,9 +1016,12 @@ class WarMapperTest {
 			War war = WarMapper.fromData(data);
 
 			assertTrue(war.isBuildup());
-			assertEquals(LocalDate.of(2026, 11, 17), war.getDayVoteFirstDay());
-			assertEquals(Instant.parse("2026-11-13T20:00:00Z"), war.getDayVoteClosesAt());
-			assertEquals(Set.of(0, 3), war.getDayVotes().get(voter));
+			// The old day vote became marks at every start hour of the days picked; the grid starts at its first day.
+			assertEquals(LocalDate.of(2026, 11, 17), war.getAvailability().getEarliestBattleDay());
+			Set<Integer> everyHour = new java.util.TreeSet<>(
+					net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.listValidHours());
+			assertEquals(everyHour, war.getAvailability().marksOn(voter, LocalDate.of(2026, 11, 17)));
+			assertEquals(everyHour, war.getAvailability().marksOn(voter, LocalDate.of(2026, 11, 20)));
 			assertEquals(List.of("ally", "other"), List.copyOf(war.getCallsToArms().keySet()));
 			assertEquals(new CallToArms("Ally", "faction_a", "league", Instant.parse("2026-11-10T18:00:00Z")),
 					war.getCallsToArms().get("ally"));
@@ -1023,20 +1030,21 @@ class WarMapperTest {
 
 			WarData roundTripped = WarMapper.toData(war);
 			assertEquals(Boolean.TRUE, roundTripped.buildup);
-			assertEquals("2026-11-17", roundTripped.dayVoteFirstDay);
-			assertEquals("2026-11-13T20:00:00Z", roundTripped.dayVoteClosesAt);
+			assertNull(roundTripped.dayVoteFirstDay);
+			assertNull(roundTripped.dayVoteClosesAt);
+			assertEquals("2026-11-17", roundTripped.availability.earliestBattleDay);
 			assertEquals(2, roundTripped.callsToArms.size());
 			assertNull(roundTripped.callsToArms.get(1).sentAt);
 			assertEquals(List.of("ally", "other"), roundTripped.callableFactionIds);
 			War reloaded = WarMapper.fromData(roundTripped);
-			assertEquals(war.getDayVotes(), reloaded.getDayVotes());
+			assertEquals(war.getAvailability().marks(), reloaded.getAvailability().marks());
 			assertEquals(war.getCallsToArms(), reloaded.getCallsToArms());
 
 			data.dayVoteFirstDay = " ";
 			data.dayVoteClosesAt = "";
 			War blank = WarMapper.fromData(data);
-			assertNull(blank.getDayVoteFirstDay());
-			assertNull(blank.getDayVoteClosesAt());
+			assertNull(blank.getAvailability().getEarliestBattleDay());
+			assertTrue(blank.getAvailability().marks().isEmpty());
 		} finally {
 			FactionManager.factions.remove(attacker);
 			FactionManager.factions.remove(defender);

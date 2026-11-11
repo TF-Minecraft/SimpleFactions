@@ -62,7 +62,7 @@ class WarAdminRisksTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {"setday", "skipday", "closevote", "forcequorum", "battledelete", "battlestart",
+	@ValueSource(strings = {"lockday", "unlockday", "skipday", "battledelete", "battlestart",
 			"winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice", "holdchoice"})
 	void irreversibleScheduleCommandsAsk(String action) {
 		assertNotNull(risk("admin", "schedule", "1", action.toUpperCase()));

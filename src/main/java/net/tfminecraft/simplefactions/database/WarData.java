@@ -85,6 +85,7 @@ public class WarData {
     public String preparationFrozenUntil;
     // Absent in older files: no buildup, no day vote, no stored calls to arms.
     public Boolean buildup;
+    // Old day and hour votes: only read, to turn them into availability marks; never written again.
     public String dayVoteFirstDay;
     public String dayVoteClosesAt;
     public Map<String, List<Integer>> dayVotes;
@@ -101,6 +102,8 @@ public class WarData {
     public String lastBattleOffensiveCoalition;
     public boolean holdPeaceProposalActive;
     public boolean forceQuorumNextClose;
+    /** Marks, battle days and locks; absent in saves from before availability, which migrate on load. */
+    public net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability.Data availability;
     public String startedAt;
     public String endedAt;
     public String endReason;
@@ -114,7 +117,6 @@ public class WarData {
         occupiedByAttacker = new ArrayList<>();
         occupiedByDefender = new ArrayList<>();
         lastBattleOccupied = new ArrayList<>();
-        battleVotes = new HashMap<>();
         battleInstallationPicks = new LinkedHashMap<>();
         campaignRaidsUsed = new LinkedHashMap<>();
         raidRepairLockUntil = new LinkedHashMap<>();

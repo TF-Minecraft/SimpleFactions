@@ -60,8 +60,8 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidState;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignBattleEndService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.enums.Terrain;
 
@@ -448,6 +448,29 @@ class CampaignBattleOutcomeServiceTest {
 	}
 
 	@Test
+	void applyCampaignBattleOutcome_mandatoryHold_reopensTheScheduleForTheNextBattleDay() {
+		War war = baseWar();
+		java.time.LocalDate fought = java.time.LocalDate.of(2026, 11, 19);
+		war.setBattleDay(fought);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(fought, false).withHour(22, false));
+		war.setScheduledBattleAt(java.time.Instant.parse("2026-11-19T21:00:00Z"));
+		war.setScheduledBattleHour(22);
+		war.setScheduledBattleProvinceId(20);
+		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+		capabilityMock.when(() -> CampaignCapabilityService.canMountOffensiveAfterPush(war, CampaignSideRole.DEFENDER))
+				.thenReturn(false);
+
+		CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20);
+
+		// Left SCHEDULED, the scheduler would skip the war forever and its choice deadline would never apply.
+		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
+		assertEquals(null, war.getScheduledBattleAt());
+		assertEquals(null, war.getScheduledBattleProvinceId());
+		assertTrue(war.getAvailability().battleDays().isEmpty());
+		assertTrue(CampaignPostBattleChoiceService.needsLoserResponse(war));
+	}
+
+	@Test
 	void applyCampaignBattleOutcome_defenderWin_opensWinnerChoice() {
 		War war = baseWar();
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
@@ -503,14 +526,17 @@ class CampaignBattleOutcomeServiceTest {
 	}
 
 	@Test
-	void repeatedDefenderWinsExhaustTheInvasionLegThenTheVoteCloseEndsTheWar() {
-		int maxPostponements = Cache.warBattleVotingMaxPostponements;
+	void repeatedDefenderWinsExhaustTheInvasionLegThenTheNextBattleDayEndsTheWar() {
 		War war = baseWar();
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null),
 				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
 		war.setCampaignScheduleIndex(0);
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
+		int[] savedHours = {Cache.warVoteCloseHour, Cache.warBattleWindowStartHour, Cache.warBattleWindowEndHour};
+		Cache.warVoteCloseHour = 16;
+		Cache.warBattleWindowStartHour = 21;
+		Cache.warBattleWindowEndHour = 26;
 		try {
 			// First defender win: the defender holds and the attacker still has a slot to attack.
 			CampaignBattleOutcomeService.applyCampaignBattleOutcome(war, BelligerentRole.DEFENDER, 20);
@@ -529,21 +555,19 @@ class CampaignBattleOutcomeServiceTest {
 			// A war that got here before the fix attacked anyway and now waits for a battle that cannot come.
 			CampaignBattleEndService.applyLoserAttack(war);
 			BattleScheduleService.openVote(war);
-			Cache.warBattleVotingMaxPostponements = 1;
-			war.setPostponementsThisCycle(1);
+			// 17:00 on the battle day: its picks have locked, so its battle would be set now.
+			java.time.Instant now = java.time.Instant.parse("2026-08-18T15:00:00Z");
+			java.time.LocalDate today = java.time.LocalDate.of(2026, 8, 18);
+			war.getAvailability().setEarliestBattleDay(today);
+			war.getAvailability().putBattleDay(LockedBattleDay.open(today, false).withHour(21, false));
 
-			BattleScheduleCloseResult result = BattleScheduleService.closeVote(
-					war,
-					java.time.Instant.now(),
-					uuid -> null,
-					name -> null,
-					new CloseVoteOptions(true, true));
-
-			assertEquals(BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE, result);
+			// Its next battle day's time is fixed, but there is no battle left to set it on.
+			assertTrue(AvailabilityScheduler.process(war, now));
 			warManagerMock.verify(() -> WarManager.endWar(war, WarEndReason.WHITE_PEACE));
-			assertEquals(1, war.getPostponementsThisCycle());
 		} finally {
-			Cache.warBattleVotingMaxPostponements = maxPostponements;
+			Cache.warVoteCloseHour = savedHours[0];
+			Cache.warBattleWindowStartHour = savedHours[1];
+			Cache.warBattleWindowEndHour = savedHours[2];
 		}
 	}
 

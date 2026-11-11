@@ -4,7 +4,7 @@ import java.util.Locale;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
-import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
+import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignDurationParser;
 import net.tfminecraft.simplefactions.war.history.WarHistoryAdmin;
@@ -51,7 +51,7 @@ public final class WarAdminRisks {
 	private static String scheduleIfApplies(String[] args) {
 		String action = lower(args[3]);
 		War war = WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElseThrow();
-		if (BuildupService.isDayVoteOpen(war) && WarCommandManager.BUILDUP_REFUSED.contains(action)) {
+		if (war.getBattleSchedulePhase() == BattleSchedulePhase.BUILDUP && WarCommandManager.BUILDUP_REFUSED.contains(action)) {
 			return null;
 		}
 		if (action.equals("setscheduled")) {
@@ -138,26 +138,22 @@ public final class WarAdminRisks {
 	private static String buildup(String[] args) {
 		War war = WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElseThrow();
 		String action = lower(args[3]);
-		if (action.equals("setday") && (args.length < 5 || !isDate(args[4]) || !war.isBuildupFrozen())) {
-			return null;
-		}
-		if (action.equals("closevote") && !BuildupService.isDayVoteOpen(war)) {
+		if (action.equals("setday") && (args.length < 5 || !isDate(args[4]))) {
 			return null;
 		}
 		return switch (action) {
-			case "end" -> "lifts the war's buildup freeze now; a war still voting on its day gets the next battle day.";
-			case "closevote" -> "closes the first battle day vote now and fixes its result.";
-			case "setday" -> "sets the first battle day and closes the day vote.";
+			case "end" -> "lifts the war's buildup freeze now; its battle days can then be from today on.";
+			case "setday" -> "makes that day a battle day now, whatever players marked.";
 			default -> null;
 		};
 	}
 
 	private static String schedule(String action) {
 		return switch (action) {
-			case "setday", "skipday" ->
-					"moves the battle day, which clears every installation commitment and raid of this war.";
-			case "closevote" -> "closes the battle vote now and fixes its result.";
-			case "forcequorum" -> "makes the next vote close count even without enough voters.";
+			case "skipday" ->
+					"drops the next battle day, which clears every installation commitment and raid of this war.";
+			case "lockday" -> "makes that day a battle day now, whatever players marked.";
+			case "unlockday" -> "takes that battle day back; a battle set for it is called off.";
 			case "battledelete" -> "deletes the prepared battle and its placement, then builds a fresh one.";
 			case "battlestart" -> "starts the battle now and teleports its soldiers.";
 			case "winbattle" -> "applies the battle result: occupation, casualties and the campaign step.";

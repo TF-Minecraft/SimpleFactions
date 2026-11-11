@@ -226,6 +226,9 @@ public class CampaignBattleOutcomeService implements Listener {
 		if (winner != null) {
 			if (CampaignPostBattleChoiceService.resolveMandatoryHoldIfNeeded(war, winner)) {
 				BattleScheduleService.advanceAfterBattle(war, CampaignClock.now());
+				// Back to VOTING like any other battle: a war left SCHEDULED is never scheduled again,
+				// and its choice deadline never applies.
+				BattleScheduleService.openVote(war);
 				notifyPostBattleChoicePending(war);
 				return new CampaignBattleApplyResult(progressionApplied, true, Optional.empty());
 			}
@@ -291,8 +294,9 @@ public class CampaignBattleOutcomeService implements Listener {
 			String winningSideId,
 			CampaignBattleApplyResult result) {
 		String resultLine = winningSideId == null || winningSideId.isBlank()
-				? "§7Campaign battle ended with no winner. Voting reopened."
-				: "§aCampaign battle ended. Winner: §e" + winningSideId + "§7. Voting reopened.";
+				? "§7Campaign battle ended with no winner. Mark when you can fight next: §a/war vote " + war.getId()
+				: "§aCampaign battle ended. Winner: §e" + winningSideId + "§7. Mark when you can fight next: §a/war vote "
+						+ war.getId();
 		if (result.autoEndReason().isPresent()) {
 			resultLine = "§aCampaign battle ended. War resolved automatically.";
 		}

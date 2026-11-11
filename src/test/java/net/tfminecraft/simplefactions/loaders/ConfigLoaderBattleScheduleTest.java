@@ -56,16 +56,19 @@ class ConfigLoaderBattleScheduleTest {
 		assertEquals(20, Cache.warRaidWindowEndHour);
 		assertEquals(16, Cache.warVoteCloseHour);
 		assertEquals(12, Cache.warDefenderChoiceDeadlineHour);
-		assertEquals(4, Cache.warBattleVotingMinPlayers);
-		assertEquals(1, Cache.warBattleVotingDevMinPlayers);
-		assertTrue(Cache.warBattleVotingDevMinPlayersEnabled);
-		assertEquals(1, Cache.warBattleVotingMaxPostponements);
+		// The old vote's keys are still accepted and ignored.
+		assertEquals(7, Cache.warAvailabilityDaysShown);
+		assertEquals(48, Cache.warAvailabilityDayLockHours);
+		assertEquals(24, Cache.warAvailabilityTimeLockHours);
+		assertEquals(3, Cache.warAvailabilityMinPerSide);
+		assertEquals(3, Cache.warAvailabilityMaxDaysWithoutBattle);
+		assertEquals("", Cache.warAvailabilityVoteUrl);
 		assertEquals(0.15, Cache.warAutoresolveLuck, 0.0001);
 		assertEquals(0.5, Cache.warAutoresolveLoserLossFraction, 0.0001);
 	}
 
 	@Test
-	void loadConfig_autoresolveAndMaxPostponements() throws IOException {
+	void loadConfig_autoresolveAndAvailability() throws IOException {
 		Path file = writeConfig("""
 				war:
 				  battle_schedule:
@@ -75,9 +78,13 @@ class ConfigLoaderBattleScheduleTest {
 				    window_start_hour: 21
 				    window_end_hour: 24
 				    defender_choice_deadline_hour: 12
-				  battle_voting:
-				    min_players: 4
-				    max_postponements: 3
+				  availability:
+				    days_shown: 5
+				    day_lock_hours_before: 36
+				    time_lock_hours_before: 12
+				    min_per_side: 2
+				    max_days_without_battle: 0
+				    vote_url: "https://example.test/wars/{war_key}#vote"
 				  autoresolve:
 				    luck: 0.2
 				    loser_loss_fraction: 0.25
@@ -85,7 +92,12 @@ class ConfigLoaderBattleScheduleTest {
 
 		new ConfigLoader().loadWar(file.toFile());
 
-		assertEquals(3, Cache.warBattleVotingMaxPostponements);
+		assertEquals(5, Cache.warAvailabilityDaysShown);
+		assertEquals(36, Cache.warAvailabilityDayLockHours);
+		assertEquals(12, Cache.warAvailabilityTimeLockHours);
+		assertEquals(2, Cache.warAvailabilityMinPerSide);
+		assertEquals(0, Cache.warAvailabilityMaxDaysWithoutBattle);
+		assertEquals("https://example.test/wars/{war_key}#vote", Cache.warAvailabilityVoteUrl);
 		assertEquals(0.2, Cache.warAutoresolveLuck, 0.0001);
 		assertEquals(0.25, Cache.warAutoresolveLoserLossFraction, 0.0001);
 	}
@@ -110,7 +122,7 @@ class ConfigLoaderBattleScheduleTest {
 	}
 
 	@Test
-	void loadConfig_devMinPlayersAbsentUsesMinPlayersThreshold() throws IOException {
+	void loadConfig_availabilityDefaultsWhenOmitted() throws IOException {
 		Path file = writeConfig("""
 				war:
 				  battle_schedule:
@@ -126,9 +138,56 @@ class ConfigLoaderBattleScheduleTest {
 
 		new ConfigLoader().loadWar(file.toFile());
 
-		assertEquals(4, Cache.warBattleVotingMinPlayers);
-		assertEquals(4, Cache.warBattleVotingDevMinPlayers);
-		assertFalse(Cache.warBattleVotingDevMinPlayersEnabled);
+		assertEquals(3, Cache.warAvailabilityMinPerSide);
+	}
+
+	@Test
+	void loadConfig_availabilityValuesAreKeptInRange() throws IOException {
+		Path file = writeConfig("""
+				war:
+				  availability:
+				    days_shown: 12
+				    day_lock_hours_before: 10
+				    time_lock_hours_before: 0
+				    min_per_side: 0
+				    max_days_without_battle: -2
+				""");
+
+		new ConfigLoader().loadWar(file.toFile());
+
+		assertEquals(7, Cache.warAvailabilityDaysShown);
+		assertEquals(1, Cache.warAvailabilityTimeLockHours);
+		assertEquals(10, Cache.warAvailabilityDayLockHours);
+		assertEquals(1, Cache.warAvailabilityMinPerSide);
+		assertEquals(0, Cache.warAvailabilityMaxDaysWithoutBattle);
+
+		Path tight = writeConfig("""
+				war:
+				  availability:
+				    days_shown: 0
+				    day_lock_hours_before: 20
+				    time_lock_hours_before: 24
+				""");
+		new ConfigLoader().loadWar(tight.toFile());
+		assertEquals(2, Cache.warAvailabilityDaysShown, "From 20:00 to 21:00 the first date shown is already decided");
+		assertEquals(25, Cache.warAvailabilityDayLockHours);
+
+		// 48 and 24 hours: the first date shown is between its locks, so at least one more must follow.
+		Path one = writeConfig("""
+				war:
+				  availability:
+				    days_shown: 1
+				""");
+		new ConfigLoader().loadWar(one.toFile());
+		assertEquals(2, Cache.warAvailabilityDaysShown);
+		Path far = writeConfig("""
+				war:
+				  availability:
+				    days_shown: 2
+				    day_lock_hours_before: 400
+				""");
+		new ConfigLoader().loadWar(far.toFile());
+		assertEquals(7, Cache.warAvailabilityDaysShown, "Never more than the menu's columns");
 	}
 
 	@Test

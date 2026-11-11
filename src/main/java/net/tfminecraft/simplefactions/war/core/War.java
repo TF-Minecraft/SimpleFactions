@@ -97,7 +97,6 @@ public class War {
 	private int scheduledBattleHour;
 	private Integer scheduledBattleProvinceId;
 	private Set<Integer> signupRemindersSent = new LinkedHashSet<>();
-	private Map<UUID, Set<Integer>> battleVotes = new HashMap<>();
 	private Map<String, LinkedHashSet<String>> battleInstallationPicks = new LinkedHashMap<>();
 	private LocalDate battleInstallationPicksBattleDay;
 	// Picks staff forced past the pick rules, as "factionId|installationId"; cleared with the picks.
@@ -111,11 +110,9 @@ public class War {
 	private Instant preparationFrozenUntil;
 	/** Set at declaration when the war waits, frozen, for its first battle. */
 	private boolean buildup;
-	/** First day the buildup's day vote offers; null once the vote has closed. */
-	private LocalDate dayVoteFirstDay;
-	private Instant dayVoteClosesAt;
-	/** Day vote picks, as offsets from {@link #dayVoteFirstDay}, keyed by account like hour votes. */
-	private Map<UUID, Set<Integer>> dayVotes = new HashMap<>();
+	/** Who can fight when, and the battle days that came of it. */
+	private net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability availability =
+			new net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability();
 	/** Unanswered calls to arms, keyed by the called faction's lower-case id. */
 	private Map<String, CallToArms> callsToArms = new LinkedHashMap<>();
 	/** Lower-case ids of the factions that may be called to arms; null on wars from before it was kept. */
@@ -130,7 +127,6 @@ public class War {
 	private boolean postBattleChoiceResolved = true;
 	private CampaignSideRole lastBattleOffensiveCoalition;
 	private boolean holdPeaceProposalActive;
-	private boolean forceQuorumNextClose;
 	private Instant startedAt;
 	private Instant endedAt;
 	private WarEndReason endReason;
@@ -734,14 +730,6 @@ public class War {
 		signupRemindersSent.clear();
 	}
 
-	public Map<UUID, Set<Integer>> getBattleVotes() {
-		return battleVotes;
-	}
-
-	public void setBattleVotes(Map<UUID, Set<Integer>> battleVotes) {
-		this.battleVotes = battleVotes != null ? battleVotes : new HashMap<>();
-	}
-
 	public Map<String, LinkedHashSet<String>> getBattleInstallationPicks() {
 		return battleInstallationPicks;
 	}
@@ -871,28 +859,14 @@ public class War {
 		this.buildup = buildup;
 	}
 
-	public LocalDate getDayVoteFirstDay() {
-		return dayVoteFirstDay;
+	public net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability getAvailability() {
+		return availability;
 	}
 
-	public void setDayVoteFirstDay(LocalDate dayVoteFirstDay) {
-		this.dayVoteFirstDay = dayVoteFirstDay;
-	}
-
-	public Instant getDayVoteClosesAt() {
-		return dayVoteClosesAt;
-	}
-
-	public void setDayVoteClosesAt(Instant dayVoteClosesAt) {
-		this.dayVoteClosesAt = dayVoteClosesAt;
-	}
-
-	public Map<UUID, Set<Integer>> getDayVotes() {
-		return dayVotes;
-	}
-
-	public void setDayVotes(Map<UUID, Set<Integer>> dayVotes) {
-		this.dayVotes = dayVotes != null ? dayVotes : new HashMap<>();
+	public void setAvailability(net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability availability) {
+		this.availability = availability != null
+				? availability
+				: new net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability();
 	}
 
 	public Map<String, CallToArms> getCallsToArms() {
@@ -984,14 +958,6 @@ public class War {
 
 	public void setHoldPeaceProposalActive(boolean holdPeaceProposalActive) {
 		this.holdPeaceProposalActive = holdPeaceProposalActive;
-	}
-
-	public boolean isForceQuorumNextClose() {
-		return forceQuorumNextClose;
-	}
-
-	public void setForceQuorumNextClose(boolean forceQuorumNextClose) {
-		this.forceQuorumNextClose = forceQuorumNextClose;
 	}
 
 	public Instant getStartedAt() {

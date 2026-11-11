@@ -34,31 +34,17 @@ import net.tfminecraft.simplefactions.war.core.WarDevMode;
 public final class CampaignRaidService {
 	private CampaignRaidService() {}
 
-	public static void syncBattleDay(War war) {
-		if (war == null) {
-			return;
-		}
-		LocalDate battleDay = war.getBattleDay();
-		CampaignRaid active = war.getActiveCampaignRaid();
-		if (active != null && active.getBattleDay() != null
-				&& !active.getBattleDay().equals(battleDay)) {
-			clearActiveRaid(war);
-		}
-		if (battleDay == null) {
-			war.getCampaignRaidsUsed().clear();
-			return;
-		}
-		String battleDayKey = battleDay.toString();
-		war.getCampaignRaidsUsed().entrySet().removeIf(entry ->
-				entry.getValue() == null || !battleDayKey.equals(entry.getValue()));
+	/**
+	 * The day a raid called now belongs to: the battle-day date of the clock. Each side may call one
+	 * raid a day ({@code campaignRaidsUsed} holds the day each side last used its raid), whether or
+	 * not that day is a battle day.
+	 */
+	public static LocalDate raidDay(Instant now) {
+		return BattleScheduleService.battleDayDate(now);
 	}
 
 	public static LaunchResult canLaunch(War war, Faction faction, Instant now) {
 		if (war == null || !war.isActive() || faction == null || now == null) {
-			return LaunchResult.REJECTED_WAR_INACTIVE;
-		}
-		syncBattleDay(war);
-		if (!WarDevMode.isEnabled() && war.getBattleDay() == null) {
 			return LaunchResult.REJECTED_WAR_INACTIVE;
 		}
 		if (war.getSide(faction) == null) {
@@ -72,7 +58,7 @@ public final class CampaignRaidService {
 		}
 		if (!WarDevMode.isEnabled()) {
 			CampaignSideRole coalition = coalitionForFaction(war, faction);
-			if (coalition == null || isSideQuotaUsed(war, coalition)) {
+			if (coalition == null || isSideQuotaUsed(war, coalition, now)) {
 				return LaunchResult.REJECTED_QUOTA_SPENT;
 			}
 		}
@@ -97,7 +83,7 @@ public final class CampaignRaidService {
 
 		CampaignSideRole coalition = coalitionForFaction(war, faction);
 
-		LocalDate battleDay = war.getBattleDay();
+		LocalDate raidDay = raidDay(now);
 		Installation target = CampaignRaidEligibilityService.resolveTargetInstallation(war, faction.getId(), targetInstallationId);
 		String displayName = BattleNamingService.buildRaidDisplayName(war, target);
 		String raidId = resolveUniqueRaidId(displayName, war.getId());
@@ -106,7 +92,7 @@ public final class CampaignRaidService {
 		raid.setDisplayName(displayName);
 		raid.setId(raidId);
 		raid.setWarId(war.getId());
-		raid.setBattleDay(battleDay);
+		raid.setBattleDay(raidDay);
 		raid.setAttackerCoalition(coalition);
 		raid.setLauncherFactionId(faction.getId());
 		raid.setSourceInstallationId(sourceInstallationId);
@@ -125,7 +111,6 @@ public final class CampaignRaidService {
 		if (war == null) {
 			return null;
 		}
-		syncBattleDay(war);
 		return war.getActiveCampaignRaid();
 	}
 
@@ -133,7 +118,6 @@ public final class CampaignRaidService {
 		if (war == null || now == null) {
 			return TransitionResult.REJECTED_NO_ACTIVE_RAID;
 		}
-		syncBattleDay(war);
 		CampaignRaid raid = war.getActiveCampaignRaid();
 		if (raid == null) {
 			return TransitionResult.REJECTED_NO_ACTIVE_RAID;
@@ -155,7 +139,6 @@ public final class CampaignRaidService {
 		if (war == null) {
 			return;
 		}
-		syncBattleDay(war);
 		clearActiveRaid(war);
 	}
 
@@ -167,17 +150,17 @@ public final class CampaignRaidService {
 		war.getCampaignRaidsUsed().clear();
 	}
 
-	public static boolean isSideQuotaUsed(War war, CampaignSideRole coalition) {
-		if (war == null || coalition == null || war.getBattleDay() == null) {
+	/** Whether the side already used its raid on the day of {@code now}. */
+	public static boolean isSideQuotaUsed(War war, CampaignSideRole coalition, Instant now) {
+		if (war == null || coalition == null || now == null) {
 			return false;
 		}
-		syncBattleDay(war);
 		String usedDay = war.getCampaignRaidsUsed().get(coalition.toJson());
-		return usedDay != null && usedDay.equals(war.getBattleDay().toString());
+		return usedDay != null && usedDay.equals(raidDay(now).toString());
 	}
 
 	/**
-	 * Clears raid quota for the war's current battle day.
+	 * Clears raid quota, so the side can raid again today.
 	 *
 	 * @param coalition {@code null} clears both sides; otherwise one coalition
 	 * @return number of coalition quota entries removed
@@ -186,7 +169,6 @@ public final class CampaignRaidService {
 		if (war == null) {
 			return 0;
 		}
-		syncBattleDay(war);
 		int cleared = 0;
 		if (coalition == null) {
 			for (CampaignSideRole side : CampaignSideRole.values()) {

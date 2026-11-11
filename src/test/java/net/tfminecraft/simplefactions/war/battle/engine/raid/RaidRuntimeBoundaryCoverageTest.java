@@ -28,6 +28,7 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.*;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignScheduleCountdown;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.core.WarDevMode;
 import net.tfminecraft.simplefactions.war.enums.*;
@@ -95,18 +96,20 @@ class RaidRuntimeBoundaryCoverageTest {
   }
 
   @Test
-  void advancingAcrossVoteCloseTicksTheRealWarAndReportsItsPostponement() throws Exception {
-    rig.remember(Cache.class, "warBattleVotingMaxPostponements");
-    Cache.warBattleVotingMaxPostponements = 2;
-    rig.time(BattleWindowService.atScheduleHour(Fixture.DAY, 14));
+  void advancingAcrossADayLockTicksTheRealWarAndDecidesThatDate() throws Exception {
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY.plusDays(3), false));
+    rig.war.getAvailability().setEarliestBattleDay(Fixture.DAY);
+    rig.war.getAvailability().setLastDayLockProcessed(Fixture.DAY.plusDays(1));
+    rig.time(BattleWindowService.atScheduleHour(Fixture.DAY, 20));
     long writes = rig.warWrites();
     var result = CampaignTimeCommandService.add("3h");
     assertTrue(result.success());
-    assertTrue(result.message().contains("1 war(s) updated"));
-    assertEquals(Fixture.DAY.plusDays(1), rig.war.getBattleDay());
-    assertEquals(1, rig.war.getPostponementsThisCycle());
+    assertTrue(result.message().contains("1 war(s) updated"), result.message());
+    assertEquals(Fixture.DAY.plusDays(2), rig.war.getAvailability().getLastDayLockProcessed());
+    assertEquals(1, rig.war.getAvailability().getNoBattleStreak());
+    assertEquals(Fixture.DAY.plusDays(3), rig.war.getBattleDay());
     assertTrue(rig.warWrites() > writes);
-    assertEquals(17, BattleWindowService.scheduleHour(rig.now()));
+    assertEquals(23, BattleWindowService.scheduleHour(rig.now()));
   }
 
   @Test
@@ -424,9 +427,9 @@ class RaidRuntimeBoundaryCoverageTest {
   }
 
   @Test
-  void movingTheClockBackStillTicksAWarWhoseVoteIsDue() throws Exception {
-    rig.remember(Cache.class, "warBattleVotingMaxPostponements");
-    Cache.warBattleVotingMaxPostponements = 2;
+  void movingTheClockBackStillTicksAWarWhoseLockIsDue() throws Exception {
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY.plusDays(3), false));
+    rig.war.getAvailability().setEarliestBattleDay(Fixture.DAY.plusDays(1));
     rig.time(BattleWindowService.atScheduleHour(Fixture.DAY, 19));
     var result = CampaignTimeCommandService.remove("1h");
     assertTrue(result.success());
@@ -444,12 +447,13 @@ class RaidRuntimeBoundaryCoverageTest {
   @Test
   void skippingToBattleDayProcessesAndReportsAnotherWarsPendingAutoresolve() throws Exception {
     War other = otherCampaignForClockEvents();
+    lockTheFixturesBattleDayWithItsTimeStillOpen();
     rig.time(BattleWindowService.atScheduleHour(Fixture.DAY.minusDays(1), 12));
 
     var result = CampaignTimeCommandService.skipToBattleDay(rig.war);
 
     assertTrue(result.success(), result.message());
-    assertTrue(result.message().contains("1 war(s) updated"), result.message());
+    assertTrue(result.message().contains("war(s) updated"), result.message());
     assertEquals(Fixture.DAY, rig.war.getBattleDay());
     assertEquals(Fixture.DAY, BattleScheduleService.battleDayDate(CampaignClock.now()));
     assertEquals(0, BattleScheduleService.battleDayHour(CampaignClock.now()));
@@ -473,6 +477,7 @@ class RaidRuntimeBoundaryCoverageTest {
   @Test
   void timeJumpWarnsWhenAnOverdueBattlesStartListenerChangesTheClock() throws Exception {
     War overdue = otherCampaignForClockEvents();
+    lockTheFixturesBattleDayWithItsTimeStillOpen();
     overdue.setBattleDay(Fixture.DAY.minusDays(1));
     overdue.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
     overdue.setScheduledBattleAt(BattleWindowService.atScheduleHour(Fixture.DAY.minusDays(1), 21));
@@ -511,6 +516,18 @@ class RaidRuntimeBoundaryCoverageTest {
     assertEquals(beforeListener[0].plusDays(1), CampaignClock.getOffset());
     assertSame(battle, BattleManager.getByWarId(overdue.getId()));
     assertTrue(battle.hasStarted());
+  }
+
+  /** The fixture's battle day as a locked one whose start time is decided only an hour before its window. */
+  private void lockTheFixturesBattleDayWithItsTimeStillOpen() throws Exception {
+    for (String name : java.util.List.of("warAvailabilityTimeLockHours", "warBattleWindowStartHour", "warBattleWindowEndHour")) {
+      rig.remember(Cache.class, name);
+    }
+    Cache.warAvailabilityTimeLockHours = 1;
+    Cache.warBattleWindowStartHour = 21;
+    Cache.warBattleWindowEndHour = 24;
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY, false));
+    rig.war.getAvailability().setEarliestBattleDay(Fixture.DAY);
   }
 
   private War otherCampaignForClockEvents() throws Exception {

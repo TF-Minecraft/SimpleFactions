@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.war.history;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -89,13 +90,36 @@ public final class WarHistoryEvents {
 		});
 	}
 
-	/** The buildup's day vote closed, or staff set the first battle day. */
-	public static void dayVoteClosed(War war, LocalDate day, boolean quorum) {
-		record(war, "day_vote_closed", () -> {
+	/** A date's day lock (or staff) made it a battle day; its start time is fixed at {@code timeLocksAt}. */
+	public static void battleDayLocked(War war, LocalDate day, Instant timeLocksAt, boolean forced) {
+		record(war, "battle_day_locked", () -> {
 			JsonObject payload = new JsonObject();
-			payload.addProperty("battle_day", day == null ? null : day.toString());
-			payload.addProperty("quorum", quorum);
+			payload.addProperty("battle_day", day.toString());
+			payload.addProperty("time_locks_at", WarHistoryJson.instant(timeLocksAt));
+			payload.addProperty("forced", forced);
 			return payload;
+		});
+	}
+
+	/**
+	 * A reminder fell due. Silent (no timeline entry, no post): the website DMs the accounts under
+	 * {@code private.notify.accounts}, those that have not marked what it asks about.
+	 */
+	public static void voteReminder(War war, String reason, LocalDate day, Instant locksAt, List<UUID> accounts) {
+		record(war, "vote_reminder", () -> {
+			JsonObject payload = new JsonObject();
+			payload.addProperty("reason", reason);
+			payload.addProperty("battle_day", day == null ? null : day.toString());
+			payload.addProperty("locks_at", WarHistoryJson.instant(locksAt));
+			return payload;
+		}, () -> null, () -> {
+			JsonArray list = new JsonArray();
+			accounts.forEach(account -> list.add(account.toString()));
+			JsonObject notify = new JsonObject();
+			notify.add("accounts", list);
+			JsonObject extra = new JsonObject();
+			extra.add("notify", notify);
+			return extra;
 		});
 	}
 
@@ -109,7 +133,7 @@ public final class WarHistoryEvents {
 		});
 	}
 
-	/** The battle moved to a later day: a postponed vote or a skipped battle day. */
+	/** Staff skipped the next battle day. */
 	public static void postponed(War war) {
 		record(war, "battle_postponed", () -> {
 			JsonObject payload = new JsonObject();
@@ -118,7 +142,7 @@ public final class WarHistoryEvents {
 		});
 	}
 
-	/** The war's hour vote opened on a new battle day, so the website shows the day that is next, not the last one. */
+	/** The war waits for its next battle day again (after a battle or a choice), so the website shows the day that is next. */
 	public static void nextBattleDay(War war) {
 		if (war.getBattleDay() == null) {
 			return;

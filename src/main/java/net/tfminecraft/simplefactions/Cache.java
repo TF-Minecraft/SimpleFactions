@@ -112,21 +112,22 @@ public class Cache {
 	public static int warDefenderChoiceDeadlineHour;
 	public static boolean warOneBattlePerDay;
 	public static boolean warFirstBattleDayAfterDeclare;
-	public static int warBattleVotingMinPlayers;
-	public static boolean warBattleVotingRequireSmallestSideFull;
-	public static boolean warBattleVotingPassIfEither;
-	public static int warBattleVotingDevMinPlayers;
-	public static boolean warBattleVotingDevMinPlayersEnabled;
-	public static int warBattleVotingMaxPostponements = 1;
-	public static int warPostponeFreezeHours = 24;
-	/** A declared war waits in a buildup, frozen, until its first battle; the sides vote on that battle's day. */
+	/** A declared war waits in a buildup, frozen, until its first battle. */
 	public static boolean warBuildupEnabled = true;
 	/** Earliest first battle day, counted in battle days after the declaration's. */
 	public static int warBuildupFirstOptionDay = 7;
-	/** How many days, from the first option on, the day vote offers. */
-	public static int warBuildupDayOptions = 5;
-	/** Hours after the declaration at which the day vote closes. */
-	public static int warBuildupDayVoteCloseHours = 72;
+	/** Dates the availability grid shows at once (at most 7, the menu's columns). */
+	public static int warAvailabilityDaysShown = 7;
+	/** A date is decided battle day or not this many hours before its battle window opens. */
+	public static int warAvailabilityDayLockHours = 48;
+	/** A battle day's start time is fixed this many hours before its battle window opens. */
+	public static int warAvailabilityTimeLockHours = 24;
+	/** A date becomes a battle day when this many of each side (or the whole side, if smaller) can come at one time. */
+	public static int warAvailabilityMinPerSide = 3;
+	/** After this many dates in a row without a battle, the last one becomes a battle day anyway; 0 never forces one. */
+	public static int warAvailabilityMaxDaysWithoutBattle = 3;
+	/** Website vote link for in-game reminders; {war_key} is replaced. Empty: no link. */
+	public static String warAvailabilityVoteUrl = "";
 	/** Days an undelivered war notice waits for its character to log in. */
 	public static int warNoticeKeepDays = 14;
 	public static double warAutoresolveLuck = 0.15;

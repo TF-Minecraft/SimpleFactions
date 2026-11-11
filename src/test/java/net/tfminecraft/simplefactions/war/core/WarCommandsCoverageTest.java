@@ -38,8 +38,8 @@ import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideServi
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleTickService;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -425,12 +425,12 @@ class WarCommandsCoverageTest {
   }
 
   @Test
-  void voteOpensThatWarsCampaignView() {
+  void voteOpensThatWarsAvailabilityGrid() {
     War war = war(41);
     try (MockedConstruction<InventoryManager> views = mockConstruction(InventoryManager.class)) {
       assertTrue(run("vote", "41"));
       InventoryManager opened = views.constructed().get(views.constructed().size() - 1);
-      verify(opened).openCampaignView(alice, war);
+      verify(opened).openAvailability(alice, war);
     }
   }
 
@@ -478,15 +478,21 @@ class WarCommandsCoverageTest {
         Arguments.of("admin truce clearcooldown", "Usage: /war admin truce"),
         Arguments.of("admin truce clearcooldown iron", "§ciron §chas no civil war cooldown."),
         Arguments.of("admin schedule", "Usage:"),
-        Arguments.of("admin schedule bad forcequorum", "War id must be a number"),
-        Arguments.of("admin schedule 999 forcequorum", "No war by that id"),
+        Arguments.of("admin schedule bad availability", "War id must be a number"),
+        Arguments.of("admin schedule 999 availability", "No war by that id"),
         Arguments.of("admin schedule 1 castvote", "Usage:"),
-        Arguments.of("admin schedule 1 castvote bad", "Hour must be a number"),
-        Arguments.of("admin schedule 1 castvote 2147483648", "Hour must be a number"),
-        Arguments.of("admin schedule 1 castvote 15", "Hour must be within the battle window"),
+        Arguments.of("admin schedule 1 castvote 2026-10-12", "Usage:"),
+        Arguments.of("admin schedule 1 castvote 2026-10-12 bad", "Hour must be a number"),
+        Arguments.of("admin schedule 1 castvote 2026-10-12 2147483648", "Hour must be a number"),
+        Arguments.of("admin schedule 1 castvote 2026-10-12 15", "Hour must be within the battle window"),
+        Arguments.of("admin schedule 1 castvote soon 21", "Day must be yyyy-MM-dd"),
         Arguments.of(
-            "admin schedule 1 castvote 21 wrong", "Side must be attacker, defender, or both"),
-        Arguments.of("admin schedule 1 setday", "Usage: /war admin schedule <id> setday"),
+            "admin schedule 1 castvote 2026-10-12 21 wrong", "Side must be attacker, defender, or both"),
+        Arguments.of("admin schedule 1 lockday", "Usage: /war admin schedule <id> lockday"),
+        Arguments.of("admin schedule 1 unlockday", "Usage: /war admin schedule <id> unlockday"),
+        Arguments.of("admin schedule 1 lockday 2020-01-01", "That day is in the past."),
+        Arguments.of("admin schedule 1 unlockday 2026-10-12", "That day is not a battle day."),
+        Arguments.of("admin schedule 1 sethour 21 never", "Day must be yyyy-MM-dd"),
         Arguments.of("admin schedule 1 sethour", "Usage: /war admin schedule <id> sethour"),
         Arguments.of("admin schedule 1 sethour bad", "Hour must be a number"),
         Arguments.of("admin declare iron", "Usage: /war admin declare"),
@@ -518,10 +524,10 @@ class WarCommandsCoverageTest {
         Arguments.of("admin buildup bad status", "No active war by that id"),
         Arguments.of("admin buildup 999 status", "No active war by that id"),
         Arguments.of("admin buildup 1 wrong", "Usage: /war admin buildup"),
-        Arguments.of("admin buildup 1 closevote", "is not voting on its first battle day"),
-        Arguments.of("admin buildup 1 setday", "Usage: /war admin buildup <warId> setday"),
-        Arguments.of("admin buildup 1 setday never", "Usage: /war admin buildup <warId> setday"),
-        Arguments.of("admin buildup 1 setday 2026-11-20", "is not in a buildup"));
+        Arguments.of("admin buildup 1 closevote", "Usage: /war admin buildup"),
+        Arguments.of("admin buildup 1 setday", "Usage: /war admin buildup <warId> status|end|setday"),
+        Arguments.of("admin buildup 1 setday never", "Day must be yyyy-MM-dd"),
+        Arguments.of("admin buildup 1 setday 2020-01-01", "That day is in the past."));
   }
 
   @ParameterizedTest
@@ -529,12 +535,14 @@ class WarCommandsCoverageTest {
   void rejectedArgumentsLeaveCampaignStateAndPersistenceUnchanged(
       String input, String expectedMessage) {
     War war = war(1);
+    war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
     long before = writes(war);
     assertTrue(run(input.split(" ")));
     verify(alice).sendMessage(contains(expectedMessage));
     assertTrue(war.isActive());
     assertEquals(LocalDate.of(2026, 10, 10), war.getBattleDay());
-    assertTrue(war.getBattleVotes().isEmpty());
+    assertTrue(war.getAvailability().marks().isEmpty());
+    assertTrue(war.getAvailability().battleDays().isEmpty());
     assertTrue(war.getCampaignRaidsUsed().isEmpty());
     assertEquals(before, writes(war));
     assertEquals(Duration.ZERO, CampaignClock.getOffset());
@@ -633,21 +641,21 @@ class WarCommandsCoverageTest {
   }
 
   @Test
-  void adminSetDayAndSetHourPassTheirArgumentsToTheScheduleService() {
+  void adminLockDayAndSetHourPassTheirArgumentsToTheScheduleService() {
     War war = war(1);
     try (MockedStatic<WarScheduleAdminService> admin = mockStatic(WarScheduleAdminService.class)) {
       admin
-          .when(() -> WarScheduleAdminService.setDay(war, "2026-12-01"))
-          .thenReturn(WarScheduleAdminResult.ok("day moved"));
+          .when(() -> WarScheduleAdminService.lockDay(eq(war), eq("2026-12-01"), any()))
+          .thenReturn(WarScheduleAdminResult.ok("day locked"));
       admin
-          .when(() -> WarScheduleAdminService.setHour(war, 1))
+          .when(() -> WarScheduleAdminService.setHour(eq(war), eq(1), eq(null), any()))
           .thenReturn(WarScheduleAdminResult.ok("hour moved"));
-      assertTrue(run("admin", "schedule", "1", "setday", "2026-12-01"));
+      assertTrue(run("admin", "schedule", "1", "lockday", "2026-12-01"));
       assertTrue(run("admin", "schedule", "1", "sethour", "1"));
-      admin.verify(() -> WarScheduleAdminService.setDay(war, "2026-12-01"));
-      admin.verify(() -> WarScheduleAdminService.setHour(war, 1));
+      admin.verify(() -> WarScheduleAdminService.lockDay(eq(war), eq("2026-12-01"), any()));
+      admin.verify(() -> WarScheduleAdminService.setHour(eq(war), eq(1), eq(null), any()));
     }
-    verify(alice).sendMessage(contains("day moved"));
+    verify(alice).sendMessage(contains("day locked"));
     verify(alice).sendMessage(contains("hour moved"));
   }
 
@@ -910,30 +918,50 @@ class WarCommandsCoverageTest {
   }
 
   @Test
-  void scheduleCommandsChangeVotesQuorumAndDayAndPersistOnlySuccessfulTransitions() {
+  void scheduleCommandsChangeMarksAndBattleDaysAndPersistOnlySuccessfulTransitions() {
     attacker.addMember("Alice");
     defender.addMember("Bob");
     War war = war(1);
+    war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+    war.setBattleDay(null);
+    LocalDate day = BattleWindowService.scheduleDate(CampaignClock.now()).plusDays(5);
     long before = writes(war);
-    assertTrue(run("admin", "schedule", "1", "opencvote"));
-    assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-    assertTrue(run("admin", "schedule", "1", "castvote", "21"));
-    assertEquals(2, BattleQuorumService.countDistinctVoters(war));
-    assertTrue(war.getBattleVotes().values().stream().allMatch(hours -> hours.equals(Set.of(21))));
-    assertTrue(run("admin", "schedule", "1", "castvote", "22", "attacker"));
-    assertTrue(war.getBattleVotes().values().stream().anyMatch(hours -> hours.contains(22)));
-    assertTrue(run("admin", "schedule", "1", "forcequorum"));
-    assertTrue(war.isForceQuorumNextClose());
-    LocalDate day = war.getBattleDay();
+    assertTrue(run("admin", "schedule", "1", "castvote", day.toString(), "21"));
+    assertEquals(2, war.getAvailability().marks().size());
+    assertTrue(war.getAvailability().marks().values().stream()
+        .allMatch(dates -> dates.get(day).equals(Set.of(21))));
+    assertTrue(run("admin", "schedule", "1", "castvote", day.toString(), "22", "attacker"));
+    assertTrue(war.getAvailability().marks().values().stream().anyMatch(dates -> dates.get(day).contains(22)));
+    assertTrue(run("admin", "schedule", "1", "availability"));
+    verify(alice).sendMessage(startsWith("§a§eAvailability of war 1"));
+    assertTrue(run("admin", "schedule", "1", "lockday", day.toString()));
+    assertEquals(day, war.getBattleDay());
+    verify(alice).sendMessage(startsWith("§7Battle days: §e" + day + " §7· Phase: §evoting"));
+    assertTrue(run("admin", "schedule", "1", "sethour", "22", day.toString()));
+    assertEquals(22, war.getAvailability().battleDay(day).hour());
+    assertTrue(run("admin", "schedule", "1", "unlockday", day.toString()));
+    assertNull(war.getBattleDay());
+    assertTrue(run("admin", "schedule", "1", "lockday", day.toString()));
     assertTrue(run("admin", "schedule", "1", "skipday"));
-    assertEquals(day.plusDays(1), war.getBattleDay());
-    assertEquals(before + 5, writes(war));
+    assertNull(war.getBattleDay());
+    assertEquals(before + 8, writes(war));
+  }
+
+  @Test
+  void battleToolsWaitForABuildupWarsFirstBattleDay() {
+    War war = inBuildup(57);
+    long before = writes(war);
+    assertTrue(run("admin", "schedule", "57", "battlecreate"));
+    verify(alice).sendMessage("§cWar 57 has no battle day yet. Lock one with §e/war admin schedule 57"
+        + " lockday <yyyy-MM-dd>§c first.");
+    assertEquals(before, writes(war));
+    assertNull(WarAdminRisks.describe(new String[] {"admin", "schedule", "57", "battlestart"}));
   }
 
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "closevote",
+        "availability",
         "battlecreate",
         "battledelete",
         "battlestart",
@@ -967,8 +995,8 @@ class WarCommandsCoverageTest {
         Arguments.of("call accept ", List.of()),
         Arguments.of("call accept 1 ", List.of()),
         Arguments.of("admin buildup ", List.of("1", "2")),
-        Arguments.of("admin buildup 1 ", List.of("status", "end", "closevote", "setday")),
-        Arguments.of("admin buildup 1 c", List.of("closevote")),
+        Arguments.of("admin buildup 1 ", List.of("status", "end", "setday")),
+        Arguments.of("admin buildup 1 s", List.of("status", "setday")),
         Arguments.of(
             "admin ",
             List.of(
@@ -1020,13 +1048,12 @@ class WarCommandsCoverageTest {
         Arguments.of(
             "admin schedule 1 ",
             List.of(
-                "opencvote",
-                "closevote",
-                "skipday",
-                "setday",
+                "availability",
+                "lockday",
+                "unlockday",
                 "sethour",
+                "skipday",
                 "castvote",
-                "forcequorum",
                 "setscheduled",
                 "battlecreate",
                 "battledelete",
@@ -1041,8 +1068,9 @@ class WarCommandsCoverageTest {
                 "defenderchoice")),
         Arguments.of("admin schedule 1 winbattle ", List.of("attacker", "defender")),
         Arguments.of("admin schedule 1 choice ", List.of("push", "hold", "attack", "accept")),
-        Arguments.of("admin schedule 1 castvote 2", List.of("20", "21", "22", "23")),
-        Arguments.of("admin schedule 1 castvote 21 ", List.of("attacker", "defender", "both")),
+        Arguments.of("admin schedule 1 castvote 2026-10-10 2", List.of("20", "21", "22", "23")),
+        Arguments.of("admin schedule 1 castvote 2026-10-10 21 ", List.of("attacker", "defender", "both")),
+        Arguments.of("admin schedule 1 castvote 2026-10-10 21 attacker ", List.of()),
         Arguments.of("admin schedule 1 sethour 2", List.of("20", "21", "22", "23")),
         Arguments.of("admin declare r", List.of("river")),
         Arguments.of("admin declare river i", List.of("iron")),
@@ -1064,15 +1092,18 @@ class WarCommandsCoverageTest {
   }
 
   @Test
-  void setDayCompletesTodayAndTheNextTwoBattleDays() {
+  void dayArgumentsCompleteTheNextWeekOfBattleDays() {
     war(1);
     java.time.Instant noon = java.time.Instant.parse("2026-11-06T11:00:00Z");
+    List<String> week = List.of("2026-11-06", "2026-11-07", "2026-11-08", "2026-11-09", "2026-11-10",
+        "2026-11-11", "2026-11-12");
     try (MockedStatic<CampaignClock> clock = mockStatic(CampaignClock.class, CALLS_REAL_METHODS)) {
       clock.when(CampaignClock::now).thenReturn(noon);
-      assertEquals(
-          List.of("2026-11-06", "2026-11-07", "2026-11-08"),
-          complete("admin", "schedule", "1", "setday", "2026-11"));
-      assertEquals(List.of("2026-11-07"), complete("admin", "schedule", "1", "setday", "2026-11-07"));
+      assertEquals(week, complete("admin", "schedule", "1", "lockday", "2026-11"));
+      assertEquals(List.of("2026-11-07"), complete("admin", "schedule", "1", "unlockday", "2026-11-07"));
+      assertEquals(week, complete("admin", "schedule", "1", "castvote", ""));
+      assertEquals(week, complete("admin", "schedule", "1", "sethour", "21", ""));
+      assertEquals(week, complete("admin", "buildup", "1", "setday", ""));
     }
   }
 
@@ -1106,62 +1137,47 @@ class WarCommandsCoverageTest {
           .thenReturn(declared);
       assertTrue(run("admin", "declare", "iron", "river"));
     }
-    verify(alice).sendMessage(contains("In its buildup; the day vote closes §e"));
+    verify(alice).sendMessage(contains("In its buildup; the first battle can be on §e"
+        + declared.getAvailability().getEarliestBattleDay() + " §aat the earliest."));
   }
 
   @Test
-  void buildupStaffToolsReportCloseSetAndEndTheBuildup() {
+  void buildupStaffToolsReportSetAndEndTheBuildup() {
     War war = inBuildup(51);
+    LocalDate earliest = war.getAvailability().getEarliestBattleDay();
     assertTrue(run("admin", "buildup", "51", "status"));
     verify(alice).sendMessage("§eWar 51 buildup: §cfrozen until the first battle");
-    verify(alice).sendMessage(org.mockito.AdditionalMatchers.and(startsWith("§7Day vote closes "), endsWith(", 0 voters.")));
-
-    assertTrue(run("admin", "schedule", "51", "setday", "2026-11-20"));
-    verify(alice).sendMessage(contains("is still voting on its first battle day"));
-    assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
+    verify(alice).sendMessage("§7Earliest battle day: " + earliest + "§7. Next battle day: none yet");
 
     long before = writes(war);
-    assertTrue(run("admin", "buildup", "51", "closevote"));
-    verify(alice).sendMessage(startsWith("§aClosed the day vote §7(no quorum)§a. First battle day: "));
+    assertTrue(run("admin", "buildup", "51", "setday", earliest.toString()));
+    verify(alice).sendMessage(startsWith("§aBattle day " + earliest + " locked."));
     assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-    assertNotNull(war.getBattleDay());
+    assertEquals(earliest, war.getBattleDay());
     assertTrue(war.isBuildupFrozen());
     assertEquals(before + 1, writes(war));
-
     assertTrue(run("admin", "buildup", "51", "status"));
-    verify(alice).sendMessage(startsWith("§7First battle day: "));
-
-    LocalDate later =
-        net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.scheduleDate(
-                CampaignClock.now())
-            .plusDays(20);
-    assertTrue(run("admin", "buildup", "51", "setday", later.toString()));
-    verify(alice).sendMessage("§aFirst battle day of war 51: " + later);
-    assertEquals(later, war.getBattleDay());
+    verify(alice).sendMessage("§7Earliest battle day: " + earliest + "§7. Next battle day: " + earliest);
 
     assertTrue(run("admin", "buildup", "51", "end"));
     verify(alice).sendMessage("§aEnded the buildup of war 51. Its factions can build again.");
     assertFalse(war.isBuildupFrozen());
-    assertEquals(later, war.getBattleDay());
+    assertEquals(earliest, war.getBattleDay());
     assertTrue(run("admin", "buildup", "51", "status"));
     verify(alice).sendMessage("§eWar 51 buildup: §anot frozen by a buildup");
   }
 
   @Test
-  void endingABuildupStillVotingOnItsDayGivesItTheNextVotableBattleDay() {
+  void endingABuildupWithNoBattleDayLetsItsBattleDaysStartToday() {
     War war = inBuildup(52);
     java.time.Instant now = CampaignClock.now();
 
     assertTrue(run("admin", "buildup", "52", "end"));
 
     assertFalse(war.isBuildupFrozen());
-    assertNull(war.getDayVoteFirstDay());
     assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-    assertEquals(
-        BattleScheduleService.firstVotableBattleDay(
-            net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.scheduleDate(now),
-            now),
-        war.getBattleDay());
+    assertNull(war.getBattleDay());
+    assertEquals(BattleWindowService.scheduleDate(now), war.getAvailability().getEarliestBattleDay());
   }
 
   @Test
@@ -1169,10 +1185,8 @@ class WarCommandsCoverageTest {
     War war = inBuildup(53);
     assertTrue(runRaw("admin", "buildup", "53", "end"));
     verify(alice).sendMessage(contains("lifts the war's buildup freeze now"));
-    assertTrue(runRaw("admin", "buildup", "53", "closevote"));
-    verify(alice).sendMessage(contains("closes the first battle day vote now"));
     assertTrue(runRaw("admin", "buildup", "53", "setday", "2026-12-01"));
-    verify(alice).sendMessage(contains("sets the first battle day and closes the day vote"));
+    verify(alice).sendMessage(contains("makes that day a battle day now, whatever players marked"));
     assertTrue(war.isBuildupFrozen());
     assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
     assertNull(WarAdminRisks.describe(new String[] {"admin", "buildup", "53", "status"}));

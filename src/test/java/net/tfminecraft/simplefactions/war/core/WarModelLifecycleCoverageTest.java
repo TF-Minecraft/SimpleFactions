@@ -100,7 +100,7 @@ class WarModelLifecycleCoverageTest {
       assertTrue(restored.getWartimeInstallationOwners().isEmpty());
       assertTrue(restored.getBattleInstallationPicks().isEmpty());
       assertTrue(restored.getRaidRepairLockUntil().isEmpty());
-      assertTrue(restored.getBattleVotes().isEmpty());
+      assertTrue(restored.getAvailability().marks().isEmpty());
     }
   }
 
@@ -128,6 +128,12 @@ class WarModelLifecycleCoverageTest {
 }
 """)
               .getAsJsonObject();
+      // A save from before availability: its hour votes become marks on its battle day.
+      rig.remember(Cache.class, "warBattleWindowStartHour");
+      rig.remember(Cache.class, "warBattleWindowEndHour");
+      Cache.warBattleWindowStartHour = 20;
+      Cache.warBattleWindowEndHour = 24;
+      saved.remove("availability");
       optional.entrySet().forEach(entry -> saved.add(entry.getKey(), entry.getValue()));
       War restored = WarMapper.fromData(gson.fromJson(saved, WarData.class));
       assertEquals(Map.of("valid_fort", CampaignSideRole.DEFENDER), restored.getFortControllers());
@@ -143,8 +149,11 @@ class WarModelLifecycleCoverageTest {
       assertEquals(
           Map.of("port", Instant.parse("2026-10-10T20:00:00Z")), restored.getRaidRepairLockUntil());
       assertEquals(
-          Map.of(UUID.fromString("00000000-0000-0000-0000-000000000001"), Set.of(20, 21)),
-          restored.getBattleVotes());
+          Set.of(20, 21),
+          restored
+              .getAvailability()
+              .marksOn(UUID.fromString("00000000-0000-0000-0000-000000000001"), rig.war.getBattleDay()));
+      assertEquals(1, restored.getAvailability().marks().size());
       CivilWarSnapshot snapshot = restored.getCivilWarSnapshot();
       assertEquals(Map.of(11, "original_owner"), snapshot.getTransferredProvinces());
       assertEquals(
@@ -217,12 +226,12 @@ class WarModelLifecycleCoverageTest {
           restored.getCivilWarSnapshot().getTransferredProvinces());
       assertEquals(1, restored.getCivilWarSnapshot().getWartimeVassalEnds().size());
       assertEquals(1, restored.getCivilWarSnapshot().getMemberMoves().size());
-      war.setBattleVotes(null);
+      war.setAvailability(null);
       war.setBattleInstallationPicks(null);
       war.setCampaignRaidsUsed(null);
       war.setRaidRepairLockUntil(null);
       var cleared = jsonRoundTrip(WarMapper.toData(war));
-      assertTrue(cleared.getBattleVotes().isEmpty());
+      assertTrue(cleared.getAvailability().marks().isEmpty());
       assertTrue(cleared.getBattleInstallationPicks().isEmpty());
       assertTrue(cleared.getCampaignRaidsUsed().isEmpty());
       assertTrue(cleared.getRaidRepairLockUntil().isEmpty());

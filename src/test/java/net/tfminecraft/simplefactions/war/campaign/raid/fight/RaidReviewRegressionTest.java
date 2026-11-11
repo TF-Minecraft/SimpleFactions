@@ -56,7 +56,7 @@ class RaidReviewRegressionTest {
     assertEquals(CampaignRaidState.MUSTER, raid.getState());
     assertNull(raid.getBattleId());
     assertTrue(BattleManager.get().isEmpty());
-    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR));
+    assertFalse(CampaignRaidService.isSideQuotaUsed(rig.war, CampaignSideRole.AGGRESSOR, rig.now()));
     assertTrue(
         CampaignRaidWarbandService.isRaidWarbandHiddenFromPlayer(
             CampaignRaidWarbandService.getDefenderWarband(raid), rig.bob));

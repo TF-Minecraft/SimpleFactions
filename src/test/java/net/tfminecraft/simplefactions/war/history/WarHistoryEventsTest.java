@@ -57,6 +57,9 @@ import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleServ
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.Participant;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
 import net.tfminecraft.simplefactions.war.enums.CampaignPhase;
@@ -256,39 +259,38 @@ class WarHistoryEventsTest {
 	}
 
 	@Test
-	void theFirstBattleDayAndPostponementsAreRecorded() {
+	void battleDayLocksAndStaffSkipsAreRecorded() {
 		War war = war(43);
-		Instant now = Instant.parse("2026-11-10T09:00:00Z");
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.VOTING);
+		Instant now = CampaignClock.now();
+		LocalDate today = net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.scheduleDate(now);
 
-		BuildupService.setFirstBattleDay(war, LocalDate.parse("2026-11-19"), now, true);
-		JsonObject closed = payload(last("day_vote_closed"));
-		assertEquals("2026-11-19", closed.get("battle_day").getAsString());
-		assertTrue(closed.get("quorum").getAsBoolean());
+		assertNull(AvailabilityScheduler.lockDay(war, today.plusDays(4), now));
+		JsonObject locked = payload(last("battle_day_locked"));
+		assertEquals(today.plusDays(4).toString(), locked.get("battle_day").getAsString());
+		assertEquals(AvailabilityCalendar.timeLockAt(today.plusDays(4)).toString(), locked.get("time_locks_at").getAsString());
+		assertFalse(locked.get("forced").getAsBoolean());
+		JsonArray battleDays = last("battle_day_locked").getAsJsonObject("state").getAsJsonArray("battle_days");
+		assertEquals(today.plusDays(4).toString(), battleDays.get(0).getAsJsonObject().get("date").getAsString());
+		assertTrue(battleDays.get(0).getAsJsonObject().get("hour").isJsonNull());
+		assertNull(AvailabilityScheduler.lockDay(war, today.plusDays(5), now));
 
-		BattleScheduleService.postpone(war, now);
-		assertEquals("2026-11-20", payload(last("battle_postponed")).get("battle_day").getAsString());
-		BattleScheduleService.skipBattleDay(war, now);
-		assertEquals("2026-11-21", payload(last("battle_postponed")).get("battle_day").getAsString());
-		assertEquals("2026-11-21", last("battle_postponed").getAsJsonObject("state").get("battle_day").getAsString());
+		assertTrue(AvailabilityScheduler.skip(war));
+		assertEquals(today.plusDays(5).toString(), payload(last("battle_postponed")).get("battle_day").getAsString());
+		assertEquals(today.plusDays(5).toString(),
+				last("battle_postponed").getAsJsonObject("state").get("battle_day").getAsString());
 
-		war.setBattleDay(null);
-		WarHistoryEvents.postponed(war);
-		WarHistoryEvents.dayVoteClosed(war, null, false);
+		assertTrue(AvailabilityScheduler.skip(war));
 		assertTrue(payload(last("battle_postponed")).get("battle_day").isJsonNull());
-		assertTrue(payload(last("day_vote_closed")).get("battle_day").isJsonNull());
 	}
 
 	@Test
-	void theNextBattleDayIsRecordedWhenItsHourVoteOpens() {
+	void theNextBattleDayIsRecordedWhenTheWarGoesBackToWaitingForIt() {
 		War war = war(48);
 		war.setBattleDay(LocalDate.parse("2026-11-19"));
 		BattleScheduleService.openVote(war);
 		assertEquals("2026-11-19", payload(last("next_battle_day")).get("battle_day").getAsString());
 		assertEquals("voting", last("next_battle_day").getAsJsonObject("state").get("schedule_phase").getAsString());
-
-		war.setBattleDay(LocalDate.parse("2026-11-01"));
-		BattleScheduleService.catchUpStaleBattleDay(war, Instant.parse("2026-11-10T09:00:00Z"));
-		assertEquals(war.getBattleDay().toString(), payload(last("next_battle_day")).get("battle_day").getAsString());
 
 		int before = events().size();
 		war.setBattleDay(null);
@@ -509,7 +511,6 @@ class WarHistoryEventsTest {
 		war.setOccupiedByAttacker(List.of(1, 2));
 		war.setBattleDay(LocalDate.parse("2026-11-19"));
 		war.setScheduledBattleAt(Instant.parse("2026-11-19T20:00:00Z"));
-		war.setDayVoteClosesAt(Instant.parse("2026-11-13T09:50:00Z"));
 		war.setBuildup(true);
 		war.setCampaignBattlesFought(2);
 		war.setInitiativeAttacker(6);
@@ -525,13 +526,26 @@ class WarHistoryEventsTest {
 		assertEquals(0, state.get("occupied_by_defender").getAsInt());
 		assertEquals("2026-11-19", state.get("battle_day").getAsString());
 		assertEquals("2026-11-19T20:00:00Z", state.get("scheduled_at").getAsString());
-		assertEquals("2026-11-13T09:50:00Z", state.get("day_vote_closes_at").getAsString());
+		assertTrue(state.get("day_vote_closes_at").isJsonNull(), "Availability wars have no day vote");
+		assertTrue(state.get("next_lock_at").isJsonNull(), "A war without a schedule has no locks");
+		assertEquals(0, state.getAsJsonArray("battle_days").size());
 		assertTrue(state.get("buildup").getAsBoolean());
 		assertEquals("invasion", state.get("campaign_phase").getAsString());
 		assertEquals(2, state.get("battles_fought").getAsInt());
 		JsonObject initiative = state.getAsJsonObject("initiative");
 		assertEquals(6, initiative.get("attacker").getAsInt());
 		assertEquals("defender", initiative.get("holder").getAsString());
+
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(LocalDate.parse("2026-11-19"), false).withHour(22, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(LocalDate.parse("2026-11-20"), false));
+		JsonObject scheduled = WarHistoryJson.state(war);
+		assertEquals("[{\"date\":\"2026-11-19\",\"hour\":22},{\"date\":\"2026-11-20\",\"hour\":null}]",
+				WarHistoryJson.GSON.toJson(scheduled.getAsJsonArray("battle_days")));
+		assertEquals(AvailabilityCalendar.nextLockAt(war, CampaignClock.now()).toString(),
+				scheduled.get("next_lock_at").getAsString());
+		war.end(WarEndReason.WHITE_PEACE);
+		assertEquals(0, WarHistoryJson.state(war).getAsJsonArray("battle_days").size(), "An ended war fights no more");
 
 		war.setCampaignProvinces(null);
 		war.setGoal(null);
@@ -601,7 +615,8 @@ class WarHistoryEventsTest {
 	}
 
 	@Test
-	void everyEventCarriesTheOpenDayVoteOnlyInItsPrivateBlock() {
+	void everyEventCarriesTheAvailabilityOnlyInItsPrivateBlock() {
+		mainWindow();
 		CharacterKeyFixture characters = CharacterKeyFixture.install();
 		UUID ann = UUID.randomUUID();
 		UUID dee = UUID.randomUUID();
@@ -616,83 +631,163 @@ class WarHistoryEventsTest {
 
 		JsonObject event = last("war_declared");
 		JsonObject voting = voting(event);
-		assertEquals("day", voting.get("kind").getAsString());
-		LocalDate first = war.getDayVoteFirstDay();
-		List<String> days = new ArrayList<>();
-		for (int i = 0; i < Cache.warBuildupDayOptions; i++) {
-			days.add(first.plusDays(i).toString());
-		}
-		assertEquals(days, strings(voting.getAsJsonArray("options")));
+		assertEquals("availability", voting.get("kind").getAsString());
+		assertEquals("[21,22,23,24,25]", voting.getAsJsonArray("hours").toString());
+		assertEquals(List.of("21:00 CET", "22:00 CET", "23:00 CET", "00:00 CET", "01:00 CET"),
+				strings(voting.getAsJsonArray("hour_labels")));
+		LocalDate first = war.getAvailability().getEarliestBattleDay();
+		JsonArray dates = voting.getAsJsonArray("dates");
+		assertEquals(7, dates.size());
+		JsonObject firstDate = dates.get(0).getAsJsonObject();
+		assertEquals(first.toString(), firstDate.get("date").getAsString());
 		assertEquals(java.time.format.DateTimeFormatter.ofPattern("EEE dd/MM", java.util.Locale.ENGLISH).format(first),
-				voting.getAsJsonArray("option_labels").get(0).getAsString());
-		assertEquals(war.getDayVoteClosesAt().toString(), voting.get("closes_at").getAsString());
+				firstDate.get("label").getAsString());
+		assertEquals("open", firstDate.get("state").getAsString());
+		assertEquals(AvailabilityCalendar.dayLockAt(first).toString(), firstDate.get("day_locks_at").getAsString());
+		assertEquals(AvailabilityCalendar.timeLockAt(first).toString(), firstDate.get("time_locks_at").getAsString());
+		assertTrue(firstDate.get("hour").isJsonNull());
+		assertTrue(firstDate.get("editable").getAsBoolean());
+		assertFalse(firstDate.get("forced").getAsBoolean());
+		assertEquals(AvailabilityCalendar.dayLockAt(first).toString(), voting.get("closes_at").getAsString());
+		assertEquals(1, voting.getAsJsonObject("need").get("attacker").getAsInt(), "A side smaller than 3 needs all of it");
+		assertEquals(1, voting.getAsJsonObject("need").get("defender").getAsInt());
 		JsonObject eligible = voting.getAsJsonObject("eligible");
 		assertEquals(2, eligible.size(), "One entry per account: " + eligible);
 		assertEquals("attacker", eligible.get(ann.toString()).getAsString());
 		assertEquals("defender", eligible.get(dee.toString()).getAsString());
-		assertEquals(0, voting.getAsJsonObject("votes").size());
-		assertEquals(Cache.warBuildupDayOptions, voting.getAsJsonArray("tally").size());
+		assertEquals(0, voting.getAsJsonObject("marks").size());
+		assertEquals(0, voting.getAsJsonArray("none").size());
+		assertEquals(35, voting.getAsJsonArray("tally").size(), "Seven dates of five hours");
 		assertFalse(event.getAsJsonObject("state").toString().contains(ann.toString()), "Accounts stay private");
 		assertFalse(event.getAsJsonObject("payload").toString().contains(ann.toString()));
 
-		war.getDayVotes().put(ann, new java.util.HashSet<>(java.util.Set.of(2, 0)));
-		war.getDayVotes().put(dee, new java.util.HashSet<>(java.util.Set.of(2, 99)));
-		war.getDayVotes().put(UUID.randomUUID(), new java.util.HashSet<>(java.util.Set.of(99)));
+		war.getAvailability().setMarks(ann, first, java.util.Set.of(22, 21));
+		war.getAvailability().setMarks(ann, first.minusDays(1), java.util.Set.of(21));
+		war.getAvailability().setMarks(dee, first.plusDays(2), java.util.Set.of(21));
+		war.getAvailability().setNone(dee, first.plusDays(6));
 		WarHistoryEvents.votesChanged(war);
 
 		JsonObject changed = last("votes_changed");
 		assertEquals(new JsonObject(), payload(changed), "Silent: nothing public");
-		JsonObject votes = voting(changed).getAsJsonObject("votes");
-		assertEquals(List.of(days.get(0), days.get(2)), strings(votes.getAsJsonArray(ann.toString())));
-		assertEquals(List.of(days.get(2)), strings(votes.getAsJsonArray(dee.toString())), "Picks no longer offered drop out");
-		assertEquals(2, votes.size(), "An account with no valid pick is left out");
-		JsonObject third = voting(changed).getAsJsonArray("tally").get(2).getAsJsonObject();
-		assertEquals(days.get(2), third.get("option").getAsString());
-		assertEquals(1, third.get("attacker").getAsInt());
-		assertEquals(1, third.get("defender").getAsInt());
+		JsonObject marks = voting(changed).getAsJsonObject("marks");
+		assertEquals("{\"" + first + "\":[21,22]}", marks.getAsJsonObject(ann.toString()).toString(),
+				"Only the dates shown");
+		assertEquals("{\"" + first.plusDays(2) + "\":[21]}", marks.getAsJsonObject(dee.toString()).toString());
+		assertEquals(List.of(dee.toString()), strings(voting(changed).getAsJsonArray("none")));
+		JsonObject row = voting(changed).getAsJsonArray("tally").get(0).getAsJsonObject();
+		assertEquals(first.toString(), row.get("date").getAsString());
+		assertEquals(21, row.get("hour").getAsInt());
+		assertEquals(1, row.get("attacker").getAsInt());
+		assertEquals(0, row.get("defender").getAsInt());
+		JsonObject later = voting(changed).getAsJsonArray("tally").get(10).getAsJsonObject();
+		assertEquals(first.plusDays(2).toString(), later.get("date").getAsString());
+		assertEquals(1, later.get("defender").getAsInt());
 	}
 
 	@Test
-	void theHourVoteListsBattleHoursUntilItClosesOnTheBattleDay() {
+	void aBattleDayShowsItsTimeLockAndADecidedDayCannotChange() {
 		mainWindow();
-		CharacterKeyFixture characters = CharacterKeyFixture.install();
-		UUID ann = UUID.randomUUID();
-		attacker.addMember(characters.offline(ann, "Ann"));
 		War war = war(61);
-		LocalDate day = net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService
-				.scheduleDate(CampaignClock.now()).plusDays(9);
-		BuildupService.setFirstBattleDay(war, day, CampaignClock.now(), true);
-		war.getBattleVotes().put(ann, new java.util.HashSet<>(java.util.Set.of(25, 21, 30)));
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.VOTING);
+		LocalDate first = AvailabilityCalendar.firstVisible(war, CampaignClock.now());
+		war.getAvailability().putBattleDay(LockedBattleDay.open(first.plusDays(1), true));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(first.plusDays(3), false).withHour(22, false));
+		war.getAvailability().setLastDayLockProcessed(first.plusDays(3));
 
+		WarHistoryEvents.votesChanged(war);
+
+		JsonArray dates = voting(last("votes_changed")).getAsJsonArray("dates");
+		JsonObject noBattle = dates.get(0).getAsJsonObject();
+		assertEquals("no_battle", noBattle.get("state").getAsString());
+		assertFalse(noBattle.get("editable").getAsBoolean());
+		JsonObject forced = dates.get(1).getAsJsonObject();
+		assertEquals("battle", forced.get("state").getAsString());
+		assertTrue(forced.get("editable").getAsBoolean());
+		assertTrue(forced.get("forced").getAsBoolean());
+		assertTrue(forced.get("hour").isJsonNull());
+		JsonObject timed = dates.get(3).getAsJsonObject();
+		assertEquals(22, timed.get("hour").getAsInt());
+		assertFalse(timed.get("editable").getAsBoolean(), "Its time is already set");
+		assertEquals(AvailabilityCalendar.timeLockAt(first.plusDays(1)).toString(),
+				voting(last("votes_changed")).get("closes_at").getAsString(), "The next lock among the dates");
+
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.IDLE);
 		WarHistoryEvents.postponed(war);
+		JsonObject none = voting(last("battle_postponed"));
+		assertTrue(none.get("kind").isJsonNull(), "No battles to plan, no vote");
+		assertEquals(1, none.size());
+	}
 
-		JsonObject voting = voting(last("battle_postponed"));
-		assertEquals("hour", voting.get("kind").getAsString());
-		assertEquals("[21,22,23,24,25]", voting.getAsJsonArray("options").toString());
-		assertEquals(List.of("21:00 CET", "22:00 CET", "23:00 CET", "00:00 CET", "01:00 CET"),
-				strings(voting.getAsJsonArray("option_labels")));
-		assertEquals(day.atTime(16, 0).atZone(java.time.ZoneId.of("Europe/Paris")).toInstant().toString(),
-				voting.get("closes_at").getAsString());
-		assertEquals("[21,25]", voting.getAsJsonObject("votes").getAsJsonArray(ann.toString()).toString());
-		JsonObject first = voting.getAsJsonArray("tally").get(0).getAsJsonObject();
-		assertEquals(21, first.get("option").getAsInt());
-		assertEquals(1, first.get("attacker").getAsInt());
-
+	@Test
+	void battleDaysWhoseTimeIsLockedStayShownUntilTheirWindowCloses() {
+		mainWindow();
+		War war = war(62);
 		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
-		WarHistoryEvents.postponed(war);
-		JsonObject closed = voting(last("battle_postponed"));
-		assertTrue(closed.get("kind").isJsonNull(), "No vote open");
-		assertEquals(0, closed.getAsJsonArray("options").size());
-		assertEquals(0, closed.getAsJsonArray("tally").size());
-		assertEquals(0, closed.getAsJsonObject("votes").size());
-		assertTrue(closed.get("closes_at").isJsonNull());
-		assertEquals("attacker", closed.getAsJsonObject("eligible").get(ann.toString()).getAsString(),
-				"Who may vote is still known");
+		LocalDate thu = LocalDate.of(2026, 11, 19);
+		LocalDate fri = thu.plusDays(1);
+		LocalDate sat = thu.plusDays(2);
+		UUID ann = UUID.randomUUID();
+		war.getAvailability().putBattleDay(LockedBattleDay.open(thu, false).withHour(22, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(fri, true).withHour(21, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(sat, false));
+		war.getAvailability().setLastDayLockProcessed(sat);
+		war.getAvailability().setMarks(ann, thu, java.util.Set.of(22));
+		war.setBattleDay(thu);
+		// Thursday 22:00: Thursday's battle is on, Friday's time is locked, Saturday is the first date to mark.
+		Instant thursdayNight = net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.atScheduleHour(thu, 22);
+
+		JsonObject voting = WarVoting.json(war, thursdayNight);
+
+		JsonArray dates = voting.getAsJsonArray("dates");
+		assertEquals(9, dates.size(), "Two time-locked battle days before the seven dates to mark");
+		JsonObject thursday = dates.get(0).getAsJsonObject();
+		assertEquals(thu.toString(), thursday.get("date").getAsString());
+		assertEquals("battle", thursday.get("state").getAsString());
+		assertEquals(22, thursday.get("hour").getAsInt());
+		assertFalse(thursday.get("editable").getAsBoolean());
+		JsonObject friday = dates.get(1).getAsJsonObject();
+		assertEquals(fri.toString(), friday.get("date").getAsString());
+		assertEquals(21, friday.get("hour").getAsInt());
+		assertTrue(friday.get("forced").getAsBoolean());
+		assertFalse(friday.get("editable").getAsBoolean());
+		assertEquals(sat.toString(), dates.get(2).getAsJsonObject().get("date").getAsString());
+		assertTrue(dates.get(2).getAsJsonObject().get("editable").getAsBoolean());
+		assertEquals("{\"" + thu + "\":[22]}", voting.getAsJsonObject("marks").getAsJsonObject(ann.toString()).toString());
+		assertEquals(45, voting.getAsJsonArray("tally").size());
+
+		// Once Thursday's window has closed (02:00), only Friday is still shown before the grid.
+		JsonArray later = WarVoting.json(war, Instant.parse("2026-11-20T01:30:00Z")).getAsJsonArray("dates");
+		assertEquals(fri.toString(), later.get(0).getAsJsonObject().get("date").getAsString());
+		assertEquals(8, later.size());
+	}
+
+	@Test
+	void aReminderNamesItsAccountsOnlyInItsPrivateNotify() {
+		War war = war(59);
+		UUID ann = UUID.randomUUID();
+		UUID dee = UUID.randomUUID();
+		Instant locks = Instant.parse("2026-11-19T20:00:00Z");
+
+		WarHistoryEvents.voteReminder(war, "time_lock_soon", LocalDate.parse("2026-11-20"), locks, List.of(ann, dee));
+		WarHistoryEvents.voteReminder(war, "mark_availability", null, locks, List.of(ann));
+
+		List<JsonObject> reminders = new ArrayList<>();
+		events().stream().filter(e -> e.get("type").getAsString().equals("vote_reminder")).forEach(reminders::add);
+		JsonObject soon = reminders.get(0);
+		assertEquals("time_lock_soon", payload(soon).get("reason").getAsString());
+		assertEquals("2026-11-20", payload(soon).get("battle_day").getAsString());
+		assertEquals("2026-11-19T20:00:00Z", payload(soon).get("locks_at").getAsString());
+		assertEquals(List.of(ann.toString(), dee.toString()),
+				strings(soon.getAsJsonObject("private").getAsJsonObject("notify").getAsJsonArray("accounts")));
+		assertFalse(payload(soon).toString().contains(ann.toString()));
+		assertFalse(soon.has("notify"));
+		assertTrue(payload(reminders.get(1)).get("battle_day").isJsonNull());
 	}
 
 	@Test
 	void unreadableVotesLeaveThePrivateBlockWithoutThem() {
 		War war = war(62);
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.VOTING);
 		Members.Resolver offline = mock(Members.Resolver.class);
 		when(offline.info(anyString())).thenThrow(new IllegalStateException("characters offline"));
 		Members.setResolver(offline);
@@ -717,7 +812,7 @@ class WarHistoryEventsTest {
 		WarHistoryEvents.votesChanged(war);
 		now.addAndGet(1000);
 		WarHistoryEvents.votesChanged(war);
-		war.getDayVotes().put(UUID.randomUUID(), new java.util.HashSet<>(java.util.Set.of(1)));
+		war.getAvailability().setMarks(UUID.randomUUID(), war.getAvailability().getEarliestBattleDay(), java.util.Set.of(22));
 		now.addAndGet(1000);
 		WarHistoryEvents.votesChanged(war);
 		WarHistoryEvents.votesChanged(other);
@@ -731,7 +826,7 @@ class WarHistoryEventsTest {
 		now.addAndGet(1000);
 		WarVoteChanges.flushDue();
 		assertEquals(3, count("votes_changed"));
-		assertEquals(1, voting(last("votes_changed")).getAsJsonObject("votes").size(), "The latest state wins");
+		assertEquals(1, voting(last("votes_changed")).getAsJsonObject("marks").size(), "The latest state wins");
 		WarVoteChanges.flushDue();
 		assertEquals(3, count("votes_changed"));
 
@@ -764,28 +859,28 @@ class WarHistoryEventsTest {
 	}
 
 	@Test
-	void openingClosingAndCastingVotesAllTellTheWebsite() {
+	void lockingCastingAndTimingBattleDaysAllTellTheWebsite() {
 		mainWindow();
 		java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(100_000L);
 		WarVoteChanges.clock = now::get;
 		War war = war(66);
-		BuildupService.setFirstBattleDay(war, net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService
-				.scheduleDate(CampaignClock.now()).plusDays(3), CampaignClock.now(), true);
-		assertEquals(1, count("votes_changed"), "Closing the day vote");
+		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.VOTING);
+		LocalDate day = net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService
+				.scheduleDate(CampaignClock.now()).plusDays(3);
+		assertNull(AvailabilityScheduler.lockDay(war, day, CampaignClock.now()));
+		assertEquals(1, count("votes_changed"), "Locking a day");
 		now.addAndGet(10_000);
 		BattleScheduleService.openVote(war);
 		assertEquals(2, count("votes_changed"));
 		now.addAndGet(10_000);
-		net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminService.castVote(war, 21, "both");
+		net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleAdminService.castVote(war, day.toString(), 21, "both");
 		assertEquals(3, count("votes_changed"));
 		now.addAndGet(10_000);
-		BattleScheduleService.closeVote(war, CampaignClock.now(), uuid -> null, name -> null,
-				net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions.admin(false));
-		assertEquals(4, count("votes_changed"), "Closing the hour vote");
+		assertNull(AvailabilityScheduler.unlockDay(war, day));
+		assertEquals(4, count("votes_changed"), "Unlocking it");
 		now.addAndGet(10_000);
-		war.setBattleSchedulePhase(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
-		BattleScheduleService.closeVote(war, CampaignClock.now(), uuid -> null, name -> null);
-		assertEquals(4, count("votes_changed"), "Nothing closed, nothing sent");
+		assertEquals("That day is not a battle day.", AvailabilityScheduler.unlockDay(war, day));
+		assertEquals(4, count("votes_changed"), "Nothing changed, nothing sent");
 	}
 
 	@Test
@@ -877,7 +972,8 @@ class WarHistoryEventsTest {
 		War war = war(71);
 		buildup(war);
 		for (int i = 0; i < 3; i++) {
-			war.getDayVotes().put(UUID.randomUUID(), new java.util.HashSet<>(java.util.Set.of(0)));
+			war.getAvailability().setMarks(UUID.randomUUID(), war.getAvailability().getEarliestBattleDay(), java.util.Set.of(21));
+			war.getAvailability().setNone(UUID.randomUUID(), war.getAvailability().getEarliestBattleDay().plusDays(9));
 		}
 		int before = WarVoting.maxAccounts;
 		WarVoting.maxAccounts = 2;
@@ -888,6 +984,7 @@ class WarHistoryEventsTest {
 		}
 		JsonObject voting = voting(last("battle_postponed"));
 		assertEquals(2, voting.getAsJsonObject("eligible").size());
-		assertEquals(2, voting.getAsJsonObject("votes").size());
+		assertEquals(2, voting.getAsJsonObject("marks").size());
+		assertEquals(2, voting.getAsJsonArray("none").size());
 	}
 }

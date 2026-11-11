@@ -23,6 +23,8 @@ import net.tfminecraft.simplefactions.database.ScheduledCampaignBattleData;
 import net.tfminecraft.simplefactions.database.SideData;
 import net.tfminecraft.simplefactions.database.CallToArmsData;
 import net.tfminecraft.simplefactions.database.WarData;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityMigration;
+import net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability;
 import net.tfminecraft.simplefactions.database.WarDemandData;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.war.campaign.WarCampaignService;
@@ -158,7 +160,6 @@ public final class WarMapper {
 		if (!war.getSignupRemindersSent().isEmpty()) {
 			data.signupRemindersSent = new ArrayList<>(war.getSignupRemindersSent());
 		}
-		data.battleVotes = serializeBattleVotes(war.getBattleVotes());
 		data.battleInstallationPicks = serializeInstallationPicks(war.getBattleInstallationPicks());
 		if (war.getBattleInstallationPicksBattleDay() != null) {
 			data.battleInstallationPicksBattleDay = war.getBattleInstallationPicksBattleDay().toString();
@@ -180,19 +181,10 @@ public final class WarMapper {
 			data.preparationFrozenUntil = war.getPreparationFrozenUntil().toString();
 		}
 		data.defenderChoiceResolved = war.isDefenderChoiceResolved();
-		data.forceQuorumNextClose = war.isForceQuorumNextClose();
 		if (war.isBuildup()) {
 			data.buildup = true;
 		}
-		if (war.getDayVoteFirstDay() != null) {
-			data.dayVoteFirstDay = war.getDayVoteFirstDay().toString();
-		}
-		if (war.getDayVoteClosesAt() != null) {
-			data.dayVoteClosesAt = war.getDayVoteClosesAt().toString();
-		}
-		if (!war.getDayVotes().isEmpty()) {
-			data.dayVotes = serializeBattleVotes(war.getDayVotes());
-		}
+		data.availability = war.getAvailability().toData();
 		if (!war.getCallsToArms().isEmpty()) {
 			data.callsToArms = serializeCallsToArms(war.getCallsToArms());
 		}
@@ -308,7 +300,6 @@ public final class WarMapper {
 		war.setSignupRemindersSent(data.signupRemindersSent == null
 				? new LinkedHashSet<>()
 				: new LinkedHashSet<>(data.signupRemindersSent));
-		war.setBattleVotes(deserializeBattleVotes(data.battleVotes));
 		war.setBattleInstallationPicks(deserializeInstallationPicks(data.battleInstallationPicks));
 		war.setForcedBattleInstallationPicks(data.forcedBattleInstallationPicks);
 		if (data.battleInstallationPicksBattleDay != null && !data.battleInstallationPicksBattleDay.isBlank()) {
@@ -327,20 +318,12 @@ public final class WarMapper {
 		}
 		war.setDefenderChoiceResolved(data.defenderChoiceResolved);
 		war.setBuildup(Boolean.TRUE.equals(data.buildup));
-		if (data.dayVoteFirstDay != null && !data.dayVoteFirstDay.isBlank()) {
-			war.setDayVoteFirstDay(LocalDate.parse(data.dayVoteFirstDay));
-		}
-		if (data.dayVoteClosesAt != null && !data.dayVoteClosesAt.isBlank()) {
-			war.setDayVoteClosesAt(Instant.parse(data.dayVoteClosesAt));
-		}
-		war.setDayVotes(deserializeBattleVotes(data.dayVotes));
 		war.setCallsToArms(deserializeCallsToArms(data.callsToArms));
 		war.setCallableFactionIds(data.callableFactionIds == null ? null : new LinkedHashSet<>(data.callableFactionIds));
 		war.setJoinedAt(deserializeJoinedAt(data.joinedAt));
 		if (data.postBattleChoiceResolved != null) {
 			war.setPostBattleChoiceResolved(data.postBattleChoiceResolved);
 		}
-		war.setForceQuorumNextClose(data.forceQuorumNextClose);
 		if (data.startedAt != null) {
 			war.setStartedAt(Instant.parse(data.startedAt));
 		}
@@ -354,6 +337,15 @@ public final class WarMapper {
 		loadParticipants(data.attackers, war.getAttackers());
 		loadParticipants(data.defenders, war.getDefenders());
 		war.setLedger(net.tfminecraft.simplefactions.war.wounds.WarLedger.fromData(data.ledger));
+		if (data.availability != null) {
+			war.setAvailability(BattleAvailability.fromData(data.availability));
+		} else {
+			// Saved before availability: its day and hour votes become marks, its battle day a locked one.
+			AvailabilityMigration.migrate(war,
+					deserializeBattleVotes(data.dayVotes),
+					data.dayVoteFirstDay == null || data.dayVoteFirstDay.isBlank() ? null : LocalDate.parse(data.dayVoteFirstDay),
+					deserializeBattleVotes(data.battleVotes));
+		}
 
 		return war;
 	}
@@ -667,17 +659,6 @@ public final class WarMapper {
 					new CallToArms(data.targetFactionId, data.callerFactionId, data.coalitionId, sentAt));
 		}
 		return out;
-	}
-
-	private static Map<String, List<Integer>> serializeBattleVotes(Map<UUID, Set<Integer>> votes) {
-		Map<String, List<Integer>> serialized = new LinkedHashMap<>();
-		for (Map.Entry<UUID, Set<Integer>> entry : votes.entrySet()) {
-			if (entry.getKey() == null || entry.getValue() == null || entry.getValue().isEmpty()) {
-				continue;
-			}
-			serialized.put(entry.getKey().toString(), new ArrayList<>(entry.getValue()));
-		}
-		return serialized;
 	}
 
 	private static Map<UUID, Set<Integer>> deserializeBattleVotes(Map<String, List<Integer>> votes) {

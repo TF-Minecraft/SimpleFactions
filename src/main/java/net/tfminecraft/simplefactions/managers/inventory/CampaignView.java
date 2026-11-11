@@ -7,8 +7,6 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -28,13 +26,10 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
-import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
-import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy;
 import net.tfminecraft.simplefactions.war.enums.WarType;
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteRenderer;
-import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiTimeFormatter;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
@@ -47,21 +42,14 @@ import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidMessages;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidResults.LaunchResult;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignViewRefreshService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
-import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleVoteToggleResult;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
-import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.enums.SFGUI;
-import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
 
 public class CampaignView {
 	private static final int ROUTE_SLOT_COUNT = 9;
 	private static final int ROUTE_START_SLOT = 10;
-	private static final int VOTING_HELP_SLOT = 27;
+	private static final int AVAILABILITY_SLOT = 27;
 	private static final int INSTALLATIONS_ENTRY_SLOT = 33;
 	private static final int ENEMY_INSTALLATION_INTEL_SLOT = 34;
 	private static final int START_RAID_ENTRY_SLOT = 35;
@@ -152,7 +140,7 @@ public class CampaignView {
 				player.getUniqueId(),
 				BattleScheduleLookups.uuidToFactionForWar(war)));
 
-		populateHourToggles(inventory, war, voterFaction, player.getUniqueId());
+		populateAvailability(inventory, war);
 
 		int entryLimit = Math.min(routeEntries.size(), ROUTE_SLOT_COUNT);
 		int firstBattleMarkerSlot = -1;
@@ -211,47 +199,9 @@ public class CampaignView {
 		inventory.setItem(53, inv.createBackButton(SFGUI.WAR_VIEW));
 	}
 
-	private void populateHourToggles(Inventory inventory, War war, Faction voterFaction, UUID viewerUuid) {
-		if (BuildupService.isDayVoteOpen(war)) {
-			populateDayToggles(inventory, war, voterFaction, viewerUuid);
-			return;
-		}
-		inventory.setItem(VOTING_HELP_SLOT, creator.createVotingHelpItem());
-		boolean clickable = BattleVoterEligibility.canToggleVote(
-				war, voterFaction, CampaignClock.now());
-		Set<Integer> selections = BattleVoteService.getPlayerSelections(war, viewerUuid);
-		var uuidToFaction = BattleScheduleLookups.uuidToFactionForWar(war);
-		var hourTally = BattleVoteService.buildHourTally(war, uuidToFaction);
-		for (BattleVoterEligibility.HourSlotEntry entry : BattleVoterEligibility.hourSlotLayout(
-				BattleWindowService.listValidHours())) {
-			if (entry.hour() == null) {
-				inventory.setItem(entry.slot(), creator.createUnusedHourSlotItem());
-				continue;
-			}
-			boolean selected = selections.contains(entry.hour());
-			BattleHourTally tally = hourTally.getOrDefault(entry.hour(), new BattleHourTally(0, 0));
-			inventory.setItem(
-					entry.slot(),
-					creator.createHourToggleItem(war, entry.hour(), selected, clickable, tally));
-		}
-	}
-
-	private void populateDayToggles(Inventory inventory, War war, Faction voterFaction, UUID viewerUuid) {
-		inventory.setItem(VOTING_HELP_SLOT, creator.createDayVotingHelpItem());
-		boolean clickable = BuildupService.canToggleDayVote(war, voterFaction);
-		Set<Integer> selections = BuildupService.getPlayerSelections(war, viewerUuid);
-		var tally = BuildupService.buildDayTally(war, BattleScheduleLookups.uuidToFactionForWar(war));
-		int[] slots = BattleVoterEligibility.hourToggleSlots();
-		List<Integer> options = BuildupService.dayOptions();
-		for (int i = 0; i < slots.length; i++) {
-			if (i >= options.size()) {
-				inventory.setItem(slots[i], creator.createUnusedHourSlotItem());
-				continue;
-			}
-			int offset = options.get(i);
-			inventory.setItem(slots[i], creator.createDayToggleItem(war, offset, selections.contains(offset), clickable,
-					tally.getOrDefault(offset, new BattleHourTally(0, 0))));
-		}
+	/** The vote area: one button that opens the availability grid. */
+	private void populateAvailability(Inventory inventory, War war) {
+		inventory.setItem(AVAILABILITY_SLOT, creator.createAvailabilityButton(war));
 	}
 
 	private void populatePostBattleChoiceButtons(Inventory inventory, War war, Player player) {
@@ -325,19 +275,14 @@ public class CampaignView {
 		}
 		ItemMeta meta = clicked.getItemMeta();
 
-		Integer voteWarId = meta.getPersistentDataContainer().get(
-				new NamespacedKey(SimpleFactions.plugin, "campaign_vote_war"),
-				PersistentDataType.INTEGER);
-		Integer voteHour = meta.getPersistentDataContainer().get(
-				new NamespacedKey(SimpleFactions.plugin, "campaign_vote_hour"),
-				PersistentDataType.INTEGER);
-		if (voteWarId != null && voteHour != null && voteWarId == war.getId()) {
-			handleHourToggleClick(player, war, voteHour);
-			return;
-		}
-		Integer voteDay = meta.getPersistentDataContainer().get(CampaignCreator.dayVoteKey(), PersistentDataType.INTEGER);
-		if (voteWarId != null && voteDay != null && voteWarId == war.getId()) {
-			handleDayToggleClick(player, war, voteDay);
+		Integer availabilityWarId = meta.getPersistentDataContainer().get(
+				CampaignCreator.availabilityWarKey(), PersistentDataType.INTEGER);
+		if (availabilityWarId != null && availabilityWarId == war.getId()) {
+			// Refused (with the reason in chat), the campaign stays open and keeps refreshing.
+			if (inv.availabilityView.open(player, war)) {
+				CampaignViewRefreshService.unregister(player);
+				player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+			}
 			return;
 		}
 
@@ -519,56 +464,6 @@ public class CampaignView {
 		if (provinceId != null) {
 			// Route provinces are informational only; choices use dedicated buttons.
 		}
-	}
-
-	private void handleHourToggleClick(Player player, War war, int hour) {
-		Faction faction = BattleScheduleLookups.voterFaction(war, player);
-		if (faction == null || !BattleVoterEligibility.canToggleVote(war, faction, CampaignClock.now())) {
-			player.sendMessage("§cYou cannot vote for battle hours right now.");
-			return;
-		}
-
-		BattleVoteToggleResult result = BattleVoteService.toggleVote(
-				war, player.getUniqueId(), hour, faction, player.isOnline());
-		switch (result) {
-			// Battle hours are schedule (Europe/Paris) hours; label them the way the vote items do (the label can carry hex).
-			case ADDED -> player.sendMessage(StringFormatter.formatHex("§aAdded "
-					+ CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), hour) + "§a to your availability."));
-			case REMOVED -> player.sendMessage(StringFormatter.formatHex("§aRemoved "
-					+ CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), hour) + "§a from your availability."));
-			case REJECTED_INVALID_HOUR -> player.sendMessage("§cThat hour is not in the battle window.");
-			case REJECTED_NOT_PARTICIPANT -> player.sendMessage("§cYou are not eligible to vote in this war.");
-			case REJECTED_OFFLINE -> player.sendMessage("§cYou must be online to vote.");
-			case REJECTED_VOTE_CLOSED -> player.sendMessage("§cVoting is closed for this battle day.");
-		}
-
-		if (result == BattleVoteToggleResult.ADDED || result == BattleVoteToggleResult.REMOVED) {
-			WarManager.persist(war);
-			WarHistoryEvents.votesChanged(war);
-			player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-			campaignView(player, war, !isViewingCampaign(player, war.getId()));
-		}
-	}
-
-	private void handleDayToggleClick(Player player, War war, int offset) {
-		Faction faction = BattleScheduleLookups.voterFaction(war, player);
-		if (!BuildupService.canToggleDayVote(war, faction)) {
-			player.sendMessage("§cYou cannot vote for the first battle day right now.");
-			return;
-		}
-		String day = CampaignUiCopy.formatBattleDay(BuildupService.dayOf(war, offset));
-		switch (BuildupService.toggleDayVote(war, player.getUniqueId(), offset, faction, player.isOnline())) {
-			case ADDED -> player.sendMessage("§aAdded " + day + " §ato the days you can fight.");
-			case REMOVED -> player.sendMessage("§aRemoved " + day + " §afrom the days you can fight.");
-			default -> {
-				player.sendMessage("§cYou cannot vote for that day.");
-				return;
-			}
-		}
-		WarManager.persist(war);
-		WarHistoryEvents.votesChanged(war);
-		player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
-		campaignView(player, war, !isViewingCampaign(player, war.getId()));
 	}
 
 	private void handleAutoresolveClick(

@@ -32,7 +32,6 @@ class PreparationFreezeMercenaryTest {
 
 	@BeforeEach
 	void setUp() {
-		Cache.warPostponeFreezeHours = 24;
 		PreparationFreeze.setActiveWars(() -> wars);
 		fixture = ContractFixture.formed(2);
 		enemy = ContractFixture.faction("foe");
@@ -149,6 +148,6 @@ class PreparationFreezeMercenaryTest {
 		Faction other = side == enemy ? ContractFixture.faction("bystander") : enemy;
 		War war = new War(wars.size() + 1, side, other);
 		wars.add(war);
-		PreparationFreeze.applyPostponement(war, Instant.now());
+		war.setPreparationFrozenUntil(Instant.now().plusSeconds(24 * 3600L));
 	}
 }

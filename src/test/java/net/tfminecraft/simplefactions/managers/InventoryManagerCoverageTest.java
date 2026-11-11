@@ -114,6 +114,7 @@ class InventoryManagerCoverageTest {
     manager.warView = mock(WarView.class);
     manager.campaignView = mock(CampaignView.class);
     manager.campaignInstallationPickView = mock(CampaignInstallationPickView.class);
+    manager.availabilityView = mock(net.tfminecraft.simplefactions.managers.inventory.AvailabilityView.class);
     manager.campaignRaidLaunchView = mock(CampaignRaidLaunchView.class);
     manager.declareWarView = mock(DeclareWarView.class);
     manager.factionView = mock(FactionView.class);
@@ -770,6 +771,8 @@ class InventoryManagerCoverageTest {
     verify(manager.warView).warView(inventory, player, war, false);
     verify(manager.warView).participantView(inventory, player, war, participant, true);
     verify(manager.declareWarView).openGoalPicker(player, faction, defender);
+    manager.openAvailability(player, war);
+    verify(manager.availabilityView).open(player, war);
     manager.openCampaignView(player, null);
     manager.openCampaignView(player, war);
     verify(player, times(2)).sendMessage("§cWar not found.");
@@ -891,6 +894,7 @@ class InventoryManagerCoverageTest {
       case "campaign" -> verify(manager.campaignView).click(click, inventory, player);
       case "installation" ->
           verify(manager.campaignInstallationPickView).click(click, inventory, player);
+      case "availability" -> verify(manager.availabilityView).click(click, inventory, player);
       case "raid" -> verify(manager.campaignRaidLaunchView).click(click, inventory, player);
       case "declare" -> verify(manager.declareWarView).click(click, inventory, player);
       default -> fail(route);
@@ -908,6 +912,10 @@ class InventoryManagerCoverageTest {
         Arguments.of(new CampaignInventoryHolder(7, SFGUI.CAMPAIGN_VIEW), "campaign"),
         Arguments.of(
             new CampaignInventoryHolder(7, SFGUI.CAMPAIGN_INSTALLATION_PICK_VIEW), "installation"),
+        Arguments.of(
+            new net.tfminecraft.simplefactions.managers.holder.AvailabilityHolder(
+                7, List.of(java.time.LocalDate.of(2026, 11, 20))),
+            "availability"),
         Arguments.of(new CampaignRaidLaunchHolder(7, "fort"), "raid"),
         Arguments.of(new SFCombinedInventoryHolder(7, "realm", SFGUI.PARTICIPANT_VIEW), "war"),
         Arguments.of(
@@ -1722,6 +1730,7 @@ class InventoryManagerCoverageTest {
 
   private Object[] views() {
     return new Object[] {
+      manager.availabilityView,
       manager.factionView,
       manager.guildView,
       manager.companyView,

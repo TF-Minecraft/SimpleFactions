@@ -33,11 +33,6 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallati
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleVoteToggleResult;
 import net.tfminecraft.simplefactions.war.campaign.zoc.PortSeaZocIndex;
 import net.tfminecraft.simplefactions.war.campaign.zoc.PortSeaZocIndex.OperationalPort;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -120,26 +115,6 @@ class CampaignPickingBoundaryCoverageTest {
             war, owner, owner.getLeader(), port.getId(), rig.now()));
     assertTrue(BattleInstallationInPlayService.isInPlay(war, owner.getId(), port.getId()));
     assertTrue(BattleInstallationPickService.getPicks(war, rig.defender.getId()).isEmpty());
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"ended", "IDLE", "SCHEDULED", "AUTORESOLVE_PENDING"})
-  void votesCannotChangeOnceTheWarOrItsVotingPhaseHasClosed(String state) {
-    rig.war.getBattleVotes().put(rig.alice.getUniqueId(), new java.util.HashSet<>(Set.of(20)));
-    if (state.equals("ended")) rig.war.end(WarEndReason.ADMIN_END);
-    else rig.war.setBattleSchedulePhase(BattleSchedulePhase.valueOf(state));
-    assertFalse(BattleVoterEligibility.canToggleVote(rig.war, rig.attacker, rig.now()));
-
-    BattleVoteToggleResult result =
-        BattleVoteService.toggleVote(rig.war, rig.alice.getUniqueId(), 21, rig.attacker, true);
-
-    assertTrue(
-        Set.of(
-                BattleVoteToggleResult.REJECTED_NOT_PARTICIPANT,
-                BattleVoteToggleResult.REJECTED_VOTE_CLOSED)
-            .contains(result),
-        "The public vote operation must reject a closed voting session");
-    assertEquals(Map.of(rig.alice.getUniqueId(), Set.of(20)), rig.war.getBattleVotes());
   }
 
   @Test
@@ -261,68 +236,6 @@ class CampaignPickingBoundaryCoverageTest {
   }
 
   @Test
-  void voteSnapshotsFilterOldHoursAndNullRowsWithoutMutatingCurrentValidSelections() {
-    UUID alice = rig.alice.getUniqueId();
-    UUID bob = rig.bob.getUniqueId();
-    UUID incomplete = UUID.randomUUID();
-    rig.war.getBattleVotes().put(alice, new HashSet<>(Set.of(19, 20, 21)));
-    rig.war.getBattleVotes().put(bob, new HashSet<>(Set.of(21)));
-    rig.war.getBattleVotes().put(incomplete, null);
-    rig.war.getBattleVotes().put(UUID.randomUUID(), new HashSet<>());
-    Function<UUID, Faction> lookup = id -> id.equals(bob) ? rig.defender : rig.attacker;
-    Set<Integer> snapshot = BattleVoteService.getPlayerSelections(rig.war, alice);
-    assertEquals(Set.of(20, 21), snapshot);
-    assertThrows(UnsupportedOperationException.class, snapshot::clear);
-    assertEquals(
-        Map.of(20, 1, 21, 1, 22, 0, 23, 0),
-        BattleVoteService.countVotesByHour(rig.war, BelligerentRole.ATTACKER, lookup));
-    assertEquals(
-        new BattleHourTally(1, 1), BattleVoteService.buildHourTally(rig.war, lookup).get(21));
-    assertEquals(21, BattleVoteService.pickHour(rig.war, lookup).orElseThrow());
-    assertEquals(2, BattleQuorumService.countDistinctVoters(rig.war));
-    assertTrue(BattleVoteService.getPlayerSelections(null, alice).isEmpty());
-    assertTrue(
-        BattleVoteService.countVotesByHour(null, BelligerentRole.ATTACKER, lookup).isEmpty());
-    assertTrue(BattleVoteService.buildHourTally(rig.war, null).isEmpty());
-    assertTrue(BattleVoteService.pickHour(null, lookup).isEmpty());
-    BattleVoteService.clearVotes(null);
-    assertEquals(Set.of(19, 20, 21), rig.war.getBattleVotes().get(alice));
-    BattleVoteService.clearVotes(rig.war);
-    assertTrue(rig.war.getBattleVotes().isEmpty());
-    assertEquals(Set.of(20, 21), snapshot);
-  }
-
-  @Test
-  void unavailableVoterCannotChangeSelectionsAndUiCapabilitiesFollowTheCurrentVote() {
-    UUID alice = rig.alice.getUniqueId();
-    assertEquals(
-        BattleVoteToggleResult.REJECTED_NOT_PARTICIPANT,
-        BattleVoteService.toggleVote(null, alice, 21, rig.attacker, true));
-    assertEquals(
-        BattleVoteToggleResult.REJECTED_OFFLINE,
-        BattleVoteService.toggleVote(rig.war, alice, 21, rig.attacker, false));
-    assertTrue(rig.war.getBattleVotes().isEmpty());
-    assertFalse(BattleVoterEligibility.canProposeAutoresolve(null, BelligerentRole.ATTACKER));
-    assertTrue(BattleVoterEligibility.canProposeAutoresolve(rig.war, BelligerentRole.ATTACKER));
-    assertTrue(BattleVoterEligibility.canProposeAutoresolve(rig.war, BelligerentRole.DEFENDER));
-    rig.war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
-    assertFalse(BattleVoterEligibility.canProposeAutoresolve(rig.war, BelligerentRole.ATTACKER));
-    int[] slots = BattleVoterEligibility.hourToggleSlots();
-    slots[0] = -1;
-    assertEquals(28, BattleVoterEligibility.hourToggleSlots()[0]);
-    assertEquals(
-        List.of(20, 21, 22, 23),
-        BattleVoterEligibility.hourSlotLayout(null).stream()
-            .map(BattleVoterEligibility.HourSlotEntry::hour)
-            .filter(java.util.Objects::nonNull)
-            .toList());
-    assertEquals(0, BattleQuorumService.countDistinctVoters((War) null));
-    assertFalse(BattleQuorumService.isSmallestSideFullyRepresented(null, name -> alice));
-    assertFalse(BattleQuorumService.isSmallestSideFullyRepresented(rig.war, name -> null));
-    assertFalse(BattleQuorumService.meetsQuorum(null, name -> alice).passed());
-  }
-
-  @Test
   void scheduleHoursRespectParisDayBoundariesAndRejectDatesOutsideTheBattleDay() {
     LocalDate dstDay = LocalDate.of(2026, 10, 25);
     Instant midnight = BattleWindowService.atScheduleHour(dstDay, 24);
@@ -440,16 +353,6 @@ class CampaignPickingBoundaryCoverageTest {
     } finally {
       FactionManager.factions.remove(null);
     }
-  }
-
-  @Test
-  void anEmptyParticipantRosterDoesNotSatisfyTheSmallestSideQuorum() {
-    rig.attacker.getOrCreateMainGuild().getMembers().clear();
-    assertTrue(rig.attacker.getMembers().isEmpty());
-    rig.war.getBattleVotes().put(rig.bob.getUniqueId(), Set.of(21));
-    assertFalse(
-        BattleQuorumService.isSmallestSideFullyRepresented(rig.war, name -> rig.bob.getUniqueId()));
-    assertEquals(1, BattleQuorumService.countDistinctVoters(rig.war));
   }
 
   @Test

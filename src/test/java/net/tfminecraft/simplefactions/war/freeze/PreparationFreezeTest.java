@@ -34,7 +34,6 @@ class PreparationFreezeTest {
 
 	@BeforeEach
 	void setUp() {
-		Cache.warPostponeFreezeHours = 24;
 		attacker = faction("atk");
 		defender = faction("def");
 		outsider = faction("other");
@@ -48,10 +47,10 @@ class PreparationFreezeTest {
 	}
 
 	@Test
-	void postponement_freezesBothSidesForTheConfiguredHours() {
+	void aSavedPostponementFreezeStillHoldsBothSidesUntilItEnds() {
 		War war = war();
 
-		PreparationFreeze.applyPostponement(war, NOW);
+		postpone(war, NOW);
 
 		Instant until = NOW.plus(24, ChronoUnit.HOURS);
 		assertEquals(until, war.getPreparationFrozenUntil());
@@ -64,7 +63,7 @@ class PreparationFreezeTest {
 	@Test
 	void freeze_endsAfterItsWindow() {
 		War war = war();
-		PreparationFreeze.applyPostponement(war, NOW);
+		postpone(war, NOW);
 
 		Instant later = NOW.plus(24, ChronoUnit.HOURS);
 		assertNotNull(PreparationFreeze.freeze(attacker, later.minusSeconds(1)));
@@ -72,51 +71,18 @@ class PreparationFreezeTest {
 	}
 
 	@Test
-	void secondPostponement_stacksOnTheRemainingFreeze() {
-		War war = war();
-		PreparationFreeze.applyPostponement(war, NOW);
-		PreparationFreeze.applyPostponement(war, NOW.plus(2, ChronoUnit.HOURS));
-
-		assertEquals(NOW.plus(48, ChronoUnit.HOURS), war.getPreparationFrozenUntil());
-	}
-
-	@Test
 	void endedWar_doesNotFreeze() {
 		War war = war();
-		PreparationFreeze.applyPostponement(war, NOW);
+		postpone(war, NOW);
 		war.end(net.tfminecraft.simplefactions.war.enums.WarEndReason.WHITE_PEACE);
 
 		assertNull(PreparationFreeze.freeze(attacker, NOW));
 	}
 
 	@Test
-	void postponement_pushesLiveRaidRepairLocksOnly() {
-		War war = war();
-		Instant live = NOW.plus(10, ChronoUnit.HOURS);
-		Instant expired = NOW.minus(1, ChronoUnit.HOURS);
-		war.getRaidRepairLockUntil().put("fort-live", live);
-		war.getRaidRepairLockUntil().put("fort-old", expired);
-
-		PreparationFreeze.applyPostponement(war, NOW);
-
-		assertEquals(live.plus(24, ChronoUnit.HOURS), war.getRaidRepairLockUntil().get("fort-live"));
-		assertEquals(expired, war.getRaidRepairLockUntil().get("fort-old"));
-	}
-
-	@Test
-	void zeroHours_disablesTheFreeze() {
-		Cache.warPostponeFreezeHours = 0;
-		War war = war();
-
-		PreparationFreeze.applyPostponement(war, NOW);
-
-		assertNull(war.getPreparationFrozenUntil());
-	}
-
-	@Test
 	void refusal_onlyForFrozenFactions() {
 		War war = war();
-		PreparationFreeze.applyPostponement(war, NOW);
+		postpone(war, NOW);
 
 		String message = PreparationFreeze.refusal(PreparationFreeze.freeze(attacker, NOW), "regiments", NOW);
 		assertEquals("A battle of yours was postponed. No new regiments can be started for 24h 0m.", message);
@@ -144,7 +110,7 @@ class PreparationFreezeTest {
 	@Test
 	void buildup_outranksAPostponementOnEitherSide() {
 		War postponed = war();
-		PreparationFreeze.applyPostponement(postponed, NOW);
+		postpone(postponed, NOW);
 		War built = war();
 		built.setBuildup(true);
 
@@ -159,7 +125,7 @@ class PreparationFreezeTest {
 	@Test
 	void postponedWarsKeepTheLatestEnd() {
 		War first = war();
-		PreparationFreeze.applyPostponement(first, NOW);
+		postpone(first, NOW);
 		War second = war();
 		second.setPreparationFrozenUntil(NOW.plus(48, ChronoUnit.HOURS));
 
@@ -190,28 +156,6 @@ class PreparationFreezeTest {
 		assertNull(PreparationFreeze.freeze((Faction) null, NOW));
 	}
 
-	@Test
-	void battleSchedulePostpone_appliesTheFreeze() {
-		War war = war();
-		war.setBattleDay(LocalDate.of(2026, 8, 21));
-		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-
-		BattleScheduleService.postpone(war, NOW);
-
-		assertEquals(NOW.plus(24, ChronoUnit.HOURS), war.getPreparationFrozenUntil());
-	}
-
-	@Test
-	void skipBattleDay_appliesTheFreeze() {
-		War war = war();
-		war.setBattleDay(LocalDate.of(2026, 8, 21));
-
-		BattleScheduleService.skipBattleDay(war, NOW);
-
-		assertEquals(NOW.plus(24, ChronoUnit.HOURS), war.getPreparationFrozenUntil());
-		assertFalse(war.isPreparationFrozen(NOW.plus(25, ChronoUnit.HOURS)));
-	}
-
 	private War war() {
 		War war = new War(1, attacker, defender);
 		wars.add(war);
@@ -224,5 +168,10 @@ class PreparationFreezeTest {
 		when(faction.getName()).thenReturn(id);
 		when(faction.getMembers()).thenReturn(List.of());
 		return faction;
+	}
+
+	/** A postponement freeze saved before postponements went: 24 hours from {@code at}. */
+	private static void postpone(War war, Instant at) {
+		war.setPreparationFrozenUntil(at.plus(24, ChronoUnit.HOURS));
 	}
 }

@@ -80,7 +80,6 @@ class BattleAutoresolveServiceTest {
 		Cache.warAutoresolveLuck = 0;
 		Cache.warAutoresolveLoserLossFraction = 0.5;
 		Cache.warFirstBattleAtBorder = true;
-		Cache.warBattleVotingMaxPostponements = 1;
 
 		attacker = mock(Faction.class);
 		defender = mock(Faction.class);

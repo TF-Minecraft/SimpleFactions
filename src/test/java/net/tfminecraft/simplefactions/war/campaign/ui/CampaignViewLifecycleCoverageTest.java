@@ -202,22 +202,14 @@ class CampaignViewLifecycleCoverageTest {
   @Test
   void administrativeFeedbackDescribesAbsentTimesVotesAndBattles() {
     assertTrue(WarScheduleFeedbackFormatter.format(null, war).isEmpty());
-    assertTrue(WarScheduleFeedbackFormatter.format("closevote", null).isEmpty());
+    assertTrue(WarScheduleFeedbackFormatter.format("skipday", null).isEmpty());
     assertTrue(WarScheduleFeedbackFormatter.format("unknown", war).isEmpty());
-    assertTrue(text("castvote").contains("Selections: §e0"));
-    assertTrue(text("skipday").contains("Battle day: §e-"));
-    assertTrue(text("forcequorum").contains("bypasses quorum"));
+    assertTrue(text("skipday").contains("Battle days: §e-"));
     assertTrue(text("setscheduled").contains("Scheduled: §e-"));
     assertTrue(text("battlecreate").contains("Province: §e-"));
     assertTrue(text("battledelete").contains("No campaign battle"));
     assertTrue(text("battlestart").contains("No campaign battle"));
-    assertTrue(text("closevote").contains("idle"));
-    war.setBattleSchedulePhase(BattleSchedulePhase.AUTORESOLVE_PENDING);
-    assertTrue(text("closevote").contains("autoresolve_pending"));
-    war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-    assertTrue(text("closevote").contains("Autoresolved"));
-    war.setPostponementsThisCycle(1);
-    assertTrue(text("closevote").contains("Postponed"));
+    assertTrue(text("lockday").contains("Phase: §eidle"));
     for (String command : List.of("battlechoice", "defenderchoice", "pushchoice", "holdchoice")) {
       assertTrue(text(command).contains("toward_objective"));
     }
@@ -235,7 +227,7 @@ class CampaignViewLifecycleCoverageTest {
         List.of(new ScheduledCampaignBattle(10, CampaignBattleKind.SIEGE, true, "fort")));
     war.setCampaignCounterSchedule(
         List.of(new ScheduledCampaignBattle(20, CampaignBattleKind.NAVAL, false, null, "port")));
-    String output = text("opencvote");
+    String output = text("lockday");
     assertTrue(output.contains("Invasion schedule"));
     assertTrue(output.contains("Counter schedule"));
     assertTrue(output.contains("fort §efort"));

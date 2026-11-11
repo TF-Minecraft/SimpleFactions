@@ -1,8 +1,8 @@
 package net.tfminecraft.simplefactions.war.actions;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -15,10 +15,8 @@ import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
-import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityMarks;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
 import net.tfminecraft.simplefactions.war.core.CallToArmsService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
@@ -27,8 +25,8 @@ import net.tfminecraft.simplefactions.war.history.WarVoting;
 
 /**
  * Applies one website action on the main thread, with the checks the game makes for the same
- * click or command. Nothing here is a new rule: a web vote is the account's vote, exactly as if
- * the player had clicked it, except that the player need not be online.
+ * click or command. Nothing here is a new rule: web marks are the account's marks, exactly as if
+ * the player had clicked them, except that the player need not be online.
  */
 final class WarActionApplier {
 	static final String UNREADABLE = "The server could not read this action.";
@@ -36,12 +34,11 @@ final class WarActionApplier {
 	static final String WAR_OVER = "That war is over.";
 	static final String NO_FACTION = "That faction no longer exists.";
 	static final String NOT_LEADER = "You no longer lead that faction.";
-	static final String NOT_A_MEMBER = "Only members of the warring factions vote.";
-	static final String DAY_VOTE_CLOSED = "The vote on the first battle day is closed.";
-	static final String HOUR_VOTE_CLOSED = "The vote on the battle hour is closed.";
-	static final String BAD_DAY = "One of your picks is not a day on offer.";
-	static final String BAD_HOUR = "One of your picks is not an hour on offer.";
-	/** More picks than any vote offers is not a vote. */
+	static final String NOT_A_MEMBER = AvailabilityMarks.NOT_ELIGIBLE;
+	/** The old day and hour votes, still queued by a website that has not caught up. */
+	static final String VOTE_CHANGED = "This vote has changed: mark your availability instead.";
+	static final String BAD_DATE = "That is not a date.";
+	/** More hours than any battle window has is not a mark. */
 	static final int MAX_PICKS = 50;
 
 	WarActionResult apply(WarAction action) {
@@ -54,18 +51,17 @@ final class WarActionApplier {
 		if (action.kind() == null || action.account() == null || action.payload() == null || action.warKey() == null) {
 			return UNREADABLE;
 		}
-		if (!Set.of(WarAction.CALL_TO_ARMS_ANSWER, WarAction.DAY_VOTE, WarAction.HOUR_VOTE).contains(action.kind())) {
+		if (WarAction.DAY_VOTE.equals(action.kind()) || WarAction.HOUR_VOTE.equals(action.kind())) {
+			return VOTE_CHANGED;
+		}
+		if (!Set.of(WarAction.CALL_TO_ARMS_ANSWER, WarAction.AVAILABILITY).contains(action.kind())) {
 			return UNKNOWN_KIND;
 		}
 		War war = activeWar(action.warKey());
 		if (war == null) {
 			return WAR_OVER;
 		}
-		return switch (action.kind()) {
-			case WarAction.CALL_TO_ARMS_ANSWER -> answer(war, action);
-			case WarAction.DAY_VOTE -> vote(war, action, WarVoting.Kind.DAY);
-			default -> vote(war, action, WarVoting.Kind.HOUR);
-		};
+		return WarAction.CALL_TO_ARMS_ANSWER.equals(action.kind()) ? answer(war, action) : availability(war, action);
 	}
 
 	private static War activeWar(String warKey) {
@@ -97,52 +93,53 @@ final class WarActionApplier {
 		return answer.done() ? null : answer.reason();
 	}
 
-	private static String vote(War war, WarAction action, WarVoting.Kind kind) {
-		JsonElement raw = action.payload().get("picks");
-		if (!(raw instanceof JsonArray list) || list.size() > MAX_PICKS) {
+	/**
+	 * {@code {"date": "2026-11-20", "hours": [21, 22]}} replaces the account's marks on that date
+	 * ({@code []} clears them); {@code {"none": true}} answers "none of these days work".
+	 */
+	private static String availability(War war, WarAction action) {
+		Faction faction = WarVoting.factionOf(war, action.account());
+		Instant now = CampaignClock.now();
+		JsonElement none = action.payload().get("none");
+		if (none != null) {
+			if (!(none instanceof JsonPrimitive flag) || !flag.isBoolean() || !flag.getAsBoolean()) {
+				return UNREADABLE;
+			}
+			return changed(war, AvailabilityMarks.setNone(war, action.account(), faction, now));
+		}
+		String iso = WarAction.stringValue(action.payload().get("date"));
+		JsonElement raw = action.payload().get("hours");
+		if (iso == null || !(raw instanceof JsonArray list) || list.size() > MAX_PICKS) {
 			return UNREADABLE;
 		}
-		Faction faction = WarVoting.factionOf(war, action.account());
-		if (faction == null) {
-			return NOT_A_MEMBER;
+		LocalDate date;
+		try {
+			date = LocalDate.parse(iso);
+		} catch (RuntimeException unreadable) {
+			return BAD_DATE;
 		}
-		Instant now = CampaignClock.now();
-		boolean open = kind == WarVoting.Kind.DAY
-				? BuildupService.canToggleDayVote(war, faction)
-				: BattleVoterEligibility.canToggleVote(war, faction, now);
-		if (!open) {
-			return kind == WarVoting.Kind.DAY ? DAY_VOTE_CLOSED : HOUR_VOTE_CLOSED;
-		}
-		Set<Integer> picks = new HashSet<>();
+		Set<Integer> hours = new HashSet<>();
 		for (JsonElement pick : list) {
-			Integer option = kind == WarVoting.Kind.DAY ? day(war, pick) : hour(pick);
-			if (option == null) {
-				return kind == WarVoting.Kind.DAY ? BAD_DAY : BAD_HOUR;
+			Integer hour = hour(pick);
+			if (hour == null) {
+				return AvailabilityMarks.BAD_HOUR;
 			}
-			picks.add(option);
+			hours.add(hour);
 		}
-		Map<UUID, Set<Integer>> votes = kind == WarVoting.Kind.DAY ? war.getDayVotes() : war.getBattleVotes();
-		if (picks.isEmpty()) {
-			votes.remove(action.account());
-		} else {
-			votes.put(action.account(), picks);
-		}
-		WarManager.persist(war);
-		WarHistoryEvents.votesChanged(war);
-		return null;
+		return changed(war, AvailabilityMarks.setDate(war, action.account(), faction, date, hours, now));
 	}
 
-	private static Integer day(War war, JsonElement pick) {
-		String iso = WarAction.stringValue(pick);
-		return iso == null ? null : WarVoting.dayOffset(war, iso);
+	/** Saves and reports a change that was made; passes a refusal through. */
+	private static String changed(War war, String refusal) {
+		if (refusal == null) {
+			WarManager.persist(war);
+			WarHistoryEvents.votesChanged(war);
+		}
+		return refusal;
 	}
 
 	private static Integer hour(JsonElement pick) {
 		Long hour = pick instanceof JsonPrimitive primitive && primitive.isNumber() ? WarAction.longValue(pick) : null;
-		if (hour == null || hour < Integer.MIN_VALUE || hour > Integer.MAX_VALUE
-				|| !BattleWindowService.isValidHour(hour.intValue())) {
-			return null;
-		}
-		return hour.intValue();
+		return hour == null || hour < Integer.MIN_VALUE || hour > Integer.MAX_VALUE ? null : hour.intValue();
 	}
 }

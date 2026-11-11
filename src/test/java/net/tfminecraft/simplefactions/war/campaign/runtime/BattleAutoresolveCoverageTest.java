@@ -82,7 +82,6 @@ class BattleAutoresolveCoverageTest {
     setting("warAutoresolveLuck", 0.0);
     setting("warAutoresolveLoserLossFraction", 0.5);
     setting("warFirstBattleAtBorder", true);
-    setting("warBattleVotingMaxPostponements", 1);
     fixture.provincesEnabled(true);
     YamlConfiguration yaml = new YamlConfiguration();
     yaml.set("guard.item.material", "PAPER");
@@ -207,7 +206,7 @@ class BattleAutoresolveCoverageTest {
     assertWounded(defender, 3, 3);
     assertFalse(war.isAutoresolveProposedByAttacker());
     assertFalse(war.isAutoresolveProposedByDefender());
-    verify(bob).sendMessage("§aBattle vote autoresolve accepted.");
+    verify(bob).sendMessage("§aAutoresolve accepted.");
     verify(alice).sendMessage(defender.getName() + " §aaccepted autoresolve");
     assertEquals(1, new Database().loadWars().getFirst().getCampaignBattlesFought());
   }
@@ -229,7 +228,7 @@ class BattleAutoresolveCoverageTest {
         () -> assertEquals(0, replacement.getCampaignBattlesFought()),
         () -> assertEquals(10, attacker.getMilitary().getRegiment("guard").getCurrentSlots()),
         () -> assertEquals(6, defender.getMilitary().getRegiment("guard").getCurrentSlots()),
-        () -> verify(bob, never()).sendMessage("§aBattle vote autoresolve accepted."));
+        () -> verify(bob, never()).sendMessage("§aAutoresolve accepted."));
     assertSame(replacement, WarManager.getById(0));
   }
 
@@ -246,7 +245,8 @@ class BattleAutoresolveCoverageTest {
       defender.getOrCreateMainGuild().addMember("Cara");
       defender.setLeader("Cara");
     }
-    if (reason.equals("expired")) time(BattleWindowService.atScheduleHour(DAY, 16));
+    // The battle day was taken back (staff unlocked it) before the answer.
+    if (reason.equals("expired")) war.setBattleDay(null);
     if (reason.equals("no_battle")) {
       war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
       war.setPostBattleChoiceResolved(false);
@@ -258,7 +258,7 @@ class BattleAutoresolveCoverageTest {
     assertEquals(0, war.getCampaignBattlesFought());
     assertEquals(10, attacker.getMilitary().getRegiment("guard").getCurrentSlots());
     assertEquals(6, defender.getMilitary().getRegiment("guard").getCurrentSlots());
-    verify(bob, never()).sendMessage("§aBattle vote autoresolve accepted.");
+    verify(bob, never()).sendMessage("§aAutoresolve accepted.");
     assertFalse(RequestManager.hasRequest(bob));
   }
 
@@ -312,25 +312,29 @@ class BattleAutoresolveCoverageTest {
     RequestManager.accept(alice);
 
     assertEquals(1, war.getCampaignBattlesFought());
-    verify(alice).sendMessage("§aBattle vote autoresolve accepted.");
+    verify(alice).sendMessage("§aAutoresolve accepted.");
     verify(bob, never()).sendMessage(anyString());
     assertFalse(RequestManager.hasRequest(alice));
   }
 
   @Test
-  void eligibilityUsesTheActualBattleDayAndTheVoteCloseBoundary() {
+  void eligibilityNeedsALockedBattleDayWhoseBattleIsNotSetYet() {
     War war = votingWar(0);
     assertFalse(BattleAutoresolveService.canProposeAutoresolveNow(null, CampaignClock.now()));
     assertFalse(BattleAutoresolveService.canProposeAutoresolveNow(war, null));
+    // Between the day lock and the battle being set, whatever the hour.
     assertTrue(
         BattleAutoresolveService.canProposeAutoresolveNow(
-            war, BattleWindowService.atScheduleHour(DAY, 15)));
-    assertFalse(
+            war, BattleWindowService.atScheduleHour(DAY.minusDays(1), 15)));
+    assertTrue(
         BattleAutoresolveService.canProposeAutoresolveNow(
             war, BattleWindowService.atScheduleHour(DAY, 16)));
+    LocalDate day = war.getBattleDay();
+    war.setBattleDay(null);
     assertFalse(
         BattleAutoresolveService.canProposeAutoresolveNow(
-            war, BattleWindowService.atScheduleHour(DAY.plusDays(1), 15)));
+            war, BattleWindowService.atScheduleHour(DAY, 15)));
+    war.setBattleDay(day);
     assertFalse(BattleAutoresolveService.resolve(null));
     BattleAutoresolveService.acceptRequest(bob);
     assertEquals(0, war.getCampaignBattlesFought());

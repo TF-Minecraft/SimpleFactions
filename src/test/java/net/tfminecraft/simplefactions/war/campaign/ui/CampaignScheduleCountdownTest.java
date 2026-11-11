@@ -65,7 +65,7 @@ class CampaignScheduleCountdownTest {
 		Optional<String> text = CampaignScheduleCountdown.formatNextMilestone(war, now);
 
 		assertTrue(text.isPresent());
-		assertTrue(text.get().startsWith("Vote closes in "));
+		assertTrue(text.get().startsWith("Picks lock in "));
 	}
 
 	@Test
@@ -121,20 +121,33 @@ class CampaignScheduleCountdownTest {
 
 		Optional<String> text = CampaignScheduleCountdown.formatNextMilestone(war, now);
 
-		assertFalse(text.isPresent());
+		// Picks have locked; what comes next is the next date's decision.
+		assertTrue(text.orElseThrow().startsWith("Next decision in "), text.toString());
 	}
 
 	@Test
-	void buildup_showsWhenTheDayVoteCloses() {
+	void buildup_showsWhenTheNextDateIsDecided() {
 		War war = votingWar();
-		Instant now = BattleWindowService.atScheduleHour(BATTLE_DAY, 12);
+		Instant now = net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar
+				.dayLockAt(BATTLE_DAY.plusDays(2)).minusSeconds(2 * 3600L);
 		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
 		war.setBattleDay(null);
-		war.setDayVoteClosesAt(now.plusSeconds(2 * 3600L));
+		war.getAvailability().setEarliestBattleDay(BATTLE_DAY.plusDays(2));
 
-		assertEquals(Optional.of("Day vote closes in 2h"), CampaignScheduleCountdown.formatNextMilestone(war, now));
+		// The first date shown is decided two hours from now.
+		assertEquals(Optional.of("Next decision in 2h"), CampaignScheduleCountdown.formatNextMilestone(war, now));
 
-		war.setDayVoteClosesAt(null);
+		war.setBattleSchedulePhase(BattleSchedulePhase.IDLE);
+		assertFalse(CampaignScheduleCountdown.formatNextMilestone(war, now).isPresent());
+	}
+
+	@Test
+	void voting_withEveryDateShownDecided_hasNoMilestone() {
+		War war = votingWar();
+		war.setBattleDay(null);
+		Instant now = BattleWindowService.atScheduleHour(BATTLE_DAY, 12);
+		war.getAvailability().setLastDayLockProcessed(BATTLE_DAY.plusDays(30));
+
 		assertFalse(CampaignScheduleCountdown.formatNextMilestone(war, now).isPresent());
 	}
 

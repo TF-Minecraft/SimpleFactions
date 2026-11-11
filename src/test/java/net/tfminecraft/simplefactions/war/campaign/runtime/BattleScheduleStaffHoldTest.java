@@ -53,24 +53,16 @@ class BattleScheduleStaffHoldTest {
 	}
 
 	@Test
-	void postponingOrSkippingTheBattleDayReleasesTheHoldToo() {
-		when(war.getBattleDay()).thenReturn(java.time.LocalDate.of(2026, 11, 8));
+	void movingToAnotherBattleDayOrCallingTheBattleOffReleasesTheHoldToo() {
 		BattleManager.addBattle(battle);
 		battle.setStaffHold(true);
-		try (var progression = mockStatic(net.tfminecraft.simplefactions.war.campaign.progression.CampaignProgressionService.class);
-				var picks = mockStatic(net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService.class);
-				var raids = mockStatic(net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService.class);
-				var freeze = mockStatic(net.tfminecraft.simplefactions.war.freeze.PreparationFreeze.class)) {
-			BattleScheduleService.postpone(war, java.time.Instant.EPOCH);
+		try (var picks = mockStatic(net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService.class);
+				var raids = mockStatic(net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService.class)) {
+			BattleScheduleService.clearForNewBattleDay(war);
 			assertFalse(battle.isStaffHold());
 			battle.setStaffHold(true);
-			BattleScheduleService.skipBattleDay(war, java.time.Instant.EPOCH);
+			BattleScheduleService.releaseScheduledBattle(war);
 			assertFalse(battle.isStaffHold());
-			// A scheduled war keeps its old start time, so releasing the hold would start the battle.
-			battle.setStaffHold(true);
-			when(war.getBattleSchedulePhase()).thenReturn(net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase.SCHEDULED);
-			BattleScheduleService.skipBattleDay(war, java.time.Instant.EPOCH);
-			assertTrue(battle.isStaffHold());
 		}
 	}
 

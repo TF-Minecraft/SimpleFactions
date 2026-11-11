@@ -14,10 +14,8 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.LogManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
-import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiTimeFormatter;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
-import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
+import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.utils.Formatter;
@@ -32,7 +30,6 @@ import net.tfminecraft.simplefactions.war.campaign.admin.WarScheduleFeedbackForm
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService.CampaignSideRole;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
-import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -75,7 +72,7 @@ public class WarCommandManager implements CommandExecutor {
 				player.sendMessage("§cNo active war with id §f" + args[1]);
 				return true;
 			}
-			new InventoryManager().openCampaignView(player, war);
+			new InventoryManager().openAvailability(player, war);
 			return true;
 		}
 		if (args[0].equalsIgnoreCase("calls") && args.length == 1) {
@@ -240,10 +237,10 @@ public class WarCommandManager implements CommandExecutor {
 				goal.toJson());
 		player.sendMessage("§aDeclared war §e#" + war.getId() + "§a: " + attacker.getName() + " §avs "
 				+ defender.getName() + " §a(" + goal.getDisplayName() + ")."
-				+ (BuildupService.isDayVoteOpen(war)
-						? " In its buildup; the day vote closes §e"
-								+ CampaignUiTimeFormatter.formatDateTime(war.getDayVoteClosesAt())
-						: " Battle day: §e" + war.getBattleDay()));
+				+ (war.isBuildupFrozen()
+						? " In its buildup; the first battle can be on §e"
+								+ war.getAvailability().getEarliestBattleDay() + " §aat the earliest."
+						: war.getBattleDay() == null ? "" : " Battle day: §e" + war.getBattleDay()));
 		return true;
 	}
 
@@ -598,15 +595,16 @@ public class WarCommandManager implements CommandExecutor {
 		return faction != null && faction.getName() != null ? faction.getName() : factionId;
 	}
 
-	/** Schedule and battle tools that would leave a war voting on its day in a broken state. */
+	/** Battle tools that need a battle day, refused while a buildup war has none yet. */
 	static final java.util.Set<String> BUILDUP_REFUSED = java.util.Set.of(
-			"opencvote", "closevote", "skipday", "castvote", "forcequorum", "setday", "sethour", "setscheduled",
-			"battlecreate", "battlestart", "winbattle", "choice", "battlechoice", "defenderchoice", "pushchoice",
-			"holdchoice");
+			"skipday", "sethour", "setscheduled", "battlecreate", "battlestart", "winbattle", "choice", "battlechoice",
+			"defenderchoice", "pushchoice", "holdchoice");
+
+	private static final String BUILDUP_USAGE = "§cUsage: /war admin buildup <warId> status|end|setday <yyyy-MM-dd>";
 
 	private boolean handleBuildup(Player player, String[] args) {
 		if (args.length < 4) {
-			player.sendMessage("§cUsage: /war admin buildup <warId> status|end|closevote|setday <yyyy-MM-dd>");
+			player.sendMessage(BUILDUP_USAGE);
 			return true;
 		}
 		War w = WarCommandHelper.parseWarId(args[2]).map(WarManager::getById).orElse(null);
@@ -619,47 +617,27 @@ public class WarCommandManager implements CommandExecutor {
 			case "status" -> {
 				player.sendMessage("§eWar " + w.getId() + " buildup: " + (w.isBuildupFrozen()
 						? "§cfrozen until the first battle" : "§anot frozen by a buildup"));
-				if (BuildupService.isDayVoteOpen(w)) {
-					player.sendMessage("§7Day vote closes " + CampaignUiTimeFormatter.formatDateTime(w.getDayVoteClosesAt())
-							+ "§7, " + BattleQuorumService.countDistinctVoters(w.getDayVotes()) + " voters.");
-				} else {
-					player.sendMessage("§7First battle day: "
-							+ net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy.formatBattleDay(w.getBattleDay()));
-				}
+				player.sendMessage("§7Earliest battle day: " + w.getAvailability().getEarliestBattleDay()
+						+ "§7. Next battle day: " + (w.getBattleDay() == null ? "none yet" : w.getBattleDay()));
 				return true;
 			}
 			case "end" -> {
 				BuildupService.end(w, now);
 				player.sendMessage("§aEnded the buildup of war " + w.getId() + ". Its factions can build again.");
 			}
-			case "closevote" -> {
-				if (!BuildupService.isDayVoteOpen(w)) {
-					player.sendMessage("§cWar " + w.getId() + " is not voting on its first battle day.");
-					return true;
-				}
-				BuildupService.DayVoteResult result = BuildupService.closeDayVote(w, now,
-						BattleScheduleLookups.uuidToFactionForWar(w), BattleScheduleLookups.memberNameToUuid());
-				player.sendMessage("§aClosed the day vote" + (result.quorum() ? "" : " §7(no quorum)")
-						+ "§a. First battle day: " + result.day());
-			}
 			case "setday" -> {
-				java.time.LocalDate day;
-				try {
-					day = args.length >= 5 ? java.time.LocalDate.parse(args[4]) : null;
-				} catch (java.time.format.DateTimeParseException e) {
-					day = null;
-				}
-				if (day == null || !w.isBuildupFrozen()) {
-					player.sendMessage(day == null
-							? "§cUsage: /war admin buildup <warId> setday <yyyy-MM-dd>"
-							: "§cWar " + w.getId() + " is not in a buildup. Use §e/war admin schedule setday§c.");
+				if (args.length < 5) {
+					player.sendMessage(BUILDUP_USAGE);
 					return true;
 				}
-				BuildupService.DayVoteResult result = BuildupService.setFirstBattleDay(w, day, now, true);
-				player.sendMessage("§aFirst battle day of war " + w.getId() + ": " + result.day());
+				WarScheduleAdminResult result = WarScheduleAdminService.lockDay(w, args[4], now);
+				player.sendMessage((result.success() ? "§a" : "§c") + result.message());
+				if (!result.success()) {
+					return true;
+				}
 			}
 			default -> {
-				player.sendMessage("§cUsage: /war admin buildup <warId> status|end|closevote|setday <yyyy-MM-dd>");
+				player.sendMessage(BUILDUP_USAGE);
 				return true;
 			}
 		}
@@ -683,40 +661,39 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		String subcommand = args[3].toLowerCase(java.util.Locale.ROOT);
-		if (BuildupService.isDayVoteOpen(w) && BUILDUP_REFUSED.contains(subcommand)) {
-			player.sendMessage("§cWar " + w.getId() + " is still voting on its first battle day. Use §e/war admin buildup "
-					+ w.getId() + " setday|closevote|end§c first.");
+		if (w.getBattleSchedulePhase() == BattleSchedulePhase.BUILDUP && BUILDUP_REFUSED.contains(subcommand)) {
+			player.sendMessage("§cWar " + w.getId() + " has no battle day yet. Lock one with §e/war admin schedule "
+					+ w.getId() + " lockday <yyyy-MM-dd>§c first.");
 			return true;
 		}
 		WarScheduleAdminResult result = switch (subcommand) {
-			case "opencvote" -> WarScheduleAdminService.openVote(w);
-			case "closevote" -> WarScheduleAdminService.closeVote(w, CampaignClock.now());
+			case "availability" -> WarScheduleAdminService.availability(w, CampaignClock.now());
 			case "skipday" -> WarScheduleAdminService.skipDay(w);
-			case "castvote" -> {
+			case "lockday", "unlockday" -> {
 				if (args.length < 5) {
+					yield WarScheduleAdminResult.error("Usage: /war admin schedule <id> " + subcommand + " <yyyy-MM-dd>");
+				}
+				yield subcommand.equals("lockday")
+						? WarScheduleAdminService.lockDay(w, args[4], CampaignClock.now())
+						: WarScheduleAdminService.unlockDay(w, args[4]);
+			}
+			case "castvote" -> {
+				if (args.length < 6) {
 					yield WarScheduleAdminResult.error(
-							"Usage: /war admin schedule <id> castvote <hour> [attacker|defender|both]");
+							"Usage: /war admin schedule <id> castvote <yyyy-MM-dd> <hour> [attacker|defender|both]");
 				}
 				int hour;
 				try {
-					hour = Integer.parseInt(args[4]);
+					hour = Integer.parseInt(args[5]);
 				} catch (NumberFormatException e) {
 					yield WarScheduleAdminResult.error("Hour must be a number.");
 				}
-				String side = args.length >= 6 ? args[5] : "both";
-				yield WarScheduleAdminService.castVote(w, hour, side);
-			}
-			case "forcequorum" -> WarScheduleAdminService.forceQuorum(w);
-			case "setday" -> {
-				if (args.length < 5) {
-					yield WarScheduleAdminResult.error("Usage: /war admin schedule <id> setday <yyyy-MM-dd>");
-				}
-				yield WarScheduleAdminService.setDay(w, args[4]);
+				yield WarScheduleAdminService.castVote(w, args[4], hour, args.length >= 7 ? args[6] : "both");
 			}
 			case "sethour" -> {
 				if (args.length < 5) {
 					yield WarScheduleAdminResult.error(
-							"Usage: /war admin schedule <id> sethour <hour> (0 and 1 mean after midnight CET)");
+							"Usage: /war admin schedule <id> sethour <hour> [yyyy-MM-dd] (0 and 1 mean after midnight CET)");
 				}
 				int hour;
 				try {
@@ -724,7 +701,7 @@ public class WarCommandManager implements CommandExecutor {
 				} catch (NumberFormatException e) {
 					yield WarScheduleAdminResult.error("Hour must be a number.");
 				}
-				yield WarScheduleAdminService.setHour(w, hour);
+				yield WarScheduleAdminService.setHour(w, hour, args.length >= 6 ? args[5] : null, CampaignClock.now());
 			}
 			case "setscheduled" -> {
 				if (args.length < 5) {
@@ -757,8 +734,8 @@ public class WarCommandManager implements CommandExecutor {
 				yield WarScheduleAdminService.battleChoice(w, args[4]);
 			}
 			default -> WarScheduleAdminResult.error(
-					"Unknown subcommand. Use: opencvote, closevote, skipday, setday, sethour, castvote, "
-							+ "forcequorum, setscheduled, battlecreate, battledelete, battlestart, battlerestart, "
+					"Unknown subcommand. Use: availability, lockday, unlockday, sethour, skipday, castvote, "
+							+ "setscheduled, battlecreate, battledelete, battlestart, battlerestart, "
 							+ "battleabort, battleend, battlehold, winbattle, choice");
 		};
 		if (result.success()) {
@@ -767,11 +744,7 @@ public class WarCommandManager implements CommandExecutor {
 				WarManager.persist(w);
 			}
 			player.sendMessage("§a" + result.message());
-			Integer castHour = null;
-			if ("castvote".equals(subcommand)) {
-				castHour = BattleWindowService.normalizeInputHour(Integer.parseInt(args[4]));
-			}
-			for (String line : WarScheduleFeedbackFormatter.format(subcommand, w, castHour)) {
+			for (String line : WarScheduleFeedbackFormatter.format(subcommand, w)) {
 				player.sendMessage(line);
 			}
 		} else {

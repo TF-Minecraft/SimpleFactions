@@ -16,6 +16,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
+import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.civilwar.wartime.CivilWarBorderLock;
 import net.tfminecraft.simplefactions.war.core.Participant;
 import net.tfminecraft.simplefactions.war.core.Side;
@@ -145,8 +149,21 @@ public final class WarHistoryJson {
 		state.addProperty("schedule_phase", war.getBattleSchedulePhase().toJson());
 		state.addProperty("campaign_phase", war.getCampaignPhase().toJson());
 		state.addProperty("buildup", war.isBuildup());
-		state.addProperty("day_vote_closes_at", instant(war.getDayVoteClosesAt()));
+		// The day vote is gone: availability wars have no day vote to close.
+		state.addProperty("day_vote_closes_at", (String) null);
 		state.addProperty("battle_day", war.getBattleDay() == null ? null : war.getBattleDay().toString());
+		boolean scheduling = AvailabilityScheduler.isScheduling(war);
+		state.addProperty("next_lock_at", scheduling ? instant(AvailabilityCalendar.nextLockAt(war, CampaignClock.now())) : null);
+		JsonArray battleDays = new JsonArray();
+		if (scheduling) {
+			for (LockedBattleDay day : war.getAvailability().battleDays()) {
+				JsonObject row = new JsonObject();
+				row.addProperty("date", day.date().toString());
+				row.addProperty("hour", day.hour());
+				battleDays.add(row);
+			}
+		}
+		state.add("battle_days", battleDays);
 		state.addProperty("scheduled_at", instant(war.getScheduledBattleAt()));
 		state.addProperty("route_length", size(war.getCampaignProvinces()));
 		state.addProperty("objective_province_id", war.getObjectiveProvinceId());
