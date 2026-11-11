@@ -51,6 +51,7 @@ public final class BattleMapper {
 		data.lifeType = battle.getLifeType() != null ? battle.getLifeType().name() : LifeType.COLLECTIVE.name();
 		data.sequentialCapture = battle.isSequentialCapture();
 		data.capturePointsEnabled = battle.isCapturePointsEnabled();
+		data.controlVictoryOff = !battle.isControlVictory();
 		data.campaignRaid = battle.isCampaignRaid();
 		data.started = battle.hasStarted();
 		if (battle.getStartedAt() != null) {
@@ -126,6 +127,7 @@ public final class BattleMapper {
 		battle.setLifeType(parseLifeType(data.lifeType));
 		battle.setSequentialCapture(data.sequentialCapture);
 		battle.setCapturePointsEnabled(data.capturePointsEnabled);
+		battle.setControlVictory(!data.controlVictoryOff);
 		battle.setCampaignRaid(data.campaignRaid);
 		battle.setStarted(data.started);
 		if (data.startedAt != null && !data.startedAt.isBlank()) {

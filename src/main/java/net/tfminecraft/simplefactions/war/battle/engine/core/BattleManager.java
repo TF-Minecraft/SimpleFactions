@@ -505,6 +505,14 @@ public class BattleManager implements Listener{
 				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 				inv.updateView(p, b, e.getClickedInventory());
 				BattlePersistenceService.persistBattle(b);
+			} else if(e.getSlot() == BattleInventoryManager.CONTROL_VICTORY_SLOT) {
+				if (b.getBattleType() != BattleType.FIELD) {
+					return;
+				}
+				b.setControlVictory(!b.isControlVictory());
+				p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+				inv.updateView(p, b, e.getClickedInventory());
+				BattlePersistenceService.persistBattle(b);
 			} else if(e.getSlot() == 7) {
 				inv.templateView(p, b);
 			} else if(e.getSlot() == 8) {

@@ -185,6 +185,7 @@ battle:
   # (2 of 3 held: 0.5 x 2/3 = 0.33 a second). Holding every point multiplies that by
   # all_points_multiplier. A point counts as held at 50% capture or more. The first side
   # to reach target wins; running out of lives or retreating still loses as before.
+  # enabled: false turns it off everywhere; staff can turn it off for one battle in /battle edit.
   control:
     enabled: true
     target: 1000

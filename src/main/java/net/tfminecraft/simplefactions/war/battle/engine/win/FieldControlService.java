@@ -36,6 +36,7 @@ public final class FieldControlService {
 	public static boolean isActive(Battle battle) {
 		return battle != null
 				&& Cache.battleControlEnabled
+				&& battle.isControlVictory()
 				&& battle.hasStarted()
 				&& battle.getBattleType() == BattleType.FIELD
 				&& battle.isCapturePointsEnabled()

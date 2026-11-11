@@ -73,6 +73,8 @@ public class Battle {
 	private Set<Integer> allowedProvinceIds = Collections.emptySet();
 	private boolean sequentialCapture;
 	private boolean capturePointsEnabled;
+	// Staff can switch control victory off for one field battle, leaving lives and retreat.
+	private boolean controlVictory = true;
 	private int contestHoldRemainingSeconds;
 	private boolean campaignRaid;
 	private boolean staffHold;
@@ -779,6 +781,7 @@ public class Battle {
 		lives = 25;
 		sequentialCapture = false;
 		capturePointsEnabled = false;
+		controlVictory = true;
 	}
 
 	public Set<Integer> getAllowedProvinceIds() {
@@ -799,6 +802,15 @@ public class Battle {
 
 	public void setSequentialCapture(boolean sequentialCapture) {
 		this.sequentialCapture = sequentialCapture;
+	}
+
+	/** Whether this field battle can be won by control; config can still switch it off for all. */
+	public boolean isControlVictory() {
+		return controlVictory;
+	}
+
+	public void setControlVictory(boolean controlVictory) {
+		this.controlVictory = controlVictory;
 	}
 
 	public boolean isCapturePointsEnabled() {

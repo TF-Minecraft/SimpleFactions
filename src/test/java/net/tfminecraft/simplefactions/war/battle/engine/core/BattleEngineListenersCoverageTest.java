@@ -778,10 +778,12 @@ class BattleEngineListenersCoverageTest {
     assertFalse(battle.hasManaRefillOnRespawn());
     click(15); assertTrue(battle.hasManaRefillOnRespawn());
     click(15); assertFalse(battle.hasManaRefillOnRespawn());
+    click(16); assertFalse(battle.isControlVictory());
+    click(16); assertTrue(battle.isControlVictory());
     var lifeMode = battle.getLifeType();
     click(2); assertSame(lifeMode, battle.getLifeType());
     click(3); assertEquals(25, battle.getLives());
-    persistence.verify(() -> BattlePersistenceService.persistBattle(battle), times(7));
+    persistence.verify(() -> BattlePersistenceService.persistBattle(battle), times(9));
     battle.setStarted(true);
     click(1);
     assertFalse(battle.isLocked());
@@ -797,6 +799,8 @@ class BattleEngineListenersCoverageTest {
     assertEquals(120, siege.getContestDurationSeconds());
     click(8);
     assertFalse(siege.isSequentialCapture());
+    click(16);
+    assertTrue(siege.isControlVictory());
     Battle raid = battle("raid", BattleType.RAID);
     raid.setDefenderRespawnMode(DefenderRespawnMode.INFINITE);
     edit(raid);

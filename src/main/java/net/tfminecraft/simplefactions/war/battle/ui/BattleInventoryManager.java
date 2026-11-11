@@ -28,6 +28,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.objects.api.ItemAPI;
 import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
+import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.loaders.BattleTemplateLoader;
 import net.tfminecraft.simplefactions.managers.WarManager;
@@ -60,6 +61,7 @@ public class BattleInventoryManager {
 	public static final int SIDE_EDIT_LIVES_SLOT = 16;
 	public static final int ALL_VEHICLES_SLOT = 24;
 	public static final int RUNNING_LIVES_ALT_SLOT = 21;
+	public static final int CONTROL_VICTORY_SLOT = 16;
 
 	private static NamespacedKey templateKey() {
 		return new NamespacedKey(SimpleFactions.plugin, "battle_template");
@@ -270,6 +272,7 @@ public class BattleInventoryManager {
 		i.setItem(7, createTemplateButton(b));
 		i.setItem(14, createGameRuleButton("Battle Loot", b.hasLootEnabled()));
 		i.setItem(15, createGameRuleButton("Mana Refill on Respawn", b.hasManaRefillOnRespawn()));
+		i.setItem(CONTROL_VICTORY_SLOT, b.getBattleType() == BattleType.FIELD ? createControlVictoryButton(b) : null);
 		if(b.hasStarted()) {
 			i.setItem(18, createStopButton(b));
 		} else {
@@ -496,6 +499,28 @@ public class BattleInventoryManager {
 		if (!(inventory.getHolder(false) instanceof CollectionPage page)) return null;
 		CapturePoint point = page.points.get(getPointIdFromItem(item));
 		return point != null && livePoints.contains(point) ? point : null;
+	}
+
+	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
+	@SuppressWarnings("deprecation")
+	public ItemStack createControlVictoryButton(Battle b) {
+		ItemStack i = createGameRuleButton("Control victory", b.isControlVictory());
+		ItemMeta meta = i.getItemMeta();
+		List<String> lore = new ArrayList<String>();
+		if (b.isControlVictory()) {
+			lore.add("§7Holding more capture points than the");
+			lore.add("§7enemy builds control that wins the battle");
+		} else {
+			lore.add("§7Lives only: the battle ends when a side");
+			lore.add("§7runs out of lives or retreats");
+		}
+		if (!Cache.battleControlEnabled) {
+			lore.add("§cOff for every battle in config.yml");
+		}
+		lore.add(b.hasStarted() ? "§7Locked after start" : "§7Click to toggle");
+		meta.setLore(lore);
+		i.setItemMeta(meta);
+		return i;
 	}
 
 	public ItemStack createSequentialCaptureButton(Battle b) {

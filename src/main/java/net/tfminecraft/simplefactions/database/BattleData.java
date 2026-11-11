@@ -31,6 +31,8 @@ public class BattleData {
 	public String lifeType;
 	public boolean sequentialCapture;
 	public boolean capturePointsEnabled;
+	// Staff switched control victory off. Absent in older saves reads as false: control is on.
+	public boolean controlVictoryOff;
 	public boolean campaignRaid;
 	public boolean started;
 	public String startedAt;
