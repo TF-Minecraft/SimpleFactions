@@ -5,14 +5,17 @@ import java.util.Locale;
 
 /**
  * Inactivity is a mark, not a kick. After {@link #DAYS_UNTIL_INACTIVE} offline
- * days a member stays in the guild and is shown as inactive. A guild whose
+ * days a member stays in the guild and is shown as inactive. An inactive
+ * member adds no prestige, does not count toward member-based limits and
+ * gives up council seats, candidacies, movement leadership and the Spymaster
+ * post. A realm leader stays leader, and a guild leader keeps the guild. A guild whose
  * real members are all inactive loses 1% of upgrade output every
  * {@link #DECAY_INTERVAL_MILLIS}. A faction in the same state loses 1% prestige
  * on that cadence and, while it holds more land than its prestige pays for,
  * sheds provinces in claim order. The capital is last, and it does go.
  */
 public final class InactivityRules {
-	public static final int DAYS_UNTIL_INACTIVE = 21;
+	public static final int DAYS_UNTIL_INACTIVE = 28;
 	public static final long DECAY_INTERVAL_MILLIS = 4L * 60L * 60L * 1000L;
 	public static final int DECAY_STEP_PERCENT = 1;
 	public static final int DECAY_CAP_PERCENT = 100;

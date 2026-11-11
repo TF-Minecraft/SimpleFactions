@@ -14,9 +14,9 @@ import net.tfminecraft.simplefactions.inactivity.DecayClock.Event;
 class InactivityRulesTest {
 
 	@Test
-	void memberIsInactiveAfterTwentyOneDaysAndNotBefore() {
-		assertFalse(InactivityRules.isInactive(20));
-		assertTrue(InactivityRules.isInactive(21));
+	void memberIsInactiveAfterFourWeeksAndNotBefore() {
+		assertFalse(InactivityRules.isInactive(27));
+		assertTrue(InactivityRules.isInactive(28));
 	}
 
 	@Test

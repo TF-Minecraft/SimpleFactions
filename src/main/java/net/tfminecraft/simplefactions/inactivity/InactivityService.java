@@ -110,8 +110,19 @@ public final class InactivityService {
 
 	public static boolean isMemberInactive(String name) {
 		if (!InactivityRules.isTrackedMember(name)) return false;
-		if (isOnline(name)) return false;
-		return InactivityRules.isInactive(FactionCleanup.daysOffline(name));
+		// The day count is a map read; only a member already past the threshold needs the online lookup.
+		if (!InactivityRules.isInactive(FactionCleanup.daysOffline(name))) return false;
+		return !isOnline(name);
+	}
+
+	/** The members who still count. Inactive members stay in their guild but add nothing to counts. */
+	public static List<String> activeOnly(java.util.Collection<String> members) {
+		List<String> active = new ArrayList<>();
+		if (members == null) return active;
+		for (String member : members) {
+			if (!isMemberInactive(member)) active.add(member);
+		}
+		return active;
 	}
 
 	public static boolean isFullyInactive(List<String> members) {
@@ -143,7 +154,8 @@ public final class InactivityService {
 		Guild guild = faction.getGuild(name);
 		boolean outputCleared = guild != null && clearClock(guildClocks, guild.getId());
 		boolean prestigeCleared = clearClock(factionClocks, faction.getId());
-		if (prestigeCleared) faction.updatePrestige();
+		// The returning member counts toward prestige again, with or without a penalty to clear.
+		faction.updatePrestige();
 		if (outputCleared || prestigeCleared) {
 			recomputeEarliest();
 			save();

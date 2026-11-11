@@ -131,6 +131,7 @@ public class Council {
     public boolean canBeMember(String name, boolean ignoreSize, boolean ignoreRefuses) {
         if(members.contains(name)) return false;
         if(f.getLeader().equals(name)) return false;
+        if(net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(name)) return false;
         if(!ignoreSize && getCurrentSize() >= getMaxSize()) return false;
         if(!ignoreRefuses && refuses.contains(name)) return false;
         if(f.getOrCreateMainGuild().isMember(name)) return true;
@@ -148,6 +149,9 @@ public class Council {
             return false;
         }
         if (f.getLeader().equals(name)) {
+            return false;
+        }
+        if (net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(name)) {
             return false;
         }
         if (f.getOrCreateMainGuild().isMember(name)) {
@@ -271,7 +275,9 @@ public class Council {
             }
         }
         for(String refuser : new ArrayList<>(refuses)) {
-            if(!canBeMember(refuser, true, true)) {
+            // An inactive member keeps their refusal for when they come back.
+            if(!canBeMember(refuser, true, true)
+                    && !net.tfminecraft.simplefactions.inactivity.InactivityService.isMemberInactive(refuser)) {
                 refuses.remove(refuser);
             }
         }

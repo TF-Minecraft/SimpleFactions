@@ -48,16 +48,16 @@ class FactionCleanupCoverageTest {
   }
 
   @Test void dailyAccountingMarksInactiveMembersWithoutRemovingThemAndResetsOnlinePlayers() throws Exception {
-    disk.write("Cache/logins.json","{\"Alice\":20,\"Bob\":null,\"Cara\":30,\"former\":5}");
+    disk.write("Cache/logins.json","{\"Alice\":27,\"Bob\":null,\"Cara\":30,\"former\":5}");
     Faction faction=mock(Faction.class);when(faction.getMembers()).thenReturn(Arrays.asList("Alice","Bob","Cara","New",null," ","dummy_guard"));
     Player bob=ui.player("Bob");when(Bukkit.getPlayerExact("Bob")).thenReturn(bob);
     FactionCleanup.advanceOfflineDays(Arrays.asList(null,faction));
-    assertEquals(21,FactionCleanup.daysOffline("Alice"));assertEquals(0,FactionCleanup.daysOffline("Bob"));
+    assertEquals(28,FactionCleanup.daysOffline("Alice"));assertEquals(0,FactionCleanup.daysOffline("Bob"));
     assertEquals(0,FactionCleanup.daysOffline("ALICE"),"Keys are never folded");
     assertEquals(31,FactionCleanup.daysOffline("Cara"));assertEquals(6,FactionCleanup.daysOffline("former"));
     assertEquals(1,FactionCleanup.daysOffline("New"));assertEquals(0,FactionCleanup.daysOffline("dummy_guard"));
     verify(faction,never()).forceRemoveMember(anyString());
-    verify(ui.plugin.getLogger()).log(eq(Level.INFO),contains("Alice (Alice) is inactive after 21 days"));
+    verify(ui.plugin.getLogger()).log(eq(Level.INFO),contains("Alice (Alice) is inactive after 28 days"));
     FactionCleanup.ping("Alice");assertEquals(0,FactionCleanup.daysOffline("Alice"));
   }
 
@@ -92,10 +92,10 @@ class FactionCleanupCoverageTest {
   }
 
   @Test void cachedHistoryCanRecreateADeletedCacheFolderAndLogWithoutALivePlugin() throws Exception {
-    disk.write("Cache/logins.json","{\"Alice\":20}");assertEquals(20,FactionCleanup.daysOffline("Alice"));
+    disk.write("Cache/logins.json","{\"Alice\":27}");assertEquals(27,FactionCleanup.daysOffline("Alice"));
     disk.remove("Cache");Faction faction=mock(Faction.class);when(faction.getMembers()).thenReturn(List.of("Alice"));
     SimpleFactions previousPlugin=SimpleFactions.plugin;SimpleFactions.plugin=null;
     try {FactionCleanup.advanceOfflineDays(List.of(faction));}finally{SimpleFactions.plugin=previousPlugin;}
-    assertEquals(21,FactionCleanup.daysOffline("Alice"));assertTrue(Files.isRegularFile(disk.root.resolve("Cache/logins.json")));
+    assertEquals(28,FactionCleanup.daysOffline("Alice"));assertTrue(Files.isRegularFile(disk.root.resolve("Cache/logins.json")));
   }
 }

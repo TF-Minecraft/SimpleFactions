@@ -44,7 +44,7 @@ public final class LevySnapshotCalculator {
 			return 0;
 		}
 		int total = 0;
-		int memberCap = source.getMembers() != null ? source.getMembers().size() : 0;
+		int memberCap = source.getMembers() != null ? net.tfminecraft.simplefactions.inactivity.InactivityService.activeOnly(source.getMembers()).size() : 0;
 		double levyPercent = source.getModifier(FactionModifiers.LEVY).getAmount();
 		for (Regiment regiment : source.getMilitary().getRegiments()) {
 			if (regiment.isLevy() || regiment.isEquipment()) {
