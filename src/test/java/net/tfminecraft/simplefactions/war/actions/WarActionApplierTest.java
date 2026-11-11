@@ -30,6 +30,7 @@ import net.tfminecraft.simplefactions.managers.inventory.CharacterKeyFixture;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.testsupport.PersistenceFilesFixture;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityMarks;
 import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
@@ -123,17 +124,10 @@ class WarActionApplierTest {
 		return war;
 	}
 
-	private War dayVote(int id) {
+	private War buildup(int id) {
 		War war = war(id);
 		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		assertTrue(BuildupService.start(war, CampaignClock.now()));
-		return war;
-	}
-
-	private War hourVote(int id) {
-		War war = war(id);
-		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-		war.setBattleDay(BattleWindowService.scheduleDate(CampaignClock.now()).plusDays(5));
 		return war;
 	}
 
@@ -145,6 +139,10 @@ class WarActionApplierTest {
 	private static WarAction answer(War war, UUID account, boolean accept) {
 		return action(1, WarAction.CALL_TO_ARMS_ANSWER, war, account,
 				"{\"target_faction_id\":\"target\",\"accept\":" + accept + "}");
+	}
+
+	private static WarAction mark(War war, UUID account, String payload) {
+		return action(2, WarAction.AVAILABILITY, war, account, payload);
 	}
 
 	private static WarAction picks(String kind, War war, UUID account, String picks) {
@@ -257,70 +255,78 @@ class WarActionApplierTest {
 	}
 
 	@Test
-	void aWebDayVoteReplacesTheAccountsPicksWithoutBeingOnline() {
-		War war = dayVote(86);
-		LocalDate first = war.getDayVoteFirstDay();
+	void aWebMarkReplacesTheAccountsHoursOnThatDateWithoutBeingOnline() {
+		War war = buildup(86);
+		LocalDate day = war.getAvailability().getEarliestBattleDay();
 
-		assertNull(reason(picks(WarAction.DAY_VOTE, war, ann, "[\"" + first + "\",\"" + first.plusDays(2) + "\"]")));
-		assertEquals(Set.of(0, 2), war.getDayVotes().get(ann));
-		assertEquals(Set.of(0, 2), saved(86).getDayVotes().get(ann));
+		assertNull(reason(mark(war, ann, "{\"date\":\"" + day + "\",\"hours\":[21,25,25]}")));
+		assertEquals(Set.of(21, 25), war.getAvailability().marksOn(ann, day));
+		assertEquals(Set.of(21, 25), saved(86).getAvailability().marksOn(ann, day));
 		assertEquals(1, eventCount("votes_changed"));
 
-		assertNull(reason(picks(WarAction.DAY_VOTE, war, ann, "[\"" + first.plusDays(4) + "\"]")));
-		assertEquals(Set.of(4), war.getDayVotes().get(ann), "The new picks replace the old ones");
-		assertNull(reason(picks(WarAction.DAY_VOTE, war, dee, "[\"" + first.plusDays(4) + "\"]")));
+		assertNull(reason(mark(war, ann, "{\"date\":\"" + day + "\",\"hours\":[22]}")));
+		assertEquals(Set.of(22), war.getAvailability().marksOn(ann, day), "The new hours replace the old ones");
+		assertNull(reason(mark(war, dee, "{\"date\":\"" + day.plusDays(1) + "\",\"hours\":[24]}")));
 
-		assertNull(reason(picks(WarAction.DAY_VOTE, war, ann, "[]")));
-		assertFalse(war.getDayVotes().containsKey(ann), "No picks clears the vote");
-		assertTrue(war.getDayVotes().containsKey(dee));
+		assertNull(reason(mark(war, ann, "{\"date\":\"" + day + "\",\"hours\":[]}")));
+		assertTrue(war.getAvailability().marksOn(ann, day).isEmpty(), "No hours clears the date");
+		assertEquals(Set.of(24), war.getAvailability().marksOn(dee, day.plusDays(1)));
 	}
 
 	@Test
-	void aDayVoteTakesOnlyTheDaysOnOfferFromMembersWhileItIsOpen() {
-		War war = dayVote(87);
-		LocalDate first = war.getDayVoteFirstDay();
+	void noneOfTheseDaysClearsWhatCanChangeAndMarkingAgainWithdrawsIt() {
+		War war = buildup(87);
+		LocalDate day = war.getAvailability().getEarliestBattleDay();
+		assertNull(reason(mark(war, ann, "{\"date\":\"" + day + "\",\"hours\":[21]}")));
 
-		assertEquals(WarActionApplier.BAD_DAY, reason(picks(WarAction.DAY_VOTE, war, ann, "[\"" + first.minusDays(1) + "\"]")));
-		assertEquals(WarActionApplier.BAD_DAY, reason(picks(WarAction.DAY_VOTE, war, ann,
-				"[\"" + first.plusDays(Cache.warBuildupDayOptions) + "\"]")));
-		assertEquals(WarActionApplier.BAD_DAY, reason(picks(WarAction.DAY_VOTE, war, ann, "[\"next tuesday\"]")));
-		assertEquals(WarActionApplier.BAD_DAY, reason(picks(WarAction.DAY_VOTE, war, ann, "[3]")));
-		assertEquals(WarActionApplier.UNREADABLE, reason(picks(WarAction.DAY_VOTE, war, ann, "\"" + first + "\"")));
+		assertNull(reason(mark(war, ann, "{\"none\":true}")));
+		assertTrue(war.getAvailability().marksOn(ann, day).isEmpty());
+		assertEquals(day.plusDays(Cache.warAvailabilityDaysShown - 1), war.getAvailability().noneUntil(ann));
+		assertEquals(WarActionApplier.UNREADABLE, reason(mark(war, ann, "{\"none\":false}")));
+		assertEquals(WarActionApplier.UNREADABLE, reason(mark(war, ann, "{\"none\":\"yes\"}")));
+		assertEquals(WarActionApplier.NOT_A_MEMBER, reason(mark(war, cara, "{\"none\":true}")));
+
+		assertNull(reason(mark(war, ann, "{\"date\":\"" + day + "\",\"hours\":[23]}")));
+		assertNull(war.getAvailability().noneUntil(ann), "Marking anything takes the answer back");
+	}
+
+	@Test
+	void aMarkTakesOnlyOpenDatesAndBattleHoursFromAccountsThatFight() {
+		War war = buildup(88);
+		LocalDate day = war.getAvailability().getEarliestBattleDay();
+		String date = "{\"date\":\"" + day + "\",\"hours\":";
+
+		assertEquals(WarActionApplier.BAD_DATE, reason(mark(war, ann, "{\"date\":\"next tuesday\",\"hours\":[]}")));
+		assertEquals(AvailabilityMarks.NOT_SHOWN, reason(mark(war, ann, "{\"date\":\"" + day.minusDays(1) + "\",\"hours\":[21]}")));
+		assertEquals(AvailabilityMarks.BAD_HOUR, reason(mark(war, ann, date + "[1]}")),
+				"Hours after midnight are 24 and 25, as in game");
+		assertEquals(AvailabilityMarks.BAD_HOUR, reason(mark(war, ann, date + "[21.5]}")));
+		assertEquals(AvailabilityMarks.BAD_HOUR, reason(mark(war, ann, date + "[\"21\"]}")));
+		assertEquals(AvailabilityMarks.BAD_HOUR, reason(mark(war, ann, date + "[99999999999]}")));
+		assertEquals(WarActionApplier.UNREADABLE, reason(mark(war, ann, date + "21}")));
+		assertEquals(WarActionApplier.UNREADABLE, reason(mark(war, ann, "{\"hours\":[21]}")));
 		JsonArray tooMany = new JsonArray();
 		for (int i = 0; i <= WarActionApplier.MAX_PICKS; i++) {
-			tooMany.add(first.toString());
+			tooMany.add(21);
 		}
-		assertEquals(WarActionApplier.UNREADABLE, reason(picks(WarAction.DAY_VOTE, war, ann, tooMany.toString())));
-		assertEquals(WarActionApplier.NOT_A_MEMBER, reason(picks(WarAction.DAY_VOTE, war, cara, "[]")),
-				"An ally that has not joined does not vote");
-		assertEquals(WarActionApplier.HOUR_VOTE_CLOSED, reason(picks(WarAction.HOUR_VOTE, war, ann, "[21]")),
-				"The hour vote waits for the first battle day");
-		assertTrue(war.getDayVotes().isEmpty());
+		assertEquals(WarActionApplier.UNREADABLE, reason(mark(war, ann, date + tooMany + "}")));
+		assertEquals(WarActionApplier.NOT_A_MEMBER, reason(mark(war, cara, date + "[21]}")),
+				"An ally that has not joined does not mark");
+		assertTrue(war.getAvailability().marks().isEmpty());
 
-		BuildupService.setFirstBattleDay(war, first, CampaignClock.now(), true);
-		assertEquals(WarActionApplier.DAY_VOTE_CLOSED, reason(picks(WarAction.DAY_VOTE, war, ann, "[\"" + first + "\"]")));
-		assertNull(WarVoting.dayOffset(war, first.toString()), "No day vote, no offsets");
+		war.getAvailability().setLastDayLockProcessed(day);
+		assertEquals(AvailabilityMarks.LOCKED, reason(mark(war, ann, date + "[21]}")), "A decided day cannot change");
+		war.setBattleSchedulePhase(BattleSchedulePhase.IDLE);
+		assertEquals(AvailabilityMarks.NO_SCHEDULE, reason(mark(war, ann, date + "[21]}")));
+		assertTrue(war.getAvailability().marks().isEmpty());
 	}
 
 	@Test
-	void aWebHourVoteSetsBattleHoursAsInGame() {
-		War war = hourVote(88);
-
-		assertNull(reason(picks(WarAction.HOUR_VOTE, war, dee, "[21,25,25]")));
-		assertEquals(Set.of(21, 25), war.getBattleVotes().get(dee));
-		assertEquals(Set.of(21, 25), saved(88).getBattleVotes().get(dee));
-		assertEquals(WarActionApplier.BAD_HOUR, reason(picks(WarAction.HOUR_VOTE, war, dee, "[1]")),
-				"Hours after midnight are 24 and 25, as in game");
-		assertEquals(WarActionApplier.BAD_HOUR, reason(picks(WarAction.HOUR_VOTE, war, dee, "[21.5]")));
-		assertEquals(WarActionApplier.BAD_HOUR, reason(picks(WarAction.HOUR_VOTE, war, dee, "[\"21\"]")));
-		assertEquals(WarActionApplier.BAD_HOUR, reason(picks(WarAction.HOUR_VOTE, war, dee, "[99999999999]")));
-		assertEquals(WarActionApplier.DAY_VOTE_CLOSED, reason(picks(WarAction.DAY_VOTE, war, dee, "[]")));
-		assertEquals(Set.of(21, 25), war.getBattleVotes().get(dee));
-
-		assertNull(reason(picks(WarAction.HOUR_VOTE, war, dee, "[]")));
-		assertFalse(war.getBattleVotes().containsKey(dee));
-
-		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
-		assertEquals(WarActionApplier.HOUR_VOTE_CLOSED, reason(picks(WarAction.HOUR_VOTE, war, dee, "[21]")));
+	void theRetiredDayAndHourVotesArePolitelyRefused() {
+		War war = buildup(89);
+		assertEquals(WarActionApplier.VOTE_CHANGED, reason(picks(WarAction.DAY_VOTE, war, ann, "[]")));
+		assertEquals(WarActionApplier.VOTE_CHANGED, reason(picks(WarAction.HOUR_VOTE, war, dee, "[21]")));
+		assertEquals("This vote has changed: mark your availability instead.", WarActionApplier.VOTE_CHANGED);
+		assertTrue(war.getAvailability().marks().isEmpty());
 	}
 }

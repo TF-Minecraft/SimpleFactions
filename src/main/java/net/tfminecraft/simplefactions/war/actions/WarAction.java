@@ -7,12 +7,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
 /**
- * One pending row from {@code GET /wars/plugin/actions/pending}: a player's vote or answer to a
+ * One pending row from {@code GET /wars/plugin/actions/pending}: a player's availability or answer to a
  * call to arms, sent from the website or Discord. Fields the row lacks are null; the applier
  * rejects what it cannot use.
  */
 record WarAction(long id, String kind, String warKey, UUID account, JsonObject payload) {
 	static final String CALL_TO_ARMS_ANSWER = "call_to_arms_answer";
+	static final String AVAILABILITY = "availability";
+	/** Retired with contract v1.4; rejected with a pointer to availability. */
 	static final String DAY_VOTE = "day_vote";
 	static final String HOUR_VOTE = "hour_vote";
 

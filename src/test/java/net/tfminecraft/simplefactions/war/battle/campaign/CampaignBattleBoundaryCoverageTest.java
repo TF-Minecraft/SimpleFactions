@@ -704,8 +704,10 @@ class CampaignBattleBoundaryCoverageTest {
     assertEquals(occupied, rig.war.getOccupiedByAttacker());
     assertTrue(BattleManager.get().isEmpty());
     assertTrue(rig.war.isActive());
-    verify(rig.alice).sendMessage("§7Campaign battle ended with no winner. Voting reopened.");
-    verify(rig.bob).sendMessage("§7Campaign battle ended with no winner. Voting reopened.");
+    String reopened =
+        "§7Campaign battle ended with no winner. Mark when you can fight next: §a/war vote " + rig.war.getId();
+    verify(rig.alice).sendMessage(reopened);
+    verify(rig.bob).sendMessage(reopened);
   }
 
   @Test

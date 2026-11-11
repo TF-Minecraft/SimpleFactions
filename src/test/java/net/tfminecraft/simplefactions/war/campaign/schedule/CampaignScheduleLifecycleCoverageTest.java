@@ -47,7 +47,8 @@ import net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignScheduleCountdown;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignScheduleLogger;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiCopy;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex;
 import net.tfminecraft.simplefactions.war.campaign.zoc.FortZocIndex.OperationalFort;
 import net.tfminecraft.simplefactions.war.campaign.zoc.PortSeaZocIndex;
@@ -521,79 +522,36 @@ class CampaignScheduleLifecycleCoverageTest {
     assertFalse(rig.war.isAutoresolveProposedByDefender());
     BattleScheduleService.openVote(rig.war);
     int added =
-        BattleScheduleService.castSpoofVotes(
-            rig.war,
-            21,
-            BattleScheduleLookups.spoofMemberNameToUuid(),
-            BelligerentRole.ATTACKER,
-            BelligerentRole.DEFENDER);
+        AvailabilityScheduler.castMarks(
+            rig.war, Fixture.DAY.plusDays(2), 21, BelligerentRole.ATTACKER, BelligerentRole.DEFENDER);
     assertEquals(2, added);
     assertEquals(
         0,
-        BattleScheduleService.castSpoofVotes(
-            rig.war,
-            21,
-            BattleScheduleLookups.spoofMemberNameToUuid(),
-            BelligerentRole.ATTACKER,
-            BelligerentRole.DEFENDER));
-    assertEquals(
-        0,
-        BattleScheduleService.castSpoofVotes(rig.war, 22, name -> null, BelligerentRole.ATTACKER));
-    assertEquals(
-        0,
-        BattleScheduleService.castSpoofVotes(
-            rig.war, 24, BattleScheduleLookups.memberNameToUuid(), BelligerentRole.ATTACKER));
+        AvailabilityScheduler.castMarks(
+            rig.war, Fixture.DAY.plusDays(2), 21, BelligerentRole.ATTACKER, BelligerentRole.DEFENDER));
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY, false));
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY.plusDays(1), false));
     rig.war.setBattleInstallationPicks(
         Map.of(rig.attacker.getId(), new LinkedHashSet<>(List.of(rig.source.getId()))));
     int before = rig.war.getPostponementsThisCycle();
-    BattleScheduleService.skipBattleDay(rig.war, at);
+    assertTrue(AvailabilityScheduler.skip(rig.war));
     assertEquals(Fixture.DAY.plusDays(1), rig.war.getBattleDay());
     assertTrue(rig.war.getBattleInstallationPicks().isEmpty());
     assertEquals(before, rig.war.getPostponementsThisCycle());
-    BattleScheduleService.postpone(rig.war, at);
-    assertEquals(Fixture.DAY.plusDays(2), rig.war.getBattleDay());
-    assertEquals(before + 1, rig.war.getPostponementsThisCycle());
-    BattleScheduleService.skipBattleDay(rig.war);
-    BattleScheduleService.postpone(rig.war);
-    assertEquals(Fixture.DAY.plusDays(4), rig.war.getBattleDay());
   }
 
   @Test
   void publicSchedulingGuardsLeaveAbsentOrIncompleteWarsUnscheduled() {
     BattleScheduleService.openVote(null);
     BattleScheduleService.enterAutoresolvePending(null);
-    BattleScheduleService.skipBattleDay(null);
-    BattleScheduleService.postpone(null);
-    assertFalse(BattleScheduleService.scheduleFromVotes(null, uuid -> rig.attacker));
-    assertFalse(BattleScheduleService.scheduleFromVotes(rig.war, null));
     assertFalse(BattleScheduleService.applyScheduledInstant(null, rig.now()));
     assertFalse(BattleScheduleService.applyScheduledInstant(rig.war, null));
     assertFalse(BattleScheduleService.scheduleBattleAtProvince(null, 12, rig.now()));
     assertFalse(BattleScheduleService.markScheduledAtProvince(null, 12));
     assertNull(BattleScheduleService.resolveBattleProvinceId(null));
-    assertEquals(
-        0,
-        BattleScheduleService.castSpoofVotes(
-            null, 21, BattleScheduleLookups.memberNameToUuid(), BelligerentRole.ATTACKER));
-    assertEquals(
-        BattleScheduleCloseResult.SKIPPED,
-        BattleScheduleService.closeVote(
-            null,
-            rig.now(),
-            BattleScheduleLookups.uuidToFaction(),
-            BattleScheduleLookups.memberNameToUuid()));
-    assertEquals(
-        BattleScheduleCloseResult.SKIPPED,
-        BattleScheduleService.closeVote(
-            rig.war, rig.now(), null, BattleScheduleLookups.memberNameToUuid()));
-    assertFalse(
-        BattleScheduleService.scheduleFromVotes(rig.war, BattleScheduleLookups.uuidToFaction()));
     rig.war.setBattleDay(null);
-    BattleScheduleService.skipBattleDay(rig.war, rig.now());
-    BattleScheduleService.postpone(rig.war, rig.now());
+    assertFalse(AvailabilityScheduler.skip(rig.war));
     assertNull(rig.war.getBattleDay());
-    assertFalse(
-        BattleScheduleService.scheduleFromVotes(rig.war, BattleScheduleLookups.uuidToFaction()));
     rig.war.setScheduledBattleProvinceId(20);
     assertEquals(20, BattleScheduleService.resolveBattleProvinceId(rig.war));
   }
@@ -739,20 +697,6 @@ class CampaignScheduleLifecycleCoverageTest {
     rig.war.setPostBattleChoiceResolved(true);
     rig.war.setCampaignProvinces(null);
     assertFalse(BattleScheduleService.applyScheduledInstant(rig.war, at));
-    rig.war.getBattleVotes().put(rig.alice.getUniqueId(), Set.of(21));
-    rig.war.getBattleVotes().put(rig.bob.getUniqueId(), Set.of(21));
-    assertFalse(
-        BattleScheduleService.scheduleFromVotes(
-            rig.war, BattleScheduleLookups.uuidToFactionForWar(rig.war)));
-    rig.war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-    assertEquals(
-        BattleScheduleCloseResult.SKIPPED,
-        BattleScheduleService.closeVote(
-            rig.war,
-            BattleWindowService.atScheduleHour(Fixture.DAY, 15),
-            BattleScheduleLookups.uuidToFaction(),
-            BattleScheduleLookups.memberNameToUuid(),
-            null));
   }
 
   @Test
@@ -911,7 +855,9 @@ class CampaignScheduleLifecycleCoverageTest {
     assertTrue(CampaignScheduleCountdown.formatNextMilestone(rig.war, at).isEmpty());
     rig.war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
     rig.war.setBattleDay(null);
-    assertTrue(CampaignScheduleCountdown.formatNextMilestone(rig.war, at).isEmpty());
+    assertTrue(
+        CampaignScheduleCountdown.formatNextMilestone(rig.war, at).orElseThrow().startsWith("Next decision in "),
+        "With no battle day yet, the next date's decision is what comes");
     var started = BattleFactory.createBlank(BattleType.FIELD, "countdown_live");
     started.setWarId(rig.war.getId());
     started.setStarted(true);

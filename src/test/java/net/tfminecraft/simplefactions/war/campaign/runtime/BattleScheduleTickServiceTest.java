@@ -71,10 +71,11 @@ class BattleScheduleTickServiceTest {
 		Cache.warBattleWindowEndHour = 24;
 		Cache.warVoteCloseHour = 16;
 		Cache.warDefenderChoiceDeadlineHour = 12;
-		Cache.warBattleVotingMinPlayers = 4;
-		Cache.warBattleVotingRequireSmallestSideFull = true;
-		Cache.warBattleVotingPassIfEither = true;
-		Cache.warBattleVotingDevMinPlayersEnabled = false;
+		Cache.warAvailabilityDayLockHours = 48;
+		Cache.warAvailabilityTimeLockHours = 24;
+		Cache.warAvailabilityMinPerSide = 3;
+		Cache.warAvailabilityMaxDaysWithoutBattle = 3;
+		Cache.warAvailabilityDaysShown = 7;
 		Cache.warFirstBattleAtBorder = true;
 
 		attacker = mock(Faction.class);
@@ -109,17 +110,17 @@ class BattleScheduleTickServiceTest {
 	}
 
 	@Test
-	void tick_withSpoofedClock_closesVoteAtCloseHour() {
+	void tick_withSpoofedClock_setsTheBattleAtItsTimeLock() {
 		War war = votingWar();
-		addCrossSideVotes(war, 21);
+		addCrossSideMarks(war, 21);
 
-		Instant voteClose = voteCloseInstant();
-		CampaignClock.add(Duration.between(Instant.now(), voteClose));
+		Instant timeLock = BattleWindowService.atScheduleHour(BATTLE_DAY.minusDays(1), 20);
+		CampaignClock.add(Duration.between(Instant.now(), timeLock));
 		BattleScheduleTickService.onClockOffsetChanged();
 
 		withMockBossBar(() -> {
 			WarManager.addWar(war);
-			BattleScheduleTickService.tick(CampaignClock.now());
+			assertEquals(1, BattleScheduleTickService.tick(CampaignClock.now()));
 			assertEquals(BattleSchedulePhase.SCHEDULED, war.getBattleSchedulePhase());
 			assertEquals(
 					BattleWindowService.computeScheduledBattleAt(BATTLE_DAY, 21),
@@ -128,25 +129,46 @@ class BattleScheduleTickServiceTest {
 	}
 
 	@Test
-	void tick_closesADueDayVoteAndSavesTheWar() {
+	void tick_decidesADueDayAndSavesTheWar() {
 		boolean enabled = Cache.warBuildupEnabled;
 		Cache.warBuildupEnabled = true;
 		War war = votingWar();
-		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-		Instant now = Instant.parse("2026-08-18T10:00:00Z");
+		// 21:00 CEST two days before BATTLE_DAY: its day lock.
+		Instant now = Instant.parse("2026-08-19T19:00:00Z");
 		try (org.mockito.MockedConstruction<net.tfminecraft.simplefactions.database.Database> databases =
 				org.mockito.Mockito.mockConstruction(net.tfminecraft.simplefactions.database.Database.class)) {
 			assertTrue(net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService.start(
-					war, now.minus(Duration.ofHours(Cache.warBuildupDayVoteCloseHours))));
+					war, Instant.parse("2026-08-14T10:00:00Z")));
+			addCrossSideMarks(war, 21);
 			WarManager.get().add(war);
 
 			withMockBossBar(() -> BattleScheduleTickService.tick(now));
 
 			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-			assertTrue(war.getBattleDay() != null);
+			assertEquals(BATTLE_DAY, war.getBattleDay());
+			assertTrue(war.isBuildupFrozen());
 			org.mockito.Mockito.verify(databases.constructed().get(0)).saveWar(war);
 		} finally {
 			Cache.warBuildupEnabled = enabled;
+		}
+	}
+
+	@Test
+	void tick_leavesAWarAloneOnceItsLocksEndedIt() {
+		War war = votingWar();
+		WarManager.get().add(war);
+		try (MockedStatic<net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler> scheduler =
+				mockStatic(net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler.class);
+				MockedStatic<CampaignBattleLaunchService> launches = mockStatic(CampaignBattleLaunchService.class)) {
+			scheduler.when(() -> net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler
+					.process(org.mockito.ArgumentMatchers.eq(war), any())).thenAnswer(call -> {
+						war.end(net.tfminecraft.simplefactions.war.enums.WarEndReason.WHITE_PEACE);
+						return true;
+					});
+
+			assertEquals(0, BattleScheduleTickService.tick(voteCloseInstant()));
+
+			launches.verifyNoInteractions();
 		}
 	}
 
@@ -155,32 +177,6 @@ class BattleScheduleTickServiceTest {
 		assertTrue(BattleScheduleTickService.shouldRunForHour(Instant.parse("2026-08-21T12:00:00Z")));
 		assertFalse(BattleScheduleTickService.shouldRunForHour(Instant.parse("2026-08-21T12:30:00Z")));
 		assertTrue(BattleScheduleTickService.shouldRunForHour(Instant.parse("2026-08-21T13:00:00Z")));
-	}
-
-	@Test
-	void processWar_appliesPostBattleChoiceDeadlineAtNoon() {
-		War war = defenderChoiceWar();
-		withMockBossBarAndPools(() -> {
-			assertTrue(BattleScheduleTickService.processWar(
-					war, BattleWindowService.atScheduleHour(BATTLE_DAY, 12)));
-			assertTrue(war.isPostBattleChoiceResolved());
-			assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-		});
-	}
-
-	@Test
-	void processWar_closesVoteAtSixteenWhenQuorumMet() {
-		War war = votingWar();
-		addCrossSideVotes(war, 21);
-
-		withMockBossBar(() -> {
-			assertTrue(BattleScheduleTickService.processWar(
-					war, voteCloseInstant()));
-			assertEquals(BattleSchedulePhase.SCHEDULED, war.getBattleSchedulePhase());
-			assertEquals(
-					BattleWindowService.computeScheduledBattleAt(BATTLE_DAY, 21),
-					war.getScheduledBattleAt());
-		});
 	}
 
 	@Test
@@ -324,6 +320,8 @@ class BattleScheduleTickServiceTest {
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setBattleDay(BATTLE_DAY);
 		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+		war.getAvailability().putBattleDay(net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay.open(BATTLE_DAY, false));
+		war.getAvailability().setEarliestBattleDay(BATTLE_DAY);
 		return war;
 	}
 
@@ -337,11 +335,10 @@ class BattleScheduleTickServiceTest {
 		return war;
 	}
 
-	private void addCrossSideVotes(War war, int hour) {
-		war.getBattleVotes().put(BattleScheduleLookups.spoofMemberUuid("Alice"), Set.of(hour));
-		war.getBattleVotes().put(BattleScheduleLookups.spoofMemberUuid("Bob"), Set.of(hour));
-		war.getBattleVotes().put(BattleScheduleLookups.spoofMemberUuid("Carol"), Set.of(hour));
-		war.getBattleVotes().put(BattleScheduleLookups.spoofMemberUuid("Dave"), Set.of(hour));
+	private void addCrossSideMarks(War war, int hour) {
+		for (String member : List.of("Alice", "Bob", "Carol", "Dave")) {
+			war.getAvailability().setMarks(BattleScheduleLookups.spoofMemberUuid(member), BATTLE_DAY, Set.of(hour));
+		}
 	}
 
 	private void mockMilitary(Faction faction) {

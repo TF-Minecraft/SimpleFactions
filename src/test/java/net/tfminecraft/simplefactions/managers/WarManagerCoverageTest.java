@@ -275,11 +275,12 @@ class WarManagerCoverageTest {
     assertEquals(governmentId, stored.getGovernmentLawId());
     assertEquals(leadershipId, stored.getLeadershipLawId());
     assertEquals(settlementId, stored.getTargetSettlementId());
-    // Every declared war starts in its buildup, frozen, voting on its first battle day.
+    // Every declared war starts in its buildup, frozen, marking when it can fight a week ahead.
     assertEquals(BattleSchedulePhase.BUILDUP, war.getBattleSchedulePhase());
     assertTrue(war.isBuildupFrozen());
     assertNull(war.getBattleDay());
-    assertEquals(war.getDayVoteFirstDay(), stored.getDayVoteFirstDay());
+    assertEquals(
+        war.getAvailability().getEarliestBattleDay(), stored.getAvailability().getEarliestBattleDay());
     assertTrue(stored.isBuildupFrozen());
   }
 
@@ -299,12 +300,12 @@ class WarManagerCoverageTest {
     assertNotNull(war, WarManager.getLastDeclareError());
     assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
     assertFalse(war.isBuildupFrozen());
-    assertNull(war.getDayVoteFirstDay());
+    assertNull(war.getBattleDay());
     assertEquals(
         net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.scheduleDate(
                 war.getStartedAt())
             .plusDays(1),
-        war.getBattleDay());
+        war.getAvailability().getEarliestBattleDay());
   }
 
   @Test

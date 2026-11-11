@@ -1,36 +1,28 @@
 package net.tfminecraft.simplefactions.war.campaign.runtime;
 
 
-import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.List;
 import java.util.OptionalInt;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Function;
 
 import net.tfminecraft.simplefactions.Cache;
-import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.core.Side;
-import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.freeze.PreparationFreeze;
-import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
-import net.tfminecraft.simplefactions.war.resolution.WarResolutionService;
 import net.tfminecraft.simplefactions.war.battle.campaign.CampaignBattleLaunchService;
-import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
-import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
+import net.tfminecraft.simplefactions.war.campaign.availability.BattleAvailability;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignCapabilityService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
-import net.tfminecraft.simplefactions.war.core.WarDevMode;
-import net.tfminecraft.simplefactions.war.campaign.progression.CampaignProgressionService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidService;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
+import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService;
+import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.core.WarDevMode;
+import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 
+/**
+ * The war's battle day and the battle set on it. Which dates become battle days, and when, is
+ * {@link net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler}'s; this
+ * keeps the battle-day clock, the windows of the day, and moves the war on after each battle.
+ */
 public final class BattleScheduleService {
 	private BattleScheduleService() {}
 
@@ -49,10 +41,27 @@ public final class BattleScheduleService {
 		return war.getBattleDay().equals(battleDayDate(now));
 	}
 
+	/**
+	 * The post-battle choice is due at {@code defender_choice_deadline_hour} on the day after the
+	 * battle, however far away the next battle day is.
+	 */
 	public static boolean isPostBattleChoiceDeadlineDue(War war, Instant now) {
-		return isOnBattleDay(war, now) && battleDayHour(now) >= Cache.warDefenderChoiceDeadlineHour;
+		if (war == null || now == null) {
+			return false;
+		}
+		// After a battle the earliest battle day is the day after it, and the next battle day is never before that.
+		LocalDate earliest = war.getAvailability().getEarliestBattleDay();
+		LocalDate battleDay = war.getBattleDay();
+		LocalDate dayAfter = earliest == null || (battleDay != null && battleDay.isBefore(earliest)) ? battleDay : earliest;
+		if (dayAfter == null) {
+			return false;
+		}
+		LocalDate today = battleDayDate(now);
+		return today.isAfter(dayAfter)
+				|| (today.equals(dayAfter) && battleDayHour(now) >= Cache.warDefenderChoiceDeadlineHour);
 	}
 
+	/** Installation picks lock and enemy picks show at {@code vote_close_hour} on the battle day. */
 	public static boolean isVoteCloseDue(War war, Instant now) {
 		return isOnBattleDay(war, now) && battleDayHour(now) >= Cache.warVoteCloseHour;
 	}
@@ -117,90 +126,12 @@ public final class BattleScheduleService {
 		WarHistoryEvents.votesChanged(war);
 	}
 
-	public static BattleScheduleCloseResult closeVote(
-			War war,
-			Instant now,
-			Function<UUID, Faction> uuidToFaction,
-			Function<String, UUID> memberNameToUuid) {
-		return closeVote(war, now, uuidToFaction, memberNameToUuid, CloseVoteOptions.scheduled());
-	}
-
-	public static BattleScheduleCloseResult closeVote(
-			War war,
-			Instant now,
-			Function<UUID, Faction> uuidToFaction,
-			Function<String, UUID> memberNameToUuid,
-			CloseVoteOptions options) {
-		BattleScheduleCloseResult result = closeVoteNow(war, now, uuidToFaction, memberNameToUuid, options);
-		if (result != BattleScheduleCloseResult.SKIPPED && war.isActive()) {
-			// The website shows the hour vote as closed. An ended war already sent war_ended.
-			WarHistoryEvents.votesChanged(war);
-		}
-		return result;
-	}
-
-	private static BattleScheduleCloseResult closeVoteNow(
-			War war,
-			Instant now,
-			Function<UUID, Faction> uuidToFaction,
-			Function<String, UUID> memberNameToUuid,
-			CloseVoteOptions options) {
-		if (war == null || !war.isActive() || uuidToFaction == null || memberNameToUuid == null) {
-			return BattleScheduleCloseResult.SKIPPED;
-		}
-		if (options == null) {
-			options = CloseVoteOptions.scheduled();
-		}
-		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
-			return BattleScheduleCloseResult.SKIPPED;
-		}
-		if (!options.forceImmediate() && !isVoteCloseDue(war, now)) {
-			return BattleScheduleCloseResult.SKIPPED;
-		}
-
-		if (needsPostBattleChoice(war) && !isPostBattleChoiceResolved(war)) {
-			applyPostBattleChoiceDeadline(war, now);
-			if (!war.isActive()) {
-				// The deadline's peace or push ended the war; postponing or ending it again would repeat the end.
-				return BattleScheduleCloseResult.WAR_ENDED;
-			}
-			if (!isPostBattleChoiceResolved(war)) {
-				return BattleScheduleCloseResult.BLOCKED_DEFENDER_CHOICE;
-			}
-		}
-
-		boolean forceQuorum = options.forceQuorum() || war.isForceQuorumNextClose();
-		clearForceQuorumNextClose(war);
-
-		boolean quorumPassed = forceQuorum
-				|| BattleQuorumService.meetsQuorum(war, war.getBattleVotes(), memberNameToUuid, uuidToFaction).passed();
-		if (quorumPassed && scheduleFromVotes(war, uuidToFaction)) {
-			return BattleScheduleCloseResult.SCHEDULED;
-		}
-
-		int maxPostponements = Math.max(0, Cache.warBattleVotingMaxPostponements);
-		if (war.getPostponementsThisCycle() < maxPostponements) {
-			postpone(war, now);
-			return BattleScheduleCloseResult.POSTPONED;
-		}
-		if (BattleAutoresolveService.resolve(war)) {
-			return BattleScheduleCloseResult.AUTORESOLVED;
-		}
-		if (hasNoNextBattle(war)) {
-			// Postponing again would only freeze both sides for another day: no battle can follow.
-			WarResolutionService.endWhitePeace(war);
-			return BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE;
-		}
-		postpone(war, now);
-		return BattleScheduleCloseResult.POSTPONED;
-	}
-
 	/**
 	 * True when no battle can ever follow on this war: none has started, no post-battle choice is
 	 * open, and the side with the initiative has no fuel or no battle left on its route. A started
 	 * battle still ends on its own, so it never counts.
 	 */
-	static boolean hasNoNextBattle(War war) {
+	public static boolean hasNoNextBattle(War war) {
 		var battle = net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager.getByWarId(war.getId());
 		if (battle != null && battle.hasStarted()) {
 			return false;
@@ -209,26 +140,6 @@ public final class BattleScheduleService {
 			return false;
 		}
 		return resolveScheduledProvinceId(war) == null;
-	}
-
-	public static boolean scheduleFromVotes(War war, Function<UUID, Faction> uuidToFaction) {
-		if (war == null || uuidToFaction == null || war.getBattleDay() == null) {
-			return false;
-		}
-
-		OptionalInt pickedHour = BattleVoteService.pickHour(war, uuidToFaction);
-		if (pickedHour.isEmpty()) {
-			return false;
-		}
-
-		Integer provinceId = resolveScheduledProvinceId(war);
-		if (provinceId == null) {
-			return false;
-		}
-
-		int hour = pickedHour.getAsInt();
-		Instant scheduledAt = BattleWindowService.computeScheduledBattleAt(war.getBattleDay(), hour);
-		return scheduleBattleAtProvince(war, provinceId, scheduledAt);
 	}
 
 	public static boolean applyScheduledInstant(War war, Instant scheduledAt) {
@@ -244,150 +155,43 @@ public final class BattleScheduleService {
 		return scheduleBattleAtProvince(war, provinceId, scheduledAt);
 	}
 
-	public static int castSpoofVotes(
-			War war,
-			int hour,
-			Function<String, UUID> memberNameToUuid,
-			BelligerentRole... sides) {
-		if (war == null || memberNameToUuid == null || sides == null || sides.length == 0) {
-			return 0;
-		}
-		if (!BattleWindowService.isValidHour(hour)) {
-			return 0;
-		}
-
-		int added = 0;
-		for (BelligerentRole side : sides) {
-			Side belligerentSide = side == BelligerentRole.ATTACKER ? war.getAttackers() : war.getDefenders();
-			for (String memberName : BattleSideMembers.collectEligibleMemberNames(belligerentSide)) {
-				UUID playerId = memberNameToUuid.apply(memberName);
-				if (playerId == null) {
-					continue;
-				}
-				Set<Integer> selections = war.getBattleVotes().computeIfAbsent(playerId, ignored -> new HashSet<>());
-				if (selections.add(hour)) {
-					added++;
-				}
-			}
-		}
-		return added;
-	}
-
-	public static void postpone(War war) {
-		postpone(war, Instant.now());
-	}
-
-	public static void postpone(War war, Instant now) {
-		if (war == null || war.getBattleDay() == null) {
-			return;
-		}
-
-		CampaignProgressionService.applyPostponedBattle(war);
-		releaseStaffHold(war);
-		war.setBattleDay(war.getBattleDay().plusDays(1));
-		war.clearSignupRemindersSent();
-		BattleInstallationPickService.clearForNewBattleDay(war);
-		CampaignRaidService.clearForNewBattleDay(war);
-		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-		clearScheduledTargets(war);
-		war.setPostponementsThisCycle(war.getPostponementsThisCycle() + 1);
-		war.setDefenderChoiceResolved(false);
-		PreparationFreeze.applyPostponement(war, now);
-		WarHistoryEvents.postponed(war);
-	}
-
-	public static void skipBattleDay(War war) {
-		skipBattleDay(war, Instant.now());
-	}
-
-	public static void skipBattleDay(War war, Instant now) {
-		if (war == null || war.getBattleDay() == null) {
-			return;
-		}
-		// A scheduled war keeps its start time here, so its hold stays: releasing it would start the battle.
-		if (war.getBattleSchedulePhase() != BattleSchedulePhase.SCHEDULED) {
-			releaseStaffHold(war);
-		}
-		war.setBattleDay(war.getBattleDay().plusDays(1));
-		BattleInstallationPickService.clearForNewBattleDay(war);
-		CampaignRaidService.clearForNewBattleDay(war);
-		PreparationFreeze.applyPostponement(war, now);
-		WarHistoryEvents.postponed(war);
-	}
-
 	/**
-	 * Moves the war to the battle day after the one just fought. A battle that runs past midnight
-	 * still belongs to the evening it started on, so the next battle day is the day after that
-	 * evening, never the same night. Votes, picks and raids from the fought day are cleared.
+	 * After a battle (fought, autoresolved or settled without a fight): its battle day leaves the
+	 * queue, the next battle day (if one is locked) becomes the war's, and no date before the day
+	 * after the battle can become one. A battle that runs past midnight still belongs to the evening
+	 * it started on. Picks and raids of the fought day are cleared.
 	 */
 	public static void advanceAfterBattle(War war, Instant now) {
 		if (war == null) {
 			return;
 		}
 		LocalDate fought = war.getBattleDay();
-		war.setBattleDay(firstVotableBattleDay(fought == null ? null : fought.plusDays(1),
-				now != null ? now : Instant.now()));
-		startFreshBattleDay(war);
+		BattleAvailability availability = war.getAvailability();
+		if (fought != null) {
+			availability.removeBattleDay(fought);
+		}
+		LocalDate dayAfter = (fought != null ? fought : battleDayDate(now != null ? now : Instant.now())).plusDays(1);
+		LocalDate earliest = availability.getEarliestBattleDay();
+		availability.setEarliestBattleDay(earliest == null || earliest.isBefore(dayAfter) ? dayAfter : earliest);
+		LockedBattleDay next = availability.head();
+		war.setBattleDay(next == null ? null : next.date());
+		clearForNewBattleDay(war);
 	}
 
-	/**
-	 * Sets the battle day by hand. A war that was voting or scheduled goes back to voting on the
-	 * new day with no votes, picks or raids carried over.
-	 */
-	public static boolean setBattleDay(War war, LocalDate day) {
-		if (war == null || day == null) {
-			return false;
-		}
-		war.setBattleDay(day);
-		startFreshBattleDay(war);
-		BattleSchedulePhase phase = war.getBattleSchedulePhase();
-		if (phase == BattleSchedulePhase.VOTING || phase == BattleSchedulePhase.SCHEDULED) {
-			openVote(war);
-		}
-		return true;
-	}
-
-	/**
-	 * A voting war whose battle day already passed (for example while the server was down) moves
-	 * to the current battle day so its vote can close again, or to the next one when today's vote
-	 * has already closed. Not counted as a postponement.
-	 */
-	public static boolean catchUpStaleBattleDay(War war, Instant now) {
-		if (war == null || now == null || war.getBattleDay() == null) {
-			return false;
-		}
-		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
-			return false;
-		}
-		LocalDate current = battleDayDate(now);
-		if (!war.getBattleDay().isBefore(current)) {
-			return false;
-		}
-		war.setBattleDay(firstVotableBattleDay(current, now));
-		startFreshBattleDay(war);
-		WarHistoryEvents.nextBattleDay(war);
-		return true;
-	}
-
-	/**
-	 * {@code candidate}, or the first later battle day whose vote is still open: never a past day,
-	 * and not today once today's vote close hour has passed.
-	 */
-	public static LocalDate firstVotableBattleDay(LocalDate candidate, Instant now) {
-		LocalDate current = battleDayDate(now);
-		LocalDate day = candidate == null || candidate.isBefore(current) ? current : candidate;
-		if (day.equals(current) && battleDayHour(now) >= Cache.warVoteCloseHour) {
-			return current.plusDays(1);
-		}
-		return day;
-	}
-
-	private static void startFreshBattleDay(War war) {
+	/** What belongs to one battle day: the staff hold, signup reminders, installation picks and raids. */
+	public static void clearForNewBattleDay(War war) {
 		releaseStaffHold(war);
-		BattleVoteService.clearVotes(war);
 		war.clearSignupRemindersSent();
 		BattleInstallationPickService.clearForNewBattleDay(war);
 		CampaignRaidService.clearForNewBattleDay(war);
+	}
+
+	/** A battle set on its province goes back to waiting: the war votes again and its start time is cleared. */
+	public static void releaseScheduledBattle(War war) {
+		releaseStaffHold(war);
+		war.clearSignupRemindersSent();
+		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+		clearScheduledTargets(war);
 	}
 
 	/** A hold belongs to one battle day; a new day schedules the battle afresh. */
@@ -454,12 +258,6 @@ public final class BattleScheduleService {
 		}
 		OptionalInt next = CampaignCapabilityService.nextBattleProvince(war);
 		return next.isPresent() ? next.getAsInt() : null;
-	}
-
-	private static void clearForceQuorumNextClose(War war) {
-		if (war != null && war.isForceQuorumNextClose()) {
-			war.setForceQuorumNextClose(false);
-		}
 	}
 
 	private static void clearScheduledTargets(War war) {

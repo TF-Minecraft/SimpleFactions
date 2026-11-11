@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -45,22 +47,21 @@ class CampaignScheduleInfoTest {
 	}
 
 	@Test
-	void buildScheduleInfoLines_includesBattleDayVoteCloseAndSelections() {
+	void buildScheduleInfoLines_includesTheBattleDayItsTimeAndTheViewersMarks() {
 		War war = votingWar();
-		war.getBattleVotes().put(attackerVoter, Set.of(21, 22));
+		LocalDate day = LocalDate.of(2026, 8, 21);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(day, false).withHour(21, false));
+		war.getAvailability().setMarks(attackerVoter, BattleWindowService.scheduleDate(Instant.now()).plusDays(3), Set.of(21));
 
 		List<String> lines = CampaignCreator.buildScheduleInfoLines(
 				war,
 				attackerVoter,
 				uuid -> attacker);
 
-		assertTrue(lines.stream().anyMatch(line -> line.contains("21/08/2026")));
-		assertTrue(lines.stream().anyMatch(line -> line.contains("16:00 CET / 10:00 EST")));
+		assertTrue(lines.stream().anyMatch(line -> line.contains("Next Battle Day:") && line.contains("Fri 21/08")));
 		assertTrue(lines.stream().anyMatch(line -> line.contains("21:00 CET / 15:00 EST")));
-		assertTrue(lines.stream().anyMatch(line -> line.contains("Total voters")));
-		assertTrue(lines.stream().anyMatch(line -> line.contains("Hour Votes")));
-		assertTrue(lines.stream().anyMatch(line -> line.contains("AttackerRealm/DefenderRealm")));
-		assertTrue(lines.stream().anyMatch(line -> line.contains("Status:") && line.contains("Currently Voting")));
+		assertTrue(lines.stream().anyMatch(line -> line.contains("Your Availability:") && line.contains("marked")));
+		assertTrue(lines.stream().anyMatch(line -> line.contains("Status:") && line.contains("Battle Day Set")));
 		assertFalse(lines.stream().anyMatch(line -> line.contains("Schedule:")));
 		assertFalse(lines.stream().anyMatch(line -> line.contains("Push target")));
 	}

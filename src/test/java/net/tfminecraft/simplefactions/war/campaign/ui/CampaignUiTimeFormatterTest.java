@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.war.campaign.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -20,6 +21,12 @@ class CampaignUiTimeFormatterTest {
 		java.time.Instant closes = java.time.Instant.parse("2026-11-13T09:50:00Z");
 		assertEquals("13/11/2026 10:50 CET / 04:50 EST", CampaignUiTimeFormatter.formatDateTime(closes));
 		assertEquals("-", CampaignUiTimeFormatter.formatDateTime(null));
+	}
+
+	@Test
+	void formatUtcHour_withoutABattleDayUsesTodaysClock() {
+		String label = CampaignUiTimeFormatter.formatUtcHour(null, 20);
+		assertTrue(label.startsWith("20:00 CET / "), label);
 	}
 
 	@Test

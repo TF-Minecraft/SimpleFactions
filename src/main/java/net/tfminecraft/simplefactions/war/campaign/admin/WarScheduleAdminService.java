@@ -12,7 +12,6 @@ import java.util.List;
 
 
 
-import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.war.core.War;
 
@@ -39,20 +38,16 @@ import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 
 import net.tfminecraft.simplefactions.war.battle.warband.WarbandManager;
 
-import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 
 import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
-import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
-import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.CloseVoteOptions;
-import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 
 public final class WarScheduleAdminService {
 
@@ -76,313 +71,139 @@ public final class WarScheduleAdminService {
 
 
 
-	public static WarScheduleAdminResult openVote(War war) {
-
-		if (war == null) {
-
-			return WarScheduleAdminResult.error("War not found.");
-
-		}
-
-		if (!war.isActive()) {
-
-			return WarScheduleAdminResult.error("War is not active.");
-
-		}
-
-		BattleScheduleService.openVote(war);
-
-		return WarScheduleAdminResult.ok("Opened voting for war " + war.getId() + ".");
-
-	}
-
-
-
-	public static WarScheduleAdminResult closeVote(War war, Instant now) {
-
-		if (war == null) {
-
-			return WarScheduleAdminResult.error("War not found.");
-
-		}
-
-		if (!war.isActive()) {
-
-			return WarScheduleAdminResult.error("War is not active.");
-
-		}
-
-		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
-
-			return WarScheduleAdminResult.error("War is not in VOTING phase.");
-
-		}
-
-
-
-		BattleScheduleCloseResult result = BattleScheduleService.closeVote(
-
-				war,
-
-				now,
-
-				BattleScheduleLookups.uuidToFactionForWar(war),
-
-				BattleScheduleLookups.memberNameToUuid(),
-
-				CloseVoteOptions.admin(war.isForceQuorumNextClose()));
-
-
-
-		return formatVoteCloseResult(war, result);
-	}
-
-	static WarScheduleAdminResult formatVoteCloseResult(War war, BattleScheduleCloseResult result) {
-		return switch (result) {
-
-			case SCHEDULED -> WarScheduleAdminResult.ok(
-
-					"Vote close scheduled battle at "
-
-							+ war.getScheduledBattleAt()
-
-							+ " (province "
-
-							+ war.getScheduledBattleProvinceId()
-
-							+ ").");
-
-			case POSTPONED -> WarScheduleAdminResult.ok(
-
-					"Vote close postponed to battle day " + war.getBattleDay() + ".");
-
-			case AUTORESOLVE_PENDING -> WarScheduleAdminResult.ok("Vote close set AUTORESOLVE_PENDING.");
-
-			case AUTORESOLVED -> WarScheduleAdminResult.ok("Vote close autoresolved the battle.");
-
-			case ENDED_NO_NEXT_BATTLE -> WarScheduleAdminResult.ok(
-
-					"Vote close found no battle left to fight after the last postponement. "
-							+ formatWarEndSummary(WarEndReason.WHITE_PEACE));
-
-			case WAR_ENDED -> WarScheduleAdminResult.ok(
-
-					"The post-battle choice was settled at its deadline and that ended the war.");
-
-			case BLOCKED_DEFENDER_CHOICE -> WarScheduleAdminResult.error(
-
-					"Vote close blocked: defender choice unresolved.");
-
-			case SKIPPED -> WarScheduleAdminResult.error("Vote close skipped.");
-
-		};
-
-	}
-
-
-
 	/** What moving a war to another battle day resets, so staff are not surprised by it. */
 	static final String NEW_DAY_CLEARED =
 			"Installation commitments were cleared (a naval defender's port is recommitted automatically),"
 					+ " any running raid was ended and each side's raid for the day is available again."
 					+ " Leaders must commit their installations again.";
 
+	/** The war's battle days and, per date shown, its state and marks per hour. */
+	public static WarScheduleAdminResult availability(War war, Instant now) {
+		WarScheduleAdminResult invalid = requireScheduling(war);
+		if (invalid != null) {
+			return invalid;
+		}
+		return WarScheduleAdminResult.ok(String.join("\n", AvailabilityScheduler.describe(war, now)));
+	}
+
+	/** Drops the next battle day; the war waits for the next one the marks give. */
 	public static WarScheduleAdminResult skipDay(War war) {
-
-		if (war == null) {
-
-			return WarScheduleAdminResult.error("War not found.");
-
+		WarScheduleAdminResult invalid = requireScheduling(war);
+		if (invalid != null) {
+			return invalid;
 		}
-
-		if (!war.isActive()) {
-
-			return WarScheduleAdminResult.error("War is not active.");
-
-		}
-
-		if (war.getBattleDay() == null) {
-
-			return WarScheduleAdminResult.error("War has no battle day.");
-
-		}
-
-		BattleScheduleService.skipBattleDay(war);
-
-		return WarScheduleAdminResult.ok("Skipped to battle day " + war.getBattleDay() + ". " + NEW_DAY_CLEARED);
-
-	}
-
-
-
-	public static WarScheduleAdminResult castVote(War war, int hour, String sideArg) {
-
-		if (war == null) {
-
-			return WarScheduleAdminResult.error("War not found.");
-
-		}
-
-		if (!war.isActive()) {
-
-			return WarScheduleAdminResult.error("War is not active.");
-
-		}
-
-		Integer normalized = BattleWindowService.normalizeInputHour(hour);
-
-		if (normalized == null) {
-
-			return WarScheduleAdminResult.error(
-					"Hour must be within the battle window: " + BattleWindowService.describeValidHours() + ".");
-
-		}
-
-		hour = normalized;
-
-
-
-		BelligerentRole[] sides = parseSideArg(sideArg);
-
-		if (sides.length == 0) {
-
-			return WarScheduleAdminResult.error("Side must be attacker, defender, or both.");
-
-		}
-
-
-
-		int added = BattleScheduleService.castSpoofVotes(
-
-				war,
-
-				hour,
-
-				BattleScheduleLookups.spoofMemberNameToUuid(),
-
-				sides);
-
-		WarHistoryEvents.votesChanged(war);
-
-		return WarScheduleAdminResult.ok(
-
-				"Cast spoof votes for "
-
-						+ BattleWindowService.formatHourLabel(hour)
-
-						+ " ("
-
-						+ added
-
-						+ " selections, "
-
-						+ BattleQuorumService.countDistinctVoters(war)
-
-						+ " voters total).");
-
-	}
-
-
-
-	public static WarScheduleAdminResult forceQuorum(War war) {
-
-		if (war == null) {
-
-			return WarScheduleAdminResult.error("War not found.");
-
-		}
-
-		if (!war.isActive()) {
-
-			return WarScheduleAdminResult.error("War is not active.");
-
-		}
-
-		war.setForceQuorumNextClose(true);
-
-		return WarScheduleAdminResult.ok("Next vote close will bypass quorum for war " + war.getId() + ".");
-
-	}
-
-
-
-	/** Moves the war to a new battle day (yyyy-MM-dd). A voting or scheduled war reopens its vote there. */
-	public static WarScheduleAdminResult setDay(War war, String dayArg) {
-		if (war == null) {
-			return WarScheduleAdminResult.error("War not found.");
-		}
-		if (!war.isActive()) {
-			return WarScheduleAdminResult.error("War is not active.");
-		}
-		LocalDate day;
-		try {
-			day = LocalDate.parse(dayArg == null ? "" : dayArg.trim());
-		} catch (DateTimeParseException e) {
-			return WarScheduleAdminResult.error("Day must be yyyy-MM-dd (e.g. 2026-11-07).");
-		}
-		Instant now = CampaignClock.now();
-		LocalDate today = BattleScheduleService.battleDayDate(now);
-		if (today != null && day.isBefore(today)) {
-			return WarScheduleAdminResult.error("Battle day " + day + " is in the past (today is " + today + ").");
-		}
-		if (day.equals(today) && BattleScheduleService.battleDayHour(now) >= Cache.warVoteCloseHour) {
-			return WarScheduleAdminResult.error(
-					"Today's vote already closed at " + BattleWindowService.formatHourLabel(Cache.warVoteCloseHour)
-							+ ". Pick " + today.plusDays(1) + " or later.");
+		LockedBattleDay next = war.getAvailability().head();
+		if (next == null) {
+			return WarScheduleAdminResult.error("War has no battle day to skip.");
 		}
 		Battle battle = BattleManager.getByWarId(war.getId());
 		if (battle != null && battle.hasStarted()) {
-			return WarScheduleAdminResult.error("Cannot change the battle day while the battle is running.");
+			return WarScheduleAdminResult.error("Cannot skip the battle day while its battle is running.");
 		}
-		if (war.getBattleSchedulePhase() == BattleSchedulePhase.AUTORESOLVE_PENDING) {
-			return WarScheduleAdminResult.error("Cannot change the battle day while autoresolve is pending.");
-		}
-		BattleScheduleService.setBattleDay(war, day);
-		return WarScheduleAdminResult.ok(
-				"Battle day set to " + day + " (phase " + war.getBattleSchedulePhase()
-						+ "). Votes were cleared. " + NEW_DAY_CLEARED);
+		AvailabilityScheduler.skip(war);
+		return WarScheduleAdminResult.ok("Skipped battle day " + next.date() + ". Next battle day: "
+				+ (war.getBattleDay() == null ? "none yet" : war.getBattleDay().toString()) + ". " + NEW_DAY_CLEARED);
 	}
 
-	/** Schedules the battle on the current battle day at a window hour (0 and 1 mean after midnight). */
-	public static WarScheduleAdminResult setHour(War war, int hour) {
-		if (war == null) {
-			return WarScheduleAdminResult.error("War not found.");
+	/** Makes a date (yyyy-MM-dd) a battle day now, whatever the marks say. */
+	public static WarScheduleAdminResult lockDay(War war, String dayArg, Instant now) {
+		WarScheduleAdminResult invalid = requireScheduling(war);
+		if (invalid != null) {
+			return invalid;
 		}
-		if (!war.isActive()) {
-			return WarScheduleAdminResult.error("War is not active.");
+		LocalDate day = parseDay(dayArg);
+		if (day == null) {
+			return WarScheduleAdminResult.error(DAY_FORMAT);
 		}
-		if (war.getBattleDay() == null) {
-			return WarScheduleAdminResult.error("War has no battle day. Use setday first.");
+		String refusal = AvailabilityScheduler.lockDay(war, day, now);
+		return refusal != null ? WarScheduleAdminResult.error(refusal)
+				: WarScheduleAdminResult.ok("Battle day " + day + " locked. Its start time is decided "
+						+ AvailabilityCalendar.timeLockAt(day) + " unless you set it with sethour.");
+	}
+
+	/** Takes a battle day (yyyy-MM-dd) back. */
+	public static WarScheduleAdminResult unlockDay(War war, String dayArg) {
+		WarScheduleAdminResult invalid = requireScheduling(war);
+		if (invalid != null) {
+			return invalid;
+		}
+		LocalDate day = parseDay(dayArg);
+		if (day == null) {
+			return WarScheduleAdminResult.error(DAY_FORMAT);
+		}
+		String refusal = AvailabilityScheduler.unlockDay(war, day);
+		return refusal != null ? WarScheduleAdminResult.error(refusal)
+				: WarScheduleAdminResult.ok("Battle day " + day + " unlocked.");
+	}
+
+	/**
+	 * Sets a battle day's start time (0 and 1 mean after midnight); the next battle day when no date
+	 * is given. The next battle day is set on its province at once.
+	 */
+	public static WarScheduleAdminResult setHour(War war, int hour, String dayArg, Instant now) {
+		WarScheduleAdminResult invalid = requireScheduling(war);
+		if (invalid != null) {
+			return invalid;
 		}
 		Integer normalized = BattleWindowService.normalizeInputHour(hour);
 		if (normalized == null) {
 			return WarScheduleAdminResult.error(
 					"Hour must be a start hour in the battle window: " + BattleWindowService.describeValidHours() + ".");
 		}
-		Battle battle = BattleManager.getByWarId(war.getId());
-		if (battle != null && battle.hasStarted()) {
-			return WarScheduleAdminResult.error("Cannot reschedule while the battle is running.");
+		LocalDate day = dayArg == null ? war.getBattleDay() : parseDay(dayArg);
+		if (day == null) {
+			return WarScheduleAdminResult.error(dayArg == null
+					? "War has no battle day. Use lockday first." : DAY_FORMAT);
 		}
-		if (war.getBattleSchedulePhase() == BattleSchedulePhase.AUTORESOLVE_PENDING) {
-			return WarScheduleAdminResult.error("Cannot reschedule while autoresolve is pending.");
+		String refusal = AvailabilityScheduler.setHour(war, day, normalized, now);
+		if (refusal != null) {
+			return WarScheduleAdminResult.error(refusal);
 		}
-		Instant scheduledAt = BattleWindowService.computeScheduledBattleAt(war, normalized);
-		if (scheduledAt != null && !scheduledAt.isAfter(CampaignClock.now())) {
+		return WarScheduleAdminResult.ok("Battle day " + day + " starts at " + BattleWindowService.formatHourLabel(normalized)
+				+ (war.getScheduledBattleAt() != null && day.equals(war.getBattleDay())
+						? " (province " + war.getScheduledBattleProvinceId() + ")." : "."));
+	}
+
+	/** Dev: marks an hour of a date for every member of the given sides, under test accounts. */
+	public static WarScheduleAdminResult castVote(War war, String dayArg, int hour, String sideArg) {
+		WarScheduleAdminResult invalid = requireScheduling(war);
+		if (invalid != null) {
+			return invalid;
+		}
+		LocalDate day = parseDay(dayArg);
+		if (day == null) {
+			return WarScheduleAdminResult.error(DAY_FORMAT);
+		}
+		Integer normalized = BattleWindowService.normalizeInputHour(hour);
+		if (normalized == null) {
 			return WarScheduleAdminResult.error(
-					"That hour has already passed on battle day " + war.getBattleDay()
-							+ ". Use setday to pick a later day, or battlestart to start now.");
+					"Hour must be within the battle window: " + BattleWindowService.describeValidHours() + ".");
 		}
-		if (scheduledAt == null || !BattleScheduleService.applyScheduledInstant(war, scheduledAt)) {
-			return WarScheduleAdminResult.error("Could not set scheduled battle (no single battle province).");
+		BelligerentRole[] sides = parseSideArg(sideArg);
+		if (sides.length == 0) {
+			return WarScheduleAdminResult.error("Side must be attacker, defender, or both.");
 		}
-		return WarScheduleAdminResult.ok(
-				"Scheduled battle at "
-						+ scheduledAt
-						+ " (battle day "
-						+ war.getBattleDay()
-						+ ", province "
-						+ war.getScheduledBattleProvinceId()
-						+ ").");
+		int added = AvailabilityScheduler.castMarks(war, day, normalized, sides);
+		return WarScheduleAdminResult.ok("Marked " + day + " " + BattleWindowService.formatHourLabel(normalized)
+				+ " for " + added + " test accounts.");
+	}
+
+	static final String DAY_FORMAT = "Day must be yyyy-MM-dd (e.g. 2026-11-07).";
+
+	private static LocalDate parseDay(String dayArg) {
+		try {
+			return LocalDate.parse(dayArg == null ? "" : dayArg.trim());
+		} catch (DateTimeParseException e) {
+			return null;
+		}
+	}
+
+	private static WarScheduleAdminResult requireScheduling(War war) {
+		WarScheduleAdminResult invalid = requireActiveWar(war);
+		if (invalid == null && !AvailabilityScheduler.isScheduling(war)) {
+			return WarScheduleAdminResult.error("War has no battle schedule.");
+		}
+		return invalid;
 	}
 
 	public static WarScheduleAdminResult setScheduled(War war, String isoInstant) {

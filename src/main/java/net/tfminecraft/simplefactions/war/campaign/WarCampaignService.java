@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.OptionalInt;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.ProvinceManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -287,7 +288,7 @@ public class WarCampaignService {
 
 	static void initScheduleState(War war) {
 		if (war.isBuildupFrozen()) {
-			// Regenerating the route keeps the buildup: its day vote, or the first battle day it chose.
+			// Regenerating the route keeps the buildup and the battle days it already has.
 			if (war.getBattleSchedulePhase() != BattleSchedulePhase.BUILDUP) {
 				war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 			}
@@ -295,13 +296,17 @@ public class WarCampaignService {
 			Instant started = war.getStartedAt() != null ? war.getStartedAt() : Instant.now();
 			// The schedule's day rolls over at 02:00, so a war declared just after midnight belongs to the evening before.
 			LocalDate declared = BattleWindowService.scheduleDate(started);
-			war.setBattleDay(Cache.warFirstBattleDayAfterDeclare ? declared.plusDays(1) : declared);
+			if (war.getAvailability().getEarliestBattleDay() == null) {
+				war.getAvailability().setEarliestBattleDay(
+						Cache.warFirstBattleDayAfterDeclare ? declared.plusDays(1) : declared);
+			}
 			war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
+			LockedBattleDay next = war.getAvailability().head();
+			war.setBattleDay(next == null ? null : next.date());
 		}
 		war.setScheduledBattleAt(null);
 		war.setScheduledBattleHour(0);
 		war.setScheduledBattleProvinceId(null);
-		war.getBattleVotes().clear();
 		war.setAutoresolveProposedByAttacker(false);
 		war.setAutoresolveProposedByDefender(false);
 		war.setPostponementsThisCycle(0);

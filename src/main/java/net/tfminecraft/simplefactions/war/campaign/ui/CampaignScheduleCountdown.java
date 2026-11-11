@@ -8,6 +8,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattlePlacementValidator;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityCalendar;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleService;
@@ -43,33 +44,19 @@ public final class CampaignScheduleCountdown {
 			return Optional.empty();
 		}
 
-		if (phase == BattleSchedulePhase.BUILDUP) {
-			Instant closes = war.getDayVoteClosesAt();
-			return closes == null ? Optional.empty() : formatCountdown("Day vote closes in %s", closes, now);
-		}
-
-		if (phase != BattleSchedulePhase.VOTING) {
+		if (phase != BattleSchedulePhase.VOTING && phase != BattleSchedulePhase.BUILDUP) {
 			return Optional.empty();
 		}
 
 		LocalDate battleDay = war.getBattleDay();
-		if (battleDay == null) {
-			return Optional.empty();
+		if (battleDay != null && !BattleScheduleService.isOnBattleDay(war, now)) {
+			return formatCountdown("Battle day in %s", BattleWindowService.campaignDayStart(battleDay), now);
 		}
-
-		if (!BattleScheduleService.isOnBattleDay(war, now)) {
-			Instant target = BattleWindowService.campaignDayStart(battleDay);
-			return formatCountdown("Battle day in %s", target, now);
+		if (battleDay != null && BattleScheduleService.isBeforeVoteClose(war, now)) {
+			return formatCountdown("Picks lock in %s", BattleWindowService.atScheduleHour(battleDay, Cache.warVoteCloseHour), now);
 		}
-
-		if (BattleScheduleService.isBeforeVoteClose(war, now)) {
-			Instant target = BattleWindowService.atScheduleHour(battleDay, Cache.warVoteCloseHour);
-			if (target != null) {
-				return formatCountdown("Vote closes in %s", target, now);
-			}
-		}
-
-		return Optional.empty();
+		Instant nextLock = AvailabilityCalendar.nextLockAt(war, now);
+		return nextLock == null ? Optional.empty() : formatCountdown("Next decision in %s", nextLock, now);
 	}
 
 	private static Optional<String> formatCountdown(String label, Instant target, Instant now) {

@@ -51,9 +51,7 @@ import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteEntry;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignRouteRenderer;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignUiTimeFormatter;
 import net.tfminecraft.simplefactions.war.campaign.ui.CampaignViewRefreshService;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleVoteToggleResult;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.enums.CampaignBattleKind;
@@ -247,15 +245,21 @@ class CampaignMenusCoverageTest {
     war.setInitiativeDefender(2);
     war.setWhitePeaceProposedByAttacker(true);
     war.setWhitePeaceProposedByDefender(true);
-    war.getBattleVotes().put(player.getUniqueId(), Set.of(20, 21));
+    war.getAvailability().putBattleDay(LockedBattleDay.open(war.getBattleDay(), false));
+    war.getAvailability().setMarks(player.getUniqueId(), LocalDate.of(2026, 10, 10), Set.of(20));
     ItemStack voting = creator.createInfoItem(war, attacker, player.getUniqueId());
     assertLore(voting, "Attacker Initiative: 4");
     assertLore(voting, "Defender Initiative: 2");
     assertLore(voting, "Attacker proposed white peace");
     assertLore(voting, "Defender proposed white peace");
-    assertLore(voting, "Hour Votes:");
-    assertLore(voting, "Total voters: 1");
-    assertLore(voting, "Your Hours:");
+    assertLore(voting, "Next Battle Day: Wed 07/10");
+    assertLore(voting, "Start Time: decided");
+    assertLore(voting, "Next Decision:");
+    assertLore(voting, "Status: Battle Day Set");
+    assertLore(voting, "Your Availability: marked");
+    war.getAvailability().putBattleDay(LockedBattleDay.open(war.getBattleDay(), false).withHour(21, false));
+    assertLore(creator.createInfoItem(war, attacker, UUID.randomUUID()), "Start Time: 21:00 CET");
+    assertLore(creator.createInfoItem(war, attacker, UUID.randomUUID()), "Your Availability: nothing marked");
     war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
     war.setScheduledBattleAt(NOW.plusSeconds(3600));
     war.setScheduledBattleProvinceId(11);
@@ -263,28 +267,12 @@ class CampaignMenusCoverageTest {
     assertLore(scheduled, "Fight At:");
     assertLore(scheduled, "Starts in");
     assertLore(scheduled, "Battle province: 11");
-    assertLore(scheduled, "Your Hours: -");
+    assertFalse(lore(scheduled).contains("Start Time:"));
+    assertFalse(lore(scheduled).contains("Your Availability:"));
     war.setScheduledBattleAt(null);
     war.setScheduledBattleProvinceId(null);
     assertFalse(lore(creator.createInfoItem(war, attacker, null)).contains("Fight At:"));
     assertTrue(CampaignCreator.buildScheduleInfoLines(null, null, null).isEmpty());
-  }
-
-  @ParameterizedTest
-  @CsvSource({"true,true", "false,true", "true,false", "false,false"})
-  void hourButtonsDescribeSelectionEligibilityAndOnlyTagAllowedActions(
-      boolean selected, boolean allowed) {
-    ItemStack item =
-        creator.createHourToggleItem(war, 20, selected, allowed, new BattleHourTally(2, 3));
-    assertLore(item, "2/3");
-    assertLore(item, "attacker/defender");
-    assertLore(
-        item, allowed ? (selected ? "Click to remove" : "Click to select") : "Voting closed");
-    assertEquals(allowed ? 7 : null, number(item, "campaign_vote_war"));
-    assertEquals(allowed ? 20 : null, number(item, "campaign_vote_hour"));
-    ItemStack unavailable = creator.createHourToggleItem(null, 20, selected, allowed, null);
-    assertLore(unavailable, "0/0");
-    assertNull(number(unavailable, "campaign_vote_war"));
   }
 
   @Test
@@ -293,7 +281,7 @@ class CampaignMenusCoverageTest {
     assertTrue(CampaignCreator.buildEnemyInstallationIntelLines(war, null, NOW).isEmpty());
     Faction outsider = fixture.saved("outsider", "Outsider");
     assertTrue(CampaignCreator.buildEnemyInstallationIntelLines(war, outsider, NOW).isEmpty());
-    assertLore(creator.createEnemyInstallationIntelItem(war, attacker), "hidden until vote close");
+    assertLore(creator.createEnemyInstallationIntelItem(war, attacker), "hidden until 16:00 CET on the battle day");
     Installation fort = new Installation("fort", "Castle", InstallationKind.FORT, 11, 0, 0, 0);
     defender.getInstallationHandler().load(List.of(fort.toData()));
     Map<String, Set<String>> enemy = new LinkedHashMap<>();
@@ -338,8 +326,9 @@ class CampaignMenusCoverageTest {
       assertEquals(side.name(), string(item, "campaign_autoresolve_side"));
       assertLore(item, "Opposing war leader must accept");
     }
-    assertLore(creator.createVotingHelpItem(), "One vote per eligible player");
-    assertEquals(Material.BLACK_STAINED_GLASS_PANE, creator.createUnusedHourSlotItem().getType());
+    ItemStack availabilityButton = creator.createAvailabilityButton(war);
+    assertEquals("When can you fight?", name(availabilityButton));
+    assertEquals(7, number(availabilityButton, "campaign_availability_war"));
   }
 
   @ParameterizedTest
@@ -352,11 +341,11 @@ class CampaignMenusCoverageTest {
     ItemStack entry = creator.createInstallationsEntryButton(war, attacker);
     assertEquals(7, number(entry, "campaign_installations_entry_war"));
     assertLore(entry, "Committed: 2");
-    assertLore(entry, locked ? "Locked at vote close" : "Leader only until vote close");
+    assertLore(entry, locked ? "Locked at 16:00 CET on the battle day" : "Leader only, until 16:00 CET on the battle day");
     assertLore(creator.createInstallationsEntryButton(war, null), "Committed: 0");
     assertLore(
         creator.createInstallationPickSummaryItem(war, attacker, locked),
-        locked ? "Locked at vote close" : "Click installations below");
+        locked ? "Locked at 16:00 CET on the battle day" : "Click installations below");
     assertLore(creator.createInstallationPickSummaryItem(war, null, locked), "Committed: 0");
   }
 
@@ -380,7 +369,7 @@ class CampaignMenusCoverageTest {
         item,
         zocLocked
             ? "Required"
-            : locked ? "Locked at vote close" : selected ? "Click to uncommit" : "Click to commit");
+            : locked ? "Locked at 16:00 CET on the battle day" : selected ? "Click to uncommit" : "Click to commit");
     assertEquals(!locked || zocLocked ? 7 : null, number(item, "campaign_installation_pick_war"));
     assertEquals(
         !locked || zocLocked ? "fort" : null, string(item, "campaign_installation_pick_id"));
@@ -429,9 +418,7 @@ class CampaignMenusCoverageTest {
     assertEquals(11, number(first.getItem(10), "campaign_province"));
     assertEquals(Material.AIR, first.getItem(11).getType());
     assertEquals("First Battle", name(first.getItem(19)));
-    assertNotNull(first.getItem(27));
-    assertEquals(20, number(first.getItem(28), "campaign_vote_hour"));
-    assertEquals(Material.BLACK_STAINED_GLASS_PANE, first.getItem(32).getType());
+    assertEquals(7, number(first.getItem(27), "campaign_availability_war"));
     assertEquals(7, number(first.getItem(46), "campaign_retreat"));
     assertEquals(7, number(first.getItem(47), "campaign_surrender"));
     assertEquals(7, number(first.getItem(48), "campaign_accept_peace"));
@@ -562,6 +549,24 @@ class CampaignMenusCoverageTest {
   }
 
   @Test
+  void theAvailabilityButtonOpensTheGridForThisWarOnly() {
+    navigation.availabilityView = mock(AvailabilityView.class);
+    view.campaignView(player, war, true);
+    Inventory inventory = top();
+    click(27);
+    verify(navigation.availabilityView).open(player, war);
+    refresh.verify(() -> CampaignViewRefreshService.unregister(player));
+    ItemStack other = creator.createAvailabilityButton(war);
+    ItemMeta meta = other.getItemMeta();
+    meta.getPersistentDataContainer()
+        .set(new NamespacedKey(fixture.ui.plugin, "campaign_availability_war"), PersistentDataType.INTEGER, 8);
+    other.setItemMeta(meta);
+    inventory.setItem(0, other);
+    click(0);
+    verify(navigation.availabilityView, times(1)).open(any(), any());
+  }
+
+  @Test
   void backButtonUnregistersRefreshAndMissingWarIsReported() {
     open();
     click(53);
@@ -592,156 +597,6 @@ class CampaignMenusCoverageTest {
   }
 
   @Test
-  void realHourTogglesAddRemovePersistAndRefreshAvailability() {
-    view.campaignView(player, war, true);
-    click(28);
-    assertEquals(Set.of(20), war.getBattleVotes().get(player.getUniqueId()));
-    String label = CampaignUiTimeFormatter.formatUtcHour(war.getBattleDay(), 20);
-    assertTrue(label.startsWith("20:00 CET"));
-    verify(player).sendMessage(StringFormatter.formatHex("§aAdded " + label + "§a to your availability."));
-    assertLore(top().getItem(28), "Click to remove");
-    click(28);
-    assertFalse(war.getBattleVotes().containsKey(player.getUniqueId()));
-    verify(player).sendMessage(StringFormatter.formatHex("§aRemoved " + label + "§a from your availability."));
-    wars.verify(() -> WarManager.persist(war), times(2));
-  }
-
-  @ParameterizedTest
-  @EnumSource(
-      value = BattleVoteToggleResult.class,
-      names = {
-        "REJECTED_INVALID_HOUR",
-        "REJECTED_NOT_PARTICIPANT",
-        "REJECTED_OFFLINE",
-        "REJECTED_VOTE_CLOSED"
-      })
-  void voteServiceRejectionsExplainTheProblemAndDoNotPersist(BattleVoteToggleResult result) {
-    Inventory inventory = open();
-    inventory.setItem(0, creator.createHourToggleItem(war, 20, false, true, null));
-    try (MockedStatic<BattleVoteService> votes = mockStatic(BattleVoteService.class)) {
-      votes
-          .when(() -> BattleVoteService.toggleVote(war, player.getUniqueId(), 20, attacker, true))
-          .thenReturn(result);
-      click(0);
-      votes.verify(
-          () -> BattleVoteService.toggleVote(war, player.getUniqueId(), 20, attacker, true));
-    }
-    verify(player)
-        .sendMessage(
-            switch (result) {
-              case REJECTED_INVALID_HOUR -> "§cThat hour is not in the battle window.";
-              case REJECTED_NOT_PARTICIPANT -> "§cYou are not eligible to vote in this war.";
-              case REJECTED_OFFLINE -> "§cYou must be online to vote.";
-              case REJECTED_VOTE_CLOSED -> "§cVoting is closed for this battle day.";
-              default -> throw new IllegalArgumentException(result.name());
-            });
-    wars.verify(() -> WarManager.persist(any()), never());
-    assertTrue(war.getBattleVotes().isEmpty());
-  }
-
-  private int startDayVote(int options) {
-    int previous = Cache.warBuildupDayOptions;
-    Cache.warBuildupDayOptions = options;
-    war.setBuildup(true);
-    war.setBattleDay(null);
-    war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
-    war.setDayVoteFirstDay(LocalDate.of(2026, 10, 14));
-    war.setDayVoteClosesAt(NOW.plusSeconds(72 * 3600L));
-    return previous;
-  }
-
-  @Test
-  void aBuildupWarShowsAndTakesFirstBattleDayVotes() {
-    int previous = startDayVote(3);
-    try {
-      view.campaignView(player, war, true);
-      Inventory first = top();
-      assertEquals("First battle day voting", name(first.getItem(27)));
-      assertLore(first.getItem(27), "The hour vote follows on the chosen day");
-      assertEquals("14/10/2026", name(first.getItem(28)).replaceAll("^\\W+", ""));
-      assertEquals(0, number(first.getItem(28), "campaign_vote_day"));
-      assertEquals(7, number(first.getItem(28), "campaign_vote_war"));
-      assertEquals(2, number(first.getItem(30), "campaign_vote_day"));
-      assertNull(number(first.getItem(31), "campaign_vote_day"));
-      assertLore(first.getItem(4), "Buildup: frozen until the first battle");
-      assertLore(first.getItem(4), "Day Vote Closes:");
-      assertLore(first.getItem(4), "Buildup: Voting on the Day");
-      assertLore(first.getItem(4), "First Battle Day Votes:");
-      assertLore(first.getItem(4), "Your Days: -");
-
-      click(29);
-
-      assertEquals(Set.of(1), war.getDayVotes().get(player.getUniqueId()));
-      verify(player).sendMessage("§aAdded 15/10/2026 §ato the days you can fight.");
-      assertLore(top().getItem(29), "Click to remove this day");
-      assertLore(top().getItem(29), "1/0");
-      assertLore(top().getItem(4), "Your Days: 15/10/2026");
-      assertLore(top().getItem(4), "Total voters: 1");
-      click(29);
-      assertFalse(war.getDayVotes().containsKey(player.getUniqueId()));
-      verify(player).sendMessage("§aRemoved 15/10/2026 §afrom the days you can fight.");
-      wars.verify(() -> WarManager.persist(war), times(2));
-    } finally {
-      Cache.warBuildupDayOptions = previous;
-    }
-  }
-
-  @Test
-  void dayVoteClicksRefuseClosedVotesOutsidersAndInvalidDays() {
-    int previous = startDayVote(5);
-    try {
-      Inventory inventory = open();
-      inventory.setItem(0, creator.createDayToggleItem(war, 0, false, true, null));
-      inventory.setItem(1, creator.createDayToggleItem(war, 9, false, true, null));
-      click(1);
-      verify(player).sendMessage("§cYou cannot vote for that day.");
-      when(player.isOnline()).thenReturn(false);
-      click(0);
-      verify(player, times(2)).sendMessage("§cYou cannot vote for that day.");
-      when(player.isOnline()).thenReturn(true);
-      war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-      click(0);
-      verify(player).sendMessage("§cYou cannot vote for the first battle day right now.");
-      war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
-      removePlayerFromFaction();
-      click(0);
-      verify(player, times(2)).sendMessage("§cYou cannot vote for the first battle day right now.");
-      assertTrue(war.getDayVotes().isEmpty());
-      wars.verify(() -> WarManager.persist(any()), never());
-      ItemStack otherWar = creator.createDayToggleItem(war, 0, false, true, null);
-      ItemMeta meta = otherWar.getItemMeta();
-      meta.getPersistentDataContainer()
-          .set(new NamespacedKey(fixture.ui.plugin, "campaign_vote_war"), PersistentDataType.INTEGER, 8);
-      otherWar.setItemMeta(meta);
-      inventory.setItem(2, otherWar);
-      click(2);
-      assertTrue(war.getDayVotes().isEmpty());
-    } finally {
-      Cache.warBuildupDayOptions = previous;
-    }
-  }
-
-  @ParameterizedTest
-  @CsvSource({"true,true", "false,true", "true,false", "false,false"})
-  void dayButtonsDescribeSelectionEligibilityAndOnlyTagAllowedActions(
-      boolean selected, boolean allowed) {
-    int previous = startDayVote(5);
-    try {
-      ItemStack item = creator.createDayToggleItem(war, 2, selected, allowed, new BattleHourTally(2, 3));
-      assertTrue(name(item).endsWith("16/10/2026"));
-      assertLore(item, "2/3");
-      assertLore(item, "attacker/defender");
-      assertLore(
-          item,
-          allowed ? (selected ? "Click to remove this day" : "Click to select this day") : "Voting closed");
-      assertEquals(allowed ? 2 : null, number(item, "campaign_vote_day"));
-      assertLore(creator.createDayToggleItem(war, 2, selected, allowed, null), "0/0");
-    } finally {
-      Cache.warBuildupDayOptions = previous;
-    }
-  }
-
-  @Test
   void aBuildupWarWithItsDayChosenStillSaysItIsFrozen() {
     war.setBuildup(true);
     List<String> lines =
@@ -749,33 +604,26 @@ class CampaignMenusCoverageTest {
             .map(ChatColor::stripColor)
             .toList();
     assertEquals("Buildup: frozen until the first battle", lines.get(0));
-    assertTrue(lines.stream().anyMatch(line -> line.startsWith("Battle Day:")));
-    int previous = startDayVote(2);
-    try {
-      List<String> dayVote =
-          CampaignCreator.buildScheduleInfoLines(war, null, null).stream()
-              .map(ChatColor::stripColor)
-              .toList();
-      assertTrue(dayVote.contains("Your Days: -"), dayVote.toString());
-      assertTrue(dayVote.contains("15/10/2026 · 0/0"), dayVote.toString());
-    } finally {
-      Cache.warBuildupDayOptions = previous;
-    }
-  }
-
-  @Test
-  void expiredVotingAndFormerMembersCannotUseAnAlreadyOpenHourButton() {
-    Inventory inventory = open();
-    inventory.setItem(0, creator.createHourToggleItem(war, 20, false, true, null));
-    clock.when(CampaignClock::now).thenReturn(NOW.plusSeconds(36000));
-    click(0);
-    verify(player).sendMessage(contains("cannot vote"));
-    assertTrue(war.getBattleVotes().isEmpty());
-    clock.when(CampaignClock::now).thenReturn(NOW);
-    removePlayerFromFaction();
-    click(0);
-    verify(player, times(2)).sendMessage(contains("cannot vote"));
-    assertTrue(war.getBattleVotes().isEmpty());
+    assertTrue(lines.contains("Next Battle Day: Wed 07/10"), lines.toString());
+    war.setBattleDay(null);
+    war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
+    List<String> buildup =
+        CampaignCreator.buildScheduleInfoLines(war, player.getUniqueId(), null).stream()
+            .map(ChatColor::stripColor)
+            .toList();
+    assertTrue(buildup.contains("Next Battle Day: not set yet"), buildup.toString());
+    assertTrue(buildup.contains("Status: Buildup: Marking Availability"), buildup.toString());
+    assertTrue(buildup.contains("Your Availability: nothing marked"), buildup.toString());
+    war.getAvailability().setNone(player.getUniqueId(), LocalDate.of(2026, 12, 1));
+    assertTrue(
+        CampaignCreator.buildScheduleInfoLines(war, player.getUniqueId(), null).stream()
+            .map(ChatColor::stripColor)
+            .toList()
+            .contains("Your Availability: none of these days"));
+    war.setBattleSchedulePhase(BattleSchedulePhase.IDLE);
+    assertFalse(
+        CampaignCreator.buildScheduleInfoLines(war, player.getUniqueId(), null).stream()
+            .anyMatch(line -> line.contains("Your Availability") || line.contains("Next Decision")));
   }
 
   @ParameterizedTest

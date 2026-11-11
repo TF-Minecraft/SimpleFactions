@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityScheduler;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.army.Regiment;
 import net.tfminecraft.simplefactions.database.BattleData;
 import net.tfminecraft.simplefactions.database.MercenaryCompanyData;
@@ -571,13 +574,21 @@ class CampaignBattleLifecycleCoverageTest {
     var war = ended ? rig.war : null;
     long writes = rig.warWrites();
     String expected = ended ? "War is not active." : "War not found.";
-    assertEquals(WarScheduleAdminResult.error(expected), WarScheduleAdminService.openVote(war));
     assertEquals(
-        WarScheduleAdminResult.error(expected), WarScheduleAdminService.closeVote(war, rig.now()));
+        WarScheduleAdminResult.error(expected), WarScheduleAdminService.availability(war, rig.now()));
     assertEquals(WarScheduleAdminResult.error(expected), WarScheduleAdminService.skipDay(war));
     assertEquals(
-        WarScheduleAdminResult.error(expected), WarScheduleAdminService.castVote(war, 21, "both"));
-    assertEquals(WarScheduleAdminResult.error(expected), WarScheduleAdminService.forceQuorum(war));
+        WarScheduleAdminResult.error(expected),
+        WarScheduleAdminService.castVote(war, Fixture.DAY.toString(), 21, "both"));
+    assertEquals(
+        WarScheduleAdminResult.error(expected),
+        WarScheduleAdminService.lockDay(war, Fixture.DAY.toString(), rig.now()));
+    assertEquals(
+        WarScheduleAdminResult.error(expected),
+        WarScheduleAdminService.unlockDay(war, Fixture.DAY.toString()));
+    assertEquals(
+        WarScheduleAdminResult.error(expected),
+        WarScheduleAdminService.setHour(war, 21, null, rig.now()));
     assertEquals(
         WarScheduleAdminResult.error(expected),
         WarScheduleAdminService.setScheduled(war, rig.now().toString()));
@@ -608,8 +619,6 @@ class CampaignBattleLifecycleCoverageTest {
     assertFalse(WarScheduleAdminService.battleChoice(rig.war, "").success());
     assertFalse(WarScheduleAdminService.battleChoice(rig.war, "invalid").success());
     assertFalse(WarScheduleAdminService.battleDelete(rig.war).success());
-    rig.war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
-    assertFalse(WarScheduleAdminService.closeVote(rig.war, rig.now()).success());
     rig.war.setBattleDay(null);
     assertFalse(WarScheduleAdminService.skipDay(rig.war).success());
     assertTrue(BattleManager.get().isEmpty());
@@ -619,19 +628,18 @@ class CampaignBattleLifecycleCoverageTest {
   }
 
   @Test
-  void closingAForcedRealVoteSchedulesOneBattleAndRepeatedCreateRetainsIt() throws Exception {
+  void settingTheNextBattleDaysTimeSchedulesOneBattleAndRepeatedCreateRetainsIt() throws Exception {
     configureCampaign();
-    assertTrue(WarScheduleAdminService.castVote(rig.war, 21, "both").success());
-    assertTrue(WarScheduleAdminService.forceQuorum(rig.war).success());
-    WarScheduleAdminResult result = WarScheduleAdminService.closeVote(rig.war, rig.now());
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY, false));
+    assertTrue(WarScheduleAdminService.castVote(rig.war, Fixture.DAY.toString(), 21, "both").success());
+    WarScheduleAdminResult result = WarScheduleAdminService.setHour(rig.war, 21, null, rig.now());
     assertTrue(result.success(), result.message());
-    assertTrue(result.message().contains("scheduled battle"), result.message());
+    assertTrue(result.message().contains("(province 20)"), result.message());
     assertEquals(BattleSchedulePhase.SCHEDULED, rig.war.getBattleSchedulePhase());
     assertEquals(
         BattleWindowService.computeScheduledBattleAt(Fixture.DAY, 21),
         rig.war.getScheduledBattleAt());
     assertEquals(20, rig.war.getScheduledBattleProvinceId());
-    assertFalse(rig.war.isForceQuorumNextClose());
     Battle prepared = BattleManager.getByWarId(rig.war.getId());
     assertNotNull(prepared);
     result = WarScheduleAdminService.battleCreate(rig.war);
@@ -646,21 +654,38 @@ class CampaignBattleLifecycleCoverageTest {
   }
 
   @Test
-  void insufficientVotesPostponeTheCampaignAndUnresolvedChoiceBlocksClosing() throws Exception {
+  void marksDecideTheDayThenTheTimeAndAnOpenChoiceHoldsTheBattleUntilSettled() throws Exception {
     configureCampaign();
-    WarScheduleAdminResult postponed = WarScheduleAdminService.closeVote(rig.war, rig.now());
-    assertTrue(postponed.success(), postponed.message());
-    assertTrue(postponed.message().contains("postponed"));
-    assertEquals(Fixture.DAY.plusDays(1), rig.war.getBattleDay());
-    assertEquals(1, rig.war.getPostponementsThisCycle());
-    assertTrue(BattleManager.get().isEmpty());
+    var availability = rig.war.getAvailability();
+    availability.setEarliestBattleDay(Fixture.DAY.plusDays(2));
+    // Nobody marked the first date: at its day lock it gets no battle.
+    assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY, 20)));
+    assertNull(availability.battleDay(Fixture.DAY.plusDays(2)));
+    assertEquals(Fixture.DAY.plusDays(2), availability.getLastDayLockProcessed());
+    assertEquals(1, availability.getNoBattleStreak());
+    assertNull(rig.war.getBattleDay());
+    // Both sides can make 21:00 on the next date: it becomes a battle day.
+    assertTrue(WarScheduleAdminService.castVote(rig.war, Fixture.DAY.plusDays(3).toString(), 21, "both").success());
+    assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY.plusDays(1), 20)));
+    assertNotNull(availability.battleDay(Fixture.DAY.plusDays(3)));
+    assertEquals(Fixture.DAY.plusDays(3), rig.war.getBattleDay());
+    assertEquals(0, availability.getNoBattleStreak());
+    // At its time lock the hour is fixed, but an open post-battle choice keeps it off its province.
     rig.war.setPostBattleChoicePhase(PostBattleChoicePhase.WINNER_PUSH_HOLD);
     rig.war.setPostBattleWinnerCoalition(CampaignSideRole.AGGRESSOR);
     rig.war.setPostBattleChoiceResolved(false);
-    WarScheduleAdminResult blocked = WarScheduleAdminService.closeVote(rig.war, rig.now());
-    assertFalse(blocked.success());
-    assertTrue(blocked.message().contains("choice unresolved"));
-    assertEquals(1, rig.war.getPostponementsThisCycle());
+    availability.setEarliestBattleDay(Fixture.DAY.plusDays(3));
+    Instant timeLock = BattleWindowService.atScheduleHour(Fixture.DAY.plusDays(2), 20);
+    assertTrue(AvailabilityScheduler.process(rig.war, timeLock));
+    assertEquals(21, availability.battleDay(Fixture.DAY.plusDays(3)).hour());
+    assertEquals(BattleSchedulePhase.VOTING, rig.war.getBattleSchedulePhase());
+    assertTrue(BattleManager.get().isEmpty());
+    rig.war.setPostBattleChoicePhase(PostBattleChoicePhase.NONE);
+    rig.war.setPostBattleChoiceResolved(true);
+    assertTrue(AvailabilityScheduler.process(rig.war, timeLock.plusSeconds(60)));
+    assertEquals(BattleSchedulePhase.SCHEDULED, rig.war.getBattleSchedulePhase());
+    assertEquals(BattleWindowService.atScheduleHour(Fixture.DAY.plusDays(3), 21), rig.war.getScheduledBattleAt());
+    assertEquals(20, rig.war.getScheduledBattleProvinceId());
   }
 
   @Test
@@ -721,29 +746,24 @@ class CampaignBattleLifecycleCoverageTest {
   }
 
   @Test
-  void aSecondFailedVoteAutoresolvesARealCampaignBattleWithoutStartingALiveBattle()
+  void aForcedDayOneSideNeverMarkedIsAutoresolvedAtItsTimeLockWithoutALiveBattle()
       throws Exception {
     configureCampaign();
-    rig.war.setPostponementsThisCycle(Cache.warBattleVotingMaxPostponements);
-    WarScheduleAdminResult result = WarScheduleAdminService.closeVote(rig.war, rig.now());
-    assertTrue(result.success(), result.message());
-    assertTrue(result.message().contains("autoresolved"), result.message());
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY.plusDays(1), true));
+    assertTrue(WarScheduleAdminService.castVote(rig.war, Fixture.DAY.plusDays(1).toString(), 22, "attacker").success());
+    assertTrue(AvailabilityScheduler.process(rig.war, BattleWindowService.atScheduleHour(Fixture.DAY, 20)));
     assertEquals(1, rig.war.getCampaignBattlesFought());
     assertTrue(BattleManager.get().isEmpty());
     assertTrue(rig.war.hasFirstBattleStarted());
+    assertNull(rig.war.getAvailability().battleDay(Fixture.DAY.plusDays(1)));
   }
 
   @Test
-  void aWarWithNoBattleLeftEndsInWhitePeaceAtTheLastVoteCloseInsteadOfFreezingAgain()
-      throws Exception {
+  void aWarWithNoBattleLeftEndsInWhitePeaceWhenItsNextBattleIsDue() throws Exception {
     configureCampaign();
-    rig.remember(Cache.class, "warPostponeFreezeHours");
-    Cache.warPostponeFreezeHours = 24;
     rig.war.setInitiativeAttacker(0);
-    rig.war.setPostponementsThisCycle(Cache.warBattleVotingMaxPostponements);
-    WarScheduleAdminResult result = WarScheduleAdminService.closeVote(rig.war, rig.now());
-    assertTrue(result.success(), result.message());
-    assertTrue(result.message().contains("white peace"), result.message());
+    rig.war.getAvailability().putBattleDay(LockedBattleDay.open(Fixture.DAY, false).withHour(21, false));
+    assertTrue(AvailabilityScheduler.process(rig.war, rig.now()));
     assertFalse(rig.war.isActive());
     assertEquals(WarEndReason.WHITE_PEACE, rig.war.getEndReason());
     assertNull(WarManager.getById(rig.war.getId()));
@@ -853,20 +873,10 @@ class CampaignBattleLifecycleCoverageTest {
             "warFirstBattleAtBorder",
             "warBattleWindowStartHour",
             "warBattleWindowEndHour",
-            "warBattleVotingMaxPostponements",
-            "warBattleVotingMinPlayers",
-            "warBattleVotingRequireSmallestSideFull",
-            "warBattleVotingPassIfEither",
-            "warBattleVotingDevMinPlayersEnabled",
             "battleCampaignTemplateField")) rig.remember(Cache.class, name);
     Cache.warFirstBattleAtBorder = true;
     Cache.warBattleWindowStartHour = 20;
     Cache.warBattleWindowEndHour = 24;
-    Cache.warBattleVotingMaxPostponements = 1;
-    Cache.warBattleVotingMinPlayers = 4;
-    Cache.warBattleVotingRequireSmallestSideFull = true;
-    Cache.warBattleVotingPassIfEither = true;
-    Cache.warBattleVotingDevMinPlayersEnabled = false;
     Cache.battleCampaignTemplateField = "";
     rig.war.setObjectiveProvinceId(30);
     rig.war.setCampaignStartProvinceId(20);

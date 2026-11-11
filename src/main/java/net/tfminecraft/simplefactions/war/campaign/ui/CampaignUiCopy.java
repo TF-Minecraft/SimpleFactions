@@ -83,10 +83,10 @@ public final class CampaignUiCopy {
 		}
 		BattleSchedulePhase schedulePhase = war.getBattleSchedulePhase();
 		if (schedulePhase == BattleSchedulePhase.BUILDUP) {
-			return "Buildup: Voting on the Day";
+			return "Buildup: Marking Availability";
 		}
 		if (schedulePhase == BattleSchedulePhase.VOTING) {
-			return "Currently Voting";
+			return war.getBattleDay() != null ? "Battle Day Set" : "Marking Availability";
 		}
 		if (schedulePhase == BattleSchedulePhase.SCHEDULED) {
 			return "Awaiting Battle";

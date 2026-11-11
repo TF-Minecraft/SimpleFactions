@@ -161,7 +161,10 @@ class WarPersistenceCoverageTest {
     war.setScheduledBattleProvinceId(8);
     war.setSignupRemindersSent(Set.of(60, 10));
     UUID voter = UUID.fromString("00000000-0000-0000-0000-000000000011");
-    war.setBattleVotes(Map.of(voter, new LinkedHashSet<>(List.of(19, 20))));
+    war.getAvailability().setMarks(voter, day, new LinkedHashSet<>(List.of(19, 20)));
+    war.getAvailability().putBattleDay(
+        net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay.open(day, false)
+            .withHour(20, false));
     war.setBattleInstallationPicks(Map.of("rebels", new LinkedHashSet<>(List.of("fort", "port"))));
     war.setBattleInstallationPicksBattleDay(day);
     war.setRaidRepairLockUntil(Map.of("fort", scheduled.plusSeconds(3600)));
@@ -192,7 +195,8 @@ class WarPersistenceCoverageTest {
     assertEquals(
         snapshot.getTransferredProvinces(), loaded.getCivilWarSnapshot().getTransferredProvinces());
     assertEquals(List.of(first, second), loaded.getCampaignBattleSchedule());
-    assertEquals(war.getBattleVotes(), loaded.getBattleVotes());
+    assertEquals(war.getAvailability().marks(), loaded.getAvailability().marks());
+    assertEquals(war.getAvailability().battleDays(), loaded.getAvailability().battleDays());
     loaded.getCivilWarSnapshot().getTransferredProvinces().clear();
     assertEquals(2, snapshot.getTransferredProvinces().size());
   }
@@ -216,10 +220,9 @@ class WarPersistenceCoverageTest {
     war.getRaidRepairLockUntil().put("missing", null);
     war.getRaidRepairLockUntil().put("fort", Instant.EPOCH);
     UUID player = UUID.randomUUID();
-    war.getBattleVotes().put(null, Set.of(20));
-    war.getBattleVotes().put(UUID.randomUUID(), null);
-    war.getBattleVotes().put(UUID.randomUUID(), Set.of());
-    war.getBattleVotes().put(player, Set.of(20));
+    LocalDate day = LocalDate.of(2026, 10, 9);
+    war.getAvailability().setMarks(UUID.randomUUID(), day, Set.of());
+    war.getAvailability().setMarks(player, day, Set.of(20));
     CivilWarSnapshot snapshot = new CivilWarSnapshot();
     snapshot.setHostFactionId("defender");
     snapshot.getTransferredProvinces().put(null, "ignored");
@@ -238,7 +241,7 @@ class WarPersistenceCoverageTest {
     assertEquals(Map.of("fort", CampaignSideRole.DEFENDER), loaded.getFortControllers());
     assertEquals(Map.of("attacker", Set.of("fort")), loaded.getBattleInstallationPicks());
     assertEquals(Map.of("fort", Instant.EPOCH), loaded.getRaidRepairLockUntil());
-    assertEquals(Map.of(player, Set.of(20)), loaded.getBattleVotes());
+    assertEquals(Map.of(player, Map.of(day, Set.of(20))), loaded.getAvailability().marks());
     assertEquals(Map.of(7, "defender"), loaded.getCivilWarSnapshot().getTransferredProvinces());
     assertEquals(
         List.of(new CivilWarMemberMove("Cara", "main", false)),

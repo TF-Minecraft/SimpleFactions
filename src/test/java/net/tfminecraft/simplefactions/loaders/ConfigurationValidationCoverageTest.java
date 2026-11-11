@@ -94,8 +94,6 @@ class ConfigurationValidationCoverageTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "battle_voting.min_players",
-        "battle_voting.dev_min_players",
         "campaign_raid.muster_seconds",
         "campaign_raid.duration_seconds",
         "campaign_raid.repair_lock_hours",
@@ -292,8 +290,6 @@ class ConfigurationValidationCoverageTest {
         "battle_schedule.window_start_hour=25",
         "battle_schedule.window_end_hour=20",
         "battle_schedule.window_end_hour=37",
-        "battle_voting.min_players=0",
-        "battle_voting.dev_min_players=0",
         "campaign_raid.muster_seconds=0",
         "campaign_raid.duration_seconds=0",
         "campaign_raid.repair_lock_hours=0",
@@ -395,8 +391,6 @@ class ConfigurationValidationCoverageTest {
     new ConfigLoader().loadWar(write("war.yml", war.saveToString()).toFile());
     assertEquals(0, Cache.warDefenderChoiceDeadlineHour);
     assertEquals(24, Cache.warBattleWindowEndHour);
-    assertEquals(1, Cache.warBattleVotingMinPlayers);
-    assertEquals(1, Cache.warBattleVotingDevMinPlayers);
     assertEquals(0, Cache.warDevmodePhantomCount);
     assertEquals(1, Cache.campaignRaidMusterSeconds);
     assertEquals(1, Cache.campaignRaidDurationSeconds);

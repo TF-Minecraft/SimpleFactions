@@ -84,43 +84,48 @@ war:
     sea_pass_enabled: true
     # water_cost: 0  # 0 = derive from terrain-modifiers WATER via 1/carry
   battle_schedule:
+    # Installation picks lock, and the enemy's show, at this hour on the battle day.
     vote_close_hour: 16
     raid_window_start_hour: 19
     raid_window_end_hour: 20
     window_start_hour: 21
     # Last valid start hour is window_end_hour - 1. Values past 24 run past midnight:
     # 26 lets battles start up to 01:00 CET, and the battle day then ends at 02:00.
-    # The vote menu shows at most 5 start hours.
+    # The availability menu shows at most 5 start hours.
     window_end_hour: 26
+    # A post-battle choice nobody made is settled at this hour on the day after the battle.
     defender_choice_deadline_hour: 12
     one_battle_per_day: true
-    # Only used when war.buildup is disabled.
+    # Only used when war.buildup is disabled: whether the declaration's own day can be a battle day.
     first_battle_day_after_declare: true
-  battle_voting:
-    min_players: 4
-    require_smallest_side_full: true
-    pass_if_either: true
-    # A stalled vote postpones this many times, then the battle is autoresolved.
-    max_postponements: 1
-    # Each postponement freezes both sides for this many hours, the same way the buildup does,
-    # and pushes raid repair locks back by as much.
-    postpone_freeze_hours: 24
+  # Players mark every date and start time they could fight. Each date is decided on its own:
+  # day_lock_hours_before its battle window opens, it becomes a battle day when, at one start
+  # time, min_per_side of each side marked it (or the whole side, if it has fewer active members;
+  # hired mercenaries count for their hirer). Otherwise there is no battle that day. A battle day's
+  # start time is fixed time_lock_hours_before: the time most of both sides can make. After
+  # max_days_without_battle dates in a row without a battle, the last one is a battle day anyway
+  # (0: never); if one side marked no time at all that day, its battle is autoresolved.
+  availability:
+    days_shown: 7
+    day_lock_hours_before: 48
+    time_lock_hours_before: 24
+    min_per_side: 3
+    max_days_without_battle: 3
+    # In-game "[Vote on the website]" link; {war_key} is replaced. Empty: no link.
+    vote_url: "https://www.tfminecraft.net/wars/{war_key}#vote"
   # A declared war waits before its first battle. Until that battle starts, every faction in it
   # is frozen: running regiment, installation, war-related guild upgrade, mercenary company and
   # VFBuilders timers pause, and none of those can be started, nor vehicles added to the faction
   # pool or a berth. Hiring mercenaries stays open. Civil wars split first, then wait the same way.
   buildup:
     enabled: true
-    # The sides vote on the first battle day: first_option_day days after the declaration's
-    # battle day, and the day_options - 1 days after it (at most 5).
+    # No battle day before first_option_day days after the declaration's battle day, so players
+    # mark a week ahead.
     first_option_day: 7
-    day_options: 5
-    # The day vote closes this many hours after the declaration. Without quorum the earliest day is used.
-    day_vote_close_hours: 72
   notices:
     # Days a war notice for an offline character waits for its next login.
     keep_days: 14
-  # Simulated battle when both leaders agree, or when a vote has stalled too often.
+  # Simulated battle when both leaders agree, or on a forced battle day one side never marked.
   autoresolve:
     # Each side's strength is multiplied by a uniform factor in [1 - luck, 1 + luck].
     luck: 0.15

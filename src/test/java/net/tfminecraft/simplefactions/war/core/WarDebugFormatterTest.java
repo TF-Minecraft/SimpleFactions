@@ -79,9 +79,10 @@ class WarDebugFormatterTest {
 		war.setBattleDay(LocalDate.parse("2026-08-21"));
 		war.setScheduledBattleHour(21);
 		war.setScheduledBattleProvinceId(23);
-		Map<UUID, Set<Integer>> votes = new HashMap<>();
-		votes.put(UUID.randomUUID(), new HashSet<>(List.of(20, 21)));
-		war.setBattleVotes(votes);
+		war.getAvailability().setMarks(UUID.randomUUID(), LocalDate.parse("2026-08-21"), Set.of(20, 21));
+		war.getAvailability().putBattleDay(
+				net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay.open(LocalDate.parse("2026-08-21"), false)
+						.withHour(21, false));
 		war.setPostponementsThisCycle(2);
 
 		List<String> lines = WarDebugFormatter.formatStatusLines(war);
@@ -106,7 +107,8 @@ class WarDebugFormatterTest {
 		assertTrue(json.contains("\"battleDay\":\"2026-08-21\""));
 		assertTrue(json.contains("\"scheduledBattleHour\":21"));
 		assertTrue(json.contains("\"scheduledBattleProvinceId\":23"));
-		assertTrue(json.contains("\"battleVoteCount\":1"));
+		assertTrue(json.contains("\"availabilityAccounts\":1"), json);
+		assertTrue(json.contains("\"lockedBattleDays\":[\"2026-08-21@21\"]"), json);
 		assertTrue(json.contains("\"postponementsThisCycle\":2"));
 	}
 

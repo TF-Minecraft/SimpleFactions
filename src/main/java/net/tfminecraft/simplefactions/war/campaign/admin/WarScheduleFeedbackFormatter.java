@@ -4,37 +4,28 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleManager;
-import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.campaign.progression.postbattle.CampaignPostBattleChoiceService;
 import net.tfminecraft.simplefactions.war.campaign.progression.CampaignSideService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.CampaignScheduleService;
 import net.tfminecraft.simplefactions.war.campaign.schedule.ScheduledCampaignBattle;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
+import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 
 public final class WarScheduleFeedbackFormatter {
 	private WarScheduleFeedbackFormatter() {
 	}
 
 	public static List<String> format(String subcommand, War war) {
-		return format(subcommand, war, null);
-	}
-
-	public static List<String> format(String subcommand, War war, Integer castVoteHour) {
 		if (war == null || subcommand == null) {
 			return List.of();
 		}
 		List<String> lines = new ArrayList<>();
 		switch (subcommand.toLowerCase(Locale.ROOT)) {
-			case "opencvote" -> lines.add(formatOpenVote(war));
-			case "closevote" -> lines.add(formatCloseVote(war));
-			case "castvote" -> lines.add(formatCastVote(war, castVoteHour));
-			case "skipday" -> lines.add(formatSkipDay(war));
-			case "forcequorum" -> lines.add("§7Next close bypasses quorum");
+			case "skipday", "lockday", "unlockday", "sethour" -> lines.add(formatBattleDays(war));
 			case "setscheduled" -> lines.add(formatSetScheduled(war));
 			case "battlecreate" -> lines.add(formatBattleCreate(war));
 			case "battledelete" -> lines.add(formatBattleDelete(war));
@@ -50,45 +41,13 @@ public final class WarScheduleFeedbackFormatter {
 		return lines;
 	}
 
-	private static String formatOpenVote(War war) {
-		return "§7Phase: §e" + formatPhase(war)
-				+ " §7· Battle day: §e" + formatBattleDay(war);
-	}
-
-	private static String formatCloseVote(War war) {
-		BattleSchedulePhase phase = war.getBattleSchedulePhase();
-		if (phase == BattleSchedulePhase.SCHEDULED) {
-			return "§7Scheduled: §e" + formatInstant(war.getScheduledBattleAt())
-					+ " §7· Province: §e" + formatProvinceId(war.getScheduledBattleProvinceId())
-					+ " §7· Phase: §e" + formatPhase(war);
+	private static String formatBattleDays(War war) {
+		List<String> days = new ArrayList<>();
+		for (LockedBattleDay day : war.getAvailability().battleDays()) {
+			days.add(day.date() + (day.hour() == null ? "" : " " + BattleWindowService.formatHourLabel(day.hour())));
 		}
-		if (phase == BattleSchedulePhase.AUTORESOLVE_PENDING) {
-			return "§7Phase: §e" + formatPhase(war);
-		}
-		if (phase == BattleSchedulePhase.VOTING && war.getScheduledBattleAt() == null) {
-			if (war.getPostponementsThisCycle() == 0) {
-				return "§7Autoresolved §7· Battle day: §e" + formatBattleDay(war)
-						+ " §7· Phase: §e" + formatPhase(war);
-			}
-			return "§7Postponed §7· Battle day: §e" + formatBattleDay(war)
-					+ " §7· Phase: §e" + formatPhase(war);
-		}
-		return "§7Phase: §e" + formatPhase(war);
-	}
-
-	private static String formatCastVote(War war, Integer castVoteHour) {
-		String hour = castVoteHour != null
-				? net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService.formatHourLabel(castVoteHour)
-				: "-";
-		int selections = castVoteHour != null ? countVotesAtHour(war, castVoteHour) : 0;
-		return "§7Hour §e" + hour
-				+ " §7· Selections: §e" + selections
-				+ " §7· Voters: §e" + BattleQuorumService.countDistinctVoters(war)
+		return "§7Battle days: §e" + (days.isEmpty() ? "-" : String.join(", ", days))
 				+ " §7· Phase: §e" + formatPhase(war);
-	}
-
-	private static String formatSkipDay(War war) {
-		return "§7Battle day: §e" + formatBattleDay(war);
 	}
 
 	private static String formatSetScheduled(War war) {
@@ -183,13 +142,6 @@ public final class WarScheduleFeedbackFormatter {
 		return war.getBattleSchedulePhase().toJson();
 	}
 
-	private static String formatBattleDay(War war) {
-		if (war.getBattleDay() == null) {
-			return "-";
-		}
-		return war.getBattleDay().toString();
-	}
-
 	private static String formatInstant(Instant instant) {
 		if (instant == null) {
 			return "-";
@@ -202,15 +154,5 @@ public final class WarScheduleFeedbackFormatter {
 			return "-";
 		}
 		return String.valueOf(provinceId);
-	}
-
-	private static int countVotesAtHour(War war, int hour) {
-		int count = 0;
-		for (Set<Integer> hours : war.getBattleVotes().values()) {
-			if (hours != null && hours.contains(hour)) {
-				count++;
-			}
-		}
-		return count;
 	}
 }

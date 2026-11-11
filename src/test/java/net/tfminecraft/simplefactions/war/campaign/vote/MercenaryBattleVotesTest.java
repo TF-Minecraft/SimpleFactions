@@ -30,14 +30,16 @@ import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.mercenary.contract.ContractFixture;
 import net.tfminecraft.simplefactions.mercenary.contract.MercenaryContract;
 import net.tfminecraft.simplefactions.objects.Faction;
-import net.tfminecraft.simplefactions.war.campaign.buildup.BuildupService;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityTally;
+import net.tfminecraft.simplefactions.war.campaign.availability.AvailabilityTally.HourCount;
+import net.tfminecraft.simplefactions.war.campaign.progression.BelligerentRole;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.war.history.WarVoting;
 
-/** A mercenary under contract votes on the battle day and hour for the faction that hired them. */
+/** A mercenary under contract marks when they can fight for the faction that hired them. */
 class MercenaryBattleVotesTest {
 	private ContractFixture fixture;
 	private Faction enemy;
@@ -58,7 +60,6 @@ class MercenaryBattleVotesTest {
 		Cache.warBattleWindowStartHour = 21;
 		Cache.warBattleWindowEndHour = 26;
 		Cache.warVoteCloseHour = 16;
-		Cache.warBuildupDayOptions = 5;
 
 		war = new War(1, fixture.hirer, enemy);
 		war.setBattleDay(LocalDate.of(2026, 11, 20));
@@ -99,30 +100,17 @@ class MercenaryBattleVotesTest {
 	}
 
 	@Test
-	void aMercenarysHourVoteCountsForTheHirersSide() {
+	void aMercenarysMarksCountForTheHirersSideAndTheyAddToItsSize() {
+		LocalDate day = LocalDate.of(2026, 11, 20);
+		int before = AvailabilityTally.sideSize(war, BelligerentRole.ATTACKER);
 		hireWithSigrun();
+		war.getAvailability().setMarks(sigrun(), day, Set.of(22));
 
-		assertEquals(VoteResults.BattleVoteToggleResult.ADDED,
-				BattleVoteService.toggleVote(war, sigrun(), 22, BattleScheduleLookups.votingFaction(war, sigrun()), true));
-
-		Map<Integer, VoteResults.BattleHourTally> tally =
-				BattleVoteService.buildHourTally(war, BattleScheduleLookups.uuidToFactionForWar(war));
-		assertEquals(1, tally.get(22).attackerCount());
-		assertEquals(0, tally.get(22).defenderCount());
-	}
-
-	@Test
-	void aMercenarysDayVoteCountsForTheHirersSide() {
-		hireWithSigrun();
-		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
-		war.setDayVoteFirstDay(LocalDate.of(2026, 11, 20));
-		Faction voting = BattleScheduleLookups.votingFaction(war, sigrun());
-
-		assertTrue(BuildupService.canToggleDayVote(war, voting));
-		BuildupService.toggleDayVote(war, sigrun(), 1, voting, true);
-
-		var tally = BuildupService.buildDayTally(war, BattleScheduleLookups.uuidToFactionForWar(war));
-		assertEquals(1, tally.get(1).attackerCount());
+		HourCount at22 = AvailabilityTally.count(war, day).get(1);
+		assertEquals(22, at22.hour());
+		assertEquals(1, at22.attackers());
+		assertEquals(0, at22.defenders());
+		assertEquals(before + fixture.company.getEnlisted().size(), AvailabilityTally.sideSize(war, BelligerentRole.ATTACKER));
 	}
 
 	@Test
@@ -162,38 +150,14 @@ class MercenaryBattleVotesTest {
 	}
 
 	@Test
-	void aMercenaryCountsTowardQuorumOnlyWhileUnderContract() {
-		int min = Cache.warBattleVotingMinPlayers;
-		boolean dev = Cache.warBattleVotingDevMinPlayersEnabled;
-		try {
-			Cache.warBattleVotingMinPlayers = 1;
-			Cache.warBattleVotingDevMinPlayersEnabled = false;
-			hireWithSigrun();
-			war.getBattleVotes().put(sigrun(), new java.util.HashSet<>(Set.of(22)));
-			war.getBattleVotes().put(BattleScheduleLookups.spoofMemberUuid("Stranger"), new java.util.HashSet<>(Set.of(22)));
-
-			assertEquals(1, BattleQuorumService.meetsQuorum(war, war.getBattleVotes(),
-					BattleScheduleLookups.spoofMemberNameToUuid(), BattleScheduleLookups.uuidToFactionForWar(war)).distinctVoters());
-
-			fixture.company.getContractHandler().getActive().get(0)
-					.finish(net.tfminecraft.simplefactions.mercenary.contract.ContractStatus.TERMINATED);
-			assertEquals(0, BattleQuorumService.meetsQuorum(war, war.getBattleVotes(),
-					BattleScheduleLookups.spoofMemberNameToUuid(), BattleScheduleLookups.uuidToFactionForWar(war)).distinctVoters());
-		} finally {
-			Cache.warBattleVotingMinPlayers = min;
-			Cache.warBattleVotingDevMinPlayersEnabled = dev;
-		}
-	}
-
-	@Test
 	void theTallyIgnoresAMercenaryWhoseContractEnded() {
 		hireWithSigrun();
-		war.getBattleVotes().put(sigrun(), new java.util.HashSet<>(Set.of(22)));
+		LocalDate day = LocalDate.of(2026, 11, 20);
+		war.getAvailability().setMarks(sigrun(), day, Set.of(22));
 		fixture.company.getContractHandler().getActive().get(0)
 				.finish(net.tfminecraft.simplefactions.mercenary.contract.ContractStatus.TERMINATED);
 
-		var tally = BattleVoteService.buildHourTally(war, BattleScheduleLookups.uuidToFactionForWar(war));
-		assertEquals(0, tally.get(22).attackerCount());
+		assertEquals(0, AvailabilityTally.count(war, day).get(1).attackers());
 		assertNull(BattleScheduleLookups.votingFaction(war, sigrun()));
 	}
 }

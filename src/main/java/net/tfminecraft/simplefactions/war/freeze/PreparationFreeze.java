@@ -1,16 +1,12 @@
 package net.tfminecraft.simplefactions.war.freeze;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import org.bukkit.Bukkit;
 
-import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
@@ -21,15 +17,13 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock;
 import net.tfminecraft.simplefactions.war.core.War;
-import net.tfminecraft.simplefactions.war.notice.WarNotices;
 
 /**
- * A war's factions must not build up between the declaration and the first battle, and a
- * postponed battle must not buy either side preparation time. While a war is in its buildup, or
- * for {@link Cache#warPostponeFreezeHours} after each postponement, every faction in it, and the
- * mercenary companies they host or hire, is frozen: running build timers pause and new ones
- * cannot be started. Raid repair locks are pushed back by each postponement. Hiring mercenaries,
- * upkeep and wages keep running.
+ * A war's factions must not build up between the declaration and the first battle. While a war is
+ * in its buildup, every faction in it, and the mercenary companies they host or hire, is frozen:
+ * running build timers pause and new ones cannot be started. Hiring mercenaries, upkeep and wages
+ * keep running. Battles are no longer postponed, but a postponement freeze saved before that still
+ * runs out as it was set.
  */
 public final class PreparationFreeze {
 
@@ -37,7 +31,7 @@ public final class PreparationFreeze {
 	public enum Reason {
 		/** Until the war's first battle starts. */
 		BUILDUP,
-		/** Until a fixed time after a postponement. */
+		/** Until a fixed time after a postponement (only from saves made before postponements went). */
 		POSTPONED
 	}
 
@@ -53,26 +47,6 @@ public final class PreparationFreeze {
 	/** Tests swap the war source; pass null to restore {@link WarManager#getActive()}. */
 	static void setActiveWars(Supplier<Collection<War>> source) {
 		activeWars = source != null ? source : WarManager::getActive;
-	}
-
-	/**
-	 * Called whenever a battle day moves back. Stacks: a second postponement adds
-	 * another full period on top of what is left.
-	 */
-	public static void applyPostponement(War war, Instant now) {
-		if (war == null || now == null || Cache.warPostponeFreezeHours <= 0) {
-			return;
-		}
-		long hours = Cache.warPostponeFreezeHours;
-		Instant current = war.getPreparationFrozenUntil();
-		Instant base = current != null && current.isAfter(now) ? current : now;
-		war.setPreparationFrozenUntil(base.plus(hours, ChronoUnit.HOURS));
-		for (Map.Entry<String, Instant> lock : war.getRaidRepairLockUntil().entrySet()) {
-			if (lock.getValue() != null && lock.getValue().isAfter(now)) {
-				lock.setValue(lock.getValue().plus(hours, ChronoUnit.HOURS));
-			}
-		}
-		notifyMembers(war, hours);
 	}
 
 	/** The freeze on this faction, or null when it is free to build. A buildup outranks a postponement. */
@@ -210,20 +184,5 @@ public final class PreparationFreeze {
 			if (faction.getId() != null) ids.add(faction.getId().toLowerCase());
 		}
 		return ids;
-	}
-
-	private static void notifyMembers(War war, long hours) {
-		if (Bukkit.getServer() == null) {
-			return;
-		}
-		Set<String> members = new LinkedHashSet<>();
-		members.addAll(BattleSideMembers.collectEligibleMemberNames(war.getAttackers()));
-		members.addAll(BattleSideMembers.collectEligibleMemberNames(war.getDefenders()));
-		String message = "§eA battle of " + war.getName() + " §ewas postponed. For the next " + hours
-				+ "h your regiments, installations, war upgrades, mercenary companies and vehicle projects"
-				+ " are frozen, and none can be started.";
-		for (String member : members) {
-			WarNotices.send(member, message);
-		}
 	}
 }

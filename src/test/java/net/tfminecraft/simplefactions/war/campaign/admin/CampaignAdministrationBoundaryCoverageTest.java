@@ -32,8 +32,6 @@ import net.tfminecraft.simplefactions.war.battle.warband.Warband;
 import net.tfminecraft.simplefactions.war.campaign.WarCampaignService;
 import net.tfminecraft.simplefactions.war.campaign.raid.CampaignRaidLifecycleCoverageTest.Fixture;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleQuorumService;
-import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleScheduleCloseResult;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.WarEndReason;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
@@ -66,21 +64,23 @@ class CampaignAdministrationBoundaryCoverageTest {
 
   @Test
   void administratorCanAddOnlyTheDefendingSideToTheAvailabilityVote() {
-    assertFalse(WarScheduleAdminService.castVote(rig.war, 21, "invalid").success());
-    assertTrue(rig.war.getBattleVotes().isEmpty());
-    WarScheduleAdminResult result = WarScheduleAdminService.castVote(rig.war, 21, "defender");
+    String day = Fixture.DAY.plusDays(3).toString();
+    assertFalse(WarScheduleAdminService.castVote(rig.war, day, 21, "invalid").success());
+    assertTrue(rig.war.getAvailability().marks().isEmpty());
+    WarScheduleAdminResult result = WarScheduleAdminService.castVote(rig.war, day, 21, "defender");
     assertTrue(result.success());
-    assertEquals(1, BattleQuorumService.countDistinctVoters(rig.war));
-    assertTrue(result.message().contains("1 voters total"));
-    assertEquals(1, rig.war.getBattleVotes().size());
-    assertEquals(List.of(java.util.Set.of(21)), List.copyOf(rig.war.getBattleVotes().values()));
-    assertTrue(
+    assertTrue(result.message().contains("for 1 test accounts"), result.message());
+    assertEquals(1, rig.war.getAvailability().marks().size());
+    assertEquals(
+        java.util.Set.of(21),
         rig.war
-            .getBattleVotes()
-            .containsKey(
+            .getAvailability()
+            .marksOn(
                 net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups
                     .spoofMemberNameToUuid()
-                    .apply("Bob")));
+                    .apply("Bob"),
+                Fixture.DAY.plusDays(3)));
+    assertTrue(WarScheduleAdminService.castVote(rig.war, day, 21, "defender").message().contains("for 0 test"));
   }
 
   @ParameterizedTest
@@ -98,13 +98,13 @@ class CampaignAdministrationBoundaryCoverageTest {
   @Test
   void missingAdministrativeWarAndEndReasonCannotMutateAnUnrelatedLiveVote() {
     assertEquals("War ended.", WarScheduleAdminService.formatWarEndSummary(null));
-    assertFalse(WarScheduleAdminService.openVote(null).success());
-    assertFalse(WarScheduleAdminService.closeVote(null, rig.now()).success());
+    assertFalse(WarScheduleAdminService.skipDay(null).success());
+    assertFalse(WarScheduleAdminService.availability(null, rig.now()).success());
     assertFalse(WarScheduleAdminService.battleCreate(null).success());
     assertFalse(WarScheduleAdminService.battleDelete(null).success());
     assertFalse(WarScheduleAdminService.battleStart(null).success());
     assertTrue(rig.war.isActive());
-    assertTrue(rig.war.getBattleVotes().isEmpty());
+    assertTrue(rig.war.getAvailability().marks().isEmpty());
     assertSame(rig.war, WarManager.getById(rig.war.getId()));
   }
 
@@ -280,40 +280,6 @@ class CampaignAdministrationBoundaryCoverageTest {
     assertTrue(war.getCampaignBattleSchedule().stream().anyMatch(slot -> slot.provinceId() == 20));
   }
 
-  @ParameterizedTest
-  @EnumSource(BattleScheduleCloseResult.class)
-  void administrativeVoteResultMessagesPreserveEverySupportedOutcome(
-      BattleScheduleCloseResult result) {
-    Instant scheduled = BattleWindowService.atScheduleHour(Fixture.DAY, 21);
-    rig.war.setScheduledBattleAt(scheduled);
-    rig.war.setScheduledBattleProvinceId(20);
-    Map<BattleScheduleCloseResult, String> messages =
-        Map.of(
-            BattleScheduleCloseResult.SCHEDULED,
-                "Vote close scheduled battle at " + scheduled + " (province 20).",
-            BattleScheduleCloseResult.POSTPONED,
-                "Vote close postponed to battle day " + Fixture.DAY + ".",
-            BattleScheduleCloseResult.AUTORESOLVE_PENDING, "Vote close set AUTORESOLVE_PENDING.",
-            BattleScheduleCloseResult.AUTORESOLVED, "Vote close autoresolved the battle.",
-            BattleScheduleCloseResult.BLOCKED_DEFENDER_CHOICE,
-                "Vote close blocked: defender choice unresolved.",
-            BattleScheduleCloseResult.SKIPPED, "Vote close skipped.",
-            BattleScheduleCloseResult.ENDED_NO_NEXT_BATTLE,
-                "Vote close found no battle left to fight after the last postponement."
-                    + " War ended (white peace).",
-            BattleScheduleCloseResult.WAR_ENDED,
-                "The post-battle choice was settled at its deadline and that ended the war.");
-    WarScheduleAdminResult rendered =
-        WarScheduleAdminService.formatVoteCloseResult(rig.war, result);
-    assertEquals(messages.get(result), rendered.message());
-    assertEquals(
-        result != BattleScheduleCloseResult.BLOCKED_DEFENDER_CHOICE
-            && result != BattleScheduleCloseResult.SKIPPED,
-        rendered.success());
-    assertEquals(scheduled, rig.war.getScheduledBattleAt());
-    assertEquals(20, rig.war.getScheduledBattleProvinceId());
-  }
-
   @Test
   void objectiveOnTheCapitalRouteIsReachedBeforeAnAttackerEnclaveBeyondIt() {
     Province capital = new Province(10, "PLAINS", 50, 0, 0);
@@ -369,18 +335,22 @@ class CampaignAdministrationBoundaryCoverageTest {
 
   @Test
   void administratorCanVoteOnlyForAttackersAndRejectInvalidSidesWithoutMutation() {
-    assertTrue(WarScheduleAdminService.castVote(rig.war, 21, "attacker").success());
-    assertEquals(1, rig.war.getBattleVotes().size());
+    String day = Fixture.DAY.plusDays(3).toString();
+    assertTrue(WarScheduleAdminService.castVote(rig.war, day, 21, "attacker").success());
+    assertEquals(1, rig.war.getAvailability().marks().size());
     assertTrue(
         rig.war
-            .getBattleVotes()
+            .getAvailability()
+            .marks()
             .containsKey(
                 net.tfminecraft.simplefactions.war.campaign.runtime.BattleScheduleLookups
                     .spoofMemberNameToUuid()
                     .apply("Alice")));
-    var before = Map.copyOf(rig.war.getBattleVotes());
-    assertFalse(WarScheduleAdminService.castVote(rig.war, 22, "both-ish").success());
-    assertEquals(before, rig.war.getBattleVotes());
+    var before = Map.copyOf(rig.war.getAvailability().marks());
+    assertFalse(WarScheduleAdminService.castVote(rig.war, day, 22, "both-ish").success());
+    assertFalse(WarScheduleAdminService.castVote(rig.war, "soon", 22, "both").success());
+    assertFalse(WarScheduleAdminService.castVote(rig.war, day, 7, "both").success());
+    assertEquals(before, rig.war.getAvailability().marks());
   }
 
   @Test

@@ -19,7 +19,7 @@ import net.tfminecraft.simplefactions.map.export.ChapterIdentity;
 import net.tfminecraft.simplefactions.war.battle.enums.BattleLootMode;
 import net.tfminecraft.simplefactions.war.battle.enums.DefenderRespawnMode;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
-import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoterEligibility;
+import net.tfminecraft.simplefactions.managers.inventory.AvailabilityView;
 import net.tfminecraft.simplefactions.war.enums.WarGoalType;
 import net.tfminecraft.simplefactions.enums.Scope;
 import net.tfminecraft.simplefactions.enums.Terrain;
@@ -248,11 +248,10 @@ public class ConfigLoader {
 				BattleWindowService.MAX_SCHEDULE_HOUR,
 				config.getInt("war.battle_schedule.window_end_hour", 24));
 		int windowHours = Cache.warBattleWindowEndHour - Cache.warBattleWindowStartHour;
-		int menuHours = BattleVoterEligibility.hourToggleSlots().length;
-		if (windowHours > menuHours) {
+		if (windowHours > AvailabilityView.HOUR_ROWS) {
 			Bukkit.getLogger().warning("[SimpleFactions] war.battle_schedule window has " + windowHours
-					+ " start hours but the vote menu only shows the first "
-					+ menuHours + ".");
+					+ " start hours but the availability menu only shows the first "
+					+ AvailabilityView.HOUR_ROWS + ".");
 		}
 		Cache.warRaidWindowStartHour = config.getInt("war.battle_schedule.raid_window_start_hour", 19);
 		Cache.warRaidWindowEndHour = config.getInt("war.battle_schedule.raid_window_end_hour", 20);
@@ -260,28 +259,18 @@ public class ConfigLoader {
 		Cache.warDefenderChoiceDeadlineHour = config.getInt("war.battle_schedule.defender_choice_deadline_hour", 12);
 		Cache.warOneBattlePerDay = config.getBoolean("war.battle_schedule.one_battle_per_day", true);
 		Cache.warFirstBattleDayAfterDeclare = config.getBoolean("war.battle_schedule.first_battle_day_after_declare", true);
-		Cache.warBattleVotingMinPlayers = config.getInt("war.battle_voting.min_players", 4);
-		Cache.warBattleVotingRequireSmallestSideFull = config.getBoolean("war.battle_voting.require_smallest_side_full", true);
-		Cache.warBattleVotingPassIfEither = config.getBoolean("war.battle_voting.pass_if_either", true);
-		Cache.warBattleVotingDevMinPlayersEnabled = config.contains("war.battle_voting.dev_min_players");
-		if (Cache.warBattleVotingDevMinPlayersEnabled) {
-			Cache.warBattleVotingDevMinPlayers = config.getInt("war.battle_voting.dev_min_players");
-		} else {
-			Cache.warBattleVotingDevMinPlayers = Cache.warBattleVotingMinPlayers;
-		}
-		Cache.warBattleVotingMaxPostponements = Math.max(
-				0,
-				config.getInt("war.battle_voting.max_postponements", 1));
-		Cache.warPostponeFreezeHours = Math.max(
-				0,
-				config.getInt("war.battle_voting.postpone_freeze_hours", 24));
+		// war.battle_voting.* and war.buildup.day_options / day_vote_close_hours belonged to the old votes; ignored.
 		Cache.warBuildupEnabled = config.getBoolean("war.buildup.enabled", true);
 		Cache.warBuildupFirstOptionDay = Math.max(1, config.getInt("war.buildup.first_option_day", 7));
-		// The day vote shares the hour vote's five menu slots.
-		Cache.warBuildupDayOptions = Math.max(1, Math.min(
-				BattleVoterEligibility.hourToggleSlots().length,
-				config.getInt("war.buildup.day_options", 5)));
-		Cache.warBuildupDayVoteCloseHours = Math.max(1, config.getInt("war.buildup.day_vote_close_hours", 72));
+		Cache.warAvailabilityDaysShown = Math.max(1, Math.min(AvailabilityView.DATE_COLUMNS,
+				config.getInt("war.availability.days_shown", 7)));
+		Cache.warAvailabilityTimeLockHours = Math.max(1, config.getInt("war.availability.time_lock_hours_before", 24));
+		// The day must be decided before its time can be.
+		Cache.warAvailabilityDayLockHours = Math.max(Cache.warAvailabilityTimeLockHours + 1,
+				config.getInt("war.availability.day_lock_hours_before", 48));
+		Cache.warAvailabilityMinPerSide = Math.max(1, config.getInt("war.availability.min_per_side", 3));
+		Cache.warAvailabilityMaxDaysWithoutBattle = Math.max(0, config.getInt("war.availability.max_days_without_battle", 3));
+		Cache.warAvailabilityVoteUrl = config.getString("war.availability.vote_url", "");
 		Cache.warNoticeKeepDays = Math.max(1, config.getInt("war.notices.keep_days", 14));
 		double autoresolveLuck = config.getDouble("war.autoresolve.luck", 0.15);
 		if (autoresolveLuck < 0) {
@@ -371,13 +360,6 @@ public class ConfigLoader {
 			throw invalidBattleConfiguration(
 					"war.battle_schedule.window_end_hour must be <= 24 + defender_choice_deadline_hour ("
 							+ (24 + defenderDeadline) + ")");
-		}
-		if (config.getInt("war.battle_voting.min_players", 4) < 1) {
-			throw invalidBattleConfiguration("war.battle_voting.min_players must be >= 1");
-		}
-		if (config.contains("war.battle_voting.dev_min_players")
-				&& config.getInt("war.battle_voting.dev_min_players") < 1) {
-			throw invalidBattleConfiguration("war.battle_voting.dev_min_players must be >= 1");
 		}
 	}
 

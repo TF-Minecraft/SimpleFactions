@@ -59,12 +59,13 @@ public final class WarDebugFormatter {
 		summary.put("scheduledBattleAt", war.getScheduledBattleAt() != null ? war.getScheduledBattleAt().toString() : null);
 		summary.put("scheduledBattleHour", war.getScheduledBattleHour() > 0 ? war.getScheduledBattleHour() : null);
 		summary.put("scheduledBattleProvinceId", war.getScheduledBattleProvinceId());
-		summary.put("battleVoteCount", war.getBattleVotes() != null ? war.getBattleVotes().size() : 0);
+		summary.put("availabilityAccounts", war.getAvailability().marks().size());
+		summary.put("lockedBattleDays", war.getAvailability().battleDays().stream()
+				.map(day -> day.date() + (day.hour() == null ? "" : "@" + day.hour())).toList());
 		summary.put("autoresolveProposedByAttacker", war.isAutoresolveProposedByAttacker());
 		summary.put("autoresolveProposedByDefender", war.isAutoresolveProposedByDefender());
 		summary.put("postponementsThisCycle", war.getPostponementsThisCycle());
 		summary.put("defenderChoiceResolved", war.isDefenderChoiceResolved());
-		summary.put("forceQuorumNextClose", war.isForceQuorumNextClose() ? true : null);
 		summary.put("startedAt", war.getStartedAt() != null ? war.getStartedAt().toString() : null);
 		summary.put("ledgerBattles", war.getLedger().battles().size());
 		summary.put("factionWoundLives", war.getLedger().factionWoundLives());

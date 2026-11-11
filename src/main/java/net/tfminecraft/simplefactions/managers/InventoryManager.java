@@ -52,6 +52,7 @@ import net.tfminecraft.simplefactions.managers.holder.WarInventoryHolder;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignInstallationPickView;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignRaidLaunchView;
 import net.tfminecraft.simplefactions.managers.inventory.CampaignView;
+import net.tfminecraft.simplefactions.managers.inventory.AvailabilityView;
 import net.tfminecraft.simplefactions.managers.inventory.CompanyView;
 import net.tfminecraft.simplefactions.managers.inventory.QueueCancelPayload;
 import net.tfminecraft.simplefactions.managers.inventory.ContractView;
@@ -190,6 +191,7 @@ public class InventoryManager implements Listener{
 	///WAAAAR
 	public WarView warView = new WarView(this);
 	public CampaignView campaignView = new CampaignView(this);
+	public AvailabilityView availabilityView = new AvailabilityView(this);
 
 	public CampaignInstallationPickView campaignInstallationPickView = new CampaignInstallationPickView(this);
 	public CampaignRaidLaunchView campaignRaidLaunchView = new CampaignRaidLaunchView(this);
@@ -228,6 +230,11 @@ public class InventoryManager implements Listener{
 		WhitePeaceService.recalculateProposals(war);
 		WarManager.persist(war);
 		campaignView.campaignView(player, war, true);
+	}
+
+	/** The war's "When can you fight?" grid; the reminders' [Vote in game] opens it. */
+	public void openAvailability(Player player, War war) {
+		availabilityView.open(player, war);
 	}
 
 	public void openDeclareWarGoalPicker(Player player, Faction attacker, Faction defender) {
@@ -1498,6 +1505,8 @@ public class InventoryManager implements Listener{
 			e.setCancelled(true);
 			if (campaignHolder.getType() == SFGUI.CAMPAIGN_VIEW) {
 				campaignView.click(e, inv, p);
+			} else if (campaignHolder.getType() == SFGUI.CAMPAIGN_AVAILABILITY_VIEW) {
+				availabilityView.click(e, inv, p);
 			} else if (campaignHolder.getType() == SFGUI.CAMPAIGN_INSTALLATION_PICK_VIEW) {
 				campaignInstallationPickView.click(e, inv, p);
 			}

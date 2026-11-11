@@ -30,6 +30,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.war.campaign.availability.LockedBattleDay;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
 import net.tfminecraft.simplefactions.war.battle.engine.core.BattleFactory;
@@ -61,14 +62,14 @@ class WarScheduleFeedbackFormatterTest {
 	}
 
 	@Test
-	void opencvote_showsNavalScheduleSlots() {
+	void lockday_showsNavalScheduleSlots() {
 		War war = votingWar();
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(12, CampaignBattleKind.NAVAL, false, null, "port_a"),
 				new ScheduledCampaignBattle(14, CampaignBattleKind.NAVAL_INVASION, false, null)));
 		war.setCampaignScheduleIndex(0);
 
-		List<String> lines = WarScheduleFeedbackFormatter.format("opencvote", war);
+		List<String> lines = WarScheduleFeedbackFormatter.format("lockday", war);
 		String combined = stripColorCodes(String.join("\n", lines));
 		assertTrue(combined.contains("province 12"));
 		assertTrue(combined.contains("kind naval"));
@@ -79,7 +80,7 @@ class WarScheduleFeedbackFormatterTest {
 	}
 
 	@Test
-	void opencvote_showsBothLegSchedules() {
+	void lockday_showsBothLegSchedules() {
 		War war = votingWar();
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null)));
@@ -88,7 +89,7 @@ class WarScheduleFeedbackFormatterTest {
 		war.setCampaignScheduleIndex(0);
 		war.setPushTarget(net.tfminecraft.simplefactions.war.campaign.ui.CampaignPushTarget.TOWARD_AGGRESSOR_CAPITAL);
 
-		List<String> lines = WarScheduleFeedbackFormatter.format("opencvote", war);
+		List<String> lines = WarScheduleFeedbackFormatter.format("lockday", war);
 		String combined = stripColorCodes(String.join("\n", lines));
 		assertTrue(combined.contains("Invasion schedule"));
 		assertTrue(combined.contains("Counter schedule"));
@@ -97,14 +98,14 @@ class WarScheduleFeedbackFormatterTest {
 	}
 
 	@Test
-	void opencvote_showsScheduleSlots() {
+	void lockday_showsScheduleSlots() {
 		War war = votingWar();
 		war.setCampaignBattleSchedule(List.of(
 				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null),
 				new ScheduledCampaignBattle(18, CampaignBattleKind.SIEGE, false, "fort_a")));
 		war.setCampaignScheduleIndex(1);
 
-		List<String> lines = WarScheduleFeedbackFormatter.format("opencvote", war);
+		List<String> lines = WarScheduleFeedbackFormatter.format("lockday", war);
 		String combined = stripColorCodes(String.join("\n", lines));
 		assertTrue(combined.contains("province 20"));
 		assertTrue(combined.contains("kind field"));
@@ -116,9 +117,9 @@ class WarScheduleFeedbackFormatterTest {
 	}
 
 	@Test
-	void opencvote_showsPhase() {
+	void lockday_showsPhase() {
 		War war = votingWar();
-		List<String> lines = WarScheduleFeedbackFormatter.format("opencvote", war);
+		List<String> lines = WarScheduleFeedbackFormatter.format("lockday", war);
 		String combined = String.join(" ", lines);
 		assertTrue(combined.contains("voting"));
 		assertTrue(combined.contains("2026-08-21"));
@@ -126,30 +127,17 @@ class WarScheduleFeedbackFormatterTest {
 	}
 
 	@Test
-	void closevote_scheduled_showsProvinceAndInstant() {
-		War war = scheduledWar();
-		List<String> lines = WarScheduleFeedbackFormatter.format("closevote", war);
-		String combined = String.join(" ", lines);
-		assertTrue(combined.contains("2026-08-21T21:00:00Z"));
-		assertTrue(combined.contains("20"));
-		assertTrue(combined.contains("scheduled"));
-		assertNoJsonBraces(lines);
-	}
-
-	@Test
-	void castvote_showsVoterCount() {
+	void battleDayTools_listTheLockedBattleDaysWithTheirTimes() {
 		War war = votingWar();
-		Map<UUID, Set<Integer>> votes = new HashMap<>();
-		votes.put(UUID.randomUUID(), new HashSet<>(Set.of(21)));
-		votes.put(UUID.randomUUID(), new HashSet<>(Set.of(21, 22)));
-		war.setBattleVotes(votes);
-
-		List<String> lines = WarScheduleFeedbackFormatter.format("castvote", war, 21);
-		String combined = String.join(" ", lines);
-		assertTrue(combined.contains("21"));
-		assertTrue(combined.contains("2"));
-		assertTrue(combined.contains("voting"));
-		assertNoJsonBraces(lines);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(LocalDate.of(2026, 8, 21), false).withHour(21, false));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(LocalDate.of(2026, 8, 22), false));
+		for (String tool : List.of("skipday", "unlockday", "sethour")) {
+			String combined = String.join(" ", WarScheduleFeedbackFormatter.format(tool, war));
+			assertTrue(combined.contains("Battle days: §e2026-08-21 21:00 CET, 2026-08-22"), combined);
+		}
+		war.getAvailability().clearBattleDays();
+		assertTrue(String.join(" ", WarScheduleFeedbackFormatter.format("lockday", war)).contains("Battle days: §e-"));
+		assertTrue(WarScheduleFeedbackFormatter.format("availability", war).isEmpty());
 	}
 
 	@Test
@@ -185,25 +173,6 @@ class WarScheduleFeedbackFormatterTest {
 		});
 	}
 
-	@Test
-	void closevote_autoresolved_doesNotSayPostponed() {
-		War war = votingWar();
-		war.setPostponementsThisCycle(0);
-
-		String combined = String.join(" ", WarScheduleFeedbackFormatter.format("closevote", war));
-		assertTrue(combined.contains("Autoresolved"));
-		assertFalse(combined.contains("Postponed"));
-	}
-
-	@Test
-	void closevote_postponed_namesTheNextBattleDay() {
-		War war = votingWar();
-		war.setPostponementsThisCycle(1);
-
-		String combined = String.join(" ", WarScheduleFeedbackFormatter.format("closevote", war));
-		assertTrue(combined.contains("Postponed"));
-	}
-
 	private War votingWar() {
 		War war = new War(1, attacker, defender);
 		war.setGoal(WarGoalType.SUBJUGATE);
@@ -216,6 +185,7 @@ class WarScheduleFeedbackFormatterTest {
 		war.setInitiativeDefender(4);
 		war.setCampaignPhase(CampaignPhase.INVASION);
 		war.setBattleDay(BATTLE_DAY);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(BATTLE_DAY, false));
 		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
 		return war;
 	}

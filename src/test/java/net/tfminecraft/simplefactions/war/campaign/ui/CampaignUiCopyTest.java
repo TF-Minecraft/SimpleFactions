@@ -73,14 +73,17 @@ class CampaignUiCopyTest {
 	void resolveActivityStatus_prefersVotingOverIdle() {
 		War war = baseWar();
 		war.setBattleSchedulePhase(BattleSchedulePhase.VOTING);
-		assertEquals("Currently Voting", CampaignUiCopy.resolveActivityStatus(war));
+		war.setBattleDay(null);
+		assertEquals("Marking Availability", CampaignUiCopy.resolveActivityStatus(war));
+		war.setBattleDay(LocalDate.of(2026, 8, 23));
+		assertEquals("Battle Day Set", CampaignUiCopy.resolveActivityStatus(war));
 	}
 
 	@Test
 	void resolveActivityStatus_namesTheBuildupDayVote() {
 		War war = baseWar();
 		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
-		assertEquals("Buildup: Voting on the Day", CampaignUiCopy.resolveActivityStatus(war));
+		assertEquals("Buildup: Marking Availability", CampaignUiCopy.resolveActivityStatus(war));
 	}
 
 	@Test

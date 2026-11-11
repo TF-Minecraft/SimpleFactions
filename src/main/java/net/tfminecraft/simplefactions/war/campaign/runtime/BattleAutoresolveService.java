@@ -65,14 +65,15 @@ public final class BattleAutoresolveService {
 		randomOverride = random;
 	}
 
+	/**
+	 * Leaders may agree to autoresolve the next battle once its day is locked and until the battle is
+	 * set on its province (at its time lock, or later while a post-battle choice is open).
+	 */
 	public static boolean canProposeAutoresolveNow(War war, Instant now) {
 		if (war == null || !war.isActive() || now == null) {
 			return false;
 		}
-		if (war.getBattleSchedulePhase() != BattleSchedulePhase.VOTING) {
-			return false;
-		}
-		return BattleScheduleService.isBeforeVoteClose(war, now);
+		return war.getBattleSchedulePhase() == BattleSchedulePhase.VOTING && war.getBattleDay() != null;
 	}
 
 	public static SendResult sendProposeRequest(Player proposer, War war, BelligerentRole side) {
@@ -94,7 +95,7 @@ public final class BattleAutoresolveService {
 		}
 
 		proposer.sendMessage("§aSent autoresolve request to " + opposingLeaderFaction.getName());
-		target.sendMessage(proposerFaction.getName() + " §7requests autoresolving today's battle vote");
+		target.sendMessage(proposerFaction.getName() + " §7requests autoresolving the next battle");
 		target.sendMessage("§7Type §a/faction accept §7to accept");
 		target.sendMessage("§7Request will time out in 60 seconds");
 		RequestManager.addRequest(proposer, target, new AutoresolveRequest(
@@ -125,7 +126,7 @@ public final class BattleAutoresolveService {
 		}
 
 		if (!canProposeAutoresolveNow(war, CampaignClock.now())) {
-			acceptor.sendMessage("§cAutoresolve is only available before vote close.");
+			acceptor.sendMessage("§cAutoresolve is only possible until the battle's start time is decided.");
 			return;
 		}
 
@@ -142,7 +143,7 @@ public final class BattleAutoresolveService {
 				proposer.sendMessage(acceptorFaction.getName() + " §aaccepted autoresolve");
 			}
 		}
-		acceptor.sendMessage("§aBattle vote autoresolve accepted.");
+		acceptor.sendMessage("§aAutoresolve accepted.");
 	}
 
 	public static boolean resolve(War war) {

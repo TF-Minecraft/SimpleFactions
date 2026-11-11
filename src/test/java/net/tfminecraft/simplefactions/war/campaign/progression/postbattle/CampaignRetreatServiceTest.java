@@ -238,16 +238,16 @@ class CampaignRetreatServiceTest {
 	}
 
 	@Test
-	void concedeActiveSlot_staysVotingAndKeepsVotes() {
+	void concedeActiveSlot_staysVotingAndKeepsMarks() {
 		War war = retreatableWar();
 		UUID voter = UUID.randomUUID();
-		war.getBattleVotes().put(voter, new HashSet<>(Set.of(21)));
+		war.getAvailability().setMarks(voter, war.getBattleDay(), new HashSet<>(Set.of(21)));
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		CampaignRetreatService.concedeActiveSlot(war, defender, beforeVoteClose);
 
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-		assertEquals(Set.of(21), war.getBattleVotes().get(voter));
+		assertEquals(Set.of(21), war.getAvailability().marksOn(voter, war.getBattleDay()));
 	}
 
 	@Test
@@ -318,7 +318,7 @@ class CampaignRetreatServiceTest {
 				new ScheduledCampaignBattle(20, CampaignBattleKind.FIELD, false, null),
 				new ScheduledCampaignBattle(30, CampaignBattleKind.FIELD, false, null)));
 		UUID voter = UUID.randomUUID();
-		war.getBattleVotes().put(voter, new HashSet<>(Set.of(21)));
+		war.getAvailability().setMarks(voter, war.getBattleDay(), new HashSet<>(Set.of(21)));
 		warManagerMock.when(() -> WarManager.getById(1)).thenReturn(war);
 
 		assertEquals(
@@ -332,7 +332,7 @@ class CampaignRetreatServiceTest {
 		assertTrue(CampaignRetreatService.isSlotConceded(war, ScheduleLeg.INVASION, 1));
 		assertEquals(2, war.getCampaignScheduleIndex());
 		assertEquals(BattleSchedulePhase.VOTING, war.getBattleSchedulePhase());
-		assertEquals(Set.of(21), war.getBattleVotes().get(voter));
+		assertEquals(Set.of(21), war.getAvailability().marksOn(voter, war.getBattleDay()));
 	}
 
 	private War baseWar() {
