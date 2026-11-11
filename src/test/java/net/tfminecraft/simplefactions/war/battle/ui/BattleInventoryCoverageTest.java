@@ -256,6 +256,22 @@ class BattleInventoryCoverageTest {
     assertEquals("§fMana Refill on Respawn: §bTRUE", name(inventory.getItem(15)));
     battle.setManaRefillOnRespawn(false);
     menus.updateView(alice, battle, inventory);
+    assertEquals("§fControl victory: §bTRUE", name(inventory.getItem(16)));
+    lore(inventory.getItem(16), "enemy builds control that wins the battle");
+    lore(inventory.getItem(16), "Click to toggle");
+    battle.setControlVictory(false);
+    boolean configControl = net.tfminecraft.simplefactions.Cache.battleControlEnabled;
+    net.tfminecraft.simplefactions.Cache.battleControlEnabled = false;
+    try {
+      menus.updateView(alice, battle, inventory);
+    } finally {
+      net.tfminecraft.simplefactions.Cache.battleControlEnabled = configControl;
+    }
+    assertEquals("§fControl victory: §cFALSE", name(inventory.getItem(16)));
+    lore(inventory.getItem(16), "Lives only: the battle ends when a side");
+    lore(inventory.getItem(16), "Off for every battle in config.yml");
+    battle.setControlVictory(true);
+    menus.updateView(alice, battle, inventory);
     assertEquals("§aSTART BATTLE", name(inventory.getItem(18)));
     assertEquals("§cDelete battle", name(inventory.getItem(22)));
     assertEquals("§fCapture Points: §e0", name(inventory.getItem(23)));
@@ -263,6 +279,7 @@ class BattleInventoryCoverageTest {
     battle.setLocked(true);
     battle.setCapturePointsEnabled(false);
     menus.updateView(alice, battle, inventory);
+    lore(inventory.getItem(16), "Locked after start");
     assertSame(inventory, top());
     assertEquals("§cLocked", name(inventory.getItem(1)));
     assertEquals("§cEnd Battle", name(inventory.getItem(18)));

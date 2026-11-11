@@ -95,6 +95,11 @@ class FieldControlServiceTest {
 		assertFalse(FieldControlService.isActive(battle));
 		Cache.battleControlEnabled = true;
 
+		battle.setControlVictory(false);
+		assertFalse(FieldControlService.isActive(battle), "staff switched it off for this battle");
+		assertTrue(FieldControlService.scoreboardLines(battle, null).isEmpty());
+		battle.setControlVictory(true);
+
 		battle.setCapturePointsEnabled(false);
 		assertFalse(FieldControlService.isActive(battle));
 		battle.setCapturePointsEnabled(true);

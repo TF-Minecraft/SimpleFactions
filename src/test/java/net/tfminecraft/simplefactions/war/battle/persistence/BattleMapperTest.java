@@ -171,6 +171,28 @@ class BattleMapperTest {
 			assertTrue(BattleMapper.fromData(data).hasLootEnabled());
 			// Files saved before the rule existed get the new default: no mana on respawn.
 			assertFalse(BattleMapper.fromData(data).hasManaRefillOnRespawn());
+			// Files saved before the toggle existed keep control victory on.
+			assertTrue(BattleMapper.fromData(data).isControlVictory());
+		}
+	}
+
+	@Test
+	void roundTrip_preservesControlVictoryOff() {
+		BossBar bossBar = mock(BossBar.class);
+		try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+			bukkit.when(() -> Bukkit.createBossBar(anyString(), any(BarColor.class), any(BarStyle.class)))
+					.thenReturn(bossBar);
+
+			Battle battle = BattleFactory.createBlank(BattleType.FIELD, "lives_only");
+			assertTrue(battle.isControlVictory());
+			battle.setControlVictory(false);
+
+			BattleData data = BattleMapper.toData(battle);
+
+			assertTrue(data.controlVictoryOff);
+			assertFalse(BattleMapper.fromData(data).isControlVictory());
+			battle.resetBaseSettings();
+			assertTrue(battle.isControlVictory());
 		}
 	}
 
