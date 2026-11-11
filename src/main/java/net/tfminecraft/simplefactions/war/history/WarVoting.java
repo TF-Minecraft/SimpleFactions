@@ -25,6 +25,8 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteService;
 import net.tfminecraft.simplefactions.war.campaign.vote.VoteResults.BattleHourTally;
+import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
+import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
 
@@ -77,8 +79,7 @@ public final class WarVoting {
 
 	/** The account's faction in this war, by the same lookup the vote tallies use; null for none. */
 	public static Faction factionOf(War war, UUID account) {
-		Faction faction = BattleScheduleLookups.uuidToFactionForWar(war).apply(account);
-		return faction != null && war.getSide(faction) != null ? faction : null;
+		return BattleScheduleLookups.votingFaction(war, account);
 	}
 
 	/** A day pick as the website sends it ({@code 2026-11-17}), as the offset the war stores; null if not offered. */
@@ -146,11 +147,16 @@ public final class WarVoting {
 		return voting;
 	}
 
-	/** Every account playing a member of a participating faction, with its side; attackers first, as the tallies read them. */
+	/**
+	 * Every account playing a member of a participating faction, then every mercenary under contract to
+	 * a side, with its side; attackers first, as the tallies read them.
+	 */
 	static JsonObject eligible(War war) {
 		Map<String, String> accounts = new LinkedHashMap<>();
 		addSide(accounts, BattleSideMembers.collectParticipatingFactions(war.getAttackers()), WarHistoryJson.ATTACKER);
 		addSide(accounts, BattleSideMembers.collectParticipatingFactions(war.getDefenders()), WarHistoryJson.DEFENDER);
+		addMercenaries(accounts, war, war.getAttackers(), WarHistoryJson.ATTACKER);
+		addMercenaries(accounts, war, war.getDefenders(), WarHistoryJson.DEFENDER);
 		JsonObject eligible = new JsonObject();
 		accounts.forEach(eligible::addProperty);
 		return eligible;
@@ -167,6 +173,17 @@ public final class WarVoting {
 		}
 	}
 
+	private static void addMercenaries(Map<String, String> accounts, War war, Side side, String label) {
+		for (MercenaryEngagements.Engagement engagement : MercenaryEngagements.on(war, side)) {
+			for (String enlisted : new ArrayList<>(engagement.company().getEnlisted())) {
+				if (accounts.size() >= maxAccounts) {
+					return;
+				}
+				Members.accountId(enlisted).ifPresent(owner -> accounts.putIfAbsent(owner.toString(), label));
+			}
+		}
+	}
+
 	/** One account's picks still on offer, in order. */
 	private static JsonArray picks(War war, Kind kind, List<Integer> valid, Set<Integer> stored) {
 		JsonArray picks = new JsonArray();
@@ -178,7 +195,8 @@ public final class WarVoting {
 		return picks;
 	}
 
-	private static Instant closesAt(War war, Kind kind) {
+	/** When the open vote closes; null for none. */
+	public static Instant closesAt(War war, Kind kind) {
 		if (kind == Kind.DAY) {
 			return war.getDayVoteClosesAt();
 		}

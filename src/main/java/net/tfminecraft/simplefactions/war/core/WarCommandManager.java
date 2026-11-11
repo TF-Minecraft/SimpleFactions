@@ -50,7 +50,7 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 1) {
-			player.sendMessage("§eUsage: §a/war list§e, §a/war calls§e, §a/war call accept|decline <war id>");
+			player.sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
 			if (Permissions.isAdmin(sender)) {
 				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation §7...");
 			}
@@ -68,6 +68,16 @@ public class WarCommandManager implements CommandExecutor {
 		if (args[0].equalsIgnoreCase("admin")) {
 			return handleAdmin(player, args);
 		}
+		if (args[0].equalsIgnoreCase("vote") && args.length == 2) {
+			// The reminders' [Click to vote] runs this.
+			War war = WarCommandHelper.parseWarId(args[1]).map(WarManager::getById).orElse(null);
+			if (war == null || !war.isActive()) {
+				player.sendMessage("§cNo active war with id §f" + args[1]);
+				return true;
+			}
+			new InventoryManager().openCampaignView(player, war);
+			return true;
+		}
 		if (args[0].equalsIgnoreCase("calls") && args.length == 1) {
 			CallToArmsService.list(player);
 			return true;
@@ -75,7 +85,7 @@ public class WarCommandManager implements CommandExecutor {
 		if (args[0].equalsIgnoreCase("call")) {
 			return handleCall(player, args);
 		}
-		player.sendMessage("§cUnknown subcommand. Use §e/war list§c or §e/war calls");
+		player.sendMessage("§cUnknown subcommand. Use §e/war list§c, §e/war vote <war id>§c or §e/war calls");
 		return true;
 	}
 

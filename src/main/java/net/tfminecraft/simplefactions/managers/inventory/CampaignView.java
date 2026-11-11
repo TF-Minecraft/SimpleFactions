@@ -106,7 +106,9 @@ public class CampaignView {
 		if (viewerFaction == null) {
 			viewerFaction = FactionManager.getByMember(Members.key(player));
 		}
-		if (viewerFaction == null) {
+		// A mercenary under contract votes for their hirer, whatever faction they are in.
+		Faction voterFaction = BattleScheduleLookups.voterFaction(war, player);
+		if (viewerFaction == null && voterFaction == null) {
 			if (open) {
 				player.sendMessage("§cYou are not in a faction.");
 			}
@@ -125,7 +127,7 @@ public class CampaignView {
 			return;
 		}
 
-		populateCampaignInventory(inventory, player, war, viewerFaction);
+		populateCampaignInventory(inventory, player, war, viewerFaction, voterFaction);
 
 		if (open) {
 			player.openInventory(inventory);
@@ -133,7 +135,10 @@ public class CampaignView {
 		}
 	}
 
-	private void populateCampaignInventory(Inventory inventory, Player player, War war, Faction viewerFaction) {
+	private void populateCampaignInventory(
+			Inventory inventory, Player player, War war, Faction viewerFaction, Faction voterFaction) {
+		// The route is coloured for the side the viewer fights on; a mercenary sees their hirer's side.
+		Faction routeFaction = war.isParticipating(viewerFaction) || voterFaction == null ? viewerFaction : voterFaction;
 		inventory.clear();
 		List<CampaignRouteEntry> routeEntries = CampaignRouteRenderer.buildRouteEntries(war);
 
@@ -147,7 +152,7 @@ public class CampaignView {
 				player.getUniqueId(),
 				BattleScheduleLookups.uuidToFactionForWar(war)));
 
-		populateHourToggles(inventory, war, viewerFaction, player.getUniqueId());
+		populateHourToggles(inventory, war, voterFaction, player.getUniqueId());
 
 		int entryLimit = Math.min(routeEntries.size(), ROUTE_SLOT_COUNT);
 		int firstBattleMarkerSlot = -1;
@@ -158,7 +163,7 @@ public class CampaignView {
 				continue;
 			}
 			CampaignRouteEntry routeEntry = routeEntries.get(i);
-			inventory.setItem(slot, creator.createRouteEntryItem(war, viewerFaction, routeEntry));
+			inventory.setItem(slot, creator.createRouteEntryItem(war, routeFaction, routeEntry));
 			if (firstBattleMarkerSlot < 0
 					&& CampaignRouteRenderer.isBorderFirstBattleSlot(war, routeEntry)) {
 				firstBattleMarkerSlot = slot + 9;
@@ -206,14 +211,14 @@ public class CampaignView {
 		inventory.setItem(53, inv.createBackButton(SFGUI.WAR_VIEW));
 	}
 
-	private void populateHourToggles(Inventory inventory, War war, Faction viewerFaction, UUID viewerUuid) {
+	private void populateHourToggles(Inventory inventory, War war, Faction voterFaction, UUID viewerUuid) {
 		if (BuildupService.isDayVoteOpen(war)) {
-			populateDayToggles(inventory, war, viewerFaction, viewerUuid);
+			populateDayToggles(inventory, war, voterFaction, viewerUuid);
 			return;
 		}
 		inventory.setItem(VOTING_HELP_SLOT, creator.createVotingHelpItem());
 		boolean clickable = BattleVoterEligibility.canToggleVote(
-				war, viewerFaction, CampaignClock.now());
+				war, voterFaction, CampaignClock.now());
 		Set<Integer> selections = BattleVoteService.getPlayerSelections(war, viewerUuid);
 		var uuidToFaction = BattleScheduleLookups.uuidToFactionForWar(war);
 		var hourTally = BattleVoteService.buildHourTally(war, uuidToFaction);
@@ -231,9 +236,9 @@ public class CampaignView {
 		}
 	}
 
-	private void populateDayToggles(Inventory inventory, War war, Faction viewerFaction, UUID viewerUuid) {
+	private void populateDayToggles(Inventory inventory, War war, Faction voterFaction, UUID viewerUuid) {
 		inventory.setItem(VOTING_HELP_SLOT, creator.createDayVotingHelpItem());
-		boolean clickable = BuildupService.canToggleDayVote(war, viewerFaction);
+		boolean clickable = BuildupService.canToggleDayVote(war, voterFaction);
 		Set<Integer> selections = BuildupService.getPlayerSelections(war, viewerUuid);
 		var tally = BuildupService.buildDayTally(war, BattleScheduleLookups.uuidToFactionForWar(war));
 		int[] slots = BattleVoterEligibility.hourToggleSlots();
@@ -517,7 +522,7 @@ public class CampaignView {
 	}
 
 	private void handleHourToggleClick(Player player, War war, int hour) {
-		Faction faction = FactionManager.getByMember(Members.key(player));
+		Faction faction = BattleScheduleLookups.voterFaction(war, player);
 		if (faction == null || !BattleVoterEligibility.canToggleVote(war, faction, CampaignClock.now())) {
 			player.sendMessage("§cYou cannot vote for battle hours right now.");
 			return;
@@ -546,7 +551,7 @@ public class CampaignView {
 	}
 
 	private void handleDayToggleClick(Player player, War war, int offset) {
-		Faction faction = FactionManager.getByMember(Members.key(player));
+		Faction faction = BattleScheduleLookups.voterFaction(war, player);
 		if (!BuildupService.canToggleDayVote(war, faction)) {
 			player.sendMessage("§cYou cannot vote for the first battle day right now.");
 			return;

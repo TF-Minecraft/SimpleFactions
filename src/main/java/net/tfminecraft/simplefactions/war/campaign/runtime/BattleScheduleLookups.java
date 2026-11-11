@@ -10,6 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.mercenary.contract.MercenaryEngagements;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.core.Side;
 import net.tfminecraft.simplefactions.war.core.War;
@@ -40,11 +41,42 @@ public final class BattleScheduleLookups {
 			if (rosterMatch != null) {
 				return rosterMatch;
 			}
+			Faction hirer = resolveMercenaryHirer(war, uuid);
+			if (hirer != null) {
+				return hirer;
+			}
 			if (Bukkit.getServer() == null) {
 				return null;
 			}
 			return uuidToFaction().apply(uuid);
 		};
+	}
+
+	/**
+	 * The faction an account votes for in this war, or null when it has no vote: a member of a
+	 * participating faction votes for that faction, a mercenary for the faction that hired them.
+	 */
+	public static Faction votingFaction(War war, UUID account) {
+		if (war == null || account == null) {
+			return null;
+		}
+		Faction faction = uuidToFactionForWar(war).apply(account);
+		return faction != null && war.getSide(faction) != null ? faction : null;
+	}
+
+	/**
+	 * The faction this player votes for: the character being played when its faction is in the war,
+	 * otherwise whatever the account votes for (another character's faction, or a mercenary's hirer).
+	 */
+	public static Faction voterFaction(War war, Player player) {
+		if (war == null || player == null) {
+			return null;
+		}
+		Faction own = FactionManager.getByMember(Members.key(player));
+		if (own != null && war.getSide(own) != null) {
+			return own;
+		}
+		return votingFaction(war, player.getUniqueId());
 	}
 
 	/** Battle votes stay keyed by account, so a member key maps to the account that plays it. */
@@ -70,6 +102,22 @@ public final class BattleScheduleLookups {
 
 	public static Function<String, UUID> spoofMemberNameToUuid() {
 		return BattleScheduleLookups::spoofMemberUuid;
+	}
+
+	/** The hiring faction when the account plays a mercenary under contract to a side of this war. */
+	private static Faction resolveMercenaryHirer(War war, UUID uuid) {
+		// MercenaryEngagements.on takes a null side, and a blank name maps to no account.
+		for (Side side : new Side[] {war.getAttackers(), war.getDefenders()}) {
+			for (MercenaryEngagements.Engagement engagement : MercenaryEngagements.on(war, side)) {
+				for (String enlisted : engagement.company().getEnlisted()) {
+					if (uuid.equals(spoofMemberUuid(enlisted))
+							|| (Bukkit.getServer() != null && uuid.equals(memberNameToUuid().apply(enlisted)))) {
+						return engagement.hirer();
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	private static Faction resolveFactionFromRoster(War war, UUID uuid) {

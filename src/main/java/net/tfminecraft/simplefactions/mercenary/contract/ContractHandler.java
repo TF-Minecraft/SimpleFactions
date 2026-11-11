@@ -1,5 +1,8 @@
 package net.tfminecraft.simplefactions.mercenary.contract;
 
+import net.tfminecraft.simplefactions.managers.WarManager;
+import net.tfminecraft.simplefactions.war.core.War;
+import net.tfminecraft.simplefactions.war.history.WarHistoryEvents;
 import net.tfminecraft.simplefactions.identity.Members;
 
 import java.util.ArrayList;
@@ -174,6 +177,12 @@ public class ContractHandler {
             return alongside;
         }
         contract.activate();
+        // The company now votes on the hirer's battles; the website learns who may vote from vote updates.
+        for (War war : WarManager.getActive()) {
+            if (war.isParticipating(hirer)) {
+                WarHistoryEvents.votesChanged(war);
+            }
+        }
         return MercenaryResult.ok(company.getName() + " has entered your service.");
     }
 
