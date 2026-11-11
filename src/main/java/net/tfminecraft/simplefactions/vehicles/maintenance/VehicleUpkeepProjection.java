@@ -4,7 +4,9 @@ package net.tfminecraft.simplefactions.vehicles.maintenance;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import net.tfminecraft.simplefactions.loaders.VehiclesConfigLoader;
 import net.tfminecraft.simplefactions.SimpleFactions;
@@ -39,10 +41,41 @@ public final class VehicleUpkeepProjection {
         return Members.session(org.bukkit.Bukkit.getPlayerExact(name)).map(session -> session.ref().characterId()).orElse(null);
     }
 
+    /**
+     * Upkeep and tax for several characters in one pass, from one listing of the personal vehicles.
+     * The listing is fetched when a projection first needs it, as a single projection does.
+     */
+    public static final class Pass {
+        private final PlayerVehicleRegistry registry;
+        private List<VehicleOwnershipQueries.PersonalVehicle> vehicles;
+
+        public Pass(PlayerVehicleRegistry registry) {
+            this.registry = registry;
+        }
+
+        public double dailyUpkeep(String playerName) {
+            return projected(character(playerName), registry, false, this::vehicles);
+        }
+
+        public double dailyTax(String playerName) {
+            return projected(character(playerName), registry, true, this::vehicles);
+        }
+
+        private List<VehicleOwnershipQueries.PersonalVehicle> vehicles() {
+            if (vehicles == null) vehicles = VehicleOwnershipQueries.allPersonalVehicles(registry);
+            return vehicles;
+        }
+    }
+
     private static double projected(UUID character, PlayerVehicleRegistry registry, boolean tax) {
+        return projected(character, registry, tax, () -> VehicleOwnershipQueries.allPersonalVehicles(registry));
+    }
+
+    private static double projected(UUID character, PlayerVehicleRegistry registry, boolean tax,
+            Supplier<List<VehicleOwnershipQueries.PersonalVehicle>> vehicles) {
         if (character == null || registry == null) return 0;
         double total = 0;
-        for (var vehicle : VehicleOwnershipQueries.allPersonalVehicles(registry)) {
+        for (var vehicle : vehicles.get()) {
             var row = registry.getByVehicleUuid(vehicle.vehicle()).orElse(null);
             if (row == null || !character.equals(row.getPlayerUuid())) continue;
             if (tax) {

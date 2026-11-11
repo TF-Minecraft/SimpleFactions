@@ -158,6 +158,46 @@ class VehicleUpkeepServiceTest {
         verify(alice, never()).sendMessage(org.mockito.ArgumentMatchers.anyString());
     }
 
+    @Test
+    void oneWarningPassListsTheVehiclesOnceAndWarnsEachPlayerWhatASingleProjectionGives() {
+        UUID aliceId = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Alice");
+        UUID bobId = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Bob");
+        UUID carolId = net.tfminecraft.simplefactions.testsupport.NameKeyedMembers.characterOf("Carol");
+        bank.setBalance(aliceId, 5.0);
+        bank.setBalance(bobId, 10.0);
+        FakeOwnerApi owners = FakeOwnerApi.install()
+                .stored("vehicle-1", "ironclad", "player_Alice")
+                .stored("vehicle-2", "ironclad", "player_Bob")
+                .stored("vehicle-3", "ironclad", "player_Bob");
+        registry.register(new PlayerVehicleRecord(aliceId, "vehicle-1", "ironclad", OwnershipMode.PERSONAL, null));
+        registry.register(new PlayerVehicleRecord(bobId, "vehicle-2", "ironclad", OwnershipMode.PERSONAL, null));
+        registry.register(new PlayerVehicleRecord(bobId, "vehicle-3", "ironclad", OwnershipMode.PERSONAL, null));
+        Player alice = onlinePlayer("Alice", aliceId);
+        Player bob = onlinePlayer("Bob", bobId);
+        Player carol = onlinePlayer("Carol", carolId);
+        // No name, so no character session.
+        Player loggingIn = mock(Player.class);
+
+        // Nobody to project for: the vehicles are not listed at all, as before.
+        service.warnBankShortfalls(List.of(loggingIn), 600);
+        assertEquals(0, owners.lists);
+
+        service.warnBankShortfalls(List.of(loggingIn, alice, bob, carol), 600);
+
+        assertEquals(1, owners.lists);
+        double aliceCost = VehicleUpkeepProjection.projectedDailyUpkeep(aliceId.toString(), registry)
+                + VehicleUpkeepProjection.projectedDailyTax(aliceId.toString(), registry);
+        double bobCost = VehicleUpkeepProjection.projectedDailyUpkeep(bobId.toString(), registry)
+                + VehicleUpkeepProjection.projectedDailyTax(bobId.toString(), registry);
+        assertEquals(20.0, aliceCost);
+        assertEquals(40.0, bobCost);
+        assertEquals(5, owners.lists);
+        verify(alice).sendMessage(VehicleMaintenanceMessages.bankShortfall(aliceCost - 5.0, 600));
+        verify(bob).sendMessage(VehicleMaintenanceMessages.bankShortfall(bobCost - 10.0, 600));
+        verify(carol, never()).sendMessage(anyString());
+        verify(loggingIn, never()).sendMessage(anyString());
+    }
+
     private static Player onlinePlayer(String name, UUID uuid) {
         Player player = mock(Player.class);
         when(player.getName()).thenReturn(name);

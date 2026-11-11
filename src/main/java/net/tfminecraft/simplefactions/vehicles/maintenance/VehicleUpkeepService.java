@@ -49,12 +49,14 @@ public final class VehicleUpkeepService {
         if (secondsUntilCharge <= 0) {
             return;
         }
+        // One listing of the vehicles for the whole pass, not two per player.
+        VehicleUpkeepProjection.Pass projection = new VehicleUpkeepProjection.Pass(registry);
         for (Player player : players) {
             var session = Members.session(player).orElse(null);
             if (session == null) continue;
             UUID playerUuid = session.ref().characterId();
-            double upkeep = VehicleUpkeepProjection.projectedDailyUpkeep(playerUuid.toString(), registry)
-                    + VehicleUpkeepProjection.projectedDailyTax(playerUuid.toString(), registry);
+            double upkeep = projection.dailyUpkeep(playerUuid.toString())
+                    + projection.dailyTax(playerUuid.toString());
             if (upkeep <= 0.0) {
                 continue;
             }

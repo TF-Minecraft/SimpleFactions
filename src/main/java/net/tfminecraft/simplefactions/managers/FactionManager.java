@@ -645,11 +645,7 @@ public class FactionManager implements Listener{
 	}
 
 	private static Guild findGuildByString(String id) {
-		for(Faction f : factions) {
-			Guild guild = f.getGuildHandler().findGuild(id);
-			if(guild != null) return guild;
-		}
-		return null;
+		return GuildIdIndex.find(factions, id);
 	}
 
 	public static List<Guild> getAllGuilds() {
