@@ -22,6 +22,7 @@ import org.mockito.MockedStatic;
 
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.objects.handler.GuildHandler;
 
 class RecalcLookupsTest {
 	private MockedStatic<Bukkit> bukkit;
@@ -141,7 +142,11 @@ class RecalcLookupsTest {
 		Faction realm = mock(Faction.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
 		org.mockito.Mockito.when(realm.hasProvince(7)).thenReturn(true);
 		Guild merchants = mock(Guild.class);
-		org.mockito.Mockito.when(realm.getGuildHandler().findGuild("merchants")).thenReturn(merchants);
+		org.mockito.Mockito.when(merchants.getId()).thenReturn("merchants");
+		// A real handler: on the server thread the lookup reads its guilds through GuildIdIndex.
+		GuildHandler handler = new GuildHandler(realm);
+		handler.addGuild(merchants);
+		org.mockito.Mockito.when(realm.getGuildHandler()).thenReturn(handler);
 		FactionManager.factions.add(realm);
 		RecalcLookups.Run run = RecalcLookups.begin();
 		try {

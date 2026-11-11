@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.bukkit.Bukkit;
 
@@ -14,11 +15,18 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.SimpleFactions;
 
 public class GuildHandler {
+    /** Counts guilds added to or removed from any realm, so {@code GuildIdIndex} knows when to rebuild. */
+    private static final AtomicLong CHANGES = new AtomicLong();
+
     private Faction f;
     private Map<String, Guild> guilds = new HashMap<>();
 
     public GuildHandler(Faction f) {
         this.f = f;
+    }
+
+    public static long changes() {
+        return CHANGES.get();
     }
 
     public List<Guild> getGuilds() {
@@ -66,6 +74,7 @@ public class GuildHandler {
         Guild g = guilds.get(id);
         int cap = (g != null && !g.isBase() && g.hasCapital()) ? g.getCapital() : -1;
         guilds.remove(id);
+        CHANGES.incrementAndGet();
         clearProvinceData(id);
         if (dissolveEmptySettlement && cap != -1 && f.getSettlementHandler() != null) {
             f.getSettlementHandler().onGuildDepartedCapital(cap);
@@ -114,6 +123,7 @@ public class GuildHandler {
 
     public void addGuild(Guild g) {
         guilds.put(g.getId(), g);
+        CHANGES.incrementAndGet();
     }
 
     /** Journal replay supplies the full membership of this realm without rerunning departure effects. */
@@ -121,6 +131,7 @@ public class GuildHandler {
         for (String id : new ArrayList<>(guilds.keySet())) clearProvinceData(id);
         guilds.clear();
         for (Guild guild : restored) guilds.put(guild.getId(), guild);
+        CHANGES.incrementAndGet();
     }
 
     public List<String> getAllMembers() {

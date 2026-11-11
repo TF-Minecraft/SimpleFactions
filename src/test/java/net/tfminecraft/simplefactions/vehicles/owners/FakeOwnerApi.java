@@ -11,6 +11,8 @@ public final class FakeOwnerApi implements VehicleOwnerApi {
     public boolean characters = true;
     public final Map<String, OwnerMeta> vehicles = new LinkedHashMap<>();
     public final List<String> writes = new ArrayList<>();
+    /** How many times the whole store was listed. */
+    public int lists;
     /** When set, every write answers this without changing anything. */
     public Result forced;
     public RuntimeException failure;
@@ -51,6 +53,7 @@ public final class FakeOwnerApi implements VehicleOwnerApi {
 
     @Override
     public List<OwnerMeta> list() {
+        lists++;
         if (failure != null) throw failure;
         return new ArrayList<>(vehicles.values());
     }
