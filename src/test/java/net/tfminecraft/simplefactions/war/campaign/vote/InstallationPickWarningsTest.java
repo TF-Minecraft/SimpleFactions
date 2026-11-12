@@ -85,6 +85,30 @@ class InstallationPickWarningsTest {
 	}
 
 	@Test
+	void shortFormsAndMistakesAreHandled() throws InvalidConfigurationException {
+		Logger logger = mock(Logger.class);
+		InstallationPickWarnings parsed = InstallationPickWarnings.fromConfig(yaml("""
+				at_time_lock: false
+				before_lock: 3
+				"""), logger);
+		assertNull(parsed.atTimeLock(), "at_time_lock: false turns the line off");
+		assertTrue(parsed.beforeLock().isEmpty());
+		verify(logger).warning("[SimpleFactions] war.installation_warnings.before_lock must be a list;"
+				+ " no warnings before the lock are sent.");
+
+		parsed = InstallationPickWarnings.fromConfig(yaml("""
+				at_time_lock: true
+				before_lock:
+				  - hours_before: 400
+				  - hours_before: .inf
+				  - hours_before: 336
+				"""), logger);
+		assertEquals(new Warning(Duration.ZERO, false), parsed.atTimeLock());
+		assertEquals(List.of(new Warning(Duration.ofHours(336), false)), parsed.beforeLock());
+		verify(logger, times(2)).warning(contains("at most 336"));
+	}
+
+	@Test
 	void duplicateWarningsAtHalfHoursAreNamedInHours() throws InvalidConfigurationException {
 		Logger logger = mock(Logger.class);
 		InstallationPickWarnings.fromConfig(yaml("""

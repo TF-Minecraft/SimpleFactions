@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.entity.Player;
 
@@ -15,6 +17,7 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.identity.Members;
+import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.war.battle.engine.core.Battle;
@@ -37,12 +40,14 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
  * only leaders whose faction has an installation it could commit are warned. When they are warned is
  * set in {@code war.installation_warnings} ({@link InstallationPickWarnings}): a line when the battle's
  * start time is decided, and one per {@code before_lock} entry. Each goes out once per battle day (the
- * war remembers it, across restarts); when several fall due at once (after downtime) only the latest
- * is sent. A leader who starts a character while a warning applies is told then too.
+ * war remembers it, across restarts; a later staff change of the hour does not resend the time-lock
+ * line); when several fall due at once (after downtime) only the latest is sent. A leader who starts a
+ * character while a warning applies is told then too.
  */
 public final class InstallationPickReminders {
 	static final String TIME_LOCK_KEY = "picks_time_lock";
 	static final String LOCK_SOON_KEY = "picks_lock_soon";
+	private static final Logger LOGGER = Logger.getLogger(InstallationPickReminders.class.getName());
 
 	/** A warning that has fallen due for a battle day; {@code dueAt} orders them. */
 	record Due(String key, Instant dueAt, Warning warning, boolean timeLock) {
@@ -61,26 +66,40 @@ public final class InstallationPickReminders {
 		if (day == null) {
 			return false;
 		}
-		List<Due> due = dueNow(war, day, now);
+		List<Due> due = dueNow(war, day, now, false);
 		if (due.isEmpty()) {
 			return false;
 		}
-		Due latest = due.getLast();
-		// Every warning that fell due counts as sent; only the latest is worth telling.
-		boolean changed = false;
-		for (Due each : due.subList(0, due.size() - 1)) {
-			changed |= war.getAvailability().markReminderSent(each.key());
-		}
-		if (war.getAvailability().markReminderSent(latest.key())) {
-			changed = true;
-			for (Recipient recipient : recipients(war)) {
-				Player player = Members.player(recipient.leaderKey());
-				if (player != null && applies(latest, recipient)) {
-					player.sendMessage(message(war, day, latest, recipient, now));
-				}
+		// Every warning that fell due counts as sent. Only the latest is worth telling, and only when
+		// no later one went already (a warning added to the config afterwards stays quiet).
+		int lastSent = -1;
+		for (int i = 0; i < due.size(); i++) {
+			if (war.getAvailability().remindersSent().contains(due.get(i).key())) {
+				lastSent = i;
 			}
 		}
+		boolean changed = false;
+		for (Due each : due) {
+			changed |= war.getAvailability().markReminderSent(each.key());
+		}
+		if (lastSent < due.size() - 1) {
+			send(war, day, due.getLast(), now);
+		}
 		return changed;
+	}
+
+	/** Tells the online leaders it applies to. It only informs, so a failure is logged and the tick goes on. */
+	private static void send(War war, LocalDate day, Due due, Instant now) {
+		try {
+			for (Recipient recipient : recipients(war)) {
+				Player player = Members.player(recipient.leaderKey());
+				if (player != null && applies(due, recipient)) {
+					player.sendMessage(message(war, day, due, recipient, now));
+				}
+			}
+		} catch (RuntimeException failure) {
+			LOGGER.log(Level.WARNING, "[SimpleFactions] Could not send installation warnings for war " + war.getId(), failure);
+		}
 	}
 
 	/** When a character is played: a line for each war whose current warning applies to this leader. */
@@ -91,14 +110,10 @@ public final class InstallationPickReminders {
 		}
 		for (War war : WarManager.getActive()) {
 			LocalDate day = coming(war, now);
-			List<Due> due = day == null ? List.of() : dueNow(war, day, now);
-			if (due.isEmpty()) {
-				continue;
-			}
-			for (Recipient recipient : recipients(war)) {
-				if (key.equals(recipient.leaderKey()) && applies(due.getLast(), recipient)) {
-					player.sendMessage(message(war, day, due.getLast(), recipient, now));
-				}
+			List<Due> due = day == null ? List.of() : dueNow(war, day, now, true);
+			Recipient recipient = due.isEmpty() ? null : recipientLedBy(war, key);
+			if (recipient != null && applies(due.getLast(), recipient)) {
+				player.sendMessage(message(war, day, due.getLast(), recipient, now));
 			}
 		}
 	}
@@ -127,21 +142,28 @@ public final class InstallationPickReminders {
 		return battle != null && battle.hasStarted() ? null : day;
 	}
 
-	/** The warnings for the day whose time has come, earliest first (the last is the one to send). */
-	static List<Due> dueNow(War war, LocalDate day, Instant now) {
+	/**
+	 * The warnings for the day whose time has come, earliest first (the last is the current one).
+	 * The time-lock line is due once the start time is set, at once when staff set it early. Once it
+	 * went, the per-minute pass leaves it out ({@code withSentTimeLock} false): staff setting the hour
+	 * early would otherwise keep it the latest and silently use up the warnings after it.
+	 */
+	static List<Due> dueNow(War war, LocalDate day, Instant now, boolean withSentTimeLock) {
 		InstallationPickWarnings settings = Cache.warInstallationWarnings;
 		List<Due> due = new ArrayList<>();
 		LockedBattleDay locked = war.getAvailability().battleDay(day);
-		if (settings.atTimeLock() != null && locked != null && locked.hour() != null) {
+		String timeLockKey = TIME_LOCK_KEY + "|" + day;
+		if (settings.atTimeLock() != null && locked != null && locked.hour() != null
+				&& (withSentTimeLock || !war.getAvailability().remindersSent().contains(timeLockKey))) {
 			Instant timeLock = AvailabilityCalendar.timeLockAt(day);
-			// Staff can set the hour before the time lock: then the line is due as soon as it is set.
-			due.add(new Due(TIME_LOCK_KEY + "|" + day, timeLock.isAfter(now) ? now : timeLock,
-					settings.atTimeLock(), true));
+			due.add(new Due(timeLockKey, timeLock.isAfter(now) ? now : timeLock, settings.atTimeLock(), true));
 		}
 		Instant lock = locksAt(day);
 		for (Warning warning : settings.beforeLock()) {
 			Instant from = lock.minus(warning.before());
 			if (!now.isBefore(from)) {
+				// The sent-key pruner reads everything after the first '|' as the date; "date|minutes"
+				// still sorts with that date, so these keys go the day after, like the others.
 				due.add(new Due(LOCK_SOON_KEY + "|" + day + "|" + warning.before().toMinutes(), from, warning, false));
 			}
 		}
@@ -155,21 +177,55 @@ public final class InstallationPickReminders {
 		return BattleWindowService.atScheduleHour(day, Cache.warVoteCloseHour);
 	}
 
-	/** The leaders of both sides' factions that have an installation they could commit. */
-	static List<Recipient> recipients(War war) {
-		List<Recipient> recipients = new ArrayList<>();
+	/** Both sides' factions in the war. */
+	private static List<Faction> factions(War war) {
 		List<Faction> factions = new ArrayList<>(BattleSideMembers.collectParticipatingFactions(war.getAttackers()));
 		factions.addAll(BattleSideMembers.collectParticipatingFactions(war.getDefenders()));
-		for (Faction faction : factions) {
-			String leader = faction.getLeader();
-			// A faction that has not loaded its installations has nothing to commit.
-			if (leader == null || leader.isBlank() || faction.getInstallationHandler() == null
-					|| BattleInstallationPickEligibility.listPickableInstallations(war, faction).isEmpty()) {
-				continue;
+		return factions;
+	}
+
+	/** The leaders of both sides' factions that still have an installation they could choose. */
+	static List<Recipient> recipients(War war) {
+		List<Recipient> recipients = new ArrayList<>();
+		for (Faction faction : factions(war)) {
+			Recipient recipient = recipient(war, faction);
+			if (recipient != null) {
+				recipients.add(recipient);
 			}
-			recipients.add(new Recipient(faction, leader, chosen(war, faction)));
 		}
 		return recipients;
+	}
+
+	/** The recipient for the faction this character leads in the war, or null. */
+	static Recipient recipientLedBy(War war, String leaderKey) {
+		for (Faction faction : factions(war)) {
+			if (leaderKey.equals(faction.getLeader())) {
+				return recipient(war, faction);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * The faction's leader as a recipient, or null when it has none or nothing the leader could
+	 * choose: the defender's automatic port and installations staff forced in are not choices.
+	 */
+	private static Recipient recipient(War war, Faction faction) {
+		String leader = faction.getLeader();
+		if (leader == null || leader.isBlank()) {
+			return null;
+		}
+		for (Installation installation : BattleInstallationPickEligibility.listPickableInstallations(war, faction)) {
+			if (isChoice(war, faction, installation.getId())) {
+				return new Recipient(faction, leader, chosen(war, faction));
+			}
+		}
+		return null;
+	}
+
+	private static boolean isChoice(War war, Faction faction, String installationId) {
+		return !BattleInstallationPickService.isDefenderZocPort(war, faction, installationId)
+				&& !BattleInstallationPickService.isForced(war, faction.getId(), installationId);
 	}
 
 	/** Installations the leader chose: not the defender's automatic port, not ones staff forced in. */
@@ -177,8 +233,7 @@ public final class InstallationPickReminders {
 		Set<String> picks = BattleInstallationPickService.getPicks(war, faction.getId());
 		int chosen = 0;
 		for (String installationId : picks) {
-			if (!BattleInstallationPickService.isDefenderZocPort(war, faction, installationId)
-					&& !BattleInstallationPickService.isForced(war, faction.getId(), installationId)) {
+			if (isChoice(war, faction, installationId)) {
 				chosen++;
 			}
 		}
@@ -194,15 +249,9 @@ public final class InstallationPickReminders {
 		String when = BattleVoteReminders.formatRemaining(Duration.between(now, lock)) + " §7("
 				+ CampaignUiTimeFormatter.formatDateTime(lock) + "§7)";
 		String label = AvailabilityCalendar.label(day);
-		LockedBattleDay locked = war.getAvailability().battleDay(day);
-		String text = "§6⚔ §e" + war.getName() + "§6: §f";
-		if (due.timeLock() && locked != null && locked.hour() != null) {
-			text += "the battle on " + label + " starts at "
-					+ CampaignUiTimeFormatter.formatUtcHour(day, locked.hour())
-					+ "§f. Choose the installations you commit; your choices lock in " + when + "§f.";
-		} else {
-			text += "your installation choices for the battle on " + label + " lock in " + when + "§f.";
-		}
+		String text = "§6⚔ §e" + war.getName() + "§6: §f" + (due.timeLock()
+				? "choose the installations you commit to the battle on " + label + "; your choices lock in " + when + "§f."
+				: "your installation choices for the battle on " + label + " lock in " + when + "§f.");
 		text += recipient.chosen() == 0
 				? " §cYou have not chosen any yet."
 				: " §7You have chosen " + recipient.chosen() + "; you can still change them.";

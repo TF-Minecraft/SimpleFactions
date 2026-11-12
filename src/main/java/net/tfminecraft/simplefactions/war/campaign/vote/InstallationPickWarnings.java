@@ -17,6 +17,9 @@ import org.bukkit.configuration.ConfigurationSection;
  * here, so the rest of the plugin only sees the ones that are on.
  */
 public record InstallationPickWarnings(boolean enabled, Warning atTimeLock, List<Warning> beforeLock) {
+	/** Two weeks: far more than a battle day is ever planned ahead. */
+	static final int MAX_HOURS = 336;
+
 	/** One warning. {@code before} is how long before the lock; it is zero for {@code at_time_lock}. */
 	public record Warning(Duration before, boolean includeCommitted) {
 	}
@@ -39,13 +42,17 @@ public record InstallationPickWarnings(boolean enabled, Warning atTimeLock, List
 		boolean enabled = section.getBoolean("enabled", true);
 		Warning atTimeLock = null;
 		ConfigurationSection timeLock = section.getConfigurationSection("at_time_lock");
-		if (timeLock == null || timeLock.getBoolean("enabled", true)) {
+		// "at_time_lock: false" is accepted as a short form of "enabled: false".
+		boolean timeLockOn = timeLock != null ? timeLock.getBoolean("enabled", true) : section.getBoolean("at_time_lock", true);
+		if (timeLockOn) {
 			atTimeLock = new Warning(Duration.ZERO,
 					timeLock != null && timeLock.getBoolean("include_committed", false));
 		}
 		List<Warning> beforeLock = new ArrayList<>();
 		if (!section.contains("before_lock")) {
 			beforeLock.addAll(defaults().beforeLock());
+		} else if (!section.isList("before_lock")) {
+			warn(logger, "war.installation_warnings.before_lock must be a list; no warnings before the lock are sent.");
 		} else {
 			for (Map<?, ?> entry : section.getMapList("before_lock")) {
 				Warning warning = parseWarning(entry, logger);
@@ -60,8 +67,8 @@ public record InstallationPickWarnings(boolean enabled, Warning atTimeLock, List
 		for (Warning warning : beforeLock) {
 			if (distinct.isEmpty() || !distinct.getLast().before().equals(warning.before())) {
 				distinct.add(warning);
-			} else if (logger != null) {
-				logger.warning("war.installation_warnings.before_lock has two warnings at "
+			} else {
+				warn(logger, "war.installation_warnings.before_lock has two warnings at "
 						+ hours(warning.before()) + " h; only the first is used.");
 			}
 		}
@@ -73,15 +80,19 @@ public record InstallationPickWarnings(boolean enabled, Warning atTimeLock, List
 			return null;
 		}
 		Object hours = entry.get("hours_before");
-		if (!(hours instanceof Number number) || !(number.doubleValue() > 0)) {
-			if (logger != null) {
-				logger.warning("war.installation_warnings.before_lock: hours_before must be a number above 0, got "
-						+ hours + "; that warning is skipped.");
-			}
+		if (!(hours instanceof Number number) || !(number.doubleValue() > 0) || number.doubleValue() > MAX_HOURS) {
+			warn(logger, "war.installation_warnings.before_lock: hours_before must be a number above 0 and at most "
+					+ MAX_HOURS + ", got " + hours + "; that warning is skipped.");
 			return null;
 		}
 		long minutes = Math.max(1, Math.round(number.doubleValue() * 60));
 		return new Warning(Duration.ofMinutes(minutes), Boolean.TRUE.equals(entry.get("include_committed")));
+	}
+
+	private static void warn(Logger logger, String message) {
+		if (logger != null) {
+			logger.warning("[SimpleFactions] " + message);
+		}
 	}
 
 	private static String hours(Duration duration) {

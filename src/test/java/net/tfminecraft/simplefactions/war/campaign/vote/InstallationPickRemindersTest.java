@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -23,6 +24,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -37,7 +42,6 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.installation.Installation;
-import net.tfminecraft.simplefactions.installation.handler.InstallationHandler;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
 import net.tfminecraft.simplefactions.objects.Faction;
@@ -49,6 +53,8 @@ import net.tfminecraft.simplefactions.war.campaign.runtime.BattleSideMembers;
 import net.tfminecraft.simplefactions.war.campaign.runtime.BattleWindowService;
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickEligibility;
 import net.tfminecraft.simplefactions.war.campaign.runtime.pick.BattleInstallationPickService;
+import net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickReminders.Due;
+import net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickReminders.Recipient;
 import net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickWarnings.Warning;
 import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.war.enums.BattleSchedulePhase;
@@ -97,9 +103,10 @@ class InstallationPickRemindersTest {
 				.thenReturn(List.of(attacker, ally));
 		sides.when(() -> BattleSideMembers.collectParticipatingFactions(same(war.getDefenders())))
 				.thenReturn(List.of(defender));
+		List<Installation> fort = List.of(installation("fort"));
 		eligibility = mockStatic(BattleInstallationPickEligibility.class);
 		eligibility.when(() -> BattleInstallationPickEligibility.listPickableInstallations(same(war), any()))
-				.thenReturn(List.of(mock(Installation.class)));
+				.thenReturn(fort);
 		picks = mockStatic(BattleInstallationPickService.class);
 		picks.when(() -> BattleInstallationPickService.getPicks(same(war), anyString())).thenReturn(Set.of());
 	}
@@ -121,8 +128,13 @@ class InstallationPickRemindersTest {
 		when(faction.getName()).thenReturn(name);
 		when(faction.getLeader()).thenReturn(leader);
 		when(faction.getMembers()).thenReturn(List.of(leader));
-		when(faction.getInstallationHandler()).thenReturn(mock(InstallationHandler.class));
 		return faction;
+	}
+
+	private static Installation installation(String id) {
+		Installation installation = mock(Installation.class);
+		when(installation.getId()).thenReturn(id);
+		return installation;
 	}
 
 	private Player online(String key) {
@@ -157,8 +169,12 @@ class InstallationPickRemindersTest {
 
 	private static List<String> received(Player player) {
 		ArgumentCaptor<Component> sent = ArgumentCaptor.forClass(Component.class);
-		verify(player, org.mockito.Mockito.atLeast(0)).sendMessage(sent.capture());
+		verify(player, atLeast(0)).sendMessage(sent.capture());
 		return sent.getAllValues().stream().map(InstallationPickRemindersTest::text).toList();
+	}
+
+	private List<String> leaders() {
+		return InstallationPickReminders.recipients(war).stream().map(Recipient::leaderKey).toList();
 	}
 
 	@Test
@@ -180,9 +196,9 @@ class InstallationPickRemindersTest {
 
 		List<String> toAlice = received(alice);
 		assertEquals(3, toAlice.size(), toAlice.toString());
-		assertEquals("⚔ Brume vs. Varn: the battle on Fri 20/11 starts at 22:00 CET / 16:00 EST. Choose the installations"
-				+ " you commit; your choices lock in 19h (20/11/2026 16:00 CET / 10:00 EST). You have not chosen any"
-				+ " yet. [Choose installations]", toAlice.get(0));
+		assertEquals("⚔ Brume vs. Varn: choose the installations you commit to the battle on Fri 20/11; your choices"
+				+ " lock in 19h (20/11/2026 16:00 CET / 10:00 EST). You have not chosen any yet. [Choose installations]",
+				toAlice.get(0));
 		assertEquals("⚔ Brume vs. Varn: your installation choices for the battle on Fri 20/11 lock in 3h"
 				+ " (20/11/2026 16:00 CET / 10:00 EST). You have not chosen any yet. [Choose installations]", toAlice.get(1));
 		assertTrue(toAlice.get(2).contains("lock in 1h (20/11/2026"), toAlice.get(2));
@@ -213,7 +229,7 @@ class InstallationPickRemindersTest {
 	}
 
 	@Test
-	void aWarningThatWentAlreadyMarksTheEarlierOnesWithoutSendingAgain() {
+	void aWarningThatWentAlreadyKeepsEarlierOnesQuiet() {
 		Player alice = online("alice");
 		war.getAvailability().markReminderSent("picks_lock_soon|" + DAY + "|60");
 		assertTrue(InstallationPickReminders.process(war, locks().minus(Duration.ofMinutes(30))));
@@ -221,28 +237,85 @@ class InstallationPickRemindersTest {
 	}
 
 	@Test
-	void factionsWithNothingToCommitLeaderlessOnesAndOfflineLeadersAreNotWarned() {
+	void anHourStaffSetEarlyIsAnnouncedAtOnceAndDoesNotUseUpTheWarningsAfterIt() {
 		Player alice = online("alice");
-		Player olaf = online("olaf");
-		when(defender.getLeader()).thenReturn(" ");
+		Cache.warInstallationWarnings = new InstallationPickWarnings(true, new Warning(Duration.ZERO, false),
+				List.of(new Warning(Duration.ofHours(30), false), new Warning(Duration.ofHours(1), false)));
+		Instant timeLock = AvailabilityCalendar.timeLockAt(DAY);
+		Instant thirtyBefore = locks().minus(Duration.ofHours(30));
+		Instant setEarly = thirtyBefore.minus(Duration.ofHours(1));
+
+		assertTrue(InstallationPickReminders.process(war, setEarly), "Hour already set: the time-lock line goes now");
+		assertFalse(InstallationPickReminders.process(war, thirtyBefore.minusSeconds(30)));
+		assertTrue(InstallationPickReminders.process(war, thirtyBefore.plusSeconds(30)));
+		assertFalse(InstallationPickReminders.process(war, timeLock.plusSeconds(30)), "Nothing new at the real time lock");
+
+		List<String> toAlice = received(alice);
+		assertEquals(2, toAlice.size(), toAlice.toString());
+		assertTrue(toAlice.get(0).startsWith("⚔ Brume vs. Varn: choose the installations"), toAlice.get(0));
+		assertTrue(toAlice.get(1).contains("lock in 1d 6h"), toAlice.get(1));
+
+		List<Due> due = InstallationPickReminders.dueNow(war, DAY, setEarly, true);
+		assertEquals(1, due.size());
+		assertTrue(due.get(0).timeLock());
+		assertEquals(setEarly, due.get(0).dueAt());
+		assertTrue(InstallationPickReminders.dueNow(war, DAY, setEarly, false).isEmpty(), "Sent: left out of the tick");
+	}
+
+	@Test
+	void theTimeLockLineWaitsForTheHourAndCanBeTurnedOff() {
+		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false));
+		Instant afterTimeLock = AvailabilityCalendar.timeLockAt(DAY).plusSeconds(60);
+		assertTrue(InstallationPickReminders.dueNow(war, DAY, afterTimeLock, false).isEmpty(), "No hour yet");
+		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false).withHour(23, false));
+		assertEquals(1, InstallationPickReminders.dueNow(war, DAY, afterTimeLock, false).size());
+		Cache.warInstallationWarnings = new InstallationPickWarnings(true, null, List.of(new Warning(Duration.ofHours(1), false)));
+		assertTrue(InstallationPickReminders.dueNow(war, DAY, afterTimeLock, false).isEmpty(), "Time-lock line turned off");
+	}
+
+	@Test
+	void aWarningEarlierThanTheTimeLockStillComesFirst() {
+		Cache.warInstallationWarnings = new InstallationPickWarnings(true, new Warning(Duration.ZERO, true),
+				List.of(new Warning(Duration.ofHours(24), true)));
+		Instant afterTimeLock = AvailabilityCalendar.timeLockAt(DAY).plusSeconds(60);
+		List<Due> due = InstallationPickReminders.dueNow(war, DAY, afterTimeLock, false);
+		assertEquals(List.of(false, true), due.stream().map(Due::timeLock).toList());
+	}
+
+	@Test
+	void aQueuedSecondBattleDayGetsItsTimeLockLineWhenItBecomesTheNextBattle() {
+		Player alice = online("alice");
+		LocalDate next = DAY.plusDays(1);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(next, false).withHour(21, false));
+		// Friday's battle is fought; the war moves on to Saturday, whose time was fixed Friday 21:00.
+		Instant afterFridayBattle = BattleWindowService.atScheduleHour(DAY, 25);
+		war.setBattleDay(next);
+
+		assertTrue(InstallationPickReminders.process(war, afterFridayBattle));
+		assertEquals(List.of("⚔ Brume vs. Varn: choose the installations you commit to the battle on Sat 21/11; your"
+				+ " choices lock in 15h (21/11/2026 16:00 CET / 10:00 EST). You have not chosen any yet."
+				+ " [Choose installations]"), received(alice));
+		assertTrue(war.getAvailability().remindersSent().contains("picks_time_lock|" + next));
+	}
+
+	@Test
+	void theNewKeysArePrunedTheDayAfterTheirBattleDay() {
+		war.getAvailability().markReminderSent("picks_lock_soon|" + DAY + "|180");
+		war.getAvailability().markReminderSent("picks_time_lock|" + DAY);
+		assertFalse(war.getAvailability().pruneBefore(DAY), "Kept on the day itself");
+		assertTrue(war.getAvailability().pruneBefore(DAY.plusDays(1)));
+		assertTrue(war.getAvailability().remindersSent().isEmpty());
+	}
+
+	@Test
+	void factionsWithoutALeaderOrWithNothingToCommitAreNotWarned() {
 		eligibility.when(() -> BattleInstallationPickEligibility.listPickableInstallations(same(war), same(ally)))
 				.thenReturn(List.of());
-		when(attacker.getLeader()).thenReturn("alice", (String) null, "alice");
-		Faction unloaded = faction("raw", "Raw", "rhea");
-		when(unloaded.getInstallationHandler()).thenReturn(null);
-		sides.when(() -> BattleSideMembers.collectParticipatingFactions(same(war.getDefenders())))
-				.thenReturn(List.of(defender, unloaded));
-
-		assertEquals(List.of("alice"), InstallationPickReminders.recipients(war).stream()
-				.map(InstallationPickReminders.Recipient::leaderKey).toList());
-		assertTrue(InstallationPickReminders.recipients(war).isEmpty(), "No leader at all");
-		assertEquals(1, InstallationPickReminders.recipients(war).size(), "Installations not loaded: skipped");
-		verify(alice, never()).sendMessage(any(Component.class));
-		verify(olaf, never()).sendMessage(any(Component.class));
-		online.clear();
-		when(attacker.getLeader()).thenReturn("alice");
-		assertTrue(InstallationPickReminders.process(war, locks().minus(Duration.ofHours(3))), "Sent to nobody online");
-		verify(alice, never()).sendMessage(any(Component.class));
+		assertEquals(List.of("alice", "dora"), leaders());
+		when(defender.getLeader()).thenReturn(" ");
+		assertEquals(List.of("alice"), leaders());
+		when(attacker.getLeader()).thenReturn(null);
+		assertTrue(leaders().isEmpty());
 	}
 
 	@Test
@@ -253,6 +326,57 @@ class InstallationPickRemindersTest {
 		assertEquals(1, InstallationPickReminders.chosen(war, defender));
 		chose(defender, "port", "forced");
 		assertEquals(0, InstallationPickReminders.chosen(war, defender));
+
+		// With only the port and a forced installation left, the defender's leader has nothing to choose.
+		List<Installation> nothingToChoose = List.of(installation("port"), installation("forced"));
+		eligibility.when(() -> BattleInstallationPickEligibility.listPickableInstallations(same(war), same(defender)))
+				.thenReturn(nothingToChoose);
+		assertFalse(leaders().contains("dora"));
+		List<Installation> oneChoice = List.of(installation("port"), installation("forced"), installation("own"));
+		eligibility.when(() -> BattleInstallationPickEligibility.listPickableInstallations(same(war), same(defender)))
+				.thenReturn(oneChoice);
+		assertTrue(leaders().contains("dora"));
+	}
+
+	@Test
+	void offlineLeadersAreNotTold() {
+		Player olaf = online("olaf");
+		online.remove(olaf);
+		assertTrue(InstallationPickReminders.process(war, locks().minus(Duration.ofHours(3))), "Counts as sent");
+		verify(olaf, never()).sendMessage(any(Component.class));
+	}
+
+	@Test
+	void aFailureWhileSendingIsLoggedAndTheTickGoesOn() {
+		online("alice");
+		picks.when(() -> BattleInstallationPickService.getPicks(same(war), anyString()))
+				.thenThrow(new IllegalStateException("boom"));
+		List<LogRecord> logged = new ArrayList<>();
+		Logger logger = Logger.getLogger(InstallationPickReminders.class.getName());
+		Handler handler = new Handler() {
+			@Override
+			public void publish(LogRecord record) {
+				logged.add(record);
+			}
+
+			@Override
+			public void flush() {
+			}
+
+			@Override
+			public void close() {
+			}
+		};
+		logger.addHandler(handler);
+		try {
+			assertTrue(InstallationPickReminders.process(war, locks().minus(Duration.ofHours(3))));
+		} finally {
+			logger.removeHandler(handler);
+		}
+		assertEquals(1, logged.size());
+		assertEquals(Level.WARNING, logged.get(0).getLevel());
+		assertTrue(logged.get(0).getMessage().contains("Could not send installation warnings for war 7"));
+		assertTrue(war.getAvailability().remindersSent().contains("picks_lock_soon|" + DAY + "|180"), "Not retried");
 	}
 
 	@Test
@@ -264,7 +388,7 @@ class InstallationPickRemindersTest {
 		war.setBattleSchedulePhase(BattleSchedulePhase.AUTORESOLVE_PENDING);
 		assertNull(InstallationPickReminders.coming(war, soon));
 		war.setBattleSchedulePhase(BattleSchedulePhase.BUILDUP);
-		assertEquals(DAY, InstallationPickReminders.coming(war, soon));
+		assertEquals(DAY, InstallationPickReminders.coming(war, soon), "Staff tools can leave a locked day in buildup");
 		war.setBattleSchedulePhase(BattleSchedulePhase.SCHEDULED);
 		assertEquals(DAY, InstallationPickReminders.coming(war, soon));
 		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, true).withHour(22, true));
@@ -280,6 +404,9 @@ class InstallationPickRemindersTest {
 		assertNull(InstallationPickReminders.coming(war, soon));
 		Cache.warInstallationWarnings = new InstallationPickWarnings(false, null, List.of());
 		assertNull(InstallationPickReminders.coming(war, soon), "Turned off");
+		Cache.warInstallationWarnings = new InstallationPickWarnings(true, null, List.of());
+		assertEquals(DAY, InstallationPickReminders.coming(war, soon));
+		assertFalse(InstallationPickReminders.process(war, soon), "No warnings configured");
 		Cache.warInstallationWarnings = InstallationPickWarnings.defaults();
 		war.end(WarEndReason.WHITE_PEACE);
 		assertNull(InstallationPickReminders.coming(war, soon), "Ended");
@@ -298,50 +425,26 @@ class InstallationPickRemindersTest {
 	}
 
 	@Test
-	void theTimeLockLineWaitsForTheHourAndIsDueAtOnceWhenStaffSetItEarly() {
-		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false));
-		Instant beforeTimeLock = AvailabilityCalendar.timeLockAt(DAY).minus(Duration.ofHours(2));
-		assertTrue(InstallationPickReminders.dueNow(war, DAY, beforeTimeLock).isEmpty(), "No hour yet");
-		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false).withHour(23, false));
-		List<InstallationPickReminders.Due> due = InstallationPickReminders.dueNow(war, DAY, beforeTimeLock);
-		assertEquals(1, due.size());
-		assertTrue(due.get(0).timeLock());
-		assertEquals(beforeTimeLock, due.get(0).dueAt());
-		Cache.warInstallationWarnings = new InstallationPickWarnings(true, null, List.of(new Warning(Duration.ofHours(1), false)));
-		assertTrue(InstallationPickReminders.dueNow(war, DAY, beforeTimeLock).isEmpty(), "Time-lock line turned off");
-	}
-
-	@Test
-	void aWarningEarlierThanTheTimeLockStillComesFirst() {
-		Cache.warInstallationWarnings = new InstallationPickWarnings(true, new Warning(Duration.ZERO, true),
-				List.of(new Warning(Duration.ofHours(24), true)));
-		Instant afterTimeLock = AvailabilityCalendar.timeLockAt(DAY).plusSeconds(60);
-		List<InstallationPickReminders.Due> due = InstallationPickReminders.dueNow(war, DAY, afterTimeLock);
-		assertEquals(List.of(false, true), due.stream().map(InstallationPickReminders.Due::timeLock).toList());
-	}
-
-	@Test
-	void aTimeLockMessageWithoutAnHourFallsBackToTheLockLine() {
-		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false));
-		InstallationPickReminders.Due due = new InstallationPickReminders.Due("k", locks(), new Warning(Duration.ZERO, false), true);
-		String text = text(InstallationPickReminders.message(war, DAY, due,
-				new InstallationPickReminders.Recipient(attacker, "alice", 2), locks().minus(Duration.ofHours(2))));
-		assertTrue(text.contains("your installation choices for the battle on Fri 20/11 lock in 2h"), text);
+	void aLeaderWhoChoseIsToldHowManyInTheTimeLockLine() {
+		Due due = new Due("k", locks(), new Warning(Duration.ZERO, true), true);
+		String text = text(InstallationPickReminders.message(war, DAY, due, new Recipient(attacker, "alice", 2),
+				locks().minus(Duration.ofHours(2))));
+		assertTrue(text.contains("choose the installations you commit to the battle on Fri 20/11; your choices lock in 2h"),
+				text);
 		assertTrue(text.contains("You have chosen 2; you can still change them."), text);
-		war.getAvailability().removeBattleDay(DAY);
-		assertTrue(text(InstallationPickReminders.message(war, DAY, due,
-				new InstallationPickReminders.Recipient(attacker, "alice", 0), locks().minus(Duration.ofHours(2))))
-				.contains("lock in 2h"));
 	}
 
 	@Test
 	void aLeaderStartingACharacterInsideAWarningGetsItThen() {
 		Player alice = online("alice");
 		Player dora = online("dora");
+		Player olaf = online("olaf");
 		Player stranger = online("stranger");
 		Player nobody = mock(Player.class);
 		members.when(() -> Members.key(nobody)).thenReturn(null);
 		chose(defender, "fort");
+		eligibility.when(() -> BattleInstallationPickEligibility.listPickableInstallations(same(war), same(ally)))
+				.thenReturn(List.of());
 		War quiet = new War(8, ally, defender);
 		quiet.setBattleSchedulePhase(BattleSchedulePhase.IDLE);
 		try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
@@ -355,17 +458,26 @@ class InstallationPickRemindersTest {
 			Instant soon = locks().minus(Duration.ofHours(2));
 			InstallationPickReminders.onCharacterStart(alice, soon);
 			InstallationPickReminders.onCharacterStart(dora, soon);
+			InstallationPickReminders.onCharacterStart(olaf, soon);
 			InstallationPickReminders.onCharacterStart(stranger, soon);
 			InstallationPickReminders.onCharacterStart(nobody, soon);
 
 			assertEquals(1, received(alice).size());
 			assertTrue(received(alice).get(0).contains("lock in 2h"), received(alice).get(0));
 			verify(dora, never()).sendMessage(any(Component.class));
+			verify(olaf, never()).sendMessage(any(Component.class));
 			verify(stranger, never()).sendMessage(any(Component.class));
 			verify(nobody, never()).sendMessage(any(Component.class));
 
 			InstallationPickReminders.onCharacterStart(dora, locks().minus(Duration.ofMinutes(20)));
 			verify(dora, times(1)).sendMessage(any(Component.class));
+
+			// After the time-lock line went, a leader starting before the next warning still hears of it.
+			war.getAvailability().markReminderSent("picks_time_lock|" + DAY);
+			InstallationPickReminders.onCharacterStart(alice, locks().minus(Duration.ofHours(10)));
+			assertEquals(2, received(alice).size());
+			assertTrue(received(alice).get(1).startsWith("⚔ Brume vs. Varn: choose the installations"),
+					received(alice).get(1));
 		}
 	}
 }

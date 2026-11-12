@@ -413,7 +413,7 @@ class WarCommandsCoverageTest {
     assertTrue(commands.onCommand(console, command, "war", new String[] {"admin", "end", "1"}));
     verifyNoInteractions(console);
     assertTrue(run());
-    verify(alice).sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
+    verify(alice).sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war installations <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
     verify(alice).sendMessage(contains("Staff:"));
     when(alice.hasPermission("simplefactions.admin")).thenReturn(false);
     assertTrue(run("admin", "devmode", "on"));

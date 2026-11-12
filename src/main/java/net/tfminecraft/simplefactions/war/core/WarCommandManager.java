@@ -48,7 +48,7 @@ public class WarCommandManager implements CommandExecutor {
 			return true;
 		}
 		if (args.length < 1) {
-			player.sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
+			player.sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war installations <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
 			if (Permissions.isAdmin(sender)) {
 				player.sendMessage("§7Staff: §e/war admin declare|end|win|status|path|time|schedule|buildup|devmode|raid|reparations|truce|history|factions|forceinstallation §7...");
 			}
