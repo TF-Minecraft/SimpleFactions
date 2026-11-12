@@ -3,6 +3,7 @@ package net.tfminecraft.simplefactions.economy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -11,14 +12,15 @@ import net.tfminecraft.simplefactions.espionage.EspionageService;
 import net.tfminecraft.simplefactions.government.StabilityModifier;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.guild.income.Ledger;
+import net.tfminecraft.simplefactions.inactivity.InactivityService;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.objects.Bank;
 import net.tfminecraft.simplefactions.objects.Faction;
 
 /**
- * Guild treasuries, held tax, node upkeep and espionage stability read once on the main thread.
- * DenarEconomy, Dowsing and TLibs character identity refuse reads from other threads, so
- * income previews that run async read these instead.
+ * Guild treasuries, held tax, node upkeep, espionage stability and inactive members read once
+ * on the main thread. DenarEconomy, Dowsing and TLibs character identity refuse reads from
+ * other threads, so income previews that run async read these instead.
  */
 public final class FrozenReads {
     private static final ThreadLocal<FrozenReads> CURRENT = new ThreadLocal<>();
@@ -27,17 +29,23 @@ public final class FrozenReads {
     private final Map<UUID, Map<UUID, Long>> taxContributors;
     private final Map<UUID, Double> nodeUpkeep;
     private final Map<String, List<StabilityModifier>> espionage;
+    private final Set<String> inactive;
 
     private FrozenReads(
             Map<String, Long> cents, Map<UUID, Map<UUID, Long>> taxContributors,
-            Map<UUID, Double> nodeUpkeep, Map<String, List<StabilityModifier>> espionage) {
+            Map<UUID, Double> nodeUpkeep, Map<String, List<StabilityModifier>> espionage,
+            Set<String> inactive) {
         this.cents = Map.copyOf(cents);
         this.taxContributors = Map.copyOf(taxContributors);
         this.nodeUpkeep = Map.copyOf(nodeUpkeep);
         this.espionage = Map.copyOf(espionage);
+        this.inactive = Set.copyOf(inactive);
     }
 
-    /** Reads guild treasuries, held tax and node upkeep and realm espionage modifiers now. Call on the main thread. */
+    /**
+     * Reads guild treasuries, held tax, node upkeep, realm espionage modifiers and inactive
+     * members now. Call on the main thread.
+     */
     public static FrozenReads capture() {
         long now = System.currentTimeMillis();
         Map<String, List<StabilityModifier>> espionage = new HashMap<>();
@@ -68,7 +76,9 @@ public final class FrozenReads {
                 nodeUpkeep.put(incarnation, Ledger.liveNodeUpkeep(guild));
             }
         }
-        return new FrozenReads(cents, taxContributors, nodeUpkeep, espionage);
+        // Member shares (stability, upkeep) skip inactive members; whether one is online asks TLibs.
+        Set<String> inactive = InactivityService.captureInactiveMembers();
+        return new FrozenReads(cents, taxContributors, nodeUpkeep, espionage, inactive);
     }
 
     /** Runs the work with these reads standing in for the live state on this thread. */
@@ -111,6 +121,12 @@ public final class FrozenReads {
             return incarnation == null ? 0.0 : current.nodeUpkeep.getOrDefault(incarnation, 0.0);
         }
         return Ledger.liveNodeUpkeep(guild);
+    }
+
+    /** Inside {@link #read}, the members who were inactive at capture; otherwise null, so callers check live. */
+    public static Set<String> inactiveMembers() {
+        FrozenReads current = CURRENT.get();
+        return current == null ? null : current.inactive;
     }
 
     /** The frozen espionage modifiers inside {@link #read}, otherwise the live ones at {@code now}. */

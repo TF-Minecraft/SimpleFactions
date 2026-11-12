@@ -5,11 +5,13 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntPredicate;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -95,6 +97,17 @@ public class FactionCleanup {
         if (!ensureLoaded()) return 0;
         Integer days = offlineDays.get(member);
         return days == null ? 0 : days;
+    }
+
+    /** Members whose offline day count matches, in one pass over the day counts. Server thread. */
+    public static List<String> membersOffline(IntPredicate days) {
+        if (!ensureLoaded()) return List.of();
+        List<String> members = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : offlineDays.entrySet()) {
+            Integer count = entry.getValue();
+            if (days.test(count == null ? 0 : count)) members.add(entry.getKey());
+        }
+        return members;
     }
 
     public static void ping(String member) {
