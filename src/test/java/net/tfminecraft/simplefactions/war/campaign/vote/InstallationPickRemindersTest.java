@@ -74,12 +74,20 @@ class InstallationPickRemindersTest {
 	private MockedStatic<BattleInstallationPickService> picks;
 	private InstallationPickWarnings previousWarnings;
 	private int previousVoteClose;
+	private int previousWindowStart;
+	private int previousWindowEnd;
+	private int previousDayLock;
+	private int previousTimeLock;
 	private final List<Player> online = new ArrayList<>();
 
 	@BeforeEach
 	void setUp() {
 		previousWarnings = Cache.warInstallationWarnings;
 		previousVoteClose = Cache.warVoteCloseHour;
+		previousWindowStart = Cache.warBattleWindowStartHour;
+		previousWindowEnd = Cache.warBattleWindowEndHour;
+		previousDayLock = Cache.warAvailabilityDayLockHours;
+		previousTimeLock = Cache.warAvailabilityTimeLockHours;
 		Cache.warInstallationWarnings = InstallationPickWarnings.defaults();
 		Cache.warVoteCloseHour = 16;
 		Cache.warBattleWindowStartHour = 21;
@@ -119,6 +127,10 @@ class InstallationPickRemindersTest {
 		members.close();
 		Cache.warInstallationWarnings = previousWarnings;
 		Cache.warVoteCloseHour = previousVoteClose;
+		Cache.warBattleWindowStartHour = previousWindowStart;
+		Cache.warBattleWindowEndHour = previousWindowEnd;
+		Cache.warAvailabilityDayLockHours = previousDayLock;
+		Cache.warAvailabilityTimeLockHours = previousTimeLock;
 		FactionManager.factions.clear();
 	}
 
@@ -258,8 +270,37 @@ class InstallationPickRemindersTest {
 		List<Due> due = InstallationPickReminders.dueNow(war, DAY, setEarly, true);
 		assertEquals(1, due.size());
 		assertTrue(due.get(0).timeLock());
-		assertEquals(setEarly, due.get(0).dueAt());
+		assertEquals(Instant.MIN, due.get(0).dueAt(), "Sent: ranked first at a login");
 		assertTrue(InstallationPickReminders.dueNow(war, DAY, setEarly, false).isEmpty(), "Sent: left out of the tick");
+		war.getAvailability().removeBattleDay(DAY);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false).withHour(22, false));
+		war.setBattleDay(DAY.plusDays(1));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY.plusDays(1), false).withHour(22, false));
+		List<Due> unsent = InstallationPickReminders.dueNow(war, DAY.plusDays(1), setEarly, true);
+		assertEquals(setEarly, unsent.get(0).dueAt(), "Not sent yet: due now");
+	}
+
+	@Test
+	void aLoginAfterAnEarlyHourRepeatsTheLatestBeforeLockWarning() {
+		Player alice = online("alice");
+		Player dora = online("dora");
+		chose(defender, "fort");
+		Cache.warInstallationWarnings = new InstallationPickWarnings(true, new Warning(Duration.ZERO, false),
+				List.of(new Warning(Duration.ofHours(30), true)));
+		Instant thirtyBefore = locks().minus(Duration.ofHours(30));
+		InstallationPickReminders.process(war, thirtyBefore.minus(Duration.ofHours(1)));
+		InstallationPickReminders.process(war, thirtyBefore.plusSeconds(30));
+		assertEquals(2, received(alice).size());
+		assertEquals(1, received(dora).size(), "The 30 h warning includes leaders who chose");
+		try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
+			wars.when(WarManager::getActive).thenReturn(List.of(war));
+			Instant later = thirtyBefore.plus(Duration.ofHours(1));
+			InstallationPickReminders.onCharacterStart(alice, later);
+			InstallationPickReminders.onCharacterStart(dora, later);
+		}
+		assertTrue(received(alice).get(2).contains("your installation choices for the battle on Fri 20/11 lock in 1d 5h"),
+				received(alice).get(2));
+		assertEquals(2, received(dora).size(), "The leader who chose gets the 30 h warning again");
 	}
 
 	@Test
