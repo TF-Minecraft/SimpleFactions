@@ -170,18 +170,19 @@ public final class InstallationPickReminders {
 	 * ({@code withSentTimeLock} true) keeps a sent time-lock line: while its time lock is still ahead
 	 * (staff set the hour early) it ranks first, so a before-lock warning sent after it is the one
 	 * repeated; once the time lock passed it ranks at that time, after a before-lock warning due
-	 * earlier. (A line set early, then a before-lock warning, then a login after the time lock
-	 * repeats the line: the keys do not record when each went.)
+	 * earlier. The keys do not record when each went, so two orders that need a before-lock entry
+	 * above about 19 hours come out reversed: a line set early, then a before-lock warning, then a
+	 * login after the time lock repeats the line; a before-lock warning, then a line set early, then a
+	 * login before the time lock repeats the warning.
 	 */
 	static List<Due> dueNow(War war, LocalDate day, Instant now, boolean withSentTimeLock) {
 		InstallationPickWarnings settings = Cache.warInstallationWarnings;
 		List<Due> due = new ArrayList<>();
 		LockedBattleDay locked = war.getAvailability().battleDay(day);
 		String timeLockKey = TIME_LOCK_KEY + "|" + day;
-		if (settings.atTimeLock() != null && locked != null && locked.hour() != null
-				&& (withSentTimeLock || !war.getAvailability().remindersSent().contains(timeLockKey))) {
+		boolean sent = war.getAvailability().remindersSent().contains(timeLockKey);
+		if (settings.atTimeLock() != null && locked != null && locked.hour() != null && (withSentTimeLock || !sent)) {
 			Instant timeLock = AvailabilityCalendar.timeLockAt(day);
-			boolean sent = war.getAvailability().remindersSent().contains(timeLockKey);
 			Instant at = !timeLock.isAfter(now) ? timeLock : sent ? Instant.MIN : now;
 			due.add(new Due(timeLockKey, at, settings.atTimeLock(), true));
 		}

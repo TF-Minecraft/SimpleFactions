@@ -272,8 +272,6 @@ class InstallationPickRemindersTest {
 		assertTrue(due.get(0).timeLock());
 		assertEquals(Instant.MIN, due.get(0).dueAt(), "Sent: ranked first at a login");
 		assertTrue(InstallationPickReminders.dueNow(war, DAY, setEarly, false).isEmpty(), "Sent: left out of the tick");
-		war.getAvailability().removeBattleDay(DAY);
-		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false).withHour(22, false));
 		war.setBattleDay(DAY.plusDays(1));
 		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY.plusDays(1), false).withHour(22, false));
 		List<Due> unsent = InstallationPickReminders.dueNow(war, DAY.plusDays(1), setEarly, true);
