@@ -4,8 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -15,6 +17,7 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.database.Database;
 import net.tfminecraft.simplefactions.database.JsonUtil;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.inactivity.DecayClock.Event;
 import net.tfminecraft.simplefactions.managers.BackgroundRecalculation;
@@ -110,9 +113,40 @@ public final class InactivityService {
 
 	public static boolean isMemberInactive(String name) {
 		if (!InactivityRules.isTrackedMember(name)) return false;
+		// Async income previews: TLibs refuses the online lookup off the server thread, and the
+		// day counts change on it, so they read the set captured with the preview copy.
+		Set<String> frozen = FrozenReads.inactiveMembers();
+		if (frozen != null) return frozen.contains(name);
 		// The day count is a map read; only a member already past the threshold needs the online lookup.
 		if (!InactivityRules.isInactive(FactionCleanup.daysOffline(name))) return false;
 		return !isOnline(name);
+	}
+
+	/**
+	 * Every tracked member inactive right now: past the offline threshold and not playing.
+	 * Server thread only. One pass over the day counts, and one character lookup per online
+	 * player instead of one per member past the threshold.
+	 */
+	public static Set<String> captureInactiveMembers() {
+		List<String> away = FactionCleanup.membersOffline(InactivityRules::isInactive);
+		if (away.isEmpty()) return Set.of();
+		Set<String> online = onlineMemberKeys();
+		Set<String> inactive = new HashSet<>();
+		for (String member : away) {
+			if (InactivityRules.isTrackedMember(member) && !online.contains(member)) inactive.add(member);
+		}
+		return inactive;
+	}
+
+	/** The character keys being played now, which is what {@link Members#isOnline} checks per key. */
+	private static Set<String> onlineMemberKeys() {
+		if (Bukkit.getServer() == null) return Set.of();
+		Set<String> keys = new HashSet<>();
+		for (Player player : Bukkit.getOnlinePlayers()) {
+			String key = Members.key(player);
+			if (key != null) keys.add(key);
+		}
+		return keys;
 	}
 
 	/** The members who still count. Inactive members stay in their guild but add nothing to counts. */
