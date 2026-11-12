@@ -71,7 +71,8 @@ public final class InstallationPickReminders {
 			return false;
 		}
 		// Every warning that fell due counts as sent. Only the latest is worth telling, and only when
-		// no later one went already (a warning added to the config afterwards stays quiet).
+		// no later before-lock warning went already. A sent time-lock line is left out of this list, so
+		// a before-lock warning added to the config after it can still go once.
 		int lastSent = -1;
 		for (int i = 0; i < due.size(); i++) {
 			if (war.getAvailability().remindersSent().contains(due.get(i).key())) {
