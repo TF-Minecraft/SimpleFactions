@@ -81,7 +81,13 @@ class CampaignScheduleLifecycleCoverageTest {
             "warFirstBattleAtBorder",
             "warProvincesBetweenBattles",
             "warBattleWindowStartHour",
-            "warBattleWindowEndHour")) rig.remember(Cache.class, field);
+            "warBattleWindowEndHour",
+            "battleCampaignTemplateField",
+            "battleCampaignTemplateSiege")) rig.remember(Cache.class, field);
+    // No campaign templates are loaded here; a test that ran the config loader earlier in the
+    // same JVM leaves field_default/siege_default set, and scheduling would then fail on them.
+    Cache.battleCampaignTemplateField = "";
+    Cache.battleCampaignTemplateSiege = "";
     Cache.warFirstBattleAtBorder = true;
     Cache.warProvincesBetweenBattles = 1;
     Cache.warBattleWindowStartHour = 21;
