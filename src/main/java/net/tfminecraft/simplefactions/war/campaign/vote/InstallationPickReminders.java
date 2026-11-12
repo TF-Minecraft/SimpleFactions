@@ -40,8 +40,8 @@ import net.tfminecraft.tlibs.objects.api.subapi.StringFormatter;
  * only leaders whose faction has an installation it could commit are warned. When they are warned is
  * set in {@code war.installation_warnings} ({@link InstallationPickWarnings}): a line when the battle's
  * start time is decided, and one per {@code before_lock} entry. Each goes out once per battle day (the
- * war remembers it, across restarts; a later staff change of the hour does not resend the time-lock
- * line); when several fall due at once (after downtime) only the latest is sent. A leader who starts a
+ * war remembers it, across restarts; a later staff change of the hour, or unlocking and locking the
+ * same date again, does not resend them); when several fall due at once (after downtime) only the latest is sent. A leader who starts a
  * character while a warning applies is told then too.
  */
 public final class InstallationPickReminders {
@@ -88,15 +88,25 @@ public final class InstallationPickReminders {
 		return changed;
 	}
 
-	/** Tells the online leaders it applies to. It only informs, so a failure is logged and the tick goes on. */
+	/** Tells the online leaders it applies to; a failure for one faction does not stop the others. */
 	private static void send(War war, LocalDate day, Due due, Instant now) {
-		try {
-			for (Recipient recipient : recipients(war)) {
-				Player player = Members.player(recipient.leaderKey());
-				if (player != null && applies(due, recipient)) {
-					player.sendMessage(message(war, day, due, recipient, now));
-				}
+		guarded(war, () -> {
+			for (Faction faction : factions(war)) {
+				guarded(war, () -> {
+					Recipient recipient = recipient(war, faction);
+					Player player = recipient == null ? null : Members.player(recipient.leaderKey());
+					if (player != null && applies(due, recipient)) {
+						player.sendMessage(message(war, day, due, recipient, now));
+					}
+				});
 			}
+		});
+	}
+
+	/** The warnings only inform, so a failure is logged and the tick or the login goes on. */
+	private static void guarded(War war, Runnable action) {
+		try {
+			action.run();
 		} catch (RuntimeException failure) {
 			LOGGER.log(Level.WARNING, "[SimpleFactions] Could not send installation warnings for war " + war.getId(), failure);
 		}
@@ -109,12 +119,19 @@ public final class InstallationPickReminders {
 			return;
 		}
 		for (War war : WarManager.getActive()) {
-			LocalDate day = coming(war, now);
-			List<Due> due = day == null ? List.of() : dueNow(war, day, now, true);
-			Recipient recipient = due.isEmpty() ? null : recipientLedBy(war, key);
-			if (recipient != null && applies(due.getLast(), recipient)) {
-				player.sendMessage(message(war, day, due.getLast(), recipient, now));
-			}
+			guarded(war, () -> {
+				LocalDate day = coming(war, now);
+				List<Due> due = day == null ? List.of() : dueNow(war, day, now, true);
+				// A warning the tick has not sent yet reaches this leader within the minute anyway.
+				if (due.isEmpty() || !war.getAvailability().remindersSent().contains(due.getLast().key())) {
+					return;
+				}
+				Faction led = factionLedBy(war, key);
+				Recipient recipient = led == null ? null : recipient(war, led);
+				if (recipient != null && applies(due.getLast(), recipient)) {
+					player.sendMessage(message(war, day, due.getLast(), recipient, now));
+				}
+			});
 		}
 	}
 
@@ -135,7 +152,9 @@ public final class InstallationPickReminders {
 		}
 		LocalDate day = war.getBattleDay();
 		LockedBattleDay locked = day == null ? null : war.getAvailability().battleDay(day);
-		if (locked == null || locked.autoresolve() || !now.isBefore(locksAt(day))) {
+		Instant lock = locked == null ? null : locksAt(day);
+		// No lock time: vote_close_hour is outside the battle-day clock, so nothing can be warned about.
+		if (locked == null || locked.autoresolve() || lock == null || !now.isBefore(lock)) {
 			return null;
 		}
 		Battle battle = BattleManager.getByWarId(war.getId());
@@ -163,7 +182,8 @@ public final class InstallationPickReminders {
 			Instant from = lock.minus(warning.before());
 			if (!now.isBefore(from)) {
 				// The sent-key pruner reads everything after the first '|' as the date; "date|minutes"
-				// still sorts with that date, so these keys go the day after, like the others.
+				// still sorts with that date, so these keys go the day after, like the others. The minutes
+				// are part of the key, so changing hours_before after a warning went sends it again.
 				due.add(new Due(LOCK_SOON_KEY + "|" + day + "|" + warning.before().toMinutes(), from, warning, false));
 			}
 		}
@@ -196,11 +216,14 @@ public final class InstallationPickReminders {
 		return recipients;
 	}
 
-	/** The recipient for the faction this character leads in the war, or null. */
-	static Recipient recipientLedBy(War war, String leaderKey) {
+	/** The faction in the war that this character leads, or null. {@code /war installations} uses it too. */
+	public static Faction factionLedBy(War war, String leaderKey) {
+		if (war == null || leaderKey == null) {
+			return null;
+		}
 		for (Faction faction : factions(war)) {
 			if (leaderKey.equals(faction.getLeader())) {
-				return recipient(war, faction);
+				return faction;
 			}
 		}
 		return null;

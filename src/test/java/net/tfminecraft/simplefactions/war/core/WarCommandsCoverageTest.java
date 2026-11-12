@@ -452,9 +452,6 @@ class WarCommandsCoverageTest {
       assertTrue(run("installations", "44"));
       verify(alice).sendMessage("§cOnly the leader of a faction in this war can choose its installations.");
       assertTrue(views.constructed().isEmpty());
-      FactionManager.factions.remove(attacker);
-      assertTrue(run("installations", "44"));
-      verify(alice, times(2)).sendMessage("§cOnly the leader of a faction in this war can choose its installations.");
     }
   }
 

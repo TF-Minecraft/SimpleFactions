@@ -124,7 +124,9 @@ war:
     at_time_lock:
       enabled: true
       include_committed: false
-    # hours_before the choices lock (decimals allowed, e.g. 0.5). Add, remove or disable entries.
+    # hours_before the choices lock (decimals allowed, e.g. 0.5; at most 336). Add, remove or
+    # disable entries. A warning more than about 19 hours before goes even if the start time is not
+    # decided yet. installation_warnings: false turns them all off.
     before_lock:
       - hours_before: 3
         enabled: true

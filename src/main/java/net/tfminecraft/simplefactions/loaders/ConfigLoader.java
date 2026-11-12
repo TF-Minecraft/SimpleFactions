@@ -274,8 +274,8 @@ public class ConfigLoader {
 		Cache.warAvailabilityMinPerSide = Math.max(1, config.getInt("war.availability.min_per_side", 3));
 		Cache.warAvailabilityMaxDaysWithoutBattle = Math.max(0, config.getInt("war.availability.max_days_without_battle", 3));
 		Cache.warAvailabilityVoteUrl = config.getString("war.availability.vote_url", "");
-		Cache.warInstallationWarnings = net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickWarnings.fromConfig(
-				config.getConfigurationSection("war.installation_warnings"), Bukkit.getServer() == null ? null : Bukkit.getLogger());
+		Cache.warInstallationWarnings = net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickWarnings.load(
+				config, "war.installation_warnings", Bukkit.getServer() == null ? null : Bukkit.getLogger());
 		Cache.warNoticeKeepDays = Math.max(1, config.getInt("war.notices.keep_days", 14));
 		double autoresolveLuck = config.getDouble("war.autoresolve.luck", 0.15);
 		if (autoresolveLuck < 0) {

@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
+import net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickReminders;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.LogManager;
 import net.tfminecraft.simplefactions.managers.WarManager;
@@ -83,8 +84,8 @@ public class WarCommandManager implements CommandExecutor {
 				player.sendMessage("§cNo active war with id §f" + args[1]);
 				return true;
 			}
-			Faction led = FactionManager.getByLeader(Members.key(player));
-			if (led == null || !war.isParticipating(led)) {
+			Faction led = InstallationPickReminders.factionLedBy(war, Members.key(player));
+			if (led == null) {
 				player.sendMessage("§cOnly the leader of a faction in this war can choose its installations.");
 				return true;
 			}

@@ -347,10 +347,54 @@ class InstallationPickRemindersTest {
 	}
 
 	@Test
-	void aFailureWhileSendingIsLoggedAndTheTickGoesOn() {
-		online("alice");
-		picks.when(() -> BattleInstallationPickService.getPicks(same(war), anyString()))
+	void aFailureForOneFactionIsLoggedAndTheOtherLeadersAreStillTold() {
+		Player alice = online("alice");
+		Player dora = online("dora");
+		picks.when(() -> BattleInstallationPickService.getPicks(same(war), eq("ally")))
 				.thenThrow(new IllegalStateException("boom"));
+		List<LogRecord> logged = captureLog(() -> assertTrue(
+				InstallationPickReminders.process(war, locks().minus(Duration.ofHours(3)))));
+		assertEquals(1, logged.size());
+		assertEquals(Level.WARNING, logged.get(0).getLevel());
+		assertTrue(logged.get(0).getMessage().contains("Could not send installation warnings for war 7"));
+		assertEquals(1, received(alice).size(), "Before the failing faction");
+		assertEquals(1, received(dora).size(), "After the failing faction");
+		assertTrue(war.getAvailability().remindersSent().contains("picks_lock_soon|" + DAY + "|180"), "Not retried");
+	}
+
+	@Test
+	void aFailureListingTheSidesOrAtLoginIsLoggedToo() {
+		Player alice = online("alice");
+		sides.when(() -> BattleSideMembers.collectParticipatingFactions(same(war.getAttackers())))
+				.thenThrow(new IllegalStateException("boom"));
+		war.getAvailability().markReminderSent("picks_lock_soon|" + DAY + "|180");
+		try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
+			wars.when(WarManager::getActive).thenReturn(List.of(war));
+			List<LogRecord> logged = captureLog(() -> {
+				assertTrue(InstallationPickReminders.process(war, locks().minus(Duration.ofHours(1))));
+				InstallationPickReminders.onCharacterStart(alice, locks().minus(Duration.ofHours(1)));
+			});
+			assertEquals(2, logged.size());
+		}
+		verify(alice, never()).sendMessage(any(Component.class));
+	}
+
+	@Test
+	void aLockHourOutsideTheBattleDayClockMeansNoWarning() {
+		Cache.warVoteCloseHour = 99;
+		assertNull(InstallationPickReminders.coming(war, AvailabilityCalendar.timeLockAt(DAY)));
+	}
+
+	@Test
+	void theFactionACharacterLeadsInTheWar() {
+		assertEquals(defender, InstallationPickReminders.factionLedBy(war, "dora"));
+		assertEquals(ally, InstallationPickReminders.factionLedBy(war, "olaf"));
+		assertNull(InstallationPickReminders.factionLedBy(war, "stranger"));
+		assertNull(InstallationPickReminders.factionLedBy(war, null));
+		assertNull(InstallationPickReminders.factionLedBy(null, "dora"));
+	}
+
+	private static List<LogRecord> captureLog(Runnable action) {
 		List<LogRecord> logged = new ArrayList<>();
 		Logger logger = Logger.getLogger(InstallationPickReminders.class.getName());
 		Handler handler = new Handler() {
@@ -369,14 +413,11 @@ class InstallationPickRemindersTest {
 		};
 		logger.addHandler(handler);
 		try {
-			assertTrue(InstallationPickReminders.process(war, locks().minus(Duration.ofHours(3))));
+			action.run();
 		} finally {
 			logger.removeHandler(handler);
 		}
-		assertEquals(1, logged.size());
-		assertEquals(Level.WARNING, logged.get(0).getLevel());
-		assertTrue(logged.get(0).getMessage().contains("Could not send installation warnings for war 7"));
-		assertTrue(war.getAvailability().remindersSent().contains("picks_lock_soon|" + DAY + "|180"), "Not retried");
+		return logged;
 	}
 
 	@Test
@@ -457,6 +498,10 @@ class InstallationPickRemindersTest {
 
 			Instant soon = locks().minus(Duration.ofHours(2));
 			InstallationPickReminders.onCharacterStart(alice, soon);
+			verify(alice, never()).sendMessage(any(Component.class));
+			// The tick sends the 3 h warning within the minute; after that a login repeats it.
+			war.getAvailability().markReminderSent("picks_lock_soon|" + DAY + "|180");
+			InstallationPickReminders.onCharacterStart(alice, soon);
 			InstallationPickReminders.onCharacterStart(dora, soon);
 			InstallationPickReminders.onCharacterStart(olaf, soon);
 			InstallationPickReminders.onCharacterStart(stranger, soon);
@@ -469,6 +514,7 @@ class InstallationPickRemindersTest {
 			verify(stranger, never()).sendMessage(any(Component.class));
 			verify(nobody, never()).sendMessage(any(Component.class));
 
+			war.getAvailability().markReminderSent("picks_lock_soon|" + DAY + "|60");
 			InstallationPickReminders.onCharacterStart(dora, locks().minus(Duration.ofMinutes(20)));
 			verify(dora, times(1)).sendMessage(any(Component.class));
 

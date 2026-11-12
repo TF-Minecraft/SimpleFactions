@@ -109,6 +109,35 @@ class InstallationPickWarningsTest {
 	}
 
 	@Test
+	void theWholeSectionCanBeWrittenAsTrueOrFalse() throws InvalidConfigurationException {
+		Logger logger = mock(Logger.class);
+		InstallationPickWarnings off = InstallationPickWarnings.load(
+				yaml("war:\n  installation_warnings: false\n"), "war.installation_warnings", logger);
+		assertFalse(off.enabled());
+		assertEquals(InstallationPickWarnings.defaults().beforeLock(), off.beforeLock());
+		assertEquals(InstallationPickWarnings.defaults(), InstallationPickWarnings.load(
+				yaml("war:\n  installation_warnings: true\n"), "war.installation_warnings", logger));
+		assertEquals(InstallationPickWarnings.defaults(), InstallationPickWarnings.load(
+				yaml("war:\n  other: 1\n"), "war.installation_warnings", logger), "Missing: the defaults");
+		assertEquals(InstallationPickWarnings.defaults(), InstallationPickWarnings.load(
+				yaml("war:\n  installation_warnings: soon\n"), "war.installation_warnings", logger));
+		verify(logger).warning("[SimpleFactions] war.installation_warnings must be a section, true or false;"
+				+ " using the defaults.");
+		InstallationPickWarnings section = InstallationPickWarnings.load(yaml("""
+				war:
+				  installation_warnings:
+				    before_lock:
+				      - hours_before: "2"
+				        include_committed: "true"
+				      - hours_before: 4
+				        enabled: "false"
+				      - 5
+				"""), "war.installation_warnings", logger);
+		assertEquals(List.of(new Warning(Duration.ofHours(2), true)), section.beforeLock(), "Quoted values work");
+		verify(logger).warning(contains("entries need hours_before, got 5"));
+	}
+
+	@Test
 	void duplicateWarningsAtHalfHoursAreNamedInHours() throws InvalidConfigurationException {
 		Logger logger = mock(Logger.class);
 		InstallationPickWarnings.fromConfig(yaml("""

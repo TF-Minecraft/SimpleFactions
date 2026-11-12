@@ -35,6 +35,22 @@ public record InstallationPickWarnings(boolean enabled, Warning atTimeLock, List
 				new Warning(Duration.ofHours(1), true)));
 	}
 
+	/**
+	 * Reads {@code path}: a section, or {@code false} (no warnings) / {@code true} (the defaults) as a
+	 * short form. Missing: the defaults.
+	 */
+	public static InstallationPickWarnings load(ConfigurationSection root, String path, Logger logger) {
+		if (root.isBoolean(path)) {
+			InstallationPickWarnings defaults = defaults();
+			return root.getBoolean(path) ? defaults
+					: new InstallationPickWarnings(false, defaults.atTimeLock(), defaults.beforeLock());
+		}
+		if (root.contains(path) && !root.isConfigurationSection(path)) {
+			warn(logger, path + " must be a section, true or false; using the defaults.");
+		}
+		return fromConfig(root.getConfigurationSection(path), logger);
+	}
+
 	public static InstallationPickWarnings fromConfig(ConfigurationSection section, Logger logger) {
 		if (section == null) {
 			return defaults();
@@ -54,8 +70,12 @@ public record InstallationPickWarnings(boolean enabled, Warning atTimeLock, List
 		} else if (!section.isList("before_lock")) {
 			warn(logger, "war.installation_warnings.before_lock must be a list; no warnings before the lock are sent.");
 		} else {
-			for (Map<?, ?> entry : section.getMapList("before_lock")) {
-				Warning warning = parseWarning(entry, logger);
+			for (Object entry : section.getList("before_lock")) {
+				Warning warning = entry instanceof Map<?, ?> map ? parseWarning(map, logger) : null;
+				if (!(entry instanceof Map<?, ?>)) {
+					warn(logger, "war.installation_warnings.before_lock entries need hours_before, got " + entry
+							+ "; that entry is skipped.");
+				}
 				if (warning != null) {
 					beforeLock.add(warning);
 				}
@@ -76,17 +96,31 @@ public record InstallationPickWarnings(boolean enabled, Warning atTimeLock, List
 	}
 
 	private static Warning parseWarning(Map<?, ?> entry, Logger logger) {
-		if (Boolean.FALSE.equals(entry.get("enabled"))) {
+		if ("false".equalsIgnoreCase(String.valueOf(entry.get("enabled")))) {
 			return null;
 		}
 		Object hours = entry.get("hours_before");
-		if (!(hours instanceof Number number) || !(number.doubleValue() > 0) || number.doubleValue() > MAX_HOURS) {
+		double value = number(hours);
+		if (!(value > 0) || value > MAX_HOURS) {
 			warn(logger, "war.installation_warnings.before_lock: hours_before must be a number above 0 and at most "
 					+ MAX_HOURS + ", got " + hours + "; that warning is skipped.");
 			return null;
 		}
-		long minutes = Math.max(1, Math.round(number.doubleValue() * 60));
-		return new Warning(Duration.ofMinutes(minutes), Boolean.TRUE.equals(entry.get("include_committed")));
+		long minutes = Math.max(1, Math.round(value * 60));
+		return new Warning(Duration.ofMinutes(minutes),
+				"true".equalsIgnoreCase(String.valueOf(entry.get("include_committed"))));
+	}
+
+	/** A number, also when written in quotes; NaN when it is neither. */
+	private static double number(Object value) {
+		if (value instanceof Number number) {
+			return number.doubleValue();
+		}
+		try {
+			return Double.parseDouble(String.valueOf(value).trim());
+		} catch (NumberFormatException notANumber) {
+			return Double.NaN;
+		}
 	}
 
 	private static void warn(Logger logger, String message) {
