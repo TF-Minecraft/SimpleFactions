@@ -304,6 +304,29 @@ class InstallationPickRemindersTest {
 	}
 
 	@Test
+	void aLoginAfterANormalTimeLockRepeatsTheTimeLockLineOverAnEarlierWarning() {
+		Player dora = online("dora");
+		chose(defender, "fort");
+		// The 24 h warning (leaders who chose included) goes before the time lock; the time-lock line
+		// (only leaders who chose none) goes at it. A login after it repeats the time-lock line.
+		Cache.warInstallationWarnings = new InstallationPickWarnings(true, new Warning(Duration.ZERO, false),
+				List.of(new Warning(Duration.ofHours(24), true)));
+		Instant timeLock = AvailabilityCalendar.timeLockAt(DAY);
+		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false));
+		assertTrue(InstallationPickReminders.process(war, locks().minus(Duration.ofHours(24))));
+		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false).withHour(22, false));
+		assertTrue(InstallationPickReminders.process(war, timeLock.plusSeconds(30)));
+		assertEquals(1, received(dora).size());
+		List<Due> due = InstallationPickReminders.dueNow(war, DAY, timeLock.plus(Duration.ofHours(1)), true);
+		assertEquals(List.of(false, true), due.stream().map(Due::timeLock).toList());
+		try (MockedStatic<WarManager> wars = mockStatic(WarManager.class)) {
+			wars.when(WarManager::getActive).thenReturn(List.of(war));
+			InstallationPickReminders.onCharacterStart(dora, timeLock.plus(Duration.ofHours(1)));
+		}
+		assertEquals(1, received(dora).size(), "The time-lock line is for leaders who chose none");
+	}
+
+	@Test
 	void theTimeLockLineWaitsForTheHourAndCanBeTurnedOff() {
 		war.getAvailability().putBattleDay(LockedBattleDay.open(DAY, false));
 		Instant afterTimeLock = AvailabilityCalendar.timeLockAt(DAY).plusSeconds(60);

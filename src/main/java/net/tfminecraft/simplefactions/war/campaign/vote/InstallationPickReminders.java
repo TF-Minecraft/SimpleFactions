@@ -167,8 +167,11 @@ public final class InstallationPickReminders {
 	 * The time-lock line is due once the start time is set, at once when staff set it early. Once it
 	 * went, the per-minute pass leaves it out ({@code withSentTimeLock} false): staff setting the hour
 	 * early would otherwise keep it the latest and silently use up the warnings after it. A login
-	 * ({@code withSentTimeLock} true) keeps a sent time-lock line but ranks it first, so the latest
-	 * before-lock warning that went is the one repeated.
+	 * ({@code withSentTimeLock} true) keeps a sent time-lock line: while its time lock is still ahead
+	 * (staff set the hour early) it ranks first, so a before-lock warning sent after it is the one
+	 * repeated; once the time lock passed it ranks at that time, after a before-lock warning due
+	 * earlier. (A line set early, then a before-lock warning, then a login after the time lock
+	 * repeats the line: the keys do not record when each went.)
 	 */
 	static List<Due> dueNow(War war, LocalDate day, Instant now, boolean withSentTimeLock) {
 		InstallationPickWarnings settings = Cache.warInstallationWarnings;
@@ -178,8 +181,8 @@ public final class InstallationPickReminders {
 		if (settings.atTimeLock() != null && locked != null && locked.hour() != null
 				&& (withSentTimeLock || !war.getAvailability().remindersSent().contains(timeLockKey))) {
 			Instant timeLock = AvailabilityCalendar.timeLockAt(day);
-			Instant at = war.getAvailability().remindersSent().contains(timeLockKey) ? Instant.MIN
-					: timeLock.isAfter(now) ? now : timeLock;
+			boolean sent = war.getAvailability().remindersSent().contains(timeLockKey);
+			Instant at = !timeLock.isAfter(now) ? timeLock : sent ? Instant.MIN : now;
 			due.add(new Due(timeLockKey, at, settings.atTimeLock(), true));
 		}
 		Instant lock = locksAt(day);
