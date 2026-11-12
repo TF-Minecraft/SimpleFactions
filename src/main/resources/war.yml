@@ -113,6 +113,27 @@ war:
     max_days_without_battle: 3
     # In-game "[Vote on the website]" link; {war_key} is replaced. Empty: no link.
     vote_url: "https://www.tfminecraft.net/wars/{war_key}#vote"
+  # Faction leaders are warned in game before their installation choices for a battle lock
+  # (battle_schedule.vote_close_hour on the battle day). Only leaders whose faction has an
+  # installation it could commit are warned. Each warning goes out once per battle day, and a
+  # leader who starts a character while one applies gets it then. include_committed: also warn
+  # leaders who already chose installations. Without this section: the defaults below.
+  installation_warnings:
+    enabled: true
+    # When the battle's start time is decided.
+    at_time_lock:
+      enabled: true
+      include_committed: false
+    # hours_before the choices lock (decimals allowed, e.g. 0.5; at most 336). Add, remove or
+    # disable entries. A warning more than about 19 hours before goes even if the start time is not
+    # decided yet. installation_warnings: false turns them all off.
+    before_lock:
+      - hours_before: 3
+        enabled: true
+        include_committed: false
+      - hours_before: 1
+        enabled: true
+        include_committed: true
   # A declared war waits before its first battle. Until that battle starts, every faction in it
   # is frozen: running regiment, installation, war-related guild upgrade, mercenary company and
   # VFBuilders timers pause, and none of those can be started, nor vehicles added to the faction

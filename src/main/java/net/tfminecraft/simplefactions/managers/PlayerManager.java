@@ -49,6 +49,8 @@ public class PlayerManager implements Listener{
         net.tfminecraft.simplefactions.war.notice.WarNotices.deliver(e.getPlayer());
         net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteReminders.onCharacterStart(
                 e.getPlayer(), net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.now());
+        net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickReminders.onCharacterStart(
+                e.getPlayer(), net.tfminecraft.simplefactions.war.campaign.runtime.CampaignClock.now());
     }
 
     //Loans and stuff

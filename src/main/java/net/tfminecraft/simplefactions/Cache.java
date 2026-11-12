@@ -128,6 +128,9 @@ public class Cache {
 	public static int warAvailabilityMaxDaysWithoutBattle = 3;
 	/** Website vote link for in-game reminders; {war_key} is replaced. Empty: no link. */
 	public static String warAvailabilityVoteUrl = "";
+	/** When faction leaders are warned before their installation choices for a battle lock. */
+	public static net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickWarnings warInstallationWarnings =
+			net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickWarnings.defaults();
 	/** Days an undelivered war notice waits for its character to log in. */
 	public static int warNoticeKeepDays = 14;
 	public static double warAutoresolveLuck = 0.15;

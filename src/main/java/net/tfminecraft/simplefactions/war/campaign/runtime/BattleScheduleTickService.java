@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidFightS
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidMusterScheduler;
 import net.tfminecraft.simplefactions.war.campaign.raid.fight.CampaignRaidResumeService;
 import net.tfminecraft.simplefactions.war.campaign.vote.BattleVoteReminders;
+import net.tfminecraft.simplefactions.war.campaign.vote.InstallationPickReminders;
 
 public final class BattleScheduleTickService {
 	private static int lastProcessedUtcHour = -1;
@@ -53,6 +54,7 @@ public final class BattleScheduleTickService {
 			// Locks and reminders first, so a battle set this minute can be prepared and started below.
 			boolean changed = AvailabilityScheduler.process(war, now);
 			changed |= BattleVoteReminders.process(war, now);
+			changed |= InstallationPickReminders.process(war, now);
 			if (changed && war.isActive()) {
 				WarManager.persist(war);
 				persisted++;

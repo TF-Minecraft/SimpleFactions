@@ -413,7 +413,7 @@ class WarCommandsCoverageTest {
     assertTrue(commands.onCommand(console, command, "war", new String[] {"admin", "end", "1"}));
     verifyNoInteractions(console);
     assertTrue(run());
-    verify(alice).sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
+    verify(alice).sendMessage("§eUsage: §a/war list§e, §a/war vote <war id>§e, §a/war installations <war id>§e, §a/war calls§e, §a/war call accept|decline <war id>");
     verify(alice).sendMessage(contains("Staff:"));
     when(alice.hasPermission("simplefactions.admin")).thenReturn(false);
     assertTrue(run("admin", "devmode", "on"));
@@ -431,6 +431,27 @@ class WarCommandsCoverageTest {
       assertTrue(run("vote", "41"));
       InventoryManager opened = views.constructed().get(views.constructed().size() - 1);
       verify(opened).openAvailability(alice, war);
+    }
+  }
+
+  @Test
+  void installationsOpensTheLeadersChoicesForThatWar() {
+    War war = war(43);
+    try (MockedConstruction<InventoryManager> views = mockConstruction(InventoryManager.class)) {
+      assertTrue(run("installations", "43"));
+      InventoryManager opened = views.constructed().get(views.constructed().size() - 1);
+      verify(opened).openInstallationPicks(alice, war, attacker);
+    }
+  }
+
+  @Test
+  void installationsRefusesAnyoneButALeaderInThatWar() {
+    War war = new War(44, fixture.saved("lake", "Carol"), fixture.saved("hill", "Dave"));
+    WarManager.addWar(war);
+    try (MockedConstruction<InventoryManager> views = mockConstruction(InventoryManager.class)) {
+      assertTrue(run("installations", "44"));
+      verify(alice).sendMessage("§cOnly the leader of a faction in this war can choose its installations.");
+      assertTrue(views.constructed().isEmpty());
     }
   }
 
@@ -513,6 +534,9 @@ class WarCommandsCoverageTest {
         Arguments.of("vote", "Unknown subcommand"),
         Arguments.of("vote bad", "No active war with id"),
         Arguments.of("vote 999", "No active war with id"),
+        Arguments.of("installations", "Unknown subcommand"),
+        Arguments.of("installations bad", "No active war with id"),
+        Arguments.of("installations 999", "No active war with id"),
         Arguments.of("call", "Usage: §a/war call accept|decline"),
         Arguments.of("call accept", "Usage: §a/war call accept|decline"),
         Arguments.of("call maybe 1", "Usage: §a/war call accept|decline"),
@@ -986,7 +1010,10 @@ class WarCommandsCoverageTest {
 
   static Stream<Arguments> completionCases() {
     return Stream.of(
-        Arguments.of("", List.of("list", "vote", "calls", "call", "admin")),
+        Arguments.of("", List.of("list", "vote", "installations", "calls", "call", "admin")),
+        Arguments.of("in", List.of("installations")),
+        Arguments.of("installations ", List.of("1", "2")),
+        Arguments.of("installations 1 ", List.of()),
         Arguments.of("ca", List.of("calls", "call")),
         Arguments.of("vote ", List.of("1", "2")),
         Arguments.of("vote 1 ", List.of()),
@@ -1113,7 +1140,7 @@ class WarCommandsCoverageTest {
     assertTrue(complete("").isEmpty());
     when(command.getName()).thenReturn("war");
     when(alice.hasPermission("simplefactions.admin")).thenReturn(false);
-    assertEquals(List.of("list", "vote", "calls", "call"), complete(""));
+    assertEquals(List.of("list", "vote", "installations", "calls", "call"), complete(""));
     assertTrue(complete("admin", "").isEmpty());
   }
 
