@@ -10,6 +10,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.InventoryManager;
 import net.tfminecraft.simplefactions.managers.LogManager;
@@ -75,6 +76,21 @@ public class WarCommandManager implements CommandExecutor {
 			new InventoryManager().openAvailability(player, war);
 			return true;
 		}
+		if (args[0].equalsIgnoreCase("installations") && args.length == 2) {
+			// The installation warnings' [Choose installations] runs this.
+			War war = WarCommandHelper.parseWarId(args[1]).map(WarManager::getById).orElse(null);
+			if (war == null || !war.isActive()) {
+				player.sendMessage("§cNo active war with id §f" + args[1]);
+				return true;
+			}
+			Faction led = FactionManager.getByLeader(Members.key(player));
+			if (led == null || !war.isParticipating(led)) {
+				player.sendMessage("§cOnly the leader of a faction in this war can choose its installations.");
+				return true;
+			}
+			new InventoryManager().openInstallationPicks(player, war, led);
+			return true;
+		}
 		if (args[0].equalsIgnoreCase("calls") && args.length == 1) {
 			CallToArmsService.list(player);
 			return true;
@@ -82,7 +98,7 @@ public class WarCommandManager implements CommandExecutor {
 		if (args[0].equalsIgnoreCase("call")) {
 			return handleCall(player, args);
 		}
-		player.sendMessage("§cUnknown subcommand. Use §e/war list§c, §e/war vote <war id>§c or §e/war calls");
+		player.sendMessage("§cUnknown subcommand. Use §e/war list§c, §e/war vote <war id>§c, §e/war installations <war id>§c or §e/war calls");
 		return true;
 	}
 

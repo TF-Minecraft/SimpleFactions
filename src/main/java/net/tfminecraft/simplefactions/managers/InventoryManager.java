@@ -237,6 +237,11 @@ public class InventoryManager implements Listener{
 		availabilityView.open(player, war);
 	}
 
+	/** The installation choices for a faction's leader; the installation warnings' [Choose installations] opens it. */
+	public void openInstallationPicks(Player player, War war, Faction faction) {
+		campaignInstallationPickView.open(player, war, faction);
+	}
+
 	public void openDeclareWarGoalPicker(Player player, Faction attacker, Faction defender) {
 		declareWarView.openGoalPicker(player, attacker, defender);
 	}

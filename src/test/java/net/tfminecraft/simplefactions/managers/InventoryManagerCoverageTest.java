@@ -773,6 +773,8 @@ class InventoryManagerCoverageTest {
     verify(manager.declareWarView).openGoalPicker(player, faction, defender);
     manager.openAvailability(player, war);
     verify(manager.availabilityView).open(player, war);
+    manager.openInstallationPicks(player, war, defender);
+    verify(manager.campaignInstallationPickView).open(player, war, defender);
     manager.openCampaignView(player, null);
     manager.openCampaignView(player, war);
     verify(player, times(2)).sendMessage("§cWar not found.");
