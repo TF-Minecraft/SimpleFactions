@@ -22,35 +22,35 @@ permissions:
 
 commands:
   faction:
-      useage: /<command>
+      usage: /<command>
       description: Faction Command
   guild:
-      useage: /<command>
+      usage: /<command>
       description: Guild Command
   warband:
-      useage: /<command>
+      usage: /<command>
       description: Warband Command
   battle:
-      useage: /<command>
+      usage: /<command>
       description: Battle Command
   raid:
-      useage: /<command>
+      usage: /<command>
       description: Campaign raid command
   war:
-      useage: /<command>
+      usage: /<command>
       description: War command
   movement:
-      useage: /<command>
+      usage: /<command>
       description: Movement admin command
   ledger:
-      useage: /<command>
+      usage: /<command>
       description: View your daily cashflow ledger
   company:
-      useage: /<command>
+      usage: /<command>
       description: Mercenary company command
   mercenaries:
-      useage: /<command>
+      usage: /<command>
       description: Browse and hire mercenary companies
   coalition:
-      useage: /<command>
+      usage: /<command>
       description: Form, join and run coalitions against a common target
