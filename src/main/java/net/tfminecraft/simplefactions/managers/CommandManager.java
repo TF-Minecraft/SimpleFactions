@@ -168,7 +168,8 @@ public class CommandManager implements Listener, CommandExecutor{
 				if(!Permissions.isAdmin(sender)) {
 					if(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.holdsVehicles(guild)) {
 						p.sendMessage("§cCannot delete a guild that still keeps upkeep-only vehicles. Give them to members first"
-								+ " with §e/guild vehicle upkeep give <member>§c.");
+								+ " with §e/guild vehicle upkeep give <member>§c, ask your faction leader to move them to the war"
+								+ " pool or an installation (§e/faction vehicle transfer pool|<installation>§c), or ask staff.");
 						return true;
 					}
 					if(guild.isBankrupt()) {
