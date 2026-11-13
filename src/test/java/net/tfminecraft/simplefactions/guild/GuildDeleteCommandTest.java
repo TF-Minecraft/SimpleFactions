@@ -59,6 +59,29 @@ class GuildDeleteCommandTest {
   }
 
   @Test
+  void aLeaderMustGiveOutUpkeepOnlyVehiclesBeforeDeletingTheGuildButStaffNeedNot() {
+    try (MockedStatic<net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges> upkeep =
+        mockStatic(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.class)) {
+      try (Fixture fixture = new Fixture("Leader", false)) {
+        upkeep.when(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.holdsVehicles(fixture.guild))
+            .thenReturn(true);
+        assertTrue(fixture.run("delete", "smiths"));
+        verify(fixture.player).sendMessage(org.mockito.ArgumentMatchers.contains("still keeps upkeep-only vehicles"));
+        fixture.assertUntouched();
+        upkeep.verify(
+            () -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.disbanded(fixture.guild), never());
+      }
+      try (Fixture fixture = new Fixture("Administrator", true)) {
+        upkeep.when(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.holdsVehicles(fixture.guild))
+            .thenReturn(true);
+        assertTrue(fixture.run("delete", "smiths"));
+        fixture.assertDeleted();
+        upkeep.verify(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.disbanded(fixture.guild));
+      }
+    }
+  }
+
+  @Test
   void aKeyThatOnlyDiffersInCaseIsNotTheLeader() {
     try (Fixture fixture = new Fixture("lEaDeR", false)) {
       assertTrue(fixture.run("delete", "smiths"));

@@ -55,9 +55,11 @@ class UpkeepVehicleMessagesTest {
         when(guild.getName()).thenReturn("Smiths");
         factions = mockStatic(FactionManager.class);
         factions.when(() -> FactionManager.getByString("realm")).thenReturn(faction);
-        factions.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(guild);
+        String incarnation = UUID.randomUUID().toString();
+        when(guild.getIncarnation()).thenReturn(incarnation);
+        factions.when(FactionManager::getAllGuilds).thenReturn(List.of(guild));
         realm = new UpkeepHolder(Kind.FACTION, "realm");
-        smiths = new UpkeepHolder(Kind.GUILD, "smiths");
+        smiths = new UpkeepHolder(Kind.GUILD, incarnation);
     }
 
     @AfterEach

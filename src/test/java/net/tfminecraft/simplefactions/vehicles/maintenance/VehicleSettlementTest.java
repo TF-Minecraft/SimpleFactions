@@ -279,7 +279,9 @@ class VehicleSettlementTest {
         when(guild.getId()).thenReturn(id);
         when(guild.getLeader()).thenReturn(leader);
         when(guild.getBank()).thenReturn(mock(Bank.class));
-        when(guild.getIncarnationId()).thenReturn(UUID.randomUUID());
+        UUID incarnation = UUID.randomUUID();
+        when(guild.getIncarnationId()).thenReturn(incarnation);
+        when(guild.getIncarnation()).thenReturn(incarnation.toString());
         return guild;
     }
 
@@ -295,9 +297,9 @@ class VehicleSettlementTest {
         Guild smiths = playerGuild("smiths", "Carl");
         try (var factions = mockStatic(FactionManager.class)) {
             factions.when(() -> FactionManager.getByString("realm")).thenReturn(faction);
-            factions.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
+            factions.when(FactionManager::getAllGuilds).thenReturn(List.of(smiths));
             upkeepOnly("kept", "ship", "realm", null);
-            upkeepOnly("guilds", "ship", null, "smiths");
+            upkeepOnly("guilds", "ship", null, smiths.getIncarnation());
             upkeepOnly("free", "free", "realm", null);
             maintenance.markUnpaid("free", 1);
             maintenance.markUnpaid("kept", 1);
@@ -328,12 +330,13 @@ class VehicleSettlementTest {
             factions.when(() -> FactionManager.getByString("realm")).thenReturn(held);
             factions.when(() -> FactionManager.getGuildByString("poor")).thenReturn(poor);
             factions.when(() -> FactionManager.getGuildByString("bankless")).thenReturn(bankless);
-            factions.when(() -> FactionManager.getGuildByString("waiting")).thenReturn(waiting);
+            factions.when(FactionManager::getAllGuilds).thenReturn(List.of(poor, bankless, waiting));
             upkeepOnly("held", "ship", "realm", null);
-            upkeepOnly("poor", "ship", null, "poor");
-            upkeepOnly("bankless", "ship", null, "bankless");
-            upkeepOnly("waiting", "ship", null, "waiting");
-            upkeepOnly("orphan", "ship", null, "gone");
+            upkeepOnly("poor", "ship", null, poor.getIncarnation());
+            upkeepOnly("bankless", "ship", null, bankless.getIncarnation());
+            upkeepOnly("waiting", "ship", null, waiting.getIncarnation());
+            upkeepOnly("orphan", "ship", null, UUID.randomUUID().toString());
+            upkeepOnly("named", "ship", null, "poor");
             maintenance.markUnpaid("held", 7);
             calculate();
             assertEquals(7, after().get("held").getAsLong());
@@ -341,6 +344,7 @@ class VehicleSettlementTest {
             assertEquals(1000, after().get("poor").getAsLong());
             assertEquals(1000, after().get("bankless").getAsLong());
             assertEquals(1000, after().get("orphan").getAsLong());
+            assertEquals(1000, after().get("named").getAsLong(), "a guild name is not an incarnation");
             assertTrue(legs.isEmpty());
             var carl = mock(Player.class);
             members.when(() -> Members.online("Carl")).thenReturn(Optional.of(carl));

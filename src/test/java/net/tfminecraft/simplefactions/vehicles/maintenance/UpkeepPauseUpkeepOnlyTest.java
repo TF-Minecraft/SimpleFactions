@@ -17,11 +17,13 @@ class UpkeepPauseUpkeepOnlyTest {
     @Test
     void aHeldGuildsUpkeepOnlyVehiclesTakeNoUnpaidDamage() {
         PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
-        registry.register(PlayerVehicleRecord.upkeep(null, "kept", "ship", null, "smiths"));
+        String incarnation = java.util.UUID.randomUUID().toString();
+        registry.register(PlayerVehicleRecord.upkeep(null, "kept", "ship", null, incarnation));
         registry.register(PlayerVehicleRecord.upkeep(null, "orphan", "ship", null, null));
         Guild smiths = mock(Guild.class);
+        when(smiths.getIncarnation()).thenReturn(incarnation);
         try (var factions = mockStatic(FactionManager.class)) {
-            factions.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
+            factions.when(FactionManager::getAllGuilds).thenReturn(java.util.List.of(smiths));
             assertFalse(UpkeepPause.paused(registry, "kept"));
             when(smiths.isLeaderless()).thenReturn(true);
             assertTrue(UpkeepPause.paused(registry, "kept"));

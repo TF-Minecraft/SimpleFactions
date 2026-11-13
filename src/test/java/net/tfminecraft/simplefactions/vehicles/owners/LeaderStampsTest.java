@@ -304,6 +304,17 @@ class LeaderStampsTest {
             LeaderStamps.onGuildLeaderChanged(smiths);
             assertEquals("char_" + carl, api.owner("boat"));
             assertEquals("char_old", api.owner("kept"), "only the guild's vehicles");
+
+            // The guild becomes red's main guild: a change of red's leader restamps its rows too.
+            when(smiths.isBase()).thenReturn(true);
+            when(smiths.getFaction()).thenReturn(red);
+            UUID next = UUID.randomUUID();
+            when(red.getLeader()).thenReturn(next.toString());
+            LeaderStamps.onLeaderChanged(red, registry);
+            assertEquals("char_" + next, api.owner("boat"));
+            assertEquals("char_" + next, api.owner("kept"));
+            assertEquals(2, api.writes.stream().filter(write -> write.contains(next.toString())).count(),
+                    "a row both lists find is restamped once");
         }
     }
 }

@@ -65,13 +65,13 @@ public record UpkeepHolder(Kind kind, String id) {
         return record.getFactionId() == null ? null : new UpkeepHolder(Kind.FACTION, record.getFactionId());
     }
 
-    /** The guild with this incarnation; rows saved before incarnations were used name the guild ID. */
+    /** The guild with this incarnation; anything else names no guild. */
     static Guild findGuild(String key) {
         if (key == null) return null;
         for (Guild guild : FactionManager.getAllGuilds()) {
             if (guild != null && key.equalsIgnoreCase(guild.getIncarnation())) return guild;
         }
-        return Members.characterId(key) == null ? FactionManager.getGuildByString(key) : null;
+        return null;
     }
 
     /** The player guild (never a realm's main guild) this character leads, else null. */

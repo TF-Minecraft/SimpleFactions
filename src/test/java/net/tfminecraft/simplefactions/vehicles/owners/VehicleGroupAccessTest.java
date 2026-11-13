@@ -185,7 +185,9 @@ class VehicleGroupAccessTest {
         Guild smiths = guild("Smiths", false);
         when(smiths.getFaction()).thenReturn(marsh);
         factions.when(() -> FactionManager.getByString("The_Bog")).thenReturn(bog);
-        factions.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
+        String incarnation = UUID.randomUUID().toString();
+        when(smiths.getIncarnation()).thenReturn(incarnation);
+        factions.when(FactionManager::getAllGuilds).thenReturn(java.util.List.of(smiths));
         registry.register(PlayerVehicleRecord.upkeep(owner, vehicle.toString(), "gunboat", "The_Bog", null));
         assertEquals(Set.of(), access.alwaysOpen(vehicle, stamp));
         factions.when(() -> FactionManager.getByMember(rider)).thenReturn(bog);
@@ -193,7 +195,7 @@ class VehicleGroupAccessTest {
         assertFalse(access.admits(AccessGroup.GUILD, vehicle, stamp, rider), "a faction's vehicle has no guild");
         assertEquals(Optional.of("The Bog"), access.describe(AccessGroup.FACTION, vehicle, stamp));
 
-        registry.register(PlayerVehicleRecord.upkeep(owner, vehicle.toString(), "gunboat", null, "smiths"));
+        registry.register(PlayerVehicleRecord.upkeep(owner, vehicle.toString(), "gunboat", null, incarnation));
         factions.when(() -> FactionManager.getGuildByMember(rider)).thenReturn(smiths);
         assertTrue(access.admits(AccessGroup.GUILD, vehicle, stamp, rider));
         assertEquals(Optional.of("Smiths"), access.describe(AccessGroup.GUILD, vehicle, stamp));

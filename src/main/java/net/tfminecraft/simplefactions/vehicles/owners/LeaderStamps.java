@@ -93,7 +93,13 @@ public final class LeaderStamps {
     /** {@link net.tfminecraft.simplefactions.events.FactionLeaderChangedEvent}: restamps the faction's vehicles. */
     public static void onLeaderChanged(Faction faction, PlayerVehicleRegistry registry) {
         if (!enabled || faction == null || registry == null) return;
-        for (PlayerVehicleRecord record : rowsOf(faction, registry)) report(record.getVehicleUuid(), restamp(record));
+        Set<String> done = new HashSet<>();
+        List<PlayerVehicleRecord> rows = new ArrayList<>(rowsOf(faction, registry));
+        // Upkeep-only rows of a guild that became this realm still name the guild.
+        rows.addAll(UpkeepHolder.of(faction).vehicles(registry));
+        for (PlayerVehicleRecord record : rows) {
+            if (done.add(record.getVehicleUuid())) report(record.getVehicleUuid(), restamp(record));
+        }
     }
 
     /** Called once from {@code FactionManager.deleteFaction}: the faction's remaining rows lose their leader. */

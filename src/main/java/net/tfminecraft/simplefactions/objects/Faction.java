@@ -1472,6 +1472,7 @@ public class Faction {
 				provinceHandler.removeProvince(i, true);
 			}
 			Guild base = getOrCreateMainGuild();
+			net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.realmBecameGuild(this, base);
 			base.convert(GuildLoader.getDefaultType());
 			overlord.getGuildHandler().addGuild(base);
 			//failsafe relocation

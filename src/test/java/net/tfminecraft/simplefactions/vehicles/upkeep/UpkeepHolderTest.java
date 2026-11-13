@@ -98,9 +98,10 @@ class UpkeepHolderTest {
     }
 
     @Test
-    void aGuildIsFoundByIncarnationSoALaterGuildWithTheSameNameInheritsNothing() {
+    void aGuildIsFoundOnlyByIncarnationSoALaterGuildWithTheSameNameInheritsNothing() {
         assertSame(smiths, UpkeepHolder.findGuild(smithsIncarnation.toUpperCase()));
-        assertSame(smiths, UpkeepHolder.findGuild("smiths"), "a row saved by guild ID still resolves");
+        assertNull(UpkeepHolder.findGuild("smiths"), "a guild ID or name is not an incarnation");
+        assertNull(UpkeepHolder.of(PlayerVehicleRecord.upkeep(null, "v", "t", null, "smiths")).guild());
         assertNull(UpkeepHolder.findGuild(null));
         String gone = UUID.randomUUID().toString();
         Guild reused = mock(Guild.class);

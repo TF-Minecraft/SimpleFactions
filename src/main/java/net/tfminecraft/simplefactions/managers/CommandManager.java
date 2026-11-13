@@ -166,6 +166,11 @@ public class CommandManager implements Listener, CommandExecutor{
 				}
 				// Administrators may remove an unsettled guild, but leaders must settle it first.
 				if(!Permissions.isAdmin(sender)) {
+					if(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.holdsVehicles(guild)) {
+						p.sendMessage("§cCannot delete a guild that still keeps upkeep-only vehicles. Give them to members first"
+								+ " with §e/guild vehicle upkeep give <member>§c.");
+						return true;
+					}
 					if(guild.isBankrupt()) {
 						p.sendMessage("§cCannot delete a guild that is in bankruptcy!");
 						return true;

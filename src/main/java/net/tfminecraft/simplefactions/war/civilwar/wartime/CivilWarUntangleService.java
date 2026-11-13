@@ -115,6 +115,7 @@ public final class CivilWarUntangleService {
 
 	private static void absorbRebelMainGuild(Faction rebels, Faction host, CivilWarSnapshot snapshot) {
 		Guild base = rebels.getOrCreateMainGuild();
+		net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.realmBecameGuild(rebels, base);
 		if (GuildLoader.getDefaultType() != null) {
 			base.convert(GuildLoader.getDefaultType());
 		}
