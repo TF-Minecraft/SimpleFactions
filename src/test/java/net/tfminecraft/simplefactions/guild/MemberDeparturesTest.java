@@ -1,5 +1,7 @@
 package net.tfminecraft.simplefactions.guild;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.inOrder;
@@ -122,5 +124,18 @@ class MemberDeparturesTest {
 		verify(government, org.mockito.Mockito.times(3)).removeRights("Legacy Name");
 		verify(sessions).getSession(council);
 		verify(warbandService, never()).removeFromFactionWarband(any(), org.mockito.ArgumentMatchers.anyBoolean());
+	}
+
+	@Test
+	void theRealmsMainGuildIsNeverTheGuildSomeoneLeadsOrBelongsTo() {
+		when(main.isBase()).thenReturn(true);
+		when(main.isLeader("Ann")).thenReturn(true);
+		when(main.isMember("Ann")).thenReturn(true);
+		when(smiths.isLeader("Carl")).thenReturn(true);
+		when(smiths.isMember("Dana")).thenReturn(true);
+		assertNull(MemberDepartures.ledGuild(faction, "Ann"));
+		assertNull(MemberDepartures.guildOf(faction, "Ann"));
+		assertSame(smiths, MemberDepartures.ledGuild(faction, "Carl"));
+		assertSame(smiths, MemberDepartures.guildOf(faction, "Dana"));
 	}
 }

@@ -144,14 +144,15 @@ public final class UpkeepVehicleCommands {
         if (vehicles.size() > holder.cap()) player.sendMessage(UpkeepVehicleMessages.overCap());
         player.sendMessage(UpkeepVehicleMessages.daily(holder, UpkeepVehicleService.dailyUpkeep(registry, holder)));
         if (vehicles.isEmpty()) player.sendMessage(UpkeepVehicleMessages.none());
+        boolean leader = holder.isLeader(key);
         for (PlayerVehicleRecord record : vehicles) {
-            String location = VehicleFindMessages.formatLocation(
+            // Locations are for the leader only, as for the faction pool.
+            String location = !leader ? null : VehicleFindMessages.formatLocation(
                     VehicleFramework.getVehicleManager().getOfflineLocation(record.getVehicleUuid()));
             player.sendMessage(UpkeepVehicleMessages.line(record.getVehicleTypeId(),
                     Pending.shortId(record.getVehicleUuid()), location,
                     plugin.getVehicleMaintenanceStore().isUnpaid(record.getVehicleUuid())));
         }
-        boolean leader = holder.isLeader(key);
         List<Pending> pending = new ArrayList<>();
         UUID character = VehicleOwnershipQueries.characterId(player);
         for (Pending each : UpkeepRequests.forHolder(holder)) {
@@ -168,7 +169,8 @@ public final class UpkeepVehicleCommands {
     static void decide(Player player, String id, boolean approve) {
         Pending pending = UpkeepRequests.find(id);
         if (pending == null) {
-            player.sendMessage(UpkeepVehicleMessages.noPending());
+            player.sendMessage(UpkeepRequests.ambiguous(id) ? UpkeepVehicleMessages.ambiguous(id)
+                    : UpkeepVehicleMessages.noPending());
             return;
         }
         UpkeepHolder holder = pending.holder();
@@ -189,26 +191,31 @@ public final class UpkeepVehicleCommands {
             player.sendMessage(UpkeepVehicleMessages.notWaitingForYou());
             return;
         }
-        UpkeepRequests.remove(pending.vehicle());
         if (pending.awaiting() == Awaiting.OWNER && !holder.isLeader(pending.leaderKey())) {
+            UpkeepRequests.remove(pending.vehicle());
             player.sendMessage(VehicleTransferMessages.consentExpired());
             return;
         }
         UpkeepTarget target = UpkeepTarget.read(pending.vehicle());
         if (target != null && !OwnerTags.names(target.owner(), pending.owner().characterId())) {
+            UpkeepRequests.remove(pending.vehicle());
             both(pending, UpkeepVehicleMessages.ownerChanged());
             return;
         }
         UpkeepVehicleService service = service();
         AddResult result = service.canAdd(holder, target);
         if (result != AddResult.OK) {
+            // A full cap may free up before the request lapses; anything else will not change.
+            if (result != AddResult.AT_CAP) UpkeepRequests.remove(pending.vehicle());
             both(pending, UpkeepVehicleMessages.forAdd(result, holder, holder.vehicles(service.registry()).size()));
             return;
         }
         if (!service.register(holder, target, pending.owner().characterId())) {
+            // Kept, so the same approval can be tried again.
             both(pending, UpkeepVehicleMessages.saveFailed());
             return;
         }
+        UpkeepRequests.remove(pending.vehicle());
         Members.online(Members.key(pending.owner())).ifPresent(online ->
                 online.sendMessage(UpkeepVehicleMessages.addedForOwner(holder, target.typeId())));
         Members.online(holder.leader()).ifPresent(online ->

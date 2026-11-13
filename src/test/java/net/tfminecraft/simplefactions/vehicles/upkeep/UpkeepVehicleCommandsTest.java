@@ -50,6 +50,7 @@ import net.tfminecraft.vehicleframework.VehicleFramework;
 import net.tfminecraft.vehicleframework.managers.VehicleManager;
 
 class UpkeepVehicleCommandsTest {
+    private static final String SMITHS = UUID.randomUUID().toString();
     @TempDir Path folder;
     private final PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
     private final VehicleMaintenanceStore maintenance = new VehicleMaintenanceStore();
@@ -93,14 +94,14 @@ class UpkeepVehicleCommandsTest {
         when(smiths.getLeader()).thenReturn("Carl");
         when(smiths.getMembers()).thenReturn(List.of("Carl", "Dana"));
         when(smiths.isMember("Dana")).thenReturn(true);
+        when(smiths.isLeader("Carl")).thenReturn(true);
+        when(smiths.getIncarnation()).thenReturn(SMITHS);
         factions = mockStatic(FactionManager.class);
         factions.when(() -> FactionManager.getByString("realm")).thenReturn(realm);
-        factions.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
         factions.when(() -> FactionManager.getByLeader("Lea")).thenReturn(realm);
         factions.when(() -> FactionManager.getByMember("Lea")).thenReturn(realm);
         factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(realm);
-        factions.when(() -> FactionManager.getGuildByLeader("Carl")).thenReturn(smiths);
-        factions.when(() -> FactionManager.getGuildByMember("Dana")).thenReturn(smiths);
+        factions.when(FactionManager::getAllGuilds).thenReturn(List.of(smiths));
         members = mockStatic(Members.class, CALLS_REAL_METHODS);
         members.when(() -> Members.online(any())).thenReturn(Optional.empty());
         clicks = mockStatic(VehicleFactionCommands.class);
@@ -182,7 +183,7 @@ class UpkeepVehicleCommandsTest {
         assertTrue(run(alice, "faction", "vehicle", "transfer", "upkeep"));
         verify(alice).sendMessage(UpkeepVehicleMessages.notLeader(Kind.FACTION));
         assertTrue(run(carl, "guild", "vehicle", "transfer", "upkeep"));
-        assertEquals(new UpkeepHolder(Kind.GUILD, "smiths"), UpkeepClickSessions.get(carl.getUniqueId()).holder());
+        assertEquals(new UpkeepHolder(Kind.GUILD, SMITHS), UpkeepClickSessions.get(carl.getUniqueId()).holder());
     }
 
     @Test
@@ -241,6 +242,7 @@ class UpkeepVehicleCommandsTest {
         verify(lea).sendMessage(UpkeepVehicleMessages.overCap());
         verify(lea).sendMessage(contains("70.00d"));
         verify(lea).sendMessage(contains("unpaid"));
+        verify(lea, org.mockito.Mockito.atLeastOnce()).sendMessage(contains("location unknown"));
         verify(lea).sendMessage(UpkeepVehicleMessages.pendingHeader());
         verify(lea).sendMessage(contains("from Alice"));
         verify(lea, org.mockito.Mockito.times(2)).sendMessage(UpkeepVehicleMessages.leaderHelp(Kind.FACTION));
@@ -248,6 +250,7 @@ class UpkeepVehicleCommandsTest {
         verify(alice).sendMessage(contains("from Alice"));
         verify(alice, never()).sendMessage(contains("from Lea"));
         verify(alice, never()).sendMessage(UpkeepVehicleMessages.leaderHelp(Kind.FACTION));
+        verify(alice, never()).sendMessage(contains("location"));
     }
 
     @Test
@@ -318,11 +321,20 @@ class UpkeepVehicleCommandsTest {
         assertTrue(run(lea, "faction", "vehicle", "upkeep", "approve", "gone"));
         verify(lea).sendMessage(contains("could not be found"));
 
+        assertNull(UpkeepRequests.find("pooled"), "a vehicle in the pool will not come back by itself");
+        assertNull(UpkeepRequests.find("sold"));
+
         request("unsaved", alice, Awaiting.LEADER, null);
         saves = false;
         assertTrue(run(lea, "faction", "vehicle", "upkeep", "approve", "unsaved"));
         verify(alice).sendMessage(UpkeepVehicleMessages.saveFailed());
         assertTrue(registry.getByVehicleUuid("unsaved").isEmpty());
+        assertTrue(UpkeepRequests.find("unsaved") != null, "a failed save keeps the request to try again");
+        saves = true;
+        for (int i = 0; i < 6; i++) registry.register(realmHolder().row(null, "full-" + i, "sloop"));
+        assertTrue(run(lea, "faction", "vehicle", "upkeep", "approve", "unsaved"));
+        verify(lea).sendMessage(contains("already keeps 6/6"));
+        assertTrue(UpkeepRequests.find("unsaved") != null, "a full cap may free up, so the request stays");
     }
 
     @Test
@@ -348,5 +360,18 @@ class UpkeepVehicleCommandsTest {
         assertTrue(UpkeepVehicleCommands.complete(lea, Kind.FACTION,
                 new String[] {"vehicle", "upkeep", "list", ""}).isEmpty());
         verify(lea, never()).sendMessage(startsWith("§c"));
+    }
+
+    @Test
+    void anAmbiguousShortIdAsksForMore() {
+        request("abc111-1", alice, Awaiting.LEADER, null);
+        request("abc222-2", alice, Awaiting.LEADER, null);
+        assertTrue(run(lea, "faction", "vehicle", "upkeep", "approve", "abc"));
+        verify(lea).sendMessage(contains("More than one pending request starts with abc"));
+        assertTrue(run(lea, "faction", "vehicle", "upkeep", "deny", "abc111"));
+        verify(lea).sendMessage(UpkeepVehicleMessages.youDeclined());
+        assertFalse(UpkeepRequests.ambiguous("abc222-2"));
+        assertFalse(UpkeepRequests.ambiguous(null));
+        assertFalse(UpkeepRequests.ambiguous(" "));
     }
 }

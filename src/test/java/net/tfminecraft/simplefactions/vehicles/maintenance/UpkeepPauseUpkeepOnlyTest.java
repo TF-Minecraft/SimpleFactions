@@ -23,7 +23,7 @@ class UpkeepPauseUpkeepOnlyTest {
         try (var factions = mockStatic(FactionManager.class)) {
             factions.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
             assertFalse(UpkeepPause.paused(registry, "kept"));
-            when(smiths.isHeld()).thenReturn(true);
+            when(smiths.isLeaderless()).thenReturn(true);
             assertTrue(UpkeepPause.paused(registry, "kept"));
             assertFalse(UpkeepPause.paused(registry, "orphan"));
             assertFalse(UpkeepPause.paused(registry, "missing"));

@@ -36,9 +36,9 @@ to three per member; members leaving never removes one. The leader moves a vehic
 `/faction vehicle transfer upkeep` (or `/guild vehicle transfer upkeep`) and a right-click;
 someone else's vehicle needs its owner's approval. An owner can ask with
 `/faction vehicle upkeep request` and the leader approves or denies. Once in, only the leader
-can give it to a member as a personal vehicle (`... vehicle upkeep give <member>`) or move it
+can offer it to a member as a personal vehicle (`... vehicle upkeep give <member>`; the member accepts with `/faction accept`) or move it
 to the war pool or an installation berth. `/faction vehicle upkeep` lists the vehicles, the
-cap, the daily upkeep and pending requests. Upkeep-only rows are saved in
+cap, the daily upkeep and pending requests; only the leader sees where the vehicles are. Upkeep-only rows are saved in
 `Cache/vehicles_upkeep.json`, next to the vehicle registry.
 
 ## A shared political world

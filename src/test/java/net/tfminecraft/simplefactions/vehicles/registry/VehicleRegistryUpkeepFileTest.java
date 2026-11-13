@@ -56,6 +56,46 @@ class VehicleRegistryUpkeepFileTest {
     }
 
     @Test
+    void aRowLeavingUpkeepStaysInTheUpkeepFileUntilTheRegistryHoldsItsNewRow() throws Exception {
+        Path cache = cache();
+        Path main = cache.resolve("vehicles_registry.json");
+        Path upkeep = cache.resolve(VehicleRegistryPersistence.UPKEEP_FILE);
+        UUID owner = UUID.randomUUID();
+        VehicleRegistryPersistence.write(main, List.of(PlayerVehicleRecord.upkeep(owner, "kept", "sloop", "realm", null),
+                PlayerVehicleRecord.upkeep(owner, "leaving", "sloop", "realm", null)));
+        // The registry write fails part-way: a directory stands where the file goes.
+        Files.delete(main);
+        Files.createDirectory(main);
+        List<PlayerVehicleRecord> next = List.of(PlayerVehicleRecord.upkeep(owner, "kept", "sloop", "realm", null),
+                new PlayerVehicleRecord(owner, "leaving", "sloop", OwnershipMode.PERSONAL, null));
+        assertThrows(java.io.IOException.class, () -> VehicleRegistryPersistence.write(main, next));
+        String interrupted = Files.readString(upkeep);
+        assertTrue(interrupted.contains("leaving"), "the old row survives a failed registry write");
+        Files.delete(main);
+        VehicleRegistryPersistence.write(main, next);
+        assertFalse(Files.readString(upkeep).contains("leaving"));
+        PlayerVehicleRegistry loaded = new PlayerVehicleRegistry();
+        new VehicleRegistryPersistence(cache.toFile(), loaded).load();
+        assertEquals(OwnershipMode.PERSONAL, loaded.getByVehicleUuid("leaving").orElseThrow().getMode());
+        assertEquals(OwnershipMode.UPKEEP, loaded.getByVehicleUuid("kept").orElseThrow().getMode());
+    }
+
+    @Test
+    void anUnreadableUpkeepFileIsSimplyReplaced() throws Exception {
+        Path cache = cache();
+        Files.writeString(cache.resolve(VehicleRegistryPersistence.UPKEEP_FILE), "{broken");
+        VehicleRegistryPersistence.write(cache.resolve("vehicles_registry.json"),
+                List.of(PlayerVehicleRecord.upkeep(null, "kept", "sloop", "realm", null)));
+        assertTrue(Files.readString(cache.resolve(VehicleRegistryPersistence.UPKEEP_FILE)).contains("kept"));
+        Files.writeString(cache.resolve(VehicleRegistryPersistence.UPKEEP_FILE), "null");
+        VehicleRegistryPersistence.write(cache.resolve("vehicles_registry.json"), List.of());
+        assertEquals("[]", Files.readString(cache.resolve(VehicleRegistryPersistence.UPKEEP_FILE)).replaceAll("\\s", ""));
+        Files.writeString(cache.resolve(VehicleRegistryPersistence.UPKEEP_FILE), "[null,{\"mode\":\"UPKEEP\"}]");
+        VehicleRegistryPersistence.write(cache.resolve("vehicles_registry.json"), List.of());
+        assertEquals("[]", Files.readString(cache.resolve(VehicleRegistryPersistence.UPKEEP_FILE)).replaceAll("\\s", ""));
+    }
+
+    @Test
     void noUpkeepFileIsWrittenUntilTheFirstUpkeepRow() throws Exception {
         Path cache = cache();
         VehicleRegistryPersistence.write(cache.resolve("vehicles_registry.json"),

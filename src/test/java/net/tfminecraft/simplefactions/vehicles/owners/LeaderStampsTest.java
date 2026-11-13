@@ -274,10 +274,11 @@ class LeaderStampsTest {
         assertEquals("char_" + kira, LeaderStamps.expected(kept));
         assertEquals("char_none", LeaderStamps.expected(PlayerVehicleRecord.upkeep(null, "x", "gun", null, null)));
         UUID carl = UUID.randomUUID();
+        String incarnation = UUID.randomUUID().toString();
         net.tfminecraft.simplefactions.guild.Guild smiths = mock(net.tfminecraft.simplefactions.guild.Guild.class);
-        when(smiths.getId()).thenReturn("smiths");
+        when(smiths.getIncarnation()).thenReturn(incarnation);
         when(smiths.getLeader()).thenReturn(carl.toString());
-        PlayerVehicleRecord guildRow = PlayerVehicleRecord.upkeep(null, "boat", "gun", null, "smiths");
+        PlayerVehicleRecord guildRow = PlayerVehicleRecord.upkeep(null, "boat", "gun", null, incarnation);
         registry.register(guildRow);
         registry.register(kept);
         api.stored("boat", "gun", "char_old");
@@ -286,7 +287,7 @@ class LeaderStampsTest {
         when(plugin.getLogger()).thenReturn(mock(Logger.class));
         try (MockedStatic<FactionManager> manager = mockStatic(FactionManager.class, org.mockito.Mockito.CALLS_REAL_METHODS);
                 MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
-            manager.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
+            manager.when(FactionManager::getAllGuilds).thenReturn(List.of(smiths));
             assertEquals("char_" + carl, LeaderStamps.expected(guildRow));
             LeaderStamps.onGuildLeaderChanged(smiths);
             assertEquals("char_old", api.owner("boat"), "no plugin running");

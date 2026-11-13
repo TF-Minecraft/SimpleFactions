@@ -1556,7 +1556,9 @@ class VehicleInteractionsCoverageTest {
         "forced_other",
         "all_usable",
         "upkeep_only",
-        "upkeep_all_usable"
+        "upkeep_all_usable",
+        "upkeep_manual_battle",
+        "upkeep_no_battle"
       })
   void battleEntryAndSpawnUseTheSameLiveRosterAndFactionOwnershipRules(String state) {
     Faction enemy = fixture.saved("enemy", "Enemy");
@@ -1584,7 +1586,8 @@ class VehicleInteractionsCoverageTest {
     BattleManager.get().add(battle);
     WarbandManager.addWarband(band);
     if (state.equals("no_battle")) BattleManager.get().clear();
-    if (state.equals("manual_battle")) battle.setWarId(null);
+    if (state.equals("manual_battle") || state.equals("upkeep_manual_battle")) battle.setWarId(null);
+    if (state.equals("upkeep_no_battle")) BattleManager.get().clear();
     if (state.equals("missing_war")) WarManager.get().remove(war);
     if (state.equals("ended_war")) war.end(WarEndReason.WHITE_PEACE);
     // Staff overrides beat the personal-vehicle refusal below.
@@ -1632,9 +1635,10 @@ class VehicleInteractionsCoverageTest {
           case "prebattle" ->
               BattleVehicleEligibilityService.BattleVehicleEligibilityResult
                   .DENIED_PRE_BATTLE_WARBAND;
-          case "upkeep_only", "upkeep_all_usable" ->
+          case "upkeep_only", "upkeep_all_usable", "upkeep_manual_battle" ->
               BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY;
           case "no_battle",
+                  "upkeep_no_battle",
                   "manual_battle",
                   "missing_war",
                   "ended_war",

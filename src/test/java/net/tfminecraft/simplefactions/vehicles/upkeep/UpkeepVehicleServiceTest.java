@@ -206,6 +206,19 @@ class UpkeepVehicleServiceTest {
     }
 
     @Test
+    void evaluatingAGiftChecksEverythingButMovesNothing() {
+        CharacterRef ref = new CharacterRef(UUID.randomUUID(), alice);
+        PlayerVehicleRecord row = holder.row(alice, "boat", "sloop");
+        registry.register(row);
+        var checked = service.evaluateGive(holder, leader, ref, "boat");
+        assertEquals(GiveStatus.OK, checked.status());
+        assertEquals("sloop", checked.vehicleTypeId());
+        assertSame(row, registry.getByVehicleUuid("boat").orElseThrow());
+        assertTrue(assigned.isEmpty());
+        assertEquals(GiveStatus.NOT_LEADER, service.evaluateGive(holder, "Alice", ref, "boat").status());
+    }
+
+    @Test
     void theLeaderMayGiveAVehicleToThemselves() {
         CharacterRef self = new CharacterRef(UUID.randomUUID(), leaderCharacter);
         registry.register(holder.row(alice, "boat", "sloop"));

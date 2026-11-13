@@ -63,10 +63,14 @@ public final class LeaderStamps {
         return record != null && record.getMode() != OwnershipMode.PERSONAL;
     }
 
-    /** A new guild leader (or none) takes over the stamp on the guild's upkeep-only vehicles. */
+    /**
+     * A new guild leader (or none) takes over the stamp on the guild's upkeep-only vehicles. For a
+     * realm's main guild that is the realm's, including those of a guild that became the realm.
+     */
     public static void onGuildLeaderChanged(net.tfminecraft.simplefactions.guild.Guild guild) {
-        if (!enabled || guild == null || guild.isBase() || SimpleFactions.getInstance() == null) return;
+        if (!enabled || guild == null || SimpleFactions.getInstance() == null) return;
         UpkeepHolder holder = UpkeepHolder.of(guild);
+        if (holder == null) return;
         for (PlayerVehicleRecord record : holder.vehicles(SimpleFactions.getVehicleRegistry())) {
             report(record.getVehicleUuid(), restamp(record));
         }

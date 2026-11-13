@@ -67,7 +67,9 @@ public final class FactionVehiclePoolService {
 
     private static boolean paidBy(PlayerVehicleRecord record, String factionId) {
         if (record.getMode() == OwnershipMode.UPKEEP) {
-            return record.getGuildId() == null && factionId.equalsIgnoreCase(record.getFactionId());
+            var holder = net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder.of(record);
+            return holder != null && holder.kind() == net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder.Kind.FACTION
+                    && factionId.equalsIgnoreCase(holder.id());
         }
         if (record.getMode() == OwnershipMode.POOL) {
             return factionId.equalsIgnoreCase(record.getFactionId());
@@ -151,7 +153,8 @@ public final class FactionVehiclePoolService {
         }
 
         if (VehicleCategoryRules.isBerthableType(vehicleTypeId)) {
-            return CanAddResult.MUST_BERTH;
+            return existing.isPresent() && existing.get().getMode() == OwnershipMode.UPKEEP
+                    ? CanAddResult.MUST_BERTH_UPKEEP : CanAddResult.MUST_BERTH;
         }
 
         if (isArtillery(vehicleTypeId)
@@ -245,6 +248,8 @@ public final class FactionVehiclePoolService {
         ALREADY_BERTHED,
         UNKNOWN_TYPE,
         MUST_BERTH,
+        /** As {@link #MUST_BERTH}, for a vehicle that is already upkeep-only. */
+        MUST_BERTH_UPKEEP,
         NO_ARTILLERY_CAPACITY,
         /** The faction's war is in its buildup or had a battle postponed. */
         FROZEN

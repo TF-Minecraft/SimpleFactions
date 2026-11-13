@@ -255,6 +255,7 @@ public final class LeaderlessGuilds {
                 }
                 changed |= guild.trackEmpty(now);
                 if (!guild.getMembers().isEmpty() || now - guild.getEmptySince() < CLOSE_AFTER.toMillis()) continue;
+                net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.disbanded(guild);
                 faction.getGuildHandler().removeGuild(guild.getId());
                 closed.add(guild.getIncarnationId());
                 Logger.getLogger("SimpleFactions").info("Closed " + guild.getName() + " (" + guild.getIncarnation()

@@ -322,7 +322,7 @@ class VehicleSettlementTest {
         Guild bankless = playerGuild("bankless", "Dana");
         when(bankless.getBank()).thenReturn(null);
         Guild waiting = playerGuild("waiting", "Eve");
-        when(waiting.isHeld()).thenReturn(true);
+        when(waiting.isLeaderless()).thenReturn(true);
         balances.put(Denars.guild(poor.getIncarnationId()), 100L);
         try (var factions = mockStatic(FactionManager.class)) {
             factions.when(() -> FactionManager.getByString("realm")).thenReturn(held);

@@ -1266,7 +1266,8 @@ class PluginLifecycleCoverageTest {
           yaml.getConfigurationSection("commands").getKeys(false),
           new java.util.HashSet<>(SimpleFactions.COMMANDS));
       for (String name : yaml.getConfigurationSection("commands").getKeys(false)) {
-        assertEquals("/<command>", yaml.getString("commands." + name + ".usage"), name);
+        // No usage line: Bukkit would print it after every refusal a command already explained.
+        assertFalse(yaml.contains("commands." + name + ".usage"), name);
         assertFalse(yaml.contains("commands." + name + ".useage"), name);
       }
     }

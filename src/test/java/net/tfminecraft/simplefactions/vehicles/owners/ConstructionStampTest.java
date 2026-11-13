@@ -43,6 +43,7 @@ import net.tfminecraft.vfbuilders.core.Blueprint;
 import net.tfminecraft.vfbuilders.events.VehicleConstructEvent;
 
 class ConstructionStampTest {
+    private World world;
     @TempDir Path folder;
     private final VehicleFeeStore store = new VehicleFeeStore();
     private final UUID account = UUID.randomUUID();
@@ -71,7 +72,8 @@ class ConstructionStampTest {
         plugin = mockStatic(SimpleFactions.class);
         plugin.when(SimpleFactions::getInstance).thenReturn(instance);
         station = mock(ActiveStation.class);
-        World world = mock(World.class);
+        // A field: Location holds its World weakly, and a collected mock reads as "World unloaded".
+        world = mock(World.class);
         when(world.getName()).thenReturn("world");
         when(station.getLocation()).thenReturn(new Location(world, 6, 64, 7));
         vehicle = mock(ActiveVehicle.class);

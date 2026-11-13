@@ -52,10 +52,13 @@ class UpkeepVehicleListenerTest {
     @TempDir Path folder;
     private final PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
     private final UpkeepHolder holder = new UpkeepHolder(Kind.FACTION, "realm");
+    // Fields: Location holds its World weakly, and a collected mock reads as "World unloaded".
     private final World world = mock(World.class);
+    private final World otherWorld = mock(World.class);
     private boolean saves = true;
     private MockedStatic<FactionManager> factions;
     private MockedStatic<Members> members;
+    private MockedStatic<org.bukkit.Bukkit> bukkit;
     private FakeOwnerApi api;
     private UpkeepVehicleListener listener;
     private Player lea;
@@ -75,6 +78,9 @@ class UpkeepVehicleListenerTest {
         when(realm.getLeader()).thenReturn("Lea");
         when(realm.getMembers()).thenReturn(List.of("Lea", "Alice"));
         when(realm.isMember("Alice")).thenReturn(true);
+        var handler = mock(net.tfminecraft.simplefactions.objects.handler.GuildHandler.class);
+        when(handler.getGuild("realm")).thenReturn(mock(net.tfminecraft.simplefactions.guild.Guild.class));
+        when(realm.getGuildHandler()).thenReturn(handler);
         factions = mockStatic(FactionManager.class);
         factions.when(() -> FactionManager.getByString("realm")).thenReturn(realm);
         members = mockStatic(Members.class, CALLS_REAL_METHODS);
@@ -82,10 +88,15 @@ class UpkeepVehicleListenerTest {
         listener = new UpkeepVehicleListener(new UpkeepVehicleService(registry, () -> saves, (vehicle, character) -> true));
         lea = player("Lea", 0);
         alice = player("Alice", 5);
+        Player leader = lea;
+        UUID leaderAccount = lea.getUniqueId();
+        bukkit = mockStatic(org.bukkit.Bukkit.class);
+        bukkit.when(() -> org.bukkit.Bukkit.getPlayer(leaderAccount)).thenReturn(leader);
     }
 
     @AfterEach
     void tearDown() {
+        bukkit.close();
         members.close();
         factions.close();
         UpkeepRequests.resetForTests();
@@ -97,6 +108,7 @@ class UpkeepVehicleListenerTest {
         when(player.getName()).thenReturn(name);
         when(player.getUniqueId()).thenReturn(UUID.nameUUIDFromBytes(("account:" + name).getBytes()));
         when(player.getLocation()).thenReturn(new Location(world, x, 64, 0));
+        when(player.isOnline()).thenReturn(true);
         return player;
     }
 
@@ -183,7 +195,7 @@ class UpkeepVehicleListenerTest {
         when(alice.getLocation()).thenReturn(new Location(world, 500, 64, 0));
         click(lea, "boat", owner("Alice"));
         verify(lea).sendMessage(contains("within 20 blocks"));
-        when(alice.getLocation()).thenReturn(new Location(mock(World.class), 0, 64, 0));
+        when(alice.getLocation()).thenReturn(new Location(otherWorld, 0, 64, 0));
         click(lea, "boat", owner("Alice"));
         verify(lea, org.mockito.Mockito.times(2)).sendMessage(contains("within 20 blocks"));
         when(alice.getLocation()).thenReturn(new Location(world, 5, 64, 0));
@@ -250,23 +262,94 @@ class UpkeepVehicleListenerTest {
     }
 
     @Test
-    void theLeaderHandsAVehicleToAMember() {
+    void theLeaderOffersAVehicleAndTheMemberMustAccept() {
         SimpleFactions plugin = mock(SimpleFactions.class);
+        UpkeepVehicleService service = new UpkeepVehicleService(registry, () -> true, (vehicle, character) -> true);
+        when(plugin.getUpkeepVehicleService()).thenReturn(service);
         registry.register(holder.row(null, "boat", "sloop"));
-        members.when(() -> Members.online("Alice")).thenReturn(Optional.of(alice));
         CharacterRef aliceRef = new CharacterRef(alice.getUniqueId(), NameKeyedMembers.characterOf("Alice"));
         members.when(() -> Members.ref("Alice")).thenReturn(Optional.of(aliceRef));
         arm(lea, Mode.GIVE, "Alice");
         click(lea, "elsewhere", owner("Lea"));
         verify(lea).sendMessage(contains("not an upkeep-only vehicle of Realm"));
         assertNotNull(UpkeepClickSessions.get(lea.getUniqueId()));
+        click(lea, "boat", "char_none");
+        verify(lea).sendMessage(contains("Alice must be online to receive"));
+        assertNotNull(UpkeepClickSessions.get(lea.getUniqueId()), "an offline member keeps the click mode armed");
+
+        members.when(() -> Members.online("Alice")).thenReturn(Optional.of(alice));
+        try (var sf = mockStatic(SimpleFactions.class)) {
+            sf.when(SimpleFactions::getInstance).thenReturn(plugin);
+            click(lea, "boat", "char_none");
+            assertEquals(OwnershipMode.UPKEEP, registry.getByVehicleUuid("boat").orElseThrow().getMode(),
+                    "nothing moves before the member accepts");
+            verify(alice).sendMessage(contains("Lea wants to give you the sloop from Realm"));
+            assertNull(UpkeepClickSessions.get(lea.getUniqueId()));
+            var request = (net.tfminecraft.simplefactions.objects.request.VehicleGiveConsentRequest)
+                    net.tfminecraft.simplefactions.managers.RequestManager.getRequest(alice);
+            assertEquals(holder, request.getUpkeepHolder());
+            new net.tfminecraft.simplefactions.vehicles.berth.FactionVehicleGiveService(null).acceptRequest(alice);
+        } finally {
+            net.tfminecraft.simplefactions.managers.RequestManager.remove(alice);
+        }
+        verify(alice).sendMessage(contains("Lea gave you the sloop from Realm"));
+        verify(plugin).recordVehicleOwner("boat", "Alice");
+        assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("boat").orElseThrow().getMode());
+    }
+
+    @Test
+    void aMemberAlreadyConsideringARequestIsNotAskedAgain() {
+        registry.register(holder.row(null, "boat", "sloop"));
+        CharacterRef aliceRef = new CharacterRef(alice.getUniqueId(), NameKeyedMembers.characterOf("Alice"));
+        members.when(() -> Members.ref("Alice")).thenReturn(Optional.of(aliceRef));
+        members.when(() -> Members.online("Alice")).thenReturn(Optional.of(alice));
+        var other = new net.tfminecraft.simplefactions.objects.request.Request(null);
+        net.tfminecraft.simplefactions.managers.RequestManager.addRequest(lea, alice, other);
+        try {
+            arm(lea, Mode.GIVE, "Alice");
+            click(lea, "boat", "char_none");
+            verify(lea).sendMessage(contains("already considering another request"));
+            assertNotNull(UpkeepClickSessions.get(lea.getUniqueId()));
+        } finally {
+            net.tfminecraft.simplefactions.managers.RequestManager.remove(alice);
+        }
+    }
+
+    @Test
+    void anAcceptedGiftIsRecheckedAgainstTheCurrentLeaderAndRoom() {
+        SimpleFactions plugin = mock(SimpleFactions.class);
+        when(plugin.getUpkeepVehicleService()).thenReturn(
+                new UpkeepVehicleService(registry, () -> true, (vehicle, character) -> true));
+        CharacterRef aliceRef = new CharacterRef(alice.getUniqueId(), NameKeyedMembers.characterOf("Alice"));
+        CharacterRef leaRef = new CharacterRef(lea.getUniqueId(), NameKeyedMembers.characterOf("Lea"));
+        members.when(() -> Members.online("Lea")).thenReturn(Optional.of(lea));
+        var stale = new net.tfminecraft.simplefactions.objects.request.VehicleGiveConsentRequest(null, "realm", "boat",
+                "sloop", alice.getUniqueId(), lea.getUniqueId(), aliceRef, aliceRef, holder);
+        UpkeepGifts.accept(alice, stale);
+        verify(alice).sendMessage(contains("expired"));
+        var gone = new net.tfminecraft.simplefactions.objects.request.VehicleGiveConsentRequest(null, "realm", "gone",
+                "sloop", alice.getUniqueId(), lea.getUniqueId(), leaRef, aliceRef, holder);
+        try (var sf = mockStatic(SimpleFactions.class)) {
+            sf.when(SimpleFactions::getInstance).thenReturn(plugin);
+            UpkeepGifts.accept(alice, gone);
+        }
+        verify(alice).sendMessage(contains("not an upkeep-only vehicle of Realm"));
+        verify(lea).sendMessage(contains("not an upkeep-only vehicle of Realm"));
+    }
+
+    @Test
+    void theLeaderMayGiveThemselvesAVehicleWithoutAsking() {
+        SimpleFactions plugin = mock(SimpleFactions.class);
+        registry.register(holder.row(null, "boat", "sloop"));
+        CharacterRef leaRef = new CharacterRef(lea.getUniqueId(), NameKeyedMembers.characterOf("Lea"));
+        members.when(() -> Members.ref("Lea")).thenReturn(Optional.of(leaRef));
+        arm(lea, Mode.GIVE, "Lea");
         try (var sf = mockStatic(SimpleFactions.class)) {
             sf.when(SimpleFactions::getInstance).thenReturn(plugin);
             click(lea, "boat", "char_none");
         }
-        verify(lea).sendMessage(contains("Gave the sloop to Alice"));
-        verify(alice).sendMessage(contains("Lea gave you the sloop from Realm"));
-        verify(plugin).recordVehicleOwner("boat", "Alice");
+        verify(lea).sendMessage(contains("Gave the sloop to Lea"));
+        verify(plugin).recordVehicleOwner("boat", "Lea");
         assertEquals(OwnershipMode.PERSONAL, registry.getByVehicleUuid("boat").orElseThrow().getMode());
         assertNull(UpkeepClickSessions.get(lea.getUniqueId()));
     }

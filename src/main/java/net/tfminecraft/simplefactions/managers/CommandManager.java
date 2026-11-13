@@ -179,6 +179,7 @@ public class CommandManager implements Listener, CommandExecutor{
 						return true;
 					}
 				}
+				net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.disbanded(guild);
 				guild.getFaction().getGuildHandler().removeGuild(guild.getId());
 				guild.getFaction().getProvinceHandler().revalidateClaims();
 				for(String member : guild.getMembers()) {

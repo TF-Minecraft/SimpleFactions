@@ -51,6 +51,7 @@ public final class VehicleTransferMessages {
             case ALREADY_BERTHED -> "§cThis vehicle is already berthed at an installation.";
             case UNKNOWN_TYPE -> "§cThis vehicle is not registered for faction upkeep.";
             case MUST_BERTH -> mustBerth();
+            case MUST_BERTH_UPKEEP -> mustBerthUpkeep();
             case NO_ARTILLERY_CAPACITY -> noArtilleryCapacity(faction);
             case FROZEN -> frozen(faction);
         };
@@ -61,6 +62,13 @@ public final class VehicleTransferMessages {
         return "§cShips, aircraft and fort vehicles cannot join the faction pool. To fight in battles they must"
                 + " be berthed at a port, airport or fort (§e/faction vehicle transfer <installation>§c)."
                 + " To keep it without fighting, make it upkeep-only instead (§e/faction vehicle transfer upkeep§c).";
+    }
+
+    /** The same refusal for a vehicle that is upkeep-only already. */
+    public static String mustBerthUpkeep() {
+        return "§cShips, aircraft and fort vehicles cannot join the faction pool. To fight in battles, berth it at"
+                + " a port, airport or fort (§e/faction vehicle transfer <installation>§c); until then it stays"
+                + " upkeep-only.";
     }
 
     private static String frozen(Faction faction) {

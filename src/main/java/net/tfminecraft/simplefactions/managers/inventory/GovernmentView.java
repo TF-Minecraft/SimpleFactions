@@ -705,6 +705,13 @@ public class GovernmentView {
 			
 			// Only appointed seats can be vacated; elected and wealth seats refill themselves.
 			if(isOccupied && e.isRightClick() && council.getType() == Rules.APPOINTED_COUNCIL) {
+				String shown = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
+				// A menu opened before the council changed must not vacate someone else's seat.
+				if(!members.get(s).equals(shown)) {
+					p.sendMessage("§cThe council changed since this menu was opened; try again.");
+					councilView(p, f, inventory);
+					return;
+				}
 				vacateSeat(p, f, council, members.get(s), inventory);
 				return;
 			}

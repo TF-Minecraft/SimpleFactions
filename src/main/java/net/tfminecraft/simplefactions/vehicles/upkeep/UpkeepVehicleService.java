@@ -114,6 +114,16 @@ public final class UpkeepVehicleService {
 
     /** The leader hands one of the holder's vehicles to a member, as that member's personal vehicle. */
     public GiveOutcome give(UpkeepHolder holder, String leaderKey, CharacterRef recipient, String vehicle) {
+        return give(holder, leaderKey, recipient, vehicle, true);
+    }
+
+    /** The checks of {@link #give} without the move, before the recipient is asked. */
+    public GiveOutcome evaluateGive(UpkeepHolder holder, String leaderKey, CharacterRef recipient, String vehicle) {
+        return give(holder, leaderKey, recipient, vehicle, false);
+    }
+
+    private GiveOutcome give(UpkeepHolder holder, String leaderKey, CharacterRef recipient, String vehicle,
+            boolean apply) {
         if (holder == null || !holder.isLeader(leaderKey)) return outcome(GiveStatus.NOT_LEADER, null, null);
         PlayerVehicleRecord record = vehicle == null ? null : registry.getByVehicleUuid(vehicle).orElse(null);
         if (!holder.holds(record)) return outcome(GiveStatus.NOT_UPKEEP_VEHICLE, null, null);
@@ -123,10 +133,13 @@ public final class UpkeepVehicleService {
         CanBuildResult slot = VehicleSlotGuard.checkCanBuild(recipient.ownerId(), type, registry);
         if (slot == CanBuildResult.UNKNOWN_TYPE) return outcome(GiveStatus.UNKNOWN_TYPE, slot, type);
         if (slot != CanBuildResult.OK) return outcome(GiveStatus.NO_PERSONAL_ROOM, slot, type);
+        if (!apply) return outcome(GiveStatus.OK, null, type);
         // The recipient becomes the payer before VehicleFramework's owner changes.
         registry.register(new PlayerVehicleRecord(recipient.characterId(), vehicle, type,
                 OwnershipMode.PERSONAL, null, null, recipient.ownerId()));
         if (!saver.getAsBoolean()) {
+            // The saved files still hold the upkeep row (the upkeep file keeps a leaving row until the
+            // registry is written), so putting it back in memory is enough.
             registry.register(record);
             return outcome(GiveStatus.SAVE_FAILED, null, type);
         }

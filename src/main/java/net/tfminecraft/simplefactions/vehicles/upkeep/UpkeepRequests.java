@@ -69,6 +69,14 @@ public final class UpkeepRequests {
         return match;
     }
 
+    /** Whether several pending requests start with {@code query}. */
+    public static boolean ambiguous(String query) {
+        if (query == null || query.isBlank() || BY_VEHICLE.containsKey(query)) return false;
+        String prefix = query.toLowerCase(Locale.ROOT);
+        return BY_VEHICLE.keySet().stream().filter(vehicle -> vehicle.toLowerCase(Locale.ROOT).startsWith(prefix))
+                .count() > 1;
+    }
+
     public static List<Pending> forHolder(UpkeepHolder holder) {
         prune();
         List<Pending> out = new ArrayList<>();

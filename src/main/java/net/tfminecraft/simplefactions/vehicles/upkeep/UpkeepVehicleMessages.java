@@ -132,9 +132,9 @@ public final class UpkeepVehicleMessages {
         return Component.text()
                 .append(legacy(text))
                 .append(Component.text(" "))
-                .append(button("[Approve]", NamedTextColor.GREEN, root + "approve " + pending.shortId()))
+                .append(button("[Approve]", NamedTextColor.GREEN, root + "approve " + pending.vehicle()))
                 .append(Component.text(" "))
-                .append(button("[Deny]", NamedTextColor.RED, root + "deny " + pending.shortId()))
+                .append(button("[Deny]", NamedTextColor.RED, root + "deny " + pending.vehicle()))
                 .build();
     }
 
@@ -150,6 +150,11 @@ public final class UpkeepVehicleMessages {
 
     public static String noPending() {
         return "§cNo pending upkeep-only request matches that vehicle. §7See §e/faction vehicle upkeep§7.";
+    }
+
+    public static String ambiguous(String id) {
+        return "§cMore than one pending request starts with " + id
+                + ". Use the [Approve]/[Deny] buttons or more of the vehicle id.";
     }
 
     public static String notWaitingForYou() {
@@ -186,6 +191,11 @@ public final class UpkeepVehicleMessages {
         };
     }
 
+    public static String givePrompt(UpkeepHolder holder, String leaderName, String typeId) {
+        return "§e" + leaderName + " wants to give you the " + typeId + " from " + holder.name()
+                + " as your personal vehicle. You would pay its upkeep. §7/faction accept";
+    }
+
     public static String received(UpkeepHolder holder, String leaderName, String typeId) {
         return "§a" + leaderName + " gave you the " + typeId + " from " + holder.name()
                 + ". It is now your personal vehicle and you pay its upkeep.";
@@ -209,9 +219,10 @@ public final class UpkeepVehicleMessages {
         return "§7None yet.";
     }
 
+    /** {@code location} is null for members other than the leader. */
     public static String line(String typeId, String shortId, String location, boolean unpaid) {
         return "§7- §f" + typeId + " §8#" + shortId + " §8" + upkeep(typeId) + "/day"
-                + (unpaid ? " §cunpaid" : "") + " §7- " + location;
+                + (unpaid ? " §cunpaid" : "") + (location == null ? "" : " §7- " + location);
     }
 
     public static String pendingHeader() {

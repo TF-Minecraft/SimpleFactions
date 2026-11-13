@@ -123,8 +123,10 @@ class CharacterKeyedPoliticsTest {
         Proposal kept = new Proposal(zed, realm.getGovernment());
         council.getProposalHandler().getProposals().add(kept);
 
+        council.toggleRefuse(ash);
         assertTrue(council.removeMember(ash));
         assertEquals(List.of(zed), council.getMembers());
+        assertFalse(council.refuses(ash), "a vacated member's refusal goes with the seat");
         assertEquals(List.of(kept), council.getProposalHandler().getProposals());
         assertFalse(council.removeMember(ash));
         assertFalse(council.removeMember(null));

@@ -195,10 +195,11 @@ public class Council {
 
     /**
      * Takes a member off the council: the seats after theirs move up, so seats stay filled in
-     * order, and their queued proposals go. False when they held no seat.
+     * order, their queued proposals go and so does any refusal of theirs. False when they held no seat.
      */
     public boolean removeMember(String member) {
         if (member == null || !members.remove(member)) return false;
+        refuses.remove(member);
         proposalHandler.getProposals().removeIf(proposal -> member.equals(proposal.getProposer()));
         MercenaryLoyaltyWatcher.onGovernmentChanged(f);
         return true;

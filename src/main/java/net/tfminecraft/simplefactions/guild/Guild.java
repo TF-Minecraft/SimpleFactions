@@ -555,6 +555,7 @@ public class Guild {
     /** Puts back a leaderless state whose filling could not be saved. */
     public void restoreLeaderless(String deadKey, long since, long empty, String offer) {
         leader = "";
+        net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.onGuildLeaderChanged(this);
         deadLeader = deadKey;
         leaderlessSince = since;
         emptySince = empty;
@@ -1124,6 +1125,7 @@ public class Guild {
         Faction landless = new Faction(this);
         host = landless;
         FactionManager.addFaction(landless);
+        net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.becameRealm(this, landless);
         if(subjugate) RelationManager.setRelation(null, RelationLoader.getElevationTarget(), landless, old, false);
         return landless;
     }
@@ -1160,6 +1162,7 @@ public class Guild {
         InstallationTransferService.transfer(old, elevated, capital);
         old.getProvinceHandler().removeProvince(capital, false);
         FactionManager.addFaction(elevated);
+        net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.becameRealm(this, elevated);
         if(subjugate) RelationManager.setRelation(null, RelationLoader.getElevationTarget(), elevated, old, false);
         return elevated;
     }

@@ -704,6 +704,17 @@ class GovernmentMenusCoverageTest {
     verify(player, times(1)).sendMessage(contains("You vacated"));
   }
 
+  @Test
+  void aSeatShownForAnotherMemberIsNotVacated() {
+    when(council.getMembers()).thenReturn(List.of("Bob"));
+    view.councilView(player, faction, null);
+    when(council.getMembers()).thenReturn(List.of("Cara"));
+    rightClick(10);
+    verify(council, never()).removeMember(anyString());
+    verify(player).sendMessage(contains("council changed since this menu was opened"));
+    assertEquals("Cara", data(top().getItem(10), Keys.STRING_KEY), "the menu shows the council as it is now");
+  }
+
   @ParameterizedTest
   @EnumSource(value = Rules.class, names = {"WEALTH_BASED_COUNCIL", "ELECTED_COUNCIL"})
   void aRightClickOnAnElectedOrWealthSeatStillOpensTheReplacement(Rules type) {

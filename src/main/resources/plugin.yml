@@ -22,35 +22,24 @@ permissions:
 
 commands:
   faction:
-      usage: /<command>
       description: Faction Command
   guild:
-      usage: /<command>
       description: Guild Command
   warband:
-      usage: /<command>
       description: Warband Command
   battle:
-      usage: /<command>
       description: Battle Command
   raid:
-      usage: /<command>
       description: Campaign raid command
   war:
-      usage: /<command>
       description: War command
   movement:
-      usage: /<command>
       description: Movement admin command
   ledger:
-      usage: /<command>
       description: View your daily cashflow ledger
   company:
-      usage: /<command>
       description: Mercenary company command
   mercenaries:
-      usage: /<command>
       description: Browse and hire mercenary companies
   coalition:
-      usage: /<command>
       description: Form, join and run coalitions against a common target

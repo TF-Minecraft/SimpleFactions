@@ -1,6 +1,8 @@
 package net.tfminecraft.simplefactions.vehicles.upkeep;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import net.tfminecraft.simplefactions.economy.settlement.SettlementGuilds;
@@ -16,8 +18,10 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 
 /**
  * Who keeps an upkeep-only vehicle: a faction (paid from its main guild's bank) or a player
- * guild (paid from that guild's bank). Everything is read live, so a renamed realm, a new
- * leader or new members count at once.
+ * guild (paid from that guild's bank). A guild is named by its incarnation ID, which a later
+ * guild with the same name never shares. Everything is read live, so a renamed realm, a new
+ * leader or new members count at once, and a guild that has become a realm's main guild
+ * (rebellion, elevation, eviction) counts as that realm.
  */
 public record UpkeepHolder(Kind kind, String id) {
     /** Each member lets the holder keep this many upkeep-only vehicles. */
@@ -43,34 +47,58 @@ public record UpkeepHolder(Kind kind, String id) {
         return faction == null ? null : new UpkeepHolder(Kind.FACTION, faction.getId());
     }
 
-    /** A player guild; a faction's main guild stands for the faction itself. */
+    /** A player guild by incarnation; a realm's main guild stands for the realm itself. */
     public static UpkeepHolder of(Guild guild) {
         if (guild == null) return null;
-        return guild.isBase() ? of(guild.getFaction()) : new UpkeepHolder(Kind.GUILD, guild.getId());
+        return guild.isBase() ? of(guild.getFaction()) : new UpkeepHolder(Kind.GUILD, guild.getIncarnation());
     }
 
-    /** The holder of an upkeep-only row; null for any other row. */
+    /** The holder of an upkeep-only row, as it stands now; null for any other row. */
     public static UpkeepHolder of(PlayerVehicleRecord record) {
         if (record == null || record.getMode() != OwnershipMode.UPKEEP) return null;
-        if (record.getGuildId() != null) return new UpkeepHolder(Kind.GUILD, record.getGuildId());
+        if (record.getGuildId() != null) {
+            Guild guild = findGuild(record.getGuildId());
+            // The guild became a realm's main guild: its vehicles are that realm's now.
+            if (guild != null && guild.isBase()) return of(guild.getFaction());
+            return new UpkeepHolder(Kind.GUILD, record.getGuildId());
+        }
         return record.getFactionId() == null ? null : new UpkeepHolder(Kind.FACTION, record.getFactionId());
+    }
+
+    /** The guild with this incarnation; rows saved before incarnations were used name the guild ID. */
+    static Guild findGuild(String key) {
+        if (key == null) return null;
+        for (Guild guild : FactionManager.getAllGuilds()) {
+            if (guild != null && key.equalsIgnoreCase(guild.getIncarnation())) return guild;
+        }
+        return Members.characterId(key) == null ? FactionManager.getGuildByString(key) : null;
+    }
+
+    /** The player guild (never a realm's main guild) this character leads, else null. */
+    static Guild ledGuild(String key) {
+        for (Guild guild : FactionManager.getAllGuilds()) {
+            if (guild != null && !guild.isBase() && guild.isLeader(key)) return guild;
+        }
+        return null;
     }
 
     /** The faction or player guild this character leads; null when they lead none. */
     public static UpkeepHolder ledBy(String key, Kind kind) {
         if (key == null) return null;
         if (kind == Kind.FACTION) return of(FactionManager.getByLeader(key));
-        Guild guild = FactionManager.getGuildByLeader(key);
-        return guild == null || guild.isBase() ? null : of(guild);
+        return of(ledGuild(key));
     }
 
     /** The faction this character belongs to, or the player guild they are in or lead; null otherwise. */
     public static UpkeepHolder memberOf(String key, Kind kind) {
         if (key == null) return null;
         if (kind == Kind.FACTION) return of(FactionManager.getByMember(key));
-        Guild guild = FactionManager.getGuildByMember(key);
-        if (guild == null || guild.isBase()) guild = FactionManager.getGuildByLeader(key);
-        return guild == null || guild.isBase() ? null : of(guild);
+        Guild led = ledGuild(key);
+        if (led != null) return of(led);
+        for (Guild guild : FactionManager.getAllGuilds()) {
+            if (guild != null && !guild.isBase() && guild.isMember(key)) return of(guild);
+        }
+        return null;
     }
 
     /** The faction itself, or the guild's host faction. */
@@ -83,7 +111,7 @@ public record UpkeepHolder(Kind kind, String id) {
     /** The player guild; null for a faction or a guild that is gone. */
     public Guild guild() {
         if (kind != Kind.GUILD) return null;
-        Guild guild = FactionManager.getGuildByString(id);
+        Guild guild = findGuild(id);
         return guild == null || guild.isBase() ? null : guild;
     }
 
@@ -148,11 +176,14 @@ public record UpkeepHolder(Kind kind, String id) {
         return kind == Kind.FACTION ? SettlementGuilds.ruling(faction()) : guild();
     }
 
-    /** Waiting for a dead leader's heir: no upkeep is charged and no unpaid day is added. */
+    /**
+     * Waiting for a leader: a held realm (dead leader, heir pending), a guild with no leader, or a
+     * guild in a held realm. No upkeep is charged and no unpaid day is added meanwhile.
+     */
     public boolean held() {
         if (kind == Kind.FACTION) return HeldRealms.isHeld(faction());
         Guild guild = guild();
-        return guild != null && guild.isHeld();
+        return guild != null && (guild.isLeaderless() || HeldRealms.isHeld(guild.getFaction()));
     }
 
     public String name() {
@@ -178,7 +209,15 @@ public record UpkeepHolder(Kind kind, String id) {
                 kind == Kind.FACTION ? id : null, kind == Kind.GUILD ? id : null);
     }
 
-    public java.util.List<PlayerVehicleRecord> vehicles(PlayerVehicleRegistry registry) {
-        return registry.getUpkeepVehicles(kind == Kind.FACTION ? id : null, kind == Kind.GUILD ? id : null);
+    /** The holder's rows, including those of a guild that has since become this realm's main guild. */
+    public List<PlayerVehicleRecord> vehicles(PlayerVehicleRegistry registry) {
+        if (kind == Kind.GUILD) return registry.getUpkeepVehicles(null, id);
+        List<PlayerVehicleRecord> out = new ArrayList<>(registry.getUpkeepVehicles(id, null));
+        for (PlayerVehicleRecord record : registry.getAll()) {
+            if (record.getMode() == OwnershipMode.UPKEEP && record.getGuildId() != null && holds(record)) {
+                out.add(record);
+            }
+        }
+        return out;
     }
 }

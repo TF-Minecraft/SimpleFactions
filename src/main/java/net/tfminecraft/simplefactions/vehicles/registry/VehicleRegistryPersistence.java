@@ -88,16 +88,46 @@ public final class VehicleRegistryPersistence {
         catch (IOException error) { error.printStackTrace(); return false; }
     }
 
+    /**
+     * Writes the registry and its upkeep file so that a crash between the files never loses a
+     * row: the upkeep file is first written with the rows leaving it still in, then the registry,
+     * then the upkeep file exactly. On load the registry's row wins where both files have one.
+     */
     public static void write(Path file, java.util.Collection<PlayerVehicleRecord> records) throws IOException {
         List<VehicleRecordData> data = new ArrayList<>();
         List<VehicleRecordData> upkeep = new ArrayList<>();
+        java.util.Set<String> staying = new java.util.HashSet<>();
         for (PlayerVehicleRecord record : records) {
+            if (record.getMode() == OwnershipMode.UPKEEP) staying.add(record.getVehicleUuid());
             (record.getMode() == OwnershipMode.UPKEEP ? upkeep : data).add(VehicleRecordData.from(record));
         }
         Path upkeepFile = upkeepFile(file);
-        // Upkeep rows first: if the registry write then fails, the registry's old row still wins on load.
-        if (!upkeep.isEmpty() || Files.exists(upkeepFile)) DurableJson.write(upkeepFile, upkeep);
+        boolean hasUpkeepFile = Files.exists(upkeepFile);
+        List<VehicleRecordData> leaving = hasUpkeepFile ? leaving(upkeepFile, staying) : List.of();
+        if (!leaving.isEmpty()) {
+            List<VehicleRecordData> superset = new ArrayList<>(upkeep);
+            superset.addAll(leaving);
+            DurableJson.write(upkeepFile, superset);
+        } else if (!upkeep.isEmpty() || hasUpkeepFile) {
+            DurableJson.write(upkeepFile, upkeep);
+        }
         DurableJson.write(file, data);
+        if (!leaving.isEmpty()) DurableJson.write(upkeepFile, upkeep);
+    }
+
+    /** Rows of the saved upkeep file that are no longer upkeep-only; none when it cannot be read. */
+    private static List<VehicleRecordData> leaving(Path upkeepFile, java.util.Set<String> staying) {
+        try (Reader reader = new FileReader(upkeepFile.toFile())) {
+            List<VehicleRecordData> saved = GSON.fromJson(reader, new TypeToken<List<VehicleRecordData>>() {}.getType());
+            List<VehicleRecordData> out = new ArrayList<>();
+            if (saved == null) return out;
+            for (VehicleRecordData row : saved) {
+                if (row != null && row.vehicleUuid != null && !staying.contains(row.vehicleUuid)) out.add(row);
+            }
+            return out;
+        } catch (IOException | JsonParseException unreadable) {
+            return List.of();
+        }
     }
 
     /**

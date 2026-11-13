@@ -8,7 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
-import net.tfminecraft.simplefactions.SimpleFactions;
 import net.tfminecraft.simplefactions.identity.Members;
 import net.tfminecraft.simplefactions.installation.InstallationBounds;
 import net.tfminecraft.simplefactions.loaders.InstallationConfigLoader;
@@ -19,8 +18,6 @@ import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepClickSessions.Sessio
 import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepRequests.Awaiting;
 import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepRequests.Pending;
 import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService.AddResult;
-import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService.GiveOutcome;
-import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService.GiveStatus;
 import net.tfminecraft.tlibs.character.CharacterRef;
 import net.tfminecraft.vehicleframework.events.VehiclePreInteractEvent;
 
@@ -126,16 +123,8 @@ public final class UpkeepVehicleListener implements Listener {
     }
 
     private void give(Player leader, Session session, UpkeepTarget target) {
-        UpkeepHolder holder = session.holder();
-        GiveOutcome outcome = service.give(holder, Members.key(leader),
-                Members.ref(session.recipient()).orElse(null), target.vehicle());
-        leader.sendMessage(UpkeepVehicleMessages.forGive(outcome, holder, Members.display(session.recipient())));
-        if (outcome.status() == GiveStatus.NOT_LEADER) UpkeepClickSessions.disarm(leader.getUniqueId());
-        if (outcome.status() != GiveStatus.OK) return;
-        UpkeepClickSessions.disarm(leader.getUniqueId());
-        SimpleFactions plugin = SimpleFactions.getInstance();
-        if (plugin != null) plugin.recordVehicleOwner(target.vehicle(), session.recipient());
-        Members.online(session.recipient()).ifPresent(recipient -> recipient.sendMessage(
-                UpkeepVehicleMessages.received(holder, Members.name(leader), outcome.vehicleTypeId())));
+        if (UpkeepGifts.offer(service, leader, session.holder(), session.recipient(), target.vehicle())) {
+            UpkeepClickSessions.disarm(leader.getUniqueId());
+        }
     }
 }

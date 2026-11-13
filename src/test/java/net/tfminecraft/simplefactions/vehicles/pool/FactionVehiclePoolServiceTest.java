@@ -202,6 +202,11 @@ class FactionVehiclePoolServiceTest {
                 "upkeep-only vehicles have no war payer");
         assertEquals(CanAddResult.OK, service.canAdd(faction, target("kept", "coal_car", owned(ALICE_TAG))),
                 "the leader may move an upkeep-only vehicle into the pool");
+        registry.register(PlayerVehicleRecord.upkeep(null, "keptship", "ironclad", "red", null));
+        assertEquals(CanAddResult.MUST_BERTH_UPKEEP, service.canAdd(faction, target("keptship", "ironclad", owned(ALICE_TAG))));
+        String refusal = VehicleTransferMessages.forPoolResult(CanAddResult.MUST_BERTH_UPKEEP, "ironclad", faction);
+        assertTrue(refusal.contains("stays upkeep-only"));
+        assertTrue(!refusal.contains("make it upkeep-only"));
     }
 
     @Test

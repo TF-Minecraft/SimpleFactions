@@ -9,6 +9,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -29,6 +31,8 @@ import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder.Kind;
 
 class UpkeepHolderTest {
     private final String leader = UUID.randomUUID().toString();
+    private final String smithsIncarnation = UUID.randomUUID().toString();
+    private final List<Guild> guilds = new ArrayList<>();
     private MockedStatic<FactionManager> factions;
     private Faction realm;
     private Guild main;
@@ -45,20 +49,26 @@ class UpkeepHolderTest {
         main = mock(Guild.class);
         when(main.isBase()).thenReturn(true);
         when(main.getFaction()).thenReturn(realm);
+        when(main.getIncarnation()).thenReturn(UUID.randomUUID().toString());
+        when(main.isLeader(leader)).thenReturn(true);
+        when(main.isMember("Alice")).thenReturn(true);
         GuildHandler handler = mock(GuildHandler.class);
         when(handler.getGuild("Realm")).thenReturn(main);
         when(realm.getGuildHandler()).thenReturn(handler);
         smiths = mock(Guild.class);
         when(smiths.getId()).thenReturn("smiths");
+        when(smiths.getIncarnation()).thenReturn(smithsIncarnation);
         when(smiths.getName()).thenReturn("Smiths");
         when(smiths.getFaction()).thenReturn(realm);
         when(smiths.getLeader()).thenReturn("Carl");
+        when(smiths.isLeader("Carl")).thenReturn(true);
         when(smiths.getMembers()).thenReturn(List.of("Carl", "Dana"));
         when(smiths.isMember("Dana")).thenReturn(true);
+        guilds.addAll(Arrays.asList(null, main, smiths));
         factions = mockStatic(FactionManager.class);
+        factions.when(FactionManager::getAllGuilds).thenAnswer(call -> guilds);
         factions.when(() -> FactionManager.getByString("Realm")).thenReturn(realm);
         factions.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
-        factions.when(() -> FactionManager.getGuildByString("Realm")).thenReturn(main);
     }
 
     @AfterEach
@@ -66,41 +76,74 @@ class UpkeepHolderTest {
         factions.close();
     }
 
+    private UpkeepHolder smithsHolder() {
+        return new UpkeepHolder(Kind.GUILD, smithsIncarnation);
+    }
+
     @Test
-    void holdersComeFromFactionsGuildsAndUpkeepRowsOnly() {
+    void holdersComeFromFactionsGuildIncarnationsAndUpkeepRowsOnly() {
         assertEquals(new UpkeepHolder(Kind.FACTION, "Realm"), UpkeepHolder.of(realm));
         assertEquals(new UpkeepHolder(Kind.FACTION, "Realm"), UpkeepHolder.of(main));
-        assertEquals(new UpkeepHolder(Kind.GUILD, "smiths"), UpkeepHolder.of(smiths));
+        assertEquals(smithsHolder(), UpkeepHolder.of(smiths));
         assertNull(UpkeepHolder.of((Faction) null));
         assertNull(UpkeepHolder.of((Guild) null));
         assertNull(UpkeepHolder.of((PlayerVehicleRecord) null));
         assertNull(UpkeepHolder.of(new PlayerVehicleRecord(null, "v", "t", OwnershipMode.POOL, null, "Realm")));
         assertEquals(new UpkeepHolder(Kind.FACTION, "Realm"),
                 UpkeepHolder.of(PlayerVehicleRecord.upkeep(null, "v", "t", "Realm", null)));
-        assertEquals(new UpkeepHolder(Kind.GUILD, "smiths"),
-                UpkeepHolder.of(PlayerVehicleRecord.upkeep(null, "v", "t", "Realm", "smiths")));
+        assertEquals(smithsHolder(), UpkeepHolder.of(PlayerVehicleRecord.upkeep(null, "v", "t", null, smithsIncarnation)));
         assertNull(UpkeepHolder.of(PlayerVehicleRecord.upkeep(null, "v", "t", null, null)));
         assertEquals("faction", Kind.FACTION.command());
         assertEquals("guild", Kind.GUILD.command());
     }
 
     @Test
-    void leadersAndMembersFindTheirOwnHolder() {
+    void aGuildIsFoundByIncarnationSoALaterGuildWithTheSameNameInheritsNothing() {
+        assertSame(smiths, UpkeepHolder.findGuild(smithsIncarnation.toUpperCase()));
+        assertSame(smiths, UpkeepHolder.findGuild("smiths"), "a row saved by guild ID still resolves");
+        assertNull(UpkeepHolder.findGuild(null));
+        String gone = UUID.randomUUID().toString();
+        Guild reused = mock(Guild.class);
+        when(reused.getIncarnation()).thenReturn(UUID.randomUUID().toString());
+        factions.when(() -> FactionManager.getGuildByString(gone)).thenReturn(reused);
+        assertNull(UpkeepHolder.findGuild(gone), "an incarnation never falls back to a guild ID");
+        assertFalse(new UpkeepHolder(Kind.GUILD, gone).exists());
+    }
+
+    @Test
+    void aGuildThatBecameARealmsMainGuildCountsAsThatRealm() {
+        Faction rebels = mock(Faction.class);
+        when(rebels.getId()).thenReturn("Rebels");
+        when(smiths.isBase()).thenReturn(true);
+        when(smiths.getFaction()).thenReturn(rebels);
+        PlayerVehicleRecord row = PlayerVehicleRecord.upkeep(null, "v", "t", null, smithsIncarnation);
+        assertEquals(new UpkeepHolder(Kind.FACTION, "Rebels"), UpkeepHolder.of(row));
+        assertNull(smithsHolder().guild(), "a stale guild holder no longer leads anything");
+        PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
+        registry.register(row);
+        registry.register(PlayerVehicleRecord.upkeep(null, "w", "t", "Rebels", null));
+        registry.register(PlayerVehicleRecord.upkeep(null, "x", "t", null, UUID.randomUUID().toString()));
+        registry.register(new PlayerVehicleRecord(null, "y", "t", OwnershipMode.POOL, null, "Rebels"));
+        assertEquals(Set.of("v", "w"), Set.copyOf(new UpkeepHolder(Kind.FACTION, "Rebels").vehicles(registry).stream()
+                .map(PlayerVehicleRecord::getVehicleUuid).toList()));
+    }
+
+    @Test
+    void leadersAndMembersFindTheirPlayerGuildNeverTheirRealmsMainGuild() {
         factions.when(() -> FactionManager.getByLeader(leader)).thenReturn(realm);
-        factions.when(() -> FactionManager.getGuildByLeader("Carl")).thenReturn(smiths);
-        factions.when(() -> FactionManager.getGuildByLeader(leader)).thenReturn(main);
         factions.when(() -> FactionManager.getByMember("Alice")).thenReturn(realm);
-        factions.when(() -> FactionManager.getGuildByMember("Dana")).thenReturn(smiths);
-        factions.when(() -> FactionManager.getGuildByMember("Alice")).thenReturn(main);
         assertEquals(UpkeepHolder.of(realm), UpkeepHolder.ledBy(leader, Kind.FACTION));
-        assertEquals(UpkeepHolder.of(smiths), UpkeepHolder.ledBy("Carl", Kind.GUILD));
+        assertEquals(smithsHolder(), UpkeepHolder.ledBy("Carl", Kind.GUILD));
         assertNull(UpkeepHolder.ledBy(leader, Kind.GUILD), "a realm's main guild is not a player guild");
         assertNull(UpkeepHolder.ledBy("Nobody", Kind.GUILD));
         assertNull(UpkeepHolder.ledBy(null, Kind.FACTION));
+        when(smiths.isLeader(leader)).thenReturn(true);
+        assertEquals(smithsHolder(), UpkeepHolder.ledBy(leader, Kind.GUILD),
+                "a realm leader who also leads a player guild gets that guild");
         assertEquals(UpkeepHolder.of(realm), UpkeepHolder.memberOf("Alice", Kind.FACTION));
-        assertEquals(UpkeepHolder.of(smiths), UpkeepHolder.memberOf("Dana", Kind.GUILD));
-        assertEquals(UpkeepHolder.of(smiths), UpkeepHolder.memberOf("Carl", Kind.GUILD), "a leader counts");
-        assertNull(UpkeepHolder.memberOf("Alice", Kind.GUILD));
+        assertEquals(smithsHolder(), UpkeepHolder.memberOf("Dana", Kind.GUILD));
+        assertEquals(smithsHolder(), UpkeepHolder.memberOf("Carl", Kind.GUILD), "a leader counts");
+        assertNull(UpkeepHolder.memberOf("Alice", Kind.GUILD), "the main guild does not count");
         assertNull(UpkeepHolder.memberOf(null, Kind.GUILD));
     }
 
@@ -137,7 +180,7 @@ class UpkeepHolderTest {
 
     @Test
     void aGuildHolderReadsTheGuildAndItsHost() {
-        UpkeepHolder holder = UpkeepHolder.of(smiths);
+        UpkeepHolder holder = smithsHolder();
         assertSame(smiths, holder.guild());
         assertSame(realm, holder.faction());
         assertTrue(holder.exists());
@@ -148,13 +191,10 @@ class UpkeepHolderTest {
         assertTrue(holder.isMember("Dana"));
         assertFalse(holder.isMember("Alice"));
         assertSame(smiths, holder.bank());
-        assertFalse(holder.held());
-        when(smiths.isHeld()).thenReturn(true);
-        assertTrue(holder.held());
         assertEquals("Smiths", holder.name());
         PlayerVehicleRecord row = holder.row(null, "v", "ship");
         assertNull(row.getFactionId());
-        assertEquals("smiths", row.getGuildId());
+        assertEquals(smithsIncarnation, row.getGuildId());
         assertTrue(holder.holds(row));
         assertFalse(UpkeepHolder.of(realm).holds(row));
         when(smiths.getLeader()).thenReturn("");
@@ -162,9 +202,22 @@ class UpkeepHolderTest {
     }
 
     @Test
+    void aGuildWaitsWhileLeaderlessOrWhileItsRealmIsHeldNotOnTheMainGuildsPredicate() {
+        UpkeepHolder holder = smithsHolder();
+        when(smiths.isHeld()).thenReturn(true);
+        assertFalse(holder.held(), "isHeld() is only ever true for a realm's main guild");
+        when(smiths.isLeaderless()).thenReturn(true);
+        assertTrue(holder.held());
+        when(smiths.isLeaderless()).thenReturn(false);
+        when(main.isHeld()).thenReturn(true);
+        assertTrue(holder.held(), "a guild in a held realm waits with it");
+    }
+
+    @Test
     void aHolderThatIsGoneHasNothing() {
-        for (UpkeepHolder gone : List.of(new UpkeepHolder(Kind.FACTION, "gone"), new UpkeepHolder(Kind.GUILD, "gone"),
-                new UpkeepHolder(Kind.GUILD, "Realm"))) {
+        for (UpkeepHolder gone : List.of(new UpkeepHolder(Kind.FACTION, "gone"),
+                new UpkeepHolder(Kind.GUILD, UUID.randomUUID().toString()),
+                new UpkeepHolder(Kind.GUILD, main.getIncarnation()))) {
             assertNull(gone.faction());
             assertNull(gone.guild());
             assertFalse(gone.exists());
@@ -183,11 +236,11 @@ class UpkeepHolderTest {
     void vehiclesAreTheHoldersUpkeepRows() {
         PlayerVehicleRegistry registry = new PlayerVehicleRegistry();
         registry.register(PlayerVehicleRecord.upkeep(null, "a", "ship", "Realm", null));
-        registry.register(PlayerVehicleRecord.upkeep(null, "b", "ship", "Realm", "smiths"));
+        registry.register(PlayerVehicleRecord.upkeep(null, "b", "ship", null, smithsIncarnation));
         registry.register(new PlayerVehicleRecord(null, "c", "ship", OwnershipMode.POOL, null, "Realm"));
         assertEquals(List.of("a"), UpkeepHolder.of(realm).vehicles(registry).stream()
                 .map(PlayerVehicleRecord::getVehicleUuid).toList());
-        assertEquals(List.of("b"), UpkeepHolder.of(smiths).vehicles(registry).stream()
+        assertEquals(List.of("b"), smithsHolder().vehicles(registry).stream()
                 .map(PlayerVehicleRecord::getVehicleUuid).toList());
     }
 }

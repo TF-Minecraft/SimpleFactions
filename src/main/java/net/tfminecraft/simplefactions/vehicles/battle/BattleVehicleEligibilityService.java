@@ -99,13 +99,14 @@ public final class BattleVehicleEligibilityService {
 		}
 
 		Battle battle = BattleManager.getBattleByMemberId(player.getUniqueId());
-		if (battle == null || battle.getWarId() == null) {
-			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
-		}
-		// Upkeep-only vehicles never fight, whatever staff opened for this battle.
-		if (registry.getByVehicleUuid(vehicle.getUUID())
+		// Upkeep-only vehicles never fight in any battle, staff and event battles included,
+		// whatever staff opened for it.
+		if (battle != null && registry.getByVehicleUuid(vehicle.getUUID())
 				.filter(record -> record.getMode() == OwnershipMode.UPKEEP).isPresent()) {
 			return BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY;
+		}
+		if (battle == null || battle.getWarId() == null) {
+			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
 		}
 		// Staff overrides come before the berth and pool rules.
 		if (battle.isAllVehiclesUsable()) {
