@@ -51,7 +51,7 @@ public final class FactionVehiclePoolService {
         return Math.max(0, regiment.getCurrentSlots());
     }
 
-    /** Upkeep the faction bank pays each day for its pool and installation vehicles. */
+    /** Upkeep the faction bank pays each day for its pool, installation and upkeep-only vehicles. */
     public static double dailyUpkeep(PlayerVehicleRegistry registry, String factionId) {
         if (registry == null || factionId == null || factionId.isBlank()) {
             return 0.0;
@@ -66,6 +66,9 @@ public final class FactionVehiclePoolService {
     }
 
     private static boolean paidBy(PlayerVehicleRecord record, String factionId) {
+        if (record.getMode() == OwnershipMode.UPKEEP) {
+            return record.getGuildId() == null && factionId.equalsIgnoreCase(record.getFactionId());
+        }
         if (record.getMode() == OwnershipMode.POOL) {
             return factionId.equalsIgnoreCase(record.getFactionId());
         }

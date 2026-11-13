@@ -28,6 +28,7 @@ import net.tfminecraft.simplefactions.utils.Permissions;
 import net.tfminecraft.simplefactions.installation.Installation;
 import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverMessages;
 import net.tfminecraft.simplefactions.vehicles.handover.VehicleHandoverSessionManager;
+import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepClickSessions;
 
 public final class VehicleFactionCommands {
     private VehicleFactionCommands() {}
@@ -80,6 +81,7 @@ public final class VehicleFactionCommands {
         net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
+        UpkeepClickSessions.disarm(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().put(
                 player.getUniqueId(),
                 new VehicleReleaseSession(Kind.TAKE, System.currentTimeMillis() + timeoutMillis));
@@ -115,6 +117,7 @@ public final class VehicleFactionCommands {
         net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
+        UpkeepClickSessions.disarm(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().put(
                 player.getUniqueId(),
                 new VehicleReleaseSession(
@@ -166,6 +169,7 @@ public final class VehicleFactionCommands {
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
+        UpkeepClickSessions.disarm(player.getUniqueId());
     }
 
     /** Stops every armed vehicle click mode, so the next right-click mounts the vehicle again. */
@@ -177,6 +181,7 @@ public final class VehicleFactionCommands {
                 || plugin.getVehicleHandoverSessionManager().get(id) != null
                 || plugin.getVehicleMaintenancePaySessionManager().get(id) != null;
         active |= net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(id);
+        active |= UpkeepClickSessions.disarm(id);
         plugin.getVehicleTransferSessionManager().clear(id);
         clearOtherVehicleSessions(plugin, player);
         player.sendMessage(active
@@ -189,6 +194,7 @@ public final class VehicleFactionCommands {
         plugin.getVehicleMaintenancePaySessionManager().clear(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
+        UpkeepClickSessions.disarm(player.getUniqueId());
     }
 
     private static void armPoolTransfer(Player player) {
@@ -218,6 +224,7 @@ public final class VehicleFactionCommands {
         net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.disarm(player.getUniqueId());
         plugin.getVehicleReleaseSessionManager().clear(player.getUniqueId());
         plugin.getVehicleHandoverSessionManager().clear(player.getUniqueId());
+        UpkeepClickSessions.disarm(player.getUniqueId());
         plugin.getVehicleMaintenancePaySessionManager().put(
                 player.getUniqueId(),
                 new VehicleMaintenancePaySession(System.currentTimeMillis() + timeoutMillis, source, character));
@@ -342,7 +349,7 @@ public final class VehicleFactionCommands {
         private VehicleTabCompletions() {}
 
         public static List<String> subcommands(String prefix) {
-            return filter(List.of("transfer", "take", "give", "handover", "maintenance", "disable"), prefix);
+            return filter(List.of("transfer", "take", "give", "handover", "maintenance", "upkeep", "disable"), prefix);
         }
 
         public static List<String> maintenanceActions(String prefix) {

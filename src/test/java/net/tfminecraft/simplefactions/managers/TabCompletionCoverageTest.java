@@ -425,6 +425,27 @@ class TabCompletionCoverageTest {
     assertEquals(List.of("bank"), complete("faction", "vehicle", "maintenance", "pay", "b"));
     assertTrue(complete("faction", "vehicle", "unknown", "").isEmpty());
     assertTrue(complete(mock(CommandSender.class), "faction", "vehicle", "").isEmpty());
+    assertTrue(complete("faction", "vehicle", "").contains("upkeep"));
+    assertEquals(List.of("upkeep"), complete("faction", "vehicle", "transfer", "u"));
+  }
+
+  @Test
+  void upkeepOnlyVehicleArgumentsCompleteForFactionsAndGuilds() {
+    try (MockedStatic<net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands> upkeep =
+        mockStatic(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.class)) {
+      upkeep
+          .when(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.complete(
+              any(), eq(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder.Kind.FACTION), any()))
+          .thenReturn(List.of("approve"));
+      upkeep
+          .when(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.complete(
+              any(), eq(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder.Kind.GUILD), any()))
+          .thenReturn(List.of("upkeep"));
+      assertEquals(List.of("approve"), complete("faction", "vehicle", "upkeep", "ap"));
+      assertEquals(List.of("upkeep"), complete("guild", "vehicle", "u"));
+    }
+    assertTrue(complete(mock(CommandSender.class), "guild", "vehicle", "").isEmpty());
+    assertTrue(complete("guild", "").contains("vehicle"));
   }
 
   @ParameterizedTest
@@ -838,9 +859,17 @@ class TabCompletionCoverageTest {
   }
 
   @Test
-  void factionKickExcludesMembersWhoMustLeaveThroughTheirSubguild() {
+  void factionKickOffersGuildMembersButNotGuildLeaders() {
     factions.when(() -> FactionManager.getByLeader("Leader")).thenReturn(realm);
-    when(realm.isInGuild("Bob")).thenReturn(true);
+    Guild smiths = mock(Guild.class);
+    when(smiths.isLeader("Bob")).thenReturn(true);
+    Guild base = mock(Guild.class);
+    when(base.isBase()).thenReturn(true);
+    when(base.isLeader("Alice")).thenReturn(true);
+    GuildHandler handler = mock(GuildHandler.class);
+    when(handler.getGuilds()).thenReturn(List.of(base, smiths));
+    when(realm.getGuildHandler()).thenReturn(handler);
+    when(realm.isInGuild("Alice")).thenReturn(true);
     assertEquals(List.of("Alice"), complete("faction", "kick", ""));
     assertTrue(complete("faction", "kick", "B").isEmpty());
   }

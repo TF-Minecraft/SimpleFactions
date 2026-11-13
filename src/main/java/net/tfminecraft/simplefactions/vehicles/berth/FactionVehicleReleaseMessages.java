@@ -109,7 +109,7 @@ public final class FactionVehicleReleaseMessages {
         };
     }
 
-    static String personalRoom(CanBuildResult slot, String vehicleTypeId, String otherPlayer) {
+    public static String personalRoom(CanBuildResult slot, String vehicleTypeId, String otherPlayer) {
         if (otherPlayer == null || otherPlayer.isBlank()) {
             return VehicleConstructionMessages.forResult(slot, vehicleTypeId);
         }

@@ -101,6 +101,22 @@ class BattleVehicleEligibilityServiceTest {
 	}
 
 	@Test
+	void upkeepOnlyVehicle_neverFightsEvenForItsOwnFaction() {
+		PlayerVehicleRecord faction = PlayerVehicleRecord.upkeep(PLAYER_UUID, "veh-1", "ironclad", "atk", null);
+		PlayerVehicleRecord guild = PlayerVehicleRecord.upkeep(PLAYER_UUID, "veh-2", "coal_car", null, "smiths");
+
+		assertFalse(BattleVehicleEligibilityService.isEligible(war, "atk", faction));
+		assertFalse(BattleVehicleEligibilityService.isEligible(war, "atk", guild));
+		assertEquals(BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY,
+				BattleVehicleEligibilityService.decide(war, "atk", "ironclad", faction));
+		assertTrue(BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY.isDenied());
+		String message = BattleVehicleEligibilityService.Messages.forResult(
+				BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY);
+		assertTrue(message.contains("upkeep-only vehicle and cannot be used in battles"));
+		assertTrue(message.contains("faction pool or berth it at an installation"));
+	}
+
+	@Test
 	void poolVehicle_allowedWhenFactionIsOnThePlayerSide() {
 		PlayerVehicleRecord record = new PlayerVehicleRecord(
 				PLAYER_UUID,

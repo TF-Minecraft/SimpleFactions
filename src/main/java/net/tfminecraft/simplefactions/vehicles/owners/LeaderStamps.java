@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
+import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder;
 
 /**
  * Faction vehicles carry their faction leader's character as owner, which gives the
@@ -45,14 +46,30 @@ public final class LeaderStamps {
         return OwnerTags.character(leader);
     }
 
-    /** The stamp a faction row should carry: its paying faction's leader, else {@code char_none}. */
+    /**
+     * The stamp a faction row should carry: its paying faction's leader, or for an upkeep-only
+     * vehicle its faction's or guild's leader; else {@code char_none}.
+     */
     public static String expected(PlayerVehicleRecord record) {
+        if (record != null && record.getMode() == OwnershipMode.UPKEEP) {
+            UpkeepHolder holder = UpkeepHolder.of(record);
+            return holder == null ? OwnerTags.NO_CHARACTER : holder.leaderStamp();
+        }
         return expectedStamp(FactionVehiclePoolService.payingFaction(record));
     }
 
+    /** Pool, installation and upkeep-only rows: vehicles stamped for a leader rather than owned. */
     public static boolean isFactionRow(PlayerVehicleRecord record) {
-        return record != null
-                && (record.getMode() == OwnershipMode.INSTALLATION || record.getMode() == OwnershipMode.POOL);
+        return record != null && record.getMode() != OwnershipMode.PERSONAL;
+    }
+
+    /** A new guild leader (or none) takes over the stamp on the guild's upkeep-only vehicles. */
+    public static void onGuildLeaderChanged(net.tfminecraft.simplefactions.guild.Guild guild) {
+        if (!enabled || guild == null || guild.isBase() || SimpleFactions.getInstance() == null) return;
+        UpkeepHolder holder = UpkeepHolder.of(guild);
+        for (PlayerVehicleRecord record : holder.vehicles(SimpleFactions.getVehicleRegistry())) {
+            report(record.getVehicleUuid(), restamp(record));
+        }
     }
 
     /** Writes the expected stamp when the vehicle carries anything else. */

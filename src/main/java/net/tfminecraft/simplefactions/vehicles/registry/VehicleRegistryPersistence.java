@@ -18,6 +18,7 @@ import com.google.gson.reflect.TypeToken;
 
 public final class VehicleRegistryPersistence {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public static final String UPKEEP_FILE = "vehicles_upkeep.json";
 
     private final File file;
     private final PlayerVehicleRegistry registry;
@@ -29,20 +30,20 @@ public final class VehicleRegistryPersistence {
     }
 
     public void load() {
-        if (!file.exists()) {
+        Path upkeep = upkeepFile(file.toPath());
+        if (!file.exists() && !Files.exists(upkeep)) {
             saveBlocked = false;
             return;
         }
-        try (Reader reader = new FileReader(file)) {
-            List<VehicleRecordData> data = GSON.fromJson(
-                reader,
-                new TypeToken<List<VehicleRecordData>>() {}.getType());
-            if (data == null) throw new JsonParseException("Vehicle registry must be a list");
-            List<PlayerVehicleRecord> records = new ArrayList<>();
-            for (VehicleRecordData row : data) {
-                PlayerVehicleRecord record = row == null ? null : row.toRecord();
-                if (record == null) throw new JsonParseException("Invalid vehicle registry row");
-                records.add(record);
+        try {
+            List<PlayerVehicleRecord> records = file.exists() ? read(file.toPath(), false) : new ArrayList<>();
+            if (Files.exists(upkeep)) {
+                java.util.Set<String> listed = new java.util.HashSet<>();
+                records.forEach(record -> listed.add(record.getVehicleUuid()));
+                // A save interrupted between the two files leaves the main file's row in charge.
+                for (PlayerVehicleRecord record : read(upkeep, true)) {
+                    if (listed.add(record.getVehicleUuid())) records.add(record);
+                }
             }
             registry.replaceAll(records);
             saveBlocked = false;
@@ -50,6 +51,33 @@ public final class VehicleRegistryPersistence {
             saveBlocked = true;
             throw new IllegalStateException("Cannot load vehicle payer registry", e);
         }
+    }
+
+    private static List<PlayerVehicleRecord> read(Path path, boolean upkeepOnly) throws IOException {
+        try (Reader reader = new FileReader(path.toFile())) {
+            List<VehicleRecordData> data = GSON.fromJson(
+                reader,
+                new TypeToken<List<VehicleRecordData>>() {}.getType());
+            if (data == null) throw new JsonParseException("Vehicle registry must be a list");
+            List<PlayerVehicleRecord> records = new ArrayList<>();
+            for (VehicleRecordData row : data) {
+                PlayerVehicleRecord record = row == null ? null : row.toRecord();
+                if (record == null || (upkeepOnly && record.getMode() != OwnershipMode.UPKEEP)) {
+                    throw new JsonParseException("Invalid vehicle registry row in " + path.getFileName());
+                }
+                records.add(record);
+            }
+            return records;
+        }
+    }
+
+    /**
+     * Upkeep-only rows live in their own file next to the registry, so an older plugin that
+     * does not know the mode still loads the registry; it then sees those vehicles as their
+     * leader's own.
+     */
+    static Path upkeepFile(Path registryFile) {
+        return registryFile.resolveSibling(UPKEEP_FILE);
     }
 
     /** Writes a temp file and moves it into place, so a failed save never leaves a half-written registry. */
@@ -62,7 +90,13 @@ public final class VehicleRegistryPersistence {
 
     public static void write(Path file, java.util.Collection<PlayerVehicleRecord> records) throws IOException {
         List<VehicleRecordData> data = new ArrayList<>();
-        for (PlayerVehicleRecord record : records) data.add(VehicleRecordData.from(record));
+        List<VehicleRecordData> upkeep = new ArrayList<>();
+        for (PlayerVehicleRecord record : records) {
+            (record.getMode() == OwnershipMode.UPKEEP ? upkeep : data).add(VehicleRecordData.from(record));
+        }
+        Path upkeepFile = upkeepFile(file);
+        // Upkeep rows first: if the registry write then fails, the registry's old row still wins on load.
+        if (!upkeep.isEmpty() || Files.exists(upkeepFile)) DurableJson.write(upkeepFile, upkeep);
         DurableJson.write(file, data);
     }
 
@@ -96,6 +130,7 @@ public final class VehicleRegistryPersistence {
         String installationId;
         String factionId;
         String accountUuid;
+        String guildId;
 
         static VehicleRecordData from(PlayerVehicleRecord record) {
             VehicleRecordData data = new VehicleRecordData();
@@ -106,6 +141,7 @@ public final class VehicleRegistryPersistence {
             data.installationId = record.getInstallationId();
             data.factionId = record.getFactionId();
             data.accountUuid = record.getAccountUuid() == null ? null : record.getAccountUuid().toString();
+            data.guildId = record.getGuildId();
             return data;
         }
 
@@ -122,7 +158,8 @@ public final class VehicleRegistryPersistence {
                     ownershipMode,
                     installationId,
                     factionId,
-                    accountUuid == null ? null : UUID.fromString(accountUuid));
+                    accountUuid == null ? null : UUID.fromString(accountUuid),
+                    guildId);
             } catch (IllegalArgumentException e) {
                 return null;
             }

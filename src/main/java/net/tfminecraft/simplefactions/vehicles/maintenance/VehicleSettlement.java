@@ -22,6 +22,9 @@ import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
 import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
+import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
+import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder;
+import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleOwnershipQueries;
 import net.tfminecraft.tlibs.character.CharacterInfo;
@@ -86,6 +89,10 @@ public final class VehicleSettlement {
         for (var record : registry.getAll()) {
             if (record.getMode() == OwnershipMode.PERSONAL) continue;
             long upkeep = Money.cents(VehiclesConfigLoader.getUpkeep(record.getVehicleTypeId()));
+            if (record.getMode() == OwnershipMode.UPKEEP) {
+                upkeepOnly(balances, legs, unpaid, notices, record, upkeep, now);
+                continue;
+            }
             var faction = FactionVehiclePoolService.payingFaction(record);
             if (net.tfminecraft.simplefactions.guild.HeldRealms.isHeld(faction)) continue;
             if (upkeep <= 0 || (faction == null && record.getMode() == OwnershipMode.INSTALLATION)) {
@@ -103,6 +110,29 @@ public final class VehicleSettlement {
         }
         changes.vehicleChanges.add("maintenance", JsonUtil.GSON.toJsonTree(unpaid));
         changes.vehicleChanges.add("notices", notices);
+    }
+
+    /** A faction's upkeep-only vehicle is paid by its main guild's bank, a guild's by the guild's bank. */
+    private static void upkeepOnly(Map<String, Long> balances, Map<String, Long> legs, Map<String, Long> unpaid,
+            JsonArray notices, PlayerVehicleRecord record, long upkeep, long now) {
+        UpkeepHolder holder = UpkeepHolder.of(record);
+        if (holder != null && holder.held()) return;
+        if (upkeep <= 0) {
+            unpaid.remove(record.getVehicleUuid());
+            return;
+        }
+        Guild bank = holder == null ? null : holder.bank();
+        String account = bank == null ? null : Denars.guild(bank.getIncarnationId());
+        if (bank == null || bank.getBank() == null || balance(balances, legs, account) < upkeep) {
+            unpaid.putIfAbsent(record.getVehicleUuid(), now);
+            JsonObject notice = new JsonObject();
+            notice.addProperty("type", record.getVehicleTypeId());
+            if (bank != null) notice.addProperty("guild", bank.getId());
+            notices.add(notice);
+            return;
+        }
+        transfer(balances, legs, account, Denars.MINT, upkeep);
+        unpaid.remove(record.getVehicleUuid());
     }
 
     public static void apply(JsonObject changes) throws IOException {
@@ -128,6 +158,10 @@ public final class VehicleSettlement {
                 if (notice.has("faction")) {
                     var faction = net.tfminecraft.simplefactions.managers.FactionManager.getByString(notice.get("faction").getAsString());
                     if (faction != null) character = faction.getLeader();
+                }
+                if (notice.has("guild")) {
+                    var guild = net.tfminecraft.simplefactions.managers.FactionManager.getGuildByString(notice.get("guild").getAsString());
+                    if (guild != null) character = guild.getLeader();
                 }
                 Members.online(character).ifPresent(player -> player.sendMessage(
                         "§cCould not pay vehicle upkeep (" + notice.get("type").getAsString() + "): insufficient bank balance."));

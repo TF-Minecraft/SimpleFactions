@@ -1177,6 +1177,7 @@ class PluginLifecycleCoverageTest {
     assertSame(
         fields.get("vehicleTransferConsentService"), plugin.getVehicleTransferConsentService());
     assertSame(fields.get("factionVehicleGiveService"), plugin.getFactionVehicleGiveService());
+    assertSame(fields.get("upkeepVehicleService"), plugin.getUpkeepVehicleService());
     assertSame(
         fields.get("vehicleHandoverSessionManager"), plugin.getVehicleHandoverSessionManager());
     assertSame(fields.get("vehicleHandoverService"), plugin.getVehicleHandoverService());
@@ -1264,6 +1265,10 @@ class PluginLifecycleCoverageTest {
       assertEquals(
           yaml.getConfigurationSection("commands").getKeys(false),
           new java.util.HashSet<>(SimpleFactions.COMMANDS));
+      for (String name : yaml.getConfigurationSection("commands").getKeys(false)) {
+        assertEquals("/<command>", yaml.getString("commands." + name + ".usage"), name);
+        assertFalse(yaml.contains("commands." + name + ".useage"), name);
+      }
     }
   }
 

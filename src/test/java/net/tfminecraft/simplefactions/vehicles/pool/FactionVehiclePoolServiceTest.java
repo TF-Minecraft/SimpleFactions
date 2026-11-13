@@ -153,9 +153,10 @@ class FactionVehiclePoolServiceTest {
     void berthableTypeIsRefused() {
         assertEquals(CanAddResult.MUST_BERTH, service.canAdd(faction, target("v1", "horse_cart", ALICE_TAG)));
         assertEquals(CanAddResult.MUST_BERTH, service.canAdd(faction, target("v2", "ironclad", ALICE_TAG)));
-        assertEquals(
-                "§cThis vehicle belongs at an installation, not in the faction pool.",
-                VehicleTransferMessages.forPoolResult(CanAddResult.MUST_BERTH, "ironclad", faction));
+        String refusal = VehicleTransferMessages.forPoolResult(CanAddResult.MUST_BERTH, "ironclad", faction);
+        assertTrue(refusal.contains("port, airport or fort"));
+        assertTrue(refusal.contains("fight in battles"));
+        assertTrue(refusal.contains("/faction vehicle transfer upkeep"));
     }
 
     @Test
@@ -189,6 +190,18 @@ class FactionVehiclePoolServiceTest {
         assertEquals(ALICE_TAG, api.owner("v1"));
         assertEquals(java.util.List.of("v1 " + ALICE_TAG + " TRANSFER"), api.writes);
         assertEquals(1.0, FactionVehiclePoolService.dailyUpkeep(registry, "red"));
+    }
+
+    @Test
+    void theFactionPaysForItsOwnUpkeepOnlyVehiclesButNotItsGuilds() {
+        registry.register(PlayerVehicleRecord.upkeep(null, "kept", "horse_cart", "red", null));
+        registry.register(PlayerVehicleRecord.upkeep(null, "guild", "horse_cart", null, "smiths"));
+        registry.register(PlayerVehicleRecord.upkeep(null, "other", "horse_cart", "blue", null));
+        assertEquals(5.0, FactionVehiclePoolService.dailyUpkeep(registry, "red"));
+        assertEquals(null, FactionVehiclePoolService.payingFaction(registry.getByVehicleUuid("kept").orElseThrow()),
+                "upkeep-only vehicles have no war payer");
+        assertEquals(CanAddResult.OK, service.canAdd(faction, target("kept", "coal_car", owned(ALICE_TAG))),
+                "the leader may move an upkeep-only vehicle into the pool");
     }
 
     @Test

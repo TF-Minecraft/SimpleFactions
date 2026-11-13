@@ -29,6 +29,18 @@ choices. Each vehicle shows its world and coordinates when known, including
 stored vehicles. For an installation named `pool` or `personal`, use
 `/faction findvehicles installation:<id>`; tab completion supplies this form.
 
+A faction or a player guild can keep vehicles **upkeep-only**: its bank pays their upkeep
+(the realm's main guild bank, or the guild's own bank), its leader decides what happens to
+them, and they never take part in battles or other war rules. Any vehicle type may join, up
+to three per member; members leaving never removes one. The leader moves a vehicle in with
+`/faction vehicle transfer upkeep` (or `/guild vehicle transfer upkeep`) and a right-click;
+someone else's vehicle needs its owner's approval. An owner can ask with
+`/faction vehicle upkeep request` and the leader approves or denies. Once in, only the leader
+can give it to a member as a personal vehicle (`... vehicle upkeep give <member>`) or move it
+to the war pool or an installation berth. `/faction vehicle upkeep` lists the vehicles, the
+cap, the daily upkeep and pending requests. Upkeep-only rows are saved in
+`Cache/vehicles_upkeep.json`, next to the vehicle registry.
+
 ## A shared political world
 
 [TFMCWeb](https://github.com/TF-Minecraft/TFMCWeb) presents the world map, borders, settlements, and military activity on the website.

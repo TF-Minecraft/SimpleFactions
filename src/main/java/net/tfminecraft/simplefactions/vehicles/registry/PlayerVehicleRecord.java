@@ -11,6 +11,8 @@ public final class PlayerVehicleRecord {
     private final String factionId;
     /** The account that played {@code playerUuid} when the row was written; null for older rows. */
     private final UUID accountUuid;
+    /** The guild keeping an {@link OwnershipMode#UPKEEP} vehicle; null for every other row and for a faction's. */
+    private final String guildId;
 
     public PlayerVehicleRecord(
             UUID playerUuid,
@@ -39,6 +41,18 @@ public final class PlayerVehicleRecord {
             String installationId,
             String factionId,
             UUID accountUuid) {
+        this(playerUuid, vehicleUuid, vehicleTypeId, mode, installationId, factionId, accountUuid, null);
+    }
+
+    public PlayerVehicleRecord(
+            UUID playerUuid,
+            String vehicleUuid,
+            String vehicleTypeId,
+            OwnershipMode mode,
+            String installationId,
+            String factionId,
+            UUID accountUuid,
+            String guildId) {
         this.playerUuid = playerUuid;
         this.vehicleUuid = vehicleUuid;
         this.vehicleTypeId = vehicleTypeId;
@@ -46,6 +60,17 @@ public final class PlayerVehicleRecord {
         this.installationId = installationId;
         this.factionId = factionId;
         this.accountUuid = accountUuid;
+        this.guildId = guildId;
+    }
+
+    /**
+     * An upkeep-only row: {@code factionId} for a faction's vehicle, or {@code guildId} for a guild's.
+     * {@code previousOwner} is the character the vehicle came from.
+     */
+    public static PlayerVehicleRecord upkeep(
+            UUID previousOwner, String vehicleUuid, String vehicleTypeId, String factionId, String guildId) {
+        return new PlayerVehicleRecord(previousOwner, vehicleUuid, vehicleTypeId, OwnershipMode.UPKEEP, null,
+                guildId == null ? factionId : null, null, guildId);
     }
 
     public UUID getPlayerUuid() {
@@ -76,7 +101,12 @@ public final class PlayerVehicleRecord {
         return accountUuid;
     }
 
+    public String getGuildId() {
+        return guildId;
+    }
+
     public PlayerVehicleRecord withAccount(UUID account) {
-        return new PlayerVehicleRecord(playerUuid, vehicleUuid, vehicleTypeId, mode, installationId, factionId, account);
+        return new PlayerVehicleRecord(
+                playerUuid, vehicleUuid, vehicleTypeId, mode, installationId, factionId, account, guildId);
     }
 }

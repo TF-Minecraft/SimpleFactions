@@ -185,7 +185,7 @@ class VehicleTransactionBoundaryCoverageTest {
               "ironclad",
               rig.faction));
       assertEquals(
-          "§cThis vehicle belongs at an installation, not in the faction pool.",
+          VehicleTransferMessages.mustBerth(),
           VehicleTransferMessages.forPoolResult(
               pools.canAdd(rig.faction, rig.vehicle("at-sea", "ironclad")),
               "ironclad",

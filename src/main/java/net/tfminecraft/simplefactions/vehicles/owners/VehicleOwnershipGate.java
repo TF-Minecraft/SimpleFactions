@@ -27,6 +27,7 @@ import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeService.Quote;
 import net.tfminecraft.simplefactions.vehicles.fees.VehicleFeeStore;
 import net.tfminecraft.simplefactions.vehicles.fees.VehiclePayments;
+import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 import net.tfminecraft.simplefactions.vehicles.registry.VehicleRegistryClaimListener;
@@ -55,6 +56,13 @@ public final class VehicleOwnershipGate implements Listener {
      * name: VehicleFramework before 2.15 has no such reasons, and a constant would not link there.
      */
     static final Set<String> LEADER_SWITCHES = Set.of("ALLY_ACCESS_TOGGLE", "VASSAL_ACCESS_TOGGLE");
+    /**
+     * An upkeep-only vehicle's leader has every access control a personal owner has, but may not
+     * claim, clear or take it over: only SimpleFactions moves it out.
+     */
+    static final Set<String> UPKEEP_CONTROLS = Set.of("WHITELIST_ADD", "WHITELIST_REMOVE", "WHITELIST_TOGGLE",
+            "TICKETS_TOGGLE", "FACTION_ACCESS_TOGGLE", "GUILD_ACCESS_TOGGLE", "ALLY_ACCESS_TOGGLE",
+            "VASSAL_ACCESS_TOGGLE");
 
     private final PlayerVehicleRegistry registry;
     private final VehicleRegistryClaimService claims;
@@ -86,7 +94,7 @@ public final class VehicleOwnershipGate implements Listener {
                 refuse(event, event.getPlayer(), HELD);
                 return;
             }
-            if (LeaderStamps.isFactionRow(row(vehicle)) && !LEADER_SWITCHES.contains(event.getReason().name())) {
+            if (LeaderStamps.isFactionRow(row(vehicle)) && !leaderMay(row(vehicle), event.getReason().name())) {
                 refuse(event, event.getPlayer(), VehicleRegistryClaimListener.FACTION_VEHICLE);
                 return;
             }
@@ -235,7 +243,7 @@ public final class VehicleOwnershipGate implements Listener {
             if (LeaderStamps.isStale(record, event.getVehicle().getOwnerData().getOwner())) {
                 event.deny();
                 LeaderStamps.scheduleRestamp(record);
-            } else if (!event.isMenu() && !LEADER_SWITCHES.contains(event.getReason().orElseThrow().name())) {
+            } else if (!event.isMenu() && !leaderMay(record, event.getReason().orElseThrow().name())) {
                 event.deny();
             }
         } catch (RuntimeException | LinkageError error) {
@@ -262,6 +270,11 @@ public final class VehicleOwnershipGate implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onLeaderChanged(FactionLeaderChangedEvent event) {
         LeaderStamps.onLeaderChanged(event.getFaction(), registry);
+    }
+
+    /** The controls a faction row's leader may use: two switches, or all access controls when upkeep-only. */
+    static boolean leaderMay(PlayerVehicleRecord record, String reason) {
+        return (record.getMode() == OwnershipMode.UPKEEP ? UPKEEP_CONTROLS : LEADER_SWITCHES).contains(reason);
     }
 
     private PlayerVehicleRecord row(ActiveVehicle vehicle) {

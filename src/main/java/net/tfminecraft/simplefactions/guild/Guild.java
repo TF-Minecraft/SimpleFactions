@@ -534,6 +534,7 @@ public class Guild {
     public void setLeader(String leader) {
         this.leader = leader;
         if (leader != null && !leader.isBlank()) clearLeaderless();
+        net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.onGuildLeaderChanged(this);
     }
 
     /**
@@ -542,6 +543,7 @@ public class Guild {
      */
     public void markLeaderless(String deadKey, long at) {
         leader = "";
+        net.tfminecraft.simplefactions.vehicles.owners.LeaderStamps.onGuildLeaderChanged(this);
         if (leaderlessSince > 0) return;
         deadLeader = deadKey;
         leaderlessSince = at;

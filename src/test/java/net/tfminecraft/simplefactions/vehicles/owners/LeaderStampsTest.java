@@ -266,4 +266,43 @@ class LeaderStampsTest {
         api.stored("gun", "gun", "player_Other");
         assertTrue(LeaderStamps.isStale(gun, "player_Other"), "Once staff change it, it is a faction vehicle again");
     }
+
+    @Test
+    void upkeepOnlyVehiclesCarryTheirFactionsOrGuildsLeader() {
+        PlayerVehicleRecord kept = PlayerVehicleRecord.upkeep(UUID.randomUUID(), "kept", "gun", "red", null);
+        assertTrue(LeaderStamps.isFactionRow(kept));
+        assertEquals("char_" + kira, LeaderStamps.expected(kept));
+        assertEquals("char_none", LeaderStamps.expected(PlayerVehicleRecord.upkeep(null, "x", "gun", null, null)));
+        UUID carl = UUID.randomUUID();
+        net.tfminecraft.simplefactions.guild.Guild smiths = mock(net.tfminecraft.simplefactions.guild.Guild.class);
+        when(smiths.getId()).thenReturn("smiths");
+        when(smiths.getLeader()).thenReturn(carl.toString());
+        PlayerVehicleRecord guildRow = PlayerVehicleRecord.upkeep(null, "boat", "gun", null, "smiths");
+        registry.register(guildRow);
+        registry.register(kept);
+        api.stored("boat", "gun", "char_old");
+        api.stored("kept", "gun", "char_old");
+        SimpleFactions plugin = mock(SimpleFactions.class);
+        when(plugin.getLogger()).thenReturn(mock(Logger.class));
+        try (MockedStatic<FactionManager> manager = mockStatic(FactionManager.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+                MockedStatic<SimpleFactions> sf = mockStatic(SimpleFactions.class)) {
+            manager.when(() -> FactionManager.getGuildByString("smiths")).thenReturn(smiths);
+            assertEquals("char_" + carl, LeaderStamps.expected(guildRow));
+            LeaderStamps.onGuildLeaderChanged(smiths);
+            assertEquals("char_old", api.owner("boat"), "no plugin running");
+            sf.when(SimpleFactions::getInstance).thenReturn(plugin);
+            sf.when(SimpleFactions::getVehicleRegistry).thenReturn(registry);
+            LeaderStamps.onGuildLeaderChanged(null);
+            net.tfminecraft.simplefactions.guild.Guild main = mock(net.tfminecraft.simplefactions.guild.Guild.class);
+            when(main.isBase()).thenReturn(true);
+            LeaderStamps.onGuildLeaderChanged(main);
+            LeaderStamps.enable(false);
+            LeaderStamps.onGuildLeaderChanged(smiths);
+            assertEquals("char_old", api.owner("boat"));
+            LeaderStamps.enable(true);
+            LeaderStamps.onGuildLeaderChanged(smiths);
+            assertEquals("char_" + carl, api.owner("boat"));
+            assertEquals("char_old", api.owner("kept"), "only the guild's vehicles");
+        }
+    }
 }

@@ -1554,7 +1554,9 @@ class VehicleInteractionsCoverageTest {
         "nonparticipant",
         "forced_here",
         "forced_other",
-        "all_usable"
+        "all_usable",
+        "upkeep_only",
+        "upkeep_all_usable"
       })
   void battleEntryAndSpawnUseTheSameLiveRosterAndFactionOwnershipRules(String state) {
     Faction enemy = fixture.saved("enemy", "Enemy");
@@ -1588,7 +1590,10 @@ class VehicleInteractionsCoverageTest {
     // Staff overrides beat the personal-vehicle refusal below.
     if (state.equals("forced_here")) battle.setForcedVehicleSide("vehicle-1", "ATTACKERS");
     if (state.equals("forced_other")) battle.setForcedVehicleSide("vehicle-1", "defenders");
-    if (state.equals("all_usable")) battle.setAllVehiclesUsable(true);
+    if (state.equals("all_usable") || state.equals("upkeep_all_usable")) battle.setAllVehiclesUsable(true);
+    if (state.startsWith("upkeep"))
+      registry.register(
+          PlayerVehicleRecord.upkeep(owner.getUniqueId(), "vehicle-1", "ironclad", "home", null));
     if (state.startsWith("pool")) {
       when(vehicle.getId()).thenReturn("simple_locomotive");
       registry.register(
@@ -1627,6 +1632,8 @@ class VehicleInteractionsCoverageTest {
           case "prebattle" ->
               BattleVehicleEligibilityService.BattleVehicleEligibilityResult
                   .DENIED_PRE_BATTLE_WARBAND;
+          case "upkeep_only", "upkeep_all_usable" ->
+              BattleVehicleEligibilityService.BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY;
           case "no_battle",
                   "manual_battle",
                   "missing_war",

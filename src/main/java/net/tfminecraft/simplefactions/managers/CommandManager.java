@@ -119,6 +119,9 @@ public class CommandManager implements Listener, CommandExecutor{
 				p.sendMessage(NO_CHARACTER);
 				return true;
 			}
+			if(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.handles(cmd.getName(), args)) {
+				return net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.handle(p, cmd.getName(), args);
+			}
 			if(cmd.getName().equalsIgnoreCase(cmd2) && args[0].equalsIgnoreCase("create") && args.length == 2) {
 				Faction f = FactionManager.getByMember(Members.key(p));
 				if(f == null) {
@@ -1005,13 +1008,20 @@ public class CommandManager implements Listener, CommandExecutor{
 					p.sendMessage("§cPlayer is not a member");
 					return true;
 				}
-				if(f.isInGuild(kicked)) {
-					p.sendMessage("§cPlayer is a member of a guild");
+				Guild led = MemberDepartures.ledGuild(f, kicked);
+				if(led != null) {
+					p.sendMessage("§c" + Members.display(kicked) + " §cleads the guild " + led.getName()
+							+ "§c. To remove them, evict the whole guild from its guild menu.");
 					return true;
 				}
+				Guild left = f.isInGuild(kicked) ? MemberDepartures.guildOf(f, kicked) : null;
 				MemberDepartures.leaveRealm(f, kicked, false);
 				p.sendMessage("§aKicked "+Members.display(kicked));
 				Members.online(kicked).ifPresent(pl -> pl.sendMessage("§a"+Members.name(p)+ " kicked you from "+f.getName()));
+				if(left != null) {
+					Members.online(left.getLeader()).ifPresent(gl -> gl.sendMessage("§e" + Members.name(p) + " §eremoved "
+							+ Members.display(kicked) + " §efrom " + f.getName() + " §eand from your guild " + left.getName() + "§e."));
+				}
 				return true;
 			} else if(cmd.getName().equalsIgnoreCase(cmd1) && args[0].equalsIgnoreCase("setleader") && args.length >= 2) {
 				Faction f = FactionManager.getByMember(Members.key(p));

@@ -213,6 +213,8 @@ public class SimpleFactions extends JavaPlugin{
 					vehicleRegistry, installationVehicleOwnerSync);
 	private final FactionVehicleReleaseService factionVehicleReleaseService =
 			new FactionVehicleReleaseService(vehicleRegistry);
+	private final net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService upkeepVehicleService =
+			new net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService(vehicleRegistry);
 	private final InstallationVehicleUnberthService installationVehicleUnberthService =
 			new InstallationVehicleUnberthService(factionVehicleReleaseService);
 	private final VehicleTransferSessionManager vehicleTransferSessionManager =
@@ -892,6 +894,10 @@ public class SimpleFactions extends JavaPlugin{
 		return vehicleTransferSessionManager;
 	}
 
+	public net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService getUpkeepVehicleService() {
+		return upkeepVehicleService;
+	}
+
 	public VehicleReleaseSessionManager getVehicleReleaseSessionManager() {
 		return vehicleReleaseSessionManager;
 	}
@@ -1142,6 +1148,8 @@ public class SimpleFactions extends JavaPlugin{
 		getServer().getPluginManager().registerEvents(battleVehicleEligibilityListener, this);
 		getServer().getPluginManager().registerEvents(
 				new net.tfminecraft.simplefactions.vehicles.battle.BattleForcedVehicles.Listener(), this);
+		getServer().getPluginManager().registerEvents(
+				new net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleListener(upkeepVehicleService), this);
 		getServer().getPluginManager().registerEvents(vehicleHandoverListener, this);
 		getServer().getPluginManager().registerEvents(vehicleReclaimFeeListener, this);
 		if (full) {
