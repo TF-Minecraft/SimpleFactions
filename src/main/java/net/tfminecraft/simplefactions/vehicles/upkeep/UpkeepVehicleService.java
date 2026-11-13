@@ -138,9 +138,8 @@ public final class UpkeepVehicleService {
         registry.register(new PlayerVehicleRecord(recipient.characterId(), vehicle, type,
                 OwnershipMode.PERSONAL, null, null, recipient.ownerId()));
         if (!saver.getAsBoolean()) {
-            // Back in memory, the next save writes the upkeep row again. Until then the files hold it
-            // too (the upkeep file keeps a leaving row until the registry is written), unless only the
-            // last upkeep-file write failed: then the registry file already names the recipient.
+            // A save that fails commits nothing (VehicleRegistryPersistence#write has one commit point),
+            // so the saved files still hold the upkeep row and putting it back in memory is enough.
             registry.register(record);
             return outcome(GiveStatus.SAVE_FAILED, null, type);
         }

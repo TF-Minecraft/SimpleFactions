@@ -1125,7 +1125,7 @@ public class Guild {
         Faction landless = new Faction(this);
         host = landless;
         FactionManager.addFaction(landless);
-        net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.becameRealm(this, landless);
+        net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.becameRealm(this, old, landless);
         if(subjugate) RelationManager.setRelation(null, RelationLoader.getElevationTarget(), landless, old, false);
         return landless;
     }
@@ -1162,7 +1162,7 @@ public class Guild {
         InstallationTransferService.transfer(old, elevated, capital);
         old.getProvinceHandler().removeProvince(capital, false);
         FactionManager.addFaction(elevated);
-        net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.becameRealm(this, elevated);
+        net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.becameRealm(this, old, elevated);
         if(subjugate) RelationManager.setRelation(null, RelationLoader.getElevationTarget(), elevated, old, false);
         return elevated;
     }

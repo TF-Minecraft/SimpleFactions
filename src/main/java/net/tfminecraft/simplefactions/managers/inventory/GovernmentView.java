@@ -715,7 +715,8 @@ public class GovernmentView {
 				vacateSeat(p, f, council, members.get(s), inventory);
 				return;
 			}
-			if(isOccupied && council.hasSession()) {
+			// No seat changes hands during a session, empty ones included: the next proposal's voters come from the seats.
+			if(council.hasSession()) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				p.sendMessage(SEAT_SESSION_BLOCK);
 				return;
@@ -756,7 +757,7 @@ public class GovernmentView {
 				return;
 			}
 			
-			if(isOccupied && council.hasSession()) {
+			if(council.hasSession()) {
 				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
 				p.sendMessage(SEAT_SESSION_BLOCK);
 				return;

@@ -670,10 +670,15 @@ public class GuildCoverageTest {
                   guild.setHost(f);
                 });
         MockedStatic<net.tfminecraft.simplefactions.SimpleFactions> sf =
-            mockStatic(net.tfminecraft.simplefactions.SimpleFactions.class)) {
+            mockStatic(net.tfminecraft.simplefactions.SimpleFactions.class);
+        MockedConstruction<net.tfminecraft.simplefactions.database.Database> databases =
+            mockConstruction(net.tfminecraft.simplefactions.database.Database.class,
+                (db, context) -> when(db.saveFactionDurably(any(), any())).thenReturn(true))) {
       sf.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(plugin);
       sf.when(net.tfminecraft.simplefactions.SimpleFactions::getVehicleRegistry).thenReturn(registry);
       guild.toLandless(false);
+      verify(databases.constructed().getFirst()).saveFactionDurably(eq(fixture.host), any());
+      verify(databases.constructed().getFirst()).saveFactionDurably(eq(created.constructed().getFirst()), any());
     }
     var row = registry.getByVehicleUuid("boat").orElseThrow();
     assertEquals("merchants_realm", row.getFactionId());

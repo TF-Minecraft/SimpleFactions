@@ -743,6 +743,17 @@ class GovernmentMenusCoverageTest {
     verify(player, times(3)).sendMessage(contains("cannot change while a council session is running"));
     when(council.getMembers()).thenReturn(List.of());
     click(10);
+    assertSame(seats, top());
+    verify(player, times(4)).sendMessage(contains("cannot change while a council session is running"));
+    when(council.hasSession()).thenReturn(false);
+    view.councilSelect(player, faction, null, 0);
+    when(council.hasSession()).thenReturn(true);
+    click(0);
+    verify(council, never()).addMember(anyString());
+    verify(player, times(5)).sendMessage(contains("cannot change while a council session is running"));
+    when(council.hasSession()).thenReturn(false);
+    view.councilView(player, faction, null);
+    click(10);
     assertMenu(SFGUI.COUNCIL_SELECT);
   }
 

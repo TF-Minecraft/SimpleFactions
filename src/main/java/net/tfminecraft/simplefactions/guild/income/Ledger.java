@@ -418,7 +418,7 @@ public class Ledger {
             case VEHICLE_UPKEEP:
                 // A player guild's line is its own upkeep-only vehicles.
                 amount = guild.isBase() ? -factionVehicleUpkeep.applyAsDouble(f.getId())
-                        : -guildVehicleUpkeep.applyAsDouble(guild.getId());
+                        : -guildVehicleUpkeep.applyAsDouble(guild.getIncarnation());
                 break;
             case MILITARY_UPKEEP:
                 if (guild.isBase() && f.getMilitary() != null) {

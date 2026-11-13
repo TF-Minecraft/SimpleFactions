@@ -194,9 +194,11 @@ class LedgerNetIncomeTest {
 		Faction faction = mock(Faction.class);
 		Guild guild = mock(Guild.class);
 		when(guild.getId()).thenReturn("smiths");
+		when(guild.getIncarnation()).thenReturn("8a5c6a3e-0000-4000-8000-000000000001");
 		when(faction.getId()).thenReturn("red");
 		Ledger.setVehiclePoolUpkeepForTests(id -> 12.0);
-		Ledger.setGuildVehicleUpkeepForTests(id -> id.equals("smiths") ? 7.5 : 0.0);
+		// Guild upkeep rows are keyed by incarnation, never by the (reusable) guild id.
+		Ledger.setGuildVehicleUpkeepForTests(id -> id.equals("8a5c6a3e-0000-4000-8000-000000000001") ? 7.5 : 0.0);
 		try {
 			Ledger sub = baseLedger(faction, guild, false);
 			assertEquals(-7.5, sub.getIncome(Cashflow.VEHICLE_UPKEEP));

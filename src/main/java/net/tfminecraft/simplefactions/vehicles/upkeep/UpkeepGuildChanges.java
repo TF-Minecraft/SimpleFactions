@@ -1,9 +1,11 @@
 package net.tfminecraft.simplefactions.vehicles.upkeep;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.function.Function;
 
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.database.Database;
+import net.tfminecraft.simplefactions.database.DurableJson;
 import net.tfminecraft.simplefactions.guild.Guild;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.owners.OwnerTags;
@@ -20,7 +22,8 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
  * faction rows. Until that is saved, and for a rebellion that may be undone, the rows still count
  * for whichever realm the guild leads ({@link UpkeepHolder#of(PlayerVehicleRecord)}).</li>
  * <li>A realm becomes a guild (annexed by its overlord, a rebel realm absorbed back): its faction
- * rows follow its main guild, which lives on as a player guild.</li>
+ * rows follow its main guild, which lives on as a player guild; if that cannot be saved, the
+ * realm is kept.</li>
  * <li>A guild is deleted (by staff) or closed without a leader: its rows stay with nobody stamped
  * or paying, like a deleted faction's pool, for staff to reassign. A leader cannot delete a guild
  * that still holds upkeep-only vehicles; giving them out checks each member's vehicle limits.</li>
@@ -29,36 +32,66 @@ import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
 public final class UpkeepGuildChanges {
     private UpkeepGuildChanges() {}
 
-    /** After {@code guild} became {@code realm}'s main guild. */
-    public static void becameRealm(Guild guild, Faction realm) {
-        if (guild == null || realm == null) return;
-        rewrite(registry -> registry.getUpkeepVehicles(null, guild.getIncarnation()),
-                row -> PlayerVehicleRecord.upkeep(row.getPlayerUuid(), row.getVehicleUuid(), row.getVehicleTypeId(),
-                        realm.getId(), null),
-                realm.getId() + " as faction rows; they still count for it through its main guild");
-    }
-
-    /** Before {@code realm} is deleted while its main guild {@code base} lives on as a player guild. */
-    public static void realmBecameGuild(Faction realm, Guild base) {
-        if (realm == null || base == null) return;
-        rewrite(registry -> registry.getUpkeepVehicles(realm.getId(), null),
-                row -> PlayerVehicleRecord.upkeep(row.getPlayerUuid(), row.getVehicleUuid(), row.getVehicleTypeId(),
-                        null, base.getIncarnation()),
-                realm.getId() + " as rows of its main guild; they lose their holder with the realm");
-    }
-
-    private static void rewrite(Function<PlayerVehicleRegistry, List<PlayerVehicleRecord>> select,
-            Function<PlayerVehicleRecord, PlayerVehicleRecord> change, String failure) {
+    /**
+     * After {@code guild} left {@code oldHost} and became {@code realm}'s main guild. Both realms
+     * are saved first, so the rows never name a realm the saved data lacks; until then (or if
+     * either save fails) the guild-keyed rows still count for the realm through its main guild.
+     */
+    public static void becameRealm(Guild guild, Faction oldHost, Faction realm) {
         SimpleFactions plugin = SimpleFactions.getInstance();
         PlayerVehicleRegistry registry = plugin == null ? null : SimpleFactions.getVehicleRegistry();
-        if (registry == null) return;
-        List<PlayerVehicleRecord> rows = select.apply(registry);
+        if (registry == null || guild == null || realm == null) return;
+        List<PlayerVehicleRecord> rows = registry.getUpkeepVehicles(null, guild.getIncarnation());
         if (rows.isEmpty()) return;
-        for (PlayerVehicleRecord row : rows) registry.register(change.apply(row));
+        if (!saveRealms(oldHost, realm)) {
+            plugin.getLogger().warning("Could not save " + realm.getId() + "; its " + rows.size()
+                    + " upkeep-only vehicles keep counting for it through its main guild");
+            return;
+        }
+        for (PlayerVehicleRecord row : rows) {
+            registry.register(PlayerVehicleRecord.upkeep(row.getPlayerUuid(), row.getVehicleUuid(), row.getVehicleTypeId(),
+                    realm.getId(), null));
+        }
         if (!plugin.saveVehicleRegistry()) {
             rows.forEach(registry::register);
-            plugin.getLogger().warning("Could not save " + rows.size() + " upkeep-only vehicles of " + failure);
+            plugin.getLogger().warning("Could not save " + rows.size() + " upkeep-only vehicles of " + realm.getId()
+                    + " as faction rows; they still count for it through its main guild");
         }
+    }
+
+    private static boolean saveRealms(Faction oldHost, Faction realm) {
+        Database database = new Database();
+        DurableJson.Batch batch = new DurableJson.Batch();
+        if (oldHost != null && !database.saveFactionDurably(oldHost, batch)) return false;
+        if (!database.saveFactionDurably(realm, batch)) return false;
+        try {
+            batch.commit();
+            return true;
+        } catch (IOException error) {
+            return false;
+        }
+    }
+
+    /**
+     * Before {@code realm} goes while its main guild {@code base} lives on as a player guild: its
+     * faction rows become rows of that guild, which count for the realm as long as the guild is
+     * its main guild and for the guild afterwards. False when they could not be saved: the realm
+     * must then stay. The rows are kept in memory either way, for the next save to write.
+     */
+    public static boolean realmBecameGuild(Faction realm, Guild base) {
+        SimpleFactions plugin = SimpleFactions.getInstance();
+        PlayerVehicleRegistry registry = plugin == null ? null : SimpleFactions.getVehicleRegistry();
+        if (registry == null || realm == null || base == null) return true;
+        List<PlayerVehicleRecord> rows = registry.getUpkeepVehicles(realm.getId(), null);
+        if (rows.isEmpty()) return true;
+        for (PlayerVehicleRecord row : rows) {
+            registry.register(PlayerVehicleRecord.upkeep(row.getPlayerUuid(), row.getVehicleUuid(), row.getVehicleTypeId(),
+                    null, base.getIncarnation()));
+        }
+        if (plugin.saveVehicleRegistry()) return true;
+        plugin.getLogger().warning("Could not save " + rows.size() + " upkeep-only vehicles of " + realm.getId()
+                + " as rows of its main guild; the realm is kept");
+        return false;
     }
 
     /** Whether the guild still holds upkeep-only vehicles; a leader must give them out before deleting it. */

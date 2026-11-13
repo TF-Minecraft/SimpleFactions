@@ -1435,6 +1435,11 @@ public class Faction {
 
 	public Faction dissolve(List<Faction> vassals, List<Guild> guilds) {
 		Faction overlord = getOverlord();
+		// Upkeep-only vehicles follow the main guild into the overlord; if they cannot be saved, the realm stays.
+		if (overlord != null && !net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges
+				.realmBecameGuild(this, getOrCreateMainGuild())) {
+			return this;
+		}
 		if(overlord != null) {
 			for(int i : provinceHandler.getProvinces()) {
 				overlord.getProvinceHandler().addProvince(i);
@@ -1472,7 +1477,6 @@ public class Faction {
 				provinceHandler.removeProvince(i, true);
 			}
 			Guild base = getOrCreateMainGuild();
-			net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.realmBecameGuild(this, base);
 			base.convert(GuildLoader.getDefaultType());
 			overlord.getGuildHandler().addGuild(base);
 			//failsafe relocation
