@@ -193,6 +193,17 @@ public class Council {
         }
     }
 
+    /**
+     * Takes a member off the council: the seats after theirs move up, so seats stay filled in
+     * order, and their queued proposals go. False when they held no seat.
+     */
+    public boolean removeMember(String member) {
+        if (member == null || !members.remove(member)) return false;
+        proposalHandler.getProposals().removeIf(proposal -> member.equals(proposal.getProposer()));
+        MercenaryLoyaltyWatcher.onGovernmentChanged(f);
+        return true;
+    }
+
     public void replaceMember(int slot, String newMember) {
         if(slot >= 0 && slot < members.size()) {
             members.set(slot, newMember);
