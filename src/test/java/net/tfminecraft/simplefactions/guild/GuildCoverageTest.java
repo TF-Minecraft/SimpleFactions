@@ -653,6 +653,39 @@ public class GuildCoverageTest {
     assertEquals(Cache.elevationBase, fixture.guild("guild", 0).getElevationCost());
   }
 
+  @Test
+  void aRealGuildEvictedToLandlessTakesItsUpkeepOnlyVehiclesIntoTheNewRealm() {
+    Guild guild = fixture.guild("guild", 1);
+    var registry = new net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry();
+    registry.register(net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord.upkeep(
+        null, "boat", "sloop", null, guild.getIncarnation()));
+    var plugin = mock(net.tfminecraft.simplefactions.SimpleFactions.class);
+    when(plugin.saveVehicleRegistry()).thenReturn(true);
+    when(plugin.getProvinceManager()).thenReturn(mock(net.tfminecraft.simplefactions.managers.ProvinceManager.class));
+    try (MockedConstruction<Faction> created =
+            mockConstruction(
+                Faction.class,
+                (f, context) -> {
+                  when(f.getId()).thenReturn("merchants_realm");
+                  guild.setHost(f);
+                });
+        MockedStatic<net.tfminecraft.simplefactions.SimpleFactions> sf =
+            mockStatic(net.tfminecraft.simplefactions.SimpleFactions.class);
+        MockedConstruction<net.tfminecraft.simplefactions.database.Database> databases =
+            mockConstruction(net.tfminecraft.simplefactions.database.Database.class,
+                (db, context) -> when(db.saveFactionDurably(any(), any())).thenReturn(true))) {
+      sf.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(plugin);
+      sf.when(net.tfminecraft.simplefactions.SimpleFactions::getVehicleRegistry).thenReturn(registry);
+      guild.toLandless(false);
+      verify(databases.constructed().getFirst()).saveFactionDurably(eq(fixture.host), any());
+      verify(databases.constructed().getFirst()).saveFactionDurably(eq(created.constructed().getFirst()), any());
+    }
+    var row = registry.getByVehicleUuid("boat").orElseThrow();
+    assertEquals("merchants_realm", row.getFactionId());
+    assertNull(row.getGuildId());
+    verify(plugin).saveVehicleRegistry();
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void landlessConversionClearsPoliticalStatusAndOptionallyCreatesTheSubjectRelation(

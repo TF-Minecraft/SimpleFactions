@@ -89,6 +89,14 @@ public class Ledger {
         factionVehicleUpkeep = lookup == null ? FactionVehiclePoolService::dailyUpkeepOf : lookup;
     }
 
+    private static ToDoubleFunction<String> guildVehicleUpkeep =
+            net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService::dailyUpkeepOfGuild;
+
+    public static void setGuildVehicleUpkeepForTests(ToDoubleFunction<String> lookup) {
+        guildVehicleUpkeep = lookup == null
+                ? net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleService::dailyUpkeepOfGuild : lookup;
+    }
+
     public Ledger(Guild guild) {
         this.guild = guild;
     }
@@ -408,10 +416,9 @@ public class Ledger {
                 }
                 break;
             case VEHICLE_UPKEEP:
-                if (!guild.isBase()) {
-                    return 0;
-                }
-                amount = -factionVehicleUpkeep.applyAsDouble(f.getId());
+                // A player guild's line is its own upkeep-only vehicles.
+                amount = guild.isBase() ? -factionVehicleUpkeep.applyAsDouble(f.getId())
+                        : -guildVehicleUpkeep.applyAsDouble(guild.getIncarnation());
                 break;
             case MILITARY_UPKEEP:
                 if (guild.isBase() && f.getMilitary() != null) {

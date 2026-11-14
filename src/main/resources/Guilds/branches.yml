@@ -72,11 +72,11 @@ counting_houses:
   description:
     - "#a9744fCounting Houses #d4c9aekeep the"
     - "#d4c9aeguild's books in order, reducing"
-    - "#d4c9aetrade upkeep by #a9744f0.01 #d4c9aeper"
+    - "#d4c9aetrade upkeep by #a9744f0.02 #d4c9aeper"
     - "#d4c9aelevel, to a minimum of zero."
   allowed-types:
     - guild
     - realm
   modifiers:
-    - trade_upkeep 0 -0.01
+    - trade_upkeep 0 -0.02
     - prestige 0 5

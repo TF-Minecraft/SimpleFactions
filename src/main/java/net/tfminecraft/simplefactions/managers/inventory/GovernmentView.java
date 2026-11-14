@@ -339,6 +339,27 @@ public class GovernmentView {
 		if(open) player.openInventory(i);
 	}
 
+	static final String SEAT_SESSION_BLOCK = "§cCouncil seats cannot change while a council session is running.";
+
+	/**
+	 * The leader's right-click on an occupied seat of an appointed council. The seat stays empty
+	 * (with the usual stability malus for empty seats) until the leader appoints someone.
+	 */
+	@SuppressWarnings("deprecation")
+	private void vacateSeat(Player p, Faction f, Council council, String member, Inventory inventory) {
+		if(council.hasSession()) {
+			p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+			p.sendMessage(SEAT_SESSION_BLOCK);
+			return;
+		}
+		if(!council.removeMember(member)) return;
+		p.sendMessage("§eYou vacated " + Members.display(member) + "§e's council seat.");
+		Members.online(member).ifPresent(removed -> removed.sendMessage(
+				"§e" + Members.name(p) + " §eremoved you from the council of " + f.getName() + "§e."));
+		councilView(p, f, inventory);
+		p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
+	}
+
 	// Keep the existing legacy text representation, formatting, and exact-string comparisons.
 	@SuppressWarnings("deprecation")
 	public void click(InventoryClickEvent e, Inventory inventory, Player p) {
@@ -682,6 +703,24 @@ public class GovernmentView {
 				return;
 			}
 			
+			// Only appointed seats can be vacated; elected and wealth seats refill themselves.
+			if(isOccupied && e.isRightClick() && council.getType() == Rules.APPOINTED_COUNCIL) {
+				String shown = meta.getPersistentDataContainer().get(Keys.STRING_KEY, PersistentDataType.STRING);
+				// A menu opened before the council changed must not vacate someone else's seat.
+				if(!members.get(s).equals(shown)) {
+					p.sendMessage("§cThe council changed since this menu was opened; try again.");
+					councilView(p, f, inventory);
+					return;
+				}
+				vacateSeat(p, f, council, members.get(s), inventory);
+				return;
+			}
+			// No seat changes hands during a session, empty ones included: the next proposal's voters come from the seats.
+			if(council.hasSession()) {
+				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+				p.sendMessage(SEAT_SESSION_BLOCK);
+				return;
+			}
 			councilSelect(p, f, null, s);
 			p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1f);
 		} else if (h.getType() == SFGUI.COUNCIL_SELECT) {
@@ -718,6 +757,11 @@ public class GovernmentView {
 				return;
 			}
 			
+			if(council.hasSession()) {
+				p.playSound(p, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+				p.sendMessage(SEAT_SESSION_BLOCK);
+				return;
+			}
 			if(isOccupied) {
 				council.replaceMember(s, member);
 			} else {

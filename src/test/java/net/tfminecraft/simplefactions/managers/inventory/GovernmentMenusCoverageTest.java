@@ -494,8 +494,10 @@ class GovernmentMenusCoverageTest {
     ItemStack tooFar = creator.createCouncilMemberItem(player, faction, 2);
     assertEquals(Material.RED_CONCRETE, tooFar.getType());
     assertTrue(lore(tooFar).contains("Must fill seats in order"));
+    assertEquals(type == Rules.APPOINTED_COUNCIL, lore(occupied).contains("Right-click to vacate seat"));
     ItemStack outsider = creator.createCouncilMemberItem(ui.player("Visitor"), faction, 0);
     assertFalse(lore(outsider).contains("Click to replace"));
+    assertFalse(lore(outsider).contains("Right-click to vacate seat"));
     ItemStack candidate = creator.createPotentialMemberItem(player, faction, "Cara", 1);
     assertEquals("Cara", data(candidate, Keys.STRING_KEY));
     assertEquals(
@@ -681,6 +683,78 @@ class GovernmentMenusCoverageTest {
     Inventory denied = top();
     click(10);
     assertSame(denied, top());
+  }
+
+  @Test
+  void theLeaderVacatesAnAppointedSeatWithARightClickAndTheMemberIsTold() {
+    when(council.getMembers()).thenReturn(List.of("Bob"));
+    when(council.removeMember("Bob")).thenReturn(true);
+    Player bob = ui.player("Bob");
+    ui.online(player, bob);
+    view.councilView(player, faction, null);
+    Inventory seats = top();
+    rightClick(10);
+    verify(council).removeMember("Bob");
+    verify(player).sendMessage(contains("You vacated Bob"));
+    verify(bob).sendMessage(contains("removed you from the council of"));
+    assertSame(seats, top());
+    assertMenu(SFGUI.COUNCIL_VIEW);
+    when(council.removeMember("Bob")).thenReturn(false);
+    rightClick(10);
+    verify(player, times(1)).sendMessage(contains("You vacated"));
+  }
+
+  @Test
+  void aSeatShownForAnotherMemberIsNotVacated() {
+    when(council.getMembers()).thenReturn(List.of("Bob"));
+    view.councilView(player, faction, null);
+    when(council.getMembers()).thenReturn(List.of("Cara"));
+    rightClick(10);
+    verify(council, never()).removeMember(anyString());
+    verify(player).sendMessage(contains("council changed since this menu was opened"));
+    assertEquals("Cara", data(top().getItem(10), Keys.STRING_KEY), "the menu shows the council as it is now");
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = Rules.class, names = {"WEALTH_BASED_COUNCIL", "ELECTED_COUNCIL"})
+  void aRightClickOnAnElectedOrWealthSeatStillOpensTheReplacement(Rules type) {
+    when(council.getType()).thenReturn(type);
+    when(council.getMembers()).thenReturn(List.of("Bob"));
+    view.councilView(player, faction, null);
+    rightClick(10);
+    verify(council, never()).removeMember(anyString());
+    assertMenu(SFGUI.COUNCIL_SELECT);
+  }
+
+  @Test
+  void seatsCannotBeVacatedOrReplacedWhileACouncilSessionRuns() {
+    when(council.getMembers()).thenReturn(List.of("Bob"));
+    when(council.canBeMember("Cara", true, false)).thenReturn(true);
+    view.councilSelect(player, faction, null, 0);
+    when(council.hasSession()).thenReturn(true);
+    click(0);
+    verify(council, never()).replaceMember(anyInt(), anyString());
+    view.councilView(player, faction, null);
+    Inventory seats = top();
+    rightClick(10);
+    click(10);
+    assertSame(seats, top());
+    verify(council, never()).removeMember(anyString());
+    verify(player, times(3)).sendMessage(contains("cannot change while a council session is running"));
+    when(council.getMembers()).thenReturn(List.of());
+    click(10);
+    assertSame(seats, top());
+    verify(player, times(4)).sendMessage(contains("cannot change while a council session is running"));
+    when(council.hasSession()).thenReturn(false);
+    view.councilSelect(player, faction, null, 0);
+    when(council.hasSession()).thenReturn(true);
+    click(0);
+    verify(council, never()).addMember(anyString());
+    verify(player, times(5)).sendMessage(contains("cannot change while a council session is running"));
+    when(council.hasSession()).thenReturn(false);
+    view.councilView(player, faction, null);
+    click(10);
+    assertMenu(SFGUI.COUNCIL_SELECT);
   }
 
   @ParameterizedTest
@@ -1415,6 +1489,14 @@ class GovernmentMenusCoverageTest {
   private InventoryClickEvent click(int slot) {
     Inventory inventory = top();
     InventoryClickEvent event = ui.click(player, slot);
+    view.click(event, inventory, player);
+    assertTrue(event.isCancelled());
+    return event;
+  }
+
+  private InventoryClickEvent rightClick(int slot) {
+    Inventory inventory = top();
+    InventoryClickEvent event = ui.rightClick(player, slot);
     view.click(event, inventory, player);
     assertTrue(event.isCancelled());
     return event;

@@ -49,6 +49,9 @@ public final class BattleVehicleEligibilityService {
 
 	static BattleVehicleEligibilityResult decide(
 			War war, String factionId, String vehicleTypeId, PlayerVehicleRecord record) {
+		if (record != null && record.getMode() == OwnershipMode.UPKEEP) {
+			return BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY;
+		}
 		if (record != null && record.getMode() == OwnershipMode.POOL) {
 			return factionOnPlayerSide(war, factionId, record.getFactionId())
 					? BattleVehicleEligibilityResult.ALLOWED
@@ -96,6 +99,12 @@ public final class BattleVehicleEligibilityService {
 		}
 
 		Battle battle = BattleManager.getBattleByMemberId(player.getUniqueId());
+		// Upkeep-only vehicles never fight in any battle, staff and event battles included,
+		// whatever staff opened for it.
+		if (battle != null && registry.getByVehicleUuid(vehicle.getUUID())
+				.filter(record -> record.getMode() == OwnershipMode.UPKEEP).isPresent()) {
+			return BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY;
+		}
 		if (battle == null || battle.getWarId() == null) {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
 		}
@@ -136,7 +145,9 @@ public final class BattleVehicleEligibilityService {
 		DENIED_NOT_COMMITTED,
 		DENIED_NOT_FACTION_VEHICLE,
 		DENIED_POOL_SIDE,
-		DENIED_FORCED_OTHER_SIDE;
+		DENIED_FORCED_OTHER_SIDE,
+		/** Kept only for its upkeep by a faction or guild: never used for war. */
+		DENIED_UPKEEP_ONLY;
 
 		public boolean isDenied() {
 			return this == DENIED_PRE_BATTLE_WARBAND
@@ -144,7 +155,8 @@ public final class BattleVehicleEligibilityService {
 					|| this == DENIED_NOT_COMMITTED
 					|| this == DENIED_NOT_FACTION_VEHICLE
 					|| this == DENIED_POOL_SIDE
-					|| this == DENIED_FORCED_OTHER_SIDE;
+					|| this == DENIED_FORCED_OTHER_SIDE
+					|| this == DENIED_UPKEEP_ONLY;
 		}
 	}
 
@@ -168,6 +180,9 @@ public final class BattleVehicleEligibilityService {
 						"§cThis pool vehicle belongs to a faction that is not on your side.";
 				case DENIED_FORCED_OTHER_SIDE ->
 						"§cStaff assigned this vehicle to the other side for this battle.";
+				case DENIED_UPKEEP_ONLY ->
+						"§cThis is an upkeep-only vehicle and cannot be used in battles. Its leader can move it"
+								+ " to the faction pool or berth it at an installation to fight.";
 				case ALLOWED, NOT_CAMPAIGN_BATTLE -> null;
 			};
 		}

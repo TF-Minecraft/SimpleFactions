@@ -54,6 +54,13 @@ public final class CivilWarUntangleService {
 	}
 
 	private static void mergeTempRebels(Faction host, Faction rebels, CivilWarSnapshot snapshot) {
+		// Upkeep-only vehicles follow the rebel main guild; if they cannot be saved, the rebel realm stays for staff.
+		if (!net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges
+				.realmBecameGuild(rebels, rebels.getOrCreateMainGuild())) {
+			java.util.logging.Logger.getLogger("SimpleFactions").severe("Civil war untangle kept " + rebels.getId()
+					+ ": its upkeep-only vehicles could not be saved; merge it by hand once saving works");
+			return;
+		}
 		CivilWarRegimentSplitService.mergeRemaining(rebels, host);
 		relocateNonBaseGuilds(rebels, host);
 		restoreLand(host, rebels, snapshot);

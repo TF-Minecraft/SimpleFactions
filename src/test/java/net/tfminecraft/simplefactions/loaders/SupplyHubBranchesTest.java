@@ -67,7 +67,8 @@ class SupplyHubBranchesTest {
         assertNull(BranchLoader.getByString("infrastructure"));
         assertEquals("counting_houses", countingGuild.getId());
         assertEquals("counting_houses", countingRealm.getId());
-        assertEquals(-0.01, countingRealm.getModifier(GuildModifier.TRADE_UPKEEP).getPerLevel());
+        assertEquals(-0.02, countingRealm.getModifier(GuildModifier.TRADE_UPKEEP).getPerLevel());
+        assertTrue(String.join(" ", countingGuild.getDescription()).contains("0.02"));
         assertNotNull(BranchLoader.getByString("bureaucracy"));
         Branch storehouses = new Branch(BranchLoader.getByString("storehouses"), 3);
         assertEquals(1.00, storehouses.getAmount(GuildModifier.TRADE_CARRY));

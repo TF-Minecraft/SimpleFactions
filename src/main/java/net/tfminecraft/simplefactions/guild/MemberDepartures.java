@@ -13,6 +13,22 @@ import net.tfminecraft.simplefactions.war.battle.warband.WarbandMembershipServic
 public final class MemberDepartures {
 	private MemberDepartures() {}
 
+	/** The player guild in the realm that this character leads; null when they lead none. */
+	public static Guild ledGuild(Faction faction, String key) {
+		for (Guild guild : faction.getGuildHandler().getGuilds()) {
+			if (!guild.isBase() && guild.isLeader(key)) return guild;
+		}
+		return null;
+	}
+
+	/** The player guild in the realm that this character is a member of; null when they are in none. */
+	public static Guild guildOf(Faction faction, String key) {
+		for (Guild guild : faction.getGuildHandler().getGuilds()) {
+			if (!guild.isBase() && guild.isMember(key)) return guild;
+		}
+		return null;
+	}
+
 	/** From a guild back to the realm's main guild: {@code /guild leave} and {@code /guild kick}. */
 	public static void leaveGuild(Guild guild, String key) {
 		guild.kick(key);

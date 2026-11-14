@@ -663,6 +663,9 @@ public class GovernmentCreator {
             // Add modify option if leader
             if(canModify) {
                 lore.add(StringFormatter.formatHex("#28ed70Click to replace"));
+                if(councilType.equals(Rules.APPOINTED_COUNCIL)) {
+                    lore.add(StringFormatter.formatHex("#c74d32Right-click to vacate seat"));
+                }
             }
             
             m.setLore(lore);

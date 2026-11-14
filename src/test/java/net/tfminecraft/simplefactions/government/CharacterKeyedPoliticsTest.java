@@ -115,6 +115,25 @@ class CharacterKeyedPoliticsTest {
     }
 
     @Test
+    void vacatingASeatMovesLaterSeatsUpAndDropsOnlyThatMembersProposals() {
+        Council council = realm.getGovernment().getCouncil();
+        council.addMemberForce(ash);
+        council.addMemberForce(zed);
+        council.getProposalHandler().getProposals().add(new Proposal(ash, realm.getGovernment()));
+        Proposal kept = new Proposal(zed, realm.getGovernment());
+        council.getProposalHandler().getProposals().add(kept);
+
+        council.toggleRefuse(ash);
+        assertTrue(council.removeMember(ash));
+        assertEquals(List.of(zed), council.getMembers());
+        assertFalse(council.refuses(ash), "a vacated member's refusal goes with the seat");
+        assertEquals(List.of(kept), council.getProposalHandler().getProposals());
+        assertFalse(council.removeMember(ash));
+        assertFalse(council.removeMember(null));
+        assertEquals(List.of(zed), council.getMembers());
+    }
+
+    @Test
     void electionTiesAreOrderedByCharacterName() {
         Election election = realm.getGovernment().getElection();
         election.restoreFromData(

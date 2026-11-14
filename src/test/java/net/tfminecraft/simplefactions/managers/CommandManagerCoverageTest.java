@@ -1102,10 +1102,15 @@ class CommandManagerCoverageTest {
     verify(player).sendMessage(contains("cannot dismiss the leader"));
     assertTrue(run("faction", "kick", "Visitor"));
     verify(player).sendMessage(contains("not a member"));
+    Guild smiths = mock(Guild.class);
+    when(smiths.getName()).thenReturn("Smiths");
+    when(smiths.isLeader("Alice")).thenReturn(true);
+    when(guilds.getGuilds()).thenReturn(List.of(smiths));
     when(faction.isInGuild("Alice")).thenReturn(true);
     assertTrue(run("faction", "kick", "Alice"));
-    verify(player).sendMessage(contains("member of a guild"));
+    verify(player).sendMessage(contains("evict the whole guild"));
     verify(faction, never()).forceRemoveMember(anyString());
+    when(guilds.getGuilds()).thenReturn(List.of());
     when(faction.isInGuild("Alice")).thenReturn(false);
     Player alice = gui.player("Alice"), visitor = gui.player("Visitor");
     online(alice, visitor);
@@ -1114,6 +1119,42 @@ class CommandManagerCoverageTest {
     verify(government).removeRights("Alice");
     verify(alice).sendMessage(contains("kicked you"));
     verify(visitor, never()).sendMessage(anyString());
+  }
+
+  @Test
+  void upkeepOnlyVehicleCommandsGoToTheirOwnHandler() {
+    try (MockedStatic<net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands> upkeep =
+        mockStatic(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.class, CALLS_REAL_METHODS)) {
+      upkeep
+          .when(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.handle(any(), anyString(), any()))
+          .thenReturn(true);
+      assertTrue(run("guild", "vehicle", "upkeep"));
+      assertTrue(run("faction", "vehicle", "transfer", "upkeep"));
+      upkeep.verify(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.handle(
+          player, "guild", new String[] {"vehicle", "upkeep"}));
+      upkeep.verify(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.handle(
+          player, "faction", new String[] {"vehicle", "transfer", "upkeep"}));
+    }
+  }
+
+  @Test
+  void factionKickRemovesAGuildMemberAndTellsTheirGuildLeader() {
+    member();
+    Guild smiths = mock(Guild.class);
+    when(smiths.getName()).thenReturn("Smiths");
+    when(smiths.isMember("Alice")).thenReturn(true);
+    when(smiths.getLeader()).thenReturn("Bob");
+    Guild base = mock(Guild.class);
+    when(base.isBase()).thenReturn(true);
+    when(guilds.getGuilds()).thenReturn(List.of(base, smiths));
+    when(faction.isInGuild("Alice")).thenReturn(true);
+    Player alice = gui.player("Alice"), bob = gui.player("Bob");
+    online(alice, bob);
+    assertTrue(run("faction", "kick", "Alice"));
+    verify(faction).forceRemoveMember("Alice");
+    verify(government).removeRights("Alice");
+    verify(alice).sendMessage(contains("kicked you"));
+    verify(bob).sendMessage(contains("from your guild Smiths"));
   }
 
   @ParameterizedTest

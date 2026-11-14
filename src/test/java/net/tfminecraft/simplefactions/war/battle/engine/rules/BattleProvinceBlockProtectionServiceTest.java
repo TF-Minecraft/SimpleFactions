@@ -36,6 +36,7 @@ class BattleProvinceBlockProtectionServiceTest {
 
 	private SimpleFactions plugin;
 	private Location battleLocation;
+	private World world;
 	private String oldWorldName;
 
 	@BeforeEach
@@ -50,7 +51,8 @@ class BattleProvinceBlockProtectionServiceTest {
 		ProvinceGrid grid = gridWithProvince(100, 100, 50, 50, BATTLE_PROVINCE_ID);
 		when(plugin.getProvinceGrid()).thenReturn(grid);
 
-		World world = mock(World.class);
+		// A field: Location holds its World weakly, and a collected mock reads as "World unloaded".
+		world = mock(World.class);
 		when(world.getName()).thenReturn("world");
 		battleLocation = new Location(world, 50, 64, 50);
 	}

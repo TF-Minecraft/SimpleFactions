@@ -330,6 +330,15 @@ public final class GuiTestFixture implements AutoCloseable {
         InventoryAction.PICKUP_ALL);
   }
 
+  public InventoryClickEvent rightClick(Player player, int rawSlot) {
+    return new InventoryClickEvent(
+        player.getOpenInventory(),
+        InventoryType.SlotType.CONTAINER,
+        rawSlot,
+        ClickType.RIGHT,
+        InventoryAction.PICKUP_HALF);
+  }
+
   private ItemState state(ItemStack item) {
     ItemState state = items.get(item);
     if (state == null)

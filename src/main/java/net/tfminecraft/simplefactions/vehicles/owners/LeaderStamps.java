@@ -18,6 +18,7 @@ import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
 import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
+import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder;
 
 /**
  * Faction vehicles carry their faction leader's character as owner, which gives the
@@ -45,14 +46,34 @@ public final class LeaderStamps {
         return OwnerTags.character(leader);
     }
 
-    /** The stamp a faction row should carry: its paying faction's leader, else {@code char_none}. */
+    /**
+     * The stamp a faction row should carry: its paying faction's leader, or for an upkeep-only
+     * vehicle its faction's or guild's leader; else {@code char_none}.
+     */
     public static String expected(PlayerVehicleRecord record) {
+        if (record != null && record.getMode() == OwnershipMode.UPKEEP) {
+            UpkeepHolder holder = UpkeepHolder.of(record);
+            return holder == null ? OwnerTags.NO_CHARACTER : holder.leaderStamp();
+        }
         return expectedStamp(FactionVehiclePoolService.payingFaction(record));
     }
 
+    /** Pool, installation and upkeep-only rows: vehicles stamped for a leader rather than owned. */
     public static boolean isFactionRow(PlayerVehicleRecord record) {
-        return record != null
-                && (record.getMode() == OwnershipMode.INSTALLATION || record.getMode() == OwnershipMode.POOL);
+        return record != null && record.getMode() != OwnershipMode.PERSONAL;
+    }
+
+    /**
+     * A new guild leader (or none) takes over the stamp on the guild's upkeep-only vehicles. For a
+     * realm's main guild that is the realm's, including those of a guild that became the realm.
+     */
+    public static void onGuildLeaderChanged(net.tfminecraft.simplefactions.guild.Guild guild) {
+        if (!enabled || guild == null || SimpleFactions.getInstance() == null) return;
+        UpkeepHolder holder = UpkeepHolder.of(guild);
+        if (holder == null) return;
+        for (PlayerVehicleRecord record : holder.vehicles(SimpleFactions.getVehicleRegistry())) {
+            report(record.getVehicleUuid(), restamp(record));
+        }
     }
 
     /** Writes the expected stamp when the vehicle carries anything else. */
@@ -72,7 +93,13 @@ public final class LeaderStamps {
     /** {@link net.tfminecraft.simplefactions.events.FactionLeaderChangedEvent}: restamps the faction's vehicles. */
     public static void onLeaderChanged(Faction faction, PlayerVehicleRegistry registry) {
         if (!enabled || faction == null || registry == null) return;
-        for (PlayerVehicleRecord record : rowsOf(faction, registry)) report(record.getVehicleUuid(), restamp(record));
+        Set<String> done = new HashSet<>();
+        List<PlayerVehicleRecord> rows = new ArrayList<>(rowsOf(faction, registry));
+        // Upkeep-only rows of a guild that became this realm still name the guild.
+        rows.addAll(UpkeepHolder.of(faction).vehicles(registry));
+        for (PlayerVehicleRecord record : rows) {
+            if (done.add(record.getVehicleUuid())) report(record.getVehicleUuid(), restamp(record));
+        }
     }
 
     /** Called once from {@code FactionManager.deleteFaction}: the faction's remaining rows lose their leader. */

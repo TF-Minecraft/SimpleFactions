@@ -513,6 +513,47 @@ class VehicleOwnershipGateTest {
         assertFalse(broken.isAllowed());
     }
 
+    private void upkeepRow() {
+        registry.register(PlayerVehicleRecord.upkeep(UUID.randomUUID(), "ship-1", "ship", "red", null));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OwnershipReason.class, names = {"WHITELIST_ADD", "WHITELIST_REMOVE", "WHITELIST_TOGGLE",
+        "TICKETS_TOGGLE", "FACTION_ACCESS_TOGGLE", "GUILD_ACCESS_TOGGLE", "ALLY_ACCESS_TOGGLE", "VASSAL_ACCESS_TOGGLE"})
+    void anUpkeepOnlyVehiclesLeaderHasEveryAccessControl(OwnershipReason reason) {
+        upkeepRow();
+        VehicleOwnershipChangeEvent event = change(reason, false);
+        gate.onChange(event);
+        assertFalse(event.isCancelled());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OwnershipReason.class, names = {"CLAIM", "CLEAR", "TAKEOVER"})
+    void nobodyClaimsClearsOrTakesOverAnUpkeepOnlyVehicle(OwnershipReason reason) {
+        upkeepRow();
+        VehicleOwnershipChangeEvent event = change(reason, false);
+        gate.onChange(event);
+        assertTrue(event.isCancelled());
+        verify(player).sendMessage(VehicleRegistryClaimListener.FACTION_VEHICLE);
+    }
+
+    @Test
+    void anUpkeepOnlyVehiclesLeaderUsesTheWhitelistButCannotReleaseIt() {
+        UUID leader = UUID.randomUUID();
+        Faction red = mock(Faction.class);
+        when(red.getId()).thenReturn("red");
+        when(red.getLeader()).thenReturn(leader.toString());
+        FactionManager.factions.add(red);
+        upkeepRow();
+        ownerData.setOwner("char_" + leader);
+        VehicleOwnershipEditCheckEvent add = check(OwnershipReason.WHITELIST_ADD, false);
+        gate.onEditCheck(add);
+        assertTrue(add.isAllowed());
+        VehicleOwnershipEditCheckEvent clear = check(OwnershipReason.CLEAR, false);
+        gate.onEditCheck(clear);
+        assertFalse(clear.isAllowed());
+    }
+
     @Test
     void theClickBackstopRefusesAStaleFactionStampAndSchedulesTheFix() {
         factionRow();

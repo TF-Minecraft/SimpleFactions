@@ -64,6 +64,10 @@ public final class FactionVehicleGiveService {
             recipient.sendMessage("§cThis request belongs to another character.");
             return;
         }
+        if (req.getUpkeepHolder() != null) {
+            net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGifts.accept(recipient, req);
+            return;
+        }
         Faction faction = FactionManager.getByString(req.getFactionId());
         if (faction == null || faction.getLeader() == null
                 || !faction.getLeader().equals(req.getLeaderName())) {
@@ -105,7 +109,7 @@ public final class FactionVehicleGiveService {
         notifyLeader(req, message);
     }
 
-    private static void notifyLeader(VehicleGiveConsentRequest req, String message) {
+    public static void notifyLeader(VehicleGiveConsentRequest req, String message) {
         if (message == null || req.getLeaderUuid() == null) {
             return;
         }

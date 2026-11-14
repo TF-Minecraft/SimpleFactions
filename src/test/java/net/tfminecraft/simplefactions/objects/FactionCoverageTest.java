@@ -1276,6 +1276,28 @@ class FactionCoverageTest {
     assertSame(ruler, ruler.dissolve(List.of(), ruler.getGuildHandler().getGuilds()));
   }
 
+  @Test
+  void aRealmWhoseUpkeepOnlyVehiclesCannotBeSavedIsNotDissolved() {
+    Faction ruler = fixture.saved("ruler", "Alice");
+    Faction source = fixture.saved("source", "Bob");
+    fixture.provinceData.put(8, new Province(8, "PLAINS", 1));
+    source.addProvince(8);
+    fixture.subject(ruler, source);
+    try (var upkeep = mockStatic(net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.class);
+        var database = mockConstruction(Database.class)) {
+      upkeep
+          .when(() -> net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepGuildChanges.realmBecameGuild(
+              source, source.getOrCreateMainGuild()))
+          .thenReturn(false);
+      assertSame(source, source.dissolve(source.getVassals(), source.getGuildHandler().getGuilds()));
+      assertTrue(database.constructed().isEmpty());
+    }
+    assertTrue(FactionManager.factions.contains(source));
+    assertEquals(List.of(8), source.getProvinces());
+    assertFalse(ruler.getProvinces().contains(8));
+    assertTrue(source.getOrCreateMainGuild().isBase());
+  }
+
   private void connectProvinces(int... ids) {
     for (int id : ids) {
       var province = new Province(id, "PLAINS", 1);

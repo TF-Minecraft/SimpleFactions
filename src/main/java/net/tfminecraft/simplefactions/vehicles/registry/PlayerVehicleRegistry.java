@@ -38,12 +38,26 @@ public final class PlayerVehicleRegistry {
                 .isPresent();
     }
 
-    /** Installation berths and the faction pool are not personal vehicles. */
+    /** Installation berths, the faction pool and upkeep-only vehicles are not personal vehicles. */
     public boolean isFactionOwned(String vehicleUuid) {
         return getByVehicleUuid(vehicleUuid)
-                .filter(record -> record.getMode() == OwnershipMode.INSTALLATION
-                        || record.getMode() == OwnershipMode.POOL)
+                .filter(record -> record.getMode() != OwnershipMode.PERSONAL)
                 .isPresent();
+    }
+
+    /**
+     * Upkeep-only vehicles of one guild ({@code guildId} set) or one faction ({@code guildId} null).
+     */
+    public List<PlayerVehicleRecord> getUpkeepVehicles(String factionId, String guildId) {
+        List<PlayerVehicleRecord> out = new ArrayList<>();
+        for (PlayerVehicleRecord record : byVehicleUuid.values()) {
+            if (record.getMode() != OwnershipMode.UPKEEP) continue;
+            boolean held = guildId != null
+                    ? guildId.equalsIgnoreCase(record.getGuildId())
+                    : record.getGuildId() == null && factionId != null && factionId.equalsIgnoreCase(record.getFactionId());
+            if (held) out.add(record);
+        }
+        return out;
     }
 
     public List<PlayerVehicleRecord> getPoolVehicles(String factionId) {

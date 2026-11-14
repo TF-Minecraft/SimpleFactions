@@ -261,6 +261,12 @@ public class TabCompletion implements TabCompleter{
 		else if(cmd.getName().equalsIgnoreCase("mercenaries")) {
 			return completeMercenaries(args);
 		}
+		else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 2 && args[0].equalsIgnoreCase("vehicle")) {
+			if(sender instanceof Player p) {
+				return net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.complete(
+						p, net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder.Kind.GUILD, args);
+			}
+		}
 		else if(cmd.getName().equalsIgnoreCase("guild") && args.length >= 0 && args.length < 2 ) {
 			if(sender instanceof Player){
 				Player p = (Player) sender;
@@ -274,6 +280,7 @@ public class TabCompletion implements TabCompleter{
 				completions.add("join");
 				completions.add("decline");
 				completions.add("menu");
+				completions.add("vehicle");
 				completions.add("setbank");
 				completions.add("deposit");
 				completions.add("withdraw");
@@ -345,6 +352,10 @@ public class TabCompletion implements TabCompleter{
 					return net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.VehicleTabCompletions.subcommands(
 							args.length >= 2 ? args[1] : "");
 				}
+				if(args[1].equalsIgnoreCase("upkeep")) {
+					return net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepVehicleCommands.complete(
+							p, net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder.Kind.FACTION, args);
+				}
 				if(args.length >= 3 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("handover"))) {
 					List<String> names = new ArrayList<>();
 					if(args[1].equalsIgnoreCase("give") && FactionManager.getByLeader(Members.key(p)) == null) return names;
@@ -358,6 +369,9 @@ public class TabCompletion implements TabCompleter{
 				if(args.length == 3 && args[1].equalsIgnoreCase("transfer")) {
 					List<String> ids = completeInstallationIds(p, args[2], false);
 					String prefix = args[2] == null ? "" : args[2];
+					if ("upkeep".startsWith(prefix.toLowerCase(java.util.Locale.ROOT))) {
+						ids.add(0, "upkeep");
+					}
 					if ("pool".startsWith(prefix.toLowerCase(java.util.Locale.ROOT))) {
 						ids.add(0, "pool");
 					}
@@ -559,7 +573,9 @@ public class TabCompletion implements TabCompleter{
 				List<String> completions = new ArrayList<String>();
 				if(f != null) {
 					for(String member : f.getMembers()) {
-						if(!member.equals(f.getLeader()) && !f.isInGuild(member)) completions.add(Members.display(member));
+						if(!member.equals(f.getLeader()) && net.tfminecraft.simplefactions.guild.MemberDepartures.ledGuild(f, member) == null) {
+							completions.add(Members.display(member));
+						}
 					}
 				}
 				return Members.completions(completions, args);

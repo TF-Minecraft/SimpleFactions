@@ -179,4 +179,31 @@ class VehicleGroupAccessTest {
         assertFalse(access.admits(AccessGroup.VASSAL, vehicle, "none", rider));
         assertEquals(Optional.empty(), access.describe(AccessGroup.VASSAL, vehicle, "none"));
     }
+
+    @Test
+    void anUpkeepOnlyVehicleCountsFromItsHolderWithEverySwitchLeftToTheLeader() {
+        Guild smiths = guild("Smiths", false);
+        when(smiths.getFaction()).thenReturn(marsh);
+        factions.when(() -> FactionManager.getByString("The_Bog")).thenReturn(bog);
+        String incarnation = UUID.randomUUID().toString();
+        when(smiths.getIncarnation()).thenReturn(incarnation);
+        factions.when(FactionManager::getAllGuilds).thenReturn(java.util.List.of(smiths));
+        registry.register(PlayerVehicleRecord.upkeep(owner, vehicle.toString(), "gunboat", "The_Bog", null));
+        assertEquals(Set.of(), access.alwaysOpen(vehicle, stamp));
+        factions.when(() -> FactionManager.getByMember(rider)).thenReturn(bog);
+        assertTrue(access.admits(AccessGroup.FACTION, vehicle, stamp, rider));
+        assertFalse(access.admits(AccessGroup.GUILD, vehicle, stamp, rider), "a faction's vehicle has no guild");
+        assertEquals(Optional.of("The Bog"), access.describe(AccessGroup.FACTION, vehicle, stamp));
+
+        registry.register(PlayerVehicleRecord.upkeep(owner, vehicle.toString(), "gunboat", null, incarnation));
+        factions.when(() -> FactionManager.getGuildByMember(rider)).thenReturn(smiths);
+        assertTrue(access.admits(AccessGroup.GUILD, vehicle, stamp, rider));
+        assertEquals(Optional.of("Smiths"), access.describe(AccessGroup.GUILD, vehicle, stamp));
+        assertEquals(Optional.of("Marsh"), access.describe(AccessGroup.FACTION, vehicle, stamp),
+                "a guild's vehicle counts from the guild's host faction");
+
+        registry.register(PlayerVehicleRecord.upkeep(owner, vehicle.toString(), "gunboat", null, null));
+        assertEquals(Optional.empty(), access.describe(AccessGroup.GUILD, vehicle, stamp));
+        assertEquals(Optional.empty(), access.describe(AccessGroup.FACTION, vehicle, stamp));
+    }
 }

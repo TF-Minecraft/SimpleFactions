@@ -10,16 +10,20 @@ import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.vehicles.pool.FactionVehiclePoolService;
+import net.tfminecraft.simplefactions.vehicles.registry.OwnershipMode;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRecord;
 import net.tfminecraft.simplefactions.vehicles.registry.PlayerVehicleRegistry;
+import net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepHolder;
 import net.tfminecraft.vehicleframework.api.AccessGroup;
 import net.tfminecraft.vehicleframework.api.VehicleAccessGroups;
 
 /**
  * VehicleFramework's group switches, answered from current membership. A pool or installation
- * vehicle counts from its paying faction and always admits it; any other vehicle counts from its
- * owner's character. Guilds mean player guilds, never a faction's main guild, and faction
- * vehicles have none. Vassals are the direct vassals only.
+ * vehicle counts from its paying faction and always admits it; an upkeep-only vehicle counts
+ * from its faction or guild (and that guild's host faction) with every switch left to its
+ * leader; any other vehicle counts from its owner's character. Guilds mean player guilds,
+ * never a faction's main guild, and pool and installation vehicles have none. Vassals are the
+ * direct vassals only.
  */
 public final class VehicleGroupAccess implements VehicleAccessGroups {
     private final PlayerVehicleRegistry registry;
@@ -59,7 +63,9 @@ public final class VehicleGroupAccess implements VehicleAccessGroups {
 
     @Override
     public Set<AccessGroup> alwaysOpen(UUID vehicleId, String owner) {
-        return factionRow(vehicleId) != null ? Set.of(AccessGroup.FACTION) : Set.of();
+        PlayerVehicleRecord row = factionRow(vehicleId);
+        // Upkeep-only vehicles work like personal ones: the leader sets every switch.
+        return row != null && row.getMode() != OwnershipMode.UPKEEP ? Set.of(AccessGroup.FACTION) : Set.of();
     }
 
     @Override
@@ -73,14 +79,26 @@ public final class VehicleGroupAccess implements VehicleAccessGroups {
     /** The faction a vehicle's groups count from: its paying faction, else its owner's faction. */
     private Faction faction(UUID vehicleId, String owner) {
         PlayerVehicleRecord row = factionRow(vehicleId);
+        if (row != null && row.getMode() == OwnershipMode.UPKEEP) return upkeepFaction(row);
         if (row != null) return FactionVehiclePoolService.payingFaction(row);
         UUID character = OwnerTags.characterId(owner).orElse(null);
         return character == null ? null : FactionManager.getByMember(character);
     }
 
     private Guild guild(UUID vehicleId, String owner) {
-        if (factionRow(vehicleId) != null) return null;
+        PlayerVehicleRecord row = factionRow(vehicleId);
+        if (row != null && row.getMode() == OwnershipMode.UPKEEP) {
+            UpkeepHolder holder = UpkeepHolder.of(row);
+            return holder == null ? null : holder.guild();
+        }
+        if (row != null) return null;
         return OwnerTags.characterId(owner).map(VehicleGroupAccess::playerGuild).orElse(null);
+    }
+
+    /** A faction's upkeep-only vehicle counts from that faction, a guild's from the guild's host faction. */
+    private static Faction upkeepFaction(PlayerVehicleRecord row) {
+        UpkeepHolder holder = UpkeepHolder.of(row);
+        return holder == null ? null : holder.faction();
     }
 
     private PlayerVehicleRecord factionRow(UUID vehicleId) {
