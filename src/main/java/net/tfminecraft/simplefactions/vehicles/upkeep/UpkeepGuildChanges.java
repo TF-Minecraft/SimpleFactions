@@ -62,8 +62,10 @@ public final class UpkeepGuildChanges {
     private static boolean saveRealms(Faction oldHost, Faction realm) {
         Database database = new Database();
         DurableJson.Batch batch = new DurableJson.Batch();
-        if (oldHost != null && !database.saveFactionDurably(oldHost, batch)) return false;
+        // The batch renames in this order: the new realm first, so a crash in between leaves the
+        // guild in both realm files (a duplicate staff can clear) rather than in neither.
         if (!database.saveFactionDurably(realm, batch)) return false;
+        if (oldHost != null && !database.saveFactionDurably(oldHost, batch)) return false;
         try {
             batch.commit();
             return true;

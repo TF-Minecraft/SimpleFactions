@@ -158,6 +158,46 @@ class VehicleRegistryUpkeepFileTest {
     }
 
     @Test
+    void aFolderSyncFailingAfterTheRegistryRenameStillCountsAsSaved() throws Exception {
+        VehicleRegistryPersistence.write(main(), List.of(kept("boat"), personal("other")));
+        try (var durable = mockStatic(DurableJson.class, CALLS_REAL_METHODS)) {
+            Path registryFile = main();
+            durable.when(() -> DurableJson.write(eq(registryFile), any())).thenAnswer(call -> {
+                call.callRealMethod();
+                throw new IOException("directory sync");
+            });
+            VehicleRegistryPersistence.write(registryFile, List.of(personal("boat"), personal("other")));
+        }
+        assertEquals(OwnershipMode.PERSONAL, mode(load(), "boat"), "the rename committed, so the save reports success");
+    }
+
+    @Test
+    void aFolderSyncFailingAfterAnUpkeepOnlyCommitStillCountsAsSaved() throws Exception {
+        VehicleRegistryPersistence.write(main(), List.of(personal("other"), kept("leaving")));
+        try (var durable = mockStatic(DurableJson.class, CALLS_REAL_METHODS)) {
+            Path upkeepFile = upkeep();
+            durable.when(() -> DurableJson.write(eq(upkeepFile), any())).thenAnswer(call -> {
+                call.callRealMethod();
+                throw new IOException("directory sync");
+            });
+            VehicleRegistryPersistence.write(main(), List.of(personal("other"), kept("joining")));
+        }
+        PlayerVehicleRegistry registry = load();
+        assertNull(mode(registry, "leaving"));
+        assertEquals(OwnershipMode.UPKEEP, mode(registry, "joining"));
+    }
+
+    @Test
+    void aFailedFirstRegistryWriteStillFails() throws Exception {
+        try (var durable = mockStatic(DurableJson.class, CALLS_REAL_METHODS)) {
+            Path registryFile = main();
+            durable.when(() -> DurableJson.write(eq(registryFile), any())).thenThrow(new IOException("disk"));
+            assertThrows(IOException.class, () -> VehicleRegistryPersistence.write(registryFile, List.of(personal("v"))));
+        }
+        assertTrue(load().getAll().isEmpty());
+    }
+
+    @Test
     void whenOnlyUpkeepRowsChangeTheUpkeepWriteAloneCommits() throws Exception {
         VehicleRegistryPersistence.write(main(), List.of(personal("other"), kept("leaving")));
         try (var durable = mockStatic(DurableJson.class, CALLS_REAL_METHODS)) {

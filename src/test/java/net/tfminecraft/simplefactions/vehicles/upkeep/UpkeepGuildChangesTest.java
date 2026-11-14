@@ -82,8 +82,10 @@ class UpkeepGuildChangesTest {
             kept("boat", "char_x");
             registry.register(PlayerVehicleRecord.upkeep(previous, "other", "sloop", null, UUID.randomUUID().toString()));
             UpkeepGuildChanges.becameRealm(smiths, oldHost, landless);
-            verify(databases.constructed().getFirst()).saveFactionDurably(org.mockito.ArgumentMatchers.eq(oldHost), any());
-            verify(databases.constructed().getFirst()).saveFactionDurably(org.mockito.ArgumentMatchers.eq(landless), any());
+            // The new realm goes into the batch (and is renamed) before the old host.
+            var order = org.mockito.Mockito.inOrder(databases.constructed().getFirst());
+            order.verify(databases.constructed().getFirst()).saveFactionDurably(org.mockito.ArgumentMatchers.eq(landless), any());
+            order.verify(databases.constructed().getFirst()).saveFactionDurably(org.mockito.ArgumentMatchers.eq(oldHost), any());
             PlayerVehicleRecord row = registry.getByVehicleUuid("boat").orElseThrow();
             assertEquals(OwnershipMode.UPKEEP, row.getMode());
             assertEquals("smiths_realm", row.getFactionId());
@@ -108,7 +110,7 @@ class UpkeepGuildChangesTest {
             UpkeepGuildChanges.becameRealm(smiths, null, landless);
         }
         try (var databases = mockConstruction(Database.class,
-                (db, context) -> when(db.saveFactionDurably(org.mockito.ArgumentMatchers.eq(oldHost), any())).thenReturn(true))) {
+                (db, context) -> when(db.saveFactionDurably(org.mockito.ArgumentMatchers.eq(landless), any())).thenReturn(true))) {
             UpkeepGuildChanges.becameRealm(smiths, oldHost, landless);
         }
         try (var databases = mockConstruction(Database.class,

@@ -164,9 +164,31 @@ public final class VehicleRegistryPersistence {
                         ? quietly(() -> committed(readState(upkeepFile), saved), List.of()) : List.of();
                 state.previous = before;
             }
-            DurableJson.write(upkeepFile, state);
+            if (registryChanges) {
+                DurableJson.write(upkeepFile, state);
+            } else {
+                commit(upkeepFile, state, () -> {
+                    UpkeepState written = readState(upkeepFile);
+                    return digest.equals(written.registry) && digest(upkeep).equals(digest(written.rows));
+                });
+            }
         }
-        if (registryChanges) DurableJson.write(file, data);
+        if (registryChanges) commit(file, data, () -> digest.equals(digest(readRows(file))));
+    }
+
+    /**
+     * Writes the file whose rename is the commit point. Once the rename has landed the save is
+     * done, so a failure after it (syncing the folder entry) is only logged: reporting it would
+     * make callers roll memory back while the files already hold the new rows.
+     */
+    private static void commit(Path target, Object content, Read<Boolean> landed) throws IOException {
+        try {
+            DurableJson.write(target, content);
+        } catch (IOException error) {
+            if (!quietly(landed, false)) throw error;
+            java.util.logging.Logger.getLogger("SimpleFactions").warning("Saved " + target.getFileName()
+                    + " but could not sync its folder (" + error.getMessage() + "); a power loss now could undo this save");
+        }
     }
 
     private interface Read<T> {
