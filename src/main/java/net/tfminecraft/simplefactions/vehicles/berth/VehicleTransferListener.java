@@ -49,6 +49,7 @@ public final class VehicleTransferListener implements Listener {
 
     @EventHandler
     public void onVehiclePreInteract(VehiclePreInteractEvent event) {
+        if (net.tfminecraft.simplefactions.vehicles.VehicleRemovals.isServer(event.getVehicle())) return;
         Player leader = event.getPlayer();
         if (leader == null) {
             return;

@@ -51,6 +51,20 @@ public final class RequestManager {
 		requests.remove(p);
 	}
 	
+    /** Discards offers for a removed or released vehicle without accepting or refunding them. */
+    public static void forgetVehicle(String vehicle) {
+        for (var entry : new ArrayList<>(requests.entrySet())) {
+            Request request = entry.getValue();
+            String id = request instanceof VehicleTransferConsentRequest transfer ? transfer.getVehicleUuid()
+                    : request instanceof VehicleGiveConsentRequest give ? give.getVehicleUuid()
+                    : request instanceof VehicleHandoverRequest handover ? handover.getVehicleUuid() : null;
+            if (vehicle.equals(id)) {
+                remove(entry.getKey());
+                net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.clearFactionClickModes(entry.getKey());
+            }
+        }
+    }
+
 	public static void addRequest(Player sender, Player p, Request r) {
 		if(hasRequest(p)) {
 			sender.sendMessage("§cThe target is already considering another request.");

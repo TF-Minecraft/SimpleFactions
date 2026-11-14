@@ -34,6 +34,7 @@ public final class VehicleHandoverListener implements Listener {
 
     @EventHandler
     public void onVehiclePreInteract(VehiclePreInteractEvent event) {
+        if (net.tfminecraft.simplefactions.vehicles.VehicleRemovals.isServer(event.getVehicle())) return;
         Player owner = event.getPlayer();
         Session session = owner == null ? null : sessions.get(owner.getUniqueId());
         if (session == null) {

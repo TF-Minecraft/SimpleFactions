@@ -21,6 +21,7 @@ public final class VehicleMaintenanceRepairListener implements Listener {
             return;
         }
         ActiveVehicle vehicle = event.getVehicle();
+        if (net.tfminecraft.simplefactions.vehicles.VehicleRemovals.isServer(vehicle)) return;
         if (vehicle == null || vehicle.getUUID() == null) {
             return;
         }

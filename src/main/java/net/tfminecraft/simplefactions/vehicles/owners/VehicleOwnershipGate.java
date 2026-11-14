@@ -161,6 +161,17 @@ public final class VehicleOwnershipGate implements Listener {
                 return;
             }
             ActiveVehicle vehicle = event.getVehicle().orElseThrow();
+            if (event.getReason().name().equals("SERVER")) {
+                PlayerVehicleRecord previous = row(vehicle);
+                forgetForServer(event, vehicle, payments);
+                store.forgetVehicle(vehicle.getUUID());
+                saver.run();
+                net.tfminecraft.simplefactions.managers.LogManager.append("STAFF_VEHICLE_SERVER by="
+                        + event.getPlayer().map(Player::getName).orElse("console") + " vehicle=" + vehicle.getUUID()
+                        + " type=" + vehicle.getId() + " previousOwner=" + event.getPrevious().owner()
+                        + " previousMode=" + (previous == null ? "none" : previous.getMode()));
+                return;
+            }
             switch (event.getReason()) {
                 case CLAIM, TAKEOVER -> recordOwner(event, vehicle, scope, payments);
                 case CLEAR -> forgetOwner(event, vehicle, payments);
@@ -191,6 +202,25 @@ public final class VehicleOwnershipGate implements Listener {
             saver.run();
         }
         audit(event, vehicle);
+    }
+
+    /**
+     * A release plus what only a server owner ends: pending offers, upkeep requests, fee prompts,
+     * unpaid maintenance and click modes. Paid fee receipts are left alone, never refunded.
+     */
+    private void forgetForServer(VehicleOwnershipChangedEvent event, ActiveVehicle vehicle, VehiclePayments payments) {
+        forgetOwner(event, vehicle, payments);
+        net.tfminecraft.simplefactions.managers.RequestManager.forgetVehicle(vehicle.getUUID());
+        net.tfminecraft.simplefactions.vehicles.upkeep.UpkeepRequests.remove(vehicle.getUUID());
+        confirmations.forgetVehicle(vehicle.getUUID());
+        var plugin = net.tfminecraft.simplefactions.SimpleFactions.getInstance();
+        if (plugin != null) {
+            plugin.getVehicleMaintenanceStore().clearUnpaid(vehicle.getUUID());
+            plugin.saveVehicleRegistry();
+        }
+        event.getPlayer().ifPresent(net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands::clearFactionClickModes);
+        OwnerTags.characterId(event.getPrevious().owner()).flatMap(id -> Members.online(Members.key(id)))
+                .ifPresent(net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands::clearFactionClickModes);
     }
 
     private void forgetOwner(VehicleOwnershipChangedEvent event, ActiveVehicle vehicle, VehiclePayments payments) {
@@ -237,7 +267,7 @@ public final class VehicleOwnershipGate implements Listener {
     @EventHandler
     public void onEditCheck(VehicleOwnershipEditCheckEvent event) {
         try {
-            if (event.isStaff()) return;
+            if (event.isStaff() || net.tfminecraft.simplefactions.vehicles.VehicleRemovals.isServer(event.getVehicle())) return;
             PlayerVehicleRecord record = row(event.getVehicle());
             if (!LeaderStamps.isFactionRow(record)) return;
             if (LeaderStamps.isStale(record, event.getVehicle().getOwnerData().getOwner())) {
@@ -256,7 +286,8 @@ public final class VehicleOwnershipGate implements Listener {
     public void onPreInteract(VehiclePreInteractEvent event) {
         try {
             ActiveVehicle vehicle = event.getVehicle();
-            if (vehicle == null || vehicle.getOwnerData() == null) return;
+            if (vehicle == null || vehicle.getOwnerData() == null
+                    || OwnerTags.isServer(vehicle.getOwnerData().getOwner())) return;
             PlayerVehicleRecord record = row(vehicle);
             if (LeaderStamps.isStale(record, vehicle.getOwnerData().getOwner())) {
                 event.setCancelled(true);
