@@ -29,6 +29,12 @@ choices. Each vehicle shows its world and coordinates when known, including
 stored vehicles. For an installation named `pool` or `personal`, use
 `/faction findvehicles installation:<id>`; tab completion supplies this form.
 
+Server-owned vehicles (`server` owner in VehicleFramework) have no faction payer or upkeep.
+Staff use `/vf server` to convert them and `/vf takeover` to restore personal ownership.
+In campaign battles a server vehicle is usable only by the side assigned with the forced-vehicle
+tool, or by anyone when all vehicles are usable. Outside campaign battles VF permissions apply.
+
+
 A faction or a player guild can keep vehicles **upkeep-only**: its bank pays their upkeep
 (the realm's main guild bank, or the guild's own bank), its leader decides what happens to
 them, and they never take part in battles or other war rules. Any vehicle type may join, up
