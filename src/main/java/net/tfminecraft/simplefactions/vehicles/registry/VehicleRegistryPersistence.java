@@ -177,17 +177,18 @@ public final class VehicleRegistryPersistence {
     }
 
     /**
-     * Writes the file whose rename is the commit point. Once the rename has landed the save is
-     * done, so a failure after it (syncing the folder entry) is only logged: reporting it would
-     * make callers roll memory back while the files already hold the new rows.
+     * Writes the file whose rename is the commit point. If the write fails but the file already
+     * holds the requested rows (the rename landed and only the folder sync failed, or the file
+     * held them before), the save stands and the failure is only logged: reporting it would make
+     * callers roll memory back while the files hold the new rows.
      */
     private static void commit(Path target, Object content, Read<Boolean> landed) throws IOException {
         try {
             DurableJson.write(target, content);
         } catch (IOException error) {
             if (!quietly(landed, false)) throw error;
-            java.util.logging.Logger.getLogger("SimpleFactions").warning("Saved " + target.getFileName()
-                    + " but could not sync its folder (" + error.getMessage() + "); a power loss now could undo this save");
+            java.util.logging.Logger.getLogger("SimpleFactions").warning("Could not write " + target.getFileName()
+                    + " (" + error.getMessage() + "); it already holds these rows, so the save stands");
         }
     }
 
