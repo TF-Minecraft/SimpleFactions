@@ -11,6 +11,11 @@ import net.tfminecraft.vehicleframework.enums.VehicleRemoveReason;
 public final class VehicleRemovals {
     private VehicleRemovals() {}
 
+    /** Recognizes server owners without linking to newer VehicleFramework owner APIs. */
+    public static boolean isServer(net.tfminecraft.vehicleframework.vehicles.ActiveVehicle vehicle) {
+        return vehicle != null && vehicle.getOwnerData() != null && net.tfminecraft.simplefactions.vehicles.owners.OwnerTags.isServer(vehicle.getOwnerData().getOwner());
+    }
+
     /** False only for an unload; a missing payload counts as gone, as before payloads existed. */
     public static boolean isGoneForGood(VehicleRemovePayload payload) {
         if (payload == null || payload.isDeath()) {

@@ -1139,6 +1139,7 @@ public class SimpleFactions extends JavaPlugin{
 
 	/** Step 5 of the vehicle stage, which runs once per start. */
 	private void registerVehicleIntegration(boolean full) {
+        net.tfminecraft.simplefactions.vehicles.battle.ServerVehicleUseRegistration.register(getServer().getPluginManager(), this);
 		getServer().getPluginManager().registerEvents(vehicleIntegrationListener, this);
 		getServer().getPluginManager().registerEvents(vehicleRegistryClaimListener, this);
 		getServer().getPluginManager().registerEvents(vehicleTransferListener, this);

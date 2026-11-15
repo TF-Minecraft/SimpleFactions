@@ -6,8 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,14 +21,26 @@ import net.tfminecraft.simplefactions.Cache;
 
 class ConfigLoaderBattleScheduleTest {
 	private Path tempDir;
+	/** Cache's static settings before the test; loading a config here would otherwise leak into later tests. */
+	private final Map<Field, Object> savedCache = new HashMap<>();
 
 	@BeforeEach
-	void setUp() throws IOException {
+	void setUp() throws IOException, IllegalAccessException {
+		for (Field field : Cache.class.getDeclaredFields()) {
+			int modifiers = field.getModifiers();
+			if (Modifier.isStatic(modifiers) && !Modifier.isFinal(modifiers)) {
+				field.setAccessible(true);
+				savedCache.put(field, field.get(null));
+			}
+		}
 		tempDir = Files.createTempDirectory("sf-config-");
 	}
 
 	@AfterEach
-	void tearDown() throws IOException {
+	void tearDown() throws IOException, IllegalAccessException {
+		for (Map.Entry<Field, Object> saved : savedCache.entrySet()) {
+			saved.getKey().set(null, saved.getValue());
+		}
 		if (tempDir != null) {
 			Files.walk(tempDir)
 					.sorted(java.util.Comparator.reverseOrder())

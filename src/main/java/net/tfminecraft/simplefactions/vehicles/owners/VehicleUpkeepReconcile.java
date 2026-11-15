@@ -54,6 +54,8 @@ public final class VehicleUpkeepReconcile {
             UUID character = OwnerTags.characterId(owner).orElse(null);
             if (record == null) {
                 if (character != null) unregistered(meta, owner, character, findings);
+            } else if (OwnerTags.isServer(owner)) {
+                findings.add(finding(meta.vehicle(), owner, "server vehicle has a stale payer row"));
             } else if (record.getMode() == OwnershipMode.PERSONAL) {
                 if (!OwnerTags.names(owner, record.getPlayerUuid())) {
                     findings.add(finding(meta.vehicle(), owner, "personal registry row names character "

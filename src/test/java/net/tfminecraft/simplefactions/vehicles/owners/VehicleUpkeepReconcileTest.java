@@ -136,4 +136,15 @@ class VehicleUpkeepReconcileTest {
         api.failure = new IllegalStateException("SQLite closed");
         assertThrows(IllegalStateException.class, this::run);
     }
+
+    @Test void reportsServerRowsAndIgnoresUnregisteredServerVehicles() {
+        api.stored("stale-server", "ship", "SERVER").stored("server", "ship", "server");
+        registry.register(new PlayerVehicleRecord(UUID.randomUUID(), "stale-server", "ship",
+                OwnershipMode.PERSONAL, null, null, UUID.randomUUID()));
+        var findings = run();
+        assertEquals(1, findings.size());
+        assertEquals("stale-server", findings.get(0).vehicle());
+        assertEquals("reconcile: server vehicle has a stale payer row", findings.get(0).reason());
+        assertEquals(List.of(), written);
+    }
 }

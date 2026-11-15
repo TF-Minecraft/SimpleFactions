@@ -11,6 +11,7 @@ import net.tfminecraft.tlibs.character.CharacterRef;
  * VehicleFramework never has to load them.
  */
 public final class OwnerTags {
+    public static final String SERVER = "server";
     public static final String NONE = "none";
     public static final String NO_CHARACTER = "char_none";
     public static final String CHARACTER_PREFIX = "char_";
@@ -35,6 +36,10 @@ public final class OwnerTags {
         } catch (IllegalArgumentException ignored) {
             return Optional.empty();
         }
+    }
+
+    public static boolean isServer(String owner) {
+        return SERVER.equalsIgnoreCase(owner);
     }
 
     public static boolean isUnowned(String owner) {

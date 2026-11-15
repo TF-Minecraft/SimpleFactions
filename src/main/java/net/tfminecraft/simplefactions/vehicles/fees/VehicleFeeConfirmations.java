@@ -32,6 +32,11 @@ public final class VehicleFeeConfirmations {
         }
     }
 
+    public void forgetVehicle(String vehicle) {
+        pending.values().removeIf(value -> value.target().startsWith("claim:" + vehicle)
+                || value.target().startsWith("handover:" + vehicle));
+    }
+
     public void clear(UUID playerUuid) {
         if (playerUuid != null) {
             pending.remove(playerUuid);

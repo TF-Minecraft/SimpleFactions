@@ -101,23 +101,17 @@ public final class BattleVehicleEligibilityService {
 		Battle battle = BattleManager.getBattleByMemberId(player.getUniqueId());
 		// Upkeep-only vehicles never fight in any battle, staff and event battles included,
 		// whatever staff opened for it.
-		if (battle != null && registry.getByVehicleUuid(vehicle.getUUID())
+		if (!net.tfminecraft.simplefactions.vehicles.VehicleRemovals.isServer(vehicle) && battle != null && registry.getByVehicleUuid(vehicle.getUUID())
 				.filter(record -> record.getMode() == OwnershipMode.UPKEEP).isPresent()) {
 			return BattleVehicleEligibilityResult.DENIED_UPKEEP_ONLY;
 		}
 		if (battle == null || battle.getWarId() == null) {
 			return BattleVehicleEligibilityResult.NOT_CAMPAIGN_BATTLE;
 		}
-		// Staff overrides come before the berth and pool rules.
-		if (battle.isAllVehiclesUsable()) {
-			return BattleVehicleEligibilityResult.ALLOWED;
-		}
-		String forcedSide = battle.getForcedVehicleSide(vehicle.getUUID());
-		if (forcedSide != null) {
-			BattleSide side = battle.getSideByMemberId(player.getUniqueId());
-			return side != null && side.getId().equalsIgnoreCase(forcedSide)
-					? BattleVehicleEligibilityResult.ALLOWED
-					: BattleVehicleEligibilityResult.DENIED_FORCED_OTHER_SIDE;
+		BattleVehicleEligibilityResult override = campaignOverride(player, vehicle, battle);
+		if (override != null) return override;
+		if (net.tfminecraft.simplefactions.vehicles.VehicleRemovals.isServer(vehicle)) {
+			return BattleVehicleEligibilityResult.DENIED_SERVER_UNASSIGNED;
 		}
 
 		War war = WarManager.getById(battle.getWarId());
@@ -137,6 +131,24 @@ public final class BattleVehicleEligibilityService {
 		return decide(war, faction.getId(), vehicle.getId(), recordOpt.orElse(null));
 	}
 
+	/** Shared by the eligibility gate and the optional server-use event listener. */
+	static BattleVehicleEligibilityResult campaignOverride(Player player, ActiveVehicle vehicle, Battle battle) {
+		if (battle.isAllVehiclesUsable()) return BattleVehicleEligibilityResult.ALLOWED;
+		String forcedSide = battle.getForcedVehicleSide(vehicle.getUUID());
+		if (forcedSide == null) return null;
+		BattleSide side = battle.getSideByMemberId(player.getUniqueId());
+		return side != null && side.getId().equalsIgnoreCase(forcedSide)
+				? BattleVehicleEligibilityResult.ALLOWED
+				: BattleVehicleEligibilityResult.DENIED_FORCED_OTHER_SIDE;
+	}
+
+	public static boolean mayUseServer(Player player, ActiveVehicle vehicle) {
+		if (WarbandVehicleRules.blocksVehicleEntry(player)) return false;
+		Battle battle = BattleManager.getBattleByMemberId(player.getUniqueId());
+		return battle != null && battle.getWarId() != null
+				&& campaignOverride(player, vehicle, battle) == BattleVehicleEligibilityResult.ALLOWED;
+	}
+
 		public enum BattleVehicleEligibilityResult {
 		ALLOWED,
 		NOT_CAMPAIGN_BATTLE,
@@ -145,12 +157,13 @@ public final class BattleVehicleEligibilityService {
 		DENIED_NOT_COMMITTED,
 		DENIED_NOT_FACTION_VEHICLE,
 		DENIED_POOL_SIDE,
+		DENIED_SERVER_UNASSIGNED,
 		DENIED_FORCED_OTHER_SIDE,
 		/** Kept only for its upkeep by a faction or guild: never used for war. */
 		DENIED_UPKEEP_ONLY;
 
 		public boolean isDenied() {
-			return this == DENIED_PRE_BATTLE_WARBAND
+			return this == DENIED_SERVER_UNASSIGNED || this == DENIED_PRE_BATTLE_WARBAND
 					|| this == DENIED_NOT_BERTHED
 					|| this == DENIED_NOT_COMMITTED
 					|| this == DENIED_NOT_FACTION_VEHICLE
@@ -170,6 +183,8 @@ public final class BattleVehicleEligibilityService {
 			return switch (result) {
 				case DENIED_PRE_BATTLE_WARBAND ->
 						"§c" + WarbandVehicleRules.VEHICLE_BLOCKED_PRE_BATTLE;
+				case DENIED_SERVER_UNASSIGNED ->
+						"§cStaff have not assigned this server vehicle to a side in this battle.";
 				case DENIED_NOT_BERTHED ->
 						"§cThis vehicle must be berthed at a committed installation for this battle.";
 				case DENIED_NOT_COMMITTED ->

@@ -35,6 +35,7 @@ public final class UpkeepVehicleListener implements Listener {
 
     @EventHandler
     public void onVehiclePreInteract(VehiclePreInteractEvent event) {
+        if (net.tfminecraft.simplefactions.vehicles.VehicleRemovals.isServer(event.getVehicle())) return;
         Player player = event.getPlayer();
         if (player == null) return;
         Session session = UpkeepClickSessions.get(player.getUniqueId());

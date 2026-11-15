@@ -609,4 +609,34 @@ class VehicleOwnershipGateTest {
         verify(player).sendMessage(VehicleOwnershipGate.HELD);
         assertFalse(staff.isCancelled());
     }
+
+    @Test void serverConversionUsesClearCleanupWithoutRefundAndTakeoverRestoresPayer() {
+        factionRow();
+        ownerData.setOwner("server");
+        VehicleOwnershipChangeEvent before = change(OwnershipReason.SERVER, true);
+        gate.onChange(before); gate.onClaimFee(before);
+        assertFalse(before.isCancelled());
+        var plugin = mock(net.tfminecraft.simplefactions.SimpleFactions.class);
+        var maintenance = new net.tfminecraft.simplefactions.vehicles.maintenance.VehicleMaintenanceStore();
+        maintenance.markUnpaid("ship-1", 1L);
+        when(plugin.getVehicleMaintenanceStore()).thenReturn(maintenance);
+        store.setLastOwner("ship-1", "former");
+        try (var plugins = mockStatic(net.tfminecraft.simplefactions.SimpleFactions.class);
+             var clicks = mockStatic(net.tfminecraft.simplefactions.vehicles.VehicleFactionCommands.class)) {
+            plugins.when(net.tfminecraft.simplefactions.SimpleFactions::getInstance).thenReturn(plugin);
+            gate.onChanged(changed(true, OwnershipReason.SERVER, UUID.randomUUID(), true, null));
+            verify(payments).replaceRow("ship-1", null);
+            verify(payments, never()).complete(anyString(), any());
+            assertFalse(maintenance.isUnpaid("ship-1"));
+            verify(plugin).saveVehicleRegistry();
+        }
+        assertNull(store.getLastOwner("ship-1"));
+        verify(payments, never()).refund(anyString());
+        gate.onPreInteract(new VehiclePreInteractEvent(player, vehicle));
+        gate.onChanged(changed(true, OwnershipReason.SERVER, UUID.randomUUID(), true, null));
+        registry.unregister("ship-1");
+        gate.onChanged(changed(true, OwnershipReason.SERVER, UUID.randomUUID(), true, null));
+        gate.onChanged(changed(true, OwnershipReason.TAKEOVER, UUID.randomUUID(), true, actor));
+        verify(payments).personal("ship-1", "ship", actor.characterId(), actor.ownerId());
+    }
 }
