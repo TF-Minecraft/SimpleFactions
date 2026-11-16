@@ -180,6 +180,9 @@ types:
       treaty: true
       mutual: true
       blocks-war: true
+      # Days of notice before the pact ends once a side picks "No Treaty".
+      # The pact still blocks war until the notice runs out. 0 ends it at once.
+      cancel-notice-days: 14
     none_treaty:
       name: "#b6aa90No Treaty"
       description: "Clear any political treaty overlay."

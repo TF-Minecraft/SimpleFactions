@@ -20,6 +20,8 @@ public class DiplomacyHandler {
     private HashMap<String, Relation> relations = new HashMap<>();
     private HashMap<String, RelationType> tradeRelations = new HashMap<>();
     private HashMap<String, RelationType> treatyRelations = new HashMap<>();
+    /** Partner faction id -> epoch millis when the notice we gave to end our treaty with them runs out. */
+    private HashMap<String, Long> treatyNotices = new HashMap<>();
 
     public DiplomacyHandler(Faction f) {
         this.f = f;
@@ -145,6 +147,7 @@ public class DiplomacyHandler {
 
     public void removeTreatyRelation(String s) {
         treatyRelations.remove(s);
+        treatyNotices.remove(s);
     }
 
     public RelationType getTreatyRelation(String s) {
@@ -154,6 +157,23 @@ public class DiplomacyHandler {
 
     public void setTreatyRelation(Faction f, RelationType r) {
         treatyRelations.put(f.getId(), r);
+    }
+
+    public HashMap<String, Long> getTreatyNotices() {
+        return treatyNotices;
+    }
+
+    /** When the notice we gave to end our treaty with s runs out, or null when we gave none. */
+    public Long getTreatyNoticeEnd(String s) {
+        return treatyNotices.get(s);
+    }
+
+    public void setTreatyNoticeEnd(String s, long endsAt) {
+        treatyNotices.put(s, endsAt);
+    }
+
+    public void clearTreatyNotice(String s) {
+        treatyNotices.remove(s);
     }
 
     public List<FactionModifier> getTradeModifiersFor(String target) {

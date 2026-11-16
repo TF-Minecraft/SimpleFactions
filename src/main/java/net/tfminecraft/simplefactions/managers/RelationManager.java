@@ -6,12 +6,14 @@ import net.tfminecraft.simplefactions.identity.Members;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.LongSupplier;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import net.tfminecraft.simplefactions.diplomacy.Attitude;
 import net.tfminecraft.simplefactions.diplomacy.Relation;
 import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.diplomacy.Threshold;
+import net.tfminecraft.simplefactions.laws.CanHaveLaw;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.request.RelationRequest;
@@ -23,9 +25,13 @@ public class RelationManager {
 	private RelationManager() {}
 	
 	private static int tick = 0;
+	static LongSupplier clock = System::currentTimeMillis;
 	
 	public static void tick() {
 		tick++;
+		if(tick % 60 == 0) {
+			expireTreatyNotices(clock.getAsLong());
+		}
 		if(tick >= 3600) {
 			tick = 0;
 			for(Faction f : FactionManager.factions) {
@@ -405,6 +411,11 @@ public class RelationManager {
 	}
 
 	private static boolean applyTreatyRelation(Player p, RelationType r, Faction target, Faction origin, boolean check) {
+		if(origin.getDiplomacyHandler().getTreatyNoticeEnd(target.getId()) != null
+				&& r.equals(origin.getDiplomacyHandler().getTreatyRelation(target.getId()))) {
+			withdrawTreatyNotice(r, target, origin);
+			return true;
+		}
 		if(r.hasThreshold()) {
 			Threshold h = r.getThreshold();
 			int opinion = origin.getRelation(target.getId()).getOpinion();
@@ -427,20 +438,36 @@ public class RelationManager {
 			}
 		}
 		if(r.isClearTreaty()) {
+			RelationType current = currentTreaty(origin, target);
+			if(current != null && current.getCancelNoticeMillis() > 0) {
+				return giveTreatyNotice(p, current, target, origin);
+			}
 			origin.getDiplomacyHandler().removeTreatyRelation(target.getId());
 			target.getDiplomacyHandler().removeTreatyRelation(origin.getId());
 			if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Cleared treaty"));
 			return true;
 		}
+		RelationType current = currentTreaty(origin, target);
+		if(current != null && !r.isMutual() && !r.equals(current) && current.getCancelNoticeMillis() > 0) {
+			// Only a treaty both sides agree to may replace a pact that needs notice to end.
+			if(p != null) p.sendMessage(StringFormatter.formatHex("§cGive notice to end the "+current.getName()+" §cfirst by picking No Treaty."));
+			return false;
+		}
 		if(r.isMutual() && check) {
 			sendTreatyRequest(p, target, r);
 			return false;
 		}
+		boolean noticeWithdrawn = treatyNoticeEnd(origin, target) != null;
+		clearTreatyNotices(origin, target);
 		origin.getDiplomacyHandler().setTreatyRelation(target, r);
 		if(r.isMutual()) {
 			target.getDiplomacyHandler().setTreatyRelation(origin, r.getLink());
 		}
 		if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Set treaty to "+r.getName()));
+		if(noticeWithdrawn) {
+			notifyMembers(origin, "#a89977The notice is withdrawn. The "+r.getName()+" #a89977with "+target.getName()+" #a89977is in effect.");
+			notifyMembers(target, "#a89977The notice is withdrawn. The "+r.getName()+" #a89977with "+origin.getName()+" #a89977is in effect.");
+		}
 		return true;
 	}
 
@@ -453,9 +480,90 @@ public class RelationManager {
 			target.getDiplomacyHandler().removeTreatyRelation(origin.getId());
 			return;
 		}
+		clearTreatyNotices(origin, target);
 		origin.getDiplomacyHandler().setTreatyRelation(target, r);
 		if (r.isMutual() && r.getLink() != null) {
 			target.getDiplomacyHandler().setTreatyRelation(origin, r.getLink());
+		}
+	}
+
+	private static RelationType currentTreaty(Faction origin, Faction target) {
+		RelationType ours = origin.getDiplomacyHandler().getTreatyRelation(target.getId());
+		return ours != null ? ours : target.getDiplomacyHandler().getTreatyRelation(origin.getId());
+	}
+
+	private static void clearTreatyNotices(Faction a, Faction b) {
+		a.getDiplomacyHandler().clearTreatyNotice(b.getId());
+		b.getDiplomacyHandler().clearTreatyNotice(a.getId());
+	}
+
+	/** When the treaty between a and b ends after notice from either side, or null when neither gave notice. */
+	public static Long treatyNoticeEnd(Faction a, Faction b) {
+		if (a == null || b == null) {
+			return null;
+		}
+		Long ours = a.getDiplomacyHandler().getTreatyNoticeEnd(b.getId());
+		return ours != null ? ours : b.getDiplomacyHandler().getTreatyNoticeEnd(a.getId());
+	}
+
+	/** Time left on the notice to end the treaty between a and b, such as "13d 23h", or null when no notice runs. */
+	public static String treatyNoticeRemaining(Faction a, Faction b) {
+		Long endsAt = treatyNoticeEnd(a, b);
+		return endsAt == null ? null : CanHaveLaw.formatRemaining(endsAt - clock.getAsLong());
+	}
+
+	/** Whether viewer's own faction gave the running notice to end its treaty with other. */
+	public static boolean gaveTreatyNotice(Faction viewer, Faction other) {
+		return viewer.getDiplomacyHandler().getTreatyNoticeEnd(other.getId()) != null;
+	}
+
+	private static boolean giveTreatyNotice(Player p, RelationType current, Faction target, Faction origin) {
+		String running = treatyNoticeRemaining(origin, target);
+		if (running != null) {
+			if (p != null) p.sendMessage(StringFormatter.formatHex("#a89977The "+current.getName()+" #a89977with "+target.getName()+" #a89977already ends in "+running));
+			return false;
+		}
+		long endsAt = clock.getAsLong() + current.getCancelNoticeMillis();
+		origin.getDiplomacyHandler().setTreatyNoticeEnd(target.getId(), endsAt);
+		String left = treatyNoticeRemaining(origin, target);
+		LogManager.relations("NOTICE treaty %s -> %s %s endsAt=%d", origin.getId(), target.getId(), current.getId(), endsAt);
+		notifyMembers(origin, "#a89977We gave notice to end the "+current.getName()+" #a89977with "+target.getName()
+				+"#a89977. It stays in effect for #d4bb98"+left+"#a89977. Pick it again to withdraw the notice.");
+		notifyMembers(target, origin.getName()+" #a89977gave notice to end the "+current.getName()+" #a89977with us. It stays in effect for #d4bb98"+left+"#a89977.");
+		return true;
+	}
+
+	private static void withdrawTreatyNotice(RelationType r, Faction target, Faction origin) {
+		clearTreatyNotices(origin, target);
+		LogManager.relations("WITHDRAW treaty notice %s -> %s %s", origin.getId(), target.getId(), r.getId());
+		notifyMembers(origin, "#a89977We withdrew our notice. The "+r.getName()+" #a89977with "+target.getName()+" #a89977stays in effect.");
+		notifyMembers(target, origin.getName()+" #a89977withdrew its notice. The "+r.getName()+" #a89977with us stays in effect.");
+	}
+
+	/** Ends every treaty whose notice ran out by now and tells both sides. */
+	public static void expireTreatyNotices(long now) {
+		for (Faction f : new ArrayList<>(FactionManager.factions)) {
+			if (f == null) continue;
+			for (Map.Entry<String, Long> notice : new ArrayList<>(f.getDiplomacyHandler().getTreatyNotices().entrySet())) {
+				if (notice.getValue() > now) continue;
+				RelationType ended = f.getDiplomacyHandler().getTreatyRelation(notice.getKey());
+				f.getDiplomacyHandler().removeTreatyRelation(notice.getKey());
+				Faction other = FactionManager.getByString(notice.getKey());
+				if (other == null) continue;
+				other.getDiplomacyHandler().removeTreatyRelation(f.getId());
+				if (ended == null) continue;
+				LogManager.relations("EXPIRE treaty %s -> %s %s", f.getId(), other.getId(), ended.getId());
+				notifyMembers(f, "#a89977The "+ended.getName()+" #a89977with "+other.getName()+" #a89977has ended.");
+				notifyMembers(other, "#a89977The "+ended.getName()+" #a89977with "+f.getName()+" #a89977has ended.");
+			}
+		}
+	}
+
+	private static void notifyMembers(Faction f, String message) {
+		String text = StringFormatter.formatHex(message);
+		for (String member : f.getMembers()) {
+			Player p = Members.player(member);
+			if (p != null && p.isOnline()) p.sendMessage(text);
 		}
 	}
 

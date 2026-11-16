@@ -41,6 +41,7 @@ public class RelationType {
 	private boolean blocksInstallations;
 	private double installationAccess;
 	private boolean clearTreaty;
+	private double cancelNoticeDays;
 	private List<FactionModifier> tradeEffectsUs = new ArrayList<>();
 	private List<FactionModifier> tradeEffectsThem = new ArrayList<>();
 	
@@ -74,6 +75,7 @@ public class RelationType {
 		blocksInstallations = config.getBoolean("blocks-installations", key.equalsIgnoreCase("embargo"));
 		installationAccess = config.getDouble("installation-access", defaultInstallationAccess(key));
 		clearTreaty = config.getBoolean("clear", false);
+		cancelNoticeDays = Math.max(0.0, config.getDouble("cancel-notice-days", blocksWar ? 14.0 : 0.0));
 		if(config.isConfigurationSection("threshold")) {
 			threshold = new Threshold(config.getConfigurationSection("threshold"));
 		}
@@ -117,6 +119,11 @@ public class RelationType {
 
 	public boolean isClearTreaty() {
 		return clearTreaty;
+	}
+
+	/** How long a treaty stays in effect after one side gives notice to end it; 0 ends it at once. */
+	public long getCancelNoticeMillis() {
+		return (long) (cancelNoticeDays * 86_400_000L);
 	}
 
 	public boolean isElevationTarget() {

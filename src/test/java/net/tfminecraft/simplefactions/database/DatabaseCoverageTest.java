@@ -164,7 +164,7 @@ class DatabaseCoverageTest {
   @Test void legacyMissingOptionalValuesUseDefaultsWithoutDiscardingTheFaction() throws Exception {
     FactionData data=fixture.data("legacy","Alice");
     data.capital=null;data.extraNodeCapacity=null;data.citizenTax=null;data.guildTax=null;data.vassalTax=null;data.dividendTax=null;data.tariffs=null;
-    data.specificTaxes=null;data.guilds=null;data.relations=null;data.tradeRelations=null;data.treatyRelations=null;
+    data.specificTaxes=null;data.guilds=null;data.relations=null;data.tradeRelations=null;data.treatyRelations=null;data.treatyNotices=null;
     data.settlements=null;data.installations=null;data.installationQueue=null;data.lawChangedAt=null;data.warReparationsObligations=null;
     data.rank="removed-rank";
     disk.write("Data/legacy.json",new com.google.gson.GsonBuilder().serializeNulls().create().toJson(data));database.loadFactions();
@@ -183,6 +183,7 @@ class DatabaseCoverageTest {
     var treaty=fixture.relationType("peace",Map.of("treaty",true));
     realm.getDiplomacyHandler().setTradeRelation(liege,trade);
     realm.getDiplomacyHandler().setTreatyRelation(liege,treaty);
+    realm.getDiplomacyHandler().setTreatyNoticeEnd("liege",5000L);
     Loan source=new Loan("agreement",100.0,issuer,borrower,1000L,2,0.1,0.5,true);
     issuer.getLoanHandler().issueLoan(source);
     realm.setBank(null);
@@ -195,6 +196,7 @@ class DatabaseCoverageTest {
     FactionData saved=JsonUtil.readJson(disk.root.resolve("Data/realm.json").toFile(),FactionData.class);
     assertEquals(List.of("liege(trading)"),saved.tradeRelations);
     assertEquals(List.of("liege(peace)"),saved.treatyRelations);
+    assertEquals(Map.of("liege",5000L),saved.treatyNotices);
     assertEquals("false",saved.guilds.getFirst().bank);
     assertEquals("agreement",saved.guilds.getFirst().loans.getFirst().id);
     assertTrue(saved.warReparationsObligations.isEmpty());
@@ -206,6 +208,7 @@ class DatabaseCoverageTest {
     assertSame(liege,reloaded.getOverlord());
     assertSame(trade,reloaded.getDiplomacyHandler().getTradeRelation("liege"));
     assertSame(treaty,reloaded.getDiplomacyHandler().getTreatyRelation("liege"));
+    assertEquals(5000L,reloaded.getDiplomacyHandler().getTreatyNoticeEnd("liege"));
     Loan restored=reloaded.getOrCreateMainGuild().getLoanHandler().getLoansGiven().getFirst();
     assertEquals("agreement",restored.getId());assertSame(borrower,restored.getBorrower());
     assertEquals(100.0,restored.getAmount());assertEquals(source.getDueDate(),restored.getDueDate());
