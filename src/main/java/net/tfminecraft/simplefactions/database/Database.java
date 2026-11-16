@@ -223,6 +223,11 @@ public class Database {
                             FactionManager.addDBTreatyRelation(f, r);
                         }
                     }
+                    if (data.treatyNotices != null) {
+                        data.treatyNotices.forEach((id, endsAt) -> {
+                            if (id != null && endsAt != null) f.getDiplomacyHandler().setTreatyNoticeEnd(id, endsAt);
+                        });
+                    }
 
                     // --- Tier ---
                     if (data.tierIndex != null) {
@@ -407,6 +412,7 @@ public class Database {
                     data.treatyRelations.add(id + "(" + rel.getId() + ")");
                 }
             });
+            data.treatyNotices.putAll(f.getDiplomacyHandler().getTreatyNotices());
 
             // --- Modifiers ---
             f.getPrestigeModifiers().forEach(m -> {

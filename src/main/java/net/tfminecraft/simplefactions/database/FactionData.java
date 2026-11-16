@@ -68,6 +68,8 @@ public class FactionData {
     public List<String> tradeRelations = new ArrayList<>();
     @SerializedName("treaty relation")
     public List<String> treatyRelations = new ArrayList<>();
+    @SerializedName("treaty notices")
+    public Map<String, Long> treatyNotices = new HashMap<>();
 
     @SerializedName("tier index")
     public Double tierIndex;

@@ -52,7 +52,7 @@ public final class CanHaveLaw {
 		return "§cThis law was changed recently. It can change again in " + formatRemaining(remaining) + ".";
 	}
 
-	static String formatRemaining(long millis) {
+	public static String formatRemaining(long millis) {
 		long minutes = Math.max(1, (millis + 59_999) / 60_000);
 		long days = minutes / 1440;
 		long hours = minutes % 1440 / 60;

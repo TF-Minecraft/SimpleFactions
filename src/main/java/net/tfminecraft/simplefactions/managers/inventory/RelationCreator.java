@@ -21,6 +21,7 @@ import net.tfminecraft.simplefactions.diplomacy.RelationType;
 import net.tfminecraft.simplefactions.diplomacy.Threshold;
 import net.tfminecraft.simplefactions.guild.network.InstallationTradeCopy;
 import net.tfminecraft.simplefactions.loaders.RelationLoader;
+import net.tfminecraft.simplefactions.laws.CanHaveLaw;
 import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.objects.FactionModifier;
@@ -99,7 +100,7 @@ public class RelationCreator {
 			lore.add(StringFormatter.formatHex("#a89977Trade: #59795fNone"));
 		}
 		if(target.getDiplomacyHandler().hasTreatyRelation(origin.getId())) {
-			lore.add(StringFormatter.formatHex("#a89977Treaty: "+target.getDiplomacyHandler().getTreatyRelation(origin.getId()).getName()));
+			lore.add(StringFormatter.formatHex("#a89977Treaty: "+target.getDiplomacyHandler().getTreatyRelation(origin.getId()).getName()+treatyEndsSuffix(target, origin)));
 		} else {
 			lore.add(StringFormatter.formatHex("#a89977Treaty: #59795fNone"));
 		}
@@ -135,7 +136,7 @@ public class RelationCreator {
 			lore.add(StringFormatter.formatHex("#a89977Trade: " + viewed.getDiplomacyHandler().getTradeRelation(other.getId()).getName()));
 		}
 		if (viewed.getDiplomacyHandler().hasTreatyRelation(other.getId())) {
-			lore.add(StringFormatter.formatHex("#a89977Treaty: " + viewed.getDiplomacyHandler().getTreatyRelation(other.getId()).getName()));
+			lore.add(StringFormatter.formatHex("#a89977Treaty: " + viewed.getDiplomacyHandler().getTreatyRelation(other.getId()).getName() + treatyEndsSuffix(viewed, other)));
 		}
 		if (clickable) {
 			lore.add(" ");
@@ -531,6 +532,9 @@ public class RelationCreator {
 			lore.add(" ");
 			lore.add(StringFormatter.formatHex("#d4bb98Blocks declaring war while in effect"));
 		}
+		if(t.getCancelNoticeMillis() > 0) {
+			lore.add(StringFormatter.formatHex("#a39ba8Ending it takes "+CanHaveLaw.formatRemaining(t.getCancelNoticeMillis())+" notice"));
+		}
 		if(full) {
 			NamespacedKey key = new NamespacedKey(SimpleFactions.plugin, "id");
 			m.getPersistentDataContainer().set(key, PersistentDataType.STRING, t.getId());
@@ -561,13 +565,27 @@ public class RelationCreator {
 				lore.add(" ");
 				lore.add(StringFormatter.formatHex("#ba3439Unavailable"));
 			} else if(t.isClearTreaty()) {
+				String ends = RelationManager.treatyNoticeRemaining(origin, target);
 				if(current == null) {
 					lore.add(StringFormatter.formatHex("#28ed70Current"));
+				} else if(ends != null) {
+					lore.add(StringFormatter.formatHex("#d4bb98Notice given: the treaty ends in "+ends));
+				} else if(current.getCancelNoticeMillis() > 0) {
+					lore.add(StringFormatter.formatHex("#28ed70Click to give notice #a39ba8(ends in "+CanHaveLaw.formatRemaining(current.getCancelNoticeMillis())+")"));
 				} else {
 					lore.add(StringFormatter.formatHex("#28ed70Click to clear treaty"));
 				}
 			} else if(current != null && current.equals(t)) {
-				lore.add(StringFormatter.formatHex("#28ed70Current"));
+				String ends = RelationManager.treatyNoticeRemaining(origin, target);
+				if(ends == null) {
+					lore.add(StringFormatter.formatHex("#28ed70Current"));
+				} else if(RelationManager.gaveTreatyNotice(origin, target)) {
+					lore.add(StringFormatter.formatHex("#d4bb98We gave notice: ends in "+ends));
+					lore.add(StringFormatter.formatHex("#28ed70Click to withdraw the notice"));
+				} else {
+					lore.add(StringFormatter.formatHex("#d4bb98They gave notice: ends in "+ends));
+					lore.add(StringFormatter.formatHex("#28ed70Click to ask them to keep it"));
+				}
 				m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 				m.addEnchant(Enchantment.UNBREAKING, 1, true);
 			} else if(t.isMutual()) {
@@ -581,5 +599,10 @@ public class RelationCreator {
 		m.setLore(lore);
 		i.setItemMeta(m);
 		return i;
+	}
+
+	private static String treatyEndsSuffix(Faction a, Faction b) {
+		String ends = RelationManager.treatyNoticeRemaining(a, b);
+		return ends == null ? "" : " #a39ba8(ends in "+ends+")";
 	}
 }

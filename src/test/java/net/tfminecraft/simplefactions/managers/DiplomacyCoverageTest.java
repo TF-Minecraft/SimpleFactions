@@ -314,7 +314,9 @@ class DiplomacyCoverageTest {
     Faction target = fixture.saved("target", "Bob");
     opinion(origin, target, 7);
     RelationType treaty =
-        fixture.relationType("peace", Map.of("mutual", true, "treaty", true, "blocks-war", true));
+        fixture.relationType(
+            "peace",
+            Map.of("mutual", true, "treaty", true, "blocks-war", true, "cancel-notice-days", 0));
     RelationType trade =
         fixture.relationType(
             "embargo", Map.of("mutual", true, "trade-agreement", true, "blocks-shops", true));

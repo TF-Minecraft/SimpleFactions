@@ -350,6 +350,21 @@ class WarGoalValidatorTest {
 	}
 
 	@Test
+	void validateShared_napRefusalSaysWhenTheNoticeEnds() {
+		Faction attacker = mockFaction("attacker", 3);
+		Faction defender = mockFactionWithCapital("defender", 42);
+		linkNap(attacker, defender);
+		when(defender.getDiplomacyHandler().getTreatyNoticeEnd("attacker"))
+				.thenReturn(System.currentTimeMillis() + 3L * 86_400_000L + 3_600_000L);
+		FactionManager.factions.add(defender);
+
+		WarValidationResult result = validator.validate(WarDeclareRequest.of(attacker, defender, WarGoalType.WAR));
+		assertFalse(result.isValid());
+		assertTrue(result.getMessage().matches("§cYou cannot declare war while a non-aggression pact is in effect\\. It ends in 3d [01]h\\."),
+				result.getMessage());
+	}
+
+	@Test
 	void validateShared_rejectsSubjugateWhenNapOverlay() {
 		Faction attacker = mockFaction("attacker", 3);
 		Faction defender = mockFactionWithCapital("defender", 42);
@@ -1249,6 +1264,8 @@ class WarGoalValidatorTest {
 		DiplomacyHandler handlerB = mock(DiplomacyHandler.class);
 		when(handlerA.getTreatyRelation(b.getId())).thenReturn(nap);
 		when(handlerB.getTreatyRelation(a.getId())).thenReturn(nap);
+		when(handlerA.getTreatyNoticeEnd(b.getId())).thenReturn(null);
+		when(handlerB.getTreatyNoticeEnd(a.getId())).thenReturn(null);
 		when(a.getDiplomacyHandler()).thenReturn(handlerA);
 		when(b.getDiplomacyHandler()).thenReturn(handlerB);
 	}

@@ -582,6 +582,40 @@ class RelationMenusCoverageTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"clearOffer", "clearRunning", "ours", "theirs"})
+  void treatyCardsShowTheNoticeToEndAPact(String scenario) {
+    RelationType pact = type("pact", "treaty", true, "mutual", true, "blocks-war", true);
+    RelationType none = type("none", "treaty", true, "clear", true);
+    Cache.icons.put("pact", "DIAMOND.7");
+    Cache.icons.put("none", "DIAMOND.7");
+    when(origin.getDiplomacyHandler().getTreatyRelation("target")).thenReturn(pact);
+    if (!scenario.equals("clearOffer")) {
+      diplomacy.when(() -> RelationManager.treatyNoticeRemaining(origin, target)).thenReturn("3d 4h");
+    }
+    diplomacy.when(() -> RelationManager.gaveTreatyNotice(origin, target)).thenReturn(scenario.equals("ours"));
+    RelationType shown = scenario.startsWith("clear") ? none : pact;
+    String copy = text(creator.createTreatyTypeItem(player, shown, target, origin, true));
+    switch (scenario) {
+      case "clearOffer" -> assertTrue(copy.contains("Click to give notice"));
+      case "clearRunning" -> assertTrue(copy.contains("Notice given: the treaty ends in 3d 4h"));
+      case "ours" -> { assertTrue(copy.contains("Ending it takes 14d 0h notice")); assertTrue(copy.contains("We gave notice: ends in 3d 4h")); assertTrue(copy.contains("withdraw")); }
+      default -> { assertTrue(copy.contains("They gave notice: ends in 3d 4h")); assertTrue(copy.contains("keep it")); }
+    }
+  }
+
+  @Test
+  void factionCardsShowWhenATreatyEnds() {
+    RelationType treaty = type("treaty", "treaty", true);
+    diplomacy.when(() -> RelationManager.treatyNoticeRemaining(any(), any())).thenReturn("2d 1h");
+    when(target.getDiplomacyHandler().hasTreatyRelation("origin")).thenReturn(true);
+    when(target.getDiplomacyHandler().getTreatyRelation("origin")).thenReturn(treaty);
+    when(origin.getDiplomacyHandler().hasTreatyRelation("target")).thenReturn(true);
+    when(origin.getDiplomacyHandler().getTreatyRelation("target")).thenReturn(treaty);
+    assertTrue(text(creator.createRelationItem(target, origin)).contains("(ends in 2d 1h)"));
+    assertTrue(text(creator.createDiplomacyListFactionItem(origin, target, true)).contains("(ends in 2d 1h)"));
+  }
+
+  @ParameterizedTest
   @CsvSource({"trade,locked", "trade,capacity", "trade,current", "trade,mutual", "trade,plain", "trade,summary", "treaty,locked", "treaty,capacity", "treaty,current", "treaty,mutual", "treaty,plain", "treaty,summary", "treaty,clear", "treaty,clearEmpty"})
   void overlayCardsExplainEffectsRestrictionsAndAvailableActions(String kind, String scenario) {
     boolean trade = kind.equals("trade");

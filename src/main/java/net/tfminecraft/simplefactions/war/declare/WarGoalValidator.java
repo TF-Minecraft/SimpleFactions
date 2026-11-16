@@ -109,7 +109,9 @@ public class WarGoalValidator {
 			}
 		}
 		if (RelationManager.hasNonAggressionPact(attacker, defender)) {
-			return WarValidationResult.fail("§cYou cannot declare war while a non-aggression pact is in effect.");
+			String ends = RelationManager.treatyNoticeRemaining(attacker, defender);
+			return WarValidationResult.fail("§cYou cannot declare war while a non-aggression pact is in effect."
+					+ (ends == null ? "" : " It ends in " + ends + "."));
 		}
 		if (request.getGoal() != WarGoalType.SUBJUGATE
 				&& request.getGoal() != WarGoalType.WAR
