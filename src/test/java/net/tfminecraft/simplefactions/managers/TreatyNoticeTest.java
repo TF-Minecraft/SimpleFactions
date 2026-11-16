@@ -87,18 +87,21 @@ class TreatyNoticeTest {
     verify(bob).sendMessage(contains("gave notice to end"));
 
     // Neither side can restart the clock while it runs.
+    long deadline = now + 14 * DAY;
+    now += DAY;
     RelationManager.setTreatyRelation(alice, clear, target, origin, true);
     RelationManager.setTreatyRelation(bob, clear, origin, target, true);
     RelationManager.setTreatyRelation(null, clear, target, origin, true);
     verify(alice).sendMessage(contains("already ends in"));
     verify(bob).sendMessage(contains("already ends in"));
-    assertEquals(now + 14 * DAY, RelationManager.treatyNoticeEnd(origin, target));
+    assertEquals(deadline, RelationManager.treatyNoticeEnd(origin, target));
+    assertEquals(deadline, RelationManager.treatyNoticeEnd(target, origin));
 
-    now += 14 * DAY - 1;
+    now = deadline - 1;
     RelationManager.expireTreatyNotices(now);
     assertTrue(RelationManager.hasNonAggressionPact(origin, target));
 
-    now += 1;
+    now = deadline;
     for (int i = 0; i < 60; i++) RelationManager.tick();
     assertNull(origin.getDiplomacyHandler().getTreatyRelation(target.getId()));
     assertNull(target.getDiplomacyHandler().getTreatyRelation(origin.getId()));
@@ -127,10 +130,30 @@ class TreatyNoticeTest {
     RelationManager.setTreatyRelation(alice, pact, target, origin, false);
     assertNull(RelationManager.treatyNoticeEnd(origin, target));
     assertSame(pact, origin.getDiplomacyHandler().getTreatyRelation(target.getId()));
+    verify(alice).sendMessage(contains("The notice is withdrawn"));
+    verify(bob).sendMessage(contains("The notice is withdrawn"));
 
     RelationManager.setTreatyRelation(bob, clear, origin, target, true);
     RelationManager.setTreatyRelationForced(pact, target, origin);
     assertNull(RelationManager.treatyNoticeEnd(origin, target));
+  }
+
+  @Test
+  void aOneSidedTreatyCannotReplaceAPactThatNeedsNotice() {
+    RelationType guarantee = fixture.relationType("guarantee", Map.of("treaty", true));
+    RelationManager.setTreatyRelation(alice, guarantee, target, origin, true);
+    RelationManager.setTreatyRelation(null, guarantee, target, origin, true);
+    assertSame(pact, origin.getDiplomacyHandler().getTreatyRelation(target.getId()));
+    assertTrue(RelationManager.hasNonAggressionPact(origin, target));
+    verify(alice).sendMessage(contains("Give notice to end the"));
+
+    // A pact both sides agree to may still replace it, and without a notice-bound pact a one-sided treaty applies.
+    RelationType alliance = fixture.relationType("alliance", Map.of("treaty", true, "mutual", true));
+    RelationManager.setTreatyRelation(alice, alliance, target, origin, false);
+    assertSame(alliance, origin.getDiplomacyHandler().getTreatyRelation(target.getId()));
+    RelationManager.setTreatyRelation(alice, guarantee, target, origin, true);
+    assertSame(guarantee, origin.getDiplomacyHandler().getTreatyRelation(target.getId()));
+    verify(alice, never()).sendMessage(contains("The notice is withdrawn"));
   }
 
   @Test

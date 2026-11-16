@@ -447,16 +447,27 @@ public class RelationManager {
 			if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Cleared treaty"));
 			return true;
 		}
+		RelationType current = currentTreaty(origin, target);
+		if(current != null && !r.isMutual() && !r.equals(current) && current.getCancelNoticeMillis() > 0) {
+			// Only a treaty both sides agree to may replace a pact that needs notice to end.
+			if(p != null) p.sendMessage(StringFormatter.formatHex("§cGive notice to end the "+current.getName()+" §cfirst by picking No Treaty."));
+			return false;
+		}
 		if(r.isMutual() && check) {
 			sendTreatyRequest(p, target, r);
 			return false;
 		}
+		boolean noticeWithdrawn = treatyNoticeEnd(origin, target) != null;
 		clearTreatyNotices(origin, target);
 		origin.getDiplomacyHandler().setTreatyRelation(target, r);
 		if(r.isMutual()) {
 			target.getDiplomacyHandler().setTreatyRelation(origin, r.getLink());
 		}
 		if(p != null) p.sendMessage(StringFormatter.formatHex("#a89977Set treaty to "+r.getName()));
+		if(noticeWithdrawn) {
+			notifyMembers(origin, "#a89977The notice is withdrawn. The "+r.getName()+" #a89977with "+target.getName()+" #a89977is in effect.");
+			notifyMembers(target, "#a89977The notice is withdrawn. The "+r.getName()+" #a89977with "+origin.getName()+" #a89977is in effect.");
+		}
 		return true;
 	}
 
