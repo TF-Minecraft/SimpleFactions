@@ -603,6 +603,19 @@ class RelationMenusCoverageTest {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void diplomacyViewTreatyCardShowsTheRunningNotice(boolean ours) {
+    RelationType pact = type("pact", "treaty", true, "mutual", true, "blocks-war", true);
+    Cache.icons.put("pact", "DIAMOND.7");
+    assertFalse(text(creator.createTreatyTypeItem(player, pact, target, origin, false)).contains("gave notice"));
+    diplomacy.when(() -> RelationManager.treatyNoticeRemaining(origin, target)).thenReturn("3d 4h");
+    diplomacy.when(() -> RelationManager.gaveTreatyNotice(origin, target)).thenReturn(ours);
+    String copy = text(creator.createTreatyTypeItem(player, pact, target, origin, false));
+    assertTrue(copy.contains((ours ? "We" : "They") + " gave notice: ends in 3d 4h"), copy);
+    assertTrue(copy.contains("Click for more information"));
+  }
+
   @Test
   void factionCardsShowWhenATreatyEnds() {
     RelationType treaty = type("treaty", "treaty", true);

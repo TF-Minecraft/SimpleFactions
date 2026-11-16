@@ -594,6 +594,10 @@ public class RelationCreator {
 				lore.add(StringFormatter.formatHex("#28ed70Click to set"));
 			}
 		} else {
+			String ends = RelationManager.treatyNoticeRemaining(origin, target);
+			if(ends != null) {
+				lore.add(StringFormatter.formatHex("#d4bb98"+(RelationManager.gaveTreatyNotice(origin, target) ? "We" : "They")+" gave notice: ends in "+ends));
+			}
 			lore.add(StringFormatter.formatHex("#28ed70Click for more information"));
 		}
 		m.setLore(lore);
