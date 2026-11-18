@@ -343,6 +343,16 @@ class BattleLootLifecycleCoverageTest {
   }
 
   @Test
+  void spoilsLineCountsOnlyTheDenarsActuallyPaid() {
+    tableMode(List.of(new BattleLootTable.Entry("denars", 1.0, 13, 13)));
+    when(creator.getItemFromPath("coin.handful")).thenReturn(null);
+    service.onBattleEnded(timed("half", 600L, alice.getUniqueId()));
+    assertEquals(0, count(alice, Material.GOLD_INGOT));
+    assertEquals(3, count(alice, Material.GOLD_NUGGET));
+    verify(alice).sendMessage("§6Battle spoils: §f3 denars");
+  }
+
+  @Test
   void itemNamesDropColourCodesAndFallBackToTheMaterial() {
     ItemStack named = mock(ItemStack.class);
     org.bukkit.inventory.meta.ItemMeta meta = mock(org.bukkit.inventory.meta.ItemMeta.class);

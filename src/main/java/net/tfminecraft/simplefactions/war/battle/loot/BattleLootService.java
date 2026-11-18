@@ -113,16 +113,20 @@ public class BattleLootService implements Listener {
 			giveStacks(player, base, drop.getValue());
 			parts.add(drop.getValue() + " " + itemName(base));
 		}
-		boolean coinsPaid = false;
-		for (Map.Entry<String, Integer> coin : payout.coins().entrySet()) {
-			ItemStack base = build(coin.getKey());
+		long denarsPaid = 0;
+		for (BattleLootTable.Coin coin : table.getCoins()) {
+			Integer count = payout.coins().get(coin.item());
+			if (count == null) {
+				continue;
+			}
+			ItemStack base = build(coin.item());
 			if (base != null) {
-				giveStacks(player, base, coin.getValue());
-				coinsPaid = true;
+				giveStacks(player, base, count);
+				denarsPaid += (long) count * coin.value();
 			}
 		}
-		if (coinsPaid) {
-			parts.add(payout.denars() + " denars");
+		if (denarsPaid > 0) {
+			parts.add(denarsPaid + " denars");
 		}
 		if (!parts.isEmpty()) {
 			player.sendMessage("§6Battle spoils: §f" + String.join("§7, §f", parts));
