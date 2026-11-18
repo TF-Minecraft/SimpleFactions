@@ -25,6 +25,7 @@ public class BattleEndedEvent extends Event {
 	private final BattleEndReason endReason;
 	private final boolean campaignRaid;
 	private final boolean lootEnabled;
+	private final Long foughtSeconds;
 
 	public BattleEndedEvent(
 			String battleId,
@@ -103,6 +104,16 @@ public class BattleEndedEvent extends Event {
 	public BattleEndedEvent(String battleId, BattleType battleType, Integer warId, String winningSideId,
 			Map<String, Integer> sideCasualties, Set<UUID> participantIds, BattleEndReason endReason,
 			boolean campaignRaid, boolean lootEnabled, Set<net.tfminecraft.tlibs.character.CharacterRef> participants) {
+		this(battleId, battleType, warId, winningSideId, sideCasualties, participantIds, endReason,
+				campaignRaid, lootEnabled, participants, null);
+	}
+
+	/** {@code foughtSeconds} is how long the battle ran, or null when unknown. */
+	public BattleEndedEvent(String battleId, BattleType battleType, Integer warId, String winningSideId,
+			Map<String, Integer> sideCasualties, Set<UUID> participantIds, BattleEndReason endReason,
+			boolean campaignRaid, boolean lootEnabled, Set<net.tfminecraft.tlibs.character.CharacterRef> participants,
+			Long foughtSeconds) {
+		this.foughtSeconds = foughtSeconds;
 		this.participants = Set.copyOf(participants);
 		this.battleId = battleId;
 		this.battleType = battleType;
@@ -171,6 +182,11 @@ public class BattleEndedEvent extends Event {
 
 	public boolean isLootEnabled() {
 		return lootEnabled;
+	}
+
+	/** How long the battle ran in seconds, or null when unknown. */
+	public Long getFoughtSeconds() {
+		return foughtSeconds;
 	}
 
 	@Override

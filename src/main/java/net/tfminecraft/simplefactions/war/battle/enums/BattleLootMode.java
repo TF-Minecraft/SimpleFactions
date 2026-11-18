@@ -2,7 +2,8 @@ package net.tfminecraft.simplefactions.war.battle.enums;
 
 public enum BattleLootMode {
 	COMMAND("command"),
-	ITEM("item");
+	ITEM("item"),
+	TABLE("table");
 
 	private final String jsonId;
 

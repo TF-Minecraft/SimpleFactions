@@ -42,6 +42,8 @@ class BattleLootLifecycleCoverageTest {
   private List<String> priorCommands;
   private String priorPath;
   private int priorAmount;
+  private BattleLootTable priorTable;
+  private Random priorRandom;
   private Locale priorLocale;
   private MockedStatic<TLibs> tlibs;
   private ItemCreator creator;
@@ -52,6 +54,8 @@ class BattleLootLifecycleCoverageTest {
     priorCommands = Cache.battleLootCommands;
     priorPath = Cache.battleLootItemPath;
     priorAmount = Cache.battleLootItemAmount;
+    priorTable = Cache.battleLootTable;
+    priorRandom = BattleLootService.random;
     priorLocale = Locale.getDefault();
     fixture = new FactionDomainFixture();
     service = new BattleLootService();
@@ -103,6 +107,8 @@ class BattleLootLifecycleCoverageTest {
     Cache.battleLootCommands = priorCommands;
     Cache.battleLootItemPath = priorPath;
     Cache.battleLootItemAmount = priorAmount;
+    Cache.battleLootTable = priorTable;
+    BattleLootService.random = priorRandom;
   }
 
   private void deliver(Event event) throws Exception {
@@ -243,6 +249,128 @@ class BattleLootLifecycleCoverageTest {
     assertEquals(1, drops.size());
     assertEquals(Material.DIAMOND, drops.get(0).getType());
     assertEquals(3, drops.get(0).getAmount());
+  }
+
+  private BattleEndedEvent timed(String id, Long seconds, UUID... players) {
+    return new BattleEndedEvent(
+        id,
+        BattleType.FIELD,
+        null,
+        "attacker",
+        Map.of(),
+        new LinkedHashSet<>(Arrays.asList(players)),
+        BattleEndReason.SIDE_WIN,
+        false,
+        true,
+        Set.of(),
+        seconds);
+  }
+
+  private void tableMode(List<BattleLootTable.Entry> entries) {
+    Cache.battleLootMode = BattleLootMode.TABLE;
+    Cache.battleLootTable =
+        new BattleLootTable(
+            "act_1",
+            entries,
+            List.of(new BattleLootTable.Coin("coin.handful", 5), new BattleLootTable.Coin("coin.gold", 1)),
+            10,
+            12);
+    BattleLootService.random = new Random(7);
+    when(creator.getItemFromPath("test.reward")).thenAnswer(c -> new ItemStack(Material.DIAMOND));
+    when(creator.getItemFromPath("coin.handful")).thenAnswer(c -> new ItemStack(Material.GOLD_INGOT));
+    when(creator.getItemFromPath("coin.gold")).thenAnswer(c -> new ItemStack(Material.GOLD_NUGGET));
+  }
+
+  private int count(Player player, Material material) {
+    return Arrays.stream(player.getInventory().getContents())
+        .filter(Objects::nonNull)
+        .filter(i -> i.getType() == material)
+        .mapToInt(ItemStack::getAmount)
+        .sum();
+  }
+
+  @Test
+  void tablePaysEveryFighterByTimeFoughtAndTellsThemTheSpoils() {
+    tableMode(
+        List.of(
+            new BattleLootTable.Entry("test.reward", 1.0, 3, 3),
+            new BattleLootTable.Entry("denars", 1.0, 13, 13)));
+    service.onBattleEnded(timed("timed", 3600L, alice.getUniqueId(), bob.getUniqueId()));
+    for (Player p : List.of(alice, bob)) {
+      assertEquals(18, diamonds(p));
+      assertEquals(15, count(p, Material.GOLD_INGOT));
+      assertEquals(3, count(p, Material.GOLD_NUGGET));
+      verify(p).sendMessage("§6Battle spoils: §f18 Diamond§7, §f78 denars");
+    }
+  }
+
+  @Test
+  void tableSplitsLargePayoutsIntoStacksAndPaysOneRollWhenTheLengthIsUnknown() {
+    tableMode(List.of(new BattleLootTable.Entry("test.reward", 1.0, 30, 30)));
+    service.onBattleEnded(timed("long", 5 * 3600L, alice.getUniqueId()));
+    assertEquals(360, diamonds(alice));
+    service.onBattleEnded(timed("unknown", null, bob.getUniqueId()));
+    assertEquals(30, diamonds(bob));
+    verify(bob).sendMessage("§6Battle spoils: §f30 Diamond");
+  }
+
+  @Test
+  void tableWithNoEntriesWarnsOncePerBattle() {
+    Cache.battleLootMode = BattleLootMode.TABLE;
+    Cache.battleLootTable = BattleLootTable.empty();
+    service.onBattleEnded(timed("empty", 600L, alice.getUniqueId(), bob.getUniqueId()));
+    verify(logger, times(1)).warning(contains("tables.act_1 has no entries"));
+    Cache.battleLootTable = null;
+    service.onBattleEnded(timed("missing", 600L, alice.getUniqueId()));
+    verify(logger, times(1)).warning(contains("tables.? has no entries"));
+    verify(alice, never()).sendMessage(anyString());
+  }
+
+  @Test
+  void unresolvedTableItemsAreSkippedAndUnpaidCoinsAreNotAnnounced() {
+    tableMode(
+        List.of(
+            new BattleLootTable.Entry("bad.null", 1.0, 1, 1),
+            new BattleLootTable.Entry("bad.throws", 1.0, 1, 1),
+            new BattleLootTable.Entry("denars", 1.0, 13, 13)));
+    when(creator.getItemFromPath("bad.throws")).thenThrow(new IllegalArgumentException("bad path"));
+    when(creator.getItemFromPath("coin.handful")).thenAnswer(c -> new ItemStack(Material.AIR));
+    when(creator.getItemFromPath("coin.gold")).thenReturn(null);
+    service.onBattleEnded(timed("broken", 600L, alice.getUniqueId()));
+    verify(logger, times(1)).warning(contains("did not resolve"));
+    verify(alice, never()).sendMessage(anyString());
+    assertTrue(Arrays.stream(alice.getInventory().getContents()).allMatch(Objects::isNull));
+  }
+
+  @Test
+  void spoilsLineCountsOnlyTheDenarsActuallyPaid() {
+    tableMode(List.of(new BattleLootTable.Entry("denars", 1.0, 13, 13)));
+    when(creator.getItemFromPath("coin.handful")).thenReturn(null);
+    service.onBattleEnded(timed("half", 600L, alice.getUniqueId()));
+    assertEquals(0, count(alice, Material.GOLD_INGOT));
+    assertEquals(3, count(alice, Material.GOLD_NUGGET));
+    verify(alice).sendMessage("§6Battle spoils: §f3 denars");
+  }
+
+  @Test
+  void itemNamesDropColourCodesAndFallBackToTheMaterial() {
+    ItemStack named = mock(ItemStack.class);
+    org.bukkit.inventory.meta.ItemMeta meta = mock(org.bukkit.inventory.meta.ItemMeta.class);
+    when(named.getItemMeta()).thenReturn(meta);
+    when(meta.hasDisplayName()).thenReturn(true);
+    when(meta.getDisplayName()).thenReturn("§6§lIgnitium ");
+    assertEquals("Ignitium", BattleLootService.itemName(named));
+
+    ItemStack colourOnly = mock(ItemStack.class);
+    when(colourOnly.getItemMeta()).thenReturn(meta);
+    when(colourOnly.getType()).thenReturn(Material.IRON_INGOT);
+    when(meta.getDisplayName()).thenReturn("§6");
+    assertEquals("Iron Ingot", BattleLootService.itemName(colourOnly));
+
+    ItemStack broken = mock(ItemStack.class);
+    when(broken.getItemMeta()).thenThrow(new IllegalStateException("no factory"));
+    when(broken.getType()).thenReturn(Material.RAW_GOLD);
+    assertEquals("Raw Gold", BattleLootService.itemName(broken));
   }
 
   private int diamonds(Player player) {

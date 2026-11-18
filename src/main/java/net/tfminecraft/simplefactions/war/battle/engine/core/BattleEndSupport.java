@@ -34,6 +34,8 @@ public final class BattleEndSupport {
 		Map<String, Integer> sideCasualties = BattleCasualtyLedger.getSideCasualties(battle);
 		Set<UUID> participantIds = BattleParticipantCollector.collect(battle);
 		boolean lootEnabled = battle.hasLootEnabled();
+		Long foughtSeconds = battle.getStartedAt() == null ? null
+				: Math.max(0L, java.time.Duration.between(battle.getStartedAt(), java.time.Instant.now()).getSeconds());
 		battle.end();
 		if (SimpleFactions.plugin != null) {
 			boolean campaignRaid = battle.isCampaignRaid();
@@ -53,7 +55,7 @@ public final class BattleEndSupport {
 							participantIds,
 							endReason,
 							campaignRaid,
-							lootEnabled, battle.getParticipants()));
+							lootEnabled, battle.getParticipants(), foughtSeconds));
 		}
 	}
 }
