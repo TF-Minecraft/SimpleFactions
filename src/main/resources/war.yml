@@ -184,7 +184,8 @@ war:
     # TABLE mode. Balance (ACT-SYSTEM.md, battles): an hour fought pays what an
     # average Act 1 miner with an abyssalite pickaxe earns in Ignitium (18.9), tin and
     # abyssalite fragments at Ignitium / 40, iron like infestations and Geiger, and
-    # about 80 denars. 12 rolls = two hours, the battle time cap.
+    # about 80 denars. max_rolls 12 = two hours of loot; longer battles pay no more
+    # (the battle time cap in config.yml is a separate setting).
     minutes_per_roll: 10
     max_rolls: 12
     # Which list under tables is used. Add the next act's table and switch here.

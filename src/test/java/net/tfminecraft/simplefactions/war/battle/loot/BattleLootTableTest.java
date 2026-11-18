@@ -200,5 +200,7 @@ class BattleLootTableTest {
 		assertArrayEquals(new int[] { 2, 4 }, BattleLootTable.range("4 - 2"));
 		assertArrayEquals(new int[] { 1, 1 }, BattleLootTable.range("a-b"));
 		assertArrayEquals(new int[] { 0, 0 }, BattleLootTable.range("-3"));
+		assertArrayEquals(new int[] { 10_000, 10_000 }, BattleLootTable.range(100_000_000));
+		assertArrayEquals(new int[] { 0, 10_000 }, BattleLootTable.range("0-2147483647"));
 	}
 }

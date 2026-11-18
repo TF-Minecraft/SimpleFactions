@@ -22,6 +22,8 @@ public final class BattleLootTable {
 	static final int DEFAULT_MINUTES_PER_ROLL = 10;
 	static final int DEFAULT_MAX_ROLLS = 12;
 	static final String DEFAULT_ACTIVE_TABLE = "act_1";
+	/** Largest amount one entry can give per roll, so a typo cannot flood a fighter or overflow totals. */
+	static final int MAX_AMOUNT = 10_000;
 
 	public record Entry(String item, double chance, int min, int max) {
 	}
@@ -190,8 +192,13 @@ public final class BattleLootTable {
 		return Math.clamp(value / 100.0, 0.0, 1.0);
 	}
 
-	/** Reads {@code 3}, {@code "3"} or {@code "2-5"}. Missing or bad values give 1. */
+	/** Reads {@code 3}, {@code "3"} or {@code "2-5"}, each bound kept within 0 and MAX_AMOUNT. Missing or bad values give 1. */
 	static int[] range(Object raw) {
+		int[] parsed = parseRange(raw);
+		return new int[] { Math.min(MAX_AMOUNT, parsed[0]), Math.min(MAX_AMOUNT, parsed[1]) };
+	}
+
+	private static int[] parseRange(Object raw) {
 		if (raw instanceof Number number) {
 			int n = Math.max(0, number.intValue());
 			return new int[] { n, n };
