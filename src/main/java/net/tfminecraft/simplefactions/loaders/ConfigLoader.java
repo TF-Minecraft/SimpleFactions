@@ -302,6 +302,8 @@ public class ConfigLoader {
 		Cache.battleLootCommands = new ArrayList<>(config.getStringList("war.battle_loot.commands"));
 		Cache.battleLootItemPath = config.getString("war.battle_loot.item", "m.materials.ignitium");
 		Cache.battleLootItemAmount = Math.max(1, config.getInt("war.battle_loot.item_amount", 4));
+		Cache.battleLootTable = net.tfminecraft.simplefactions.war.battle.loot.BattleLootTable.load(
+				config.getConfigurationSection("war.battle_loot"));
 		Cache.campaignRaidMusterSeconds = config.getInt("war.campaign_raid.muster_seconds", 60);
 		Cache.campaignRaidMusterReminderSecondsBefore = loadReminderOffsets(
 				config,

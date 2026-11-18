@@ -167,19 +167,45 @@ war:
     deaths_per_regiment_loss: 5
     mercenary_heal_percent: 25
     mercenary_heal_hours: 6
-  # One reward per player for every fighter still present when the battle
-  # ended, win, lose, or draw. The per-battle toggle lives in the battle editor;
-  # campaign raids ship with it off.
+  # Loot for every fighter still present when the battle ended, win, lose, or draw.
+  # The per-battle toggle lives in the battle editor; campaign raids ship with it off.
   battle_loot:
-    # COMMAND dispatches every line below from console once per player.
-    # ITEM gives a TLibs item instead.
-    mode: ITEM
+    # TABLE rolls the active drop table below once per minutes_per_roll the battle
+    # lasted (rounded, at least 1, at most max_rolls), separately for each fighter.
+    # COMMAND dispatches every line under commands from console once per player.
+    # ITEM gives one TLibs item.
+    mode: TABLE
     # Both %player% and #player# are replaced with the player name.
     commands:
       # - "crates key give %player% battle_key 1"
     # Used when mode is ITEM. TLibs path: v.diamond, ia.namespace:id, m.type.id
     item: m.materials.ignitium
     item_amount: 4
+    # TABLE mode. Balance (ACT-SYSTEM.md, battles): an hour fought pays what an
+    # average Act 1 miner with an abyssalite pickaxe earns in Ignitium (18.9), tin and
+    # abyssalite fragments at Ignitium / 40, iron like infestations and Geiger, and
+    # about 80 denars. 12 rolls = two hours, the battle time cap.
+    minutes_per_roll: 10
+    max_rolls: 12
+    # Which list under tables is used. Add the next act's table and switch here.
+    active_table: act_1
+    # Coin items and their denar value. Denars are paid in the largest coins first.
+    coins:
+      - {item: m.currency.pouch_of_coins, value: 100}
+      - {item: m.currency.stack_of_coins, value: 10}
+      - {item: m.currency.handful_of_coins, value: 5}
+      - {item: m.currency.gold_coin, value: 1}
+    # One roll. item: a TLibs path or denars. amount: a number or a range like 2-4
+    # (default 1). percent: chance 0-100 (default 100).
+    tables:
+      act_1:
+        - {item: m.materials.ignitium, amount: 3}
+        - {item: m.materials.ignitium, percent: 15}
+        - {item: v.iron_ingot, amount: 3}
+        - {item: v.iron_ingot, percent: 60}
+        - {item: m.materials.raw_tin, percent: 8}
+        - {item: m.materials.abyssalite_fragment, percent: 8}
+        - {item: denars, amount: 13}
   campaign_raid:
     muster_seconds: 60
     muster_reminder_seconds_before:

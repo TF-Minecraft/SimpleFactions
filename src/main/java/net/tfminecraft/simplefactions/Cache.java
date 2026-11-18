@@ -144,6 +144,8 @@ public class Cache {
 	public static List<String> battleLootCommands = new ArrayList<>();
 	public static String battleLootItemPath;
 	public static int battleLootItemAmount;
+	public static net.tfminecraft.simplefactions.war.battle.loot.BattleLootTable battleLootTable =
+			net.tfminecraft.simplefactions.war.battle.loot.BattleLootTable.empty();
 
 	public static int campaignRaidMusterSeconds;
 	public static List<Integer> campaignRaidMusterReminderSecondsBefore = new ArrayList<>();

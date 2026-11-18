@@ -1,9 +1,12 @@
 package net.tfminecraft.simplefactions.war.battle.loot;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -12,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.SimpleFactions;
@@ -21,10 +25,13 @@ import net.tfminecraft.simplefactions.war.battle.events.BattleStartedEvent;
 import net.tfminecraft.tlibs.TLibs;
 
 /**
- * Pays one identical reward to every fighter who was online when a battle ended,
- * win, lose, or draw, provided the battle has loot enabled.
+ * Pays every fighter who was online when a battle ended, win, lose, or draw, provided the
+ * battle has loot enabled. ITEM and COMMAND pay one identical reward; TABLE rolls the active
+ * drop table once per minutes_per_roll the battle lasted, separately for each fighter.
  */
 public class BattleLootService implements Listener {
+
+	static Random random = new Random();
 
 	private final Set<String> paidBattleIds = Collections.synchronizedSet(new HashSet<>());
 	private boolean warnedThisBattle;
@@ -59,7 +66,7 @@ public class BattleLootService implements Listener {
 			if (player == null || !player.isOnline()) {
 				continue;
 			}
-			pay(player);
+			pay(player, event.getFoughtSeconds());
 		}
 	}
 
@@ -79,12 +86,99 @@ public class BattleLootService implements Listener {
 		return command.isBlank() ? null : command;
 	}
 
-	private void pay(Player player) {
+	private void pay(Player player, Long foughtSeconds) {
 		if (Cache.battleLootMode == BattleLootMode.ITEM) {
 			payItem(player);
+		} else if (Cache.battleLootMode == BattleLootMode.TABLE) {
+			payTable(player, foughtSeconds);
 		} else {
 			payCommands(player);
 		}
+	}
+
+	private void payTable(Player player, Long foughtSeconds) {
+		BattleLootTable table = Cache.battleLootTable;
+		if (table == null || table.isEmpty()) {
+			warnOnce("war.battle_loot.mode is TABLE but war.battle_loot.tables."
+					+ (table == null ? "?" : table.getActiveTable()) + " has no entries; no loot was paid.");
+			return;
+		}
+		BattleLootTable.Payout payout = table.roll(random, table.rollsFor(foughtSeconds));
+		List<String> parts = new ArrayList<>();
+		for (Map.Entry<String, Integer> drop : payout.goods().entrySet()) {
+			ItemStack base = build(drop.getKey());
+			if (base == null) {
+				continue;
+			}
+			giveStacks(player, base, drop.getValue());
+			parts.add(drop.getValue() + " " + itemName(base));
+		}
+		boolean coinsPaid = false;
+		for (Map.Entry<String, Integer> coin : payout.coins().entrySet()) {
+			ItemStack base = build(coin.getKey());
+			if (base != null) {
+				giveStacks(player, base, coin.getValue());
+				coinsPaid = true;
+			}
+		}
+		if (coinsPaid) {
+			parts.add(payout.denars() + " denars");
+		}
+		if (!parts.isEmpty()) {
+			player.sendMessage("§6Battle spoils: §f" + String.join("§7, §f", parts));
+		}
+	}
+
+	private ItemStack build(String path) {
+		ItemStack item;
+		try {
+			item = TLibs.getItemAPI().getCreator().getItemFromPath(path);
+		} catch (Exception e) {
+			item = null;
+		}
+		if (item == null || item.getType().isAir()) {
+			warnOnce("war.battle_loot item '" + path + "' did not resolve to an item; it was not paid.");
+			return null;
+		}
+		return item;
+	}
+
+	private static void giveStacks(Player player, ItemStack base, int amount) {
+		int max = Math.max(1, base.getMaxStackSize());
+		int left = amount;
+		while (left > 0) {
+			ItemStack stack = base.clone();
+			stack.setAmount(Math.min(max, left));
+			left -= stack.getAmount();
+			giveOrDrop(player, stack);
+		}
+	}
+
+	/** The item's display name without colour codes, else its material name in words. */
+	static String itemName(ItemStack item) {
+		ItemMeta meta = null;
+		try {
+			meta = item.getItemMeta();
+		} catch (RuntimeException e) {
+			meta = null;
+		}
+		if (meta != null && meta.hasDisplayName()) {
+			@SuppressWarnings("deprecation")
+			String display = meta.getDisplayName();
+			String plain = display.replaceAll("(?i)§[0-9A-FK-ORX]", "").trim();
+			if (!plain.isEmpty()) {
+				return plain;
+			}
+		}
+		String[] words = item.getType().name().toLowerCase(Locale.ROOT).split("_");
+		StringBuilder name = new StringBuilder();
+		for (String word : words) {
+			if (name.length() > 0) {
+				name.append(' ');
+			}
+			name.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+		}
+		return name.toString();
 	}
 
 	private void payCommands(Player player) {

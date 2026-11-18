@@ -101,6 +101,31 @@ class ConfigLoaderBattleLootTest {
 		assertEquals(1, Cache.battleLootItemAmount);
 	}
 
+	@Test
+	void loadWar_battleLootTableMode() throws IOException {
+		Path file = writeConfig(SCHEDULE + """
+				  battle_loot:
+				    mode: table
+				    minutes_per_roll: 10
+				    max_rolls: 12
+				    active_table: act_1
+				    coins:
+				      - {item: m.currency.gold_coin, value: 1}
+				    tables:
+				      act_1:
+				        - {item: m.materials.ignitium, amount: 3}
+				        - {item: m.materials.raw_tin, percent: 8}
+				""");
+
+		new ConfigLoader().loadWar(file.toFile());
+
+		assertEquals(BattleLootMode.TABLE, Cache.battleLootMode);
+		assertEquals("act_1", Cache.battleLootTable.getActiveTable());
+		assertEquals(2, Cache.battleLootTable.getEntries().size());
+		assertEquals(1, Cache.battleLootTable.getCoins().size());
+		assertEquals(6, Cache.battleLootTable.rollsFor(3600L));
+	}
+
 	private Path writeConfig(String yaml) throws IOException {
 		Path file = tempDir.resolve("config.yml");
 		Files.writeString(file, yaml);
