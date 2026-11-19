@@ -34,7 +34,8 @@ public final class LeaderCharacters {
                 return net.tfminecraft.tlibs.character.Characters.available();
             }
             @Override public String characterName(String key) {
-                return Members.info(key).map(net.tfminecraft.tlibs.character.CharacterInfo::name).orElse(null);
+                // The public map shows it, so it is the name players know: the alias, else the real name.
+                return Members.publicName(key).orElse(null);
             }
         });
     }

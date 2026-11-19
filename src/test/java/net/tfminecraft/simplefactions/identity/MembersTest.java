@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.identity;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -80,6 +81,43 @@ class MembersTest {
             assertTrue(Members.ref(null).isEmpty());
             assertTrue(Members.info(null).isEmpty());
             assertEquals("Unknown", Members.name(null));
+        }
+    }
+
+    @Test
+    void othersSeeTheAliasAndStaffAlsoSeeTheRealName() {
+        try (var identity = new SharedIdentity()) {
+            CharacterRef ada = identity.character(identity.account("Steve"), "Ada Lovelace");
+            identity.aliases.put(ada.characterId(), "§7Hooded Stranger");
+            String key = Members.key(ada);
+            Player staff = mock(Player.class);
+            when(staff.hasPermission(anyString())).thenReturn(true);
+            Player player = mock(Player.class);
+
+            assertEquals("Hooded Stranger", Members.display(key));
+            assertEquals("§7Hooded Stranger", Members.publicName(key).orElseThrow());
+            assertEquals("Hooded Stranger", Members.display(player, key));
+            assertEquals("Hooded Stranger §7(Ada Lovelace, Steve)", Members.display(staff, key));
+            assertEquals(List.of("Hooded Stranger"), Members.display(List.of(key)));
+            assertEquals("Ada Lovelace", Members.info(key).orElseThrow().name(), "the real name stays available");
+            assertTrue(Members.publicName(null).isEmpty());
+            assertTrue(Members.publicName("dummy_1").isEmpty());
+
+            assertEquals(key, Members.find(Set.of(key), "hooded stranger"), "found by the name players see");
+            assertEquals(key, Members.find(Set.of(key), "ada lovelace"), "and still by the real name");
+
+            identity.cached.remove("Steve");
+            identity.aliases.put(ada.characterId(), "Ada Lovelace");
+            assertEquals("Ada Lovelace", Members.display(staff, key), "an alias equal to the real name adds nothing");
+        }
+    }
+
+    @Test
+    void anOlderTLibsWithoutAliasesKeepsTheRealName() {
+        try (var identity = new SharedIdentity()) {
+            CharacterRef ada = identity.character(identity.account("Steve"), "Ada");
+            when(identity.provider.publicName(any())).thenThrow(new NoSuchMethodError("publicName"));
+            assertEquals("Ada", Members.display(Members.key(ada)));
         }
     }
 
