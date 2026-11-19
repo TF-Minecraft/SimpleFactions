@@ -36,6 +36,14 @@ public final class Members {
 
         Optional<CharacterInfo> info(String key);
 
+        /**
+         * The name the character goes by in public: its alias, else its real name.
+         * Resolvers that know no aliases give the real name.
+         */
+        default Optional<String> publicName(String key) {
+            return info(key).map(CharacterInfo::name);
+        }
+
         Optional<Player> online(String key);
 
         /** Every character the account owns; empty when its records cannot be read. */
@@ -89,12 +97,28 @@ public final class Members {
         return accountName == null ? null : key(onlineByName(accountName));
     }
 
-    /** The character name for a key; offline characters are read from the provider. */
+    /**
+     * The name other players know the character by: its alias, else its real name.
+     * Offline characters are read from the provider. Staff also see the real name,
+     * see {@link #display(Player, String)}.
+     */
     public static String display(String key) {
         if (key == null || key.isBlank()) return "Unknown";
         if (isQuarantined(key)) return "Unresolved member";
         if (characterId(key) == null) return key;
-        return resolver.info(key).map(CharacterInfo::name).map(Members::plain).orElse("Unknown");
+        return publicName(key).map(Members::plain).orElse("Unknown");
+    }
+
+    /** The character's alias, else its real name; empty for unknown or non-character keys. */
+    public static Optional<String> publicName(String key) {
+        if (key == null || characterId(key) == null) return Optional.empty();
+        return resolver.publicName(key);
+    }
+
+    /** Whether what was typed names the character, by the name others see or by its real name. */
+    private static boolean named(String key, String query) {
+        if (display(key).equalsIgnoreCase(query)) return true;
+        return info(key).map(info -> plain(info.name()).equalsIgnoreCase(query)).orElse(false);
     }
 
     /** The name of the character the player is playing, for messages to others. */
@@ -105,14 +129,17 @@ public final class Members {
     }
 
     /**
-     * The character name, with the account name after it for staff who
-     * bypass espionage, so they can tell who plays it.
+     * The name others see, with the real name (when an alias hides it) and the
+     * account name after it for staff who bypass espionage, so they can tell who
+     * plays it.
      */
     public static String display(Player viewer, String key) {
         String name = display(key);
         if (!net.tfminecraft.simplefactions.espionage.EspionageService.bypasses(viewer)) return name;
+        String real = info(key).map(info -> plain(info.name())).filter(plain -> !plain.equalsIgnoreCase(name)).orElse(null);
         String account = accountName(key);
-        return account == null ? name : name + " \u00a77(" + account + ")";
+        String detail = real == null ? account : account == null ? real : real + ", " + account;
+        return detail == null ? name : name + " \u00a77(" + detail + ")";
     }
 
     /** The account that plays the character, or empty if unknown. */
@@ -193,7 +220,7 @@ public final class Members {
         if (onlineKey != null && keys.contains(onlineKey)) return onlineKey;
         String match = null;
         for (String key : keys) {
-            if (key == null || !display(key).equalsIgnoreCase(query)) continue;
+            if (key == null || !named(key, query)) continue;
             if (match != null && !match.equals(key)) return null;
             match = key;
         }
@@ -214,7 +241,7 @@ public final class Members {
         String match = null;
         for (Player player : onlinePlayers()) {
             String key = key(player);
-            if (key == null || !display(key).equalsIgnoreCase(query)) continue;
+            if (key == null || !named(key, query)) continue;
             if (match != null) return null;
             match = key;
         }
@@ -231,7 +258,9 @@ public final class Members {
         if (exact != null) return exact;
         List<Player> matches = new ArrayList<>();
         for (Player player : onlinePlayers()) {
-            if (player != null && name(player).equalsIgnoreCase(query)) matches.add(player);
+            if (player == null) continue;
+            String key = key(player);
+            if (name(player).equalsIgnoreCase(query) || key != null && named(key, query)) matches.add(player);
         }
         if (matches.size() == 1) return matches.getFirst();
         if (sender != null) {
@@ -324,6 +353,18 @@ public final class Members {
             UUID id = characterId(key);
             if (id == null || !Characters.available()) return Optional.empty();
             return Characters.info(id).filter(info -> id.equals(info.ref().characterId()));
+        }
+
+        @Override
+        public Optional<String> publicName(String key) {
+            Optional<CharacterInfo> info = info(key);
+            if (info.isEmpty()) return Optional.empty();
+            try {
+                return Characters.publicName(info.get().ref().characterId()).or(() -> info.map(CharacterInfo::name));
+            } catch (NoSuchMethodError olderTLibs) {
+                // TLibs before 2.8.0 has no aliases: keep showing the real name rather than failing.
+                return info.map(CharacterInfo::name);
+            }
         }
 
         @Override

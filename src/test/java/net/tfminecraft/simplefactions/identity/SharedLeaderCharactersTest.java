@@ -36,6 +36,18 @@ class SharedLeaderCharactersTest {
     }
 
     @Test
+    void theRememberedLeaderNameIsTheAliasPlayersKnow() {
+        try (var identity = new SharedIdentity()) {
+            LeaderCharacters.useSharedIdentity();
+            CharacterRef thalia = identity.character(identity.account("rushork"), "Thalia Hawthorn");
+            identity.aliases.put(thalia.characterId(), "Lia Thorn");
+            String key = Members.key(thalia);
+
+            assertEquals(new LeaderCharacters.Remembered("Lia Thorn", key), LeaderCharacters.resolve(key, null, null));
+        }
+    }
+
+    @Test
     void deadLeaderStillShowsTheirName() {
         try (var identity = new SharedIdentity()) {
             LeaderCharacters.useSharedIdentity();

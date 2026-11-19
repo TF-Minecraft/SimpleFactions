@@ -46,6 +46,8 @@ public final class SharedIdentity implements AutoCloseable {
     public final CharacterIdentity provider = mock(CharacterIdentity.class);
     public final Map<UUID, CharacterSession> sessions = new HashMap<>();
     public final Map<UUID, CharacterInfo> infos = new HashMap<>();
+    /** Aliases by character ID; publicName answers with them, else the real name, as RPCharacters does. */
+    public final Map<UUID, String> aliases = new HashMap<>();
     public final Map<UUID, CharacterRef> heirs = new HashMap<>();
     public final Map<String, Player> online = new HashMap<>();
     public final Map<UUID, Player> connections = new HashMap<>();
@@ -81,6 +83,11 @@ public final class SharedIdentity implements AutoCloseable {
             return session != null && session.equals(sessions.get(session.ref().ownerId()));
         });
         when(provider.info(any())).thenAnswer(call -> Optional.ofNullable(infos.get(call.getArgument(0))));
+        when(provider.publicName(any())).thenAnswer(call -> {
+            UUID id = call.getArgument(0);
+            CharacterInfo info = infos.get(id);
+            return info == null ? Optional.empty() : Optional.of(aliases.getOrDefault(id, info.name()));
+        });
         when(provider.characters(any())).thenAnswer(call -> {
             UUID owner = call.getArgument(0);
             List<CharacterInfo> list = new ArrayList<>();
