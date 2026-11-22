@@ -65,9 +65,22 @@ class CountyLandTest {
     Map<Integer, List<Integer>> oneWay = Map.of(2, List.of(1));
     java.util.function.IntFunction<java.util.Collection<Integer>> links =
         id -> oneWay.getOrDefault(id, List.of());
-    assertEquals(List.of(1, 2), CountyLand.groupOf(1, List.of(1, 2), links));
-    assertEquals(List.of(1, 2), CountyLand.groupOf(2, List.of(1, 2), links));
-    assertEquals(2, CountyLand.largestGroup(List.of(1, 2), links));
+    CountyLand.Ties ties = new CountyLand.Ties(links, id -> List.of());
+    assertEquals(List.of(1, 2), CountyLand.groupOf(1, List.of(1, 2), ties));
+    assertEquals(List.of(1, 2), CountyLand.groupOf(2, List.of(1, 2), ties));
+    assertEquals(2, CountyLand.largestGroup(List.of(1, 2), ties));
+  }
+
+  @Test
+  void provincesFacingTheSameRiverAreJoinedEvenWhenTheRiverListsNeitherOfThem() {
+    Province lake = province(70, Terrain.WATER);
+    Province five = province(5, Terrain.PLAINS), six = province(6, Terrain.PLAINS);
+    five.addNeighbour(lake.getId());
+    six.addNeighbour(lake.getId());
+    realm.addProvince(5);
+    realm.addProvince(6);
+    assertEquals(List.of(5, 6), CountyLand.countyAt(realm, 5));
+    assertEquals(List.of(5, 6), CountyLand.countyAt(realm, 6));
   }
 
   @Test
