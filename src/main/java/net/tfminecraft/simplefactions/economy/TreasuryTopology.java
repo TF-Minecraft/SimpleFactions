@@ -77,7 +77,7 @@ public final class TreasuryTopology {
                     || !target.getProvinceHandler().canClaim(province, true, guild)
                     || target.getPrestige() < TitleManager.getClaimCost(target)
                     || TitleLoader.getByProvince(province) == null
-                       && target.getUntitledProvinces().size() >= net.tfminecraft.simplefactions.Cache.maxUntitledProvinces) {
+                       && net.tfminecraft.simplefactions.tiers.CountyLand.mustFormCounty(target)) {
                 actor.sendMessage("§cRelocation failed, cannot claim province!"); return false;
             }
             to.getAsJsonArray("provinces").add(province);

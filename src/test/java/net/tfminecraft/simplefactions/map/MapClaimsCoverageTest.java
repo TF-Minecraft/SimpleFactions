@@ -126,11 +126,22 @@ class MapClaimsCoverageTest {
   }
 
   @Test
+  void untitledLandInSeparatePiecesDoesNotBlockClaiming() {
+    Cache.maxUntitledProvinces = 2;
+    home.addProvince(5);
+    map.claim(leader, home, 2, false);
+    assertTrue(home.hasProvince(2), "Two lone untitled provinces are not yet a county's worth");
+    map.claim(leader, home, 3, false);
+    assertFalse(home.hasProvince(3));
+    verify(leader).sendMessage(contains("2 connected untitled provinces"));
+  }
+
+  @Test
   void firstCapitalClaimMayPassTheUntitledLimitButOrdinaryClaimCannot() {
     Cache.maxUntitledProvinces = 0;
     map.claim(leader, home, 2, false);
     assertFalse(home.hasProvince(2));
-    verify(leader).sendMessage(contains("too many untitled"));
+    verify(leader).sendMessage(contains("connected untitled provinces"));
     map.claimForCapital(leader, home, 2, false);
     assertTrue(home.hasProvince(2));
   }

@@ -104,11 +104,18 @@ public class ProvinceHandler {
 		return provinces;
 	}
 
-    public List<Integer> getUntitledProvinces() {
+    /** Untitled provinces this faction holds itself, without its vassals' land. */
+    public List<Integer> getOwnUntitledProvinces() {
 		List<Integer> p = new ArrayList<>();
 		for(int i : provinces) {
 			if(TitleLoader.getByProvince(i) == null) p.add(i);
 		}
+		return p;
+	}
+
+    /** Untitled provinces across the realm: this faction's own, then its vassals'. */
+    public List<Integer> getUntitledProvinces() {
+		List<Integer> p = getOwnUntitledProvinces();
 		for(Faction subject : RelationManager.getSubjects(f)) {
 			for(int i : subject.getProvinces()) {
 				if(TitleLoader.getByProvince(i) == null) p.add(i);

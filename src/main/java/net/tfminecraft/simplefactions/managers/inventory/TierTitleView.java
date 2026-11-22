@@ -22,6 +22,8 @@ import net.tfminecraft.simplefactions.managers.RelationManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.managers.holder.SFInventoryHolder;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.rest.RestServer;
+import net.tfminecraft.simplefactions.tiers.CountyLand;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.enums.SFGUI;
@@ -194,17 +196,23 @@ public class TierTitleView {
 				int current = 0;
 				Tier lower = TierLoader.getByLevel(tier.getTier()-1);
 				if(tier.getId().equalsIgnoreCase("county")) {
-					current = f.getUntitledProvinces().size();
 					if(Title.countyLimitReached(f, tier)) {
 						p.sendMessage("§cYou need more active members to form more counties!");
+						return;
+					}
+					current = CountyLand.countyAt(f, RestServer.getProvince(p)).size();
+					if(current == 0) {
+						p.sendMessage(TitleManager.STAND_IN_COUNTY_LAND);
+						return;
+					}
+					if(current < needed) {
+						p.sendMessage(TitleManager.tooSmallForCounty(current, tier));
 						return;
 					}
 				} else {
 					if(lower == null) return;
 					current = f.getFreeTitles(TierLoader.getByLevel(lower.getTier())).size();
-				}
-				if(current < needed) {
-					return;
+					if(current < needed) return;
 				}
 				if(RelationManager.getOverlord(f) != null && FactionManager.getByString(RelationManager.getOverlord(f)).getTier().getTier() < tier.getTier()) {
 					p.sendMessage("§cForming a new "+tier.getName()+" title would make you a higher tier than your liege!");
