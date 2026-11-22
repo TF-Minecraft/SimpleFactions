@@ -17,7 +17,9 @@ import net.tfminecraft.simplefactions.government.stability.StabilityStatus;
 import net.tfminecraft.simplefactions.government.stability.StateStability;
 import net.tfminecraft.simplefactions.loaders.TierLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
+import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.rest.RestServer;
 import net.tfminecraft.simplefactions.testsupport.FactionDomainFixture;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
@@ -42,6 +44,7 @@ class TitleManagementCoverageTest {
   private Player player;
   private Map<Player, Tier> previousPending;
   private MockedStatic<TitleLoader> persistence;
+  private MockedStatic<RestServer> position;
   private final List<Title> created = new ArrayList<>();
   private final TitleManager manager = new TitleManager();
 
@@ -52,6 +55,8 @@ class TitleManagementCoverageTest {
     faction.getOrCreateMainGuild();
     faction.addProvince(10);
     player = fixture.player("Leader");
+    position = mockStatic(RestServer.class, CALLS_REAL_METHODS);
+    position.when(() -> RestServer.getProvince(player)).thenReturn(10);
     previousPending = TitleManager.isFormingTitle;
     TitleManager.isFormingTitle = new HashMap<>();
     List<Title> registry = TitleLoader.getTitles();
@@ -100,6 +105,7 @@ class TitleManagementCoverageTest {
   void close() {
     try {
       persistence.close();
+      position.close();
       TitleManager.isFormingTitle = previousPending;
     } finally {
       fixture.close();
@@ -569,6 +575,55 @@ class TitleManagementCoverageTest {
     assertTrue(created.isEmpty());
     assertTrue(faction.getTitles().isEmpty());
     assertFalse(TitleManager.isFormingTitle.containsKey(player));
+  }
+
+  @Test
+  void aNewCountyTakesOnlyTheConnectedUntitledLandWhereTheLeaderStands() {
+    faction.addProvince(11);
+    faction.addProvince(12);
+    link(land(10), land(11));
+    land(12);
+    TitleManager.isFormingTitle.put(player, tier("county", 2, 2));
+    manager.formTitle(chat("North Vale"));
+    fixture.ui.runTasks();
+    assertEquals(1, created.size());
+    assertEquals(List.of(10, 11), created.getFirst().getProvinces());
+    assertEquals(List.of(12), faction.getUntitledProvinces(), "Separate land stays untitled");
+  }
+
+  @Test
+  void aLeaderOutsideTheirUntitledLandIsToldWhereToStand() {
+    position.when(() -> RestServer.getProvince(player)).thenReturn(99);
+    TitleManager.isFormingTitle.put(player, tier("county", 2, 1));
+    manager.formTitle(chat("North Vale"));
+    fixture.ui.runTasks();
+    assertTrue(created.isEmpty());
+    verify(player).sendMessage(TitleManager.STAND_IN_COUNTY_LAND);
+  }
+
+  @Test
+  void anUntitledAreaSmallerThanTheFormCostCannotBecomeACounty() {
+    faction.addProvince(11);
+    faction.addProvince(12);
+    link(land(10), land(11));
+    land(12);
+    Tier county = tier("county", 2, 3);
+    TitleManager.isFormingTitle.put(player, county);
+    manager.formTitle(chat("North Vale"));
+    fixture.ui.runTasks();
+    assertTrue(created.isEmpty());
+    verify(player).sendMessage(TitleManager.tooSmallForCounty(2, county));
+  }
+
+  private Province land(int id) {
+    Province province = new Province(id, "PLAINS", 50);
+    fixture.provinceData.put(id, province);
+    return province;
+  }
+
+  private static void link(Province first, Province second) {
+    first.addNeighbour(second.getId());
+    second.addNeighbour(first.getId());
   }
 
   @Test

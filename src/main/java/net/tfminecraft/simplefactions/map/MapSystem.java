@@ -31,6 +31,7 @@ import net.tfminecraft.simplefactions.war.core.War;
 import net.tfminecraft.simplefactions.installation.InstallationTransferService;
 import net.tfminecraft.simplefactions.rest.RestServer;
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.tiers.CountyLand;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.enums.Terrain;
 
@@ -307,8 +308,8 @@ public class MapSystem {
 		}
 		if(!forCapital
 				&& TitleLoader.getByProvince(province) == null
-				&& f.getUntitledProvinces().size() >= Cache.maxUntitledProvinces) {
-			p.sendMessage("§cYou have too many untitled provinces, form a county first!");
+				&& CountyLand.mustFormCounty(f)) {
+			p.sendMessage("§cYou have " + CountyLand.claimCap() + " connected untitled provinces. Stand in them and form a county first!");
 		    return;
 		}
 		if(stolen) {

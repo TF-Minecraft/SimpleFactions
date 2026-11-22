@@ -17,6 +17,7 @@ import net.tfminecraft.simplefactions.loaders.TierLoader;
 import net.tfminecraft.simplefactions.managers.FactionManager;
 import net.tfminecraft.simplefactions.managers.TitleManager;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.tiers.CountyLand;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
@@ -194,10 +195,11 @@ public class TierTitleCreator {
 			int cost = getNewTitleCost(f, TierLoader.getByLevel(t.getTier()));
 			int current = 0;
 			if(t.getId().equalsIgnoreCase("county")) {
-				current = f.getUntitledProvinces().size();
+				current = CountyLand.largestCounty(f);
 				int percent = (int) Math.round((current * 1.0) / (cost * 1.0) * 100);
-				lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aeuntitled provinces to form a new "+t.getName()+"#d4c9ae!"));
-				lore.add(StringFormatter.formatHex("#767a77Currently: #a1aba3" + current + " #535955[" + percent + "%]"));
+				lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aeconnected untitled provinces to form a new "+t.getName()+"#d4c9ae!"));
+				lore.add(StringFormatter.formatHex("#767a77Largest connected area: #a1aba3" + current + " #535955[" + percent + "%]"));
+				lore.add(StringFormatter.formatHex("#767a77Stand in the land the new "+t.getName()+" #767a77should take."));
 			} else {
 				current = f.getFreeTitles(lower).size();
 				int percent = (int) Math.round((current * 1.0) / (cost * 1.0) * 100);

@@ -19,6 +19,8 @@ import net.tfminecraft.simplefactions.Cache;
 import net.tfminecraft.simplefactions.loaders.TierLoader;
 import net.tfminecraft.simplefactions.loaders.TitleLoader;
 import net.tfminecraft.simplefactions.objects.Faction;
+import net.tfminecraft.simplefactions.rest.RestServer;
+import net.tfminecraft.simplefactions.tiers.CountyLand;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.utils.Formatter;
@@ -56,10 +58,21 @@ public class TitleManager implements Listener{
 		if (f == null || tier != pending || !tier.canForm()
 				|| !f.getGovernment().stateReport().status.canFormTitles()) return;
 		Tier required = TierLoader.getByLevel(tier.getTier() - 1);
+		boolean county = tier.getId().equalsIgnoreCase("county");
+		List<Integer> countyLand = List.of();
 		int available;
-		if (tier.getId().equalsIgnoreCase("county")) {
+		if (county) {
 			if (f.getTitles(tier).size() >= f.getMembers().size()) return;
-			available = f.getUntitledProvinces().size();
+			countyLand = CountyLand.countyAt(f, RestServer.getProvince(p));
+			if (countyLand.isEmpty()) {
+				p.sendMessage(STAND_IN_COUNTY_LAND);
+				return;
+			}
+			if (countyLand.size() < tier.getFormCost()) {
+				p.sendMessage(tooSmallForCounty(countyLand.size(), tier));
+				return;
+			}
+			available = countyLand.size();
 		} else {
 			if (required == null) return;
 			available = f.getFreeTitles(required).size();
@@ -88,7 +101,7 @@ public class TitleManager implements Listener{
 			return;
 		}
 		String name = WordUtils.capitalize(format.formatId(message).replace("_", " "));
-		Title newTitle = TitleLoader.createNewTitle(tier, id, name, RandomRGB.similarButDistinct(f.getRGB()), f.getUntitledProvinces(), titleStringList, false);
+		Title newTitle = TitleLoader.createNewTitle(tier, id, name, RandomRGB.similarButDistinct(f.getRGB()), county ? countyLand : f.getUntitledProvinces(), titleStringList, false);
 		if(newTitle == null) {
 			return;
 		}
@@ -97,6 +110,14 @@ public class TitleManager implements Listener{
 		FactionManager.getMap().enqueue(tier.getId(), newTitle.getRgb());
 	}
 	
+	public static final String STAND_IN_COUNTY_LAND =
+			"§cStand in the untitled land you want to make into a county.";
+
+	public static String tooSmallForCounty(int connected, Tier county) {
+		return "§cOnly §f" + connected + "§c connected untitled provinces here; a " + county.getName()
+				+ " §cneeds §f" + county.getFormCost() + "§c joined by land or a river.";
+	}
+
 	public static double getClaimCost(Faction f) {
 	    return f.getProvinces().size()*Cache.provinceCost;
 	}

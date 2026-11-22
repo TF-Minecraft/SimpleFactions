@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.tfminecraft.simplefactions.SimpleFactions;
+import net.tfminecraft.simplefactions.rest.RestServer;
+import net.tfminecraft.simplefactions.map.provinces.Province;
 import net.tfminecraft.simplefactions.army.LevyEntry;
 import net.tfminecraft.simplefactions.army.MilitaryExpansion;
 import net.tfminecraft.simplefactions.army.Regiment;
@@ -74,6 +76,7 @@ class ArmyMenusCoverageTest {
   private java.util.Map<Player, Tier> oldForming;
   private final List<MockedStatic<?>> scopes = new ArrayList<>();
   private MockedStatic<IconGetter> icons;
+  private MockedStatic<RestServer> position;
 
   private <T> MockedStatic<T> scoped(Class<T> type) {
     MockedStatic<T> s = mockStatic(type);
@@ -96,6 +99,8 @@ class ArmyMenusCoverageTest {
     military = new MilitaryView(navigation);
     oldForming = TitleManager.isFormingTitle;
     TitleManager.isFormingTitle = new HashMap<>();
+    position = scoped(RestServer.class);
+    position.when(() -> RestServer.getProvince(player)).thenReturn(11);
     icons = scoped(IconGetter.class);
     icons
         .when(() -> IconGetter.getIconOrDefault(anyString(), any()))
@@ -346,19 +351,51 @@ class ArmyMenusCoverageTest {
   }
 
   @Test
-  void enabledCountyCreationPromptsForANameOnlyWithEnoughUnclaimedLand() {
+  void enabledCountyCreationPromptsForANameOnlyWithEnoughConnectedUntitledLand() {
     Tier county = configureTier("county", 2, 2);
+    position.when(() -> RestServer.getProvince(player)).thenReturn(10);
+    Province home = land(10), east = land(11);
+    faction.addProvince(11);
     titles.titleTypeView(null, player, faction, county, true, 0);
-    assertTrue(lore(top().getItem(52)).contains("Currently: 1 [50%]"));
+    assertTrue(lore(top().getItem(52)).contains("Largest connected area: 1 [50%]"));
+    assertTrue(lore(top().getItem(52)).contains("Stand in the land the new county should take."));
     titles.click(fixture.ui.click(player, 52), top(), player);
     assertFalse(TitleManager.isFormingTitle.containsKey(player));
-    faction.addProvince(11);
+    verify(player).sendMessage(TitleManager.tooSmallForCounty(1, county));
+    home.addNeighbour(11);
+    east.addNeighbour(10);
     titles.titleTypeView(null, player, faction, county, true, 0);
     assertTrue(lore(top().getItem(52)).contains("Click to create"));
     titles.click(fixture.ui.click(player, 52), top(), player);
     assertSame(county, TitleManager.isFormingTitle.get(player));
     verify(player).sendMessage("§eType the name of the new county §ein chat.");
     verify(player).closeInventory();
+  }
+
+  @Test
+  void aCountyCannotBeStartedFromOutsideTheRealmsUntitledLand() {
+    Tier county = configureTier("county", 2, 1);
+    position.when(() -> RestServer.getProvince(player)).thenReturn(99);
+    titles.titleTypeView(null, player, faction, county, true, 0);
+    titles.click(fixture.ui.click(player, 52), top(), player);
+    assertFalse(TitleManager.isFormingTitle.containsKey(player));
+    verify(player).sendMessage(TitleManager.STAND_IN_COUNTY_LAND);
+  }
+
+  @Test
+  void aDuchyNeedsEnoughFreeCountiesBeforeItAsksForAName() {
+    faction.addTitle(fixture.title("Lone County", "county", 10));
+    Tier duchy = configureTier("duchy", 3, 2);
+    titles.titleTypeView(null, player, faction, duchy, true, 0);
+    titles.click(fixture.ui.click(player, 52), top(), player);
+    assertFalse(TitleManager.isFormingTitle.containsKey(player));
+    verify(player, never()).sendMessage("§eType the name of the new duchy §ein chat.");
+  }
+
+  private Province land(int id) {
+    Province province = new Province(id, "PLAINS", 50);
+    fixture.provinceData.put(id, province);
+    return province;
   }
 
   @Test
