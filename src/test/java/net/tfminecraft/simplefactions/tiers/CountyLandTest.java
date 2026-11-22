@@ -84,6 +84,19 @@ class CountyLandTest {
   }
 
   @Test
+  void provincesARiverListsAreJoinedEvenWhenNeitherListsTheRiver() {
+    Province lake = province(80, Terrain.WATER);
+    province(7, Terrain.PLAINS);
+    province(8, Terrain.PLAINS);
+    lake.addNeighbour(7);
+    lake.addNeighbour(8);
+    realm.addProvince(7);
+    realm.addProvince(8);
+    assertEquals(List.of(7, 8), CountyLand.countyAt(realm, 7));
+    assertEquals(List.of(7, 8), CountyLand.countyAt(realm, 8));
+  }
+
+  @Test
   void titledLandSplitsTheUntitledLandAroundIt() {
     fixture.title("middle", "county", 2);
     assertEquals(List.of(1), CountyLand.countyAt(realm, 1));

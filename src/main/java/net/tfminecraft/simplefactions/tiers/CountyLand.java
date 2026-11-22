@@ -26,9 +26,8 @@ public final class CountyLand {
 	}
 
 	/**
-	 * How provinces touch: the land each one borders, directly or across a river, and the river or
-	 * lake tiles each one faces. Two provinces facing the same river tile are joined even when the
-	 * tile itself does not list them.
+	 * How provinces touch: the land each one borders, and the river or lake tiles each one faces.
+	 * Two provinces facing the same river tile are joined, whichever side of the map data lists it.
 	 */
 	public record Ties(IntFunction<Collection<Integer>> borders, IntFunction<Collection<Integer>> rivers) {
 	}
@@ -128,36 +127,35 @@ public final class CountyLand {
 	public static Ties live() {
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		ProvinceManager provinces = plugin == null ? null : plugin.getProvinceManager();
-		return new Ties(province -> borders(provinces, province), province -> rivers(provinces, province));
-	}
-
-	private static Collection<Integer> rivers(ProvinceManager provinces, int province) {
 		if (provinces == null) {
-			return List.of();
+			return new Ties(province -> List.of(), province -> List.of());
 		}
-		return provinces.get(province).getNeighbours().stream()
-				.filter(neighbour -> provinces.get(neighbour).getTerrain() == Terrain.WATER)
-				.toList();
-	}
-
-	/** Land bordering {@code province}, directly or across a WATER tile that lists it. */
-	private static Collection<Integer> borders(ProvinceManager provinces, int province) {
-		if (provinces == null) {
-			return List.of();
-		}
-		Set<Integer> out = new LinkedHashSet<>();
-		for (int neighbour : provinces.get(province).getNeighbours()) {
-			Province tile = provinces.get(neighbour);
-			if (!tile.isSea()) {
-				out.add(neighbour);
-			} else if (tile.getTerrain() == Terrain.WATER) {
-				for (int across : tile.getNeighbours()) {
-					if (across != province && !provinces.get(across).isSea()) {
-						out.add(across);
-					}
+		Map<Integer, Set<Integer>> listedBy = new HashMap<>();
+		for (Province tile : provinces.getProvinces()) {
+			if (tile.getTerrain() == Terrain.WATER) {
+				for (int shore : tile.getNeighbours()) {
+					listedBy.computeIfAbsent(shore, key -> new LinkedHashSet<>()).add(tile.getId());
 				}
 			}
 		}
+		return new Ties(province -> borders(provinces, province), province -> rivers(provinces, listedBy, province));
+	}
+
+	/** The river and lake tiles {@code province} faces, whichever of the two lists the other. */
+	private static Collection<Integer> rivers(ProvinceManager provinces, Map<Integer, Set<Integer>> listedBy, int province) {
+		Set<Integer> out = new LinkedHashSet<>(listedBy.getOrDefault(province, Set.of()));
+		for (int neighbour : provinces.get(province).getNeighbours()) {
+			if (provinces.get(neighbour).getTerrain() == Terrain.WATER) {
+				out.add(neighbour);
+			}
+		}
 		return out;
+	}
+
+	/** Land directly bordering {@code province}. */
+	private static Collection<Integer> borders(ProvinceManager provinces, int province) {
+		return provinces.get(province).getNeighbours().stream()
+				.filter(neighbour -> !provinces.get(neighbour).isSea())
+				.toList();
 	}
 }
