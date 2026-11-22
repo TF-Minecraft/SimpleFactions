@@ -2,8 +2,10 @@ package net.tfminecraft.simplefactions.tiers;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.IntFunction;
 
@@ -26,6 +28,23 @@ public final class CountyLand {
 	/** The connected part of {@code untitled} that holds {@code start}, in {@code untitled}'s order; empty when start is not in it. */
 	public static List<Integer> groupOf(int start, Collection<Integer> untitled, IntFunction<Collection<Integer>> links) {
 		Set<Integer> land = new LinkedHashSet<>(untitled);
+		return groupOf(start, land, joins(land, links));
+	}
+
+	/** The size of the biggest connected part of {@code untitled}. */
+	public static int largestGroup(Collection<Integer> untitled, IntFunction<Collection<Integer>> links) {
+		Set<Integer> left = new LinkedHashSet<>(untitled);
+		Map<Integer, Set<Integer>> joins = joins(left, links);
+		int largest = 0;
+		while (!left.isEmpty()) {
+			List<Integer> group = groupOf(left.iterator().next(), left, joins);
+			left.removeAll(group);
+			largest = Math.max(largest, group.size());
+		}
+		return largest;
+	}
+
+	private static List<Integer> groupOf(int start, Set<Integer> land, Map<Integer, Set<Integer>> joins) {
 		if (!land.contains(start)) {
 			return List.of();
 		}
@@ -34,8 +53,8 @@ public final class CountyLand {
 		reached.add(start);
 		queue.add(start);
 		while (!queue.isEmpty()) {
-			for (int next : links.apply(queue.poll())) {
-				if (land.contains(next) && reached.add(next)) {
+			for (int next : joins.get(queue.poll())) {
+				if (reached.add(next)) {
 					queue.add(next);
 				}
 			}
@@ -43,16 +62,21 @@ public final class CountyLand {
 		return land.stream().filter(reached::contains).toList();
 	}
 
-	/** The size of the biggest connected part of {@code untitled}. */
-	public static int largestGroup(Collection<Integer> untitled, IntFunction<Collection<Integer>> links) {
-		Set<Integer> left = new LinkedHashSet<>(untitled);
-		int largest = 0;
-		while (!left.isEmpty()) {
-			List<Integer> group = groupOf(left.iterator().next(), left, links);
-			left.removeAll(group);
-			largest = Math.max(largest, group.size());
+	/** Links between provinces of {@code land}, both ways, so a border stored on one side only still joins them. */
+	private static Map<Integer, Set<Integer>> joins(Set<Integer> land, IntFunction<Collection<Integer>> links) {
+		Map<Integer, Set<Integer>> joins = new HashMap<>();
+		for (int province : land) {
+			joins.put(province, new LinkedHashSet<>());
 		}
-		return largest;
+		for (int province : land) {
+			for (int next : links.apply(province)) {
+				if (land.contains(next)) {
+					joins.get(province).add(next);
+					joins.get(next).add(province);
+				}
+			}
+		}
+		return joins;
 	}
 
 	/** The connected untitled land, own or a vassal's, around {@code province} that a county formed there would take. */

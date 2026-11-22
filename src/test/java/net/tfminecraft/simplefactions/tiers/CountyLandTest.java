@@ -61,6 +61,16 @@ class CountyLandTest {
   }
 
   @Test
+  void aBorderStoredOnOneSideOnlyStillJoinsTheLandFromEitherEnd() {
+    Map<Integer, List<Integer>> oneWay = Map.of(2, List.of(1));
+    java.util.function.IntFunction<java.util.Collection<Integer>> links =
+        id -> oneWay.getOrDefault(id, List.of());
+    assertEquals(List.of(1, 2), CountyLand.groupOf(1, List.of(1, 2), links));
+    assertEquals(List.of(1, 2), CountyLand.groupOf(2, List.of(1, 2), links));
+    assertEquals(2, CountyLand.largestGroup(List.of(1, 2), links));
+  }
+
+  @Test
   void titledLandSplitsTheUntitledLandAroundIt() {
     fixture.title("middle", "county", 2);
     assertEquals(List.of(1), CountyLand.countyAt(realm, 1));
