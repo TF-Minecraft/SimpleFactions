@@ -8,6 +8,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -27,6 +28,8 @@ public record MapFile(File file, JsonElement json, boolean pretty) {
 		Files.createDirectories(folder);
 		Path temp = Files.createTempFile(folder, target.getFileName().toString(), ".tmp");
 		try {
+			// A temporary file is owner-only on Linux; keep the 0644 the files had when written in place.
+			try { Files.setPosixFilePermissions(temp, PosixFilePermissions.fromString("rw-r--r--")); } catch (UnsupportedOperationException ignored) { /* not a POSIX filesystem */ }
 			try (Writer writer = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
 				Gson gson = pretty ? new GsonBuilder().setPrettyPrinting().create() : new Gson();
 				gson.toJson(json, writer);

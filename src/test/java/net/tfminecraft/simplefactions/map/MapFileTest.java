@@ -39,6 +39,9 @@ class MapFileTest {
         JsonObject next = new JsonObject(); next.addProperty("id", 8);
         new MapFile(compact.toFile(), next, false).write();
         assertEquals("{\"id\":8}", Files.readString(compact));
+        if (java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            assertEquals("rw-r--r--", java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(compact)));
+        }
         try (var files = Files.list(dir.resolve("MapAPI"))) {
             assertEquals(List.of("a.json", "b.json"), files.map(p -> p.getFileName().toString()).sorted().toList());
         }
