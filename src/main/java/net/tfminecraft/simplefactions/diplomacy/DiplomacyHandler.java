@@ -176,13 +176,41 @@ public class DiplomacyHandler {
         treatyNotices.remove(s);
     }
 
+    /**
+     * Trade modifiers on the target faction's guilds in this faction's provinces. Each side keeps its own half
+     * of a trade relation: this faction's record gives what visiting guilds get ("their guilds in our
+     * territory"), and the target's record towards this faction gives what its own guilds get here ("our
+     * guilds in their territory"). Reading both records applies one-sided treaties, such as the leader's half
+     * of an unequal treaty, the way the Diplomacy menu shows them. Both lookups go through
+     * {@link #getTradeRelation}, so income previews see proposed relations on either side.
+     */
     public List<FactionModifier> getTradeModifiersFor(String target) {
+        Faction visitor = FactionManager.getByString(target);
+        return tradeModifiersFor(target, visitor);
+    }
+
+    /** {@link #getTradeModifiersFor(String)} for a faction already in hand, without the lookup by id. */
+    public List<FactionModifier> getTradeModifiersFor(Faction visitor) {
+        if (visitor == null || visitor.getId() == null) {
+            return new ArrayList<>();
+        }
+        return tradeModifiersFor(visitor.getId(), visitor);
+    }
+
+    private List<FactionModifier> tradeModifiersFor(String target, Faction visitor) {
         List<FactionModifier> mods = new ArrayList<>();
-        RelationType r = getTradeRelation(target);
-        if(r == null) return mods;
-        if(r.hasTradeEffectsThem()) {
-            for(FactionModifier mod : r.getTradeEffectsThem()) {
-                mods.add(new FactionModifier(FactionManager.getByString(target), mod));
+        RelationType ours = getTradeRelation(target);
+        if (ours != null) {
+            for (FactionModifier mod : ours.getTradeEffectsThemRaw()) {
+                mods.add(new FactionModifier(visitor, mod));
+            }
+        }
+        RelationType theirs = visitor == null || visitor.getDiplomacyHandler() == null || f == null
+                ? null
+                : visitor.getDiplomacyHandler().getTradeRelation(f.getId());
+        if (theirs != null) {
+            for (FactionModifier mod : theirs.getTradeEffectsUsRaw()) {
+                mods.add(new FactionModifier(visitor, mod));
             }
         }
         return mods;
