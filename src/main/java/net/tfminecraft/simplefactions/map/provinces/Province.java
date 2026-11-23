@@ -439,7 +439,8 @@ public class Province {
             }
             // Both halves of a trade relation count: the owner's record and the visitor's own record.
             if (owner.getDiplomacyHandler().hasTradeRelation(host.getId())
-                    || host.getDiplomacyHandler().hasTradeRelation(owner.getId())) {
+                    || (host.getDiplomacyHandler() != null
+                            && host.getDiplomacyHandler().hasTradeRelation(owner.getId()))) {
                 mods.addAll(owner.getDiplomacyHandler().getTradeModifiersFor(host));
             }
         } else {
