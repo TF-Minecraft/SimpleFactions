@@ -200,20 +200,32 @@ public class DiplomacyHandler {
     private List<FactionModifier> tradeModifiersFor(String target, Faction visitor) {
         List<FactionModifier> mods = new ArrayList<>();
         RelationType ours = getTradeRelation(target);
-        if (ours != null) {
-            for (FactionModifier mod : ours.getTradeEffectsThemRaw()) {
-                mods.add(new FactionModifier(visitor, mod));
-            }
-        }
         RelationType theirs = visitor == null || visitor.getDiplomacyHandler() == null || f == null
                 ? null
                 : visitor.getDiplomacyHandler().getTradeRelation(f.getId());
-        if (theirs != null) {
-            for (FactionModifier mod : theirs.getTradeEffectsUsRaw()) {
-                mods.add(new FactionModifier(visitor, mod));
-            }
+        List<FactionModifier> effects = new ArrayList<>();
+        if (ours != null && theirs != null && sameRelation(ours, theirs)) {
+            effects.addAll(ours.getTradeEffectsThemRaw());
+            effects.addAll(theirs.getTradeEffectsUsRaw());
+        } else if (ours != null) {
+            // Unpaired records (an embargo over the other side's old agreement, a missing half) keep the
+            // owner-only reading, so a stale half never softens an embargo.
+            effects.addAll(ours.getTradeEffectsThem());
+        }
+        for (FactionModifier mod : effects) {
+            mods.add(new FactionModifier(visitor, mod));
         }
         return mods;
+    }
+
+    /** True when the two records are the two halves of one relation, as {@code RelationManager} sets them. */
+    private static boolean sameRelation(RelationType ours, RelationType theirs) {
+        return (ours.isMutual() && linksTo(ours, theirs)) || (theirs.isMutual() && linksTo(theirs, ours));
+    }
+
+    private static boolean linksTo(RelationType type, RelationType other) {
+        String link = type.getLinkString();
+        return link != null && other.getId() != null && link.equalsIgnoreCase(other.getId());
     }
 
     public List<FactionModifier> getModifiers() {

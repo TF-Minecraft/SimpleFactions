@@ -109,6 +109,35 @@ class TradeRelationHalvesTest {
   }
 
   @Test
+  void embargoOverTheOtherSidesAgreementKeepsItsFullForceAndOldResults() {
+    Faction kept = domain.saved("kept", "KeptPlayer");
+    Faction embargoer = domain.saved("embargoer", "EmbargoPlayer");
+    // Only the embargoing side's record changes; the other side keeps its old agreement half.
+    kept.getDiplomacyHandler().setTradeRelation(embargoer, agreement);
+    embargoer.getDiplomacyHandler().setTradeRelation(kept, embargo);
+
+    assertEquals(
+        Map.of(FactionModifiers.TRADE_POWER, -95.0, FactionModifiers.PRODUCTION, -95.0),
+        amounts(embargoer.getDiplomacyHandler().getTradeModifiersFor(kept)));
+    assertEquals(
+        Map.of(FactionModifiers.TRADE_POWER, 15.0, FactionModifiers.PRODUCTION, 5.0),
+        amounts(kept.getDiplomacyHandler().getTradeModifiersFor(embargoer)));
+  }
+
+  @Test
+  void leaderEmbargoingTheWeakerSideIsNotSoftenedByTheOldTreatyHalf() {
+    Faction leader = domain.saved("leader", "LeaderPlayer");
+    Faction weaker = domain.saved("weaker", "WeakerPlayer");
+    leader.getDiplomacyHandler().setTradeRelation(weaker, embargo);
+    weaker.getDiplomacyHandler().setTradeRelation(leader, subjectSide);
+
+    assertEquals(
+        Map.of(FactionModifiers.TRADE_POWER, -95.0, FactionModifiers.PRODUCTION, -95.0),
+        amounts(leader.getDiplomacyHandler().getTradeModifiersFor(weaker)));
+    assertTrue(weaker.getDiplomacyHandler().getTradeModifiersFor(leader).isEmpty());
+  }
+
+  @Test
   void noRelationOrUnknownFactionGivesNothing() {
     Faction first = domain.saved("first", "FirstPlayer");
     Faction second = domain.saved("second", "SecondPlayer");
