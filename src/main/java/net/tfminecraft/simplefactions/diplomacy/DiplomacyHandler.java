@@ -176,16 +176,56 @@ public class DiplomacyHandler {
         treatyNotices.remove(s);
     }
 
+    /**
+     * Trade modifiers on the target faction's guilds in this faction's provinces. Each side keeps its own half
+     * of a trade relation: this faction's record gives what visiting guilds get ("their guilds in our
+     * territory"), and the target's record towards this faction gives what its own guilds get here ("our
+     * guilds in their territory"). Reading both records applies one-sided treaties, such as the leader's half
+     * of an unequal treaty, the way the Diplomacy menu shows them. Both lookups go through
+     * {@link #getTradeRelation}, so income previews see proposed relations on either side.
+     */
     public List<FactionModifier> getTradeModifiersFor(String target) {
+        Faction visitor = FactionManager.getByString(target);
+        return tradeModifiersFor(target, visitor);
+    }
+
+    /** {@link #getTradeModifiersFor(String)} for a faction already in hand, without the lookup by id. */
+    public List<FactionModifier> getTradeModifiersFor(Faction visitor) {
+        if (visitor == null || visitor.getId() == null) {
+            return new ArrayList<>();
+        }
+        return tradeModifiersFor(visitor.getId(), visitor);
+    }
+
+    private List<FactionModifier> tradeModifiersFor(String target, Faction visitor) {
         List<FactionModifier> mods = new ArrayList<>();
-        RelationType r = getTradeRelation(target);
-        if(r == null) return mods;
-        if(r.hasTradeEffectsThem()) {
-            for(FactionModifier mod : r.getTradeEffectsThem()) {
-                mods.add(new FactionModifier(FactionManager.getByString(target), mod));
-            }
+        RelationType ours = getTradeRelation(target);
+        RelationType theirs = visitor == null || visitor.getDiplomacyHandler() == null || f == null
+                ? null
+                : visitor.getDiplomacyHandler().getTradeRelation(f.getId());
+        List<FactionModifier> effects = new ArrayList<>();
+        if (ours != null && theirs != null && sameRelation(ours, theirs)) {
+            effects.addAll(ours.getTradeEffectsThemRaw());
+            effects.addAll(theirs.getTradeEffectsUsRaw());
+        } else if (ours != null) {
+            // Unpaired records (an embargo over the other side's old agreement, a missing half) keep the
+            // owner-only reading, so a stale half never softens an embargo.
+            effects.addAll(ours.getTradeEffectsThem());
+        }
+        for (FactionModifier mod : effects) {
+            mods.add(new FactionModifier(visitor, mod));
         }
         return mods;
+    }
+
+    /** True when the two records are the two halves of one relation, as {@code RelationManager} sets them. */
+    private static boolean sameRelation(RelationType ours, RelationType theirs) {
+        return (ours.isMutual() && linksTo(ours, theirs)) || (theirs.isMutual() && linksTo(theirs, ours));
+    }
+
+    private static boolean linksTo(RelationType type, RelationType other) {
+        String link = type.getLinkString();
+        return link != null && other.getId() != null && link.equalsIgnoreCase(other.getId());
     }
 
     public List<FactionModifier> getModifiers() {

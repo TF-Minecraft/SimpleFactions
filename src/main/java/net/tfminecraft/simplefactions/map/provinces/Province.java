@@ -437,8 +437,11 @@ public class Province {
                 mods.addAll(host.getModifiers(guild.getId(), Scope.DOMESTIC_GUILDS, Region.FOREIGN_TERRITORY));
                 mods.addAll(owner.getModifiers(guild.getId(), Scope.FOREIGN_GUILDS, Region.OUR_TERRITORY));
             }
-            if(owner.getDiplomacyHandler().hasTradeRelation(host.getId())) {
-                mods.addAll(owner.getDiplomacyHandler().getTradeModifiersFor(host.getId()));
+            // Both halves of a trade relation count: the owner's record and the visitor's own record.
+            if (owner.getDiplomacyHandler().hasTradeRelation(host.getId())
+                    || (host.getDiplomacyHandler() != null
+                            && host.getDiplomacyHandler().hasTradeRelation(owner.getId()))) {
+                mods.addAll(owner.getDiplomacyHandler().getTradeModifiersFor(host));
             }
         } else {
             mods.addAll(host.getModifiers(guild.getId(), Scope.DOMESTIC_GUILDS, Region.OUR_TERRITORY));
