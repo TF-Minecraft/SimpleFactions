@@ -94,11 +94,57 @@ public class MapSystem {
 
 	/** Cheap payloads that change continuously and ship on every cycle (main thread). */
 	public void prepareLiveFiles() {
+		writeAll(buildLiveFiles());
+	}
+
+	/**
+	 * Builds the live payloads from live state (main thread) and returns the ones still to be written, so the
+	 * quiet cycle can write them off the main thread. Coalitions are small and written here, as before.
+	 */
+	List<MapFile> buildLiveFiles() {
 		SimpleFactions.getInstance().getProvinceManager().recalculateIfNeeded();
-		exportProvinces();
-		exportGuilds();
-		exportChronicle();
+		List<MapFile> files = new ArrayList<>();
+		files.addAll(provincesFile());
+		files.addAll(guildsFile());
+		files.addAll(chronicleFile());
 		exportCoalitions();
+		return files;
+	}
+
+	/** One payload built from live state, or none (logged) when building it failed. */
+	static List<MapFile> live(String name, java.util.function.Supplier<com.google.gson.JsonElement> build, boolean pretty) {
+		try {
+			return List.of(new MapFile(new File("plugins/SimpleFactions/MapAPI/" + name + ".json"), build.get(), pretty));
+		} catch (Exception e) {
+			Bukkit.getLogger().severe("[SimpleFactions] Failed to export " + name + ".json");
+			e.printStackTrace();
+			return List.of();
+		}
+	}
+
+	private List<MapFile> provincesFile() {
+		return live("province_data", compiler::provincesJson, true);
+	}
+
+	private List<MapFile> guildsFile() {
+		return live("guilds", compiler::guildsJson, true);
+	}
+
+	private static List<MapFile> chronicleFile() {
+		// Not pretty printed: this one ships 288 times a day.
+		return Cache.chronicleEnabled ? live("chronicle", MapSystem::chronicleJson, false) : List.of();
+	}
+
+	/** Writes built payloads; one that fails is logged and does not stop the others. */
+	static void writeAll(List<MapFile> files) {
+		for (MapFile file : files) {
+			try {
+				file.write();
+			} catch (Exception e) {
+				Bukkit.getLogger().severe("[SimpleFactions] Failed to export " + file.file().getName());
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/** Nation geometry and markers, only worth regenerating when the map queue has work. */
@@ -183,7 +229,8 @@ public class MapSystem {
 	 */
 	public void updateLiveData() {
 		lastUpdate = 0;
-		prepareLiveFiles();
+		// Built here from live state; serializing and writing them (most of the cost) happens with the upload.
+		List<MapFile> liveFiles = buildLiveFiles();
 		// Leader character names live in Data/*.json and ship in nation.json,
 		// which the quiet path otherwise skips. A name learned since the last
 		// cycle re-exports just that file, so it reaches the map within one
@@ -199,6 +246,7 @@ public class MapSystem {
 		}
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+			writeAll(liveFiles);
 			uploadLiveFiles();
 			if (shipNation) {
 				RestServer.upload("nation", new File("plugins/SimpleFactions/MapAPI/nation.json"));
@@ -361,25 +409,11 @@ public class MapSystem {
 	}
 
 	public void exportProvinces() {
-		try {
-			File out = new File("plugins/SimpleFactions/MapAPI/province_data.json");
-			compiler.exportProvincesToJson(out);
-			//RestServer.upload("provinces", out); not yet
-		} catch (Exception e) {
-			Bukkit.getLogger().severe("[SimpleFactions] Failed to export province_data.json");
-			e.printStackTrace();
-		}
+		writeAll(provincesFile());
 	}
 
 	public void exportGuilds() {
-		try {
-			File out = new File("plugins/SimpleFactions/MapAPI/guilds.json");
-			compiler.exportGuildsToJson(out);
-			//RestServer.upload("provinces", out); not yet
-		} catch (Exception e) {
-			Bukkit.getLogger().severe("[SimpleFactions] Failed to export guilds.json");
-			e.printStackTrace();
-		}
+		writeAll(guildsFile());
 	}
 
 	public void exportMarkers() {
@@ -392,23 +426,25 @@ public class MapSystem {
 		}
 	}
 
-	public void exportChronicle() {
-		if (!Cache.chronicleEnabled) return;
-		// The snapshot reads every guild's net income, which asks each treasury whether it is
-		// bankrupt many times over (realm income walks its member guilds' ledgers), and each ask
-		// was a SQLite query: 0.3-0.5 s on the server thread every live cycle on Main. The export
-		// only reads, so one answer per treasury and one stability report per faction hold for it.
+	/**
+	 * The chronicle payload with the per-export memos in place (main thread). The snapshot reads every
+	 * guild's net income, which asks each treasury whether it is bankrupt many times over (realm income
+	 * walks its member guilds' ledgers), and each ask was a SQLite query: 0.3-0.5 s on the server thread
+	 * every live cycle on Main. The export only reads, so one answer per treasury and one stability report
+	 * per faction hold for it.
+	 */
+	static com.google.gson.JsonObject chronicleJson() {
 		BankruptcyMemo.Run bankruptcy = BankruptcyMemo.begin();
 		StabilityMemo.Run stability = StabilityMemo.begin();
 		try {
-			File out = new File("plugins/SimpleFactions/MapAPI/chronicle.json");
-			ChronicleExport.export(out);
-		} catch (Exception e) {
-			Bukkit.getLogger().severe("[SimpleFactions] Failed to export chronicle.json");
-			e.printStackTrace();
+			return ChronicleExport.build();
 		} finally {
 			StabilityMemo.end(stability);
 			BankruptcyMemo.end(bankruptcy);
 		}
+	}
+
+	public void exportChronicle() {
+		writeAll(chronicleFile());
 	}
 }
