@@ -92,14 +92,14 @@ public class MapSystem {
 		prepareMapFiles();
 	}
 
-	/** Cheap payloads that change continuously and ship on every cycle (main thread). */
+	/** Cheap payloads that change continuously and ship on every cycle, written right away (main thread). */
 	public void prepareLiveFiles() {
 		writeAll(buildLiveFiles());
 	}
 
 	/**
 	 * Builds the live payloads from live state (main thread) and returns the ones still to be written, so the
-	 * quiet cycle can write them off the main thread. Coalitions are small and written here, as before.
+	 * map cycles can write them off the main thread. Coalitions are small and written here, as before.
 	 */
 	List<MapFile> buildLiveFiles() {
 		SimpleFactions.getInstance().getProvinceManager().recalculateIfNeeded();
@@ -206,7 +206,9 @@ public class MapSystem {
 		for(Faction fac : FactionManager.factions) {
 			db.saveFaction(fac);
 		}
-		prepareUploadFiles();
+		// Live payloads are built here and written with the upload, as on the quiet path.
+		List<MapFile> liveFiles = buildLiveFiles();
+		prepareMapFiles();
 		File queueFile = new File("plugins/SimpleFactions/MapAPI/queue.json");
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		// New changes belong to the next publication, including another change to the same nation.
@@ -214,6 +216,7 @@ public class MapSystem {
 		mapUploadInProgress = true;
 		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
 			try {
+				writeAll(liveFiles);
 				RestServer.upload("queue", queueFile);
 				uploadPreparedFiles();
 				RestServer.commenceRegen("queued");
@@ -269,9 +272,11 @@ public class MapSystem {
 		for(Faction fac : FactionManager.factions) {
 			db.saveFaction(fac);
 		}
-		prepareUploadFiles();
+		List<MapFile> liveFiles = buildLiveFiles();
+		prepareMapFiles();
 		SimpleFactions plugin = SimpleFactions.getInstance();
 		Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+			writeAll(liveFiles);
 			uploadPreparedFiles();
 			RestServer.commenceRegen("fullregen");
 		});
