@@ -40,7 +40,10 @@ class MapFileTest {
         new MapFile(compact.toFile(), next, false).write();
         assertEquals("{\"id\":8}", Files.readString(compact));
         if (java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
-            assertEquals("rw-r--r--", java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(compact)));
+            // Same mode as any plain new file in that folder (not owner-only).
+            Path plain = Files.writeString(dir.resolve("plain.txt"), "x");
+            assertEquals(Files.getPosixFilePermissions(plain), Files.getPosixFilePermissions(compact));
+            Files.delete(plain);
         }
         try (var files = Files.list(dir.resolve("MapAPI"))) {
             assertEquals(List.of("a.json", "b.json"), files.map(p -> p.getFileName().toString()).sorted().toList());

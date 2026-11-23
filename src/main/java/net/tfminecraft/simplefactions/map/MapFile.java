@@ -8,7 +8,8 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.StandardOpenOption;
+import java.util.UUID;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -26,11 +27,11 @@ public record MapFile(File file, JsonElement json, boolean pretty) {
 		Path target = file.toPath().toAbsolutePath();
 		Path folder = target.getParent();
 		Files.createDirectories(folder);
-		Path temp = Files.createTempFile(folder, target.getFileName().toString(), ".tmp");
+		// Created like a plain new file (umask and the folder's default ACL apply, as with the old in-place
+		// writer), not with Files.createTempFile, which would make it owner-only on Linux.
+		Path temp = folder.resolve(target.getFileName() + "." + UUID.randomUUID() + ".tmp");
 		try {
-			// A temporary file is owner-only on Linux; keep the 0644 the files had when written in place.
-			try { Files.setPosixFilePermissions(temp, PosixFilePermissions.fromString("rw-r--r--")); } catch (UnsupportedOperationException ignored) { /* not a POSIX filesystem */ }
-			try (Writer writer = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
+			try (Writer writer = Files.newBufferedWriter(temp, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
 				Gson gson = pretty ? new GsonBuilder().setPrettyPrinting().create() : new Gson();
 				gson.toJson(json, writer);
 			}
