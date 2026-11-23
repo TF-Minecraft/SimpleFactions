@@ -96,7 +96,8 @@ public class Compiler {
 		return o;
 	}
 
-	public void exportProvincesToJson(File out) throws Exception {
+	/** The province payload, read from live state on the server thread; writing it can happen later. */
+	public JsonArray provincesJson() {
 		JsonArray arr = new JsonArray();
 
 		ProvinceManager pm = SimpleFactions.getInstance().getProvinceManager();
@@ -107,13 +108,11 @@ public class Compiler {
 		for (Province p : pm.getProvinces()) {
 			arr.add(provinceToJson(p, occupiedBy.get(p.getId())));
 		}
-
-		try (FileWriter w = new FileWriter(out)) {
-			new GsonBuilder().setPrettyPrinting().create().toJson(arr, w);
-		}
+		return arr;
 	}
 
-	public void exportGuildsToJson(File out) throws Exception {
+	/** The guild payload, read from live state on the server thread; writing it can happen later. */
+	public JsonArray guildsJson() {
 		JsonArray arr = new JsonArray();
 
 		for (Guild g : FactionManager.getAllGuilds()) {
@@ -134,9 +133,6 @@ public class Compiler {
 
 			arr.add(o);
 		}
-
-		try (FileWriter w = new FileWriter(out)) {
-			new GsonBuilder().setPrettyPrinting().create().toJson(arr, w);
-		}
+		return arr;
 	}
 }
