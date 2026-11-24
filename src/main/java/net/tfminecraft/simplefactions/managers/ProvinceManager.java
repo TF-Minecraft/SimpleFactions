@@ -228,6 +228,11 @@ public class ProvinceManager {
             version = live.stateVersion;
         }
 
+        /** Main-thread state as it was when this flood was prepared; its trade comes from it. */
+        public FrozenReads reads() {
+            return reads;
+        }
+
         /** Stops a run that is no longer wanted at the next guild; it then never adopts. */
         public void cancel() {
             cancelled = true;

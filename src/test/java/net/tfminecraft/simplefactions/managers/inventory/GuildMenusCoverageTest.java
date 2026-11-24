@@ -99,6 +99,7 @@ class GuildMenusCoverageTest {
   private MockedStatic<EspionageService> intelligence;
   private MockedStatic<EspionageAccess> access;
   private MockedStatic<ReportedMenus> reported;
+  private MockedStatic<BranchIncomePreview> previews;
   private MockedStatic<BranchIncomePreviewService> previewTasks;
   private final List<MockedStatic<?>> scopes = new ArrayList<>();
   private HashMap<Player, RankType> oldRanking;
@@ -167,7 +168,7 @@ class GuildMenusCoverageTest {
     creator = view.creator;
     ranker = mock(FactionRanker.class);
     creator.r = ranker;
-    scoped(BranchIncomePreview.class);
+    previews = scoped(BranchIncomePreview.class);
     previewTasks = scoped(BranchIncomePreviewService.class);
   }
 
@@ -301,6 +302,123 @@ class GuildMenusCoverageTest {
     verify(view).guildView(fixture.player, guild, inventory, false);
     verify(view, never()).guildView(eq(rival), any(), any(Inventory.class), anyBoolean());
     verify(view, never()).guildView(eq(lister), any(), any(Inventory.class), anyBoolean());
+  }
+
+  @Test
+  void anIdleOpenAndItsRepaintShareTheFloodsReads() {
+    Guild display = idleMenu();
+    var reads = floodReads(System.currentTimeMillis());
+    var flood = flood(reads);
+    when(fixture.provinces.adopt(flood)).thenReturn(true);
+    stubPreviews(reads);
+
+    view.guildView(fixture.player, display);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(1));
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    // The trade changed, so it is copied again, but nothing is captured again.
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(2));
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), never());
+    verify(fixture.provinces, times(1)).prepareBackgroundFlood();
+
+    Inventory menu = fixture.player.getOpenInventory().getTopInventory();
+    view.guildView(fixture.player, display, menu, false);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(2));
+    // Changed trade inputs outside a flood still capture afresh.
+    when(BranchIncomePreview.current(any())).thenReturn(false);
+    view.guildView(fixture.player, display, menu, false);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(1));
+  }
+
+  @Test
+  void aRefusedFloodsReadsAreNotUsedForTheRepaint() {
+    Guild display = idleMenu();
+    var reads = floodReads(System.currentTimeMillis());
+    flood(reads);
+    stubPreviews(reads);
+
+    view.guildView(fixture.player, display);
+    for (int i = 0; i < 2; i++) {
+      fixture.ui.runAsyncTasks();
+      fixture.ui.runTasks();
+    }
+    verify(fixture.provinces).recalculate();
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(1));
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(1));
+  }
+
+  @Test
+  void aCopyMadeWithAFloodsReadsExpiresFromWhenTheyWereTaken() {
+    Guild display = idleMenu();
+    long[] now = {1_000_000};
+    view.clock = () -> now[0];
+    var reads = floodReads(now[0] - 10_000);
+    flood(reads);
+    stubPreviews(reads);
+
+    view.guildView(fixture.player, display);
+    Inventory menu = fixture.player.getOpenInventory().getTopInventory();
+    now[0] += 20_000;
+    view.guildView(fixture.player, display, menu, false);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), never());
+    now[0] += 1;
+    view.guildView(fixture.player, display, menu, false);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(1));
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(1));
+  }
+
+  @ParameterizedTest
+  @ValueSource(longs = {30_000, 30_001})
+  void aDelayedFloodsReadsPaintOnlyWhileTheyAreFresh(long delay) {
+    Guild display = idleMenu();
+    long[] now = {1_000_000};
+    view.clock = () -> now[0];
+    var reads = floodReads(now[0]);
+    var flood = flood(reads);
+    when(fixture.provinces.adopt(flood)).thenReturn(true);
+    stubPreviews(reads);
+
+    view.guildView(fixture.player, display);
+    now[0] += delay;
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    boolean fresh = delay == 30_000;
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(fresh ? 2 : 1));
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(fresh ? 0 : 1));
+    // A capture made in place of expired reads starts its own 30 s, so the next paint reuses it.
+    Inventory menu = fixture.player.getOpenInventory().getTopInventory();
+    view.guildView(fixture.player, display, menu, false);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(fresh ? 0 : 1));
+  }
+
+  private Guild idleMenu() {
+    Guild display = displayGuild(guild);
+    fixture.factions.when(() -> FactionManager.getGuildByString("merchants")).thenReturn(display);
+    fixture.ui.online(fixture.player);
+    when(fixture.ui.plugin.isEnabled()).thenReturn(true);
+    return display;
+  }
+
+  private net.tfminecraft.simplefactions.economy.FrozenReads floodReads(long at) {
+    var reads = mock(net.tfminecraft.simplefactions.economy.FrozenReads.class);
+    when(reads.capturedAt()).thenReturn(at);
+    return reads;
+  }
+
+  private net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood flood(
+      net.tfminecraft.simplefactions.economy.FrozenReads reads) {
+    var flood = mock(net.tfminecraft.simplefactions.managers.ProvinceManager.BackgroundFlood.class);
+    when(flood.reads()).thenReturn(reads);
+    when(fixture.provinces.prepareBackgroundFlood()).thenReturn(flood);
+    return flood;
+  }
+
+  private void stubPreviews(net.tfminecraft.simplefactions.economy.FrozenReads reads) {
+    var prepared = mock(BranchIncomePreview.Prepared.class);
+    when(BranchIncomePreview.prepare(fixture.provinces, reads)).thenReturn(prepared);
+    when(BranchIncomePreview.prepare(fixture.provinces)).thenReturn(prepared);
+    when(BranchIncomePreview.current(prepared)).thenReturn(true);
+    previews.clearInvocations();
   }
 
   @Test

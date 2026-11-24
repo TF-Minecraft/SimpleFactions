@@ -3,11 +3,13 @@ package net.tfminecraft.simplefactions.economy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -52,9 +54,7 @@ class FrozenReadsTest {
     private Guild guild;
 
     private org.mockito.MockedStatic<Denars> mockDenars() {
-        var denars = mockStatic(Denars.class, CALLS_REAL_METHODS);
-        denars.when(() -> Denars.taxContributors(any())).thenReturn(Map.of());
-        return denars;
+        return mockStatic(Denars.class, CALLS_REAL_METHODS);
     }
 
     @BeforeEach
@@ -89,7 +89,6 @@ class FrozenReadsTest {
         // Static mocks stay on the test thread, so only the frozen balance can give the worker 12.34.
         assertEquals(12.34, CompletableFuture.supplyAsync(() -> frozen.read(() -> guild.getBank().getWealth())).get());
         assertEquals(0L, frozen.read(() -> FrozenReads.balance("unknown")));
-        assertEquals(Map.of(), frozen.read(() -> FrozenReads.taxContributors(UUID.randomUUID())));
         assertEquals(Map.of(), FrozenReads.taxContributors(null));
     }
 
@@ -101,21 +100,25 @@ class FrozenReadsTest {
         String holding = Denars.guildTax(guild.getIncarnationId());
         FrozenReads frozen;
         UUID contributor = UUID.randomUUID();
-        var contributors = new java.util.HashMap<>(Map.of(contributor, 1000L));
+        long before = System.currentTimeMillis();
         try (var denars = mockDenars()) {
             denars.when(() -> Denars.balance(anyString())).thenReturn(0L);
             denars.when(() -> Denars.balance(holding)).thenReturn(1234L);
-            denars.when(() -> Denars.taxContributors(guild.getIncarnationId())).thenReturn(contributors);
+            denars.when(() -> Denars.taxContributors(guild.getIncarnationId())).thenReturn(Map.of(contributor, 2000L));
             frozen = FrozenReads.capture();
+            // No income reads the names, and each guild's cost a scan of its held tax credits.
+            denars.verify(() -> Denars.taxContributors(any()), never());
             denars.when(() -> Denars.balance(holding)).thenReturn(5000L);
-            contributors.put(contributor, 2000L);
             assertEquals(50.0, ledger.getIncome(Cashflow.CITIZENS));
             assertEquals(Map.of(contributor.toString(), 20.0, "Other citizen taxes", 30.0), ledger.getCitizenTaxBreakdown());
         }
 
         assertEquals(12.34, CompletableFuture.supplyAsync(() -> frozen.read(() -> ledger.getIncome(Cashflow.CITIZENS))).get());
-        assertEquals(Map.of(contributor.toString(), 10.0, "Other citizen taxes", 2.34), CompletableFuture
-                .supplyAsync(() -> frozen.read(ledger::getCitizenTaxBreakdown)).get());
+        // The names stay live-only: a preview asking for them fails instead of reading the ledger off-thread.
+        ExecutionException names = assertThrows(ExecutionException.class,
+                () -> CompletableFuture.supplyAsync(() -> frozen.read(ledger::getCitizenTaxBreakdown)).get());
+        assertInstanceOf(IllegalStateException.class, names.getCause());
+        assertTrue(frozen.capturedAt() >= before);
     }
 
     @Test
