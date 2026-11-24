@@ -19,6 +19,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.guild.branch.Branch;
 import net.tfminecraft.simplefactions.guild.income.BranchIncomePreview;
 import net.tfminecraft.simplefactions.guild.Guild;
@@ -51,6 +52,8 @@ public class GuildView {
 	private static final long PREVIEW_TTL_MS = 30_000;
 	private static final long RECALC_DELAY_TICKS = 20;
 	private SharedPreview preview;
+	/** Reads of the flood this paint started or installed, for a preview copy made in the same paint. */
+	private FrozenReads floodReads;
 	private org.bukkit.scheduler.BukkitTask pendingRecalc;
 	private long recalcRuns;
 	/** The run whose background flood is in flight, or 0. */
@@ -138,7 +141,10 @@ public class GuildView {
 		long now = System.currentTimeMillis();
 		if (preview == null || preview.manager() != manager || now - preview.at() > PREVIEW_TTL_MS
 				|| !BranchIncomePreview.current(preview.prepared())) {
-			preview = new SharedPreview(manager, BranchIncomePreview.prepare(manager), now);
+			// Reads a flood took stand in for a second capture; the copy ages from when they were taken.
+			preview = floodReads == null
+					? new SharedPreview(manager, BranchIncomePreview.prepare(manager), now)
+					: new SharedPreview(manager, BranchIncomePreview.prepare(manager, floodReads), floodReads.capturedAt());
 		}
 		return preview.prepared();
 	}
@@ -164,11 +170,14 @@ public class GuildView {
 	/**
 	 * One full recalculation off the server thread for a menu just opened, then menus showing the
 	 * guild repaint. Joins a recalculation that is already waiting or running.
+	 *
+	 * @return the reads of the flood started now, or null when none was
 	 */
-	private void refreshInBackground(Guild guild) {
+	private FrozenReads refreshInBackground(Guild guild) {
 		pendingRepaint.add(guild.getId());
-		if (pendingRecalc != null || (floodingRun != 0 && floodingRun == recalcRuns)) return;
+		if (pendingRecalc != null || (floodingRun != 0 && floodingRun == recalcRuns)) return null;
 		floodInBackground(++recalcRuns, true);
+		return flooding == null ? null : flooding.reads();
 	}
 
 	/**
@@ -186,7 +195,7 @@ public class GuildView {
 			floodingRun = 0;
 			flooding = null;
 			live.recalculate();
-			repaintAfterRecalc();
+			repaintAfterRecalc(null);
 			return;
 		}
 		floodingRun = run;
@@ -215,16 +224,33 @@ public class GuildView {
 						return;
 					}
 					live.recalculate();
+					repaintAfterRecalc(null);
+					return;
 				}
-				repaintAfterRecalc();
+				repaintAfterRecalc(flood.reads());
 			});
 		});
 	}
 
-	private void repaintAfterRecalc() {
+	/** {@code reads} are those the installed trade was computed from, or null to capture them again. */
+	private void repaintAfterRecalc(FrozenReads reads) {
 		java.util.Set<String> guilds = new java.util.HashSet<>(pendingRepaint);
 		pendingRepaint.clear();
 		preview = null;
+		paintWith(reads, () -> repaint(guilds));
+	}
+
+	private void paintWith(FrozenReads reads, Runnable paint) {
+		FrozenReads outer = floodReads;
+		floodReads = reads;
+		try {
+			paint.run();
+		} finally {
+			floodReads = outer;
+		}
+	}
+
+	private void repaint(java.util.Set<String> guilds) {
 		for (Player viewer : org.bukkit.Bukkit.getOnlinePlayers()) {
 			Inventory top = viewer.getOpenInventory().getTopInventory();
 			if (!(top.getHolder(false) instanceof SFInventoryHolder holder) || holder.getType() != SFGUI.GUILD_VIEW) continue;
@@ -353,18 +379,17 @@ public class GuildView {
             return;
         }
 		if(manager == null) setProvinceManager(SimpleFactions.getInstance().getProvinceManager());
-		if(guild.hasCapital()) {
-			// Trade a guild with no income may be stale, and movement power, civil war and pillage
-			// read it too. Refresh it off the server thread; the menus repaint when it lands.
-			if(refreshIdleTrade && guild.getTradeBreakdown().getIncome() == 0) refreshInBackground(guild);
-			manager.getIncome(guild);
-		}
+		// Trade a guild with no income may be stale, and movement power, civil war and pillage
+		// read it too. Refresh it off the server thread; the menus repaint when it lands.
+		boolean idle = refreshIdleTrade && guild.hasCapital() && guild.getTradeBreakdown().getIncome() == 0;
+		FrozenReads reads = idle ? refreshInBackground(guild) : floodReads;
+		if(guild.hasCapital()) manager.getIncome(guild);
 		manager.recalculateIfNeeded();
 		// The menu only reads, but its items ask every guild's net income (the trade breakdown
 		// ranks all guilds), and each answer read treasuries from SQLite many times over: about
 		// 185 ms per redraw on Dev. One answer per treasury and one stability report per faction
 		// hold for one render, as for the chronicle export.
-		withReadMemos(() -> render(player, guild, i));
+		paintWith(reads, () -> withReadMemos(() -> render(player, guild, i)));
 	}
 
 	private static void withReadMemos(Runnable reads) {

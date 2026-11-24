@@ -32,12 +32,13 @@ public final class BranchIncomePreview {
 
     public static final class Prepared {
         private final ProvinceManager snapshot;
-        private final FrozenReads reads = FrozenReads.capture();
+        private final FrozenReads reads;
         private final long inputs = TradeInputs.fingerprint();
         private final Map<Object, Estimate> estimates = new ConcurrentHashMap<>();
 
-        private Prepared(ProvinceManager snapshot) {
+        private Prepared(ProvinceManager snapshot, FrozenReads reads) {
             this.snapshot = snapshot;
+            this.reads = reads;
         }
 
         /** Main-thread state as it was when this copy was made, for work off the main thread. */
@@ -96,9 +97,12 @@ public final class BranchIncomePreview {
 
     /** Copy province trade data once. Later estimates only read this copy. */
     public static Prepared prepare(ProvinceManager live) {
-        ProvinceManager snapshot = live.createSnapshotShell();
-        snapshot.copyAllDataFrom(live);
-        return new Prepared(snapshot);
+        return prepare(live, FrozenReads.capture());
+    }
+
+    /** As {@link #prepare(ProvinceManager)}, with reads a flood of the same trade already captured. */
+    public static Prepared prepare(ProvinceManager live, FrozenReads reads) {
+        return new Prepared(copy(live), reads);
     }
 
     public static double estimate(ProvinceManager live, Guild guild, Branch branch, int levelDelta) {

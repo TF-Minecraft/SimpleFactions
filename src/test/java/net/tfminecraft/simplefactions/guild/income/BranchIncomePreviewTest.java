@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.guild.income;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import net.tfminecraft.simplefactions.Cache;
+import net.tfminecraft.simplefactions.economy.FrozenReads;
 import net.tfminecraft.simplefactions.enums.GuildModifier;
 import net.tfminecraft.simplefactions.enums.Terrain;
 import net.tfminecraft.simplefactions.government.proposal.TaxTarget;
@@ -111,6 +113,25 @@ class BranchIncomePreviewTest {
 		assertTrue(capital.getAllData().isEmpty());
 		assertTrue(neighbour.getAllData().isEmpty());
 		verify(guild, never()).getTradeBreakdown();
+	}
+
+	@Test
+	void aCopyMadeWithAFloodsReadsGivesTheSameEstimates() {
+		FrozenReads reads = FrozenReads.capture();
+		BranchIncomePreview.Prepared shared = BranchIncomePreview.prepare(live, reads);
+		BranchIncomePreview.Prepared own = BranchIncomePreview.prepare(live);
+		Map<GuildModifier, Double> current = BranchIncomePreview.modifiers(guild);
+
+		assertSame(reads, shared.reads());
+		assertTrue(BranchIncomePreview.current(shared));
+		for (int delta : new int[] {1, -1}) {
+			Map<GuildModifier, Double> changed = BranchIncomePreview.adjust(current, branch, branch.getLevel(), delta);
+			BranchIncomePreview.Estimate expected = own.reads().read(
+					() -> BranchIncomePreview.estimate(own, guild, current, changed));
+			assertTrue(expected.own() != 0);
+			assertEquals(expected, shared.reads().read(
+					() -> BranchIncomePreview.estimate(shared, guild, current, changed)));
+		}
 	}
 
 	@Test

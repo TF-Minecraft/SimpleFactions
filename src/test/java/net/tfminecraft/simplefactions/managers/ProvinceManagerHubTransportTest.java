@@ -178,6 +178,7 @@ class ProvinceManagerHubTransportTest {
 
             ProvinceManager.BackgroundFlood flood = provinces.prepareBackgroundFlood();
             flood.run();
+            org.junit.jupiter.api.Assertions.assertNotNull(flood.reads());
             assertEquals(0, trade(22));
             assertTrue(provinces.adopt(flood));
             assertEquals(8, trade(22), 1e-9);
