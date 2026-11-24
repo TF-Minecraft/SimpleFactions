@@ -350,14 +350,45 @@ class GuildMenusCoverageTest {
   @Test
   void aCopyMadeWithAFloodsReadsExpiresFromWhenTheyWereTaken() {
     Guild display = idleMenu();
-    var reads = floodReads(System.currentTimeMillis() - 31_000);
+    long[] now = {1_000_000};
+    view.clock = () -> now[0];
+    var reads = floodReads(now[0] - 10_000);
     flood(reads);
     stubPreviews(reads);
 
     view.guildView(fixture.player, display);
-    view.guildView(fixture.player, display, fixture.player.getOpenInventory().getTopInventory(), false);
+    Inventory menu = fixture.player.getOpenInventory().getTopInventory();
+    now[0] += 20_000;
+    view.guildView(fixture.player, display, menu, false);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), never());
+    now[0] += 1;
+    view.guildView(fixture.player, display, menu, false);
     previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(1));
     previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(1));
+  }
+
+  @ParameterizedTest
+  @ValueSource(longs = {30_000, 30_001})
+  void aDelayedFloodsReadsPaintOnlyWhileTheyAreFresh(long delay) {
+    Guild display = idleMenu();
+    long[] now = {1_000_000};
+    view.clock = () -> now[0];
+    var reads = floodReads(now[0]);
+    var flood = flood(reads);
+    when(fixture.provinces.adopt(flood)).thenReturn(true);
+    stubPreviews(reads);
+
+    view.guildView(fixture.player, display);
+    now[0] += delay;
+    fixture.ui.runAsyncTasks();
+    fixture.ui.runTasks();
+    boolean fresh = delay == 30_000;
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces, reads), times(fresh ? 2 : 1));
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(fresh ? 0 : 1));
+    // A capture made in place of expired reads starts its own 30 s, so the next paint reuses it.
+    Inventory menu = fixture.player.getOpenInventory().getTopInventory();
+    view.guildView(fixture.player, display, menu, false);
+    previews.verify(() -> BranchIncomePreview.prepare(fixture.provinces), times(fresh ? 0 : 1));
   }
 
   private Guild idleMenu() {

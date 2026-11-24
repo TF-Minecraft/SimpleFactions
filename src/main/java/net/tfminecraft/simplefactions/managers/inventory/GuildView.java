@@ -54,6 +54,8 @@ public class GuildView {
 	private SharedPreview preview;
 	/** Reads of the flood this paint started or installed, for a preview copy made in the same paint. */
 	private FrozenReads floodReads;
+	/** Replaced by tests that outlast a preview. */
+	java.util.function.LongSupplier clock = System::currentTimeMillis;
 	private org.bukkit.scheduler.BukkitTask pendingRecalc;
 	private long recalcRuns;
 	/** The run whose background flood is in flight, or 0. */
@@ -138,11 +140,12 @@ public class GuildView {
 
 	/** Province copy shared by branch previews until the next full recalculation, or for a short while. */
 	private BranchIncomePreview.Prepared tradePreview() {
-		long now = System.currentTimeMillis();
+		long now = clock.getAsLong();
 		if (preview == null || preview.manager() != manager || now - preview.at() > PREVIEW_TTL_MS
 				|| !BranchIncomePreview.current(preview.prepared())) {
-			// Reads a flood took stand in for a second capture; the copy ages from when they were taken.
-			preview = floodReads == null
+			// Reads a flood took stand in for a second capture while they are still fresh; the copy
+			// ages from when they were taken.
+			preview = floodReads == null || now - floodReads.capturedAt() > PREVIEW_TTL_MS
 					? new SharedPreview(manager, BranchIncomePreview.prepare(manager), now)
 					: new SharedPreview(manager, BranchIncomePreview.prepare(manager, floodReads), floodReads.capturedAt());
 		}
