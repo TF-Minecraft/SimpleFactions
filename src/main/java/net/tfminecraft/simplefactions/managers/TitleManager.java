@@ -128,7 +128,8 @@ public class TitleManager implements Listener{
 	}
 
 	public static String standInTitles(Tier lower, Tier tier) {
-		return "§cStand in one of the free " + lower.getName() + " §ctitles the new " + tier.getName() + " §cshould take.";
+		return "§cStand in the land the new " + tier.getName() + " §cshould take: a free " + lower.getName()
+				+ " §ctitle, or untitled land touching one.";
 	}
 
 	public static String tooFewConnectedTitles(int connected, Tier lower, Tier tier) {

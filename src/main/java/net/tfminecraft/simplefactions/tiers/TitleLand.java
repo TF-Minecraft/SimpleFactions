@@ -50,9 +50,11 @@ public final class TitleLand {
 		Map<Integer, Set<Integer>> sameTitle = new HashMap<>();
 		for (Title title : free) {
 			Collection<Integer> land = landOf.apply(title);
-			for (int province : land) {
-				sameTitle.computeIfAbsent(province, key -> new LinkedHashSet<>()).addAll(land);
+			if (land.isEmpty()) {
+				continue;
 			}
+			// One province links to the rest; links work both ways, so the whole title is one group.
+			sameTitle.computeIfAbsent(land.iterator().next(), key -> new LinkedHashSet<>()).addAll(land);
 		}
 		return new CountyLand.Ties(province -> {
 			Set<Integer> out = new LinkedHashSet<>(ties.borders().apply(province));

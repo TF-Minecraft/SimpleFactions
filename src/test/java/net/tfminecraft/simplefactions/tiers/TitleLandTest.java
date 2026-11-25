@@ -54,8 +54,8 @@ class TitleLandTest {
 
   @Test
   void aTitleAlreadySplitInTwoJoinsEitherSideButCountsOnce() {
-    Title split = county("split", 1, 6), middle = county("middle", 3);
-    List<Title> free = List.of(split, middle);
+    Title split = county("split", 1, 6), middle = county("middle", 3), landless = county("landless");
+    List<Title> free = List.of(split, middle, landless);
     assertEquals(List.of(split, middle), TitleLand.pieceAt(6, free, List.of(2), LAND, TIES).titles());
     assertEquals(List.of(split), TitleLand.pieceAt(6, free, List.of(), LAND, TIES).titles());
   }
