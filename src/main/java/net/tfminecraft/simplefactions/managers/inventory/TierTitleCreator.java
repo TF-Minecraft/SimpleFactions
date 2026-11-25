@@ -20,6 +20,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.tiers.CountyLand;
 import net.tfminecraft.simplefactions.tiers.Tier;
 import net.tfminecraft.simplefactions.tiers.Title;
+import net.tfminecraft.simplefactions.tiers.TitleLand;
 import net.tfminecraft.simplefactions.enums.FactionModifiers;
 import net.tfminecraft.tlibs.TLibs;
 import net.tfminecraft.tlibs.enums.APIType;
@@ -201,10 +202,11 @@ public class TierTitleCreator {
 				lore.add(StringFormatter.formatHex("#767a77Largest connected area: #a1aba3" + current + " #535955[" + percent + "%]"));
 				lore.add(StringFormatter.formatHex("#767a77Stand in the land the new "+t.getName()+" #767a77should take."));
 			} else {
-				current = f.getFreeTitles(lower).size();
+				current = TitleLand.largestPiece(f, lower);
 				int percent = (int) Math.round((current * 1.0) / (cost * 1.0) * 100);
-				lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aefree titles of the type "+lower.getName()+" #d4c9aeto form a "+t.getName()+"#d4c9ae!"));
-				lore.add(StringFormatter.formatHex("#767a77Currently: #a1aba3" + current + " #535955[" + percent + "%]"));
+				lore.add(StringFormatter.formatHex("#d4c9aeYou need at least #28ed70"+cost+" #d4c9aeconnected free titles of the type "+lower.getName()+" #d4c9aeto form a "+t.getName()+"#d4c9ae!"));
+				lore.add(StringFormatter.formatHex("#767a77Largest connected group: #a1aba3" + current + " #535955[" + percent + "%]"));
+				lore.add(StringFormatter.formatHex("#767a77Stand in the land the new "+t.getName()+" #767a77should take."));
 			}
 			lore.add("");
 			boolean limited = t.getId().equalsIgnoreCase("county") && Title.countyLimitReached(f, t);

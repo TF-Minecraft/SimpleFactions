@@ -392,6 +392,26 @@ class ArmyMenusCoverageTest {
     verify(player, never()).sendMessage("§eType the name of the new duchy §ein chat.");
   }
 
+  @Test
+  void aDuchyFromTheMenuNeedsCountiesThatTouchAndALeaderStandingInThem() {
+    faction.addMember("Citizen");
+    land(10);
+    land(11);
+    faction.addTitle(fixture.title("First County", "county", 10));
+    faction.addTitle(fixture.title("Second County", "county", 11));
+    Tier duchy = configureTier("duchy", 3, 2);
+    Tier county = TierLoader.getByString("county");
+    titles.titleTypeView(null, player, faction, duchy, true, 0);
+    assertTrue(lore(top().getItem(52)).contains("Largest connected group: 1 [50%]"));
+    titles.click(fixture.ui.click(player, 52), top(), player);
+    verify(player).sendMessage(TitleManager.tooFewConnectedTitles(1, county, duchy));
+    position.when(() -> RestServer.getProvince(player)).thenReturn(99);
+    titles.titleTypeView(null, player, faction, duchy, true, 0);
+    titles.click(fixture.ui.click(player, 52), top(), player);
+    verify(player).sendMessage(TitleManager.standInTitles(county, duchy));
+    assertFalse(TitleManager.isFormingTitle.containsKey(player));
+  }
+
   private Province land(int id) {
     Province province = new Province(id, "PLAINS", 50);
     fixture.provinceData.put(id, province);
@@ -732,6 +752,9 @@ class ArmyMenusCoverageTest {
   void aCompositeTitleListsItsRequiredCountiesAndAnEnabledDuchyUsesFreeTitles() {
     faction.addMember("Citizen");
     faction.addProvince(11);
+    Province home = land(10), east = land(11);
+    home.addNeighbour(11);
+    east.addNeighbour(10);
     Title first = fixture.title("First County", "county", 10),
         second = fixture.title("Second County", "county", 11);
     faction.addTitle(first);
@@ -759,8 +782,8 @@ class ArmyMenusCoverageTest {
     TitleLoader.getTitles().remove(composite);
     titles.titleTypeView(null, player, faction, duchy, true, 0);
     ItemStack create = top().getItem(52);
-    assertTrue(lore(create).contains("2 free titles of the type county"));
-    assertTrue(lore(create).contains("Currently: 2 [100%]"));
+    assertTrue(lore(create).contains("2 connected free titles of the type county"));
+    assertTrue(lore(create).contains("Largest connected group: 2 [100%]"));
     titles.click(fixture.ui.click(player, 52), top(), player);
     assertSame(duchy, TitleManager.isFormingTitle.get(player));
     verify(player).sendMessage("§eType the name of the new duchy §ein chat.");

@@ -25,6 +25,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.rest.RestServer;
 import net.tfminecraft.simplefactions.tiers.CountyLand;
 import net.tfminecraft.simplefactions.tiers.Tier;
+import net.tfminecraft.simplefactions.tiers.TitleLand;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.enums.SFGUI;
 
@@ -211,8 +212,15 @@ public class TierTitleView {
 					}
 				} else {
 					if(lower == null) return;
-					current = f.getFreeTitles(TierLoader.getByLevel(lower.getTier())).size();
-					if(current < needed) return;
+					current = TitleLand.pieceAt(f, lower, RestServer.getProvince(p)).titles().size();
+					if(current == 0) {
+						p.sendMessage(TitleManager.standInTitles(lower, tier));
+						return;
+					}
+					if(current < needed) {
+						p.sendMessage(TitleManager.tooFewConnectedTitles(current, lower, tier));
+						return;
+					}
 				}
 				if(RelationManager.getOverlord(f) != null && FactionManager.getByString(RelationManager.getOverlord(f)).getTier().getTier() < tier.getTier()) {
 					p.sendMessage("§cForming a new "+tier.getName()+" title would make you a higher tier than your liege!");
