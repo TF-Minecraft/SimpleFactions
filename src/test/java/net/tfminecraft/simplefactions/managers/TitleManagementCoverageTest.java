@@ -86,11 +86,11 @@ class TitleManagementCoverageTest {
               json.addProperty("rgb", (String) call.getArgument(3));
               List<Integer> provinces = call.getArgument(4);
               List<String> children = call.getArgument(5);
-              JsonArray parts = new JsonArray();
-              if (tier.getTier() == 2) {
-                provinces.forEach(parts::add);
-                json.add("provinces", parts);
-              } else {
+              JsonArray land = new JsonArray();
+              provinces.forEach(land::add);
+              json.add("provinces", land);
+              if (tier.getTier() != 2) {
+                JsonArray parts = new JsonArray();
                 children.forEach(parts::add);
                 json.add("titles", parts);
               }
@@ -248,6 +248,7 @@ class TitleManagementCoverageTest {
   void higherTitleFormationUsesTheRealFreeLowerTitles() {
     faction.addMember("Member");
     faction.addProvince(11);
+    link(land(10), land(11));
     Title north = fixture.title("north", "county", 10);
     Title south = fixture.title("south", "county", 11);
     faction.addTitle(north);
@@ -613,6 +614,64 @@ class TitleManagementCoverageTest {
     fixture.ui.runTasks();
     assertTrue(created.isEmpty());
     verify(player).sendMessage(TitleManager.tooSmallForCounty(2, county));
+  }
+
+  @Test
+  void aDuchyTakesOnlyTheConnectedCountiesAndTheUntitledLandTouchingThem() {
+    faction.addMember("Second");
+    faction.addMember("Third");
+    // Counties on 10 and 11 border each other; the county on 12 is cut off. Untitled 13 borders 11, untitled 14 stands alone.
+    link(land(10), land(11));
+    link(land(11), land(13));
+    land(12);
+    land(14);
+    for (int id : List.of(11, 12, 13, 14)) faction.addProvince(id);
+    Title north = fixture.title("north", "county", 10);
+    Title south = fixture.title("south", "county", 11);
+    Title far = fixture.title("far", "county", 12);
+    faction.addTitle(north);
+    faction.addTitle(south);
+    faction.addTitle(far);
+    TitleManager.isFormingTitle.put(player, tier("duchy", 3, 2));
+    manager.formTitle(chat("River Duchy"));
+    fixture.ui.runTasks();
+    assertEquals(1, created.size());
+    Title duchy = created.getFirst();
+    assertEquals(List.of("north", "south"), duchy.getTitles());
+    assertEquals(List.of(13), duchy.getProvinces(), "Only untitled land touching the counties joins");
+    assertEquals(List.of(14), faction.getUntitledProvinces());
+    assertEquals(List.of(far), faction.getFreeTitles(TierLoader.getByString("county")), "The cut-off county stays free");
+  }
+
+  @Test
+  void aLeaderOutsideTheirFreeTitlesIsToldWhereToStand() {
+    link(land(10), land(11));
+    Title north = fixture.title("north", "county", 11);
+    faction.addTitle(north);
+    position.when(() -> RestServer.getProvince(player)).thenReturn(99);
+    Tier duchy = tier("duchy", 3, 1);
+    TitleManager.isFormingTitle.put(player, duchy);
+    manager.formTitle(chat("River Duchy"));
+    fixture.ui.runTasks();
+    assertTrue(created.isEmpty());
+    verify(player).sendMessage(TitleManager.standInTitles(TierLoader.getByString("county"), duchy));
+  }
+
+  @Test
+  void countiesThatDoNotTouchCannotFormADuchyTogether() {
+    faction.addMember("Second");
+    land(10);
+    land(11);
+    Title north = fixture.title("north", "county", 10);
+    Title south = fixture.title("south", "county", 11);
+    faction.addTitle(north);
+    faction.addTitle(south);
+    Tier duchy = tier("duchy", 3, 2);
+    TitleManager.isFormingTitle.put(player, duchy);
+    manager.formTitle(chat("River Duchy"));
+    fixture.ui.runTasks();
+    assertTrue(created.isEmpty());
+    verify(player).sendMessage(TitleManager.tooFewConnectedTitles(1, TierLoader.getByString("county"), duchy));
   }
 
   private Province land(int id) {

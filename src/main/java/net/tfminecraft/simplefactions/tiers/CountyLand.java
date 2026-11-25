@@ -1,6 +1,7 @@
 package net.tfminecraft.simplefactions.tiers;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -40,15 +41,24 @@ public final class CountyLand {
 
 	/** The size of the biggest connected part of {@code untitled}. */
 	public static int largestGroup(Collection<Integer> untitled, Ties ties) {
-		Set<Integer> left = new LinkedHashSet<>(untitled);
-		Map<Integer, Set<Integer>> joins = joins(left, ties);
 		int largest = 0;
-		while (!left.isEmpty()) {
-			List<Integer> group = groupOf(left.iterator().next(), left, joins);
-			left.removeAll(group);
+		for (List<Integer> group : groups(untitled, ties)) {
 			largest = Math.max(largest, group.size());
 		}
 		return largest;
+	}
+
+	/** Every connected part of {@code land}, each in {@code land}'s order. */
+	public static List<List<Integer>> groups(Collection<Integer> land, Ties ties) {
+		Set<Integer> left = new LinkedHashSet<>(land);
+		Map<Integer, Set<Integer>> joins = joins(left, ties);
+		List<List<Integer>> groups = new ArrayList<>();
+		while (!left.isEmpty()) {
+			List<Integer> group = groupOf(left.iterator().next(), left, joins);
+			left.removeAll(group);
+			groups.add(group);
+		}
+		return groups;
 	}
 
 	private static List<Integer> groupOf(int start, Set<Integer> land, Map<Integer, Set<Integer>> joins) {

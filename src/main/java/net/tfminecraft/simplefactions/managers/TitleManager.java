@@ -22,6 +22,7 @@ import net.tfminecraft.simplefactions.objects.Faction;
 import net.tfminecraft.simplefactions.rest.RestServer;
 import net.tfminecraft.simplefactions.tiers.CountyLand;
 import net.tfminecraft.simplefactions.tiers.Tier;
+import net.tfminecraft.simplefactions.tiers.TitleLand;
 import net.tfminecraft.simplefactions.tiers.Title;
 import net.tfminecraft.simplefactions.utils.Formatter;
 import net.tfminecraft.simplefactions.utils.RandomRGB;
@@ -60,6 +61,7 @@ public class TitleManager implements Listener{
 		Tier required = TierLoader.getByLevel(tier.getTier() - 1);
 		boolean county = tier.getId().equalsIgnoreCase("county");
 		List<Integer> countyLand = List.of();
+		TitleLand.Piece piece = TitleLand.Piece.EMPTY;
 		int available;
 		if (county) {
 			if (f.getTitles(tier).size() >= f.getMembers().size()) return;
@@ -75,7 +77,16 @@ public class TitleManager implements Listener{
 			available = countyLand.size();
 		} else {
 			if (required == null) return;
-			available = f.getFreeTitles(required).size();
+			piece = TitleLand.pieceAt(f, required, RestServer.getProvince(p));
+			if (piece.titles().isEmpty()) {
+				p.sendMessage(standInTitles(required, tier));
+				return;
+			}
+			if (piece.titles().size() < tier.getFormCost()) {
+				p.sendMessage(tooFewConnectedTitles(piece.titles().size(), required, tier));
+				return;
+			}
+			available = piece.titles().size();
 		}
 		if (available < tier.getFormCost()) return;
 		String overlord = RelationManager.getOverlord(f);
@@ -85,11 +96,9 @@ public class TitleManager implements Listener{
 		}
 
 		List<String> titleStringList = new ArrayList<>();
-		Tier lower = TierLoader.getByLevel(tier.getTier()-1);
-		if(lower != null) {
-			for(Title title : f.getFreeTitles(lower)) {
-				titleStringList.add(title.getId());
-			}
+		List<Title> joined = county && required != null ? f.getFreeTitles(required) : piece.titles();
+		for(Title title : joined) {
+			titleStringList.add(title.getId());
 		}
 		String id = format.formatId(message);
 		if (id.isBlank()) {
@@ -101,7 +110,7 @@ public class TitleManager implements Listener{
 			return;
 		}
 		String name = WordUtils.capitalize(format.formatId(message).replace("_", " "));
-		Title newTitle = TitleLoader.createNewTitle(tier, id, name, RandomRGB.similarButDistinct(f.getRGB()), county ? countyLand : f.getUntitledProvinces(), titleStringList, false);
+		Title newTitle = TitleLoader.createNewTitle(tier, id, name, RandomRGB.similarButDistinct(f.getRGB()), county ? countyLand : piece.provinces(), titleStringList, false);
 		if(newTitle == null) {
 			return;
 		}
@@ -116,6 +125,15 @@ public class TitleManager implements Listener{
 	public static String tooSmallForCounty(int connected, Tier county) {
 		return "§cOnly §f" + connected + "§c connected untitled provinces here; a " + county.getName()
 				+ " §cneeds §f" + county.getFormCost() + "§c joined by land or a river.";
+	}
+
+	public static String standInTitles(Tier lower, Tier tier) {
+		return "§cStand in one of the free " + lower.getName() + " §ctitles the new " + tier.getName() + " §cshould take.";
+	}
+
+	public static String tooFewConnectedTitles(int connected, Tier lower, Tier tier) {
+		return "§cOnly §f" + connected + "§c connected free " + lower.getName() + " §ctitles here; a " + tier.getName()
+				+ " §cneeds §f" + tier.getFormCost() + "§c joined by land or a river.";
 	}
 
 	public static double getClaimCost(Faction f) {
